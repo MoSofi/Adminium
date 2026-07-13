@@ -17,12 +17,12 @@ export const Matrix: Story = {
   tags: ['vrt'],
   render: () => (
     <div className="flex w-[280px] flex-col gap-3">
-      <Input placeholder="Workspace name" />
-      <Input defaultValue="Acme Inc." />
-      <Input mono defaultValue="pk_live_51Nc4aX8kQ" />
-      <Input error defaultValue="not-an-email" />
-      <Input disabled defaultValue="Read only plan" />
-      <Input type="password" defaultValue="hunter2hunter2" />
+      <Input placeholder="Workspace name" aria-label="Workspace name" />
+      <Input defaultValue="Acme Inc." aria-label="Company" />
+      <Input mono defaultValue="pk_live_51Nc4aX8kQ" aria-label="API key" />
+      <Input error defaultValue="not-an-email" aria-label="Email" />
+      <Input disabled defaultValue="Read only plan" aria-label="Plan" />
+      <Input type="password" defaultValue="hunter2hunter2" aria-label="Password" />
     </div>
   ),
 };

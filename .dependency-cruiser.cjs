@@ -171,7 +171,7 @@ module.exports = {
     // by design — they are dev-time wiring, not part of the runtime import graph the
     // 01-architecture.md §2.3 matrix governs.
     exclude: {
-      path: '(^|/)(eslint|vitest|prettier)\\.config\\.(js|ts|mjs|cjs)$|(^|/)scripts/',
+      path: '(^|/)(eslint|vitest|prettier|playwright)\\.config\\.(js|ts|mjs|cjs)$|(^|/)scripts/|(^|/)storybook-static/|(^|/)vrt/',
     },
     moduleSystems: ['es6', 'cjs'],
     tsPreCompilationDeps: true,

@@ -19,7 +19,7 @@ export const Matrix: Story = {
     <div className="flex w-[300px] flex-col gap-3">
       <SearchInput placeholder="Search…" />
       <SearchInput placeholder="Jump to…" kbd="⌘K" />
-      <SearchInput defaultValue="churn" onClear={() => {}} clearLabel="Clear search" />
+      <SearchInput defaultValue="churn" onClear={() => {}} clearLabel="Clear search" aria-label="Search" />
       <SearchInput placeholder="Search…" disabled />
     </div>
   ),

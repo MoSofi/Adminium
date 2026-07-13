@@ -12,6 +12,8 @@ const meta = {
     step: 1,
     incrementLabel: 'Increase',
     decrementLabel: 'Decrease',
+    // real usage wires the name via FormField/htmlFor; standalone needs one
+    'aria-label': 'Quantity',
   },
 } satisfies Meta<typeof NumberStepper>;
 

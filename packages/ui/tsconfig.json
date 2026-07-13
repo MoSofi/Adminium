@@ -5,5 +5,5 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "noEmit": true
   },
-  "include": ["src", ".storybook", "vitest.config.ts"]
+  "include": ["src", ".storybook", "vrt", "vitest.config.ts", "playwright.config.ts"]
 }

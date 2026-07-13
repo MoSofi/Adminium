@@ -1,2 +1,4 @@
 storybook-static/
 *storybook.log
+test-results/
+playwright-report/

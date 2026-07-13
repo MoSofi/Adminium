@@ -11,6 +11,8 @@ const meta = {
     hideLabel: 'Hide value',
     copyLabel: 'Copy value',
     copiedLabel: 'Copied',
+    // real usage wires the name via FormField/htmlFor; standalone needs one
+    'aria-label': 'API key',
   },
 } satisfies Meta<typeof SecretInput>;
 

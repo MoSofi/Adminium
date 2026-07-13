@@ -17,12 +17,15 @@ export const Matrix: Story = {
   tags: ['vrt'],
   render: () => (
     <div className="flex w-[320px] flex-col gap-3">
-      <Textarea placeholder="Leave a note for the next reviewer" />
-      <Textarea defaultValue={'Rotate the webhook secret.\nThen re-run the failed deliveries.'} />
-      <Textarea mono defaultValue={'{\n  "retries": 3\n}'} />
-      <Textarea autoResize defaultValue="Grows with content." className="max-h-40" />
-      <Textarea error defaultValue="Too short" />
-      <Textarea disabled defaultValue="Locked" />
+      <Textarea placeholder="Leave a note for the next reviewer" aria-label="Note" />
+      <Textarea
+        defaultValue={'Rotate the webhook secret.\nThen re-run the failed deliveries.'}
+        aria-label="Note"
+      />
+      <Textarea mono defaultValue={'{\n  "retries": 3\n}'} aria-label="Payload" />
+      <Textarea autoResize defaultValue="Grows with content." className="max-h-40" aria-label="Note" />
+      <Textarea error defaultValue="Too short" aria-label="Note" />
+      <Textarea disabled defaultValue="Locked" aria-label="Note" />
     </div>
   ),
 };

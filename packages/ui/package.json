@@ -23,7 +23,10 @@
     "lint": "eslint src",
     "test": "vitest run",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "a11y": "node scripts/a11y-sweep.mjs",
+    "vrt": "playwright test -c playwright.config.ts",
+    "vrt:update": "playwright test -c playwright.config.ts --update-snapshots"
   },
   "dependencies": {
     "@adminium/tokens": "workspace:*",
@@ -47,6 +50,8 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.54.1",
     "@storybook/addon-a11y": "^9.1.2",
     "@storybook/react-vite": "^9.1.2",
     "@tailwindcss/vite": "^4.1.11",

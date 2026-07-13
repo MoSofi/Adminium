@@ -17,7 +17,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "demo:m2": "node scripts/demo-m2.mjs"
   },
   "dependencies": {
     "@adminium/meta": "workspace:*",
