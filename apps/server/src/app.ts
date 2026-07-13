@@ -16,11 +16,16 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 
+import type { MetaDb } from '@adminium/meta';
+
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
+import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { staticPlugin } from './plugins/static.js';
-import { registerRoutes } from './routes/index.js';
+import { API_PREFIX, registerRoutes } from './routes/index.js';
+import { authRoutes } from './routes/auth/index.js';
+import { meRoutes } from './routes/me/index.js';
 
 /** Pino deny-by-path redaction set (08-server-api.md §1.3 + ADMINIUM_SECRET). */
 export const REDACT_PATHS: readonly string[] = [
@@ -127,6 +132,13 @@ export interface BuildServerOptions {
    * same requestId (the §1.4 support handshake).
    */
   exposeInternalErrors?: boolean | undefined;
+  /**
+   * Connected meta store (07-meta-store.md). When absent the server still
+   * boots (wave-1 behavior) and auth/me routes answer 503 META_NOT_CONFIGURED.
+   */
+  metaDb?: MetaDb | undefined;
+  /** Delivery hook for password-reset tokens (email transport lands later). */
+  onPasswordResetToken?: ((delivery: PasswordResetDelivery) => void) | undefined;
 }
 
 /**
@@ -221,6 +233,11 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   });
 
   await app.register(corePlugin, { env });
+  await app.register(authPlugin, {
+    env,
+    metaDb: opts.metaDb ?? null,
+    deliverResetToken: opts.onPasswordResetToken,
+  });
   await app.register(staticPlugin, { root: opts.staticRoot });
 
   // Unknown route → 404 envelope; non-API GET/HEAD falls back to the SPA
@@ -243,6 +260,15 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   });
 
   await registerRoutes(app);
+
+  // Auth + me resources (08-server-api.md §2.1–§2.2) under the same prefix.
+  await app.register(
+    async (api) => {
+      await api.register(authRoutes);
+      await api.register(meRoutes);
+    },
+    { prefix: API_PREFIX },
+  );
 
   return app;
 }
