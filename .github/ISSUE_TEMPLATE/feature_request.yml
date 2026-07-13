@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest an idea or improvement for Adminium
+title: '[feature]: '
+labels: ['enhancement', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing, check the roadmap in `workplan/16-milestones.md` — the feature may already be scheduled for an upcoming milestone.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve? Describe the use case, not just the solution.
+      placeholder: As an admin-panel builder, I can't ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you would like to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or workarounds you have tried or considered.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Introspection / schema import
+        - Generated app (CRUD, pages, widgets)
+        - Studio / editing
+        - Dashboards / charts
+        - LLM assist
+        - Theming / i18n
+        - Server / API / auth
+        - Desktop (Electron)
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, sketches, links — anything that helps.

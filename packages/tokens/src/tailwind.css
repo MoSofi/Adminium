@@ -1,0 +1,63 @@
+/* @adminium/tokens — Tailwind v4 theme mapping. See workplan/02-design-system.md §3.1.
+   Import order in each app's entry CSS:
+     @import "tailwindcss";
+     @import "@adminium/tokens/index.css";
+     @import "@adminium/tokens/tailwind.css";  */
+
+/* Dark utilities target the attribute, not media queries */
+@custom-variant dark ([data-theme="dark"] &);
+@custom-variant compact ([data-density="compact"] &);
+
+@theme inline {
+  /* colors — `inline` keeps var() references live so runtime theme flips work */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-border: var(--accent-border);
+  --color-pos: var(--pos);         --color-pos-soft: var(--pos-soft);
+  --color-warn: var(--warn);       --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);   --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);       --color-info-soft: var(--info-soft);
+  --color-viz-1: var(--viz-1); --color-viz-2: var(--viz-2); --color-viz-3: var(--viz-3);
+  --color-viz-4: var(--viz-4); --color-viz-5: var(--viz-5); --color-viz-6: var(--viz-6);
+  --color-viz-7: var(--viz-7); --color-viz-8: var(--viz-8);
+
+  /* elevation */
+  --shadow-card: var(--shadow);
+  --shadow-menu: var(--shadow-md);
+  --shadow-modal: var(--shadow-lg);
+  --shadow-glow: var(--accent-glow);
+
+  /* radii → rounded-sm/md/lg/xl */
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px; --radius-xl: 20px;
+
+  /* fonts */
+  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-arabic: "IBM Plex Sans Arabic", "Manrope", system-ui, sans-serif;
+
+  /* type scale (§1.4) → text-display, text-title, … */
+  --text-display: 30px;   --text-display--font-weight: 800; --text-display--letter-spacing: -0.03em;
+  --text-title: 20px;     --text-title--font-weight: 800;   --text-title--letter-spacing: -0.02em;
+  --text-modal: 16.5px;   --text-modal--font-weight: 800;
+  --text-section: 14.5px; --text-section--font-weight: 700; --text-section--letter-spacing: -0.01em;
+  --text-body: 13px;      --text-body--line-height: 1.5;
+  --text-body-sm: 12.5px; --text-body-sm--line-height: 1.5;
+  --text-caption: 11.5px;
+  --text-micro: 10.5px;   --text-micro--font-weight: 700;   --text-micro--letter-spacing: 0.05em;
+
+  /* layout */
+  --spacing-sidebar: 256px;
+  --container-form: 640px; --container-narrow: 720px; --container-page: 1080px;
+  --container-marketing: 1160px; --container-wide: 1200px; --container-max: 1360px;
+}

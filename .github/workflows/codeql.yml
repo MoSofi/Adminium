@@ -1,0 +1,17 @@
+name: codeql
+
+# Stub. CodeQL (js/ts) + `pnpm audit` gate per workplan/01-architecture.md §11.
+# Enable via GitHub code-scanning setup once the repository exists on GitHub
+# (see .github/REPO_SETUP.md); then replace this stub with the real analyze
+# jobs on pull_request + a weekly schedule.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    name: placeholder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain stub
+        run: echo "codeql.yml is a stub. Enable CodeQL code scanning when the GitHub repo is created, then implement the analyze + pnpm audit jobs here."

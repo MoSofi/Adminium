@@ -1,0 +1,31 @@
+{
+  "name": "@adminium/config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Shared tsconfig, ESLint flat config (incl. adminium/no-style-prop), Prettier",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint": "./eslint/index.js",
+    "./eslint-plugin": "./src/eslint-plugin/index.js",
+    "./prettier": "./prettier.json"
+  },
+  "scripts": {
+    "build": "echo 'config package: nothing to build'",
+    "lint": "echo 'self-lint skipped'",
+    "typecheck": "echo 'no ts sources'",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@eslint/js": "9.39.0",
+    "typescript-eslint": "8.44.0"
+  },
+  "devDependencies": {
+    "eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.0"
+  }
+}

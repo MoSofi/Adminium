@@ -1,0 +1,14 @@
+{
+  "name": "@adminium/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Electron offline desktop app",
+  "scripts": {
+    "build": "echo '@adminium/desktop: scaffolded in M11 (see workplan/16-milestones.md)'",
+    "lint": "echo 'no sources yet'",
+    "typecheck": "echo 'no sources yet'",
+    "test": "echo 'no tests yet'"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@adminium/widgets",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Widget registry, page templates, dashboard grid",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./page-config": {
+      "types": "./dist/page-config/index.d.ts",
+      "default": "./dist/page-config/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@adminium/config": "workspace:*",
+    "typescript": "catalog:",
+    "eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

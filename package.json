@@ -1,0 +1,22 @@
+{
+  "name": "adminium-monorepo",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.28.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check-deps": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "changeset": "changeset"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.0",
+    "dependency-cruiser": "^16.10.0",
+    "turbo": "^2.5.0"
+  }
+}

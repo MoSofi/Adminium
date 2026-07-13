@@ -1,0 +1,9 @@
+/* @adminium/tokens — convenience entrypoint: everything except the Tailwind theme mapping.
+   Tailwind consumers additionally import "@adminium/tokens/tailwind.css" AFTER this file. */
+@import "./tokens.css";
+@import "./accents.css";
+@import "./density.css";
+@import "./viz.css";
+@import "./fonts.css";
+@import "./motion.css";
+@import "./exceptions.css";

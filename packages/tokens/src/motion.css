@@ -1,0 +1,174 @@
+/* @adminium/tokens — motion vocabulary. See workplan/02-design-system.md §5.
+   Keyframe names keep the comps' nb- prefix for 1:1 traceability when porting.
+   Conventions: micro-transitions .1–.16s ease; entrances use cubic-bezier(.2,.7,.3,1). */
+
+/* ---------------------------------------------------------------- keyframes */
+
+/* screen/panel entrance: fade + rise (.24–.3s cubic-bezier(.2,.7,.3,1)) */
+@keyframes nb-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* dropdown/modal pop: fade + translateY(-6px) + scale(.97) (.13–.22s) */
+@keyframes nb-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* modal entrance: scale .96–.98 + rise (.2–.22s cubic-bezier(.2,.8,.2,1)) */
+@keyframes nb-modal {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* drawer slide-in from inline-end (.22s); RTL consumers flip via --nb-slide-from */
+@keyframes nb-slide {
+  from { opacity: 0; transform: translateX(var(--nb-slide-from, 24px)); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* toast slide + scale, direction-mirrored pair */
+@keyframes nb-toastin {
+  from { opacity: 0; transform: translateX(28px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes nb-toastin-rtl {
+  from { opacity: 0; transform: translateX(-28px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* toast timer bar scaleX(1 -> 0); duration = toast duration */
+@keyframes nb-toastbar {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* skeleton sweep (surface-3 <-> surface-2 gradient), 1.4s linear infinite */
+@keyframes nb-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* spinner rotation, .7–.8s linear infinite */
+@keyframes nb-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* opacity pulse (live indicators) */
+@keyframes nb-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+
+/* bar growth on mount (.85s); vertical bars set transform-origin: bottom */
+@keyframes nb-grow {
+  from { transform: scale(var(--nb-grow-x, 1), var(--nb-grow-y, 0)); }
+  to   { transform: scale(1, 1); }
+}
+
+/* gauge stroke-dashoffset sweep (1.1s); element sets --nb-ring-from to its circumference */
+@keyframes nb-ring-anim {
+  from { stroke-dashoffset: var(--nb-ring-from, 999); }
+}
+
+/* ------------------------------------------------------- interaction classes */
+
+/* hover lift: translateY(-3px) + menu shadow + strong border */
+.nb-lift {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.nb-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* button press: hover brighten, active shrink */
+.nb-press {
+  transition: transform .12s ease, filter .12s ease;
+}
+.nb-press:hover  { filter: brightness(1.05); }
+.nb-press:active { transform: scale(.97); }
+
+/* icon button: hover well, active shrink */
+.nb-ib {
+  transition: background-color .13s ease, transform .13s ease;
+}
+.nb-ib:hover  { background-color: var(--surface-3); }
+.nb-ib:active { transform: scale(.9); }
+
+/* table-row hover */
+.nb-rowh {
+  transition: background-color .13s ease;
+}
+.nb-rowh:hover { background-color: var(--surface-2); }
+
+/* heat-cell hover accent outline */
+.nb-heat {
+  outline: 2px solid transparent;
+  outline-offset: -1px;
+  transition: outline-color .13s ease;
+}
+.nb-heat:hover { outline-color: var(--accent); }
+
+/* hover-revealed actions: opacity 0 -> 1 + 4px slide inside a .nb-hoverwrap */
+.nb-reveal {
+  opacity: 0;
+  transform: translateX(4px);
+  transition: opacity .16s ease, transform .16s ease;
+}
+[dir="rtl"] .nb-reveal { transform: translateX(-4px); }
+.nb-hoverwrap:hover .nb-reveal,
+.nb-hoverwrap:focus-within .nb-reveal {
+  opacity: 1;
+  transform: none;
+}
+
+/* pill transitions + active shrink */
+.nb-pill {
+  transition: background-color .13s ease, color .13s ease, border-color .13s ease, transform .13s ease;
+}
+.nb-pill:active { transform: scale(.96); }
+
+/* skeleton shimmer surface */
+.nb-skel {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
+  background-size: 200% 100%;
+  animation: nb-shimmer 1.4s linear infinite;
+}
+
+/* custom 10px scrollbar, strong-border thumb, padding-box */
+.nb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.nb-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.nb-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+.nb-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* ------------------------------------------------- prefers-reduced-motion */
+/* Policy: entrances, lifts, grows, ring sweeps and toast slides collapse to instant;
+   spinners keep rotating (a frozen spinner reads as a hang); skeletons go static. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Loading affordances stay perceivable: spinner keeps rotating (slower), skeleton goes static */
+  .nb-spin, [class*="animate-nb-spin"] {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .nb-skel { animation: none !important; background: var(--surface-3) !important; }
+}

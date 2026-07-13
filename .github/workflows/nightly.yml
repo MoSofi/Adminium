@@ -1,0 +1,40 @@
+name: nightly
+
+# M0 risk mitigation (16-milestones.md M0 risks): a cache misconfiguration in
+# ci.yml could hide real breakage behind stale turbo artifacts. This job runs
+# the full pipeline nightly with `turbo --force`, ignoring every cache layer.
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # 03:17 UTC daily
+  workflow_dispatch:
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+
+jobs:
+  full-no-cache:
+    name: full-no-cache
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Full build without any turbo cache
+        run: pnpm turbo run lint typecheck build test --force
+
+      - name: Check dependency graph boundaries
+        run: pnpm run check-deps

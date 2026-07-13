@@ -1,0 +1,36 @@
+{
+  "name": "@adminium/engine",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "SchemaModel, Adapter interface, classification, config generation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config-schema/index.d.ts",
+      "default": "./dist/config-schema/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adminium/widgets": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@adminium/config": "workspace:*",
+    "typescript": "catalog:",
+    "eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

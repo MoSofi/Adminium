@@ -1,0 +1,55 @@
+{
+  "name": "@adminium/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Design tokens: CSS custom properties, accent palettes, density axis, viz palette, fonts, motion, Tailwind v4 theme mapping",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./pre-hydration": {
+      "types": "./dist/pre-hydration.d.ts",
+      "default": "./dist/pre-hydration.js"
+    },
+    "./index.css": "./src/index.css",
+    "./tokens.css": "./src/tokens.css",
+    "./accents.css": "./src/accents.css",
+    "./density.css": "./src/density.css",
+    "./viz.css": "./src/viz.css",
+    "./fonts.css": "./src/fonts.css",
+    "./motion.css": "./src/motion.css",
+    "./exceptions.css": "./src/exceptions.css",
+    "./tailwind.css": "./src/tailwind.css",
+    "./fonts/*": "./src/fonts/*"
+  },
+  "files": [
+    "dist",
+    "src",
+    "LICENSES"
+  ],
+  "scripts": {
+    "build": "node scripts/copy-fonts.mjs && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@adminium/config": "workspace:*",
+    "@fontsource-variable/jetbrains-mono": "^5.2.5",
+    "@fontsource-variable/manrope": "^5.2.5",
+    "@fontsource/ibm-plex-sans-arabic": "^5.2.5",
+    "@tailwindcss/cli": "^4.1.0",
+    "eslint": "catalog:",
+    "tailwindcss": "^4.1.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

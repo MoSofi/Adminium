@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>@adminium/tokens — demo</title>
+<!-- Pre-hydration: MUST run before any stylesheet paints. Keep in sync with src/pre-hydration.ts (snapshot-tested). -->
+<script>(function(){try{var d=document.documentElement,s=localStorage;var t=s.getItem("adminium-theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";d.setAttribute("data-theme",t);d.setAttribute("data-accent",s.getItem("adminium-accent")||"indigo");d.setAttribute("data-density",s.getItem("adminium-density")||"comfortable");var r=s.getItem("adminium-dir");if(r==="rtl")d.setAttribute("dir","rtl");var l=s.getItem("adminium-locale");if(l)d.setAttribute("lang",l.replace("_","-"))}catch(e){}})();</script>
+<link rel="stylesheet" href="../src/index.css" />
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: var(--bg); color: var(--fg);
+    font-family: 'Manrope', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: var(--main-pad, 26px 28px 40px);
+  }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-block-end: 24px; }
+  h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+  .toolbar { display: flex; gap: 8px; margin-inline-start: auto; flex-wrap: wrap; }
+  button {
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    padding: 8px 14px; border-radius: 10px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg);
+    box-shadow: var(--shadow);
+  }
+  button:hover { background: var(--surface-2); }
+  button:active { transform: scale(0.97); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); padding: var(--card-pad, 20px);
+  }
+  .card h2 { font-size: 14px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.01em; }
+  .sw { display: flex; align-items: center; gap: 10px; padding-block: 4px; font-size: 12.5px; color: var(--fg-muted); }
+  .sw i { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border); flex-shrink: 0; }
+  .btn-primary {
+    background: var(--accent); color: var(--accent-fg); border: none;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 36%, transparent);
+  }
+  .btn-primary:hover { filter: brightness(1.05); background: var(--accent); }
+  .btn-soft { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+  }
+  .pill i { width: 6px; height: 6px; border-radius: 50%; border: none; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--cell-fs, 13px); }
+  th { text-align: start; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+       letter-spacing: 0.05em; color: var(--fg-subtle); padding: 8px 12px; background: var(--surface-2);
+       border-block-end: 1px solid var(--border); }
+  td { padding: var(--row-py, 13px) 12px; border-block-end: 1px solid var(--border); }
+  td.num { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: end; }
+  .viz { display: flex; gap: 6px; }
+  .viz i { flex: 1; height: 28px; border-radius: 6px; border: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>@adminium/tokens</h1>
+  <span style="font-size:12.5px;color:var(--fg-subtle)">reload while switching — no flash</span>
+  <div class="toolbar">
+    <button id="t-theme">theme</button>
+    <button id="t-accent">accent</button>
+    <button id="t-density">density</button>
+    <button id="t-dir">dir</button>
+    <button id="t-reset">reset</button>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <h2>Surfaces &amp; text</h2>
+    <div class="sw"><i style="background:var(--bg)"></i>--bg</div>
+    <div class="sw"><i style="background:var(--surface)"></i>--surface</div>
+    <div class="sw"><i style="background:var(--surface-2)"></i>--surface-2</div>
+    <div class="sw"><i style="background:var(--surface-3)"></i>--surface-3</div>
+    <div class="sw"><i style="background:var(--fg)"></i>--fg</div>
+    <div class="sw"><i style="background:var(--fg-muted)"></i>--fg-muted</div>
+    <div class="sw"><i style="background:var(--fg-subtle)"></i>--fg-subtle</div>
+  </div>
+
+  <div class="card">
+    <h2>Semantic tones</h2>
+    <div class="sw"><i style="background:var(--accent)"></i>--accent</div>
+    <div class="sw"><i style="background:var(--accent-soft)"></i>--accent-soft</div>
+    <div class="sw"><i style="background:var(--pos)"></i>--pos</div>
+    <div class="sw"><i style="background:var(--warn)"></i>--warn</div>
+    <div class="sw"><i style="background:var(--danger)"></i>--danger</div>
+    <div class="sw"><i style="background:var(--info)"></i>--info</div>
+    <div style="display:flex;gap:6px;margin-block-start:10px;flex-wrap:wrap">
+      <span class="pill" style="background:var(--pos-soft);color:var(--pos)"><i style="background:var(--pos)"></i>Paid</span>
+      <span class="pill" style="background:var(--warn-soft);color:var(--warn)"><i style="background:var(--warn)"></i>Pending</span>
+      <span class="pill" style="background:var(--danger-soft);color:var(--danger)"><i style="background:var(--danger)"></i>Failed</span>
+      <span class="pill" style="background:var(--accent-soft);color:var(--accent)"><i style="background:var(--accent)"></i>Active</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Buttons</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary">Primary</button>
+      <button>Secondary</button>
+      <button class="btn-soft">Soft</button>
+    </div>
+    <h2 style="margin-block-start:18px">Viz palette</h2>
+    <div class="viz">
+      <i style="background:var(--viz-1)"></i><i style="background:var(--viz-2)"></i>
+      <i style="background:var(--viz-3)"></i><i style="background:var(--viz-4)"></i>
+      <i style="background:var(--viz-5)"></i><i style="background:var(--viz-6)"></i>
+      <i style="background:var(--viz-7)"></i><i style="background:var(--viz-8)"></i>
+    </div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1">
+    <h2>Data table (density-aware)</h2>
+    <table>
+      <thead><tr><th>Customer</th><th>Status</th><th style="text-align:end">MRR</th></tr></thead>
+      <tbody>
+        <tr><td>Coastal Beach House</td><td><span class="pill" style="background:var(--pos-soft);color:var(--pos)">Active</span></td><td class="num">$4,120.00</td></tr>
+        <tr><td>Northwind Traders</td><td><span class="pill" style="background:var(--warn-soft);color:var(--warn)">Trial</span></td><td class="num">$980.00</td></tr>
+        <tr><td>Acme Studio</td><td><span class="pill" style="background:var(--danger-soft);color:var(--danger)">Past due</span></td><td class="num">$12,400.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // Toolbar: cycles each axis and persists to localStorage (the pre-hydration script
+  // reads the same keys on reload — that's the no-flash proof).
+  const html = document.documentElement;
+  const cycle = (arr, cur) => arr[(arr.indexOf(cur) + 1) % arr.length];
+  const wire = (id, key, values, attr, apply) => {
+    const btn = document.getElementById(id);
+    const label = () => { btn.textContent = key.replace('adminium-', '') + ': ' + (localStorage.getItem(key) || values[0]); };
+    btn.addEventListener('click', () => {
+      const next = cycle(values, localStorage.getItem(key) || values[0]);
+      localStorage.setItem(key, next);
+      (apply || ((v) => html.setAttribute(attr, v)))(next);
+      label();
+    });
+    label();
+  };
+  wire('t-theme', 'adminium-theme', ['light', 'dark'], 'data-theme');
+  wire('t-accent', 'adminium-accent', ['indigo', 'blue', 'teal', 'violet', 'rose', 'red', 'orange', 'black'], 'data-accent');
+  wire('t-density', 'adminium-density', ['comfortable', 'compact'], 'data-density');
+  wire('t-dir', 'adminium-dir', ['ltr', 'rtl'], 'dir', (v) => v === 'rtl' ? html.setAttribute('dir', 'rtl') : html.removeAttribute('dir'));
+  document.getElementById('t-reset').addEventListener('click', () => {
+    ['adminium-theme', 'adminium-accent', 'adminium-density', 'adminium-dir'].forEach((k) => localStorage.removeItem(k));
+    location.reload();
+  });
+</script>
+</body>
+</html>

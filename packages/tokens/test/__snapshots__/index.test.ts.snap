@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`preHydrationScript > matches its snapshot (change deliberately, in sync with docs) 1`] = `"(function(){try{var d=document.documentElement,s=localStorage;var t=s.getItem("adminium-theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";d.setAttribute("data-theme",t);d.setAttribute("data-accent",s.getItem("adminium-accent")||"indigo");d.setAttribute("data-density",s.getItem("adminium-density")||"comfortable");var r=s.getItem("adminium-dir");if(r==="rtl")d.setAttribute("dir","rtl");var l=s.getItem("adminium-locale");if(l)d.setAttribute("lang",l.replace("_","-"))}catch(e){}})();"`;

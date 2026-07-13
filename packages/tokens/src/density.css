@@ -1,0 +1,16 @@
+/* @adminium/tokens — density axis (data-density). See workplan/02-design-system.md §1.8.
+   Two canonical densities; the comps' third "power" density is deliberately dropped. */
+:root,
+[data-density="comfortable"] {
+  --row-py: 13px;
+  --cell-fs: 13px;
+  --card-pad: 20px;
+  --main-pad: 26px 28px 40px;
+}
+
+[data-density="compact"] {
+  --row-py: 7px;
+  --cell-fs: 12px;
+  --card-pad: 16px;
+  --main-pad: 16px 20px 30px;
+}

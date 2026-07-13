@@ -1,0 +1,64 @@
+/* @adminium/tokens — canonical theming exceptions. See workplan/02-design-system.md §6.
+   Two deliberate breaks from the active theme, implemented as scope classes that re-declare
+   the full token set on a subtree (token cascade does the rest — children need no changes).
+   These scopes copy canonical hand-tuned values; they do not derive them. */
+
+/* Code/terminal surfaces are ALWAYS dark, both themes:
+   CodeBlock, Terminal, JsonViewer, LogBox, connection-string previews */
+.adm-always-dark {
+  color-scheme: dark;
+  --bg: #0e0e13;
+  --surface: #0f0f14;
+  --surface-2: #1a1a20;
+  --surface-3: #24242c;
+  --border: rgba(255,255,255,.07);
+  --border-strong: rgba(255,255,255,.13);
+  --fg: #f4f4f6;
+  --fg-muted: #9a9aa6;
+  --fg-subtle: #6a6a76;
+  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+  --pos: #3ecf8e;
+  --pos-soft: rgba(62,207,142,.14);
+  --warn: #e0a458;
+  --warn-soft: rgba(224,164,88,.14);
+  --danger: #ff6b6b;
+  --danger-soft: rgba(255,107,107,.14);
+  --info: #6ea8ff;
+  --info-soft: rgba(110,168,255,.14);
+  --shadow: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 6px 20px rgba(0,0,0,.5);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.6);
+  /* JSON syntax tokens (fixed, never themed) */
+  --code-blue: #7cc5ff;
+  --code-green: #8fe388;
+  --code-orange: #e6b673;
+  --code-purple: #c8a6ff;
+  --code-gray: #7d7d8a;
+}
+
+/* Email previews and QR tiles are ALWAYS light, both themes
+   (emails render in clients we don't control; QR needs dark-on-light contrast) */
+.adm-always-light {
+  color-scheme: light;
+  --bg: #f6f6f8;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-3: #f1f1f4;
+  --border: #ececef;
+  --border-strong: #e2e2e8;
+  --fg: #191920;
+  --fg-muted: #6b6b76;
+  --fg-subtle: #9a9aa5;
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --pos: #12805c;
+  --pos-soft: #e6f5ee;
+  --warn: #b25e09;
+  --warn-soft: #fbf0e2;
+  --danger: #d1293d;
+  --danger-soft: #fdecec;
+  --info: #2563eb;
+  --info-soft: #e7edfd;
+  --shadow: 0 1px 2px rgba(20,20,35,.04), 0 1px 3px rgba(20,20,35,.05);
+  --shadow-md: 0 4px 14px rgba(20,20,35,.09);
+  --shadow-lg: 0 12px 34px rgba(20,20,35,.13);
+}

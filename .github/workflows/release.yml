@@ -1,0 +1,16 @@
+name: release
+
+# Stub. Filled in at M10 (workplan/01-architecture.md §11, tasks 01-T12/T14/T15):
+# changesets version PR -> tag v* -> npm publish with provenance, multi-arch
+# Docker to ghcr, Electron matrix with signing (M11), docs deploy.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    name: placeholder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain stub
+        run: echo "release.yml is a stub. It is implemented in milestone M10 (tasks 01-T12, 01-T14; Electron matrix in M11 via 01-T15)."

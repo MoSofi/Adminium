@@ -1,0 +1,24 @@
+/* @adminium/tokens — accent palettes + derived accent tokens. See workplan/02-design-system.md §1.2/§2.3.
+   Everything accent-derived is computed from the single --accent hex; switching data-accent
+   changes exactly one value. Derivation recipes are defined here once, never re-derived in components. */
+:root,
+[data-accent="indigo"] { --accent: #4f46e5; }
+[data-accent="blue"]   { --accent: #2563eb; }
+[data-accent="teal"]   { --accent: #0d9488; }
+[data-accent="violet"] { --accent: #7c3aed; }
+[data-accent="rose"]   { --accent: #e11d48; }
+[data-accent="red"]    { --accent: #e5484d; }
+[data-accent="orange"] { --accent: #ea580c; }
+[data-accent="black"]  { --accent: #111111; }
+
+:root {
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent) 82%, #000);
+  --accent-selection: color-mix(in srgb, var(--accent) 22%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
+  --accent-glow: 0 2px 8px color-mix(in srgb, var(--accent) 36%, transparent);
+}
+
+[data-theme="dark"] {
+  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+}
