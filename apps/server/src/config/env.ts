@@ -39,6 +39,38 @@ export const envSchema = z.object({
       .optional()
       .transform((value) => (value === undefined ? false : TRUTHY.has(value))),
   ),
+  ADMINIUM_TRUST_PROXY: z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(BOOLEANISH)
+      .optional()
+      .transform((value) => (value === undefined ? false : TRUTHY.has(value))),
+  ),
+  // CORS is off by default — the SPA is same-origin (08-server-api.md §7 item 4).
+  // A CSV of exact origins opts split deployments in; wildcard is rejected here
+  // because responses are credentialed (cookies).
+  ADMINIUM_CORS_ORIGINS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const origins = value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter((origin) => origin.length > 0);
+        if (origins.length === 0) return undefined;
+        if (origins.includes('*')) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'wildcard origin is not allowed with credentialed requests',
+          });
+          return z.NEVER;
+        }
+        return origins;
+      }),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -52,6 +84,9 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_DATA_DIR: 'writable directory for files, exports, and backups (default ./data)',
   ADMINIUM_LOG_LEVEL: `one of ${LOG_LEVELS.join(', ')} (default info)`,
   ADMINIUM_TELEMETRY: `one of ${BOOLEANISH.join(', ')} (default off)`,
+  ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
+  ADMINIUM_CORS_ORIGINS:
+    'CSV of exact origins for split deployments, e.g. https://admin.acme.io — no wildcard',
 };
 
 export class EnvValidationError extends Error {

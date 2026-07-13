@@ -1,0 +1,213 @@
+/**
+ * Adminium-owned migration runner (07-meta-store.md §4).
+ *
+ * - Up-only, append-only, sequential migrations (src/migrations/).
+ * - `adminium_migrations` ledger (name PK, checksum, applied_at, duration_ms,
+ *   adminium_version) — created with CREATE TABLE IF NOT EXISTS, the only DDL
+ *   outside migration files.
+ * - Checksum drift detection: an applied migration whose contents changed
+ *   aborts with the migration name and remedy.
+ * - Unknown ledger rows (database migrated by a newer Adminium) abort with an
+ *   upgrade message.
+ * - Transactional per migration on PostgreSQL/SQLite (transactional DDL); on
+ *   MySQL the ledger row is written immediately after the last statement and
+ *   every DDL statement is individually re-runnable (ifNotExists guards).
+ */
+
+import { createHash } from 'node:crypto';
+
+import { sql, type Kysely } from 'kysely';
+
+import { columnHelpers, type MetaDialect } from './columns.js';
+import { ALL_MIGRATIONS, type MetaMigration } from './migrations/index.js';
+import type { MetaDB } from './schema/tables.js';
+
+/** Package version recorded in the ledger. */
+export const META_PACKAGE_VERSION = '0.0.0';
+
+const LEDGER = 'adminium_migrations';
+
+export class MigrationChecksumDriftError extends Error {
+  override name = 'MigrationChecksumDriftError';
+  constructor(readonly migrationName: string) {
+    super(
+      `Migration "${migrationName}" was modified after it was applied to this database. ` +
+        'Restore the original migration file or ship a new compensating migration — applied migrations are never edited.',
+    );
+  }
+}
+
+export class UnknownMigrationError extends Error {
+  override name = 'UnknownMigrationError';
+  constructor(readonly migrationName: string) {
+    super(
+      `The migration ledger contains "${migrationName}", which this Adminium version does not know. ` +
+        'This database was migrated by a newer Adminium — upgrade the app.',
+    );
+  }
+}
+
+export class MigrationOrderError extends Error {
+  override name = 'MigrationOrderError';
+}
+
+/**
+ * SHA-256 over the migration name + its compiled `up` body. Editing an applied
+ * migration changes the digest, tripping drift detection on the next boot.
+ */
+export function migrationChecksum(migration: MetaMigration): string {
+  return createHash('sha256').update(`${migration.name}\n${migration.up.toString()}`).digest('hex');
+}
+
+export interface MigratorOptions {
+  dialect: MetaDialect;
+  /** Override the built-in list — tests only. */
+  migrations?: readonly MetaMigration[];
+  /** Version stamped into the ledger; defaults to {@link META_PACKAGE_VERSION}. */
+  version?: string;
+  /** Clock override — tests only. */
+  now?: () => number;
+}
+
+export interface ApplyResult {
+  /** Names applied by this call, in order (empty ⇒ already up to date). */
+  applied: string[];
+}
+
+export interface MigrationStatusEntry {
+  name: string;
+  applied: boolean;
+  appliedAt: number | null;
+  /** True when the ledger checksum no longer matches the file. */
+  drift: boolean;
+  /** False for ledger rows this Adminium version does not know. */
+  known: boolean;
+}
+
+function orderedMigrations(migrations: readonly MetaMigration[]): readonly MetaMigration[] {
+  const names = new Set<string>();
+  let prev = '';
+  for (const m of migrations) {
+    if (names.has(m.name)) throw new MigrationOrderError(`duplicate migration name: ${m.name}`);
+    if (m.name <= prev) {
+      throw new MigrationOrderError(`migrations out of order: "${m.name}" after "${prev}"`);
+    }
+    names.add(m.name);
+    prev = m.name;
+  }
+  return migrations;
+}
+
+async function ensureLedger(db: Kysely<MetaDB>, dialect: MetaDialect): Promise<void> {
+  const c = columnHelpers(dialect);
+  await db.schema
+    .createTable(LEDGER)
+    .ifNotExists()
+    .addColumn('name', c.str(120), (col) => col.primaryKey())
+    .addColumn('checksum', c.str(64), (col) => col.notNull())
+    .addColumn('applied_at', c.ts, (col) => col.notNull())
+    .addColumn('duration_ms', c.int, (col) => col.notNull())
+    .addColumn('adminium_version', c.str(20), (col) => col.notNull())
+    .execute();
+}
+
+/** SQLite enforces FKs per connection; must run before any FK-dependent work (§2.2). */
+export async function enableSqliteForeignKeys(db: Kysely<MetaDB>): Promise<void> {
+  await sql`PRAGMA foreign_keys = ON`.execute(db);
+}
+
+interface LedgerValidation {
+  appliedNames: Set<string>;
+}
+
+async function readAndValidateLedger(
+  db: Kysely<MetaDB>,
+  migrations: readonly MetaMigration[],
+): Promise<LedgerValidation> {
+  const rows = await db.selectFrom(LEDGER).selectAll().execute();
+  const byName = new Map(migrations.map((m) => [m.name, m] as const));
+  for (const row of rows) {
+    const migration = byName.get(row.name);
+    if (!migration) throw new UnknownMigrationError(row.name);
+    if (migrationChecksum(migration) !== row.checksum) {
+      throw new MigrationChecksumDriftError(row.name);
+    }
+  }
+  return { appliedNames: new Set(rows.map((r) => r.name)) };
+}
+
+/**
+ * Apply all pending migrations, in order. Idempotent: already-applied
+ * migrations are skipped via the ledger; concurrent runners racing on the same
+ * migration collide on the ledger PK inside the transaction (PG/SQLite), so
+ * each migration is applied exactly once.
+ */
+export async function applyMigrations(db: Kysely<MetaDB>, options: MigratorOptions): Promise<ApplyResult> {
+  const migrations = orderedMigrations(options.migrations ?? ALL_MIGRATIONS);
+  const now = options.now ?? Date.now;
+  const version = options.version ?? META_PACKAGE_VERSION;
+  const dialect = options.dialect;
+
+  if (dialect === 'sqlite') await enableSqliteForeignKeys(db);
+  await ensureLedger(db, dialect);
+  const { appliedNames } = await readAndValidateLedger(db, migrations);
+
+  const c = columnHelpers(dialect);
+  const applied: string[] = [];
+
+  for (const migration of migrations) {
+    if (appliedNames.has(migration.name)) continue;
+    const startedAt = now();
+    const ledgerRow = () => ({
+      name: migration.name,
+      checksum: migrationChecksum(migration),
+      appliedAt: now(),
+      durationMs: Math.max(0, now() - startedAt),
+      adminiumVersion: version,
+    });
+
+    if (dialect === 'mysql') {
+      // No transactional DDL: statements are individually re-runnable
+      // (ifNotExists), and the ledger row lands right after the last one.
+      await migration.up(db as unknown as Kysely<unknown>, c);
+      await db.insertInto(LEDGER).values(ledgerRow()).execute();
+    } else {
+      await db.transaction().execute(async (trx) => {
+        await migration.up(trx as unknown as Kysely<unknown>, c);
+        await trx.insertInto(LEDGER).values(ledgerRow()).execute();
+      });
+    }
+    applied.push(migration.name);
+  }
+
+  return { applied };
+}
+
+/** Ledger vs file status for `adminium migrate --status`. */
+export async function migrationStatus(
+  db: Kysely<MetaDB>,
+  options: MigratorOptions,
+): Promise<MigrationStatusEntry[]> {
+  const migrations = orderedMigrations(options.migrations ?? ALL_MIGRATIONS);
+  await ensureLedger(db, options.dialect);
+  const rows = await db.selectFrom(LEDGER).selectAll().execute();
+  const ledger = new Map(rows.map((r) => [r.name, r] as const));
+  const known = new Set(migrations.map((m) => m.name));
+
+  const entries: MigrationStatusEntry[] = migrations.map((m) => {
+    const row = ledger.get(m.name);
+    return {
+      name: m.name,
+      applied: row !== undefined,
+      appliedAt: row?.appliedAt ?? null,
+      drift: row !== undefined && migrationChecksum(m) !== row.checksum,
+      known: true,
+    };
+  });
+  for (const row of rows) {
+    if (!known.has(row.name)) {
+      entries.push({ name: row.name, applied: true, appliedAt: row.appliedAt, drift: false, known: false });
+    }
+  }
+  return entries;
+}

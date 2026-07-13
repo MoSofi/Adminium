@@ -1,0 +1,9 @@
+/* Storybook Tailwind entry for @adminium/ui (03-component-library.md §8).
+   Import order per @adminium/tokens/tailwind.css:
+     tailwindcss → tokens/index.css (imported by .storybook/preview.tsx) → tokens/tailwind.css. */
+@import "tailwindcss";
+@import "@adminium/tokens/tailwind.css";
+
+/* Generate utilities for every component/story source in this package. */
+@source "../**/*.{ts,tsx}";
+@source "../../.storybook/**/*.{ts,tsx}";

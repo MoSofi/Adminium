@@ -4,23 +4,34 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "description": "adminium_* meta-store: Kysely models + migration runner",
+  "description": "adminium_* meta-store: Kysely models, migrations, repos, bootstrap",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations/index.d.ts",
+      "default": "./dist/migrations/index.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "kysely": "^0.28.2",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "22.15.3",
+    "better-sqlite3": "^12.2.0",
     "typescript": "catalog:",
     "eslint": "catalog:",
     "vitest": "catalog:"

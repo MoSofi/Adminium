@@ -32,6 +32,8 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_DATA_DIR: './data',
       ADMINIUM_LOG_LEVEL: 'info',
       ADMINIUM_TELEMETRY: false,
+      ADMINIUM_TRUST_PROXY: false,
+      ADMINIUM_CORS_ORIGINS: undefined,
     });
   });
 
@@ -74,6 +76,42 @@ describe('loadEnv — valid input', () => {
     expect(env.PORT).toBe(4600);
     expect(env.ADMINIUM_LOG_LEVEL).toBe('info');
     expect(env.DATABASE_URL).toBeUndefined();
+  });
+
+  it.each([
+    ['on', true],
+    ['off', false],
+  ])('parses boolean-ish ADMINIUM_TRUST_PROXY=%s as %s', (raw, expected) => {
+    const env = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_TRUST_PROXY: raw }, makeStderr());
+    expect(env.ADMINIUM_TRUST_PROXY).toBe(expected);
+  });
+
+  it('parses ADMINIUM_CORS_ORIGINS as a trimmed CSV list', () => {
+    const env = loadEnv(
+      {
+        ADMINIUM_SECRET: SECRET,
+        ADMINIUM_CORS_ORIGINS: ' https://admin.acme.io , https://ops.acme.io ',
+      },
+      makeStderr(),
+    );
+    expect(env.ADMINIUM_CORS_ORIGINS).toEqual(['https://admin.acme.io', 'https://ops.acme.io']);
+  });
+
+  it('treats an empty ADMINIUM_CORS_ORIGINS as unset', () => {
+    const env = loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_CORS_ORIGINS: ' , ' }, makeStderr());
+    expect(env.ADMINIUM_CORS_ORIGINS).toBeUndefined();
+  });
+
+  it('rejects a wildcard CORS origin (credentialed responses)', () => {
+    expect(() =>
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_CORS_ORIGINS: '*' }, makeStderr()),
+    ).toThrow(EnvValidationError);
+    expect(() =>
+      loadEnv(
+        { ADMINIUM_SECRET: SECRET, ADMINIUM_CORS_ORIGINS: 'https://a.io,*' },
+        makeStderr(),
+      ),
+    ).toThrow(EnvValidationError);
   });
 
   it('ignores unrelated environment variables', () => {

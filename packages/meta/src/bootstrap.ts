@@ -1,0 +1,173 @@
+/**
+ * First-run bootstrap (07-meta-store.md §6): migrations + built-in role and
+ * permission seeds + `system.*` settings, plus the guarded creation of the
+ * first super admin. Re-running is safe — every step is guarded by existence
+ * checks and seeds use slug/key natural-key upserts, so upgrades can add new
+ * built-in permission rows without touching user edits.
+ */
+
+import { randomUUID } from 'node:crypto';
+
+import type { MetaDb } from './connect.js';
+import { applyMigrations } from './migrator.js';
+import { SYSTEM_ACTION_KEYS, type SystemActionKey } from './schema/json-payloads.js';
+import { permissionsRepo } from './repos/permissions.js';
+import { rolesRepo, type Role } from './repos/roles.js';
+import { settingsRepo } from './repos/settings.js';
+import { usersRepo, type User } from './repos/users.js';
+
+export interface BuiltinRoleDef {
+  slug: string;
+  name: string;
+  description: string;
+  /** System action grants seeded as `{ allowed: true }` rows (§6 step 3). */
+  systemActions: readonly SystemActionKey[];
+}
+
+/**
+ * The four built-in roles (§3.8, §6). Super-admin gets every system action
+ * (the RBAC layer short-circuits for `super-admin` anyway); admin gets the §6
+ * management set; editor/viewer get table/page grants dynamically at
+ * generation time, no system actions.
+ */
+export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
+  {
+    slug: 'super-admin',
+    name: 'Super Admin',
+    description: 'Full access to everything, including users, roles, and settings.',
+    systemActions: SYSTEM_ACTION_KEYS,
+  },
+  {
+    slug: 'admin',
+    name: 'Admin',
+    description: 'Manages connections, schema, automations, and webhooks.',
+    systemActions: ['connections.manage', 'schema.remap', 'llm.run', 'automations.manage', 'webhooks.manage'],
+  },
+  {
+    slug: 'editor',
+    name: 'Editor',
+    description: 'Reads, creates, and updates records; views pages.',
+    systemActions: [],
+  },
+  {
+    slug: 'viewer',
+    name: 'Viewer',
+    description: 'Read-only access to records and pages.',
+    systemActions: [],
+  },
+];
+
+export class FirstUserExistsError extends Error {
+  override name = 'FirstUserExistsError';
+  constructor() {
+    super('createFirstSuperAdmin is only allowed when zero users exist.');
+  }
+}
+
+export class BootstrapStateError extends Error {
+  override name = 'BootstrapStateError';
+}
+
+/**
+ * Seed the built-in roles and their permission baselines. Idempotent
+ * natural-key upserts: existing roles are left untouched (user renames of
+ * non-super-admin built-ins survive), and only missing permission rows are
+ * inserted (user permission edits survive upgrades).
+ */
+export async function seedBuiltinRoles(meta: MetaDb, at: number = Date.now()): Promise<{ createdRoles: string[] }> {
+  const roles = rolesRepo(meta);
+  const permissions = permissionsRepo(meta);
+  const createdRoles: string[] = [];
+
+  for (const def of BUILTIN_ROLES) {
+    let role: Role | null = await roles.findBySlug(def.slug);
+    if (!role) {
+      role = await roles.create(
+        { slug: def.slug, name: def.name, description: def.description, isBuiltin: true },
+        at,
+      );
+      createdRoles.push(def.slug);
+    }
+    for (const action of def.systemActions) {
+      const existing = await permissions.find(role.id, 'system', action);
+      if (!existing) {
+        await permissions.grant(role.id, 'system', action, { allowed: true });
+      }
+    }
+  }
+  return { createdRoles };
+}
+
+/**
+ * Seed the `system.*` settings keys (§6 step 4). Only system identity keys
+ * are written — behavioral settings stay unset so a fresh install resolves to
+ * registry defaults (indigo / system theme / en_US) without a settings row.
+ */
+export async function seedSystemSettings(meta: MetaDb, at: number = Date.now()): Promise<void> {
+  const settings = settingsRepo(meta);
+  if ((await settings.get('system.instanceId')) === null) {
+    await settings.set('system.instanceId', randomUUID(), { at });
+  }
+  if ((await settings.get('system.bootstrappedAt')) === null) {
+    await settings.set('system.bootstrappedAt', at, { at });
+    await settings.set('system.configVersion', 1, { at });
+  }
+}
+
+export interface FirstRunResult {
+  appliedMigrations: string[];
+  createdRoles: string[];
+}
+
+/**
+ * Everything a fresh database needs from a single call: apply all pending
+ * migrations, seed built-in roles/permissions, seed system settings.
+ * Safe to run at every boot (§6).
+ */
+export async function firstRun(meta: MetaDb, at: number = Date.now()): Promise<FirstRunResult> {
+  const { applied } = await applyMigrations(meta.db, { dialect: meta.dialect });
+  const { createdRoles } = await seedBuiltinRoles(meta, at);
+  await seedSystemSettings(meta, at);
+  return { appliedMigrations: applied, createdRoles };
+}
+
+export interface CreateFirstSuperAdminInput {
+  email: string;
+  /** Defaults to the email local part. */
+  name?: string;
+  /** argon2id — hashing happens in the server. */
+  passwordHash: string;
+}
+
+/**
+ * Create the very first user and grant `super-admin` (§6 step 2). Guarded:
+ * throws {@link FirstUserExistsError} when any user already exists.
+ */
+export async function createFirstSuperAdmin(
+  meta: MetaDb,
+  input: CreateFirstSuperAdminInput,
+  at: number = Date.now(),
+): Promise<User> {
+  const users = usersRepo(meta);
+  const roles = rolesRepo(meta);
+
+  if ((await users.count()) > 0) throw new FirstUserExistsError();
+
+  const superAdmin = await roles.findBySlug('super-admin');
+  if (!superAdmin) {
+    throw new BootstrapStateError('built-in roles missing — run firstRun() before createFirstSuperAdmin().');
+  }
+
+  const name = input.name ?? input.email.split('@')[0] ?? input.email;
+  const user = await users.create(
+    { email: input.email, name, passwordHash: input.passwordHash, status: 'active' },
+    at,
+  );
+  await roles.assignToUser(user.id, superAdmin.id, null, at);
+  return user;
+}
+
+/** Zero users ⇒ setup mode: the server serves only /setup/* (§6 step 1). */
+export async function isBootstrapRequired(meta: MetaDb): Promise<boolean> {
+  return (await usersRepo(meta).count()) === 0;
+}

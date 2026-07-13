@@ -1,0 +1,9 @@
+<!--
+  Pre-hydration flash prevention (02-design-system.md §4.3). This is the
+  inline-able literal exported as `preHydrationScript` from @adminium/tokens —
+  static preview-head.html cannot import it, so keep this copy in sync with
+  packages/tokens/src/pre-hydration.ts.
+-->
+<script>
+  (function(){try{var d=document.documentElement,s=localStorage;var t=s.getItem("adminium-theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";d.setAttribute("data-theme",t);d.setAttribute("data-accent",s.getItem("adminium-accent")||"indigo");d.setAttribute("data-density",s.getItem("adminium-density")||"comfortable");var r=s.getItem("adminium-dir");if(r==="rtl")d.setAttribute("dir","rtl");var l=s.getItem("adminium-locale");if(l)d.setAttribute("lang",l.replace("_","-"))}catch(e){}})();
+</script>
