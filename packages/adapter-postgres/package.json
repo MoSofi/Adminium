@@ -17,10 +17,16 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adminium/engine": "workspace:*",
+    "kysely": "^0.28.2",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@types/pg": "^8.15.5",
     "typescript": "catalog:",
     "eslint": "catalog:",
     "vitest": "catalog:"

@@ -15,6 +15,10 @@
     "./config": {
       "types": "./dist/config-schema/index.d.ts",
       "default": "./dist/config-schema/index.js"
+    },
+    "./adapter": {
+      "types": "./dist/adapter.d.ts",
+      "default": "./dist/adapter.js"
     }
   },
   "scripts": {

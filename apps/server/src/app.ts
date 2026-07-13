@@ -25,6 +25,7 @@ import { corePlugin } from './plugins/core.js';
 import { staticPlugin } from './plugins/static.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
 import { authRoutes } from './routes/auth/index.js';
+import { bootstrapRoutes } from './routes/bootstrap/index.js';
 import { meRoutes } from './routes/me/index.js';
 
 /** Pino deny-by-path redaction set (08-server-api.md §1.3 + ADMINIUM_SECRET). */
@@ -261,11 +262,13 @@ export async function buildServer(opts: BuildServerOptions = {}) {
 
   await registerRoutes(app);
 
-  // Auth + me resources (08-server-api.md §2.1–§2.2) under the same prefix.
+  // Auth + me + bootstrap resources (08-server-api.md §2.1–§2.2,
+  // 09-generated-app.md §2.1) under the same prefix.
   await app.register(
     async (api) => {
       await api.register(authRoutes);
       await api.register(meRoutes);
+      await api.register(bootstrapRoutes);
     },
     { prefix: API_PREFIX },
   );

@@ -1,0 +1,104 @@
+/**
+ * Bootstrap query + types (09-generated-app.md §2.1–§2.2): the one round trip
+ * that primes the shell — session user, resolved preference axes, the nav
+ * tree, and version/configVersion stamps. Held under `['bootstrap']` with
+ * `staleTime: Infinity`; WS `config-changed` invalidates it (app/ws.ts).
+ *
+ * SYNC NOTE: these shapes mirror the Zod reply schema in
+ * `apps/server/src/routes/bootstrap/schema.ts` (the dashboard imports server
+ * types type-only-or-copied per the 01-architecture.md §2.3 matrix — until an
+ * `@adminium/server/api-types` subpath ships, this is the copied mirror).
+ * Change both together.
+ */
+import { queryOptions } from '@tanstack/react-query';
+import type { Accent, Density, Dir, ThemePref } from '@adminium/tokens';
+import type { Locale } from '@adminium/ui';
+
+import { api, ApiError } from './api.js';
+
+export interface SessionUser {
+  id: string;
+  email: string;
+  name: string;
+  status: 'active' | 'invited' | 'suspended';
+  totpEnabled: boolean;
+  lastLoginAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** The five fixed sidebar groups, in order (research/ia-mapping.md §2A). */
+export const NAV_GROUP_KEYS = ['workspace', 'library', 'planning', 'people', 'account'] as const;
+export type NavGroupKey = (typeof NAV_GROUP_KEYS)[number];
+
+export interface NavItem {
+  pageId: string;
+  slug: string;
+  labelKey: string;
+  fallback: string;
+  /** lucide icon name (kebab-case). */
+  icon: string;
+  badge?: 'unread-count' | 'pending-count';
+  order: number;
+}
+
+export interface NavTree {
+  groups: Array<{ key: NavGroupKey; items: NavItem[] }>;
+}
+
+type PrefSource = 'system' | 'global' | 'user';
+
+/** §7.2 server-resolved axes + per-axis provenance. */
+export interface ResolvedPrefs {
+  theme: ThemePref;
+  accent: Accent;
+  density: Density;
+  locale: Locale;
+  dir: Dir;
+  source: { theme: PrefSource; accent: PrefSource; density: PrefSource; locale: PrefSource; dir: PrefSource };
+}
+
+export interface BootstrapData {
+  user: SessionUser;
+  roles: string[];
+  prefs: ResolvedPrefs;
+  nav: NavTree;
+  version: string;
+  configVersion: number;
+  llm: { enabled: boolean };
+}
+
+/** Never retry auth failures — they mean "go to /login", not "try harder". */
+function retryBootstrap(failureCount: number, error: unknown): boolean {
+  if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
+  return failureCount < 2;
+}
+
+export function bootstrapQuery() {
+  return queryOptions({
+    queryKey: ['bootstrap'] as const,
+    staleTime: Infinity,
+    retry: retryBootstrap,
+    queryFn: async () => (await api.get<{ data: BootstrapData }>('/api/v1/bootstrap')).data,
+  });
+}
+
+/** All nav items in group order — palette/Navigate, G-chords, 404 chips. */
+export function flattenNav(nav: NavTree): NavItem[] {
+  return nav.groups.flatMap((group) => group.items);
+}
+
+export function findNavItemBySlug(nav: NavTree, slug: string): NavItem | null {
+  return flattenNav(nav).find((item) => item.slug === slug) ?? null;
+}
+
+/**
+ * `/` redirect target (09 §2.3): the first Workspace nav item, else the first
+ * item anywhere; `null` when the nav is empty (zero connections → the
+ * `empty-no-sources` home state until `/welcome` lands in Wave B).
+ */
+export function defaultPageSlug(nav: NavTree): string | null {
+  const workspace = nav.groups.find((group) => group.key === 'workspace');
+  const first = workspace?.items[0] ?? flattenNav(nav)[0];
+  return first?.slug ?? null;
+}

@@ -1,0 +1,2706 @@
+{
+  "irVersion": 1,
+  "dialect": "postgres",
+  "source": {
+    "kind": "live",
+    "connectionId": "conn_northwind_fixture"
+  },
+  "name": "northwind",
+  "defaultSchema": "public",
+  "schemas": [
+    "public"
+  ],
+  "tables": [
+    {
+      "id": "public.categories",
+      "schema": "public",
+      "name": "categories",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "category_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "category_name",
+          "ordinal": 2,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "description",
+          "ordinal": 3,
+          "dbType": "text",
+          "logicalType": "text",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "picture",
+          "ordinal": 4,
+          "dbType": "bytea",
+          "logicalType": "binary",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "category_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_categories",
+          "columns": [
+            "category_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 8,
+      "rowCountExact": false,
+      "sizeBytes": 57344,
+      "activity": {
+        "inserts": 8,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.customer_customer_demo",
+      "schema": "public",
+      "name": "customer_customer_demo",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "customer_id",
+          "ordinal": 1,
+          "dbType": "character(5)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 5,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.customers",
+            "column": "customer_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "customer_type_id",
+          "ordinal": 2,
+          "dbType": "character(5)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 5,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.customer_demographics",
+            "column": "customer_type_id"
+          },
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "customer_id",
+        "customer_type_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_customer_customer_demo",
+          "columns": [
+            "customer_id",
+            "customer_type_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 0,
+      "rowCountExact": false,
+      "sizeBytes": 8192,
+      "activity": {
+        "inserts": 0,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.customer_demographics",
+      "schema": "public",
+      "name": "customer_demographics",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "customer_type_id",
+          "ordinal": 1,
+          "dbType": "character(5)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 5,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "customer_desc",
+          "ordinal": 2,
+          "dbType": "text",
+          "logicalType": "text",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "customer_type_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_customer_demographics",
+          "columns": [
+            "customer_type_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 0,
+      "rowCountExact": false,
+      "sizeBytes": 8192,
+      "activity": {
+        "inserts": 0,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.customers",
+      "schema": "public",
+      "name": "customers",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "customer_id",
+          "ordinal": 1,
+          "dbType": "character(5)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 5,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "company_name",
+          "ordinal": 2,
+          "dbType": "character varying(40)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 40,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "contact_name",
+          "ordinal": 3,
+          "dbType": "character varying(30)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 30,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "contact_title",
+          "ordinal": 4,
+          "dbType": "character varying(30)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 30,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "address",
+          "ordinal": 5,
+          "dbType": "character varying(60)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 60,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "city",
+          "ordinal": 6,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "region",
+          "ordinal": 7,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "postal_code",
+          "ordinal": 8,
+          "dbType": "character varying(10)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 10,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "country",
+          "ordinal": 9,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "phone",
+          "ordinal": 10,
+          "dbType": "character varying(24)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 24,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "fax",
+          "ordinal": 11,
+          "dbType": "character varying(24)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 24,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "customer_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_customers",
+          "columns": [
+            "customer_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 91,
+      "rowCountExact": false,
+      "sizeBytes": 40960,
+      "activity": {
+        "inserts": 91,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.employees",
+      "schema": "public",
+      "name": "employees",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "employee_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "last_name",
+          "ordinal": 2,
+          "dbType": "character varying(20)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 20,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "first_name",
+          "ordinal": 3,
+          "dbType": "character varying(10)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 10,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "title",
+          "ordinal": 4,
+          "dbType": "character varying(30)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 30,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "title_of_courtesy",
+          "ordinal": 5,
+          "dbType": "character varying(25)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 25,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "birth_date",
+          "ordinal": 6,
+          "dbType": "date",
+          "logicalType": "date",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "hire_date",
+          "ordinal": 7,
+          "dbType": "date",
+          "logicalType": "date",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "address",
+          "ordinal": 8,
+          "dbType": "character varying(60)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 60,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "city",
+          "ordinal": 9,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "region",
+          "ordinal": 10,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "postal_code",
+          "ordinal": 11,
+          "dbType": "character varying(10)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 10,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "country",
+          "ordinal": 12,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "home_phone",
+          "ordinal": 13,
+          "dbType": "character varying(24)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 24,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "extension",
+          "ordinal": 14,
+          "dbType": "character varying(4)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 4,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "photo",
+          "ordinal": 15,
+          "dbType": "bytea",
+          "logicalType": "binary",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "notes",
+          "ordinal": 16,
+          "dbType": "text",
+          "logicalType": "text",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "reports_to",
+          "ordinal": 17,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.employees",
+            "column": "employee_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "photo_path",
+          "ordinal": 18,
+          "dbType": "character varying(255)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 255,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "employee_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_employees",
+          "columns": [
+            "employee_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 9,
+      "rowCountExact": false,
+      "sizeBytes": 90112,
+      "activity": {
+        "inserts": 9,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.employee_territories",
+      "schema": "public",
+      "name": "employee_territories",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "employee_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.employees",
+            "column": "employee_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "territory_id",
+          "ordinal": 2,
+          "dbType": "character varying(20)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 20,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.territories",
+            "column": "territory_id"
+          },
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "employee_id",
+        "territory_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_employee_territories",
+          "columns": [
+            "employee_id",
+            "territory_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 49,
+      "rowCountExact": false,
+      "sizeBytes": 8192,
+      "activity": {
+        "inserts": 49,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.order_details",
+      "schema": "public",
+      "name": "order_details",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "order_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.orders",
+            "column": "order_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "product_id",
+          "ordinal": 2,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.products",
+            "column": "product_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "unit_price",
+          "ordinal": 3,
+          "dbType": "real",
+          "logicalType": "float",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": 24,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "quantity",
+          "ordinal": 4,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "discount",
+          "ordinal": 5,
+          "dbType": "real",
+          "logicalType": "float",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": 24,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "order_id",
+        "product_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_order_details",
+          "columns": [
+            "order_id",
+            "product_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 2155,
+      "rowCountExact": false,
+      "sizeBytes": 155648,
+      "activity": {
+        "inserts": 2155,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.orders",
+      "schema": "public",
+      "name": "orders",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "order_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "customer_id",
+          "ordinal": 2,
+          "dbType": "character(5)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 5,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.customers",
+            "column": "customer_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "employee_id",
+          "ordinal": 3,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.employees",
+            "column": "employee_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "order_date",
+          "ordinal": 4,
+          "dbType": "date",
+          "logicalType": "date",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "required_date",
+          "ordinal": 5,
+          "dbType": "date",
+          "logicalType": "date",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "shipped_date",
+          "ordinal": 6,
+          "dbType": "date",
+          "logicalType": "date",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "ship_via",
+          "ordinal": 7,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.shippers",
+            "column": "shipper_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "freight",
+          "ordinal": 8,
+          "dbType": "real",
+          "logicalType": "float",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": 24,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "ship_name",
+          "ordinal": 9,
+          "dbType": "character varying(40)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 40,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "ship_address",
+          "ordinal": 10,
+          "dbType": "character varying(60)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 60,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "ship_city",
+          "ordinal": 11,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "ship_region",
+          "ordinal": 12,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "ship_postal_code",
+          "ordinal": 13,
+          "dbType": "character varying(10)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 10,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "ship_country",
+          "ordinal": 14,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "order_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_orders",
+          "columns": [
+            "order_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 830,
+      "rowCountExact": false,
+      "sizeBytes": 147456,
+      "activity": {
+        "inserts": 830,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.products",
+      "schema": "public",
+      "name": "products",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "product_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "product_name",
+          "ordinal": 2,
+          "dbType": "character varying(40)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 40,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "supplier_id",
+          "ordinal": 3,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.suppliers",
+            "column": "supplier_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "category_id",
+          "ordinal": 4,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.categories",
+            "column": "category_id"
+          },
+          "semantics": null
+        },
+        {
+          "name": "quantity_per_unit",
+          "ordinal": 5,
+          "dbType": "character varying(20)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 20,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "unit_price",
+          "ordinal": 6,
+          "dbType": "real",
+          "logicalType": "float",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": 24,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "units_in_stock",
+          "ordinal": 7,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "units_on_order",
+          "ordinal": 8,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "reorder_level",
+          "ordinal": 9,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "discontinued",
+          "ordinal": 10,
+          "dbType": "integer",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "product_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_products",
+          "columns": [
+            "product_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 77,
+      "rowCountExact": false,
+      "sizeBytes": 24576,
+      "activity": {
+        "inserts": 77,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.region",
+      "schema": "public",
+      "name": "region",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "region_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "region_description",
+          "ordinal": 2,
+          "dbType": "character(60)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 60,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "region_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_region",
+          "columns": [
+            "region_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 4,
+      "rowCountExact": false,
+      "sizeBytes": 8192,
+      "activity": {
+        "inserts": 4,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.shippers",
+      "schema": "public",
+      "name": "shippers",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "shipper_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "company_name",
+          "ordinal": 2,
+          "dbType": "character varying(40)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 40,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "phone",
+          "ordinal": 3,
+          "dbType": "character varying(24)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 24,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "shipper_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_shippers",
+          "columns": [
+            "shipper_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 6,
+      "rowCountExact": false,
+      "sizeBytes": 8192,
+      "activity": {
+        "inserts": 6,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.suppliers",
+      "schema": "public",
+      "name": "suppliers",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "supplier_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "company_name",
+          "ordinal": 2,
+          "dbType": "character varying(40)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 40,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "contact_name",
+          "ordinal": 3,
+          "dbType": "character varying(30)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 30,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "contact_title",
+          "ordinal": 4,
+          "dbType": "character varying(30)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 30,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "address",
+          "ordinal": 5,
+          "dbType": "character varying(60)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 60,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "city",
+          "ordinal": 6,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "region",
+          "ordinal": 7,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "postal_code",
+          "ordinal": 8,
+          "dbType": "character varying(10)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 10,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "country",
+          "ordinal": 9,
+          "dbType": "character varying(15)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 15,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "phone",
+          "ordinal": 10,
+          "dbType": "character varying(24)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 24,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "fax",
+          "ordinal": 11,
+          "dbType": "character varying(24)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 24,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "homepage",
+          "ordinal": 12,
+          "dbType": "text",
+          "logicalType": "text",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "supplier_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_suppliers",
+          "columns": [
+            "supplier_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 29,
+      "rowCountExact": false,
+      "sizeBytes": 16384,
+      "activity": {
+        "inserts": 29,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.territories",
+      "schema": "public",
+      "name": "territories",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "territory_id",
+          "ordinal": 1,
+          "dbType": "character varying(20)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 20,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "territory_description",
+          "ordinal": 2,
+          "dbType": "character(60)",
+          "logicalType": "varchar",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 60,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "region_id",
+          "ordinal": 3,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": {
+            "tableId": "public.region",
+            "column": "region_id"
+          },
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "territory_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_territories",
+          "columns": [
+            "territory_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 53,
+      "rowCountExact": false,
+      "sizeBytes": 16384,
+      "activity": {
+        "inserts": 53,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    },
+    {
+      "id": "public.us_states",
+      "schema": "public",
+      "name": "us_states",
+      "kind": "table",
+      "comment": null,
+      "columns": [
+        {
+          "name": "state_id",
+          "ordinal": 1,
+          "dbType": "smallint",
+          "logicalType": "integer",
+          "nullable": false,
+          "default": null,
+          "isPrimaryKey": true,
+          "isUnique": true,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": null,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "state_name",
+          "ordinal": 2,
+          "dbType": "character varying(100)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 100,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "state_abbr",
+          "ordinal": 3,
+          "dbType": "character varying(2)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 2,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        },
+        {
+          "name": "state_region",
+          "ordinal": 4,
+          "dbType": "character varying(50)",
+          "logicalType": "varchar",
+          "nullable": true,
+          "default": null,
+          "isPrimaryKey": false,
+          "isUnique": false,
+          "isGenerated": false,
+          "enumRef": null,
+          "maxLength": 50,
+          "numericPrecision": null,
+          "numericScale": null,
+          "isArray": false,
+          "comment": null,
+          "references": null,
+          "semantics": null
+        }
+      ],
+      "primaryKey": [
+        "state_id"
+      ],
+      "uniques": [],
+      "checks": [],
+      "indexes": [
+        {
+          "name": "pk_us_states",
+          "columns": [
+            "state_id"
+          ],
+          "expression": null,
+          "unique": true,
+          "primary": true,
+          "method": "btree",
+          "partial": false
+        }
+      ],
+      "rowCountEstimate": 51,
+      "rowCountExact": false,
+      "sizeBytes": 8192,
+      "activity": {
+        "inserts": 51,
+        "updates": 0,
+        "deletes": 0
+      },
+      "rls": {
+        "enabled": false,
+        "forced": false,
+        "policyCount": 0
+      },
+      "system": false,
+      "semantics": null
+    }
+  ],
+  "enums": [],
+  "relations": [
+    {
+      "id": "fk:public.orders(customer_id)->public.customers(customer_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.orders",
+        "columns": [
+          "customer_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.customers",
+        "columns": [
+          "customer_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.orders(employee_id)->public.employees(employee_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.orders",
+        "columns": [
+          "employee_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.employees",
+        "columns": [
+          "employee_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.orders(ship_via)->public.shippers(shipper_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.orders",
+        "columns": [
+          "ship_via"
+        ]
+      },
+      "to": {
+        "tableId": "public.shippers",
+        "columns": [
+          "shipper_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.order_details(order_id)->public.orders(order_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.order_details",
+        "columns": [
+          "order_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.orders",
+        "columns": [
+          "order_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.order_details(product_id)->public.products(product_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.order_details",
+        "columns": [
+          "product_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.products",
+        "columns": [
+          "product_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.products(category_id)->public.categories(category_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.products",
+        "columns": [
+          "category_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.categories",
+        "columns": [
+          "category_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.products(supplier_id)->public.suppliers(supplier_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.products",
+        "columns": [
+          "supplier_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.suppliers",
+        "columns": [
+          "supplier_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.employees(reports_to)->public.employees(employee_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.employees",
+        "columns": [
+          "reports_to"
+        ]
+      },
+      "to": {
+        "tableId": "public.employees",
+        "columns": [
+          "employee_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": true,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.territories(region_id)->public.region(region_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.territories",
+        "columns": [
+          "region_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.region",
+        "columns": [
+          "region_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.employee_territories(employee_id)->public.employees(employee_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.employee_territories",
+        "columns": [
+          "employee_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.employees",
+        "columns": [
+          "employee_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.employee_territories(territory_id)->public.territories(territory_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.employee_territories",
+        "columns": [
+          "territory_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.territories",
+        "columns": [
+          "territory_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.customer_customer_demo(customer_id)->public.customers(customer_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.customer_customer_demo",
+        "columns": [
+          "customer_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.customers",
+        "columns": [
+          "customer_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    },
+    {
+      "id": "fk:public.customer_customer_demo(customer_type_id)->public.customer_demographics(customer_type_id)",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": {
+        "tableId": "public.customer_customer_demo",
+        "columns": [
+          "customer_type_id"
+        ]
+      },
+      "to": {
+        "tableId": "public.customer_demographics",
+        "columns": [
+          "customer_type_id"
+        ]
+      },
+      "through": null,
+      "onDelete": "no-action",
+      "onUpdate": "no-action",
+      "selfReferential": false,
+      "confidence": 1
+    }
+  ],
+  "capabilities": {
+    "hasEnums": true,
+    "hasFKs": true,
+    "hasSchemas": true,
+    "hasComments": true,
+    "hasChecks": true,
+    "hasRLS": true,
+    "hasMaterializedViews": true,
+    "hasRowEstimates": true,
+    "supportsStatementTimeout": true,
+    "supportsReturning": true,
+    "maxIdentifierLength": 63
+  },
+  "introspectedAt": "2026-07-01T00:00:00.000Z",
+  "stats": {
+    "tableCount": 14,
+    "columnCount": 92,
+    "relationCount": 13,
+    "durationMs": 412
+  },
+  "warnings": []
+}

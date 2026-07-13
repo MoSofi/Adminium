@@ -1,0 +1,17 @@
+/* Dashboard Tailwind entry — import order per @adminium/tokens/tailwind.css:
+   tailwindcss → tokens custom properties → tokens theme mapping. */
+@import "tailwindcss";
+@import "@adminium/tokens/index.css";
+@import "@adminium/tokens/tailwind.css";
+
+/* Generate utilities for this app AND the @adminium/ui sources it composes
+   (node_modules is excluded from Tailwind's automatic source detection). */
+@source "./**/*.{ts,tsx}";
+@source "../node_modules/@adminium/ui/src/**/*.{ts,tsx}";
+
+/* App-local keyframes (the shared nb-* set lives in @adminium/tokens/motion.css).
+   nb-float: the 404 comp's drifting database tile. */
+@keyframes nb-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}

@@ -1,0 +1,2130 @@
+{
+  "modelName": "northwind",
+  "tables": [
+    {
+      "tableId": "public.categories",
+      "shape": {
+        "kind": "catalog",
+        "reasons": [
+          "display column plus money/category/image columns — catalog shape"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "category_name",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.categories",
+          "column": "category_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.categories",
+          "column": "category_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.categories",
+          "column": "description",
+          "ruleId": "r29-free-text",
+          "reasons": [
+            "unbounded text type"
+          ],
+          "semantics": {
+            "primary": "free-text",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.6,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.categories",
+          "column": "picture",
+          "ruleId": "r19-image-url",
+          "reasons": [
+            "name matches image/avatar vocabulary"
+          ],
+          "semantics": {
+            "primary": "image-url",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.customer_customer_demo",
+      "shape": {
+        "kind": "join",
+        "reasons": [
+          "exactly 2 FK columns (customer_id, customer_type_id) and no other data columns",
+          "composite PK/unique constraint covers the FK pair (+0.1)",
+          "join-table confidence 0.80"
+        ]
+      },
+      "semantics": {
+        "role": "join-table",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": null,
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.customer_customer_demo",
+          "column": "customer_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customer_customer_demo",
+          "column": "customer_type_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.customer_demographics",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "customer_desc",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.customer_demographics",
+          "column": "customer_type_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customer_demographics",
+          "column": "customer_desc",
+          "ruleId": "r29-free-text",
+          "reasons": [
+            "unbounded text type"
+          ],
+          "semantics": {
+            "primary": "free-text",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.6,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.customers",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "company_name",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.customers",
+          "column": "customer_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "company_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "contact_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "contact_title",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "address",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "city",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "region",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "postal_code",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "country",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "phone",
+          "ruleId": "r18-phone",
+          "reasons": [
+            "name matches phone/fax pattern",
+            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+          ],
+          "semantics": {
+            "primary": "phone",
+            "flags": {
+              "secret": false,
+              "pii": "phone",
+              "maskedByDefault": true
+            },
+            "format": "tel",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.customers",
+          "column": "fax",
+          "ruleId": "r18-phone",
+          "reasons": [
+            "name matches phone/fax pattern",
+            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+          ],
+          "semantics": {
+            "primary": "phone",
+            "flags": {
+              "secret": false,
+              "pii": "phone",
+              "maskedByDefault": true
+            },
+            "format": "tel",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.employee_territories",
+      "shape": {
+        "kind": "join",
+        "reasons": [
+          "exactly 2 FK columns (employee_id, territory_id) and no other data columns",
+          "composite PK/unique constraint covers the FK pair (+0.1)",
+          "table name is composed of both target names (+0.1)",
+          "join-table confidence 0.90"
+        ]
+      },
+      "semantics": {
+        "role": "join-table",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": null,
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.employee_territories",
+          "column": "employee_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employee_territories",
+          "column": "territory_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.employees",
+      "shape": {
+        "kind": "people",
+        "reasons": [
+          "people shape: person-name/email columns on a people-ish table (§8 directory trigger)",
+          "self-FK hierarchy via \"reports_to\" (§6 rule 3)"
+        ]
+      },
+      "semantics": {
+        "role": "people",
+        "hierarchy": {
+          "parentColumn": "reports_to"
+        },
+        "polymorphic": []
+      },
+      "displayColumn": "title",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.employees",
+          "column": "employee_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "last_name",
+          "ruleId": "r16-person-name",
+          "reasons": [
+            "name column on a people-shaped table",
+            "pii:person-name — first/last/full name on a people-shaped table (§7.2)"
+          ],
+          "semantics": {
+            "primary": "person-name",
+            "flags": {
+              "secret": false,
+              "pii": "person-name",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "first_name",
+          "ruleId": "r16-person-name",
+          "reasons": [
+            "name column on a people-shaped table",
+            "pii:person-name — first/last/full name on a people-shaped table (§7.2)"
+          ],
+          "semantics": {
+            "primary": "person-name",
+            "flags": {
+              "secret": false,
+              "pii": "person-name",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "title",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "title_of_courtesy",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "birth_date",
+          "ruleId": "r12-event-timestamp",
+          "reasons": [
+            "timestamp-suffixed name outside created/updated/range",
+            "pii:dob — name matches date-of-birth pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "event-timestamp",
+            "flags": {
+              "secret": false,
+              "pii": "dob",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "hire_date",
+          "ruleId": "r12-event-timestamp",
+          "reasons": [
+            "timestamp-suffixed name outside created/updated/range"
+          ],
+          "semantics": {
+            "primary": "event-timestamp",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "address",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "city",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "region",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "postal_code",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "country",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "home_phone",
+          "ruleId": "r18-phone",
+          "reasons": [
+            "name matches phone/fax pattern",
+            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+          ],
+          "semantics": {
+            "primary": "phone",
+            "flags": {
+              "secret": false,
+              "pii": "phone",
+              "maskedByDefault": true
+            },
+            "format": "tel",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "extension",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "photo",
+          "ruleId": "r19-image-url",
+          "reasons": [
+            "name matches image/avatar vocabulary"
+          ],
+          "semantics": {
+            "primary": "image-url",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "notes",
+          "ruleId": "r29-free-text",
+          "reasons": [
+            "unbounded text type"
+          ],
+          "semantics": {
+            "primary": "free-text",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.6,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "reports_to",
+          "ruleId": "r03-fk",
+          "reasons": [
+            "declared FK → public.employees.employee_id"
+          ],
+          "semantics": {
+            "primary": "fk",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 1,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.employees",
+          "column": "photo_path",
+          "ruleId": "r19-image-url",
+          "reasons": [
+            "name matches image/avatar vocabulary"
+          ],
+          "semantics": {
+            "primary": "image-url",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.order_details",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched",
+          "line-items role: child of 2 FKs with qty × rate numerics (§8 invoice trigger)"
+        ]
+      },
+      "semantics": {
+        "role": "line-items",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": null,
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.order_details",
+          "column": "order_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.order_details",
+          "column": "product_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.order_details",
+          "column": "unit_price",
+          "ruleId": "r04-money",
+          "reasons": [
+            "name matches money vocabulary + numeric type"
+          ],
+          "semantics": {
+            "primary": "money",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "currency",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.order_details",
+          "column": "quantity",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.order_details",
+          "column": "discount",
+          "ruleId": "r05-percent",
+          "reasons": [
+            "name matches percent vocabulary + numeric type",
+            "no CHECK bounds — assuming 0–100 scale"
+          ],
+          "semantics": {
+            "primary": "percent",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "percent",
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.orders",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "ship_name",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.orders",
+          "column": "order_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "customer_id",
+          "ruleId": "r03-fk",
+          "reasons": [
+            "declared FK → public.customers.customer_id"
+          ],
+          "semantics": {
+            "primary": "fk",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 1,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "employee_id",
+          "ruleId": "r03-fk",
+          "reasons": [
+            "declared FK → public.employees.employee_id"
+          ],
+          "semantics": {
+            "primary": "fk",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 1,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "order_date",
+          "ruleId": "r12-event-timestamp",
+          "reasons": [
+            "timestamp-suffixed name outside created/updated/range"
+          ],
+          "semantics": {
+            "primary": "event-timestamp",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "required_date",
+          "ruleId": "r12-event-timestamp",
+          "reasons": [
+            "timestamp-suffixed name outside created/updated/range"
+          ],
+          "semantics": {
+            "primary": "event-timestamp",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "shipped_date",
+          "ruleId": "r12-event-timestamp",
+          "reasons": [
+            "timestamp-suffixed name outside created/updated/range"
+          ],
+          "semantics": {
+            "primary": "event-timestamp",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "ship_via",
+          "ruleId": "r03-fk",
+          "reasons": [
+            "declared FK → public.shippers.shipper_id"
+          ],
+          "semantics": {
+            "primary": "fk",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 1,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "freight",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "ship_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "ship_address",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "ship_city",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "ship_region",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "ship_postal_code",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.orders",
+          "column": "ship_country",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.products",
+      "shape": {
+        "kind": "catalog",
+        "reasons": [
+          "display column plus money/category/image columns — catalog shape",
+          "line-items role: child of 2 FKs with qty × rate numerics (§8 invoice trigger)"
+        ]
+      },
+      "semantics": {
+        "role": "line-items",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "product_name",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.products",
+          "column": "product_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "product_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "supplier_id",
+          "ruleId": "r03-fk",
+          "reasons": [
+            "declared FK → public.suppliers.supplier_id"
+          ],
+          "semantics": {
+            "primary": "fk",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 1,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "category_id",
+          "ruleId": "r03-fk",
+          "reasons": [
+            "declared FK → public.categories.category_id"
+          ],
+          "semantics": {
+            "primary": "fk",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 1,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "quantity_per_unit",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "unit_price",
+          "ruleId": "r04-money",
+          "reasons": [
+            "name matches money vocabulary + numeric type"
+          ],
+          "semantics": {
+            "primary": "money",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "currency",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "units_in_stock",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "units_on_order",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "reorder_level",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.products",
+          "column": "discontinued",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.region",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "region_description",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.region",
+          "column": "region_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.region",
+          "column": "region_description",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.shippers",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "company_name",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.shippers",
+          "column": "shipper_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.shippers",
+          "column": "company_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.shippers",
+          "column": "phone",
+          "ruleId": "r18-phone",
+          "reasons": [
+            "name matches phone/fax pattern",
+            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+          ],
+          "semantics": {
+            "primary": "phone",
+            "flags": {
+              "secret": false,
+              "pii": "phone",
+              "maskedByDefault": true
+            },
+            "format": "tel",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.suppliers",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "company_name",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.suppliers",
+          "column": "supplier_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "company_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "contact_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "contact_title",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "address",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "city",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "region",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "postal_code",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering",
+            "pii:address — name matches address pattern (§7.2)"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": "address",
+              "maskedByDefault": true
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "country",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "phone",
+          "ruleId": "r18-phone",
+          "reasons": [
+            "name matches phone/fax pattern",
+            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+          ],
+          "semantics": {
+            "primary": "phone",
+            "flags": {
+              "secret": false,
+              "pii": "phone",
+              "maskedByDefault": true
+            },
+            "format": "tel",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "fax",
+          "ruleId": "r18-phone",
+          "reasons": [
+            "name matches phone/fax pattern",
+            "pii:phone — primary semantic is phone (§7.1 rule 18)"
+          ],
+          "semantics": {
+            "primary": "phone",
+            "flags": {
+              "secret": false,
+              "pii": "phone",
+              "maskedByDefault": true
+            },
+            "format": "tel",
+            "pair": null,
+            "confidence": 0.85,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.suppliers",
+          "column": "homepage",
+          "ruleId": "r21-url",
+          "reasons": [
+            "name matches url/link vocabulary"
+          ],
+          "semantics": {
+            "primary": "url",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.territories",
+      "shape": {
+        "kind": "generic",
+        "reasons": [
+          "no §8 trigger matched"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "territory_description",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.territories",
+          "column": "territory_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.territories",
+          "column": "territory_description",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.territories",
+          "column": "region_id",
+          "ruleId": "r03-fk",
+          "reasons": [
+            "declared FK → public.region.region_id"
+          ],
+          "semantics": {
+            "primary": "fk",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 1,
+            "source": "heuristic"
+          }
+        }
+      ]
+    },
+    {
+      "tableId": "public.us_states",
+      "shape": {
+        "kind": "geo",
+        "reasons": [
+          "2/3 data columns are geographic (§7.1 rules 14–15)"
+        ]
+      },
+      "semantics": {
+        "role": "entity",
+        "hierarchy": null,
+        "polymorphic": []
+      },
+      "displayColumn": "state_name",
+      "naturalKey": null,
+      "columns": [
+        {
+          "tableId": "public.us_states",
+          "column": "state_id",
+          "ruleId": "r02-pk-id",
+          "reasons": [
+            "column is a primary key"
+          ],
+          "semantics": {
+            "primary": "pk-id",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": "mono",
+            "pair": null,
+            "confidence": 0.95,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.us_states",
+          "column": "state_name",
+          "ruleId": "r30-plain",
+          "reasons": [
+            "no §7.1 rule matched — type-default rendering"
+          ],
+          "semantics": {
+            "primary": "plain",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.5,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.us_states",
+          "column": "state_abbr",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary",
+            "char(2) strongly suggests a region code"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.8,
+            "source": "heuristic"
+          }
+        },
+        {
+          "tableId": "public.us_states",
+          "column": "state_region",
+          "ruleId": "r15-geo-region",
+          "reasons": [
+            "name matches region/country vocabulary"
+          ],
+          "semantics": {
+            "primary": "geo-region",
+            "flags": {
+              "secret": false,
+              "pii": null,
+              "maskedByDefault": false
+            },
+            "format": null,
+            "pair": null,
+            "confidence": 0.7,
+            "source": "heuristic"
+          }
+        }
+      ]
+    }
+  ]
+}

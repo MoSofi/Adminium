@@ -21,7 +21,10 @@
     "demo:m2": "node scripts/demo-m2.mjs"
   },
   "dependencies": {
+    "@adminium/adapter-postgres": "workspace:*",
+    "@adminium/engine": "workspace:*",
     "@adminium/meta": "workspace:*",
+    "kysely": "^0.28.2",
     "argon2": "^0.44.0",
     "otpauth": "^9.4.0",
     "@fastify/cookie": "^11.0.2",

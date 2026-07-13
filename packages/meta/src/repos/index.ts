@@ -9,3 +9,6 @@ export * from './audit.js';
 export * from './api-keys.js';
 export * from './password-resets.js';
 export * from './jobs.js';
+export * from './connections.js';
+export * from './snapshots.js';
+export * from './overrides.js';
