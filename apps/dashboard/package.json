@@ -14,8 +14,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adminium/engine": "workspace:*",
     "@adminium/tokens": "workspace:*",
     "@adminium/ui": "workspace:*",
+    "@adminium/widgets": "workspace:*",
     "@tanstack/react-query": "^5.83.0",
     "@tanstack/react-router": "^1.121.0",
     "lucide-react": "^0.525.0",

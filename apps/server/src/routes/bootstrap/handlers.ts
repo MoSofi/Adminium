@@ -14,7 +14,14 @@
  * once page-level permissions land with the pages routes.
  */
 import type { FastifyRequest } from 'fastify';
-import { readBool, rolesRepo, userPrefsRepo, type User } from '@adminium/meta';
+import {
+  pagesRepo,
+  readBool,
+  rolesRepo,
+  userPrefsRepo,
+  type PageNavRow,
+  type User,
+} from '@adminium/meta';
 
 import { UnauthorizedError } from '../../errors.js';
 import type { AuthContext } from '../../plugins/auth.js';
@@ -33,19 +40,8 @@ function principal(request: FastifyRequest): User {
   return request.user;
 }
 
-interface NavSourceRow {
-  id: string;
-  slug: string;
-  title: string;
-  icon: string | null;
-  navGroup: string | null;
-  navOrder: number;
-  isEnabled: boolean | 0 | 1;
-  updatedAt: number;
-}
-
 /** Buckets page rows into the five fixed groups; empty groups are omitted. */
-export function buildNavTree(rows: readonly NavSourceRow[]): {
+export function buildNavTree(rows: readonly PageNavRow[]): {
   nav: BootstrapNavTree;
   configVersion: number;
 } {
@@ -91,10 +87,8 @@ export async function bootstrapHandler(
   const [roles, prefs, pageRows] = await Promise.all([
     rolesRepo(ctx.meta).rolesForUser(user.id),
     userPrefsRepo(ctx.meta).resolve(user.id),
-    ctx.meta.db
-      .selectFrom('adminium_pages')
-      .select(['id', 'slug', 'title', 'icon', 'navGroup', 'navOrder', 'isEnabled', 'updatedAt'])
-      .execute(),
+    // Shared query path with the generator wave (07 §3.16 pagesRepo).
+    pagesRepo(ctx.meta).navRows(),
   ]);
 
   const { nav, configVersion } = buildNavTree(pageRows);

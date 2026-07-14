@@ -1,0 +1,41 @@
+import { EmptyState, MonoText } from '@adminium/ui';
+import { PackageX } from 'lucide-react';
+
+import type { WidgetProps } from './types.js';
+
+export interface WidgetMissingConfig {
+  /** The registry id that could not be resolved. */
+  missingId?: string | undefined;
+  /**
+   * Edit-mode action slot — the dashboard builder passes a "Remove from
+   * layout" button here (M7); view mode leaves it empty.
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * Fallback card for unknown registry ids in stored page configs (04 §2.2).
+ * Page configs written by older/newer versions or uninstalled manifests must
+ * never crash a dashboard — this system-family card names the missing id.
+ */
+export function WidgetMissingCard({ config }: WidgetProps<WidgetMissingConfig>) {
+  const missingId = typeof config.missingId === 'string' ? config.missingId : 'unknown';
+  return (
+    <EmptyState
+      compact
+      preset="no-data"
+      icon={<PackageX />}
+      tone="warn"
+      title="Widget unavailable"
+      body={
+        <>
+          No widget is registered as <MonoText>{missingId}</MonoText>. It may belong to a newer
+          version or an uninstalled extension.
+        </>
+      }
+      data-widget-missing={missingId}
+    />
+  );
+}
+
+export default WidgetMissingCard;

@@ -5,6 +5,9 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Widget registry, page templates, dashboard grid",
+  "sideEffects": [
+    "**/*.css"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,18 +21,31 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "test": "vitest run"
   },
   "dependencies": {
+    "@adminium/charts": "workspace:*",
+    "@adminium/i18n": "workspace:*",
+    "@adminium/tokens": "workspace:*",
+    "@adminium/ui": "workspace:*",
+    "@tanstack/react-table": "^8.21.3",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "typescript": "catalog:",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "eslint": "catalog:",
+    "happy-dom": "^18.0.1",
+    "react-dom": "^19.1.0",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   }
 }

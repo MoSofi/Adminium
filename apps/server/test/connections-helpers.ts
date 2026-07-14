@@ -39,7 +39,9 @@ import { rbacPlugin } from '../src/plugins/rbac.js';
 import { connectionsRoutes } from '../src/routes/connections/index.js';
 import { dataRoutes } from '../src/routes/data/index.js';
 import { schemaRoutes } from '../src/routes/schema/index.js';
+import { widgetDataRoutes } from '../src/routes/widget-data/index.js';
 import { UndoStore } from '../src/crud/undo.js';
+import { WidgetDataCache } from '../src/widget-data/cache.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
 export const PG_HOST = process.env.ADMINIUM_TEST_PG_HOST ?? '127.0.0.1';
@@ -148,6 +150,7 @@ export interface DataTestContext {
   meta: MetaDb;
   manager: ConnectionManager;
   undoStore: UndoStore;
+  widgetCache: WidgetDataCache;
   users: { admin: User; editor: User; viewer: User };
   roles: { admin: Role; editor: Role; viewer: Role };
   grantTable(role: Role, connectionId: string, table: string, actions: Partial<Record<string, boolean>>): Promise<void>;
@@ -209,6 +212,7 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
     blockLoopback: false,
   });
   const undoStore = new UndoStore(opts.now ?? Date.now);
+  const widgetCache = new WidgetDataCache(opts.now !== undefined ? { now: opts.now } : {});
 
   const app = await buildServer({ env: makeEnv(), logger: false });
   app.addHook('onRequest', async (request) => {
@@ -230,6 +234,7 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
       await api.register(dataRoutes({ manager, meta, undoStore }));
+      await api.register(widgetDataRoutes({ manager, meta, cache: widgetCache }));
     },
     { prefix: '/api/v1' },
   );
@@ -243,6 +248,7 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
     meta,
     manager,
     undoStore,
+    widgetCache,
     users: userSet,
     roles: roleSet,
     async grantTable(role, connectionId, table, actions) {

@@ -4,10 +4,12 @@
 @import "@adminium/tokens/index.css";
 @import "@adminium/tokens/tailwind.css";
 
-/* Generate utilities for this app AND the @adminium/ui sources it composes
+/* Generate utilities for this app AND the workspace sources it composes
    (node_modules is excluded from Tailwind's automatic source detection). */
 @source "./**/*.{ts,tsx}";
 @source "../node_modules/@adminium/ui/src/**/*.{ts,tsx}";
+@source "../node_modules/@adminium/widgets/src/**/*.{ts,tsx}";
+@source "../node_modules/@adminium/charts/src/**/*.{ts,tsx}";
 
 /* App-local keyframes (the shared nb-* set lives in @adminium/tokens/motion.css).
    nb-float: the 404 comp's drifting database tile. */

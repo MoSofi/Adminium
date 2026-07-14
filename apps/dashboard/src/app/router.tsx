@@ -29,8 +29,9 @@ import { ShortcutsProvider } from '../shell/ShortcutsProvider.js';
 import { AppShell } from '../shell/AppShell.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
+import { pageQuery } from '../api/pages.js';
 import { api, ApiError } from './api.js';
-import { bootstrapQuery, defaultPageSlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
+import { bootstrapQuery, defaultPageSlug, findNavItemBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
 import { requestIdForError, stateIdForError } from './query.js';
 
 export interface RouterContext {
@@ -39,13 +40,7 @@ export interface RouterContext {
 
 // --- link helpers (§2.3: the only way shell code builds links) --------------
 
-export function hrefForPage(slug: string): string {
-  return `/p/${encodeURIComponent(slug)}`;
-}
-
-export function hrefForRecord(slug: string, recordId: string): string {
-  return `/p/${encodeURIComponent(slug)}/r/${encodeURIComponent(recordId)}`;
-}
+export { hrefForPage, hrefForRecord } from './links.js';
 
 // --- root: theming + keyboard providers around every surface ----------------
 
@@ -174,9 +169,43 @@ const indexRoute = createRoute({
   component: HomePage,
 });
 
+/**
+ * Loader contract (09 §2.3): resolve the slug against the bootstrap nav tree
+ * (unknown slug → 404 in-component, NO server round trip) and prime
+ * `['page', pageId]` via ensureQueryData. Loader failures (403/404/5xx from
+ * the pages API) render the matching system state inside the content outlet.
+ */
+async function loadPageDocument(
+  queryClient: QueryClient,
+  bootstrap: BootstrapData,
+  slug: string,
+): Promise<void> {
+  const item = findNavItemBySlug(bootstrap.nav, slug);
+  if (item === null) return; // PageRenderer renders the branded 404.
+  await queryClient.ensureQueryData(pageQuery(item.pageId));
+}
+
+/** Page-scoped failure: system state inside the outlet — shell stays usable. */
+function PageRouteErrorComponent({ error }: { error: Error }) {
+  return (
+    <StatePage stateId={stateIdForError(error)} requestId={requestIdForError(error)} fullPage={false} />
+  );
+}
+
 const pageRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/p/$slug',
+  loader: ({ context, params }) => loadPageDocument(context.queryClient, context.bootstrap, params.slug),
+  errorComponent: PageRouteErrorComponent,
+  component: PageRenderer,
+});
+
+/** Record detail child route (09 §2.3): template-dependent rendering (§7.1). */
+const pageRecordRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/p/$slug/r/$recordId',
+  loader: ({ context, params }) => loadPageDocument(context.queryClient, context.bootstrap, params.slug),
+  errorComponent: PageRouteErrorComponent,
   component: PageRenderer,
 });
 
@@ -200,7 +229,7 @@ const routeTree = rootRoute.addChildren([
   resetRoute,
   otpRoute,
   stateRoute,
-  appRoute.addChildren([indexRoute, pageRoute, accountRoute, accountSplatRoute]),
+  appRoute.addChildren([indexRoute, pageRoute, pageRecordRoute, accountRoute, accountSplatRoute]),
 ]);
 
 export function createAppRouter(

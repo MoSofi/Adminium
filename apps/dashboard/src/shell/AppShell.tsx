@@ -15,12 +15,14 @@ import { WifiOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme, useThemePrefs } from '@adminium/ui';
 
+import { invalidateForRealtimeEvent } from '../api/realtime.js';
 import { bootstrapQuery, findNavItemBySlug, flattenNav } from '../app/bootstrap.js';
 import { CommandPaletteHost } from '../app/palette/CommandPaletteHost.js';
 import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
 import { t } from '../i18n/t.js';
+import { AppToastProvider } from '../pages/toasts.js';
 import { ShortcutsPanel } from './ShortcutsPanel.js';
 import { useShortcut, useShortcutManager } from './ShortcutsProvider.js';
 import { SidebarNav } from './SidebarNav.js';
@@ -63,12 +65,9 @@ export function AppShell() {
   useEffect(() => {
     const client = createRealtimeClient({
       channels: ['config-changed'],
-      onEvent: (event) => {
-        if (event.channel === 'config-changed') {
-          void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
-          void queryClient.invalidateQueries({ queryKey: ['page'] });
-        }
-      },
+      // config-changed → bootstrap + page invalidation; table/widget-data
+      // publications → data-list + widget-data invalidation (src/api/realtime.ts).
+      onEvent: (event) => invalidateForRealtimeEvent(queryClient, event),
       onStatusChange: (connected) => setOffline(!connected),
     });
     client.start();
@@ -145,6 +144,7 @@ export function AppShell() {
   }, [manager, bootstrap.nav, navigate]);
 
   return (
+    <AppToastProvider>
     <div className="flex min-h-dvh bg-bg text-fg">
       {offline ? (
         <div
@@ -185,5 +185,6 @@ export function AppShell() {
       />
       <ShortcutsPanel open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
+    </AppToastProvider>
   );
 }

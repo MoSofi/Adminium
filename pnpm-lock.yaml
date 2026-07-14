@@ -35,12 +35,18 @@ importers:
 
   apps/dashboard:
     dependencies:
+      '@adminium/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@adminium/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
       '@adminium/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@adminium/widgets':
+        specifier: workspace:*
+        version: link:../../packages/widgets
       '@tanstack/react-query':
         specifier: ^5.83.0
         version: 5.101.2(react@19.2.7)
@@ -563,6 +569,27 @@ importers:
 
   packages/widgets:
     dependencies:
+      '@adminium/charts':
+        specifier: workspace:*
+        version: link:../charts
+      '@adminium/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@adminium/tokens':
+        specifier: workspace:*
+        version: link:../tokens
+      '@adminium/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@tanstack/react-table':
+        specifier: ^8.21.3
+        version: 8.21.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      lucide-react:
+        specifier: ^0.525.0
+        version: 0.525.0(react@19.2.7)
+      react:
+        specifier: ^19.1.0
+        version: 19.2.7
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -570,9 +597,27 @@ importers:
       '@adminium/config':
         specifier: workspace:*
         version: link:../config
+      '@testing-library/react':
+        specifier: ^16.3.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@testing-library/user-event':
+        specifier: ^14.6.1
+        version: 14.6.1(@testing-library/dom@10.4.1)
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.2.3(@types/react@19.2.17)
       eslint:
         specifier: 'catalog:'
         version: 9.39.5(jiti@2.7.0)
+      happy-dom:
+        specifier: ^18.0.1
+        version: 18.0.1
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.7(react@19.2.7)
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -2067,12 +2112,23 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  '@tanstack/react-table@8.21.3':
+    resolution: {integrity: sha512-5nNMTSETP4ykGegmVkhjcS8tTLW6Vl4axfEGQN3v0zdHYbK4UfoqfPChclTrJ4EoK9QynqAu9oUf8VEmrpZ5Ww==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
   '@tanstack/router-core@1.171.14':
     resolution: {integrity: sha512-Mo3hwx0qB0cJsVYGDjG0+Ouf7VV74h/vsoDMGztdlyzDanp4gBA2s7IVvm6hFrmQM6GpD9F0Z7SqD7OldfLE7g==}
     engines: {node: '>=20.19'}
 
   '@tanstack/store@0.9.3':
     resolution: {integrity: sha512-8reSzl/qGWGGVKhBoxXPMWzATSbZLZFWhwBAFO9NAyp0TxzfBP0mIrGb8CP8KrQTmvzXlR/vFPPUrHTLBGyFyw==}
+
+  '@tanstack/table-core@8.21.3':
+    resolution: {integrity: sha512-ldZXEhOBb8Is7xLs01fR3YEc3DERiz5silj8tnGkFZytt1abEvl/GhUmCE0PMLaMPTa3Jk4HbKmRlHmu+gCftg==}
+    engines: {node: '>=12'}
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -5755,6 +5811,12 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
       use-sync-external-store: 1.6.0(react@19.2.7)
 
+  '@tanstack/react-table@8.21.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@tanstack/table-core': 8.21.3
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
   '@tanstack/router-core@1.171.14':
     dependencies:
       '@tanstack/history': 1.162.0
@@ -5763,6 +5825,8 @@ snapshots:
       seroval-plugins: 1.5.5(seroval@1.5.5)
 
   '@tanstack/store@0.9.3': {}
+
+  '@tanstack/table-core@8.21.3': {}
 
   '@testing-library/dom@10.4.1':
     dependencies:

@@ -83,8 +83,9 @@ describe('route guards', () => {
     expect(screen.getByRole('link', { name: /Orders/ })).toBeDefined();
     expect(screen.getByText('ava@adminium.io')).toBeDefined();
     expect(screen.getByText('v0.0.0')).toBeDefined();
-    // PageRenderer stub: Wave B note (pages API 404s in this fixture).
-    expect(await screen.findByText(/Template not yet implemented/)).toBeDefined();
+    // Pages API 404s in this fixture → page-scoped not-found state inside the
+    // outlet (shell + nav stay usable), never a crash.
+    expect(await screen.findByText('This page went missing')).toBeDefined();
     // Boot discipline: exactly one bootstrap fetch.
     const bootstrapCalls = fetchMock.mock.calls.filter((call) => String(call[0]).startsWith('/api/v1/bootstrap'));
     expect(bootstrapCalls).toHaveLength(1);
