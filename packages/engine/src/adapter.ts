@@ -205,6 +205,105 @@ export interface ColumnSampleOptions {
 }
 
 // ---------------------------------------------------------------------------
+// Table statistics for LLM enrichment — 06-llm-assist.md §4.2
+// (sample-free by default; cheap-first per dialect; PII-safe)
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-column metadata the caller hands to
+ * {@link DatabaseAdapter.collectTableStats}. The adapter needs the logical
+ * type (to decide ordered-type min/max and the distinct-count strategy) and
+ * the heuristic privacy flags: PII-suspected and secret columns NEVER
+ * contribute sampled cell values, even when sampling is opted in (06 §4.2).
+ */
+export interface StatsColumnInput {
+  name: string;
+  logicalType: LogicalType;
+  /** Heuristic PII suspicion (05 §7.2) — never yields sampled values. */
+  piiSuspected?: boolean;
+  /** Secret column (05 §7.1) — excluded from every value-touching statistic. */
+  secret?: boolean;
+}
+
+/**
+ * Options for {@link DatabaseAdapter.collectTableStats}. Sample-free by
+ * default: with `sampling` unset NO cell value ever leaves the database —
+ * only the aggregate statistics (row count, null fraction, distinct count)
+ * the shared-contract invariant permits (06 §1 invariant 5, §4.2).
+ */
+export interface CollectStatsOptions {
+  /**
+   * Columns to profile. When omitted the adapter returns only the row-count
+   * estimate — callers pass the classified column set so privacy flags and
+   * logical types are known without a second round trip.
+   */
+  columns?: StatsColumnInput[];
+  /**
+   * Sampling opt-in. `null`/omitted ⇒ sample-free (default): null-fraction and
+   * distinct-count aggregates only, never a single cell value. When set, up to
+   * `maxValuesPerColumn` most-common values plus min/max on ordered
+   * (numeric/temporal) types are collected — but NEVER for PII-suspected or
+   * secret columns.
+   */
+  sampling?: { maxValuesPerColumn: number } | null;
+  /**
+   * Row-count ceiling above which per-column null-fraction / distinct-count
+   * fall back to `null` (unknown) instead of a full scan (06 §4.2 "capped
+   * tables → NULL"). Defaults to {@link STATS_MAX_SCAN_ROWS}.
+   */
+  maxScanRows?: number;
+}
+
+/** A JSON-native scalar a sampled/extent cell can hold (strings truncated). */
+export type StatsScalar = string | number | boolean | null;
+
+/** Per-column aggregate statistics (06 §4.2). */
+export interface ColumnStats {
+  column: string;
+  /** Fraction of NULL rows in `[0,1]`; `null` when not cheaply available. */
+  nullFraction: number | null;
+  /** Estimated distinct value count; `null` when unknown or capped. */
+  distinctCount: number | null;
+  /**
+   * Ordered-type extent. Present ONLY under sampling opt-in, for
+   * numeric/temporal columns, and NEVER for PII/secret columns. Lossless:
+   * bigint and decimal travel as strings.
+   */
+  min?: StatsScalar;
+  max?: StatsScalar;
+  /**
+   * Most-common values, most-frequent first. Present ONLY under sampling
+   * opt-in and NEVER for PII-suspected or secret columns (06 §4.2 privacy
+   * rule). Each value truncated at {@link STATS_SAMPLE_VALUE_MAX_CHARS} chars.
+   */
+  sampleValues?: StatsScalar[];
+}
+
+/** Result of {@link DatabaseAdapter.collectTableStats}. */
+export interface StatsResult {
+  table: TableRef;
+  /** Row-count estimate (may be exact — see `rowCountExact`); `null` if unknown. */
+  rowCountEstimate: number | null;
+  /** True when `rowCountEstimate` is an exact `COUNT(*)`, not an estimate. */
+  rowCountExact: boolean;
+  /** Per-column aggregates — one entry per requested column, in input order. */
+  columns: ColumnStats[];
+  /** True when any sampled values / min-max are present (opt-in was honored). */
+  sampled: boolean;
+  /** Non-fatal degradations (estimate unavailable, capped, permission gap). */
+  warnings?: string[];
+}
+
+/** Default cap on most-common sampled values per column (06 §4.2). */
+export const STATS_DEFAULT_SAMPLE_VALUES = 20;
+/** Sampled string values are truncated at this many characters (mirrors 05 §10). */
+export const STATS_SAMPLE_VALUE_MAX_CHARS = 256;
+/** Default row-count ceiling for full-scan null/distinct aggregates (06 §4.2). */
+export const STATS_MAX_SCAN_ROWS = 1_000_000;
+/** At/below this estimate an adapter prefers an exact COUNT(*) over a stale estimate (06 §4.2). */
+export const STATS_EXACT_COUNT_THRESHOLD = 50_000;
+
+// ---------------------------------------------------------------------------
 // QueryPort — how the CRUD layer gets a query engine (05 §3, 08 §3.7)
 // ---------------------------------------------------------------------------
 
@@ -284,6 +383,21 @@ export interface DatabaseAdapter<Role extends ConnectionRole = ConnectionRole> {
   query(this: DatabaseAdapter<'data'>, spec: QuerySpec): Promise<QueryResult>;
   /** insert/update/delete, returning rows where supported. */
   mutate(this: DatabaseAdapter<'data'>, spec: MutationSpec): Promise<MutationResult>;
+
+  /**
+   * Collect aggregate statistics for LLM enrichment (06-llm-assist.md §4.2).
+   * Sample-free by default: with `opts.sampling` unset the result carries row
+   * counts, null fractions and distinct counts only — never a single cell
+   * value. Opt-in sampling adds most-common values and ordered min/max, but
+   * NEVER for PII-suspected or secret columns. Cheap-first per dialect
+   * (catalog estimates where available, bounded exact scans as fallback);
+   * an unavailable estimate returns `null`, never a wrong number.
+   */
+  collectTableStats(
+    this: DatabaseAdapter<'data'>,
+    table: TableRef,
+    opts?: CollectStatsOptions,
+  ): Promise<StatsResult>;
 
   /** Release pools/handles; idempotent. */
   close(): Promise<void>;

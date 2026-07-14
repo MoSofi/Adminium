@@ -1,0 +1,16 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "relations": {
+    "inferred": [
+      {
+        "fromTable": "public.orders",
+        "fromColumns": ["product_id"],
+        "toTable": "public.warehouses",
+        "toColumns": ["id"],
+        "kind": "many-to-one",
+        "evidence": "product_id resembles a warehouse reference, but public.warehouses does not exist.",
+        "confidence": 0.6
+      }
+    ]
+  }
+}

@@ -16,6 +16,7 @@ import {
   type DatabaseAdapter,
   type DatabaseModel,
   type IntrospectConnectionConfig,
+  type StatsColumnInput,
 } from '@adminium/engine/adapter';
 
 import {
@@ -351,6 +352,94 @@ describe.skipIf(!liveReady)('query engine (Kysely MysqlDialect CRUD)', () => {
     } finally {
       await engine.destroy();
       await engine.destroy(); // idempotent
+    }
+  });
+});
+
+describe.skipIf(!liveReady)('collectTableStats (data role — 06 §4.2 statistics)', () => {
+  let mod: AdapterModule;
+  let db = '';
+  let dataAdapter: DatabaseAdapter<'data'>;
+
+  const table = { schema: null, name: 'people' };
+  const cols: StatsColumnInput[] = [
+    { name: 'email', logicalType: 'varchar', piiSuspected: true },
+    { name: 'city', logicalType: 'varchar' },
+    { name: 'age', logicalType: 'integer' },
+  ];
+
+  beforeAll(async () => {
+    mod = await import('../src/index.js');
+    db = await createTestDatabase(false);
+    await runSql(
+      `CREATE TABLE people (id int AUTO_INCREMENT PRIMARY KEY, email varchar(255), city varchar(255), age int);
+       INSERT INTO people (email, city, age) VALUES
+         ('a@x.com', 'Paris', 30),
+         ('b@x.com', 'Paris', NULL),
+         ('c@x.com', 'Berlin', 40),
+         (NULL, 'Berlin', 25),
+         ('e@x.com', NULL, 50);`,
+      db,
+    );
+    dataAdapter = new mod.MysqlAdapter<'data'>('data');
+    await dataAdapter.connect({ role: 'data', dsn: dsnFor(db) });
+  }, 120_000);
+
+  afterAll(async () => {
+    await dataAdapter?.close();
+    if (db !== '') await dropTestDatabase(db);
+  });
+
+  it('is sample-free by default — aggregates only, no cell values leak', async () => {
+    const stats = await dataAdapter.collectTableStats(table, { columns: cols });
+    // TABLE_ROWS is below the estimate threshold → exact COUNT(*) fallback.
+    expect(stats.rowCountEstimate).toBe(5);
+    expect(stats.rowCountExact).toBe(true);
+    expect(stats.sampled).toBe(false);
+    for (const column of stats.columns) {
+      expect(column.min).toBeUndefined();
+      expect(column.max).toBeUndefined();
+      expect(column.sampleValues).toBeUndefined();
+    }
+    const city = stats.columns.find((c) => c.column === 'city');
+    expect(city?.nullFraction).toBeCloseTo(0.2);
+    expect(city?.distinctCount).toBe(2);
+    const json = JSON.stringify(stats);
+    expect(json).not.toContain('Paris');
+    expect(json).not.toContain('a@x.com');
+  });
+
+  it('under sampling opt-in, PII columns never contribute values', async () => {
+    const stats = await dataAdapter.collectTableStats(table, {
+      columns: cols,
+      sampling: { maxValuesPerColumn: 10 },
+    });
+    expect(stats.sampled).toBe(true);
+
+    const email = stats.columns.find((c) => c.column === 'email');
+    expect(email?.sampleValues).toBeUndefined();
+    expect(email?.min).toBeUndefined();
+    expect(email?.max).toBeUndefined();
+
+    const city = stats.columns.find((c) => c.column === 'city');
+    expect(city?.sampleValues).toEqual(expect.arrayContaining(['Paris', 'Berlin']));
+
+    const age = stats.columns.find((c) => c.column === 'age');
+    expect(age?.min).toBe(25);
+    expect(age?.max).toBe(50);
+
+    expect(JSON.stringify(stats)).not.toContain('a@x.com');
+  });
+
+  it('is runtime-guarded on the introspect role', async () => {
+    const introspect = new mod.MysqlAdapter<'introspect'>('introspect');
+    await introspect.connect({ role: 'introspect', dsn: dsnFor(db) });
+    try {
+      await expect(
+        (introspect as unknown as DatabaseAdapter<'data'>).collectTableStats(table),
+      ).rejects.toMatchObject({ code: 'PERMISSION' });
+    } finally {
+      await introspect.close();
     }
   });
 });

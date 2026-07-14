@@ -1,0 +1,25 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "dashboards": [
+    {
+      "id": "revenue",
+      "domain": "Revenue",
+      "label": { "en_US": "Revenue" },
+      "order": 0,
+      "tables": ["public.orders"],
+      "widgets": [
+        {
+          "widget": "kpi-stat-card",
+          "rank": 1,
+          "span": 3,
+          "table": "public.orders",
+          "metricColumn": "nonexistent_total",
+          "agg": "sum",
+          "titleEn": "Total",
+          "reason": "metricColumn does not exist on public.orders.",
+          "confidence": 0.5
+        }
+      ]
+    }
+  ]
+}

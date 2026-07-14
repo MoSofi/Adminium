@@ -1,0 +1,77 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "tables": [
+    {
+      "table": "public.orders",
+      "confidence": 0.95,
+      "label": { "en_US": "Orders" },
+      "description": { "en_US": "Customer orders." },
+      "icon": "shopping-cart",
+      "displayColumn": "order_number",
+      "naturalKey": ["order_number"]
+    },
+    {
+      "table": "public.order_items",
+      "confidence": 0.8,
+      "label": { "en_US": "Order items" },
+      "description": { "en_US": "Hallucinated join table that does not exist in the snapshot." },
+      "icon": "list",
+      "displayColumn": null,
+      "naturalKey": null
+    }
+  ],
+  "enums": [
+    {
+      "table": "public.orders",
+      "column": "status",
+      "kind": "workflow",
+      "order": ["pending", "paid", "shipped", "cancelled", "refunded"],
+      "terminal": ["shipped", "cancelled", "refunded"],
+      "tones": { "pending": "warn", "paid": "accent", "shipped": "pos", "cancelled": "danger", "refunded": "muted" },
+      "reason": "Order lifecycle states.",
+      "confidence": 0.9
+    },
+    {
+      "table": "public.order_items",
+      "column": "state",
+      "kind": "category",
+      "order": null,
+      "tones": { "open": "accent" },
+      "reason": "Enum on the hallucinated table.",
+      "confidence": 0.5
+    }
+  ],
+  "dashboards": [
+    {
+      "id": "revenue",
+      "domain": "Revenue",
+      "label": { "en_US": "Revenue" },
+      "order": 0,
+      "tables": ["public.orders"],
+      "widgets": [
+        {
+          "widget": "kpi-stat-card",
+          "rank": 1,
+          "span": 3,
+          "table": "public.orders",
+          "metricColumn": "total_cents",
+          "agg": "sum",
+          "titleEn": "Total revenue",
+          "reason": "Real money measure on a real table.",
+          "confidence": 0.95
+        },
+        {
+          "widget": "kpi-stat-card",
+          "rank": 2,
+          "span": 3,
+          "table": "public.order_items",
+          "metricColumn": "quantity",
+          "agg": "sum",
+          "titleEn": "Items sold",
+          "reason": "Bound to the hallucinated table; must be dropped as a dependent.",
+          "confidence": 0.7
+        }
+      ]
+    }
+  ]
+}

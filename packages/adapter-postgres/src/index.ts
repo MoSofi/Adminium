@@ -17,6 +17,7 @@ import {
   type AdapterProvider,
   type AdapterRegistry,
   type CapabilityProbeResult,
+  type CollectStatsOptions,
   type ColumnSampleOptions,
   type ConnectionConfig,
   type ConnectionRole,
@@ -31,6 +32,7 @@ import {
   type QuerySpec,
   type Row,
   type SampleOptions,
+  type StatsResult,
   type TableRef,
   type TestResult,
 } from '@adminium/engine/adapter';
@@ -45,6 +47,7 @@ import {
   type ProbeResult,
 } from './introspect.js';
 import { createQueryEngine } from './query-engine.js';
+import { collectPostgresStats } from './stats.js';
 
 const INTROSPECT_POOL_MAX = 5;
 const DATA_POOL_MAX = 10;
@@ -239,6 +242,23 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
+  /** Aggregate statistics for LLM enrichment (06 §4.2); sample-free by default. */
+  async collectTableStats(
+    this: DatabaseAdapter<'data'>,
+    table: TableRef,
+    opts?: CollectStatsOptions,
+  ): Promise<StatsResult> {
+    const self = this as PostgresAdapter<'data'>;
+    if ((self.role as ConnectionRole) !== 'data') {
+      throw new AdapterError(
+        'PERMISSION',
+        'collectTableStats() is only available on the data-role instance',
+        { hint: 'statistics touch user rows and never run on the introspect connection (05 §10)' },
+      );
+    }
+    return collectPostgresStats((sql) => self.#query(sql), table, opts);
+  }
+
   /** Release the pool; idempotent. */
   async close(): Promise<void> {
     if (this.#pool === null || this.#closed) return;
@@ -287,6 +307,7 @@ export {
   type ProbeResult,
 } from './introspect.js';
 export { classifyDefault, mapPostgresType, type MappedType } from './type-map.js';
+export { collectPostgresStats, normalizePgDistinct, type StatsExecutor } from './stats.js';
 export {
   PG_MAX_IDENTIFIER_LENGTH,
   postgresSerializers,

@@ -15,6 +15,7 @@ import {
   type AdapterProvider,
   type DatabaseAdapter,
   type IntrospectConnectionConfig,
+  type StatsColumnInput,
 } from '@adminium/engine/adapter';
 
 import {
@@ -324,6 +325,97 @@ describe.skipIf(!driverReady)('query engine (Kysely SqliteDialect CRUD)', () => 
       expect(db.pragma('busy_timeout', { simple: true })).toBe(5000);
     } finally {
       db.close();
+    }
+  });
+});
+
+describe.skipIf(!driverReady)('collectTableStats (data role — 06 §4.2 statistics)', () => {
+  let mod: AdapterModule;
+  let dir = '';
+  let file = '';
+  let dataAdapter: DatabaseAdapter<'data'>;
+
+  const table = { schema: null, name: 'people' };
+  const cols: StatsColumnInput[] = [
+    { name: 'email', logicalType: 'text', piiSuspected: true },
+    { name: 'city', logicalType: 'text' },
+    { name: 'age', logicalType: 'integer' },
+  ];
+
+  beforeAll(async () => {
+    mod = await import('../src/index.js');
+    dir = makeTempDir();
+    file = await createTestDatabase(
+      dir,
+      false,
+      `CREATE TABLE people (id INTEGER PRIMARY KEY, email TEXT, city TEXT, age INTEGER);
+       INSERT INTO people (email, city, age) VALUES
+         ('a@x.com', 'Paris', 30),
+         ('b@x.com', 'Paris', NULL),
+         ('c@x.com', 'Berlin', 40),
+         (NULL, 'Berlin', 25),
+         ('e@x.com', NULL, 50);`,
+    );
+    dataAdapter = new mod.SqliteAdapter<'data'>('data');
+    await dataAdapter.connect({ role: 'data', file });
+  }, 60_000);
+
+  afterAll(async () => {
+    await dataAdapter?.close();
+    if (dir !== '') removeTempDir(dir);
+  });
+
+  it('is sample-free by default — aggregates only, no cell values leak', async () => {
+    const stats = await dataAdapter.collectTableStats(table, { columns: cols });
+    expect(stats.rowCountEstimate).toBe(5);
+    expect(stats.rowCountExact).toBe(true);
+    expect(stats.sampled).toBe(false);
+    for (const column of stats.columns) {
+      expect(column.min).toBeUndefined();
+      expect(column.max).toBeUndefined();
+      expect(column.sampleValues).toBeUndefined();
+    }
+    const city = stats.columns.find((c) => c.column === 'city');
+    expect(city?.nullFraction).toBeCloseTo(0.2);
+    expect(city?.distinctCount).toBe(2);
+    // The serialized result contains NOT ONE cell value.
+    const json = JSON.stringify(stats);
+    expect(json).not.toContain('Paris');
+    expect(json).not.toContain('a@x.com');
+  });
+
+  it('under sampling opt-in, PII columns never contribute values', async () => {
+    const stats = await dataAdapter.collectTableStats(table, {
+      columns: cols,
+      sampling: { maxValuesPerColumn: 10 },
+    });
+    expect(stats.sampled).toBe(true);
+
+    const email = stats.columns.find((c) => c.column === 'email');
+    expect(email?.sampleValues).toBeUndefined();
+    expect(email?.min).toBeUndefined();
+    expect(email?.max).toBeUndefined();
+
+    const city = stats.columns.find((c) => c.column === 'city');
+    expect(city?.sampleValues).toEqual(expect.arrayContaining(['Paris', 'Berlin']));
+
+    const age = stats.columns.find((c) => c.column === 'age');
+    expect(age?.min).toBe(25);
+    expect(age?.max).toBe(50);
+
+    // The PII email value never appears anywhere in the result.
+    expect(JSON.stringify(stats)).not.toContain('a@x.com');
+  });
+
+  it('is runtime-guarded on the introspect role', async () => {
+    const introspect = new mod.SqliteAdapter<'introspect'>('introspect');
+    await introspect.connect({ role: 'introspect', file });
+    try {
+      await expect(
+        (introspect as unknown as DatabaseAdapter<'data'>).collectTableStats(table),
+      ).rejects.toMatchObject({ code: 'PERMISSION' });
+    } finally {
+      await introspect.close();
     }
   });
 });

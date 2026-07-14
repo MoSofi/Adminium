@@ -1,0 +1,23 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "tables": [
+    {
+      "table": "public.orders",
+      "confidence": 0.9,
+      "label": { "en_US": "Orders" },
+      "description": { "en_US": "Customer orders." },
+      "icon": "shopping-cart",
+      "displayColumn": null,
+      "naturalKey": null,
+      "pageTemplates": [
+        {
+          "template": "page-crud",
+          "rank": 1,
+          "triggers": ["crud"],
+          "reason": "page-crud is always generated and must never be recommended.",
+          "confidence": 0.5
+        }
+      ]
+    }
+  ]
+}

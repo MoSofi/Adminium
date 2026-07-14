@@ -1,0 +1,13 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "navGroups": [
+    {
+      "id": "ghosts",
+      "label": { "en_US": "Ghosts" },
+      "icon": "ghost",
+      "order": 0,
+      "tables": ["public.ghosts"],
+      "confidence": 0.5
+    }
+  ]
+}

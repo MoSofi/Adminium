@@ -1,0 +1,21 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "enums": [
+    {
+      "table": "public.orders",
+      "column": "status",
+      "kind": "workflow",
+      "order": ["pending", "paid", "shipped", "cancelled", "refunded"],
+      "tones": {
+        "pending": "warn",
+        "paid": "accent",
+        "shipped": "pos",
+        "cancelled": "danger",
+        "refunded": "muted",
+        "archived": "muted"
+      },
+      "reason": "tones includes a value ('archived') that is not in the declared enum.",
+      "confidence": 0.9
+    }
+  ]
+}

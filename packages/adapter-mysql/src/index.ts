@@ -22,6 +22,7 @@ import {
   type AdapterProvider,
   type AdapterRegistry,
   type CapabilityProbeResult,
+  type CollectStatsOptions,
   type ColumnSampleOptions,
   type ConnectionConfig,
   type ConnectionRole,
@@ -36,6 +37,7 @@ import {
   type QuerySpec,
   type Row,
   type SampleOptions,
+  type StatsResult,
   type TableRef,
   type TestResult,
 } from '@adminium/engine/adapter';
@@ -54,6 +56,7 @@ import {
   type ProbeResult,
 } from './introspect.js';
 import { createQueryEngine } from './query-engine.js';
+import { collectMysqlStats } from './stats.js';
 
 const INTROSPECT_POOL_MAX = 5;
 const DATA_POOL_MAX = 10;
@@ -298,6 +301,23 @@ export class MysqlAdapter<Role extends ConnectionRole = ConnectionRole>
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
+  /** Aggregate statistics for LLM enrichment (06 §4.2); sample-free by default. */
+  async collectTableStats(
+    this: DatabaseAdapter<'data'>,
+    table: TableRef,
+    opts?: CollectStatsOptions,
+  ): Promise<StatsResult> {
+    const self = this as MysqlAdapter<'data'>;
+    if ((self.role as ConnectionRole) !== 'data') {
+      throw new AdapterError(
+        'PERMISSION',
+        'collectTableStats() is only available on the data-role instance',
+        { hint: 'statistics touch user rows and never run on the introspect connection (05 §10)' },
+      );
+    }
+    return collectMysqlStats((sql) => self.#query(sql), table, opts);
+  }
+
   /** Release the pool; idempotent. */
   async close(): Promise<void> {
     if (this.#pool === null || this.#closed) return;
@@ -358,6 +378,7 @@ export {
   type ProbeResult,
   type ServerFlavor,
 } from './introspect.js';
+export { collectMysqlStats, type StatsExecutor } from './stats.js';
 export {
   classifyMysqlDefault,
   mapMysqlType,

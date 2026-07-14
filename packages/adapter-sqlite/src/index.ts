@@ -32,6 +32,7 @@ import {
   type AdapterProvider,
   type AdapterRegistry,
   type CapabilityProbeResult,
+  type CollectStatsOptions,
   type ColumnSampleOptions,
   type ConnectionConfig,
   type ConnectionRole,
@@ -46,6 +47,7 @@ import {
   type QuerySpec,
   type Row,
   type SampleOptions,
+  type StatsResult,
   type TableRef,
   type TestResult,
 } from '@adminium/engine/adapter';
@@ -58,6 +60,7 @@ import {
   type CatalogRow,
 } from './introspect.js';
 import { applyDataPragmas, createQueryEngine } from './query-engine.js';
+import { collectSqliteStats } from './stats.js';
 
 export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
   implements DatabaseAdapter<Role>
@@ -296,6 +299,23 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
+  /** Aggregate statistics for LLM enrichment (06 §4.2); sample-free by default. */
+  async collectTableStats(
+    this: DatabaseAdapter<'data'>,
+    table: TableRef,
+    opts?: CollectStatsOptions,
+  ): Promise<StatsResult> {
+    const self = this as SqliteAdapter<'data'>;
+    if ((self.role as ConnectionRole) !== 'data') {
+      throw new AdapterError(
+        'PERMISSION',
+        'collectTableStats() is only available on the data-role instance',
+        { hint: 'statistics touch user rows and never run on the introspect connection (05 §10)' },
+      );
+    }
+    return collectSqliteStats((sql) => self.#exec(sql), table, opts);
+  }
+
   /** Close the handle; idempotent. */
   async close(): Promise<void> {
     if (this.#closed) return;
@@ -338,6 +358,7 @@ export {
   type SqliteQueryEngineOptions,
 } from './query-engine.js';
 export { normalizeSqliteFile, type SqliteFileConfig } from './file.js';
+export { collectSqliteStats, type StatsExecutor } from './stats.js';
 export {
   COLUMNS_SQL,
   EXACT_COUNT_MAX_FILE_BYTES,

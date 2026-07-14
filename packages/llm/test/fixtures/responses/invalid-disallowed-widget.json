@@ -1,0 +1,24 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "dashboards": [
+    {
+      "id": "revenue",
+      "domain": "Revenue",
+      "label": { "en_US": "Revenue" },
+      "order": 0,
+      "tables": ["public.orders"],
+      "widgets": [
+        {
+          "widget": "chart-sankey-flow",
+          "rank": 1,
+          "span": 6,
+          "table": "public.orders",
+          "dimensionColumn": "status",
+          "titleEn": "Order flow",
+          "reason": "chart-sankey-flow is not in the allowed dashboard-widget set.",
+          "confidence": 0.5
+        }
+      ]
+    }
+  ]
+}

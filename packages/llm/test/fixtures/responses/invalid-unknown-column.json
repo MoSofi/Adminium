@@ -1,0 +1,17 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "tables": [
+    {
+      "table": "public.orders",
+      "confidence": 0.9,
+      "label": { "en_US": "Orders" },
+      "description": { "en_US": "Customer orders." },
+      "icon": "shopping-cart",
+      "displayColumn": null,
+      "naturalKey": null,
+      "columns": [
+        { "column": "ghost_col", "label": { "en_US": "Ghost" }, "pii": null }
+      ]
+    }
+  ]
+}

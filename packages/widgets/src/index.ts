@@ -47,6 +47,28 @@ export {
 } from './registry/widget-missing.js';
 export { isEmptyByShape, isEmptyData } from './registry/data-empty.js';
 
+// Page-template registry — the source of truth the LLM allow-lists derive from
+export {
+  DuplicatePageTemplateIdError,
+  PAGE_DASHBOARD_TEMPLATE_ID,
+  buildPageTemplateRegistry,
+  getPageTemplate,
+  pageTemplateDefinitions,
+  pageTemplateRegistry,
+  type PageTemplateDefinition,
+} from './registry/page-templates.js';
+
+// LLM allow-lists (06-llm-assist.md §4.4/§5) — closed vocabularies the
+// enrichment prompt injects; derived from the registries above so they cannot
+// drift from what the runtime can render.
+export {
+  LLM_ALLOWED_PAGE_TEMPLATES,
+  LLM_ALLOWED_SEMANTICS,
+  LLM_ALLOWED_TEMPLATES,
+  LLM_ALLOWED_WIDGETS,
+  type LlmSemanticTone,
+} from './registry/llm-allowlist.js';
+
 // Formatting + payload narrowing shared by widget components
 export {
   computeDelta,

@@ -449,6 +449,16 @@ importers:
         version: 3.2.7(@types/node@22.15.3)(happy-dom@18.0.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(yaml@2.9.0)
 
   packages/llm:
+    dependencies:
+      '@adminium/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@adminium/widgets':
+        specifier: workspace:*
+        version: link:../widgets
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@adminium/config':
         specifier: workspace:*

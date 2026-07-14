@@ -1,0 +1,16 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "relations": {
+    "confirmed": [
+      {
+        "fromTable": "public.orders",
+        "fromColumns": ["product_id"],
+        "toTable": "public.products",
+        "toColumns": ["id"],
+        "semantics": "orders reference products",
+        "correct": true,
+        "confidence": 0.8
+      }
+    ]
+  }
+}

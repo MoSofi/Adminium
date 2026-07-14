@@ -1,0 +1,14 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "enums": [
+    {
+      "table": "public.orders",
+      "column": "total_cents",
+      "kind": "category",
+      "order": null,
+      "tones": { "1000": "pos" },
+      "reason": "total_cents is an integer money column, not an enum.",
+      "confidence": 0.4
+    }
+  ]
+}

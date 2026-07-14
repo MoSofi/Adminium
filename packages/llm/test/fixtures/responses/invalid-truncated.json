@@ -1,0 +1,8 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "tables": [
+    {
+      "table": "public.orders",
+      "confidence": 0.95,
+      "label": { "en_US": "Orders" },
+      "description": { "en_US": "A customer's purchase of a product,
