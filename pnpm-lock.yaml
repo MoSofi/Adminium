@@ -166,6 +166,9 @@ importers:
       '@adminium/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@adminium/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
       '@adminium/meta':
         specifier: workspace:*
         version: link:../../packages/meta

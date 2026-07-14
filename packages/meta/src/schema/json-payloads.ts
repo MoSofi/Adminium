@@ -213,7 +213,7 @@ export const overrideStatusSchema = z.enum(['active', 'disabled']);
 
 // --- pages (§3.16/§3.17) -----------------------------------------------------------
 
-export const pageOriginSchema = z.enum(['generated', 'user', 'manifest', 'system']);
+export const pageOriginSchema = z.enum(['generated', 'user', 'manifest', 'system', 'llm']);
 export const navGroupSchema = z.enum(['workspace', 'library', 'planning', 'people', 'account']);
 
 /**
@@ -240,10 +240,51 @@ export const notificationChannelsSchema = z.object({
 });
 export type NotificationChannels = z.infer<typeof notificationChannelsSchema>;
 
-// --- llm runs (§3.19) ----------------------------------------------------------------
+// --- llm runs (§3.19 / 06-llm-assist.md §7.4) -----------------------------------------
 
 export const llmRunModeSchema = z.enum(['provider', 'byo']);
+
+/**
+ * `validation_status` — the outcome of the LAST response validation, kept from
+ * 0006 as a secondary signal (drives the "some suggestions dropped" hint in the
+ * run-history UI). Orthogonal to the run-lifecycle `status` machine below, which
+ * 0007 adds as the authoritative state.
+ */
 export const llmValidationStatusSchema = z.enum(['pending', 'valid', 'partial', 'invalid']);
+
+/**
+ * `status` — the authoritative run-lifecycle machine (06-llm-assist.md §7.4).
+ * Transitions (enforced by the server run-service, not the repo):
+ *   draft → running | awaiting_response
+ *   running | awaiting_response → validated | failed | discarded
+ *   validated → applied | partially_applied | discarded
+ *   applied | partially_applied | failed | discarded → (terminal, immutable)
+ */
+export const llmRunStatusSchema = z.enum([
+  'draft',
+  'running',
+  'awaiting_response',
+  'validated',
+  'applied',
+  'partially_applied',
+  'failed',
+  'discarded',
+]);
+export type LlmRunStatus = z.infer<typeof llmRunStatusSchema>;
+
+/** Builder inputs echoed onto the run (§4.1) — opaque here, validated upstream by `buildPrompt`. */
+export const llmRunSectionsSchema = z.array(z.string());
+export const llmRunLocalesSchema = z.array(z.string()).min(1);
+export const llmRunSamplingSchema = z
+  .object({ maxValuesPerColumn: z.number().int().positive() })
+  .nullable();
+
+/** `review` — accepted/rejected suggestion-id lists persisted across re-review (§8.3). */
+export const llmRunReviewSchema = z.object({
+  accepted: z.array(z.string()),
+  rejected: z.array(z.string()),
+});
+export type LlmRunReview = z.infer<typeof llmRunReviewSchema>;
 
 // --- automations (§3.22/§3.23) --------------------------------------------------------
 

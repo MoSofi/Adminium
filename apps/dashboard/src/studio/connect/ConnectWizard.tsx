@@ -14,6 +14,7 @@ import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { studioApi, type SchemaTable } from '../api.js';
 import { wizardCapabilitySource } from './capabilityNotes.js';
+import { EnrichStep } from './steps/EnrichStep.js';
 import { GenerateStep } from './steps/GenerateStep.js';
 import { IntentStep } from './steps/IntentStep.js';
 import { MetaStep } from './steps/MetaStep.js';
@@ -35,12 +36,14 @@ import {
 export interface ConnectWizardProps {
   /** Navigate into the generated app after success (router injects). */
   onOpenApp: () => void;
+  /** Navigate to the LLM run review screen after an AI enrichment run (router injects). */
+  onOpenReview?: ((runId: string) => void) | undefined;
   /** Storytelling stagger; tests pass 0. */
   lineDelayMs?: number | undefined;
   pollIntervalMs?: number | undefined;
 }
 
-export function ConnectWizard({ onOpenApp, lineDelayMs, pollIntervalMs }: ConnectWizardProps) {
+export function ConnectWizard({ onOpenApp, onOpenReview, lineDelayMs, pollIntervalMs }: ConnectWizardProps) {
   const [state, setState] = useState<WizardState>(() => loadWizardState());
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   /** Parsed schema-file tables — memory only (the model is too big for sessionStorage). */
@@ -85,6 +88,10 @@ export function ConnectWizard({ onOpenApp, lineDelayMs, pollIntervalMs }: Connec
         }
         return state.mode === 'file' ? state.separateMetaDsn.trim().length > 0 : state.separateMetaTested;
       }
+      case 'enrich':
+        // AI paths (provider/BYO) exit to the review screen from inside the
+        // step; only "Skip" (or a file source with no snapshot) advances here.
+        return state.enrichIntent === 'skip' || state.mode === 'file';
       case 'generate':
         return false; // terminal — SuccessState owns the exit
     }
@@ -168,6 +175,14 @@ export function ConnectWizard({ onOpenApp, lineDelayMs, pollIntervalMs }: Connec
           />
         ) : null}
         {state.step === 'meta' ? <MetaStep state={state} onPatch={patch} /> : null}
+        {state.step === 'enrich' ? (
+          <EnrichStep
+            state={state}
+            onPatch={patch}
+            onOpenReview={onOpenReview ?? (() => undefined)}
+            pollIntervalMs={pollIntervalMs}
+          />
+        ) : null}
         {state.step === 'generate' ? (
           <GenerateStep state={state} onOpenApp={onOpenApp} lineDelayMs={lineDelayMs} />
         ) : null}

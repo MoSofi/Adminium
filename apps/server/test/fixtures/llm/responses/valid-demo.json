@@ -1,0 +1,229 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "run_id": "01J9ZK3W8E2Q4R6T8V0X2Y4Z6A",
+  "tables": [
+    {
+      "table": "public.orders",
+      "confidence": 0.95,
+      "label": { "en_US": "Orders", "de_DE": "Bestellungen" },
+      "description": {
+        "en_US": "A customer's purchase of a product, tracked from placement to fulfilment.",
+        "de_DE": "Der Kauf eines Produkts durch einen Kunden, von der Bestellung bis zur Lieferung."
+      },
+      "icon": "shopping-cart",
+      "displayColumn": "order_number",
+      "naturalKey": ["order_number"],
+      "pageTemplates": [
+        {
+          "template": "page-queue-inbox",
+          "rank": 1,
+          "triggers": ["workflow enum with pending-style states", "requester FK (customer_id)"],
+          "reason": "status is a fulfilment workflow (pending→paid→shipped) staff work through like a queue.",
+          "confidence": 0.82
+        },
+        {
+          "template": "page-board",
+          "rank": 2,
+          "triggers": ["status enum classified workflow"],
+          "reason": "Five ordered states suit a drag-to-advance fulfilment board.",
+          "confidence": 0.6
+        }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No orders yet", "de_DE": "Noch keine Bestellungen" },
+          "guidance": {
+            "en_US": "Orders appear here as customers place them. Create one manually to get started.",
+            "de_DE": "Bestellungen erscheinen hier, sobald Kunden sie aufgeben. Legen Sie zum Einstieg eine manuell an."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Track and fulfil customer orders",
+          "de_DE": "Kundenbestellungen verfolgen und abwickeln"
+        }
+      },
+      "columns": [
+        { "column": "order_number", "label": { "en_US": "Order number", "de_DE": "Bestellnummer" }, "pii": null },
+        { "column": "customer_id", "label": { "en_US": "Customer", "de_DE": "Kunde" }, "pii": null },
+        { "column": "product_id", "label": { "en_US": "Product", "de_DE": "Produkt" }, "pii": null },
+        { "column": "status", "label": { "en_US": "Status", "de_DE": "Status" }, "pii": null },
+        {
+          "column": "total_cents",
+          "label": { "en_US": "Total", "de_DE": "Gesamtbetrag" },
+          "description": {
+            "en_US": "Order total in cents; divide by 100 for display currency.",
+            "de_DE": "Bestellsumme in Cent; für die Anzeige durch 100 teilen."
+          },
+          "pii": null
+        },
+        { "column": "placed_at", "label": { "en_US": "Placed", "de_DE": "Bestellt am" }, "pii": null }
+      ]
+    },
+    {
+      "table": "public.customers",
+      "confidence": 0.94,
+      "label": { "en_US": "Customers", "de_DE": "Kunden" },
+      "description": {
+        "en_US": "People who buy products; each row is one customer account.",
+        "de_DE": "Personen, die Produkte kaufen; jede Zeile ist ein Kundenkonto."
+      },
+      "icon": "users",
+      "displayColumn": "full_name",
+      "naturalKey": ["email"],
+      "pageTemplates": [
+        {
+          "template": "page-directory",
+          "rank": 1,
+          "triggers": ["people-shaped table: name + email"],
+          "reason": "full_name + email make a browsable people directory with card layout.",
+          "confidence": 0.55
+        }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No customers yet", "de_DE": "Noch keine Kunden" },
+          "guidance": {
+            "en_US": "Customers are created at checkout. Add one manually or import a CSV to begin.",
+            "de_DE": "Kunden werden beim Checkout angelegt. Fügen Sie einen manuell hinzu oder importieren Sie eine CSV-Datei."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Everyone who has bought from you",
+          "de_DE": "Alle, die bei Ihnen gekauft haben"
+        }
+      },
+      "columns": [
+        {
+          "column": "email",
+          "label": { "en_US": "Email", "de_DE": "E-Mail" },
+          "pii": { "kind": "email", "masking": "mask-email", "reason": "Column stores customer email addresses (unique, text, name 'email').", "confidence": 0.99 }
+        },
+        {
+          "column": "full_name",
+          "label": { "en_US": "Full name", "de_DE": "Vollständiger Name" },
+          "pii": { "kind": "name", "masking": "mask-partial", "reason": "Personal names are directly identifying.", "confidence": 0.96 }
+        },
+        { "column": "country", "label": { "en_US": "Country", "de_DE": "Land" }, "pii": null },
+        { "column": "created_at", "label": { "en_US": "Signed up", "de_DE": "Registriert am" }, "pii": null }
+      ]
+    },
+    {
+      "table": "public.products",
+      "confidence": 0.96,
+      "label": { "en_US": "Products", "de_DE": "Produkte" },
+      "description": {
+        "en_US": "Items available for purchase, with pricing and category.",
+        "de_DE": "Zum Kauf verfügbare Artikel mit Preis und Kategorie."
+      },
+      "icon": "package",
+      "displayColumn": "name",
+      "naturalKey": ["sku"],
+      "pageTemplates": [],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No products yet", "de_DE": "Noch keine Produkte" },
+          "guidance": {
+            "en_US": "Add your first product to start taking orders.",
+            "de_DE": "Legen Sie Ihr erstes Produkt an, um Bestellungen entgegenzunehmen."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Manage your catalog and pricing",
+          "de_DE": "Katalog und Preise verwalten"
+        }
+      },
+      "columns": [
+        { "column": "sku", "label": { "en_US": "SKU", "de_DE": "Artikelnummer" }, "pii": null },
+        { "column": "name", "label": { "en_US": "Name", "de_DE": "Name" }, "pii": null },
+        { "column": "category", "label": { "en_US": "Category", "de_DE": "Kategorie" }, "pii": null },
+        {
+          "column": "price_cents",
+          "label": { "en_US": "Price", "de_DE": "Preis" },
+          "description": { "en_US": "Unit price in cents.", "de_DE": "Stückpreis in Cent." },
+          "pii": null
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "table": "public.orders",
+      "column": "status",
+      "kind": "workflow",
+      "order": ["pending", "paid", "shipped", "cancelled", "refunded"],
+      "terminal": ["shipped", "cancelled", "refunded"],
+      "tones": { "pending": "warn", "paid": "accent", "shipped": "pos", "cancelled": "danger", "refunded": "muted" },
+      "reason": "Values are lifecycle states of order fulfilment with clear temporal order and terminal outcomes.",
+      "confidence": 0.97
+    }
+  ],
+  "relations": {
+    "confirmed": [
+      {
+        "fromTable": "public.orders", "fromColumns": ["customer_id"],
+        "toTable": "public.customers", "toColumns": ["id"],
+        "semantics": "orders belong to customers",
+        "correct": true,
+        "confidence": 0.99
+      }
+    ],
+    "inferred": [
+      {
+        "fromTable": "public.orders", "fromColumns": ["product_id"],
+        "toTable": "public.products", "toColumns": ["id"],
+        "kind": "many-to-one",
+        "evidence": "Name pattern product_id, uuid types match, distinctCount 311 ≈ products rowCount 312; no FK declared.",
+        "confidence": 0.93
+      }
+    ]
+  },
+  "navGroups": [
+    {
+      "id": "sales",
+      "label": { "en_US": "Sales", "de_DE": "Verkauf" },
+      "icon": "shopping-cart",
+      "order": 0,
+      "tables": ["public.orders", "public.customers"],
+      "confidence": 0.9
+    },
+    {
+      "id": "catalog",
+      "label": { "en_US": "Catalog", "de_DE": "Katalog" },
+      "icon": "package",
+      "order": 1,
+      "tables": ["public.products"],
+      "confidence": 0.9
+    }
+  ],
+  "dashboards": [
+    {
+      "id": "revenue",
+      "domain": "Revenue",
+      "label": { "en_US": "Revenue", "de_DE": "Umsatz" },
+      "order": 0,
+      "tables": ["public.orders", "public.products"],
+      "widgets": [
+        { "widget": "kpi-stat-card", "rank": 1, "span": 3, "table": "public.orders",
+          "metricColumn": "total_cents", "agg": "sum", "titleEn": "Total revenue",
+          "reason": "total_cents is the primary money measure.", "confidence": 0.95 },
+        { "widget": "kpi-stat-card", "rank": 2, "span": 3, "table": "public.orders",
+          "agg": "count", "titleEn": "Orders",
+          "reason": "Order volume is the core operational count.", "confidence": 0.94 },
+        { "widget": "chart-line-area", "rank": 3, "span": 8, "table": "public.orders",
+          "metricColumn": "total_cents", "timeColumn": "placed_at", "agg": "sum",
+          "titleEn": "Revenue over time",
+          "reason": "Money measure + placed_at timestamp make the canonical trend chart.", "confidence": 0.93 },
+        { "widget": "chart-donut", "rank": 4, "span": 4, "table": "public.orders",
+          "dimensionColumn": "status", "agg": "count", "titleEn": "Orders by status",
+          "reason": "Workflow enum distribution shows fulfilment health at a glance.", "confidence": 0.9 },
+        { "widget": "top-movers-list", "rank": 5, "span": 6, "table": "public.products",
+          "metricColumn": "price_cents", "titleEn": "Top products",
+          "reason": "Ranks catalog items; joins via inferred orders.product_id relation.", "confidence": 0.72 }
+      ]
+    }
+  ],
+  "notes": [
+    "orders.product_id has no declared foreign key — consider adding one in the database.",
+    "customers.country is a 24-value text column; a lookup table or enum would improve integrity."
+  ]
+}

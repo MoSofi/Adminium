@@ -387,6 +387,323 @@ export default {
         "empty": "Intet at slette — ingen forbindelser endnu.",
         "deleteDesc": "Sletter forbindelsen og de genererede sider. Din database røres ikke. Kan ikke fortrydes.",
         "deleteCta": "Slet forbindelse"
+      },
+      "aiCard": {
+        "heading": "AI-berigelse",
+        "body": "Konfigurér en AI-udbyder (eller kopiér-indsæt-turen) for at berige etiketter, grupper og relationer.",
+        "cta": "Åbn AI-indstillinger"
+      }
+    },
+    "settingsAi": {
+      "title": "AI-berigelse",
+      "subtitle": "Forbind en model, så Adminium kan foreslå etiketter, grupper, relationer og mere — altid gennemgået som en diff, før noget anvendes.",
+      "saved": "AI-udbyder gemt",
+      "saveFailed": "AI-udbyderen kunne ikke gemmes. Prøv igen.",
+      "save": "Gem udbyder",
+      "test": "Test forbindelse",
+      "testHintDirty": "Gem dine ændringer, før du tester.",
+      "testing": "Kontakter udbyderen…",
+      "testError": "Testen mislykkedes",
+      "testErrorBody": "Kunne ikke nå udbyderen. Tjek nøglen og basis-URL.",
+      "testOk": "Forbundet til {model} på {latency} ms",
+      "testUnknownModel": "udbyderen",
+      "provider": {
+        "heading": "AI-udbyder",
+        "subtitle": "Vælg, hvordan Adminium når en model til at berige dit skema. Nøgler gemmes krypteret og vises aldrig igen.",
+        "active": "Aktiv",
+        "anthropic": {
+          "label": "Anthropic",
+          "desc": "Claude-modeller via Anthropic-API’en."
+        },
+        "openai": {
+          "label": "OpenAI",
+          "desc": "GPT-modeller via OpenAI-API’en."
+        },
+        "openaiCompatible": {
+          "label": "OpenAI-kompatibel",
+          "desc": "Ethvert endpoint, der taler OpenAI-formatet — Groq, Together, vLLM, LM Studio."
+        },
+        "ollama": {
+          "label": "Ollama (lokal)",
+          "desc": "Modeller kører lokalt via Ollama — ingen nøgle, ingen sky."
+        }
+      },
+      "configure": {
+        "heading": "Konfigurér {provider}"
+      },
+      "field": {
+        "baseUrl": "Basis-URL",
+        "baseUrlOptional": "Lad stå, medmindre Ollama kører på en anden vært.",
+        "baseUrlHelper": "Endpoint-roden, der leverer /chat/completions.",
+        "model": "Model",
+        "modelFreeText": "Indtast det præcise model-id, dit endpoint leverer.",
+        "modelLive": "Indlæst live fra udbyderen.",
+        "modelStatic": "En gennemprøvet liste; skriv et brugerdefineret id efter at have gemt for at opdatere den.",
+        "modelLoading": "Indlæser…",
+        "modelPlaceholder": "Vælg en model…",
+        "key": "API-nøgle",
+        "keyStored": "Gemt krypteret. Erstat den for at bruge en anden nøgle.",
+        "keyMask": "sk-…{last4}",
+        "keyReplace": "Erstat nøgle",
+        "keyOptional": "Valgfri — nogle endpoints kræver ingen nøgle.",
+        "keyWriteOnly": "Kun skrivning: når den er gemt, vises den aldrig igen.",
+        "noKeyTitle": "Ingen API-nøgle nødvendig",
+        "noKeyBody": "Ollama kører lokalt, så intet forlader denne maskine."
+      },
+      "runStatus": {
+        "draft": "Kladde",
+        "running": "Kører",
+        "awaitingResponse": "Afventer svar",
+        "validated": "Valideret",
+        "applied": "Anvendt",
+        "partiallyApplied": "Delvist anvendt",
+        "failed": "Mislykkedes",
+        "discarded": "Kasseret"
+      },
+      "byo": {
+        "heading": "Ingen nøgle? Brug dit eget AI-værktøj",
+        "subtitle": "Kopiér-indsæt-turen — intet forlader denne maskine.",
+        "body": "Studio kan generere en selvstændig prompt ud fra dit skema. Kør den i Claude Code, ChatGPT eller et hvilket som helst værktøj, og indsæt derefter den returnerede JSON tilbage i forbindelsesguiden. Samme validering, samme gennemgang, samme resultat som den direkte vej.",
+        "guaranteeTitle": "Telemetrifri garanti",
+        "guarantee1": "Prompten indeholder kun dit skema og aggregeret statistik — aldrig rækkedata som standard.",
+        "guarantee2": "Ingen legitimationsoplysninger, instans-URL eller identifikatorer er indlejret.",
+        "guarantee3": "BYO-kørsler foretager ingen netværkskald og afregnes aldrig.",
+        "promptVersion": "Prompt {version}",
+        "schemaVersion": "Skema {version}"
+      },
+      "history": {
+        "heading": "Kørselshistorik",
+        "subtitle": "Tidligere berigelseskørsler. Åbn en for at gennemgå dens forslag.",
+        "tableLabel": "Berigelseskørsler",
+        "colDate": "Dato",
+        "colSource": "Kilde",
+        "colStatus": "Status",
+        "colChunks": "Blokke",
+        "openReview": "Åbn gennemgang for kørslen fra {date}",
+        "connection": "Forbindelse",
+        "empty": "Ingen berigelseskørsler endnu. Berig et skema fra forbindelsesguiden for at se historik her.",
+        "errorTitle": "Kunne ikke indlæse kørsler",
+        "errorBody": "Genindlæs siden for at prøve igen.",
+        "noConnections": "Forbind først en database — berigelseskørsler registreres pr. forbindelse.",
+        "byo": "BYO",
+        "directPath": "Direkte"
+      }
+    },
+    "enrich": {
+      "title": "Berig med AI",
+      "subtitle": "Forfin eventuelt de genererede etiketter, grupper, enums og dashboards med en LLM. Det heuristiske grundlag fungerer uden — dette tilføjer kun forslag, som du gennemgår, før noget anvendes.",
+      "intentLabel": "Hvordan vil du berige?",
+      "sectionsLegend": "Hvad skal AI’en beslutte?",
+      "localesLegend": "Oversæt etiketter til",
+      "localeLocked": "(påkrævet)",
+      "samplingTitle": "Inkludér eksempelværdier",
+      "samplingHint": "Inkluderer op til 20 rigtige værdier pr. ikke-PII-kolonne i prompten.",
+      "samplingPreviewTitle": "Hvad forlader denne maskine",
+      "samplingPreviewBody": "Op til 20 hyppigste værdier pr. ikke-PII-kolonne, plus min/maks for numeriske og datokolonner. PII-markerede kolonner udtages aldrig. Alt andet forbliver kun aggregeret. Gennemgå den præcise prompt før kopiering (BYO) — intet sendes uden din handling.",
+      "noSections": "Vælg mindst én beslutningsgruppe at berige.",
+      "generatePrompt": "Generér prompt",
+      "startProvider": "Start berigelse",
+      "startOver": "Start forfra",
+      "copied": "Kopieret",
+      "createFailed": "Berigelsesprompten kunne ikke bygges — prøv igen.",
+      "createFailedTitle": "Kunne ikke starte",
+      "providerFallback": "din AI-udbyder",
+      "fileTitle": "AI-berigelse kræver en live-database",
+      "fileBody": "Skemafil-kilder har endnu ikke et snapshot at berige. Forbind en live-database for at bruge AI-berigelse, eller fortsæt — det heuristiske grundlag genererer stadig en komplet app.",
+      "section": {
+        "labels": "Etiketter og beskrivelser",
+        "groups": "Navigationsgrupper",
+        "enums": "Enum-semantik",
+        "relations": "Relationer",
+        "keys": "Nøglekolonner",
+        "templates": "Sideskabeloner",
+        "widgets": "Dashboard-widgets",
+        "pii": "PII og maskering",
+        "icons": "Ikoner",
+        "microcopy": "Mikrotekst"
+      },
+      "provider": {
+        "title": "Brug min AI-udbyder",
+        "description": "Kør berigelsen nu mod din konfigurerede udbyder. Du gennemgår hvert forslag som en diff.",
+        "unconfigured": "Der er endnu ikke konfigureret nogen AI-udbyder — kopiér en prompt til dit eget værktøj nedenfor, eller konfigurér først en udbyder.",
+        "settingsHint": "Vil du køre den direkte?",
+        "settingsLink": "Konfigurér en udbyder i Indstillinger → AI"
+      },
+      "byo": {
+        "cardTitle": "Kopiér en prompt til mit eget AI-værktøj",
+        "cardDescription": "Kopiér en selvstændig prompt ind i Claude Code, ChatGPT, hvad som helst — og indsæt så JSON’en tilbage. Ingen nøgle nødvendig, intet forlader denne maskine automatisk.",
+        "guidance": "Kør dette i et hvilket som helst AI-værktøj — Claude Code, ChatGPT, hvad som helst. Indsæt den returnerede JSON nedenfor.",
+        "promptLabel": "Berigelsesprompt",
+        "promptLabelN": "Berigelsesprompt {index} af {total}",
+        "tokenChip": "≈ {tokens} tokens",
+        "copyPrompt": "Kopiér prompt",
+        "copyPromptDone": "Prompt kopieret",
+        "download": "Download .md",
+        "chunkTabs": "Prompt-dele",
+        "chunkTab": "Prompt {index}",
+        "chunkValid": "Del {index} valideret",
+        "pasteLabel": "Indsæt JSON-svaret",
+        "pastePlaceholder": "Indsæt JSON-svaret her…",
+        "validate": "Validér",
+        "valid": "Svar valideret",
+        "mergedTitle": "Alle {count} dele valideret og flettet",
+        "mergedTitleSingle": "Svar valideret",
+        "mergedBody": "Forslagene er klar til gennemgang mod det heuristiske grundlag.",
+        "errorsTitle": "Valideringen fandt {count} problemer",
+        "copyErrors": "Kopiér fejl til dit AI-værktøj",
+        "copyErrorsDone": "Fejl kopieret",
+        "copyErrorsHint": "Indsæt dette tilbage i dit AI-værktøj for at få et rettet svar.",
+        "droppedItems": "{count} forslag blev frasorteret under valideringen — gennemgangen viser resten.",
+        "pendingTitle": "Validér hver prompt for at fortsætte",
+        "pendingBody": "Indsæt JSON-svaret ovenfor og validér det for at fortsætte til gennemgang.",
+        "pendingBodyChunked": "Hver del skal valideres, før forslagene flettes. Indsæt og validér hver prompt ovenfor.",
+        "requestFailed": "Kunne ikke nå serveren for at validere — prøv igen.",
+        "continueReview": "Fortsæt til gennemgang",
+        "wholeDocument": "hele dokumentet"
+      },
+      "direct": {
+        "title": "Beriger med AI",
+        "subtitle": "Sender dit skema til",
+        "building": "Bygger prompt…",
+        "logLabel": "Berigelseslog",
+        "cancel": "Annullér",
+        "back": "Tilbage til valg",
+        "retry": "Prøv igen",
+        "done": "Berigelse fuldført — gennemgå forslagene.",
+        "continueReview": "Fortsæt til gennemgang",
+        "failed": "Udbyderkørslen mislykkedes. Tjek dine AI-indstillinger, og prøv igen.",
+        "jobFailed": "Berigelseskørslen blev ikke fuldført.",
+        "startFailed": "Kunne ikke starte kørslen — prøv igen.",
+        "errorTitle": "Berigelse mislykkedes"
+      },
+      "skip": {
+        "title": "Spring over — brug kun heuristik",
+        "description": "Generér fra det heuristiske grundlag. Du kan berige senere fra Indstillinger → AI — at springe over straffes aldrig.",
+        "confirmTitle": "Fortsætter med heuristik",
+        "confirmBody": "Den genererede app vil bruge de heuristiske etiketter, grupper og dashboards. Fortsæt for at generere — du kan køre AI-berigelse når som helst fra Indstillinger → AI."
+      }
+    },
+    "review": {
+      "unavailableTitle": "Gennemgangsskærm ikke tilgængelig",
+      "unavailableBody": "Denne build indeholder endnu ikke berigelsens gennemgangsskærm (06-T14). Den kommer med diff-og-anvend-flowet."
+    },
+    "llmRuns": {
+      "review": {
+        "header": {
+          "title": "Gennemgå AI-forslag",
+          "model": "Model",
+          "snapshot": "Øjebliksbillede",
+          "byo": "BYO",
+          "pathDirect": "Direkte API",
+          "pathByo": "Kopiér-indsæt",
+          "agree": "{n} enige",
+          "conflict": "{n} konflikt",
+          "new": "{n} nye",
+          "rejects": "{n} afvisninger",
+          "countsAria": "Antal forslag"
+        },
+        "bulk": {
+          "thresholdLabel": "Tillidstærskel",
+          "thresholdAria": "Tillidstærskel for “Accepter alle”",
+          "acceptAll": "Accepter alle ≥ {pct}%",
+          "clear": "Ryd markering"
+        },
+        "section": {
+          "selectAllAria": "Vælg alle i {group}",
+          "acceptedCount": "{n} accepteret"
+        },
+        "group": {
+          "labels": "Etiketter og oversættelser",
+          "navigation": "Navigation og domæner",
+          "enums": "Enum-semantik",
+          "relations": "Relationer",
+          "keys": "Nøglekolonner",
+          "templates": "Sideskabeloner",
+          "dashboards": "Dashboards og widgets",
+          "pii": "Personoplysninger og maskering",
+          "icons": "Ikoner",
+          "microcopy": "Mikrotekst"
+        },
+        "status": {
+          "agree": "Stemmer overens",
+          "conflict": "Konflikt",
+          "new": "Ny",
+          "heuristicOnly": "Kun heuristik",
+          "rejects": "Afviser heuristik",
+          "locked": "Låst"
+        },
+        "row": {
+          "acceptAria": "Accepter {noun}-forslag for {target}",
+          "keptEdited": "bevaret – redigeret af dig",
+          "rejectsCallout": "AI’en afviser en heuristisk beslutning – bekræft før accept.",
+          "showTranslations": "Vis oversættelser",
+          "hideTranslations": "Skjul oversættelser",
+          "confidenceAria": "Tillid {pct}%",
+          "noAi": "Intet AI-forslag"
+        },
+        "value": {
+          "none": "Ingen værdi",
+          "absent": "Ingen",
+          "dash": "—",
+          "display": "Visning",
+          "key": "Nøgle",
+          "rank": "rang {n}",
+          "span": "bredde {n}",
+          "tableCount": "{n} tabeller",
+          "widgetCount": "{n} widgets",
+          "enumWorkflow": "Arbejdsgang",
+          "enumCategory": "Kategori",
+          "notPii": "Ikke personoplysninger",
+          "label": "Etiket",
+          "description": "Beskrivelse",
+          "subtitle": "Sideundertekst",
+          "headline": "Overskrift for tom tilstand",
+          "guidance": "Vejledning for tom tilstand"
+        },
+        "apply": {
+          "title": "Anvend {n} forslag",
+          "subtitle": "Disse ændringer skrives i én transaktion og kan fortrydes.",
+          "empty": "Intet valgt at anvende.",
+          "confirm": "Anvend ændringer"
+        },
+        "footer": {
+          "count": "{n} forslag valgt",
+          "apply": "Anvend {n} accepterede forslag",
+          "failed": "Anvendelse mislykkedes"
+        },
+        "toast": {
+          "applied": "Anvendte {n} forslag",
+          "appliedPartial": "Anvendte {n} forslag (nogle sprunget over)",
+          "applyFailed": "Kunne ikke anvende forslag",
+          "undoFailed": "Kunne ikke fortryde denne ændring"
+        },
+        "error": {
+          "title": "Kunne ikke indlæse denne kørsel"
+        },
+        "notReady": {
+          "title": "Denne kørsel har endnu ingen forslag til gennemgang",
+          "body": "En kørsel skal være valideret, før dens forslag kan gennemgås. Generér eller indsæt et svar først."
+        },
+        "applied": {
+          "title": "Denne kørsel er blevet anvendt",
+          "body": "De accepterede forslag nedenfor er skrivebeskyttede."
+        },
+        "empty": {
+          "title": "Ingen forslag",
+          "body": "Denne kørsel gav ingen forslag til gennemgang."
+        },
+        "cat": {
+          "label": "etiket",
+          "key": "nøglekolonner",
+          "enum": "enum",
+          "relation": "relation",
+          "pii": "personoplysninger",
+          "template": "sideskabelon",
+          "group": "navigationsgruppe",
+          "dashboard": "dashboard",
+          "widget": "widget",
+          "copy": "mikrotekst"
+        }
       }
     }
   },

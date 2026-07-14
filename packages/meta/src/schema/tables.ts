@@ -246,6 +246,11 @@ export interface AdminiumSchemaOverridesTable {
   llmRunId: Id | null;
   /** active | disabled */
   status: string;
+  /**
+   * Per-suggestion model confidence for `origin: 'llm'` rows (0008, §8.3); NULL
+   * for user-remap rows. Insert-optional so `overridesRepo` need not set it.
+   */
+  confidence: ColumnType<number | null, number | null | undefined, number | null>;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
@@ -369,22 +374,49 @@ export interface AdminiumNotificationPrefsTable {
 // wave 0006 — platform (llm / automation / delivery / marketplace)
 // ---------------------------------------------------------------------------
 
-/** §3.19 one enrichment attempt (provider API or BYO paste). */
+/**
+ * §3.19 / 06-llm-assist.md §7.4 — one enrichment attempt (provider API or BYO
+ * paste). Columns through `duration_ms` ship in 0006; 0007_llm_runs adds the
+ * §7.4 run-lifecycle machine (`status`), the builder inputs (`sections`,
+ * `locales`, `sampling`), chunk progress, the flattened `prompt_text`, and the
+ * `review` id-lists. `mode` ('provider' | 'byo') is the path discriminator the
+ * doc calls `path`; `validation_status` is kept as a secondary validation-outcome
+ * signal (see json-payloads.ts).
+ */
 export interface AdminiumLlmRunsTable {
   id: Id;
   connectionId: Id;
   snapshotId: Id;
-  /** provider | byo */
+  /** provider | byo — the §7.4 `path` discriminator. */
   mode: string;
+  /** NULL for BYO runs — never recorded (§9 telemetry-free guarantee). */
   provider: string | null;
   model: string | null;
   promptVersion: string;
   promptHash: string;
+  /** Full flattened prompt(s); enables re-download of BYO prompts (0007). */
+  promptText: string | null;
+  /** Requested decision groups (§4.4) — json string array (0007). */
+  sections: JsonColumn | null;
+  /** Requested output locales (§4.1) — json string array (0007). */
+  locales: JsonColumn | null;
+  /** Sampling opt-in (§4.2): null = sample-free; else `{ maxValuesPerColumn }` (0007). */
+  sampling: JsonColumn | null;
+  /** 1/1 when unchunked (0007). */
+  chunksTotal: number;
+  chunksReceived: number;
   responseRaw: string | null;
   responseJson: JsonColumn | null;
-  /** pending | valid | partial | invalid */
+  /**
+   * draft | running | awaiting_response | validated | applied |
+   * partially_applied | failed | discarded — the §7.4 machine (0007).
+   */
+  status: string;
+  /** pending | valid | partial | invalid — last-validation outcome (0006). */
   validationStatus: string;
   validationErrors: JsonColumn | null;
+  /** Accepted/rejected suggestion-id lists (§8.3) — json (0007). */
+  review: JsonColumn | null;
   appliedAt: Ts | null;
   appliedBy: Id | null;
   tokensIn: number | null;

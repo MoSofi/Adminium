@@ -14,7 +14,7 @@
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { Building2, Globe2, TriangleAlert } from 'lucide-react';
+import { Building2, Globe2, Sparkles, TriangleAlert } from 'lucide-react';
 import {
   Alert,
   Button,
@@ -234,9 +234,11 @@ function DangerZone(): ReactNode {
 export interface StudioSettingsPageProps {
   /** Router-injected: opens `/settings/defaults` (10 §7.3 surface). */
   onOpenGlobalDefaults: () => void;
+  /** Router-injected: opens `/studio/settings/ai` (06 §10.1, Admin+). */
+  onOpenAiSettings: () => void;
 }
 
-export function StudioSettingsPage({ onOpenGlobalDefaults }: StudioSettingsPageProps): ReactNode {
+export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenAiSettings }: StudioSettingsPageProps): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
 
@@ -263,6 +265,28 @@ export function StudioSettingsPage({ onOpenGlobalDefaults }: StudioSettingsPageP
           )}
         />
       )}
+
+      {/* AI enrichment is an Admin+ surface (/studio/settings/ai) — every user who
+          can see this page can open it, so it is not gated further here. */}
+      <Card>
+        <CardHeader className="flex items-center gap-3">
+          <IconTile tone="accent" size="md" icon={<Sparkles />} />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-section text-fg">
+              {t('studio.settingsHub.aiCard.heading', 'AI enrichment')}
+            </h3>
+            <p className="text-caption text-fg-subtle">
+              {t(
+                'studio.settingsHub.aiCard.body',
+                'Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.',
+              )}
+            </p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={onOpenAiSettings}>
+            {t('studio.settingsHub.aiCard.cta', 'Open AI settings')}
+          </Button>
+        </CardHeader>
+      </Card>
 
       {/* Global defaults is a super-admin-only surface (/settings/defaults) — hide
           the cross-link from plain admins rather than sending them to a forbidden

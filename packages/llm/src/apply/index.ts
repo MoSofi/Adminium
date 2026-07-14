@@ -2,3 +2,4 @@
 export * from './suggestion-id.js';
 export * from './normalize.js';
 export * from './diff.js';
+export * from './plan.js';

@@ -23,6 +23,7 @@
   "dependencies": {
     "@adminium/adapter-postgres": "workspace:*",
     "@adminium/engine": "workspace:*",
+    "@adminium/llm": "workspace:*",
     "@adminium/meta": "workspace:*",
     "@adminium/schema-import": "workspace:*",
     "@fastify/cookie": "^11.0.2",

@@ -19,12 +19,14 @@
  */
 import { getFormatters } from '@adminium/i18n';
 
+import type { LlmLocale, LlmSection } from '../ai/api.js';
 import type { ConnectionEngine, DsnPrivileges, GenerateIntent, SchemaTable } from '../api.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
+import { ENRICH_SECTIONS, LOCKED_LOCALE, type EnrichIntent } from './enrichState.js';
 
 // --- steps -------------------------------------------------------------------
 
-export const WIZARD_STEP_IDS = ['intent', 'source', 'test', 'tables', 'meta', 'generate'] as const;
+export const WIZARD_STEP_IDS = ['intent', 'source', 'test', 'tables', 'meta', 'enrich', 'generate'] as const;
 export type WizardStepId = (typeof WIZARD_STEP_IDS)[number];
 
 export function wizardStepLabel(id: WizardStepId): string {
@@ -39,6 +41,8 @@ export function wizardStepLabel(id: WizardStepId): string {
       return t('studio.wizard.step.tables', 'Tables');
     case 'meta':
       return t('studio.wizard.step.meta', 'Meta storage');
+    case 'enrich':
+      return t('studio.wizard.step.enrich', 'Enrich');
     case 'generate':
       return t('studio.wizard.step.generate', 'Generate');
   }
@@ -384,6 +388,16 @@ export interface WizardState {
   metaPlacement: MetaPlacement | null;
   separateMetaDsn: string;
   separateMetaTested: boolean;
+  /**
+   * Enrich-with-AI step (06-llm-assist.md §10.2): the chosen intent and the
+   * shared options. The created run + prompt artifact stay in component memory
+   * (too heavy for sessionStorage) — only these lightweight choices persist.
+   */
+  enrichIntent: EnrichIntent | null;
+  enrichSections: LlmSection[];
+  /** Always contains `en_US` (locked on — §5.1 rule 5). */
+  enrichLocales: LlmLocale[];
+  enrichSampling: boolean;
 }
 
 export const INITIAL_WIZARD_STATE: WizardState = {
@@ -403,6 +417,10 @@ export const INITIAL_WIZARD_STATE: WizardState = {
   metaPlacement: null,
   separateMetaDsn: '',
   separateMetaTested: false,
+  enrichIntent: null,
+  enrichSections: [...ENRICH_SECTIONS],
+  enrichLocales: [LOCKED_LOCALE],
+  enrichSampling: false,
 };
 
 const STORAGE_KEY = 'adminium-studio-connect';

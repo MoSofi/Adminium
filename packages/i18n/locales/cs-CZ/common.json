@@ -379,6 +379,323 @@
         "empty": "Není co mazat — zatím žádná připojení.",
         "deleteDesc": "Smaže připojení a z něj vygenerované stránky. Vaší databáze se to nedotkne. Nelze vzít zpět.",
         "deleteCta": "Smazat připojení"
+      },
+      "aiCard": {
+        "heading": "Obohacení pomocí AI",
+        "body": "Nastavte poskytovatele AI (nebo okruh kopírovat-vložit) k obohacení popisků, skupin a vztahů.",
+        "cta": "Otevřít nastavení AI"
+      }
+    },
+    "settingsAi": {
+      "title": "Obohacení pomocí AI",
+      "subtitle": "Připojte model, aby Adminium navrhoval popisky, skupiny, vztahy a další — vždy zkontrolováno jako rozdíl, než se cokoli použije.",
+      "saved": "Poskytovatel AI uložen",
+      "saveFailed": "Poskytovatele AI se nepodařilo uložit. Zkuste to znovu.",
+      "save": "Uložit poskytovatele",
+      "test": "Otestovat připojení",
+      "testHintDirty": "Před testem uložte změny.",
+      "testing": "Kontaktuji poskytovatele…",
+      "testError": "Test selhal",
+      "testErrorBody": "Poskytovatele se nepodařilo kontaktovat. Zkontrolujte klíč a základní URL.",
+      "testOk": "Připojeno k {model} za {latency} ms",
+      "testUnknownModel": "poskytovateli",
+      "provider": {
+        "heading": "Poskytovatel AI",
+        "subtitle": "Vyberte, jak Adminium osloví model pro obohacení vašeho schématu. Klíče se ukládají zašifrované a už se nikdy nezobrazí.",
+        "active": "Aktivní",
+        "anthropic": {
+          "label": "Anthropic",
+          "desc": "Modely Claude přes API Anthropic."
+        },
+        "openai": {
+          "label": "OpenAI",
+          "desc": "Modely GPT přes API OpenAI."
+        },
+        "openaiCompatible": {
+          "label": "Kompatibilní s OpenAI",
+          "desc": "Jakýkoli koncový bod ve formátu OpenAI — Groq, Together, vLLM, LM Studio."
+        },
+        "ollama": {
+          "label": "Ollama (lokálně)",
+          "desc": "Modely běžící lokálně přes Ollama — bez klíče, bez cloudu."
+        }
+      },
+      "configure": {
+        "heading": "Nastavit {provider}"
+      },
+      "field": {
+        "baseUrl": "Základní URL",
+        "baseUrlOptional": "Ponechte beze změny, pokud Ollama neběží na jiném hostiteli.",
+        "baseUrlHelper": "Kořen koncového bodu, který obsluhuje /chat/completions.",
+        "model": "Model",
+        "modelFreeText": "Zadejte přesné ID modelu, který váš koncový bod obsluhuje.",
+        "modelLive": "Načteno živě od poskytovatele.",
+        "modelStatic": "Ověřený seznam; po uložení zadejte vlastní ID pro obnovení.",
+        "modelLoading": "Načítání…",
+        "modelPlaceholder": "Vyberte model…",
+        "key": "Klíč API",
+        "keyStored": "Uloženo zašifrované. Nahraďte jej, chcete-li použít jiný klíč.",
+        "keyMask": "sk-…{last4}",
+        "keyReplace": "Nahradit klíč",
+        "keyOptional": "Volitelné — některé koncové body žádný klíč nepotřebují.",
+        "keyWriteOnly": "Pouze pro zápis: po uložení se už nikdy nezobrazí.",
+        "noKeyTitle": "Klíč API není potřeba",
+        "noKeyBody": "Ollama běží lokálně, takže nic neopouští tento počítač."
+      },
+      "runStatus": {
+        "draft": "Koncept",
+        "running": "Probíhá",
+        "awaitingResponse": "Čeká na odpověď",
+        "validated": "Ověřeno",
+        "applied": "Použito",
+        "partiallyApplied": "Částečně použito",
+        "failed": "Selhalo",
+        "discarded": "Zahozeno"
+      },
+      "byo": {
+        "heading": "Bez klíče? Použijte svůj vlastní nástroj AI",
+        "subtitle": "Okruh kopírovat-vložit — nic neopouští tento počítač.",
+        "body": "Studio umí z vašeho schématu vygenerovat samostatný prompt. Spusťte jej v Claude Code, ChatGPT nebo libovolném nástroji a vrácené JSON vložte zpět do průvodce připojením. Stejná validace, stejná kontrola, stejný výsledek jako přímá cesta.",
+        "guaranteeTitle": "Záruka bez telemetrie",
+        "guarantee1": "Prompt nese jen vaše schéma a agregované statistiky — ve výchozím stavu nikdy data řádků.",
+        "guarantee2": "Nejsou vloženy žádné přihlašovací údaje, URL instance ani identifikátory.",
+        "guarantee3": "Běhy BYO nedělají žádné síťové volání a nikdy se neúčtují.",
+        "promptVersion": "Prompt {version}",
+        "schemaVersion": "Schéma {version}"
+      },
+      "history": {
+        "heading": "Historie běhů",
+        "subtitle": "Předchozí běhy obohacení. Otevřete některý pro kontrolu jeho návrhů.",
+        "tableLabel": "Běhy obohacení",
+        "colDate": "Datum",
+        "colSource": "Zdroj",
+        "colStatus": "Stav",
+        "colChunks": "Bloky",
+        "openReview": "Otevřít kontrolu běhu z {date}",
+        "connection": "Připojení",
+        "empty": "Zatím žádné běhy obohacení. Obohaťte schéma z průvodce připojením a historie se zobrazí zde.",
+        "errorTitle": "Běhy se nepodařilo načíst",
+        "errorBody": "Zkuste to znovu obnovením stránky.",
+        "noConnections": "Nejprve připojte databázi — běhy obohacení se zaznamenávají u každého připojení.",
+        "byo": "BYO",
+        "directPath": "Přímá"
+      }
+    },
+    "enrich": {
+      "title": "Obohatit pomocí AI",
+      "subtitle": "Volitelně vylepšete vygenerované popisky, skupiny, výčty a nástěnky pomocí LLM. Heuristický základ funguje i bez toho — toto pouze přidává návrhy, které před použitím zkontrolujete.",
+      "intentLabel": "Jak chcete obohatit?",
+      "sectionsLegend": "O čem má AI rozhodovat?",
+      "localesLegend": "Přeložit popisky do",
+      "localeLocked": "(povinné)",
+      "samplingTitle": "Zahrnout ukázkové hodnoty",
+      "samplingHint": "Do promptu zahrne až 20 skutečných hodnot na sloupec bez PII.",
+      "samplingPreviewTitle": "Co opouští tento počítač",
+      "samplingPreviewBody": "Až 20 nejčastějších hodnot na sloupec bez PII, plus min/max u číselných a datumových sloupců. Sloupce označené jako PII se nikdy nevzorkují. Vše ostatní zůstává pouze agregované. Před kopírováním (BYO) zkontrolujte přesný prompt — bez vaší akce se nic neodešle.",
+      "noSections": "Vyberte alespoň jednu skupinu rozhodnutí k obohacení.",
+      "generatePrompt": "Vygenerovat prompt",
+      "startProvider": "Spustit obohacení",
+      "startOver": "Začít znovu",
+      "copied": "Zkopírováno",
+      "createFailed": "Prompt pro obohacení se nepodařilo sestavit — zkuste to znovu.",
+      "createFailedTitle": "Nelze spustit",
+      "providerFallback": "váš poskytovatel AI",
+      "fileTitle": "Obohacení pomocí AI vyžaduje živou databázi",
+      "fileBody": "Zdroje ze souboru se schématem zatím nemají snímek k obohacení. Připojte živou databázi pro obohacení pomocí AI, nebo pokračujte — heuristický základ i tak vygeneruje kompletní aplikaci.",
+      "section": {
+        "labels": "Popisky a popisy",
+        "groups": "Navigační skupiny",
+        "enums": "Sémantika výčtů",
+        "relations": "Vztahy",
+        "keys": "Klíčové sloupce",
+        "templates": "Šablony stránek",
+        "widgets": "Widgety nástěnky",
+        "pii": "PII a maskování",
+        "icons": "Ikony",
+        "microcopy": "Mikrotexty"
+      },
+      "provider": {
+        "title": "Použít mého poskytovatele AI",
+        "description": "Spusťte obohacení nyní s nakonfigurovaným poskytovatelem. Každý návrh zkontrolujete jako rozdíl.",
+        "unconfigured": "Zatím není nakonfigurován žádný poskytovatel AI — zkopírujte prompt do vlastního nástroje níže, nebo nejprve nakonfigurujte poskytovatele.",
+        "settingsHint": "Chcete jej spustit přímo?",
+        "settingsLink": "Nakonfigurujte poskytovatele v Nastavení → AI"
+      },
+      "byo": {
+        "cardTitle": "Zkopírovat prompt do vlastního nástroje AI",
+        "cardDescription": "Zkopírujte samostatný prompt do Claude Code, ChatGPT, čehokoli — a poté vložte JSON zpět. Není potřeba klíč, nic tento počítač automaticky neopouští.",
+        "guidance": "Spusťte to v jakémkoli nástroji AI — Claude Code, ChatGPT, cokoli. Vložte vrácený JSON níže.",
+        "promptLabel": "Prompt obohacení",
+        "promptLabelN": "Prompt obohacení {index} z {total}",
+        "tokenChip": "≈ {tokens} tokenů",
+        "copyPrompt": "Kopírovat prompt",
+        "copyPromptDone": "Prompt zkopírován",
+        "download": "Stáhnout .md",
+        "chunkTabs": "Části promptu",
+        "chunkTab": "Prompt {index}",
+        "chunkValid": "Část {index} ověřena",
+        "pasteLabel": "Vložte odpověď JSON",
+        "pastePlaceholder": "Sem vložte odpověď JSON…",
+        "validate": "Ověřit",
+        "valid": "Odpověď ověřena",
+        "mergedTitle": "Všech {count} částí ověřeno a sloučeno",
+        "mergedTitleSingle": "Odpověď ověřena",
+        "mergedBody": "Návrhy jsou připraveny ke kontrole vůči heuristickému základu.",
+        "errorsTitle": "Ověření našlo {count} problémů",
+        "copyErrors": "Kopírovat chyby pro váš nástroj AI",
+        "copyErrorsDone": "Chyby zkopírovány",
+        "copyErrorsHint": "Vložte to zpět do svého nástroje AI a získejte opravenou odpověď.",
+        "droppedItems": "{count} návrhů bylo při ověření vyřazeno — kontrola zobrazuje zbytek.",
+        "pendingTitle": "Pokračujte ověřením každého promptu",
+        "pendingBody": "Vložte odpověď JSON výše a ověřte ji, abyste mohli pokračovat ke kontrole.",
+        "pendingBodyChunked": "Každá část musí být ověřena, než se návrhy sloučí. Vložte a ověřte každý prompt výše.",
+        "requestFailed": "Server nebyl pro ověření dostupný — zkuste to znovu.",
+        "continueReview": "Pokračovat ke kontrole",
+        "wholeDocument": "celý dokument"
+      },
+      "direct": {
+        "title": "Obohacování pomocí AI",
+        "subtitle": "Odesílání vašeho schématu do",
+        "building": "Sestavování promptu…",
+        "logLabel": "Protokol obohacení",
+        "cancel": "Zrušit",
+        "back": "Zpět na možnosti",
+        "retry": "Zkusit znovu",
+        "done": "Obohacení dokončeno — zkontrolujte návrhy.",
+        "continueReview": "Pokračovat ke kontrole",
+        "failed": "Běh poskytovatele selhal. Zkontrolujte nastavení AI a zkuste to znovu.",
+        "jobFailed": "Běh obohacení nebyl dokončen.",
+        "startFailed": "Běh se nepodařilo spustit — zkuste to znovu.",
+        "errorTitle": "Obohacení selhalo"
+      },
+      "skip": {
+        "title": "Přeskočit — použít pouze heuristiku",
+        "description": "Generovat z heuristického základu. Obohatit můžete později v Nastavení → AI — přeskočení není nikdy penalizováno.",
+        "confirmTitle": "Pokračování s heuristikou",
+        "confirmBody": "Vygenerovaná aplikace použije heuristické popisky, skupiny a nástěnky. Pokračujte v generování — obohacení pomocí AI můžete kdykoli spustit v Nastavení → AI."
+      }
+    },
+    "review": {
+      "unavailableTitle": "Obrazovka kontroly není k dispozici",
+      "unavailableBody": "Tento build zatím obrazovku kontroly obohacení neobsahuje (06-T14). Přijde s tokem rozdílu a použití."
+    },
+    "llmRuns": {
+      "review": {
+        "header": {
+          "title": "Zkontrolovat návrhy AI",
+          "model": "Model",
+          "snapshot": "Snímek",
+          "byo": "BYO",
+          "pathDirect": "Přímé API",
+          "pathByo": "Kopírovat a vložit",
+          "agree": "{n} shodných",
+          "conflict": "{n} konfliktů",
+          "new": "{n} nových",
+          "rejects": "{n} zamítnutí",
+          "countsAria": "Počty návrhů"
+        },
+        "bulk": {
+          "thresholdLabel": "Práh spolehlivosti",
+          "thresholdAria": "Práh spolehlivosti pro „Přijmout vše“",
+          "acceptAll": "Přijmout vše ≥ {pct}%",
+          "clear": "Zrušit výběr"
+        },
+        "section": {
+          "selectAllAria": "Vybrat vše v {group}",
+          "acceptedCount": "{n} přijato"
+        },
+        "group": {
+          "labels": "Popisky a překlady",
+          "navigation": "Navigace a domény",
+          "enums": "Sémantika výčtů",
+          "relations": "Vztahy",
+          "keys": "Klíčové sloupce",
+          "templates": "Šablony stránek",
+          "dashboards": "Nástěnky a widgety",
+          "pii": "Osobní údaje a maskování",
+          "icons": "Ikony",
+          "microcopy": "Mikrotexty"
+        },
+        "status": {
+          "agree": "Souhlasí",
+          "conflict": "Konflikt",
+          "new": "Nový",
+          "heuristicOnly": "Pouze heuristika",
+          "rejects": "Zamítá heuristiku",
+          "locked": "Uzamčeno"
+        },
+        "row": {
+          "acceptAria": "Přijmout návrh {noun} pro {target}",
+          "keptEdited": "ponecháno – upraveno vámi",
+          "rejectsCallout": "AI zamítá heuristické rozhodnutí – před přijetím potvrďte.",
+          "showTranslations": "Zobrazit překlady",
+          "hideTranslations": "Skrýt překlady",
+          "confidenceAria": "Spolehlivost {pct}%",
+          "noAi": "Žádný návrh AI"
+        },
+        "value": {
+          "none": "Žádná hodnota",
+          "absent": "Žádná",
+          "dash": "—",
+          "display": "Zobrazení",
+          "key": "Klíč",
+          "rank": "pořadí {n}",
+          "span": "šířka {n}",
+          "tableCount": "{n} tabulek",
+          "widgetCount": "{n} widgetů",
+          "enumWorkflow": "Pracovní postup",
+          "enumCategory": "Kategorie",
+          "notPii": "Nejsou osobní údaje",
+          "label": "Popisek",
+          "description": "Popis",
+          "subtitle": "Podtitul stránky",
+          "headline": "Nadpis prázdného stavu",
+          "guidance": "Pokyn prázdného stavu"
+        },
+        "apply": {
+          "title": "Použít {n} návrhů",
+          "subtitle": "Tyto změny se zapíší v jedné transakci a lze je vrátit zpět.",
+          "empty": "Není vybráno nic k použití.",
+          "confirm": "Použít změny"
+        },
+        "footer": {
+          "count": "Vybráno {n} návrhů",
+          "apply": "Použít {n} přijatých návrhů",
+          "failed": "Použití selhalo"
+        },
+        "toast": {
+          "applied": "Použito {n} návrhů",
+          "appliedPartial": "Použito {n} návrhů (některé přeskočeny)",
+          "applyFailed": "Návrhy se nepodařilo použít",
+          "undoFailed": "Tuto změnu se nepodařilo vrátit zpět"
+        },
+        "error": {
+          "title": "Tento běh se nepodařilo načíst"
+        },
+        "notReady": {
+          "title": "Tento běh zatím nemá návrhy ke kontrole",
+          "body": "Běh musí být ověřen, než bude možné jeho návrhy zkontrolovat. Nejprve vygenerujte nebo vložte odpověď."
+        },
+        "applied": {
+          "title": "Tento běh byl použit",
+          "body": "Přijaté návrhy níže jsou pouze ke čtení."
+        },
+        "empty": {
+          "title": "Žádné návrhy",
+          "body": "Tento běh nevytvořil žádné návrhy ke kontrole."
+        },
+        "cat": {
+          "label": "popisek",
+          "key": "klíčové sloupce",
+          "enum": "výčet",
+          "relation": "vztah",
+          "pii": "osobní údaje",
+          "template": "šablona stránky",
+          "group": "navigační skupina",
+          "dashboard": "nástěnka",
+          "widget": "widget",
+          "copy": "mikrotext"
+        }
       }
     }
   },

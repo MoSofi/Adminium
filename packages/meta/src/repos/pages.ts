@@ -22,7 +22,7 @@ import { newId } from '../ids.js';
 import type { AdminiumPagesTable } from '../schema/tables.js';
 import { MetaValidationError, packJson, readBool, readJson, writeBool } from './util.js';
 
-export const PAGE_ORIGINS = ['generated', 'user', 'manifest', 'system'] as const;
+export const PAGE_ORIGINS = ['generated', 'user', 'manifest', 'system', 'llm'] as const;
 export type PageOrigin = (typeof PAGE_ORIGINS)[number];
 
 export interface Page {

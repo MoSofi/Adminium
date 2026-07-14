@@ -379,6 +379,323 @@
         "empty": "Rien à supprimer — aucune connexion pour l’instant.",
         "deleteDesc": "Supprime la connexion et les pages générées. Votre base de données n’est pas touchée. Irréversible.",
         "deleteCta": "Supprimer la connexion"
+      },
+      "aiCard": {
+        "heading": "Enrichissement par IA",
+        "body": "Configurez un fournisseur IA (ou l’aller-retour copier-coller) pour enrichir libellés, groupes et relations.",
+        "cta": "Ouvrir les réglages IA"
+      }
+    },
+    "settingsAi": {
+      "title": "Enrichissement par IA",
+      "subtitle": "Connectez un modèle pour qu’Adminium suggère des libellés, des groupes, des relations et plus encore — toujours revus sous forme de diff avant toute application.",
+      "saved": "Fournisseur IA enregistré",
+      "saveFailed": "Impossible d’enregistrer le fournisseur IA. Réessayez.",
+      "save": "Enregistrer le fournisseur",
+      "test": "Tester la connexion",
+      "testHintDirty": "Enregistrez vos modifications avant de tester.",
+      "testing": "Test du fournisseur en cours…",
+      "testError": "Échec du test",
+      "testErrorBody": "Impossible de joindre le fournisseur. Vérifiez la clé et l’URL de base.",
+      "testOk": "Connecté à {model} en {latency} ms",
+      "testUnknownModel": "le fournisseur",
+      "provider": {
+        "heading": "Fournisseur IA",
+        "subtitle": "Choisissez comment Adminium atteint un modèle pour enrichir votre schéma. Les clés sont stockées chiffrées et ne sont jamais réaffichées.",
+        "active": "Actif",
+        "anthropic": {
+          "label": "Anthropic",
+          "desc": "Modèles Claude via l’API Anthropic."
+        },
+        "openai": {
+          "label": "OpenAI",
+          "desc": "Modèles GPT via l’API OpenAI."
+        },
+        "openaiCompatible": {
+          "label": "Compatible OpenAI",
+          "desc": "Tout point de terminaison au format OpenAI — Groq, Together, vLLM, LM Studio."
+        },
+        "ollama": {
+          "label": "Ollama (local)",
+          "desc": "Modèles exécutés localement via Ollama — sans clé, sans cloud."
+        }
+      },
+      "configure": {
+        "heading": "Configurer {provider}"
+      },
+      "field": {
+        "baseUrl": "URL de base",
+        "baseUrlOptional": "Laissez tel quel, sauf si Ollama tourne sur un autre hôte.",
+        "baseUrlHelper": "La racine du point de terminaison qui sert /chat/completions.",
+        "model": "Modèle",
+        "modelFreeText": "Saisissez l’identifiant exact du modèle servi par votre point de terminaison.",
+        "modelLive": "Chargé en direct depuis le fournisseur.",
+        "modelStatic": "Une liste éprouvée ; saisissez un identifiant personnalisé après l’enregistrement pour l’actualiser.",
+        "modelLoading": "Chargement…",
+        "modelPlaceholder": "Sélectionner un modèle…",
+        "key": "Clé API",
+        "keyStored": "Stockée chiffrée. Remplacez-la pour utiliser une autre clé.",
+        "keyMask": "sk-…{last4}",
+        "keyReplace": "Remplacer la clé",
+        "keyOptional": "Facultatif — certains points de terminaison n’exigent aucune clé.",
+        "keyWriteOnly": "En écriture seule : une fois enregistrée, elle n’est jamais réaffichée.",
+        "noKeyTitle": "Aucune clé API requise",
+        "noKeyBody": "Ollama tourne localement, donc rien ne quitte cette machine."
+      },
+      "runStatus": {
+        "draft": "Brouillon",
+        "running": "En cours",
+        "awaitingResponse": "En attente de réponse",
+        "validated": "Validé",
+        "applied": "Appliqué",
+        "partiallyApplied": "Partiellement appliqué",
+        "failed": "Échoué",
+        "discarded": "Abandonné"
+      },
+      "byo": {
+        "heading": "Pas de clé ? Utilisez votre propre outil IA",
+        "subtitle": "L’aller-retour copier-coller — rien ne quitte cette machine.",
+        "body": "Studio peut générer un prompt autonome à partir de votre schéma. Exécutez-le dans Claude Code, ChatGPT ou l’outil de votre choix, puis collez le JSON renvoyé dans l’assistant de connexion. Même validation, même revue, même résultat que la voie directe.",
+        "guaranteeTitle": "Garantie sans télémétrie",
+        "guarantee1": "Le prompt ne contient que votre schéma et des statistiques agrégées — jamais de données de lignes par défaut.",
+        "guarantee2": "Aucun identifiant, URL d’instance ni justificatif n’y est intégré.",
+        "guarantee3": "Les exécutions BYO ne font aucun appel réseau et ne sont jamais facturées.",
+        "promptVersion": "Prompt {version}",
+        "schemaVersion": "Schéma {version}"
+      },
+      "history": {
+        "heading": "Historique des exécutions",
+        "subtitle": "Exécutions d’enrichissement passées. Ouvrez-en une pour revoir ses suggestions.",
+        "tableLabel": "Exécutions d’enrichissement",
+        "colDate": "Date",
+        "colSource": "Source",
+        "colStatus": "Statut",
+        "colChunks": "Blocs",
+        "openReview": "Ouvrir la revue de l’exécution du {date}",
+        "connection": "Connexion",
+        "empty": "Aucune exécution d’enrichissement pour l’instant. Enrichissez un schéma depuis l’assistant de connexion pour voir l’historique ici.",
+        "errorTitle": "Impossible de charger les exécutions",
+        "errorBody": "Rechargez la page pour réessayer.",
+        "noConnections": "Connectez d’abord une base de données — les exécutions d’enrichissement sont enregistrées par connexion.",
+        "byo": "BYO",
+        "directPath": "Directe"
+      }
+    },
+    "enrich": {
+      "title": "Enrichir avec l’IA",
+      "subtitle": "Affinez éventuellement les libellés, groupes, énumérations et tableaux de bord générés à l’aide d’un LLM. La base heuristique fonctionne sans cela — ceci ajoute seulement des suggestions que vous vérifiez avant toute application.",
+      "intentLabel": "Comment souhaitez-vous enrichir ?",
+      "sectionsLegend": "Que doit décider l’IA ?",
+      "localesLegend": "Traduire les libellés en",
+      "localeLocked": "(requis)",
+      "samplingTitle": "Inclure des valeurs d’exemple",
+      "samplingHint": "Inclut jusqu’à 20 valeurs réelles par colonne non-PII dans l’invite.",
+      "samplingPreviewTitle": "Ce qui quitte cette machine",
+      "samplingPreviewBody": "Jusqu’à 20 valeurs les plus fréquentes par colonne non-PII, plus min/max pour les colonnes numériques et de date. Les colonnes marquées PII ne sont jamais échantillonnées. Tout le reste demeure purement agrégé. Vérifiez l’invite exacte avant de copier (BYO) — rien n’est envoyé sans votre action.",
+      "noSections": "Sélectionnez au moins un groupe de décisions à enrichir.",
+      "generatePrompt": "Générer l’invite",
+      "startProvider": "Démarrer l’enrichissement",
+      "startOver": "Recommencer",
+      "copied": "Copié",
+      "createFailed": "Impossible de construire l’invite d’enrichissement — réessayez.",
+      "createFailedTitle": "Impossible de démarrer",
+      "providerFallback": "votre fournisseur d’IA",
+      "fileTitle": "L’enrichissement par IA nécessite une base de données active",
+      "fileBody": "Les sources de type fichier de schéma n’ont pas encore d’instantané à enrichir. Connectez une base de données active pour utiliser l’enrichissement par IA, ou continuez — la base heuristique génère tout de même une application complète.",
+      "section": {
+        "labels": "Libellés et descriptions",
+        "groups": "Groupes de navigation",
+        "enums": "Sémantique des énumérations",
+        "relations": "Relations",
+        "keys": "Colonnes clés",
+        "templates": "Modèles de page",
+        "widgets": "Widgets de tableau de bord",
+        "pii": "PII et masquage",
+        "icons": "Icônes",
+        "microcopy": "Microcopie"
+      },
+      "provider": {
+        "title": "Utiliser mon fournisseur d’IA",
+        "description": "Lancez l’enrichissement maintenant avec votre fournisseur configuré. Vous vérifiez chaque suggestion sous forme de diff.",
+        "unconfigured": "Aucun fournisseur d’IA n’est encore configuré — copiez une invite dans votre propre outil ci-dessous, ou configurez d’abord un fournisseur.",
+        "settingsHint": "Vous voulez le lancer directement ?",
+        "settingsLink": "Configurer un fournisseur dans Paramètres → IA"
+      },
+      "byo": {
+        "cardTitle": "Copier une invite vers mon propre outil d’IA",
+        "cardDescription": "Copiez une invite autonome dans Claude Code, ChatGPT, n’importe quoi — puis recollez le JSON. Aucune clé nécessaire, rien ne quitte cette machine automatiquement.",
+        "guidance": "Exécutez ceci dans n’importe quel outil d’IA — Claude Code, ChatGPT, peu importe. Collez le JSON renvoyé ci-dessous.",
+        "promptLabel": "Invite d’enrichissement",
+        "promptLabelN": "Invite d’enrichissement {index} sur {total}",
+        "tokenChip": "≈ {tokens} jetons",
+        "copyPrompt": "Copier l’invite",
+        "copyPromptDone": "Invite copiée",
+        "download": "Télécharger .md",
+        "chunkTabs": "Segments d’invite",
+        "chunkTab": "Invite {index}",
+        "chunkValid": "Segment {index} validé",
+        "pasteLabel": "Collez la réponse JSON",
+        "pastePlaceholder": "Collez la réponse JSON ici…",
+        "validate": "Valider",
+        "valid": "Réponse validée",
+        "mergedTitle": "Les {count} segments sont validés et fusionnés",
+        "mergedTitleSingle": "Réponse validée",
+        "mergedBody": "Les suggestions sont prêtes à être vérifiées par rapport à la base heuristique.",
+        "errorsTitle": "La validation a trouvé {count} problèmes",
+        "copyErrors": "Copier les erreurs pour votre outil d’IA",
+        "copyErrorsDone": "Erreurs copiées",
+        "copyErrorsHint": "Recollez ceci dans votre outil d’IA pour obtenir une réponse corrigée.",
+        "droppedItems": "{count} suggestions ont été écartées lors de la validation — la vérification montre le reste.",
+        "pendingTitle": "Validez chaque invite pour continuer",
+        "pendingBody": "Collez la réponse JSON ci-dessus et validez-la pour passer à la vérification.",
+        "pendingBodyChunked": "Chaque segment doit être validé avant la fusion des suggestions. Collez et validez chaque invite ci-dessus.",
+        "requestFailed": "Impossible de joindre le serveur pour valider — réessayez.",
+        "continueReview": "Continuer vers la vérification",
+        "wholeDocument": "document entier"
+      },
+      "direct": {
+        "title": "Enrichissement par IA",
+        "subtitle": "Envoi de votre schéma à",
+        "building": "Construction de l’invite…",
+        "logLabel": "Journal d’enrichissement",
+        "cancel": "Annuler",
+        "back": "Retour aux options",
+        "retry": "Réessayer",
+        "done": "Enrichissement terminé — vérifiez les suggestions.",
+        "continueReview": "Continuer vers la vérification",
+        "failed": "L’exécution du fournisseur a échoué. Vérifiez vos paramètres d’IA et réessayez.",
+        "jobFailed": "L’exécution de l’enrichissement ne s’est pas terminée.",
+        "startFailed": "Impossible de démarrer l’exécution — réessayez.",
+        "errorTitle": "Échec de l’enrichissement"
+      },
+      "skip": {
+        "title": "Ignorer — utiliser uniquement l’heuristique",
+        "description": "Générer à partir de la base heuristique. Vous pourrez enrichir plus tard depuis Paramètres → IA — ignorer n’est jamais pénalisé.",
+        "confirmTitle": "Poursuite avec l’heuristique",
+        "confirmBody": "L’application générée utilisera les libellés, groupes et tableaux de bord heuristiques. Continuez la génération — vous pouvez lancer l’enrichissement par IA à tout moment depuis Paramètres → IA."
+      }
+    },
+    "review": {
+      "unavailableTitle": "Écran de revue indisponible",
+      "unavailableBody": "Cette version n’inclut pas encore l’écran de revue d’enrichissement (06-T14). Il arrive avec le flux diff-et-application."
+    },
+    "llmRuns": {
+      "review": {
+        "header": {
+          "title": "Examiner les suggestions de l’IA",
+          "model": "Modèle",
+          "snapshot": "Instantané",
+          "byo": "BYO",
+          "pathDirect": "API directe",
+          "pathByo": "Copier-coller",
+          "agree": "{n} d’accord",
+          "conflict": "{n} en conflit",
+          "new": "{n} nouvelles",
+          "rejects": "{n} rejets",
+          "countsAria": "Nombre de suggestions"
+        },
+        "bulk": {
+          "thresholdLabel": "Seuil de confiance",
+          "thresholdAria": "Seuil de confiance pour « Tout accepter »",
+          "acceptAll": "Tout accepter ≥ {pct}%",
+          "clear": "Effacer la sélection"
+        },
+        "section": {
+          "selectAllAria": "Tout sélectionner dans {group}",
+          "acceptedCount": "{n} acceptées"
+        },
+        "group": {
+          "labels": "Libellés et traductions",
+          "navigation": "Navigation et domaines",
+          "enums": "Sémantique des énumérations",
+          "relations": "Relations",
+          "keys": "Colonnes clés",
+          "templates": "Modèles de page",
+          "dashboards": "Tableaux de bord et widgets",
+          "pii": "DCP et masquage",
+          "icons": "Icônes",
+          "microcopy": "Microcopie"
+        },
+        "status": {
+          "agree": "Concorde",
+          "conflict": "Conflit",
+          "new": "Nouveau",
+          "heuristicOnly": "Heuristique seule",
+          "rejects": "Rejette l’heuristique",
+          "locked": "Verrouillé"
+        },
+        "row": {
+          "acceptAria": "Accepter la suggestion {noun} pour {target}",
+          "keptEdited": "conservé — modifié par vous",
+          "rejectsCallout": "L’IA rejette une décision heuristique — confirmez avant d’accepter.",
+          "showTranslations": "Afficher les traductions",
+          "hideTranslations": "Masquer les traductions",
+          "confidenceAria": "Confiance {pct}%",
+          "noAi": "Aucune suggestion de l’IA"
+        },
+        "value": {
+          "none": "Aucune valeur",
+          "absent": "Aucun",
+          "dash": "—",
+          "display": "Affichage",
+          "key": "Clé",
+          "rank": "rang {n}",
+          "span": "largeur {n}",
+          "tableCount": "{n} tables",
+          "widgetCount": "{n} widgets",
+          "enumWorkflow": "Flux",
+          "enumCategory": "Catégorie",
+          "notPii": "Pas de DCP",
+          "label": "Libellé",
+          "description": "Description",
+          "subtitle": "Sous-titre de page",
+          "headline": "Titre de l’état vide",
+          "guidance": "Conseil de l’état vide"
+        },
+        "apply": {
+          "title": "Appliquer {n} suggestions",
+          "subtitle": "Ces modifications sont écrites en une seule transaction et peuvent être annulées.",
+          "empty": "Rien à appliquer.",
+          "confirm": "Appliquer les modifications"
+        },
+        "footer": {
+          "count": "{n} suggestions sélectionnées",
+          "apply": "Appliquer {n} suggestions acceptées",
+          "failed": "Échec de l’application"
+        },
+        "toast": {
+          "applied": "{n} suggestions appliquées",
+          "appliedPartial": "{n} suggestions appliquées (certaines ignorées)",
+          "applyFailed": "Impossible d’appliquer les suggestions",
+          "undoFailed": "Impossible d’annuler cette modification"
+        },
+        "error": {
+          "title": "Impossible de charger cette exécution"
+        },
+        "notReady": {
+          "title": "Cette exécution n’a pas encore de suggestions à examiner",
+          "body": "Une exécution doit être validée avant que ses suggestions puissent être examinées. Générez ou collez d’abord une réponse."
+        },
+        "applied": {
+          "title": "Cette exécution a été appliquée",
+          "body": "Les suggestions acceptées ci-dessous sont en lecture seule."
+        },
+        "empty": {
+          "title": "Aucune suggestion",
+          "body": "Cette exécution n’a produit aucune suggestion à examiner."
+        },
+        "cat": {
+          "label": "libellé",
+          "key": "colonnes clés",
+          "enum": "énumération",
+          "relation": "relation",
+          "pii": "DCP",
+          "template": "modèle de page",
+          "group": "groupe de navigation",
+          "dashboard": "tableau de bord",
+          "widget": "widget",
+          "copy": "microcopie"
+        }
       }
     }
   },

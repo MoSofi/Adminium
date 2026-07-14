@@ -111,6 +111,41 @@ describe('key-set parity with en-US', () => {
   }
 });
 
+describe('studio.enrich is present and genuinely translated in all locales (acceptance #14)', () => {
+  // The connect-wizard "Enrich with AI" step (EnrichStep / EnrichByoPanel /
+  // EnrichDirectProgress) resolves these keys under the `common` namespace; a
+  // regression that ships them in no bundle would make every non-English user
+  // read English. Key-set parity above guarantees all-or-nothing presence — this
+  // additionally proves the strings are real translations, not English fallbacks.
+  const SAMPLE_KEYS = [
+    'studio.enrich.title',
+    'studio.enrich.subtitle',
+    'studio.enrich.byo.cardTitle',
+    'studio.enrich.direct.title',
+    'studio.enrich.section.labels',
+  ] as const;
+
+  it('en-US carries the whole enrich subtree', () => {
+    const en = flatten(EN_US_RESOURCES.common);
+    for (const key of SAMPLE_KEYS) expect(en.get(key), key).toBeTypeOf('string');
+    // The full section vocabulary the wizard renders is present.
+    for (const section of ['labels', 'groups', 'enums', 'relations', 'keys', 'templates', 'widgets', 'pii', 'icons', 'microcopy']) {
+      expect(en.get(`studio.enrich.section.${section}`), section).toBeTypeOf('string');
+    }
+  });
+
+  for (const locale of TARGET_LOCALES) {
+    it(`${locale.id} translates the enrich copy (not the English fallback)`, () => {
+      const en = flatten(EN_US_RESOURCES.common);
+      const target = flatten(readJson(locale.tag, 'common'));
+      for (const key of SAMPLE_KEYS) {
+        expect(target.get(key), `${locale.tag}:${key}`).toBeTypeOf('string');
+        expect(target.get(key), `${locale.tag}:${key} must be translated, not English`).not.toBe(en.get(key));
+      }
+    });
+  }
+});
+
 describe('ICU validity, argument parity, and plural categories', () => {
   for (const locale of TARGET_LOCALES) {
     it(`${locale.id}: every message parses with en-US argument names and locale-valid plural categories`, () => {

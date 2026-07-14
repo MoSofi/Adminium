@@ -22,6 +22,7 @@ import { StudioGuard } from './StudioGuard.js';
 import { ConnectWizard } from './connect/ConnectWizard.js';
 import { ConnectionsHub } from './hub/ConnectionsHub.js';
 import { StudioSettingsPage } from './settings/StudioSettingsPage.js';
+import { StudioAiPage } from './ai/StudioAiPage.js';
 
 // --- remap contract (file owned by the remap agent, may land later) ----------
 
@@ -30,6 +31,20 @@ interface RemapEditorModule {
 }
 
 const remapModules = import.meta.glob('./remap/RemapEditor.tsx');
+
+// --- review contract (screen owned by T14, may land later) -------------------
+// The LLM-run review-diff screen (06 §10.3) is delivered separately. We register
+// its route here — the single registration point, mirroring the remap contract —
+// so the run-history rows on Settings → AI can navigate to it. It is loaded
+// lazily from `./llm-runs/ReviewScreen.tsx` exporting
+// `ReviewScreen({ runId }: { runId: string })`; a friendly placeholder renders
+// until that file lands.
+
+interface ReviewScreenModule {
+  ReviewScreen: ComponentType<{ runId: string }>;
+}
+
+const reviewModules = import.meta.glob('./llm-runs/ReviewScreen.tsx');
 
 function RemapUnavailable() {
   return (
@@ -53,6 +68,28 @@ const RemapEditorLazy = lazy(async (): Promise<{ default: ComponentType<{ connec
   return { default: mod.RemapEditor };
 });
 
+function ReviewUnavailable() {
+  return (
+    <div className="mx-auto max-w-narrow p-6">
+      <Alert
+        tone="info"
+        title={t('studio.review.unavailableTitle', 'Review screen not available')}
+        body={t(
+          'studio.review.unavailableBody',
+          'This build does not include the enrichment review screen yet (06-T14). It lands with the diff-and-apply flow.',
+        )}
+      />
+    </div>
+  );
+}
+
+const ReviewScreenLazy = lazy(async (): Promise<{ default: ComponentType<{ runId: string }> }> => {
+  const loader = reviewModules['./llm-runs/ReviewScreen.tsx'];
+  if (loader === undefined) return { default: ReviewUnavailable };
+  const mod = (await loader()) as ReviewScreenModule;
+  return { default: mod.ReviewScreen };
+});
+
 function CenteredSpinner() {
   return (
     <div className="flex items-center justify-center p-10">
@@ -67,7 +104,10 @@ function ConnectRouteComponent() {
   const navigate = useNavigate();
   return (
     <StudioGuard>
-      <ConnectWizard onOpenApp={() => void navigate({ to: '/' })} />
+      <ConnectWizard
+        onOpenApp={() => void navigate({ to: '/' })}
+        onOpenReview={(runId) => void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })}
+      />
     </StudioGuard>
   );
 }
@@ -93,7 +133,25 @@ function SettingsRouteComponent() {
   return (
     <StudioGuard>
       <Suspense fallback={<CenteredSpinner />}>
-        <StudioSettingsPage onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })} />
+        <StudioSettingsPage
+          onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })}
+          onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
+        />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
+function AiSettingsRouteComponent() {
+  const navigate = useNavigate();
+  return (
+    <StudioGuard>
+      <Suspense fallback={<CenteredSpinner />}>
+        <StudioAiPage
+          onOpenReview={(runId) =>
+            void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })
+          }
+        />
       </Suspense>
     </StudioGuard>
   );
@@ -124,6 +182,29 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: SettingsRouteComponent,
   });
 
+  const aiSettingsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/settings/ai',
+    component: AiSettingsRouteComponent,
+  });
+
+  const reviewRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/llm-runs/$runId/review',
+    component: ReviewRouteComponent,
+  });
+
+  function ReviewRouteComponent() {
+    const { runId } = reviewRoute.useParams();
+    return (
+      <StudioGuard>
+        <Suspense fallback={<CenteredSpinner />}>
+          <ReviewScreenLazy runId={runId} />
+        </Suspense>
+      </StudioGuard>
+    );
+  }
+
   const remapRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/remap/$connectionId',
@@ -141,7 +222,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     );
   }
 
-  return [studioIndexRoute, connectRoute, settingsRoute, remapRoute];
+  return [studioIndexRoute, connectRoute, settingsRoute, aiSettingsRoute, reviewRoute, remapRoute];
 }
 
 /** Test seam: does the remap module exist in this build? */

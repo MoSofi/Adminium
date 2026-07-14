@@ -6,6 +6,9 @@
  * also works standalone (manual browsing).
  */
 
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 export type E2eEngine = 'sqlite' | 'postgres' | 'mysql';
 
 export const ENGINE: E2eEngine = (process.env['E2E_ENGINE'] as E2eEngine | undefined) ?? 'sqlite';
@@ -38,6 +41,31 @@ export const TEST_MYSQL_URL = process.env['TEST_MYSQL_URL'] ?? '';
 /** The DSN the Studio wizard test types in (postgres engine only). */
 export function wizardDsn(): string {
   const url = new URL(TEST_POSTGRES_URL);
+  url.pathname = `/${E2E_DATABASE}`;
+  return url.toString();
+}
+
+/**
+ * Deterministic on-disk path of the sqlite Northwind the boot script seeds
+ * (`scripts/e2e-server.mjs` computes the identical path). Shared by the seeded
+ * `northwind` connection AND the T15 enrichment wizard leg, so the test can type
+ * a real DSN into the wizard without knowing a per-run temp path. Kept in
+ * `tmpdir()` (not a mkdtemp subdir) precisely so both processes derive it.
+ */
+export function sqliteSourcePath(): string {
+  return join(tmpdir(), `adminium-e2e-source-sqlite-${String(PORT)}.db`);
+}
+
+/**
+ * The DSN the T15 golden-enrichment wizard leg types in, per engine. sqlite uses
+ * the deterministic seeded file; postgres/mysql point the new connection at the
+ * already-seeded `E2E_DATABASE` (a second connection to the same DB, as the
+ * studio-wizard leg already does for postgres).
+ */
+export function enrichWizardDsn(): string {
+  if (ENGINE === 'sqlite') return `sqlite:${sqliteSourcePath()}`;
+  if (ENGINE === 'postgres') return wizardDsn();
+  const url = new URL(TEST_MYSQL_URL);
   url.pathname = `/${E2E_DATABASE}`;
   return url.toString();
 }

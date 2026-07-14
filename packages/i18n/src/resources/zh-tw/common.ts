@@ -387,6 +387,323 @@ export default {
         "empty": "沒有可刪除的項目——尚無連線。",
         "deleteDesc": "刪除該連線及其產生的頁面。您的資料庫不會被更動。此操作無法復原。",
         "deleteCta": "刪除連線"
+      },
+      "aiCard": {
+        "heading": "AI 增強",
+        "body": "設定 AI 供應商（或複製貼上往返）以增強標籤、分組與關聯。",
+        "cta": "開啟 AI 設定"
+      }
+    },
+    "settingsAi": {
+      "title": "AI 增強",
+      "subtitle": "連接一個模型，讓 Adminium 建議標籤、分組、關聯等——在套用之前一律以差異形式審閱。",
+      "saved": "AI 供應商已儲存",
+      "saveFailed": "無法儲存 AI 供應商。請重試。",
+      "save": "儲存供應商",
+      "test": "測試連線",
+      "testHintDirty": "測試前請先儲存變更。",
+      "testing": "正在連線供應商…",
+      "testError": "測試失敗",
+      "testErrorBody": "無法連線到供應商。請檢查金鑰與基礎 URL。",
+      "testOk": "已連線到 {model}，耗時 {latency} 毫秒",
+      "testUnknownModel": "供應商",
+      "provider": {
+        "heading": "AI 供應商",
+        "subtitle": "選擇 Adminium 如何存取模型以增強你的結構描述。金鑰會加密儲存且不再顯示。",
+        "active": "使用中",
+        "anthropic": {
+          "label": "Anthropic",
+          "desc": "透過 Anthropic API 使用 Claude 模型。"
+        },
+        "openai": {
+          "label": "OpenAI",
+          "desc": "透過 OpenAI API 使用 GPT 模型。"
+        },
+        "openaiCompatible": {
+          "label": "相容 OpenAI",
+          "desc": "任何使用 OpenAI 協定的端點——Groq、Together、vLLM、LM Studio。"
+        },
+        "ollama": {
+          "label": "Ollama（本機）",
+          "desc": "透過 Ollama 在本機執行模型——免金鑰，免雲端。"
+        }
+      },
+      "configure": {
+        "heading": "設定 {provider}"
+      },
+      "field": {
+        "baseUrl": "基礎 URL",
+        "baseUrlOptional": "除非 Ollama 執行於其他主機，否則保持不變。",
+        "baseUrlHelper": "提供 /chat/completions 的端點根位址。",
+        "model": "模型",
+        "modelFreeText": "輸入你的端點所提供的確切模型 ID。",
+        "modelLive": "已從供應商即時載入。",
+        "modelStatic": "一份經過驗證的清單；儲存後輸入自訂 ID 可重新整理。",
+        "modelLoading": "載入中…",
+        "modelPlaceholder": "選擇一個模型…",
+        "key": "API 金鑰",
+        "keyStored": "已加密儲存。替換它以使用其他金鑰。",
+        "keyMask": "sk-…{last4}",
+        "keyReplace": "替換金鑰",
+        "keyOptional": "選填——部分端點不需要金鑰。",
+        "keyWriteOnly": "僅供寫入：一旦儲存即不再顯示。",
+        "noKeyTitle": "不需要 API 金鑰",
+        "noKeyBody": "Ollama 在本機執行，因此沒有任何內容離開這台機器。"
+      },
+      "runStatus": {
+        "draft": "草稿",
+        "running": "執行中",
+        "awaitingResponse": "等待回應",
+        "validated": "已驗證",
+        "applied": "已套用",
+        "partiallyApplied": "部分套用",
+        "failed": "失敗",
+        "discarded": "已捨棄"
+      },
+      "byo": {
+        "heading": "沒有金鑰？使用你自己的 AI 工具",
+        "subtitle": "複製貼上往返——沒有任何內容離開這台機器。",
+        "body": "Studio 可以依你的結構描述產生一個自足的提示詞。在 Claude Code、ChatGPT 或任何工具中執行它，然後將回傳的 JSON 貼回連線精靈。驗證、審閱與結果都與直連方式相同。",
+        "guaranteeTitle": "無遙測保證",
+        "guarantee1": "提示詞僅包含你的結構描述與彙總統計——預設絕不包含列資料。",
+        "guarantee2": "不嵌入任何憑證、執行個體 URL 或識別碼。",
+        "guarantee3": "BYO 執行不進行任何網路呼叫，也絕不計費。",
+        "promptVersion": "提示詞 {version}",
+        "schemaVersion": "結構描述 {version}"
+      },
+      "history": {
+        "heading": "執行紀錄",
+        "subtitle": "過往的增強執行。開啟其中一個以審閱其建議。",
+        "tableLabel": "增強執行",
+        "colDate": "日期",
+        "colSource": "來源",
+        "colStatus": "狀態",
+        "colChunks": "區塊",
+        "openReview": "開啟 {date} 的執行審閱",
+        "connection": "連線",
+        "empty": "尚無增強執行。在連線精靈中增強結構描述後，紀錄將顯示於此。",
+        "errorTitle": "無法載入執行",
+        "errorBody": "重新整理頁面以再試一次。",
+        "noConnections": "請先連線資料庫——增強執行會依連線分別記錄。",
+        "byo": "BYO",
+        "directPath": "直連"
+      }
+    },
+    "enrich": {
+      "title": "使用 AI 豐富",
+      "subtitle": "可選擇使用 LLM 優化生成的標籤、分組、列舉和儀表板。啟發式基準無需它即可運作——這僅新增供你在套用前審閱的建議。",
+      "intentLabel": "你希望如何豐富？",
+      "sectionsLegend": "應由 AI 決定哪些內容？",
+      "localesLegend": "將標籤翻譯為",
+      "localeLocked": "（必填）",
+      "samplingTitle": "包含範例值",
+      "samplingHint": "在提示中為每個非 PII 欄位最多包含 20 個真實值。",
+      "samplingPreviewTitle": "離開此機器的內容",
+      "samplingPreviewBody": "每個非 PII 欄位最多 20 個最常見值，以及數值與日期欄位的最小/最大值。標記為 PII 的欄位永不取樣。其餘所有內容僅保留彙總值。複製前請審閱確切的提示（BYO）——未經你的操作不會傳送任何內容。",
+      "noSections": "請至少選擇一個要豐富的決策群組。",
+      "generatePrompt": "生成提示",
+      "startProvider": "開始豐富",
+      "startOver": "重新開始",
+      "copied": "已複製",
+      "createFailed": "無法建立豐富提示——請重試。",
+      "createFailedTitle": "無法啟動",
+      "providerFallback": "你的 AI 供應商",
+      "fileTitle": "AI 豐富需要一個線上資料庫",
+      "fileBody": "結構描述檔案來源尚無可豐富的快照。連接一個線上資料庫以使用 AI 豐富，或繼續——啟發式基準仍會生成完整的應用程式。",
+      "section": {
+        "labels": "標籤與描述",
+        "groups": "導覽分組",
+        "enums": "列舉語意",
+        "relations": "關聯",
+        "keys": "關鍵欄位",
+        "templates": "頁面範本",
+        "widgets": "儀表板小工具",
+        "pii": "PII 與遮罩",
+        "icons": "圖示",
+        "microcopy": "微文案"
+      },
+      "provider": {
+        "title": "使用我的 AI 供應商",
+        "description": "立即使用已設定的供應商執行豐富。你將以差異形式審閱每則建議。",
+        "unconfigured": "尚未設定 AI 供應商——請在下方將提示複製到你自己的工具，或先設定一個供應商。",
+        "settingsHint": "想直接執行嗎？",
+        "settingsLink": "在「設定 → AI」中設定供應商"
+      },
+      "byo": {
+        "cardTitle": "複製提示到我自己的 AI 工具",
+        "cardDescription": "將一個自包含的提示複製到 Claude Code、ChatGPT 或任何工具——然後將 JSON 貼回。無需金鑰，不會自動將任何內容傳出此機器。",
+        "guidance": "在任意 AI 工具中執行——Claude Code、ChatGPT，皆可。將其回傳的 JSON 貼到下方。",
+        "promptLabel": "豐富提示",
+        "promptLabelN": "豐富提示 第 {index} 個，共 {total} 個",
+        "tokenChip": "≈ {tokens} 個 token",
+        "copyPrompt": "複製提示",
+        "copyPromptDone": "提示已複製",
+        "download": "下載 .md",
+        "chunkTabs": "提示分塊",
+        "chunkTab": "提示 {index}",
+        "chunkValid": "分塊 {index} 已驗證",
+        "pasteLabel": "貼上 JSON 回應",
+        "pastePlaceholder": "在此貼上 JSON 回應…",
+        "validate": "驗證",
+        "valid": "回應已驗證",
+        "mergedTitle": "全部 {count} 個分塊已驗證並合併",
+        "mergedTitleSingle": "回應已驗證",
+        "mergedBody": "建議已準備好，可對照啟發式基準進行審閱。",
+        "errorsTitle": "驗證發現 {count} 個問題",
+        "copyErrors": "為你的 AI 工具複製錯誤",
+        "copyErrorsDone": "錯誤已複製",
+        "copyErrorsHint": "將其貼回你的 AI 工具以取得更正後的回應。",
+        "droppedItems": "有 {count} 則建議在驗證時被捨棄——審閱中顯示其餘內容。",
+        "pendingTitle": "驗證每個提示以繼續",
+        "pendingBody": "在上方貼上 JSON 回應並驗證，以繼續進行審閱。",
+        "pendingBodyChunked": "每個分塊都必須先驗證，建議才會合併。請貼上並驗證上方的每個提示。",
+        "requestFailed": "無法連接伺服器進行驗證——請重試。",
+        "continueReview": "繼續審閱",
+        "wholeDocument": "整份文件"
+      },
+      "direct": {
+        "title": "正在使用 AI 豐富",
+        "subtitle": "正在將你的結構描述傳送至",
+        "building": "正在建立提示…",
+        "logLabel": "豐富日誌",
+        "cancel": "取消",
+        "back": "返回選項",
+        "retry": "重試",
+        "done": "豐富完成——請審閱建議。",
+        "continueReview": "繼續審閱",
+        "failed": "供應商執行失敗。請檢查你的 AI 設定並重試。",
+        "jobFailed": "豐富執行未完成。",
+        "startFailed": "無法啟動執行——請重試。",
+        "errorTitle": "豐富失敗"
+      },
+      "skip": {
+        "title": "略過——僅使用啟發式",
+        "description": "從啟發式基準生成。你之後可在「設定 → AI」中豐富——略過絕不會受到懲罰。",
+        "confirmTitle": "繼續使用啟發式",
+        "confirmBody": "生成的應用程式將使用啟發式的標籤、分組和儀表板。繼續生成——你可隨時在「設定 → AI」中執行 AI 豐富。"
+      }
+    },
+    "review": {
+      "unavailableTitle": "審閱畫面不可用",
+      "unavailableBody": "此組建尚未包含增強審閱畫面（06-T14）。它將隨差異與套用流程一起推出。"
+    },
+    "llmRuns": {
+      "review": {
+        "header": {
+          "title": "審查 AI 建議",
+          "model": "模型",
+          "snapshot": "快照",
+          "byo": "自帶",
+          "pathDirect": "直接 API",
+          "pathByo": "複製貼上",
+          "agree": "{n} 項一致",
+          "conflict": "{n} 項衝突",
+          "new": "{n} 項新增",
+          "rejects": "{n} 項拒絕",
+          "countsAria": "建議數量"
+        },
+        "bulk": {
+          "thresholdLabel": "信心度門檻",
+          "thresholdAria": "「全部接受」的信心度門檻",
+          "acceptAll": "接受所有 ≥ {pct}%",
+          "clear": "清除選取"
+        },
+        "section": {
+          "selectAllAria": "全選 {group}",
+          "acceptedCount": "已接受 {n} 項"
+        },
+        "group": {
+          "labels": "標籤與翻譯",
+          "navigation": "導覽與領域",
+          "enums": "列舉語意",
+          "relations": "關聯",
+          "keys": "鍵欄位",
+          "templates": "頁面範本",
+          "dashboards": "儀表板與小工具",
+          "pii": "個人資料與遮罩",
+          "icons": "圖示",
+          "microcopy": "微文案"
+        },
+        "status": {
+          "agree": "一致",
+          "conflict": "衝突",
+          "new": "新增",
+          "heuristicOnly": "僅啟發式",
+          "rejects": "拒絕啟發式",
+          "locked": "已鎖定"
+        },
+        "row": {
+          "acceptAria": "接受 {target} 的{noun}建議",
+          "keptEdited": "已保留——由您編輯",
+          "rejectsCallout": "AI 拒絕了某項啟發式決策——接受前請確認。",
+          "showTranslations": "顯示翻譯",
+          "hideTranslations": "隱藏翻譯",
+          "confidenceAria": "信心度 {pct}%",
+          "noAi": "無 AI 建議"
+        },
+        "value": {
+          "none": "無值",
+          "absent": "無",
+          "dash": "—",
+          "display": "顯示",
+          "key": "鍵",
+          "rank": "排名 {n}",
+          "span": "跨距 {n}",
+          "tableCount": "{n} 張資料表",
+          "widgetCount": "{n} 個小工具",
+          "enumWorkflow": "工作流程",
+          "enumCategory": "分類",
+          "notPii": "非個人資料",
+          "label": "標籤",
+          "description": "描述",
+          "subtitle": "頁面副標題",
+          "headline": "空狀態標題",
+          "guidance": "空狀態提示"
+        },
+        "apply": {
+          "title": "套用 {n} 項建議",
+          "subtitle": "這些變更將在單一交易中寫入，並可復原。",
+          "empty": "未選擇任何要套用的內容。",
+          "confirm": "套用變更"
+        },
+        "footer": {
+          "count": "已選擇 {n} 項建議",
+          "apply": "套用 {n} 項已接受的建議",
+          "failed": "套用失敗"
+        },
+        "toast": {
+          "applied": "已套用 {n} 項建議",
+          "appliedPartial": "已套用 {n} 項建議（部分已略過）",
+          "applyFailed": "無法套用建議",
+          "undoFailed": "無法復原此變更"
+        },
+        "error": {
+          "title": "無法載入此執行"
+        },
+        "notReady": {
+          "title": "此執行尚無可審查的建議",
+          "body": "執行必須先通過驗證，才能審查其建議。請先產生或貼上回應。"
+        },
+        "applied": {
+          "title": "此執行已套用",
+          "body": "下方已接受的建議為唯讀。"
+        },
+        "empty": {
+          "title": "無建議",
+          "body": "此執行未產生可審查的建議。"
+        },
+        "cat": {
+          "label": "標籤",
+          "key": "鍵欄位",
+          "enum": "列舉",
+          "relation": "關聯",
+          "pii": "個人資料",
+          "template": "頁面範本",
+          "group": "導覽群組",
+          "dashboard": "儀表板",
+          "widget": "小工具",
+          "copy": "微文案"
+        }
       }
     }
   },

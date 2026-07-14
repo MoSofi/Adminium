@@ -28,6 +28,7 @@ import { jobOwnerId, jobsRoutes } from '../routes/jobs/index.js';
 import { RealtimeHub } from '../realtime/hub.js';
 import { registerSseRoute } from '../realtime/sse.js';
 import { registerWsRoute, type RealtimeGatewayDeps } from '../realtime/ws.js';
+import { LLM_RUN_KIND, registerLlmRunHandler, type ResolveRun } from './llm-run.js';
 import { createJobRegistry, registerNoopProgressHandler, type JobRegistry } from './registry.js';
 import { JobScheduler } from './scheduler.js';
 import { JobWorker } from './worker.js';
@@ -40,6 +41,18 @@ export interface JobsAndRealtimeOptions {
   can: RealtimeGatewayDeps['can'];
   /** Custom registry (tests/extensions); default: fresh + `noop-progress`. */
   registry?: JobRegistry | undefined;
+  /**
+   * Wire the direct-API LLM enrichment runner (`llm-run` kind, 06-llm-assist.md
+   * §7.5). When supplied, the handler is registered on the registry (unless a
+   * custom registry already carries it). `resolve` turns a run into a live
+   * provider client with the decrypted key — build it with
+   * `createProviderResolver` (`llm/provider-resolver.ts`).
+   */
+  llm?:
+    | {
+        resolve: ResolveRun;
+      }
+    | undefined;
   /** Worker tuning knobs. */
   worker?:
     | {
@@ -87,6 +100,9 @@ export async function registerJobsAndRealtime(
   if (registry === undefined) {
     registry = createJobRegistry();
     registerNoopProgressHandler(registry);
+  }
+  if (opts.llm !== undefined && !registry.has(LLM_RUN_KIND)) {
+    registerLlmRunHandler(registry, { meta, resolve: opts.llm.resolve });
   }
 
   const hub = new RealtimeHub();

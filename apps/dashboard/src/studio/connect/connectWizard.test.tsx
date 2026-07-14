@@ -461,7 +461,13 @@ describe('full walk: test → include → meta → generate (read-only source)',
     await waitFor(() => expect(continueButton()).toHaveProperty('disabled', false));
     await userEvent.click(continueButton());
 
-    // Step 6 — generate → success → open app.
+    // Step 6 — Enrich with AI: skip to keep the heuristic baseline (never penalized).
+    await screen.findByText('Enrich with AI');
+    await userEvent.click(screen.getByRole('radio', { name: /Skip — use heuristics only/ }));
+    await waitFor(() => expect(continueButton()).toHaveProperty('disabled', false));
+    await userEvent.click(continueButton());
+
+    // Step 7 — generate → success → open app.
     await userEvent.click(screen.getByRole('button', { name: 'Generate dashboard' }));
     await screen.findByText('Your dashboard is ready');
     expect(screen.getByText(/3 pages across 2 navigation groups/)).toBeDefined();

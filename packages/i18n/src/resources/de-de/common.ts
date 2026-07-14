@@ -387,6 +387,323 @@ export default {
         "empty": "Nichts zu löschen — noch keine Verbindungen.",
         "deleteDesc": "Löscht die Verbindung und die daraus generierten Seiten. Ihre Datenbank bleibt unangetastet. Kann nicht rückgängig gemacht werden.",
         "deleteCta": "Verbindung löschen"
+      },
+      "aiCard": {
+        "heading": "KI-Anreicherung",
+        "body": "Konfigurieren Sie einen KI-Anbieter (oder den Kopieren-Einfügen-Umlauf), um Bezeichnungen, Gruppen und Beziehungen anzureichern.",
+        "cta": "KI-Einstellungen öffnen"
+      }
+    },
+    "settingsAi": {
+      "title": "KI-Anreicherung",
+      "subtitle": "Verbinden Sie ein Modell, damit Adminium Bezeichnungen, Gruppen, Beziehungen und mehr vorschlägt — immer als Diff geprüft, bevor etwas übernommen wird.",
+      "saved": "KI-Anbieter gespeichert",
+      "saveFailed": "Der KI-Anbieter konnte nicht gespeichert werden. Erneut versuchen.",
+      "save": "Anbieter speichern",
+      "test": "Verbindung testen",
+      "testHintDirty": "Speichern Sie Ihre Änderungen vor dem Test.",
+      "testing": "Anbieter wird angepingt…",
+      "testError": "Test fehlgeschlagen",
+      "testErrorBody": "Der Anbieter war nicht erreichbar. Prüfen Sie Schlüssel und Basis-URL.",
+      "testOk": "Verbunden mit {model} in {latency} ms",
+      "testUnknownModel": "dem Anbieter",
+      "provider": {
+        "heading": "KI-Anbieter",
+        "subtitle": "Wählen Sie, wie Adminium ein Modell zur Anreicherung Ihres Schemas erreicht. Schlüssel werden verschlüsselt gespeichert und nie wieder angezeigt.",
+        "active": "Aktiv",
+        "anthropic": {
+          "label": "Anthropic",
+          "desc": "Claude-Modelle über die Anthropic-API."
+        },
+        "openai": {
+          "label": "OpenAI",
+          "desc": "GPT-Modelle über die OpenAI-API."
+        },
+        "openaiCompatible": {
+          "label": "OpenAI-kompatibel",
+          "desc": "Jeder Endpunkt, der das OpenAI-Format spricht — Groq, Together, vLLM, LM Studio."
+        },
+        "ollama": {
+          "label": "Ollama (lokal)",
+          "desc": "Modelle laufen lokal über Ollama — kein Schlüssel, keine Cloud."
+        }
+      },
+      "configure": {
+        "heading": "{provider} konfigurieren"
+      },
+      "field": {
+        "baseUrl": "Basis-URL",
+        "baseUrlOptional": "Unverändert lassen, außer Ollama läuft auf einem anderen Host.",
+        "baseUrlHelper": "Die Endpunkt-Wurzel, die /chat/completions bereitstellt.",
+        "model": "Modell",
+        "modelFreeText": "Geben Sie die genaue Modell-ID ein, die Ihr Endpunkt bereitstellt.",
+        "modelLive": "Live vom Anbieter geladen.",
+        "modelStatic": "Eine bewährte Liste; geben Sie nach dem Speichern eine eigene ID ein, um sie zu aktualisieren.",
+        "modelLoading": "Wird geladen…",
+        "modelPlaceholder": "Modell auswählen…",
+        "key": "API-Schlüssel",
+        "keyStored": "Verschlüsselt gespeichert. Ersetzen Sie ihn, um einen anderen Schlüssel zu verwenden.",
+        "keyMask": "sk-…{last4}",
+        "keyReplace": "Schlüssel ersetzen",
+        "keyOptional": "Optional — manche Endpunkte brauchen keinen Schlüssel.",
+        "keyWriteOnly": "Nur schreibend: einmal gespeichert, wird er nie wieder angezeigt.",
+        "noKeyTitle": "Kein API-Schlüssel nötig",
+        "noKeyBody": "Ollama läuft lokal, es verlässt also nichts diesen Rechner."
+      },
+      "runStatus": {
+        "draft": "Entwurf",
+        "running": "Läuft",
+        "awaitingResponse": "Wartet auf Antwort",
+        "validated": "Validiert",
+        "applied": "Übernommen",
+        "partiallyApplied": "Teilweise übernommen",
+        "failed": "Fehlgeschlagen",
+        "discarded": "Verworfen"
+      },
+      "byo": {
+        "heading": "Kein Schlüssel? Nutzen Sie Ihr eigenes KI-Tool",
+        "subtitle": "Der Kopieren-Einfügen-Umlauf — nichts verlässt diesen Rechner.",
+        "body": "Studio kann aus Ihrem Schema einen eigenständigen Prompt erzeugen. Führen Sie ihn in Claude Code, ChatGPT oder einem beliebigen Tool aus und fügen Sie das zurückgegebene JSON wieder in den Verbindungsassistenten ein. Gleiche Validierung, gleiche Prüfung, gleiches Ergebnis wie der direkte Weg.",
+        "guaranteeTitle": "Telemetriefreie Garantie",
+        "guarantee1": "Der Prompt enthält nur Ihr Schema und aggregierte Statistiken — standardmäßig nie Zeilendaten.",
+        "guarantee2": "Keine Anmeldedaten, keine Instanz-URL, keine Kennungen sind eingebettet.",
+        "guarantee3": "BYO-Läufe machen keinerlei Netzwerkaufrufe und werden nie abgerechnet.",
+        "promptVersion": "Prompt {version}",
+        "schemaVersion": "Schema {version}"
+      },
+      "history": {
+        "heading": "Laufverlauf",
+        "subtitle": "Frühere Anreicherungsläufe. Öffnen Sie einen, um seine Vorschläge zu prüfen.",
+        "tableLabel": "Anreicherungsläufe",
+        "colDate": "Datum",
+        "colSource": "Quelle",
+        "colStatus": "Status",
+        "colChunks": "Blöcke",
+        "openReview": "Prüfung für den Lauf vom {date} öffnen",
+        "connection": "Verbindung",
+        "empty": "Noch keine Anreicherungsläufe. Reichern Sie ein Schema im Verbindungsassistenten an, um hier Verlauf zu sehen.",
+        "errorTitle": "Läufe konnten nicht geladen werden",
+        "errorBody": "Laden Sie die Seite neu, um es erneut zu versuchen.",
+        "noConnections": "Verbinden Sie zuerst eine Datenbank — Anreicherungsläufe werden pro Verbindung erfasst.",
+        "byo": "BYO",
+        "directPath": "Direkt"
+      }
+    },
+    "enrich": {
+      "title": "Mit KI anreichern",
+      "subtitle": "Verfeinern Sie die generierten Bezeichnungen, Gruppen, Enums und Dashboards optional mit einem LLM. Die heuristische Grundlage funktioniert auch ohne — dies fügt nur Vorschläge hinzu, die Sie prüfen, bevor etwas angewendet wird.",
+      "intentLabel": "Wie möchten Sie anreichern?",
+      "sectionsLegend": "Worüber soll die KI entscheiden?",
+      "localesLegend": "Bezeichnungen übersetzen in",
+      "localeLocked": "(erforderlich)",
+      "samplingTitle": "Beispielwerte einbeziehen",
+      "samplingHint": "Nimmt bis zu 20 echte Werte pro Nicht-PII-Spalte in den Prompt auf.",
+      "samplingPreviewTitle": "Was diesen Rechner verlässt",
+      "samplingPreviewBody": "Bis zu 20 häufigste Werte pro Nicht-PII-Spalte, plus Min/Max für numerische und Datumsspalten. Als PII markierte Spalten werden nie beprobt. Alles Übrige bleibt rein aggregiert. Prüfen Sie den genauen Prompt vor dem Kopieren (BYO) — ohne Ihr Zutun wird nichts gesendet.",
+      "noSections": "Wählen Sie mindestens eine Entscheidungsgruppe zum Anreichern.",
+      "generatePrompt": "Prompt erzeugen",
+      "startProvider": "Anreicherung starten",
+      "startOver": "Von vorn beginnen",
+      "copied": "Kopiert",
+      "createFailed": "Der Anreicherungs-Prompt konnte nicht erstellt werden — erneut versuchen.",
+      "createFailedTitle": "Konnte nicht starten",
+      "providerFallback": "Ihr KI-Anbieter",
+      "fileTitle": "KI-Anreicherung benötigt eine aktive Datenbank",
+      "fileBody": "Schema-Datei-Quellen haben noch keinen Snapshot zum Anreichern. Verbinden Sie eine aktive Datenbank für die KI-Anreicherung, oder fahren Sie fort — die heuristische Grundlage erzeugt weiterhin eine vollständige App.",
+      "section": {
+        "labels": "Bezeichnungen & Beschreibungen",
+        "groups": "Navigationsgruppen",
+        "enums": "Enum-Semantik",
+        "relations": "Beziehungen",
+        "keys": "Schlüsselspalten",
+        "templates": "Seitenvorlagen",
+        "widgets": "Dashboard-Widgets",
+        "pii": "PII & Maskierung",
+        "icons": "Symbole",
+        "microcopy": "Mikrotexte"
+      },
+      "provider": {
+        "title": "Meinen KI-Anbieter verwenden",
+        "description": "Führen Sie die Anreicherung jetzt mit Ihrem konfigurierten Anbieter aus. Sie prüfen jeden Vorschlag als Diff.",
+        "unconfigured": "Es ist noch kein KI-Anbieter konfiguriert — kopieren Sie unten einen Prompt in Ihr eigenes Tool, oder konfigurieren Sie zuerst einen Anbieter.",
+        "settingsHint": "Möchten Sie es direkt ausführen?",
+        "settingsLink": "Anbieter in Einstellungen → KI konfigurieren"
+      },
+      "byo": {
+        "cardTitle": "Einen Prompt in mein eigenes KI-Tool kopieren",
+        "cardDescription": "Kopieren Sie einen eigenständigen Prompt in Claude Code, ChatGPT oder ein beliebiges Tool — und fügen Sie das JSON zurück ein. Kein Schlüssel nötig, nichts verlässt diesen Rechner automatisch.",
+        "guidance": "Führen Sie dies in einem beliebigen KI-Tool aus — Claude Code, ChatGPT, egal. Fügen Sie das zurückgegebene JSON unten ein.",
+        "promptLabel": "Anreicherungs-Prompt",
+        "promptLabelN": "Anreicherungs-Prompt {index} von {total}",
+        "tokenChip": "≈ {tokens} Tokens",
+        "copyPrompt": "Prompt kopieren",
+        "copyPromptDone": "Prompt kopiert",
+        "download": ".md herunterladen",
+        "chunkTabs": "Prompt-Abschnitte",
+        "chunkTab": "Prompt {index}",
+        "chunkValid": "Abschnitt {index} validiert",
+        "pasteLabel": "JSON-Antwort einfügen",
+        "pastePlaceholder": "JSON-Antwort hier einfügen…",
+        "validate": "Validieren",
+        "valid": "Antwort validiert",
+        "mergedTitle": "Alle {count} Abschnitte validiert und zusammengeführt",
+        "mergedTitleSingle": "Antwort validiert",
+        "mergedBody": "Die Vorschläge können nun gegen die heuristische Grundlage geprüft werden.",
+        "errorsTitle": "Die Validierung fand {count} Probleme",
+        "copyErrors": "Fehler für Ihr KI-Tool kopieren",
+        "copyErrorsDone": "Fehler kopiert",
+        "copyErrorsHint": "Fügen Sie dies in Ihr KI-Tool zurück ein, um eine korrigierte Antwort zu erhalten.",
+        "droppedItems": "{count} Vorschläge wurden bei der Validierung verworfen — die Prüfung zeigt die übrigen.",
+        "pendingTitle": "Validieren Sie jeden Prompt, um fortzufahren",
+        "pendingBody": "Fügen Sie die JSON-Antwort oben ein und validieren Sie sie, um zur Prüfung fortzufahren.",
+        "pendingBodyChunked": "Jeder Abschnitt muss validiert werden, bevor die Vorschläge zusammengeführt werden. Fügen Sie jeden Prompt oben ein und validieren Sie ihn.",
+        "requestFailed": "Der Server war für die Validierung nicht erreichbar — erneut versuchen.",
+        "continueReview": "Weiter zur Prüfung",
+        "wholeDocument": "gesamtes Dokument"
+      },
+      "direct": {
+        "title": "Anreicherung mit KI",
+        "subtitle": "Ihr Schema wird gesendet an",
+        "building": "Prompt wird erstellt…",
+        "logLabel": "Anreicherungsprotokoll",
+        "cancel": "Abbrechen",
+        "back": "Zurück zu den Optionen",
+        "retry": "Erneut versuchen",
+        "done": "Anreicherung abgeschlossen — prüfen Sie die Vorschläge.",
+        "continueReview": "Weiter zur Prüfung",
+        "failed": "Der Anbieterlauf ist fehlgeschlagen. Prüfen Sie Ihre KI-Einstellungen und versuchen Sie es erneut.",
+        "jobFailed": "Der Anreicherungslauf wurde nicht abgeschlossen.",
+        "startFailed": "Der Lauf konnte nicht gestartet werden — erneut versuchen.",
+        "errorTitle": "Anreicherung fehlgeschlagen"
+      },
+      "skip": {
+        "title": "Überspringen — nur Heuristik verwenden",
+        "description": "Aus der heuristischen Grundlage generieren. Sie können später über Einstellungen → KI anreichern — Überspringen wird nie bestraft.",
+        "confirmTitle": "Weiter mit Heuristik",
+        "confirmBody": "Die generierte App verwendet die heuristischen Bezeichnungen, Gruppen und Dashboards. Fahren Sie mit dem Generieren fort — Sie können die KI-Anreicherung jederzeit über Einstellungen → KI ausführen."
+      }
+    },
+    "review": {
+      "unavailableTitle": "Prüfungsansicht nicht verfügbar",
+      "unavailableBody": "Dieser Build enthält die Anreicherungs-Prüfungsansicht noch nicht (06-T14). Sie kommt mit dem Diff-und-Übernehmen-Ablauf."
+    },
+    "llmRuns": {
+      "review": {
+        "header": {
+          "title": "KI-Vorschläge prüfen",
+          "model": "Modell",
+          "snapshot": "Snapshot",
+          "byo": "BYO",
+          "pathDirect": "Direkte API",
+          "pathByo": "Kopieren & Einfügen",
+          "agree": "{n} übereinstimmend",
+          "conflict": "{n} Konflikt",
+          "new": "{n} neu",
+          "rejects": "{n} Ablehnungen",
+          "countsAria": "Anzahl der Vorschläge"
+        },
+        "bulk": {
+          "thresholdLabel": "Konfidenzschwelle",
+          "thresholdAria": "Konfidenzschwelle für „Alle übernehmen“",
+          "acceptAll": "Alle ≥ {pct}% übernehmen",
+          "clear": "Auswahl aufheben"
+        },
+        "section": {
+          "selectAllAria": "Alle in {group} auswählen",
+          "acceptedCount": "{n} übernommen"
+        },
+        "group": {
+          "labels": "Bezeichnungen & Übersetzungen",
+          "navigation": "Navigation & Domänen",
+          "enums": "Enum-Semantik",
+          "relations": "Beziehungen",
+          "keys": "Schlüsselspalten",
+          "templates": "Seitenvorlagen",
+          "dashboards": "Dashboards & Widgets",
+          "pii": "PII & Maskierung",
+          "icons": "Symbole",
+          "microcopy": "Mikrotexte"
+        },
+        "status": {
+          "agree": "Stimmt überein",
+          "conflict": "Konflikt",
+          "new": "Neu",
+          "heuristicOnly": "Nur Heuristik",
+          "rejects": "Lehnt Heuristik ab",
+          "locked": "Gesperrt"
+        },
+        "row": {
+          "acceptAria": "{noun}-Vorschlag für {target} übernehmen",
+          "keptEdited": "beibehalten – von Ihnen bearbeitet",
+          "rejectsCallout": "Die KI lehnt eine heuristische Entscheidung ab – vor dem Übernehmen bestätigen.",
+          "showTranslations": "Übersetzungen anzeigen",
+          "hideTranslations": "Übersetzungen ausblenden",
+          "confidenceAria": "Konfidenz {pct}%",
+          "noAi": "Kein KI-Vorschlag"
+        },
+        "value": {
+          "none": "Kein Wert",
+          "absent": "Keiner",
+          "dash": "—",
+          "display": "Anzeige",
+          "key": "Schlüssel",
+          "rank": "Rang {n}",
+          "span": "Breite {n}",
+          "tableCount": "{n} Tabellen",
+          "widgetCount": "{n} Widgets",
+          "enumWorkflow": "Workflow",
+          "enumCategory": "Kategorie",
+          "notPii": "Keine PII",
+          "label": "Bezeichnung",
+          "description": "Beschreibung",
+          "subtitle": "Seitenuntertitel",
+          "headline": "Überschrift für leeren Zustand",
+          "guidance": "Hinweis für leeren Zustand"
+        },
+        "apply": {
+          "title": "{n} Vorschläge übernehmen",
+          "subtitle": "Diese Änderungen werden in einer Transaktion geschrieben und können rückgängig gemacht werden.",
+          "empty": "Nichts zum Übernehmen ausgewählt.",
+          "confirm": "Änderungen übernehmen"
+        },
+        "footer": {
+          "count": "{n} Vorschläge ausgewählt",
+          "apply": "{n} übernommene Vorschläge anwenden",
+          "failed": "Anwenden fehlgeschlagen"
+        },
+        "toast": {
+          "applied": "{n} Vorschläge übernommen",
+          "appliedPartial": "{n} Vorschläge übernommen (einige übersprungen)",
+          "applyFailed": "Vorschläge konnten nicht übernommen werden",
+          "undoFailed": "Diese Änderung konnte nicht rückgängig gemacht werden"
+        },
+        "error": {
+          "title": "Dieser Lauf konnte nicht geladen werden"
+        },
+        "notReady": {
+          "title": "Dieser Lauf hat noch keine Vorschläge zur Prüfung",
+          "body": "Ein Lauf muss validiert sein, bevor seine Vorschläge geprüft werden können. Erzeugen oder fügen Sie zuerst eine Antwort ein."
+        },
+        "applied": {
+          "title": "Dieser Lauf wurde angewendet",
+          "body": "Die übernommenen Vorschläge unten sind schreibgeschützt."
+        },
+        "empty": {
+          "title": "Keine Vorschläge",
+          "body": "Dieser Lauf hat keine Vorschläge zur Prüfung erzeugt."
+        },
+        "cat": {
+          "label": "Bezeichnung",
+          "key": "Schlüsselspalten",
+          "enum": "Enum",
+          "relation": "Beziehung",
+          "pii": "PII",
+          "template": "Seitenvorlage",
+          "group": "Navigationsgruppe",
+          "dashboard": "Dashboard",
+          "widget": "Widget",
+          "copy": "Mikrotext"
+        }
       }
     }
   },

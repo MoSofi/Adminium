@@ -1,0 +1,72 @@
+{
+  "irVersion": 1,
+  "dialect": "postgres",
+  "source": { "kind": "live", "connectionId": "demo-shop" },
+  "name": "shop",
+  "defaultSchema": "public",
+  "schemas": ["public"],
+  "enums": [
+    {
+      "id": "public.order_status",
+      "name": "order_status",
+      "values": ["pending", "paid", "shipped", "cancelled", "refunded"],
+      "source": "native"
+    }
+  ],
+  "tables": [
+    {
+      "id": "public.customers",
+      "schema": "public",
+      "name": "customers",
+      "primaryKey": ["id"],
+      "rowCountEstimate": 8402,
+      "columns": [
+        { "name": "id", "ordinal": 1, "dbType": "uuid", "logicalType": "uuid", "nullable": false, "isPrimaryKey": true, "default": { "kind": "uuid" } },
+        { "name": "email", "ordinal": 2, "dbType": "text", "logicalType": "text", "nullable": false, "isUnique": true },
+        { "name": "full_name", "ordinal": 3, "dbType": "text", "logicalType": "text", "nullable": true },
+        { "name": "country", "ordinal": 4, "dbType": "text", "logicalType": "text", "nullable": true },
+        { "name": "created_at", "ordinal": 5, "dbType": "timestamptz", "logicalType": "timestamptz", "nullable": false, "default": { "kind": "now" } }
+      ]
+    },
+    {
+      "id": "public.products",
+      "schema": "public",
+      "name": "products",
+      "primaryKey": ["id"],
+      "rowCountEstimate": 312,
+      "columns": [
+        { "name": "id", "ordinal": 1, "dbType": "uuid", "logicalType": "uuid", "nullable": false, "isPrimaryKey": true, "default": { "kind": "uuid" } },
+        { "name": "sku", "ordinal": 2, "dbType": "text", "logicalType": "text", "nullable": false, "isUnique": true },
+        { "name": "name", "ordinal": 3, "dbType": "text", "logicalType": "text", "nullable": false },
+        { "name": "category", "ordinal": 4, "dbType": "text", "logicalType": "text", "nullable": true },
+        { "name": "price_cents", "ordinal": 5, "dbType": "integer", "logicalType": "integer", "nullable": false },
+        { "name": "created_at", "ordinal": 6, "dbType": "timestamptz", "logicalType": "timestamptz", "nullable": false, "default": { "kind": "now" } }
+      ]
+    },
+    {
+      "id": "public.orders",
+      "schema": "public",
+      "name": "orders",
+      "primaryKey": ["id"],
+      "rowCountEstimate": 41207,
+      "columns": [
+        { "name": "id", "ordinal": 1, "dbType": "uuid", "logicalType": "uuid", "nullable": false, "isPrimaryKey": true, "default": { "kind": "uuid" } },
+        { "name": "order_number", "ordinal": 2, "dbType": "text", "logicalType": "text", "nullable": false, "isUnique": true },
+        { "name": "customer_id", "ordinal": 3, "dbType": "uuid", "logicalType": "uuid", "nullable": false, "references": { "tableId": "public.customers", "column": "id" } },
+        { "name": "product_id", "ordinal": 4, "dbType": "uuid", "logicalType": "uuid", "nullable": false },
+        { "name": "status", "ordinal": 5, "dbType": "order_status", "logicalType": "enum", "nullable": false, "enumRef": "public.order_status" },
+        { "name": "total_cents", "ordinal": 6, "dbType": "integer", "logicalType": "integer", "nullable": false },
+        { "name": "placed_at", "ordinal": 7, "dbType": "timestamptz", "logicalType": "timestamptz", "nullable": false, "default": { "kind": "now" } }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "id": "rel:public.orders.customer_id->public.customers.id",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": { "tableId": "public.orders", "columns": ["customer_id"] },
+      "to": { "tableId": "public.customers", "columns": ["id"] }
+    }
+  ]
+}

@@ -379,6 +379,323 @@
         "empty": "Nothing to delete — no connections yet.",
         "deleteDesc": "Deletes the connection and its generated pages. Your database is not touched. Cannot be undone.",
         "deleteCta": "Delete connection"
+      },
+      "aiCard": {
+        "heading": "AI enrichment",
+        "body": "Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.",
+        "cta": "Open AI settings"
+      }
+    },
+    "settingsAi": {
+      "title": "AI enrichment",
+      "subtitle": "Connect a model to let Adminium suggest labels, groups, relations and more — always reviewed as a diff before anything applies.",
+      "saved": "AI provider saved",
+      "saveFailed": "Could not save the AI provider. Try again.",
+      "save": "Save provider",
+      "test": "Test connection",
+      "testHintDirty": "Save your changes before testing.",
+      "testing": "Pinging the provider…",
+      "testError": "Test failed",
+      "testErrorBody": "Could not reach the provider. Check the key and base URL.",
+      "testOk": "Connected to {model} in {latency} ms",
+      "testUnknownModel": "the provider",
+      "provider": {
+        "heading": "AI provider",
+        "subtitle": "Choose how Adminium reaches a model to enrich your schema. Keys are stored encrypted and never shown again.",
+        "active": "Active",
+        "anthropic": {
+          "label": "Anthropic",
+          "desc": "Claude models via the Anthropic API."
+        },
+        "openai": {
+          "label": "OpenAI",
+          "desc": "GPT models via the OpenAI API."
+        },
+        "openaiCompatible": {
+          "label": "OpenAI-compatible",
+          "desc": "Any endpoint that speaks the OpenAI wire format — Groq, Together, vLLM, LM Studio."
+        },
+        "ollama": {
+          "label": "Ollama (local)",
+          "desc": "Models running locally through Ollama — no key, no cloud."
+        }
+      },
+      "configure": {
+        "heading": "Configure {provider}"
+      },
+      "field": {
+        "baseUrl": "Base URL",
+        "baseUrlOptional": "Leave as-is unless Ollama runs on another host.",
+        "baseUrlHelper": "The endpoint root that serves /chat/completions.",
+        "model": "Model",
+        "modelFreeText": "Enter the exact model id your endpoint serves.",
+        "modelLive": "Loaded live from the provider.",
+        "modelStatic": "A known-good list; type a custom id after saving to refresh it.",
+        "modelLoading": "Loading…",
+        "modelPlaceholder": "Select a model…",
+        "key": "API key",
+        "keyStored": "Stored encrypted. Replace it to use a different key.",
+        "keyMask": "sk-…{last4}",
+        "keyReplace": "Replace key",
+        "keyOptional": "Optional — some endpoints need no key.",
+        "keyWriteOnly": "Write-only: once saved it is never shown again.",
+        "noKeyTitle": "No API key needed",
+        "noKeyBody": "Ollama runs locally, so nothing leaves this machine."
+      },
+      "runStatus": {
+        "draft": "Draft",
+        "running": "Running",
+        "awaitingResponse": "Awaiting response",
+        "validated": "Validated",
+        "applied": "Applied",
+        "partiallyApplied": "Partially applied",
+        "failed": "Failed",
+        "discarded": "Discarded"
+      },
+      "byo": {
+        "heading": "No key? Use your own AI tool",
+        "subtitle": "The copy-paste round-trip — nothing leaves this machine.",
+        "body": "Studio can generate a self-contained prompt from your schema. Run it in Claude Code, ChatGPT, or any tool you like, then paste the JSON it returns back into the connect wizard. Same validation, same review, same result as the direct path.",
+        "guaranteeTitle": "Telemetry-free guarantee",
+        "guarantee1": "The prompt carries only your schema and aggregate stats — never row data by default.",
+        "guarantee2": "No credentials, instance URL, or identifiers are embedded.",
+        "guarantee3": "BYO runs make zero network calls and are never metered.",
+        "promptVersion": "Prompt {version}",
+        "schemaVersion": "Schema {version}"
+      },
+      "history": {
+        "heading": "Run history",
+        "subtitle": "Past enrichment runs. Open one to review its suggestions.",
+        "tableLabel": "Enrichment runs",
+        "colDate": "Date",
+        "colSource": "Source",
+        "colStatus": "Status",
+        "colChunks": "Chunks",
+        "openReview": "Open review for the run from {date}",
+        "connection": "Connection",
+        "empty": "No enrichment runs yet. Enrich a schema from the connect wizard to see history here.",
+        "errorTitle": "Could not load runs",
+        "errorBody": "Refresh the page to try again.",
+        "noConnections": "Connect a database first — enrichment runs are recorded per connection.",
+        "byo": "BYO",
+        "directPath": "Direct"
+      }
+    },
+    "enrich": {
+      "title": "Enrich with AI",
+      "subtitle": "Optionally refine the generated labels, groups, enums and dashboards with an LLM. The heuristic baseline works without it — this only adds suggestions you review before anything applies.",
+      "intentLabel": "How would you like to enrich?",
+      "sectionsLegend": "What should the AI decide?",
+      "localesLegend": "Translate labels into",
+      "localeLocked": "(required)",
+      "samplingTitle": "Include sample values",
+      "samplingHint": "Includes up to 20 real values per non-PII column in the prompt.",
+      "samplingPreviewTitle": "What leaves this machine",
+      "samplingPreviewBody": "Up to 20 most-common values per non-PII column, plus min/max for numeric and date columns. PII-flagged columns are never sampled. Everything else stays aggregate-only. Review the exact prompt before copying (BYO) — nothing is sent without your action.",
+      "noSections": "Select at least one decision group to enrich.",
+      "generatePrompt": "Generate prompt",
+      "startProvider": "Start enrichment",
+      "startOver": "Start over",
+      "copied": "Copied",
+      "createFailed": "Could not build the enrichment prompt — retry.",
+      "createFailedTitle": "Could not start",
+      "providerFallback": "your AI provider",
+      "fileTitle": "AI enrichment needs a live database",
+      "fileBody": "Schema-file sources have no snapshot to enrich yet. Connect a live database to use AI enrichment, or continue — the heuristic baseline still generates a complete app.",
+      "section": {
+        "labels": "Labels & descriptions",
+        "groups": "Navigation groups",
+        "enums": "Enum semantics",
+        "relations": "Relations",
+        "keys": "Key columns",
+        "templates": "Page templates",
+        "widgets": "Dashboard widgets",
+        "pii": "PII & masking",
+        "icons": "Icons",
+        "microcopy": "Micro-copy"
+      },
+      "provider": {
+        "title": "Use my AI provider",
+        "description": "Run enrichment now against your configured provider. You review every suggestion as a diff.",
+        "unconfigured": "No AI provider is configured yet — copy a prompt to your own tool below, or configure a provider first.",
+        "settingsHint": "Want to run it directly?",
+        "settingsLink": "Configure a provider in Settings → AI"
+      },
+      "byo": {
+        "cardTitle": "Copy a prompt to my own AI tool",
+        "cardDescription": "Copy a self-contained prompt into Claude Code, ChatGPT, anything — then paste the JSON back. No key needed, nothing leaves this machine automatically.",
+        "guidance": "Run this in any AI tool — Claude Code, ChatGPT, anything. Paste the JSON it returns below.",
+        "promptLabel": "Enrichment prompt",
+        "promptLabelN": "Enrichment prompt {index} of {total}",
+        "tokenChip": "≈ {tokens} tokens",
+        "copyPrompt": "Copy prompt",
+        "copyPromptDone": "Prompt copied",
+        "download": "Download .md",
+        "chunkTabs": "Prompt chunks",
+        "chunkTab": "Prompt {index}",
+        "chunkValid": "Chunk {index} validated",
+        "pasteLabel": "Paste the JSON response",
+        "pastePlaceholder": "Paste the JSON response here…",
+        "validate": "Validate",
+        "valid": "Response validated",
+        "mergedTitle": "All {count} chunks validated and merged",
+        "mergedTitleSingle": "Response validated",
+        "mergedBody": "Suggestions are ready to review against the heuristic baseline.",
+        "errorsTitle": "Validation found {count} issues",
+        "copyErrors": "Copy errors for your AI tool",
+        "copyErrorsDone": "Errors copied",
+        "copyErrorsHint": "Paste this back into your AI tool to get a corrected response.",
+        "droppedItems": "{count} suggestions were dropped during validation — review shows the rest.",
+        "pendingTitle": "Validate every prompt to continue",
+        "pendingBody": "Paste the JSON response above and validate it to continue to review.",
+        "pendingBodyChunked": "Each chunk must validate before the suggestions merge. Paste and validate every prompt above.",
+        "requestFailed": "Could not reach the server to validate — retry.",
+        "continueReview": "Continue to review",
+        "wholeDocument": "whole document"
+      },
+      "direct": {
+        "title": "Enriching with AI",
+        "subtitle": "Sending your schema to",
+        "building": "Building prompt…",
+        "logLabel": "Enrichment log",
+        "cancel": "Cancel",
+        "back": "Back to options",
+        "retry": "Retry",
+        "done": "Enrichment complete — review the suggestions.",
+        "continueReview": "Continue to review",
+        "failed": "The provider run failed. Check your AI settings and retry.",
+        "jobFailed": "The enrichment run did not finish.",
+        "startFailed": "Could not start the run — retry.",
+        "errorTitle": "Enrichment failed"
+      },
+      "skip": {
+        "title": "Skip — use heuristics only",
+        "description": "Generate from the heuristic baseline. You can enrich later from Settings → AI — skipping is never penalized.",
+        "confirmTitle": "Continuing with heuristics",
+        "confirmBody": "The generated app will use the heuristic labels, groups and dashboards. Continue to generate — you can run AI enrichment any time from Settings → AI."
+      }
+    },
+    "review": {
+      "unavailableTitle": "Review screen not available",
+      "unavailableBody": "This build does not include the enrichment review screen yet (06-T14). It lands with the diff-and-apply flow."
+    },
+    "llmRuns": {
+      "review": {
+        "header": {
+          "title": "Review AI suggestions",
+          "model": "Model",
+          "snapshot": "Snapshot",
+          "byo": "BYO",
+          "pathDirect": "Direct API",
+          "pathByo": "Copy-paste",
+          "agree": "{n} agree",
+          "conflict": "{n} conflict",
+          "new": "{n} new",
+          "rejects": "{n} rejects",
+          "countsAria": "Suggestion counts"
+        },
+        "bulk": {
+          "thresholdLabel": "Confidence threshold",
+          "thresholdAria": "Accept-all confidence threshold",
+          "acceptAll": "Accept all ≥ {pct}%",
+          "clear": "Clear selection"
+        },
+        "section": {
+          "selectAllAria": "Select all in {group}",
+          "acceptedCount": "{n} accepted"
+        },
+        "group": {
+          "labels": "Labels & translations",
+          "navigation": "Navigation & domains",
+          "enums": "Enum semantics",
+          "relations": "Relations",
+          "keys": "Key columns",
+          "templates": "Page templates",
+          "dashboards": "Dashboards & widgets",
+          "pii": "PII & masking",
+          "icons": "Icons",
+          "microcopy": "Micro-copy"
+        },
+        "status": {
+          "agree": "Agrees",
+          "conflict": "Conflict",
+          "new": "New",
+          "heuristicOnly": "Heuristic only",
+          "rejects": "Rejects heuristic",
+          "locked": "Locked"
+        },
+        "row": {
+          "acceptAria": "Accept {noun} suggestion for {target}",
+          "keptEdited": "kept — edited by you",
+          "rejectsCallout": "The AI rejects a heuristic decision — confirm before accepting.",
+          "showTranslations": "Show translations",
+          "hideTranslations": "Hide translations",
+          "confidenceAria": "Confidence {pct}%",
+          "noAi": "No AI suggestion"
+        },
+        "value": {
+          "none": "No value",
+          "absent": "None",
+          "dash": "—",
+          "display": "Display",
+          "key": "Key",
+          "rank": "rank {n}",
+          "span": "span {n}",
+          "tableCount": "{n} tables",
+          "widgetCount": "{n} widgets",
+          "enumWorkflow": "Workflow",
+          "enumCategory": "Category",
+          "notPii": "Not PII",
+          "label": "Label",
+          "description": "Description",
+          "subtitle": "Page subtitle",
+          "headline": "Empty-state headline",
+          "guidance": "Empty-state guidance"
+        },
+        "apply": {
+          "title": "Apply {n} suggestions",
+          "subtitle": "These changes are written in one transaction and can be undone.",
+          "empty": "Nothing selected to apply.",
+          "confirm": "Apply changes"
+        },
+        "footer": {
+          "count": "{n} suggestions selected",
+          "apply": "Apply {n} accepted suggestions",
+          "failed": "Apply failed"
+        },
+        "toast": {
+          "applied": "Applied {n} suggestions",
+          "appliedPartial": "Applied {n} suggestions (some skipped)",
+          "applyFailed": "Could not apply suggestions",
+          "undoFailed": "Could not undo this change"
+        },
+        "error": {
+          "title": "Could not load this run"
+        },
+        "notReady": {
+          "title": "This run has no suggestions to review yet",
+          "body": "A run must be validated before its suggestions can be reviewed. Generate or paste a response first."
+        },
+        "applied": {
+          "title": "This run has been applied",
+          "body": "The accepted suggestions below are read-only."
+        },
+        "empty": {
+          "title": "No suggestions",
+          "body": "This run produced no suggestions to review."
+        },
+        "cat": {
+          "label": "label",
+          "key": "key columns",
+          "enum": "enum",
+          "relation": "relation",
+          "pii": "PII",
+          "template": "page template",
+          "group": "navigation group",
+          "dashboard": "dashboard",
+          "widget": "widget",
+          "copy": "micro-copy"
+        }
       }
     }
   },

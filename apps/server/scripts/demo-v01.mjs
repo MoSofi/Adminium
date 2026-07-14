@@ -124,8 +124,14 @@ const [
   { settingsRoutes },
   { viewsRoutes },
   { onboardingRoutes },
+  { llmRoutes },
+  { createRunService },
+  { createApplyService },
+  { createProviderResolver },
+  { deriveKey, encryptSecret, decryptSecret },
   { UndoStore },
   meta_,
+  llm_,
   { adapterRegistry },
   { default: BetterSqlite3 },
 ] = await Promise.all([
@@ -147,12 +153,25 @@ const [
   import(distUrl('routes/settings/index.js')),
   import(distUrl('routes/views/index.js')),
   import(distUrl('routes/onboarding/index.js')),
+  import(distUrl('routes/llm/index.js')),
+  import(distUrl('llm/run-service.js')),
+  import(distUrl('llm/apply-service.js')),
+  import(distUrl('llm/provider-resolver.js')),
+  import(distUrl('config/secrets.js')),
   import(distUrl('crud/undo.js')),
   import('@adminium/meta'),
+  import('@adminium/llm'),
   import('@adminium/engine/adapter'),
   import('better-sqlite3'),
 ]);
 const { createSqliteMetaDb, firstRun, createFirstSuperAdmin, pagesRepo } = meta_;
+const { llmKeyCryptoFromSecret } = llm_;
+// The LLM allowed-lists live in @adminium/widgets, which the server tree may not
+// import (01 §2.3). The wiring script (excluded from check-deps) loads them from
+// the built widgets dist by file path — the app-wiring layer supplies them.
+const widgetsAllowlistUrl = pathToFileURL(
+  join(repoRoot, 'packages', 'widgets', 'dist', 'registry', 'llm-allowlist.js'),
+).href;
 
 // --- the demo --------------------------------------------------------------------------
 
@@ -218,10 +237,38 @@ try {
     const undoStore = new UndoStore();
     app = await buildServer({ env, metaDb: meta, staticRoot, logger: false });
     await app.register(rbacPlugin, { meta });
+
+    // --- LLM assist wiring (M6, 06-llm-assist.md §10.5) --------------------------
+    // Degrades gracefully: if the widgets allow-lists aren't built, the demo's
+    // core connection→app flow is unaffected and only the AI routes are skipped.
+    let llmWiring = null;
+    try {
+      const { LLM_ALLOWED_TEMPLATES, LLM_ALLOWED_WIDGETS } = await import(widgetsAllowlistUrl);
+      const keyCrypto = llmKeyCryptoFromSecret(SECRET, { deriveKey, encryptSecret, decryptSecret });
+      const runService = createRunService({ meta });
+      const applyService = createApplyService({ meta, runService });
+      const resolve = createProviderResolver({
+        meta,
+        keyCrypto,
+        allowedTemplates: LLM_ALLOWED_TEMPLATES,
+        allowedWidgets: LLM_ALLOWED_WIDGETS,
+      });
+      llmWiring = {
+        runService,
+        applyService,
+        keyCrypto,
+        resolve,
+        allowed: { templates: LLM_ALLOWED_TEMPLATES, widgets: LLM_ALLOWED_WIDGETS },
+      };
+    } catch (error) {
+      info(`AI assist routes skipped (${error.message})`);
+    }
+
     await registerJobsAndRealtime(app, {
       meta,
       resolveUser: (req) => req.user ?? null,
       can: (user, permission) => app.rbac.can(user, permission),
+      ...(llmWiring ? { llm: { resolve: llmWiring.resolve } } : {}),
     });
     await app.register(
       async (api) => {
@@ -235,6 +282,17 @@ try {
         await api.register(settingsRoutes({ meta }));
         await api.register(viewsRoutes({ meta }));
         await api.register(onboardingRoutes({ meta }));
+        if (llmWiring) {
+          await api.register(
+            llmRoutes({
+              meta,
+              runService: llmWiring.runService,
+              applyService: llmWiring.applyService,
+              keyCrypto: llmWiring.keyCrypto,
+              allowed: llmWiring.allowed,
+            }),
+          );
+        }
       },
       { prefix: '/api/v1' },
     );

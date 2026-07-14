@@ -1,0 +1,331 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "notes": [
+    "Seeded-schema golden for the T15 BYO round-trip e2e — the Northwind demo the e2e boot script loads on sqlite/postgres/mysql.",
+    "Referentially clean against the live snapshot: only `main.`-qualified tables/columns, non-surrogate display columns, allowed dashboard widgets, exactly the en_US+de_DE locales; no pageTemplates/enums/relations (unregistered or undeclared in this build)."
+  ],
+  "tables": [
+    {
+      "table": "main.orders",
+      "confidence": 0.95,
+      "label": { "en_US": "Orders", "de_DE": "Bestellungen" },
+      "description": {
+        "en_US": "A customer purchase, from placement through shipping.",
+        "de_DE": "Ein Kundenkauf, von der Bestellung bis zum Versand."
+      },
+      "icon": "shopping-cart",
+      "displayColumn": "ship_name",
+      "naturalKey": null,
+      "columns": [
+        { "column": "customer_id", "label": { "en_US": "Customer", "de_DE": "Kunde" }, "pii": null },
+        { "column": "employee_id", "label": { "en_US": "Employee", "de_DE": "Mitarbeiter" }, "pii": null },
+        {
+          "column": "order_date",
+          "label": { "en_US": "Ordered", "de_DE": "Bestellt am" },
+          "pii": null
+        },
+        {
+          "column": "freight",
+          "label": { "en_US": "Freight", "de_DE": "Frachtkosten" },
+          "description": {
+            "en_US": "Shipping charge billed on the order.",
+            "de_DE": "Auf die Bestellung berechnete Versandkosten."
+          },
+          "pii": null
+        },
+        { "column": "ship_country", "label": { "en_US": "Ship-to country", "de_DE": "Lieferland" }, "pii": null }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No orders yet", "de_DE": "Noch keine Bestellungen" },
+          "guidance": {
+            "en_US": "Orders appear here as customers place them. Create one to get started.",
+            "de_DE": "Bestellungen erscheinen hier, sobald Kunden sie aufgeben. Legen Sie eine an, um zu beginnen."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Track and fulfil customer orders",
+          "de_DE": "Kundenbestellungen verfolgen und abwickeln"
+        }
+      }
+    },
+    {
+      "table": "main.order_details",
+      "confidence": 0.9,
+      "label": { "en_US": "Order lines", "de_DE": "Bestellpositionen" },
+      "description": {
+        "en_US": "One product line on an order, with its price and quantity.",
+        "de_DE": "Eine Produktposition einer Bestellung mit Preis und Menge."
+      },
+      "icon": "list",
+      "displayColumn": null,
+      "naturalKey": null,
+      "columns": [
+        { "column": "unit_price", "label": { "en_US": "Unit price", "de_DE": "Stückpreis" }, "pii": null },
+        { "column": "quantity", "label": { "en_US": "Quantity", "de_DE": "Menge" }, "pii": null },
+        { "column": "discount", "label": { "en_US": "Discount", "de_DE": "Rabatt" }, "pii": null }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No order lines", "de_DE": "Keine Bestellpositionen" },
+          "guidance": {
+            "en_US": "Lines are added when an order includes a product. Open an order to add one.",
+            "de_DE": "Positionen werden hinzugefügt, wenn eine Bestellung ein Produkt enthält. Öffnen Sie eine Bestellung."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Line items on each order",
+          "de_DE": "Einzelposten je Bestellung"
+        }
+      }
+    },
+    {
+      "table": "main.customers",
+      "confidence": 0.94,
+      "label": { "en_US": "Customers", "de_DE": "Kunden" },
+      "description": {
+        "en_US": "Companies that place orders; one row per account.",
+        "de_DE": "Firmen, die Bestellungen aufgeben; eine Zeile pro Konto."
+      },
+      "icon": "users",
+      "displayColumn": "company_name",
+      "naturalKey": null,
+      "columns": [
+        { "column": "company_name", "label": { "en_US": "Company", "de_DE": "Firma" }, "pii": null },
+        {
+          "column": "contact_name",
+          "label": { "en_US": "Contact", "de_DE": "Ansprechpartner" },
+          "pii": {
+            "kind": "name",
+            "masking": "mask-partial",
+            "reason": "Personal contact names are directly identifying.",
+            "confidence": 0.9
+          }
+        },
+        {
+          "column": "phone",
+          "label": { "en_US": "Phone", "de_DE": "Telefon" },
+          "pii": {
+            "kind": "phone",
+            "masking": "mask-partial",
+            "reason": "Phone numbers are personal contact data.",
+            "confidence": 0.9
+          }
+        },
+        { "column": "country", "label": { "en_US": "Country", "de_DE": "Land" }, "pii": null }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No customers yet", "de_DE": "Noch keine Kunden" },
+          "guidance": {
+            "en_US": "Add your first customer to start taking orders.",
+            "de_DE": "Fügen Sie Ihren ersten Kunden hinzu, um Bestellungen entgegenzunehmen."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Everyone who buys from you",
+          "de_DE": "Alle, die bei Ihnen kaufen"
+        }
+      }
+    },
+    {
+      "table": "main.shippers",
+      "confidence": 0.9,
+      "label": { "en_US": "Shippers", "de_DE": "Versanddienstleister" },
+      "description": {
+        "en_US": "Carriers that deliver orders to customers.",
+        "de_DE": "Spediteure, die Bestellungen an Kunden ausliefern."
+      },
+      "icon": "truck",
+      "displayColumn": "company_name",
+      "naturalKey": null,
+      "columns": [
+        { "column": "company_name", "label": { "en_US": "Carrier", "de_DE": "Spediteur" }, "pii": null }
+      ]
+    },
+    {
+      "table": "main.products",
+      "confidence": 0.96,
+      "label": { "en_US": "Products", "de_DE": "Produkte" },
+      "description": {
+        "en_US": "Items available for purchase, with pricing and stock.",
+        "de_DE": "Zum Kauf verfügbare Artikel mit Preis und Bestand."
+      },
+      "icon": "package",
+      "displayColumn": "product_name",
+      "naturalKey": null,
+      "columns": [
+        { "column": "product_name", "label": { "en_US": "Name", "de_DE": "Name" }, "pii": null },
+        { "column": "unit_price", "label": { "en_US": "Price", "de_DE": "Preis" }, "pii": null },
+        { "column": "units_in_stock", "label": { "en_US": "In stock", "de_DE": "Auf Lager" }, "pii": null }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No products yet", "de_DE": "Noch keine Produkte" },
+          "guidance": {
+            "en_US": "Add your first product to start taking orders.",
+            "de_DE": "Legen Sie Ihr erstes Produkt an, um Bestellungen entgegenzunehmen."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Manage your catalog and pricing",
+          "de_DE": "Katalog und Preise verwalten"
+        }
+      }
+    },
+    {
+      "table": "main.categories",
+      "confidence": 0.92,
+      "label": { "en_US": "Categories", "de_DE": "Kategorien" },
+      "description": {
+        "en_US": "Groupings that organise the product catalog.",
+        "de_DE": "Gruppierungen zur Ordnung des Produktkatalogs."
+      },
+      "icon": "tags",
+      "displayColumn": "category_name",
+      "naturalKey": null,
+      "columns": [
+        { "column": "category_name", "label": { "en_US": "Category", "de_DE": "Kategorie" }, "pii": null }
+      ]
+    },
+    {
+      "table": "main.suppliers",
+      "confidence": 0.9,
+      "label": { "en_US": "Suppliers", "de_DE": "Lieferanten" },
+      "description": {
+        "en_US": "Vendors that provide the products you sell.",
+        "de_DE": "Anbieter, welche die verkauften Produkte liefern."
+      },
+      "icon": "factory",
+      "displayColumn": "company_name",
+      "naturalKey": null,
+      "columns": [
+        { "column": "company_name", "label": { "en_US": "Supplier", "de_DE": "Lieferant" }, "pii": null }
+      ]
+    },
+    {
+      "table": "main.employees",
+      "confidence": 0.91,
+      "label": { "en_US": "Employees", "de_DE": "Mitarbeiter" },
+      "description": {
+        "en_US": "Staff who take and manage customer orders.",
+        "de_DE": "Personal, das Kundenbestellungen annimmt und verwaltet."
+      },
+      "icon": "id-card",
+      "displayColumn": "last_name",
+      "naturalKey": null,
+      "columns": [
+        { "column": "last_name", "label": { "en_US": "Last name", "de_DE": "Nachname" }, "pii": null },
+        { "column": "first_name", "label": { "en_US": "First name", "de_DE": "Vorname" }, "pii": null },
+        { "column": "title", "label": { "en_US": "Title", "de_DE": "Position" }, "pii": null },
+        {
+          "column": "home_phone",
+          "label": { "en_US": "Home phone", "de_DE": "Telefon privat" },
+          "pii": {
+            "kind": "phone",
+            "masking": "redact",
+            "reason": "A home phone number is sensitive personal data.",
+            "confidence": 0.92
+          }
+        }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "No employees yet", "de_DE": "Noch keine Mitarbeiter" },
+          "guidance": {
+            "en_US": "Add your team so orders can be assigned to them.",
+            "de_DE": "Fügen Sie Ihr Team hinzu, damit Bestellungen zugewiesen werden können."
+          }
+        },
+        "pageSubtitle": {
+          "en_US": "Your team and their roles",
+          "de_DE": "Ihr Team und seine Rollen"
+        }
+      }
+    }
+  ],
+  "enums": [],
+  "relations": { "confirmed": [], "inferred": [] },
+  "navGroups": [
+    {
+      "id": "sales",
+      "label": { "en_US": "Sales", "de_DE": "Vertrieb" },
+      "icon": "shopping-cart",
+      "order": 0,
+      "tables": ["main.orders", "main.order_details", "main.customers", "main.shippers"],
+      "confidence": 0.93
+    },
+    {
+      "id": "catalog",
+      "label": { "en_US": "Catalog", "de_DE": "Katalog" },
+      "icon": "package",
+      "order": 1,
+      "tables": ["main.products", "main.categories", "main.suppliers"],
+      "confidence": 0.92
+    },
+    {
+      "id": "workforce",
+      "label": { "en_US": "Workforce", "de_DE": "Personal" },
+      "icon": "users",
+      "order": 2,
+      "tables": ["main.employees"],
+      "confidence": 0.88
+    }
+  ],
+  "dashboards": [
+    {
+      "id": "sales",
+      "domain": "Sales",
+      "label": { "en_US": "Sales overview", "de_DE": "Vertriebsübersicht" },
+      "order": 0,
+      "tables": ["main.orders", "main.order_details"],
+      "widgets": [
+        {
+          "widget": "kpi-stat-card",
+          "rank": 1,
+          "span": 3,
+          "table": "main.orders",
+          "metricColumn": "freight",
+          "agg": "sum",
+          "titleEn": "Total freight",
+          "reason": "freight is the numeric shipping charge summed across orders.",
+          "confidence": 0.9
+        },
+        {
+          "widget": "kpi-stat-card",
+          "rank": 2,
+          "span": 3,
+          "table": "main.order_details",
+          "metricColumn": "quantity",
+          "agg": "sum",
+          "titleEn": "Units sold",
+          "reason": "quantity is the numeric units-per-line summed across order lines.",
+          "confidence": 0.88
+        },
+        {
+          "widget": "chart-line-area",
+          "rank": 3,
+          "span": 8,
+          "table": "main.orders",
+          "metricColumn": "freight",
+          "timeColumn": "order_date",
+          "agg": "sum",
+          "titleEn": "Freight over time",
+          "reason": "order_date is a real date column; freight trends by day.",
+          "confidence": 0.85
+        },
+        {
+          "widget": "chart-donut",
+          "rank": 4,
+          "span": 4,
+          "table": "main.orders",
+          "dimensionColumn": "ship_country",
+          "agg": "count",
+          "titleEn": "Orders by country",
+          "reason": "ship_country groups orders into a small set of destinations.",
+          "confidence": 0.82
+        }
+      ]
+    }
+  ]
+}

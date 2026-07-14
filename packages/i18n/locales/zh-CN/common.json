@@ -379,6 +379,323 @@
         "empty": "没有可删除的内容——还没有连接。",
         "deleteDesc": "删除该连接及其生成的页面。您的数据库不会被改动。此操作无法撤销。",
         "deleteCta": "删除连接"
+      },
+      "aiCard": {
+        "heading": "AI 增强",
+        "body": "配置 AI 提供方（或复制粘贴往返）来增强标签、分组和关系。",
+        "cta": "打开 AI 设置"
+      }
+    },
+    "settingsAi": {
+      "title": "AI 增强",
+      "subtitle": "连接一个模型，让 Adminium 建议标签、分组、关系等——在应用之前始终以差异形式审阅。",
+      "saved": "AI 提供方已保存",
+      "saveFailed": "无法保存 AI 提供方。请重试。",
+      "save": "保存提供方",
+      "test": "测试连接",
+      "testHintDirty": "测试前请先保存更改。",
+      "testing": "正在连接提供方…",
+      "testError": "测试失败",
+      "testErrorBody": "无法连接到提供方。请检查密钥和基础 URL。",
+      "testOk": "已连接到 {model}，用时 {latency} 毫秒",
+      "testUnknownModel": "提供方",
+      "provider": {
+        "heading": "AI 提供方",
+        "subtitle": "选择 Adminium 如何访问模型来增强你的架构。密钥将加密存储且不再显示。",
+        "active": "使用中",
+        "anthropic": {
+          "label": "Anthropic",
+          "desc": "通过 Anthropic API 使用 Claude 模型。"
+        },
+        "openai": {
+          "label": "OpenAI",
+          "desc": "通过 OpenAI API 使用 GPT 模型。"
+        },
+        "openaiCompatible": {
+          "label": "兼容 OpenAI",
+          "desc": "任何使用 OpenAI 协议的端点——Groq、Together、vLLM、LM Studio。"
+        },
+        "ollama": {
+          "label": "Ollama（本地）",
+          "desc": "通过 Ollama 在本地运行模型——无需密钥，无需云端。"
+        }
+      },
+      "configure": {
+        "heading": "配置 {provider}"
+      },
+      "field": {
+        "baseUrl": "基础 URL",
+        "baseUrlOptional": "除非 Ollama 运行在其他主机上，否则保持不变。",
+        "baseUrlHelper": "提供 /chat/completions 的端点根地址。",
+        "model": "模型",
+        "modelFreeText": "输入你的端点所提供的确切模型 ID。",
+        "modelLive": "已从提供方实时加载。",
+        "modelStatic": "一份经过验证的列表；保存后输入自定义 ID 可刷新它。",
+        "modelLoading": "加载中…",
+        "modelPlaceholder": "选择一个模型…",
+        "key": "API 密钥",
+        "keyStored": "已加密存储。替换它以使用其他密钥。",
+        "keyMask": "sk-…{last4}",
+        "keyReplace": "替换密钥",
+        "keyOptional": "可选——某些端点无需密钥。",
+        "keyWriteOnly": "仅写入：保存后将不再显示。",
+        "noKeyTitle": "无需 API 密钥",
+        "noKeyBody": "Ollama 在本地运行，因此没有任何内容离开这台机器。"
+      },
+      "runStatus": {
+        "draft": "草稿",
+        "running": "运行中",
+        "awaitingResponse": "等待响应",
+        "validated": "已验证",
+        "applied": "已应用",
+        "partiallyApplied": "部分应用",
+        "failed": "失败",
+        "discarded": "已丢弃"
+      },
+      "byo": {
+        "heading": "没有密钥？使用你自己的 AI 工具",
+        "subtitle": "复制粘贴往返——没有任何内容离开这台机器。",
+        "body": "Studio 可以根据你的架构生成一个自包含的提示词。在 Claude Code、ChatGPT 或任意工具中运行它，然后将返回的 JSON 粘贴回连接向导。验证、审阅和结果都与直连方式相同。",
+        "guaranteeTitle": "无遥测保证",
+        "guarantee1": "提示词仅包含你的架构和聚合统计——默认绝不包含行数据。",
+        "guarantee2": "不嵌入任何凭据、实例 URL 或标识符。",
+        "guarantee3": "BYO 运行不进行任何网络调用，也绝不计费。",
+        "promptVersion": "提示词 {version}",
+        "schemaVersion": "架构 {version}"
+      },
+      "history": {
+        "heading": "运行历史",
+        "subtitle": "过往的增强运行。打开其中一个以审阅其建议。",
+        "tableLabel": "增强运行",
+        "colDate": "日期",
+        "colSource": "来源",
+        "colStatus": "状态",
+        "colChunks": "分块",
+        "openReview": "打开 {date} 的运行审阅",
+        "connection": "连接",
+        "empty": "暂无增强运行。在连接向导中增强架构后，历史将显示在这里。",
+        "errorTitle": "无法加载运行",
+        "errorBody": "刷新页面以重试。",
+        "noConnections": "请先连接数据库——增强运行按连接记录。",
+        "byo": "BYO",
+        "directPath": "直连"
+      }
+    },
+    "enrich": {
+      "title": "使用 AI 丰富",
+      "subtitle": "可选择使用 LLM 优化生成的标签、分组、枚举和仪表板。启发式基线无需它即可工作——这仅添加供你在应用前审阅的建议。",
+      "intentLabel": "你希望如何丰富？",
+      "sectionsLegend": "应由 AI 决定哪些内容？",
+      "localesLegend": "将标签翻译为",
+      "localeLocked": "（必填）",
+      "samplingTitle": "包含示例值",
+      "samplingHint": "在提示中为每个非 PII 列最多包含 20 个真实值。",
+      "samplingPreviewTitle": "离开此机器的内容",
+      "samplingPreviewBody": "每个非 PII 列最多 20 个最常见值，以及数值和日期列的最小/最大值。标记为 PII 的列永不采样。其余所有内容仅保留聚合值。复制前请审阅确切的提示（BYO）——未经你的操作不会发送任何内容。",
+      "noSections": "请至少选择一个要丰富的决策组。",
+      "generatePrompt": "生成提示",
+      "startProvider": "开始丰富",
+      "startOver": "重新开始",
+      "copied": "已复制",
+      "createFailed": "无法构建丰富提示——请重试。",
+      "createFailedTitle": "无法启动",
+      "providerFallback": "你的 AI 提供商",
+      "fileTitle": "AI 丰富需要一个在线数据库",
+      "fileBody": "架构文件来源尚无可丰富的快照。连接一个在线数据库以使用 AI 丰富，或继续——启发式基线仍会生成完整的应用。",
+      "section": {
+        "labels": "标签与描述",
+        "groups": "导航分组",
+        "enums": "枚举语义",
+        "relations": "关系",
+        "keys": "关键列",
+        "templates": "页面模板",
+        "widgets": "仪表板小组件",
+        "pii": "PII 与脱敏",
+        "icons": "图标",
+        "microcopy": "微文案"
+      },
+      "provider": {
+        "title": "使用我的 AI 提供商",
+        "description": "立即使用已配置的提供商运行丰富。你将以差异形式审阅每条建议。",
+        "unconfigured": "尚未配置 AI 提供商——请在下方将提示复制到你自己的工具，或先配置一个提供商。",
+        "settingsHint": "想直接运行吗？",
+        "settingsLink": "在“设置 → AI”中配置提供商"
+      },
+      "byo": {
+        "cardTitle": "复制提示到我自己的 AI 工具",
+        "cardDescription": "将一个自包含的提示复制到 Claude Code、ChatGPT 或任何工具——然后将 JSON 粘贴回来。无需密钥，不会自动将任何内容传出此机器。",
+        "guidance": "在任意 AI 工具中运行——Claude Code、ChatGPT，皆可。将其返回的 JSON 粘贴到下方。",
+        "promptLabel": "丰富提示",
+        "promptLabelN": "丰富提示 第 {index} 个，共 {total} 个",
+        "tokenChip": "≈ {tokens} 个 token",
+        "copyPrompt": "复制提示",
+        "copyPromptDone": "提示已复制",
+        "download": "下载 .md",
+        "chunkTabs": "提示分块",
+        "chunkTab": "提示 {index}",
+        "chunkValid": "分块 {index} 已验证",
+        "pasteLabel": "粘贴 JSON 响应",
+        "pastePlaceholder": "在此粘贴 JSON 响应…",
+        "validate": "验证",
+        "valid": "响应已验证",
+        "mergedTitle": "全部 {count} 个分块已验证并合并",
+        "mergedTitleSingle": "响应已验证",
+        "mergedBody": "建议已准备好，可对照启发式基线进行审阅。",
+        "errorsTitle": "验证发现 {count} 个问题",
+        "copyErrors": "为你的 AI 工具复制错误",
+        "copyErrorsDone": "错误已复制",
+        "copyErrorsHint": "将其粘贴回你的 AI 工具以获取更正后的响应。",
+        "droppedItems": "有 {count} 条建议在验证时被丢弃——审阅中显示其余内容。",
+        "pendingTitle": "验证每个提示以继续",
+        "pendingBody": "在上方粘贴 JSON 响应并验证，以继续进行审阅。",
+        "pendingBodyChunked": "每个分块都必须先验证，建议才会合并。请粘贴并验证上方的每个提示。",
+        "requestFailed": "无法连接服务器进行验证——请重试。",
+        "continueReview": "继续审阅",
+        "wholeDocument": "整个文档"
+      },
+      "direct": {
+        "title": "正在使用 AI 丰富",
+        "subtitle": "正在将你的架构发送至",
+        "building": "正在构建提示…",
+        "logLabel": "丰富日志",
+        "cancel": "取消",
+        "back": "返回选项",
+        "retry": "重试",
+        "done": "丰富完成——请审阅建议。",
+        "continueReview": "继续审阅",
+        "failed": "提供商运行失败。请检查你的 AI 设置并重试。",
+        "jobFailed": "丰富运行未完成。",
+        "startFailed": "无法启动运行——请重试。",
+        "errorTitle": "丰富失败"
+      },
+      "skip": {
+        "title": "跳过——仅使用启发式",
+        "description": "从启发式基线生成。你之后可在“设置 → AI”中丰富——跳过绝不会受到惩罚。",
+        "confirmTitle": "继续使用启发式",
+        "confirmBody": "生成的应用将使用启发式的标签、分组和仪表板。继续生成——你可随时在“设置 → AI”中运行 AI 丰富。"
+      }
+    },
+    "review": {
+      "unavailableTitle": "审阅界面不可用",
+      "unavailableBody": "此版本尚未包含增强审阅界面（06-T14）。它将随差异与应用流程一起推出。"
+    },
+    "llmRuns": {
+      "review": {
+        "header": {
+          "title": "审查 AI 建议",
+          "model": "模型",
+          "snapshot": "快照",
+          "byo": "自带",
+          "pathDirect": "直接 API",
+          "pathByo": "复制粘贴",
+          "agree": "{n} 项一致",
+          "conflict": "{n} 项冲突",
+          "new": "{n} 项新增",
+          "rejects": "{n} 项拒绝",
+          "countsAria": "建议数量"
+        },
+        "bulk": {
+          "thresholdLabel": "置信度阈值",
+          "thresholdAria": "“全部接受”的置信度阈值",
+          "acceptAll": "接受所有 ≥ {pct}%",
+          "clear": "清除选择"
+        },
+        "section": {
+          "selectAllAria": "全选 {group}",
+          "acceptedCount": "已接受 {n} 项"
+        },
+        "group": {
+          "labels": "标签与翻译",
+          "navigation": "导航与领域",
+          "enums": "枚举语义",
+          "relations": "关系",
+          "keys": "键列",
+          "templates": "页面模板",
+          "dashboards": "仪表盘与小组件",
+          "pii": "个人信息与脱敏",
+          "icons": "图标",
+          "microcopy": "微文案"
+        },
+        "status": {
+          "agree": "一致",
+          "conflict": "冲突",
+          "new": "新增",
+          "heuristicOnly": "仅启发式",
+          "rejects": "拒绝启发式",
+          "locked": "已锁定"
+        },
+        "row": {
+          "acceptAria": "接受 {target} 的{noun}建议",
+          "keptEdited": "已保留——由您编辑",
+          "rejectsCallout": "AI 拒绝了某项启发式决策——接受前请确认。",
+          "showTranslations": "显示翻译",
+          "hideTranslations": "隐藏翻译",
+          "confidenceAria": "置信度 {pct}%",
+          "noAi": "无 AI 建议"
+        },
+        "value": {
+          "none": "无值",
+          "absent": "无",
+          "dash": "—",
+          "display": "显示",
+          "key": "键",
+          "rank": "排名 {n}",
+          "span": "跨度 {n}",
+          "tableCount": "{n} 张表",
+          "widgetCount": "{n} 个小组件",
+          "enumWorkflow": "工作流",
+          "enumCategory": "分类",
+          "notPii": "非个人信息",
+          "label": "标签",
+          "description": "描述",
+          "subtitle": "页面副标题",
+          "headline": "空状态标题",
+          "guidance": "空状态提示"
+        },
+        "apply": {
+          "title": "应用 {n} 项建议",
+          "subtitle": "这些更改将在一个事务中写入，并可撤销。",
+          "empty": "未选择任何要应用的内容。",
+          "confirm": "应用更改"
+        },
+        "footer": {
+          "count": "已选择 {n} 项建议",
+          "apply": "应用 {n} 项已接受的建议",
+          "failed": "应用失败"
+        },
+        "toast": {
+          "applied": "已应用 {n} 项建议",
+          "appliedPartial": "已应用 {n} 项建议（部分已跳过）",
+          "applyFailed": "无法应用建议",
+          "undoFailed": "无法撤销此更改"
+        },
+        "error": {
+          "title": "无法加载此运行"
+        },
+        "notReady": {
+          "title": "此运行尚无可审查的建议",
+          "body": "运行必须先通过验证，才能审查其建议。请先生成或粘贴响应。"
+        },
+        "applied": {
+          "title": "此运行已应用",
+          "body": "下方已接受的建议为只读。"
+        },
+        "empty": {
+          "title": "无建议",
+          "body": "此运行未生成可审查的建议。"
+        },
+        "cat": {
+          "label": "标签",
+          "key": "键列",
+          "enum": "枚举",
+          "relation": "关系",
+          "pii": "个人信息",
+          "template": "页面模板",
+          "group": "导航分组",
+          "dashboard": "仪表盘",
+          "widget": "小组件",
+          "copy": "微文案"
+        }
       }
     }
   },

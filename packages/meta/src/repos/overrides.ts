@@ -113,6 +113,8 @@ export function overridesRepo(meta: MetaDb) {
     origin: string;
     llmRunId: string | null;
     status: string;
+    /** Model confidence — always null for user-remap ops (LLM apply sets it, §8.3). */
+    confidence: number | null;
     createdBy: string | null;
     createdAt: number;
     updatedAt: number;
@@ -134,6 +136,7 @@ export function overridesRepo(meta: MetaDb) {
       origin: origin.data,
       llmRunId: input.llmRunId ?? null,
       status: status.data,
+      confidence: null,
       createdBy: input.createdBy ?? null,
       createdAt: at,
       updatedAt: at,

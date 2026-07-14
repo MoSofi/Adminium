@@ -81,6 +81,11 @@ const [
   { pagesRoutes },
   { widgetDataRoutes },
   { settingsRoutes },
+  { llmRoutes },
+  { createRunService },
+  { createApplyService },
+  { createProviderResolver },
+  { deriveKey, encryptSecret, decryptSecret },
   { UndoStore },
   { createSqliteMetaDb, firstRun, createFirstSuperAdmin },
   { adapterRegistry },
@@ -103,6 +108,11 @@ const [
   import(distUrl('routes/pages/index.js')),
   import(distUrl('routes/widget-data/index.js')),
   import(distUrl('routes/settings/index.js')),
+  import(distUrl('routes/llm/index.js')),
+  import(distUrl('llm/run-service.js')),
+  import(distUrl('llm/apply-service.js')),
+  import(distUrl('llm/provider-resolver.js')),
+  import(distUrl('config/secrets.js')),
   import(distUrl('crud/undo.js')),
   import('@adminium/meta'),
   import('@adminium/engine/adapter'),
@@ -110,23 +120,48 @@ const [
   import('@adminium/adapter-mysql'),
   import('better-sqlite3'),
 ]);
+/**
+ * Build the LLM API-key crypto closures (`LlmKeyCrypto` — 06 §3.2) inline from
+ * the server's AES-256-GCM `secrets` primitives, scoped by the LLM key salt.
+ * Mirrors `@adminium/llm`'s `llmKeyCryptoFromSecret` WITHOUT importing that
+ * package — it is not an apps/e2e dependency, and the BYO golden path only needs
+ * the closures the routes require, not the package's browser-safe barrel.
+ */
+const LLM_KEY_SALT = 'adminium:llm-key:v1';
+const llmKeyCryptoFromSecret = (secret) => {
+  const key = deriveKey(secret, LLM_KEY_SALT);
+  return { encrypt: (plaintext) => encryptSecret(plaintext, key), decrypt: (token) => decryptSecret(token, key) };
+};
+// The LLM allow-lists live in @adminium/widgets, which the server tree may not
+// import (01 §2.3) — the app-wiring layer supplies them. Load from the built
+// widgets dist by file path (same pattern as apps/server/scripts/demo-v01.mjs).
+const widgetsAllowlistUrl = pathToFileURL(
+  join(repoRoot, 'packages', 'widgets', 'dist', 'registry', 'llm-allowlist.js'),
+).href;
 
 // --- source database per engine -------------------------------------------------------
 
 const tempDir = mkdtempSync(join(tmpdir(), 'adminium-e2e-'));
+/** Deterministic sqlite source file (set in prepareSourceDb) — removed on exit. */
+let sqliteSourceFile = null;
 const fixture = (engineDir, file) =>
   join(repoRoot, 'packages', engineDir, 'fixtures', file);
 
 /** Prepares the Northwind source DB; returns the DSN for the connections API. */
 async function prepareSourceDb() {
   if (ENGINE === 'sqlite') {
-    const file = join(tempDir, 'northwind.db');
+    // Deterministic path (NOT the mkdtemp dir) so tests/constants.ts can derive
+    // the same DSN for the T15 enrichment wizard leg. Pre-deleted so a leftover
+    // file from a crashed run never fails the CREATE TABLEs.
+    const file = join(tmpdir(), `adminium-e2e-source-sqlite-${String(PORT)}.db`);
+    rmSync(file, { force: true });
     const db = new BetterSqlite3(file);
     try {
       db.exec(readFileSync(fixture('adapter-sqlite', 'northwind.sqlite.sql'), 'utf8'));
     } finally {
       db.close();
     }
+    sqliteSourceFile = file;
     log(`sqlite Northwind at ${file}`);
     return `sqlite:${file}`;
   }
@@ -188,6 +223,7 @@ async function prepareSourceDb() {
 let app = null;
 const cleanup = () => {
   rmSync(tempDir, { recursive: true, force: true });
+  if (sqliteSourceFile !== null) rmSync(sqliteSourceFile, { force: true });
 };
 
 try {
@@ -223,10 +259,39 @@ try {
 
   app = await buildServer({ env, metaDb: meta, staticRoot: dashboardDist, logger: false });
   await app.register(rbacPlugin, { meta });
+
+  // --- LLM assist wiring (M6, 06-llm-assist.md §10.5) --------------------------
+  // Enables the connect wizard's "Enrich with AI" step + review/apply so the
+  // T15 golden BYO round-trip e2e can run. Degrades gracefully: if the widgets
+  // allow-lists aren't built, only the AI routes are skipped (core flow unaffected).
+  let llmWiring = null;
+  try {
+    const { LLM_ALLOWED_TEMPLATES, LLM_ALLOWED_WIDGETS } = await import(widgetsAllowlistUrl);
+    const keyCrypto = llmKeyCryptoFromSecret(SECRET);
+    const runService = createRunService({ meta });
+    const applyService = createApplyService({ meta, runService });
+    const resolve = createProviderResolver({
+      meta,
+      keyCrypto,
+      allowedTemplates: LLM_ALLOWED_TEMPLATES,
+      allowedWidgets: LLM_ALLOWED_WIDGETS,
+    });
+    llmWiring = {
+      runService,
+      applyService,
+      keyCrypto,
+      resolve,
+      allowed: { templates: LLM_ALLOWED_TEMPLATES, widgets: LLM_ALLOWED_WIDGETS },
+    };
+  } catch (error) {
+    log(`AI assist routes skipped (${error?.message ?? error})`);
+  }
+
   await registerJobsAndRealtime(app, {
     meta,
     resolveUser: (req) => req.user ?? null,
     can: (user, permission) => app.rbac.can(user, permission),
+    ...(llmWiring ? { llm: { resolve: llmWiring.resolve } } : {}),
   });
   await app.register(
     async (api) => {
@@ -238,6 +303,17 @@ try {
       await api.register(pagesRoutes({ meta }));
       await api.register(widgetDataRoutes({ manager, meta }));
       await api.register(settingsRoutes({ meta }));
+      if (llmWiring) {
+        await api.register(
+          llmRoutes({
+            meta,
+            runService: llmWiring.runService,
+            applyService: llmWiring.applyService,
+            keyCrypto: llmWiring.keyCrypto,
+            allowed: llmWiring.allowed,
+          }),
+        );
+      }
     },
     { prefix: '/api/v1' },
   );
