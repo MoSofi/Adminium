@@ -5,7 +5,7 @@
  */
 import { useContext } from 'react';
 
-import { ThemeContext, type SetThemePref } from './context.js';
+import { ThemeContext, type ClearSessionPref, type SetThemePref } from './context.js';
 import type { ResolvedTheme, ThemePrefs } from './types.js';
 
 function useRequiredThemeContext(hook: string) {
@@ -21,8 +21,15 @@ export function useTheme(): ResolvedTheme {
   return useRequiredThemeContext('useTheme()').resolved;
 }
 
-/** The effective preferences (theme may be `system`) and the optimistic setter. */
-export function useThemePrefs(): { prefs: ThemePrefs; setPref: SetThemePref } {
-  const { prefs, setPref } = useRequiredThemeContext('useThemePrefs()');
-  return { prefs, setPref };
+/**
+ * The effective preferences (theme may be `system`), the optimistic setter, and
+ * `clearSessionPref` for dropping a session override on reset-to-default.
+ */
+export function useThemePrefs(): {
+  prefs: ThemePrefs;
+  setPref: SetThemePref;
+  clearSessionPref: ClearSessionPref;
+} {
+  const { prefs, setPref, clearSessionPref } = useRequiredThemeContext('useThemePrefs()');
+  return { prefs, setPref, clearSessionPref };
 }

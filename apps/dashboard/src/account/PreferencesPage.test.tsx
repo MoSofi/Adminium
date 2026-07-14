@@ -128,6 +128,7 @@ describe('PreferencesPage', () => {
     await waitFor(() => {
       expect(patchCalls.some((call) => call.body['density'] === 'compact')).toBe(true);
     });
+    expect(document.documentElement.getAttribute('data-density')).toBe('compact');
 
     await user.click(screen.getByText('Reset to workspace default'));
     await waitFor(() => {
@@ -137,6 +138,9 @@ describe('PreferencesPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Workspace default')).toHaveLength(4);
     });
+    // The optimistic session override is dropped, so the workspace default
+    // applies visually right away — not only after a reload (ThemeProvider §4.2).
+    expect(document.documentElement.getAttribute('data-density')).toBe('comfortable');
   });
 
   it('locale override PATCHes the locale axis', async () => {

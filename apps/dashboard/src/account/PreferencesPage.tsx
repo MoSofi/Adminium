@@ -11,7 +11,9 @@
  *   via PATCH /api/v1/me/prefs) and swaps the badge to accent-tone
  *   "Personal".
  * - "Reset to workspace default" sends the explicit `null` per the route
- *   contract and returns the axis to live inheritance.
+ *   contract, drops any optimistic session override via `clearSessionPref` (so
+ *   the workspace default shows immediately, not after a reload), and returns
+ *   the axis to live inheritance.
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
@@ -75,7 +77,7 @@ function PrefRow(props: {
 export function PreferencesPage(): ReactNode {
   const queryClient = useQueryClient();
   const { data } = useSuspenseQuery(mePrefsQuery());
-  const { prefs: effective, setPref } = useThemePrefs();
+  const { prefs: effective, setPref, clearSessionPref } = useThemePrefs();
   const [resetting, setResetting] = useState<Axis | null>(null);
   // Optimistic overlay for overrides made this session (the server round trip
   // rides the app-root onPrefChange PATCH; badges must not wait for it).
@@ -102,6 +104,11 @@ export function PreferencesPage(): ReactNode {
     setResetting(axis);
     patchMePrefs({ [axis]: null })
       .then((reply) => {
+        // Drop any override made this session via `setPref`. Without this the
+        // stale optimistic value would keep masking the refetched workspace
+        // default (ThemeProvider §4.2) until a reload — the axis would reset
+        // server-side but not visually.
+        clearSessionPref(axis);
         setLocalOverrides((prev) => {
           const next = { ...prev };
           delete next[axis];

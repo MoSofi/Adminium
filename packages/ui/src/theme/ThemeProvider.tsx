@@ -8,6 +8,13 @@
  *    (adminium_user_prefs) ← in-session `setPref` calls. localStorage is a
  *    cache, not a preference source: it only fills axes the server props do
  *    not supply (pre-auth surfaces), and server-resolved values always win.
+ *    The `setPref` layer (`sessionPrefs`) is optimistic and transient: an entry
+ *    is reconciled away once the server-resolved props catch up to it (same
+ *    value), and can be dropped explicitly via `clearSessionPref` when the
+ *    caller resets an axis server-side (M8 reset-to-default) — otherwise a
+ *    stale optimistic value would keep masking the refetched default until a
+ *    reload. Entries whose value still differs from the props are treated as
+ *    in flight and keep winning (§4 behavior 4).
  * 2. Stamp `THEME_ATTRIBUTES` on `document.documentElement` (`data-theme` with
  *    the RESOLVED light/dark, `data-accent`, `data-density`, `dir`, `lang`).
  *    This is the only place theming attributes are set after pre-hydration.
@@ -37,7 +44,12 @@ import {
   type Density,
 } from '@adminium/tokens';
 
-import { ThemeContext, type SetThemePref, type ThemeContextValue } from './context.js';
+import {
+  ThemeContext,
+  type ClearSessionPref,
+  type SetThemePref,
+  type ThemeContextValue,
+} from './context.js';
 import { emitTheme } from './subscribe.js';
 import {
   BASELINE_PREFS,
@@ -98,6 +110,33 @@ function systemPrefersDark(): boolean {
   return window.matchMedia(DARK_QUERY).matches;
 }
 
+/** Value-equality over the four axes (props identity churns when the parent
+ * re-derives `userPrefs`, so the reconcile trigger must compare by value). */
+function samePrefs(a: ThemePrefs, b: ThemePrefs): boolean {
+  return a.theme === b.theme && a.accent === b.accent && a.density === b.density && a.locale === b.locale;
+}
+
+/**
+ * Drop optimistic session entries the freshly-resolved props now confirm (the
+ * axis resolves to the same value with or without the override). Those entries
+ * have served their purpose; keeping them would mask a *later* authoritative
+ * change to the axis. Entries whose value still differs are left untouched —
+ * they are in flight and must keep winning. Returns the same reference when
+ * nothing changed so the caller can skip a state update.
+ */
+function reconcileSessionPrefs(
+  session: Partial<ThemePrefs>,
+  propsResolved: ThemePrefs,
+): Partial<ThemePrefs> {
+  const confirmed = (Object.keys(session) as Array<keyof ThemePrefs>).filter(
+    (key) => propsResolved[key] === session[key],
+  );
+  if (confirmed.length === 0) return session;
+  const next = { ...session };
+  for (const key of confirmed) delete next[key];
+  return next;
+}
+
 export function ThemeProvider(props: ThemeProviderProps): ReactNode {
   const { globalDefaults, userPrefs, onPrefChange, children } = props;
 
@@ -107,15 +146,32 @@ export function ThemeProvider(props: ThemeProviderProps): ReactNode {
   const [sessionPrefs, setSessionPrefs] = useState<Partial<ThemePrefs>>({});
   const [prefersDark, setPrefersDark] = useState<boolean>(systemPrefersDark);
 
-  const prefs: ThemePrefs = useMemo(
+  // Everything resolvable from the server props (+ pre-paint cache), WITHOUT the
+  // optimistic session layer. `sessionPrefs` rides on top of this (§4.2).
+  const propsResolved: ThemePrefs = useMemo(
     () => ({
       ...BASELINE_PREFS,
       ...storageCache,
       ...globalDefaults,
       ...userPrefs,
-      ...sessionPrefs,
     }),
-    [storageCache, globalDefaults, userPrefs, sessionPrefs],
+    [storageCache, globalDefaults, userPrefs],
+  );
+
+  // When a fresh server resolution arrives (by value — the parent re-derives
+  // `userPrefs` into a new object each render), reconcile the optimistic layer:
+  // adjusting state during render (per the React docs' "storing information from
+  // previous renders" pattern) drops confirmed entries before commit, so it
+  // never re-stamps <html> or re-emits with an intermediate value.
+  const [prevPropsResolved, setPrevPropsResolved] = useState(propsResolved);
+  if (!samePrefs(propsResolved, prevPropsResolved)) {
+    setPrevPropsResolved(propsResolved);
+    setSessionPrefs((prev) => reconcileSessionPrefs(prev, propsResolved));
+  }
+
+  const prefs: ThemePrefs = useMemo(
+    () => ({ ...propsResolved, ...sessionPrefs }),
+    [propsResolved, sessionPrefs],
   );
 
   // Live system-theme tracking, attached only while the pref is `system` (§4 behavior 2).
@@ -174,9 +230,20 @@ export function ThemeProvider(props: ThemeProviderProps): ReactNode {
     onPrefChangeRef.current?.(key, value, { ...prefsRef.current, [key]: value });
   }, []);
 
+  // Drop the optimistic entry so resolution falls back to the props (the caller
+  // owns the server-side clear). Not a `setPref`, so no `onPrefChange` fires.
+  const clearSessionPref: ClearSessionPref = useCallback((key) => {
+    setSessionPrefs((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
   const contextValue: ThemeContextValue = useMemo(
-    () => ({ prefs, resolved, setPref }),
-    [prefs, resolved, setPref],
+    () => ({ prefs, resolved, setPref, clearSessionPref }),
+    [prefs, resolved, setPref, clearSessionPref],
   );
 
   return (
