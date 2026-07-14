@@ -13,7 +13,6 @@
  */
 import { expect, test } from '@playwright/test';
 
-import { ENGINE } from './constants.js';
 import { gridRows, gridSearch, navLink, signIn } from './helpers.js';
 
 test.describe('generated app on the seeded Northwind connection', () => {
@@ -59,13 +58,12 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(gridRows(page).first()).toContainText('Cactus Comidas para llevar');
   });
 
-  // KNOWN GAP (M9-T05 finding): the `q=` quick search compiles to `ILIKE`
-  // unconditionally (apps/server/src/crud/filters.ts compileQuickSearch), a
-  // Postgres-ism — sqlite answers `near "ilike": syntax error` (mysql has no
-  // ILIKE either) and the grid falls into the query-failed empty state.
-  // Flip fixme → test once quick search compiles per-dialect.
+  // M9-T05 finding, now fixed: the `q=` quick search compiles per-dialect
+  // (apps/server/src/crud/filters.ts compileQuickSearch → compileILike) —
+  // postgres `ILIKE`, mysql/sqlite `LOWER(...) LIKE LOWER(...)`. Runs on every
+  // engine (was postgres-only when it emitted `ILIKE` unconditionally, which
+  // is a syntax error on sqlite/mysql).
   test('(c3) quick search narrows the grid', async ({ page }) => {
-    test.fixme(ENGINE !== 'postgres', 'q= quick search compiles ILIKE — postgres-only today');
     await signIn(page);
     await navLink(page, /Customers/).first().click();
     await expect(gridRows(page)).toHaveCount(12);
@@ -88,21 +86,30 @@ test.describe('generated app on the seeded Northwind connection', () => {
     const drawer = page.getByRole('dialog');
     await expect(drawer).toBeVisible();
     await expect(drawer).toContainText('Alfreds Futterkiste');
-    await expect(drawer).toContainText('Berlin');
+    // A second, un-masked field proves the record's data rendered. Assert the
+    // contact name, NOT the city: city is masked-by-default PII (••• like
+    // phone/fax/address). Pre-fix, masked values leaked anyway because the
+    // pk-less rowIdOf() fell back to JSON.stringify(row) as the drawer title;
+    // now the title is the clean PK ("ALFKI") and masked fields stay masked.
+    await expect(drawer).toContainText('Maria Anders');
   });
 
-  // KNOWN GAP (M9-T05 finding, needs an engine/widgets fix — see followUps):
-  // the generator excludes pk-id columns from `config.columns` entirely
-  // (packages/engine/src/generate/crud.ts rankColumn rule 2) and page-crud
-  // derives BOTH the create form and row ids from those columns, so
-  //  - the create modal has no PK field → INSERT fails NOT NULL on every
-  //    Northwind table (no serial/default PKs in the fixture), and
-  //  - rowIdOf() falls back to JSON.stringify(row) → clicking a row opens
-  //    /r/<json> which the record API cannot resolve.
-  // `config.form.fields` (which DOES include non-auto PKs) is currently
-  // unused by PageCrudBinding. Flip fixme → test once either lands.
+  // The generator now emits the pk-id column as a *hidden* column spec
+  // (packages/engine/src/generate/crud.ts listColumns appends the missing PK
+  // columns; DataGrid filters hidden specs out of the grid), so page-crud
+  // resolves BOTH the create form's (required, no-default) PK field and row
+  // ids (rowIdOf) from `config.columns` — closing the M9-T05 create/row-click
+  // gap. The final q= quick-search verification now works on every engine (the
+  // ILIKE-only compile was fixed — see c3).
+  //
+  // Create previously 403'd on sqlite: `ConnectionManager.testDsn` derives
+  // `connection.readOnly` from the introspect-role probe, and the sqlite
+  // adapter's `#detectReadOnly()` conflated the introspect handle's forced
+  // read-only OPEN MODE with the connection's writability. Fixed in
+  // packages/adapter-sqlite/src/index.ts: read-only DETECTION now reflects the
+  // connection (config `mode: 'readonly'`, file `W_OK`, `PRAGMA query_only`),
+  // not the forced open mode — so writable sqlite/mysql connections allow CRUD.
   test('(c5) create a customer via the modal wizard', async ({ page }) => {
-    test.fixme(true, 'create form lacks the (non-auto) PK field — generator/page-crud gap');
     await signIn(page);
     await navLink(page, /Customers/).first().click();
 
@@ -115,12 +122,13 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(modal).toContainText('added');
     await modal.getByRole('button', { name: 'Done' }).click();
 
-    await page.getByRole('searchbox').fill('E2E Markets');
+    // Scope to the grid quick-search (the topbar hosts a second, palette
+    // searchbox — `page.getByRole('searchbox')` alone is ambiguous).
+    await gridSearch(page, /customers/).fill('E2E Markets');
     await expect(gridRows(page)).toHaveCount(1);
   });
 
   test('(c6) row click opens the record detail drawer', async ({ page }) => {
-    test.fixme(true, 'rowIdOf() falls back to JSON without a pk column spec — generator/page-crud gap');
     await signIn(page);
     await navLink(page, /Customers/).first().click();
 
@@ -145,13 +153,13 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(page.getByRole('img', { name: /by Ship Country/i })).toBeVisible();
   });
 
-  // KNOWN GAP (M9-T05 finding): time-bucketed widget queries compile to PG
-  // `date_trunc` (apps/server/src/widget-data/compiler.ts bucketExpr) — the
-  // per-engine `bucketExpr()` adapter hook (04 §5.2 step 4) is not wired yet,
-  // so the hero timeseries chart and the "New … (30d)" KPI return 500 on
-  // sqlite/mysql. Flip fixme → test once the hook lands.
+  // M9-T05 finding, now fixed: time-bucketed widget queries compile per dialect
+  // (apps/server/src/widget-data/compiler.ts bucketExpr → date_trunc / strftime
+  // / DATE_FORMAT), and rolling-window bounds bind as a UTC string on
+  // mysql/sqlite instead of a `Date` (better-sqlite3 rejects `Date`). The hero
+  // timeseries chart and the "New … (30d)" KPI — which returned 500 on
+  // sqlite/mysql — now resolve on every engine.
   test('(d2) hero timeseries chart resolves on every engine', async ({ page }) => {
-    test.fixme(ENGINE !== 'postgres', 'date_trunc bucketing is postgres-only today');
     await signIn(page);
     await navLink(page, /Dashboard/).first().click();
     await expect(page.getByRole('img', { name: /per Month/i })).toBeVisible();

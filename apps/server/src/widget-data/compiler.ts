@@ -16,13 +16,23 @@
  * M4 scope notes: shapes compiled here are `single-metric`, `metric+delta`,
  * `timeseries`, `categorical`, and `record-list` (the M4 widget set).
  * `percentile` aggregations and the remaining shapes reject with 422 until
- * 04-T09/T10. Time bucketing uses PG `date_trunc` — the adapter
- * `bucketExpr()` helper hook (04 §5.2 step 4) takes over when the MySQL /
- * SQLite adapters land.
+ * 04-T09/T10.
+ *
+ * Dialect divergence (04 §5.2 step 4): time bucketing and rolling-window
+ * bounds are the two clauses whose SQL differs per engine. Rather than a
+ * kysely-typed adapter hook (the `@adminium/engine/adapter` `QueryEngine`
+ * contract must stay free of a `kysely` dependency — it types the dialect
+ * opaquely), the compiler branches on the connection's engine here, where
+ * kysely and the rest of the SQL compilation already live: `bucketExpr()`
+ * emits `date_trunc` / `strftime` / `DATE_FORMAT` per dialect, and window
+ * boundaries bind as a `Date` on Postgres but as a UTC `'YYYY-MM-DD
+ * HH:MM:SS'` string on MySQL/SQLite (better-sqlite3 refuses to bind a
+ * `Date`).
  */
 
-import { sql, type Kysely, type RawBuilder, type SelectQueryBuilder } from 'kysely';
+import { sql, type DynamicModule, type Kysely, type RawBuilder, type SelectQueryBuilder } from 'kysely';
 import type { Aggregation, BucketUnit, QueryDescriptor } from '@adminium/engine/config';
+import type { Dialect } from '@adminium/engine';
 
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -59,6 +69,8 @@ export interface CompileWidgetQueryOptions {
   /** Page-control params for late-bound filters (`filters[].param`). */
   params?: Record<string, unknown> | undefined;
   canReadPii: boolean;
+  /** Source dialect — threads into the shared filter compiler (`ilike` per dialect). */
+  dialect: Dialect;
   /** Injectable clock for `window` bounds (tests). */
   now?: (() => Date) | undefined;
 }
@@ -132,13 +144,81 @@ export function windowBounds(
   return { start, end, priorStart: shift(start, last), priorEnd: start };
 }
 
+type Ref = ReturnType<DynamicModule<SourceDatabase>['ref']>;
+
 /**
- * PG time-bucket expression. The unit is a closed Zod enum, so inlining it
- * as a quoted literal is injection-safe; the column ref is the snapshot's
- * own string through `db.dynamic.ref`.
+ * Time-bucket expression, compiled per dialect (04 §5.2 step 4). Every bucket
+ * evaluates to the ISO-lexicographic start of its period, so `GROUP BY` /
+ * `ORDER BY` over the raw expression sort chronologically and the shaper's
+ * `toIso` parses the result the same way for all three engines. The unit is a
+ * closed Zod enum and every format token is a source constant — no caller
+ * string is inlined; the only interpolation is the snapshot's own column ref.
  */
-function bucketExpr(db: Kysely<SourceDatabase>, column: string, unit: BucketUnit): RawBuilder<unknown> {
-  return sql`date_trunc(${sql.lit(unit)}, ${db.dynamic.ref(column)})`;
+function bucketExpr(dialect: Dialect, ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
+  switch (dialect) {
+    case 'mysql':
+      return mysqlBucketExpr(ref, unit);
+    case 'sqlite':
+      return sqliteBucketExpr(ref, unit);
+    // 'postgres' and the schema-only 'generic' fall through to date_trunc,
+    // which covers every unit natively.
+    default:
+      return sql`date_trunc(${sql.lit(unit)}, ${ref})`;
+  }
+}
+
+/** MySQL bucket start (`DATE_FORMAT` / calendar arithmetic). */
+function mysqlBucketExpr(ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
+  switch (unit) {
+    case 'hour':
+      return sql`date_format(${ref}, '%Y-%m-%d %H:00:00')`;
+    case 'day':
+      return sql`date_format(${ref}, '%Y-%m-%d')`;
+    case 'week':
+      // WEEKDAY() is 0=Monday…6=Sunday, so subtracting it lands on the ISO
+      // Monday — matching Postgres `date_trunc('week', …)`.
+      return sql`date_sub(date(${ref}), interval weekday(${ref}) day)`;
+    case 'month':
+      return sql`date_format(${ref}, '%Y-%m-01')`;
+    case 'quarter':
+      return sql`date(makedate(year(${ref}), 1) + interval (quarter(${ref}) - 1) quarter)`;
+    case 'year':
+      return sql`date_format(${ref}, '%Y-01-01')`;
+  }
+}
+
+/** SQLite bucket start (`strftime` over ISO-text/epoch storage). */
+function sqliteBucketExpr(ref: Ref, unit: BucketUnit): RawBuilder<unknown> {
+  switch (unit) {
+    case 'hour':
+      return sql`strftime('%Y-%m-%d %H:00:00', ${ref})`;
+    case 'day':
+      return sql`strftime('%Y-%m-%d', ${ref})`;
+    case 'week':
+      // (%w + 6) % 7 remaps SQLite's 0=Sunday…6=Saturday to 0=Monday, so the
+      // offset subtracted lands on the ISO Monday (as Postgres/MySQL do).
+      return sql`date(${ref}, '-' || ((strftime('%w', ${ref}) + 6) % 7) || ' days')`;
+    case 'month':
+      return sql`strftime('%Y-%m-01', ${ref})`;
+    case 'quarter':
+      return sql`strftime('%Y', ${ref}) || '-' || printf('%02d', ((cast(strftime('%m', ${ref}) as integer) - 1) / 3) * 3 + 1) || '-01'`;
+    case 'year':
+      return sql`strftime('%Y-01-01', ${ref})`;
+  }
+}
+
+/**
+ * A rolling-window boundary as the source driver expects it: Postgres binds
+ * the `Date` directly (timestamptz), but MySQL and SQLite take a UTC
+ * `'YYYY-MM-DD HH:MM:SS'` string — `windowBounds` computes in UTC, and
+ * better-sqlite3 refuses to bind a `Date` at all (it accepts only numbers,
+ * strings, bigints, buffers and null).
+ */
+function windowBoundValue(date: Date, dialect: Dialect): Date | string {
+  if (dialect === 'mysql' || dialect === 'sqlite') {
+    return date.toISOString().slice(0, 19).replace('T', ' ');
+  }
+  return date;
 }
 
 /** Validate + resolve one aggregation; returns its select expression factory. */
@@ -243,14 +323,14 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
  * needs the request principal).
  */
 export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWidgetQuery {
-  const { db, view, descriptor, canReadPii } = opts;
+  const { db, view, descriptor, canReadPii, dialect } = opts;
   const params = opts.params ?? {};
   const now = opts.now ?? (() => new Date());
 
   assertShapeRules(descriptor);
   const table = resolveSource(view, descriptor);
   const dynamic = db.dynamic;
-  const filterCtx: CompileFilterContext = { view, table, canReadPii, dynamic };
+  const filterCtx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
   // --- WHERE: descriptor filters (CRUD DSL compiler) + rolling window -------
   const conditions =
@@ -274,8 +354,8 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     if (window !== null && windowColumn !== null) {
       const ref = dynamic.ref(windowColumn.name);
       out = out
-        .where((eb) => eb(ref, '>=', window.start))
-        .where((eb) => eb(ref, '<', window.end));
+        .where((eb) => eb(ref, '>=', windowBoundValue(window.start, dialect)))
+        .where((eb) => eb(ref, '<', windowBoundValue(window.end, dialect)));
     }
     return out;
   };
@@ -311,7 +391,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
 
     if (shape === 'timeseries' && descriptor.bucket !== undefined) {
       const bucketColumn = view.readableColumn(table, descriptor.bucket.column, canReadPii);
-      const bucket = bucketExpr(db, bucketColumn.name, descriptor.bucket.unit);
+      const bucket = bucketExpr(dialect, dynamic.ref(bucketColumn.name), descriptor.bucket.unit);
       qb = qb.select(bucket.as(BUCKET_ALIAS)).groupBy(bucket).orderBy(bucket, 'asc');
     }
     if (shape === 'categorical') {

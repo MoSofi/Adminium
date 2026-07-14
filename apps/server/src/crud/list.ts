@@ -7,6 +7,8 @@
 
 import type { Kysely, SelectQueryBuilder } from 'kysely';
 
+import type { Dialect } from '@adminium/engine';
+
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import {
@@ -99,12 +101,13 @@ export interface RunListOptions {
   table: ResolvedTable;
   params: ListParams;
   canReadPii: boolean;
+  dialect: Dialect;
 }
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
-  const { db, view, table, params, canReadPii } = opts;
+  const { db, view, table, params, canReadPii, dialect } = opts;
   const dynamic = db.dynamic;
-  const ctx: CompileFilterContext = { view, table, canReadPii, dynamic };
+  const ctx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
   const limit = Math.min(Math.max(params.limit ?? LIST_LIMIT_DEFAULT, 1), LIST_LIMIT_MAX);
   const offset = Math.max(params.offset ?? 0, 0);

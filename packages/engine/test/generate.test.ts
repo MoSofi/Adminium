@@ -96,10 +96,22 @@ describe('generatePages on Northwind (full-admin)', () => {
     expect(customers.source).toEqual({ connectionId: CONN, table: 'public.customers' });
     expect(customers.access.permissions).toEqual(['table:public.customers:read']);
     // gridColumnSpecSchema vocabulary ({name, logicalType, semantic, …}).
-    const columns = customers.config['columns'] as { name: string; semantic: string; pii?: boolean }[];
-    expect(columns.length).toBeLessThanOrEqual(8);
+    const columns = customers.config['columns'] as {
+      name: string;
+      semantic: string;
+      pii?: boolean;
+      hidden?: boolean;
+      primaryKey?: boolean;
+    }[];
+    // The ~8 cap governs grid-visible columns; the pk rides along hidden.
+    expect(columns.filter((c) => c.hidden !== true).length).toBeLessThanOrEqual(8);
     expect(columns[0]?.name).toBe('company_name'); // display column first
-    expect(columns.map((c) => c.name)).not.toContain('customer_id'); // pk hidden
+    // pk-id is dropped from the grid but appended as a hidden spec so page-crud
+    // resolves row identity (rowIdOf) and emits the (required, no-default) key
+    // field on create — the natural PK carries no serial/uuid default.
+    const pk = columns.find((c) => c.name === 'customer_id');
+    expect(pk?.hidden).toBe(true);
+    expect(pk?.primaryKey).toBe(true);
     expect(columns.find((c) => c.name === 'phone')?.pii).toBe(true); // masked-by-default PII
     expect(customers.nav.group).toBe('library');
   });

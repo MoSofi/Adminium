@@ -27,6 +27,8 @@ import {
   type CompileFilterContext,
   type RecordFilter,
 } from '../src/crud/filters.js';
+import type { Dialect } from '@adminium/engine';
+
 import { SnapshotView, UnknownIdentifierError } from '../src/crud/identifiers.js';
 import { parseOrder } from '../src/crud/list.js';
 import { rowsEqual, UndoStore } from '../src/crud/undo.js';
@@ -94,15 +96,15 @@ const db = new Kysely<SourceDatabase>({
   },
 });
 
-function ctx(canReadPii = false): CompileFilterContext {
-  return { view, table, canReadPii, dynamic: db.dynamic };
+function ctx(canReadPii = false, dialect: Dialect = 'postgres'): CompileFilterContext {
+  return { view, table, canReadPii, dynamic: db.dynamic, dialect };
 }
 
-function compile(filter: RecordFilter, canReadPii = false) {
+function compile(filter: RecordFilter, canReadPii = false, dialect: Dialect = 'postgres') {
   return db
     .selectFrom('public.customers')
     .selectAll()
-    .where((eb) => compileFilter(eb as never, ctx(canReadPii), filter))
+    .where((eb) => compileFilter(eb as never, ctx(canReadPii, dialect), filter))
     .compile();
 }
 
@@ -127,6 +129,22 @@ describe('filter DSL compiler', () => {
     expect(compiled.sql).toContain('"customer_id" in ($4, $5)');
     expect(compiled.sql).toContain('"balance" is null');
     expect(compiled.parameters).toEqual(['%acme%', 10, 20, 'A', 'B']);
+  });
+
+  it('compiles the `ilike` op per dialect: native ILIKE on postgres, LOWER(...) LIKE on mysql/sqlite', () => {
+    // Postgres keeps the native operator.
+    const pg = compile({ column: 'company_name', op: 'ilike', value: '%acme%' });
+    expect(pg.sql).toContain('"company_name" ilike $1');
+    expect(pg.parameters).toEqual(['%acme%']);
+
+    // MySQL and SQLite have no ILIKE — fold both operands with LOWER() so the
+    // match stays case-insensitive regardless of collation, value still bound.
+    for (const dialect of ['mysql', 'sqlite'] as const) {
+      const compiled = compile({ column: 'company_name', op: 'ilike', value: '%acme%' }, false, dialect);
+      expect(compiled.sql).toContain('lower("company_name") like lower($1)');
+      expect(compiled.sql).not.toContain('ilike');
+      expect(compiled.parameters).toEqual(['%acme%']);
+    }
   });
 
   it('never lets a client value reach the SQL text (hostile value stays a parameter)', () => {
@@ -216,6 +234,22 @@ describe('quick search (q=)', () => {
       .where((eb) => compileQuickSearch(eb as never, ctx(true), 'x')!)
       .compile();
     expect(compiled.sql).toContain('"phone" ilike');
+  });
+
+  it('compiles to LOWER(...) LIKE on mysql/sqlite (no ILIKE — the M9-T05 500)', () => {
+    // Regression: pre-fix this OR-ed `ILIKE`, which is a syntax error on both
+    // mysql and sqlite (`near "ilike": syntax error`) → 500 INTERNAL.
+    for (const dialect of ['mysql', 'sqlite'] as const) {
+      const compiled = db
+        .selectFrom('public.customers')
+        .selectAll()
+        .where((eb) => compileQuickSearch(eb as never, ctx(false, dialect), 'Cactus')!)
+        .compile();
+      expect(compiled.sql).toContain('lower("customer_id") like lower($1)');
+      expect(compiled.sql).toContain('lower("company_name") like lower($2)');
+      expect(compiled.sql).not.toContain('ilike');
+      expect(compiled.parameters?.[0]).toBe('%Cactus%');
+    }
   });
 });
 

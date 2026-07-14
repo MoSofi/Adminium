@@ -57,12 +57,48 @@ describe.skipIf(!driverReady)('SqliteAdapter (better-sqlite3 driver)', () => {
     expect(result.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
-  it('the introspect role always reads as read-only (opened readonly)', async () => {
+  it('the introspect role reports the CONNECTION as writable on a writable file', async () => {
+    // The introspect HANDLE always opens readonly (a safety measure), but
+    // read-only DETECTION must reflect the connection — the file is writable
+    // via the data role — not the forced open mode. Conflating the two reported
+    // every connection read-only and gated all CRUD (05 §4.3 regression).
     const result = await introspectAdapter.test();
-    expect(result.canWrite).toBe(false);
+    expect(result.canWrite).toBe(true);
     const probe = await introspectAdapter.probeCapabilities();
-    expect(probe.currentRole).toEqual({ name: 'local', readOnly: true });
-    expect(probe.privileges.canWrite).toBe(false);
+    expect(probe.currentRole).toEqual({ name: 'local', readOnly: false });
+    expect(probe.privileges.canWrite).toBe(true);
+  });
+
+  it('the introspect role reports read-only for a non-writable file (chmod 0444)', async () => {
+    // Isolates the W_OK detection path: the introspect handle opens readonly so
+    // it can open the 0444 file, and the config mode is the default readwrite,
+    // so the only signal flipping the connection to read-only is file W_OK.
+    const roFile = await createTestDatabase(dir, false, 'CREATE TABLE t (id INTEGER)');
+    chmodSync(roFile, 0o444);
+    const adapter = new mod.SqliteAdapter<'introspect'>('introspect');
+    await adapter.connect({ role: 'introspect', file: roFile });
+    try {
+      const result = await adapter.test();
+      expect(result.canWrite).toBe(false);
+      const probe = await adapter.probeCapabilities();
+      expect(probe.currentRole).toEqual({ name: 'local', readOnly: true });
+      expect(probe.privileges.canWrite).toBe(false);
+    } finally {
+      await adapter.close();
+      chmodSync(roFile, 0o644);
+    }
+  });
+
+  it('an explicit mode: readonly config reports read-only even on a writable file', async () => {
+    const adapter = new mod.SqliteAdapter<'data'>('data');
+    await adapter.connect({ role: 'data', file, mode: 'readonly' });
+    try {
+      const probe = await adapter.probeCapabilities();
+      expect(probe.currentRole.readOnly).toBe(true);
+      expect(probe.privileges.canWrite).toBe(false);
+    } finally {
+      await adapter.close();
+    }
   });
 
   it('a data-role handle on a writable file reads as writable', async () => {

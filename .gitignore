@@ -7,5 +7,8 @@ coverage/
 .env
 .env.*
 !.env.example
-data/
+# Anchored to the repo root: a top-level local-data dir (sqlite files, dumps).
+# Unanchored `data/` also matched `apps/server/src/routes/data/` — the CRUD
+# route source — and silently kept it out of version control.
+/data/
 .claude/scheduled_tasks.lock

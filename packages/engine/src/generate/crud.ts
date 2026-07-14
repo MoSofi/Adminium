@@ -6,7 +6,9 @@
  *
  * Column selection follows 05 (assignment note): display column, status,
  * money, dates first; list capped at ~8 visible columns. Secrets are
- * hard-excluded (05 §7.1 rule 1), pk ids are hidden by default (rule 2).
+ * hard-excluded (05 §7.1 rule 1), pk ids are hidden by default (rule 2) —
+ * emitted as `hidden` specs (not dropped) so the page-crud template can still
+ * resolve row identity and generate the create/edit form's key field.
  */
 
 import type { ClassifiedColumn, ClassifiedTable } from '../classify/index.js';
@@ -107,6 +109,58 @@ function enumValuesFor(model: DatabaseModel, column: ColumnModel): string[] | nu
   return model.enums.find((e) => e.id === column.enumRef)?.values ?? null;
 }
 
+/**
+ * One `config.columns[]` entry in @adminium/widgets' gridColumnSpecSchema
+ * vocabulary — the page-crud template's column contract ({name, logicalType,
+ * semantic, …}); the renderers derive the cell treatment from
+ * logicalType+semantic, so no widget id is stored per column.
+ */
+function buildColumnDef(
+  model: DatabaseModel,
+  column: ColumnModel,
+  semantics: ClassifiedColumn['semantics'],
+): Record<string, unknown> {
+  const def: Record<string, unknown> = {
+    name: column.name,
+    label: humanize(column.name),
+    logicalType: column.logicalType,
+    semantic: semantics.primary,
+    sortable: true,
+  };
+  if (semantics.format !== null) def['format'] = semantics.format;
+  if (semantics.primary === 'money') def['align'] = 'end';
+  if (
+    semantics.primary === 'pk-id' ||
+    semantics.primary === 'external-id' ||
+    semantics.primary === 'email'
+  ) {
+    def['mono'] = true;
+  }
+  if (column.references !== null) {
+    def['fk'] = { table: column.references.tableId, column: column.references.column };
+  }
+  const values = enumValuesFor(model, column);
+  if (values !== null) {
+    def['enumValues'] = values;
+    if (semantics.primary === 'status-workflow') def['enumTones'] = enumTones(values);
+  }
+  if (semantics.flags.maskedByDefault) def['pii'] = true;
+  // Form-generation facts (RecordForm reads these off the same spec).
+  if (column.isPrimaryKey) def['primaryKey'] = true;
+  if (!column.nullable) def['nullable'] = false;
+  if (column.default !== null) def['hasDefault'] = true;
+  if (column.isUnique) def['unique'] = true;
+  if (
+    column.isGenerated ||
+    semantics.primary === 'created-at' ||
+    semantics.primary === 'updated-at'
+  ) {
+    def['readOnly'] = true;
+  }
+  if (column.maxLength !== null) def['maxLength'] = column.maxLength;
+  return def;
+}
+
 function listColumns(
   model: DatabaseModel,
   table: TableModel,
@@ -124,51 +178,27 @@ function listColumns(
   // Stable: priority, then declaration order.
   ranked.sort((a, b) => a.priority - b.priority || a.column.ordinal - b.column.ordinal);
 
-  return ranked.slice(0, LIST_COLUMN_CAP).map(({ column, semantics }) => {
-    // Emitted in @adminium/widgets' gridColumnSpecSchema vocabulary — the
-    // page-crud template's column contract ({name, logicalType, semantic, …});
-    // the renderers derive the cell treatment from logicalType+semantic, so no
-    // widget id is stored per column.
-    const def: Record<string, unknown> = {
-      name: column.name,
-      label: humanize(column.name),
-      logicalType: column.logicalType,
-      semantic: semantics.primary,
-      sortable: true,
-    };
-    if (semantics.format !== null) def['format'] = semantics.format;
-    if (semantics.primary === 'money') def['align'] = 'end';
-    if (
-      semantics.primary === 'pk-id' ||
-      semantics.primary === 'external-id' ||
-      semantics.primary === 'email'
-    ) {
-      def['mono'] = true;
-    }
-    if (column.references !== null) {
-      def['fk'] = { table: column.references.tableId, column: column.references.column };
-    }
-    const values = enumValuesFor(model, column);
-    if (values !== null) {
-      def['enumValues'] = values;
-      if (semantics.primary === 'status-workflow') def['enumTones'] = enumTones(values);
-    }
-    if (semantics.flags.maskedByDefault) def['pii'] = true;
-    // Form-generation facts (RecordForm reads these off the same spec).
-    if (column.isPrimaryKey) def['primaryKey'] = true;
-    if (!column.nullable) def['nullable'] = false;
-    if (column.default !== null) def['hasDefault'] = true;
-    if (column.isUnique) def['unique'] = true;
-    if (
-      column.isGenerated ||
-      semantics.primary === 'created-at' ||
-      semantics.primary === 'updated-at'
-    ) {
-      def['readOnly'] = true;
-    }
-    if (column.maxLength !== null) def['maxLength'] = column.maxLength;
-    return def;
-  });
+  const defs = ranked
+    .slice(0, LIST_COLUMN_CAP)
+    .map(({ column, semantics }) => buildColumnDef(model, column, semantics));
+
+  // Every PK column needs a spec even when rankColumn() drops it from the
+  // visible set (pk-id, rule 2): the page-crud template derives row identity
+  // (rowIdOf → the record-route `:recordId`) and the create/edit form fields
+  // from `config.columns`, and a natural PK with no DB default is a *required*
+  // create input. Append the still-missing PK columns as `hidden` — DataGrid
+  // filters hidden specs out of the grid, so the list stays pk-free while
+  // forms/detail and row ids resolve (gridColumnSpecSchema: "Hidden from the
+  // grid but still available to forms/detail").
+  const present = new Set(defs.map((def) => def['name']));
+  for (const column of table.columns) {
+    if (!column.isPrimaryKey || present.has(column.name)) continue;
+    const semantics = byName.get(column.name)?.semantics;
+    if (semantics === undefined) continue;
+    defs.push({ ...buildColumnDef(model, column, semantics), hidden: true });
+  }
+
+  return defs;
 }
 
 function defaultSort(table: TableModel, classified: ClassifiedTable): Record<string, unknown>[] {

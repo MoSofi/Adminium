@@ -5,8 +5,10 @@
  * only); every value binds as a parameter — §7 item 1 by construction.
  */
 
-import type { DynamicModule, Expression, ExpressionBuilder, SqlBool } from 'kysely';
+import type { DynamicModule, Expression, ExpressionBuilder, ReferenceExpression, SqlBool } from 'kysely';
 import { z } from 'zod';
+
+import type { Dialect } from '@adminium/engine';
 
 import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -106,6 +108,8 @@ export interface CompileFilterContext {
   /** `table:<conn>:<table>:read_pii`-equivalent — masked columns usable when true. */
   canReadPii: boolean;
   dynamic: DynamicModule<SourceDatabase>;
+  /** Source dialect — decides `ilike` (postgres) vs `LOWER(...) LIKE` (mysql/sqlite). */
+  dialect: Dialect;
 }
 
 function requireValue(condition: FilterCondition): unknown {
@@ -119,6 +123,21 @@ function requireValue(condition: FilterCondition): unknown {
 }
 
 type Eb = ExpressionBuilder<Record<string, Record<string, unknown>>, string>;
+type Ref = ReferenceExpression<Record<string, Record<string, unknown>>, string>;
+
+/**
+ * Case-insensitive substring match, compiled per dialect. Postgres has a
+ * native `ILIKE`; MySQL and SQLite have neither (`ILIKE` is a syntax error on
+ * both), so both operands are folded with `LOWER()`. Folding — rather than a
+ * bare `LIKE` — keeps the match case-insensitive regardless of the column's
+ * collation: SQLite's default `LIKE` only folds ASCII, and a `_bin`/`_cs`
+ * MySQL column would otherwise compare case-sensitively. The value still binds
+ * as a parameter; `LOWER()` wraps the placeholder, not an inlined literal.
+ */
+function compileILike(eb: Eb, dialect: Dialect, ref: Ref, pattern: string): Expression<SqlBool> {
+  if (dialect === 'postgres') return eb(ref, 'ilike', pattern);
+  return eb(eb.fn('lower', [ref]), 'like', eb.fn<string>('lower', [eb.val(pattern)]));
+}
 
 function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCondition): Expression<SqlBool> {
   // Masked columns are rejected in `where` for non-PII readers (§5.3 rule 2).
@@ -150,7 +169,7 @@ function compileCondition(eb: Eb, ctx: CompileFilterContext, condition: FilterCo
     case 'like':
       return eb(ref, 'like', String(requireValue(condition)));
     case 'ilike':
-      return eb(ref, 'ilike', String(requireValue(condition)));
+      return compileILike(eb, ctx.dialect, ref, String(requireValue(condition)));
     case 'is_null':
       return eb(ref, 'is', null);
     case 'not_null':
@@ -184,8 +203,10 @@ export function escapeLike(text: string): string {
 }
 
 /**
- * `q=` quick search (§2.7.1): `ILIKE %q%` OR-ed across the table's text-ish
- * columns from the snapshot, excluding masked ones for non-PII readers.
+ * `q=` quick search (§2.7.1): a case-insensitive `%q%` substring match OR-ed
+ * across the table's text-ish columns from the snapshot, excluding masked ones
+ * for non-PII readers. Compiled per dialect via {@link compileILike} — postgres
+ * `ILIKE`, mysql/sqlite `LOWER(...) LIKE LOWER(...)`.
  */
 export function compileQuickSearch(
   eb: Eb,
@@ -197,7 +218,7 @@ export function compileQuickSearch(
     (column) => column.textish && !column.secret && (ctx.canReadPii || !column.masked),
   );
   if (targets.length === 0) return null;
-  return eb.or(targets.map((column) => eb(ctx.dynamic.ref(column.name), 'ilike', pattern)));
+  return eb.or(targets.map((column) => compileILike(eb, ctx.dialect, ctx.dynamic.ref(column.name), pattern)));
 }
 
 /** Re-exported for routes that need the masked-column rejection directly. */

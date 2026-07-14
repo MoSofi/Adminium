@@ -67,7 +67,10 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
   readonly role: Role;
 
   #file: string | null = null;
+  /** How this role's handle is actually opened (introspect is forced readonly). */
   #mode: 'readonly' | 'readwrite' = 'readwrite';
+  /** What the config asked for — the read-only DETECTION signal (see connect). */
+  #requestedMode: 'readonly' | 'readwrite' = 'readwrite';
   #db: Database.Database | null = null;
   #closed = false;
 
@@ -91,8 +94,14 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
       });
     }
     this.#file = file;
-    // Introspect instances always open readonly (05 §4.3).
-    this.#mode = this.role === 'introspect' ? 'readonly' : (config.mode ?? 'readwrite');
+    // The introspect handle ALWAYS opens readonly (05 §4.3) — a safety measure
+    // so introspection can never write, NOT a statement about whether the
+    // underlying database is writable. Keep the config-requested mode separately
+    // so read-only DETECTION reflects the CONNECTION, not the forced open mode:
+    // otherwise every introspect probe would report the whole connection
+    // read-only and block all CRUD (the data role opens readwrite).
+    this.#requestedMode = config.mode ?? 'readwrite';
+    this.#mode = this.role === 'introspect' ? 'readonly' : this.#requestedMode;
     this.#closed = false;
   }
 
@@ -129,11 +138,15 @@ export class SqliteAdapter<Role extends ConnectionRole = ConnectionRole>
   }
 
   /**
-   * Read-only detection — 05 §4.3: the configured mode, `PRAGMA query_only`,
-   * and file permissions (a file the process cannot write is read-only).
+   * Read-only detection — 05 §4.3. Reflects whether the CONNECTION (the
+   * underlying database file) is writable, NOT how this role opened its handle:
+   * the introspect handle always opens readonly for safety, yet the connection
+   * may be fully writable via the data role. Genuine read-only signals are an
+   * explicit `mode: 'readonly'` config, a file the process cannot write
+   * (`W_OK`), or `PRAGMA query_only = 1`.
    */
   #detectReadOnly(): boolean {
-    if (this.#mode === 'readonly') return true;
+    if (this.#requestedMode === 'readonly') return true;
     const file = this.#file;
     if (file !== null && file !== ':memory:') {
       try {

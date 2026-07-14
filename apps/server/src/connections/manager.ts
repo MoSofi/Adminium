@@ -26,6 +26,7 @@ import {
   type QueryEngine,
   type TestResult,
 } from '@adminium/engine/adapter';
+import type { Dialect } from '@adminium/engine';
 import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
 import { AppError, NotFoundError, ValidationFailedError } from '../errors.js';
@@ -38,6 +39,8 @@ export interface DataHandle {
   /** Dynamic Kysely over the pooled data connection. */
   db: Kysely<SourceDatabase>;
   engine: QueryEngine;
+  /** Source dialect (from the connection row) — drives per-dialect SQL compilation. */
+  dialect: Dialect;
 }
 
 export interface ConnectionTestSummary {
@@ -223,7 +226,8 @@ export class ConnectionManager {
     // The engine package types the dialect opaquely; the server (which owns
     // the kysely dependency) casts at this composition boundary (05 §3).
     const db = new Kysely<SourceDatabase>({ dialect: engine.dialect as KyselyDialect });
-    return { db, engine };
+    // `connection.engine` is validated against DIALECTS at connection create.
+    return { db, engine, dialect: connection.engine as Dialect };
   }
 
   /** Tear down a connection's pooled handles (connection delete / DSN change). */

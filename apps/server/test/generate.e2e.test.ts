@@ -138,10 +138,20 @@ describe.skipIf(!pgAvailable())('POST /connections/:id/generate (live PG Northwi
 
     // Columns use @adminium/widgets' gridColumnSpecSchema vocabulary.
     const customersConfig = (customers?.config as { config: Record<string, unknown> }).config;
-    const columns = customersConfig['columns'] as { name: string; semantic: string }[];
-    expect(columns.length).toBeGreaterThanOrEqual(3);
-    expect(columns.length).toBeLessThanOrEqual(8);
-    expect(columns[0]?.name).toBe('company_name');
+    const columns = customersConfig['columns'] as {
+      name: string;
+      semantic: string;
+      hidden?: boolean;
+    }[];
+    // The visible set stays capped at ~8 (05 rule 2); the PK is emitted as a
+    // hidden spec (not dropped) so forms/detail/rowId can still resolve it.
+    const visible = columns.filter((c) => !c.hidden);
+    expect(visible.length).toBeGreaterThanOrEqual(3);
+    expect(visible.length).toBeLessThanOrEqual(8);
+    expect(visible[0]?.name).toBe('company_name');
+    const pk = columns.find((c) => c.name === 'customer_id');
+    expect(pk?.hidden).toBe(true);
+    expect(pk?.semantic).toBe('pk-id');
 
     const ordersConfig = (orders?.config as { config: Record<string, unknown> }).config;
     const orderColumns = ordersConfig['columns'] as {

@@ -2,18 +2,25 @@
  * Offline unit tests for the widget-data query-descriptor compiler
  * (04-widget-registry.md §5.2): SQL-text assertions over dynamic Kysely
  * with a dummy driver proving identifiers come from the snapshot, values
- * bind as parameters, time buckets compile to `date_trunc`, window bounds
- * are calendar-correct, masked columns refuse in every clause, and the
- * shape ⇄ descriptor structural rules hold. Shaper + cache units ride
- * along — no database required.
+ * bind as parameters, time buckets compile per dialect (Postgres
+ * `date_trunc`, MySQL `DATE_FORMAT`, SQLite `strftime`), window bounds are
+ * calendar-correct, masked columns refuse in every clause, and the shape ⇄
+ * descriptor structural rules hold. Shaper + cache units ride along — no
+ * database required.
  */
 
 import {
   DummyDriver,
   Kysely,
+  MysqlAdapter,
+  MysqlIntrospector,
+  MysqlQueryCompiler,
   PostgresAdapter,
   PostgresIntrospector,
   PostgresQueryCompiler,
+  SqliteAdapter,
+  SqliteIntrospector,
+  SqliteQueryCompiler,
 } from 'kysely';
 import { describe, expect, it } from 'vitest';
 
@@ -103,6 +110,7 @@ function compile(input: Record<string, unknown>, canReadPii = false): CompiledWi
     view,
     descriptor: descriptor(input),
     canReadPii,
+    dialect: 'postgres',
     now: () => NOW,
   });
 }
@@ -376,5 +384,112 @@ describe('WidgetDataCache', () => {
     const b = cacheKeyOf({ descriptor: { a: 1 }, params: null, connectionId: 'c1', roleScope: 'admin' });
     const c = cacheKeyOf({ descriptor: { a: 1 }, params: { x: 1 }, connectionId: 'c1', roleScope: 'viewer' });
     expect(new Set([a, b, c]).size).toBe(3);
+  });
+});
+
+// Dialect divergence (04 §5.2 step 4): the `date_trunc` cases above assert the
+// Postgres path; time bucketing and rolling-window bounds are the two clauses
+// whose SQL differs per engine. These pin the MySQL/SQLite SQL text so the
+// M9-T05 cross-engine regression (500 on sqlite/mysql — `no such function:
+// date_trunc`, and better-sqlite3 refusing to bind a `Date`) stays fixed.
+describe('widget-data compiler — per-dialect bucket/window SQL', () => {
+  const mysqlDb = new Kysely<SourceDatabase>({
+    dialect: {
+      createAdapter: () => new MysqlAdapter(),
+      createDriver: () => new DummyDriver(),
+      createIntrospector: (k) => new MysqlIntrospector(k),
+      createQueryCompiler: () => new MysqlQueryCompiler(),
+    },
+  });
+  const sqliteDb = new Kysely<SourceDatabase>({
+    dialect: {
+      createAdapter: () => new SqliteAdapter(),
+      createDriver: () => new DummyDriver(),
+      createIntrospector: (k) => new SqliteIntrospector(k),
+      createQueryCompiler: () => new SqliteQueryCompiler(),
+    },
+  });
+
+  function bucketSql(engine: 'mysql' | 'sqlite', unit: string): string {
+    return compileWidgetQuery({
+      db: engine === 'mysql' ? mysqlDb : sqliteDb,
+      view,
+      dialect: engine,
+      descriptor: descriptor({
+        shape: 'timeseries',
+        aggregations: [{ fn: 'count', alias: 'value' }],
+        bucket: { column: 'order_date', unit },
+      }),
+      canReadPii: false,
+      now: () => NOW,
+    }).query.compile().sql;
+  }
+
+  it('sqlite buckets compile to strftime for every unit — never date_trunc', () => {
+    // Full bucket expressions (identical text drives SELECT, GROUP BY, ORDER BY).
+    const expected: Record<string, string> = {
+      hour: `strftime('%Y-%m-%d %H:00:00', "order_date")`,
+      day: `strftime('%Y-%m-%d', "order_date")`,
+      week: `date("order_date", '-' || ((strftime('%w', "order_date") + 6) % 7) || ' days')`,
+      month: `strftime('%Y-%m-01', "order_date")`,
+      quarter: `strftime('%Y', "order_date") || '-' || printf('%02d', ((cast(strftime('%m', "order_date") as integer) - 1) / 3) * 3 + 1) || '-01'`,
+      year: `strftime('%Y-01-01', "order_date")`,
+    };
+    for (const [unit, needle] of Object.entries(expected)) {
+      const sql = bucketSql('sqlite', unit);
+      expect(sql, `unit=${unit}`).toContain(needle);
+      expect(sql, `unit=${unit}`).not.toContain('date_trunc');
+      // The same expression drives SELECT, GROUP BY and ORDER BY.
+      expect(sql, `unit=${unit}`).toContain(`group by ${needle}`);
+      expect(sql, `unit=${unit}`).toContain(`order by ${needle}`);
+    }
+  });
+
+  it('mysql buckets compile to DATE_FORMAT/calendar functions for every unit — never date_trunc', () => {
+    const expected: Record<string, string> = {
+      hour: "date_format(`order_date`, '%Y-%m-%d %H:00:00')",
+      day: "date_format(`order_date`, '%Y-%m-%d')",
+      week: 'date_sub(date(`order_date`), interval weekday(`order_date`) day)',
+      month: "date_format(`order_date`, '%Y-%m-01')",
+      quarter: 'date(makedate(year(`order_date`), 1) + interval (quarter(`order_date`) - 1) quarter)',
+      year: "date_format(`order_date`, '%Y-01-01')",
+    };
+    for (const [unit, needle] of Object.entries(expected)) {
+      const sql = bucketSql('mysql', unit);
+      expect(sql, `unit=${unit}`).toContain(needle);
+      expect(sql, `unit=${unit}`).not.toContain('date_trunc');
+    }
+  });
+
+  it('binds window bounds as UTC strings on mysql/sqlite (a Date crashes better-sqlite3)', () => {
+    for (const engine of ['mysql', 'sqlite'] as const) {
+      const params = compileWidgetQuery({
+        db: engine === 'mysql' ? mysqlDb : sqliteDb,
+        view,
+        dialect: engine,
+        descriptor: descriptor({
+          shape: 'metric+delta',
+          aggregations: [{ fn: 'count', alias: 'value' }],
+          window: { column: 'order_date', last: 30, unit: 'day', compareToPrior: true },
+        }),
+        canReadPii: false,
+        now: () => NOW,
+      }).query.compile().parameters;
+      // NOW = 2026-07-15T12:00:00Z, 30d back = 2026-06-15T12:00:00Z.
+      expect(params[0], engine).toBe('2026-06-15 12:00:00');
+      expect(params[1], engine).toBe('2026-07-15 12:00:00');
+      // Never a Date instance — the whole point of the fix.
+      expect(params.every((p) => !(p instanceof Date)), engine).toBe(true);
+    }
+  });
+
+  it('postgres still binds window bounds as Date objects (unchanged)', () => {
+    const params = compile({
+      shape: 'metric+delta',
+      aggregations: [{ fn: 'count', alias: 'value' }],
+      window: { column: 'order_date', last: 30, unit: 'day' },
+    }).query.compile().parameters;
+    expect(params[0]).toBeInstanceOf(Date);
+    expect(params[1]).toBeInstanceOf(Date);
   });
 });

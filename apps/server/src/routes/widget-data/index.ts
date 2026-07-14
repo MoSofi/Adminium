@@ -103,13 +103,14 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
       const hit = cache.get(key);
       if (hit !== undefined) return { result: hit as ShapedPayload, cached: true };
 
-      const { db } = await manager.data(connectionId);
+      const { db, dialect } = await manager.data(connectionId);
       const compiled = compileWidgetQuery({
         db,
         view,
         descriptor,
         params,
         canReadPii: unmasked,
+        dialect,
         now: deps.now,
       });
 
