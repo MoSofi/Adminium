@@ -83,6 +83,10 @@ export const connectionDto = z.object({
   snapshot: z
     .object({ id: z.string(), createdAt: z.number(), checksum: z.string() })
     .nullable(),
+  /** Included tables (settings allowlist, else the latest snapshot's model). */
+  tableCount: z.number().int().nullable(),
+  /** Generated pages owned by this connection (M5-T05 hub cards). */
+  pageCount: z.number().int(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

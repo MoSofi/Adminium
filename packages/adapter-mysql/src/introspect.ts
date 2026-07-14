@@ -14,6 +14,7 @@
  */
 import {
   AdapterError,
+  ENGINE_CAPABILITY_MATRIX,
   type AdapterCapabilities,
   type ColumnModel,
   type DatabaseModel,
@@ -43,19 +44,13 @@ export interface IntrospectContext {
   databaseName: string;
 }
 
-/** Static dialect capabilities — 05 §2.1 (probe refines per-connection). */
+/**
+ * Static dialect capabilities — 05 §2.1 (probe refines per-connection).
+ * Canonical values live in the engine's capability matrix (M9-T04) so the
+ * wizard's degradation copy and the adapter never disagree.
+ */
 export const MYSQL_CAPABILITIES: AdapterCapabilities = {
-  hasEnums: true, // column enums: enum('a','b') — 05 §2.1
-  hasFKs: true, // false per-table for MyISAM (warning emitted)
-  hasSchemas: false,
-  hasComments: true,
-  hasChecks: true, // 8.0.16+/10.2+ — feature-detected, degrades with a warning
-  hasRLS: false,
-  hasMaterializedViews: false,
-  hasRowEstimates: true, // TABLE_ROWS — InnoDB estimates drift, display with ≈
-  supportsStatementTimeout: true,
-  supportsReturning: false, // MySQL mutate re-selects; MariaDB 10.5+ detected at runtime
-  maxIdentifierLength: 64,
+  ...ENGINE_CAPABILITY_MATRIX.mysql,
 };
 
 // ---------------------------------------------------------------------------

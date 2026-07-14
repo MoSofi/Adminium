@@ -1,0 +1,15 @@
+{
+  "UNAUTHENTICATED": "Vous devez vous connecter pour continuer.",
+  "SESSION_EXPIRED": "Votre session a expiré. Reconnectez-vous pour continuer.",
+  "FORBIDDEN": "Vous n’avez pas la permission de faire cela.",
+  "NOT_FOUND": "Cette ressource n’existe pas ou a été supprimée.",
+  "CONFLICT": "Cette modification entre en conflit avec l’état actuel. Actualisez et réessayez.",
+  "UNIQUE_VIOLATION": "Cette valeur est déjà utilisée.",
+  "VALIDATION_FAILED": "Certains champs demandent votre attention avant l’enregistrement.",
+  "RATE_LIMITED": "Trop de requêtes — patientez un instant et réessayez.",
+  "PAYLOAD_TOO_LARGE": "Cette requête est trop volumineuse.",
+  "META_NOT_CONFIGURED": "Aucun méta-store n’est encore configuré.",
+  "CONNECTION_FAILED": "Adminium n’a pas pu joindre la base de données.",
+  "INTERNAL": "Une erreur s’est produite. Communiquez l’identifiant de requête au support.",
+  "OFFLINE": "Vous semblez être hors ligne. Reconnectez-vous pour continuer."
+}

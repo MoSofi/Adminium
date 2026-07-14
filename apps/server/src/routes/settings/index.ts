@@ -18,9 +18,12 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
+  settingsBrandingPutBody,
   settingsDefaultsPutBody,
   settingsDefaultsReply,
+  settingsWorkspaceReply,
   type SettingsDefaultsReply,
+  type SettingsWorkspaceReply,
 } from './schema.js';
 
 /** Realtime event type carried on the `config-changed` channel (§7.2). */
@@ -87,6 +90,12 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     return { data: { ...defaults, adoption } };
   }
 
+  /** Registry-backed workspace identity view (M5-T05). */
+  async function workspaceReply(): Promise<SettingsWorkspaceReply> {
+    const appName = await settings.get('branding.appName');
+    return { data: { branding: { appName } } };
+  }
+
   return async (app) => {
     app.get(
       '/settings/defaults',
@@ -131,6 +140,50 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         }
 
         return reply();
+      },
+    );
+
+    // --- workspace identity (M5-T05, sectioned puts per 08 §2.16) -------------
+    // Same conventions as /settings/defaults: Zod body, super-admin guard,
+    // audit with before/after images. No realtime broadcast — nothing in the
+    // bootstrap payload derives from this key yet. The `auth.*` security
+    // controls are deliberately not exposed until an auth flow enforces them
+    // (see schema.ts) — persisting inert security toggles is worse than absent.
+
+    app.get(
+      '/settings/workspace',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { response: { 200: settingsWorkspaceReply } },
+      },
+      async () => workspaceReply(),
+    );
+
+    app.put(
+      '/settings/branding',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { body: settingsBrandingPutBody, response: { 200: settingsWorkspaceReply } },
+      },
+      async (request) => {
+        const before = (await workspaceReply()).data.branding;
+        const at = app.rbac.now();
+        const actingUserId =
+          request.apiKeyPrincipal === null
+            ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
+            : null;
+        if (before.appName !== request.body.appName) {
+          await settings.set('branding.appName', request.body.appName, {
+            updatedBy: actingUserId,
+            at,
+          });
+        }
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'settings.branding.update',
+          changes: { before: { ...before }, after: { ...request.body } },
+        });
+        return workspaceReply();
       },
     );
   };

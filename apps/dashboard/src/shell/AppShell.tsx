@@ -22,6 +22,7 @@ import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
 import { t } from '../i18n/t.js';
+import { OnboardingEntry } from '../onboarding/OnboardingEntry.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { ShortcutsPanel } from './ShortcutsPanel.js';
 import { useShortcut, useShortcutManager } from './ShortcutsProvider.js';
@@ -170,6 +171,7 @@ export function AppShell() {
           onSignOut={signOut}
           onOpenAccount={() => void navigate({ to: '/account' })}
         />
+        <OnboardingEntry bootstrap={bootstrap} />
         <main className="min-h-0 flex-1">
           <Outlet />
         </main>

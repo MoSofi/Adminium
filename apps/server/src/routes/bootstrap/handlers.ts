@@ -40,8 +40,16 @@ function principal(request: FastifyRequest): User {
   return request.user;
 }
 
-/** Buckets page rows into the five fixed groups; empty groups are omitted. */
-export function buildNavTree(rows: readonly PageNavRow[]): {
+/**
+ * Buckets page rows into the five fixed groups; empty groups are omitted.
+ * `connectionNames` (id → display name) annotates every item with its owning
+ * connection so multi-connection sidebars can label generated groups
+ * unambiguously (M5-T05); with zero/one connection clients render flat.
+ */
+export function buildNavTree(
+  rows: readonly PageNavRow[],
+  connectionNames: ReadonlyMap<string, string> = new Map(),
+): {
   nav: BootstrapNavTree;
   configVersion: number;
 } {
@@ -64,6 +72,9 @@ export function buildNavTree(rows: readonly PageNavRow[]): {
       fallback: row.title,
       icon: row.icon ?? 'file',
       order: row.navOrder,
+      connectionId: row.connectionId,
+      connectionName:
+        row.connectionId === null ? null : (connectionNames.get(row.connectionId) ?? null),
     });
     buckets.set(group, items);
   }
@@ -84,14 +95,19 @@ export async function bootstrapHandler(
 ): Promise<BootstrapReply> {
   const user = principal(request);
 
-  const [roles, prefs, pageRows] = await Promise.all([
+  const [roles, prefs, pageRows, connectionRows] = await Promise.all([
     rolesRepo(ctx.meta).rolesForUser(user.id),
     userPrefsRepo(ctx.meta).resolve(user.id),
     // Shared query path with the generator wave (07 §3.16 pagesRepo).
     pagesRepo(ctx.meta).navRows(),
+    // Display names only — no DSN material (07 §3.13), so no crypto needed.
+    ctx.meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute(),
   ]);
 
-  const { nav, configVersion } = buildNavTree(pageRows);
+  const { nav, configVersion } = buildNavTree(
+    pageRows,
+    new Map(connectionRows.map((row) => [row.id, row.name])),
+  );
 
   return {
     data: {

@@ -1,10 +1,12 @@
 /**
- * Connect wizard component tests (M5-T01/02/03) — happy-dom, fetch mocked
- * like the sibling api tests (no msw): step navigation, source-mode
- * switching, DSN validation gating, schema-file parse preview + unsupported
- * copy, inclusion defaults (high-volume unchecked, join pre-hidden),
- * read-only meta gating, and the full connect → introspect → include →
- * meta → generate → success walk.
+ * Connect wizard component tests (M5-T01/02/03 + M9-T04) — happy-dom, fetch
+ * mocked like the sibling api tests (no msw): step navigation, source-mode
+ * switching, DSN validation gating, the engine picker (scheme sync, SQLite
+ * file-path form), the schema-file format picker (auto-detect + override
+ * re-parse), parse preview + parser warnings, capability degradation (file
+ * sources: notes in the log, — row counts), inclusion defaults (high-volume
+ * unchecked, join pre-hidden), read-only meta gating, and the full connect →
+ * introspect → include → meta → generate → success walk.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -192,6 +194,60 @@ describe('step navigation + source modes', () => {
   });
 });
 
+describe('engine picker (M9-T04)', () => {
+  async function toSource() {
+    scriptFetch();
+    renderWizard();
+    await userEvent.click(continueButton());
+  }
+
+  it('typing a mysql:// DSN drags the picker along; picking an engine rewrites the scheme', async () => {
+    await toSource();
+    const dsnInput = screen.getByPlaceholderText('postgres://user:password@host:5432/database');
+    await userEvent.type(dsnInput, 'mysql://ava@db.acme.io:3306/prod');
+    expect(screen.getByRole('radio', { name: 'MySQL / MariaDB' }).getAttribute('aria-checked')).toBe('true');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'PostgreSQL' }));
+    expect((dsnInput as HTMLInputElement).value).toBe('postgres://ava@db.acme.io:3306/prod');
+    expect(screen.getByRole('radio', { name: 'PostgreSQL' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('provider chips follow the engine — postgres row is postgres-relevant only', async () => {
+    await toSource();
+    expect(screen.getByRole('button', { name: 'Supabase' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'PlanetScale' })).toBeNull();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'MySQL / MariaDB' }));
+    expect(screen.queryByRole('button', { name: 'Supabase' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'PlanetScale' })).toBeDefined();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'SQLite' }));
+    expect(screen.queryByText('Quick fill:')).toBeNull();
+  });
+
+  it('SQLite in fields mode is a file-path form, not host/port', async () => {
+    await toSource();
+    await userEvent.type(screen.getByLabelText(/Connection name/), 'Local db');
+    await userEvent.click(screen.getByRole('radio', { name: 'Individual fields' }));
+    expect(screen.getByLabelText(/Host/)).toBeDefined();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'SQLite' }));
+    expect(screen.queryByLabelText(/Host/)).toBeNull();
+    expect(continueButton()).toHaveProperty('disabled', true);
+    await userEvent.type(screen.getByLabelText(/Database file path/), '/var/data/app.db');
+    expect(screen.getByText('sqlite:/var/data/app.db')).toBeDefined();
+    expect(continueButton()).toHaveProperty('disabled', false);
+  });
+
+  it('mysql fields form defaults the port to 3306 and hides the pg-only SSL select', async () => {
+    await toSource();
+    await userEvent.click(screen.getByRole('radio', { name: 'Individual fields' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'MySQL / MariaDB' }));
+    expect(screen.getByLabelText(/Port/)).toHaveProperty('value', '3306');
+    expect(screen.queryByLabelText(/SSL mode/)).toBeNull();
+  });
+});
+
 describe('schema-file mode', () => {
   async function toFileMode() {
     renderWizard();
@@ -199,7 +255,86 @@ describe('schema-file mode', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Schema file' }));
   }
 
-  it('parses a .sql upload and shows the preview counts', async () => {
+  const uploadInput = () =>
+    screen.getByText(/Drop your schema file here/).closest('button')!.nextElementSibling as HTMLInputElement;
+
+  it('parses a .sql upload with auto-detect and shows what was detected', async () => {
+    const { calls } = scriptFetch({
+      'POST /api/v1/schema-import/parse': () =>
+        jsonResponse(200, {
+          model: SCHEMA_MODEL,
+          format: 'sql-ddl',
+          warnings: ['orders.user_id: REFERENCES users points outside the file — relation dropped.'],
+          summary: { tables: 3, columns: 4, relations: 0, enums: 0 },
+        }),
+    });
+    await toFileMode();
+    expect(screen.getByLabelText('Schema format')).toHaveProperty('value', 'auto');
+    const file = new File(['CREATE TABLE customers (id int);'], 'acme_schema.sql', { type: 'application/sql' });
+    await userEvent.upload(uploadInput(), file);
+
+    await screen.findByText('acme_schema.sql');
+    // Auto-detect: no `format` in the request; the reply's format shows as "Detected".
+    const parse = calls.find((call) => call.url === '/api/v1/schema-import/parse');
+    expect(parse?.body).not.toHaveProperty('format');
+    expect(screen.getByText('Detected: SQL DDL / pg_dump')).toBeDefined();
+    expect(screen.getByText(/relation dropped/)).toBeDefined();
+    // Name auto-fills from the file stem → Continue unlocks.
+    await waitFor(() => expect(continueButton()).toHaveProperty('disabled', false));
+  });
+
+  it('format override re-parses the kept upload with the forced format', async () => {
+    const { calls } = scriptFetch({
+      'POST /api/v1/schema-import/parse': (call) => {
+        const body = call.body as { format?: string };
+        return jsonResponse(200, {
+          model: SCHEMA_MODEL,
+          format: body.format ?? 'sql-ddl',
+          warnings: [],
+          summary: { tables: 3, columns: 4, relations: 0, enums: 0 },
+        });
+      },
+    });
+    await toFileMode();
+    const file = new File(['model User { id Int @id }'], 'schema.prisma', { type: 'text/plain' });
+    const user = userEvent.setup({ applyAccept: false });
+    await user.upload(uploadInput(), file);
+    await screen.findByText('schema.prisma');
+
+    await user.selectOptions(screen.getByLabelText('Schema format'), 'prisma');
+    await waitFor(() =>
+      expect(calls.filter((call) => call.url === '/api/v1/schema-import/parse')).toHaveLength(2),
+    );
+    const parses = calls.filter((call) => call.url === '/api/v1/schema-import/parse');
+    expect(parses[1]?.body).toMatchObject({ format: 'prisma', fileName: 'schema.prisma' });
+    // Forced format renders as a plain tag (picker <option> + tag) — no "Detected:" prefix.
+    await waitFor(() => expect(screen.getAllByText('Prisma schema')).toHaveLength(2));
+    expect(screen.queryByText(/Detected:/)).toBeNull();
+  });
+
+  it('unrecognized format renders the pick-one-explicitly copy', async () => {
+    scriptFetch({
+      'POST /api/v1/schema-import/parse': () =>
+        jsonResponse(422, {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'The format could not be detected',
+            requestId: 'req_1',
+            details: { reason: 'UNSUPPORTED_FORMAT' },
+          },
+        }),
+    });
+    await toFileMode();
+    const file = new File(['~~~'], 'notes.txt', { type: 'text/plain' });
+    // applyAccept off: mimics drag-drop, which accepts any extension.
+    const user = userEvent.setup({ applyAccept: false });
+    await user.upload(uploadInput(), file);
+
+    await screen.findByText(/That format is not recognized — SQL DDL, Prisma/);
+    expect(continueButton()).toHaveProperty('disabled', true);
+  });
+
+  it('no-live-DB path (M9-T04): upload → analyze log with capability notes → — row counts', async () => {
     scriptFetch({
       'POST /api/v1/schema-import/parse': () =>
         jsonResponse(200, {
@@ -211,39 +346,27 @@ describe('schema-file mode', () => {
     });
     await toFileMode();
     const file = new File(['CREATE TABLE customers (id int);'], 'acme_schema.sql', { type: 'application/sql' });
-    await userEvent.upload(screen.getByText(/Drop your schema file here/).closest('button')!.nextElementSibling as HTMLInputElement, file);
-
+    await userEvent.upload(uploadInput(), file);
     await screen.findByText('acme_schema.sql');
-    expect(screen.getByText('sql-ddl')).toBeDefined();
-    expect(screen.getByText(/relation dropped/)).toBeDefined();
-    // Name auto-fills from the file stem → Continue unlocks.
     await waitFor(() => expect(continueButton()).toHaveProperty('disabled', false));
-  });
+    await userEvent.click(continueButton());
 
-  it('unsupported format renders the clear copy with the M9 note', async () => {
-    scriptFetch({
-      'POST /api/v1/schema-import/parse': () =>
-        jsonResponse(422, {
-          error: {
-            code: 'VALIDATION_FAILED',
-            message: "The 'prisma' format isn't supported yet",
-            requestId: 'req_1',
-            details: { reason: 'UNSUPPORTED_FORMAT' },
-          },
-        }),
-    });
-    await toFileMode();
-    const file = new File(['model User {}'], 'schema.prisma', { type: 'text/plain' });
-    // applyAccept off: mimics drag-drop, which accepts any extension.
-    const user = userEvent.setup({ applyAccept: false });
-    await user.upload(
-      screen.getByText(/Drop your schema file here/).closest('button')!.nextElementSibling as HTMLInputElement,
-      file,
-    );
+    // Analyze step replays the preview, surfaces parser warnings and the
+    // import degradation notes — honestly, before Ready.
+    await screen.findByText('Detected 3 tables · 4 columns');
+    expect(screen.getByText(/relation dropped/)).toBeDefined();
+    await screen.findByText(/Schema files carry no row counts/);
+    expect(screen.getByText(/health checks and schema-drift detection are unavailable/)).toBeDefined();
+    await screen.findByText('Ready');
+    await waitFor(() => expect(continueButton()).toHaveProperty('disabled', false));
+    await userEvent.click(continueButton());
 
-    await screen.findByText(/isn't supported yet — \.sql and \.json work today/);
-    expect(screen.getByText(/land in M9/)).toBeDefined();
-    expect(continueButton()).toHaveProperty('disabled', true);
+    // Tables step: parsed tables listed from memory, row counts degrade to —
+    // (no live database) instead of repeating the parsed-model estimates.
+    await screen.findByText('public.customers');
+    expect(screen.queryByText('1,200')).toBeNull();
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText(/Schema files carry no row counts — the column shows/)).toBeDefined();
   });
 });
 

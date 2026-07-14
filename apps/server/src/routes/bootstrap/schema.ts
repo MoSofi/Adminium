@@ -33,6 +33,10 @@ export const bootstrapNavItem = z.object({
   /** Live badge source, resolved over WS (client concern). */
   badge: z.enum(['unread-count', 'pending-count']).optional(),
   order: z.number(),
+  /** Owning connection (M5-T05): with 2+ connections the sidebar groups
+   *  generated items under the connection's display name. Null = shared. */
+  connectionId: z.string().nullable(),
+  connectionName: z.string().nullable(),
 });
 export type BootstrapNavItem = z.infer<typeof bootstrapNavItem>;
 

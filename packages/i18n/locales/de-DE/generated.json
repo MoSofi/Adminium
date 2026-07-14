@@ -1,0 +1,10 @@
+{
+  "app": {
+    "title": "Dashboard"
+  },
+  "widget": {
+    "loading": "Widget wird geladen…",
+    "error": "Dieses Widget konnte nicht geladen werden",
+    "empty": "Keine Daten für diesen Zeitraum"
+  }
+}

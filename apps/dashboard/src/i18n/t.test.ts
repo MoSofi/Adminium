@@ -65,10 +65,33 @@ describe.skipIf(i18nRuntime === null)('t() backed by the real i18next runtime', 
     expect(t('account.preferences.title', 'x')).toBe('Preferences');
   });
 
-  it('falls back to en-US resources for locales without bundles yet', async () => {
+  it('loads real locale bundles through the package lazy loader (M8-T02)', async () => {
     const { initDashboardI18n } = await import('./setup.js');
     const i18n = await initDashboardI18n({ locale: 'de_DE' });
     expect(i18n.language).toBe('de-DE');
+    expect(t('account.title', 'x')).toBe('Konto');
+    expect(t('ui:action.cancel', 'x')).toBe('Abbrechen');
+  });
+
+  it('serves all 8 locales, including RTL Arabic and distinct zh variants', async () => {
+    const { initDashboardI18n } = await import('./setup.js');
+    const ar = await initDashboardI18n({ locale: 'ar_EG' });
+    expect(ar.language).toBe('ar-EG');
+    expect(t('account.title', 'x')).toBe('الحساب');
+    await initDashboardI18n({ locale: 'zh_CN' });
+    expect(t('generated:app.title', 'x')).toBe('仪表盘');
+    await initDashboardI18n({ locale: 'zh_TW' });
+    expect(t('generated:app.title', 'x')).toBe('儀表板');
+  });
+
+  it('still falls back to en-US for keys a locale bundle lacks', async () => {
+    setI18nInstance(
+      await i18nRuntime!.createI18n({
+        locale: 'de_DE',
+        loadBundle: async (tag, ns) => (ns === 'common' ? null : i18nRuntime!.loadLocaleBundle(tag, ns)),
+      }),
+    );
     expect(t('account.title', 'x')).toBe('Account');
+    expect(t('ui:action.cancel', 'x')).toBe('Abbrechen');
   });
 });

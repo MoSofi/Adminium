@@ -25,12 +25,16 @@ export function invalidateForRealtimeEvent(queryClient: QueryClient, event: Real
     // are untouched — this event never changes page configs.
     void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
     void queryClient.invalidateQueries({ queryKey: ['settings', 'defaults'] });
+    // The "Set workspace defaults" onboarding step derives from this.
+    void queryClient.invalidateQueries({ queryKey: ['onboarding'] });
     return;
   }
 
   if (event.channel === 'config-changed') {
     void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
     void queryClient.invalidateQueries({ queryKey: ['page'] });
+    // Connecting/generating changes the reactive onboarding checklist too.
+    void queryClient.invalidateQueries({ queryKey: ['onboarding'] });
     return;
   }
 

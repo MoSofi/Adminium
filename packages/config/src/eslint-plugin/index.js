@@ -1,3 +1,4 @@
+import noPhysicalDirectionClasses from './no-physical-direction-classes.js';
 import noStyleProp from './no-style-prop.js';
 
 /**
@@ -11,6 +12,7 @@ const plugin = {
   },
   rules: {
     'no-style-prop': noStyleProp,
+    'no-physical-direction-classes': noPhysicalDirectionClasses,
   },
 };
 

@@ -122,6 +122,8 @@ const [
   { pagesRoutes },
   { widgetDataRoutes },
   { settingsRoutes },
+  { viewsRoutes },
+  { onboardingRoutes },
   { UndoStore },
   meta_,
   { adapterRegistry },
@@ -143,6 +145,8 @@ const [
   import(distUrl('routes/pages/index.js')),
   import(distUrl('routes/widget-data/index.js')),
   import(distUrl('routes/settings/index.js')),
+  import(distUrl('routes/views/index.js')),
+  import(distUrl('routes/onboarding/index.js')),
   import(distUrl('crud/undo.js')),
   import('@adminium/meta'),
   import('@adminium/engine/adapter'),
@@ -229,6 +233,8 @@ try {
         await api.register(pagesRoutes({ meta }));
         await api.register(widgetDataRoutes({ manager, meta }));
         await api.register(settingsRoutes({ meta }));
+        await api.register(viewsRoutes({ meta }));
+        await api.register(onboardingRoutes({ meta }));
       },
       { prefix: '/api/v1' },
     );

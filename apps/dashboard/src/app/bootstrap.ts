@@ -40,6 +40,12 @@ export interface NavItem {
   icon: string;
   badge?: 'unread-count' | 'pending-count';
   order: number;
+  /**
+   * Owning connection (M5-T05): with 2+ connections the sidebar sub-labels
+   * items by connection display name. Optional — older fixtures omit it.
+   */
+  connectionId?: string | null;
+  connectionName?: string | null;
 }
 
 export interface NavTree {

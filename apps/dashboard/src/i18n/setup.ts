@@ -11,34 +11,17 @@
 import {
   createI18n,
   isLocaleId,
+  loadLocaleBundle,
   localeFromTag,
   switchLocale,
   tagForLocale,
   type I18nInstance,
   type LocaleId,
-  type Namespace,
-  type ResourceBundle,
 } from '@adminium/i18n';
 import { STORAGE_KEYS } from '@adminium/tokens';
 import { subscribeTheme } from '@adminium/ui';
 
 import { setI18nInstance } from './t.js';
-
-/**
- * Per-locale/namespace lazy loaders. Literal dynamic imports so Vite splits
- * one chunk per bundle. Non-English bundles land with the MT bootstrap
- * (10-T14) — register their loaders here as the JSON files appear; a missing
- * entry resolves `null` and the key falls back to en-US (§7.5 step 2).
- */
-const BUNDLE_LOADERS: Readonly<Record<string, () => Promise<{ default: ResourceBundle }>>> = {
-  // e.g. 'de-DE/common': () => import('@adminium/i18n/locales/de-DE/common.json'),
-};
-
-async function loadBundle(tag: string, ns: Namespace): Promise<{ default: ResourceBundle } | null> {
-  const loader = BUNDLE_LOADERS[`${tag}/${ns}`];
-  if (loader === undefined) return null;
-  return loader();
-}
 
 /** The locale the pre-hydration script painted with (localStorage cache). */
 function cachedLocale(): LocaleId {
@@ -63,7 +46,11 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
 
   const ready = createI18n({
     locale,
-    loadBundle,
+    // All 7 non-English locales load through @adminium/i18n's lazy loader:
+    // literal dynamic imports inside the package, so Vite splits one chunk
+    // per locale/namespace pair and an en_US user downloads no other
+    // locale's strings. Unknown pairs resolve `null` → en-US fallback.
+    loadBundle: loadLocaleBundle,
     ...(import.meta.env.DEV
       ? {
           onMissingKey: (lng: string, ns: string, key: string) => {
@@ -83,7 +70,7 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
     }),
   ]).then(async (instance) => {
     if (instance !== null) return instance;
-    const enUs = await createI18n({ locale: 'en_US', loadBundle });
+    const enUs = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
     void ready.then(async (late) => {
       // The capped instance finished loading — swap languages in place.
       await switchLocale(enUs, localeFromTag(late.language));

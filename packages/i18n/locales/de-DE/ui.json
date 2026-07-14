@@ -1,0 +1,56 @@
+{
+  "action": {
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "save": "Speichern",
+    "apply": "Anwenden",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "undo": "Rückgängig",
+    "retry": "Erneut versuchen",
+    "clear": "Leeren",
+    "selectAll": "Alle auswählen",
+    "clearSelection": "Auswahl aufheben",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen",
+    "reveal": "Einblenden",
+    "hide": "Ausblenden"
+  },
+  "state": {
+    "loading": "Wird geladen…",
+    "empty": "Noch nichts vorhanden",
+    "noResults": "Keine Ergebnisse",
+    "optional": "Optional",
+    "required": "Erforderlich",
+    "error": "Etwas ist schiefgelaufen"
+  },
+  "pagination": {
+    "previous": "Zurück",
+    "next": "Weiter",
+    "pageOf": "Seite {page, number} von {pages, number}",
+    "rowsPerPage": "Zeilen pro Seite",
+    "range": "{from, number}–{to, number} von {total, number}"
+  },
+  "table": {
+    "sortAscending": "Aufsteigend sortieren",
+    "sortDescending": "Absteigend sortieren",
+    "rowActions": "Zeilenaktionen",
+    "selectRow": "Zeile auswählen",
+    "selectAllRows": "Alle Zeilen auswählen"
+  },
+  "dialog": {
+    "close": "Dialog schließen",
+    "confirmTitle": "Sind Sie sicher?"
+  },
+  "combobox": {
+    "placeholder": "Auswählen…",
+    "search": "Suchen…",
+    "noMatches": "Keine Treffer"
+  },
+  "toast": {
+    "dismiss": "Benachrichtigung schließen"
+  }
+}

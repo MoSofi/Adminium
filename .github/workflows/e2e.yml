@@ -1,16 +1,210 @@
 name: e2e
 
-# Stub. Filled in at M4+ (workplan/01-architecture.md §11, task 01-T10):
-# Playwright against the built server + dashboard on the sqlite / postgres:16 /
-# mysql:8.4 service-container matrix, seeded demo data, trace upload on failure.
+# M9-T05 / 01-T10: Playwright against the BUILT server + dashboard on the
+# 3-engine matrix — sqlite (plain), postgres:16 and mysql:8.4 as service
+# containers — seeded Northwind demo data, traces uploaded on failure only.
+# Three explicit jobs (not a matrix) because service containers cannot be
+# declared conditionally per matrix leg.
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 3 * * *' # nightly
   workflow_dispatch:
 
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+
 jobs:
-  placeholder:
-    name: placeholder
+  sqlite:
+    name: sqlite
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: Explain stub
-        run: echo "e2e.yml is a stub. It is implemented in milestone M4+ (task 01-T10) — Playwright suite on the sqlite/postgres/mysql matrix."
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright chromium
+        run: pnpm --filter @adminium/e2e exec playwright install --with-deps chromium
+
+      - name: Build + run e2e (sqlite)
+        run: pnpm turbo run e2e --filter=@adminium/e2e
+        env:
+          E2E_ENGINE: sqlite
+
+      - name: Upload traces and report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-sqlite-artifacts
+          path: |
+            apps/e2e/test-results/
+            apps/e2e/playwright-report/
+          retention-days: 7
+
+  postgres:
+    name: postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright chromium
+        run: pnpm --filter @adminium/e2e exec playwright install --with-deps chromium
+
+      - name: Build + run e2e (postgres)
+        run: pnpm turbo run e2e --filter=@adminium/e2e
+        env:
+          E2E_ENGINE: postgres
+          TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+
+      - name: Upload traces and report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-postgres-artifacts
+          path: |
+            apps/e2e/test-results/
+            apps/e2e/playwright-report/
+          retention-days: 7
+
+  mysql:
+    name: mysql
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Restore turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright chromium
+        run: pnpm --filter @adminium/e2e exec playwright install --with-deps chromium
+
+      - name: Build + run e2e (mysql)
+        run: pnpm turbo run e2e --filter=@adminium/e2e
+        env:
+          E2E_ENGINE: mysql
+          TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306
+
+      - name: Upload traces and report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-mysql-artifacts
+          path: |
+            apps/e2e/test-results/
+            apps/e2e/playwright-report/
+          retention-days: 7

@@ -101,6 +101,7 @@ export {
 export { SkeletonSilhouette, type SkeletonSilhouetteProps } from './frame/SkeletonSilhouette.js';
 export { WidgetErrorBoundary, type WidgetErrorBoundaryProps } from './frame/WidgetErrorBoundary.js';
 export { WidgetHost, type WidgetDataState, type WidgetHostProps } from './frame/WidgetHost.js';
+export { ChartDirectionBridge, type ChartDirectionBridgeProps } from './frame/ChartDirectionBridge.js';
 
 // Tables family — standalone components + column-spec vocabulary (M4-T03).
 // `tablesWidgetDefinitions` is registry metadata; component exports here are

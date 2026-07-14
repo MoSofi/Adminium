@@ -1,3 +1,4 @@
+import { getFormatters } from '@adminium/i18n';
 import { IconButton, MonoText, Select } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -24,6 +25,8 @@ export interface PaginationFooterProps {
   pageSizeOptions?: readonly number[] | undefined;
   onPageSizeChange: (size: number) => void;
   disabled?: boolean | undefined;
+  /** BCP-47 tag for the mono range counts (data context → latn digits). */
+  locale?: string | undefined;
   labels?:
     | {
         prev?: string | undefined;
@@ -38,8 +41,6 @@ export interface PaginationFooterProps {
   testId?: string | undefined;
 }
 
-const numberFormat = new Intl.NumberFormat('en-US');
-
 export function PaginationFooter({
   rangeStart,
   rangeEnd,
@@ -52,14 +53,17 @@ export function PaginationFooter({
   pageSizeOptions = PAGE_SIZE_OPTIONS,
   onPageSizeChange,
   disabled = false,
+  locale,
   labels,
   testId,
 }: PaginationFooterProps) {
+  // Mono range counts render in data context (latn digits, aligned in ar_EG).
+  const fmt = getFormatters(locale ?? 'en-US');
   const empty = rangeEnd === 0;
   const rangeText = empty
     ? (labels?.empty ?? '0 rows')
-    : `${numberFormat.format(rangeStart)}–${numberFormat.format(rangeEnd)}${
-        total === null || total === undefined ? '' : ` ${labels?.of ?? 'of'} ${numberFormat.format(total)}`
+    : `${fmt.number(rangeStart)}–${fmt.number(rangeEnd)}${
+        total === null || total === undefined ? '' : ` ${labels?.of ?? 'of'} ${fmt.number(total)}`
       }`;
 
   return (
@@ -95,7 +99,7 @@ export function PaginationFooter({
             disabled={disabled || !hasPrev}
             onClick={onPrev}
           >
-            <ChevronLeft className="size-3.5" />
+            <ChevronLeft className="size-3.5 rtl:-scale-x-100" />
           </IconButton>
           <IconButton
             size="sm"
@@ -103,7 +107,7 @@ export function PaginationFooter({
             disabled={disabled || !hasNext}
             onClick={onNext}
           >
-            <ChevronRight className="size-3.5" />
+            <ChevronRight className="size-3.5 rtl:-scale-x-100" />
           </IconButton>
         </div>
       </div>

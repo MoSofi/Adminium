@@ -1,0 +1,56 @@
+{
+  "action": {
+    "close": "关闭",
+    "cancel": "取消",
+    "confirm": "确认",
+    "save": "保存",
+    "apply": "应用",
+    "delete": "删除",
+    "edit": "编辑",
+    "copy": "复制",
+    "copied": "已复制",
+    "undo": "撤销",
+    "retry": "重试",
+    "clear": "清除",
+    "selectAll": "全选",
+    "clearSelection": "清除所选",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码",
+    "reveal": "显示",
+    "hide": "隐藏"
+  },
+  "state": {
+    "loading": "加载中…",
+    "empty": "这里还没有内容",
+    "noResults": "没有结果",
+    "optional": "可选",
+    "required": "必填",
+    "error": "出错了"
+  },
+  "pagination": {
+    "previous": "上一页",
+    "next": "下一页",
+    "pageOf": "第 {page, number} 页，共 {pages, number} 页",
+    "rowsPerPage": "每页行数",
+    "range": "第 {from, number}–{to, number} 条，共 {total, number} 条"
+  },
+  "table": {
+    "sortAscending": "升序排序",
+    "sortDescending": "降序排序",
+    "rowActions": "行操作",
+    "selectRow": "选择此行",
+    "selectAllRows": "选择所有行"
+  },
+  "dialog": {
+    "close": "关闭对话框",
+    "confirmTitle": "确定要继续吗？"
+  },
+  "combobox": {
+    "placeholder": "请选择…",
+    "search": "搜索…",
+    "noMatches": "无匹配项"
+  },
+  "toast": {
+    "dismiss": "关闭通知"
+  }
+}

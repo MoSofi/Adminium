@@ -7,7 +7,12 @@
  * the staged script. AdapterError codes map to remediation hints.
  *
  * Schema-file mode has no live database: the parse-variant script replays
- * the step-2 preview and completes locally.
+ * the step-2 preview (including parser warnings) and completes locally.
+ *
+ * M9-T04: per-engine capability degradation is narrated honestly — the log
+ * ends with the engine's caveats (MySQL ≈ row estimates and weaker FK/enum
+ * metadata, SQLite CHECK-enum synthesis, schema files' missing live signals)
+ * straight from the @adminium/engine capability matrix.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button } from '@adminium/ui';
@@ -15,6 +20,7 @@ import { Alert, Button } from '@adminium/ui';
 import { ApiError } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
 import { studioApi, type SchemaTable } from '../../api.js';
+import { capabilityNotes, wizardCapabilitySource } from '../capabilityNotes.js';
 import { LogConsole, type LogLine } from '../LogConsole.js';
 import { effectiveDsn, effectiveEngine, hintForErrorCode, type WizardState } from '../wizardState.js';
 
@@ -64,6 +70,15 @@ export function TestStep({
     onStatus('error');
   };
 
+  /** Parser warnings shown inline in the log before it gets noisy. */
+  const MAX_WARNING_LINES = 10;
+
+  function pushCapabilityNotes(): void {
+    for (const note of capabilityNotes(wizardCapabilitySource(state))) {
+      push('info', note);
+    }
+  }
+
   async function runFileScript(): Promise<void> {
     const preview = state.filePreview;
     if (preview === null) return;
@@ -78,6 +93,19 @@ export function TestStep({
         .replace('{columns}', String(preview.columns)),
     );
     await wait(lineDelayMs);
+    for (const warning of preview.warnings.slice(0, MAX_WARNING_LINES)) {
+      push('warn', warning);
+    }
+    if (preview.warnings.length > MAX_WARNING_LINES) {
+      push(
+        'warn',
+        t('studio.test.log.moreWarnings', '+{count} more parser warnings').replace(
+          '{count}',
+          String(preview.warnings.length - MAX_WARNING_LINES),
+        ),
+      );
+    }
+    pushCapabilityNotes();
     push('ok', t('studio.test.log.ready', 'Ready'));
     onStatus('done');
   }
@@ -108,6 +136,7 @@ export function TestStep({
             String(proposedMasks),
           ),
     );
+    pushCapabilityNotes();
     push('ok', t('studio.test.log.ready', 'Ready'));
     onStatus('done');
   }

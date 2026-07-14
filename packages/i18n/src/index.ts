@@ -22,6 +22,7 @@ export type { BundleLoader, CreateI18nOptions, I18nInstance } from './create-i18
 
 export { EN_US_RESOURCES, NAMESPACES } from './resources/index.js';
 export type { Namespace, ResourceBundle } from './resources/index.js';
+export { loadLocaleBundle } from './resources/lazy.js';
 
-export { getFormatters, weekInfo } from './format/index.js';
+export { getFormatters, latnDataTag, weekInfo } from './format/index.js';
 export type { FmtContext, Formatters, WeekInfo } from './format/index.js';

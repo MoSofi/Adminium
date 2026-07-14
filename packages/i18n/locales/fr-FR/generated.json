@@ -1,0 +1,10 @@
+{
+  "app": {
+    "title": "Tableau de bord"
+  },
+  "widget": {
+    "loading": "Chargement du widget…",
+    "error": "Ce widget n’a pas pu se charger",
+    "empty": "Aucune donnée pour cette période"
+  }
+}

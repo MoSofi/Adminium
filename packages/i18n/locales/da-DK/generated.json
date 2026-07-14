@@ -1,0 +1,10 @@
+{
+  "app": {
+    "title": "Dashboard"
+  },
+  "widget": {
+    "loading": "Indlæser widget…",
+    "error": "Denne widget kunne ikke indlæses",
+    "empty": "Ingen data for denne periode"
+  }
+}

@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 import adminium from '../src/eslint-plugin/index.js';
+import { PHYSICAL_DIRECTION_ALLOWLIST } from './physical-direction-allowlist.js';
 
 /**
  * Shared ESLint flat config for every Adminium workspace package.
@@ -51,16 +52,15 @@ export default tseslint.config(
     rules: {
       'adminium/no-style-prop': 'error',
       // Physical-direction Tailwind utilities break RTL; use logical
-      // counterparts (ms-/me-/ps-/pe-/start-/end-/text-start/text-end)
-      // per 02-design-system.md §3.2/§8.
-      'no-restricted-syntax': [
+      // counterparts (ms-/me-/ps-/pe-/start-/end-/border-s-/border-e-/
+      // rounded-s-/rounded-e-/text-start/text-end) per 10-i18n-theming.md §5.2.
+      // Covers ml/mr/pl/pr/left/right/border-l/border-r/rounded-l/rounded-r/
+      // rounded-corner/text-left/text-right, including under variant prefixes
+      // (`rtl:ml-2`) and inside template literals; justified physical cases go
+      // on the reviewed allowlist file.
+      'adminium/no-physical-direction-classes': [
         'error',
-        {
-          selector:
-            'Literal[value=/(^|\\s)(-?(ml|mr|pl|pr|left|right)-|text-left(\\s|$)|text-right(\\s|$))/]',
-          message:
-            'Physical-direction Tailwind utility — use the logical equivalent (ms-/me-/ps-/pe-/start-/end-/text-start/text-end) per 02-design-system.md §3.2.',
-        },
+        { allow: PHYSICAL_DIRECTION_ALLOWLIST },
       ],
     },
   },

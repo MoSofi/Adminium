@@ -12,6 +12,7 @@
  */
 import {
   AdapterError,
+  ENGINE_CAPABILITY_MATRIX,
   type AdapterCapabilities,
   type ColumnModel,
   type DatabaseModel,
@@ -42,19 +43,13 @@ export interface IntrospectContext {
   databaseName: string;
 }
 
-/** Static dialect capabilities — 05 §2.1 (probe refines per-connection). */
+/**
+ * Static dialect capabilities — 05 §2.1 (probe refines per-connection).
+ * Canonical values live in the engine's capability matrix (M9-T04) so the
+ * wizard's degradation copy and the adapter never disagree.
+ */
 export const POSTGRES_CAPABILITIES: AdapterCapabilities = {
-  hasEnums: true,
-  hasFKs: true,
-  hasSchemas: true,
-  hasComments: true,
-  hasChecks: true,
-  hasRLS: true,
-  hasMaterializedViews: true,
-  hasRowEstimates: true,
-  supportsStatementTimeout: true,
-  supportsReturning: true,
-  maxIdentifierLength: 63,
+  ...ENGINE_CAPABILITY_MATRIX.postgres,
 };
 
 /**

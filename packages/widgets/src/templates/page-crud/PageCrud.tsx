@@ -18,8 +18,9 @@ import {
   useModalFlow,
   useToastQueue,
 } from '@adminium/ui';
+import { getFormatters } from '@adminium/i18n';
 import { Plus } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { RecordDetail } from './RecordDetail.js';
 import { RecordForm } from './RecordForm.js';
@@ -72,6 +73,18 @@ export interface PageCrudLabels {
   close?: string | undefined;
 }
 
+/**
+ * The saved-view-relevant slice of the toolbar query state (M5-T06). The host
+ * serializes this into `adminium_views.config` and restores it via the initial
+ * props (`initialSearch`/`defaultSort`/`initialFilters`/`pageSize`) on remount.
+ */
+export interface PageCrudGridState {
+  search: string;
+  sort: CrudSort | null;
+  filters: CrudFilterCondition[];
+  pageSize: number;
+}
+
 export interface PageCrudProps {
   api: CrudApi;
   columns: readonly GridColumnSpec[];
@@ -83,6 +96,12 @@ export interface PageCrudProps {
   defaultSort?: CrudSort | null | undefined;
   /** Seeded filter conditions (chips scaffold). */
   initialFilters?: readonly CrudFilterCondition[] | undefined;
+  /** Seeded toolbar search text (saved-view restore). */
+  initialSearch?: string | undefined;
+  /** Rendered at the start of the toolbar — e.g. the saved-views switcher. */
+  toolbarAccessory?: ReactNode | undefined;
+  /** Notified whenever the saved-view-relevant query state changes. */
+  onGridStateChange?: ((state: PageCrudGridState) => void) | undefined;
   canCreate?: boolean | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
@@ -144,6 +163,9 @@ export function PageCrud({
   pageSize: initialPageSize = 50,
   defaultSort = null,
   initialFilters = [],
+  initialSearch = '',
+  toolbarAccessory,
+  onGridStateChange,
   canCreate = true,
   canUpdate = true,
   canDelete = true,
@@ -160,8 +182,8 @@ export function PageCrud({
   const queue = useToastQueue();
 
   // --- query state -----------------------------------------------------------
-  const [search, setSearch] = useState('');
-  const [q, setQ] = useState('');
+  const [search, setSearch] = useState(initialSearch);
+  const [q, setQ] = useState(initialSearch);
   const [sort, setSort] = useState<CrudSort | null>(defaultSort);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [filters, setFilters] = useState<readonly CrudFilterCondition[]>(initialFilters);
@@ -195,6 +217,13 @@ export function PageCrud({
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Report the saved-view-relevant query state so the host can persist a view
+  // from the current grid (M5-T06). Pagination cursor is intentionally excluded
+  // — a view restores a query, not a scroll position.
+  useEffect(() => {
+    onGridStateChange?.({ search, sort, filters: [...filters], pageSize });
+  }, [onGridStateChange, search, sort, filters, pageSize]);
 
   // Main list load (keyset mode).
   useEffect(() => {
@@ -410,7 +439,7 @@ export function PageCrud({
   const selectedIds = useMemo(() => [...selected], [selected]);
   const rangeStart = list.rows.length === 0 ? 0 : cursorStack.length * pageSize + 1;
   const rangeEnd = cursorStack.length * pageSize + list.rows.length;
-  const numberFormat = useMemo(() => new Intl.NumberFormat(locale ?? 'en-US'), [locale]);
+  const numberFormat = useMemo(() => getFormatters(locale ?? 'en-US'), [locale]);
 
   return (
     <div data-part="page-crud" data-testid={testId} className="flex h-full min-h-0 flex-col">
@@ -430,6 +459,7 @@ export function PageCrud({
           />
         ) : (
           <>
+            {toolbarAccessory}
             <SearchInput
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -518,6 +548,7 @@ export function PageCrud({
           </div>
         )}
         <PaginationFooter
+          {...(locale === undefined ? {} : { locale })}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
           total={total}
@@ -572,7 +603,7 @@ export function PageCrud({
             uniqueHelper={() =>
               total === null
                 ? `Must be unique in ${source.table}.`
-                : `Checked against ${numberFormat.format(total)} rows.`
+                : `Checked against ${numberFormat.number(total)} rows.`
             }
             footer={
               <div className="flex justify-end gap-2 pt-1">

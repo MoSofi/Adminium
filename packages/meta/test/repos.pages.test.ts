@@ -141,7 +141,27 @@ for (const dialect of TEST_DIALECTS) {
       const dashboard = rows.find((r) => r.slug === 'dashboard');
       expect(dashboard?.navGroup).toBe('workspace');
       expect(dashboard?.navOrder).toBe(10);
+      // Owning connection rides along (multi-connection nav labels, M5-T05).
+      expect(dashboard?.connectionId).toBe(connectionId);
       expect(await repo.configVersion()).toBe(5_000);
+    });
+
+    it('countGeneratedByConnection groups generated rows, skipping user pages', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(connectionId, [crudPage('customers'), crudPage('orders')]);
+      // Non-generated origin on the same connection must not count.
+      await repo.create({
+        connectionId,
+        slug: 'hand-made',
+        type: 'page-crud',
+        title: 'Hand made',
+        config: { v: 1 },
+        origin: 'user',
+      });
+      // Connection-less page (utility/system) never counts either.
+      await repo.create({ slug: 'about', type: 'page-crud', title: 'About', config: { v: 1 } });
+
+      expect(await repo.countGeneratedByConnection()).toEqual({ [connectionId]: 2 });
     });
 
     it('round-trips config JSON and lists pages in nav order', async () => {

@@ -4,6 +4,8 @@
  * Conventions — numbers/dates via `Intl`). Pure module: no React, no DOM.
  */
 
+import { getFormatters } from '@adminium/i18n';
+
 import type { WidgetSharedConfig } from '../registry/shared-config.js';
 
 export type MetricFormat = 'plain' | 'compact' | 'currency' | 'percent' | 'duration';
@@ -42,25 +44,27 @@ export function formatMetricValue(
   format: MetricFormat = 'plain',
   opts: MetricFormatOptions = {},
 ): string {
-  const locale = opts.locale;
+  // Metric values are mono/KPI cells → data context (latn digits, aligned in
+  // every locale incl. ar_EG) via the @adminium/i18n format layer (§4.2).
+  const fmt = getFormatters(opts.locale ?? 'en-US');
   switch (format) {
     case 'compact':
-      return new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+      return fmt.number(value, { notation: 'compact', maximumFractionDigits: 1 });
     case 'currency': {
       const compact = Math.abs(value) >= 100_000;
-      return new Intl.NumberFormat(locale, {
+      return fmt.number(value, {
         style: 'currency',
         currency: opts.currency ?? 'USD',
         notation: compact ? 'compact' : 'standard',
         maximumFractionDigits: compact ? 1 : Math.abs(value) >= 1000 ? 0 : 2,
-      }).format(value);
+      });
     }
     case 'percent':
-      return new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(value);
+      return fmt.number(value, { style: 'percent', maximumFractionDigits: 1 });
     case 'duration':
       return formatDuration(value);
     case 'plain':
-      return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
+      return fmt.number(value, { maximumFractionDigits: 2 });
   }
 }
 
@@ -97,11 +101,11 @@ export function computeDelta(
   if (pct === undefined) return null;
   const trend: DeltaInfo['trend'] = Math.abs(pct) < FLAT_EPSILON ? 'flat' : pct > 0 ? 'up' : 'down';
   if (mode === 'pct') {
-    const text = new Intl.NumberFormat(opts.locale, {
+    const text = getFormatters(opts.locale ?? 'en-US').number(pct, {
       style: 'percent',
       maximumFractionDigits: 1,
       signDisplay: 'exceptZero',
-    }).format(pct);
+    });
     return { trend, text, pct };
   }
   const diff = data.prior === undefined ? data.value * pct : data.value - data.prior;

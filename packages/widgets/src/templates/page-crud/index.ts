@@ -37,6 +37,7 @@ export {
   PAGE_CRUD_TEMPLATE_ID,
   PageCrud,
   SEARCH_DEBOUNCE_MS,
+  type PageCrudGridState,
   type PageCrudLabels,
   type PageCrudProps,
 } from './PageCrud.js';

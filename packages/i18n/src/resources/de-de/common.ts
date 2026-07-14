@@ -1,0 +1,466 @@
+/**
+ * GENERATED MIRROR of ../../../locales/de-DE/common.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
+ * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "common": {
+    "dismiss": "Schließen",
+    "notifications": "Benachrichtigungen",
+    "retry": "Erneut versuchen",
+    "undo": "Rückgängig",
+    "close": "Schließen",
+    "cancel": "Abbrechen"
+  },
+  "auth": {
+    "headline": "Machen Sie aus jeder Datenbank ein Dashboard.",
+    "trust": "AGPL-Kern · Selbst gehostet · Ihre Daten bleiben Ihre",
+    "signIn": {
+      "title": "Willkommen zurück",
+      "subtitle": "Melden Sie sich in Ihrem Adminium-Workspace an.",
+      "email": "E-Mail",
+      "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein.",
+      "password": "Passwort",
+      "passwordRequired": "Geben Sie Ihr Passwort ein.",
+      "showPassword": "Passwort anzeigen",
+      "hidePassword": "Passwort verbergen",
+      "remember": "Angemeldet bleiben",
+      "forgot": "Vergessen?",
+      "submit": "Anmelden",
+      "invalid": "E-Mail oder Passwort ist ungültig.",
+      "rateLimited": "Zu viele Versuche — versuchen Sie es in einer Minute erneut.",
+      "failed": "Anmeldung fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "forgot": {
+      "title": "Passwort zurücksetzen",
+      "email": "E-Mail",
+      "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein.",
+      "submit": "Link zum Zurücksetzen senden",
+      "sentTitle": "Prüfen Sie Ihr E-Mail-Postfach",
+      "resend": "Erneut senden",
+      "back": "Zurück zur Anmeldung",
+      "done": "Zurück zur Anmeldung",
+      "rateLimited": "Zu viele Anfragen — versuchen Sie es später erneut.",
+      "failed": "Etwas ist schiefgelaufen. Versuchen Sie es erneut."
+    },
+    "reset": {
+      "title": "Neues Passwort festlegen",
+      "subtitle": "Mindestens 8 Zeichen.",
+      "password": "Neues Passwort",
+      "confirm": "Passwort bestätigen",
+      "showPassword": "Passwort anzeigen",
+      "hidePassword": "Passwort verbergen",
+      "strength": "Passwortstärke",
+      "weak": "Schwach",
+      "fair": "Ausreichend",
+      "good": "Gut",
+      "strong": "Stark",
+      "tooShort": "Verwenden Sie mindestens 8 Zeichen.",
+      "submit": "Passwort zurücksetzen",
+      "failed": "Zurücksetzen fehlgeschlagen. Versuchen Sie es erneut."
+    },
+    "otp": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "subtitle": "Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.",
+      "code": "Einmalcode",
+      "recoveryCode": "Wiederherstellungscode",
+      "useRecovery": "Gerät verloren? Wiederherstellungscode verwenden",
+      "useAuthenticator": "Stattdessen die Authenticator-App verwenden",
+      "submit": "Bestätigen",
+      "invalid": "Dieser Code hat nicht funktioniert. Versuchen Sie es erneut.",
+      "failed": "Bestätigung fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    }
+  },
+  "nav": {
+    "home": "Start",
+    "primary": "Hauptbereich",
+    "account": "Konto",
+    "signOut": "Abmelden",
+    "empty": "Sobald eine Datenbank verbunden ist, erscheinen hier Seiten.",
+    "connection": {
+      "shared": "Gemeinsam",
+      "unnamed": "Verbindung"
+    }
+  },
+  "topbar": {
+    "search": "Suchen…",
+    "notifications": "Benachrichtigungen",
+    "notificationsSoon": "Benachrichtigungen kommen mit der Benachrichtigungszentrale (M7).",
+    "theme": "Hell / Dunkel umschalten",
+    "userMenu": "Kontomenü",
+    "profile": "Profil",
+    "preferences": "Einstellungen",
+    "signOut": "Abmelden"
+  },
+  "palette": {
+    "dialog": "Befehlspalette",
+    "placeholder": "Befehl eingeben oder suchen…",
+    "navigate": "Navigation",
+    "actions": "Aktionen",
+    "askAi": "KI fragen",
+    "shortcuts": "Tastaturkürzel",
+    "signOut": "Abmelden",
+    "themeDark": "Zum dunklen Design wechseln",
+    "themeLight": "Zum hellen Design wechseln",
+    "footerNavigate": "navigieren",
+    "footerOpen": "auswählen",
+    "footerClose": "schließen"
+  },
+  "shortcuts": {
+    "title": "Tastaturkürzel",
+    "subtitle": "Schneller arbeiten in ganz Adminium",
+    "close": "Schließen",
+    "dismiss": "Schließen oder verwerfen",
+    "palette": "Befehlspalette öffnen",
+    "panel": "Kürzel-Übersicht anzeigen",
+    "search": "Suche fokussieren",
+    "sidebar": "Seitenleiste umschalten",
+    "theme": "Hell / Dunkel umschalten",
+    "then": "dann",
+    "footerPre": "Drücken Sie",
+    "footerPost": ", um diese Übersicht jederzeit zu öffnen."
+  },
+  "states": {
+    "checked": "vor 8 s geprüft",
+    "diagnostics": "Diagnose"
+  },
+  "notFound": {
+    "title": "Diese Seite ist verschwunden",
+    "errorLine": "Fehler 404",
+    "searchPlaceholder": "Nach einer Seite suchen…",
+    "matches": "Passende Seiten",
+    "popular": "Beliebte Ziele",
+    "goBack": "Zurück",
+    "backToDashboard": "Zurück zum Dashboard"
+  },
+  "page": {
+    "invalid": {
+      "title": "Die Konfiguration dieser Seite ist ungültig",
+      "body": "Das gespeicherte Seitendokument hat die Validierung nicht bestanden und kann nicht dargestellt werden."
+    },
+    "renderError": {
+      "title": "Diese Seite konnte nicht dargestellt werden"
+    },
+    "tooNew": {
+      "title": "Diese Seite benötigt ein neueres Adminium"
+    },
+    "unknownTemplate": {
+      "title": "Unbekannte Seitenvorlage"
+    }
+  },
+  "mutation": {
+    "created": "Datensatz erstellt",
+    "updated": "Datensatz aktualisiert",
+    "deleted": "Datensatz gelöscht"
+  },
+  "undo": {
+    "done": "Änderung rückgängig gemacht",
+    "failed": "Diese Änderung konnte nicht rückgängig gemacht werden"
+  },
+  "prefs": {
+    "theme": {
+      "label": "Design",
+      "light": "Hell",
+      "dark": "Dunkel",
+      "system": "System"
+    },
+    "accent": {
+      "label": "Akzentfarbe",
+      "indigo": "Indigo",
+      "blue": "Blau",
+      "teal": "Petrol",
+      "violet": "Violett",
+      "rose": "Rosé",
+      "red": "Rot",
+      "orange": "Orange",
+      "black": "Schwarz"
+    },
+    "density": {
+      "label": "Dichte",
+      "comfortable": "Komfortabel",
+      "compact": "Kompakt"
+    },
+    "locale": {
+      "label": "Sprache",
+      "directionNote": "Textrichtung: rechts nach links (wird automatisch durch die Sprache festgelegt)"
+    }
+  },
+  "account": {
+    "title": "Konto",
+    "stub": "Profil- und Einstellungsseiten kommen als vorbereitete Einstellungsseiten in Welle B (09-T18).",
+    "name": "Name",
+    "email": "E-Mail",
+    "roles": "Rollen",
+    "twoFactor": "Zwei-Faktor",
+    "on": "Aktiviert",
+    "off": "Aus",
+    "preferences": {
+      "title": "Einstellungen",
+      "subtitle": "Wie Adminium für Sie aussieht und sich liest — auf diesem und jedem anderen Gerät, an dem Sie sich anmelden.",
+      "workspaceDefault": "Workspace-Standard",
+      "personal": "Persönlich",
+      "usingDefault": "Workspace-Standard wird verwendet ({value})",
+      "reset": "Auf Workspace-Standard zurücksetzen",
+      "resetFailed": "Diese Einstellung konnte nicht zurückgesetzt werden. Versuchen Sie es erneut.",
+      "appliesInstantly": "Änderungen gelten sofort und werden in Ihrem Profil gespeichert."
+    }
+  },
+  "settings": {
+    "defaults": {
+      "title": "Globale Standards",
+      "subtitle": "Workspace-weite Standards für Darstellung und Sprache.",
+      "explainer": "Diese Standards gelten für alle Benutzer, sofern sie sie nicht überschreiben. Jeder kann unter Profil → Einstellungen eigene Werte festlegen — persönliche Einstellungen haben für diesen Benutzer immer Vorrang.",
+      "appearanceHeading": "Darstellungs-Standards",
+      "languageHeading": "Standards für Sprache & Region",
+      "adoption": "{following, number} von {total, plural, one {# Benutzer} other {# Benutzern}} folgen diesem Standard.",
+      "weekStartNote": "Wochenbeginn und Zahlenformate richten sich nach der Sprache.",
+      "save": "Standards speichern",
+      "saved": "Workspace-Standards aktualisiert",
+      "saveFailed": "Die Workspace-Standards konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+      "liveNote": "Beim Speichern wird die Änderung live übertragen — angemeldete Benutzer, die einem Standard folgen, sehen sie ohne Neuladen."
+    }
+  },
+  "studio": {
+    "source": {
+      "engine": {
+        "label": "Datenbank-Engine",
+        "postgres": "PostgreSQL",
+        "mysql": "MySQL / MariaDB",
+        "sqlite": "SQLite"
+      },
+      "format": {
+        "label": "Schemaformat",
+        "helper": "Bei automatischer Erkennung belassen, sofern sie nicht danebenliegt.",
+        "auto": "Automatisch erkennen",
+        "sql": "SQL-DDL / pg_dump",
+        "prisma": "Prisma-Schema",
+        "drizzle": "Drizzle ORM",
+        "typeorm": "TypeORM-Entitäten",
+        "sequelize": "Sequelize-Modelle",
+        "rails": "Rails schema.rb",
+        "django": "Django models.py",
+        "json": "Adminium-JSON"
+      },
+      "sqlite": {
+        "file": "Pfad zur Datenbankdatei",
+        "helper": "SQLite ist eine Datei, kein Server — geben Sie den absoluten Pfad auf der Maschine an, auf der Adminium läuft."
+      },
+      "file": {
+        "detectedAs": "Erkannt: {format}",
+        "moreWarnings": "+{count} weitere Warnungen — die vollständige Liste erscheint im Analyse-Schritt."
+      }
+    },
+    "capability": {
+      "mysqlApproxRows": "MySQL-Zeilenzahlen sind Schätzungen der Storage-Engine (Abweichungen bis ±40 % möglich) — sie werden mit ≈ angezeigt.",
+      "mysqlFkEnum": "MySQL liefert schwächere FK-/Enum-Metadaten: MyISAM-Tabellen deklarieren keine Fremdschlüssel, Enums sind spaltengebundene enum(…)-Typen, und CHECK-Constraints erfordern MySQL 8.0.16+ / MariaDB 10.2+.",
+      "sqliteCheckEnums": "SQLite hat keinen nativen Enum-Typ — Enums werden aus CHECK-(col IN (…))-Constraints abgeleitet.",
+      "sqliteNoComments": "SQLite kennt keine Spaltenkommentare — verwenden Sie den Schema-Remap-Editor, um Beschriftungen zu vergeben.",
+      "importNoRowCounts": "Schemadateien enthalten keine Zeilenzahlen — die Tabellenliste zeigt — statt erfundener Werte.",
+      "importNoLiveHealth": "Keine Live-Datenbankverbindung — Health-Checks und Schema-Drift-Erkennung sind für diese Quelle nicht verfügbar.",
+      "rowsUnavailable": "Schemadateien haben keine Live-Datenbank — Zeilenzahlen sind unbekannt, bis Sie eine verbinden.",
+      "rowsRunAnalyze": "Noch keine Schätzung — führen Sie ANALYZE auf der Datenbank aus, um Zeilenzahlen zu erhalten.",
+      "rowsNoEstimate": "Die Engine hat für diese Tabelle keine Schätzung gemeldet.",
+      "rowsApproximate": "Schätzung der Storage-Engine — kann bei InnoDB um bis zu ±40 % abweichen."
+    },
+    "test": {
+      "log": {
+        "moreWarnings": "+{count} weitere Parser-Warnungen"
+      }
+    },
+    "tables": {
+      "importNoCounts": "Schemadateien enthalten keine Zeilenzahlen — die Spalte zeigt —, bis eine Live-Datenbank verbunden ist."
+    },
+    "hub": {
+      "title": "Datenverbindungen",
+      "subtitle": "{healthy, number} von {total, plural, one {# Verbindung} other {# Verbindungen}} fehlerfrei",
+      "connectNew": "Neue Verbindung",
+      "stats": {
+        "connections": "Verbindungen",
+        "healthy": "Fehlerfrei",
+        "tables": "Einbezogene Tabellen",
+        "pages": "Generierte Seiten"
+      },
+      "status": {
+        "connected": "Verbunden",
+        "error": "Fehler",
+        "unconfigured": "Entwurf",
+        "testing": "Wird getestet…"
+      },
+      "card": {
+        "readOnly": "Schreibgeschützt",
+        "tables": "Tabellen",
+        "pages": "Seiten",
+        "latency": "Latenz",
+        "latencyMs": "{latency, number} ms",
+        "lastIntrospected": "Zuletzt introspiziert",
+        "never": "Nie"
+      },
+      "action": {
+        "test": "Testen",
+        "reintrospect": "Neu introspizieren",
+        "reintrospectFile": "Schemadatei-Quellen haben keine Live-Datenbank — laden Sie stattdessen die Datei erneut hoch.",
+        "remap": "Schema neu zuordnen",
+        "delete": "Löschen"
+      },
+      "test": {
+        "ok": "Verbindung fehlerfrei · {latency, number} ms",
+        "failed": "Verbindungstest fehlgeschlagen"
+      },
+      "introspect": {
+        "noChanges": "Schema unverändert — kein neuer Snapshot.",
+        "updated": "Schema neu introspiziert",
+        "masksProposed": "{count, plural, one {# Spalte} other {# Spalten}} zur Maskierung vorgeschlagen — im Remap-Editor prüfen.",
+        "failed": "Introspektion fehlgeschlagen. Versuchen Sie es erneut."
+      },
+      "delete": {
+        "title": "Verbindung löschen",
+        "body": "Dies löscht „{name}“ und die daraus generierten Seiten. Ihre Datenbank selbst bleibt unangetastet.",
+        "prompt": "Geben Sie {name} zur Bestätigung ein",
+        "confirm": "Verbindung löschen",
+        "cancel": "Abbrechen",
+        "close": "Schließen",
+        "success": "Verbindung „{name}“ gelöscht",
+        "failed": "Die Verbindung konnte nicht gelöscht werden. Versuchen Sie es erneut."
+      },
+      "empty": {
+        "title": "Noch keine Datenquellen",
+        "body": "Verbinden Sie eine Datenbank — Adminium generiert Ihr Admin-Panel aus deren Schema.",
+        "cta": "Datenbank verbinden"
+      }
+    },
+    "settingsHub": {
+      "title": "Workspace-Einstellungen",
+      "subtitle": "Identität, Sicherheit und destruktive Aktionen für diesen Workspace.",
+      "save": "Änderungen speichern",
+      "saved": "Workspace-Einstellungen aktualisiert",
+      "saveFailed": "Die Workspace-Einstellungen konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+      "superAdminOnlyTitle": "Super-Admin erforderlich",
+      "superAdminOnly": "Nur ein Super-Admin kann Identität und Sicherheitseinstellungen des Workspace ändern.",
+      "identity": {
+        "heading": "Workspace-Identität",
+        "appName": {
+          "label": "Anwendungsname",
+          "helper": "Erscheint in der Seitenleiste, im Browser-Titel und in E-Mails.",
+          "error": "Geben Sie einen Namen mit höchstens 60 Zeichen ein."
+        }
+      },
+      "security": {
+        "heading": "Sicherheit",
+        "require2fa": {
+          "label": "Zwei-Faktor-Authentifizierung verlangen",
+          "desc": "Jedes Mitglied muss 2FA aktivieren, um sich anzumelden."
+        },
+        "allowSignup": {
+          "label": "Selbstregistrierung erlauben",
+          "desc": "Jeder kann ein Konto erstellen — deaktiviert bleibt der Workspace nur per Einladung zugänglich."
+        },
+        "sessionTtl": {
+          "label": "Sitzungsdauer (Stunden)",
+          "error": "Zwischen {min, number} und {max, number} Stunden."
+        },
+        "passwordMin": {
+          "label": "Minimale Passwortlänge",
+          "error": "Zwischen {min, number} und {max, number} Zeichen."
+        }
+      },
+      "review": {
+        "title": "Workspace-Einstellungen speichern",
+        "subtitle": "Prüfen Sie Ihre Änderungen vor dem Speichern.",
+        "confirm": "Änderungen speichern",
+        "cancel": "Abbrechen",
+        "close": "Schließen",
+        "on": "An",
+        "off": "Aus",
+        "change": "{before} → {after}"
+      },
+      "defaultsCard": {
+        "heading": "Standards für Darstellung & Sprache",
+        "body": "Workspace-weite Einstellungen für Theme, Akzentfarbe, Dichte und Sprache finden Sie unter „Globale Standards“.",
+        "cta": "Globale Standards öffnen"
+      },
+      "danger": {
+        "heading": "Gefahrenzone",
+        "subtitle": "Unumkehrbare Aktionen.",
+        "empty": "Nichts zu löschen — noch keine Verbindungen.",
+        "deleteDesc": "Löscht die Verbindung und die daraus generierten Seiten. Ihre Datenbank bleibt unangetastet. Kann nicht rückgängig gemacht werden.",
+        "deleteCta": "Verbindung löschen"
+      }
+    }
+  },
+  "onboarding": {
+    "title": "Erste Schritte",
+    "subtitle": "Ein paar Schritte, um Ihren Workspace einzurichten.",
+    "loading": "Setup-Checkliste wird geladen…",
+    "welcome": "Willkommen bei Adminium, {name} 👋",
+    "progressBody": "Sie haben {done} von {total} Einrichtungsschritten abgeschlossen. Schließen Sie die übrigen ab, um den vollen Workspace freizuschalten.",
+    "completeBody": "Alles erledigt — Ihr Workspace ist vollständig eingerichtet.",
+    "ringLabel": "{done} von {total} Schritten abgeschlossen",
+    "done": "Erledigt",
+    "skip": "Später",
+    "goToWorkspace": "Zum Workspace",
+    "help": {
+      "title": "Brauchen Sie Hilfe?",
+      "body": "Wir helfen Ihnen gern beim schnellen Einrichten."
+    },
+    "steps": {
+      "connectDatabase": {
+        "title": "Datenbank verbinden",
+        "desc": "Verbinden Sie Adminium mit Ihrer Postgres-, MySQL- oder SQLite-Datenbank — eine Nur-Lese-Rolle genügt.",
+        "time": "5 Min.",
+        "action": "Verbinden"
+      },
+      "chooseTables": {
+        "title": "Tabellen auswählen",
+        "desc": "Wählen Sie, welche Tabellen zu Seiten werden — PII wird standardmäßig maskiert.",
+        "time": "2 Min.",
+        "action": "Auswählen"
+      },
+      "inviteTeammates": {
+        "title": "Teammitglieder einladen",
+        "desc": "Holen Sie Ihr Team zum Erkunden und Zusammenarbeiten dazu.",
+        "time": "2 Min.",
+        "action": "Einladen"
+      },
+      "workspaceDefaults": {
+        "title": "Workspace-Standards festlegen",
+        "desc": "Design, Akzent, Dichte und Sprache für alle.",
+        "time": "1 Min.",
+        "action": "Festlegen"
+      }
+    },
+    "entry": {
+      "wayBack": "Erste Schritte · {done}/{total}",
+      "dismiss": "Setup-Checkliste ausblenden",
+      "continue": "Setup fortsetzen",
+      "banner": "Richten Sie Ihren Workspace fertig ein — {done} von {total} Schritten erledigt."
+    }
+  },
+  "views": {
+    "baseView": "Alle Datensätze",
+    "menuLabel": "Gespeicherte Ansichten",
+    "saveAs": "Aktuelle als Ansicht speichern…",
+    "updateActive": "„{name}“ aktualisieren",
+    "rename": "Umbenennen…",
+    "setDefault": "Als Standard festlegen",
+    "delete": "Löschen…",
+    "saveTitle": "Ansicht speichern",
+    "save": "Ansicht speichern",
+    "renameTitle": "Ansicht umbenennen",
+    "saveName": "Namen speichern",
+    "nameLabel": "Ansichtsname",
+    "namePlaceholder": "z. B. Diesen Monat aktiv",
+    "nameRequired": "Geben Sie einen Namen für diese Ansicht ein.",
+    "saveFailed": "Ansicht konnte nicht gespeichert werden.",
+    "deleteTitle": "Ansicht löschen",
+    "deleteBody": "Dies entfernt die gespeicherte Ansicht. Ihre Daten sind nicht betroffen.",
+    "deletePrompt": "Zum Bestätigen den Ansichtsnamen eingeben",
+    "deleteConfirm": "Ansicht löschen",
+    "savedToast": "Ansicht „{name}“ gespeichert.",
+    "updatedToast": "Ansicht „{name}“ aktualisiert.",
+    "defaultToast": "„{name}“ ist jetzt die Standardansicht.",
+    "deletedToast": "Ansicht „{name}“ gelöscht."
+  }
+} as const;

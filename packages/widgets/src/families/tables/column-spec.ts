@@ -1,3 +1,4 @@
+import { getFormatters, latnDataTag } from '@adminium/i18n';
 import { z } from 'zod';
 
 /**
@@ -216,11 +217,12 @@ export function formatMoney(
 ): string {
   const amount = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(amount)) return String(value ?? '');
-  return new Intl.NumberFormat(options?.locale ?? 'en-US', {
+  // Money is a mono grid cell → data context (latn digits) via the format layer.
+  return getFormatters(options?.locale ?? 'en-US').number(amount, {
     style: 'currency',
     currency: options?.currency ?? 'USD',
     maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
-  }).format(amount);
+  });
 }
 
 const RELATIVE_STEPS: readonly { limit: number; divisor: number; unit: Intl.RelativeTimeFormatUnit }[] = [
@@ -237,7 +239,12 @@ export function formatRelativeTime(value: unknown, options?: { locale?: string |
   if (Number.isNaN(time)) return String(value ?? '');
   const delta = time - (options?.now ?? Date.now());
   const magnitude = Math.abs(delta);
-  const formatter = new Intl.RelativeTimeFormat(options?.locale ?? 'en-US', { numeric: 'auto', style: 'narrow' });
+  // Grid-cell relative time is a mono/data cell → latn digits (§4.2); the
+  // format layer's relative() is prose-only, so pin the numbering here.
+  const formatter = new Intl.RelativeTimeFormat(latnDataTag(options?.locale ?? 'en-US'), {
+    numeric: 'auto',
+    style: 'narrow',
+  });
   for (const step of RELATIVE_STEPS) {
     if (magnitude < step.limit) return formatter.format(Math.round(delta / step.divisor), step.unit);
   }
@@ -248,7 +255,8 @@ export function formatRelativeTime(value: unknown, options?: { locale?: string |
 export function formatAbsoluteTime(value: unknown, locale?: string): string {
   const time = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(time.getTime())) return String(value ?? '');
-  return new Intl.DateTimeFormat(locale ?? 'en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(time);
+  // Data context (latn digits + gregorian, §4.2) via the format layer.
+  return getFormatters(locale ?? 'en-US').dateTime(time);
 }
 
 /** Stable row id from the spec's PK columns (composite → JSON tuple, §2.7.2). */

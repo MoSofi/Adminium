@@ -65,6 +65,37 @@ describe('schema tree', () => {
   });
 });
 
+describe('capability notes (M9-T04)', () => {
+  it('shows the per-engine degradation notes for a sqlite source', async () => {
+    const model = makeModel();
+    model.dialect = 'sqlite';
+    installFetch({ schema: () => makeSchemaReply(model) });
+    renderEditor();
+
+    expect(await screen.findByText(/SQLite has no column comments/)).toBeDefined();
+    expect(screen.getByText(/no native enum type/)).toBeDefined();
+  });
+
+  it('shows the import notes for a schema-file source', async () => {
+    const model = makeModel();
+    model.source = { kind: 'import', format: 'prisma', fileName: 'schema.prisma' };
+    installFetch({ schema: () => makeSchemaReply(model) });
+    renderEditor();
+
+    expect(await screen.findByText(/Schema files carry no row counts/)).toBeDefined();
+    expect(screen.getByText(/health checks and schema-drift detection are unavailable/)).toBeDefined();
+  });
+
+  it('renders no capability banner for a live postgres source', async () => {
+    installFetch();
+    renderEditor();
+
+    await screen.findByText('Customers');
+    expect(screen.queryByText(/SQLite has no/)).toBeNull();
+    expect(screen.queryByText(/Schema files carry no row counts/)).toBeNull();
+  });
+});
+
 describe('edit → save → regenerate', () => {
   it('stages a table label, PUTs the exact document, re-reads applied labels, regenerates with counts', async () => {
     let saved = false;

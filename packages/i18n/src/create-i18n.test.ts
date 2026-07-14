@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createI18n, switchLocale } from './create-i18n.js';
+import { loadLocaleBundle } from './resources/lazy.js';
 
 const DE_COMMON = {
   greeting: 'Hallo {name}',
@@ -102,5 +103,46 @@ describe('createI18n', () => {
     loadBundle.mockClear();
     await switchLocale(i18n, 'en_US');
     expect(loadBundle).not.toHaveBeenCalled();
+  });
+});
+
+describe('real locale bundles through loadLocaleBundle', () => {
+  it('serves the shipped bundles and keeps en-US chunk-free (loader returns null)', async () => {
+    expect(await loadLocaleBundle('en-US', 'common')).toBeNull();
+    const de = await loadLocaleBundle('de-DE', 'common');
+    expect(de).not.toBeNull();
+  });
+
+  it('renders German after a live switch', async () => {
+    const i18n = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
+    await switchLocale(i18n, 'de_DE');
+    expect(i18n.t('account.title')).toBe('Konto');
+    expect(i18n.t('ui:action.cancel')).toBe('Abbrechen');
+    expect(i18n.t('errors:CONNECTION_FAILED')).toBe('Adminium konnte die Datenbank nicht erreichen.');
+  });
+
+  it('applies Czech plural categories (one/few/many/other)', async () => {
+    const i18n = await createI18n({ locale: 'cs_CZ', loadBundle: loadLocaleBundle });
+    // 1 → one (genitive sg), 2 → few, 5 → other.
+    expect(i18n.t('settings.defaults.adoption', { following: 1, total: 1 })).toContain('1 uživatele');
+    expect(i18n.t('settings.defaults.adoption', { following: 2, total: 2 })).toContain('2 uživatelů');
+    expect(i18n.t('settings.defaults.adoption', { following: 3, total: 5 })).toContain('5 uživatelů');
+  });
+
+  it('applies the six Arabic plural categories', async () => {
+    const i18n = await createI18n({ locale: 'ar_EG', loadBundle: loadLocaleBundle });
+    expect(i18n.t('settings.defaults.adoption', { following: 1, total: 1 })).toContain('مستخدم واحد');
+    expect(i18n.t('settings.defaults.adoption', { following: 2, total: 2 })).toContain('مستخدمَين');
+    expect(i18n.t('settings.defaults.adoption', { following: 3, total: 5 })).toContain('مستخدمين');
+    expect(i18n.t('settings.defaults.adoption', { following: 10, total: 15 })).toContain('مستخدمًا');
+  });
+
+  it('keeps zh_CN and zh_TW independent at runtime', async () => {
+    const cn = await createI18n({ locale: 'zh_CN', loadBundle: loadLocaleBundle });
+    const tw = await createI18n({ locale: 'zh_TW', loadBundle: loadLocaleBundle });
+    expect(cn.t('generated:app.title')).toBe('仪表盘');
+    expect(tw.t('generated:app.title')).toBe('儀表板');
+    expect(cn.t('ui:action.save')).toBe('保存');
+    expect(tw.t('ui:action.save')).toBe('儲存');
   });
 });

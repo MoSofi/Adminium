@@ -19,12 +19,14 @@ function spyClient() {
 }
 
 describe('invalidateForRealtimeEvent', () => {
-  it('config-changed → bootstrap + page documents (live regeneration, §2.1)', () => {
+  it('config-changed → bootstrap + page documents + onboarding (live regeneration, §2.1)', () => {
     const { queryClient, invalidate } = spyClient();
     invalidateForRealtimeEvent(queryClient, makeEvent('config-changed', 'config-changed'));
     expect(invalidate.mock.calls.map((call) => call[0]?.queryKey)).toEqual([
       ['bootstrap'],
       ['page'],
+      // Connecting/generating changes the reactive onboarding checklist (M5-T06).
+      ['onboarding'],
     ]);
   });
 

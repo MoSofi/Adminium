@@ -3,10 +3,10 @@
  * comps' storytelling lines; tones per line kind. The comp left several
  * template bindings unbound (ia-mapping §5) — every line here is bound data.
  */
-import { Check, CircleAlert, Loader2 } from 'lucide-react';
+import { Check, CircleAlert, Loader2, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
-export type LogLineKind = 'info' | 'ok' | 'error' | 'running';
+export type LogLineKind = 'info' | 'ok' | 'warn' | 'error' | 'running';
 
 export interface LogLine {
   id: string;
@@ -34,13 +34,17 @@ export function LogConsole({ lines, label }: { lines: readonly LogLine[]; label:
               <Check className="size-3.5 text-pos" />
             ) : line.kind === 'error' ? (
               <CircleAlert className="size-3.5 text-danger" />
+            ) : line.kind === 'warn' ? (
+              <TriangleAlert className="size-3.5 text-warn" />
             ) : line.kind === 'running' ? (
               <Loader2 className="size-3.5 animate-spin text-accent" />
             ) : (
               <span className="size-1 rounded-full bg-fg-subtle" />
             )}
           </span>
-          <span className={line.kind === 'error' ? 'text-danger' : 'text-fg-muted'}>{line.text}</span>
+          <span className={line.kind === 'error' ? 'text-danger' : line.kind === 'warn' ? 'text-warn' : 'text-fg-muted'}>
+            {line.text}
+          </span>
         </div>
       ))}
       <div ref={endRef} />

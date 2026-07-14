@@ -17,10 +17,12 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
+import { ChartDirectionBridge } from '@adminium/widgets';
 
 import { AccountPage } from '../pages/AccountPage.js';
 import { PreferencesPage } from '../account/PreferencesPage.js';
 import { GlobalDefaultsPage } from '../settings/GlobalDefaultsPage.js';
+import { OnboardingChecklist } from '../onboarding/OnboardingChecklist.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
 import { ForgotPage } from '../auth/ForgotPage.js';
@@ -71,7 +73,10 @@ function RootComponent() {
     >
       <TooltipProvider>
         <ShortcutsProvider>
-          <Outlet />
+          {/* Bridge i18n dir → charts so chart chrome mirrors in RTL (§5.5). */}
+          <ChartDirectionBridge>
+            <Outlet />
+          </ChartDirectionBridge>
         </ShortcutsProvider>
       </TooltipProvider>
     </ThemeProvider>
@@ -218,6 +223,13 @@ const accountRoute = createRoute({
   component: AccountPage,
 });
 
+/** First-run onboarding surface (M5-T06); admin-gated in-component. */
+const welcomeRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/welcome',
+  component: OnboardingChecklist,
+});
+
 // --- M8 preference surfaces (10-i18n-theming.md §7.3–§7.4) -------------------
 // APPEND-ONLY additions coordinated with the concurrent /studio/* route work:
 // this block adds exactly two routes and their two imports below.
@@ -253,6 +265,7 @@ const routeTree = rootRoute.addChildren([
     pageRoute,
     pageRecordRoute,
     accountRoute,
+    welcomeRoute,
     accountPreferencesRoute,
     accountSplatRoute,
     settingsDefaultsRoute,

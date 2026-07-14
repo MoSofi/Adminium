@@ -50,6 +50,8 @@ export interface Page {
 /** The projection the bootstrap nav tree builds from (09 §2.2). */
 export interface PageNavRow {
   id: string;
+  /** Owning connection — lets the nav disambiguate multi-connection setups. */
+  connectionId: string | null;
   slug: string;
   title: string;
   icon: string | null;
@@ -313,8 +315,25 @@ export function pagesRepo(meta: MetaDb) {
     async navRows(): Promise<PageNavRow[]> {
       return db
         .selectFrom('adminium_pages')
-        .select(['id', 'slug', 'title', 'icon', 'navGroup', 'navOrder', 'isEnabled', 'updatedAt'])
+        .select(['id', 'connectionId', 'slug', 'title', 'icon', 'navGroup', 'navOrder', 'isEnabled', 'updatedAt'])
         .execute();
+    },
+
+    /** Generated-page counts per connection (connections-hub cards, 09 §8.1). */
+    async countGeneratedByConnection(): Promise<Record<string, number>> {
+      const rows = await db
+        .selectFrom('adminium_pages')
+        .select(['connectionId'])
+        .select((eb) => eb.fn.countAll().as('pages'))
+        .where('origin', '=', 'generated')
+        .where('connectionId', 'is not', null)
+        .groupBy('connectionId')
+        .execute();
+      const out: Record<string, number> = {};
+      for (const row of rows) {
+        if (row.connectionId !== null) out[row.connectionId] = Number(row.pages);
+      }
+      return out;
     },
 
     /** Max updatedAt over all pages — the bootstrap `configVersion` stamp. */

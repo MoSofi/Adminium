@@ -1,0 +1,31 @@
+{
+  "name": "@adminium/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "description": "Playwright e2e matrix (M9-T05): built server + built dashboard on sqlite / postgres / mysql, seeded Northwind demo data",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:server": "node scripts/e2e-server.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint tests playwright.config.ts"
+  },
+  "devDependencies": {
+    "@adminium/adapter-mysql": "workspace:*",
+    "@adminium/adapter-postgres": "workspace:*",
+    "@adminium/adapter-sqlite": "workspace:*",
+    "@adminium/config": "workspace:*",
+    "@adminium/dashboard": "workspace:*",
+    "@adminium/engine": "workspace:*",
+    "@adminium/meta": "workspace:*",
+    "@adminium/server": "workspace:*",
+    "@playwright/test": "^1.54.1",
+    "@types/node": "22.15.3",
+    "better-sqlite3": "^12.2.0",
+    "eslint": "catalog:",
+    "mysql2": "^3.15.3",
+    "pg": "^8.16.3",
+    "typescript": "catalog:"
+  }
+}

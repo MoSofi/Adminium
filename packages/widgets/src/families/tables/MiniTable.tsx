@@ -79,7 +79,7 @@ export function MiniTable({
           className="flex items-center gap-1 px-4 py-2.5 text-caption font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
           {viewAllLabel ?? 'View all'}
-          <ArrowRight className="size-3" aria-hidden="true" />
+          <ArrowRight className="size-3 rtl:-scale-x-100" aria-hidden="true" />
         </button>
       )}
     </div>

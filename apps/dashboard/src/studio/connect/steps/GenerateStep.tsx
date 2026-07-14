@@ -87,10 +87,10 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
         <h2 className="text-section text-fg">{t('studio.generate.title', 'Generate your app')}</h2>
         <Alert
           tone="info"
-          title={t('studio.generate.fileTitle', 'Schema file parsed — generation lands in M9')}
+          title={t('studio.generate.fileTitle', 'Schema file parsed — generation needs a live database')}
           body={t(
             'studio.generate.fileBody',
-            'Your schema parsed cleanly and the preview above is real. Generating a running app from a schema file (with placeholder rows) ships in M9 — connect a live database to generate today.',
+            'Your schema parsed cleanly and the preview above is real. Generating a running app straight from a schema file (with placeholder rows) is not available yet — connect a live database to generate today.',
           )}
         />
       </section>

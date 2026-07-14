@@ -18,6 +18,22 @@
     "test": {
       "dependsOn": [
         "^build"
+      ],
+      "env": [
+        "TEST_*",
+        "ADMINIUM_TEST_*"
+      ]
+    },
+    "e2e": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false,
+      "env": [
+        "CI",
+        "E2E_*",
+        "TEST_*",
+        "PLAYWRIGHT_*"
       ]
     }
   }

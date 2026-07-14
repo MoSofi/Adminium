@@ -6,7 +6,7 @@
  * together.
  */
 
-import { api } from '../app/api.js';
+import { api, ApiError } from '../app/api.js';
 
 export type ConnectionEngine = 'postgres' | 'mysql' | 'sqlite';
 
@@ -45,6 +45,10 @@ export interface ConnectionDto {
   lastLatencyMs: number | null;
   lastError: string | null;
   snapshot: { id: string; createdAt: number; checksum: string } | null;
+  /** Included tables (allowlist, else last snapshot); null before introspection. */
+  tableCount: number | null;
+  /** Generated pages owned by this connection. */
+  pageCount: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -108,10 +112,59 @@ export interface SchemaImportPreview {
   summary: { tables: number; columns: number; relations: number; enums: number };
 }
 
+/**
+ * DELETE with a JSON body — `app/api.ts` has no payload-carrying delete and
+ * lives outside this feature's paths this wave (the putJson precedent above
+ * in remap/api.ts applies); fold into `api.delete` once the owner extends it.
+ */
+async function deleteJson<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    // Empty or non-JSON body — leave null.
+  }
+  if (!response.ok) {
+    const envelope = (body ?? {}) as {
+      error?: { code?: unknown; message?: unknown; requestId?: unknown; details?: unknown };
+    };
+    throw new ApiError(
+      response.status,
+      typeof envelope.error?.code === 'string' ? envelope.error.code : 'INTERNAL',
+      typeof envelope.error?.message === 'string'
+        ? envelope.error.message
+        : `Request failed with status ${response.status}.`,
+      typeof envelope.error?.requestId === 'string'
+        ? envelope.error.requestId
+        : (response.headers.get('x-request-id') ?? null),
+      envelope.error?.details,
+    );
+  }
+  return body as T;
+}
+
 export const studioApi = {
   /** Capability probe only — never persists (§2.4). */
   testDsn: (engine: ConnectionEngine, dsn: string) =>
     api.post<ConnectionTestResult>('/api/v1/connections/test', { engine, dsn }),
+
+  /** Hub list — health, snapshot age, table + generated-page counts (§2.4). */
+  listConnections: async () =>
+    (await api.get<{ connections: ConnectionDto[] }>('/api/v1/connections')).connections,
+
+  /** Re-test an existing connection's data role; persists the health result. */
+  testConnection: (id: string) =>
+    api.post<ConnectionTestResult>(`/api/v1/connections/${encodeURIComponent(id)}/test`),
+
+  /** Type-to-confirm delete — the server re-checks `confirmName` (§2.4). */
+  deleteConnection: (id: string, confirmName: string) =>
+    deleteJson<{ ok: true }>(`/api/v1/connections/${encodeURIComponent(id)}`, { confirmName }),
 
   createConnection: (input: {
     name: string;

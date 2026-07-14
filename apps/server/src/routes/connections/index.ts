@@ -11,7 +11,7 @@
  */
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { snapshotsRepo, type Connection, type MetaDb } from '@adminium/meta';
+import { pagesRepo, snapshotsRepo, type Connection, type MetaDb } from '@adminium/meta';
 
 import { ConflictError, ValidationFailedError } from '../../errors.js';
 import { maskDsn } from '../../connections/dsn.js';
@@ -54,14 +54,26 @@ function testReply(summary: ConnectionTestSummary): ConnectionTestReply {
   };
 }
 
+/** Table count from the snapshot's normalized model (opaque to meta — 05 §2). */
+function modelTableCount(schema: unknown): number | null {
+  if (schema === null || typeof schema !== 'object') return null;
+  const tables = (schema as { tables?: unknown }).tables;
+  return Array.isArray(tables) ? tables.length : null;
+}
+
 export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsyncZod {
   const { manager, meta } = deps;
   const snapshots = snapshotsRepo(meta);
+  const pages = pagesRepo(meta);
 
   return async (app) => {
-    async function toDto(connection: Connection): Promise<ConnectionDto> {
+    async function toDto(
+      connection: Connection,
+      pageCounts?: Readonly<Record<string, number>>,
+    ): Promise<ConnectionDto> {
       const dsns = await manager.connections.getDsns(connection.id);
       const latest = await snapshots.latest(connection.id);
+      const counts = pageCounts ?? (await pages.countGeneratedByConnection());
       return {
         id: connection.id,
         name: connection.name,
@@ -77,6 +89,12 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           latest === null
             ? null
             : { id: latest.id, createdAt: latest.createdAt, checksum: latest.checksum },
+        // Included tables: explicit allowlist wins; else everything the last
+        // introspection saw; null before the first snapshot (hub shows "—").
+        tableCount:
+          connection.settings.includedTables?.length ??
+          (latest === null ? null : modelTableCount(latest.schema)),
+        pageCount: counts[connection.id] ?? 0,
         createdAt: connection.createdAt,
         updatedAt: connection.updatedAt,
       };
@@ -90,7 +108,9 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async () => {
         const connections = await manager.connections.list();
-        return { connections: await Promise.all(connections.map(async (c) => toDto(c))) };
+        // One grouped query for all cards — no per-connection page scans.
+        const pageCounts = await pages.countGeneratedByConnection();
+        return { connections: await Promise.all(connections.map(async (c) => toDto(c, pageCounts))) };
       },
     );
 

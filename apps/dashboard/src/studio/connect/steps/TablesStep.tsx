@@ -5,14 +5,19 @@
  * pre-hidden with an explanatory note; search filter; `{included}/{total}`
  * counter. Selection persists to `adminium_connections.settings.includedTables`
  * on Continue (wizard-level PATCH).
+ *
+ * M9-T04: the row-count column degrades per source instead of showing wrong
+ * data — MySQL estimates render with ≈ (InnoDB drift), schema files render —
+ * (no live database), both explained by a tooltip.
  */
 import { useQuery } from '@tanstack/react-query';
 import { EyeOff, ShieldAlert } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Checkbox, MonoText, SearchInput, Skeleton } from '@adminium/ui';
+import { Badge, Checkbox, MonoText, SearchInput, Skeleton, Tooltip } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
 import { studioApi, type SchemaTable } from '../../api.js';
+import { rowEstimateQuality, rowEstimateTooltip, type CapabilitySource } from '../capabilityNotes.js';
 import {
   defaultIncludedIds,
   formatRowEstimate,
@@ -25,11 +30,13 @@ export interface TablesStepProps {
   connectionId: string | null;
   /** Parsed tables for schema-file mode. */
   fileTables: SchemaTable[] | null;
+  /** What the tables came from — drives row-count degradation (M9-T04). */
+  source: CapabilitySource;
   included: string[] | null;
   onIncludedChange: (included: string[]) => void;
 }
 
-export function TablesStep({ connectionId, fileTables, included, onIncludedChange }: TablesStepProps) {
+export function TablesStep({ connectionId, fileTables, source, included, onIncludedChange }: TablesStepProps) {
   const [query, setQuery] = useState('');
 
   const schemaQuery = useQuery({
@@ -120,9 +127,7 @@ export function TablesStep({ connectionId, fileTables, included, onIncludedChang
               {table.highVolume ? (
                 <Badge tone="neutral">{t('studio.tables.highVolume', 'high volume')}</Badge>
               ) : null}
-              <MonoText className="w-24 shrink-0 text-end text-body-sm text-fg-muted">
-                {formatRowEstimate(table.rowEstimate)}
-              </MonoText>
+              <RowEstimateCell source={source} estimate={table.rowEstimate} />
             </li>
           );
         })}
@@ -134,6 +139,11 @@ export function TablesStep({ connectionId, fileTables, included, onIncludedChang
       </ul>
 
       <div className="flex flex-col gap-1">
+        {source.kind === 'import' ? (
+          <p className="text-caption text-fg-subtle">
+            {t('studio.tables.importNoCounts', 'Schema files carry no row counts — the column shows — until a live database is connected.')}
+          </p>
+        ) : null}
         <p className="text-caption text-fg-subtle">
           {t('studio.tables.highVolumeNote', 'Tables over 100,000 rows start unchecked — ops tables rarely belong in a dashboard.')}
         </p>
@@ -148,5 +158,26 @@ export function TablesStep({ connectionId, fileTables, included, onIncludedChang
         ) : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * Row-count cell with per-source degradation (M9-T04): `—` when the source
+ * cannot provide counts, `≈` when the engine only estimates approximately —
+ * each explained by a tooltip rather than presented as exact data.
+ */
+function RowEstimateCell({ source, estimate }: { source: CapabilitySource; estimate: number | null }) {
+  const text = formatRowEstimate(estimate, rowEstimateQuality(source));
+  const tooltip = rowEstimateTooltip(source, estimate);
+  const cell = (
+    <MonoText className="w-24 shrink-0 text-end text-body-sm text-fg-muted">{text}</MonoText>
+  );
+  if (tooltip === null) return cell;
+  return (
+    <Tooltip content={tooltip}>
+      <span className="flex w-24 shrink-0 justify-end" tabIndex={0}>
+        <MonoText className="text-end text-body-sm text-fg-muted">{text}</MonoText>
+      </span>
+    </Tooltip>
   );
 }

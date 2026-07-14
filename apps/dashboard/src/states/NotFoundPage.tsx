@@ -95,7 +95,7 @@ export function NotFoundPage({ requestId }: NotFoundPageProps) {
         <div className="mt-5 flex items-center justify-center gap-2.5">
           <Button asChild>
             <Link to="/">
-              <ArrowLeft aria-hidden="true" />
+              <ArrowLeft aria-hidden="true" className="rtl:-scale-x-100" />
               {t('notFound.backToDashboard', 'Back to dashboard')}
             </Link>
           </Button>

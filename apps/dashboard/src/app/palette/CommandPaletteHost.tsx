@@ -76,7 +76,7 @@ export function CommandPaletteHost({
           {
             id: 'action:sign-out',
             label: t('palette.signOut', 'Sign out'),
-            icon: <LogOut />,
+            icon: <LogOut className="rtl:-scale-x-100" />,
             keywords: ['logout', 'log out'],
           },
         ],

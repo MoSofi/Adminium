@@ -2,7 +2,11 @@
  * Dialect-parameterized test harness (07-meta-store.md 07-T07 / 15-quality.md):
  * every suite iterates TEST_DIALECTS with `describe.skipIf(!d.available)`.
  * SQLite (better-sqlite3, in-memory) always runs; PostgreSQL and MySQL join
- * in when TEST_PG_URL / TEST_MYSQL_URL are set and the driver is installed.
+ * in when TEST_POSTGRES_URL / TEST_MYSQL_URL are set (same env-var names the
+ * rest of the wave uses — apps/e2e/tests/constants.ts, ci.yml). `pg` and
+ * `mysql2` are dev dependencies of this package, so the `resolvable()` guard is
+ * only a belt-and-braces check — the legs run whenever their URL is set, they
+ * are not silently skipped for a missing driver.
  */
 
 import { createRequire } from 'node:module';
@@ -70,13 +74,13 @@ const sqliteDialect: TestDialect = {
 
 const postgresDialect: TestDialect = {
   name: 'postgres',
-  available: Boolean(process.env.TEST_PG_URL) && resolvable('pg'),
+  available: Boolean(process.env.TEST_POSTGRES_URL) && resolvable('pg'),
   async make() {
     const { default: pg } = await import('pg');
     // ts columns are int8: parse to JS number (values < 2^53).
     pg.types.setTypeParser(20, (v: string) => Number(v));
     const meta = createPostgresMetaDb({
-      pool: new pg.Pool({ connectionString: process.env.TEST_PG_URL, max: 4 }),
+      pool: new pg.Pool({ connectionString: process.env.TEST_POSTGRES_URL, max: 4 }),
     });
     await dropAdminiumTables(meta);
     return { meta, destroy: () => meta.db.destroy() };

@@ -1,0 +1,10 @@
+{
+  "app": {
+    "title": "Přehled"
+  },
+  "widget": {
+    "loading": "Načítání widgetu…",
+    "error": "Tento widget se nepodařilo načíst",
+    "empty": "Pro toto období nejsou žádná data"
+  }
+}

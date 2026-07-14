@@ -1,0 +1,466 @@
+/**
+ * GENERATED MIRROR of ../../../locales/cs-CZ/common.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
+ * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "common": {
+    "dismiss": "Zavřít",
+    "notifications": "Oznámení",
+    "retry": "Zkusit znovu",
+    "undo": "Vrátit zpět",
+    "close": "Zavřít",
+    "cancel": "Zrušit"
+  },
+  "auth": {
+    "headline": "Proměňte jakoukoli databázi v přehledový panel.",
+    "trust": "Jádro pod licencí AGPL · Vlastní hosting · Vaše data zůstávají vaše",
+    "signIn": {
+      "title": "Vítejte zpět",
+      "subtitle": "Přihlaste se do svého pracovního prostoru Adminium.",
+      "email": "E-mail",
+      "emailInvalid": "Zadejte platnou e-mailovou adresu.",
+      "password": "Heslo",
+      "passwordRequired": "Zadejte své heslo.",
+      "showPassword": "Zobrazit heslo",
+      "hidePassword": "Skrýt heslo",
+      "remember": "Zůstat přihlášen(a)",
+      "forgot": "Zapomněli jste?",
+      "submit": "Přihlásit se",
+      "invalid": "Neplatný e-mail nebo heslo.",
+      "rateLimited": "Příliš mnoho pokusů — zkuste to znovu za minutu.",
+      "failed": "Přihlášení se nezdařilo. Zkontrolujte připojení a zkuste to znovu."
+    },
+    "forgot": {
+      "title": "Obnovení hesla",
+      "email": "E-mail",
+      "emailInvalid": "Zadejte platnou e-mailovou adresu.",
+      "submit": "Odeslat odkaz pro obnovení",
+      "sentTitle": "Zkontrolujte svůj e-mail",
+      "resend": "Odeslat znovu",
+      "back": "Zpět na přihlášení",
+      "done": "Zpět na přihlášení",
+      "rateLimited": "Příliš mnoho požadavků — zkuste to později.",
+      "failed": "Něco se pokazilo. Zkuste to znovu."
+    },
+    "reset": {
+      "title": "Nastavte si nové heslo",
+      "subtitle": "Musí mít alespoň 8 znaků.",
+      "password": "Nové heslo",
+      "confirm": "Potvrzení hesla",
+      "showPassword": "Zobrazit heslo",
+      "hidePassword": "Skrýt heslo",
+      "strength": "Síla hesla",
+      "weak": "Slabé",
+      "fair": "Ucházející",
+      "good": "Dobré",
+      "strong": "Silné",
+      "tooShort": "Použijte alespoň 8 znaků.",
+      "submit": "Obnovit heslo",
+      "failed": "Obnovení se nezdařilo. Zkuste to znovu."
+    },
+    "otp": {
+      "title": "Dvoufázové ověření",
+      "subtitle": "Zadejte 6místný kód z ověřovací aplikace.",
+      "code": "Jednorázový kód",
+      "recoveryCode": "Záložní kód",
+      "useRecovery": "Ztratili jste zařízení? Použijte záložní kód",
+      "useAuthenticator": "Použít místo toho ověřovací aplikaci",
+      "submit": "Ověřit",
+      "invalid": "Tento kód nefunguje. Zkuste to znovu.",
+      "failed": "Ověření se nezdařilo. Zkontrolujte připojení a zkuste to znovu."
+    }
+  },
+  "nav": {
+    "home": "Domů",
+    "primary": "Hlavní",
+    "account": "Účet",
+    "signOut": "Odhlásit se",
+    "empty": "Jakmile připojíte databázi, objeví se zde stránky.",
+    "connection": {
+      "shared": "Sdílené",
+      "unnamed": "Připojení"
+    }
+  },
+  "topbar": {
+    "search": "Hledat…",
+    "notifications": "Oznámení",
+    "notificationsSoon": "Oznámení dorazí spolu s centrem oznámení (M7).",
+    "theme": "Přepnout světlý / tmavý režim",
+    "userMenu": "Nabídka účtu",
+    "profile": "Profil",
+    "preferences": "Předvolby",
+    "signOut": "Odhlásit se"
+  },
+  "palette": {
+    "dialog": "Paleta příkazů",
+    "placeholder": "Zadejte příkaz nebo hledejte…",
+    "navigate": "Navigace",
+    "actions": "Akce",
+    "askAi": "Zeptat se AI",
+    "shortcuts": "Klávesové zkratky",
+    "signOut": "Odhlásit se",
+    "themeDark": "Přepnout na tmavý motiv",
+    "themeLight": "Přepnout na světlý motiv",
+    "footerNavigate": "navigace",
+    "footerOpen": "vybrat",
+    "footerClose": "zavřít"
+  },
+  "shortcuts": {
+    "title": "Klávesové zkratky",
+    "subtitle": "Pracujte v Adminiu rychleji",
+    "close": "Zavřít",
+    "dismiss": "Zavřít nebo zrušit",
+    "palette": "Otevřít paletu příkazů",
+    "panel": "Zobrazit panel zkratek",
+    "search": "Přejít na hledání",
+    "sidebar": "Přepnout postranní panel",
+    "theme": "Přepnout světlý / tmavý režim",
+    "then": "pak",
+    "footerPre": "Stiskněte",
+    "footerPost": "a tento panel kdykoli otevřete."
+  },
+  "states": {
+    "checked": "zkontrolováno před 8 s",
+    "diagnostics": "Diagnostika"
+  },
+  "notFound": {
+    "title": "Tato stránka se ztratila",
+    "errorLine": "Chyba 404",
+    "searchPlaceholder": "Hledat stránku…",
+    "matches": "Odpovídající stránky",
+    "popular": "Oblíbené cíle",
+    "goBack": "Zpět",
+    "backToDashboard": "Zpět na přehled"
+  },
+  "page": {
+    "invalid": {
+      "title": "Konfigurace této stránky je neplatná",
+      "body": "Uložený dokument stránky neprošel validací a nelze jej vykreslit."
+    },
+    "renderError": {
+      "title": "Tuto stránku se nepodařilo vykreslit"
+    },
+    "tooNew": {
+      "title": "Tato stránka vyžaduje novější Adminium"
+    },
+    "unknownTemplate": {
+      "title": "Neznámá šablona stránky"
+    }
+  },
+  "mutation": {
+    "created": "Záznam vytvořen",
+    "updated": "Záznam aktualizován",
+    "deleted": "Záznam smazán"
+  },
+  "undo": {
+    "done": "Změna vrácena zpět",
+    "failed": "Tuto změnu se nepodařilo vrátit zpět"
+  },
+  "prefs": {
+    "theme": {
+      "label": "Motiv",
+      "light": "Světlý",
+      "dark": "Tmavý",
+      "system": "Podle systému"
+    },
+    "accent": {
+      "label": "Barva zvýraznění",
+      "indigo": "Indigová",
+      "blue": "Modrá",
+      "teal": "Modrozelená",
+      "violet": "Fialová",
+      "rose": "Růžová",
+      "red": "Červená",
+      "orange": "Oranžová",
+      "black": "Černá"
+    },
+    "density": {
+      "label": "Hustota",
+      "comfortable": "Pohodlná",
+      "compact": "Kompaktní"
+    },
+    "locale": {
+      "label": "Jazyk",
+      "directionNote": "Směr textu: zprava doleva (nastaveno automaticky podle jazyka)"
+    }
+  },
+  "account": {
+    "title": "Účet",
+    "stub": "Stránky profilu a předvoleb dorazí jako předpřipravené stránky nastavení ve vlně B (09-T18).",
+    "name": "Jméno",
+    "email": "E-mail",
+    "roles": "Role",
+    "twoFactor": "Dvoufázové ověření",
+    "on": "Zapnuto",
+    "off": "Vypnuto",
+    "preferences": {
+      "title": "Předvolby",
+      "subtitle": "Jak Adminium vypadá a v jakém jazyce se vám zobrazuje — na tomto i na každém dalším zařízení, kde se přihlásíte.",
+      "workspaceDefault": "Výchozí nastavení prostoru",
+      "personal": "Osobní",
+      "usingDefault": "Používá se výchozí nastavení prostoru ({value})",
+      "reset": "Vrátit na výchozí nastavení prostoru",
+      "resetFailed": "Tuto předvolbu se nepodařilo obnovit. Zkuste to znovu.",
+      "appliesInstantly": "Změny se projeví okamžitě a uloží se do vašeho profilu."
+    }
+  },
+  "settings": {
+    "defaults": {
+      "title": "Globální výchozí nastavení",
+      "subtitle": "Výchozí vzhled a jazyk pro celý pracovní prostor.",
+      "explainer": "Tato výchozí nastavení platí pro všechny uživatele, dokud si je nepřenastaví. Každý si může nastavit vlastní předvolby v Profil → Předvolby — osobní předvolby mají pro daného uživatele vždy přednost.",
+      "appearanceHeading": "Výchozí vzhled",
+      "languageHeading": "Výchozí jazyk a region",
+      "adoption": "Tímto výchozím nastavením se řídí {following, number} z {total, plural, one {# uživatele} few {# uživatelů} many {# uživatele} other {# uživatelů}}.",
+      "weekStartNote": "Začátek týdne a formáty čísel se řídí jazykem.",
+      "save": "Uložit výchozí nastavení",
+      "saved": "Výchozí nastavení prostoru aktualizována",
+      "saveFailed": "Výchozí nastavení prostoru se nepodařilo uložit. Zkuste to znovu.",
+      "liveNote": "Uložení rozešle změnu naživo — přihlášení uživatelé, kteří se řídí výchozím nastavením, ji uvidí bez opětovného načtení."
+    }
+  },
+  "studio": {
+    "source": {
+      "engine": {
+        "label": "Databázový engine",
+        "postgres": "PostgreSQL",
+        "mysql": "MySQL / MariaDB",
+        "sqlite": "SQLite"
+      },
+      "format": {
+        "label": "Formát schématu",
+        "helper": "Ponechte automatickou detekci, pokud se nemýlí.",
+        "auto": "Rozpoznat automaticky",
+        "sql": "SQL DDL / pg_dump",
+        "prisma": "Schéma Prisma",
+        "drizzle": "Drizzle ORM",
+        "typeorm": "Entity TypeORM",
+        "sequelize": "Modely Sequelize",
+        "rails": "Rails schema.rb",
+        "django": "Django models.py",
+        "json": "Adminium JSON"
+      },
+      "sqlite": {
+        "file": "Cesta k souboru databáze",
+        "helper": "SQLite je soubor, ne server — zadejte absolutní cestu na stroji, kde běží Adminium."
+      },
+      "file": {
+        "detectedAs": "Rozpoznáno: {format}",
+        "moreWarnings": "+{count} dalších varování — úplný seznam se zobrazí v kroku analýzy."
+      }
+    },
+    "capability": {
+      "mysqlApproxRows": "Počty řádků v MySQL jsou odhady úložného enginu (odchylka až ±40 %) — zobrazují se se znakem ≈.",
+      "mysqlFkEnum": "Metadata cizích klíčů a enumů jsou v MySQL slabší: tabulky MyISAM nedeklarují cizí klíče, enumy jsou sloupcové typy enum(…) a omezení CHECK vyžadují MySQL 8.0.16+ / MariaDB 10.2+.",
+      "sqliteCheckEnums": "SQLite nemá nativní typ enum — enumy se syntetizují z omezení CHECK (col IN (…)).",
+      "sqliteNoComments": "SQLite nepodporuje komentáře sloupců — popisky přidejte v editoru přemapování schématu.",
+      "importNoRowCounts": "Soubory se schématem neobsahují počty řádků — seznam tabulek zobrazuje — místo smyšlených čísel.",
+      "importNoLiveHealth": "Bez živého databázového připojení — kontroly stavu a detekce driftu schématu nejsou pro tento zdroj dostupné.",
+      "rowsUnavailable": "Soubory se schématem nemají živou databázi — počty řádků zůstanou neznámé, dokud nějakou nepřipojíte.",
+      "rowsRunAnalyze": "Zatím žádný odhad — spusťte na databázi ANALYZE, aby se počty řádků doplnily.",
+      "rowsNoEstimate": "Engine pro tuto tabulku nenahlásil žádný odhad.",
+      "rowsApproximate": "Odhad úložného enginu — u InnoDB se může lišit až o ±40 %."
+    },
+    "test": {
+      "log": {
+        "moreWarnings": "+{count} dalších varování parseru"
+      }
+    },
+    "tables": {
+      "importNoCounts": "Soubory se schématem neobsahují počty řádků — sloupec zobrazuje —, dokud nepřipojíte živou databázi."
+    },
+    "hub": {
+      "title": "Datová připojení",
+      "subtitle": "{healthy, number} z {total, plural, one {# připojení} few {# připojení} other {# připojení}} v pořádku",
+      "connectNew": "Nové připojení",
+      "stats": {
+        "connections": "Připojení",
+        "healthy": "V pořádku",
+        "tables": "Zahrnuté tabulky",
+        "pages": "Vygenerované stránky"
+      },
+      "status": {
+        "connected": "Připojeno",
+        "error": "Chyba",
+        "unconfigured": "Koncept",
+        "testing": "Testuje se…"
+      },
+      "card": {
+        "readOnly": "Jen pro čtení",
+        "tables": "Tabulky",
+        "pages": "Stránky",
+        "latency": "Latence",
+        "latencyMs": "{latency, number} ms",
+        "lastIntrospected": "Poslední introspekce",
+        "never": "Nikdy"
+      },
+      "action": {
+        "test": "Otestovat",
+        "reintrospect": "Znovu introspektovat",
+        "reintrospectFile": "Zdroje ze souboru se schématem nemají živou databázi — nahrajte soubor znovu.",
+        "remap": "Přemapovat schéma",
+        "delete": "Smazat"
+      },
+      "test": {
+        "ok": "Připojení v pořádku · {latency, number} ms",
+        "failed": "Test připojení selhal"
+      },
+      "introspect": {
+        "noChanges": "Schéma beze změn — žádný nový snímek.",
+        "updated": "Schéma znovu introspektováno",
+        "masksProposed": "{count, plural, one {# sloupec navržen} few {# sloupce navrženy} other {# sloupců navrženo}} k maskování — zkontrolujte v editoru přemapování.",
+        "failed": "Introspekce selhala. Zkuste to znovu."
+      },
+      "delete": {
+        "title": "Smazat připojení",
+        "body": "Tímto smažete „{name}“ a z něj vygenerované stránky. Vaší databáze se to nijak nedotkne.",
+        "prompt": "Potvrďte zadáním {name}",
+        "confirm": "Smazat připojení",
+        "cancel": "Zrušit",
+        "close": "Zavřít",
+        "success": "Připojení „{name}“ smazáno",
+        "failed": "Připojení se nepodařilo smazat. Zkuste to znovu."
+      },
+      "empty": {
+        "title": "Zatím žádné zdroje dat",
+        "body": "Připojte databázi a Adminium z jejího schématu vygeneruje váš administrační panel.",
+        "cta": "Připojit databázi"
+      }
+    },
+    "settingsHub": {
+      "title": "Nastavení workspace",
+      "subtitle": "Identita, zabezpečení a destruktivní akce tohoto workspace.",
+      "save": "Uložit změny",
+      "saved": "Nastavení workspace aktualizováno",
+      "saveFailed": "Nastavení workspace se nepodařilo uložit. Zkuste to znovu.",
+      "superAdminOnlyTitle": "Vyžadován super admin",
+      "superAdminOnly": "Identitu a zabezpečení workspace může měnit pouze super admin.",
+      "identity": {
+        "heading": "Identita workspace",
+        "appName": {
+          "label": "Název aplikace",
+          "helper": "Zobrazuje se v postranním panelu, v titulku prohlížeče a v e-mailech.",
+          "error": "Zadejte název o délce nejvýše 60 znaků."
+        }
+      },
+      "security": {
+        "heading": "Zabezpečení",
+        "require2fa": {
+          "label": "Vyžadovat dvoufaktorové ověření",
+          "desc": "Každý člen musí mít pro přihlášení zapnuté 2FA."
+        },
+        "allowSignup": {
+          "label": "Povolit samoregistraci",
+          "desc": "Účet si může založit kdokoli — při vypnutí zůstává workspace jen na pozvánky."
+        },
+        "sessionTtl": {
+          "label": "Životnost relace (hodiny)",
+          "error": "Mezi {min, number} a {max, number} hodinami."
+        },
+        "passwordMin": {
+          "label": "Minimální délka hesla",
+          "error": "Mezi {min, number} a {max, number} znaky."
+        }
+      },
+      "review": {
+        "title": "Uložit nastavení workspace",
+        "subtitle": "Před uložením zkontrolujte změny.",
+        "confirm": "Uložit změny",
+        "cancel": "Zrušit",
+        "close": "Zavřít",
+        "on": "Zapnuto",
+        "off": "Vypnuto",
+        "change": "{before} → {after}"
+      },
+      "defaultsCard": {
+        "heading": "Výchozí vzhled a jazyk",
+        "body": "Motiv, akcentová barva, hustota a jazyk pro celý workspace najdete ve výchozím globálním nastavení.",
+        "cta": "Otevřít globální výchozí nastavení"
+      },
+      "danger": {
+        "heading": "Nebezpečná zóna",
+        "subtitle": "Nevratné akce.",
+        "empty": "Není co mazat — zatím žádná připojení.",
+        "deleteDesc": "Smaže připojení a z něj vygenerované stránky. Vaší databáze se to nedotkne. Nelze vzít zpět.",
+        "deleteCta": "Smazat připojení"
+      }
+    }
+  },
+  "onboarding": {
+    "title": "Začínáme",
+    "subtitle": "Několik kroků k přípravě vašeho pracovního prostoru.",
+    "loading": "Načítání kontrolního seznamu…",
+    "welcome": "Vítejte v Adminiu, {name} 👋",
+    "progressBody": "Dokončili jste {done} z {total} kroků nastavení. Dokončete zbytek a odemkněte plný pracovní prostor.",
+    "completeBody": "Hotovo — váš pracovní prostor je plně nastaven.",
+    "ringLabel": "{done} z {total} kroků dokončeno",
+    "done": "Hotovo",
+    "skip": "Zatím přeskočit",
+    "goToWorkspace": "Přejít do prostoru",
+    "help": {
+      "title": "Potřebujete pomoc?",
+      "body": "Rádi vám pomůžeme s rychlým nastavením."
+    },
+    "steps": {
+      "connectDatabase": {
+        "title": "Připojit databázi",
+        "desc": "Nasměrujte Adminium na svou databázi Postgres, MySQL nebo SQLite — stačí i role jen pro čtení.",
+        "time": "5 min",
+        "action": "Připojit"
+      },
+      "chooseTables": {
+        "title": "Vyberte tabulky",
+        "desc": "Vyberte, které tabulky se stanou stránkami — osobní údaje jsou ve výchozím nastavení maskovány.",
+        "time": "2 min",
+        "action": "Vybrat"
+      },
+      "inviteTeammates": {
+        "title": "Pozvat členy týmu",
+        "desc": "Přizvěte svůj tým k prozkoumávání a spolupráci.",
+        "time": "2 min",
+        "action": "Pozvat"
+      },
+      "workspaceDefaults": {
+        "title": "Nastavit výchozí hodnoty",
+        "desc": "Motiv, akcent, hustota a jazyk pro všechny.",
+        "time": "1 min",
+        "action": "Nastavit"
+      }
+    },
+    "entry": {
+      "wayBack": "Začínáme · {done}/{total}",
+      "dismiss": "Skrýt kontrolní seznam",
+      "continue": "Pokračovat v nastavení",
+      "banner": "Dokončete nastavení prostoru — hotovo {done} z {total} kroků."
+    }
+  },
+  "views": {
+    "baseView": "Všechny záznamy",
+    "menuLabel": "Uložené pohledy",
+    "saveAs": "Uložit aktuální jako pohled…",
+    "updateActive": "Aktualizovat „{name}“",
+    "rename": "Přejmenovat…",
+    "setDefault": "Nastavit jako výchozí",
+    "delete": "Odstranit…",
+    "saveTitle": "Uložit pohled",
+    "save": "Uložit pohled",
+    "renameTitle": "Přejmenovat pohled",
+    "saveName": "Uložit název",
+    "nameLabel": "Název pohledu",
+    "namePlaceholder": "např. Aktivní tento měsíc",
+    "nameRequired": "Zadejte název tohoto pohledu.",
+    "saveFailed": "Pohled se nepodařilo uložit.",
+    "deleteTitle": "Odstranit pohled",
+    "deleteBody": "Tímto se odstraní uložený pohled. Vaše data nejsou dotčena.",
+    "deletePrompt": "Pro potvrzení zadejte název pohledu",
+    "deleteConfirm": "Odstranit pohled",
+    "savedToast": "Pohled „{name}“ uložen.",
+    "updatedToast": "Pohled „{name}“ aktualizován.",
+    "defaultToast": "„{name}“ je nyní výchozí pohled.",
+    "deletedToast": "Pohled „{name}“ odstraněn."
+  }
+} as const;

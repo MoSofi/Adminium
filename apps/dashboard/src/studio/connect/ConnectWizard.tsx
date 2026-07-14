@@ -13,6 +13,7 @@ import { Alert, Button, Stepper, type Step } from '@adminium/ui';
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { studioApi, type SchemaTable } from '../api.js';
+import { wizardCapabilitySource } from './capabilityNotes.js';
 import { GenerateStep } from './steps/GenerateStep.js';
 import { IntentStep } from './steps/IntentStep.js';
 import { MetaStep } from './steps/MetaStep.js';
@@ -161,6 +162,7 @@ export function ConnectWizard({ onOpenApp, lineDelayMs, pollIntervalMs }: Connec
           <TablesStep
             connectionId={state.mode === 'file' ? null : state.connectionId}
             fileTables={fileTables}
+            source={wizardCapabilitySource(state)}
             included={state.includedTables}
             onIncludedChange={(includedTables) => patch({ includedTables })}
           />

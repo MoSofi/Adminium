@@ -36,3 +36,27 @@ export const settingsDefaultsReply = z.object({
   }),
 });
 export type SettingsDefaultsReply = z.infer<typeof settingsDefaultsReply>;
+
+// --- workspace identity (M5-T05, 08 §2.16 sectioned puts) -----------------------
+// Bounds mirror the settings-registry Zod defs (07-meta-store.md §7.1) — the
+// repo re-validates on write, so these fail fast with a 422 instead of a 500.
+//
+// The `auth.*` security controls (require2fa / allowSignup / sessionTtlHours /
+// passwordMinLength) are intentionally NOT exposed here: no auth flow reads
+// them yet, so a PUT surface would persist inert config and present dead
+// security toggles in the UI. They return when enforcement lands (the login /
+// session / password paths), so admins are never shown a control that does
+// nothing.
+
+/** `PUT /settings/branding` — workspace identity (registry `branding.*`). */
+export const settingsBrandingPutBody = z.object({
+  appName: z.string().min(1).max(60),
+});
+export type SettingsBrandingPutBody = z.infer<typeof settingsBrandingPutBody>;
+
+export const settingsWorkspaceReply = z.object({
+  data: z.object({
+    branding: settingsBrandingPutBody,
+  }),
+});
+export type SettingsWorkspaceReply = z.infer<typeof settingsWorkspaceReply>;

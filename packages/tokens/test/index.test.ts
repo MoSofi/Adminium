@@ -74,6 +74,22 @@ describe('CSS files agree with the JS constants', () => {
     }
   });
 
+  it('fonts.css switches the body family per lang, matching the tags ThemeProvider stamps (10-i18n-theming.md §5.1)', () => {
+    const fonts = css('fonts.css');
+    // The three shipped faces plus the locale stacks.
+    for (const face of ['Manrope', 'JetBrains Mono', 'IBM Plex Sans Arabic']) {
+      expect(fonts).toContain(`font-family: "${face}"`);
+    }
+    for (const v of ['--font-sans', '--font-mono', '--font-arabic']) expect(fonts).toContain(v);
+    // ThemeProvider/pre-hydration stamp BCP-47 tags on <html lang>; these
+    // selectors must match those tags exactly or the stacks never activate.
+    expect(fonts).toContain('html[lang="ar-EG"] body { font-family: var(--font-arabic); }');
+    expect(fonts).toMatch(/html\[lang="zh-CN"\] body \{ font-family: [^;]*"PingFang SC"/);
+    expect(fonts).toMatch(/html\[lang="zh-TW"\] body \{ font-family: [^;]*"PingFang TC"/);
+    // Arabic face stays scoped to the Arabic block so Latin glyphs fall back to Manrope.
+    expect(fonts).toMatch(/IBM Plex Sans Arabic[\s\S]*?unicode-range: U\+0600-06FF/);
+  });
+
   it('index.css imports every sheet except tailwind.css', () => {
     const index = css('index.css');
     for (const f of ['tokens', 'accents', 'density', 'viz', 'fonts', 'motion', 'exceptions']) {

@@ -16,6 +16,7 @@
  */
 import {
   AdapterError,
+  ENGINE_CAPABILITY_MATRIX,
   type AdapterCapabilities,
   type ColumnModel,
   type DatabaseModel,
@@ -48,19 +49,13 @@ export interface IntrospectContext {
   fileSizeBytes: number | null;
 }
 
-/** Static dialect capabilities — 05 §2.1/§4.3 (probe refines per-connection). */
+/**
+ * Static dialect capabilities — 05 §2.1/§4.3 (probe refines per-connection).
+ * Canonical values live in the engine's capability matrix (M9-T04) so the
+ * wizard's degradation copy and the adapter never disagree.
+ */
 export const SQLITE_CAPABILITIES: AdapterCapabilities = {
-  hasEnums: false, // CHECK synthesis only — 05 §4.3
-  hasFKs: true,
-  hasSchemas: false,
-  hasComments: false, // no comment syntax — Studio remap is the labeling path
-  hasChecks: true,
-  hasRLS: false,
-  hasMaterializedViews: false,
-  hasRowEstimates: true, // sqlite_stat1 / small-file exact counts
-  supportsStatementTimeout: false, // worker termination is the timeout story
-  supportsReturning: true, // SQLite ≥ 3.35 (minimum supported — 05 §4.3)
-  maxIdentifierLength: 128,
+  ...ENGINE_CAPABILITY_MATRIX.sqlite,
 };
 
 /** §4.3: exact per-table `COUNT(*)` only when the file is under 100 MB. */

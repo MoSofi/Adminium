@@ -1,0 +1,56 @@
+{
+  "action": {
+    "close": "إغلاق",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "save": "حفظ",
+    "apply": "تطبيق",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "undo": "تراجع",
+    "retry": "إعادة المحاولة",
+    "clear": "مسح",
+    "selectAll": "تحديد الكل",
+    "clearSelection": "إلغاء التحديد",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
+    "reveal": "كشف",
+    "hide": "إخفاء"
+  },
+  "state": {
+    "loading": "جارٍ التحميل…",
+    "empty": "لا يوجد شيء هنا بعد",
+    "noResults": "لا توجد نتائج",
+    "optional": "اختياري",
+    "required": "مطلوب",
+    "error": "حدث خطأ ما"
+  },
+  "pagination": {
+    "previous": "السابق",
+    "next": "التالي",
+    "pageOf": "صفحة {page, number} من {pages, number}",
+    "rowsPerPage": "عدد الصفوف في الصفحة",
+    "range": "{from, number}–{to, number} من {total, number}"
+  },
+  "table": {
+    "sortAscending": "ترتيب تصاعدي",
+    "sortDescending": "ترتيب تنازلي",
+    "rowActions": "إجراءات الصف",
+    "selectRow": "تحديد الصف",
+    "selectAllRows": "تحديد كل الصفوف"
+  },
+  "dialog": {
+    "close": "إغلاق مربع الحوار",
+    "confirmTitle": "هل أنت متأكد؟"
+  },
+  "combobox": {
+    "placeholder": "اختر…",
+    "search": "بحث…",
+    "noMatches": "لا توجد مطابقات"
+  },
+  "toast": {
+    "dismiss": "إغلاق الإشعار"
+  }
+}

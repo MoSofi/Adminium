@@ -1,13 +1,18 @@
 /**
- * Step 2 — source (09 §8.2 step 1): three input modes behind a
+ * Step 2 — source (09 §8.2 step 1, M9-T04): three input modes behind a
  * SegmentedControl — DSN (mono connection-string field + provider quick-fill
  * chips + live scheme validation), individual fields (composing the DSN),
  * and schema file (dropzone → POST /api/v1/schema-import/parse → preview).
- * Carries the comps' read-only-role and trust copy, wired honestly: setup
- * uses the introspect role only; writes never happen before meta placement.
+ *
+ * M9-T04 additions: an engine picker (postgres / mysql-mariadb / sqlite)
+ * that stays in sync with the DSN scheme and swaps the fields form to a
+ * file-path input for SQLite (05 §4.3 — file, not host/port); a schema-file
+ * format picker over the 8 import formats with auto-detect default, showing
+ * what was detected and re-parsing on override; parser warnings surfaced on
+ * the preview card.
  */
 import { FileCode2, FormInput, Link2 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   Badge,
@@ -22,14 +27,23 @@ import {
 
 import { ApiError } from '../../../app/api.js';
 import { t } from '../../../i18n/t.js';
-import { studioApi, type SchemaTable } from '../../api.js';
+import { studioApi, type ConnectionEngine, type SchemaTable } from '../../api.js';
 import { Dropzone } from '../Dropzone.js';
 import {
-  PROVIDER_CHIPS,
+  FILE_FORMATS,
+  SOURCE_ENGINES,
   composeDsn,
+  dsnInputPatch,
+  dsnPlaceholder,
   dsnValidationError,
   engineForDsn,
+  engineLabel,
+  enginePickPatch,
+  fileFormatFromImportFormat,
+  fileFormatLabel,
+  providerChipsFor,
   type FieldsInput,
+  type FileFormatChoice,
   type SourceMode,
   type SslMode,
   type WizardState,
@@ -44,35 +58,38 @@ export interface SourceStepProps {
 
 const SSL_MODES: readonly SslMode[] = ['disable', 'require', 'verify-ca', 'verify-full'];
 
+/** Everything the 8 parsers read (05 §5.2) — plus .txt for pasted dumps. */
+const FILE_ACCEPT = '.sql,.prisma,.ts,.js,.mjs,.cjs,.rb,.py,.json,.txt';
+
 export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepProps) {
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  /** Last uploaded file, kept in memory so a format override can re-parse. */
+  const lastFileRef = useRef<{ name: string; content: string } | null>(null);
 
   const dsnError = dsnValidationError(state.dsn);
-  const engine = engineForDsn(state.dsn);
+  const inferredEngine = engineForDsn(state.dsn);
+  const pickerEngine: ConnectionEngine = state.mode === 'dsn' ? (inferredEngine ?? state.engine) : state.engine;
+  const chips = providerChipsFor(pickerEngine);
 
-  const parseFile = (file: File) => {
+  const parseContent = (name: string, content: string, format: FileFormatChoice) => {
     setParsing(true);
     setParseError(null);
-    const lower = file.name.toLowerCase();
-    const format = lower.endsWith('.sql') ? 'sql' : lower.endsWith('.json') ? 'json' : undefined;
-    void file
-      .text()
-      .then((content) =>
-        studioApi.parseSchemaFile({ content, fileName: file.name, ...(format === undefined ? {} : { format }) }),
-      )
+    void studioApi
+      .parseSchemaFile({ content, fileName: name, ...(format === 'auto' ? {} : { format }) })
       .then((preview) => {
         const model = preview.model as { tables?: SchemaTable[] } | null;
         onFileTablesCapture?.(Array.isArray(model?.tables) ? model.tables : null);
         onPatch({
           filePreview: {
-            fileName: file.name,
+            fileName: name,
             format: preview.format,
+            detected: format === 'auto',
             tables: preview.summary.tables,
             columns: preview.summary.columns,
             warnings: preview.warnings,
           },
-          ...(state.name.trim().length === 0 ? { name: file.name.replace(/\.[^.]+$/, '') } : {}),
+          ...(state.name.trim().length === 0 ? { name: name.replace(/\.[^.]+$/, '') } : {}),
         });
       })
       .catch((cause: unknown) => {
@@ -84,15 +101,31 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
             details?.reason === 'UNSUPPORTED_FORMAT'
               ? t(
                   'studio.source.file.unsupported',
-                  "That format isn't supported yet — .sql and .json work today. Prisma, Drizzle, TypeORM, Rails and Django parsers land in M9.",
+                  'That format is not recognized — SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django models and Adminium JSON are supported. Pick one explicitly and retry.',
                 )
-              : t('studio.source.file.parseFailed', 'We could not parse that file. Check it contains CREATE TABLE statements or an Adminium JSON schema.'),
+              : t(
+                  'studio.source.file.parseFailed',
+                  'We could not parse that file. If auto-detect guessed wrong, pick the format explicitly and retry.',
+                ),
           );
         } else {
           setParseError(t('studio.source.file.requestFailed', 'Upload failed — check your connection and try again.'));
         }
       })
       .finally(() => setParsing(false));
+  };
+
+  const parseFile = (file: File) => {
+    void file.text().then((content) => {
+      lastFileRef.current = { name: file.name, content };
+      parseContent(file.name, content, state.fileFormat);
+    });
+  };
+
+  const onFormatChange = (format: FileFormatChoice) => {
+    onPatch({ fileFormat: format });
+    const last = lastFileRef.current;
+    if (last !== null) parseContent(last.name, last.content, format);
   };
 
   return (
@@ -123,13 +156,24 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
         ]}
       />
 
+      {state.mode !== 'file' ? (
+        <FormField label={t('studio.source.engine.label', 'Database engine')}>
+          <SegmentedControl
+            aria-label={t('studio.source.engine.label', 'Database engine')}
+            value={pickerEngine}
+            onValueChange={(engine) => onPatch(enginePickPatch(state, engine as ConnectionEngine))}
+            options={SOURCE_ENGINES.map((engine) => ({ value: engine, label: engineLabel(engine) }))}
+          />
+        </FormField>
+      ) : null}
+
       {state.mode === 'dsn' ? (
         <div className="flex flex-col gap-3">
           <FormField
             label={t('studio.source.dsn.label', 'Connection string')}
             required
             {...(dsnError === null ? {} : { error: dsnError })}
-            {...(engine === null ? {} : { tag: <Tag>{engine}</Tag> })}
+            {...(inferredEngine === null ? {} : { tag: <Tag>{inferredEngine}</Tag> })}
             helper={
               dsnError === null
                 ? t('studio.source.dsn.helper', 'postgres://user:password@host:5432/database — mysql:// and sqlite: work too.')
@@ -139,34 +183,40 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
             <Input
               mono
               value={state.dsn}
-              onChange={(event) => onPatch({ dsn: event.currentTarget.value })}
-              placeholder="postgres://user:password@host:5432/database"
+              onChange={(event) => onPatch(dsnInputPatch(event.currentTarget.value, state.engine))}
+              placeholder={dsnPlaceholder(pickerEngine)}
               autoComplete="off"
               spellCheck={false}
             />
           </FormField>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-caption text-fg-subtle">{t('studio.source.dsn.quickFill', 'Quick fill:')}</span>
-            {PROVIDER_CHIPS.map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                onClick={() => onPatch({ dsn: chip.dsn })}
-                className={
-                  'rounded-full border border-border-strong bg-surface px-2.5 py-0.5 text-caption font-semibold text-fg-muted ' +
-                  'transition-colors duration-150 hover:border-fg-subtle hover:text-fg ' +
-                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-                }
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
+          {chips.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-caption text-fg-subtle">{t('studio.source.dsn.quickFill', 'Quick fill:')}</span>
+              {chips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => onPatch({ dsn: chip.dsn, engine: chip.engine })}
+                  className={
+                    'rounded-full border border-border-strong bg-surface px-2.5 py-0.5 text-caption font-semibold text-fg-muted ' +
+                    'transition-colors duration-150 hover:border-fg-subtle hover:text-fg ' +
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+                  }
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {state.mode === 'fields' ? (
-        <FieldsForm fields={state.fields} onChange={(fields) => onPatch({ fields })} />
+        state.engine === 'sqlite' ? (
+          <SqliteFileForm fields={state.fields} onChange={(fields) => onPatch({ fields })} />
+        ) : (
+          <FieldsForm engine={state.engine} fields={state.fields} onChange={(fields) => onPatch({ fields })} />
+        )
       ) : null}
 
       {state.mode === 'file' ? (
@@ -174,10 +224,28 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
           <p className="text-body-sm text-fg-muted">
             {t(
               'studio.source.file.pitch',
-              'No database connection required — we parse your CREATE TABLE statements and build the same dashboards.',
+              'No database connection required — we parse your schema file and build the same dashboards.',
             )}
           </p>
-          <Dropzone accept=".sql,.json" onFile={parseFile} disabled={parsing} />
+          <FormField
+            label={t('studio.source.format.label', 'Schema format')}
+            helper={t('studio.source.format.helper', 'Leave on auto-detect unless the detection gets it wrong.')}
+          >
+            <Select
+              value={state.fileFormat}
+              onChange={(event) => onFormatChange(event.currentTarget.value as FileFormatChoice)}
+              aria-label={t('studio.source.format.label', 'Schema format')}
+              disabled={parsing}
+            >
+              <option value="auto">{t('studio.source.format.auto', 'Auto-detect')}</option>
+              {FILE_FORMATS.map((format) => (
+                <option key={format} value={format}>
+                  {fileFormatLabel(format)}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <Dropzone accept={FILE_ACCEPT} onFile={parseFile} disabled={parsing} />
           {parsing ? (
             <div className="flex items-center gap-2 text-body-sm text-fg-muted">
               <Spinner size="sm" />
@@ -187,32 +255,7 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
           {parseError !== null ? (
             <Alert tone="danger" role="alert" title={t('studio.source.file.errorTitle', 'Could not parse the file')} body={parseError} />
           ) : null}
-          {state.filePreview !== null ? (
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3.5">
-              <div className="flex items-center gap-2">
-                <MonoText className="text-body-sm text-fg">{state.filePreview.fileName}</MonoText>
-                <Tag>{state.filePreview.format}</Tag>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge tone="accent">
-                  {t('studio.source.file.tables', 'tables')} <MonoText>{state.filePreview.tables}</MonoText>
-                </Badge>
-                <Badge tone="neutral">
-                  {t('studio.source.file.columns', 'columns')} <MonoText>{state.filePreview.columns}</MonoText>
-                </Badge>
-                {state.filePreview.warnings.length > 0 ? (
-                  <Badge tone="warn">
-                    {t('studio.source.file.warnings', 'warnings')} <MonoText>{state.filePreview.warnings.length}</MonoText>
-                  </Badge>
-                ) : null}
-              </div>
-              {state.filePreview.warnings.slice(0, 3).map((warning) => (
-                <p key={warning} className="text-caption text-fg-muted">
-                  {warning}
-                </p>
-              ))}
-            </div>
-          ) : null}
+          {state.filePreview !== null ? <FilePreviewCard preview={state.filePreview} /> : null}
         </div>
       ) : null}
 
@@ -230,7 +273,86 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
   );
 }
 
-function FieldsForm({ fields, onChange }: { fields: FieldsInput; onChange: (fields: FieldsInput) => void }) {
+function FilePreviewCard({ preview }: { preview: NonNullable<WizardState['filePreview']> }) {
+  const shortFormat = fileFormatFromImportFormat(preview.format);
+  const formatName = shortFormat === null ? preview.format : fileFormatLabel(shortFormat);
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface-2 p-3.5">
+      <div className="flex items-center gap-2">
+        <MonoText className="text-body-sm text-fg">{preview.fileName}</MonoText>
+        <Tag>
+          {preview.detected
+            ? t('studio.source.file.detectedAs', 'Detected: {format}').replace('{format}', formatName)
+            : formatName}
+        </Tag>
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge tone="accent">
+          {t('studio.source.file.tables', 'tables')} <MonoText>{preview.tables}</MonoText>
+        </Badge>
+        <Badge tone="neutral">
+          {t('studio.source.file.columns', 'columns')} <MonoText>{preview.columns}</MonoText>
+        </Badge>
+        {preview.warnings.length > 0 ? (
+          <Badge tone="warn">
+            {t('studio.source.file.warnings', 'warnings')} <MonoText>{preview.warnings.length}</MonoText>
+          </Badge>
+        ) : null}
+      </div>
+      {preview.warnings.slice(0, 3).map((warning) => (
+        <p key={warning} className="text-caption text-fg-muted">
+          {warning}
+        </p>
+      ))}
+      {preview.warnings.length > 3 ? (
+        <p className="text-caption text-fg-subtle">
+          {t('studio.source.file.moreWarnings', '+{count} more warnings — the full list appears in the analyze step.').replace(
+            '{count}',
+            String(preview.warnings.length - 3),
+          )}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function SqliteFileForm({ fields, onChange }: { fields: FieldsInput; onChange: (fields: FieldsInput) => void }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <FormField
+        label={t('studio.source.sqlite.file', 'Database file path')}
+        required
+        helper={t(
+          'studio.source.sqlite.helper',
+          'SQLite is a file, not a server — give the absolute path on the machine running Adminium.',
+        )}
+      >
+        <Input
+          mono
+          value={fields.file}
+          onChange={(event) => onChange({ ...fields, file: event.currentTarget.value })}
+          placeholder="/var/data/app.db"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </FormField>
+      <p className="text-caption text-fg-muted">
+        {t('studio.source.fields.preview', 'Connection string preview:')}{' '}
+        <MonoText>{composeDsn(fields, 'sqlite')}</MonoText>
+      </p>
+    </div>
+  );
+}
+
+function FieldsForm({
+  engine,
+  fields,
+  onChange,
+}: {
+  engine: ConnectionEngine;
+  fields: FieldsInput;
+  onChange: (fields: FieldsInput) => void;
+}) {
   const patch = (partial: Partial<FieldsInput>) => onChange({ ...fields, ...partial });
   return (
     <div className="flex flex-col gap-3">
@@ -257,15 +379,17 @@ function FieldsForm({ fields, onChange }: { fields: FieldsInput; onChange: (fiel
         <FormField label={t('studio.source.fields.database', 'Database')} required>
           <Input mono value={fields.database} onChange={(event) => patch({ database: event.currentTarget.value })} />
         </FormField>
-        <FormField label={t('studio.source.fields.ssl', 'SSL mode')}>
-          <Select value={fields.ssl} onChange={(event) => patch({ ssl: event.currentTarget.value as SslMode })}>
-            {SSL_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {mode}
-              </option>
-            ))}
-          </Select>
-        </FormField>
+        {engine === 'postgres' ? (
+          <FormField label={t('studio.source.fields.ssl', 'SSL mode')}>
+            <Select value={fields.ssl} onChange={(event) => patch({ ssl: event.currentTarget.value as SslMode })}>
+              {SSL_MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {mode}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label={t('studio.source.fields.user', 'User')} required>
@@ -282,7 +406,7 @@ function FieldsForm({ fields, onChange }: { fields: FieldsInput; onChange: (fiel
       </div>
       <p className="text-caption text-fg-muted">
         {t('studio.source.fields.preview', 'Connection string preview:')}{' '}
-        <MonoText>{composeDsn({ ...fields, password: fields.password.length > 0 ? '•••' : '' })}</MonoText>
+        <MonoText>{composeDsn({ ...fields, password: fields.password.length > 0 ? '•••' : '' }, engine)}</MonoText>
       </p>
     </div>
   );

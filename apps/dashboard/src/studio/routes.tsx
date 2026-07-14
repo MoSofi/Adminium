@@ -2,9 +2,9 @@
  * Studio route factory (09 §8.1) — mounted under the authed app layout by
  * app/router.tsx. Routes this wave:
  *
- * - `/studio`                        → redirects to the connect wizard (the
- *                                      connections-overview hub is 09-T14)
+ * - `/studio`                        → connections manager hub (M5-T05)
  * - `/studio/connect`                → connect wizard (M5-T01/02/03)
+ * - `/studio/settings`               → workspace settings hub (M5-T05)
  * - `/studio/remap/$connectionId`    → schema remap editor — OWNED BY THE
  *   REMAP AGENT. Contract: `./remap/RemapEditor.tsx` exports
  *   `RemapEditor({ connectionId }: { connectionId: string })`. Loaded
@@ -14,12 +14,14 @@
  * All Studio surfaces are wrapped in `StudioGuard` (role ≥ Admin).
  */
 import { Suspense, lazy, type ComponentType } from 'react';
-import { createRoute, redirect, useNavigate, type AnyRoute } from '@tanstack/react-router';
+import { createRoute, useNavigate, type AnyRoute } from '@tanstack/react-router';
 import { Alert, Spinner } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { StudioGuard } from './StudioGuard.js';
 import { ConnectWizard } from './connect/ConnectWizard.js';
+import { ConnectionsHub } from './hub/ConnectionsHub.js';
+import { StudioSettingsPage } from './settings/StudioSettingsPage.js';
 
 // --- remap contract (file owned by the remap agent, may land later) ----------
 
@@ -70,6 +72,33 @@ function ConnectRouteComponent() {
   );
 }
 
+function HubRouteComponent() {
+  const navigate = useNavigate();
+  return (
+    <StudioGuard>
+      <Suspense fallback={<CenteredSpinner />}>
+        <ConnectionsHub
+          onConnectNew={() => void navigate({ to: '/studio/connect' })}
+          onOpenRemap={(connectionId) =>
+            void navigate({ to: '/studio/remap/$connectionId', params: { connectionId } })
+          }
+        />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
+function SettingsRouteComponent() {
+  const navigate = useNavigate();
+  return (
+    <StudioGuard>
+      <Suspense fallback={<CenteredSpinner />}>
+        <StudioSettingsPage onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })} />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
 // --- factory -------------------------------------------------------------------
 
 /**
@@ -80,16 +109,19 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
   const studioIndexRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio',
-    beforeLoad: () => {
-      // Hub (connections overview) is 09-T14 — the wizard is the M5 landing.
-      throw redirect({ to: '/studio/connect' });
-    },
+    component: HubRouteComponent,
   });
 
   const connectRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/connect',
     component: ConnectRouteComponent,
+  });
+
+  const settingsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/settings',
+    component: SettingsRouteComponent,
   });
 
   const remapRoute = createRoute({
@@ -109,7 +141,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     );
   }
 
-  return [studioIndexRoute, connectRoute, remapRoute];
+  return [studioIndexRoute, connectRoute, settingsRoute, remapRoute];
 }
 
 /** Test seam: does the remap module exist in this build? */

@@ -117,7 +117,7 @@ export function Topbar({ bootstrap, title, onOpenPalette, onSignOut, onOpenAccou
               {t('topbar.preferences', 'Preferences')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem icon={<LogOut />} onSelect={onSignOut}>
+            <DropdownMenuItem icon={<LogOut className="rtl:-scale-x-100" />} onSelect={onSignOut}>
               {t('topbar.signOut', 'Sign out')}
             </DropdownMenuItem>
           </DropdownMenuContent>

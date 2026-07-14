@@ -72,6 +72,16 @@ function tagFor(tag: string, ctx: FmtContext): string {
   return tag.includes('-u-') ? `${tag}-nu-latn-ca-gregory` : `${tag}-u-nu-latn-ca-gregory`;
 }
 
+/**
+ * The data-context BCP-47 tag (latn digits + gregorian calendar, §4.2) for
+ * callers that must build an `Intl.*` instance this layer does not expose —
+ * e.g. a narrow-style relative-time formatter for a mono grid cell. Keeps the
+ * numeral policy in one place instead of hand-rolling the `-u-nu-latn` suffix.
+ */
+export function latnDataTag(tag: string): string {
+  return tagFor(tag, 'data');
+}
+
 const numberFormats = new Map<string, Intl.NumberFormat>();
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
 const listFormats = new Map<string, Intl.ListFormat>();

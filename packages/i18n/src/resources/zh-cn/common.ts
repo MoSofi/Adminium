@@ -1,0 +1,466 @@
+/**
+ * GENERATED MIRROR of ../../../locales/zh-CN/common.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
+ * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "common": {
+    "dismiss": "关闭",
+    "notifications": "通知",
+    "retry": "重试",
+    "undo": "撤销",
+    "close": "关闭",
+    "cancel": "取消"
+  },
+  "auth": {
+    "headline": "把任何数据库变成仪表盘。",
+    "trust": "AGPL 核心 · 自托管 · 数据始终归你所有",
+    "signIn": {
+      "title": "欢迎回来",
+      "subtitle": "登录你的 Adminium 工作区。",
+      "email": "邮箱",
+      "emailInvalid": "请输入有效的邮箱地址。",
+      "password": "密码",
+      "passwordRequired": "请输入密码。",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "remember": "保持登录状态",
+      "forgot": "忘记了？",
+      "submit": "登录",
+      "invalid": "邮箱或密码不正确。",
+      "rateLimited": "尝试次数过多——请一分钟后再试。",
+      "failed": "登录失败。请检查网络连接后重试。"
+    },
+    "forgot": {
+      "title": "重置密码",
+      "email": "邮箱",
+      "emailInvalid": "请输入有效的邮箱地址。",
+      "submit": "发送重置链接",
+      "sentTitle": "请查收邮件",
+      "resend": "再发一次",
+      "back": "返回登录",
+      "done": "返回登录",
+      "rateLimited": "请求过多——请稍后再试。",
+      "failed": "出错了。请重试。"
+    },
+    "reset": {
+      "title": "设置新密码",
+      "subtitle": "至少 8 个字符。",
+      "password": "新密码",
+      "confirm": "确认密码",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "strength": "密码强度",
+      "weak": "弱",
+      "fair": "一般",
+      "good": "良好",
+      "strong": "强",
+      "tooShort": "请至少使用 8 个字符。",
+      "submit": "重置密码",
+      "failed": "重置失败。请重试。"
+    },
+    "otp": {
+      "title": "双重验证",
+      "subtitle": "请输入验证器应用中的 6 位数字验证码。",
+      "code": "一次性验证码",
+      "recoveryCode": "恢复代码",
+      "useRecovery": "设备丢失？使用恢复代码",
+      "useAuthenticator": "改用验证器应用",
+      "submit": "验证",
+      "invalid": "验证码不正确。请重试。",
+      "failed": "验证失败。请检查网络连接后重试。"
+    }
+  },
+  "nav": {
+    "home": "首页",
+    "primary": "主要",
+    "account": "账户",
+    "signOut": "退出登录",
+    "empty": "连接数据库后，页面会显示在这里。",
+    "connection": {
+      "shared": "共享",
+      "unnamed": "连接"
+    }
+  },
+  "topbar": {
+    "search": "搜索…",
+    "notifications": "通知",
+    "notificationsSoon": "通知功能将随通知中心一起推出（M7）。",
+    "theme": "切换浅色 / 深色",
+    "userMenu": "账户菜单",
+    "profile": "个人资料",
+    "preferences": "偏好设置",
+    "signOut": "退出登录"
+  },
+  "palette": {
+    "dialog": "命令面板",
+    "placeholder": "输入命令或搜索…",
+    "navigate": "导航",
+    "actions": "操作",
+    "askAi": "询问 AI",
+    "shortcuts": "键盘快捷键",
+    "signOut": "退出登录",
+    "themeDark": "切换到深色主题",
+    "themeLight": "切换到浅色主题",
+    "footerNavigate": "导航",
+    "footerOpen": "选择",
+    "footerClose": "关闭"
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "subtitle": "在 Adminium 中更高效地工作",
+    "close": "关闭",
+    "dismiss": "关闭或取消",
+    "palette": "打开命令面板",
+    "panel": "显示快捷键面板",
+    "search": "聚焦搜索框",
+    "sidebar": "切换侧边栏",
+    "theme": "切换浅色 / 深色",
+    "then": "然后",
+    "footerPre": "随时按",
+    "footerPost": "即可打开此面板。"
+  },
+  "states": {
+    "checked": "8 秒前检查过",
+    "diagnostics": "诊断"
+  },
+  "notFound": {
+    "title": "页面不见了",
+    "errorLine": "错误 404",
+    "searchPlaceholder": "搜索页面…",
+    "matches": "匹配的页面",
+    "popular": "常用页面",
+    "goBack": "返回",
+    "backToDashboard": "回到仪表盘"
+  },
+  "page": {
+    "invalid": {
+      "title": "此页面的配置无效",
+      "body": "存储的页面文档未通过校验，无法渲染。"
+    },
+    "renderError": {
+      "title": "此页面渲染失败"
+    },
+    "tooNew": {
+      "title": "此页面需要更新版本的 Adminium"
+    },
+    "unknownTemplate": {
+      "title": "未知的页面模板"
+    }
+  },
+  "mutation": {
+    "created": "记录已创建",
+    "updated": "记录已更新",
+    "deleted": "记录已删除"
+  },
+  "undo": {
+    "done": "更改已撤销",
+    "failed": "无法撤销此更改"
+  },
+  "prefs": {
+    "theme": {
+      "label": "主题",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
+    "accent": {
+      "label": "强调色",
+      "indigo": "靛蓝",
+      "blue": "蓝色",
+      "teal": "青色",
+      "violet": "紫色",
+      "rose": "玫红",
+      "red": "红色",
+      "orange": "橙色",
+      "black": "黑色"
+    },
+    "density": {
+      "label": "密度",
+      "comfortable": "舒适",
+      "compact": "紧凑"
+    },
+    "locale": {
+      "label": "语言",
+      "directionNote": "文字方向：从右到左（由语言自动设定）"
+    }
+  },
+  "account": {
+    "title": "账户",
+    "stub": "个人资料与偏好设置页面将在 Wave B（09-T18）作为预置设置页面推出。",
+    "name": "姓名",
+    "email": "邮箱",
+    "roles": "角色",
+    "twoFactor": "双重验证",
+    "on": "已启用",
+    "off": "未启用",
+    "preferences": {
+      "title": "偏好设置",
+      "subtitle": "Adminium 在你这里的外观与语言——在这台设备和你登录的每台设备上生效。",
+      "workspaceDefault": "工作区默认",
+      "personal": "个人",
+      "usingDefault": "正在使用工作区默认值（{value}）",
+      "reset": "恢复为工作区默认值",
+      "resetFailed": "无法重置此偏好。请重试。",
+      "appliesInstantly": "更改会立即生效，并保存到你的个人资料。"
+    }
+  },
+  "settings": {
+    "defaults": {
+      "title": "全局默认值",
+      "subtitle": "适用于整个工作区的外观与语言默认值。",
+      "explainer": "这些默认值适用于所有未自行覆盖的用户。任何人都可以在「个人资料 → 偏好设置」中设置自己的偏好——对该用户而言，个人偏好始终优先。",
+      "appearanceHeading": "外观默认值",
+      "languageHeading": "语言与区域默认值",
+      "adoption": "共 {total, plural, other {# 位用户}}，其中 {following, number} 位遵循此默认值。",
+      "weekStartNote": "每周起始日与数字格式跟随所选语言。",
+      "save": "保存默认值",
+      "saved": "工作区默认值已更新",
+      "saveFailed": "无法保存工作区默认值。请重试。",
+      "liveNote": "保存后更改会实时推送——遵循默认值的在线用户无需刷新即可看到。"
+    }
+  },
+  "studio": {
+    "source": {
+      "engine": {
+        "label": "数据库引擎",
+        "postgres": "PostgreSQL",
+        "mysql": "MySQL / MariaDB",
+        "sqlite": "SQLite"
+      },
+      "format": {
+        "label": "架构格式",
+        "helper": "除非自动检测出错，否则保持自动检测即可。",
+        "auto": "自动检测",
+        "sql": "SQL DDL / pg_dump",
+        "prisma": "Prisma 架构",
+        "drizzle": "Drizzle ORM",
+        "typeorm": "TypeORM 实体",
+        "sequelize": "Sequelize 模型",
+        "rails": "Rails schema.rb",
+        "django": "Django models.py",
+        "json": "Adminium JSON"
+      },
+      "sqlite": {
+        "file": "数据库文件路径",
+        "helper": "SQLite 是文件而非服务器——请填写运行 Adminium 的机器上的绝对路径。"
+      },
+      "file": {
+        "detectedAs": "检测到：{format}",
+        "moreWarnings": "另有 {count} 条警告——完整列表将在分析步骤中显示。"
+      }
+    },
+    "capability": {
+      "mysqlApproxRows": "MySQL 的行数来自存储引擎估算（偏差可达 ±40%），以 ≈ 显示。",
+      "mysqlFkEnum": "MySQL 的外键/枚举元数据较弱：MyISAM 表不声明外键，枚举是按列的 enum(…) 类型，CHECK 约束需要 MySQL 8.0.16+ / MariaDB 10.2+。",
+      "sqliteCheckEnums": "SQLite 没有原生枚举类型——枚举由 CHECK (col IN (…)) 约束合成。",
+      "sqliteNoComments": "SQLite 不支持列注释——请在架构重映射编辑器中添加标签。",
+      "importNoRowCounts": "架构文件不包含行数——表格列表显示 — 而不是编造的数字。",
+      "importNoLiveHealth": "没有实时数据库连接——此来源无法进行健康检查和架构漂移检测。",
+      "rowsUnavailable": "架构文件没有实时数据库——在连接数据库之前行数未知。",
+      "rowsRunAnalyze": "尚无估算——请在数据库上运行 ANALYZE 以获取行数。",
+      "rowsNoEstimate": "引擎未报告此表的行数估算。",
+      "rowsApproximate": "存储引擎估算——在 InnoDB 上偏差可达 ±40%。"
+    },
+    "test": {
+      "log": {
+        "moreWarnings": "另有 {count} 条解析器警告"
+      }
+    },
+    "tables": {
+      "importNoCounts": "架构文件不包含行数——在连接实时数据库之前，该列显示 —。"
+    },
+    "hub": {
+      "title": "数据连接",
+      "subtitle": "{total, plural, other {# 个连接中 {healthy, number} 个}}状态正常",
+      "connectNew": "新建连接",
+      "stats": {
+        "connections": "连接",
+        "healthy": "正常",
+        "tables": "已包含的表",
+        "pages": "已生成的页面"
+      },
+      "status": {
+        "connected": "已连接",
+        "error": "错误",
+        "unconfigured": "草稿",
+        "testing": "测试中…"
+      },
+      "card": {
+        "readOnly": "只读",
+        "tables": "表",
+        "pages": "页面",
+        "latency": "延迟",
+        "latencyMs": "{latency, number} 毫秒",
+        "lastIntrospected": "上次内省",
+        "never": "从未"
+      },
+      "action": {
+        "test": "测试",
+        "reintrospect": "重新内省",
+        "reintrospectFile": "架构文件来源没有在线数据库——请改为重新上传文件。",
+        "remap": "重映射架构",
+        "delete": "删除"
+      },
+      "test": {
+        "ok": "连接正常 · {latency, number} 毫秒",
+        "failed": "连接测试失败"
+      },
+      "introspect": {
+        "noChanges": "架构无变化——未创建新快照。",
+        "updated": "已重新内省架构",
+        "masksProposed": "{count, plural, other {建议对 # 列进行脱敏}}——请在重映射编辑器中查看。",
+        "failed": "内省失败，请重试。"
+      },
+      "delete": {
+        "title": "删除连接",
+        "body": "此操作将删除“{name}”及其生成的页面。您的数据库本身不会被改动。",
+        "prompt": "输入 {name} 以确认",
+        "confirm": "删除连接",
+        "cancel": "取消",
+        "close": "关闭",
+        "success": "连接“{name}”已删除",
+        "failed": "无法删除连接，请重试。"
+      },
+      "empty": {
+        "title": "还没有数据源",
+        "body": "连接数据库后，Adminium 会根据其架构生成您的管理面板。",
+        "cta": "连接数据库"
+      }
+    },
+    "settingsHub": {
+      "title": "工作区设置",
+      "subtitle": "此工作区的标识、安全与危险操作。",
+      "save": "保存更改",
+      "saved": "工作区设置已更新",
+      "saveFailed": "无法保存工作区设置，请重试。",
+      "superAdminOnlyTitle": "需要超级管理员",
+      "superAdminOnly": "只有超级管理员才能更改工作区标识和安全设置。",
+      "identity": {
+        "heading": "工作区标识",
+        "appName": {
+          "label": "应用名称",
+          "helper": "显示在侧边栏、浏览器标题和邮件中。",
+          "error": "请输入不超过 60 个字符的名称。"
+        }
+      },
+      "security": {
+        "heading": "安全",
+        "require2fa": {
+          "label": "强制双重验证",
+          "desc": "每位成员都必须启用双重验证才能登录。"
+        },
+        "allowSignup": {
+          "label": "允许自助注册",
+          "desc": "任何人都可以创建账户——关闭后此工作区仅限邀请。"
+        },
+        "sessionTtl": {
+          "label": "会话有效期（小时）",
+          "error": "介于 {min, number} 到 {max, number} 小时之间。"
+        },
+        "passwordMin": {
+          "label": "密码最小长度",
+          "error": "介于 {min, number} 到 {max, number} 个字符之间。"
+        }
+      },
+      "review": {
+        "title": "保存工作区设置",
+        "subtitle": "保存前请确认您的更改。",
+        "confirm": "保存更改",
+        "cancel": "取消",
+        "close": "关闭",
+        "on": "开",
+        "off": "关",
+        "change": "{before} → {after}"
+      },
+      "defaultsCard": {
+        "heading": "外观与语言默认值",
+        "body": "工作区级的主题、强调色、密度和语言设置位于全局默认值中。",
+        "cta": "打开全局默认值"
+      },
+      "danger": {
+        "heading": "危险区域",
+        "subtitle": "不可逆的操作。",
+        "empty": "没有可删除的内容——还没有连接。",
+        "deleteDesc": "删除该连接及其生成的页面。您的数据库不会被改动。此操作无法撤销。",
+        "deleteCta": "删除连接"
+      }
+    }
+  },
+  "onboarding": {
+    "title": "开始使用",
+    "subtitle": "几个步骤，让你的工作区准备就绪。",
+    "loading": "正在加载设置清单…",
+    "welcome": "欢迎使用 Adminium，{name} 👋",
+    "progressBody": "你已完成 {total} 个设置步骤中的 {done} 个。完成其余步骤以解锁完整工作区。",
+    "completeBody": "全部就绪 — 你的工作区已完全配置。",
+    "ringLabel": "已完成 {total} 个步骤中的 {done} 个",
+    "done": "完成",
+    "skip": "暂时跳过",
+    "goToWorkspace": "前往工作区",
+    "help": {
+      "title": "需要帮助？",
+      "body": "我们随时帮助你快速完成设置。"
+    },
+    "steps": {
+      "connectDatabase": {
+        "title": "连接数据库",
+        "desc": "将 Adminium 指向你的 Postgres、MySQL 或 SQLite — 只读角色也可以。",
+        "time": "5 分钟",
+        "action": "连接"
+      },
+      "chooseTables": {
+        "title": "选择你的表",
+        "desc": "选择哪些表成为页面 — 个人信息默认已脱敏。",
+        "time": "2 分钟",
+        "action": "选择"
+      },
+      "inviteTeammates": {
+        "title": "邀请团队成员",
+        "desc": "邀请团队一起探索和协作。",
+        "time": "2 分钟",
+        "action": "邀请"
+      },
+      "workspaceDefaults": {
+        "title": "设置工作区默认值",
+        "desc": "为所有人设置主题、强调色、密度和语言。",
+        "time": "1 分钟",
+        "action": "设置"
+      }
+    },
+    "entry": {
+      "wayBack": "开始使用 · {done}/{total}",
+      "dismiss": "隐藏设置清单",
+      "continue": "继续设置",
+      "banner": "完成工作区设置 — 已完成 {total} 个步骤中的 {done} 个。"
+    }
+  },
+  "views": {
+    "baseView": "全部记录",
+    "menuLabel": "已保存视图",
+    "saveAs": "将当前保存为视图…",
+    "updateActive": "更新“{name}”",
+    "rename": "重命名…",
+    "setDefault": "设为默认",
+    "delete": "删除…",
+    "saveTitle": "保存视图",
+    "save": "保存视图",
+    "renameTitle": "重命名视图",
+    "saveName": "保存名称",
+    "nameLabel": "视图名称",
+    "namePlaceholder": "例如：本月活跃",
+    "nameRequired": "请输入此视图的名称。",
+    "saveFailed": "无法保存视图。",
+    "deleteTitle": "删除视图",
+    "deleteBody": "这将移除已保存的视图。你的数据不受影响。",
+    "deletePrompt": "输入视图名称以确认",
+    "deleteConfirm": "删除视图",
+    "savedToast": "视图“{name}”已保存。",
+    "updatedToast": "视图“{name}”已更新。",
+    "defaultToast": "“{name}”现在是默认视图。",
+    "deletedToast": "视图“{name}”已删除。"
+  }
+} as const;

@@ -339,6 +339,7 @@ export function getAdapter(dialect: Dialect): AdapterProvider {
 
 // The './adapter' subpath is the single entry point adapter packages may
 // import (dep-cruiser matrix, 01-architecture.md §2.3) — re-export the
-// SchemaModel types and the registry mechanics here.
+// SchemaModel types, the capability matrix and the registry mechanics here.
 export * from './schema-model.js';
+export * from './capabilities.js';
 export * from './adapter-registry.js';

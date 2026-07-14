@@ -1,0 +1,466 @@
+/**
+ * GENERATED MIRROR of ../../../locales/fr-FR/common.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
+ * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "common": {
+    "dismiss": "Fermer",
+    "notifications": "Notifications",
+    "retry": "Réessayer",
+    "undo": "Annuler",
+    "close": "Fermer",
+    "cancel": "Annuler"
+  },
+  "auth": {
+    "headline": "Transformez n’importe quelle base de données en tableau de bord.",
+    "trust": "Cœur AGPL · Auto-hébergé · Vos données restent les vôtres",
+    "signIn": {
+      "title": "Bon retour",
+      "subtitle": "Connectez-vous à votre espace de travail Adminium.",
+      "email": "E-mail",
+      "emailInvalid": "Saisissez une adresse e-mail valide.",
+      "password": "Mot de passe",
+      "passwordRequired": "Saisissez votre mot de passe.",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "remember": "Rester connecté",
+      "forgot": "Oublié ?",
+      "submit": "Se connecter",
+      "invalid": "E-mail ou mot de passe invalide.",
+      "rateLimited": "Trop de tentatives — réessayez dans une minute.",
+      "failed": "Échec de la connexion. Vérifiez votre connexion et réessayez."
+    },
+    "forgot": {
+      "title": "Réinitialiser votre mot de passe",
+      "email": "E-mail",
+      "emailInvalid": "Saisissez une adresse e-mail valide.",
+      "submit": "Envoyer le lien de réinitialisation",
+      "sentTitle": "Consultez votre boîte mail",
+      "resend": "Renvoyer",
+      "back": "Retour à la connexion",
+      "done": "Retour à la connexion",
+      "rateLimited": "Trop de demandes — réessayez plus tard.",
+      "failed": "Une erreur s’est produite. Réessayez."
+    },
+    "reset": {
+      "title": "Définir un nouveau mot de passe",
+      "subtitle": "8 caractères minimum.",
+      "password": "Nouveau mot de passe",
+      "confirm": "Confirmer le mot de passe",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe",
+      "strength": "Robustesse du mot de passe",
+      "weak": "Faible",
+      "fair": "Moyen",
+      "good": "Bon",
+      "strong": "Fort",
+      "tooShort": "Utilisez au moins 8 caractères.",
+      "submit": "Réinitialiser le mot de passe",
+      "failed": "Échec de la réinitialisation. Réessayez."
+    },
+    "otp": {
+      "title": "Authentification à deux facteurs",
+      "subtitle": "Saisissez le code à 6 chiffres de votre application d’authentification.",
+      "code": "Code à usage unique",
+      "recoveryCode": "Code de récupération",
+      "useRecovery": "Appareil perdu ? Utilisez un code de récupération",
+      "useAuthenticator": "Utiliser plutôt votre application d’authentification",
+      "submit": "Vérifier",
+      "invalid": "Ce code n’a pas fonctionné. Réessayez.",
+      "failed": "Échec de la vérification. Vérifiez votre connexion et réessayez."
+    }
+  },
+  "nav": {
+    "home": "Accueil",
+    "primary": "Principal",
+    "account": "Compte",
+    "signOut": "Se déconnecter",
+    "empty": "Les pages apparaîtront ici une fois une base de données connectée.",
+    "connection": {
+      "shared": "Partagé",
+      "unnamed": "Connexion"
+    }
+  },
+  "topbar": {
+    "search": "Rechercher…",
+    "notifications": "Notifications",
+    "notificationsSoon": "Les notifications arrivent avec le centre de notifications (M7).",
+    "theme": "Basculer clair / sombre",
+    "userMenu": "Menu du compte",
+    "profile": "Profil",
+    "preferences": "Préférences",
+    "signOut": "Se déconnecter"
+  },
+  "palette": {
+    "dialog": "Palette de commandes",
+    "placeholder": "Saisissez une commande ou recherchez…",
+    "navigate": "Naviguer",
+    "actions": "Actions",
+    "askAi": "Demander à l’IA",
+    "shortcuts": "Raccourcis clavier",
+    "signOut": "Se déconnecter",
+    "themeDark": "Passer au thème sombre",
+    "themeLight": "Passer au thème clair",
+    "footerNavigate": "naviguer",
+    "footerOpen": "sélectionner",
+    "footerClose": "fermer"
+  },
+  "shortcuts": {
+    "title": "Raccourcis clavier",
+    "subtitle": "Travaillez plus vite dans tout Adminium",
+    "close": "Fermer",
+    "dismiss": "Fermer ou ignorer",
+    "palette": "Ouvrir la palette de commandes",
+    "panel": "Afficher le panneau des raccourcis",
+    "search": "Activer la recherche",
+    "sidebar": "Afficher/masquer la barre latérale",
+    "theme": "Basculer clair / sombre",
+    "then": "puis",
+    "footerPre": "Appuyez sur",
+    "footerPost": "à tout moment pour ouvrir ce panneau."
+  },
+  "states": {
+    "checked": "vérifié il y a 8 s",
+    "diagnostics": "Diagnostics"
+  },
+  "notFound": {
+    "title": "Cette page a disparu",
+    "errorLine": "Erreur 404",
+    "searchPlaceholder": "Rechercher une page…",
+    "matches": "Pages correspondantes",
+    "popular": "Destinations populaires",
+    "goBack": "Retour",
+    "backToDashboard": "Retour au tableau de bord"
+  },
+  "page": {
+    "invalid": {
+      "title": "La configuration de cette page est invalide",
+      "body": "Le document de page enregistré a échoué à la validation et ne peut pas être affiché."
+    },
+    "renderError": {
+      "title": "Cette page n’a pas pu s’afficher"
+    },
+    "tooNew": {
+      "title": "Cette page nécessite une version plus récente d’Adminium"
+    },
+    "unknownTemplate": {
+      "title": "Modèle de page inconnu"
+    }
+  },
+  "mutation": {
+    "created": "Enregistrement créé",
+    "updated": "Enregistrement mis à jour",
+    "deleted": "Enregistrement supprimé"
+  },
+  "undo": {
+    "done": "Modification annulée",
+    "failed": "Impossible d’annuler cette modification"
+  },
+  "prefs": {
+    "theme": {
+      "label": "Thème",
+      "light": "Clair",
+      "dark": "Sombre",
+      "system": "Système"
+    },
+    "accent": {
+      "label": "Couleur d’accent",
+      "indigo": "Indigo",
+      "blue": "Bleu",
+      "teal": "Bleu canard",
+      "violet": "Violet",
+      "rose": "Rose",
+      "red": "Rouge",
+      "orange": "Orange",
+      "black": "Noir"
+    },
+    "density": {
+      "label": "Densité",
+      "comfortable": "Confortable",
+      "compact": "Compacte"
+    },
+    "locale": {
+      "label": "Langue",
+      "directionNote": "Sens du texte : de droite à gauche (défini automatiquement par la langue)"
+    }
+  },
+  "account": {
+    "title": "Compte",
+    "stub": "Les pages de profil et de préférences arrivent comme pages de réglages préconfigurées dans la vague B (09-T18).",
+    "name": "Nom",
+    "email": "E-mail",
+    "roles": "Rôles",
+    "twoFactor": "Double authentification",
+    "on": "Activée",
+    "off": "Désactivée",
+    "preferences": {
+      "title": "Préférences",
+      "subtitle": "L’apparence et la langue d’Adminium pour vous — sur cet appareil et tous ceux où vous vous connectez.",
+      "workspaceDefault": "Valeur de l’espace de travail",
+      "personal": "Personnel",
+      "usingDefault": "Valeur par défaut de l’espace de travail utilisée ({value})",
+      "reset": "Rétablir la valeur de l’espace de travail",
+      "resetFailed": "Impossible de réinitialiser cette préférence. Réessayez.",
+      "appliesInstantly": "Les changements s’appliquent immédiatement et sont enregistrés dans votre profil."
+    }
+  },
+  "settings": {
+    "defaults": {
+      "title": "Valeurs par défaut globales",
+      "subtitle": "Apparence et langue par défaut pour tout l’espace de travail.",
+      "explainer": "Ces valeurs par défaut s’appliquent à tous les utilisateurs tant qu’ils ne les remplacent pas. Chacun peut définir ses propres préférences dans Profil → Préférences — les préférences personnelles l’emportent toujours pour cet utilisateur.",
+      "appearanceHeading": "Apparence par défaut",
+      "languageHeading": "Langue et région par défaut",
+      "adoption": "{following, number} sur {total, plural, one {# utilisateur} other {# utilisateurs}} suivent cette valeur par défaut.",
+      "weekStartNote": "Le premier jour de la semaine et les formats de nombres suivent la langue.",
+      "save": "Enregistrer les valeurs par défaut",
+      "saved": "Valeurs par défaut de l’espace de travail mises à jour",
+      "saveFailed": "Impossible d’enregistrer les valeurs par défaut. Réessayez.",
+      "liveNote": "L’enregistrement diffuse le changement en direct — les utilisateurs connectés qui suivent une valeur par défaut la voient s’appliquer sans recharger."
+    }
+  },
+  "studio": {
+    "source": {
+      "engine": {
+        "label": "Moteur de base de données",
+        "postgres": "PostgreSQL",
+        "mysql": "MySQL / MariaDB",
+        "sqlite": "SQLite"
+      },
+      "format": {
+        "label": "Format du schéma",
+        "helper": "Laissez la détection automatique, sauf si elle se trompe.",
+        "auto": "Détection automatique",
+        "sql": "DDL SQL / pg_dump",
+        "prisma": "Schéma Prisma",
+        "drizzle": "Drizzle ORM",
+        "typeorm": "Entités TypeORM",
+        "sequelize": "Modèles Sequelize",
+        "rails": "Rails schema.rb",
+        "django": "Django models.py",
+        "json": "JSON Adminium"
+      },
+      "sqlite": {
+        "file": "Chemin du fichier de base de données",
+        "helper": "SQLite est un fichier, pas un serveur — indiquez le chemin absolu sur la machine qui exécute Adminium."
+      },
+      "file": {
+        "detectedAs": "Détecté : {format}",
+        "moreWarnings": "+{count} avertissements supplémentaires — la liste complète apparaît à l’étape d’analyse."
+      }
+    },
+    "capability": {
+      "mysqlApproxRows": "Les nombres de lignes MySQL sont des estimations du moteur de stockage (dérive possible jusqu’à ±40 %) — affichés avec ≈.",
+      "mysqlFkEnum": "Les métadonnées FK/enum de MySQL sont plus limitées : les tables MyISAM ne déclarent pas de clés étrangères, les enums sont des types enum(…) par colonne et les contraintes CHECK requièrent MySQL 8.0.16+ / MariaDB 10.2+.",
+      "sqliteCheckEnums": "SQLite n’a pas de type enum natif — les enums sont synthétisés à partir des contraintes CHECK (col IN (…)).",
+      "sqliteNoComments": "SQLite n’a pas de commentaires de colonne — utilisez l’éditeur de remappage du schéma pour ajouter des libellés.",
+      "importNoRowCounts": "Les fichiers de schéma ne contiennent pas de nombres de lignes — la liste des tables affiche — plutôt que des chiffres inventés.",
+      "importNoLiveHealth": "Pas de connexion à une base de données réelle — les contrôles de santé et la détection de dérive du schéma sont indisponibles pour cette source.",
+      "rowsUnavailable": "Les fichiers de schéma n’ont pas de base de données réelle — les nombres de lignes restent inconnus tant que vous n’en connectez pas une.",
+      "rowsRunAnalyze": "Pas encore d’estimation — exécutez ANALYZE sur la base pour obtenir les nombres de lignes.",
+      "rowsNoEstimate": "Le moteur n’a communiqué aucune estimation pour cette table.",
+      "rowsApproximate": "Estimation du moteur de stockage — dérive possible jusqu’à ±40 % avec InnoDB."
+    },
+    "test": {
+      "log": {
+        "moreWarnings": "+{count} avertissements du parseur supplémentaires"
+      }
+    },
+    "tables": {
+      "importNoCounts": "Les fichiers de schéma ne contiennent pas de nombres de lignes — la colonne affiche — tant qu’aucune base réelle n’est connectée."
+    },
+    "hub": {
+      "title": "Connexions de données",
+      "subtitle": "{healthy, number} sur {total, plural, one {# connexion} other {# connexions}} en bonne santé",
+      "connectNew": "Nouvelle connexion",
+      "stats": {
+        "connections": "Connexions",
+        "healthy": "En bonne santé",
+        "tables": "Tables incluses",
+        "pages": "Pages générées"
+      },
+      "status": {
+        "connected": "Connectée",
+        "error": "Erreur",
+        "unconfigured": "Brouillon",
+        "testing": "Test en cours…"
+      },
+      "card": {
+        "readOnly": "Lecture seule",
+        "tables": "Tables",
+        "pages": "Pages",
+        "latency": "Latence",
+        "latencyMs": "{latency, number} ms",
+        "lastIntrospected": "Dernière introspection",
+        "never": "Jamais"
+      },
+      "action": {
+        "test": "Tester",
+        "reintrospect": "Réintrospecter",
+        "reintrospectFile": "Les sources de type fichier de schéma n’ont pas de base de données active — téléversez à nouveau le fichier.",
+        "remap": "Remapper le schéma",
+        "delete": "Supprimer"
+      },
+      "test": {
+        "ok": "Connexion en bonne santé · {latency, number} ms",
+        "failed": "Échec du test de connexion"
+      },
+      "introspect": {
+        "noChanges": "Schéma inchangé — aucun nouvel instantané.",
+        "updated": "Schéma réintrospecté",
+        "masksProposed": "{count, plural, one {# colonne proposée} other {# colonnes proposées}} au masquage — à vérifier dans l’éditeur de remappage.",
+        "failed": "Échec de l’introspection. Réessayez."
+      },
+      "delete": {
+        "title": "Supprimer la connexion",
+        "body": "Cette action supprime « {name} » et les pages générées. Votre base de données n’est jamais touchée.",
+        "prompt": "Saisissez {name} pour confirmer",
+        "confirm": "Supprimer la connexion",
+        "cancel": "Annuler",
+        "close": "Fermer",
+        "success": "Connexion « {name} » supprimée",
+        "failed": "Impossible de supprimer la connexion. Réessayez."
+      },
+      "empty": {
+        "title": "Aucune source de données",
+        "body": "Connectez une base de données : Adminium génère votre panneau d’administration à partir de son schéma.",
+        "cta": "Connecter une base de données"
+      }
+    },
+    "settingsHub": {
+      "title": "Paramètres de l’espace de travail",
+      "subtitle": "Identité, sécurité et actions destructrices pour cet espace de travail.",
+      "save": "Enregistrer les modifications",
+      "saved": "Paramètres de l’espace de travail mis à jour",
+      "saveFailed": "Impossible d’enregistrer les paramètres de l’espace de travail. Réessayez.",
+      "superAdminOnlyTitle": "Super administrateur requis",
+      "superAdminOnly": "Seul un super administrateur peut modifier l’identité et les paramètres de sécurité de l’espace de travail.",
+      "identity": {
+        "heading": "Identité de l’espace de travail",
+        "appName": {
+          "label": "Nom de l’application",
+          "helper": "Affiché dans la barre latérale, le titre du navigateur et les e-mails.",
+          "error": "Saisissez un nom de 60 caractères maximum."
+        }
+      },
+      "security": {
+        "heading": "Sécurité",
+        "require2fa": {
+          "label": "Exiger l’authentification à deux facteurs",
+          "desc": "Chaque membre doit activer la 2FA pour se connecter."
+        },
+        "allowSignup": {
+          "label": "Autoriser l’auto-inscription",
+          "desc": "N’importe qui peut créer un compte — désactivé, l’espace de travail reste sur invitation uniquement."
+        },
+        "sessionTtl": {
+          "label": "Durée de session (heures)",
+          "error": "Entre {min, number} et {max, number} heures."
+        },
+        "passwordMin": {
+          "label": "Longueur minimale du mot de passe",
+          "error": "Entre {min, number} et {max, number} caractères."
+        }
+      },
+      "review": {
+        "title": "Enregistrer les paramètres de l’espace de travail",
+        "subtitle": "Vérifiez vos modifications avant d’enregistrer.",
+        "confirm": "Enregistrer les modifications",
+        "cancel": "Annuler",
+        "close": "Fermer",
+        "on": "Activé",
+        "off": "Désactivé",
+        "change": "{before} → {after}"
+      },
+      "defaultsCard": {
+        "heading": "Valeurs par défaut d’apparence et de langue",
+        "body": "Le thème, la couleur d’accent, la densité et la langue de tout l’espace de travail se trouvent dans les valeurs par défaut globales.",
+        "cta": "Ouvrir les valeurs par défaut globales"
+      },
+      "danger": {
+        "heading": "Zone de danger",
+        "subtitle": "Actions irréversibles.",
+        "empty": "Rien à supprimer — aucune connexion pour l’instant.",
+        "deleteDesc": "Supprime la connexion et les pages générées. Votre base de données n’est pas touchée. Irréversible.",
+        "deleteCta": "Supprimer la connexion"
+      }
+    }
+  },
+  "onboarding": {
+    "title": "Prise en main",
+    "subtitle": "Quelques étapes pour préparer votre espace de travail.",
+    "loading": "Chargement de votre liste de configuration…",
+    "welcome": "Bienvenue sur Adminium, {name} 👋",
+    "progressBody": "Vous avez terminé {done} étapes de configuration sur {total}. Terminez les autres pour débloquer tout l’espace de travail.",
+    "completeBody": "Tout est prêt — votre espace de travail est entièrement configuré.",
+    "ringLabel": "{done} étapes sur {total} terminées",
+    "done": "Terminé",
+    "skip": "Plus tard",
+    "goToWorkspace": "Aller à l’espace de travail",
+    "help": {
+      "title": "Besoin d’aide ?",
+      "body": "Nous sommes là pour vous aider à configurer rapidement."
+    },
+    "steps": {
+      "connectDatabase": {
+        "title": "Connecter une base de données",
+        "desc": "Reliez Adminium à votre base Postgres, MySQL ou SQLite — un rôle en lecture seule suffit.",
+        "time": "5 min",
+        "action": "Connecter"
+      },
+      "chooseTables": {
+        "title": "Choisir vos tables",
+        "desc": "Choisissez les tables qui deviennent des pages — les données personnelles sont masquées par défaut.",
+        "time": "2 min",
+        "action": "Choisir"
+      },
+      "inviteTeammates": {
+        "title": "Inviter des coéquipiers",
+        "desc": "Faites venir votre équipe pour explorer et collaborer.",
+        "time": "2 min",
+        "action": "Inviter"
+      },
+      "workspaceDefaults": {
+        "title": "Définir les valeurs par défaut",
+        "desc": "Thème, accent, densité et langue pour tout le monde.",
+        "time": "1 min",
+        "action": "Définir"
+      }
+    },
+    "entry": {
+      "wayBack": "Prise en main · {done}/{total}",
+      "dismiss": "Masquer la liste de configuration",
+      "continue": "Continuer la configuration",
+      "banner": "Terminez la configuration de votre espace — {done} étapes sur {total} effectuées."
+    }
+  },
+  "views": {
+    "baseView": "Tous les enregistrements",
+    "menuLabel": "Vues enregistrées",
+    "saveAs": "Enregistrer la vue actuelle…",
+    "updateActive": "Mettre à jour « {name} »",
+    "rename": "Renommer…",
+    "setDefault": "Définir par défaut",
+    "delete": "Supprimer…",
+    "saveTitle": "Enregistrer la vue",
+    "save": "Enregistrer la vue",
+    "renameTitle": "Renommer la vue",
+    "saveName": "Enregistrer le nom",
+    "nameLabel": "Nom de la vue",
+    "namePlaceholder": "ex. Actifs ce mois-ci",
+    "nameRequired": "Saisissez un nom pour cette vue.",
+    "saveFailed": "Impossible d’enregistrer la vue.",
+    "deleteTitle": "Supprimer la vue",
+    "deleteBody": "Cela supprime la vue enregistrée. Vos données ne sont pas affectées.",
+    "deletePrompt": "Saisissez le nom de la vue pour confirmer",
+    "deleteConfirm": "Supprimer la vue",
+    "savedToast": "Vue « {name} » enregistrée.",
+    "updatedToast": "Vue « {name} » mise à jour.",
+    "defaultToast": "« {name} » est désormais la vue par défaut.",
+    "deletedToast": "Vue « {name} » supprimée."
+  }
+} as const;

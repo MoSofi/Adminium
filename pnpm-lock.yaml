@@ -110,6 +110,54 @@ importers:
 
   apps/docs: {}
 
+  apps/e2e:
+    devDependencies:
+      '@adminium/adapter-mysql':
+        specifier: workspace:*
+        version: link:../../packages/adapter-mysql
+      '@adminium/adapter-postgres':
+        specifier: workspace:*
+        version: link:../../packages/adapter-postgres
+      '@adminium/adapter-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/adapter-sqlite
+      '@adminium/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@adminium/dashboard':
+        specifier: workspace:*
+        version: link:../dashboard
+      '@adminium/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@adminium/meta':
+        specifier: workspace:*
+        version: link:../../packages/meta
+      '@adminium/server':
+        specifier: workspace:*
+        version: link:../server
+      '@playwright/test':
+        specifier: ^1.54.1
+        version: 1.61.1
+      '@types/node':
+        specifier: 22.15.3
+        version: 22.15.3
+      better-sqlite3:
+        specifier: ^12.2.0
+        version: 12.11.1
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.5(jiti@2.7.0)
+      mysql2:
+        specifier: ^3.15.3
+        version: 3.22.6(@types/node@22.15.3)
+      pg:
+        specifier: ^8.16.3
+        version: 8.22.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
   apps/server:
     dependencies:
       '@adminium/adapter-postgres':
@@ -448,12 +496,21 @@ importers:
       '@types/node':
         specifier: 22.15.3
         version: 22.15.3
+      '@types/pg':
+        specifier: ^8.15.5
+        version: 8.20.0
       better-sqlite3:
         specifier: ^12.2.0
         version: 12.11.1
       eslint:
         specifier: 'catalog:'
         version: 9.39.5(jiti@2.7.0)
+      mysql2:
+        specifier: ^3.15.3
+        version: 3.22.6(@types/node@22.15.3)
+      pg:
+        specifier: ^8.16.3
+        version: 8.22.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

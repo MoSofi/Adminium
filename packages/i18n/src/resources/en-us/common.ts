@@ -1,16 +1,19 @@
 /**
  * GENERATED MIRROR of ../../../locales/en-US/common.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources without JSON
- * import attributes (browser + NodeNext safe). Parity is enforced by
- * src/resources/parity.test.ts. Regenerate with scripts/gen-resources.mjs.
+ * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
+ * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
  */
 export default {
   "common": {
     "dismiss": "Dismiss",
     "notifications": "Notifications",
     "retry": "Retry",
-    "undo": "Undo"
+    "undo": "Undo",
+    "close": "Close",
+    "cancel": "Cancel"
   },
   "auth": {
     "headline": "Turn any database into a dashboard.",
@@ -76,7 +79,11 @@ export default {
     "primary": "Primary",
     "account": "Account",
     "signOut": "Sign out",
-    "empty": "Pages appear here once a database is connected."
+    "empty": "Pages appear here once a database is connected.",
+    "connection": {
+      "shared": "Shared",
+      "unnamed": "Connection"
+    }
   },
   "topbar": {
     "search": "Search…",
@@ -215,5 +222,245 @@ export default {
       "saveFailed": "Could not save workspace defaults. Try again.",
       "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload."
     }
+  },
+  "studio": {
+    "source": {
+      "engine": {
+        "label": "Database engine",
+        "postgres": "PostgreSQL",
+        "mysql": "MySQL / MariaDB",
+        "sqlite": "SQLite"
+      },
+      "format": {
+        "label": "Schema format",
+        "helper": "Leave on auto-detect unless the detection gets it wrong.",
+        "auto": "Auto-detect",
+        "sql": "SQL DDL / pg_dump",
+        "prisma": "Prisma schema",
+        "drizzle": "Drizzle ORM",
+        "typeorm": "TypeORM entities",
+        "sequelize": "Sequelize models",
+        "rails": "Rails schema.rb",
+        "django": "Django models.py",
+        "json": "Adminium JSON"
+      },
+      "sqlite": {
+        "file": "Database file path",
+        "helper": "SQLite is a file, not a server — give the absolute path on the machine running Adminium."
+      },
+      "file": {
+        "detectedAs": "Detected: {format}",
+        "moreWarnings": "+{count} more warnings — the full list appears in the analyze step."
+      }
+    },
+    "capability": {
+      "mysqlApproxRows": "MySQL row counts are storage-engine estimates (they can drift up to ±40%) — shown with ≈.",
+      "mysqlFkEnum": "MySQL FK/enum metadata is weaker: MyISAM tables declare no foreign keys, enums are per-column enum(…) types, and CHECK constraints need MySQL 8.0.16+ / MariaDB 10.2+.",
+      "sqliteCheckEnums": "SQLite has no native enum type — enums are synthesized from CHECK (col IN (…)) constraints.",
+      "sqliteNoComments": "SQLite has no column comments — use the schema remap editor to add labels.",
+      "importNoRowCounts": "Schema files carry no row counts — the tables list shows — instead of made-up numbers.",
+      "importNoLiveHealth": "No live database connection — health checks and schema-drift detection are unavailable for this source.",
+      "rowsUnavailable": "Schema files have no live database — row counts are unknown until you connect one.",
+      "rowsRunAnalyze": "No estimate yet — run ANALYZE on the database for row counts.",
+      "rowsNoEstimate": "The engine reported no estimate for this table.",
+      "rowsApproximate": "Storage-engine estimate — can drift up to ±40% on InnoDB."
+    },
+    "test": {
+      "log": {
+        "moreWarnings": "+{count} more parser warnings"
+      }
+    },
+    "tables": {
+      "importNoCounts": "Schema files carry no row counts — the column shows — until a live database is connected."
+    },
+    "hub": {
+      "title": "Data connections",
+      "subtitle": "{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy",
+      "connectNew": "New connection",
+      "stats": {
+        "connections": "Connections",
+        "healthy": "Healthy",
+        "tables": "Tables included",
+        "pages": "Generated pages"
+      },
+      "status": {
+        "connected": "Connected",
+        "error": "Error",
+        "unconfigured": "Draft",
+        "testing": "Testing…"
+      },
+      "card": {
+        "readOnly": "Read-only",
+        "tables": "Tables",
+        "pages": "Pages",
+        "latency": "Latency",
+        "latencyMs": "{latency, number} ms",
+        "lastIntrospected": "Last introspected",
+        "never": "Never"
+      },
+      "action": {
+        "test": "Test",
+        "reintrospect": "Re-introspect",
+        "reintrospectFile": "Schema-file sources have no live database — re-upload the file instead.",
+        "remap": "Remap schema",
+        "delete": "Delete"
+      },
+      "test": {
+        "ok": "Connection healthy · {latency, number} ms",
+        "failed": "Connection test failed"
+      },
+      "introspect": {
+        "noChanges": "Schema unchanged — no new snapshot.",
+        "updated": "Schema re-introspected",
+        "masksProposed": "{count, plural, one {# column} other {# columns}} proposed for masking — review in the remap editor.",
+        "failed": "Introspection failed. Try again."
+      },
+      "delete": {
+        "title": "Delete connection",
+        "body": "This deletes “{name}” and its generated pages. Your database itself is never touched.",
+        "prompt": "Type {name} to confirm",
+        "confirm": "Delete connection",
+        "cancel": "Cancel",
+        "close": "Close",
+        "success": "Connection “{name}” deleted",
+        "failed": "Could not delete the connection. Try again."
+      },
+      "empty": {
+        "title": "No data sources yet",
+        "body": "Connect a database and Adminium generates your admin panel from its schema.",
+        "cta": "Connect a database"
+      }
+    },
+    "settingsHub": {
+      "title": "Workspace settings",
+      "subtitle": "Identity, security and destructive actions for this workspace.",
+      "save": "Save changes",
+      "saved": "Workspace settings updated",
+      "saveFailed": "Could not save workspace settings. Try again.",
+      "superAdminOnlyTitle": "Super admin required",
+      "superAdminOnly": "Only a super admin can change workspace identity and security settings.",
+      "identity": {
+        "heading": "Workspace identity",
+        "appName": {
+          "label": "Application name",
+          "helper": "Shown in the sidebar, browser title, and emails.",
+          "error": "Enter a name of at most 60 characters."
+        }
+      },
+      "security": {
+        "heading": "Security",
+        "require2fa": {
+          "label": "Require two-factor auth",
+          "desc": "Every member must enable 2FA to sign in."
+        },
+        "allowSignup": {
+          "label": "Allow self-signup",
+          "desc": "Anyone can create an account — off keeps this workspace invite-only."
+        },
+        "sessionTtl": {
+          "label": "Session lifetime (hours)",
+          "error": "Between {min, number} and {max, number} hours."
+        },
+        "passwordMin": {
+          "label": "Minimum password length",
+          "error": "Between {min, number} and {max, number} characters."
+        }
+      },
+      "review": {
+        "title": "Save workspace settings",
+        "subtitle": "Review your changes before saving.",
+        "confirm": "Save changes",
+        "cancel": "Cancel",
+        "close": "Close",
+        "on": "On",
+        "off": "Off",
+        "change": "{before} → {after}"
+      },
+      "defaultsCard": {
+        "heading": "Appearance & language defaults",
+        "body": "Workspace-wide theme, accent, density and language live under Global defaults.",
+        "cta": "Open global defaults"
+      },
+      "danger": {
+        "heading": "Danger zone",
+        "subtitle": "Irreversible actions.",
+        "empty": "Nothing to delete — no connections yet.",
+        "deleteDesc": "Deletes the connection and its generated pages. Your database is not touched. Cannot be undone.",
+        "deleteCta": "Delete connection"
+      }
+    }
+  },
+  "onboarding": {
+    "title": "Getting started",
+    "subtitle": "A few steps to get your workspace ready.",
+    "loading": "Loading your setup checklist…",
+    "welcome": "Welcome to Adminium, {name} 👋",
+    "progressBody": "You’ve completed {done} of {total} setup steps. Finish the rest to unlock the full workspace.",
+    "completeBody": "You’re all set — your workspace is fully configured.",
+    "ringLabel": "{done} of {total} steps complete",
+    "done": "Done",
+    "skip": "Skip for now",
+    "goToWorkspace": "Go to workspace",
+    "help": {
+      "title": "Need a hand?",
+      "body": "We’re here to help you get set up fast."
+    },
+    "steps": {
+      "connectDatabase": {
+        "title": "Connect a database",
+        "desc": "Point Adminium at your Postgres, MySQL or SQLite — a read-only role is welcome.",
+        "time": "5 min",
+        "action": "Connect"
+      },
+      "chooseTables": {
+        "title": "Choose your tables",
+        "desc": "Pick which tables become pages — PII is masked by default.",
+        "time": "2 min",
+        "action": "Choose"
+      },
+      "inviteTeammates": {
+        "title": "Invite teammates",
+        "desc": "Bring your team in to explore and collaborate.",
+        "time": "2 min",
+        "action": "Invite"
+      },
+      "workspaceDefaults": {
+        "title": "Set workspace defaults",
+        "desc": "Theme, accent, density and language everyone starts with.",
+        "time": "1 min",
+        "action": "Set defaults"
+      }
+    },
+    "entry": {
+      "wayBack": "Getting started · {done}/{total}",
+      "dismiss": "Dismiss setup checklist",
+      "continue": "Continue setup",
+      "banner": "Finish setting up your workspace — {done} of {total} steps done."
+    }
+  },
+  "views": {
+    "baseView": "All records",
+    "menuLabel": "Saved views",
+    "saveAs": "Save current as view…",
+    "updateActive": "Update “{name}”",
+    "rename": "Rename…",
+    "setDefault": "Set as default",
+    "delete": "Delete…",
+    "saveTitle": "Save view",
+    "save": "Save view",
+    "renameTitle": "Rename view",
+    "saveName": "Save name",
+    "nameLabel": "View name",
+    "namePlaceholder": "e.g. Active this month",
+    "nameRequired": "Enter a name for this view.",
+    "saveFailed": "Could not save the view.",
+    "deleteTitle": "Delete view",
+    "deleteBody": "This removes the saved view. Your data is not affected.",
+    "deletePrompt": "Type the view name to confirm",
+    "deleteConfirm": "Delete view",
+    "savedToast": "View “{name}” saved.",
+    "updatedToast": "View “{name}” updated.",
+    "defaultToast": "“{name}” is now the default view.",
+    "deletedToast": "View “{name}” deleted."
   }
 } as const;

@@ -31,6 +31,7 @@ import {
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
+import { capabilityNotes, modelCapabilitySource } from '../connect/capabilityNotes.js';
 import { ColumnInspector } from './ColumnInspector.js';
 import { DiffBar } from './DiffBar.js';
 import { RelationsTab } from './RelationsTab.js';
@@ -165,6 +166,11 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
       ? selectedTable.columns.find((column) => column.name === selection.column)
       : undefined;
 
+  // Per-engine capability notes (M9-T04): what this source could not express,
+  // so remapping expectations stay honest (e.g. SQLite has no comments to
+  // import — labels set here are the labeling path).
+  const sourceNotes = model === undefined ? [] : capabilityNotes(modelCapabilitySource(model));
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4">
       <header className="flex flex-wrap items-center gap-2">
@@ -177,6 +183,16 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
           </span>
         ) : null}
       </header>
+
+      {sourceNotes.length > 0 ? (
+        <Banner tone="info">
+          <span className="flex flex-col gap-0.5">
+            {sourceNotes.map((note) => (
+              <span key={note}>{note}</span>
+            ))}
+          </span>
+        </Banner>
+      ) : null}
 
       {saveError !== null ? (
         <Banner tone="danger" role="alert">
