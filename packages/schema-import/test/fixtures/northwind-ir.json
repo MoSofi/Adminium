@@ -1,0 +1,42 @@
+{
+  "irVersion": 1,
+  "dialect": "postgres",
+  "name": "northwind",
+  "source": { "kind": "import", "format": "json-ir" },
+  "tables": [
+    {
+      "name": "categories",
+      "columns": [
+        { "name": "id", "logicalType": "integer", "nullable": false, "isPrimaryKey": true },
+        { "name": "name", "logicalType": "varchar", "maxLength": 60, "nullable": false, "isUnique": true }
+      ],
+      "primaryKey": ["id"]
+    },
+    {
+      "name": "products",
+      "columns": [
+        { "name": "id", "logicalType": "integer", "nullable": false, "isPrimaryKey": true },
+        { "name": "name", "logicalType": "varchar", "maxLength": 160, "nullable": false },
+        { "name": "status", "logicalType": "enum", "enumRef": "order_status" },
+        {
+          "name": "category_id",
+          "logicalType": "integer",
+          "references": { "tableId": "public.categories", "column": "id" }
+        }
+      ],
+      "primaryKey": ["id"]
+    }
+  ],
+  "enums": [
+    { "id": "order_status", "name": "order_status", "values": ["active", "discontinued"] }
+  ],
+  "relations": [
+    {
+      "id": "fk:public.products.category_id->public.categories.id",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": { "tableId": "public.products", "columns": ["category_id"] },
+      "to": { "tableId": "public.categories", "columns": ["id"] }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+/**
+ * GENERATED MIRROR of ../../../locales/en-US/ui.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime bundles en-US resources without JSON
+ * import attributes (browser + NodeNext safe). Parity is enforced by
+ * src/resources/parity.test.ts. Regenerate with scripts/gen-resources.mjs.
+ */
+export default {
+  "action": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "apply": "Apply",
+    "delete": "Delete",
+    "edit": "Edit",
+    "copy": "Copy",
+    "copied": "Copied",
+    "undo": "Undo",
+    "retry": "Retry",
+    "clear": "Clear",
+    "selectAll": "Select all",
+    "clearSelection": "Clear selection",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "reveal": "Reveal",
+    "hide": "Hide"
+  },
+  "state": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "noResults": "No results",
+    "optional": "Optional",
+    "required": "Required",
+    "error": "Something went wrong"
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page, number} of {pages, number}",
+    "rowsPerPage": "Rows per page",
+    "range": "{from, number}–{to, number} of {total, number}"
+  },
+  "table": {
+    "sortAscending": "Sort ascending",
+    "sortDescending": "Sort descending",
+    "rowActions": "Row actions",
+    "selectRow": "Select row",
+    "selectAllRows": "Select all rows"
+  },
+  "dialog": {
+    "close": "Close dialog",
+    "confirmTitle": "Are you sure?"
+  },
+  "combobox": {
+    "placeholder": "Select…",
+    "search": "Search…",
+    "noMatches": "No matches"
+  },
+  "toast": {
+    "dismiss": "Dismiss notification"
+  }
+} as const;

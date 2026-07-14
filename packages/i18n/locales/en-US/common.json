@@ -1,0 +1,206 @@
+{
+  "common": {
+    "dismiss": "Dismiss",
+    "notifications": "Notifications",
+    "retry": "Retry",
+    "undo": "Undo"
+  },
+  "auth": {
+    "headline": "Turn any database into a dashboard.",
+    "trust": "AGPL core · Self-hosted · Your data stays yours",
+    "signIn": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to your Adminium workspace.",
+      "email": "Email",
+      "emailInvalid": "Enter a valid email address.",
+      "password": "Password",
+      "passwordRequired": "Enter your password.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "remember": "Keep me signed in",
+      "forgot": "Forgot?",
+      "submit": "Sign in",
+      "invalid": "Invalid email or password.",
+      "rateLimited": "Too many attempts — try again in a minute.",
+      "failed": "Sign-in failed. Check your connection and try again."
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "email": "Email",
+      "emailInvalid": "Enter a valid email address.",
+      "submit": "Send reset link",
+      "sentTitle": "Check your email",
+      "resend": "Send it again",
+      "back": "Back to sign in",
+      "done": "Back to sign in",
+      "rateLimited": "Too many requests — try again later.",
+      "failed": "Something went wrong. Try again."
+    },
+    "reset": {
+      "title": "Set a new password",
+      "subtitle": "Must be at least 8 characters.",
+      "password": "New password",
+      "confirm": "Confirm password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "strength": "Password strength",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong",
+      "tooShort": "Use at least 8 characters.",
+      "submit": "Reset password",
+      "failed": "Reset failed. Try again."
+    },
+    "otp": {
+      "title": "Two-factor authentication",
+      "subtitle": "Enter the 6-digit code from your authenticator app.",
+      "code": "One-time code",
+      "recoveryCode": "Recovery code",
+      "useRecovery": "Lost your device? Use a recovery code",
+      "useAuthenticator": "Use your authenticator app instead",
+      "submit": "Verify",
+      "invalid": "That code didn’t work. Try again.",
+      "failed": "Verification failed. Check your connection and try again."
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "primary": "Primary",
+    "account": "Account",
+    "signOut": "Sign out",
+    "empty": "Pages appear here once a database is connected."
+  },
+  "topbar": {
+    "search": "Search…",
+    "notifications": "Notifications",
+    "notificationsSoon": "Notifications arrive with the notification center (M7).",
+    "theme": "Toggle light / dark",
+    "userMenu": "Account menu",
+    "profile": "Profile",
+    "preferences": "Preferences",
+    "signOut": "Sign out"
+  },
+  "palette": {
+    "dialog": "Command palette",
+    "placeholder": "Type a command or search…",
+    "navigate": "Navigate",
+    "actions": "Actions",
+    "askAi": "Ask AI",
+    "shortcuts": "Keyboard shortcuts",
+    "signOut": "Sign out",
+    "themeDark": "Switch to dark theme",
+    "themeLight": "Switch to light theme",
+    "footerNavigate": "navigate",
+    "footerOpen": "select",
+    "footerClose": "close"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "subtitle": "Work faster across Adminium",
+    "close": "Close",
+    "dismiss": "Close or dismiss",
+    "palette": "Open command palette",
+    "panel": "Show shortcuts panel",
+    "search": "Focus search",
+    "sidebar": "Toggle sidebar",
+    "theme": "Toggle light / dark",
+    "then": "then",
+    "footerPre": "Press",
+    "footerPost": "anytime to open this panel."
+  },
+  "states": {
+    "checked": "checked 8s ago",
+    "diagnostics": "Diagnostics"
+  },
+  "notFound": {
+    "title": "This page went missing",
+    "errorLine": "Error 404",
+    "searchPlaceholder": "Search for a page…",
+    "matches": "Matching pages",
+    "popular": "Popular destinations",
+    "goBack": "Go back",
+    "backToDashboard": "Back to dashboard"
+  },
+  "page": {
+    "invalid": {
+      "title": "This page’s configuration is invalid",
+      "body": "The stored page document failed validation and cannot be rendered."
+    },
+    "renderError": { "title": "This page failed to render" },
+    "tooNew": { "title": "This page needs a newer Adminium" },
+    "unknownTemplate": { "title": "Unknown page template" }
+  },
+  "mutation": {
+    "created": "Record created",
+    "updated": "Record updated",
+    "deleted": "Record deleted"
+  },
+  "undo": {
+    "done": "Change undone",
+    "failed": "Could not undo this change"
+  },
+  "prefs": {
+    "theme": {
+      "label": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "accent": {
+      "label": "Accent color",
+      "indigo": "Indigo",
+      "blue": "Blue",
+      "teal": "Teal",
+      "violet": "Violet",
+      "rose": "Rose",
+      "red": "Red",
+      "orange": "Orange",
+      "black": "Black"
+    },
+    "density": {
+      "label": "Density",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
+    "locale": {
+      "label": "Language",
+      "directionNote": "Text direction: right to left (set automatically by the language)"
+    }
+  },
+  "account": {
+    "title": "Account",
+    "stub": "Profile and preference pages arrive as seeded settings pages in Wave B (09-T18).",
+    "name": "Name",
+    "email": "Email",
+    "roles": "Roles",
+    "twoFactor": "Two-factor",
+    "on": "Enabled",
+    "off": "Off",
+    "preferences": {
+      "title": "Preferences",
+      "subtitle": "How Adminium looks and reads for you — on this and every device you sign in from.",
+      "workspaceDefault": "Workspace default",
+      "personal": "Personal",
+      "usingDefault": "Using workspace default ({value})",
+      "reset": "Reset to workspace default",
+      "resetFailed": "Could not reset this preference. Try again.",
+      "appliesInstantly": "Changes apply instantly and are saved to your profile."
+    }
+  },
+  "settings": {
+    "defaults": {
+      "title": "Global defaults",
+      "subtitle": "Workspace-wide appearance and language defaults.",
+      "explainer": "These defaults apply to all users unless they override them. Anyone can set their own preference under Profile → Preferences — personal preferences always win for that user.",
+      "appearanceHeading": "Appearance defaults",
+      "languageHeading": "Language & region defaults",
+      "adoption": "{following, number} of {total, plural, one {# user} other {# users}} follow this default.",
+      "weekStartNote": "Week start and number formats follow the language.",
+      "save": "Save defaults",
+      "saved": "Workspace defaults updated",
+      "saveFailed": "Could not save workspace defaults. Try again.",
+      "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload."
+    }
+  }
+}

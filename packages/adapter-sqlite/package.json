@@ -17,10 +17,16 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adminium/engine": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "kysely": "^0.28.2"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13",
     "typescript": "catalog:",
     "eslint": "catalog:",
     "vitest": "catalog:"

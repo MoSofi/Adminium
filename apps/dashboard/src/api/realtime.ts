@@ -18,6 +18,16 @@ import type { RealtimeEvent } from '../app/ws.js';
 const TABLE_CHANNEL = /^(?:table|widget-data):([^:]+):(.+)$/;
 
 export function invalidateForRealtimeEvent(queryClient: QueryClient, event: RealtimeEvent): void {
+  if (event.channel === 'config-changed' && event.type === 'settings.defaults.updated') {
+    // Global defaults changed (10-i18n-theming.md §7.2): re-resolve prefs for
+    // sessions following a workspace default (bootstrap carries the resolved
+    // axes) and refresh the Global Defaults admin page if it is open. Pages
+    // are untouched — this event never changes page configs.
+    void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
+    void queryClient.invalidateQueries({ queryKey: ['settings', 'defaults'] });
+    return;
+  }
+
   if (event.channel === 'config-changed') {
     void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
     void queryClient.invalidateQueries({ queryKey: ['page'] });

@@ -11,18 +11,49 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./registry": {
+      "types": "./dist/locales.d.ts",
+      "default": "./dist/locales.js"
+    },
+    "./resources": {
+      "types": "./dist/resources/index.d.ts",
+      "default": "./dist/resources/index.js"
+    },
+    "./locales/*": "./locales/*"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "gen:resources": "node scripts/gen-resources.mjs",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "i18next": "^25.3.2",
+    "intl-messageformat": "^10.7.16"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "typescript": "catalog:",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
     "eslint": "catalog:",
+    "happy-dom": "^18.0.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   }
 }

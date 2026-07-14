@@ -17,7 +17,12 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adminium/engine": "workspace:*",
+    "kysely": "^0.28.2",
+    "mysql2": "^3.15.3"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",

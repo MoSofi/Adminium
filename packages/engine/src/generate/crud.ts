@@ -11,7 +11,7 @@
 
 import type { ClassifiedColumn, ClassifiedTable } from '../classify/index.js';
 import type { ColumnModel, DatabaseModel, TableModel } from '../schema-model.js';
-import { humanize } from './util.js';
+import { humanize, pageIdFor } from './util.js';
 
 /** Max list-visible columns (05 "cap ~8"). */
 const LIST_COLUMN_CAP = 8;
@@ -291,7 +291,7 @@ export function buildCrudEnvelope(
   return {
     v: 1,
     kind: 'page',
-    id: `page_${ctx.slug}`,
+    id: pageIdFor(ctx.connectionId, ctx.slug),
     template: 'page-crud',
     title: { key: `nav.${ctx.slug}`, fallback: title },
     source: { connectionId: ctx.connectionId, table: table.id },

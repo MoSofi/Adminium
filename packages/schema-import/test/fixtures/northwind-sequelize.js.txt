@@ -1,0 +1,90 @@
+'use strict';
+const { Sequelize, DataTypes, Model } = require('sequelize');
+
+const sequelize = new Sequelize(process.env.DATABASE_URL);
+
+const Category = sequelize.define(
+  'category',
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    name: { type: DataTypes.STRING(60), allowNull: false, unique: true },
+    description: DataTypes.TEXT,
+  },
+  { tableName: 'categories', timestamps: false },
+);
+
+const Supplier = sequelize.define(
+  'supplier',
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    companyName: { type: DataTypes.STRING(120), allowNull: false, field: 'company_name' },
+    email: { type: DataTypes.STRING(254), unique: true },
+  },
+  { tableName: 'suppliers', timestamps: false },
+);
+
+const Product = sequelize.define(
+  'product',
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    sku: { type: DataTypes.STRING(24), allowNull: false, unique: true },
+    name: { type: DataTypes.STRING(160), allowNull: false },
+    unitPrice: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'unit_price',
+      comment: 'Price per unit in USD',
+    },
+    status: {
+      type: DataTypes.ENUM('active', 'backorder', 'discontinued'),
+      allowNull: false,
+      defaultValue: 'active',
+    },
+    categoryId: {
+      type: DataTypes.INTEGER,
+      field: 'category_id',
+      references: { model: 'categories', key: 'id' },
+      onDelete: 'SET NULL',
+    },
+    supplierId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: 'supplier_id',
+      references: { model: 'suppliers', key: 'id' },
+    },
+  },
+  { tableName: 'products', timestamps: true, underscored: true },
+);
+
+class Customer extends Model {}
+Customer.init(
+  {
+    id: { type: DataTypes.UUID, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+    fullName: { type: DataTypes.STRING(120), allowNull: false, field: 'full_name' },
+    email: { type: DataTypes.STRING(254), allowNull: false, unique: true },
+  },
+  { sequelize, tableName: 'customers', timestamps: false },
+);
+
+class Order extends Model {}
+Order.init(
+  {
+    id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
+    customerId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      field: 'customer_id',
+      references: { model: 'customers', key: 'id' },
+      onDelete: 'CASCADE',
+    },
+    orderedAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'ordered_at' },
+  },
+  { sequelize, tableName: 'orders', timestamps: false },
+);
+
+Category.hasMany(Product);
+Product.belongsTo(Category);
+Customer.hasMany(Order, { foreignKey: 'customer_id' });
+
+module.exports = { sequelize, Category, Supplier, Product, Customer, Order };

@@ -17,7 +17,11 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adminium/engine": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",

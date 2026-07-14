@@ -13,7 +13,7 @@
 
 import type { ColumnModel, DatabaseModel, TableModel } from '../schema-model.js';
 import type { Domain } from './domains.js';
-import { humanize } from './util.js';
+import { humanize, pageIdFor } from './util.js';
 
 /** Span heuristic (research/ia-mapping.md §3.2). */
 const KPI_SPAN = 3;
@@ -354,7 +354,7 @@ export function buildDashboardEnvelope(
   return {
     v: 1,
     kind: 'dashboard',
-    id: `page_${ctx.slug}`,
+    id: pageIdFor(ctx.connectionId, ctx.slug),
     template: 'page-dashboard',
     title: { key: `nav.${ctx.slug}`, fallback: ctx.title },
     source: { connectionId: ctx.connectionId, table: null },

@@ -1,0 +1,99 @@
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
+
+export enum OrderStatus {
+  Pending = 'pending',
+  Paid = 'paid',
+  Shipped = 'shipped',
+  Cancelled = 'cancelled',
+}
+
+@Entity('categories')
+export class Category {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @Column({ type: 'varchar', length: 60, unique: true })
+  name!: string;
+
+  @Column({ type: 'text', nullable: true })
+  description!: string | null;
+
+  @OneToMany(() => Product, (product) => product.category)
+  products!: Product[];
+}
+
+@Entity('suppliers')
+export class Supplier {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @Column({ type: 'varchar', length: 120, comment: 'Legal company name' })
+  companyName!: string;
+
+  @Column({ type: 'varchar', length: 254, nullable: true, unique: true })
+  email!: string | null;
+}
+
+@Entity('products')
+@Unique(['sku'])
+export class Product {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @Column({ type: 'varchar', length: 24 })
+  sku!: string;
+
+  @Column({ type: 'varchar', length: 160 })
+  @Index('idx_products_name')
+  name!: string;
+
+  @Column({ type: 'numeric', precision: 10, scale: 2, default: 0 })
+  unitPrice!: string;
+
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Pending })
+  status!: OrderStatus;
+
+  @Column({ default: true })
+  active!: boolean;
+
+  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'category_id' })
+  category!: Category | null;
+
+  @ManyToOne(() => Supplier)
+  supplier!: Supplier;
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
+}
+
+@Entity()
+export class Customer {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column()
+  fullName!: string;
+
+  @Column({ unique: true })
+  email!: string;
+}
+
+@Entity('orders')
+export class Order {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @ManyToOne(() => Customer, { nullable: false, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'customer_id' })
+  customer!: Customer;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  orderedAt!: Date;
+
+  @OneToMany(() => Product, () => undefined)
+  items!: Product[];
+}

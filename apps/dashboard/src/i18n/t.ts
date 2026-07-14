@@ -1,9 +1,31 @@
 /**
- * Tiny i18n stub — the real i18next layer (8 locales, ICU plurals, RTL) lands
- * in M8 per 10-i18n-theming.md. Until then every user-visible string flows
- * through `t(key, fallback)` so the M8 migration is a mechanical key sweep,
- * not a string hunt.
+ * App-wide translator. Same call signature as the pre-M8 stub —
+ * `t(key, fallback)` — but now backed by the shared i18next instance
+ * (@adminium/i18n, 10-i18n-theming.md §2.3) once `initDashboardI18n()`
+ * (./setup.ts) has run. Before init (or in unit tests that never boot i18n)
+ * it degrades to the fallback text, exactly like the old stub, so the key
+ * sweep to real bundles stays mechanical.
+ *
+ * Keys are bare (no `ns:` prefix) and resolve in the `common` namespace by
+ * default; `ui:`/`studio:`/`generated:`/`errors:` prefixes address the other
+ * bundles (§2.4/§2.5). ICU args ride the third parameter.
  */
-export function t(_key: string, fallback: string): string {
-  return fallback;
+import type { I18nInstance } from '@adminium/i18n';
+
+export type { I18nInstance };
+
+let instance: I18nInstance | null = null;
+
+/** Wired once by `initDashboardI18n()`; exported for tests. */
+export function setI18nInstance(i18n: I18nInstance | null): void {
+  instance = i18n;
+}
+
+export function getI18nInstance(): I18nInstance | null {
+  return instance;
+}
+
+export function t(key: string, fallback: string, args?: Record<string, unknown>): string {
+  if (instance === null) return fallback;
+  return instance.t(key, { defaultValue: fallback, ...args });
 }

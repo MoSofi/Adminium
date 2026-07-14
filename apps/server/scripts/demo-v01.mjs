@@ -118,8 +118,10 @@ const [
   { schemaRoutes },
   { dataRoutes },
   { generateRoutes },
+  { schemaImportRoutes },
   { pagesRoutes },
   { widgetDataRoutes },
+  { settingsRoutes },
   { UndoStore },
   meta_,
   { adapterRegistry },
@@ -137,8 +139,10 @@ const [
   import(distUrl('routes/schema/index.js')),
   import(distUrl('routes/data/index.js')),
   import(distUrl('routes/generate/index.js')),
+  import(distUrl('routes/schema-import/index.js')),
   import(distUrl('routes/pages/index.js')),
   import(distUrl('routes/widget-data/index.js')),
+  import(distUrl('routes/settings/index.js')),
   import(distUrl('crud/undo.js')),
   import('@adminium/meta'),
   import('@adminium/engine/adapter'),
@@ -221,8 +225,10 @@ try {
         await api.register(schemaRoutes({ manager, meta }));
         await api.register(dataRoutes({ manager, meta, undoStore }));
         await api.register(generateRoutes({ manager, meta }));
+        await api.register(schemaImportRoutes());
         await api.register(pagesRoutes({ meta }));
         await api.register(widgetDataRoutes({ manager, meta }));
+        await api.register(settingsRoutes({ meta }));
       },
       { prefix: '/api/v1' },
     );

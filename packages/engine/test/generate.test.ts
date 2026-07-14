@@ -65,11 +65,20 @@ describe('generatePages on Northwind (full-admin)', () => {
     }
   });
 
-  it('page ids are stable page_<slug> and fit char(36)', () => {
+  it('page ids are stable, connection-scoped, and fit char(36)', () => {
+    // Ids are globally unique in adminium_pages while slugs are only unique
+    // per connection — the id folds in a connection hash so two connections
+    // generating the same slug never collide (multi-connection regression).
     for (const envelope of result.pages) {
-      expect(envelope.id).toBe(`page_${envelope.nav.slug}`);
+      expect(envelope.id).toMatch(/^page_[0-9a-f]{8}_[a-z0-9-]+$/);
+      expect(envelope.id.endsWith(`_${envelope.nav.slug.slice(0, 22)}`)).toBe(true);
       expect(envelope.id.length).toBeLessThanOrEqual(36);
     }
+    // Deterministic per connection+slug; distinct across connections.
+    const again = generatePages(model, { connectionId: CONN });
+    expect(again.pages.map((p) => p.id)).toEqual(result.pages.map((p) => p.id));
+    const other = generatePages(model, { connectionId: 'conn_other' });
+    expect(other.pages[0]?.id).not.toBe(result.pages[0]?.id);
   });
 
   it('embeds a generatedHash that is stable across runs', () => {

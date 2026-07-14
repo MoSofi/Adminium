@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@adminium/engine": "workspace:*",
+    "@adminium/i18n": "workspace:*",
     "@adminium/tokens": "workspace:*",
     "@adminium/ui": "workspace:*",
     "@adminium/widgets": "workspace:*",

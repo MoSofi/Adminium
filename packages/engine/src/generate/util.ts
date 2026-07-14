@@ -79,6 +79,20 @@ function sortKeysDeep(value: unknown): unknown {
  * this against the stored document to tell user-edited pages ("user delta
  * wins") from untouched generated ones (updated in place).
  */
+/**
+ * Stable, connection-scoped page id. Ids are GLOBALLY unique in
+ * adminium_pages (char(36) PK), while slugs are only unique per connection —
+ * so multi-connection installs need the connection folded into the id
+ * (regression: second connection's 'page_customers' collided with the
+ * first's). Connection-less (universal) pages keep the bare readable form.
+ */
+export function pageIdFor(connectionId: string | null, slug: string): string {
+  if (connectionId === null) return `page_${slug}`;
+  const scope = sha256Hex(connectionId).slice(0, 8);
+  // 'page_' (5) + 8 + '_' (1) = 14; slug caps at 22 to fit char(36).
+  return `page_${scope}_${slug.slice(0, 22)}`;
+}
+
 export function hashEnvelope(envelope: Record<string, unknown>): string {
   const plain = JSON.parse(JSON.stringify(envelope)) as Record<string, unknown>;
   const config = plain['config'];

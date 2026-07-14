@@ -19,6 +19,8 @@ import {
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 
 import { AccountPage } from '../pages/AccountPage.js';
+import { PreferencesPage } from '../account/PreferencesPage.js';
+import { GlobalDefaultsPage } from '../settings/GlobalDefaultsPage.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
 import { ForgotPage } from '../auth/ForgotPage.js';
@@ -30,6 +32,7 @@ import { AppShell } from '../shell/AppShell.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
 import { pageQuery } from '../api/pages.js';
+import { studioRoutes } from '../studio/routes.js';
 import { api, ApiError } from './api.js';
 import { bootstrapQuery, defaultPageSlug, findNavItemBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
 import { requestIdForError, stateIdForError } from './query.js';
@@ -215,6 +218,22 @@ const accountRoute = createRoute({
   component: AccountPage,
 });
 
+// --- M8 preference surfaces (10-i18n-theming.md §7.3–§7.4) -------------------
+// APPEND-ONLY additions coordinated with the concurrent /studio/* route work:
+// this block adds exactly two routes and their two imports below.
+
+const accountPreferencesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/account/preferences',
+  component: PreferencesPage,
+});
+
+const settingsDefaultsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/defaults',
+  component: GlobalDefaultsPage,
+});
+
 const accountSplatRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account/$',
@@ -229,7 +248,17 @@ const routeTree = rootRoute.addChildren([
   resetRoute,
   otpRoute,
   stateRoute,
-  appRoute.addChildren([indexRoute, pageRoute, pageRecordRoute, accountRoute, accountSplatRoute]),
+  appRoute.addChildren([
+    indexRoute,
+    pageRoute,
+    pageRecordRoute,
+    accountRoute,
+    accountPreferencesRoute,
+    accountSplatRoute,
+    settingsDefaultsRoute,
+    // Studio (09 §8.1): connect wizard + remap route contract, role ≥ Admin.
+    ...studioRoutes(appRoute),
+  ]),
 ]);
 
 export function createAppRouter(
