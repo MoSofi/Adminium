@@ -52,5 +52,102 @@
   },
   "toast": {
     "dismiss": "Benachrichtigung schließen"
+  },
+  "widgets": {
+    "charts": {
+      "boxplot": {
+        "description": "Box-Whisker-Zusammenfassung der Streuung einer numerischen Spalte je Kategorie – Minimum, Quartile, Median und Maximum.",
+        "emptyTitle": "Keine Verteilung darstellbar",
+        "emptyBody": "Keine Zeilen entsprachen den Filtern für Box-Plots."
+      },
+      "violin": {
+        "description": "Gespiegelte Dichtekurven, die die Verteilung einer numerischen Spalte über Gruppen vergleichen.",
+        "emptyTitle": "Keine Verteilung darstellbar",
+        "emptyBody": "Keine Zeilen entsprachen den Filtern für Dichteprofile."
+      },
+      "ridgeline": {
+        "description": "Überlappende Dichtekämme, die eine numerische Spalte über geordnete Gruppen vergleichen.",
+        "emptyTitle": "Keine Kämme darstellbar",
+        "emptyBody": "Keine Zeilen entsprachen den Filtern für Dichteprofile."
+      },
+      "scatterBubble": {
+        "description": "Zwei numerische Spalten als Punkte, mit optionaler Blasengröße und Trendlinie.",
+        "emptyTitle": "Keine Punkte darstellbar",
+        "emptyBody": "Keine Zeilen entsprachen den Filtern für die gewählten Spalten."
+      },
+      "hexbin": {
+        "description": "Hex-gebinnte Dichte zweier numerischer Spalten, eingefärbt nach Zeilen je Kachel.",
+        "emptyTitle": "Keine Dichte darstellbar",
+        "emptyBody": "Keine Zeilen entsprachen den Filtern zum Gruppieren."
+      },
+      "correlationMatrix": {
+        "description": "Pearson-Korrelation zwischen gewählten numerischen Spalten, von stark positiv bis stark negativ.",
+        "emptyTitle": "Nichts zu korrelieren",
+        "emptyBody": "Wähle mindestens zwei numerische Spalten mit passenden Zeilen."
+      },
+      "parallelCoordinates": {
+        "description": "Jeder Datensatz als Linie über mehrere normierte numerische Achsen, eingefärbt nach Kategorie.",
+        "emptyTitle": "Keine Datensätze darstellbar",
+        "emptyBody": "Keine Zeilen entsprachen den Filtern über die gewählten Achsen."
+      }
+    },
+    "feeds": {
+      "activityFeed": {
+        "description": "Ein fortlaufender Feed, wer was in Ihrem Workspace getan hat – neueste zuerst.",
+        "emptyTitle": "Keine aktuelle Aktivität",
+        "emptyBody": "Aktionen in Ihrem Workspace erscheinen hier."
+      },
+      "notificationFeed": {
+        "description": "Gruppierte Benachrichtigungen mit Ungelesen-Status, Filtern und Inline-Aktionen.",
+        "emptyTitle": "Keine Benachrichtigungen",
+        "emptyBody": "Neue Benachrichtigungen erscheinen hier."
+      },
+      "realtimeFeed": {
+        "description": "Ein Live-Ereignisstrom, der neue Einträge beim Eintreffen voranstellt.",
+        "emptyTitle": "Warten auf Ereignisse",
+        "emptyBody": "Live-Ereignisse erscheinen hier, sobald sie eintreten."
+      },
+      "timelineVertical": {
+        "description": "Eine vertikale Zeitachse von Ereignissen, Releases, Vorfällen oder Ausführungsschritten.",
+        "emptyTitle": "Noch nichts vorhanden",
+        "emptyBody": "Ereignisse erscheinen auf dieser Zeitachse, sobald sie eintreten."
+      },
+      "unreadBadge": {
+        "description": "Ein Zähler-Chip für ungelesene Elemente, synchron mit dem Feed-Status.",
+        "unitLabel": "ungelesen"
+      }
+    },
+    "tables": {
+      "masterList": {
+        "description": "Eine auswählbare Liste von Datensätzen, die einen Detailbereich steuert.",
+        "emptyTitle": "Keine Einträge",
+        "emptyBody": "Einträge erscheinen hier, sobald sie vorhanden sind."
+      },
+      "logTable": {
+        "description": "Ein Ereignisprotokoll mit Suche, Fehlerfilter und Zeilenaktionen.",
+        "emptyTitle": "Keine Protokolleinträge",
+        "emptyBody": "Ereignisse werden hier protokolliert, sobald sie eintreten."
+      },
+      "cardGallery": {
+        "description": "Eine responsive Galerie von Objektkarten mit Status und Schnellaktionen.",
+        "emptyTitle": "Nichts anzuzeigen",
+        "emptyBody": "Einträge erscheinen hier als Karten."
+      },
+      "groupedSummaryTable": {
+        "description": "Gruppierte Zeilen mit Aggregatspalten, aufklappbaren Details und Summen.",
+        "emptyTitle": "Keine Zusammenfassung",
+        "emptyBody": "Gruppierte Summen erscheinen hier, sobald Daten vorliegen."
+      },
+      "schemaTree": {
+        "description": "Ein Explorer für Schemas, Tabellen und Spalten mit Typ- und Schlüssel-Badges.",
+        "emptyTitle": "Kein Schema eingelesen",
+        "emptyBody": "Verbinden Sie eine Datenbank, um ihr Schema hier zu erkunden."
+      },
+      "toggleMatrix": {
+        "description": "Ein interaktives Raster boolescher Schalter für Rollen, Richtlinien oder Kanäle.",
+        "emptyTitle": "Keine Matrix konfiguriert",
+        "emptyBody": "Zeilen und Spalten erscheinen hier nach der Konfiguration."
+      }
+    }
   }
 }

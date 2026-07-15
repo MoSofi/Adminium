@@ -151,3 +151,55 @@
   display: inline-block;
   vertical-align: middle;
 }
+
+/* --- Bars & ranking group (04-T09) ------------------------------------------
+   In-SVG sans label with NO fill so the fill presentation attribute controls
+   color (e.g. on-segment labels use var(--surface) for contrast); plus the
+   shared horizontal-bar legend. Reuses the sanctioned --adm-dot custom prop
+   and the --adm-legend-cols column count set from JSX. */
+.adm-chart-label {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.adm-stacked {
+  display: block;
+  inline-size: 100%;
+}
+
+.adm-legend {
+  display: grid;
+  grid-template-columns: repeat(var(--adm-legend-cols, 2), minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adm-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-inline-size: 0;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+.adm-legend-dot {
+  flex: none;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 3px;
+  background: var(--adm-dot, var(--viz-1));
+}
+
+.adm-legend-value {
+  margin-inline-start: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--fg);
+}

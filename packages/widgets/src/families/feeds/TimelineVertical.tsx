@@ -1,0 +1,198 @@
+import { Badge, EmptyState, IconTile, MonoText, Tag } from '@adminium/ui';
+import type { Tone } from '@adminium/ui';
+import { z } from 'zod';
+
+import { feedIcon } from './feed-icons.js';
+import { DEMO_EPOCH, RelativeTime, feedRowsOf, mulberry32, pickFrom, toneOf } from './feed-lib.js';
+import type { WidgetProps } from '../../registry/types.js';
+import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+
+/**
+ * `timeline-vertical` (annex §4) — an icon-node vertical timeline with
+ * connector lines. Variants: `activity` (record CRUD trail), `changelog`
+ * (version gutter + tag-pill entry cards), `incidents` (severity halo dots +
+ * postmortem notes), `trace` (per-step status dots + mono log snippets). Binds
+ * to an ordered `record-list`.
+ */
+
+const timelineVariant = z.enum(['activity', 'changelog', 'incidents', 'trace']);
+
+export const timelineVerticalConfigSchema = widgetSharedConfigSchema.extend({
+  variant: timelineVariant.default('activity'),
+  connectorStyle: z.enum(['solid', 'dashed']).default('solid'),
+  tagToneMap: z.record(z.string(), z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info'])).optional(),
+});
+export type TimelineVerticalConfig = z.infer<typeof timelineVerticalConfigSchema>;
+
+export interface TimelineEntry {
+  id: string | number;
+  title: string;
+  ts: string;
+  body?: string | undefined;
+  tone?: string | undefined;
+  icon?: string | undefined;
+  tags?: string[] | undefined;
+  log?: string | undefined;
+  version?: string | undefined;
+  /** incidents variant: severity drives the halo ring color. */
+  severity?: string | undefined;
+}
+
+const SEVERITY_TONE: Record<string, Tone> = { sev1: 'danger', sev2: 'warn', sev3: 'info', critical: 'danger', major: 'warn', minor: 'info' };
+
+export interface TimelineVerticalProps {
+  entries: readonly TimelineEntry[];
+  variant?: TimelineVerticalConfig['variant'];
+  connectorStyle?: 'solid' | 'dashed';
+  tagToneMap?: Record<string, Tone> | undefined;
+  now?: number | undefined;
+  locale?: string | undefined;
+  emptyTitle?: string | undefined;
+  emptyBody?: string | undefined;
+  testId?: string | undefined;
+}
+
+export function TimelineVertical({
+  entries,
+  variant = 'activity',
+  connectorStyle = 'solid',
+  tagToneMap,
+  now,
+  locale,
+  emptyTitle,
+  emptyBody,
+  testId,
+}: TimelineVerticalProps) {
+  if (entries.length === 0) {
+    return (
+      <EmptyState
+        compact
+        preset="nothing-scheduled"
+        title={emptyTitle ?? 'Nothing here yet'}
+        body={emptyBody ?? 'Events will appear on this timeline as they happen.'}
+      />
+    );
+  }
+  const connector =
+    connectorStyle === 'dashed'
+      ? 'w-0 flex-1 border-s border-dashed border-border'
+      : 'w-px flex-1 bg-border';
+
+  return (
+    <ol data-widget="timeline-vertical" data-variant={variant} data-testid={testId} className="flex h-full flex-col gap-0 overflow-y-auto px-3 py-2">
+      {entries.map((entry, index) => {
+        const tone = toneOf(entry.tone, variant === 'incidents' ? (SEVERITY_TONE[entry.severity ?? ''] ?? 'danger') : 'accent');
+        const isLast = index === entries.length - 1;
+        return (
+          <li key={entry.id} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              {variant === 'trace' ? (
+                <span
+                  data-part="trace-dot"
+                  className={`mt-1 size-3 shrink-0 rounded-full ${DOT_BG[tone]}`}
+                />
+              ) : variant === 'incidents' ? (
+                <span
+                  data-part="incident-dot"
+                  className={`mt-0.5 size-3.5 shrink-0 rounded-full ring-4 ${DOT_BG[tone]} ${RING[tone]}`}
+                />
+              ) : (
+                <IconTile size="sm" tone={tone} icon={feedIcon(entry.icon)} />
+              )}
+              {!isLast && <span aria-hidden="true" className={`my-1 ${connector}`} />}
+            </div>
+            <div className={`min-w-0 flex-1 ${isLast ? 'pb-1' : 'pb-4'}`}>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {variant === 'changelog' && entry.version !== undefined && (
+                  <Badge tone={tone} className="font-mono">{entry.version}</Badge>
+                )}
+                <span className="text-body-sm font-semibold text-fg">{entry.title}</span>
+                <RelativeTime iso={entry.ts} {...(now === undefined ? {} : { now })} {...(locale === undefined ? {} : { locale })} className="ms-auto" />
+              </div>
+              {entry.body !== undefined && <p className="mt-1 text-body-sm text-fg-muted">{entry.body}</p>}
+              {entry.tags !== undefined && entry.tags.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {entry.tags.map((tag) => (
+                    <Tag key={tag} tone={tagToneMap?.[tag] ?? 'neutral'}>{tag}</Tag>
+                  ))}
+                </div>
+              )}
+              {entry.log !== undefined && (
+                <pre className="mt-1.5 overflow-x-auto rounded-md border border-border bg-surface-2 px-2.5 py-1.5">
+                  <MonoText className="text-caption text-fg-muted">{entry.log}</MonoText>
+                </pre>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+const DOT_BG: Record<Tone, string> = {
+  neutral: 'bg-fg-subtle',
+  accent: 'bg-accent',
+  pos: 'bg-pos',
+  warn: 'bg-warn',
+  danger: 'bg-danger',
+  info: 'bg-info',
+};
+const RING: Record<Tone, string> = {
+  neutral: 'ring-fg-subtle/20',
+  accent: 'ring-accent/20',
+  pos: 'ring-pos/20',
+  warn: 'ring-warn/20',
+  danger: 'ring-danger/20',
+  info: 'ring-info/20',
+};
+
+function timelineEntriesOf(data: unknown): TimelineEntry[] {
+  return feedRowsOf(data).map((row, index) => ({
+    id: (row['id'] as string | number | undefined) ?? index,
+    title: typeof row['title'] === 'string' ? row['title'] : String(row['title'] ?? ''),
+    ts: typeof row['ts'] === 'string' ? row['ts'] : new Date(DEMO_EPOCH).toISOString(),
+    body: typeof row['body'] === 'string' ? row['body'] : undefined,
+    tone: typeof row['tone'] === 'string' ? row['tone'] : undefined,
+    icon: typeof row['icon'] === 'string' ? row['icon'] : undefined,
+    tags: Array.isArray(row['tags']) ? (row['tags'] as string[]) : undefined,
+    log: typeof row['log'] === 'string' ? row['log'] : undefined,
+    version: typeof row['version'] === 'string' ? row['version'] : undefined,
+    severity: typeof row['severity'] === 'string' ? row['severity'] : undefined,
+  }));
+}
+
+export function TimelineVerticalWidget({ config, data }: WidgetProps<TimelineVerticalConfig>) {
+  return (
+    <TimelineVertical
+      entries={timelineEntriesOf(data)}
+      variant={config.variant}
+      connectorStyle={config.connectorStyle}
+      {...(config.tagToneMap === undefined ? {} : { tagToneMap: config.tagToneMap })}
+      {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
+      {...(config.format?.referenceTime === undefined ? {} : { now: config.format.referenceTime })}
+    />
+  );
+}
+
+const DEMO_BY_VARIANT: Record<TimelineVerticalConfig['variant'], (i: number) => Partial<TimelineEntry>> = {
+  activity: (i) => ({ icon: pickFrom(mulberry32(i + 1), ['created', 'updated', 'commented', 'approved'] as const), title: ['Record created', 'Field updated', 'Comment added', 'Status approved'][i % 4] ?? 'Event', tone: ['pos', 'accent', 'info', 'pos'][i % 4] }),
+  changelog: (i) => ({ version: `v2.${String(4 - i)}.0`, title: ['Realtime feeds', 'Schema tree explorer', 'Toggle matrix', 'Card gallery'][i % 4] ?? 'Release', tone: 'info', tags: [['feature'], ['feature', 'a11y'], ['fix'], ['feature']][i % 4], body: 'Shipped to all workspaces.' }),
+  incidents: (i) => ({ severity: (['sev1', 'sev2', 'sev3'] as const)[i % 3], title: ['API latency spike', 'Elevated error rate', 'Degraded webhooks'][i % 3] ?? 'Incident', body: 'Postmortem: root cause identified and mitigated.' }),
+  trace: (i) => ({ tone: (['pos', 'pos', 'warn', 'danger'] as const)[i % 4], title: ['validate', 'transform', 'load', 'notify'][i % 4] ?? 'step', log: `step ${String(i)} · 128ms · ok` }),
+};
+
+/** Deterministic ordered `record-list` for the given variant. */
+export function timelineVerticalDemoData(seed: number, variant: TimelineVerticalConfig['variant'] = 'activity'): { data: TimelineEntry[] } {
+  const random = mulberry32(seed || 1);
+  const data = Array.from({ length: 5 }, (_, index) => {
+    const partial = DEMO_BY_VARIANT[variant](index);
+    return {
+      id: index + 1,
+      title: partial.title ?? 'Event',
+      ts: new Date(DEMO_EPOCH - index * 5 * 3_600_000 - Math.floor(random() * 3600) * 1000).toISOString(),
+      ...partial,
+    } as TimelineEntry;
+  });
+  return { data };
+}

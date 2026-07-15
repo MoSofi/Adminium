@@ -52,5 +52,102 @@
   },
   "toast": {
     "dismiss": "關閉通知"
+  },
+  "widgets": {
+    "charts": {
+      "boxplot": {
+        "description": "依類別彙總數值欄位分佈的盒鬚圖——最小值、四分位數、中位數與最大值。",
+        "emptyTitle": "沒有可繪製的分佈",
+        "emptyBody": "沒有符合篩選條件的資料列可用於盒鬚圖。"
+      },
+      "violin": {
+        "description": "鏡像密度曲線，比較數值欄位在各群組之間的分佈。",
+        "emptyTitle": "沒有可繪製的分佈",
+        "emptyBody": "沒有符合篩選條件的資料列可用於密度曲線。"
+      },
+      "ridgeline": {
+        "description": "重疊的密度山脊圖，比較數值欄位在有序群組間的分佈。",
+        "emptyTitle": "沒有可繪製的山脊",
+        "emptyBody": "沒有符合篩選條件的資料列可用於密度曲線。"
+      },
+      "scatterBubble": {
+        "description": "將兩個數值欄位繪製為散佈點，可選氣泡大小與趨勢線。",
+        "emptyTitle": "沒有可繪製的散佈點",
+        "emptyBody": "沒有符合篩選條件的資料列符合所選欄位。"
+      },
+      "hexbin": {
+        "description": "兩個數值欄位的六邊形密度圖，依每格落入的資料列數著色。",
+        "emptyTitle": "沒有可繪製的密度",
+        "emptyBody": "沒有符合篩選條件的資料列可供分箱。"
+      },
+      "correlationMatrix": {
+        "description": "所選數值欄位之間的皮爾森相關性，從強正相關到強負相關。",
+        "emptyTitle": "沒有可計算的相關性",
+        "emptyBody": "請至少選擇兩個具有相符資料列的數值欄位。"
+      },
+      "parallelCoordinates": {
+        "description": "將每筆記錄繪製為跨多個正規化數值軸的折線，依類別著色。",
+        "emptyTitle": "沒有可繪製的記錄",
+        "emptyBody": "沒有符合篩選條件的資料列涵蓋所選各軸。"
+      }
+    },
+    "feeds": {
+      "activityFeed": {
+        "description": "依時間倒序顯示工作區中誰做了什麼的動態資訊流。",
+        "emptyTitle": "尚無近期動態",
+        "emptyBody": "工作區中的操作將顯示在這裡。"
+      },
+      "notificationFeed": {
+        "description": "帶未讀狀態、篩選與內嵌操作的分組通知。",
+        "emptyTitle": "尚無通知",
+        "emptyBody": "新通知將顯示在這裡。"
+      },
+      "realtimeFeed": {
+        "description": "即時事件串流，新項目抵達時會置於頂端。",
+        "emptyTitle": "正在等待事件",
+        "emptyBody": "即時事件將隨發生即時顯示。"
+      },
+      "timelineVertical": {
+        "description": "事件、發佈、事故或執行步驟的垂直時間軸。",
+        "emptyTitle": "這裡還沒有內容",
+        "emptyBody": "事件將隨發生顯示在此時間軸上。"
+      },
+      "unreadBadge": {
+        "description": "顯示未讀項目的計數標記，與資訊流狀態同步。",
+        "unitLabel": "未讀"
+      }
+    },
+    "tables": {
+      "masterList": {
+        "description": "可選取的記錄清單，用於驅動詳細資料窗格。",
+        "emptyTitle": "尚無項目",
+        "emptyBody": "項目存在後將顯示在這裡。"
+      },
+      "logTable": {
+        "description": "帶搜尋、錯誤篩選與列操作的附加式事件記錄。",
+        "emptyTitle": "尚無記錄項目",
+        "emptyBody": "事件將隨發生記錄在這裡。"
+      },
+      "cardGallery": {
+        "description": "帶狀態與快捷操作的自適應實體卡片庫。",
+        "emptyTitle": "尚無內容",
+        "emptyBody": "項目將以卡片形式顯示在這裡。"
+      },
+      "groupedSummaryTable": {
+        "description": "帶彙總欄、可展開明細與合計的分組列。",
+        "emptyTitle": "尚無彙總資料",
+        "emptyBody": "有資料後分組合計將顯示在這裡。"
+      },
+      "schemaTree": {
+        "description": "帶型別與索引鍵標章的結構描述、資料表與欄位瀏覽器。",
+        "emptyTitle": "尚未讀取結構描述",
+        "emptyBody": "連接資料庫即可在此瀏覽其結構描述。"
+      },
+      "toggleMatrix": {
+        "description": "用於角色、原則或管道的布林開關互動格線。",
+        "emptyTitle": "尚未設定矩陣",
+        "emptyBody": "設定後列與欄將顯示在這裡。"
+      }
+    }
   }
 }

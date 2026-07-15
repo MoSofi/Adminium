@@ -60,5 +60,102 @@ export default {
   },
   "toast": {
     "dismiss": "Zavřít oznámení"
+  },
+  "widgets": {
+    "charts": {
+      "boxplot": {
+        "description": "Krabicový graf rozpětí číselného sloupce podle kategorie – minimum, kvartily, medián a maximum.",
+        "emptyTitle": "Není co vykreslit",
+        "emptyBody": "Filtrům neodpovídají žádné řádky pro krabicové grafy."
+      },
+      "violin": {
+        "description": "Zrcadlené křivky hustoty porovnávající rozdělení číselného sloupce mezi skupinami.",
+        "emptyTitle": "Není co vykreslit",
+        "emptyBody": "Filtrům neodpovídají žádné řádky pro profily hustoty."
+      },
+      "ridgeline": {
+        "description": "Překrývající se hřebeny hustoty porovnávající číselný sloupec napříč seřazenými skupinami.",
+        "emptyTitle": "Není co vykreslit",
+        "emptyBody": "Filtrům neodpovídají žádné řádky pro profily hustoty."
+      },
+      "scatterBubble": {
+        "description": "Dva číselné sloupce jako body, s volitelnou velikostí bublin a trendovou čarou.",
+        "emptyTitle": "Žádné body k vykreslení",
+        "emptyBody": "Filtrům neodpovídají žádné řádky pro zvolené sloupce."
+      },
+      "hexbin": {
+        "description": "Šestiúhelníková hustota dvou číselných sloupců, obarvená podle počtu řádků v dlaždici.",
+        "emptyTitle": "Žádná hustota k vykreslení",
+        "emptyBody": "Filtrům neodpovídají žádné řádky k seskupení."
+      },
+      "correlationMatrix": {
+        "description": "Pearsonova korelace mezi zvolenými číselnými sloupci, od silně kladné po silně zápornou.",
+        "emptyTitle": "Není co korelovat",
+        "emptyBody": "Vyberte alespoň dva číselné sloupce s odpovídajícími řádky."
+      },
+      "parallelCoordinates": {
+        "description": "Každý záznam jako čára přes několik normalizovaných číselných os, obarvená podle kategorie.",
+        "emptyTitle": "Žádné záznamy k vykreslení",
+        "emptyBody": "Filtrům neodpovídají žádné řádky napříč zvolenými osami."
+      }
+    },
+    "feeds": {
+      "activityFeed": {
+        "description": "Průběžný kanál toho, kdo co ve vašem pracovním prostoru udělal, od nejnovějšího.",
+        "emptyTitle": "Žádná nedávná aktivita",
+        "emptyBody": "Akce ve vašem pracovním prostoru se zobrazí zde."
+      },
+      "notificationFeed": {
+        "description": "Seskupená oznámení se stavem nepřečteno, filtry a akcemi v řádku.",
+        "emptyTitle": "Žádná oznámení",
+        "emptyBody": "Nová oznámení se zobrazí zde."
+      },
+      "realtimeFeed": {
+        "description": "Živý proud událostí, který nové položky přidává na začátek.",
+        "emptyTitle": "Čekání na události",
+        "emptyBody": "Živé události se zobrazí, jakmile nastanou."
+      },
+      "timelineVertical": {
+        "description": "Svislá časová osa událostí, vydání, incidentů nebo kroků běhu.",
+        "emptyTitle": "Zatím tu nic není",
+        "emptyBody": "Události se na této časové ose zobrazí, jakmile nastanou."
+      },
+      "unreadBadge": {
+        "description": "Počítadlo nepřečtených položek synchronizované se stavem kanálu.",
+        "unitLabel": "nepřečtené"
+      }
+    },
+    "tables": {
+      "masterList": {
+        "description": "Vybíratelný seznam záznamů, který řídí podokno s detailem.",
+        "emptyTitle": "Žádné položky",
+        "emptyBody": "Položky se zde zobrazí, jakmile budou existovat."
+      },
+      "logTable": {
+        "description": "Protokol událostí s vyhledáváním, filtrem chyb a akcemi na řádku.",
+        "emptyTitle": "Žádné záznamy protokolu",
+        "emptyBody": "Události se zde zaznamenají, jakmile nastanou."
+      },
+      "cardGallery": {
+        "description": "Responzivní galerie karet entit se stavem a rychlými akcemi.",
+        "emptyTitle": "Není co zobrazit",
+        "emptyBody": "Položky se zde zobrazí jako karty."
+      },
+      "groupedSummaryTable": {
+        "description": "Seskupené řádky s agregačními sloupci, rozbalitelnými detaily a součty.",
+        "emptyTitle": "Žádná souhrnná data",
+        "emptyBody": "Seskupené součty se zde zobrazí, jakmile budou data."
+      },
+      "schemaTree": {
+        "description": "Průzkumník schémat, tabulek a sloupců se štítky typů a klíčů.",
+        "emptyTitle": "Žádné načtené schéma",
+        "emptyBody": "Připojte databázi a prozkoumejte její schéma zde."
+      },
+      "toggleMatrix": {
+        "description": "Interaktivní mřížka logických přepínačů pro role, zásady nebo kanály.",
+        "emptyTitle": "Žádná matice nenakonfigurována",
+        "emptyBody": "Řádky a sloupce se zde zobrazí po konfiguraci."
+      }
+    }
   }
 } as const;

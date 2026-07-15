@@ -131,3 +131,12 @@ describe('memoization', () => {
     expect(getFormatters('da-DK')).toBe(getFormatters('da-DK'));
   });
 });
+
+describe('empty / invalid tag coalescing', () => {
+  it('never throws for an empty, whitespace, or malformed tag (falls back to en-US)', () => {
+    for (const tag of ['', '   ', 'not a tag', '@@']) {
+      expect(() => getFormatters(tag).number(1234)).not.toThrow();
+      expect(getFormatters(tag).number(1234)).toBe(getFormatters('en-US').number(1234));
+    }
+  });
+});

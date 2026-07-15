@@ -52,5 +52,102 @@
   },
   "toast": {
     "dismiss": "Dismiss notification"
+  },
+  "widgets": {
+    "charts": {
+      "boxplot": {
+        "description": "Whisker-and-box summary of a numeric column's spread per category — min, quartiles, median and max.",
+        "emptyTitle": "No distribution to plot",
+        "emptyBody": "No rows matched the filters to summarise as box plots."
+      },
+      "violin": {
+        "description": "Mirrored density curves comparing how a numeric column is distributed across groups.",
+        "emptyTitle": "No distribution to plot",
+        "emptyBody": "No rows matched the filters to build density profiles."
+      },
+      "ridgeline": {
+        "description": "Overlapping density ridges comparing a numeric column across ordered groups.",
+        "emptyTitle": "No ridges to plot",
+        "emptyBody": "No rows matched the filters to build density profiles."
+      },
+      "scatterBubble": {
+        "description": "Two numeric columns as points, with an optional bubble size and a trend line.",
+        "emptyTitle": "No points to plot",
+        "emptyBody": "No rows matched the filters for the selected columns."
+      },
+      "hexbin": {
+        "description": "Hex-binned density of two numeric columns, shaded by how many rows fall in each tile.",
+        "emptyTitle": "No density to plot",
+        "emptyBody": "No rows matched the filters to bin."
+      },
+      "correlationMatrix": {
+        "description": "Pearson correlation between selected numeric columns, from strong positive to strong negative.",
+        "emptyTitle": "Nothing to correlate",
+        "emptyBody": "Select at least two numeric columns with matching rows."
+      },
+      "parallelCoordinates": {
+        "description": "Each record as a line across several normalised numeric axes, coloured by a category.",
+        "emptyTitle": "No records to plot",
+        "emptyBody": "No rows matched the filters across the selected axes."
+      }
+    },
+    "feeds": {
+      "activityFeed": {
+        "description": "A running feed of who did what across your workspace, newest first.",
+        "emptyTitle": "No recent activity",
+        "emptyBody": "Actions across your workspace will show up here."
+      },
+      "notificationFeed": {
+        "description": "Grouped notifications with unread state, filters, and inline actions.",
+        "emptyTitle": "No notifications",
+        "emptyBody": "New notifications will appear here."
+      },
+      "realtimeFeed": {
+        "description": "A live event stream that prepends new items as they arrive.",
+        "emptyTitle": "Waiting for events",
+        "emptyBody": "Live events will stream in as they happen."
+      },
+      "timelineVertical": {
+        "description": "A vertical timeline of events, releases, incidents, or run steps.",
+        "emptyTitle": "Nothing here yet",
+        "emptyBody": "Events will appear on this timeline as they happen."
+      },
+      "unreadBadge": {
+        "description": "A count pill showing unread items, synced with feed state.",
+        "unitLabel": "unread"
+      }
+    },
+    "tables": {
+      "masterList": {
+        "description": "A selectable list of records that drives a detail pane.",
+        "emptyTitle": "No items",
+        "emptyBody": "Items will appear here once they exist."
+      },
+      "logTable": {
+        "description": "An append-only event log with search, an errors filter, and row actions.",
+        "emptyTitle": "No log entries",
+        "emptyBody": "Events will be recorded here as they happen."
+      },
+      "cardGallery": {
+        "description": "A responsive gallery of entity cards with status and quick actions.",
+        "emptyTitle": "Nothing to show",
+        "emptyBody": "Items will appear here as cards."
+      },
+      "groupedSummaryTable": {
+        "description": "Grouped rows with aggregate columns, expandable details, and totals.",
+        "emptyTitle": "No summary data",
+        "emptyBody": "Grouped totals will appear here once there is data."
+      },
+      "schemaTree": {
+        "description": "An explorer for schemas, tables, and columns with type and key badges.",
+        "emptyTitle": "No schema introspected",
+        "emptyBody": "Connect a database to explore its schema here."
+      },
+      "toggleMatrix": {
+        "description": "An interactive grid of boolean toggles for roles, policies, or channels.",
+        "emptyTitle": "No matrix configured",
+        "emptyBody": "Rows and columns will appear here once configured."
+      }
+    }
   }
 }

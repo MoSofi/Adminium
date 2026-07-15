@@ -58,6 +58,9 @@ const SUPPORTED_SHAPES = new Set([
   'timeseries',
   'categorical',
   'record-list',
+  // Live feed snapshot (04 §5.3): compiled exactly like `record-list` (recent
+  // rows, DESC), shaped into a `StreamShape` with the resolved WS channel.
+  'stream',
 ]);
 
 type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
@@ -312,8 +315,8 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
     }
     if (hasBucket) reject('Shape "categorical" cannot time-bucket; use "timeseries".', {});
   }
-  if (shape === 'record-list' && (hasAgg || hasGroup || hasBucket)) {
-    reject('Shape "record-list" selects rows — aggregations/grouping are not allowed.', {});
+  if ((shape === 'record-list' || shape === 'stream') && (hasAgg || hasGroup || hasBucket)) {
+    reject(`Shape "${shape}" selects rows — aggregations/grouping are not allowed.`, {});
   }
 }
 
@@ -372,14 +375,15 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   });
 
   const shape = descriptor.shape;
+  const rowShape = shape === 'record-list' || shape === 'stream';
   let selectedColumns: ResolvedColumn[] = [];
-  const requestedLimit = descriptor.limit ?? (shape === 'record-list' ? RECORD_LIST_LIMIT_DEFAULT : WIDGET_LIMIT_MAX);
+  const requestedLimit = descriptor.limit ?? (rowShape ? RECORD_LIST_LIMIT_DEFAULT : WIDGET_LIMIT_MAX);
   const limit = Math.min(Math.max(requestedLimit, 1), WIDGET_LIMIT_MAX);
 
   const build = (window: { start: Date; end: Date } | null): Qb => {
     let qb = applyWhere(db.selectFrom(table.id) as unknown as Qb, window);
 
-    if (shape === 'record-list') {
+    if (rowShape) {
       selectedColumns =
         descriptor.select !== undefined && descriptor.select.length > 0
           ? descriptor.select.map((name) => view.readableColumn(table, name, canReadPii))
@@ -409,7 +413,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     }
 
     // Aggregate-only shapes need no LIMIT; grouped/row shapes get the cap.
-    if (shape === 'record-list' || shape === 'categorical' || shape === 'timeseries') {
+    if (rowShape || shape === 'categorical' || shape === 'timeseries') {
       qb = qb.limit(limit);
     }
     return qb;

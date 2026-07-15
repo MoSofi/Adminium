@@ -18,6 +18,10 @@
     "./page-config": {
       "types": "./dist/page-config/index.d.ts",
       "default": "./dist/page-config/index.js"
+    },
+    "./binding": {
+      "types": "./dist/binding/index.d.ts",
+      "default": "./dist/binding/index.js"
     }
   },
   "scripts": {

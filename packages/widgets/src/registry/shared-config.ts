@@ -30,6 +30,12 @@ export const widgetSharedConfigSchema = z.object({
       currency: z.string().optional(),
       number: z.enum(['plain', 'compact', 'percent']).optional(),
       date: z.enum(['relative', 'short', 'long']).optional(),
+      /**
+       * Reference clock (epoch ms) for relative timestamps. Widgets that render
+       * "3h ago"-style times use it as `now` when set, else the wall clock —
+       * pinning it makes demo/VRT captures byte-deterministic (04-T17).
+       */
+      referenceTime: z.number().int().optional(),
     })
     .optional(),
   testId: z.string().optional(),

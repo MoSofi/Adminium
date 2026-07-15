@@ -17,9 +17,21 @@ export interface MetricFormatOptions {
   currency?: string | undefined;
 }
 
-/** Pull format options from the shared per-widget config overrides. */
+/**
+ * Pull format options from the shared per-widget config overrides. Empty /
+ * whitespace-only `locale` and `currency` are normalized to `undefined` so the
+ * runtime defaults apply — an empty BCP-47 locale or ISO-4217 code is accepted
+ * by the (free-string) config schema but makes `Intl` throw "Incorrect locale
+ * information provided", which would crash the widget on an otherwise-valid
+ * stored config (surfaced by the 04-T17 config-schema fuzz).
+ */
 export function formatOptionsOf(config: Pick<WidgetSharedConfig, 'format'>): MetricFormatOptions {
-  return { locale: config.format?.locale, currency: config.format?.currency };
+  const locale = config.format?.locale?.trim();
+  const currency = config.format?.currency?.trim();
+  return {
+    locale: locale ? locale : undefined,
+    currency: currency ? currency : undefined,
+  };
 }
 
 /** Seconds → compact human duration ("45s", "3m 20s", "2h 14m", "3d 4h"). */

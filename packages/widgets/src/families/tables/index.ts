@@ -42,3 +42,25 @@ export { DetailKeyValue, type DetailKeyValueProps } from './DetailKeyValue.js';
 export { MiniTable, type MiniTableProps } from './MiniTable.js';
 export { demoCustomerColumns, demoCustomerRows, demoRecordList } from './demo-data.js';
 export { tablesWidgetDefinitions } from './definitions.js';
+
+// Track F additions (annex §3) — standalone components + registry metadata.
+export { MasterList, type MasterListProps } from './MasterList.js';
+export { LogTable, codeTone, isErrorRow, smartTimestamp, type LogTableProps, type LogRow } from './LogTable.js';
+export { CardGallery, type CardGalleryProps, type GalleryCard } from './CardGallery.js';
+export {
+  GroupedSummaryTable,
+  type AggColumn,
+  type AggFormat,
+  type GroupedSummaryData,
+  type GroupedSummaryTableProps,
+  type SummaryGroup,
+} from './GroupedSummaryTable.js';
+export { SchemaTree, type SchemaNode, type SchemaNodeKind, type SchemaTreeProps } from './SchemaTree.js';
+export {
+  ToggleMatrixGrid,
+  type MatrixColumn,
+  type MatrixData,
+  type MatrixRow,
+  type ToggleMatrixGridProps,
+} from './ToggleMatrixWidget.js';
+export { tablesTrackFDefinitions } from './tables-track-f.definitions.js';

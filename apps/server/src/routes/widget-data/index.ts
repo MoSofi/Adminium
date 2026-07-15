@@ -123,7 +123,7 @@ export function widgetDataRoutes(deps: WidgetDataRoutesDeps): FastifyPluginAsync
         const countRow = (await compiled.count.executeTakeFirst()) as { total?: unknown } | undefined;
         total = toNumber(countRow?.total);
       }
-      const result = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked });
+      const result = shapeRows({ compiled, rows, priorRows, total, canReadPii: unmasked, connectionId });
 
       // Execution metrics for the Studio slow-query panel (04 §5.2) — the
       // structured log line is the v1 sink.

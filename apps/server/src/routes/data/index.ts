@@ -30,6 +30,7 @@ import {
   type ReferenceCount,
 } from '../../crud/records.js';
 import { rowsEqual, UndoStore, type UndoAction, type UndoEntry } from '../../crud/undo.js';
+import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import {
   dataRecordParams,
   dataTableParams,
@@ -212,8 +213,18 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         },
       });
       if (app.hasDecorator('realtime')) {
+        // Cache-invalidation fan-out (09 §4.1) — carries only the pk.
         app.realtime.publish(`table:${ctx.connectionId}:${ctx.table.id}`, `record.${action}`, {
           pk: entity.pk,
+        });
+        // Live-stream fan-out (04 §5.3) — carries the PII-masked row so the
+        // realtime-feed / live log-table tail can prepend it without a refetch.
+        publishWidgetDataStream(app.realtime, {
+          connectionId: ctx.connectionId,
+          table: ctx.table,
+          type: `record.${action}`,
+          pk: entity.pk,
+          row: action === 'delete' ? before : after,
         });
       }
     }

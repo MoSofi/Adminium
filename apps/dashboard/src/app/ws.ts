@@ -36,6 +36,15 @@ export interface RealtimeClientOptions {
 export interface RealtimeClient {
   start(): void;
   stop(): void;
+  /**
+   * Add a channel to the live subscription set. Sends a `subscribe` frame
+   * immediately over an open WS; on the SSE fallback the stream is re-opened
+   * with the new channel union. No-op if already subscribed. Channels added
+   * before `start`/reconnect are (re)subscribed on connect.
+   */
+  subscribe(channel: string): void;
+  /** Remove a channel from the subscription set (inverse of {@link subscribe}). */
+  unsubscribe(channel: string): void;
 }
 
 const MAX_BACKOFF_MS = 30_000;
@@ -59,6 +68,9 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   let stopped = true;
   let failures = 0;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  // Mutable subscription set — seeded from options, grown/shrunk at runtime by
+  // `subscribe`/`unsubscribe` (per-widget stream bindings, 04 §5.3).
+  const channels = new Set(options.channels);
 
   const dispatch = (raw: unknown): void => {
     let frame: unknown;
@@ -93,7 +105,7 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     ws.onopen = () => {
       failures = 0;
       options.onStatusChange?.(true);
-      for (const channel of options.channels) {
+      for (const channel of channels) {
         ws?.send(JSON.stringify({ op: 'subscribe', channel }));
       }
     };
@@ -108,8 +120,11 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
 
   const startSse = (): void => {
     if (stopped || typeof EventSource === 'undefined') return;
-    const channels = encodeURIComponent(options.channels.join(','));
-    sse = new EventSource(options.sseUrl ?? `/api/v1/events?channels=${channels}`);
+    // The SSE endpoint carries channels in the URL and needs at least one
+    // (empty ⇒ 400). Skip opening while the subscription set is empty.
+    if (channels.size === 0) return;
+    const query = encodeURIComponent([...channels].join(','));
+    sse = new EventSource(options.sseUrl ?? `/api/v1/events?channels=${query}`);
     // Server frames SSE as `event: <type>` + `data: <RealtimeEvent JSON>`
     // (apps/server/src/realtime/sse.ts) — named events bypass `onmessage`.
     sse.onmessage = (event) => dispatch(event.data);
@@ -119,6 +134,15 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     }
     sse.onopen = () => options.onStatusChange?.(true);
     sse.onerror = () => options.onStatusChange?.(false);
+  };
+
+  // Dynamic channels over SSE: the channel list is baked into the URL, so a
+  // change means re-opening the stream with the new union.
+  const restartSse = (): void => {
+    if (sse === null) return;
+    sse.close();
+    sse = null;
+    startSse();
   };
 
   return {
@@ -136,6 +160,25 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
       ws = null;
       sse?.close();
       sse = null;
+    },
+    subscribe(channel: string) {
+      if (channels.has(channel)) return;
+      channels.add(channel);
+      if (ws !== null && ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ op: 'subscribe', channel }));
+      } else if (sse !== null) {
+        restartSse();
+      }
+      // Otherwise the WS is (re)connecting — `onopen` subscribes the whole set.
+    },
+    unsubscribe(channel: string) {
+      if (!channels.has(channel)) return;
+      channels.delete(channel);
+      if (ws !== null && ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({ op: 'unsubscribe', channel }));
+      } else if (sse !== null) {
+        restartSse();
+      }
     },
   };
 }

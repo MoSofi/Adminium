@@ -9,6 +9,7 @@
  */
 
 import { maskRows, type Row } from '../crud/mask.js';
+import { widgetDataChannel } from '../realtime/hub.js';
 import { GROUP_BUCKET_CAP, type CompiledWidgetQuery } from './compiler.js';
 
 export interface TsPoint {
@@ -55,12 +56,22 @@ export interface ShapedRecordList {
   total: number;
 }
 
+export interface ShapedStream {
+  shape: 'stream';
+  /** Authoritative WS channel the client subscribes to (04 §5.3). */
+  channel: string;
+  /** Initial (PII-masked) rows, newest-first. */
+  snapshot: Row[];
+  columns: ColumnMeta[];
+}
+
 export type ShapedPayload =
   | ShapedSingleMetric
   | ShapedMetricDelta
   | ShapedTimeseries
   | ShapedCategorical
-  | ShapedRecordList;
+  | ShapedRecordList
+  | ShapedStream;
 
 /** PG returns numerics/bigints as strings — coerce every metric to number. */
 export function toNumber(value: unknown): number {
@@ -104,6 +115,17 @@ export interface ShapeInput {
   /** `record-list` exact count (from the compiled `count` twin). */
   total?: number | undefined;
   canReadPii: boolean;
+  /** Connection id — needed to build the `stream` channel name. */
+  connectionId?: string | undefined;
+}
+
+function columnMetaOf(compiled: CompiledWidgetQuery): ColumnMeta[] {
+  return compiled.selectedColumns.map((column) => ({
+    name: column.name,
+    logicalType: column.logicalType,
+    nullable: column.nullable,
+    isPrimaryKey: column.isPrimaryKey,
+  }));
 }
 
 export function shapeRows(input: ShapeInput): ShapedPayload {
@@ -157,17 +179,25 @@ export function shapeRows(input: ShapeInput): ShapedPayload {
     }
 
     case 'record-list': {
-      const columns: ColumnMeta[] = compiled.selectedColumns.map((column) => ({
-        name: column.name,
-        logicalType: column.logicalType,
-        nullable: column.nullable,
-        isPrimaryKey: column.isPrimaryKey,
-      }));
       return {
         shape: 'record-list',
         rows: maskRows(rows, compiled.table, canReadPii),
-        columns,
+        columns: columnMetaOf(compiled),
         total: input.total ?? rows.length,
+      };
+    }
+
+    case 'stream': {
+      // Server-authoritative channel from the RESOLVED table id — the client
+      // subscribes to exactly what the CRUD/job publisher fans out on (04 §5.3).
+      if (input.connectionId === undefined) {
+        throw new Error('shaper: stream shape requires connectionId (route bug)');
+      }
+      return {
+        shape: 'stream',
+        channel: widgetDataChannel(input.connectionId, compiled.table.id),
+        snapshot: maskRows(rows, compiled.table, canReadPii),
+        columns: columnMetaOf(compiled),
       };
     }
 

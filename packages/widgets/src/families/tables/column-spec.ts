@@ -218,9 +218,11 @@ export function formatMoney(
   const amount = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(amount)) return String(value ?? '');
   // Money is a mono grid cell → data context (latn digits) via the format layer.
+  // `|| 'USD'` (not `??`) so a schema-valid empty currency code coalesces too —
+  // `{ style: 'currency', currency: '' }` would otherwise throw a RangeError.
   return getFormatters(options?.locale ?? 'en-US').number(amount, {
     style: 'currency',
-    currency: options?.currency ?? 'USD',
+    currency: options?.currency || 'USD',
     maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
   });
 }

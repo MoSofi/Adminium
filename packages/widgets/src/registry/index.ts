@@ -1,6 +1,13 @@
 import { kpiWidgetDefinitions } from '../families/kpi/definitions.js';
 import { chartsWidgetDefinitions } from '../families/charts/definitions.js';
+import { barsRankingChartDefinitions } from '../families/charts/bars-ranking-definitions.js';
+import { distributionCorrelationChartDefinitions } from '../families/charts/definitions.distribution-correlation.js';
+import { partWholeChartDefinitions } from '../families/charts/def.part-whole.js';
+import { matrixGeoChartDefinitions } from '../families/charts/defs.matrix-geo.js';
+import { timeFlowChartDefinitions } from '../families/charts/time-flow-definitions.js';
 import { tablesWidgetDefinitions } from '../families/tables/definitions.js';
+import { tablesTrackFDefinitions } from '../families/tables/tables-track-f.definitions.js';
+import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
 import { widgetMissingDefinition } from './widget-missing.js';
 import type { WidgetDefinition, WidgetFamily } from './types.js';
 
@@ -38,9 +45,20 @@ export function buildRegistry(
 
 export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegistry([
   widgetMissingDefinition,
+  // kpi
   ...kpiWidgetDefinitions,
+  // charts (M4 slice + M7 Wave-1 04-T09 tracks)
   ...chartsWidgetDefinitions,
+  ...barsRankingChartDefinitions,
+  ...distributionCorrelationChartDefinitions,
+  ...partWholeChartDefinitions,
+  ...matrixGeoChartDefinitions,
+  ...timeFlowChartDefinitions,
+  // tables (M4 slice + Track F)
   ...tablesWidgetDefinitions,
+  ...tablesTrackFDefinitions,
+  // feeds (Track F)
+  ...feedsTrackFDefinitions,
 ]);
 
 export function getWidget(id: string): WidgetDefinition | undefined {

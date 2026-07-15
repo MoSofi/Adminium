@@ -4,12 +4,15 @@
  * (`realtime/sse.ts`) attach to, and that the jobs worker publishes into.
  *
  * Wave-2 channels:
- * - `notifications:<userId>` — own userId only
- * - `jobs:<jobId>`           — job owner or `system:jobs:read`
- * - `config-changed`         — any authenticated session
+ * - `notifications:<userId>`             — own userId only
+ * - `jobs:<jobId>`                       — job owner or `system:jobs:read`
+ * - `config-changed`                     — any authenticated session
+ * - `widget-data:<connectionId>:<table>` — table read permission (04 §5.3)
  *
  * Authorization runs at subscribe time (`authorizeChannel`), mirroring the
- * REST RBAC checks; publishing is server-internal and unchecked.
+ * REST RBAC checks; publishing is server-internal and unchecked. Stream
+ * payloads on `widget-data:*` are PII-masked at the publisher so a subscriber
+ * who passes the table-read check still never receives a forbidden column.
  */
 
 /** Minimal identity the realtime layer needs; the auth plugin supplies it. */
@@ -41,7 +44,21 @@ const MAX_CHANNEL_LENGTH = 200;
 export type ChannelDescriptor =
   | { kind: 'notifications'; userId: string }
   | { kind: 'jobs'; jobId: string }
-  | { kind: 'config-changed' };
+  | { kind: 'config-changed' }
+  | { kind: 'widget-data'; connectionId: string; table: string };
+
+/** Prefix of the widget-data stream channels (04-widget-registry.md §5.3). */
+export const WIDGET_DATA_CHANNEL_PREFIX = 'widget-data';
+
+/** `widget-data:<connectionId>:<qualifiedTable>` — the stream channel name. */
+export function widgetDataChannel(connectionId: string, table: string): string {
+  return `${WIDGET_DATA_CHANNEL_PREFIX}:${connectionId}:${table}`;
+}
+
+/** RBAC permission gating a widget-data stream subscription (read on the table). */
+export function widgetDataReadPermission(connectionId: string, table: string): string {
+  return `table:${connectionId}:${table}:read`;
+}
 
 /** Parses a channel name into its §3 descriptor (`null` = unknown channel). */
 export function parseChannel(channel: string): ChannelDescriptor | null {
@@ -54,6 +71,16 @@ export function parseChannel(channel: string): ChannelDescriptor | null {
   if (rest.length === 0) return null;
   if (prefix === 'notifications') return { kind: 'notifications', userId: rest };
   if (prefix === 'jobs') return { kind: 'jobs', jobId: rest };
+  if (prefix === WIDGET_DATA_CHANNEL_PREFIX) {
+    // `widget-data:<connectionId>:<table>` — split off the connection id; the
+    // rest is the qualified table id (`schema.name`, no colons).
+    const sep2 = rest.indexOf(':');
+    if (sep2 <= 0) return null;
+    const connectionId = rest.slice(0, sep2);
+    const table = rest.slice(sep2 + 1);
+    if (table.length === 0) return null;
+    return { kind: 'widget-data', connectionId, table };
+  }
   return null;
 }
 
@@ -91,6 +118,10 @@ export async function authorizeChannel(
       const owner = await deps.getJobOwner(parsed.jobId);
       return owner !== null && owner === user.id;
     }
+    case 'widget-data':
+      // Same gate as a widget-data query: read permission on the resolved
+      // table (04 §5.3). PII/secret columns are stripped at publish time.
+      return deps.can(user, widgetDataReadPermission(parsed.connectionId, parsed.table));
   }
 }
 

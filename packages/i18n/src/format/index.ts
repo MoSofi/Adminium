@@ -68,8 +68,12 @@ export function weekInfo(tag: string): WeekInfo {
 
 /** §4.2/§4.3: latn digits + gregorian calendar pinned for data context. */
 function tagFor(tag: string, ctx: FmtContext): string {
-  if (ctx === 'prose') return tag;
-  return tag.includes('-u-') ? `${tag}-nu-latn-ca-gregory` : `${tag}-u-nu-latn-ca-gregory`;
+  // Coalesce empty/invalid tags (see `normalizeTag`) before appending the
+  // `-u-...` extension, so `latnDataTag('')` and direct `Intl.*` builds off it
+  // don't produce an invalid `"-u-nu-latn-…"` tag that throws.
+  const base = normalizeTag(tag);
+  if (ctx === 'prose') return base;
+  return base.includes('-u-') ? `${base}-nu-latn-ca-gregory` : `${base}-u-nu-latn-ca-gregory`;
 }
 
 /**
@@ -234,12 +238,30 @@ function buildFormatters(tag: string): Formatters {
   return fmt;
 }
 
+/**
+ * Coalesce an empty/whitespace/structurally-invalid tag to `en-US`. Callers
+ * often pass `config.locale ?? 'en-US'`, which lets an empty string `''` slip
+ * through (`??` only catches null/undefined) — and `new Intl.NumberFormat('')`
+ * throws `RangeError`. Normalizing here makes every formatter safe against a
+ * schema-valid empty locale, so no widget crashes on it.
+ */
+function normalizeTag(tag: string): string {
+  if (typeof tag !== 'string' || tag.trim() === '') return 'en-US';
+  try {
+    Intl.getCanonicalLocales(tag); // throws RangeError on an invalid tag
+    return tag;
+  } catch {
+    return 'en-US';
+  }
+}
+
 /** Memoized per BCP-47 tag. Framework-free — the React binding is `useFmt()` (./react.js entry). */
 export function getFormatters(tag: string): Formatters {
-  let fmt = formattersByTag.get(tag);
+  const normalized = normalizeTag(tag);
+  let fmt = formattersByTag.get(normalized);
   if (fmt === undefined) {
-    fmt = buildFormatters(tag);
-    formattersByTag.set(tag, fmt);
+    fmt = buildFormatters(normalized);
+    formattersByTag.set(normalized, fmt);
   }
   return fmt;
 }

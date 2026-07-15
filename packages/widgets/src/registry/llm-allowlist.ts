@@ -67,19 +67,22 @@ const LLM_DASHBOARD_WIDGET_FAMILIES: ReadonlySet<WidgetFamily> = new Set<WidgetF
 
 /**
  * Predicate deciding whether a registered widget may be recommended on a
- * generated dashboard. Whole analytics families qualify; from the `tables`
- * family only read-only list *summary tiles* (e.g. `mini-table`) qualify — the
- * interactive `data-grid`, its inline chrome (`pagination-footer`,
+ * generated dashboard. Data-editing widgets are never suggestable — a generated
+ * dashboard is read-only analytics, so a mutating tile (e.g. the `feeds`
+ * family's `notification-feed`, which marks items read) is excluded even though
+ * its family otherwise qualifies. Whole analytics families qualify; from the
+ * `tables` family only read-only list *summary tiles* (e.g. `mini-table`)
+ * qualify — the interactive `data-grid`, its inline chrome (`pagination-footer`,
  * `bulk-action-toolbar`) and the single-record `detail-key-value` are page-CRUD
  * building blocks, not dashboard widgets, and the `widget-missing` system
  * fallback is never suggestable.
  */
 function isLlmDashboardWidget(definition: WidgetDefinition): boolean {
+  if (definition.capabilities?.editsData === true) return false;
   if (LLM_DASHBOARD_WIDGET_FAMILIES.has(definition.family)) return true;
   return (
     definition.family === 'tables' &&
     definition.placement === 'grid' &&
-    definition.capabilities?.editsData !== true &&
     dataContractIncludes(definition.dataContract, 'record-list')
   );
 }

@@ -60,5 +60,102 @@ export default {
   },
   "toast": {
     "dismiss": "关闭通知"
+  },
+  "widgets": {
+    "charts": {
+      "boxplot": {
+        "description": "按类别汇总数值列分布的箱线图——最小值、四分位数、中位数和最大值。",
+        "emptyTitle": "没有可绘制的分布",
+        "emptyBody": "没有符合筛选条件的行可用于箱线图。"
+      },
+      "violin": {
+        "description": "镜像密度曲线，比较数值列在各组之间的分布。",
+        "emptyTitle": "没有可绘制的分布",
+        "emptyBody": "没有符合筛选条件的行可用于密度曲线。"
+      },
+      "ridgeline": {
+        "description": "重叠的密度山脊图，比较数值列在有序分组间的分布。",
+        "emptyTitle": "没有可绘制的山脊",
+        "emptyBody": "没有符合筛选条件的行可用于密度曲线。"
+      },
+      "scatterBubble": {
+        "description": "将两个数值列绘制为散点，可选气泡大小和趋势线。",
+        "emptyTitle": "没有可绘制的散点",
+        "emptyBody": "没有符合筛选条件的行匹配所选列。"
+      },
+      "hexbin": {
+        "description": "两个数值列的六边形密度图，按每格落入的行数着色。",
+        "emptyTitle": "没有可绘制的密度",
+        "emptyBody": "没有符合筛选条件的行可供分箱。"
+      },
+      "correlationMatrix": {
+        "description": "所选数值列之间的皮尔逊相关性，从强正相关到强负相关。",
+        "emptyTitle": "没有可计算的相关性",
+        "emptyBody": "请至少选择两个具有匹配行的数值列。"
+      },
+      "parallelCoordinates": {
+        "description": "将每条记录绘制为跨多个归一化数值轴的折线，按类别着色。",
+        "emptyTitle": "没有可绘制的记录",
+        "emptyBody": "没有符合筛选条件的行覆盖所选各轴。"
+      }
+    },
+    "feeds": {
+      "activityFeed": {
+        "description": "按时间倒序显示工作区中谁做了什么的动态信息流。",
+        "emptyTitle": "暂无近期动态",
+        "emptyBody": "工作区中的操作将显示在这里。"
+      },
+      "notificationFeed": {
+        "description": "带未读状态、筛选和内联操作的分组通知。",
+        "emptyTitle": "暂无通知",
+        "emptyBody": "新通知将显示在这里。"
+      },
+      "realtimeFeed": {
+        "description": "实时事件流，新条目到达时会置于顶部。",
+        "emptyTitle": "正在等待事件",
+        "emptyBody": "实时事件将随发生实时显示。"
+      },
+      "timelineVertical": {
+        "description": "事件、发布、故障或执行步骤的垂直时间线。",
+        "emptyTitle": "这里还没有内容",
+        "emptyBody": "事件将随发生显示在此时间线上。"
+      },
+      "unreadBadge": {
+        "description": "显示未读条目的计数标记，与信息流状态同步。",
+        "unitLabel": "未读"
+      }
+    },
+    "tables": {
+      "masterList": {
+        "description": "可选择的记录列表，用于驱动详情面板。",
+        "emptyTitle": "暂无条目",
+        "emptyBody": "条目存在后将显示在这里。"
+      },
+      "logTable": {
+        "description": "带搜索、错误筛选和行操作的追加式事件日志。",
+        "emptyTitle": "暂无日志条目",
+        "emptyBody": "事件将随发生记录在这里。"
+      },
+      "cardGallery": {
+        "description": "带状态和快捷操作的自适应实体卡片库。",
+        "emptyTitle": "暂无内容",
+        "emptyBody": "条目将以卡片形式显示在这里。"
+      },
+      "groupedSummaryTable": {
+        "description": "带汇总列、可展开明细和合计的分组行。",
+        "emptyTitle": "暂无汇总数据",
+        "emptyBody": "有数据后分组合计将显示在这里。"
+      },
+      "schemaTree": {
+        "description": "带类型和键徽章的架构、表和列浏览器。",
+        "emptyTitle": "尚未读取架构",
+        "emptyBody": "连接数据库即可在此浏览其架构。"
+      },
+      "toggleMatrix": {
+        "description": "用于角色、策略或渠道的布尔开关交互网格。",
+        "emptyTitle": "尚未配置矩阵",
+        "emptyBody": "配置后行和列将显示在这里。"
+      }
+    }
   }
 } as const;
