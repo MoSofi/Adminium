@@ -54,7 +54,7 @@ export function Drawer({ size = 'md', className, overlayClassName, children, ...
         />
         <DialogPrimitive.Content
           className={cn(
-            'fixed inset-block-0 end-0 z-50 flex h-full max-w-[calc(100vw-32px)] flex-col',
+            'fixed inset-y-0 end-0 z-50 flex h-full max-w-[calc(100vw-32px)] flex-col',
             'border-s border-border bg-surface shadow-modal outline-none',
             // nb-slide translates from --nb-slide-from (24px); flip for RTL.
             'animate-[nb-slide_.22s_cubic-bezier(.2,.7,.3,1)] rtl:[--nb-slide-from:-24px]',

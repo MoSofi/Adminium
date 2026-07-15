@@ -58,4 +58,19 @@ describe('Drawer', () => {
     expect(dialog.classList.contains('end-0')).toBe(true);
     expect(dialog.classList.contains('w-[380px]')).toBe(true);
   });
+
+  // Regression: `inset-block-0` is not a real Tailwind utility (the block-axis
+  // utility is `inset-y-0`), so it generated NO css and left `top: auto` — the
+  // fixed drawer fell to its static position (document bottom) and rendered
+  // entirely off-screen on any tall page. jsdom has no layout so only the class
+  // contract can guard this. Must pin the block axis with a valid utility.
+  it('pins the full viewport height with a valid block-axis utility', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'Open row' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.classList.contains('fixed')).toBe(true);
+    expect(dialog.classList.contains('inset-y-0')).toBe(true);
+    expect([...dialog.classList].some((c) => c.startsWith('inset-block-'))).toBe(false);
+  });
 });
