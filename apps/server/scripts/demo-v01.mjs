@@ -123,6 +123,7 @@ const [
   { widgetDataRoutes },
   { settingsRoutes },
   { viewsRoutes },
+  { meViewsRoutes },
   { onboardingRoutes },
   { llmRoutes },
   { createRunService },
@@ -152,6 +153,7 @@ const [
   import(distUrl('routes/widget-data/index.js')),
   import(distUrl('routes/settings/index.js')),
   import(distUrl('routes/views/index.js')),
+  import(distUrl('routes/me-views/index.js')),
   import(distUrl('routes/onboarding/index.js')),
   import(distUrl('routes/llm/index.js')),
   import(distUrl('llm/run-service.js')),
@@ -281,6 +283,7 @@ try {
         await api.register(widgetDataRoutes({ manager, meta }));
         await api.register(settingsRoutes({ meta }));
         await api.register(viewsRoutes({ meta }));
+        await api.register(meViewsRoutes({ meta }));
         await api.register(onboardingRoutes({ meta }));
         if (llmWiring) {
           await api.register(

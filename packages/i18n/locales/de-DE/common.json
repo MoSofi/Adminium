@@ -771,5 +771,67 @@
     "updatedToast": "Ansicht „{name}“ aktualisiert.",
     "defaultToast": "„{name}“ ist jetzt die Standardansicht.",
     "deletedToast": "Ansicht „{name}“ gelöscht."
+  },
+  "builder": {
+    "view": "Ansicht",
+    "edit": "Bearbeiten",
+    "done": "Fertig",
+    "addWidget": "Widget hinzufügen",
+    "saveLayout": "Layout speichern",
+    "saving": "Wird gespeichert …",
+    "savedShort": "Gespeichert",
+    "options": "Dashboard-Optionen",
+    "resetLayout": "Layout zurücksetzen",
+    "resetTitle": "Auf das geteilte Layout zurücksetzen?",
+    "resetBody": "Dadurch werden deine persönlichen Änderungen entfernt und das Dashboard wiederhergestellt, das alle sehen. Deine Daten sind nicht betroffen.",
+    "resetConfirm": "Layout zurücksetzen",
+    "resetDone": "Layout auf die geteilte Standardansicht zurückgesetzt.",
+    "sharedNote": "Du bearbeitest das geteilte Dashboard, das alle sehen.",
+    "personalNote": "Du bearbeitest dein persönliches Layout – nur du siehst diese Änderungen.",
+    "savedShared": "Dashboard für alle mit Zugriff gespeichert.",
+    "empty": "Dieses Dashboard enthält noch keine Widgets.",
+    "emptyAction": "Widget hinzufügen",
+    "palette": {
+      "title": "Widget hinzufügen",
+      "count": "{count} Widgets",
+      "searchLabel": "Widgets durchsuchen",
+      "searchPlaceholder": "Widgets durchsuchen …",
+      "clear": "Suche löschen",
+      "noResults": "Keine Widgets passen zu „{query}“.",
+      "add": "{name} hinzufügen",
+      "added": "{name} hinzugefügt."
+    },
+    "inspector": {
+      "title": "Widget konfigurieren",
+      "empty": "Dieses Widget hat keine konfigurierbaren Optionen.",
+      "locked": "Gesperrt",
+      "lockedHint": "Dieses Feld wird von der Quelle festgelegt und kann hier nicht bearbeitet werden.",
+      "selectPlaceholder": "Auswählen …",
+      "increment": "Erhöhen",
+      "decrement": "Verringern",
+      "done": "Fertig"
+    },
+    "item": {
+      "configure": "{name} konfigurieren",
+      "duplicate": "{name} duplizieren",
+      "remove": "{name} entfernen",
+      "removed": "{name} entfernt.",
+      "duplicated": "{name} dupliziert."
+    },
+    "families": {
+      "kpi": "KPIs",
+      "charts": "Diagramme",
+      "tables": "Tabellen",
+      "feeds": "Feeds",
+      "calendar": "Kalender",
+      "boards": "Boards",
+      "geo": "Karten",
+      "media": "Medien",
+      "communication": "Kommunikation",
+      "forms": "Formulare",
+      "chrome": "Navigation",
+      "system": "System",
+      "domain": "Domäne"
+    }
   }
 }

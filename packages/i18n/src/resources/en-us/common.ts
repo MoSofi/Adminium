@@ -779,5 +779,67 @@ export default {
     "updatedToast": "View “{name}” updated.",
     "defaultToast": "“{name}” is now the default view.",
     "deletedToast": "View “{name}” deleted."
+  },
+  "builder": {
+    "view": "View",
+    "edit": "Edit",
+    "done": "Done",
+    "addWidget": "Add widget",
+    "saveLayout": "Save layout",
+    "saving": "Saving…",
+    "savedShort": "Saved",
+    "options": "Dashboard options",
+    "resetLayout": "Reset layout",
+    "resetTitle": "Reset to the shared layout?",
+    "resetBody": "This removes your personal changes and restores the dashboard everyone sees. Your data isn’t affected.",
+    "resetConfirm": "Reset layout",
+    "resetDone": "Layout reset to the shared default.",
+    "sharedNote": "You’re editing the shared dashboard everyone sees.",
+    "personalNote": "You’re editing your personal layout — only you see these changes.",
+    "savedShared": "Dashboard saved for everyone with access.",
+    "empty": "This dashboard has no widgets yet.",
+    "emptyAction": "Add a widget",
+    "palette": {
+      "title": "Add a widget",
+      "count": "{count} widgets",
+      "searchLabel": "Search widgets",
+      "searchPlaceholder": "Search widgets…",
+      "clear": "Clear search",
+      "noResults": "No widgets match “{query}”.",
+      "add": "Add {name}",
+      "added": "{name} added."
+    },
+    "inspector": {
+      "title": "Configure widget",
+      "empty": "This widget has no options to configure.",
+      "locked": "Locked",
+      "lockedHint": "This field is set by the source and can’t be edited here.",
+      "selectPlaceholder": "Select…",
+      "increment": "Increase",
+      "decrement": "Decrease",
+      "done": "Done"
+    },
+    "item": {
+      "configure": "Configure {name}",
+      "duplicate": "Duplicate {name}",
+      "remove": "Remove {name}",
+      "removed": "{name} removed.",
+      "duplicated": "{name} duplicated."
+    },
+    "families": {
+      "kpi": "KPIs",
+      "charts": "Charts",
+      "tables": "Tables",
+      "feeds": "Feeds",
+      "calendar": "Calendar",
+      "boards": "Boards",
+      "geo": "Maps",
+      "media": "Media",
+      "communication": "Communication",
+      "forms": "Forms",
+      "chrome": "Navigation",
+      "system": "System",
+      "domain": "Domain"
+    }
   }
 } as const;

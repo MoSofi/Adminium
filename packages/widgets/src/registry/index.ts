@@ -8,6 +8,8 @@ import { timeFlowChartDefinitions } from '../families/charts/time-flow-definitio
 import { tablesWidgetDefinitions } from '../families/tables/definitions.js';
 import { tablesTrackFDefinitions } from '../families/tables/tables-track-f.definitions.js';
 import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
+import { calendarTrackDefinitions } from '../families/calendar/calendar-track.definitions.js';
+import { boardsTrackDefinitions } from '../families/boards/boards-track.definitions.js';
 import { widgetMissingDefinition } from './widget-missing.js';
 import type { WidgetDefinition, WidgetFamily } from './types.js';
 
@@ -59,6 +61,11 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   ...tablesTrackFDefinitions,
   // feeds (Track F)
   ...feedsTrackFDefinitions,
+  // calendar (Track CAL — M7 Wave 2)
+  ...calendarTrackDefinitions,
+  // boards (Track BOARDS — M7 Wave 2; dnd-kit stays behind the lazy
+  // boards-track-components chunk — the definitions import metadata only)
+  ...boardsTrackDefinitions,
 ]);
 
 export function getWidget(id: string): WidgetDefinition | undefined {

@@ -110,5 +110,46 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.delete(view.id)).toBe(true);
       expect(await repo.findById(view.id)).toBeNull();
     });
+
+    // --- dashboard layout overrides (kind: 'layout') ------------------------
+
+    const layoutConfig = (id: string) => ({
+      version: 1 as const,
+      items: [{ i: id, widget: 'kpi-stat-card', x: 0, y: 0, w: 4, h: 3, config: {} }],
+    });
+
+    it('upserts, reads, and deletes a per-user layout override', async () => {
+      const repo = viewsRepo(t.meta);
+      expect(await repo.findLayoutOverride(pageId, ava)).toBeNull();
+
+      const first = await repo.upsertLayoutOverride(pageId, ava, layoutConfig('a'));
+      expect(first.kind).toBe('layout');
+      expect((await repo.findLayoutOverride(pageId, ava))?.config).toEqual(layoutConfig('a'));
+
+      // A second upsert replaces the single row rather than inserting another.
+      const second = await repo.upsertLayoutOverride(pageId, ava, layoutConfig('b'));
+      expect(second.id).toBe(first.id);
+      expect((await repo.findLayoutOverride(pageId, ava))?.config).toEqual(layoutConfig('b'));
+
+      expect(await repo.deleteLayoutOverride(pageId, ava)).toBe(true);
+      expect(await repo.findLayoutOverride(pageId, ava)).toBeNull();
+    });
+
+    it('keeps layout overrides out of the saved-filter listing (kind-scoped)', async () => {
+      const repo = viewsRepo(t.meta);
+      await repo.create({ pageId, userId: ava, name: 'Filter', config: gridConfig('a') });
+      await repo.upsertLayoutOverride(pageId, ava, layoutConfig('a'));
+
+      const list = await repo.listForPageUser(pageId, ava);
+      expect(list.map((v) => v.name)).toEqual(['Filter']);
+      expect(list.every((v) => v.kind === 'filters')).toBe(true);
+    });
+
+    it('scopes layout overrides per user', async () => {
+      const repo = viewsRepo(t.meta);
+      await repo.upsertLayoutOverride(pageId, ava, layoutConfig('ava'));
+      expect(await repo.findLayoutOverride(pageId, noah)).toBeNull();
+      expect((await repo.findLayoutOverride(pageId, ava))?.config).toEqual(layoutConfig('ava'));
+    });
   });
 }

@@ -2,6 +2,7 @@
   "UNAUTHENTICATED": "Vous devez vous connecter pour continuer.",
   "SESSION_EXPIRED": "Votre session a expiré. Reconnectez-vous pour continuer.",
   "FORBIDDEN": "Vous n’avez pas la permission de faire cela.",
+  "PAGE_FORBIDDEN": "Vous n’avez pas la permission de modifier cette page.",
   "NOT_FOUND": "Cette ressource n’existe pas ou a été supprimée.",
   "CONFLICT": "Cette modification entre en conflit avec l’état actuel. Actualisez et réessayez.",
   "UNIQUE_VIOLATION": "Cette valeur est déjà utilisée.",

@@ -125,6 +125,28 @@ export default {
         "unitLabel": "未读"
       }
     },
+    "calendar": {
+      "calendarMonth": {
+        "description": "按月显示已排期事件的网格，含每日标签和月份导航。",
+        "emptyTitle": "暂无排期",
+        "emptyBody": "已排期的事件将显示在此日历中。"
+      },
+      "dayAgenda": {
+        "description": "所选日期的事件按时间排序的日程。",
+        "emptyTitle": "暂无排期",
+        "emptyBody": "所选日期的事件将显示在此处。"
+      },
+      "scheduleMatrix": {
+        "description": "按资源和日期排列的班次网格，含每日覆盖情况和图例。",
+        "emptyTitle": "暂无排班",
+        "emptyBody": "已分配的班次将显示在此排班表中。"
+      },
+      "capacityBoard": {
+        "description": "按成员显示利用率条，含项目细分和负载状态。",
+        "emptyTitle": "暂无工作量数据",
+        "emptyBody": "有分配后，成员的利用率将显示在此处。"
+      }
+    },
     "tables": {
       "masterList": {
         "description": "可选择的记录列表，用于驱动详情面板。",
@@ -156,6 +178,40 @@ export default {
         "emptyTitle": "尚未配置矩阵",
         "emptyBody": "配置后行和列将显示在这里。"
       }
+    },
+    "boards": {
+      "kanbanBoard": {
+        "description": "固定的状态列与可拖动卡片；将卡片拖到其他列即可更新其状态。",
+        "emptyTitle": "暂无卡片",
+        "emptyBody": "创建记录后，卡片将出现在对应的状态列中。"
+      },
+      "kanbanSwimlaneGrid": {
+        "description": "泳道 × 列的网格；拖动卡片会同时重新分配其泳道和状态。",
+        "emptyTitle": "没有可显示的泳道",
+        "emptyBody": "按泳道字段和状态字段对记录分组以构建网格。"
+      },
+      "addCard": "添加卡片",
+      "grip": "拖动以移动卡片",
+      "pointsUnit": "点",
+      "laneSummary": "Σ{points} 点 · {count}",
+      "a11y": {
+        "grabbed": "已抓取 {title}。使用方向键移动，回车放下，Esc 取消。",
+        "over": "{title} 位于 {cell} 上方。",
+        "moved": "已将 {title} 移动到 {cell}。",
+        "returned": "{title} 已返回原位。",
+        "failed": "无法移动 {title}；已返回原位。"
+      }
+    }
+  },
+  "grid": {
+    "dragHandle": "拖动以移动 {title}",
+    "resizeHandle": "调整 {title} 的大小",
+    "a11y": {
+      "grabbed": "已抓取 {title}。使用方向键移动，按住 Shift 调整大小，回车保存，Esc 取消。",
+      "moved": "{title} 已移动到第 {col} 列，第 {row} 行。",
+      "resized": "{title} 已调整为 {w} 列 × {h} 行。",
+      "committed": "{title} 已放置在第 {col} 列，第 {row} 行。",
+      "reverted": "{title} 已返回原始位置。"
     }
   }
 } as const;

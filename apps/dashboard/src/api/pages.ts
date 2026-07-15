@@ -26,7 +26,7 @@ import { api } from '../app/api.js';
 export type { PageEnvelope } from '@adminium/engine/config';
 
 export type PageDocumentResult =
-  | { status: 'ok'; page: PageEnvelope }
+  | { status: 'ok'; page: PageEnvelope; canEditLayout: boolean }
   | { status: 'too-new'; v: number; latest: number }
   | { status: 'invalid'; issues: string[] };
 
@@ -78,7 +78,9 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
       ),
     };
   }
-  return { status: 'ok', page: parsed.data };
+  // `canEditLayout` is a per-caller server capability, not part of the stored
+  // document — the query wrapper fills it from the response; default false.
+  return { status: 'ok', page: parsed.data, canEditLayout: false };
 }
 
 /** Page documents change on regeneration/edits, both WS-invalidated — 5 min. */
@@ -89,8 +91,13 @@ export function pageQuery(pageId: string) {
     queryKey: ['page', pageId] as const,
     staleTime: PAGE_STALE_TIME_MS,
     queryFn: async (): Promise<PageDocumentResult> => {
-      const reply = await api.get<{ data: unknown }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
-      return parsePageDocument(reply.data);
+      const reply = await api.get<{ data: unknown; canEditLayout?: boolean }>(
+        `/api/v1/pages/${encodeURIComponent(pageId)}`,
+      );
+      const result = parsePageDocument(reply.data);
+      return result.status === 'ok'
+        ? { ...result, canEditLayout: reply.canEditLayout === true }
+        : result;
     },
   });
 }

@@ -285,6 +285,36 @@ export function pagesRepo(meta: MetaDb) {
       return row === undefined ? null : decode(row);
     },
 
+    /**
+     * Write the shared default dashboard layout into the envelope's
+     * `config.layout` slot (04-widget-registry.md §6.3; the renderer and engine
+     * envelope validator both read `envelope.config.layout`). Merges over the
+     * stored envelope so the rest of the document (title/source/nav and the
+     * other template config keys) is untouched, and bumps `updatedAt` so the
+     * bootstrap `configVersion` advances and clients re-fetch. The `layout`
+     * value is validated by the server route before it reaches here. Returns the
+     * reloaded page, or null if the id does not exist.
+     */
+    async setLayout(pageId: string, layout: unknown, at: number = Date.now()): Promise<Page | null> {
+      const page = await this.findById(pageId);
+      if (page === null) return null;
+      const envelope =
+        typeof page.config === 'object' && page.config !== null
+          ? (page.config as Record<string, unknown>)
+          : {};
+      const templateConfig =
+        typeof envelope['config'] === 'object' && envelope['config'] !== null
+          ? (envelope['config'] as Record<string, unknown>)
+          : {};
+      const nextEnvelope = { ...envelope, config: { ...templateConfig, layout } };
+      await db
+        .updateTable('adminium_pages')
+        .set({ config: packJson(nextEnvelope), updatedAt: at })
+        .where('id', '=', pageId)
+        .execute();
+      return this.findById(pageId);
+    },
+
     /** Slugs are unique per connection (uq_adminium_pages_conn_slug). */
     async findBySlug(connectionId: string | null, slug: string): Promise<Page | null> {
       let q = db.selectFrom('adminium_pages').selectAll().where('slug', '=', slug);

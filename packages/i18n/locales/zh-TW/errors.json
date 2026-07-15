@@ -2,6 +2,7 @@
   "UNAUTHENTICATED": "需要登入才能繼續。",
   "SESSION_EXPIRED": "工作階段已過期。請重新登入以繼續。",
   "FORBIDDEN": "你沒有執行此動作的權限。",
+  "PAGE_FORBIDDEN": "你沒有編輯此頁面的權限。",
   "NOT_FOUND": "該資源不存在或已被移除。",
   "CONFLICT": "該變更與目前狀態衝突。請重新整理後再試一次。",
   "UNIQUE_VIOLATION": "該值已被使用。",

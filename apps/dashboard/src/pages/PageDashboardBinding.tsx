@@ -15,14 +15,20 @@
  * Widget events re-enter the host sink (`adapters.onEvent`): record-open →
  * hrefForRecord navigation, drill-through → href push, mutate → CRUD + undo
  * toast (PageRenderer.usePageAdapters).
+ *
+ * The binding hands the resolved page + per-instance data states to the
+ * `DashboardBuilder` shell (04-T14): in view mode it renders the same live
+ * `PageDashboard`; in edit mode it swaps in the builder (palette, inspector,
+ * add/duplicate/remove, save/reset) over a demo-data working draft.
  */
 import { useMemo } from 'react';
-import { PageDashboard, type WidgetDataState } from '@adminium/widgets';
+import type { WidgetDataState } from '@adminium/widgets';
 
 import { extractBindings } from '../api/widgetData.js';
+import { DashboardBuilder } from './dashboard-builder/index.js';
 import type { PageTemplateProps } from './template-types.js';
 
-export function PageDashboardBinding({ page, adapters }: PageTemplateProps) {
+export function PageDashboardBinding({ page, adapters, canEditLayout }: PageTemplateProps) {
   const dashboard = adapters.dashboard;
   const { requests, invalid } = useMemo(() => extractBindings(page), [page]);
 
@@ -38,12 +44,15 @@ export function PageDashboardBinding({ page, adapters }: PageTemplateProps) {
   }, [dashboard, requests, invalid]);
 
   return (
-    <PageDashboard
-      layout={page.config['layout']}
+    <DashboardBuilder
+      page={page}
+      canEditLayout={canEditLayout ?? false}
       states={states}
       onEvent={(instanceId, event) => {
         void instanceId;
-        adapters.onEvent(event);
+        // Forward the host's result so optimistic widgets (kanban) get the
+        // mutate promise and can roll back a rejected move.
+        return adapters.onEvent(event);
       }}
     />
   );

@@ -771,5 +771,67 @@
     "updatedToast": "Pohled „{name}“ aktualizován.",
     "defaultToast": "„{name}“ je nyní výchozí pohled.",
     "deletedToast": "Pohled „{name}“ odstraněn."
+  },
+  "builder": {
+    "view": "Zobrazit",
+    "edit": "Upravit",
+    "done": "Hotovo",
+    "addWidget": "Přidat widget",
+    "saveLayout": "Uložit rozvržení",
+    "saving": "Ukládání…",
+    "savedShort": "Uloženo",
+    "options": "Možnosti dashboardu",
+    "resetLayout": "Obnovit rozvržení",
+    "resetTitle": "Obnovit na sdílené rozvržení?",
+    "resetBody": "Tím se odeberou vaše osobní změny a obnoví se dashboard, který vidí všichni. Vaše data nebudou dotčena.",
+    "resetConfirm": "Obnovit rozvržení",
+    "resetDone": "Rozvržení obnoveno na sdílené výchozí.",
+    "sharedNote": "Upravujete sdílený dashboard, který vidí všichni.",
+    "personalNote": "Upravujete své osobní rozvržení — tyto změny vidíte jen vy.",
+    "savedShared": "Dashboard uložen pro všechny s přístupem.",
+    "empty": "Tento dashboard zatím nemá žádné widgety.",
+    "emptyAction": "Přidat widget",
+    "palette": {
+      "title": "Přidat widget",
+      "count": "{count} widgetů",
+      "searchLabel": "Hledat widgety",
+      "searchPlaceholder": "Hledat widgety…",
+      "clear": "Vymazat hledání",
+      "noResults": "Žádné widgety neodpovídají „{query}“.",
+      "add": "Přidat {name}",
+      "added": "{name} přidán."
+    },
+    "inspector": {
+      "title": "Konfigurovat widget",
+      "empty": "Tento widget nemá žádné možnosti konfigurace.",
+      "locked": "Uzamčeno",
+      "lockedHint": "Toto pole je nastaveno zdrojem a nelze jej zde upravit.",
+      "selectPlaceholder": "Vybrat…",
+      "increment": "Zvýšit",
+      "decrement": "Snížit",
+      "done": "Hotovo"
+    },
+    "item": {
+      "configure": "Konfigurovat {name}",
+      "duplicate": "Duplikovat {name}",
+      "remove": "Odebrat {name}",
+      "removed": "{name} odebrán.",
+      "duplicated": "{name} duplikován."
+    },
+    "families": {
+      "kpi": "KPI",
+      "charts": "Grafy",
+      "tables": "Tabulky",
+      "feeds": "Kanály",
+      "calendar": "Kalendář",
+      "boards": "Nástěnky",
+      "geo": "Mapy",
+      "media": "Média",
+      "communication": "Komunikace",
+      "forms": "Formuláře",
+      "chrome": "Navigace",
+      "system": "Systém",
+      "domain": "Doména"
+    }
   }
 }

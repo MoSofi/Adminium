@@ -2,6 +2,8 @@
 
 import { z } from 'zod';
 
+import { pageLayoutSchema } from './layout-schema.js';
+
 export const pageParams = z.object({ pageId: z.string().min(1) });
 
 /**
@@ -9,5 +11,20 @@ export const pageParams = z.object({ pageId: z.string().min(1) });
  * envelope persists into `adminium_pages.config` unchanged) — the client
  * validates it against `pageEnvelopeSchema` after running config migrations,
  * so the transport schema stays permissive by design (never-crash, 09 §3.1).
+ * On read the server resolves `config.layout` (per-user override wins over the
+ * shared default, 04-widget-registry.md §6.3) before returning it.
  */
-export const pageReply = z.object({ data: z.unknown() });
+export const pageReply = z.object({
+  data: z.unknown(),
+  /** Whether the caller holds `page:<id>:edit` — the dashboard builder routes
+   *  edits to the shared default (true) vs. a personal override (false). */
+  canEditLayout: z.boolean(),
+});
+
+/**
+ * `PATCH /pages/:pageId/layout` writes the SHARED default layout into
+ * `adminium_pages.config.layout`. Body is a full `pageLayout` document
+ * (04-widget-registry.md §6.1). Reply echoes the persisted layout.
+ */
+export const pageLayoutPatchBody = pageLayoutSchema;
+export const pageLayoutReply = z.object({ data: z.object({ layout: pageLayoutSchema }) });

@@ -117,6 +117,28 @@
         "unitLabel": "non lus"
       }
     },
+    "calendar": {
+      "calendarMonth": {
+        "description": "Une grille mensuelle des événements planifiés avec des puces par jour et la navigation entre les mois.",
+        "emptyTitle": "Rien de planifié",
+        "emptyBody": "Les événements planifiés apparaîtront dans ce calendrier."
+      },
+      "dayAgenda": {
+        "description": "Les événements du jour sélectionné sous forme d'agenda chronologique.",
+        "emptyTitle": "Rien de planifié",
+        "emptyBody": "Les événements du jour sélectionné apparaîtront ici."
+      },
+      "scheduleMatrix": {
+        "description": "Une grille de postes par ressource et par jour avec la couverture quotidienne et une légende.",
+        "emptyTitle": "Aucun poste planifié",
+        "emptyBody": "Les postes attribués apparaîtront dans ce planning."
+      },
+      "capacityBoard": {
+        "description": "Des barres d'utilisation par membre avec une répartition par projet et un statut de charge.",
+        "emptyTitle": "Aucune donnée de charge",
+        "emptyBody": "L'utilisation des membres apparaîtra ici une fois les affectations créées."
+      }
+    },
     "tables": {
       "masterList": {
         "description": "Une liste sélectionnable d’enregistrements qui pilote un volet de détail.",
@@ -148,6 +170,40 @@
         "emptyTitle": "Aucune matrice configurée",
         "emptyBody": "Les lignes et colonnes apparaîtront ici une fois configurées."
       }
+    },
+    "boards": {
+      "kanbanBoard": {
+        "description": "Colonnes de statut fixes avec des cartes déplaçables ; faites glisser une carte vers une autre colonne pour changer son statut.",
+        "emptyTitle": "Aucune carte pour l'instant",
+        "emptyBody": "Les cartes apparaîtront dans leurs colonnes de statut à mesure que des enregistrements sont créés."
+      },
+      "kanbanSwimlaneGrid": {
+        "description": "Une grille couloirs × colonnes ; déplacer une carte réaffecte à la fois son couloir et son statut.",
+        "emptyTitle": "Aucun couloir à afficher",
+        "emptyBody": "Regroupez les enregistrements par un champ de couloir et un champ de statut pour construire la grille."
+      },
+      "addCard": "Ajouter une carte",
+      "grip": "Glisser pour déplacer la carte",
+      "pointsUnit": "pts",
+      "laneSummary": "Σ{points} pts · {count}",
+      "a11y": {
+        "grabbed": "{title} saisie. Utilisez les flèches pour déplacer, Entrée pour déposer, Échap pour annuler.",
+        "over": "{title} est au-dessus de {cell}.",
+        "moved": "{title} déplacée vers {cell}.",
+        "returned": "{title} est revenue à sa position d'origine.",
+        "failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine."
+      }
+    }
+  },
+  "grid": {
+    "dragHandle": "Faire glisser pour déplacer {title}",
+    "resizeHandle": "Redimensionner {title}",
+    "a11y": {
+      "grabbed": "{title} saisi. Utilisez les touches fléchées pour déplacer, maintenez Maj pour redimensionner, Entrée pour enregistrer, Échap pour annuler.",
+      "moved": "{title} déplacé vers la colonne {col}, ligne {row}.",
+      "resized": "{title} redimensionné à {w} colonnes sur {h} lignes.",
+      "committed": "{title} placé à la colonne {col}, ligne {row}.",
+      "reverted": "{title} remis à sa position initiale."
     }
   }
 }

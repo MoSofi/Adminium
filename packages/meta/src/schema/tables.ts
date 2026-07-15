@@ -292,6 +292,8 @@ export interface AdminiumViewsTable {
   id: Id;
   pageId: Id;
   userId: Id | null;
+  /** `'filters'` (saved page-crud grid state) | `'layout'` (per-user dashboard override). */
+  kind: string;
   name: string;
   config: JsonColumn;
   isDefault: BoolColumn;

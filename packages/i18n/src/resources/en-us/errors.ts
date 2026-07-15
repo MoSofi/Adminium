@@ -10,6 +10,7 @@ export default {
   "UNAUTHENTICATED": "You need to sign in to continue.",
   "SESSION_EXPIRED": "Your session expired. Sign in again to continue.",
   "FORBIDDEN": "You don’t have permission to do that.",
+  "PAGE_FORBIDDEN": "You don’t have permission to edit this page.",
   "NOT_FOUND": "That resource doesn’t exist or was removed.",
   "CONFLICT": "That change conflicts with the current state. Refresh and try again.",
   "UNIQUE_VIOLATION": "That value is already in use.",

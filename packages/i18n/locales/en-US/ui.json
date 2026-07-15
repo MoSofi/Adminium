@@ -117,6 +117,28 @@
         "unitLabel": "unread"
       }
     },
+    "calendar": {
+      "calendarMonth": {
+        "description": "A month grid of scheduled events with per-day chips and month navigation.",
+        "emptyTitle": "Nothing scheduled",
+        "emptyBody": "Scheduled events will appear on this calendar."
+      },
+      "dayAgenda": {
+        "description": "The selected day's events as a time-ordered agenda.",
+        "emptyTitle": "Nothing scheduled",
+        "emptyBody": "Events for the selected day will appear here."
+      },
+      "scheduleMatrix": {
+        "description": "A resource-by-day shift grid with per-day coverage and a shift legend.",
+        "emptyTitle": "No shifts scheduled",
+        "emptyBody": "Assigned shifts will appear on this schedule."
+      },
+      "capacityBoard": {
+        "description": "Per-member utilization bars with a project breakdown and load status.",
+        "emptyTitle": "No workload data",
+        "emptyBody": "Member utilization will appear here once assignments exist."
+      }
+    },
     "tables": {
       "masterList": {
         "description": "A selectable list of records that drives a detail pane.",
@@ -148,6 +170,40 @@
         "emptyTitle": "No matrix configured",
         "emptyBody": "Rows and columns will appear here once configured."
       }
+    },
+    "boards": {
+      "kanbanBoard": {
+        "description": "Fixed status columns of draggable cards; drag a card to another column to update its status.",
+        "emptyTitle": "No cards yet",
+        "emptyBody": "Cards will appear in their status columns as records are created."
+      },
+      "kanbanSwimlaneGrid": {
+        "description": "A lane × column grid where dragging a card reassigns both its lane and its status.",
+        "emptyTitle": "No swimlanes to show",
+        "emptyBody": "Group records by a lane field and a status field to build the grid."
+      },
+      "addCard": "Add card",
+      "grip": "Drag to move card",
+      "pointsUnit": "pts",
+      "laneSummary": "Σ{points} pts · {count}",
+      "a11y": {
+        "grabbed": "Grabbed {title}. Use the arrow keys to move, Enter to drop, Escape to cancel.",
+        "over": "{title} is over {cell}.",
+        "moved": "Moved {title} to {cell}.",
+        "returned": "{title} returned to its original position.",
+        "failed": "Could not move {title}; it was returned to its original position."
+      }
+    }
+  },
+  "grid": {
+    "dragHandle": "Drag to move {title}",
+    "resizeHandle": "Resize {title}",
+    "a11y": {
+      "grabbed": "Grabbed {title}. Use the arrow keys to move, hold Shift to resize, Enter to save, Escape to cancel.",
+      "moved": "{title} moved to column {col}, row {row}.",
+      "resized": "{title} resized to {w} columns by {h} rows.",
+      "committed": "{title} placed at column {col}, row {row}.",
+      "reverted": "{title} returned to its original position."
     }
   }
 }

@@ -27,10 +27,24 @@ const here = dirname(fileURLToPath(import.meta.url));
 const widgetsRoot = join(here, '..'); // packages/widgets/src
 const pkgRoot = join(widgetsRoot, '..'); // packages/widgets
 
-/** Heavy deps that belong to Wave-2/3 families and must stay out of the Wave-1 graph. */
-const HEAVY_DEPS = ['leaflet', 'react-leaflet', 'maplibre-gl', 'mapbox-gl', '@dnd-kit/core', '@dnd-kit/sortable'];
+/**
+ * Map deps belong to the geo family (Wave 3, unshipped) and must stay out of the
+ * package entirely until then.
+ */
+const MAP_DEPS = ['leaflet', 'react-leaflet', 'maplibre-gl', 'mapbox-gl'];
+/**
+ * dnd-kit powers the `boards` family (Wave 2, shipped) — it is now a legitimate
+ * dependency, but must stay CONFINED to families/boards so it never lands in a
+ * sibling family's chunk (04 §2.3). `@dnd-kit/sortable` is NOT used (boards
+ * drives its own drag layer), so it must stay absent too.
+ */
+const BOARD_DEPS = ['@dnd-kit/core', '@dnd-kit/sortable'];
+/** Everything a Wave-1 family source must never statically import. */
+const HEAVY_DEPS = [...MAP_DEPS, ...BOARD_DEPS];
 
 const WAVE1_FAMILY_DIRS = ['kpi', 'charts', 'tables', 'feeds'];
+/** The only family allowed to import dnd-kit. */
+const BOARD_FAMILY_DIR = 'boards';
 
 function readJson(path: string): Record<string, unknown> {
   return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
@@ -65,11 +79,19 @@ describe('chunk budget — dependency graph (acceptance #3, #8)', () => {
     expect(thirdParty.sort()).toEqual(['d3-scale', 'd3-shape']);
   });
 
-  it('@adminium/widgets declares no heavy Wave-2/3 map/board dependencies', () => {
+  it('@adminium/widgets declares no unshipped map dependencies (geo is Wave 3)', () => {
     const pkg = readJson(join(pkgRoot, 'package.json'));
     const deps = { ...((pkg.dependencies ?? {}) as object), ...((pkg.peerDependencies ?? {}) as object) };
-    const present = HEAVY_DEPS.filter((name) => name in deps);
+    // dnd-kit is intentionally present now (boards, Wave 2); map deps are not.
+    const present = MAP_DEPS.filter((name) => name in deps);
     expect(present).toEqual([]);
+  });
+
+  it('declares @dnd-kit/core but never @dnd-kit/sortable (boards drives its own drag layer)', () => {
+    const pkg = readJson(join(pkgRoot, 'package.json'));
+    const deps = { ...((pkg.dependencies ?? {}) as object), ...((pkg.peerDependencies ?? {}) as object) };
+    expect('@dnd-kit/core' in deps).toBe(true);
+    expect('@dnd-kit/sortable' in deps).toBe(false);
   });
 
   it('no Wave-1 family source statically imports a heavy Wave-2/3 dep', () => {
@@ -81,6 +103,21 @@ describe('chunk budget — dependency graph (acceptance #3, #8)', () => {
           if (text.includes(`'${dep}'`) || text.includes(`"${dep}"`)) {
             offenders.push(`${file} → ${dep}`);
           }
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('dnd-kit is confined to families/boards (never imported by another family)', () => {
+    const familiesRoot = join(widgetsRoot, 'families');
+    const offenders: string[] = [];
+    for (const entry of readdirSync(familiesRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === BOARD_FAMILY_DIR) continue;
+      for (const file of sourceFiles(join(familiesRoot, entry.name))) {
+        const text = readFileSync(file, 'utf8');
+        for (const dep of BOARD_DEPS) {
+          if (text.includes(`'${dep}`) || text.includes(`"${dep}`)) offenders.push(`${file} → ${dep}`);
         }
       }
     }

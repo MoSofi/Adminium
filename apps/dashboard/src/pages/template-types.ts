@@ -15,8 +15,10 @@ export interface PageTemplateAdapters {
   crud: BoundCrudApi | null;
   /** Widget-data batch adapter; null when the page has no dashboard layout. */
   dashboard: DashboardData | null;
-  /** WidgetEvent sink — record-open navigation, drill-through, mutate+undo. */
-  onEvent: (event: WidgetEvent) => void;
+  /** WidgetEvent sink — record-open navigation, drill-through, mutate+undo.
+   *  `mutate` events return the CRUD promise so optimistic widgets can roll
+   *  back on rejection; other events return void. */
+  onEvent: (event: WidgetEvent) => void | Promise<unknown>;
   /** Route the detail record (09 §2.3): id → `/p/$slug/r/$id`, null → `/p/$slug`. */
   openRecord: (recordId: string | null) => void;
   /** Undo-toast hook for template-run mutations (mutation → undoToken → toast). */
@@ -28,6 +30,10 @@ export interface PageTemplateProps {
   adapters: PageTemplateAdapters;
   /** Present on the `/p/$slug/r/$recordId` child route (09 §2.3). */
   recordId?: string | undefined;
+  /** Per-caller `page:<id>:edit` capability resolved by the server (04 §6.3);
+   *  the dashboard builder routes edits to the shared default vs. a personal
+   *  override on this, never on role slugs. */
+  canEditLayout?: boolean | undefined;
 }
 
 export type PageTemplateComponent = ComponentType<PageTemplateProps>;

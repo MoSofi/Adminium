@@ -125,6 +125,28 @@ export default {
         "unitLabel": "ungelesen"
       }
     },
+    "calendar": {
+      "calendarMonth": {
+        "description": "Ein Monatsraster geplanter Termine mit Tages-Chips und Monatsnavigation.",
+        "emptyTitle": "Nichts geplant",
+        "emptyBody": "Geplante Termine erscheinen in diesem Kalender."
+      },
+      "dayAgenda": {
+        "description": "Die Termine des ausgewählten Tages als zeitlich geordnete Agenda.",
+        "emptyTitle": "Nichts geplant",
+        "emptyBody": "Termine für den ausgewählten Tag erscheinen hier."
+      },
+      "scheduleMatrix": {
+        "description": "Ein Schichtraster nach Ressource und Tag mit Abdeckung pro Tag und Legende.",
+        "emptyTitle": "Keine Schichten geplant",
+        "emptyBody": "Zugewiesene Schichten erscheinen in diesem Plan."
+      },
+      "capacityBoard": {
+        "description": "Auslastungsbalken pro Mitglied mit Projektaufschlüsselung und Laststatus.",
+        "emptyTitle": "Keine Auslastungsdaten",
+        "emptyBody": "Die Auslastung der Mitglieder erscheint hier, sobald Zuweisungen bestehen."
+      }
+    },
     "tables": {
       "masterList": {
         "description": "Eine auswählbare Liste von Datensätzen, die einen Detailbereich steuert.",
@@ -156,6 +178,40 @@ export default {
         "emptyTitle": "Keine Matrix konfiguriert",
         "emptyBody": "Zeilen und Spalten erscheinen hier nach der Konfiguration."
       }
+    },
+    "boards": {
+      "kanbanBoard": {
+        "description": "Feste Statusspalten mit ziehbaren Karten; ziehen Sie eine Karte in eine andere Spalte, um ihren Status zu ändern.",
+        "emptyTitle": "Noch keine Karten",
+        "emptyBody": "Karten erscheinen in ihren Statusspalten, sobald Datensätze angelegt werden."
+      },
+      "kanbanSwimlaneGrid": {
+        "description": "Ein Raster aus Bahnen × Spalten; das Ziehen einer Karte weist ihr sowohl Bahn als auch Status neu zu.",
+        "emptyTitle": "Keine Swimlanes vorhanden",
+        "emptyBody": "Gruppieren Sie Datensätze nach einem Bahnen- und einem Statusfeld, um das Raster zu erstellen."
+      },
+      "addCard": "Karte hinzufügen",
+      "grip": "Zum Verschieben ziehen",
+      "pointsUnit": "Pkt.",
+      "laneSummary": "Σ{points} Pkt. · {count}",
+      "a11y": {
+        "grabbed": "{title} aufgenommen. Mit den Pfeiltasten bewegen, Enter zum Ablegen, Escape zum Abbrechen.",
+        "over": "{title} befindet sich über {cell}.",
+        "moved": "{title} nach {cell} verschoben.",
+        "returned": "{title} an die ursprüngliche Position zurückgesetzt.",
+        "failed": "{title} konnte nicht verschoben werden; die Karte wurde zurückgesetzt."
+      }
+    }
+  },
+  "grid": {
+    "dragHandle": "{title} zum Verschieben ziehen",
+    "resizeHandle": "Größe von {title} ändern",
+    "a11y": {
+      "grabbed": "{title} aufgenommen. Mit den Pfeiltasten verschieben, Umschalt halten zum Ändern der Größe, Eingabe zum Speichern, Escape zum Abbrechen.",
+      "moved": "{title} in Spalte {col}, Zeile {row} verschoben.",
+      "resized": "Größe von {title} auf {w} Spalten mal {h} Zeilen geändert.",
+      "committed": "{title} in Spalte {col}, Zeile {row} platziert.",
+      "reverted": "{title} an die ursprüngliche Position zurückgesetzt."
     }
   }
 } as const;

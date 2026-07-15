@@ -125,6 +125,28 @@ export default {
         "unitLabel": "未讀"
       }
     },
+    "calendar": {
+      "calendarMonth": {
+        "description": "按月顯示已排程事件的格線，含每日標籤與月份導覽。",
+        "emptyTitle": "尚無排程",
+        "emptyBody": "已排程的事件將顯示在此行事曆中。"
+      },
+      "dayAgenda": {
+        "description": "所選日期的事件依時間排序的議程。",
+        "emptyTitle": "尚無排程",
+        "emptyBody": "所選日期的事件將顯示在此處。"
+      },
+      "scheduleMatrix": {
+        "description": "依資源與日期排列的班次格線，含每日涵蓋情形與圖例。",
+        "emptyTitle": "尚無排班",
+        "emptyBody": "已指派的班次將顯示在此排班表中。"
+      },
+      "capacityBoard": {
+        "description": "依成員顯示使用率長條，含專案細分與負載狀態。",
+        "emptyTitle": "尚無工作量資料",
+        "emptyBody": "有指派後，成員的使用率將顯示在此處。"
+      }
+    },
     "tables": {
       "masterList": {
         "description": "可選取的記錄清單，用於驅動詳細資料窗格。",
@@ -156,6 +178,40 @@ export default {
         "emptyTitle": "尚未設定矩陣",
         "emptyBody": "設定後列與欄將顯示在這裡。"
       }
+    },
+    "boards": {
+      "kanbanBoard": {
+        "description": "固定的狀態欄與可拖曳卡片；將卡片拖到其他欄即可更新其狀態。",
+        "emptyTitle": "尚無卡片",
+        "emptyBody": "建立記錄後，卡片將出現在對應的狀態欄中。"
+      },
+      "kanbanSwimlaneGrid": {
+        "description": "泳道 × 欄的格線；拖曳卡片會同時重新指派其泳道與狀態。",
+        "emptyTitle": "沒有可顯示的泳道",
+        "emptyBody": "依泳道欄位與狀態欄位將記錄分組以建立格線。"
+      },
+      "addCard": "新增卡片",
+      "grip": "拖曳以移動卡片",
+      "pointsUnit": "點",
+      "laneSummary": "Σ{points} 點 · {count}",
+      "a11y": {
+        "grabbed": "已抓取 {title}。使用方向鍵移動，Enter 放下，Esc 取消。",
+        "over": "{title} 位於 {cell} 上方。",
+        "moved": "已將 {title} 移動到 {cell}。",
+        "returned": "{title} 已返回原位。",
+        "failed": "無法移動 {title}；已返回原位。"
+      }
+    }
+  },
+  "grid": {
+    "dragHandle": "拖曳以移動 {title}",
+    "resizeHandle": "調整 {title} 的大小",
+    "a11y": {
+      "grabbed": "已抓取 {title}。使用方向鍵移動，按住 Shift 調整大小，Enter 儲存，Esc 取消。",
+      "moved": "{title} 已移動到第 {col} 欄，第 {row} 列。",
+      "resized": "{title} 已調整為 {w} 欄 × {h} 列。",
+      "committed": "{title} 已放置在第 {col} 欄，第 {row} 列。",
+      "reverted": "{title} 已返回原始位置。"
     }
   }
 } as const;

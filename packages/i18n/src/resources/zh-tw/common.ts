@@ -779,5 +779,67 @@ export default {
     "updatedToast": "檢視「{name}」已更新。",
     "defaultToast": "「{name}」現在是預設檢視。",
     "deletedToast": "檢視「{name}」已刪除。"
+  },
+  "builder": {
+    "view": "檢視",
+    "edit": "編輯",
+    "done": "完成",
+    "addWidget": "新增小工具",
+    "saveLayout": "儲存版面",
+    "saving": "正在儲存…",
+    "savedShort": "已儲存",
+    "options": "儀表板選項",
+    "resetLayout": "重設版面",
+    "resetTitle": "重設為共用版面？",
+    "resetBody": "這會移除你的個人變更並還原所有人看到的儀表板。你的資料不受影響。",
+    "resetConfirm": "重設版面",
+    "resetDone": "版面已重設為共用預設值。",
+    "sharedNote": "你正在編輯所有人都能看到的共用儀表板。",
+    "personalNote": "你正在編輯個人版面——只有你能看到這些變更。",
+    "savedShared": "儀表板已為所有有權限的人儲存。",
+    "empty": "此儀表板尚無任何小工具。",
+    "emptyAction": "新增小工具",
+    "palette": {
+      "title": "新增小工具",
+      "count": "{count} 個小工具",
+      "searchLabel": "搜尋小工具",
+      "searchPlaceholder": "搜尋小工具…",
+      "clear": "清除搜尋",
+      "noResults": "沒有小工具符合「{query}」。",
+      "add": "新增 {name}",
+      "added": "已新增 {name}。"
+    },
+    "inspector": {
+      "title": "設定小工具",
+      "empty": "此小工具沒有可設定的選項。",
+      "locked": "已鎖定",
+      "lockedHint": "此欄位由資料來源設定，無法在此處編輯。",
+      "selectPlaceholder": "選擇…",
+      "increment": "增加",
+      "decrement": "減少",
+      "done": "完成"
+    },
+    "item": {
+      "configure": "設定 {name}",
+      "duplicate": "複製 {name}",
+      "remove": "移除 {name}",
+      "removed": "已移除 {name}。",
+      "duplicated": "已複製 {name}。"
+    },
+    "families": {
+      "kpi": "關鍵指標",
+      "charts": "圖表",
+      "tables": "表格",
+      "feeds": "動態",
+      "calendar": "行事曆",
+      "boards": "看板",
+      "geo": "地圖",
+      "media": "媒體",
+      "communication": "溝通",
+      "forms": "表單",
+      "chrome": "導覽",
+      "system": "系統",
+      "domain": "領域"
+    }
   }
 } as const;

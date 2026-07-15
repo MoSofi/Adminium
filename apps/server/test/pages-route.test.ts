@@ -77,7 +77,9 @@ describe('GET /api/v1/pages/:pageId', () => {
       headers: { cookie },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ data: ENVELOPE });
+    // The stored envelope is returned verbatim under `data`, alongside the
+    // per-caller `canEditLayout` capability (false without rbac in this harness).
+    expect(res.json()).toEqual({ data: ENVELOPE, canEditLayout: false });
   });
 
   it('404s on an unknown page id', async () => {

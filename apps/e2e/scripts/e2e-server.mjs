@@ -81,6 +81,7 @@ const [
   { pagesRoutes },
   { widgetDataRoutes },
   { settingsRoutes },
+  { meViewsRoutes },
   { llmRoutes },
   { createRunService },
   { createApplyService },
@@ -108,6 +109,7 @@ const [
   import(distUrl('routes/pages/index.js')),
   import(distUrl('routes/widget-data/index.js')),
   import(distUrl('routes/settings/index.js')),
+  import(distUrl('routes/me-views/index.js')),
   import(distUrl('routes/llm/index.js')),
   import(distUrl('llm/run-service.js')),
   import(distUrl('llm/apply-service.js')),
@@ -303,6 +305,7 @@ try {
       await api.register(pagesRoutes({ meta }));
       await api.register(widgetDataRoutes({ manager, meta }));
       await api.register(settingsRoutes({ meta }));
+      await api.register(meViewsRoutes({ meta }));
       if (llmWiring) {
         await api.register(
           llmRoutes({

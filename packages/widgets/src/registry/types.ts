@@ -83,7 +83,11 @@ export interface WidgetProps<C> {
   config: C;
   data: unknown; // narrowed by shape guards from 04 §3
   instanceId: string;
-  onEvent: (e: WidgetEvent) => void; // drill-through, cross-widget links, mutations
+  // drill-through, cross-widget links, mutations. A host MAY return a promise
+  // for `mutate` events (resolves on commit, rejects on failure) so optimistic
+  // widgets — e.g. the kanban boards — can roll back a rejected move; handlers
+  // that ignore the result stay valid (`void` is assignable).
+  onEvent: (e: WidgetEvent) => void | Promise<unknown>;
 }
 
 /**

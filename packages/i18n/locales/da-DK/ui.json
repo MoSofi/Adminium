@@ -117,6 +117,28 @@
         "unitLabel": "ulæste"
       }
     },
+    "calendar": {
+      "calendarMonth": {
+        "description": "Et månedsgitter over planlagte begivenheder med chips pr. dag og månedsnavigation.",
+        "emptyTitle": "Intet planlagt",
+        "emptyBody": "Planlagte begivenheder vises i denne kalender."
+      },
+      "dayAgenda": {
+        "description": "Den valgte dags begivenheder som en tidsordnet dagsorden.",
+        "emptyTitle": "Intet planlagt",
+        "emptyBody": "Begivenheder for den valgte dag vises her."
+      },
+      "scheduleMatrix": {
+        "description": "Et vagtgitter efter ressource og dag med daglig dækning og en signaturforklaring.",
+        "emptyTitle": "Ingen vagter planlagt",
+        "emptyBody": "Tildelte vagter vises i denne plan."
+      },
+      "capacityBoard": {
+        "description": "Udnyttelsesbjælker pr. medlem med projektopdeling og belastningsstatus.",
+        "emptyTitle": "Ingen arbejdsbelastningsdata",
+        "emptyBody": "Medlemmernes udnyttelse vises her, når der findes tildelinger."
+      }
+    },
     "tables": {
       "masterList": {
         "description": "En valgbar liste over poster, der styrer et detaljepanel.",
@@ -148,6 +170,40 @@
         "emptyTitle": "Ingen matrix konfigureret",
         "emptyBody": "Rækker og kolonner vises her, når de er konfigureret."
       }
+    },
+    "boards": {
+      "kanbanBoard": {
+        "description": "Faste statuskolonner med kort, der kan trækkes; træk et kort til en anden kolonne for at ændre dets status.",
+        "emptyTitle": "Ingen kort endnu",
+        "emptyBody": "Kort vises i deres statuskolonner, efterhånden som poster oprettes."
+      },
+      "kanbanSwimlaneGrid": {
+        "description": "Et gitter af baner × kolonner; at trække et kort tildeler både dets bane og dets status på ny.",
+        "emptyTitle": "Ingen baner at vise",
+        "emptyBody": "Gruppér poster efter et bane-felt og et status-felt for at opbygge gitteret."
+      },
+      "addCard": "Tilføj kort",
+      "grip": "Træk for at flytte kortet",
+      "pointsUnit": "pt.",
+      "laneSummary": "Σ{points} pt. · {count}",
+      "a11y": {
+        "grabbed": "{title} taget op. Brug piletasterne til at flytte, Enter for at slippe, Escape for at annullere.",
+        "over": "{title} er over {cell}.",
+        "moved": "{title} flyttet til {cell}.",
+        "returned": "{title} vendte tilbage til sin oprindelige placering.",
+        "failed": "{title} kunne ikke flyttes; den blev sat tilbage."
+      }
+    }
+  },
+  "grid": {
+    "dragHandle": "Træk for at flytte {title}",
+    "resizeHandle": "Tilpas størrelsen på {title}",
+    "a11y": {
+      "grabbed": "{title} taget. Brug piletasterne til at flytte, hold Skift for at ændre størrelse, Enter for at gemme, Escape for at annullere.",
+      "moved": "{title} flyttet til kolonne {col}, række {row}.",
+      "resized": "{title} ændret til {w} kolonner gange {h} rækker.",
+      "committed": "{title} placeret i kolonne {col}, række {row}.",
+      "reverted": "{title} sat tilbage til sin oprindelige position."
     }
   }
 }

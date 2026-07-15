@@ -10,6 +10,7 @@ export default {
   "UNAUTHENTICATED": "Pro pokračování se musíte přihlásit.",
   "SESSION_EXPIRED": "Platnost relace vypršela. Pro pokračování se přihlaste znovu.",
   "FORBIDDEN": "K této akci nemáte oprávnění.",
+  "PAGE_FORBIDDEN": "K úpravě této stránky nemáte oprávnění.",
   "NOT_FOUND": "Tento zdroj neexistuje nebo byl odstraněn.",
   "CONFLICT": "Tato změna je v konfliktu s aktuálním stavem. Obnovte stránku a zkuste to znovu.",
   "UNIQUE_VIOLATION": "Tato hodnota se již používá.",

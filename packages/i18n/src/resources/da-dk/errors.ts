@@ -10,6 +10,7 @@ export default {
   "UNAUTHENTICATED": "Du skal logge ind for at fortsætte.",
   "SESSION_EXPIRED": "Din session er udløbet. Log ind igen for at fortsætte.",
   "FORBIDDEN": "Du har ikke tilladelse til det.",
+  "PAGE_FORBIDDEN": "Du har ikke tilladelse til at redigere denne side.",
   "NOT_FOUND": "Ressourcen findes ikke eller er blevet fjernet.",
   "CONFLICT": "Ændringen er i konflikt med den aktuelle tilstand. Genindlæs, og prøv igen.",
   "UNIQUE_VIOLATION": "Værdien er allerede i brug.",

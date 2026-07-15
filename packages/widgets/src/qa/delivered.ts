@@ -21,6 +21,8 @@ import { distributionCorrelationChartDefinitions } from '../families/charts/defi
 import { partWholeChartDefinitions } from '../families/charts/def.part-whole.js';
 import { matrixGeoChartDefinitions } from '../families/charts/defs.matrix-geo.js';
 import { timeFlowChartDefinitions } from '../families/charts/time-flow-definitions.js';
+import { boardsTrackDefinitions } from '../families/boards/boards-track.definitions.js';
+import { calendarTrackDefinitions } from '../families/calendar/calendar-track.definitions.js';
 import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
 import { kpiWidgetDefinitions } from '../families/kpi/definitions.js';
 import { tablesWidgetDefinitions } from '../families/tables/definitions.js';
@@ -45,6 +47,10 @@ const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
   tablesTrackFDefinitions,
   // feeds (Track F)
   feedsTrackFDefinitions,
+  // calendar (Track CAL — M7 Wave 2)
+  calendarTrackDefinitions,
+  // boards (Track BOARDS — M7 Wave 2)
+  boardsTrackDefinitions,
 ];
 
 /** Flat list of every delivered Wave-1 widget definition. */

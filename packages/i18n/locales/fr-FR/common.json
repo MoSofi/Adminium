@@ -771,5 +771,67 @@
     "updatedToast": "Vue « {name} » mise à jour.",
     "defaultToast": "« {name} » est désormais la vue par défaut.",
     "deletedToast": "Vue « {name} » supprimée."
+  },
+  "builder": {
+    "view": "Aperçu",
+    "edit": "Modifier",
+    "done": "Terminé",
+    "addWidget": "Ajouter un widget",
+    "saveLayout": "Enregistrer la disposition",
+    "saving": "Enregistrement…",
+    "savedShort": "Enregistré",
+    "options": "Options du tableau de bord",
+    "resetLayout": "Réinitialiser la disposition",
+    "resetTitle": "Réinitialiser à la disposition partagée ?",
+    "resetBody": "Cela supprime vos modifications personnelles et restaure le tableau de bord que tout le monde voit. Vos données ne sont pas affectées.",
+    "resetConfirm": "Réinitialiser la disposition",
+    "resetDone": "Disposition réinitialisée sur la valeur partagée par défaut.",
+    "sharedNote": "Vous modifiez le tableau de bord partagé que tout le monde voit.",
+    "personalNote": "Vous modifiez votre disposition personnelle — vous seul voyez ces changements.",
+    "savedShared": "Tableau de bord enregistré pour tous les utilisateurs autorisés.",
+    "empty": "Ce tableau de bord ne contient encore aucun widget.",
+    "emptyAction": "Ajouter un widget",
+    "palette": {
+      "title": "Ajouter un widget",
+      "count": "{count} widgets",
+      "searchLabel": "Rechercher des widgets",
+      "searchPlaceholder": "Rechercher des widgets…",
+      "clear": "Effacer la recherche",
+      "noResults": "Aucun widget ne correspond à « {query} ».",
+      "add": "Ajouter {name}",
+      "added": "{name} ajouté."
+    },
+    "inspector": {
+      "title": "Configurer le widget",
+      "empty": "Ce widget n’a aucune option à configurer.",
+      "locked": "Verrouillé",
+      "lockedHint": "Ce champ est défini par la source et ne peut pas être modifié ici.",
+      "selectPlaceholder": "Sélectionner…",
+      "increment": "Augmenter",
+      "decrement": "Diminuer",
+      "done": "Terminé"
+    },
+    "item": {
+      "configure": "Configurer {name}",
+      "duplicate": "Dupliquer {name}",
+      "remove": "Supprimer {name}",
+      "removed": "{name} supprimé.",
+      "duplicated": "{name} dupliqué."
+    },
+    "families": {
+      "kpi": "Indicateurs",
+      "charts": "Graphiques",
+      "tables": "Tableaux",
+      "feeds": "Flux",
+      "calendar": "Calendrier",
+      "boards": "Tableaux Kanban",
+      "geo": "Cartes",
+      "media": "Médias",
+      "communication": "Communication",
+      "forms": "Formulaires",
+      "chrome": "Navigation",
+      "system": "Système",
+      "domain": "Domaine"
+    }
   }
 }

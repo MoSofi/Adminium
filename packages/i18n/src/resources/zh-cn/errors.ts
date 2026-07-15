@@ -10,6 +10,7 @@ export default {
   "UNAUTHENTICATED": "需要登录才能继续。",
   "SESSION_EXPIRED": "会话已过期。请重新登录以继续。",
   "FORBIDDEN": "你没有执行此操作的权限。",
+  "PAGE_FORBIDDEN": "你没有编辑此页面的权限。",
   "NOT_FOUND": "该资源不存在或已被移除。",
   "CONFLICT": "该更改与当前状态冲突。请刷新后重试。",
   "UNIQUE_VIOLATION": "该值已被使用。",

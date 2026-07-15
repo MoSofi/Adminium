@@ -93,8 +93,8 @@ export {
   type TsPointData,
 } from './lib/shapes.js';
 
-// Dashboard grid (M4: static read-only renderer; dnd editing is 04-T12/M7)
-export { DashboardGrid, type DashboardGridProps } from './grid/DashboardGrid.js';
+// Dashboard grid (04 §6): static renderer + geometry (M4), edit mode 04-T12
+export { DashboardGrid, type DashboardGridProps, type RenderItemContext } from './grid/DashboardGrid.js';
 export {
   GRID_COLUMNS,
   GRID_GAP_PX,
@@ -102,6 +102,36 @@ export {
   compactVertical,
   sortByPosition,
 } from './grid/layout-math.js';
+export {
+  DEFAULT_MIN_SIZE,
+  MAX_H,
+  type MinSize,
+} from './grid/layout-schema.js';
+export {
+  applyMove,
+  applyResize,
+  clampItem,
+  commitDraft,
+  findFirstFit,
+  moveAndCompact,
+  pointerDeltaToCells,
+  resizeAndCompact,
+  snapPxToCells,
+  type CellStep,
+  type LayoutDraft,
+} from './grid/layout-edit.js';
+export {
+  GridDragHandle,
+  GridResizeHandle,
+  defaultGridAnnouncements,
+  defaultGridEditLabels,
+  snapToGridModifier,
+  useGridItemEdit,
+  type GridAnnouncements,
+  type GridEditLabels,
+  type GridEditLabelsInput,
+  type GridItemEditControls,
+} from './grid/grid-edit.js';
 
 // Templates — page-dashboard (04 §10, 09 §7.2)
 export { PageDashboard, type PageDashboardProps } from './templates/page-dashboard/PageDashboard.js';

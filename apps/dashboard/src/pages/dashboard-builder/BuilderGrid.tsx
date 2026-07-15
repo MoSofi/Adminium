@@ -1,0 +1,146 @@
+/**
+ * Edit-mode dashboard canvas (04-widget-registry.md §6.2). Renders the working
+ * draft on Track GRID's edit-mode `DashboardGrid` (dnd-kit drag, SE-corner
+ * resize, keyboard a11y — all owned by the grid) and layers the builder chrome:
+ * a configure / duplicate / remove toolbar and a selection ring. The grip is the
+ * grid's own `GridDragHandle` (bound to the item's drag activator through grid
+ * context). Widgets render from deterministic demo data — the canvas edits
+ * layout + config, not live queries.
+ *
+ * `onLayoutChange` feeds every settled move/resize back into the builder draft;
+ * `getSizing` enforces each widget's registry resize floor.
+ */
+
+import { Copy, Settings2, Trash2 } from 'lucide-react';
+import {
+  DashboardGrid,
+  GridDragHandle,
+  WidgetHost,
+  getWidget,
+  type GridEditLabelsInput,
+  type MinSize,
+  type WidgetDataState,
+} from '@adminium/widgets';
+import type { PageLayout } from '@adminium/widgets/page-config';
+import { IconButton } from '@adminium/ui';
+
+import { t } from '../../i18n/t.js';
+import { humanize } from './text.js';
+import { widgetDisplayName } from './WidgetPalette.js';
+import { seedFromString } from './WidgetPreview.js';
+
+export interface BuilderGridProps {
+  draft: PageLayout;
+  selectedId: string | null;
+  dir: 'ltr' | 'rtl';
+  onConfigure: (itemId: string) => void;
+  onDuplicate: (itemId: string) => void;
+  onRemove: (itemId: string) => void;
+  onLayoutChange: (layout: PageLayout) => void;
+}
+
+function sizingFor(widgetId: string): MinSize {
+  const sizing = getWidget(widgetId)?.sizing;
+  return { minW: sizing?.minW ?? 1, minH: sizing?.minH ?? 1 };
+}
+
+/** Localized grid drag/resize labels + a11y announcements (04 §6.2). */
+const gridLabels: GridEditLabelsInput = {
+  dragHandle: (title) => t('ui:grid.dragHandle', 'Drag to move {title}', { title }),
+  resizeHandle: (title) => t('ui:grid.resizeHandle', 'Resize {title}', { title }),
+  announce: {
+    grabbed: (title) =>
+      t(
+        'ui:grid.a11y.grabbed',
+        'Grabbed {title}. Use the arrow keys to move, hold Shift to resize, Enter to save, Escape to cancel.',
+        { title },
+      ),
+    moved: (title, col, row) =>
+      t('ui:grid.a11y.moved', '{title} moved to column {col}, row {row}.', { title, col, row }),
+    resized: (title, w, h) =>
+      t('ui:grid.a11y.resized', '{title} resized to {w} columns by {h} rows.', { title, w, h }),
+    committed: (title, col, row) =>
+      t('ui:grid.a11y.committed', '{title} placed at column {col}, row {row}.', { title, col, row }),
+    reverted: (title) => t('ui:grid.a11y.reverted', '{title} returned to its original position.', { title }),
+  },
+};
+
+export function BuilderGrid({
+  draft,
+  selectedId,
+  dir,
+  onConfigure,
+  onDuplicate,
+  onRemove,
+  onLayoutChange,
+}: BuilderGridProps) {
+  return (
+    <DashboardGrid
+      layout={draft}
+      editMode
+      dir={dir}
+      getSizing={sizingFor}
+      labels={gridLabels}
+      onLayoutChange={onLayoutChange}
+      testId="dashboard-builder-canvas"
+      renderItem={(item, ctx) => {
+        const definition = getWidget(item.widget);
+        const name = definition !== undefined ? widgetDisplayName(definition) : humanize(item.widget);
+        const data: WidgetDataState =
+          definition !== undefined
+            ? { status: 'success', data: definition.demoData(seedFromString(item.i)) }
+            : { status: 'success', data: undefined };
+        const selected = item.i === selectedId;
+        return (
+          <div
+            data-builder-item={item.i}
+            className={`group relative h-full rounded-2xl border border-dashed ${
+              selected ? 'border-accent ring-2 ring-accent' : 'border-border-strong'
+            }`}
+          >
+            <div className="pointer-events-none h-full [&_*]:pointer-events-none">
+              <WidgetHost
+                widgetId={item.widget}
+                instanceId={item.i}
+                config={item.config}
+                data={data}
+              />
+            </div>
+            {ctx.editMode ? (
+              <div className="absolute start-2 top-2 z-10">
+                <GridDragHandle />
+              </div>
+            ) : null}
+            <div className="absolute end-2 top-2 z-10 flex items-center gap-1 rounded-lg border border-border bg-surface/95 p-0.5 shadow-sm">
+              <IconButton
+                size="sm"
+                variant="ghost"
+                label={t('builder.item.configure', 'Configure {name}', { name })}
+                onClick={() => onConfigure(item.i)}
+              >
+                <Settings2 className="size-4" aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                size="sm"
+                variant="ghost"
+                label={t('builder.item.duplicate', 'Duplicate {name}', { name })}
+                onClick={() => onDuplicate(item.i)}
+              >
+                <Copy className="size-4" aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                size="sm"
+                variant="ghost"
+                className="text-danger hover:text-danger"
+                label={t('builder.item.remove', 'Remove {name}', { name })}
+                onClick={() => onRemove(item.i)}
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+              </IconButton>
+            </div>
+          </div>
+        );
+      }}
+    />
+  );
+}

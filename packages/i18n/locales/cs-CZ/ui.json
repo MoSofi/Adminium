@@ -117,6 +117,28 @@
         "unitLabel": "nepřečtené"
       }
     },
+    "calendar": {
+      "calendarMonth": {
+        "description": "Měsíční mřížka naplánovaných událostí se štítky u dnů a navigací mezi měsíci.",
+        "emptyTitle": "Nic naplánováno",
+        "emptyBody": "Naplánované události se zobrazí v tomto kalendáři."
+      },
+      "dayAgenda": {
+        "description": "Události vybraného dne jako časově seřazená agenda.",
+        "emptyTitle": "Nic naplánováno",
+        "emptyBody": "Události pro vybraný den se zobrazí zde."
+      },
+      "scheduleMatrix": {
+        "description": "Mřížka směn podle zdroje a dne s denním pokrytím a legendou.",
+        "emptyTitle": "Žádné naplánované směny",
+        "emptyBody": "Přiřazené směny se zobrazí v tomto rozvrhu."
+      },
+      "capacityBoard": {
+        "description": "Pruhy vytížení podle člena s rozpisem projektů a stavem zátěže.",
+        "emptyTitle": "Žádná data o vytížení",
+        "emptyBody": "Vytížení členů se zobrazí, jakmile budou existovat přiřazení."
+      }
+    },
     "tables": {
       "masterList": {
         "description": "Vybíratelný seznam záznamů, který řídí podokno s detailem.",
@@ -148,6 +170,40 @@
         "emptyTitle": "Žádná matice nenakonfigurována",
         "emptyBody": "Řádky a sloupce se zde zobrazí po konfiguraci."
       }
+    },
+    "boards": {
+      "kanbanBoard": {
+        "description": "Pevné stavové sloupce s přetažitelnými kartami; přetažením karty do jiného sloupce změníte její stav.",
+        "emptyTitle": "Zatím žádné karty",
+        "emptyBody": "Karty se zobrazí ve svých stavových sloupcích, jakmile vzniknou záznamy."
+      },
+      "kanbanSwimlaneGrid": {
+        "description": "Mřížka drah × sloupců; přetažení karty jí přiřadí novou dráhu i stav.",
+        "emptyTitle": "Žádné dráhy k zobrazení",
+        "emptyBody": "Seskupte záznamy podle pole dráhy a pole stavu, abyste sestavili mřížku."
+      },
+      "addCard": "Přidat kartu",
+      "grip": "Přetažením přesunete kartu",
+      "pointsUnit": "b.",
+      "laneSummary": "Σ{points} b. · {count}",
+      "a11y": {
+        "grabbed": "{title} uchopeno. Pomocí šipek přesuňte, Enter pro položení, Escape pro zrušení.",
+        "over": "{title} je nad {cell}.",
+        "moved": "{title} přesunuto do {cell}.",
+        "returned": "{title} se vrátilo na původní místo.",
+        "failed": "{title} nelze přesunout; vrátilo se na původní místo."
+      }
+    }
+  },
+  "grid": {
+    "dragHandle": "Přetažením přesuňte {title}",
+    "resizeHandle": "Změnit velikost {title}",
+    "a11y": {
+      "grabbed": "{title} uchopeno. Pomocí šipek přesouvejte, podržením Shift měňte velikost, Enter uloží, Escape zruší.",
+      "moved": "{title} přesunuto do sloupce {col}, řádku {row}.",
+      "resized": "{title} změněno na {w} sloupců krát {h} řádků.",
+      "committed": "{title} umístěno do sloupce {col}, řádku {row}.",
+      "reverted": "{title} vráceno na původní pozici."
     }
   }
 }

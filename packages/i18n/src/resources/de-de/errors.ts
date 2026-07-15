@@ -10,6 +10,7 @@ export default {
   "UNAUTHENTICATED": "Sie müssen sich anmelden, um fortzufahren.",
   "SESSION_EXPIRED": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um fortzufahren.",
   "FORBIDDEN": "Sie haben dafür keine Berechtigung.",
+  "PAGE_FORBIDDEN": "Sie haben keine Berechtigung, diese Seite zu bearbeiten.",
   "NOT_FOUND": "Diese Ressource existiert nicht oder wurde entfernt.",
   "CONFLICT": "Diese Änderung steht im Konflikt mit dem aktuellen Stand. Aktualisieren Sie die Ansicht und versuchen Sie es erneut.",
   "UNIQUE_VIOLATION": "Dieser Wert wird bereits verwendet.",

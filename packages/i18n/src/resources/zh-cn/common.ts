@@ -779,5 +779,67 @@ export default {
     "updatedToast": "视图“{name}”已更新。",
     "defaultToast": "“{name}”现在是默认视图。",
     "deletedToast": "视图“{name}”已删除。"
+  },
+  "builder": {
+    "view": "查看",
+    "edit": "编辑",
+    "done": "完成",
+    "addWidget": "添加小组件",
+    "saveLayout": "保存布局",
+    "saving": "正在保存…",
+    "savedShort": "已保存",
+    "options": "仪表盘选项",
+    "resetLayout": "重置布局",
+    "resetTitle": "重置为共享布局？",
+    "resetBody": "这将移除你的个人更改并恢复所有人看到的仪表盘。你的数据不受影响。",
+    "resetConfirm": "重置布局",
+    "resetDone": "布局已重置为共享默认值。",
+    "sharedNote": "你正在编辑所有人都能看到的共享仪表盘。",
+    "personalNote": "你正在编辑个人布局——只有你能看到这些更改。",
+    "savedShared": "仪表盘已为所有有权限的人保存。",
+    "empty": "此仪表盘尚无任何小组件。",
+    "emptyAction": "添加小组件",
+    "palette": {
+      "title": "添加小组件",
+      "count": "{count} 个小组件",
+      "searchLabel": "搜索小组件",
+      "searchPlaceholder": "搜索小组件…",
+      "clear": "清除搜索",
+      "noResults": "没有小组件匹配“{query}”。",
+      "add": "添加 {name}",
+      "added": "已添加 {name}。"
+    },
+    "inspector": {
+      "title": "配置小组件",
+      "empty": "此小组件没有可配置的选项。",
+      "locked": "已锁定",
+      "lockedHint": "此字段由数据源设置，无法在此处编辑。",
+      "selectPlaceholder": "选择…",
+      "increment": "增加",
+      "decrement": "减少",
+      "done": "完成"
+    },
+    "item": {
+      "configure": "配置 {name}",
+      "duplicate": "复制 {name}",
+      "remove": "移除 {name}",
+      "removed": "已移除 {name}。",
+      "duplicated": "已复制 {name}。"
+    },
+    "families": {
+      "kpi": "关键指标",
+      "charts": "图表",
+      "tables": "表格",
+      "feeds": "动态",
+      "calendar": "日历",
+      "boards": "看板",
+      "geo": "地图",
+      "media": "媒体",
+      "communication": "沟通",
+      "forms": "表单",
+      "chrome": "导航",
+      "system": "系统",
+      "domain": "领域"
+    }
   }
 } as const;

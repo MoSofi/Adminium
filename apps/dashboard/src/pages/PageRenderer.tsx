@@ -87,14 +87,31 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
     );
   }
 
-  return <TemplateMount page={result.page} slug={slug} recordId={recordId} />;
+  return (
+    <TemplateMount
+      page={result.page}
+      slug={slug}
+      recordId={recordId}
+      canEditLayout={result.canEditLayout}
+    />
+  );
 }
 
 type TemplateResolution =
   | { phase: 'resolving' }
   | { phase: 'resolved'; component: PageTemplateComponent | null };
 
-function TemplateMount({ page, slug, recordId }: { page: PageEnvelope; slug: string; recordId?: string | undefined }) {
+function TemplateMount({
+  page,
+  slug,
+  recordId,
+  canEditLayout,
+}: {
+  page: PageEnvelope;
+  slug: string;
+  recordId?: string | undefined;
+  canEditLayout?: boolean | undefined;
+}) {
   const [resolution, setResolution] = useState<TemplateResolution>({ phase: 'resolving' });
 
   useEffect(() => {
@@ -147,7 +164,7 @@ function TemplateMount({ page, slug, recordId }: { page: PageEnvelope; slug: str
         />
       )}
     >
-      <Template page={page} adapters={adapters} recordId={recordId} />
+      <Template page={page} adapters={adapters} recordId={recordId} canEditLayout={canEditLayout} />
     </WidgetErrorBoundary>
   );
 }
@@ -200,7 +217,10 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
         const deleted = await crud.remove(String(event.recordId), { confirm: true });
         return isDeletePreview(deleted) ? { data: null, undoToken: null } : deleted;
       };
-      void run()
+      // Return the promise so optimistic widgets (kanban boards) can roll back
+      // a rejected move; the host's own toast/invalidation chain runs alongside.
+      const promise = run();
+      promise
         .then((result) => {
           invalidateAfterMutation();
           notifyUndoable({
@@ -218,6 +238,7 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
           // Failed mutations surface through the template's own form/error
           // handling; the host-level fallback stays silent here.
         });
+      return promise;
     },
     [router, openRecord, crud, invalidateAfterMutation, notifyUndoable],
   );

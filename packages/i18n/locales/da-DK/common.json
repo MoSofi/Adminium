@@ -771,5 +771,67 @@
     "updatedToast": "Visning „{name}“ opdateret.",
     "defaultToast": "„{name}“ er nu standardvisningen.",
     "deletedToast": "Visning „{name}“ slettet."
+  },
+  "builder": {
+    "view": "Vis",
+    "edit": "Rediger",
+    "done": "Færdig",
+    "addWidget": "Tilføj widget",
+    "saveLayout": "Gem layout",
+    "saving": "Gemmer…",
+    "savedShort": "Gemt",
+    "options": "Dashboard-indstillinger",
+    "resetLayout": "Nulstil layout",
+    "resetTitle": "Nulstil til det delte layout?",
+    "resetBody": "Dette fjerner dine personlige ændringer og gendanner det dashboard, alle ser. Dine data påvirkes ikke.",
+    "resetConfirm": "Nulstil layout",
+    "resetDone": "Layout nulstillet til den delte standard.",
+    "sharedNote": "Du redigerer det delte dashboard, som alle ser.",
+    "personalNote": "Du redigerer dit personlige layout — kun du ser disse ændringer.",
+    "savedShared": "Dashboard gemt for alle med adgang.",
+    "empty": "Dette dashboard har endnu ingen widgets.",
+    "emptyAction": "Tilføj widget",
+    "palette": {
+      "title": "Tilføj widget",
+      "count": "{count} widgets",
+      "searchLabel": "Søg widgets",
+      "searchPlaceholder": "Søg widgets…",
+      "clear": "Ryd søgning",
+      "noResults": "Ingen widgets matcher “{query}”.",
+      "add": "Tilføj {name}",
+      "added": "{name} tilføjet."
+    },
+    "inspector": {
+      "title": "Konfigurer widget",
+      "empty": "Denne widget har ingen indstillinger at konfigurere.",
+      "locked": "Låst",
+      "lockedHint": "Dette felt er angivet af kilden og kan ikke redigeres her.",
+      "selectPlaceholder": "Vælg…",
+      "increment": "Forøg",
+      "decrement": "Formindsk",
+      "done": "Færdig"
+    },
+    "item": {
+      "configure": "Konfigurer {name}",
+      "duplicate": "Dupliker {name}",
+      "remove": "Fjern {name}",
+      "removed": "{name} fjernet.",
+      "duplicated": "{name} duplikeret."
+    },
+    "families": {
+      "kpi": "KPI’er",
+      "charts": "Diagrammer",
+      "tables": "Tabeller",
+      "feeds": "Feeds",
+      "calendar": "Kalender",
+      "boards": "Tavler",
+      "geo": "Kort",
+      "media": "Medier",
+      "communication": "Kommunikation",
+      "forms": "Formularer",
+      "chrome": "Navigation",
+      "system": "System",
+      "domain": "Domæne"
+    }
   }
 }
