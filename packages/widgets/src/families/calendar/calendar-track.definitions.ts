@@ -1,18 +1,25 @@
 import { lazy } from 'react';
 
-import { calendarMonthConfigSchema, calendarMonthDemoData } from './CalendarMonth.js';
-import { capacityBoardConfigSchema, capacityBoardDemoData } from './CapacityBoard.js';
-import { dayAgendaConfigSchema, dayAgendaDemoData } from './DayAgenda.js';
-import { scheduleMatrixConfigSchema, scheduleMatrixDemoData } from './ScheduleMatrix.js';
+import {
+  calendarMonthConfigSchema,
+  calendarMonthDemoData,
+  capacityBoardConfigSchema,
+  capacityBoardDemoData,
+  dayAgendaConfigSchema,
+  dayAgendaDemoData,
+  scheduleMatrixConfigSchema,
+  scheduleMatrixDemoData,
+} from './calendar-config.js';
 import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
  * TRACK CAL contribution to the `calendar` family (annex §5). Metadata only —
- * the @adminium/ui-heavy widget components load through the
+ * the config schemas and demo generators come from the pure `calendar-config`
+ * module, and the @adminium/ui-heavy widget components load through the
  * `calendar-track-components` barrel via `lazy(() => import(...))`, so the family
  * stays in one lazy chunk and the registry metadata never eagerly pulls the
- * component code (04 §2.3; the kpi/charts/feeds convention). The GREEN LOOP
+ * component code (04 §2.3; the boards/domain/media convention). The GREEN LOOP
  * spreads `calendarTrackDefinitions` into `families/calendar/definitions.ts`
  * (and wires that into the registry map). Widget ids match the annex catalog
  * exactly (acceptance #1).

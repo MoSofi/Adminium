@@ -3,11 +3,11 @@ import { EmptyState, MonoText, ProgressBar } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { z } from 'zod';
 
 import { formatMoney } from './column-spec.js';
+import type { GroupedSummaryTableConfig } from './tables-track-f-config.js';
+import type { AggColumn, GroupedSummaryData } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `grouped-summary-table` (annex §3) — group-header rows with aggregate
@@ -16,38 +16,14 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * aggregates and grand totals.
  */
 
-export type AggFormat = 'number' | 'currency' | 'percent' | 'progress' | 'text';
-
-export const groupedSummaryTableConfigSchema = widgetSharedConfigSchema.extend({
-  expandable: z.boolean().default(true),
-  totalsRow: z.boolean().default(true),
-  groupLabel: z.string().optional(),
-  totalsLabel: z.string().optional(),
-  emptyTitle: z.string().optional(),
-});
-export type GroupedSummaryTableConfig = z.infer<typeof groupedSummaryTableConfigSchema>;
-
-export interface AggColumn {
-  key: string;
-  label: string;
-  format?: AggFormat | undefined;
-  tone?: string | undefined;
-  /** progress-format denominator (defaults to 100). */
-  max?: number | undefined;
-}
-export interface SummaryGroup {
-  key: string;
-  label: string;
-  count?: number | undefined;
-  aggregates: Record<string, number | string>;
-  rows?: { label: string; aggregates: Record<string, number | string> }[] | undefined;
-}
-export interface GroupedSummaryData {
-  data: SummaryGroup[];
-  columns: AggColumn[];
-  totals?: Record<string, number | string> | undefined;
-  total?: number | undefined;
-}
+// Config schema + deterministic demo payload live in the pure
+// `tables-track-f-config` module, and the aggregate shapes in
+// `tables-track-f-types`, so the registry metadata graph never reaches this
+// component file (04 §2.3). Re-exported here to keep existing import points
+// stable.
+export { groupedSummaryTableConfigSchema, groupedSummaryTableDemoData } from './tables-track-f-config.js';
+export type { GroupedSummaryTableConfig } from './tables-track-f-config.js';
+export type { AggColumn, AggFormat, GroupedSummaryData, SummaryGroup } from './tables-track-f-types.js';
 
 function formatCell(value: number | string | undefined, column: AggColumn, locale?: string): string {
   if (value === undefined) return '—';
@@ -234,64 +210,4 @@ export function GroupedSummaryTableWidget({ config, data }: WidgetProps<GroupedS
       {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
     />
   );
-}
-
-const REGIONS = [
-  { key: 'na', label: 'North America', services: ['API', 'Web', 'Jobs'] },
-  { key: 'eu', label: 'Europe', services: ['API', 'Web'] },
-  { key: 'apac', label: 'Asia Pacific', services: ['API', 'Web', 'Edge'] },
-  { key: 'latam', label: 'Latin America', services: ['API'] },
-] as const;
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Deterministic grouped-summary payload (04 §7.7). */
-export function groupedSummaryTableDemoData(seed: number): GroupedSummaryData {
-  const random = mulberry32(seed || 1);
-  const columns: AggColumn[] = [
-    { key: 'requests', label: 'Requests', format: 'number' },
-    { key: 'revenue', label: 'Revenue', format: 'currency' },
-    { key: 'usage', label: 'Quota', format: 'progress', max: 100, tone: 'accent' },
-    { key: 'errorRate', label: 'Errors', format: 'percent', tone: 'danger' },
-  ];
-  const groups: SummaryGroup[] = REGIONS.map((region) => {
-    const rows = region.services.map((service) => ({
-      label: service,
-      aggregates: {
-        requests: Math.floor(random() * 40_000) + 1000,
-        revenue: Math.floor(random() * 20_000) + 500,
-        usage: Math.floor(random() * 100),
-        errorRate: Math.round(random() * 40) / 10,
-      } as Record<string, number>,
-    }));
-    const sum = (key: string) => rows.reduce((acc, row) => acc + (row.aggregates[key] as number), 0);
-    return {
-      key: region.key,
-      label: region.label,
-      count: rows.length,
-      rows,
-      aggregates: {
-        requests: sum('requests'),
-        revenue: sum('revenue'),
-        usage: Math.round(sum('usage') / rows.length),
-        errorRate: Math.round((sum('errorRate') / rows.length) * 10) / 10,
-      },
-    };
-  });
-  const totals: Record<string, number> = {
-    requests: groups.reduce((acc, g) => acc + (g.aggregates['requests'] as number), 0),
-    revenue: groups.reduce((acc, g) => acc + (g.aggregates['revenue'] as number), 0),
-    usage: Math.round(groups.reduce((acc, g) => acc + (g.aggregates['usage'] as number), 0) / groups.length),
-    errorRate: Math.round((groups.reduce((acc, g) => acc + (g.aggregates['errorRate'] as number), 0) / groups.length) * 10) / 10,
-  };
-  return { data: groups, columns, totals };
 }

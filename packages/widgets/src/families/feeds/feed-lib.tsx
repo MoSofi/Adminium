@@ -5,34 +5,19 @@ import type { ReactNode } from 'react';
 import { formatAbsoluteTime, formatRelativeTime } from '../tables/column-spec.js';
 
 /**
- * Shared helpers for the `feeds` family (annex §4) — a deterministic seeded
- * PRNG for `demoData`, tone normalization, the "actor action target" sentence
- * renderer (bold actor/target, mono target ids), and a relative-timestamp
- * element. Kept framework-light: no i18n provider dependency, so widgets stay
- * pure and render in stories/tests without a wrapper (the dashboard resolves
- * labels through @adminium/i18n at the host boundary, like the rest of the
- * registry — 04 §2, 04-T06).
+ * Shared helpers for the `feeds` family (annex §4) — tone normalization, the
+ * "actor action target" sentence renderer (bold actor/target, mono target ids),
+ * and a relative-timestamp element. Kept framework-light: no i18n provider
+ * dependency, so widgets stay pure and render in stories/tests without a
+ * wrapper (the dashboard resolves labels through @adminium/i18n at the host
+ * boundary, like the rest of the registry — 04 §2, 04-T06).
+ *
+ * The deterministic demo primitives live in the framework-free `feed-demo-lib`
+ * leaf, because the pure `feeds-config` module needs them and must not reach
+ * the JSX below (04 §2.3). They are re-exported here so this module stays the
+ * one import point the family's components use.
  */
-
-/** Mulberry32 — the repo's deterministic seeded PRNG (see tables/demo-data.ts). */
-export function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Deterministic pick from a non-empty tuple. */
-export function pickFrom<T>(random: () => number, items: readonly T[]): T {
-  return items[Math.floor(random() * items.length) % items.length] as T;
-}
-
-/** Fixed demo epoch so `demoData(seed)` is byte-identical across runs (04 §7.7). */
-export const DEMO_EPOCH = Date.UTC(2026, 6, 14, 12, 0, 0);
+export { DEMO_EPOCH, MS_DAY, mulberry32, pickFrom } from './feed-demo-lib.js';
 
 const KNOWN_TONES: ReadonlySet<string> = new Set([
   'neutral',

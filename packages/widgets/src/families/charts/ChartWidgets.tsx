@@ -7,12 +7,32 @@
 
 import { BarChart, DonutChart, LineAreaChart, Sparkline, formatShortDate } from '@adminium/charts';
 import type { BarSeries, LineAreaPoint, SparklineTone } from '@adminium/charts';
-import { z } from 'zod';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asCategorical, asTimeseries, timeseriesValues } from '../../lib/shapes.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+import type {
+  ChartBarConfig,
+  ChartDonutConfig,
+  ChartLineAreaConfig,
+  ChartSparklineConfig,
+} from './charts-config.js';
 import type { WidgetProps } from '../../registry/types.js';
+
+// Config schemas live in the pure `charts-config` module so the registry
+// metadata graph never reaches this component file (04 §2.3). Re-exported here
+// to keep existing import points stable.
+export {
+  chartBarConfigSchema,
+  chartDonutConfigSchema,
+  chartLineAreaConfigSchema,
+  chartSparklineConfigSchema,
+} from './charts-config.js';
+export type {
+  ChartBarConfig,
+  ChartDonutConfig,
+  ChartLineAreaConfig,
+  ChartSparklineConfig,
+} from './charts-config.js';
 
 function BadShape() {
   return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
@@ -23,17 +43,6 @@ function toXY(points: { t: string; v: number }[]): LineAreaPoint[] {
 }
 
 // --- chart-line-area ---------------------------------------------------------
-
-export const chartLineAreaConfigSchema = widgetSharedConfigSchema.extend({
-  smooth: z.boolean().default(true),
-  /** Axis labels on/off (annex §2 `axis`). */
-  axis: z.boolean().default(true),
-  /** Dashed prior-period comparison line when the payload carries `compare`. */
-  compareToPrior: z.boolean().default(true),
-  height: z.number().int().min(80).max(600).default(240),
-});
-
-export type ChartLineAreaConfig = z.infer<typeof chartLineAreaConfigSchema>;
 
 export function ChartLineAreaWidget({ config, data }: WidgetProps<ChartLineAreaConfig>) {
   const series = asTimeseries(data);
@@ -55,17 +64,6 @@ export function ChartLineAreaWidget({ config, data }: WidgetProps<ChartLineAreaC
 }
 
 // --- chart-bar ---------------------------------------------------------------
-
-export const chartBarConfigSchema = widgetSharedConfigSchema.extend({
-  highlight: z.enum(['max', 'current', 'none']).default('max'),
-  /** Category labels under the columns (annex §2 `labels`). */
-  labels: z.boolean().default(true),
-  axis: z.boolean().default(true),
-  barRadius: z.number().int().min(0).max(12).default(3),
-  height: z.number().int().min(80).max(600).default(220),
-});
-
-export type ChartBarConfig = z.infer<typeof chartBarConfigSchema>;
 
 /** `timeseries` or `categorical` → BarChart categories + one series. */
 export function barInputsOf(
@@ -110,18 +108,6 @@ export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
 
 // --- chart-donut ---------------------------------------------------------------
 
-export const chartDonutConfigSchema = widgetSharedConfigSchema.extend({
-  centerMetric: z.enum(['total', 'none']).default('total'),
-  centerLabel: z.string().optional(),
-  showLegend: z.boolean().default(true),
-  /** Slices beyond this fold into a trailing "Other" bucket. */
-  maxSlices: z.number().int().min(2).max(8).default(5),
-  metricFormat: z.enum(['plain', 'compact', 'currency', 'percent', 'duration']).default('compact'),
-  size: z.number().int().min(96).max(320).default(160),
-});
-
-export type ChartDonutConfig = z.infer<typeof chartDonutConfigSchema>;
-
 export function ChartDonutWidget({ config, data }: WidgetProps<ChartDonutConfig>) {
   const categorical = asCategorical(data);
   if (categorical === null || categorical.items.length === 0) return <BadShape />;
@@ -143,15 +129,6 @@ export function ChartDonutWidget({ config, data }: WidgetProps<ChartDonutConfig>
 }
 
 // --- chart-sparkline ------------------------------------------------------------
-
-export const chartSparklineConfigSchema = widgetSharedConfigSchema.extend({
-  variant: z.enum(['bar', 'line']).default('bar'),
-  emphasisLast: z.boolean().default(true),
-  width: z.number().int().min(24).max(320).default(96),
-  height: z.number().int().min(12).max(80).default(28),
-});
-
-export type ChartSparklineConfig = z.infer<typeof chartSparklineConfigSchema>;
 
 /** Shared `tone` → sparkline stroke tone. */
 export function sparklineToneOf(tone: string | undefined): SparklineTone {

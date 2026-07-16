@@ -1,7 +1,6 @@
 import { getFormatters } from '@adminium/i18n';
 import { Badge, EmptyState, MonoText } from '@adminium/ui';
 import { useMemo } from 'react';
-import { z } from 'zod';
 
 import {
   ANCHOR_TODAY,
@@ -11,17 +10,21 @@ import {
   fmtEventTime,
   firstJsWeekday,
   isoDayKey,
-  mulberry32,
   parseIsoDay,
-  pickFrom,
   resolveLocale,
   toneOf,
   weekDays,
 } from './calendar-lib.js';
 import { eventsOf } from './CalendarMonth.js';
+import type { DayAgendaConfig } from './calendar-config.js';
 import type { CalendarEvent } from './calendar-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+
+// Config schema + deterministic demo payload live in the pure `calendar-config`
+// module so the registry metadata graph never reaches this component file
+// (04 §2.3). Re-exported here to keep existing import points stable.
+export { dayAgendaConfigSchema, dayAgendaDemoData } from './calendar-config.js';
+export type { DayAgendaConfig } from './calendar-config.js';
 
 /**
  * `day-agenda` (annex §5) — the selected-day (or week) event list: a colored
@@ -30,19 +33,6 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * RTL while the side bar and metadata mirror via logical properties. Binds to
  * `calendar-events` filtered to the selected day/week.
  */
-
-export const dayAgendaConfigSchema = widgetSharedConfigSchema.extend({
-  /** Selected ISO day; inferred from the events (or the demo anchor) when unset. */
-  date: z.string().optional(),
-  /** Agenda span: a single day or the whole (locale-aligned) week. */
-  range: z.enum(['day', 'week']).default('day'),
-  /** Force the first weekday for week mode (ISO 1 = Mon … 7 = Sun). */
-  firstDayOfWeek: z.number().int().min(1).max(7).optional(),
-  showCount: z.boolean().default(true),
-  emptyTitle: z.string().optional(),
-  emptyBody: z.string().optional(),
-});
-export type DayAgendaConfig = z.infer<typeof dayAgendaConfigSchema>;
 
 export interface DayAgendaProps {
   events: readonly CalendarEvent[];
@@ -191,38 +181,3 @@ export function DayAgendaWidget({ config, data }: WidgetProps<DayAgendaConfig>) 
   );
 }
 
-const AGENDA_POOL = [
-  { title: 'Standup', category: 'meeting', time: '09:00', end: '09:15' },
-  { title: 'Design critique', category: 'meeting', time: '10:30', end: '11:30' },
-  { title: 'Customer call', category: 'meeting', time: '13:00', end: '13:45' },
-  { title: 'Release cutoff', category: 'deadline', time: '17:00' },
-  { title: 'Roadmap review', category: 'meeting', time: '15:00', end: '16:00' },
-  { title: 'Deploy window', category: 'release', time: '22:00', end: '23:00' },
-  { title: 'Docs due', category: 'deadline' },
-  { title: 'Lunch & learn', category: 'event', time: '12:00', end: '13:00' },
-] as const;
-
-/** Deterministic single-day `calendar-events` payload for the demo anchor day. */
-export function dayAgendaDemoData(seed: number): { events: CalendarEvent[] } {
-  const random = mulberry32(seed || 1);
-  const count = 3 + Math.floor(random() * 4);
-  const events: CalendarEvent[] = [];
-  const used = new Set<number>();
-  for (let i = 0; i < count; i += 1) {
-    let index = Math.floor(random() * AGENDA_POOL.length);
-    for (let guard = 0; guard < AGENDA_POOL.length && used.has(index); guard += 1) {
-      index = (index + 1) % AGENDA_POOL.length;
-    }
-    used.add(index);
-    const pick = AGENDA_POOL[index] ?? pickFrom(random, AGENDA_POOL);
-    events.push({
-      id: i + 1,
-      date: ANCHOR_TODAY,
-      title: pick.title,
-      category: pick.category,
-      ...(('time' in pick) ? { time: pick.time } : {}),
-      ...(('end' in pick) ? { end: pick.end } : {}),
-    });
-  }
-  return { events };
-}

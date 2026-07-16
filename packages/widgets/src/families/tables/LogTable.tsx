@@ -3,11 +3,11 @@ import { Avatar, Badge, IconButton, MonoText, StatusPill } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { Download, RotateCcw, Search, SearchX } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { z } from 'zod';
 
 import { formatAbsoluteTime } from './column-spec.js';
+import type { LogTableConfig } from './tables-track-f-config.js';
+import type { LogRow } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `log-table` (annex §3) — an append-oriented event grid: mono timestamps with
@@ -18,41 +18,14 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * `record-list` over an event/log table.
  */
 
-export const logTableConfigSchema = widgetSharedConfigSchema.extend({
-  rowAction: z.enum(['retry', 'download', 'inspect', 'none']).default('inspect'),
-  search: z.boolean().default(true),
-  filters: z.boolean().default(true),
-  liveTail: z.boolean().default(false),
-  labels: z
-    .object({
-      searchPlaceholder: z.string().optional(),
-      all: z.string().optional(),
-      errors: z.string().optional(),
-      live: z.string().optional(),
-      retry: z.string().optional(),
-      download: z.string().optional(),
-      inspect: z.string().optional(),
-      emptyTitle: z.string().optional(),
-      emptyBody: z.string().optional(),
-      noMatches: z.string().optional(),
-    })
-    .optional(),
-});
-export type LogTableConfig = z.infer<typeof logTableConfigSchema>;
-
-export interface LogRow {
-  id: string | number;
-  ts: string;
-  actor?: string | undefined;
-  category?: string | undefined;
-  categoryTone?: string | undefined;
-  action?: string | undefined;
-  resource?: string | undefined;
-  status?: string | undefined;
-  code?: number | undefined;
-  ip?: string | undefined;
-  url?: string | undefined;
-}
+// Config schema + deterministic demo payload live in the pure
+// `tables-track-f-config` module, and the row shape in
+// `tables-track-f-types`, so the registry metadata graph never reaches this
+// component file (04 §2.3). Re-exported here to keep existing import points
+// stable.
+export { logTableConfigSchema, logTableDemoData } from './tables-track-f-config.js';
+export type { LogTableConfig } from './tables-track-f-config.js';
+export type { LogRow } from './tables-track-f-types.js';
 
 /** HTTP-family tone for a numeric status code. */
 export function codeTone(code: number): Tone {
@@ -280,42 +253,4 @@ export function LogTableWidget({ config, data, onEvent }: WidgetProps<LogTableCo
       }}
     />
   );
-}
-
-const LOG_TEMPLATES = [
-  { category: 'auth', categoryTone: 'info', action: 'signed in', resource: 'session/9f2a', status: 'success', ip: '203.0.113.7' },
-  { category: 'billing', categoryTone: 'warn', action: 'charge failed for', resource: 'sub_4821', code: 402 },
-  { category: 'api', categoryTone: 'neutral', action: 'POST', resource: '/v1/orders', code: 201 },
-  { category: 'webhook', categoryTone: 'accent', action: 'delivered', resource: 'order.paid', code: 200 },
-  { category: 'api', categoryTone: 'neutral', action: 'GET', resource: '/v1/reports', code: 500 },
-  { category: 'security', categoryTone: 'danger', action: 'blocked request from', resource: 'bot/crawler', status: 'denied', ip: '198.51.100.4' },
-  { category: 'export', categoryTone: 'info', action: 'generated', resource: 'customers.csv', status: 'success' },
-] as const;
-const LOG_ACTORS = ['Ada Lovelace', 'System', 'api-gw', 'Grace Hopper', 'cron'] as const;
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Deterministic DESC-ordered `record-list` of log rows (04 §7.7). */
-export function logTableDemoData(seed: number): { data: LogRow[] } {
-  const random = mulberry32(seed || 1);
-  const base = Date.UTC(2026, 6, 14, 14, 30, 0);
-  const data: LogRow[] = Array.from({ length: 12 }, (_, index) => {
-    const template = LOG_TEMPLATES[Math.floor(random() * LOG_TEMPLATES.length) % LOG_TEMPLATES.length]!;
-    return {
-      id: index + 1,
-      ts: new Date(base - index * 47 * 60_000 - Math.floor(random() * 60) * 1000).toISOString(),
-      actor: LOG_ACTORS[Math.floor(random() * LOG_ACTORS.length) % LOG_ACTORS.length]!,
-      ...template,
-    };
-  });
-  return { data };
 }

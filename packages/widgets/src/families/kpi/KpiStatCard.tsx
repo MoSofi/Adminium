@@ -20,30 +20,16 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { z } from 'zod';
-
 import { computeDelta, formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asMetricDelta } from '../../lib/shapes.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+import type { KpiStatCardConfig } from './kpi-config.js';
 import type { WidgetProps } from '../../registry/types.js';
 
-export const kpiStatCardConfigSchema = widgetSharedConfigSchema.extend({
-  /** Card label under the icon row (falls back to `title`). */
-  metricLabel: z.string().optional(),
-  /** Value formatting (annex §1 `format`). */
-  metricFormat: z.enum(['plain', 'compact', 'currency', 'percent', 'duration']).default('plain'),
-  deltaMode: z.enum(['none', 'pct', 'abs']).default('pct'),
-  /** Down-is-good (costs, error rates, churn) — flips the pill tones. */
-  invertDeltaGood: z.boolean().default(false),
-  showSparkline: z.boolean().default(true),
-  /** Curated Lucide tile icon (M4 set — full by-name lookup lands with the builder). */
-  iconName: z
-    .enum(['activity', 'dollar', 'users', 'cart', 'gauge', 'database', 'zap', 'star', 'package', 'trending'])
-    .default('activity'),
-  iconTone: z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']).default('accent'),
-});
-
-export type KpiStatCardConfig = z.infer<typeof kpiStatCardConfigSchema>;
+// Config schema + deterministic demo payload live in the pure `kpi-config`
+// module so the registry metadata graph never reaches this component file
+// (04 §2.3). Re-exported here to keep existing import points stable.
+export { kpiStatCardConfigSchema, kpiStatCardDemoData } from './kpi-config.js';
+export type { KpiStatCardConfig } from './kpi-config.js';
 
 const ICONS = {
   activity: Activity,

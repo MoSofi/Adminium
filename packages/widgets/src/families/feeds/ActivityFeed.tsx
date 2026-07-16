@@ -1,19 +1,11 @@
 import { EmptyState, IconTile } from '@adminium/ui';
 import { ArrowRight } from 'lucide-react';
-import { z } from 'zod';
 
 import { feedIcon } from './feed-icons.js';
-import {
-  DEMO_EPOCH,
-  FeedSentence,
-  RelativeTime,
-  feedRowsOf,
-  mulberry32,
-  pickFrom,
-  toneOf,
-} from './feed-lib.js';
+import { DEMO_EPOCH, FeedSentence, RelativeTime, feedRowsOf, toneOf } from './feed-lib.js';
+import type { ActivityFeedConfig } from './feeds-config.js';
+import type { ActivityItem } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `activity-feed` (annex §4) — rows of a tone-tinted icon tile + an "actor
@@ -22,26 +14,13 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * `record-list` of audit/event rows.
  */
 
-export const activityFeedConfigSchema = widgetSharedConfigSchema.extend({
-  limit: z.number().int().min(1).max(50).default(6),
-  viewAllHref: z.string().optional(),
-  viewAllLabel: z.string().optional(),
-  emptyTitle: z.string().optional(),
-  emptyBody: z.string().optional(),
-});
-export type ActivityFeedConfig = z.infer<typeof activityFeedConfigSchema>;
-
-export interface ActivityItem {
-  id: string | number;
-  /** Category/verb key selecting the tinted glyph (feed-icons). */
-  icon?: string | undefined;
-  tone?: string | undefined;
-  actor?: string | undefined;
-  action?: string | undefined;
-  target?: string | undefined;
-  /** ISO 8601 timestamp. */
-  ts: string;
-}
+// Config schema + deterministic demo payload live in the pure `feeds-config`
+// module, and the row shape in `feeds-types`, so the registry metadata graph
+// never reaches this component file (04 §2.3). Re-exported here to keep
+// existing import points stable.
+export { activityFeedConfigSchema, activityFeedDemoData } from './feeds-config.js';
+export type { ActivityFeedConfig } from './feeds-config.js';
+export type { ActivityItem } from './feeds-types.js';
 
 export interface ActivityFeedProps {
   items: readonly ActivityItem[];
@@ -142,31 +121,3 @@ export function ActivityFeedWidget({ config, data, onEvent }: WidgetProps<Activi
   );
 }
 
-const ACTORS = ['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Edsger Dijkstra', 'Katherine Johnson'] as const;
-const EVENTS = [
-  { icon: 'created', tone: 'pos', action: 'created', target: 'invoice #4821' },
-  { icon: 'updated', tone: 'accent', action: 'updated', target: 'Acme Holdings' },
-  { icon: 'approved', tone: 'pos', action: 'approved', target: 'expense report #77' },
-  { icon: 'commented', tone: 'info', action: 'commented on', target: 'Ticket-1042' },
-  { icon: 'deleted', tone: 'danger', action: 'deleted', target: 'api_key/legacy' },
-  { icon: 'invited', tone: 'accent', action: 'invited', target: 'jordan@globex.com' },
-  { icon: 'deployed', tone: 'info', action: 'deployed', target: 'web@v2.4.0' },
-] as const;
-
-/** Deterministic `record-list` of activity rows (04 §7.7). */
-export function activityFeedDemoData(seed: number): { data: ActivityItem[] } {
-  const random = mulberry32(seed || 1);
-  const data = Array.from({ length: 8 }, (_, index) => {
-    const event = pickFrom(random, EVENTS);
-    return {
-      id: index + 1,
-      icon: event.icon,
-      tone: event.tone,
-      actor: pickFrom(random, ACTORS),
-      action: event.action,
-      target: event.target,
-      ts: new Date(DEMO_EPOCH - Math.floor(random() * 72) * 3_600_000 - index * 137_000).toISOString(),
-    };
-  });
-  return { data };
-}

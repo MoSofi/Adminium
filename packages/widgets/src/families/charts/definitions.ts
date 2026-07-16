@@ -19,7 +19,7 @@ import {
   chartDonutConfigSchema,
   chartLineAreaConfigSchema,
   chartSparklineConfigSchema,
-} from './ChartWidgets.js';
+} from './charts-config.js';
 
 function toEnvelopePoints(points: readonly DemoPoint[]): { t: string; v: number }[] {
   return points.map((point) => ({ t: point.x.toISOString(), v: point.y }));

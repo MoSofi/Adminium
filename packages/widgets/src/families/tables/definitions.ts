@@ -7,7 +7,7 @@ import {
   detailKeyValueConfigSchema,
   miniTableConfigSchema,
   paginationFooterConfigSchema,
-} from './widgets.js';
+} from './tables-config.js';
 import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 

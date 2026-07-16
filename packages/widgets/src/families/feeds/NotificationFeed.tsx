@@ -2,19 +2,19 @@ import { Badge, Button, EmptyState, IconButton } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { CheckCheck, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { z } from 'zod';
 
 import { feedIcon } from './feed-icons.js';
 import {
   DEMO_EPOCH,
   FeedSentence,
+  MS_DAY,
   RelativeTime,
   feedRowsOf,
-  mulberry32,
   toneOf,
 } from './feed-lib.js';
+import type { NotificationFeedConfig } from './feeds-config.js';
+import type { NotificationAction, NotificationItem } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `notification-feed` (annex §4) — a time-bucketed grouped feed
@@ -25,53 +25,16 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * empty state instead of a blank panel.
  */
 
-export const notificationFeedConfigSchema = widgetSharedConfigSchema.extend({
-  tabs: z.boolean().default(true),
-  inlineActions: z.boolean().default(true),
-  markAllRead: z.boolean().default(true),
-  /** Localized copy (host resolves via i18n; English defaults keep stories pure). */
-  labels: z
-    .object({
-      all: z.string().optional(),
-      unread: z.string().optional(),
-      mentions: z.string().optional(),
-      markAllRead: z.string().optional(),
-      today: z.string().optional(),
-      yesterday: z.string().optional(),
-      earlier: z.string().optional(),
-      dismiss: z.string().optional(),
-      emptyAllTitle: z.string().optional(),
-      emptyAllBody: z.string().optional(),
-      emptyUnreadTitle: z.string().optional(),
-      emptyMentionsTitle: z.string().optional(),
-    })
-    .optional(),
-});
-export type NotificationFeedConfig = z.infer<typeof notificationFeedConfigSchema>;
-
-export interface NotificationAction {
-  key: string;
-  label: string;
-  tone?: string | undefined;
-}
-
-export interface NotificationItem {
-  id: string | number;
-  category?: string | undefined;
-  categoryTone?: string | undefined;
-  actor?: string | undefined;
-  action?: string | undefined;
-  target?: string | undefined;
-  ts: string;
-  read?: boolean | undefined;
-  mention?: boolean | undefined;
-  actions?: NotificationAction[] | undefined;
-}
+// Config schema + deterministic demo payload live in the pure `feeds-config`
+// module, and the row shapes in `feeds-types`, so the registry metadata graph
+// never reaches this component file (04 §2.3). Re-exported here to keep
+// existing import points stable.
+export { notificationFeedConfigSchema, notificationFeedDemoData } from './feeds-config.js';
+export type { NotificationFeedConfig } from './feeds-config.js';
+export type { NotificationAction, NotificationItem } from './feeds-types.js';
 
 type Tab = 'all' | 'unread' | 'mentions';
 type Bucket = 'today' | 'yesterday' | 'earlier';
-
-const MS_DAY = 86_400_000;
 
 /** Day-bucket an item relative to `now` (locale-agnostic UTC-day math is fine for demo). */
 export function bucketOf(iso: string, now: number): Bucket {
@@ -345,32 +308,3 @@ export function NotificationFeedWidget({ config, data, onEvent }: WidgetProps<No
   );
 }
 
-const N_CATEGORIES = [
-  { category: 'approval', actor: 'Grace Hopper', action: 'requested approval on', target: 'expense #204', actions: [{ key: 'accept', label: 'Approve' }, { key: 'reject', label: 'Decline', tone: 'danger' }] },
-  { category: 'mention', actor: 'Alan Turing', action: 'mentioned you in', target: 'Ticket-1042', mention: true },
-  { category: 'billing', actor: 'System', action: 'payment failed for', target: 'Acme Holdings' },
-  { category: 'security', actor: 'System', action: 'new sign-in from', target: '203.0.113.9' },
-  { category: 'release', actor: 'Ada Lovelace', action: 'published', target: 'web@v2.4.0' },
-  { category: 'system', actor: 'System', action: 'finished export', target: 'customers.csv' },
-] as const;
-
-/** Deterministic `record-list` of notifications spanning today/yesterday/earlier. */
-export function notificationFeedDemoData(seed: number): { data: NotificationItem[] } {
-  const random = mulberry32(seed || 1);
-  const data = Array.from({ length: 9 }, (_, index) => {
-    const base = N_CATEGORIES[index % N_CATEGORIES.length]!;
-    const dayOffset = index < 3 ? 0 : index < 5 ? 1 : 2 + (index - 5);
-    return {
-      id: index + 1,
-      category: base.category,
-      actor: base.actor,
-      action: base.action,
-      target: base.target,
-      ts: new Date(DEMO_EPOCH - dayOffset * MS_DAY - Math.floor(random() * 6) * 3_600_000).toISOString(),
-      read: random() > 0.6,
-      mention: (base as { mention?: boolean }).mention === true,
-      ...(('actions' in base && base.actions !== undefined) ? { actions: [...base.actions] as NotificationAction[] } : {}),
-    };
-  });
-  return { data };
-}

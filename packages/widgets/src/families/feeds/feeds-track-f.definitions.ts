@@ -1,21 +1,30 @@
 import { lazy } from 'react';
 
-import { activityFeedConfigSchema, activityFeedDemoData } from './ActivityFeed.js';
-import { notificationFeedConfigSchema, notificationFeedDemoData } from './NotificationFeed.js';
-import { realtimeFeedConfigSchema, realtimeFeedDemoData } from './RealtimeFeed.js';
-import { timelineVerticalConfigSchema, timelineVerticalDemoData } from './TimelineVertical.js';
-import { unreadBadgeConfigSchema, unreadBadgeDemoData } from './UnreadBadge.js';
+import {
+  activityFeedConfigSchema,
+  activityFeedDemoData,
+  notificationFeedConfigSchema,
+  notificationFeedDemoData,
+  realtimeFeedConfigSchema,
+  realtimeFeedDemoData,
+  timelineVerticalConfigSchema,
+  timelineVerticalDemoData,
+  unreadBadgeConfigSchema,
+  unreadBadgeDemoData,
+} from './feeds-config.js';
 import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 /**
  * Track F contribution to the `feeds` family (annex §4). Metadata only — the
- * @adminium/ui-heavy widget components load through the `feeds-track-f-components`
- * barrel via `lazy(() => import(...))`, so the family stays in one lazy chunk
- * and the registry metadata never eagerly pulls the component code (04 §2.3;
- * the kpi/charts convention). The GREEN LOOP spreads `feedsTrackFDefinitions`
- * into `families/feeds/definitions.ts` (and wires that into the registry map).
- * Widget ids match the annex catalog exactly (acceptance #1).
+ * config schemas and demo generators come from the pure `feeds-config` module,
+ * and the @adminium/ui-heavy widget components load through the
+ * `feeds-track-f-components` barrel via `lazy(() => import(...))`, so the family
+ * stays in one lazy chunk and the registry metadata never eagerly pulls the
+ * component code (04 §2.3; the boards/domain/media convention). The GREEN LOOP
+ * spreads `feedsTrackFDefinitions` into `families/feeds/definitions.ts` (and
+ * wires that into the registry map). Widget ids match the annex catalog exactly
+ * (acceptance #1).
  */
 
 export const activityFeedDefinition: WidgetDefinition = defineWidget({

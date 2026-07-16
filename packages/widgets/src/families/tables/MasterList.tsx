@@ -1,11 +1,10 @@
 import { Avatar, ProgressBar, StatusPill, Switch } from '@adminium/ui';
 import { useState } from 'react';
-import { z } from 'zod';
 
 import { formatRelativeTime } from './column-spec.js';
 import type { GridRow } from './column-spec.js';
+import type { MasterListConfig } from './tables-track-f-config.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `master-list` (annex §3) — selectable rich list rows driving a detail pane:
@@ -15,21 +14,12 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * mutation intent. Binds to a `record-list` + selection state.
  */
 
-export const masterListConfigSchema = widgetSharedConfigSchema.extend({
-  titleField: z.string().default('name'),
-  subtitleField: z.string().optional(),
-  statusField: z.string().optional(),
-  toggleField: z.string().optional(),
-  progressField: z.string().optional(),
-  ownerField: z.string().optional(),
-  updatedField: z.string().optional(),
-  /** Column whose distinct values seed the filter chip bar. */
-  filterField: z.string().optional(),
-  selectable: z.boolean().default(true),
-  allLabel: z.string().optional(),
-  emptyTitle: z.string().optional(),
-});
-export type MasterListConfig = z.infer<typeof masterListConfigSchema>;
+// Config schema + deterministic demo payload live in the pure
+// `tables-track-f-config` module so the registry metadata graph never reaches
+// this component file (04 §2.3). Re-exported here to keep existing import
+// points stable.
+export { masterListConfigSchema, masterListDemoData } from './tables-track-f-config.js';
+export type { MasterListConfig } from './tables-track-f-config.js';
 
 export interface MasterListProps {
   rows: readonly GridRow[];
@@ -209,43 +199,4 @@ export function MasterListWidget({ config, data, onEvent }: WidgetProps<MasterLi
       }}
     />
   );
-}
-
-const RULES = [
-  { name: 'Auto-assign new tickets', status: 'active', category: 'Support' },
-  { name: 'Escalate SLA breach', status: 'active', category: 'Support' },
-  { name: 'Weekly usage digest', status: 'paused', category: 'Reports' },
-  { name: 'Churn risk alert', status: 'active', category: 'Growth' },
-  { name: 'Failed payment retry', status: 'active', category: 'Billing' },
-  { name: 'Onboarding nudge', status: 'draft', category: 'Growth' },
-  { name: 'Backup export nightly', status: 'paused', category: 'Reports' },
-] as const;
-const OWNERS = ['Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Katherine Johnson'] as const;
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Deterministic `record-list` of automation rules (04 §7.7). */
-export function masterListDemoData(seed: number): { data: GridRow[] } {
-  const random = mulberry32(seed || 1);
-  const base = Date.UTC(2026, 6, 14, 9, 0, 0);
-  const data: GridRow[] = RULES.map((rule, index) => ({
-    id: index + 1,
-    name: rule.name,
-    status: rule.status,
-    category: rule.category,
-    enabled: rule.status === 'active',
-    progress: Math.floor(random() * 100),
-    owner_name: OWNERS[Math.floor(random() * OWNERS.length) % OWNERS.length],
-    updated_at: new Date(base - Math.floor(random() * 96) * 3_600_000).toISOString(),
-  }));
-  return { data };
 }

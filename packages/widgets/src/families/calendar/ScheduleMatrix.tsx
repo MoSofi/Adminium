@@ -2,20 +2,16 @@ import { getFormatters } from '@adminium/i18n';
 import { Avatar, EmptyState, MonoText } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { useMemo } from 'react';
-import { z } from 'zod';
 
 import {
-  ANCHOR_YEAR,
-  PERSONA_NAMES,
   TONE_SOFT_BORDER,
   TONE_SOLID_BG,
   fmtColumnDay,
-  mulberry32,
   parseIsoDay,
   resolveLocale,
   toneOf,
-  weekDays,
 } from './calendar-lib.js';
+import type { ScheduleMatrixConfig } from './calendar-config.js';
 import type {
   ScheduleAssignment,
   ScheduleMatrixData,
@@ -23,7 +19,12 @@ import type {
   ScheduleShiftType,
 } from './calendar-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+
+// Config schema + deterministic demo payload live in the pure `calendar-config`
+// module so the registry metadata graph never reaches this component file
+// (04 §2.3). Re-exported here to keep existing import points stable.
+export { scheduleMatrixConfigSchema, scheduleMatrixDemoData } from './calendar-config.js';
+export type { ScheduleMatrixConfig } from './calendar-config.js';
 
 /**
  * `schedule-matrix` (annex §5) — the resource-scheduling grid: rows = people
@@ -33,20 +34,6 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * logical CSS grid that mirrors under `dir="rtl"`. Binds to a `record-list` of
  * resources plus an assignments matrix + shift-type metadata.
  */
-
-export const scheduleMatrixConfigSchema = widgetSharedConfigSchema.extend({
-  /** Force the first weekday (ISO 1 = Mon … 7 = Sun); else locale-derived. */
-  weekStart: z.number().int().min(1).max(7).optional(),
-  /** Max shift chips before a day cell collapses to "+N". */
-  maxPerCell: z.number().int().min(1).max(3).default(2),
-  /** Target coverage per day used for the coverage micro-bars. */
-  targetCoverage: z.number().int().min(1).max(20).optional(),
-  showCoverage: z.boolean().default(true),
-  showLegend: z.boolean().default(true),
-  emptyTitle: z.string().optional(),
-  emptyBody: z.string().optional(),
-});
-export type ScheduleMatrixConfig = z.infer<typeof scheduleMatrixConfigSchema>;
 
 /**
  * Reorder a week's day columns so the first column is the given ISO weekday
@@ -274,34 +261,3 @@ export function ScheduleMatrixWidget({ config, data }: WidgetProps<ScheduleMatri
   );
 }
 
-const SHIFT_TYPES: ScheduleShiftType[] = [
-  { id: 'morning', label: 'Morning', start: '06:00', end: '14:00', hours: 8, tone: 'accent' },
-  { id: 'day', label: 'Day', start: '09:00', end: '17:00', hours: 8, tone: 'info' },
-  { id: 'evening', label: 'Evening', start: '14:00', end: '22:00', hours: 8, tone: 'pos' },
-  { id: 'night', label: 'Night', start: '22:00', end: '06:00', hours: 8, tone: 'warn' },
-];
-
-/** Deterministic resource-schedule `record-list` payload for the demo week (04 §7.7). */
-export function scheduleMatrixDemoData(seed: number): ScheduleMatrixData {
-  const random = mulberry32(seed || 1);
-  const resources: ScheduleResource[] = PERSONA_NAMES.slice(0, 6).map((name, i) => ({
-    id: `r-${i + 1}`,
-    name,
-    role: (['Barista', 'Shift lead', 'Server', 'Cook', 'Host', 'Cashier'] as const)[i] ?? 'Staff',
-  }));
-  const week = weekDays(`${ANCHOR_YEAR}-07-13`, 0); // anchor week starting Sunday
-  const days = week.map((d) => d.key);
-  const assignments: ScheduleAssignment[] = [];
-  for (const resource of resources) {
-    for (const day of days) {
-      // ~65% chance of a shift; occasionally two on a day.
-      if (random() < 0.65) {
-        assignments.push({ resourceId: resource.id, date: day, typeId: (SHIFT_TYPES[Math.floor(random() * SHIFT_TYPES.length)] as ScheduleShiftType).id });
-        if (random() < 0.15) {
-          assignments.push({ resourceId: resource.id, date: day, typeId: (SHIFT_TYPES[Math.floor(random() * SHIFT_TYPES.length)] as ScheduleShiftType).id });
-        }
-      }
-    }
-  }
-  return { rows: resources, total: resources.length, days, shiftTypes: SHIFT_TYPES, assignments };
-}

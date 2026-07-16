@@ -1,11 +1,11 @@
 import { Badge, EmptyState, IconTile, MonoText, Tag } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
-import { z } from 'zod';
 
 import { feedIcon } from './feed-icons.js';
-import { DEMO_EPOCH, RelativeTime, feedRowsOf, mulberry32, pickFrom, toneOf } from './feed-lib.js';
+import { DEMO_EPOCH, RelativeTime, feedRowsOf, toneOf } from './feed-lib.js';
+import type { TimelineVerticalConfig } from './feeds-config.js';
+import type { TimelineEntry } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `timeline-vertical` (annex §4) — an icon-node vertical timeline with
@@ -15,28 +15,13 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * to an ordered `record-list`.
  */
 
-const timelineVariant = z.enum(['activity', 'changelog', 'incidents', 'trace']);
-
-export const timelineVerticalConfigSchema = widgetSharedConfigSchema.extend({
-  variant: timelineVariant.default('activity'),
-  connectorStyle: z.enum(['solid', 'dashed']).default('solid'),
-  tagToneMap: z.record(z.string(), z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info'])).optional(),
-});
-export type TimelineVerticalConfig = z.infer<typeof timelineVerticalConfigSchema>;
-
-export interface TimelineEntry {
-  id: string | number;
-  title: string;
-  ts: string;
-  body?: string | undefined;
-  tone?: string | undefined;
-  icon?: string | undefined;
-  tags?: string[] | undefined;
-  log?: string | undefined;
-  version?: string | undefined;
-  /** incidents variant: severity drives the halo ring color. */
-  severity?: string | undefined;
-}
+// Config schema + deterministic demo payload live in the pure `feeds-config`
+// module, and the entry shape in `feeds-types`, so the registry metadata graph
+// never reaches this component file (04 §2.3). Re-exported here to keep
+// existing import points stable.
+export { timelineVerticalConfigSchema, timelineVerticalDemoData } from './feeds-config.js';
+export type { TimelineVerticalConfig } from './feeds-config.js';
+export type { TimelineEntry } from './feeds-types.js';
 
 const SEVERITY_TONE: Record<string, Tone> = { sev1: 'danger', sev2: 'warn', sev3: 'info', critical: 'danger', major: 'warn', minor: 'info' };
 
@@ -175,24 +160,3 @@ export function TimelineVerticalWidget({ config, data }: WidgetProps<TimelineVer
   );
 }
 
-const DEMO_BY_VARIANT: Record<TimelineVerticalConfig['variant'], (i: number) => Partial<TimelineEntry>> = {
-  activity: (i) => ({ icon: pickFrom(mulberry32(i + 1), ['created', 'updated', 'commented', 'approved'] as const), title: ['Record created', 'Field updated', 'Comment added', 'Status approved'][i % 4] ?? 'Event', tone: ['pos', 'accent', 'info', 'pos'][i % 4] }),
-  changelog: (i) => ({ version: `v2.${String(4 - i)}.0`, title: ['Realtime feeds', 'Schema tree explorer', 'Toggle matrix', 'Card gallery'][i % 4] ?? 'Release', tone: 'info', tags: [['feature'], ['feature', 'a11y'], ['fix'], ['feature']][i % 4], body: 'Shipped to all workspaces.' }),
-  incidents: (i) => ({ severity: (['sev1', 'sev2', 'sev3'] as const)[i % 3], title: ['API latency spike', 'Elevated error rate', 'Degraded webhooks'][i % 3] ?? 'Incident', body: 'Postmortem: root cause identified and mitigated.' }),
-  trace: (i) => ({ tone: (['pos', 'pos', 'warn', 'danger'] as const)[i % 4], title: ['validate', 'transform', 'load', 'notify'][i % 4] ?? 'step', log: `step ${String(i)} · 128ms · ok` }),
-};
-
-/** Deterministic ordered `record-list` for the given variant. */
-export function timelineVerticalDemoData(seed: number, variant: TimelineVerticalConfig['variant'] = 'activity'): { data: TimelineEntry[] } {
-  const random = mulberry32(seed || 1);
-  const data = Array.from({ length: 5 }, (_, index) => {
-    const partial = DEMO_BY_VARIANT[variant](index);
-    return {
-      id: index + 1,
-      title: partial.title ?? 'Event',
-      ts: new Date(DEMO_EPOCH - index * 5 * 3_600_000 - Math.floor(random() * 3600) * 1000).toISOString(),
-      ...partial,
-    } as TimelineEntry;
-  });
-  return { data };
-}

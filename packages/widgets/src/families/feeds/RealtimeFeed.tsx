@@ -1,20 +1,12 @@
 import { EmptyState, IconTile } from '@adminium/ui';
 import { Pause, Play, Radio } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { z } from 'zod';
 
 import { feedIcon } from './feed-icons.js';
-import {
-  DEMO_EPOCH,
-  FeedSentence,
-  RelativeTime,
-  feedRowsOf,
-  mulberry32,
-  pickFrom,
-  toneOf,
-} from './feed-lib.js';
+import { DEMO_EPOCH, FeedSentence, RelativeTime, feedRowsOf, toneOf } from './feed-lib.js';
+import type { RealtimeFeedConfig } from './feeds-config.js';
+import type { StreamEvent } from './feeds-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `realtime-feed` (annex §4) — an interval-driven live stream that prepends
@@ -25,33 +17,13 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * Track G wires the live transport by re-feeding `data.snapshot`.
  */
 
-export const realtimeFeedConfigSchema = widgetSharedConfigSchema.extend({
-  maxRows: z.number().int().min(3).max(200).default(40),
-  pausable: z.boolean().default(true),
-  pulseCompanion: z.boolean().default(true),
-  labels: z
-    .object({
-      pause: z.string().optional(),
-      resume: z.string().optional(),
-      live: z.string().optional(),
-      paused: z.string().optional(),
-      buffered: z.string().optional(),
-      emptyTitle: z.string().optional(),
-      emptyBody: z.string().optional(),
-    })
-    .optional(),
-});
-export type RealtimeFeedConfig = z.infer<typeof realtimeFeedConfigSchema>;
-
-export interface StreamEvent {
-  id: string | number;
-  ts: string;
-  actor?: string | undefined;
-  action?: string | undefined;
-  target?: string | undefined;
-  category?: string | undefined;
-  tone?: string | undefined;
-}
+// Config schema + deterministic demo payload live in the pure `feeds-config`
+// module, and the event shape in `feeds-types`, so the registry metadata graph
+// never reaches this component file (04 §2.3). Re-exported here to keep
+// existing import points stable.
+export { realtimeFeedConfigSchema, realtimeFeedDemoData } from './feeds-config.js';
+export type { RealtimeFeedConfig } from './feeds-config.js';
+export type { StreamEvent } from './feeds-types.js';
 
 const idOf = (event: StreamEvent): string => String(event.id);
 
@@ -247,30 +219,3 @@ export function RealtimeFeedWidget({ config, data }: WidgetProps<RealtimeFeedCon
   );
 }
 
-const STREAM_EVENTS = [
-  { category: 'api', tone: 'info', action: 'GET', target: '/v1/orders' },
-  { category: 'webhook', tone: 'accent', action: 'delivered', target: 'order.paid' },
-  { category: 'auth', tone: 'pos', action: 'signed in', target: 'session/9f2' },
-  { category: 'error', tone: 'danger', action: 'failed job', target: 'export#331' },
-  { category: 'sync', tone: 'info', action: 'synced', target: 'customers' },
-  { category: 'payment', tone: 'pos', action: 'charged', target: '$149.00' },
-] as const;
-const STREAM_ACTORS = ['edge-1', 'worker-3', 'api-gw', 'cron', 'jordan@globex.com'] as const;
-
-/** Deterministic `stream` snapshot (04 §7.7). */
-export function realtimeFeedDemoData(seed: number): { snapshot: StreamEvent[]; cursor: string } {
-  const random = mulberry32(seed || 1);
-  const snapshot = Array.from({ length: 24 }, (_, index) => {
-    const event = pickFrom(random, STREAM_EVENTS);
-    return {
-      id: `evt_${String(seed)}_${String(index)}`,
-      ts: new Date(DEMO_EPOCH - index * 2_500 - Math.floor(random() * 900)).toISOString(),
-      actor: pickFrom(random, STREAM_ACTORS),
-      action: event.action,
-      target: event.target,
-      category: event.category,
-      tone: event.tone,
-    };
-  });
-  return { snapshot, cursor: `c_${String(seed)}` };
-}

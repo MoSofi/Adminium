@@ -1,13 +1,16 @@
-import { z } from 'zod';
-
 import { BulkActionToolbar } from './BulkActionToolbar.js';
 import { DataGrid } from './DataGrid.js';
 import { DetailKeyValue } from './DetailKeyValue.js';
 import { MiniTable } from './MiniTable.js';
 import { PaginationFooter } from './PaginationFooter.js';
-import { gridColumnSpecSchema } from './column-spec.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+import type {
+  BulkActionToolbarConfig,
+  DataGridConfig,
+  DetailKeyValueConfig,
+  MiniTableConfig,
+  PaginationFooterConfig,
+} from './tables-config.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 /**
@@ -18,50 +21,23 @@ import type { WidgetProps } from '../../registry/types.js';
  * (04 §2.3); `definitions.ts` lazy-imports it per widget.
  */
 
-// --- config schemas (exported for definitions.ts) ---------------------------
-
-export const dataGridConfigSchema = widgetSharedConfigSchema.extend({
-  columns: z.array(gridColumnSpecSchema).default([]),
-  sortable: z.boolean().default(true),
-  selectable: z.boolean().default(false),
-  density: z.enum(['comfortable', 'compact']).default('comfortable'),
-  rowAction: z.enum(['detail', 'link', 'none']).default('detail'),
-  pageSize: z.number().int().min(1).max(200).default(50),
-});
-export type DataGridConfig = z.infer<typeof dataGridConfigSchema>;
-
-export const paginationFooterConfigSchema = widgetSharedConfigSchema.extend({
-  pageSize: z.number().int().min(1).max(200).default(50),
-  style: z.enum(['numbered', 'cursor']).default('cursor'),
-});
-export type PaginationFooterConfig = z.infer<typeof paginationFooterConfigSchema>;
-
-export const bulkActionToolbarConfigSchema = widgetSharedConfigSchema.extend({
-  actions: z
-    .array(
-      z.object({
-        key: z.string().min(1),
-        label: z.string().min(1),
-        danger: z.boolean().optional(),
-        permission: z.string().optional(),
-      }),
-    )
-    .default([]),
-});
-export type BulkActionToolbarConfig = z.infer<typeof bulkActionToolbarConfigSchema>;
-
-export const detailKeyValueConfigSchema = widgetSharedConfigSchema.extend({
-  columns: z.array(gridColumnSpecSchema).default([]),
-  showTypeTags: z.boolean().default(false),
-});
-export type DetailKeyValueConfig = z.infer<typeof detailKeyValueConfigSchema>;
-
-export const miniTableConfigSchema = widgetSharedConfigSchema.extend({
-  columns: z.array(gridColumnSpecSchema).default([]),
-  limit: z.number().int().min(1).max(6).default(5),
-  viewAllHref: z.string().optional(),
-});
-export type MiniTableConfig = z.infer<typeof miniTableConfigSchema>;
+// Config schemas live in the pure `tables-config` module so the registry
+// metadata graph never reaches this component file (04 §2.3). Re-exported here
+// to keep existing import points stable.
+export {
+  bulkActionToolbarConfigSchema,
+  dataGridConfigSchema,
+  detailKeyValueConfigSchema,
+  miniTableConfigSchema,
+  paginationFooterConfigSchema,
+} from './tables-config.js';
+export type {
+  BulkActionToolbarConfig,
+  DataGridConfig,
+  DetailKeyValueConfig,
+  MiniTableConfig,
+  PaginationFooterConfig,
+} from './tables-config.js';
 
 // --- data narrowing ---------------------------------------------------------
 

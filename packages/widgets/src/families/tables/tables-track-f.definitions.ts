@@ -1,11 +1,19 @@
 import { lazy } from 'react';
 
-import { cardGalleryConfigSchema, cardGalleryDemoData } from './CardGallery.js';
-import { groupedSummaryTableConfigSchema, groupedSummaryTableDemoData } from './GroupedSummaryTable.js';
-import { logTableConfigSchema, logTableDemoData } from './LogTable.js';
-import { masterListConfigSchema, masterListDemoData } from './MasterList.js';
-import { schemaTreeConfigSchema, schemaTreeDemoData } from './SchemaTree.js';
-import { toggleMatrixConfigSchema, toggleMatrixDemoData } from './ToggleMatrixWidget.js';
+import {
+  cardGalleryConfigSchema,
+  cardGalleryDemoData,
+  groupedSummaryTableConfigSchema,
+  groupedSummaryTableDemoData,
+  logTableConfigSchema,
+  logTableDemoData,
+  masterListConfigSchema,
+  masterListDemoData,
+  schemaTreeConfigSchema,
+  schemaTreeDemoData,
+  toggleMatrixConfigSchema,
+  toggleMatrixDemoData,
+} from './tables-track-f-config.js';
 import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 

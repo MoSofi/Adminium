@@ -3,10 +3,9 @@ import { EmptyState, Tag } from '@adminium/ui';
 import { ChevronRight, Columns3, Database, Eye, Table2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { z } from 'zod';
-
+import type { SchemaTreeConfig } from './tables-track-f-config.js';
+import type { SchemaNode, SchemaNodeKind } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `schema-tree` (annex §3) — an introspected hierarchy explorer:
@@ -14,27 +13,14 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * pg types. Binds to the `hierarchy/tree` shape from introspection metadata.
  */
 
-export const schemaTreeConfigSchema = widgetSharedConfigSchema.extend({
-  expandDepth: z.number().int().min(0).max(4).default(1),
-  showTypes: z.boolean().default(true),
-  emptyTitle: z.string().optional(),
-});
-export type SchemaTreeConfig = z.infer<typeof schemaTreeConfigSchema>;
-
-export type SchemaNodeKind = 'schema' | 'table' | 'view' | 'column';
-
-export interface SchemaNode {
-  id: string;
-  kind: SchemaNodeKind;
-  label: string;
-  children?: SchemaNode[] | undefined;
-  rowCount?: number | undefined;
-  pgType?: string | undefined;
-  pk?: boolean | undefined;
-  fk?: boolean | undefined;
-  unique?: boolean | undefined;
-  nullable?: boolean | undefined;
-}
+// Config schema + deterministic demo payload live in the pure
+// `tables-track-f-config` module, and the node shape in
+// `tables-track-f-types`, so the registry metadata graph never reaches this
+// component file (04 §2.3). Re-exported here to keep existing import points
+// stable.
+export { schemaTreeConfigSchema, schemaTreeDemoData } from './tables-track-f-config.js';
+export type { SchemaTreeConfig } from './tables-track-f-config.js';
+export type { SchemaNode, SchemaNodeKind } from './tables-track-f-types.js';
 
 const KIND_ICON: Record<SchemaNodeKind, ReactNode> = {
   schema: <Database className="size-3.5 text-fg-subtle" />,
@@ -170,51 +156,4 @@ export function SchemaTreeWidget({ config, data, onEvent }: WidgetProps<SchemaTr
       }}
     />
   );
-}
-
-const TABLES = [
-  { name: 'customers', rows: 8402, cols: [['id', 'int8', { pk: true }], ['email', 'varchar', { unique: true }], ['owner_id', 'int8', { fk: true }], ['created_at', 'timestamptz', {}]] },
-  { name: 'orders', rows: 51230, cols: [['id', 'int8', { pk: true }], ['customer_id', 'int8', { fk: true }], ['total', 'numeric', {}], ['status', 'text', {}]] },
-  { name: 'invoices', rows: 12904, cols: [['id', 'uuid', { pk: true }], ['order_id', 'int8', { fk: true }], ['amount', 'numeric', {}]] },
-] as const;
-const VIEWS = [{ name: 'active_customers', rows: 6120, cols: [['id', 'int8', {}], ['email', 'varchar', {}]] }] as const;
-
-/** Deterministic `hierarchy/tree` introspection payload — schema is fixed, so seed-independent (04 §7.7). */
-export function schemaTreeDemoData(seed: number): { roots: SchemaNode[] } {
-  void seed;
-  const tableNodes: SchemaNode[] = TABLES.map((table) => ({
-    id: `public.${table.name}`,
-    kind: 'table',
-    label: table.name,
-    rowCount: table.rows,
-    children: table.cols.map(([name, type, flags]) => ({
-      id: `public.${table.name}.${name as string}`,
-      kind: 'column',
-      label: name as string,
-      pgType: type as string,
-      ...(flags as { pk?: boolean; fk?: boolean; unique?: boolean }),
-    })),
-  }));
-  const viewNodes: SchemaNode[] = VIEWS.map((view) => ({
-    id: `public.${view.name}`,
-    kind: 'view',
-    label: view.name,
-    rowCount: view.rows,
-    children: view.cols.map(([name, type]) => ({
-      id: `public.${view.name}.${name as string}`,
-      kind: 'column',
-      label: name as string,
-      pgType: type as string,
-    })),
-  }));
-  return {
-    roots: [
-      {
-        id: 'public',
-        kind: 'schema',
-        label: 'public',
-        children: [...tableNodes, ...viewNodes],
-      },
-    ],
-  };
 }

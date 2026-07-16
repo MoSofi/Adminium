@@ -1,10 +1,10 @@
 import { Avatar, Button, EmptyState, IconTile, StatusPill } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { FileText, LayoutGrid } from 'lucide-react';
-import { z } from 'zod';
 
+import type { CardGalleryConfig, CardThumbnailMode } from './tables-track-f-config.js';
+import type { GalleryCard } from './tables-track-f-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `card-gallery` (annex §3) — a responsive card grid for entities: an
@@ -13,29 +13,14 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * Binds to a `record-list` + a card mapping.
  */
 
-const thumbnailMode = z.enum(['none', 'icon', 'monogram', 'doc-preview']);
-
-export const cardGalleryConfigSchema = widgetSharedConfigSchema.extend({
-  columns: z.number().int().min(2).max(4).default(3),
-  thumbnail: thumbnailMode.default('monogram'),
-  clickAction: z.enum(['open', 'link', 'none']).default('open'),
-  actions: z
-    .array(z.object({ key: z.string().min(1), label: z.string().min(1) }))
-    .default([]),
-  emptyTitle: z.string().optional(),
-  emptyBody: z.string().optional(),
-});
-export type CardGalleryConfig = z.infer<typeof cardGalleryConfigSchema>;
-
-export interface GalleryCard {
-  id: string | number;
-  title: string;
-  subtitle?: string | undefined;
-  meta?: string | undefined;
-  status?: string | undefined;
-  statusTone?: string | undefined;
-  tone?: string | undefined;
-}
+// Config schema + deterministic demo payload live in the pure
+// `tables-track-f-config` module, and the card shape in
+// `tables-track-f-types`, so the registry metadata graph never reaches this
+// component file (04 §2.3). Re-exported here to keep existing import points
+// stable.
+export { cardGalleryConfigSchema, cardGalleryDemoData } from './tables-track-f-config.js';
+export type { CardGalleryConfig } from './tables-track-f-config.js';
+export type { GalleryCard } from './tables-track-f-types.js';
 
 const COLUMN_CLASS: Record<number, string> = {
   2: 'grid-cols-1 sm:grid-cols-2',
@@ -46,7 +31,7 @@ const COLUMN_CLASS: Record<number, string> = {
 export interface CardGalleryProps {
   cards: readonly GalleryCard[];
   columns?: number | undefined;
-  thumbnail?: z.infer<typeof thumbnailMode>;
+  thumbnail?: CardThumbnailMode;
   actions?: { key: string; label: string }[] | undefined;
   clickable?: boolean | undefined;
   emptyTitle?: string | undefined;
@@ -56,7 +41,7 @@ export interface CardGalleryProps {
   testId?: string | undefined;
 }
 
-function Thumbnail({ card, mode }: { card: GalleryCard; mode: z.infer<typeof thumbnailMode> }) {
+function Thumbnail({ card, mode }: { card: GalleryCard; mode: CardThumbnailMode }) {
   const tone = (card.tone as Tone | undefined) ?? 'accent';
   if (mode === 'none') return null;
   if (mode === 'monogram') return <Avatar name={card.title} size="lg" shape="square" />;
@@ -204,40 +189,3 @@ export function CardGalleryWidget({ config, data, onEvent }: WidgetProps<CardGal
   );
 }
 
-const INTEGRATIONS = [
-  { name: 'Stripe', category: 'Payments', status: 'connected', tone: 'accent' },
-  { name: 'Slack', category: 'Messaging', status: 'connected', tone: 'info' },
-  { name: 'GitHub', category: 'Developer', status: 'available', tone: 'neutral' },
-  { name: 'Segment', category: 'Analytics', status: 'available', tone: 'warn' },
-  { name: 'Salesforce', category: 'CRM', status: 'connected', tone: 'info' },
-  { name: 'Zendesk', category: 'Support', status: 'available', tone: 'pos' },
-  { name: 'Snowflake', category: 'Data', status: 'error', tone: 'danger' },
-  { name: 'Notion', category: 'Docs', status: 'available', tone: 'neutral' },
-] as const;
-const STATUS_META: Record<string, string> = { connected: 'Synced 2h ago', available: 'Not connected', error: 'Action required' };
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Deterministic `record-list` of gallery cards (04 §7.7). */
-export function cardGalleryDemoData(seed: number): { data: GalleryCard[] } {
-  const random = mulberry32(seed || 1);
-  void random();
-  const data: GalleryCard[] = INTEGRATIONS.map((integration, index) => ({
-    id: index + 1,
-    title: integration.name,
-    subtitle: integration.category,
-    status: integration.status,
-    tone: integration.tone,
-    meta: STATUS_META[integration.status] ?? '',
-  }));
-  return { data };
-}

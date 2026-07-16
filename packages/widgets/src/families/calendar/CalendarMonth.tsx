@@ -1,7 +1,6 @@
 import { EmptyState, MonoText } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { z } from 'zod';
 
 import {
   ANCHOR_MONTH,
@@ -14,16 +13,20 @@ import {
   firstJsWeekday,
   isoDayKey,
   monthGrid,
-  mulberry32,
   parseIsoDay,
-  pickFrom,
   resolveLocale,
   toneOf,
   weekdayHeaders,
 } from './calendar-lib.js';
+import type { CalendarMonthConfig } from './calendar-config.js';
 import type { CalendarEvent } from './calendar-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+
+// Config schema + deterministic demo payload live in the pure `calendar-config`
+// module so the registry metadata graph never reaches this component file
+// (04 §2.3). Re-exported here to keep existing import points stable.
+export { calendarMonthConfigSchema, calendarMonthDemoData } from './calendar-config.js';
+export type { CalendarMonthConfig } from './calendar-config.js';
 
 /**
  * `calendar-month` (annex §5) — a 42-cell month grid: day numbers, up to N
@@ -33,24 +36,6 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * first weekday via the @adminium/i18n `weekInfo` layer. Binds to the
  * `calendar-events` shape.
  */
-
-const toneEnum = z.enum(['neutral', 'accent', 'pos', 'warn', 'danger', 'info']);
-
-export const calendarMonthConfigSchema = widgetSharedConfigSchema.extend({
-  /** Displayed year; inferred from the events (or the demo anchor) when unset. */
-  year: z.number().int().min(1970).max(3000).optional(),
-  /** Displayed month, 0-based (0 = January). */
-  month: z.number().int().min(0).max(11).optional(),
-  /** Force the first weekday (ISO 1 = Mon … 7 = Sun); else locale-derived. */
-  firstDayOfWeek: z.number().int().min(1).max(7).optional(),
-  /** Max event chips before the day cell collapses to "+N more". */
-  maxChipsPerDay: z.number().int().min(1).max(4).default(2),
-  /** Category name → tone override map. */
-  categoryColorMap: z.record(z.string(), toneEnum).optional(),
-  emptyTitle: z.string().optional(),
-  emptyBody: z.string().optional(),
-});
-export type CalendarMonthConfig = z.infer<typeof calendarMonthConfigSchema>;
 
 export interface CalendarMonthProps {
   events: readonly CalendarEvent[];
@@ -306,34 +291,3 @@ export function CalendarMonthWidget({ config, data }: WidgetProps<CalendarMonthC
   );
 }
 
-const EVENT_POOL = [
-  { title: 'Sprint planning', category: 'meeting', time: '09:00' },
-  { title: 'Design review', category: 'meeting', time: '11:30' },
-  { title: 'Release v2.4', category: 'release', time: '15:00' },
-  { title: 'Contract deadline', category: 'deadline', time: '17:00' },
-  { title: 'All-hands', category: 'meeting', time: '14:00' },
-  { title: 'Security audit', category: 'deadline' },
-  { title: 'Marketing launch', category: 'release', time: '10:00' },
-  { title: 'Team offsite', category: 'event' },
-  { title: '1:1 sync', category: 'meeting', time: '13:00' },
-  { title: 'Data migration', category: 'deadline', time: '22:00' },
-] as const;
-
-/** Deterministic `calendar-events` payload anchored to the demo month (04 §7.7). */
-export function calendarMonthDemoData(seed: number): { events: CalendarEvent[] } {
-  const random = mulberry32(seed || 1);
-  const events: CalendarEvent[] = [];
-  const count = 10 + Math.floor(random() * 8);
-  for (let i = 0; i < count; i += 1) {
-    const day = 1 + Math.floor(random() * 28);
-    const pick = pickFrom(random, EVENT_POOL);
-    events.push({
-      id: i + 1,
-      date: `${ANCHOR_YEAR}-07-${String(day).padStart(2, '0')}`,
-      title: pick.title,
-      category: pick.category,
-      ...(('time' in pick) ? { time: pick.time } : {}),
-    });
-  }
-  return { events };
-}

@@ -2,19 +2,22 @@ import { getFormatters } from '@adminium/i18n';
 import { Avatar, EmptyState, MonoText, StatusPill } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { useMemo } from 'react';
-import { z } from 'zod';
 
 import {
-  PERSONA_NAMES,
   TONE_SOLID_BG,
   categoryTone,
-  mulberry32,
   resolveLocale,
   toneOf,
 } from './calendar-lib.js';
+import type { CapacityBoardConfig } from './calendar-config.js';
 import type { CapacityAssignment, CapacityBoardData, CapacityMember } from './calendar-types.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+
+// Config schema + deterministic demo payload live in the pure `calendar-config`
+// module so the registry metadata graph never reaches this component file
+// (04 §2.3). Re-exported here to keep existing import points stable.
+export { capacityBoardConfigSchema, capacityBoardDemoData } from './calendar-config.js';
+export type { CapacityBoardConfig } from './calendar-config.js';
 
 /**
  * `capacity-board` (annex §5) — a per-member stacked utilization bar: the track
@@ -23,20 +26,6 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * Balanced 75–100 / Available < 75), scaled per week or month. Binds to a
  * `record-list` of members plus their project assignments.
  */
-
-export const capacityBoardConfigSchema = widgetSharedConfigSchema.extend({
-  /** Hours of capacity per period (the 100% mark). */
-  capacity: z.number().int().min(1).max(400).default(40),
-  period: z.enum(['week', 'month']).default('week'),
-  /** Below this util % a member is "Available". */
-  availableBelow: z.number().int().min(1).max(100).default(75),
-  /** Above this util % a member is "Overloaded". */
-  overloadedAbove: z.number().int().min(1).max(300).default(100),
-  showLegend: z.boolean().default(true),
-  emptyTitle: z.string().optional(),
-  emptyBody: z.string().optional(),
-});
-export type CapacityBoardConfig = z.infer<typeof capacityBoardConfigSchema>;
 
 export interface CapacityBoardProps {
   data: CapacityBoardData;
@@ -184,34 +173,3 @@ export function CapacityBoardWidget({ config, data }: WidgetProps<CapacityBoardC
   );
 }
 
-const PROJECTS = [
-  { name: 'Platform', tone: 'accent' },
-  { name: 'Mobile app', tone: 'info' },
-  { name: 'Data migration', tone: 'pos' },
-  { name: 'Infra', tone: 'warn' },
-  { name: 'Redesign', tone: 'danger' },
-] as const;
-
-/** Deterministic member-capacity `record-list` payload (04 §7.7). */
-export function capacityBoardDemoData(seed: number): CapacityBoardData {
-  const random = mulberry32(seed || 1);
-  const rows: CapacityMember[] = PERSONA_NAMES.slice(0, 6).map((name, i) => {
-    const projectCount = 1 + Math.floor(random() * 3);
-    const assignments: CapacityAssignment[] = [];
-    const used = new Set<number>();
-    for (let p = 0; p < projectCount; p += 1) {
-      let index = Math.floor(random() * PROJECTS.length);
-      for (let guard = 0; guard < PROJECTS.length && used.has(index); guard += 1) index = (index + 1) % PROJECTS.length;
-      used.add(index);
-      const project = PROJECTS[index] as (typeof PROJECTS)[number];
-      assignments.push({ project: project.name, hours: 6 + Math.floor(random() * 16), tone: project.tone });
-    }
-    return {
-      id: `m-${i + 1}`,
-      name,
-      role: (['Engineer', 'Designer', 'PM', 'Engineer', 'Analyst', 'Engineer'] as const)[i] ?? 'Contributor',
-      assignments,
-    };
-  });
-  return { rows, total: rows.length };
-}

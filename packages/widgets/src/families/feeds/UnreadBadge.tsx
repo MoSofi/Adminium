@@ -1,10 +1,8 @@
 import { getFormatters } from '@adminium/i18n';
 import { CountBadge } from '@adminium/ui';
-import { z } from 'zod';
 
-import { mulberry32 } from './feed-lib.js';
+import type { UnreadBadgeConfig } from './feeds-config.js';
 import type { WidgetProps } from '../../registry/types.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
 /**
  * `unread-badge` (annex §4) — a count pill on nav items / tabs / page titles,
@@ -12,17 +10,11 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
  * (`single-metric`). Overflows to "{max}+"; optionally hides at zero.
  */
 
-export const unreadBadgeConfigSchema = widgetSharedConfigSchema.extend({
-  /** Overflow cap — counts above render as "{max}+". */
-  max: z.number().int().min(1).max(9999).default(99),
-  /** Hide the pill entirely when the count is zero (nav-item behavior). */
-  hideZero: z.boolean().default(true),
-  /** Solid accent treatment (unread) vs neutral surface pill. */
-  active: z.boolean().default(true),
-  /** Accessible label suffix, e.g. "unread". */
-  unitLabel: z.string().optional(),
-});
-export type UnreadBadgeConfig = z.infer<typeof unreadBadgeConfigSchema>;
+// Config schema + deterministic demo payload live in the pure `feeds-config`
+// module so the registry metadata graph never reaches this component file
+// (04 §2.3). Re-exported here to keep existing import points stable.
+export { unreadBadgeConfigSchema, unreadBadgeDemoData } from './feeds-config.js';
+export type { UnreadBadgeConfig } from './feeds-config.js';
 
 /** Format a count with locale digits + overflow cap. */
 export function formatCount(value: number, max: number, locale?: string): string {
@@ -86,10 +78,4 @@ export function UnreadBadgeWidget({ config, data }: WidgetProps<UnreadBadgeConfi
       {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}
     />
   );
-}
-
-/** Deterministic non-zero count (04 §7.7). */
-export function unreadBadgeDemoData(seed: number): { value: number } {
-  const random = mulberry32(seed || 1);
-  return { value: Math.floor(random() * 40) + 1 };
 }

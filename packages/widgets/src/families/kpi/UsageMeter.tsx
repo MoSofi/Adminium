@@ -6,27 +6,17 @@
  */
 
 import { MonoText, ProgressBar } from '@adminium/ui';
-import { z } from 'zod';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asSingleMetric } from '../../lib/shapes.js';
-import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
+import type { UsageMeterConfig } from './kpi-config.js';
 import type { WidgetProps } from '../../registry/types.js';
 
-export const usageMeterConfigSchema = widgetSharedConfigSchema.extend({
-  /** The quota cap; the data payload carries only the used scalar. */
-  limit: z.number().positive().default(100),
-  /** Percent thresholds (annex §1 defaults). */
-  warnThreshold: z.number().min(0).max(100).default(80),
-  dangerThreshold: z.number().min(0).max(100).default(95),
-  unit: z.string().optional(),
-  ctaLabel: z.string().optional(),
-  ctaHref: z.string().optional(),
-  /** Sidebar mode: single line + slim bar. */
-  compact: z.boolean().default(false),
-});
-
-export type UsageMeterConfig = z.infer<typeof usageMeterConfigSchema>;
+// Config schema + deterministic demo payload live in the pure `kpi-config`
+// module so the registry metadata graph never reaches this component file
+// (04 §2.3). Re-exported here to keep existing import points stable.
+export { usageMeterConfigSchema, usageMeterDemoData } from './kpi-config.js';
+export type { UsageMeterConfig } from './kpi-config.js';
 
 export function UsageMeter({ config, data, onEvent }: WidgetProps<UsageMeterConfig>) {
   const metric = asSingleMetric(data);
