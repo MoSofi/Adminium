@@ -547,6 +547,96 @@
         "description": "En fremhævningsboks, der parrer en tekst med en stor værdi med fast bredde.",
         "emptyTitle": "Intet at fremhæve",
         "emptyBody": "Boksen vises, når blokken har en værdi at vise."
+      },
+      "starterTemplatePicker": {
+        "description": "Et gitter af foruddefinerede skabeloner med genererede miniaturer; vælger du en, oprettes et helt dokument.",
+        "emptyTitle": "Ingen skabeloner",
+        "emptyBody": "Definer skabeloner i konfigurationen, eller tilknyt en skabelontabel."
+      },
+      "sloMonitorCard": {
+        "description": "SLA-kort pr. tjeneste med status, tilgængelighed op mod målet, daglig oppetidsstribe, fejlbudget og p95-latenstid.",
+        "emptyTitle": "Ingen overvågning",
+        "emptyBody": "Tilknyt en overvågningstabel med en status- og en tilgængelighedskolonne."
+      },
+      "uptimeSegmentBar": {
+        "description": "Dagsstriber i statusside-stil, farvet efter daglig status, med skift mellem 30 og 90 dage.",
+        "emptyTitle": "Ingen oppetidshistorik",
+        "emptyBody": "Daglige statusrækker vises her som en oppetidsstribe."
+      },
+      "experimentVariantCompare": {
+        "description": "Konverteringsbjælker pr. variant med løft i forhold til kontrollen og en signifikansmåler.",
+        "emptyTitle": "Ingen varianter",
+        "emptyBody": "Tilknyt en tabel med eksperimentvarianter og konverteringstal."
+      },
+      "creditCardTile": {
+        "description": "En gemt betalingsmetode som et brandet kort med maskeret nummer, indehaver og udløb.",
+        "emptyTitle": "Ingen betalingsmetode",
+        "emptyBody": "Tilføj et kort for at se det her."
+      },
+      "planPricingCards": {
+        "description": "Prisniveauer med skift mellem månedlig og årlig, funktionslister og et fremhævet abonnement.",
+        "emptyTitle": "Ingen abonnementer",
+        "emptyBody": "Tilknyt en abonnementstabel med navn og månedlig pris."
+      },
+      "apiKeysPanel": {
+        "description": "API-nøgler med miljømærker, maskerede værdier, tilladelser, seneste brug samt handlinger til at kopiere, forny og tilbagekalde.",
+        "emptyTitle": "Ingen API-nøgler",
+        "emptyBody": "Opret en nøgle for at begynde at kalde API'et."
+      },
+      "apiPlayground": {
+        "description": "En anmodningsbygger med parametre og et svarpanel. Den sammensætter kun og sender aldrig en rigtig anmodning.",
+        "emptyTitle": "Intet endepunkt valgt",
+        "emptyBody": "Vælg et endepunkt for at sammensætte en anmodning mod det."
+      },
+      "codeSnippetBlock": {
+        "description": "Et kodeuddrag, der kan kopieres, med et sprogmærke og valgfrie faner pr. sprog.",
+        "emptyTitle": "Intet uddrag",
+        "emptyBody": "Tilknyt en kodekolonne, eller angiv et statisk uddrag i konfigurationen."
+      },
+      "webhookEndpointsList": {
+        "description": "Webhook-endepunkter med hændelse, mål-URL, seneste udløsning og en aktiveringskontakt.",
+        "emptyTitle": "Ingen endepunkter",
+        "emptyBody": "Tilføj et webhook-endepunkt for at modtage tabelhændelser."
+      },
+      "resourceApiCard": {
+        "description": "En tabels genererede API-flade: antal rækker, sikkerhedsmærke, metodemærker og anmodningsvolumen.",
+        "emptyTitle": "Ingen ressource",
+        "emptyBody": "Tilknyt en tabel for at vise dens genererede API-flade."
+      },
+      "liveTimer": {
+        "description": "Et stopur med start og stop til en opgave; når du stopper det, oprettes en tidsregistrering.",
+        "emptyTitle": "Intet stopur",
+        "emptyBody": "Tilknyt en tidsregistreringsrække med en opgave og en varighedskolonne."
+      },
+      "syncStatusCard": {
+        "description": "Forbindelsens identitet, latenstid, synkroniserede rækker og synkroniseringsplan med en handling til at synkronisere nu.",
+        "emptyTitle": "Ingen forbindelse",
+        "emptyBody": "Tilknyt en forbindelsesrække for at vise dens synkroniseringsstatus."
+      },
+      "ipAllowlistCard": {
+        "description": "Faste udgående IP-adresser, der skal tillades i en firewall, hver med en kopiknap.",
+        "emptyTitle": "Ingen udgående IP-adresser",
+        "emptyBody": "Udgående adresser vises her, når forbindelsen er klargjort."
+      },
+      "onboardingChecklist": {
+        "description": "Opsætningstrin med tidsestimater og handlinger over en løbende opdateret fremdriftsring og -bjælke.",
+        "emptyTitle": "Intet at sætte op",
+        "emptyBody": "Tilføj onboarding-trin i konfigurationen, eller tilknyt en trintabel."
+      },
+      "testimonialCard": {
+        "description": "Et kundecitat med avatar og kildeangivelse.",
+        "emptyTitle": "Ingen udtalelse",
+        "emptyBody": "Tilknyt en citatrække for at vise en kundeudtalelse."
+      },
+      "trustBadges": {
+        "description": "En række af compliance- og tillidsudsagn adskilt af prikker.",
+        "emptyTitle": "Ingen mærker",
+        "emptyBody": "Tilføj compliance-udsagn i konfigurationen, eller tilknyt en mærketabel."
+      },
+      "policyList": {
+        "description": "Sikkerhedspolitikker på rækkeniveau pr. tabel med kommando, rolle og en aktiveringskontakt.",
+        "emptyTitle": "Ingen politikker",
+        "emptyBody": "Denne tabel har endnu ingen sikkerhedspolitikker på rækkeniveau."
       }
     },
     "media": {

@@ -555,6 +555,96 @@ export default {
         "description": "Zvýrazněný rámeček spojující popisek s velkou hodnotou v neproporcionálním písmu.",
         "emptyTitle": "Není co zvýraznit",
         "emptyBody": "Rámeček se zobrazí, jakmile bude mít blok hodnotu."
+      },
+      "starterTemplatePicker": {
+        "description": "Mřížka předdefinovaných šablon s generovanými náhledy; výběr založí celý dokument.",
+        "emptyTitle": "Žádné šablony",
+        "emptyBody": "Definujte šablony v konfiguraci nebo připojte tabulku šablon."
+      },
+      "sloMonitorCard": {
+        "description": "Karta SLA pro každou službu se stavem, dostupností vůči cíli, denním pruhem dostupnosti, chybovým rozpočtem a latencí p95.",
+        "emptyTitle": "Žádný monitor",
+        "emptyBody": "Připojte tabulku monitorů se sloupcem stavu a dostupnosti."
+      },
+      "uptimeSegmentBar": {
+        "description": "Denní pruhy ve stylu stavové stránky, obarvené podle denního stavu, s přepínačem 30/90 dní.",
+        "emptyTitle": "Žádná historie dostupnosti",
+        "emptyBody": "Řádky s denním stavem se zde zobrazí jako pruh dostupnosti."
+      },
+      "experimentVariantCompare": {
+        "description": "Konverzní pruhy pro každou variantu s nárůstem oproti kontrolní skupině a ukazatelem významnosti.",
+        "emptyTitle": "Žádné varianty",
+        "emptyBody": "Připojte tabulku variant experimentu s konverzními čísly."
+      },
+      "creditCardTile": {
+        "description": "Uložený platební prostředek jako značková karta s maskovaným číslem, držitelem a platností.",
+        "emptyTitle": "Žádný platební prostředek",
+        "emptyBody": "Přidejte kartu, aby se zde zobrazila."
+      },
+      "planPricingCards": {
+        "description": "Cenové úrovně s přepínačem měsíčně/ročně, seznamy funkcí a zvýrazněným tarifem.",
+        "emptyTitle": "Žádné tarify",
+        "emptyBody": "Připojte tabulku tarifů s názvem a měsíční cenou."
+      },
+      "apiKeysPanel": {
+        "description": "Klíče API s odznaky prostředí, maskovanými hodnotami, oprávněními, posledním použitím a akcemi kopírovat, obnovit a zrušit.",
+        "emptyTitle": "Žádné klíče API",
+        "emptyBody": "Vytvořte klíč a začněte volat API."
+      },
+      "apiPlayground": {
+        "description": "Editor požadavků s parametry a panelem odpovědi. Požadavek pouze sestavuje a nikdy jej doopravdy neodesílá.",
+        "emptyTitle": "Nevybrán žádný endpoint",
+        "emptyBody": "Vyberte endpoint a sestavte proti němu požadavek."
+      },
+      "codeSnippetBlock": {
+        "description": "Kopírovatelná ukázka kódu s odznakem jazyka a volitelnými záložkami pro jednotlivé jazyky.",
+        "emptyTitle": "Žádná ukázka",
+        "emptyBody": "Připojte sloupec s kódem nebo nastavte statickou ukázku v konfiguraci."
+      },
+      "webhookEndpointsList": {
+        "description": "Webhookové endpointy s událostí, cílovou adresou URL, časem posledního spuštění a přepínačem aktivace.",
+        "emptyTitle": "Žádné endpointy",
+        "emptyBody": "Přidejte webhookový endpoint pro příjem událostí tabulky."
+      },
+      "resourceApiCard": {
+        "description": "Generované API rozhraní tabulky: počet řádků, bezpečnostní odznak, odznaky metod a objem požadavků.",
+        "emptyTitle": "Žádný zdroj",
+        "emptyBody": "Připojte tabulku a zobrazte její generované API rozhraní."
+      },
+      "liveTimer": {
+        "description": "Stopky se spuštěním a zastavením pro úkol; zastavení zaznamená časový záznam.",
+        "emptyTitle": "Žádné stopky",
+        "emptyBody": "Připojte řádek časového záznamu s úkolem a sloupcem trvání."
+      },
+      "syncStatusCard": {
+        "description": "Identita připojení, latence, synchronizované řádky a plán synchronizace s akcí okamžité synchronizace.",
+        "emptyTitle": "Žádné připojení",
+        "emptyBody": "Připojte řádek připojení a zobrazte jeho stav synchronizace."
+      },
+      "ipAllowlistCard": {
+        "description": "Pevné odchozí IP adresy k povolení na firewallu, každá s tlačítkem kopírování.",
+        "emptyTitle": "Žádné odchozí IP",
+        "emptyBody": "Odchozí adresy se zde zobrazí, jakmile bude připojení připraveno."
+      },
+      "onboardingChecklist": {
+        "description": "Kroky nastavení s odhadem času a akcemi nad průběžně přepočítávaným prstencem a pruhem postupu.",
+        "emptyTitle": "Není co nastavovat",
+        "emptyBody": "Přidejte kroky onboardingu do konfigurace nebo připojte tabulku kroků."
+      },
+      "testimonialCard": {
+        "description": "Citace zákazníka s avatarem a uvedením zdroje.",
+        "emptyTitle": "Žádná reference",
+        "emptyBody": "Připojte řádek s citací a zobrazte zákaznickou referenci."
+      },
+      "trustBadges": {
+        "description": "Řádek tvrzení o shodě a důvěryhodnosti oddělených tečkami.",
+        "emptyTitle": "Žádné odznaky",
+        "emptyBody": "Přidejte tvrzení o shodě do konfigurace nebo připojte tabulku odznaků."
+      },
+      "policyList": {
+        "description": "Zásady zabezpečení na úrovni řádků pro tabulku s příkazem, rolí a přepínačem aktivace.",
+        "emptyTitle": "Žádné zásady",
+        "emptyBody": "Tato tabulka zatím nemá žádné zásady zabezpečení na úrovni řádků."
       }
     },
     "media": {

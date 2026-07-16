@@ -547,6 +547,96 @@
         "description": "提示框，將標籤與等寬大型數值配對顯示。",
         "emptyTitle": "尚無重點內容",
         "emptyBody": "區塊有數值後，提示框將顯示於此。"
+      },
+      "starterTemplatePicker": {
+        "description": "預設範本格線，附有產生的縮圖；選取後即可建立完整文件。",
+        "emptyTitle": "尚無範本",
+        "emptyBody": "請在設定中定義範本，或繫結範本資料表。"
+      },
+      "sloMonitorCard": {
+        "description": "依服務顯示的 SLA 卡片，包含狀態、相對目標的可用率、每日運作狀態條、錯誤預算與 p95 延遲。",
+        "emptyTitle": "尚無監控",
+        "emptyBody": "請繫結含狀態欄與可用率欄的監控資料表。"
+      },
+      "uptimeSegmentBar": {
+        "description": "狀態頁風格的每日狀態條，依當日狀態上色，可於 30 天與 90 天之間切換。",
+        "emptyTitle": "尚無運作記錄",
+        "emptyBody": "每日狀態資料將在此顯示為運作狀態條。"
+      },
+      "experimentVariantCompare": {
+        "description": "依變體顯示的轉換條，含相對對照組的提升幅度與顯著性指示器。",
+        "emptyTitle": "尚無變體",
+        "emptyBody": "請繫結含轉換數據的實驗變體資料表。"
+      },
+      "creditCardTile": {
+        "description": "已儲存的付款方式，以品牌卡片形式顯示遮罩卡號、持卡人與有效期限。",
+        "emptyTitle": "尚無付款方式",
+        "emptyBody": "新增卡片後即可在此檢視。"
+      },
+      "planPricingCards": {
+        "description": "方案級距，含按月/按年切換、功能清單與重點推薦方案。",
+        "emptyTitle": "尚無方案",
+        "emptyBody": "請繫結含名稱與每月價格的方案資料表。"
+      },
+      "apiKeysPanel": {
+        "description": "API 金鑰清單，含環境標記、遮罩值、權限範圍、最近使用時間，以及複製、輪替與撤銷操作。",
+        "emptyTitle": "尚無 API 金鑰",
+        "emptyBody": "建立金鑰後即可開始呼叫 API。"
+      },
+      "apiPlayground": {
+        "description": "請求編輯器，含參數與回應面板。僅用於組合請求，絕不會真正送出。",
+        "emptyTitle": "未選取端點",
+        "emptyBody": "請選取端點以組合針對它的請求。"
+      },
+      "codeSnippetBlock": {
+        "description": "可複製的程式碼片段，含語言標記與選用的分語言頁籤。",
+        "emptyTitle": "尚無程式碼片段",
+        "emptyBody": "請繫結程式碼欄，或在設定中指定靜態程式碼片段。"
+      },
+      "webhookEndpointsList": {
+        "description": "Webhook 端點清單，含事件、目標網址、最近觸發時間與啟用開關。",
+        "emptyTitle": "尚無端點",
+        "emptyBody": "新增 Webhook 端點以接收資料表事件。"
+      },
+      "resourceApiCard": {
+        "description": "資料表產生的 API 介面：資料列數、安全標記、方法標籤與請求量。",
+        "emptyTitle": "尚無資源",
+        "emptyBody": "請繫結資料表以顯示其產生的 API 介面。"
+      },
+      "liveTimer": {
+        "description": "任務用的啟停碼錶；停止後會自動建立一筆工時記錄。",
+        "emptyTitle": "尚無計時器",
+        "emptyBody": "請繫結含任務與時長欄的工時記錄列。"
+      },
+      "syncStatusCard": {
+        "description": "連線識別、延遲、已同步資料列數與同步排程，並提供立即同步操作。",
+        "emptyTitle": "尚無連線",
+        "emptyBody": "請繫結連線資料列以顯示其同步狀態。"
+      },
+      "ipAllowlistCard": {
+        "description": "需在防火牆中放行的固定輸出 IP 位址，每項皆附複製按鈕。",
+        "emptyTitle": "尚無輸出 IP",
+        "emptyBody": "連線佈建完成後，輸出位址將在此顯示。"
+      },
+      "onboardingChecklist": {
+        "description": "設定步驟，含預估時間與操作按鈕，上方為即時重算的進度環與進度條。",
+        "emptyTitle": "尚無待辦事項",
+        "emptyBody": "請在設定中新增導覽步驟，或繫結步驟資料表。"
+      },
+      "testimonialCard": {
+        "description": "客戶推薦，含頭像與署名。",
+        "emptyTitle": "尚無客戶推薦",
+        "emptyBody": "請繫結引言資料列以顯示客戶推薦。"
+      },
+      "trustBadges": {
+        "description": "以圓點分隔的法遵與信任聲明列。",
+        "emptyTitle": "尚無徽章",
+        "emptyBody": "請在設定中新增法遵聲明，或繫結徽章資料表。"
+      },
+      "policyList": {
+        "description": "依資料表顯示的資料列層級安全性原則，含指令、角色與啟用開關。",
+        "emptyTitle": "尚無原則",
+        "emptyBody": "此資料表尚未設定資料列層級安全性原則。"
       }
     },
     "media": {

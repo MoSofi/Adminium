@@ -547,6 +547,96 @@
         "description": "A callout box pairing a label with a large mono value.",
         "emptyTitle": "Nothing to highlight",
         "emptyBody": "The callout appears once the block has a value to show."
+      },
+      "starterTemplatePicker": {
+        "description": "A grid of predefined starters with generated thumbnails; picking one seeds a full document.",
+        "emptyTitle": "No starters",
+        "emptyBody": "Add starter definitions in config or bind a starters table."
+      },
+      "sloMonitorCard": {
+        "description": "Per-service SLA card with status, availability against target, a daily uptime strip, error budget, and p95 latency.",
+        "emptyTitle": "No monitor",
+        "emptyBody": "Bind a monitors table with a status and an availability column."
+      },
+      "uptimeSegmentBar": {
+        "description": "Statuspage-style day strips coloured by daily status, with a 30/90-day toggle.",
+        "emptyTitle": "No uptime history",
+        "emptyBody": "Daily status rows appear here as an uptime strip."
+      },
+      "experimentVariantCompare": {
+        "description": "Per-variant conversion bars with lift against the control and a significance meter.",
+        "emptyTitle": "No variants",
+        "emptyBody": "Bind an experiment variants table with conversion numbers."
+      },
+      "creditCardTile": {
+        "description": "A stored payment method as a branded card with a masked number, holder, and expiry.",
+        "emptyTitle": "No payment method",
+        "emptyBody": "Add a card to see it here."
+      },
+      "planPricingCards": {
+        "description": "Pricing tiers with a monthly/annual switch, feature lists, and a promoted plan.",
+        "emptyTitle": "No plans",
+        "emptyBody": "Bind a plans table with a name and a monthly price."
+      },
+      "apiKeysPanel": {
+        "description": "API keys with environment badges, masked values, scopes, last use, and copy, roll, and revoke actions.",
+        "emptyTitle": "No API keys",
+        "emptyBody": "Create a key to start calling the API."
+      },
+      "apiPlayground": {
+        "description": "A request composer with parameters and a response pane. It composes only and never sends a real request.",
+        "emptyTitle": "No endpoint selected",
+        "emptyBody": "Pick an endpoint to compose a request against it."
+      },
+      "codeSnippetBlock": {
+        "description": "A copyable code snippet with a language chip and optional per-language tabs.",
+        "emptyTitle": "No snippet",
+        "emptyBody": "Bind a code column or set a static snippet in config."
+      },
+      "webhookEndpointsList": {
+        "description": "Webhook endpoints with their event, target URL, last fired time, and an enable toggle.",
+        "emptyTitle": "No endpoints",
+        "emptyBody": "Add a webhook endpoint to receive table events."
+      },
+      "resourceApiCard": {
+        "description": "A table's generated API surface: row count, security badge, method chips, and request volume.",
+        "emptyTitle": "No resource",
+        "emptyBody": "Bind a table to show its generated API surface."
+      },
+      "liveTimer": {
+        "description": "A start/stop stopwatch for a task; stopping it records a time entry.",
+        "emptyTitle": "No timer",
+        "emptyBody": "Bind a time-entry row with a task and a duration column."
+      },
+      "syncStatusCard": {
+        "description": "Connection identity, latency, rows synced, and the sync schedule, with a sync-now action.",
+        "emptyTitle": "No connection",
+        "emptyBody": "Bind a connection row to show its sync status."
+      },
+      "ipAllowlistCard": {
+        "description": "Static egress IP addresses to allow through a firewall, each with a copy button.",
+        "emptyTitle": "No egress IPs",
+        "emptyBody": "Egress addresses appear here once the connection is provisioned."
+      },
+      "onboardingChecklist": {
+        "description": "Setup steps with time estimates and actions, over a live progress ring and bar.",
+        "emptyTitle": "Nothing to set up",
+        "emptyBody": "Add onboarding steps in config or bind a steps table."
+      },
+      "testimonialCard": {
+        "description": "A customer quote with an avatar and attribution.",
+        "emptyTitle": "No testimonial",
+        "emptyBody": "Bind a quote row to show a customer testimonial."
+      },
+      "trustBadges": {
+        "description": "A dot-separated row of compliance and trust claims.",
+        "emptyTitle": "No badges",
+        "emptyBody": "Add compliance claims in config or bind a badges table."
+      },
+      "policyList": {
+        "description": "Row-level security policies per table with their command, role, and an enable toggle.",
+        "emptyTitle": "No policies",
+        "emptyBody": "This table has no row-level security policies yet."
       }
     },
     "media": {

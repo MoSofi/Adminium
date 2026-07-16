@@ -16,6 +16,7 @@ import { mediaTrackDefinitions } from '../families/media/media-track.definitions
 import { communicationTrackDefinitions } from '../families/communication/communication-track.definitions.js';
 import { domainTrackDefinitions } from '../families/domain/domain-track.definitions.js';
 import { blocksTrackDefinitions } from '../families/domain/blocks-track.definitions.js';
+import { domainOpsTrackDefinitions } from '../families/domain/domain-ops-track.definitions.js';
 import { systemTrackDefinitions } from '../families/system/system-track.definitions.js';
 import { chromeTrackDefinitions } from '../families/chrome/chrome-track.definitions.js';
 import { formsTrackDefinitions } from '../families/forms/forms-track.definitions.js';
@@ -90,6 +91,10 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   // domain (TRACK BUILDER — M7 Wave 4; annex §13's document half: document-canvas
   // plus its 22 block-* widgets, behind the blocks-track-components lazy barrel)
   ...blocksTrackDefinitions,
+  // domain (TRACK OPS — M7 Wave 4; annex §13's ops/billing/API/marketing tail —
+  // the eighteen ids that CLOSE the annex catalog at 176/176. Metadata only:
+  // the cards load through domain-ops-track-components behind a dynamic import.)
+  ...domainOpsTrackDefinitions,
   // system (Track FCS — M7 Wave 3; annex §12)
   ...systemTrackDefinitions,
   // chrome (Track FCS — M7 Wave 3; annex §11)

@@ -153,40 +153,20 @@ export const ANNEX_PENDING: Record<WidgetFamily, readonly string[]> = {
   chrome: [],
   // §12 fully delivered by Track FCS.
   system: [],
-  // Remaining §13 — Track DOMAIN delivered the two M7 exit-criteria widgets
-  // (org-chart, gantt-chart), and the M7 Wave-4 TRACK BUILDER delivered the
-  // DOCUMENT half: `document-canvas` plus its 22-block shared library
-  // (block-totals-summary … block-highlight-box), which is why they are no
-  // longer listed here. The ops/billing/API cards are the remaining tail.
+  // §13 fully delivered — and with it the ANNEX ITSELF, 176/176. Three tracks
+  // built this family: Track DOMAIN's two M7 exit-criteria widgets (org-chart,
+  // gantt-chart); TRACK BUILDER's DOCUMENT half (`document-canvas` plus its
+  // 22-block shared library, block-totals-summary … block-highlight-box); and
+  // TRACK OPS's ops/billing/API/marketing tail — the eighteen cards
+  // (starter-template-picker … policy-list) that were the last list standing in
+  // this record and are now registered through `domain-ops-track.definitions.ts`.
   //
-  // THE ONE NON-EMPTY LIST AT THE END OF M7 WAVE 4, and the justification for
-  // it: TRACK OPS did not finish. It landed its pure foundations —
-  // `domain-ops-lib.ts`, `domain-ops-types.ts`, and all 18 Zod schemas +
-  // seeded demo generators in `domain-ops-config.ts` — plus 7 of the 18
-  // components (SloMonitorCard, UptimeSegmentBar, ExperimentVariantCompare,
-  // CreditCardTile, PlanPricingCards, ApiKeysPanel, ApiPlayground) and their
-  // shared OpsEmpty. It did NOT land the remaining 11 components, the lazy
-  // `domain-ops-track-components` barrel, a `domain-ops.definitions.ts`, the
-  // i18n keys, or the index-barrel exports — so NONE of these 18 ids can
-  // register, and the 7 finished components are currently unreferenced by any
-  // barrel (dead code, not wired into a chunk).
-  //
-  // These stay listed rather than being force-registered: the parity gate is
-  // two-sided, so listing them here is what keeps `annex \ delivered` exact and
-  // makes the gate fail the moment TRACK OPS registers one without deleting its
-  // line. `starter-template-picker` is cross-referenced from
-  // `templates/crosscheck.ts`'s PENDING_TEMPLATE_WIDGET_IDS for the same
-  // reason — page-builder's `chrome.overlays` names it ahead of delivery.
-  //
-  // TRACK OPS: delete each id here as it registers; the family reaches [] and
-  // the annex closes at 176/176 when the last one lands.
-  domain: [
-    'starter-template-picker', 'slo-monitor-card', 'uptime-segment-bar',
-    'experiment-variant-compare', 'credit-card-tile', 'plan-pricing-cards', 'api-keys-panel',
-    'api-playground', 'code-snippet-block', 'webhook-endpoints-list', 'resource-api-card',
-    'live-timer', 'sync-status-card', 'ip-allowlist-card', 'onboarding-checklist',
-    'testimonial-card', 'trust-badges', 'policy-list',
-  ],
+  // EVERY LIST HERE IS NOW EMPTY. That is the terminal state this record was
+  // built to reach, not an accident: the parity gate is two-sided, so an empty
+  // ANNEX_PENDING means `EXPECTED_IDS` is exactly `ANNEX_CATALOG`, and
+  // registry-parity.test.ts now asserts the live registry equals the whole annex
+  // in both directions. Adding an id back here would mean UN-shipping a widget.
+  domain: [],
 };
 
 function expectedFor(family: WidgetFamily): readonly string[] {

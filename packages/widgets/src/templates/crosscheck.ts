@@ -64,15 +64,16 @@ export const PENDING_TEMPLATE_WIDGET_IDS: Readonly<Record<string, string>> = {
   // shrink-to-empty discipline above — `crosscheck.test.ts` fails on a stale
   // entry (`stale-pending-entry`), which is what forced this edit.
 
-  // §13, referenced by `page-builder`'s `chrome.overlays` (TRACK BUILDER, M7
-  // Wave 4). The modal starter picker is the one id in the §14 `page-builder`
-  // composition the document half does not deliver — TRACK OPS owns it, in the
-  // same wave. Declared here so the manifest can record the annex composition
-  // ahead of it: `composeTemplate` filters unregistered chrome ids before they
-  // reach the output, so until it registers the picker simply does not mount.
-  // TRACK OPS: delete this line when `starter-template-picker` registers —
-  // `crosscheck.test.ts` fails on the stale entry and will point you here.
-  'starter-template-picker': 'domain',
+  // NOTE: `starter-template-picker` (§13, referenced by `page-builder`'s
+  // `chrome.overlays`) was delivered by TRACK OPS in M7 Wave 4 and is now
+  // registered, so it was removed per the shrink-to-empty discipline above —
+  // `crosscheck.test.ts` fails on a stale entry (`stale-pending-entry`), which
+  // is what forced this edit. page-builder needed no change: the picker already
+  // sat in `chrome.overlays`, and registering the id is what mounts it.
+  //
+  // THIS LIST IS NOW EMPTY, which is the terminal state it was built to reach:
+  // every id every shipped manifest names is registered. An entry reappearing
+  // here means a manifest is naming a widget ahead of its family again.
 };
 
 export type CrossCheckCode =

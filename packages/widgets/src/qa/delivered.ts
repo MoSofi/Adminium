@@ -26,6 +26,7 @@ import { calendarTrackDefinitions } from '../families/calendar/calendar-track.de
 import { chromeTrackDefinitions } from '../families/chrome/chrome-track.definitions.js';
 import { communicationTrackDefinitions } from '../families/communication/communication-track.definitions.js';
 import { blocksTrackDefinitions } from '../families/domain/blocks-track.definitions.js';
+import { domainOpsTrackDefinitions } from '../families/domain/domain-ops-track.definitions.js';
 import { domainTrackDefinitions } from '../families/domain/domain-track.definitions.js';
 import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
 import { formsTrackDefinitions } from '../families/forms/forms-track.definitions.js';
@@ -78,6 +79,11 @@ const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
   // `blocks-track-components.js` behind a dynamic import, so importing this
   // array costs no component code — acceptance #3.)
   blocksTrackDefinitions,
+  // domain (TRACK OPS — M7 Wave 4; the §13 OPS/billing/API/marketing tail: the
+  // eighteen ids that close the annex catalog. Metadata only, same as above —
+  // the cards load through `domain-ops-track-components.js` behind a dynamic
+  // import, so importing this array costs no component code.)
+  domainOpsTrackDefinitions,
   // system (Track FCS — M7 Wave 3; annex §12)
   systemTrackDefinitions,
   // chrome (Track FCS — M7 Wave 3; annex §11)

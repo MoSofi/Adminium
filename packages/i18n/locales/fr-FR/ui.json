@@ -547,6 +547,96 @@
         "description": "Un encadré associant un libellé à une grande valeur en chasse fixe.",
         "emptyTitle": "Rien à mettre en avant",
         "emptyBody": "L'encadré apparaît dès que le bloc comporte une valeur."
+      },
+      "starterTemplatePicker": {
+        "description": "Une grille de modèles prédéfinis avec vignettes générées ; en choisir un initialise un document complet.",
+        "emptyTitle": "Aucun modèle",
+        "emptyBody": "Définissez des modèles dans la configuration ou liez une table de modèles."
+      },
+      "sloMonitorCard": {
+        "description": "Carte SLA par service avec statut, disponibilité par rapport à la cible, bande de disponibilité quotidienne, budget d'erreur et latence p95.",
+        "emptyTitle": "Aucun moniteur",
+        "emptyBody": "Liez une table de moniteurs avec une colonne de statut et de disponibilité."
+      },
+      "uptimeSegmentBar": {
+        "description": "Bandes journalières de type page de statut, colorées selon le statut du jour, avec bascule 30/90 jours.",
+        "emptyTitle": "Aucun historique de disponibilité",
+        "emptyBody": "Les lignes de statut quotidien apparaissent ici sous forme de bande."
+      },
+      "experimentVariantCompare": {
+        "description": "Barres de conversion par variante avec le gain face au témoin et un indicateur de significativité.",
+        "emptyTitle": "Aucune variante",
+        "emptyBody": "Liez une table de variantes d'expérience avec des chiffres de conversion."
+      },
+      "creditCardTile": {
+        "description": "Un moyen de paiement enregistré sous forme de carte de marque avec numéro masqué, titulaire et expiration.",
+        "emptyTitle": "Aucun moyen de paiement",
+        "emptyBody": "Ajoutez une carte pour la voir ici."
+      },
+      "planPricingCards": {
+        "description": "Paliers tarifaires avec bascule mensuel/annuel, listes de fonctionnalités et une offre mise en avant.",
+        "emptyTitle": "Aucune offre",
+        "emptyBody": "Liez une table d'offres avec un nom et un prix mensuel."
+      },
+      "apiKeysPanel": {
+        "description": "Clés d'API avec badges d'environnement, valeurs masquées, portées, dernière utilisation et actions de copie, de renouvellement et de révocation.",
+        "emptyTitle": "Aucune clé d'API",
+        "emptyBody": "Créez une clé pour commencer à appeler l'API."
+      },
+      "apiPlayground": {
+        "description": "Un compositeur de requête avec paramètres et volet de réponse. Il compose seulement et n'envoie jamais de vraie requête.",
+        "emptyTitle": "Aucun point de terminaison sélectionné",
+        "emptyBody": "Choisissez un point de terminaison pour composer une requête."
+      },
+      "codeSnippetBlock": {
+        "description": "Un extrait de code copiable avec une puce de langage et des onglets optionnels par langage.",
+        "emptyTitle": "Aucun extrait",
+        "emptyBody": "Liez une colonne de code ou définissez un extrait statique dans la configuration."
+      },
+      "webhookEndpointsList": {
+        "description": "Points de terminaison webhook avec leur événement, URL cible, dernier déclenchement et interrupteur d'activation.",
+        "emptyTitle": "Aucun point de terminaison",
+        "emptyBody": "Ajoutez un point de terminaison webhook pour recevoir les événements de table."
+      },
+      "resourceApiCard": {
+        "description": "La surface d'API générée d'une table : nombre de lignes, badge de sécurité, puces de méthode et volume de requêtes.",
+        "emptyTitle": "Aucune ressource",
+        "emptyBody": "Liez une table pour afficher sa surface d'API générée."
+      },
+      "liveTimer": {
+        "description": "Un chronomètre démarrer/arrêter pour une tâche ; l'arrêter enregistre une entrée de temps.",
+        "emptyTitle": "Aucun chronomètre",
+        "emptyBody": "Liez une ligne d'entrée de temps avec une tâche et une colonne de durée."
+      },
+      "syncStatusCard": {
+        "description": "Identité de la connexion, latence, lignes synchronisées et planning de synchronisation, avec une action de synchronisation immédiate.",
+        "emptyTitle": "Aucune connexion",
+        "emptyBody": "Liez une ligne de connexion pour afficher son état de synchronisation."
+      },
+      "ipAllowlistCard": {
+        "description": "Adresses IP de sortie fixes à autoriser dans un pare-feu, chacune avec un bouton de copie.",
+        "emptyTitle": "Aucune IP de sortie",
+        "emptyBody": "Les adresses de sortie apparaissent ici une fois la connexion provisionnée."
+      },
+      "onboardingChecklist": {
+        "description": "Étapes de configuration avec estimations de durée et actions, au-dessus d'un anneau et d'une barre de progression recalculés en direct.",
+        "emptyTitle": "Rien à configurer",
+        "emptyBody": "Ajoutez des étapes d'intégration dans la configuration ou liez une table d'étapes."
+      },
+      "testimonialCard": {
+        "description": "Une citation client avec avatar et attribution.",
+        "emptyTitle": "Aucun témoignage",
+        "emptyBody": "Liez une ligne de citation pour afficher un témoignage client."
+      },
+      "trustBadges": {
+        "description": "Une ligne d'affirmations de conformité et de confiance séparées par des points.",
+        "emptyTitle": "Aucun badge",
+        "emptyBody": "Ajoutez des affirmations de conformité dans la configuration ou liez une table de badges."
+      },
+      "policyList": {
+        "description": "Politiques de sécurité au niveau des lignes par table, avec leur commande, leur rôle et un interrupteur d'activation.",
+        "emptyTitle": "Aucune politique",
+        "emptyBody": "Cette table n'a pas encore de politiques de sécurité au niveau des lignes."
       }
     },
     "media": {

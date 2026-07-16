@@ -547,6 +547,96 @@
         "description": "提示框，将标签与等宽大号数值配对显示。",
         "emptyTitle": "暂无重点内容",
         "emptyBody": "区块有数值后，提示框将显示在此处。"
+      },
+      "starterTemplatePicker": {
+        "description": "预设模板网格，附带生成的缩略图；选中后即可创建完整文档。",
+        "emptyTitle": "暂无模板",
+        "emptyBody": "请在配置中定义模板，或绑定模板表。"
+      },
+      "sloMonitorCard": {
+        "description": "按服务显示的 SLA 卡片，包含状态、相对目标的可用率、每日在线状态条、错误预算和 p95 延迟。",
+        "emptyTitle": "暂无监控",
+        "emptyBody": "请绑定含状态列和可用率列的监控表。"
+      },
+      "uptimeSegmentBar": {
+        "description": "状态页风格的每日状态条，按当日状态着色，可在 30 天和 90 天之间切换。",
+        "emptyTitle": "暂无在线记录",
+        "emptyBody": "每日状态数据将在此显示为在线状态条。"
+      },
+      "experimentVariantCompare": {
+        "description": "按变体显示的转化条，含相对对照组的提升幅度和显著性指示器。",
+        "emptyTitle": "暂无变体",
+        "emptyBody": "请绑定含转化数据的实验变体表。"
+      },
+      "creditCardTile": {
+        "description": "已保存的支付方式，以品牌卡片形式显示掩码卡号、持卡人和有效期。",
+        "emptyTitle": "暂无支付方式",
+        "emptyBody": "添加银行卡后即可在此查看。"
+      },
+      "planPricingCards": {
+        "description": "套餐档位，含按月/按年切换、功能清单和重点推荐套餐。",
+        "emptyTitle": "暂无套餐",
+        "emptyBody": "请绑定含名称和月度价格的套餐表。"
+      },
+      "apiKeysPanel": {
+        "description": "API 密钥列表，含环境标记、掩码值、权限范围、最近使用时间，以及复制、轮换和吊销操作。",
+        "emptyTitle": "暂无 API 密钥",
+        "emptyBody": "创建密钥后即可开始调用 API。"
+      },
+      "apiPlayground": {
+        "description": "请求编辑器，含参数和响应面板。仅用于构造请求，绝不会真正发送。",
+        "emptyTitle": "未选择接口",
+        "emptyBody": "请选择一个接口以构造针对它的请求。"
+      },
+      "codeSnippetBlock": {
+        "description": "可复制的代码片段，含语言标记和可选的分语言标签页。",
+        "emptyTitle": "暂无代码片段",
+        "emptyBody": "请绑定代码列，或在配置中设置静态代码片段。"
+      },
+      "webhookEndpointsList": {
+        "description": "Webhook 接口列表，含事件、目标网址、最近触发时间和启用开关。",
+        "emptyTitle": "暂无接口",
+        "emptyBody": "添加 Webhook 接口以接收数据表事件。"
+      },
+      "resourceApiCard": {
+        "description": "数据表生成的 API 接口：行数、安全标记、方法标签和请求量。",
+        "emptyTitle": "暂无资源",
+        "emptyBody": "请绑定数据表以显示其生成的 API 接口。"
+      },
+      "liveTimer": {
+        "description": "任务用的启停秒表；停止后会自动记录一条工时。",
+        "emptyTitle": "暂无计时器",
+        "emptyBody": "请绑定含任务和时长列的工时记录行。"
+      },
+      "syncStatusCard": {
+        "description": "连接标识、延迟、已同步行数和同步计划，并提供立即同步操作。",
+        "emptyTitle": "暂无连接",
+        "emptyBody": "请绑定连接行以显示其同步状态。"
+      },
+      "ipAllowlistCard": {
+        "description": "需要在防火墙中放行的固定出口 IP 地址，每项均带复制按钮。",
+        "emptyTitle": "暂无出口 IP",
+        "emptyBody": "连接开通后，出口地址将在此显示。"
+      },
+      "onboardingChecklist": {
+        "description": "配置步骤，含预计用时和操作按钮，上方为实时重算的进度环和进度条。",
+        "emptyTitle": "暂无待办事项",
+        "emptyBody": "请在配置中添加引导步骤，或绑定步骤表。"
+      },
+      "testimonialCard": {
+        "description": "客户评价，含头像和署名。",
+        "emptyTitle": "暂无客户评价",
+        "emptyBody": "请绑定评价行以显示客户评价。"
+      },
+      "trustBadges": {
+        "description": "以圆点分隔的合规与信任声明行。",
+        "emptyTitle": "暂无徽章",
+        "emptyBody": "请在配置中添加合规声明，或绑定徽章表。"
+      },
+      "policyList": {
+        "description": "按数据表显示的行级安全策略，含命令、角色和启用开关。",
+        "emptyTitle": "暂无策略",
+        "emptyBody": "该数据表尚未设置行级安全策略。"
       }
     },
     "media": {

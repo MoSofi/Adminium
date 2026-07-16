@@ -547,6 +547,96 @@
         "description": "Ein Hinweisfeld, das eine Beschriftung mit einem großen Wert in Monospace verbindet.",
         "emptyTitle": "Nichts hervorzuheben",
         "emptyBody": "Das Hinweisfeld erscheint, sobald der Block einen Wert hat."
+      },
+      "starterTemplatePicker": {
+        "description": "Ein Raster vordefinierter Vorlagen mit generierten Miniaturansichten; die Auswahl erzeugt ein vollständiges Dokument.",
+        "emptyTitle": "Keine Vorlagen",
+        "emptyBody": "Definiere Vorlagen in der Konfiguration oder binde eine Vorlagentabelle ein."
+      },
+      "sloMonitorCard": {
+        "description": "SLA-Karte je Dienst mit Status, Verfügbarkeit gegenüber dem Ziel, täglichem Uptime-Streifen, Fehlerbudget und p95-Latenz.",
+        "emptyTitle": "Kein Monitor",
+        "emptyBody": "Binde eine Monitor-Tabelle mit einer Status- und einer Verfügbarkeitsspalte ein."
+      },
+      "uptimeSegmentBar": {
+        "description": "Tagesstreifen im Statuspage-Stil, eingefärbt nach Tagesstatus, mit Umschalter für 30/90 Tage.",
+        "emptyTitle": "Kein Uptime-Verlauf",
+        "emptyBody": "Tägliche Statuszeilen erscheinen hier als Uptime-Streifen."
+      },
+      "experimentVariantCompare": {
+        "description": "Konversionsbalken je Variante mit Steigerung gegenüber der Kontrolle und einer Signifikanzanzeige.",
+        "emptyTitle": "Keine Varianten",
+        "emptyBody": "Binde eine Varianten-Tabelle mit Konversionszahlen ein."
+      },
+      "creditCardTile": {
+        "description": "Eine gespeicherte Zahlungsmethode als Markenkarte mit maskierter Nummer, Inhaber und Ablaufdatum.",
+        "emptyTitle": "Keine Zahlungsmethode",
+        "emptyBody": "Füge eine Karte hinzu, um sie hier zu sehen."
+      },
+      "planPricingCards": {
+        "description": "Preisstufen mit Umschalter monatlich/jährlich, Funktionslisten und einem hervorgehobenen Tarif.",
+        "emptyTitle": "Keine Tarife",
+        "emptyBody": "Binde eine Tarif-Tabelle mit Name und Monatspreis ein."
+      },
+      "apiKeysPanel": {
+        "description": "API-Schlüssel mit Umgebungs-Badges, maskierten Werten, Geltungsbereichen, letzter Nutzung sowie Kopier-, Erneuerungs- und Widerrufsaktionen.",
+        "emptyTitle": "Keine API-Schlüssel",
+        "emptyBody": "Erstelle einen Schlüssel, um die API aufzurufen."
+      },
+      "apiPlayground": {
+        "description": "Ein Anfrage-Editor mit Parametern und Antwortbereich. Er stellt Anfragen nur zusammen und sendet nie eine echte Anfrage.",
+        "emptyTitle": "Kein Endpunkt ausgewählt",
+        "emptyBody": "Wähle einen Endpunkt, um eine Anfrage dafür zusammenzustellen."
+      },
+      "codeSnippetBlock": {
+        "description": "Ein kopierbarer Code-Ausschnitt mit Sprach-Chip und optionalen Registerkarten je Sprache.",
+        "emptyTitle": "Kein Ausschnitt",
+        "emptyBody": "Binde eine Code-Spalte ein oder hinterlege einen festen Ausschnitt in der Konfiguration."
+      },
+      "webhookEndpointsList": {
+        "description": "Webhook-Endpunkte mit Ereignis, Ziel-URL, letzter Auslösung und Aktivierungsschalter.",
+        "emptyTitle": "Keine Endpunkte",
+        "emptyBody": "Füge einen Webhook-Endpunkt hinzu, um Tabellenereignisse zu empfangen."
+      },
+      "resourceApiCard": {
+        "description": "Die generierte API-Oberfläche einer Tabelle: Zeilenanzahl, Sicherheits-Badge, Methoden-Chips und Anfragevolumen.",
+        "emptyTitle": "Keine Ressource",
+        "emptyBody": "Binde eine Tabelle ein, um ihre generierte API-Oberfläche zu zeigen."
+      },
+      "liveTimer": {
+        "description": "Eine Stoppuhr mit Start und Stopp für eine Aufgabe; das Stoppen erfasst einen Zeiteintrag.",
+        "emptyTitle": "Kein Timer",
+        "emptyBody": "Binde eine Zeiteintragszeile mit Aufgabe und Dauer-Spalte ein."
+      },
+      "syncStatusCard": {
+        "description": "Verbindungsidentität, Latenz, synchronisierte Zeilen und Zeitplan, mit einer Aktion zum sofortigen Synchronisieren.",
+        "emptyTitle": "Keine Verbindung",
+        "emptyBody": "Binde eine Verbindungszeile ein, um ihren Sync-Status zu zeigen."
+      },
+      "ipAllowlistCard": {
+        "description": "Feste ausgehende IP-Adressen zur Freigabe in einer Firewall, jeweils mit Kopierschaltfläche.",
+        "emptyTitle": "Keine ausgehenden IPs",
+        "emptyBody": "Ausgehende Adressen erscheinen hier, sobald die Verbindung bereitgestellt ist."
+      },
+      "onboardingChecklist": {
+        "description": "Einrichtungsschritte mit Zeitschätzungen und Aktionen über einem live berechneten Fortschrittsring und -balken.",
+        "emptyTitle": "Nichts einzurichten",
+        "emptyBody": "Hinterlege Onboarding-Schritte in der Konfiguration oder binde eine Schritt-Tabelle ein."
+      },
+      "testimonialCard": {
+        "description": "Ein Kundenzitat mit Avatar und Quellenangabe.",
+        "emptyTitle": "Kein Kundenzitat",
+        "emptyBody": "Binde eine Zitatzeile ein, um ein Kundenzitat zu zeigen."
+      },
+      "trustBadges": {
+        "description": "Eine durch Punkte getrennte Reihe von Compliance- und Vertrauensaussagen.",
+        "emptyTitle": "Keine Badges",
+        "emptyBody": "Hinterlege Compliance-Aussagen in der Konfiguration oder binde eine Badge-Tabelle ein."
+      },
+      "policyList": {
+        "description": "Sicherheitsrichtlinien auf Zeilenebene je Tabelle mit Befehl, Rolle und Aktivierungsschalter.",
+        "emptyTitle": "Keine Richtlinien",
+        "emptyBody": "Diese Tabelle hat noch keine Sicherheitsrichtlinien auf Zeilenebene."
       }
     },
     "media": {
