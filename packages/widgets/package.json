@@ -19,6 +19,10 @@
       "types": "./dist/page-config/index.d.ts",
       "default": "./dist/page-config/index.js"
     },
+    "./generate": {
+      "types": "./dist/generate/index.d.ts",
+      "default": "./dist/generate/index.js"
+    },
     "./binding": {
       "types": "./dist/binding/index.d.ts",
       "default": "./dist/binding/index.js"

@@ -1,0 +1,23 @@
+{
+  "id": "page-crud",
+  "version": 1,
+  "titleKey": "templates.crud.title",
+  "slots": [
+    { "slot": "grid", "accepts": { "widgets": ["data-grid"] },
+      "area": { "x": 0, "y": 0, "w": 12, "h": 10 }, "required": true },
+    { "slot": "pagination", "accepts": { "widgets": ["pagination-footer"] },
+      "area": { "x": 0, "y": 10, "w": 12, "h": 2 } },
+    { "slot": "detail", "accepts": { "shapes": ["record"], "widgets": ["detail-key-value"] },
+      "area": { "x": 0, "y": 12, "w": 8, "h": 8 } },
+    { "slot": "detail-stats", "accepts": { "widgets": ["stat-pair-card"] },
+      "area": { "x": 8, "y": 12, "w": 4, "h": 4 }, "fallback": "omit" },
+    { "slot": "detail-activity", "accepts": { "widgets": ["timeline-vertical", "activity-feed"] },
+      "area": { "x": 8, "y": 16, "w": 4, "h": 8 } },
+    { "slot": "related", "accepts": { "widgets": ["mini-table"] },
+      "area": { "x": 0, "y": 24, "w": 12, "h": 6 }, "repeat": { "max": 4, "flow": "column" } }
+  ],
+  "chrome": {
+    "toolbar": ["filter-chip-bar", "global-search", "bulk-action-toolbar", "tab-bar"],
+    "overlays": ["modal-wizard", "toast-stack"]
+  }
+}

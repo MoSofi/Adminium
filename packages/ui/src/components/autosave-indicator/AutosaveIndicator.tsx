@@ -4,7 +4,14 @@ import type { ComponentPropsWithRef } from 'react';
 import { cn } from '../../lib/cn.js';
 import { Spinner } from '../spinner/Spinner.js';
 
-export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+/**
+ * The autosave phases. `dirty` is the annex's "Unsaved changes" pill
+ * (research/widget-registry.md §12 `autosave-indicator`: warn dot "Unsaved
+ * changes" → spinner "Saving…" → green check "All changes saved"), shown while
+ * edits sit inside the host's debounce window. `idle` remains the no-edits-yet
+ * phase and still renders nothing.
+ */
+export type AutosaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
 export interface AutosaveIndicatorProps extends ComponentPropsWithRef<'div'> {
   status: AutosaveStatus;
@@ -12,13 +19,15 @@ export interface AutosaveIndicatorProps extends ComponentPropsWithRef<'div'> {
   savingLabel: string;
   /** "All changes saved" (required — i18n). */
   savedLabel: string;
+  /** "Unsaved changes" — required only if you ever pass `status="dirty"`. */
+  dirtyLabel?: string | undefined;
   /** "Couldn't save" — required only if you ever pass `status="error"`. */
   errorLabel?: string | undefined;
 }
 
 /**
- * AutosaveIndicator — "Saving… / All changes saved" pill with a fade
- * transition between states, announced politely via `aria-live`
+ * AutosaveIndicator — "Unsaved changes / Saving… / All changes saved" pill with
+ * a fade transition between states, announced politely via `aria-live`
  * (research/design-system.md §3 Tier 3). `idle` renders an empty live region
  * (layout kept stable).
  */
@@ -26,6 +35,7 @@ export function AutosaveIndicator({
   status,
   savingLabel,
   savedLabel,
+  dirtyLabel,
   errorLabel,
   className,
   ...props
@@ -47,7 +57,13 @@ export function AutosaveIndicator({
             status === 'error' ? 'text-danger' : 'text-fg-muted',
           )}
         >
-          {status === 'saving' ? (
+          {status === 'dirty' ? (
+            <>
+              {/* Warn dot rather than a glyph — the annex's "unsaved" affordance. */}
+              <span data-part="autosave-dot" className="size-1.5 rounded-full bg-warn" aria-hidden="true" />
+              {dirtyLabel}
+            </>
+          ) : status === 'saving' ? (
             <>
               <Spinner size="sm" className="size-3" />
               {savingLabel}

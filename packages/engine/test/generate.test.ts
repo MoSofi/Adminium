@@ -7,6 +7,7 @@ import {
   applyClassification,
   detectDomains,
   generatePages,
+  pageIdFor,
   parseDatabaseModel,
   slugify,
   SlugRegistry,
@@ -38,6 +39,71 @@ describe('slugify / SlugRegistry', () => {
     expect(registry.claim('orders')).toBe('orders');
     expect(registry.claim('orders')).toBe('orders-2');
     expect(registry.claim('orders')).toBe('orders-3');
+  });
+});
+
+/**
+ * `SlugRegistry` de-duplicates against the full 31-char slug while page ids only
+ * carry 22 of it, so `pageIdFor` MUST be injective on its own. It used to plain
+ * `slice(0, 22)`: dated archive/partition siblings (`order_details_archive_2024`
+ * / `..._2025`) collapsed to one id, and `pagesRepo.upsertGenerated` rejects
+ * duplicate ids — failing the WHOLE connection's generation run, not just the
+ * colliding pair.
+ */
+describe('pageIdFor is injective and fits the char(36) PK', () => {
+  const collidingSlugs = [
+    slugify('order_details_archive_2024'),
+    slugify('order_details_archive_2025'),
+  ];
+
+  it('gives distinct ids to slugs sharing a 22-char prefix', () => {
+    expect(collidingSlugs[0]).not.toBe(collidingSlugs[1]);
+    const ids = collidingSlugs.map((slug) => pageIdFor(CONN, slug));
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it('keeps every id inside char(36)', () => {
+    for (const slug of [...collidingSlugs, 'orders', slugify('x'.repeat(40))]) {
+      expect(pageIdFor(CONN, slug).length).toBeLessThanOrEqual(36);
+    }
+  });
+
+  it('leaves short slugs readable and unhashed', () => {
+    expect(pageIdFor(CONN, 'orders').endsWith('_orders')).toBe(true);
+    expect(pageIdFor(null, 'orders')).toBe('page_orders');
+  });
+
+  it('is stable across calls (H5 byte-identical regeneration)', () => {
+    expect(pageIdFor(CONN, collidingSlugs[0] as string)).toBe(pageIdFor(CONN, collidingSlugs[0] as string));
+  });
+
+  it('emits one page per table for dated archive siblings, end to end', () => {
+    // Cloned off the real fixture so the model stays schema-valid; only the
+    // names differ, and they differ only past the 22-char id budget.
+    const raw = JSON.parse(readFileSync(modelPath, 'utf8')) as {
+      tables: { id: string; name: string }[];
+      relations: unknown[];
+    };
+    const source = raw.tables.find((t) => t.name === 'categories') as { id: string; name: string };
+    const clone = (name: string) => ({ ...structuredClone(source), id: `public.${name}`, name });
+    const archives = applyClassification(
+      parseDatabaseModel(
+        JSON.stringify({
+          ...raw,
+          tables: [clone('order_details_archive_2024'), clone('order_details_archive_2025')],
+          relations: [],
+        }),
+      ),
+    );
+    const result = generatePages(archives, { connectionId: CONN });
+    const crud = result.pages.filter((p) => p.template === 'page-crud');
+    expect(crud.map((p) => p.nav.slug)).toEqual([
+      'order-details-archive-2024',
+      'order-details-archive-2025',
+    ]);
+    // The bug: both collapsed to `page_<scope>_order-details-archive-`, and
+    // pagesRepo.upsertGenerated then failed the entire run.
+    expect(new Set(crud.map((p) => p.id)).size).toBe(2);
   });
 });
 

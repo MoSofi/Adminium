@@ -1,0 +1,21 @@
+{
+  "id": "page-calendar",
+  "version": 1,
+  "titleKey": "templates.calendar.title",
+  "slots": [
+    { "slot": "kpi-row", "accepts": { "shapes": ["metric+delta", "single-metric"] },
+      "area": { "x": 0, "y": 0, "w": 3, "h": 3 }, "repeat": { "max": 4, "flow": "row" } },
+    { "slot": "calendar", "accepts": { "shapes": ["calendar-events"], "widgets": ["calendar-month"] },
+      "area": { "x": 0, "y": 3, "w": 8, "h": 12 }, "required": true },
+    { "slot": "agenda", "accepts": { "widgets": ["day-agenda"] },
+      "area": { "x": 8, "y": 3, "w": 4, "h": 12 } },
+    { "slot": "legend", "accepts": { "widgets": ["calendar-legend-filter"] },
+      "area": { "x": 8, "y": 15, "w": 4, "h": 4 }, "fallback": "omit" },
+    { "slot": "upcoming", "accepts": { "widgets": ["upcoming-events-list"] },
+      "area": { "x": 0, "y": 15, "w": 8, "h": 6 }, "fallback": "omit" }
+  ],
+  "chrome": {
+    "toolbar": ["date-range-picker", "filter-chip-bar"],
+    "overlays": ["modal-wizard", "toast-stack"]
+  }
+}

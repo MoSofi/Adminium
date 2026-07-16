@@ -87,26 +87,26 @@ export const ALL_ANNEX_IDS: ReadonlySet<string> = new Set(
 );
 
 /**
- * Families whose widgets are in scope for M7 **Wave 1**. The remaining families
- * (calendar, boards, geo, media, communication, forms, chrome, system-beyond-
- * the-fallback, domain) are Wave 2/3 — their annex ids are known-pending and the
- * parity gate does not fail on them (04-T17 scope note).
- */
-export const WAVE1_FAMILIES = ['kpi', 'charts', 'tables', 'feeds'] as const satisfies readonly WidgetFamily[];
-
-/**
- * Wave-1 annex ids that are documented but **not yet delivered** in this tree,
- * with the reason. The parity gate asserts `annex(family) \ delivered(family)`
- * equals exactly this set per family — so:
+ * Annex ids that are documented but **not yet delivered** in this tree, per
+ * family. The parity gate asserts `annex(family) \ delivered(family)` equals
+ * exactly this set for EVERY family — so:
  *   - a *new* undelivered id (a regressed / dropped widget) fails the gate, and
  *   - delivering a pending id without removing it here also fails the gate,
- * forcing this list to shrink to empty as Wave 1 completes.
+ * forcing each list to shrink to empty as its family completes.
  *
- * As of this harness landing, the delivered slice is: kpi 2/10, charts 37/37,
- * tables 11/17, feeds 5/7 (55 widgets). Remove ids below as their tracks land
- * and the GREEN LOOP wires them into the registry.
+ * SCOPE (M7 Wave 3): this used to be `WAVE1_PENDING`, scoped to the four Wave-1
+ * families (kpi/charts/tables/feeds) while Wave 2/3 families were merely
+ * "known-pending, not failing". Waves 2 and 3 have now landed — calendar,
+ * boards, media, communication, domain, system, chrome, forms all deliver into
+ * the registry — so the gate covers all 13 families uniformly and every newly
+ * delivered id is asserted. `geo` is the only family with nothing built; its
+ * whole annex slice is pending, which keeps the same equation true for it.
+ *
+ * Delivered slice as of M7 Wave 3: kpi 2/10, charts 37/37, tables 11/17,
+ * feeds 5/7, calendar 4/8, boards 2/4, geo 0/2, media 6/6, communication 3/5,
+ * forms 12/20, chrome 8/8, system 9/9, domain 2/43 → 101 widgets.
  */
-export const WAVE1_PENDING: Record<(typeof WAVE1_FAMILIES)[number], readonly string[]> = {
+export const ANNEX_PENDING: Record<WidgetFamily, readonly string[]> = {
   // Remaining §1 KPI slice (built after the M4 kpi-stat-card / usage-meter slice).
   kpi: [
     'kpi-stat-tile-compact', 'metric-hero', 'stat-pair-card', 'gauge-ring', 'gauge-arc',
@@ -114,7 +114,7 @@ export const WAVE1_PENDING: Record<(typeof WAVE1_FAMILIES)[number], readonly str
   ],
   // Time/flow charts (04-T09) — multiline, stream, forecast, anomaly,
   // candlestick, bump, timeline-lanes — landed and wired into the registry, so
-  // the charts family is fully delivered for Wave 1.
+  // the charts family is fully delivered.
   charts: [],
   // Remaining §3 list widgets.
   tables: [
@@ -124,20 +124,55 @@ export const WAVE1_PENDING: Record<(typeof WAVE1_FAMILIES)[number], readonly str
   // Remaining §4 feed widgets (load-older-paginator; toast-stack is the overlay
   // toast host, cross-listed as undo-toast in §12).
   feeds: ['load-older-paginator', 'toast-stack'],
+  // Remaining §5 calendar slice (Track CAL delivered month/agenda/matrix/capacity).
+  calendar: [
+    'calendar-legend-filter', 'upcoming-events-list', 'date-range-picker', 'scheduled-jobs-list',
+  ],
+  // Remaining §6 board slice — `board-card` ships as a sub-component of
+  // kanban-board (not separately registered) and inline-compose is a later wave.
+  boards: ['board-card', 'inline-compose-card'],
+  // §7 — the geo family is not built yet.
+  geo: ['map-bubble', 'map-choropleth-grid'],
+  // §8 fully delivered by Track MEDIA (the file-browser exit criterion).
+  media: [],
+  // Remaining §9 — typing-indicator and call-widget are a later wave.
+  communication: ['typing-indicator', 'call-widget'],
+  // Remaining §10 forms slice — the builder/importer-facing widgets.
+  forms: [
+    'rule-builder', 'flow-builder', 'connection-string-field', 'table-inclusion-checklist',
+    'column-mapping-table', 'export-builder', 'question-builder', 'inline-editable-field',
+  ],
+  // §11 fully delivered by Track FCS.
+  chrome: [],
+  // §12 fully delivered by Track FCS.
+  system: [],
+  // Remaining §13 — Track DOMAIN delivered the two M7 exit-criteria widgets
+  // (org-chart, gantt-chart); the document-canvas block vocabulary and the
+  // ops/billing/API cards are a later wave.
+  domain: [
+    'document-canvas', 'block-totals-summary', 'block-line-items', 'block-kpi-row',
+    'block-bar-chart', 'block-line-chart', 'block-two-col-table', 'block-tax-breakdown',
+    'block-multi-currency', 'block-payment-history', 'block-discount-codes',
+    'block-loyalty-banner', 'block-recurring-banner', 'block-qr-pay', 'block-delivery-stepper',
+    'block-signature', 'block-terms-checkbox', 'block-approval', 'block-attachments',
+    'block-late-fees', 'block-image-placeholder', 'block-contact', 'block-highlight-box',
+    'starter-template-picker', 'slo-monitor-card', 'uptime-segment-bar',
+    'experiment-variant-compare', 'credit-card-tile', 'plan-pricing-cards', 'api-keys-panel',
+    'api-playground', 'code-snippet-block', 'webhook-endpoints-list', 'resource-api-card',
+    'live-timer', 'sync-status-card', 'ip-allowlist-card', 'onboarding-checklist',
+    'testimonial-card', 'trust-badges', 'policy-list',
+  ],
 };
 
-function expectedFor(family: (typeof WAVE1_FAMILIES)[number]): readonly string[] {
-  const pending = new Set(WAVE1_PENDING[family]);
+function expectedFor(family: WidgetFamily): readonly string[] {
+  const pending = new Set(ANNEX_PENDING[family]);
   return ANNEX_CATALOG[family].filter((id) => !pending.has(id));
 }
 
 /**
- * Expected registered Wave-1 ids per family = annex minus known-pending. This is
- * the checked-in list the parity snapshot diffs the delivered registry against.
+ * Expected registered ids per family = annex minus known-pending. This is the
+ * checked-in list the parity snapshot diffs the delivered registry against.
  */
-export const EXPECTED_WAVE1_IDS: Record<(typeof WAVE1_FAMILIES)[number], readonly string[]> = {
-  kpi: expectedFor('kpi'),
-  charts: expectedFor('charts'),
-  tables: expectedFor('tables'),
-  feeds: expectedFor('feeds'),
-};
+export const EXPECTED_IDS: Record<WidgetFamily, readonly string[]> = Object.fromEntries(
+  (Object.keys(ANNEX_CATALOG) as WidgetFamily[]).map((family) => [family, expectedFor(family)]),
+) as Record<WidgetFamily, readonly string[]>;

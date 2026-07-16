@@ -1,0 +1,17 @@
+{
+  "id": "page-queue-inbox",
+  "version": 1,
+  "titleKey": "templates.queueInbox.title",
+  "slots": [
+    { "slot": "kpi-row", "accepts": { "shapes": ["metric+delta", "single-metric"] },
+      "area": { "x": 0, "y": 0, "w": 3, "h": 3 }, "repeat": { "max": 4, "flow": "row" }, "required": true },
+    { "slot": "queue", "accepts": { "widgets": ["notification-feed", "master-list", "data-grid"] },
+      "area": { "x": 0, "y": 3, "w": 8, "h": 12 }, "required": true },
+    { "slot": "detail", "accepts": { "shapes": ["record"], "widgets": ["detail-key-value"] },
+      "area": { "x": 8, "y": 3, "w": 4, "h": 12 } }
+  ],
+  "chrome": {
+    "toolbar": ["segmented-control", "filter-chip-bar"],
+    "overlays": ["modal-wizard", "toast-stack"]
+  }
+}

@@ -30,6 +30,21 @@ const ENGINE_ADAPTER_LEAF =
 // Pure-Zod page-config leaf inside widgets (§6.1): `@adminium/widgets/page-config`.
 const WIDGETS_PAGE_CONFIG_LEAF =
   '^(packages/widgets|node_modules/@adminium/widgets)/(src|dist)/page-config(/|\\.)|^@adminium/widgets/page-config$';
+// Pure generator leaf inside widgets: `@adminium/widgets/generate`.
+//
+// 04-widget-registry.md §8 splits the auto-instantiation pipeline across the two
+// packages on purpose: the Engine drives hooks H1/H2/H4 ("`composeTemplate(…)` →
+// `PageConfig` rows written to `adminium_pages`") while the rules and manifests
+// they run on live in the Registry ("the Registry owns what can be instantiated
+// and why … so the catalog and its trigger logic never drift apart"). That
+// requires one engine → widgets edge. It is NOT `page-config`: that leaf is the
+// frozen config-body schema the server and `@adminium/engine/config` bundle, and
+// must not grow generator logic. So the generator gets its own leaf under the
+// identical purity contract — zod + the page-config leaf only, no React, no
+// component code, no `node:` builtins — gated by
+// `packages/widgets/src/generate/leaf-purity.test.ts`.
+const WIDGETS_GENERATE_LEAF =
+  '^(packages/widgets|node_modules/@adminium/widgets)/(src|dist)/generate(/|\\.)|^@adminium/widgets/generate$';
 
 const ANY_WORKSPACE = '^(packages|apps)/|^node_modules/@adminium/|^@adminium/';
 
@@ -97,10 +112,10 @@ module.exports = {
     {
       name: 'engine-no-full-widgets',
       comment:
-        '@adminium/engine may import only the pure-Zod @adminium/widgets/page-config leaf, never widget component code (01 §2.3, §6.1).',
+        '@adminium/engine may import only the pure @adminium/widgets/page-config (01 §2.3, §6.1) and @adminium/widgets/generate (04 §8) leaves, never widget component code.',
       severity: 'error',
       from: { path: '^packages/engine/' },
-      to: { path: pkg('widgets'), pathNot: [WIDGETS_PAGE_CONFIG_LEAF] },
+      to: { path: pkg('widgets'), pathNot: [WIDGETS_PAGE_CONFIG_LEAF, WIDGETS_GENERATE_LEAF] },
     },
     {
       name: 'adapters-only-engine-adapter',

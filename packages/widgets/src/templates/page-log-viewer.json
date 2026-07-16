@@ -1,0 +1,17 @@
+{
+  "id": "page-log-viewer",
+  "version": 1,
+  "titleKey": "templates.logViewer.title",
+  "slots": [
+    { "slot": "kpi-row", "accepts": { "shapes": ["metric+delta", "single-metric"] },
+      "area": { "x": 0, "y": 0, "w": 3, "h": 3 }, "repeat": { "max": 4, "flow": "row" } },
+    { "slot": "log", "accepts": { "widgets": ["log-table", "realtime-feed"] },
+      "area": { "x": 0, "y": 3, "w": 12, "h": 14 }, "required": true },
+    { "slot": "trace", "accepts": { "widgets": ["timeline-vertical"] },
+      "area": { "x": 0, "y": 17, "w": 12, "h": 8 } }
+  ],
+  "chrome": {
+    "toolbar": ["tab-bar", "global-search", "date-range-picker"],
+    "overlays": ["toast-stack"]
+  }
+}

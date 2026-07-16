@@ -1,0 +1,15 @@
+{
+  "id": "page-directory",
+  "version": 1,
+  "titleKey": "templates.directory.title",
+  "slots": [
+    { "slot": "summary", "accepts": { "widgets": ["micro-kpi-subtitle"] },
+      "area": { "x": 0, "y": 0, "w": 12, "h": 2 }, "fallback": "omit" },
+    { "slot": "directory", "accepts": { "widgets": ["card-gallery", "org-chart"] },
+      "area": { "x": 0, "y": 2, "w": 12, "h": 14 }, "required": true }
+  ],
+  "chrome": {
+    "toolbar": ["filter-chip-bar", "global-search"],
+    "overlays": ["modal-wizard", "toast-stack"]
+  }
+}

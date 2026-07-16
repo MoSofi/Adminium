@@ -201,6 +201,304 @@ export default {
         "returned": "{title} an die ursprüngliche Position zurückgesetzt.",
         "failed": "{title} konnte nicht verschoben werden; die Karte wurde zurückgesetzt."
       }
+    },
+    "communication": {
+      "conversationInbox": {
+        "description": "Eine auswählbare Liste von Unterhaltungen mit Ungelesen-Zählern, Präsenz und Vorschau der letzten Nachricht.",
+        "emptyTitle": "Keine Unterhaltungen",
+        "emptyBody": "Unterhaltungen erscheinen hier, sobald Nachrichten eintreffen.",
+        "noMatchesTitle": "Keine passenden Unterhaltungen",
+        "searchLabel": "Unterhaltungen durchsuchen",
+        "searchPlaceholder": "Unterhaltungen durchsuchen…"
+      },
+      "chatThread": {
+        "description": "Nachrichtenblasen, gruppiert nach Absender und Tag, mit Anhängen und Eingabefeld.",
+        "emptyTitle": "Noch keine Nachrichten",
+        "emptyBody": "Nachrichten dieser Unterhaltung erscheinen hier.",
+        "composerPlaceholder": "Nachricht schreiben…",
+        "sendLabel": "Senden",
+        "attachLabel": "Anhang hinzufügen",
+        "typingLabel": "tippt…"
+      },
+      "aiChatPanel": {
+        "description": "Ein Assistenz-Panel für Fragen zu Ihrem Schema und Ihren Daten.",
+        "emptyTitle": "Fragen Sie zu Ihren Daten",
+        "emptyBody": "Stellen Sie eine Frage zu Ihrem Schema, Ihren Tabellen oder Kennzahlen, um zu beginnen.",
+        "composerPlaceholder": "Frage stellen…",
+        "sendLabel": "Senden",
+        "pendingLabel": "Denkt nach…",
+        "configureTitle": "Kein KI-Anbieter konfiguriert",
+        "configureBody": "Fügen Sie einen Anthropic- oder OpenAI-Schlüssel hinzu — oder verweisen Sie Adminium auf Ihren eigenen Endpunkt —, um Fragen zu Ihrem Schema zu stellen.",
+        "configureCtaLabel": "Anbieter konfigurieren"
+      }
+    },
+    "domain": {
+      "orgChart": {
+        "description": "Der Berichtsbaum aus dem Vorgesetzten-Verweis einer Personentabelle, mit einklappbaren Zweigen.",
+        "emptyTitle": "Keine Berichtsstruktur",
+        "emptyBody": "Das Organigramm erscheint, sobald Personenzeilen auf eine Führungskraft verweisen.",
+        "reportsLabel": "Unterstellte · {count}",
+        "a11yLabel": "Organigramm"
+      },
+      "ganttChart": {
+        "description": "Aufgabenbalken auf einer Zeitachse, nach Phase gruppiert, mit Fortschritt, Meilensteinen und Heute-Markierung.",
+        "emptyTitle": "Nichts geplant",
+        "emptyBody": "Aufgaben erscheinen hier, sobald sie ein Start- und Enddatum haben.",
+        "ungroupedLabel": "Aufgaben"
+      }
+    },
+    "media": {
+      "fileBrowser": {
+        "description": "Durchsuchen Sie Dateien und Ordner als Kachelraster oder Liste – mit Brotkrumenpfad, Typsymbolen und Favoriten.",
+        "emptyTitle": "Dieser Ordner ist leer",
+        "emptyBody": "Laden Sie Dateien hoch oder legen Sie einen Ordner an, um zu beginnen."
+      },
+      "uploadDropzone": {
+        "description": "Ein Drag-and-drop-Ziel zum Hochladen von Dateien, mit Format- und Größenbeschränkungen.",
+        "dropTitle": "Dateien zum Hochladen ablegen",
+        "browsePrefix": "oder",
+        "browseLabel": "durchsuchen"
+      },
+      "uploadProgressList": {
+        "description": "Zeilen pro Datei mit Fortschrittsbalken und Status; steuert auch Aufträge der Exportwarteschlange.",
+        "emptyTitle": "Keine Uploads im Gange",
+        "emptyBody": "Hochgeladene Dateien zeigen hier ihren Fortschritt."
+      },
+      "attachmentList": {
+        "description": "An einen Datensatz angehängte Dateien, mit Typsymbolen, Größen sowie Aktionen zum Herunterladen oder Löschen.",
+        "emptyTitle": "Keine Anhänge",
+        "emptyBody": "An diesen Datensatz angehängte Dateien erscheinen hier."
+      },
+      "imageBoard": {
+        "description": "Ein Moodboard-Raster aus Bildplätzen mit Bildunterschriften, für Tabellen mit Bild-URLs.",
+        "emptyTitle": "Noch keine Bilder",
+        "emptyBody": "Referenzbilder erscheinen auf diesem Board."
+      },
+      "linkList": {
+        "description": "Referenzlinks mit Titeln und URLs, die in einem neuen Tab geöffnet werden.",
+        "emptyTitle": "Noch keine Links",
+        "emptyBody": "Referenzlinks erscheinen hier."
+      },
+      "root": "Dateien",
+      "breadcrumb": "Brotkrumenpfad",
+      "gridView": "Rasteransicht",
+      "listView": "Listenansicht",
+      "nameHeader": "Name",
+      "sizeHeader": "Größe",
+      "modifiedHeader": "Geändert",
+      "star": "Favorit",
+      "items": "Elemente",
+      "done": "Fertig",
+      "failed": "Fehlgeschlagen",
+      "queued": "In Warteschlange",
+      "retry": "Wiederholen",
+      "download": "Herunterladen",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "remove": "Entfernen",
+      "addImage": "Bild hinzufügen",
+      "caption": "Bildunterschrift",
+      "addLink": "Link hinzufügen",
+      "linkTitlePlaceholder": "Titel",
+      "linkUrlPlaceholder": "https://…",
+      "add": "Hinzufügen"
+    },
+    "forms": {
+      "modalWizard": {
+        "description": "Ein modales Anlageformular mit Erfolgsbestätigung — der Standardablauf für neue Datensätze.",
+        "trigger": "Anlegen",
+        "submit": "Anlegen",
+        "cancel": "Abbrechen",
+        "done": "Fertig",
+        "successTitle": "Datensatz angelegt",
+        "successBody": "Der Datensatz wurde gespeichert.",
+        "required": "Dieses Feld ist erforderlich."
+      },
+      "drawerForm": {
+        "description": "Ein seitliches Formular zum Anlegen oder Bearbeiten von Datensätzen mit vielen Feldern.",
+        "trigger": "Neu",
+        "submit": "Speichern",
+        "cancel": "Abbrechen"
+      },
+      "stepper": {
+        "description": "Eine Fortschrittsanzeige, die den Stand eines mehrstufigen Ablaufs zeigt.",
+        "a11yLabel": "Fortschritt"
+      },
+      "progressBar": {
+        "description": "Ein Fortschrittsbalken mit Prozentangabe.",
+        "label": "Fortschritt"
+      },
+      "otpInput": {
+        "description": "Ein Eingabefeld für Einmalcodes.",
+        "label": "Einmalcode"
+      },
+      "chipInput": {
+        "description": "Eine Tag-Eingabe: entfernbare Chips plus Freitext, der mit Enter übernommen wird.",
+        "remove": "Entfernen",
+        "placeholder": "Tippen und Enter drücken…"
+      },
+      "segmentedControl": {
+        "description": "Eine Einfachauswahl für Zeiträume, Umgebungen und Filter.",
+        "a11yLabel": "Option wählen"
+      },
+      "filterChipBar": {
+        "description": "Filter-Chips mit Live-Zählern, berechnet aus der gefilterten Liste.",
+        "all": "Alle",
+        "a11yLabel": "Filter",
+        "meta": "{shown} von {total}"
+      },
+      "toggleSwitchList": {
+        "description": "Eine Liste von Einstellungszeilen mit jeweils einem Schalter.",
+        "save": "Speichern",
+        "dirty": "Sie haben ungespeicherte Änderungen",
+        "emptyTitle": "Keine Einstellungen",
+        "emptyBody": "Einstellungen erscheinen hier, sobald sie konfiguriert sind."
+      },
+      "optionCards": {
+        "description": "Eine Kartenauswahl für Quellen, Vorlagen und Tarife.",
+        "a11yLabel": "Option wählen"
+      },
+      "passwordStrengthMeter": {
+        "description": "Eine vierstufige Anzeige der Passwortstärke.",
+        "label": "Passwortstärke",
+        "weak": "Schwach",
+        "fair": "Mäßig",
+        "good": "Gut",
+        "strong": "Stark"
+      },
+      "validationIssuesList": {
+        "description": "Import- und Validierungsprobleme, schwerwiegendste zuerst, mit Zeilenanzahl.",
+        "emptyTitle": "Keine Probleme gefunden",
+        "emptyBody": "Alles in Ordnung — der Import kann starten."
+      }
+    },
+    "chrome": {
+      "sidebarNav": {
+        "description": "Die gruppierte Navigationsleiste der App mit Live-Zählern.",
+        "a11yLabel": "Hauptnavigation",
+        "emptyTitle": "Noch keine Navigation",
+        "emptyBody": "Einbezogene Tabellen erscheinen hier, sobald eine Verbindung generiert wurde."
+      },
+      "commandPalette": {
+        "description": "Die ⌘K-Palette: Aktionen, Seiten und Datensätze von überall suchen.",
+        "title": "Befehlspalette",
+        "placeholder": "Aktionen, Seiten und Datensätze suchen…",
+        "navigate": "Navigieren",
+        "select": "Öffnen",
+        "close": "Schließen",
+        "emptyTitle": "Keine Treffer",
+        "emptyBody": "Zum Suchen tippen.",
+        "groupActions": "Aktionen",
+        "groupNavigate": "Navigieren",
+        "groupRecent": "Zuletzt",
+        "groupPages": "Seiten",
+        "groupMetrics": "Kennzahlen",
+        "groupPeople": "Personen",
+        "groupRecords": "Datensätze"
+      },
+      "globalSearch": {
+        "description": "Suche über alle Entitäten, mit Typ-Facetten und Ergebnisauszügen.",
+        "placeholder": "Alles durchsuchen…",
+        "all": "Alle",
+        "summary": "{count} Treffer für „{query}“",
+        "emptyTitle": "Keine Treffer",
+        "emptyBody": "Versuchen Sie einen anderen Suchbegriff."
+      },
+      "breadcrumb": {
+        "description": "Der Pfad zum aktuellen Datensatz oder Ordner.",
+        "a11yLabel": "Navigationspfad"
+      },
+      "tabBar": {
+        "description": "Tabs zum Wechseln von Bereichen oder Navigieren, optional mit Zählern.",
+        "a11yLabel": "Tabs"
+      },
+      "navCard": {
+        "description": "Ein Raster aus Link-Karten für Übersichts- und Startseiten.",
+        "emptyTitle": "Nichts anzuzeigen",
+        "emptyBody": "Links erscheinen hier, sobald Seiten generiert wurden."
+      },
+      "shortcutsPanel": {
+        "description": "Die Übersicht der Tastenkürzel.",
+        "footerHint": "Jederzeit ? drücken",
+        "then": "dann",
+        "emptyTitle": "Keine Tastenkürzel registriert."
+      },
+      "avatarStack": {
+        "description": "Überlappende Avatare mit „+N“-Überlauf und optionaler Präsenz.",
+        "online": "{count} online"
+      }
+    },
+    "system": {
+      "stateHero": {
+        "description": "Eine ganzseitige Statusanzeige für 404, 500, Offline, Kein-Zugriff und Wartung.",
+        "notFoundTitle": "Diese Seite hat sich verlaufen",
+        "notFoundBody": "Die gesuchte Seite wurde verschoben, umbenannt oder existierte nie.",
+        "serverErrorTitle": "Bei uns ist etwas schiefgelaufen",
+        "serverErrorBody": "Der Fehler wurde protokolliert und das Team benachrichtigt. Ein erneuter Versuch hilft oft.",
+        "offlineTitle": "Sie sind offline",
+        "offlineBody": "Prüfen Sie Ihre Verbindung — das Dashboard verbindet sich automatisch neu.",
+        "forbiddenTitle": "Sie haben keinen Zugriff",
+        "forbiddenBody": "Bitten Sie eine Workspace-Administration um die Berechtigung für diese Seite.",
+        "maintenanceTitle": "Wartungsarbeiten",
+        "maintenanceBody": "Wir verbessern gerade etwas. Das dauert meist nur wenige Minuten.",
+        "connErrorTitle": "Datenbank nicht erreichbar",
+        "connErrorBody": "Die Verbindung wurde abgelehnt oder lief ab. Prüfen Sie die Verbindungseinstellungen.",
+        "backToDashboard": "Zurück zum Dashboard",
+        "tryAgain": "Erneut versuchen",
+        "retry": "Wiederholen",
+        "testConnection": "Verbindung testen"
+      },
+      "emptyState": {
+        "description": "Ein zentriertes „Noch nichts da“-Panel mit optionalen Aktionen."
+      },
+      "statusPill": {
+        "description": "Ein farbcodiertes Badge für Enum-Spalten — die universelle Statusanzeige."
+      },
+      "alertBanner": {
+        "description": "Ein Inline-Hinweis für Kontingent-, Freeze- und Zeitplanmeldungen.",
+        "dismiss": "Schließen"
+      },
+      "statusBannerHero": {
+        "description": "Ein Service-Status-Hero, dessen Zustand sich aus dem schlechtesten Dienst der Liste ergibt.",
+        "upTitle": "Alle Systeme betriebsbereit",
+        "upBody": "Alle überwachten Dienste antworten normal.",
+        "degradedTitle": "Eingeschränkte Leistung",
+        "degradedBody": "Einige Dienste sind langsamer als üblich. Wir untersuchen das.",
+        "downTitle": "Schwerwiegende Störung",
+        "downBody": "Ein oder mehrere Dienste sind nicht verfügbar. Wir arbeiten daran."
+      },
+      "connectionStatus": {
+        "description": "Das Verbindungs- bzw. Testergebnis einer Datenbankverbindung.",
+        "idle": "Nicht verbunden",
+        "connecting": "Verbindung wird hergestellt…",
+        "connected": "Verbunden",
+        "failed": "Verbindung fehlgeschlagen",
+        "test": "Testen"
+      },
+      "autosaveIndicator": {
+        "description": "Die Anzeige „ungespeichert → speichert → gespeichert“ für automatisch gespeicherte Dokumente.",
+        "dirty": "Ungespeicherte Änderungen",
+        "saving": "Speichert…",
+        "saved": "Alle Änderungen gespeichert",
+        "error": "Speichern fehlgeschlagen"
+      },
+      "progressLogConsole": {
+        "description": "Eine Streaming-Logkonsole mit Fortschrittsbalken für lang laufende Aufgaben.",
+        "a11yLabel": "Fortschrittsprotokoll",
+        "progressLabel": "Fortschritt",
+        "emptyTitle": "Noch nichts zu berichten",
+        "emptyBody": "Logzeilen erscheinen hier, sobald die Aufgabe startet."
+      },
+      "diagnosticsReadout": {
+        "description": "Ergebnisse der Verbindungsprüfung als farbcodierte Schlüssel/Wert-Zeilen mit Zeitstempel.",
+        "checkedAt": "Zuletzt geprüft",
+        "host": "Host",
+        "dns": "DNS",
+        "tcp": "TCP",
+        "tls": "TLS",
+        "auth": "Authentifizierung",
+        "latency": "Latenz"
+      }
     }
   },
   "grid": {

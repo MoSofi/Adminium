@@ -10,6 +10,12 @@ import { tablesTrackFDefinitions } from '../families/tables/tables-track-f.defin
 import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
 import { calendarTrackDefinitions } from '../families/calendar/calendar-track.definitions.js';
 import { boardsTrackDefinitions } from '../families/boards/boards-track.definitions.js';
+import { mediaTrackDefinitions } from '../families/media/media-track.definitions.js';
+import { communicationTrackDefinitions } from '../families/communication/communication-track.definitions.js';
+import { domainTrackDefinitions } from '../families/domain/domain-track.definitions.js';
+import { systemTrackDefinitions } from '../families/system/system-track.definitions.js';
+import { chromeTrackDefinitions } from '../families/chrome/chrome-track.definitions.js';
+import { formsTrackDefinitions } from '../families/forms/forms-track.definitions.js';
 import { widgetMissingDefinition } from './widget-missing.js';
 import type { WidgetDefinition, WidgetFamily } from './types.js';
 
@@ -66,6 +72,18 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   // boards (Track BOARDS — M7 Wave 2; dnd-kit stays behind the lazy
   // boards-track-components chunk — the definitions import metadata only)
   ...boardsTrackDefinitions,
+  // media (Track MEDIA — M7 Wave 3; annex §8, the file-browser exit criterion)
+  ...mediaTrackDefinitions,
+  // communication (Track COMM — M7 Wave 3; annex §9, the chat exit criterion)
+  ...communicationTrackDefinitions,
+  // domain (Track DOMAIN — M7 Wave 3; annex §13, the org-chart/gantt exit criteria)
+  ...domainTrackDefinitions,
+  // system (Track FCS — M7 Wave 3; annex §12)
+  ...systemTrackDefinitions,
+  // chrome (Track FCS — M7 Wave 3; annex §11)
+  ...chromeTrackDefinitions,
+  // forms (Track FCS — M7 Wave 3; annex §10)
+  ...formsTrackDefinitions,
 ]);
 
 export function getWidget(id: string): WidgetDefinition | undefined {

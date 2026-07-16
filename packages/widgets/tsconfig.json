@@ -3,6 +3,9 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    // The page-template manifests ship as checked-in JSON (04-widget-registry.md
+    // §10) and `src/templates/manifests.ts` imports them with `with { type: 'json' }`.
+    "resolveJsonModule": true,
     "noEmit": true
   },
   "include": ["src", "test", "vitest.config.ts"]

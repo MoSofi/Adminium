@@ -193,6 +193,304 @@
         "returned": "{title} 已返回原位。",
         "failed": "无法移动 {title}；已返回原位。"
       }
+    },
+    "communication": {
+      "conversationInbox": {
+        "description": "可选择的会话列表，显示未读数量、在线状态和最近消息预览。",
+        "emptyTitle": "暂无会话",
+        "emptyBody": "收到消息后，会话将显示在这里。",
+        "noMatchesTitle": "没有匹配的会话",
+        "searchLabel": "搜索会话",
+        "searchPlaceholder": "搜索会话…"
+      },
+      "chatThread": {
+        "description": "按发送者和日期分组的消息气泡，支持附件和输入框。",
+        "emptyTitle": "暂无消息",
+        "emptyBody": "该会话中的消息将显示在这里。",
+        "composerPlaceholder": "输入消息…",
+        "sendLabel": "发送",
+        "attachLabel": "添加附件",
+        "typingLabel": "正在输入…"
+      },
+      "aiChatPanel": {
+        "description": "用于询问数据库结构和数据的助手面板。",
+        "emptyTitle": "询问你的数据",
+        "emptyBody": "提出关于结构、数据表或指标的问题即可开始。",
+        "composerPlaceholder": "提出问题…",
+        "sendLabel": "发送",
+        "pendingLabel": "思考中…",
+        "configureTitle": "尚未配置 AI 提供方",
+        "configureBody": "添加 Anthropic 或 OpenAI 密钥，或将 Adminium 指向你自己的接口地址，即可询问数据库结构。",
+        "configureCtaLabel": "配置提供方"
+      }
+    },
+    "domain": {
+      "orgChart": {
+        "description": "根据人员表的上级引用构建的汇报关系树，分支可折叠。",
+        "emptyTitle": "暂无汇报结构",
+        "emptyBody": "当人员记录引用上级后，组织架构图将显示在此处。",
+        "reportsLabel": "下属 · {count}",
+        "a11yLabel": "组织架构图"
+      },
+      "ganttChart": {
+        "description": "时间轴上的任务条，按阶段分组，包含进度、里程碑和今日标记。",
+        "emptyTitle": "暂无排期",
+        "emptyBody": "任务设置开始和结束日期后将显示在此处。",
+        "ungroupedLabel": "任务"
+      }
+    },
+    "media": {
+      "fileBrowser": {
+        "description": "以磁贴网格或列表浏览文件和文件夹，支持面包屑导航、类型图标和星标。",
+        "emptyTitle": "此文件夹为空",
+        "emptyBody": "上传文件或创建文件夹即可开始。"
+      },
+      "uploadDropzone": {
+        "description": "用于上传文件的拖放区域，可限制格式和大小。",
+        "dropTitle": "拖放文件以上传",
+        "browsePrefix": "或",
+        "browseLabel": "浏览"
+      },
+      "uploadProgressList": {
+        "description": "逐个文件的上传行，带进度条和状态；同样适用于导出队列作业。",
+        "emptyTitle": "没有正在进行的上传",
+        "emptyBody": "您上传的文件将在此显示进度。"
+      },
+      "attachmentList": {
+        "description": "附加到记录的文件，带类型图标、大小以及下载或删除操作。",
+        "emptyTitle": "没有附件",
+        "emptyBody": "附加到此记录的文件将显示在这里。"
+      },
+      "imageBoard": {
+        "description": "带标题的图片位灵感板网格，适用于含图片 URL 的表。",
+        "emptyTitle": "暂无图片",
+        "emptyBody": "参考图片将显示在此板上。"
+      },
+      "linkList": {
+        "description": "带标题和网址的参考链接，在新标签页中打开。",
+        "emptyTitle": "暂无链接",
+        "emptyBody": "参考链接将显示在这里。"
+      },
+      "root": "文件",
+      "breadcrumb": "面包屑导航",
+      "gridView": "网格视图",
+      "listView": "列表视图",
+      "nameHeader": "名称",
+      "sizeHeader": "大小",
+      "modifiedHeader": "修改时间",
+      "star": "星标",
+      "items": "项",
+      "done": "完成",
+      "failed": "失败",
+      "queued": "排队中",
+      "retry": "重试",
+      "download": "下载",
+      "cancel": "取消",
+      "delete": "删除",
+      "remove": "移除",
+      "addImage": "添加图片",
+      "caption": "标题",
+      "addLink": "添加链接",
+      "linkTitlePlaceholder": "标题",
+      "linkUrlPlaceholder": "https://…",
+      "add": "添加"
+    },
+    "forms": {
+      "modalWizard": {
+        "description": "带成功确认的弹窗创建表单——标准的“新建记录”流程。",
+        "trigger": "创建",
+        "submit": "创建",
+        "cancel": "取消",
+        "done": "完成",
+        "successTitle": "记录已创建",
+        "successBody": "记录已保存。",
+        "required": "此字段为必填项。"
+      },
+      "drawerForm": {
+        "description": "用于字段较多记录的侧边抽屉创建或编辑表单。",
+        "trigger": "新建",
+        "submit": "保存",
+        "cancel": "取消"
+      },
+      "stepper": {
+        "description": "显示多步流程进展的步骤指示器。",
+        "a11yLabel": "进度"
+      },
+      "progressBar": {
+        "description": "带百分比说明的确定进度条。",
+        "label": "进度"
+      },
+      "otpInput": {
+        "description": "一次性验证码输入框。",
+        "label": "一次性验证码"
+      },
+      "chipInput": {
+        "description": "标签输入：可移除的标签加上按回车提交的自由文本。",
+        "remove": "移除",
+        "placeholder": "输入后按回车…"
+      },
+      "segmentedControl": {
+        "description": "用于时间段、环境和筛选的单选分段控件。",
+        "a11yLabel": "选择一项"
+      },
+      "filterChipBar": {
+        "description": "筛选标签，计数根据所筛选的列表实时计算。",
+        "all": "全部",
+        "a11yLabel": "筛选",
+        "meta": "{total} 条中的 {shown} 条"
+      },
+      "toggleSwitchList": {
+        "description": "设置行列表，每行带一个开关。",
+        "save": "保存",
+        "dirty": "您有未保存的更改",
+        "emptyTitle": "暂无设置",
+        "emptyBody": "设置配置后将显示在这里。"
+      },
+      "optionCards": {
+        "description": "用于数据源、模板和套餐的单选卡片网格。",
+        "a11yLabel": "选择一项"
+      },
+      "passwordStrengthMeter": {
+        "description": "显示密码强度的四段式指示器。",
+        "label": "密码强度",
+        "weak": "弱",
+        "fair": "一般",
+        "good": "良好",
+        "strong": "强"
+      },
+      "validationIssuesList": {
+        "description": "导入与校验问题，按严重程度排序，并显示受影响的行数。",
+        "emptyTitle": "未发现问题",
+        "emptyBody": "一切正常——可以开始导入。"
+      }
+    },
+    "chrome": {
+      "sidebarNav": {
+        "description": "应用的分组导航栏，带实时计数徽标。",
+        "a11yLabel": "主导航",
+        "emptyTitle": "暂无导航",
+        "emptyBody": "生成连接后，已包含的表将显示在这里。"
+      },
+      "commandPalette": {
+        "description": "⌘K 命令面板：随时搜索操作、页面和记录。",
+        "title": "命令面板",
+        "placeholder": "搜索操作、页面和记录…",
+        "navigate": "导航",
+        "select": "打开",
+        "close": "关闭",
+        "emptyTitle": "无结果",
+        "emptyBody": "开始输入以搜索。",
+        "groupActions": "操作",
+        "groupNavigate": "导航",
+        "groupRecent": "最近",
+        "groupPages": "页面",
+        "groupMetrics": "指标",
+        "groupPeople": "人员",
+        "groupRecords": "记录"
+      },
+      "globalSearch": {
+        "description": "跨所有实体搜索，带类型分面和结果摘要。",
+        "placeholder": "搜索全部…",
+        "all": "全部",
+        "summary": "“{query}”的 {count} 条结果",
+        "emptyTitle": "无结果",
+        "emptyBody": "请尝试其他搜索词。"
+      },
+      "breadcrumb": {
+        "description": "当前记录或文件夹的层级路径。",
+        "a11yLabel": "面包屑导航"
+      },
+      "tabBar": {
+        "description": "用于切换面板或导航的标签页，可带计数。",
+        "a11yLabel": "标签页"
+      },
+      "navCard": {
+        "description": "用于导航页和着陆页的链接卡片网格。",
+        "emptyTitle": "暂无内容",
+        "emptyBody": "页面生成后链接将显示在这里。"
+      },
+      "shortcutsPanel": {
+        "description": "键盘快捷键速查表。",
+        "footerHint": "随时按 ?",
+        "then": "然后",
+        "emptyTitle": "未注册任何快捷键。"
+      },
+      "avatarStack": {
+        "description": "带“+N”溢出和可选在线状态的重叠头像。",
+        "online": "{count} 人在线"
+      }
+    },
+    "system": {
+      "stateHero": {
+        "description": "用于 404、500、离线、无权限和维护状态的整页状态屏。",
+        "notFoundTitle": "这个页面走错了路",
+        "notFoundBody": "您要找的页面已被移动、重命名，或从未存在。",
+        "serverErrorTitle": "我们这边出了点问题",
+        "serverErrorBody": "错误已记录并已通知团队。重试通常有效。",
+        "offlineTitle": "您已离线",
+        "offlineBody": "请检查网络连接——仪表板会自动重连。",
+        "forbiddenTitle": "您没有访问权限",
+        "forbiddenBody": "请联系工作区管理员为您授予此页面的权限。",
+        "maintenanceTitle": "正在维护",
+        "maintenanceBody": "我们正在改进。通常只需几分钟。",
+        "connErrorTitle": "无法连接数据库",
+        "connErrorBody": "连接被拒绝或超时。请检查连接设置。",
+        "backToDashboard": "返回仪表板",
+        "tryAgain": "重试",
+        "retry": "重试",
+        "testConnection": "测试连接"
+      },
+      "emptyState": {
+        "description": "带可选操作的居中“暂无内容”面板。"
+      },
+      "statusPill": {
+        "description": "用于枚举列的彩色徽标——通用状态渲染器。"
+      },
+      "alertBanner": {
+        "description": "用于配额、冻结和计划提示的内嵌提示条。",
+        "dismiss": "关闭"
+      },
+      "statusBannerHero": {
+        "description": "服务健康状态横幅，其状态取自列表中最差的服务。",
+        "upTitle": "所有系统运行正常",
+        "upBody": "所有受监控的服务均正常响应。",
+        "degradedTitle": "性能下降",
+        "degradedBody": "部分服务比平时慢。我们正在排查。",
+        "downTitle": "重大故障",
+        "downBody": "一项或多项服务不可用。我们正在处理。"
+      },
+      "connectionStatus": {
+        "description": "数据库连接的连接或测试结果。",
+        "idle": "未连接",
+        "connecting": "正在连接…",
+        "connected": "已连接",
+        "failed": "连接失败",
+        "test": "测试"
+      },
+      "autosaveIndicator": {
+        "description": "自动保存文档的“未保存 → 保存中 → 已保存”标记。",
+        "dirty": "有未保存的更改",
+        "saving": "保存中…",
+        "saved": "所有更改已保存",
+        "error": "保存失败"
+      },
+      "progressLogConsole": {
+        "description": "带进度条的流式日志控制台，用于长时间运行的任务。",
+        "a11yLabel": "进度日志",
+        "progressLabel": "进度",
+        "emptyTitle": "暂无内容",
+        "emptyBody": "任务开始后日志将显示在这里。"
+      },
+      "diagnosticsReadout": {
+        "description": "连接检查结果，以带颜色的键/值行显示，并附检查时间。",
+        "checkedAt": "最后检查",
+        "host": "主机",
+        "dns": "DNS",
+        "tcp": "TCP",
+        "tls": "TLS",
+        "auth": "认证",
+        "latency": "延迟"
+      }
     }
   },
   "grid": {

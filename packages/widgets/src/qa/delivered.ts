@@ -23,8 +23,14 @@ import { matrixGeoChartDefinitions } from '../families/charts/defs.matrix-geo.js
 import { timeFlowChartDefinitions } from '../families/charts/time-flow-definitions.js';
 import { boardsTrackDefinitions } from '../families/boards/boards-track.definitions.js';
 import { calendarTrackDefinitions } from '../families/calendar/calendar-track.definitions.js';
+import { chromeTrackDefinitions } from '../families/chrome/chrome-track.definitions.js';
+import { communicationTrackDefinitions } from '../families/communication/communication-track.definitions.js';
+import { domainTrackDefinitions } from '../families/domain/domain-track.definitions.js';
 import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
+import { formsTrackDefinitions } from '../families/forms/forms-track.definitions.js';
 import { kpiWidgetDefinitions } from '../families/kpi/definitions.js';
+import { mediaTrackDefinitions } from '../families/media/media-track.definitions.js';
+import { systemTrackDefinitions } from '../families/system/system-track.definitions.js';
 import { tablesWidgetDefinitions } from '../families/tables/definitions.js';
 import { tablesTrackFDefinitions } from '../families/tables/tables-track-f.definitions.js';
 import { buildRegistry } from '../registry/index.js';
@@ -51,6 +57,18 @@ const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
   calendarTrackDefinitions,
   // boards (Track BOARDS — M7 Wave 2)
   boardsTrackDefinitions,
+  // media (Track MEDIA — M7 Wave 3; the file-browser exit criterion)
+  mediaTrackDefinitions,
+  // communication (Track COMM — M7 Wave 3)
+  communicationTrackDefinitions,
+  // domain (Track DOMAIN — M7 Wave 3; the two exit-criteria widgets)
+  domainTrackDefinitions,
+  // system (Track FCS — M7 Wave 3; annex §12)
+  systemTrackDefinitions,
+  // chrome (Track FCS — M7 Wave 3; annex §11)
+  chromeTrackDefinitions,
+  // forms (Track FCS — M7 Wave 3; annex §10)
+  formsTrackDefinitions,
 ];
 
 /** Flat list of every delivered Wave-1 widget definition. */

@@ -10,6 +10,12 @@
  * cannot drift from the frozen config contract.
  */
 
+import {
+  emitCandidates,
+  isRegisteredWidgetId,
+  selectArchetype,
+  type CandidateContext,
+} from '@adminium/widgets/generate';
 import { z } from 'zod';
 
 import { classifyModel, type ClassifiedTable } from '../classify/index.js';
@@ -19,15 +25,32 @@ import {
   type PageEnvelope,
 } from '../config-schema/envelope.js';
 import type { DatabaseModel, TableModel } from '../schema-model.js';
+import { archetypeSlug, buildArchetypeEnvelope, toCandidateModel } from './archetype.js';
 import { buildCrudEnvelope, type CrudBuildContext } from './crud.js';
 import { buildDashboardEnvelope, hasDashboardSignal } from './dashboard.js';
 import { detectDomains, type Domain } from './domains.js';
 import { hashEnvelope, humanize, slugify, SlugRegistry } from './util.js';
 
+export {
+  archetypeSlug,
+  buildArchetypeEnvelope,
+  toCandidateModel,
+  type ArchetypeBuildContext,
+  type ArchetypeBuildResult,
+} from './archetype.js';
 export { buildCrudEnvelope, enumTones } from './crud.js';
 export { buildDashboardEnvelope, hasDashboardSignal } from './dashboard.js';
 export { detectDomains, type Domain } from './domains.js';
-export { hashEnvelope, humanize, pluralizeWord, slugify, SlugRegistry } from './util.js';
+export {
+  ID_SLUG_BUDGET,
+  MAX_SLUG_LENGTH,
+  hashEnvelope,
+  humanize,
+  pageIdFor,
+  pluralizeWord,
+  slugify,
+  SlugRegistry,
+} from './util.js';
 
 /** 09 §8.4 generation intent variants (adminium_connections.settings.intent). */
 export const GENERATE_INTENTS = [
@@ -42,6 +65,28 @@ export type GenerateIntent = z.infer<typeof generateIntentSchema>;
 /** One `page-dashboard` per major domain, cap 3 for v1. */
 export const DASHBOARD_CAP = 3;
 
+/**
+ * The §14 archetypes each 09 §8.4 intent OMITS (empty ⇒ it admits them all).
+ * `crud` is absent because it skips the archetype pass wholesale ("`page-crud`
+ * per table … no dashboards beyond a minimal home").
+ *
+ * An archetype is omitted when the intent's §8.4 row rules out the *surface*, not
+ * merely the permission: capping roles at Viewer still leaves a kanban whose
+ * whole affordance is dragging a row to a new status, and a page's `toolbar` /
+ * `overlays` chrome is generated per template, not per role. Dropping the page is
+ * what makes the intent mean what §8.4 says it means.
+ */
+const INTENT_OMITTED_ARCHETYPES: Readonly<Record<string, readonly string[]>> = {
+  'full-admin': [],
+  // §8.4: "dashboards, analytics, data grids (read-only), search, exports; no
+  // forms/boards/imports". page-board is the board; page-files is the import
+  // surface (upload-dropzone); page-queue-inbox (modal-wizard approvals) and
+  // page-chat (message compose) are the form surfaces.
+  'read-only-analytics': ['page-board', 'page-chat', 'page-files', 'page-queue-inbox'],
+  // §8.4: "queue/master-detail templates prioritized …; boards/analytics omitted".
+  'support-console': ['page-board'],
+};
+
 export interface GenerateOptions {
   /** 09 §8.4; default 'full-admin'. */
   intent?: GenerateIntent | undefined;
@@ -51,6 +96,24 @@ export interface GenerateOptions {
    * source connection and no dashboards (descriptors need a connection).
    */
   connectionId?: string | null | undefined;
+  /**
+   * Widget-registry membership test, threaded into the §14 archetype step
+   * (04 §8 H1/H4) so unregistered ids are dropped before they reach a stored
+   * page.
+   *
+   * **Defaults to `isRegisteredWidgetId`** — the checked-in mirror of
+   * `widgetRegistry` that `@adminium/widgets/generate` exports (the Engine is
+   * Node-only and cannot import the registry map itself, and neither can the
+   * server, 01 §2.3). Defaulting rather than requiring is deliberate: this option
+   * being *optional and omitted* by the sole production caller is what made every
+   * registry filter in the archetype pipeline dead code, persisting chrome ids
+   * like `toast-stack`/`date-range-picker` into real page envelopes.
+   *
+   * Pass an explicit test only to override that catalog — a Studio preview
+   * against a marketplace registry, or `() => true` in a unit test driving
+   * synthetic widget ids.
+   */
+  isRegistered?: ((widgetId: string) => boolean) | undefined;
 }
 
 export interface GenerateResult {
@@ -103,6 +166,98 @@ function splitTables(
   return { included, graph };
 }
 
+interface ArchetypePassOptions {
+  connectionId: string | null;
+  slugs: SlugRegistry;
+  crudPlacement: ReadonlyMap<string, { slug: string; navOrder: number }>;
+  warnings: string[];
+  /** Always resolved by `generatePages` — never optional past this boundary. */
+  isRegistered: (widgetId: string) => boolean;
+  /** §14 templates this run's 09 §8.4 intent omits. */
+  omittedArchetypes: ReadonlySet<string>;
+  /** Page ids already emitted — an archetype must never clobber a crud page. */
+  emittedIds: Set<string>;
+}
+
+/**
+ * The §14 archetype pass: for every included table, the highest-scoring §14
+ * trigger (04 §8 H2: "1 page archetype per table … `page-crud` always emitted
+ * regardless") composed into a page. Tables that trigger nothing, tie, or whose
+ * template has an unfillable `required` slot yield nothing.
+ */
+function archetypePages(
+  model: DatabaseModel,
+  tables: readonly TableModel[],
+  classified: ReadonlyMap<string, ClassifiedTable>,
+  opts: ArchetypePassOptions,
+): Record<string, unknown>[] {
+  const { connectionId, warnings } = opts;
+  if (connectionId === null) {
+    warnings.push(
+      'no connection id — §14 archetype pages skipped (query descriptors bind to a connection)',
+    );
+    return [];
+  }
+
+  const candidateModel = toCandidateModel(model, tables, classified);
+  const ctx: CandidateContext = {
+    connectionId,
+    model: candidateModel,
+    isRegistered: opts.isRegistered,
+  };
+  const byId = new Map(tables.map((table) => [table.id, table]));
+  const out: Record<string, unknown>[] = [];
+
+  for (const entry of candidateModel) {
+    const table = byId.get(entry.table.id);
+    const placement = opts.crudPlacement.get(entry.table.id);
+    if (table === undefined || placement === undefined) continue;
+
+    const selection = selectArchetype(entry.table, entry.classified, ctx);
+    if (selection === null) continue;
+    if (opts.omittedArchetypes.has(selection.template)) {
+      warnings.push(
+        `${selection.template} for ${table.id} skipped — the generation intent omits this archetype (09 §8.4)`,
+      );
+      continue;
+    }
+
+    const candidates = emitCandidates(entry.table, entry.classified, ctx);
+    const slug = opts.slugs.claim(archetypeSlug(placement.slug, selection.template));
+    const built = buildArchetypeEnvelope(table, selection, candidates, {
+      connectionId,
+      slug,
+      // Sits directly under its table's page-crud in the nav (crud orders step
+      // by 10), so the archetype never shifts a crud page's position.
+      navOrder: placement.navOrder + 5,
+      isRegistered: opts.isRegistered,
+    });
+
+    if (built.envelope === null) {
+      const detail = built.warnings
+        .filter((w) => w.code === 'required-slot-unfillable' || w.code === 'invalid-layout')
+        .map((w) => w.message)
+        .join('; ');
+      warnings.push(
+        `${selection.template} for ${table.id} skipped — ${detail || 'composition produced no page'}`,
+      );
+      continue;
+    }
+
+    const id = built.envelope['id'] as string;
+    if (opts.emittedIds.has(id)) {
+      // Two slugs colliding after the char(36) id budget (util.ts `pageIdFor`).
+      // Dropping the archetype is the safe branch: a crud page must never be
+      // overwritten by an upsert on a duplicate id.
+      warnings.push(`${selection.template} for ${table.id} skipped — page id "${id}" already taken`);
+      continue;
+    }
+    opts.emittedIds.add(id);
+    out.push(built.envelope);
+  }
+  return out;
+}
+
 /**
  * Generate the v1 page set for a classified model: one `page-crud` per
  * included table plus one `page-dashboard` per FK-cluster domain (cap
@@ -113,10 +268,8 @@ function splitTables(
  */
 export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}): GenerateResult {
   const intent = opts.intent ?? 'full-admin';
+  const isRegistered = opts.isRegistered ?? isRegisteredWidgetId;
   const warnings: string[] = [];
-  if (intent === 'support-console') {
-    warnings.push("intent 'support-console' uses the full-admin page set in v1 (queue templates land M7)");
-  }
 
   const connectionId =
     opts.connectionId !== undefined
@@ -132,7 +285,9 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
   const rawPages: Record<string, unknown>[] = [];
 
   // -- dashboards first: they own the WORKSPACE group and low nav orders ----
-  const wantDashboards = intent !== 'crud';
+  // `crud` gets "no dashboards beyond a minimal home" and `support-console` has
+  // "analytics omitted" — both per 09 §8.4.
+  const wantDashboards = intent !== 'crud' && intent !== 'support-console';
   if (wantDashboards) {
     if (connectionId === null) {
       warnings.push('no connection id — dashboards skipped (query descriptors bind to a connection)');
@@ -178,6 +333,8 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
   const readOnly = intent === 'read-only-analytics';
   const includedIds: ReadonlySet<string> = includedIdSet;
   const counters = { library: 0, people: 0 };
+  /** Each table's page-crud slug + nav order — the archetype pass sits beside them. */
+  const crudPlacement = new Map<string, { slug: string; navOrder: number }>();
   for (const table of tables) {
     const info = classified.get(table.id) as ClassifiedTable;
     const people = info.shape.kind === 'people' || info.semantics.role === 'people';
@@ -192,7 +349,30 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
       readOnly,
       includedTableIds: includedIds,
     };
+    crudPlacement.set(table.id, { slug: ctx.slug, navOrder: order });
     rawPages.push(buildCrudEnvelope(model, table, info, ctx));
+  }
+
+  // -- plus the highest-scoring §14 archetype per table (§15 step 3) -------
+  //
+  // Strictly additive, and strictly LAST: the crud/dashboard envelopes above
+  // are the v0.1-gate-proven output, so this pass may not perturb them. Running
+  // after the crud loop is what guarantees it — archetype slugs are claimed from
+  // the same `SlugRegistry` only once every crud slug already holds its name,
+  // and nav orders slot between the crud orders (+5) without touching the
+  // counters. `test/generate-baseline.test.ts` is the regression guard.
+  if (intent !== 'crud') {
+    for (const raw of archetypePages(model, tables, classified, {
+      connectionId,
+      slugs,
+      crudPlacement,
+      warnings,
+      isRegistered,
+      omittedArchetypes: new Set(INTENT_OMITTED_ARCHETYPES[intent] ?? []),
+      emittedIds: new Set(rawPages.map((page) => page['id'] as string)),
+    })) {
+      rawPages.push(raw);
+    }
   }
 
   // -- stamp generated hashes + validate against the frozen contract -------

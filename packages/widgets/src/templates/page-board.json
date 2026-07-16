@@ -1,0 +1,12 @@
+{
+  "id": "page-board",
+  "version": 1,
+  "titleKey": "templates.board.title",
+  "slots": [
+    { "slot": "board", "accepts": { "widgets": ["kanban-board", "kanban-swimlane-grid"] },
+      "area": { "x": 0, "y": 0, "w": 12, "h": 16 }, "required": true },
+    { "slot": "compose", "accepts": { "widgets": ["inline-compose-card"] },
+      "area": { "x": 0, "y": 16, "w": 4, "h": 4 }, "fallback": "omit" }
+  ],
+  "chrome": { "toolbar": ["filter-chip-bar"], "overlays": ["modal-wizard", "toast-stack"] }
+}

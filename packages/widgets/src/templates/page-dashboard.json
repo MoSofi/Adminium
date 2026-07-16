@@ -1,0 +1,20 @@
+{
+  "id": "page-dashboard",
+  "version": 1,
+  "titleKey": "templates.dashboard.title",
+  "slots": [
+    { "slot": "kpi-row", "accepts": { "shapes": ["metric+delta", "single-metric"] },
+      "area": { "x": 0, "y": 0, "w": 3, "h": 3 }, "repeat": { "max": 4, "flow": "row" }, "required": true },
+    { "slot": "hero-chart", "accepts": { "shapes": ["timeseries", "multi-timeseries"] },
+      "area": { "x": 0, "y": 3, "w": 8, "h": 6 }, "required": true },
+    { "slot": "breakdown", "accepts": { "widgets": ["chart-donut", "chart-stacked-bar-100", "chart-radial-bar"] },
+      "area": { "x": 8, "y": 3, "w": 4, "h": 6 } },
+    { "slot": "grid-secondary", "accepts": { "shapes": ["timeseries", "categorical", "matrix", "distribution"] },
+      "area": { "x": 0, "y": 9, "w": 6, "h": 6 }, "repeat": { "max": 2, "flow": "row" } },
+    { "slot": "recent", "accepts": { "widgets": ["mini-table"] }, "area": { "x": 0, "y": 15, "w": 6, "h": 6 } },
+    { "slot": "activity", "accepts": { "widgets": ["activity-feed"] }, "area": { "x": 6, "y": 15, "w": 6, "h": 6 } },
+    { "slot": "insights", "accepts": { "widgets": ["auto-insights"] },
+      "area": { "x": 6, "y": 21, "w": 6, "h": 4 }, "fallback": "omit" }
+  ],
+  "chrome": { "toolbar": ["date-range-picker"], "overlays": ["toast-stack"] }
+}

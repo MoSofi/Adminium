@@ -193,6 +193,304 @@
         "returned": "{title} returned to its original position.",
         "failed": "Could not move {title}; it was returned to its original position."
       }
+    },
+    "communication": {
+      "conversationInbox": {
+        "description": "A selectable list of conversations with unread counts, presence, and last-message previews.",
+        "emptyTitle": "No conversations",
+        "emptyBody": "Conversations will appear here as messages arrive.",
+        "noMatchesTitle": "No conversations match",
+        "searchLabel": "Search conversations",
+        "searchPlaceholder": "Search conversations…"
+      },
+      "chatThread": {
+        "description": "Message bubbles grouped by author and day, with attachments and a composer.",
+        "emptyTitle": "No messages yet",
+        "emptyBody": "Messages in this conversation will appear here.",
+        "composerPlaceholder": "Write a message…",
+        "sendLabel": "Send",
+        "attachLabel": "Add attachment",
+        "typingLabel": "typing…"
+      },
+      "aiChatPanel": {
+        "description": "An assistant panel for asking questions about your schema and data.",
+        "emptyTitle": "Ask about your data",
+        "emptyBody": "Ask a question about your schema, tables, or metrics to get started.",
+        "composerPlaceholder": "Ask a question…",
+        "sendLabel": "Send",
+        "pendingLabel": "Thinking…",
+        "configureTitle": "No AI provider configured",
+        "configureBody": "Add an Anthropic or OpenAI key — or point Adminium at your own endpoint — to ask questions about your schema.",
+        "configureCtaLabel": "Configure a provider"
+      }
+    },
+    "domain": {
+      "orgChart": {
+        "description": "The reporting tree built from a people table's manager reference, with collapsible branches.",
+        "emptyTitle": "No reporting structure",
+        "emptyBody": "The org chart appears once people rows reference a manager.",
+        "reportsLabel": "Reports · {count}",
+        "a11yLabel": "Organization chart"
+      },
+      "ganttChart": {
+        "description": "Task bars over a time axis, grouped by phase, with progress, milestones, and a today marker.",
+        "emptyTitle": "Nothing scheduled",
+        "emptyBody": "Tasks appear here once they have start and end dates.",
+        "ungroupedLabel": "Tasks"
+      }
+    },
+    "media": {
+      "fileBrowser": {
+        "description": "Browse files and folders as a tile grid or a list, with a breadcrumb trail, type icons, and starring.",
+        "emptyTitle": "This folder is empty",
+        "emptyBody": "Upload files or create a folder to get started."
+      },
+      "uploadDropzone": {
+        "description": "A drag-and-drop target for uploading files, with format and size constraints.",
+        "dropTitle": "Drop files to upload",
+        "browsePrefix": "or",
+        "browseLabel": "browse"
+      },
+      "uploadProgressList": {
+        "description": "Per-file upload rows with a progress bar and status; also drives export-queue jobs.",
+        "emptyTitle": "No uploads in progress",
+        "emptyBody": "Files you upload will show their progress here."
+      },
+      "attachmentList": {
+        "description": "Files attached to a record, with type icons, sizes, and download or delete actions.",
+        "emptyTitle": "No attachments",
+        "emptyBody": "Files attached to this record will appear here."
+      },
+      "imageBoard": {
+        "description": "A moodboard grid of image slots with captions, for tables with image URLs.",
+        "emptyTitle": "No images yet",
+        "emptyBody": "Reference images will appear on this board."
+      },
+      "linkList": {
+        "description": "Reference links with titles and URLs, opening in a new tab.",
+        "emptyTitle": "No links yet",
+        "emptyBody": "Reference links will appear here."
+      },
+      "root": "Files",
+      "breadcrumb": "Breadcrumb",
+      "gridView": "Grid view",
+      "listView": "List view",
+      "nameHeader": "Name",
+      "sizeHeader": "Size",
+      "modifiedHeader": "Modified",
+      "star": "Star",
+      "items": "items",
+      "done": "Done",
+      "failed": "Failed",
+      "queued": "Queued",
+      "retry": "Retry",
+      "download": "Download",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "remove": "Remove",
+      "addImage": "Add image",
+      "caption": "Caption",
+      "addLink": "Add link",
+      "linkTitlePlaceholder": "Title",
+      "linkUrlPlaceholder": "https://…",
+      "add": "Add"
+    },
+    "forms": {
+      "modalWizard": {
+        "description": "A modal create form with a success confirmation — the standard “new record” flow.",
+        "trigger": "Create",
+        "submit": "Create",
+        "cancel": "Cancel",
+        "done": "Done",
+        "successTitle": "Record created",
+        "successBody": "The record was saved.",
+        "required": "This field is required."
+      },
+      "drawerForm": {
+        "description": "A side-drawer create or edit form for records with more fields than a modal fits.",
+        "trigger": "New",
+        "submit": "Save",
+        "cancel": "Cancel"
+      },
+      "stepper": {
+        "description": "A progress stepper showing where a multi-step flow has got to.",
+        "a11yLabel": "Progress"
+      },
+      "progressBar": {
+        "description": "A determinate progress track with a percent caption.",
+        "label": "Progress"
+      },
+      "otpInput": {
+        "description": "A one-time-code entry field.",
+        "label": "One-time code"
+      },
+      "chipInput": {
+        "description": "A tag input: removable chips plus free text that commits on Enter.",
+        "remove": "Remove",
+        "placeholder": "Type and press Enter…"
+      },
+      "segmentedControl": {
+        "description": "A single-select pill control for periods, environments and filters.",
+        "a11yLabel": "Select an option"
+      },
+      "filterChipBar": {
+        "description": "Filter chips with live counts computed from the list they filter.",
+        "all": "All",
+        "a11yLabel": "Filter",
+        "meta": "{shown} of {total}"
+      },
+      "toggleSwitchList": {
+        "description": "A list of settings rows, each with a switch.",
+        "save": "Save",
+        "dirty": "You have unsaved changes",
+        "emptyTitle": "No settings",
+        "emptyBody": "Settings appear here once they are configured."
+      },
+      "optionCards": {
+        "description": "A single-select card grid for sources, templates and plans.",
+        "a11yLabel": "Choose an option"
+      },
+      "passwordStrengthMeter": {
+        "description": "A four-segment meter showing how strong a password is.",
+        "label": "Password strength",
+        "weak": "Weak",
+        "fair": "Fair",
+        "good": "Good",
+        "strong": "Strong"
+      },
+      "validationIssuesList": {
+        "description": "Import and validation issues, most severe first, with affected row counts.",
+        "emptyTitle": "No issues found",
+        "emptyBody": "Everything checks out — you are good to import."
+      }
+    },
+    "chrome": {
+      "sidebarNav": {
+        "description": "The grouped app navigation rail, with live count badges.",
+        "a11yLabel": "Main",
+        "emptyTitle": "No navigation yet",
+        "emptyBody": "Included tables appear here once a connection is generated."
+      },
+      "commandPalette": {
+        "description": "The ⌘K palette: search actions, pages and records from anywhere.",
+        "title": "Command palette",
+        "placeholder": "Search actions, pages and records…",
+        "navigate": "Navigate",
+        "select": "Open",
+        "close": "Close",
+        "emptyTitle": "No results",
+        "emptyBody": "Start typing to search.",
+        "groupActions": "Actions",
+        "groupNavigate": "Navigate",
+        "groupRecent": "Recent",
+        "groupPages": "Pages",
+        "groupMetrics": "Metrics",
+        "groupPeople": "People",
+        "groupRecords": "Records"
+      },
+      "globalSearch": {
+        "description": "Search across every entity, with type facets and result snippets.",
+        "placeholder": "Search everything…",
+        "all": "All",
+        "summary": "{count} results for “{query}”",
+        "emptyTitle": "No results",
+        "emptyBody": "Try a different search term."
+      },
+      "breadcrumb": {
+        "description": "The ancestor trail of the current record or folder.",
+        "a11yLabel": "Breadcrumb"
+      },
+      "tabBar": {
+        "description": "Tabs that switch panels or navigate, with optional counts.",
+        "a11yLabel": "Tabs"
+      },
+      "navCard": {
+        "description": "A grid of link cards for hub and landing pages.",
+        "emptyTitle": "Nothing to show",
+        "emptyBody": "Hub links appear here once pages are generated."
+      },
+      "shortcutsPanel": {
+        "description": "The keyboard shortcuts cheat sheet.",
+        "footerHint": "Press ? anytime",
+        "then": "then",
+        "emptyTitle": "No shortcuts registered."
+      },
+      "avatarStack": {
+        "description": "Overlapping avatars with a “+N” overflow and optional presence.",
+        "online": "{count} online"
+      }
+    },
+    "system": {
+      "stateHero": {
+        "description": "A full-page status screen for 404, 500, offline, forbidden and maintenance states.",
+        "notFoundTitle": "This page took a wrong turn",
+        "notFoundBody": "The page you are looking for was moved, renamed, or never existed.",
+        "serverErrorTitle": "Something broke on our side",
+        "serverErrorBody": "The error was logged and the team notified. Trying again often works.",
+        "offlineTitle": "You are offline",
+        "offlineBody": "Check your connection — the dashboard reconnects automatically.",
+        "forbiddenTitle": "You do not have access",
+        "forbiddenBody": "Ask a workspace admin to grant you permission for this page.",
+        "maintenanceTitle": "Down for maintenance",
+        "maintenanceBody": "We are making things better. This usually takes a few minutes.",
+        "connErrorTitle": "Cannot reach the database",
+        "connErrorBody": "The connection was refused or timed out. Check the connection settings.",
+        "backToDashboard": "Back to dashboard",
+        "tryAgain": "Try again",
+        "retry": "Retry",
+        "testConnection": "Test connection"
+      },
+      "emptyState": {
+        "description": "A centred “nothing here yet” panel with optional actions."
+      },
+      "statusPill": {
+        "description": "A tone-coded badge for an enum column — the universal status renderer."
+      },
+      "alertBanner": {
+        "description": "An inline callout for quota, freeze and schedule notices.",
+        "dismiss": "Dismiss"
+      },
+      "statusBannerHero": {
+        "description": "A service-health hero whose state derives from the worst service in the list.",
+        "upTitle": "All systems operational",
+        "upBody": "Every monitored service is responding normally.",
+        "degradedTitle": "Degraded performance",
+        "degradedBody": "Some services are slower than usual. We are investigating.",
+        "downTitle": "Major outage",
+        "downBody": "One or more services are unavailable. We are on it."
+      },
+      "connectionStatus": {
+        "description": "The connect/test result for a database connection.",
+        "idle": "Not connected",
+        "connecting": "Connecting…",
+        "connected": "Connected",
+        "failed": "Couldn’t connect",
+        "test": "Test"
+      },
+      "autosaveIndicator": {
+        "description": "The unsaved → saving → saved pill for autosaving documents.",
+        "dirty": "Unsaved changes",
+        "saving": "Saving…",
+        "saved": "All changes saved",
+        "error": "Couldn’t save"
+      },
+      "progressLogConsole": {
+        "description": "A streaming log console with a progress bar, for long-running tasks.",
+        "a11yLabel": "Progress log",
+        "progressLabel": "Progress",
+        "emptyTitle": "Nothing to report yet",
+        "emptyBody": "Log lines appear here once the task starts."
+      },
+      "diagnosticsReadout": {
+        "description": "Connection-check results as toned key/value rows with a freshness stamp.",
+        "checkedAt": "Last checked",
+        "host": "Host",
+        "dns": "DNS",
+        "tcp": "TCP",
+        "tls": "TLS",
+        "auth": "Auth",
+        "latency": "Latency"
+      }
     }
   },
   "grid": {

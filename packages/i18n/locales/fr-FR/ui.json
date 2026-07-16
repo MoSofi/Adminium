@@ -193,6 +193,304 @@
         "returned": "{title} est revenue à sa position d'origine.",
         "failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine."
       }
+    },
+    "communication": {
+      "conversationInbox": {
+        "description": "Une liste sélectionnable de conversations avec compteurs de non-lus, présence et aperçu du dernier message.",
+        "emptyTitle": "Aucune conversation",
+        "emptyBody": "Les conversations apparaîtront ici à mesure que des messages arrivent.",
+        "noMatchesTitle": "Aucune conversation correspondante",
+        "searchLabel": "Rechercher dans les conversations",
+        "searchPlaceholder": "Rechercher dans les conversations…"
+      },
+      "chatThread": {
+        "description": "Bulles de messages groupées par auteur et par jour, avec pièces jointes et champ de saisie.",
+        "emptyTitle": "Aucun message pour l'instant",
+        "emptyBody": "Les messages de cette conversation apparaîtront ici.",
+        "composerPlaceholder": "Écrire un message…",
+        "sendLabel": "Envoyer",
+        "attachLabel": "Ajouter une pièce jointe",
+        "typingLabel": "en train d'écrire…"
+      },
+      "aiChatPanel": {
+        "description": "Un panneau d'assistant pour poser des questions sur votre schéma et vos données.",
+        "emptyTitle": "Posez une question sur vos données",
+        "emptyBody": "Posez une question sur votre schéma, vos tables ou vos métriques pour commencer.",
+        "composerPlaceholder": "Poser une question…",
+        "sendLabel": "Envoyer",
+        "pendingLabel": "Réflexion…",
+        "configureTitle": "Aucun fournisseur d'IA configuré",
+        "configureBody": "Ajoutez une clé Anthropic ou OpenAI — ou pointez Adminium vers votre propre point de terminaison — pour poser des questions sur votre schéma.",
+        "configureCtaLabel": "Configurer un fournisseur"
+      }
+    },
+    "domain": {
+      "orgChart": {
+        "description": "L'arbre hiérarchique construit à partir de la référence au responsable d'une table de personnes, avec branches repliables.",
+        "emptyTitle": "Aucune structure hiérarchique",
+        "emptyBody": "L'organigramme apparaît dès que les lignes de personnes référencent un responsable.",
+        "reportsLabel": "Rattachements · {count}",
+        "a11yLabel": "Organigramme"
+      },
+      "ganttChart": {
+        "description": "Barres de tâches sur un axe temporel, groupées par phase, avec avancement, jalons et repère du jour.",
+        "emptyTitle": "Rien de planifié",
+        "emptyBody": "Les tâches apparaissent ici dès qu'elles ont une date de début et de fin.",
+        "ungroupedLabel": "Tâches"
+      }
+    },
+    "media": {
+      "fileBrowser": {
+        "description": "Parcourez fichiers et dossiers sous forme de grille ou de liste, avec fil d'Ariane, icônes de type et favoris.",
+        "emptyTitle": "Ce dossier est vide",
+        "emptyBody": "Téléversez des fichiers ou créez un dossier pour commencer."
+      },
+      "uploadDropzone": {
+        "description": "Une cible glisser-déposer pour téléverser des fichiers, avec contraintes de format et de taille.",
+        "dropTitle": "Déposez les fichiers à téléverser",
+        "browsePrefix": "ou",
+        "browseLabel": "parcourir"
+      },
+      "uploadProgressList": {
+        "description": "Lignes par fichier avec barre de progression et statut ; pilote aussi les tâches de la file d'export.",
+        "emptyTitle": "Aucun téléversement en cours",
+        "emptyBody": "Les fichiers que vous téléversez afficheront ici leur progression."
+      },
+      "attachmentList": {
+        "description": "Fichiers joints à un enregistrement, avec icônes de type, tailles et actions de téléchargement ou de suppression.",
+        "emptyTitle": "Aucune pièce jointe",
+        "emptyBody": "Les fichiers joints à cet enregistrement apparaîtront ici."
+      },
+      "imageBoard": {
+        "description": "Une grille de moodboard avec emplacements d'images et légendes, pour les tables contenant des URL d'images.",
+        "emptyTitle": "Aucune image pour l'instant",
+        "emptyBody": "Les images de référence apparaîtront sur ce tableau."
+      },
+      "linkList": {
+        "description": "Liens de référence avec titres et URL, ouverts dans un nouvel onglet.",
+        "emptyTitle": "Aucun lien pour l'instant",
+        "emptyBody": "Les liens de référence apparaîtront ici."
+      },
+      "root": "Fichiers",
+      "breadcrumb": "Fil d'Ariane",
+      "gridView": "Vue en grille",
+      "listView": "Vue en liste",
+      "nameHeader": "Nom",
+      "sizeHeader": "Taille",
+      "modifiedHeader": "Modifié",
+      "star": "Favori",
+      "items": "éléments",
+      "done": "Terminé",
+      "failed": "Échec",
+      "queued": "En file d'attente",
+      "retry": "Réessayer",
+      "download": "Télécharger",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "remove": "Retirer",
+      "addImage": "Ajouter une image",
+      "caption": "Légende",
+      "addLink": "Ajouter un lien",
+      "linkTitlePlaceholder": "Titre",
+      "linkUrlPlaceholder": "https://…",
+      "add": "Ajouter"
+    },
+    "forms": {
+      "modalWizard": {
+        "description": "Un formulaire de création en modale avec confirmation — le flux « nouvel enregistrement » standard.",
+        "trigger": "Créer",
+        "submit": "Créer",
+        "cancel": "Annuler",
+        "done": "Terminé",
+        "successTitle": "Enregistrement créé",
+        "successBody": "L’enregistrement a été sauvegardé.",
+        "required": "Ce champ est obligatoire."
+      },
+      "drawerForm": {
+        "description": "Un panneau latéral de création ou d’édition pour les enregistrements à nombreux champs.",
+        "trigger": "Nouveau",
+        "submit": "Enregistrer",
+        "cancel": "Annuler"
+      },
+      "stepper": {
+        "description": "Un indicateur d’étapes montrant l’avancement d’un parcours en plusieurs étapes.",
+        "a11yLabel": "Progression"
+      },
+      "progressBar": {
+        "description": "Une barre de progression déterminée avec pourcentage.",
+        "label": "Progression"
+      },
+      "otpInput": {
+        "description": "Un champ de saisie de code à usage unique.",
+        "label": "Code à usage unique"
+      },
+      "chipInput": {
+        "description": "Une saisie de tags : puces supprimables et texte libre validé par Entrée.",
+        "remove": "Supprimer",
+        "placeholder": "Saisir puis appuyer sur Entrée…"
+      },
+      "segmentedControl": {
+        "description": "Un sélecteur unique pour périodes, environnements et filtres.",
+        "a11yLabel": "Choisir une option"
+      },
+      "filterChipBar": {
+        "description": "Des puces de filtre avec compteurs calculés en direct sur la liste filtrée.",
+        "all": "Tout",
+        "a11yLabel": "Filtrer",
+        "meta": "{shown} sur {total}"
+      },
+      "toggleSwitchList": {
+        "description": "Une liste de réglages, chacun avec un interrupteur.",
+        "save": "Enregistrer",
+        "dirty": "Vous avez des modifications non enregistrées",
+        "emptyTitle": "Aucun réglage",
+        "emptyBody": "Les réglages apparaîtront ici une fois configurés."
+      },
+      "optionCards": {
+        "description": "Une grille de cartes à choix unique pour sources, modèles et forfaits.",
+        "a11yLabel": "Choisir une option"
+      },
+      "passwordStrengthMeter": {
+        "description": "Un indicateur en quatre segments de la robustesse du mot de passe.",
+        "label": "Robustesse du mot de passe",
+        "weak": "Faible",
+        "fair": "Moyen",
+        "good": "Bon",
+        "strong": "Fort"
+      },
+      "validationIssuesList": {
+        "description": "Problèmes d’import et de validation, du plus grave au moins grave, avec le nombre de lignes.",
+        "emptyTitle": "Aucun problème détecté",
+        "emptyBody": "Tout est en ordre — vous pouvez importer."
+      }
+    },
+    "chrome": {
+      "sidebarNav": {
+        "description": "La barre de navigation groupée de l’application, avec compteurs en direct.",
+        "a11yLabel": "Navigation principale",
+        "emptyTitle": "Pas encore de navigation",
+        "emptyBody": "Les tables incluses apparaîtront ici une fois une connexion générée."
+      },
+      "commandPalette": {
+        "description": "La palette ⌘K : rechercher actions, pages et enregistrements depuis n’importe où.",
+        "title": "Palette de commandes",
+        "placeholder": "Rechercher actions, pages et enregistrements…",
+        "navigate": "Naviguer",
+        "select": "Ouvrir",
+        "close": "Fermer",
+        "emptyTitle": "Aucun résultat",
+        "emptyBody": "Commencez à taper pour rechercher.",
+        "groupActions": "Actions",
+        "groupNavigate": "Naviguer",
+        "groupRecent": "Récents",
+        "groupPages": "Pages",
+        "groupMetrics": "Indicateurs",
+        "groupPeople": "Personnes",
+        "groupRecords": "Enregistrements"
+      },
+      "globalSearch": {
+        "description": "Recherche sur toutes les entités, avec facettes par type et extraits.",
+        "placeholder": "Rechercher partout…",
+        "all": "Tout",
+        "summary": "{count} résultats pour « {query} »",
+        "emptyTitle": "Aucun résultat",
+        "emptyBody": "Essayez un autre terme de recherche."
+      },
+      "breadcrumb": {
+        "description": "Le fil d’Ariane de l’enregistrement ou du dossier courant.",
+        "a11yLabel": "Fil d’Ariane"
+      },
+      "tabBar": {
+        "description": "Des onglets qui changent de panneau ou naviguent, avec compteurs optionnels.",
+        "a11yLabel": "Onglets"
+      },
+      "navCard": {
+        "description": "Une grille de cartes de liens pour les pages d’accueil et de hub.",
+        "emptyTitle": "Rien à afficher",
+        "emptyBody": "Les liens apparaîtront ici une fois les pages générées."
+      },
+      "shortcutsPanel": {
+        "description": "L’aide-mémoire des raccourcis clavier.",
+        "footerHint": "Appuyez sur ? à tout moment",
+        "then": "puis",
+        "emptyTitle": "Aucun raccourci enregistré."
+      },
+      "avatarStack": {
+        "description": "Des avatars superposés avec débordement « +N » et présence optionnelle.",
+        "online": "{count} en ligne"
+      }
+    },
+    "system": {
+      "stateHero": {
+        "description": "Un écran d’état pleine page pour 404, 500, hors ligne, accès refusé et maintenance.",
+        "notFoundTitle": "Cette page s’est perdue en route",
+        "notFoundBody": "La page recherchée a été déplacée, renommée, ou n’a jamais existé.",
+        "serverErrorTitle": "Quelque chose a cassé de notre côté",
+        "serverErrorBody": "L’erreur a été enregistrée et l’équipe notifiée. Réessayer fonctionne souvent.",
+        "offlineTitle": "Vous êtes hors ligne",
+        "offlineBody": "Vérifiez votre connexion — le tableau de bord se reconnecte automatiquement.",
+        "forbiddenTitle": "Vous n’avez pas accès",
+        "forbiddenBody": "Demandez à un administrateur de l’espace de travail de vous accorder l’accès.",
+        "maintenanceTitle": "Maintenance en cours",
+        "maintenanceBody": "Nous améliorons les choses. Cela prend généralement quelques minutes.",
+        "connErrorTitle": "Base de données injoignable",
+        "connErrorBody": "La connexion a été refusée ou a expiré. Vérifiez les paramètres de connexion.",
+        "backToDashboard": "Retour au tableau de bord",
+        "tryAgain": "Réessayer",
+        "retry": "Réessayer",
+        "testConnection": "Tester la connexion"
+      },
+      "emptyState": {
+        "description": "Un panneau centré « rien ici pour l’instant » avec actions optionnelles."
+      },
+      "statusPill": {
+        "description": "Un badge coloré pour une colonne enum — l’affichage de statut universel."
+      },
+      "alertBanner": {
+        "description": "Un encart en ligne pour les alertes de quota, de gel et de planification.",
+        "dismiss": "Fermer"
+      },
+      "statusBannerHero": {
+        "description": "Un bandeau de santé des services dont l’état dérive du pire service de la liste.",
+        "upTitle": "Tous les systèmes sont opérationnels",
+        "upBody": "Tous les services surveillés répondent normalement.",
+        "degradedTitle": "Performances dégradées",
+        "degradedBody": "Certains services sont plus lents que d’habitude. Nous investiguons.",
+        "downTitle": "Panne majeure",
+        "downBody": "Un ou plusieurs services sont indisponibles. Nous intervenons."
+      },
+      "connectionStatus": {
+        "description": "Le résultat de connexion ou de test d’une connexion de base de données.",
+        "idle": "Non connecté",
+        "connecting": "Connexion…",
+        "connected": "Connecté",
+        "failed": "Échec de la connexion",
+        "test": "Tester"
+      },
+      "autosaveIndicator": {
+        "description": "La pastille « non enregistré → enregistrement → enregistré » pour les documents en sauvegarde auto.",
+        "dirty": "Modifications non enregistrées",
+        "saving": "Enregistrement…",
+        "saved": "Toutes les modifications sont enregistrées",
+        "error": "Échec de l’enregistrement"
+      },
+      "progressLogConsole": {
+        "description": "Une console de logs en flux avec barre de progression, pour les tâches longues.",
+        "a11yLabel": "Journal de progression",
+        "progressLabel": "Progression",
+        "emptyTitle": "Rien à signaler pour l’instant",
+        "emptyBody": "Les lignes de log apparaîtront au démarrage de la tâche."
+      },
+      "diagnosticsReadout": {
+        "description": "Résultats des vérifications de connexion en lignes clé/valeur colorées, avec horodatage.",
+        "checkedAt": "Dernière vérification",
+        "host": "Hôte",
+        "dns": "DNS",
+        "tcp": "TCP",
+        "tls": "TLS",
+        "auth": "Authentification",
+        "latency": "Latence"
+      }
     }
   },
   "grid": {

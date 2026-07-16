@@ -1,0 +1,5435 @@
+{
+  "full-admin": {
+    "pages": [
+      {
+        "v": 1,
+        "kind": "dashboard",
+        "id": "page_07beef91_dashboard",
+        "template": "page-dashboard",
+        "title": {
+          "key": "nav.dashboard",
+          "fallback": "Dashboard"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": null
+        },
+        "nav": {
+          "group": "workspace",
+          "icon": "layout-dashboard",
+          "order": 10,
+          "slug": "dashboard"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": []
+        },
+        "config": {
+          "domain": {
+            "key": "orders",
+            "label": "Orders",
+            "tables": [
+              "public.categories",
+              "public.customer_demographics",
+              "public.customers",
+              "public.employees",
+              "public.order_details",
+              "public.orders",
+              "public.products",
+              "public.region",
+              "public.shippers",
+              "public.suppliers",
+              "public.territories"
+            ]
+          },
+          "layout": {
+            "version": 1,
+            "items": [
+              {
+                "i": "kpi-count-orders",
+                "widget": "kpi-stat-card",
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "Total Orders",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "single-metric",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "i": "kpi-sum-order_details-unit_price",
+                "widget": "kpi-stat-card",
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "Total Unit Price",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "order_details",
+                      "type": "table"
+                    },
+                    "shape": "single-metric",
+                    "aggregations": [
+                      {
+                        "fn": "sum",
+                        "column": "unit_price",
+                        "alias": "value"
+                      }
+                    ]
+                  },
+                  "format": "currency"
+                }
+              },
+              {
+                "i": "kpi-new-orders",
+                "widget": "kpi-stat-card",
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "New Orders (30d)",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "metric+delta",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ],
+                    "window": {
+                      "column": "order_date",
+                      "last": 30,
+                      "unit": "day",
+                      "compareToPrior": true
+                    }
+                  }
+                }
+              },
+              {
+                "i": "kpi-count-order_details",
+                "widget": "kpi-stat-card",
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "Total Order Details",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "order_details",
+                      "type": "table"
+                    },
+                    "shape": "single-metric",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "i": "hero-line-orders",
+                "widget": "chart-line-area",
+                "x": 0,
+                "y": 3,
+                "w": 8,
+                "h": 8,
+                "config": {
+                  "title": "Orders per Month",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "timeseries",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ],
+                    "bucket": {
+                      "column": "order_date",
+                      "unit": "month"
+                    }
+                  }
+                }
+              },
+              {
+                "i": "donut-orders-ship_country",
+                "widget": "chart-donut",
+                "x": 8,
+                "y": 3,
+                "w": 4,
+                "h": 8,
+                "config": {
+                  "title": "Orders by Ship Country",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "categorical",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ],
+                    "groupBy": [
+                      "ship_country"
+                    ],
+                    "limit": 8
+                  }
+                }
+              }
+            ]
+          },
+          "generatedHash": "4f72d8a4c211c1bdd3ce597ccbc60f2ff7f30709f5370fbc5ad7a2a4e1fce2e4"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_categories",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.categories",
+          "fallback": "Categories"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.categories"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "package",
+          "order": 20,
+          "slug": "categories"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.categories:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "category_name",
+              "label": "Category Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 15
+            },
+            {
+              "name": "category_id",
+              "label": "Category Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "category_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "category_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.products",
+                "fkColumn": "category_id",
+                "label": "Products"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "category_id",
+                "label": "Category Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "category_name",
+                "label": "Category Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "description",
+                "label": "Description",
+                "required": false,
+                "input": "textarea"
+              },
+              {
+                "column": "picture",
+                "label": "Picture",
+                "required": false,
+                "input": "text"
+              }
+            ]
+          },
+          "generatedHash": "d9ce86ca2e176d47522a908bdb99ecbe12286a282bca45a2e7c0842b84fa6175"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_customer-demographics",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.customer-demographics",
+          "fallback": "Customer Demographics"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.customer_demographics"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 30,
+          "slug": "customer-demographics"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.customer_demographics:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "customer_type_id",
+              "label": "Customer Type Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 5,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "customer_type_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "customer_desc",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "customer_type_id",
+                "label": "Customer Type Id",
+                "required": true,
+                "input": "text",
+                "maxLength": 5
+              },
+              {
+                "column": "customer_desc",
+                "label": "Customer Desc",
+                "required": false,
+                "input": "textarea"
+              }
+            ]
+          },
+          "generatedHash": "6f96aa1fe57eaa89e13938b2f92822b1bc9575f1f52954443546de1bbc76f466"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_customers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.customers",
+          "fallback": "Customers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.customers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 40,
+          "slug": "customers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.customers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "fax",
+              "label": "Fax",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "contact_name",
+              "label": "Contact Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "contact_title",
+              "label": "Contact Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 60
+            },
+            {
+              "name": "city",
+              "label": "City",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 15
+            },
+            {
+              "name": "region",
+              "label": "Region",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 15
+            },
+            {
+              "name": "customer_id",
+              "label": "Customer Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 5,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "customer_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "customer_id",
+                "label": "Orders"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "customer_id",
+                "label": "Customer Id",
+                "required": true,
+                "input": "text",
+                "maxLength": 5
+              },
+              {
+                "column": "company_name",
+                "label": "Company Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "contact_name",
+                "label": "Contact Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "contact_title",
+                "label": "Contact Title",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "address",
+                "label": "Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "city",
+                "label": "City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "region",
+                "label": "Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "postal_code",
+                "label": "Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "country",
+                "label": "Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "phone",
+                "label": "Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "fax",
+                "label": "Fax",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              }
+            ]
+          },
+          "generatedHash": "7a0b53d9019ea6b5b2bbcfca370f78960b8f9979d5499966a3c453c2dfb3015b"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_employees",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.employees",
+          "fallback": "Employees"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.employees"
+        },
+        "nav": {
+          "group": "people",
+          "icon": "users",
+          "order": 20,
+          "slug": "employees"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.employees:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "title",
+              "label": "Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "birth_date",
+              "label": "Birth Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true,
+              "pii": true
+            },
+            {
+              "name": "hire_date",
+              "label": "Hire Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "reports_to",
+              "label": "Reports To",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.employees",
+                "column": "employee_id"
+              }
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "logicalType": "varchar",
+              "semantic": "person-name",
+              "sortable": true,
+              "pii": true,
+              "nullable": false,
+              "maxLength": 20
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "logicalType": "varchar",
+              "semantic": "person-name",
+              "sortable": true,
+              "pii": true,
+              "nullable": false,
+              "maxLength": 10
+            },
+            {
+              "name": "home_phone",
+              "label": "Home Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "title_of_courtesy",
+              "label": "Title Of Courtesy",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 25
+            },
+            {
+              "name": "employee_id",
+              "label": "Employee Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "employee_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "title",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "employee_id",
+                "label": "Orders"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "employee_id",
+                "label": "Employee Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "last_name",
+                "label": "Last Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 20
+              },
+              {
+                "column": "first_name",
+                "label": "First Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "title",
+                "label": "Title",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "title_of_courtesy",
+                "label": "Title Of Courtesy",
+                "required": false,
+                "input": "text",
+                "maxLength": 25
+              },
+              {
+                "column": "birth_date",
+                "label": "Birth Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "hire_date",
+                "label": "Hire Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "address",
+                "label": "Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "city",
+                "label": "City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "region",
+                "label": "Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "postal_code",
+                "label": "Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "country",
+                "label": "Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "home_phone",
+                "label": "Home Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "extension",
+                "label": "Extension",
+                "required": false,
+                "input": "text",
+                "maxLength": 4
+              },
+              {
+                "column": "photo",
+                "label": "Photo",
+                "required": false,
+                "input": "text"
+              },
+              {
+                "column": "notes",
+                "label": "Notes",
+                "required": false,
+                "input": "textarea"
+              },
+              {
+                "column": "reports_to",
+                "label": "Reports To",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.employees"
+              },
+              {
+                "column": "photo_path",
+                "label": "Photo Path",
+                "required": false,
+                "input": "text",
+                "maxLength": 255
+              }
+            ]
+          },
+          "generatedHash": "b2bc078da2d7a0b123aa9b443fe5145f57882a80f28d50542f09a6ea22b38825"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_order-details",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.order-details",
+          "fallback": "Order Details"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.order_details"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 50,
+          "slug": "order-details"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.order_details:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "unit_price",
+              "label": "Unit Price",
+              "logicalType": "float",
+              "semantic": "money",
+              "sortable": true,
+              "format": "currency",
+              "align": "end",
+              "nullable": false
+            },
+            {
+              "name": "discount",
+              "label": "Discount",
+              "logicalType": "float",
+              "semantic": "percent",
+              "sortable": true,
+              "format": "percent",
+              "nullable": false
+            },
+            {
+              "name": "quantity",
+              "label": "Quantity",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false
+            },
+            {
+              "name": "order_id",
+              "label": "Order Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "fk": {
+                "table": "public.orders",
+                "column": "order_id"
+              },
+              "primaryKey": true,
+              "nullable": false,
+              "hidden": true
+            },
+            {
+              "name": "product_id",
+              "label": "Product Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "fk": {
+                "table": "public.products",
+                "column": "product_id"
+              },
+              "primaryKey": true,
+              "nullable": false,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "order_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "order_id",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "order_id",
+                "label": "Order Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "product_id",
+                "label": "Product Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "unit_price",
+                "label": "Unit Price",
+                "required": true,
+                "input": "number",
+                "format": "currency"
+              },
+              {
+                "column": "quantity",
+                "label": "Quantity",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "discount",
+                "label": "Discount",
+                "required": true,
+                "input": "number"
+              }
+            ]
+          },
+          "generatedHash": "b1f5bd43dad6968360f39e008d4d30399a94dcf333ca0607e69bf38070480519"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_orders",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.orders",
+          "fallback": "Orders"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.orders"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 60,
+          "slug": "orders"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.orders:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "ship_name",
+              "label": "Ship Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 40
+            },
+            {
+              "name": "order_date",
+              "label": "Order Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "required_date",
+              "label": "Required Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "shipped_date",
+              "label": "Shipped Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "customer_id",
+              "label": "Customer Id",
+              "logicalType": "varchar",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.customers",
+                "column": "customer_id"
+              },
+              "maxLength": 5
+            },
+            {
+              "name": "employee_id",
+              "label": "Employee Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.employees",
+                "column": "employee_id"
+              }
+            },
+            {
+              "name": "ship_via",
+              "label": "Ship Via",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.shippers",
+                "column": "shipper_id"
+              }
+            },
+            {
+              "name": "freight",
+              "label": "Freight",
+              "logicalType": "float",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "order_id",
+              "label": "Order Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "order_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "ship_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.order_details",
+                "fkColumn": "order_id",
+                "label": "Order Details"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "order_id",
+                "label": "Order Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "customer_id",
+                "label": "Customer Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.customers"
+              },
+              {
+                "column": "employee_id",
+                "label": "Employee Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.employees"
+              },
+              {
+                "column": "order_date",
+                "label": "Order Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "required_date",
+                "label": "Required Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "shipped_date",
+                "label": "Shipped Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "ship_via",
+                "label": "Ship Via",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.shippers"
+              },
+              {
+                "column": "freight",
+                "label": "Freight",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "ship_name",
+                "label": "Ship Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "ship_address",
+                "label": "Ship Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "ship_city",
+                "label": "Ship City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "ship_region",
+                "label": "Ship Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "ship_postal_code",
+                "label": "Ship Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "ship_country",
+                "label": "Ship Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              }
+            ]
+          },
+          "generatedHash": "44b9e682b4bae229cc75664fe44ff7b69c607a4d27be89c12ce2f5d5254c9639"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_products",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.products",
+          "fallback": "Products"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.products"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "package",
+          "order": 70,
+          "slug": "products"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.products:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "product_name",
+              "label": "Product Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "unit_price",
+              "label": "Unit Price",
+              "logicalType": "float",
+              "semantic": "money",
+              "sortable": true,
+              "format": "currency",
+              "align": "end"
+            },
+            {
+              "name": "supplier_id",
+              "label": "Supplier Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.suppliers",
+                "column": "supplier_id"
+              }
+            },
+            {
+              "name": "category_id",
+              "label": "Category Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.categories",
+                "column": "category_id"
+              }
+            },
+            {
+              "name": "quantity_per_unit",
+              "label": "Quantity Per Unit",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 20
+            },
+            {
+              "name": "units_in_stock",
+              "label": "Units In Stock",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "units_on_order",
+              "label": "Units On Order",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "reorder_level",
+              "label": "Reorder Level",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "product_id",
+              "label": "Product Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "product_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "product_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.order_details",
+                "fkColumn": "product_id",
+                "label": "Order Details"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "product_id",
+                "label": "Product Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "product_name",
+                "label": "Product Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "supplier_id",
+                "label": "Supplier Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.suppliers"
+              },
+              {
+                "column": "category_id",
+                "label": "Category Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.categories"
+              },
+              {
+                "column": "quantity_per_unit",
+                "label": "Quantity Per Unit",
+                "required": false,
+                "input": "text",
+                "maxLength": 20
+              },
+              {
+                "column": "unit_price",
+                "label": "Unit Price",
+                "required": false,
+                "input": "number",
+                "format": "currency"
+              },
+              {
+                "column": "units_in_stock",
+                "label": "Units In Stock",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "units_on_order",
+                "label": "Units On Order",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "reorder_level",
+                "label": "Reorder Level",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "discontinued",
+                "label": "Discontinued",
+                "required": true,
+                "input": "number"
+              }
+            ]
+          },
+          "generatedHash": "82e53358dcababc8f3ee91b785a08d7a9413d302b4dec8e19395d76137566158"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_region",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.region",
+          "fallback": "Region"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.region"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 80,
+          "slug": "region"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.region:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "region_description",
+              "label": "Region Description",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 60
+            },
+            {
+              "name": "region_id",
+              "label": "Region Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "region_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "region_description",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.territories",
+                "fkColumn": "region_id",
+                "label": "Territories"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "region_id",
+                "label": "Region Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "region_description",
+                "label": "Region Description",
+                "required": true,
+                "input": "text",
+                "maxLength": 60
+              }
+            ]
+          },
+          "generatedHash": "ad5acb5115fd6c0f7d0ab5d9d95d68bdcdfeae59685a67b04e2b1feccc1355d1"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_shippers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.shippers",
+          "fallback": "Shippers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.shippers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 90,
+          "slug": "shippers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.shippers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "shipper_id",
+              "label": "Shipper Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "shipper_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "ship_via",
+                "label": "Orders"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "shipper_id",
+                "label": "Shipper Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "company_name",
+                "label": "Company Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "phone",
+                "label": "Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              }
+            ]
+          },
+          "generatedHash": "cee27d4c07844fa9165fb3ef097d8695687c275023f9a101d5e0a89d18e42293"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_suppliers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.suppliers",
+          "fallback": "Suppliers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.suppliers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 100,
+          "slug": "suppliers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.suppliers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "fax",
+              "label": "Fax",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "homepage",
+              "label": "Homepage",
+              "logicalType": "text",
+              "semantic": "url",
+              "sortable": true
+            },
+            {
+              "name": "contact_name",
+              "label": "Contact Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "contact_title",
+              "label": "Contact Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 60
+            },
+            {
+              "name": "city",
+              "label": "City",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 15
+            },
+            {
+              "name": "supplier_id",
+              "label": "Supplier Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "supplier_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.products",
+                "fkColumn": "supplier_id",
+                "label": "Products"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "supplier_id",
+                "label": "Supplier Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "company_name",
+                "label": "Company Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "contact_name",
+                "label": "Contact Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "contact_title",
+                "label": "Contact Title",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "address",
+                "label": "Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "city",
+                "label": "City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "region",
+                "label": "Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "postal_code",
+                "label": "Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "country",
+                "label": "Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "phone",
+                "label": "Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "fax",
+                "label": "Fax",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "homepage",
+                "label": "Homepage",
+                "required": false,
+                "input": "text"
+              }
+            ]
+          },
+          "generatedHash": "0c5c13eecf65a168ef9f4b8f96fc603d0552f397465602d80582dfec07563bf6"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_territories",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.territories",
+          "fallback": "Territories"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.territories"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 110,
+          "slug": "territories"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.territories:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "territory_description",
+              "label": "Territory Description",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 60
+            },
+            {
+              "name": "region_id",
+              "label": "Region Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.region",
+                "column": "region_id"
+              },
+              "nullable": false
+            },
+            {
+              "name": "territory_id",
+              "label": "Territory Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 20,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "territory_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "territory_description",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "territory_id",
+                "label": "Territory Id",
+                "required": true,
+                "input": "text",
+                "maxLength": 20
+              },
+              {
+                "column": "territory_description",
+                "label": "Territory Description",
+                "required": true,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "region_id",
+                "label": "Region Id",
+                "required": true,
+                "input": "fk-combobox",
+                "ref": "public.region"
+              }
+            ]
+          },
+          "generatedHash": "354531200a8db5fb4efca898c86421c1234a7dc655a09ab8ac76a436c323a9c4"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_us-states",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.us-states",
+          "fallback": "Us States"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.us_states"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "map",
+          "order": 120,
+          "slug": "us-states"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.us_states:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "state_name",
+              "label": "State Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 100
+            },
+            {
+              "name": "state_abbr",
+              "label": "State Abbr",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 2
+            },
+            {
+              "name": "state_region",
+              "label": "State Region",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 50
+            },
+            {
+              "name": "state_id",
+              "label": "State Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "state_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "state_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "state_id",
+                "label": "State Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "state_name",
+                "label": "State Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 100
+              },
+              {
+                "column": "state_abbr",
+                "label": "State Abbr",
+                "required": false,
+                "input": "text",
+                "maxLength": 2
+              },
+              {
+                "column": "state_region",
+                "label": "State Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 50
+              }
+            ]
+          },
+          "generatedHash": "bfaf630bb186313a4049540d03c2f4441e559791d418801860a965d060bb1503"
+        }
+      }
+    ],
+    "warnings": [
+      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M (05 §8.2)",
+      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M (05 §8.2)",
+      "domain general has no timestamp column — dashboard skipped (05 §8)"
+    ]
+  },
+  "read-only-analytics": {
+    "pages": [
+      {
+        "v": 1,
+        "kind": "dashboard",
+        "id": "page_07beef91_dashboard",
+        "template": "page-dashboard",
+        "title": {
+          "key": "nav.dashboard",
+          "fallback": "Dashboard"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": null
+        },
+        "nav": {
+          "group": "workspace",
+          "icon": "layout-dashboard",
+          "order": 10,
+          "slug": "dashboard"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": []
+        },
+        "config": {
+          "domain": {
+            "key": "orders",
+            "label": "Orders",
+            "tables": [
+              "public.categories",
+              "public.customer_demographics",
+              "public.customers",
+              "public.employees",
+              "public.order_details",
+              "public.orders",
+              "public.products",
+              "public.region",
+              "public.shippers",
+              "public.suppliers",
+              "public.territories"
+            ]
+          },
+          "layout": {
+            "version": 1,
+            "items": [
+              {
+                "i": "kpi-count-orders",
+                "widget": "kpi-stat-card",
+                "x": 0,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "Total Orders",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "single-metric",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "i": "kpi-sum-order_details-unit_price",
+                "widget": "kpi-stat-card",
+                "x": 3,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "Total Unit Price",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "order_details",
+                      "type": "table"
+                    },
+                    "shape": "single-metric",
+                    "aggregations": [
+                      {
+                        "fn": "sum",
+                        "column": "unit_price",
+                        "alias": "value"
+                      }
+                    ]
+                  },
+                  "format": "currency"
+                }
+              },
+              {
+                "i": "kpi-new-orders",
+                "widget": "kpi-stat-card",
+                "x": 6,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "New Orders (30d)",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "metric+delta",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ],
+                    "window": {
+                      "column": "order_date",
+                      "last": 30,
+                      "unit": "day",
+                      "compareToPrior": true
+                    }
+                  }
+                }
+              },
+              {
+                "i": "kpi-count-order_details",
+                "widget": "kpi-stat-card",
+                "x": 9,
+                "y": 0,
+                "w": 3,
+                "h": 3,
+                "config": {
+                  "title": "Total Order Details",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "order_details",
+                      "type": "table"
+                    },
+                    "shape": "single-metric",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "i": "hero-line-orders",
+                "widget": "chart-line-area",
+                "x": 0,
+                "y": 3,
+                "w": 8,
+                "h": 8,
+                "config": {
+                  "title": "Orders per Month",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "timeseries",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ],
+                    "bucket": {
+                      "column": "order_date",
+                      "unit": "month"
+                    }
+                  }
+                }
+              },
+              {
+                "i": "donut-orders-ship_country",
+                "widget": "chart-donut",
+                "x": 8,
+                "y": 3,
+                "w": 4,
+                "h": 8,
+                "config": {
+                  "title": "Orders by Ship Country",
+                  "binding": {
+                    "kind": "table-query",
+                    "connectionId": "conn_01HZX0000000000000000000",
+                    "source": {
+                      "schema": "public",
+                      "name": "orders",
+                      "type": "table"
+                    },
+                    "shape": "categorical",
+                    "aggregations": [
+                      {
+                        "fn": "count",
+                        "alias": "value"
+                      }
+                    ],
+                    "groupBy": [
+                      "ship_country"
+                    ],
+                    "limit": 8
+                  }
+                }
+              }
+            ]
+          },
+          "generatedHash": "4f72d8a4c211c1bdd3ce597ccbc60f2ff7f30709f5370fbc5ad7a2a4e1fce2e4"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_categories",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.categories",
+          "fallback": "Categories"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.categories"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "package",
+          "order": 20,
+          "slug": "categories"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.categories:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "category_name",
+              "label": "Category Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 15
+            },
+            {
+              "name": "category_id",
+              "label": "Category Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "category_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "category_name",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.products",
+                "fkColumn": "category_id",
+                "label": "Products"
+              }
+            ]
+          },
+          "generatedHash": "039cca0aa7016bf9ce4ab996d2b3a7d76d7ad848512ed18131377d7a46ed1f43"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_customer-demographics",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.customer-demographics",
+          "fallback": "Customer Demographics"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.customer_demographics"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 30,
+          "slug": "customer-demographics"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.customer_demographics:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "customer_type_id",
+              "label": "Customer Type Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 5,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "customer_type_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "customer_desc",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "generatedHash": "f3acffe1fe128c10dfc3973a9f8b42c6d2cd1035db13b4ecd28239210be20c8a"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_customers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.customers",
+          "fallback": "Customers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.customers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 40,
+          "slug": "customers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.customers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "fax",
+              "label": "Fax",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "contact_name",
+              "label": "Contact Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "contact_title",
+              "label": "Contact Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 60
+            },
+            {
+              "name": "city",
+              "label": "City",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 15
+            },
+            {
+              "name": "region",
+              "label": "Region",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 15
+            },
+            {
+              "name": "customer_id",
+              "label": "Customer Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 5,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "customer_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "customer_id",
+                "label": "Orders"
+              }
+            ]
+          },
+          "generatedHash": "a11ee587f2022199613b354532c662f537542b196af9f811e9f348caeab7d3b5"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_employees",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.employees",
+          "fallback": "Employees"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.employees"
+        },
+        "nav": {
+          "group": "people",
+          "icon": "users",
+          "order": 20,
+          "slug": "employees"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.employees:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "title",
+              "label": "Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "birth_date",
+              "label": "Birth Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true,
+              "pii": true
+            },
+            {
+              "name": "hire_date",
+              "label": "Hire Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "reports_to",
+              "label": "Reports To",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.employees",
+                "column": "employee_id"
+              }
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "logicalType": "varchar",
+              "semantic": "person-name",
+              "sortable": true,
+              "pii": true,
+              "nullable": false,
+              "maxLength": 20
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "logicalType": "varchar",
+              "semantic": "person-name",
+              "sortable": true,
+              "pii": true,
+              "nullable": false,
+              "maxLength": 10
+            },
+            {
+              "name": "home_phone",
+              "label": "Home Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "title_of_courtesy",
+              "label": "Title Of Courtesy",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 25
+            },
+            {
+              "name": "employee_id",
+              "label": "Employee Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "employee_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "title",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "employee_id",
+                "label": "Orders"
+              }
+            ]
+          },
+          "generatedHash": "2b9f3d127f9dc77308fab6ee3bda41580a35972b0b436a4827945716c39501af"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_order-details",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.order-details",
+          "fallback": "Order Details"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.order_details"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 50,
+          "slug": "order-details"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.order_details:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "unit_price",
+              "label": "Unit Price",
+              "logicalType": "float",
+              "semantic": "money",
+              "sortable": true,
+              "format": "currency",
+              "align": "end",
+              "nullable": false
+            },
+            {
+              "name": "discount",
+              "label": "Discount",
+              "logicalType": "float",
+              "semantic": "percent",
+              "sortable": true,
+              "format": "percent",
+              "nullable": false
+            },
+            {
+              "name": "quantity",
+              "label": "Quantity",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false
+            },
+            {
+              "name": "order_id",
+              "label": "Order Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "fk": {
+                "table": "public.orders",
+                "column": "order_id"
+              },
+              "primaryKey": true,
+              "nullable": false,
+              "hidden": true
+            },
+            {
+              "name": "product_id",
+              "label": "Product Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "fk": {
+                "table": "public.products",
+                "column": "product_id"
+              },
+              "primaryKey": true,
+              "nullable": false,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "order_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "order_id",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "generatedHash": "222e55ba6d52ac165a6242365d0ee3ce1ff02ab6674186932d9bdb443ffeef73"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_orders",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.orders",
+          "fallback": "Orders"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.orders"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 60,
+          "slug": "orders"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.orders:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "ship_name",
+              "label": "Ship Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 40
+            },
+            {
+              "name": "order_date",
+              "label": "Order Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "required_date",
+              "label": "Required Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "shipped_date",
+              "label": "Shipped Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "customer_id",
+              "label": "Customer Id",
+              "logicalType": "varchar",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.customers",
+                "column": "customer_id"
+              },
+              "maxLength": 5
+            },
+            {
+              "name": "employee_id",
+              "label": "Employee Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.employees",
+                "column": "employee_id"
+              }
+            },
+            {
+              "name": "ship_via",
+              "label": "Ship Via",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.shippers",
+                "column": "shipper_id"
+              }
+            },
+            {
+              "name": "freight",
+              "label": "Freight",
+              "logicalType": "float",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "order_id",
+              "label": "Order Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "order_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "ship_name",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.order_details",
+                "fkColumn": "order_id",
+                "label": "Order Details"
+              }
+            ]
+          },
+          "generatedHash": "fc3c533b0935cfb47c5eed4eed66c549b41a18d25bddf16eb60bdede289b8717"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_products",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.products",
+          "fallback": "Products"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.products"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "package",
+          "order": 70,
+          "slug": "products"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.products:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "product_name",
+              "label": "Product Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "unit_price",
+              "label": "Unit Price",
+              "logicalType": "float",
+              "semantic": "money",
+              "sortable": true,
+              "format": "currency",
+              "align": "end"
+            },
+            {
+              "name": "supplier_id",
+              "label": "Supplier Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.suppliers",
+                "column": "supplier_id"
+              }
+            },
+            {
+              "name": "category_id",
+              "label": "Category Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.categories",
+                "column": "category_id"
+              }
+            },
+            {
+              "name": "quantity_per_unit",
+              "label": "Quantity Per Unit",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 20
+            },
+            {
+              "name": "units_in_stock",
+              "label": "Units In Stock",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "units_on_order",
+              "label": "Units On Order",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "reorder_level",
+              "label": "Reorder Level",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "product_id",
+              "label": "Product Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "product_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "product_name",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.order_details",
+                "fkColumn": "product_id",
+                "label": "Order Details"
+              }
+            ]
+          },
+          "generatedHash": "0d4d1712c797fac5d97bbc8918876ae8b7d05e8dbb543c1733d800c6073d1433"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_region",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.region",
+          "fallback": "Region"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.region"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 80,
+          "slug": "region"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.region:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "region_description",
+              "label": "Region Description",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 60
+            },
+            {
+              "name": "region_id",
+              "label": "Region Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "region_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "region_description",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.territories",
+                "fkColumn": "region_id",
+                "label": "Territories"
+              }
+            ]
+          },
+          "generatedHash": "1c1f625d43de589b8550701d4a78b4395415160d2e0dd55cef00a4fb79aeb360"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_shippers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.shippers",
+          "fallback": "Shippers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.shippers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 90,
+          "slug": "shippers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.shippers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "shipper_id",
+              "label": "Shipper Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "shipper_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "ship_via",
+                "label": "Orders"
+              }
+            ]
+          },
+          "generatedHash": "47eb15dfad7de1a6547420e75c9d25f38b4282b9ceb2e3047811377bb21c2f29"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_suppliers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.suppliers",
+          "fallback": "Suppliers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.suppliers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 100,
+          "slug": "suppliers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.suppliers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "fax",
+              "label": "Fax",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "homepage",
+              "label": "Homepage",
+              "logicalType": "text",
+              "semantic": "url",
+              "sortable": true
+            },
+            {
+              "name": "contact_name",
+              "label": "Contact Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "contact_title",
+              "label": "Contact Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 60
+            },
+            {
+              "name": "city",
+              "label": "City",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 15
+            },
+            {
+              "name": "supplier_id",
+              "label": "Supplier Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "supplier_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.products",
+                "fkColumn": "supplier_id",
+                "label": "Products"
+              }
+            ]
+          },
+          "generatedHash": "6e30a20e58b78b4cc1dc75b5cc15eeb94d0dad17d9da6f5a9a83aa215625ced3"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_territories",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.territories",
+          "fallback": "Territories"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.territories"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 110,
+          "slug": "territories"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.territories:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "territory_description",
+              "label": "Territory Description",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 60
+            },
+            {
+              "name": "region_id",
+              "label": "Region Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.region",
+                "column": "region_id"
+              },
+              "nullable": false
+            },
+            {
+              "name": "territory_id",
+              "label": "Territory Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 20,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "territory_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "territory_description",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "generatedHash": "fef2e34cc377ec4481af1a8c84fa1162e06fa631c90356a3c4cecd826a315883"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_us-states",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.us-states",
+          "fallback": "Us States"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.us_states"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "map",
+          "order": 120,
+          "slug": "us-states"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.us_states:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "state_name",
+              "label": "State Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 100
+            },
+            {
+              "name": "state_abbr",
+              "label": "State Abbr",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 2
+            },
+            {
+              "name": "state_region",
+              "label": "State Region",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 50
+            },
+            {
+              "name": "state_id",
+              "label": "State Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "state_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "state_name",
+          "readOnly": true,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "generatedHash": "672c1ec28414a02bc9ed3e928a89d28176a93c3b321984ce744e93ea291b8f9d"
+        }
+      }
+    ],
+    "warnings": [
+      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M (05 §8.2)",
+      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M (05 §8.2)",
+      "domain general has no timestamp column — dashboard skipped (05 §8)"
+    ]
+  },
+  "crud": {
+    "pages": [
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_categories",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.categories",
+          "fallback": "Categories"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.categories"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "package",
+          "order": 20,
+          "slug": "categories"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.categories:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "category_name",
+              "label": "Category Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 15
+            },
+            {
+              "name": "category_id",
+              "label": "Category Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "category_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "category_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.products",
+                "fkColumn": "category_id",
+                "label": "Products"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "category_id",
+                "label": "Category Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "category_name",
+                "label": "Category Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "description",
+                "label": "Description",
+                "required": false,
+                "input": "textarea"
+              },
+              {
+                "column": "picture",
+                "label": "Picture",
+                "required": false,
+                "input": "text"
+              }
+            ]
+          },
+          "generatedHash": "d9ce86ca2e176d47522a908bdb99ecbe12286a282bca45a2e7c0842b84fa6175"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_customer-demographics",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.customer-demographics",
+          "fallback": "Customer Demographics"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.customer_demographics"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 30,
+          "slug": "customer-demographics"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.customer_demographics:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "customer_type_id",
+              "label": "Customer Type Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 5,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "customer_type_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "customer_desc",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "customer_type_id",
+                "label": "Customer Type Id",
+                "required": true,
+                "input": "text",
+                "maxLength": 5
+              },
+              {
+                "column": "customer_desc",
+                "label": "Customer Desc",
+                "required": false,
+                "input": "textarea"
+              }
+            ]
+          },
+          "generatedHash": "6f96aa1fe57eaa89e13938b2f92822b1bc9575f1f52954443546de1bbc76f466"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_customers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.customers",
+          "fallback": "Customers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.customers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 40,
+          "slug": "customers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.customers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "fax",
+              "label": "Fax",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "contact_name",
+              "label": "Contact Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "contact_title",
+              "label": "Contact Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 60
+            },
+            {
+              "name": "city",
+              "label": "City",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 15
+            },
+            {
+              "name": "region",
+              "label": "Region",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 15
+            },
+            {
+              "name": "customer_id",
+              "label": "Customer Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 5,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "customer_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "customer_id",
+                "label": "Orders"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "customer_id",
+                "label": "Customer Id",
+                "required": true,
+                "input": "text",
+                "maxLength": 5
+              },
+              {
+                "column": "company_name",
+                "label": "Company Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "contact_name",
+                "label": "Contact Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "contact_title",
+                "label": "Contact Title",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "address",
+                "label": "Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "city",
+                "label": "City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "region",
+                "label": "Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "postal_code",
+                "label": "Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "country",
+                "label": "Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "phone",
+                "label": "Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "fax",
+                "label": "Fax",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              }
+            ]
+          },
+          "generatedHash": "7a0b53d9019ea6b5b2bbcfca370f78960b8f9979d5499966a3c453c2dfb3015b"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_employees",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.employees",
+          "fallback": "Employees"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.employees"
+        },
+        "nav": {
+          "group": "people",
+          "icon": "users",
+          "order": 20,
+          "slug": "employees"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.employees:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "title",
+              "label": "Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "birth_date",
+              "label": "Birth Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true,
+              "pii": true
+            },
+            {
+              "name": "hire_date",
+              "label": "Hire Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "reports_to",
+              "label": "Reports To",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.employees",
+                "column": "employee_id"
+              }
+            },
+            {
+              "name": "last_name",
+              "label": "Last Name",
+              "logicalType": "varchar",
+              "semantic": "person-name",
+              "sortable": true,
+              "pii": true,
+              "nullable": false,
+              "maxLength": 20
+            },
+            {
+              "name": "first_name",
+              "label": "First Name",
+              "logicalType": "varchar",
+              "semantic": "person-name",
+              "sortable": true,
+              "pii": true,
+              "nullable": false,
+              "maxLength": 10
+            },
+            {
+              "name": "home_phone",
+              "label": "Home Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "title_of_courtesy",
+              "label": "Title Of Courtesy",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 25
+            },
+            {
+              "name": "employee_id",
+              "label": "Employee Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "employee_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "title",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "employee_id",
+                "label": "Orders"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "employee_id",
+                "label": "Employee Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "last_name",
+                "label": "Last Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 20
+              },
+              {
+                "column": "first_name",
+                "label": "First Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "title",
+                "label": "Title",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "title_of_courtesy",
+                "label": "Title Of Courtesy",
+                "required": false,
+                "input": "text",
+                "maxLength": 25
+              },
+              {
+                "column": "birth_date",
+                "label": "Birth Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "hire_date",
+                "label": "Hire Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "address",
+                "label": "Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "city",
+                "label": "City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "region",
+                "label": "Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "postal_code",
+                "label": "Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "country",
+                "label": "Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "home_phone",
+                "label": "Home Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "extension",
+                "label": "Extension",
+                "required": false,
+                "input": "text",
+                "maxLength": 4
+              },
+              {
+                "column": "photo",
+                "label": "Photo",
+                "required": false,
+                "input": "text"
+              },
+              {
+                "column": "notes",
+                "label": "Notes",
+                "required": false,
+                "input": "textarea"
+              },
+              {
+                "column": "reports_to",
+                "label": "Reports To",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.employees"
+              },
+              {
+                "column": "photo_path",
+                "label": "Photo Path",
+                "required": false,
+                "input": "text",
+                "maxLength": 255
+              }
+            ]
+          },
+          "generatedHash": "b2bc078da2d7a0b123aa9b443fe5145f57882a80f28d50542f09a6ea22b38825"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_order-details",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.order-details",
+          "fallback": "Order Details"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.order_details"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 50,
+          "slug": "order-details"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.order_details:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "unit_price",
+              "label": "Unit Price",
+              "logicalType": "float",
+              "semantic": "money",
+              "sortable": true,
+              "format": "currency",
+              "align": "end",
+              "nullable": false
+            },
+            {
+              "name": "discount",
+              "label": "Discount",
+              "logicalType": "float",
+              "semantic": "percent",
+              "sortable": true,
+              "format": "percent",
+              "nullable": false
+            },
+            {
+              "name": "quantity",
+              "label": "Quantity",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false
+            },
+            {
+              "name": "order_id",
+              "label": "Order Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "fk": {
+                "table": "public.orders",
+                "column": "order_id"
+              },
+              "primaryKey": true,
+              "nullable": false,
+              "hidden": true
+            },
+            {
+              "name": "product_id",
+              "label": "Product Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "fk": {
+                "table": "public.products",
+                "column": "product_id"
+              },
+              "primaryKey": true,
+              "nullable": false,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "order_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "order_id",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "order_id",
+                "label": "Order Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "product_id",
+                "label": "Product Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "unit_price",
+                "label": "Unit Price",
+                "required": true,
+                "input": "number",
+                "format": "currency"
+              },
+              {
+                "column": "quantity",
+                "label": "Quantity",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "discount",
+                "label": "Discount",
+                "required": true,
+                "input": "number"
+              }
+            ]
+          },
+          "generatedHash": "b1f5bd43dad6968360f39e008d4d30399a94dcf333ca0607e69bf38070480519"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_orders",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.orders",
+          "fallback": "Orders"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.orders"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 60,
+          "slug": "orders"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.orders:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "ship_name",
+              "label": "Ship Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 40
+            },
+            {
+              "name": "order_date",
+              "label": "Order Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "required_date",
+              "label": "Required Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "shipped_date",
+              "label": "Shipped Date",
+              "logicalType": "date",
+              "semantic": "event-timestamp",
+              "sortable": true
+            },
+            {
+              "name": "customer_id",
+              "label": "Customer Id",
+              "logicalType": "varchar",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.customers",
+                "column": "customer_id"
+              },
+              "maxLength": 5
+            },
+            {
+              "name": "employee_id",
+              "label": "Employee Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.employees",
+                "column": "employee_id"
+              }
+            },
+            {
+              "name": "ship_via",
+              "label": "Ship Via",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.shippers",
+                "column": "shipper_id"
+              }
+            },
+            {
+              "name": "freight",
+              "label": "Freight",
+              "logicalType": "float",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "order_id",
+              "label": "Order Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "order_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "ship_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.order_details",
+                "fkColumn": "order_id",
+                "label": "Order Details"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "order_id",
+                "label": "Order Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "customer_id",
+                "label": "Customer Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.customers"
+              },
+              {
+                "column": "employee_id",
+                "label": "Employee Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.employees"
+              },
+              {
+                "column": "order_date",
+                "label": "Order Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "required_date",
+                "label": "Required Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "shipped_date",
+                "label": "Shipped Date",
+                "required": false,
+                "input": "date"
+              },
+              {
+                "column": "ship_via",
+                "label": "Ship Via",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.shippers"
+              },
+              {
+                "column": "freight",
+                "label": "Freight",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "ship_name",
+                "label": "Ship Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "ship_address",
+                "label": "Ship Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "ship_city",
+                "label": "Ship City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "ship_region",
+                "label": "Ship Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "ship_postal_code",
+                "label": "Ship Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "ship_country",
+                "label": "Ship Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              }
+            ]
+          },
+          "generatedHash": "44b9e682b4bae229cc75664fe44ff7b69c607a4d27be89c12ce2f5d5254c9639"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_products",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.products",
+          "fallback": "Products"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.products"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "package",
+          "order": 70,
+          "slug": "products"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.products:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "product_name",
+              "label": "Product Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "unit_price",
+              "label": "Unit Price",
+              "logicalType": "float",
+              "semantic": "money",
+              "sortable": true,
+              "format": "currency",
+              "align": "end"
+            },
+            {
+              "name": "supplier_id",
+              "label": "Supplier Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.suppliers",
+                "column": "supplier_id"
+              }
+            },
+            {
+              "name": "category_id",
+              "label": "Category Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.categories",
+                "column": "category_id"
+              }
+            },
+            {
+              "name": "quantity_per_unit",
+              "label": "Quantity Per Unit",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 20
+            },
+            {
+              "name": "units_in_stock",
+              "label": "Units In Stock",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "units_on_order",
+              "label": "Units On Order",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "reorder_level",
+              "label": "Reorder Level",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true
+            },
+            {
+              "name": "product_id",
+              "label": "Product Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "product_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "product_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.order_details",
+                "fkColumn": "product_id",
+                "label": "Order Details"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "product_id",
+                "label": "Product Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "product_name",
+                "label": "Product Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "supplier_id",
+                "label": "Supplier Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.suppliers"
+              },
+              {
+                "column": "category_id",
+                "label": "Category Id",
+                "required": false,
+                "input": "fk-combobox",
+                "ref": "public.categories"
+              },
+              {
+                "column": "quantity_per_unit",
+                "label": "Quantity Per Unit",
+                "required": false,
+                "input": "text",
+                "maxLength": 20
+              },
+              {
+                "column": "unit_price",
+                "label": "Unit Price",
+                "required": false,
+                "input": "number",
+                "format": "currency"
+              },
+              {
+                "column": "units_in_stock",
+                "label": "Units In Stock",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "units_on_order",
+                "label": "Units On Order",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "reorder_level",
+                "label": "Reorder Level",
+                "required": false,
+                "input": "number"
+              },
+              {
+                "column": "discontinued",
+                "label": "Discontinued",
+                "required": true,
+                "input": "number"
+              }
+            ]
+          },
+          "generatedHash": "82e53358dcababc8f3ee91b785a08d7a9413d302b4dec8e19395d76137566158"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_region",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.region",
+          "fallback": "Region"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.region"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 80,
+          "slug": "region"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.region:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "region_description",
+              "label": "Region Description",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 60
+            },
+            {
+              "name": "region_id",
+              "label": "Region Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "region_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "region_description",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.territories",
+                "fkColumn": "region_id",
+                "label": "Territories"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "region_id",
+                "label": "Region Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "region_description",
+                "label": "Region Description",
+                "required": true,
+                "input": "text",
+                "maxLength": 60
+              }
+            ]
+          },
+          "generatedHash": "ad5acb5115fd6c0f7d0ab5d9d95d68bdcdfeae59685a67b04e2b1feccc1355d1"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_shippers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.shippers",
+          "fallback": "Shippers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.shippers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 90,
+          "slug": "shippers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.shippers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "shipper_id",
+              "label": "Shipper Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "shipper_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.orders",
+                "fkColumn": "ship_via",
+                "label": "Orders"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "shipper_id",
+                "label": "Shipper Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "company_name",
+                "label": "Company Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "phone",
+                "label": "Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              }
+            ]
+          },
+          "generatedHash": "cee27d4c07844fa9165fb3ef097d8695687c275023f9a101d5e0a89d18e42293"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_suppliers",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.suppliers",
+          "fallback": "Suppliers"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.suppliers"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 100,
+          "slug": "suppliers"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.suppliers:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "company_name",
+              "label": "Company Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 40
+            },
+            {
+              "name": "phone",
+              "label": "Phone",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "fax",
+              "label": "Fax",
+              "logicalType": "varchar",
+              "semantic": "phone",
+              "sortable": true,
+              "format": "tel",
+              "pii": true,
+              "maxLength": 24
+            },
+            {
+              "name": "homepage",
+              "label": "Homepage",
+              "logicalType": "text",
+              "semantic": "url",
+              "sortable": true
+            },
+            {
+              "name": "contact_name",
+              "label": "Contact Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "contact_title",
+              "label": "Contact Title",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 30
+            },
+            {
+              "name": "address",
+              "label": "Address",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 60
+            },
+            {
+              "name": "city",
+              "label": "City",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "pii": true,
+              "maxLength": 15
+            },
+            {
+              "name": "supplier_id",
+              "label": "Supplier Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "supplier_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "company_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": [
+              {
+                "table": "public.products",
+                "fkColumn": "supplier_id",
+                "label": "Products"
+              }
+            ]
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "supplier_id",
+                "label": "Supplier Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "company_name",
+                "label": "Company Name",
+                "required": true,
+                "input": "text",
+                "maxLength": 40
+              },
+              {
+                "column": "contact_name",
+                "label": "Contact Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "contact_title",
+                "label": "Contact Title",
+                "required": false,
+                "input": "text",
+                "maxLength": 30
+              },
+              {
+                "column": "address",
+                "label": "Address",
+                "required": false,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "city",
+                "label": "City",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "region",
+                "label": "Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "postal_code",
+                "label": "Postal Code",
+                "required": false,
+                "input": "text",
+                "maxLength": 10
+              },
+              {
+                "column": "country",
+                "label": "Country",
+                "required": false,
+                "input": "text",
+                "maxLength": 15
+              },
+              {
+                "column": "phone",
+                "label": "Phone",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "fax",
+                "label": "Fax",
+                "required": false,
+                "input": "text",
+                "maxLength": 24
+              },
+              {
+                "column": "homepage",
+                "label": "Homepage",
+                "required": false,
+                "input": "text"
+              }
+            ]
+          },
+          "generatedHash": "0c5c13eecf65a168ef9f4b8f96fc603d0552f397465602d80582dfec07563bf6"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_territories",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.territories",
+          "fallback": "Territories"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.territories"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "table",
+          "order": 110,
+          "slug": "territories"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.territories:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "territory_description",
+              "label": "Territory Description",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "maxLength": 60
+            },
+            {
+              "name": "region_id",
+              "label": "Region Id",
+              "logicalType": "integer",
+              "semantic": "fk",
+              "sortable": true,
+              "fk": {
+                "table": "public.region",
+                "column": "region_id"
+              },
+              "nullable": false
+            },
+            {
+              "name": "territory_id",
+              "label": "Territory Id",
+              "logicalType": "varchar",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "maxLength": 20,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "territory_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "territory_description",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "territory_id",
+                "label": "Territory Id",
+                "required": true,
+                "input": "text",
+                "maxLength": 20
+              },
+              {
+                "column": "territory_description",
+                "label": "Territory Description",
+                "required": true,
+                "input": "text",
+                "maxLength": 60
+              },
+              {
+                "column": "region_id",
+                "label": "Region Id",
+                "required": true,
+                "input": "fk-combobox",
+                "ref": "public.region"
+              }
+            ]
+          },
+          "generatedHash": "354531200a8db5fb4efca898c86421c1234a7dc655a09ab8ac76a436c323a9c4"
+        }
+      },
+      {
+        "v": 1,
+        "kind": "page",
+        "id": "page_07beef91_us-states",
+        "template": "page-crud",
+        "title": {
+          "key": "nav.us-states",
+          "fallback": "Us States"
+        },
+        "source": {
+          "connectionId": "conn_01HZX0000000000000000000",
+          "table": "public.us_states"
+        },
+        "nav": {
+          "group": "library",
+          "icon": "map",
+          "order": 120,
+          "slug": "us-states"
+        },
+        "access": {
+          "minRole": "viewer",
+          "permissions": [
+            "table:public.us_states:read"
+          ]
+        },
+        "config": {
+          "columns": [
+            {
+              "name": "state_name",
+              "label": "State Name",
+              "logicalType": "varchar",
+              "semantic": "plain",
+              "sortable": true,
+              "maxLength": 100
+            },
+            {
+              "name": "state_abbr",
+              "label": "State Abbr",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 2
+            },
+            {
+              "name": "state_region",
+              "label": "State Region",
+              "logicalType": "varchar",
+              "semantic": "geo-region",
+              "sortable": true,
+              "maxLength": 50
+            },
+            {
+              "name": "state_id",
+              "label": "State Id",
+              "logicalType": "integer",
+              "semantic": "pk-id",
+              "sortable": true,
+              "format": "mono",
+              "mono": true,
+              "primaryKey": true,
+              "nullable": false,
+              "unique": true,
+              "hidden": true
+            }
+          ],
+          "defaultSort": [
+            {
+              "column": "state_id",
+              "dir": "desc"
+            }
+          ],
+          "pageSize": 50,
+          "keyField": "state_name",
+          "readOnly": false,
+          "detail": {
+            "template": "page-record",
+            "tabsFromInboundFks": true,
+            "tabs": []
+          },
+          "form": {
+            "fields": [
+              {
+                "column": "state_id",
+                "label": "State Id",
+                "required": true,
+                "input": "number"
+              },
+              {
+                "column": "state_name",
+                "label": "State Name",
+                "required": false,
+                "input": "text",
+                "maxLength": 100
+              },
+              {
+                "column": "state_abbr",
+                "label": "State Abbr",
+                "required": false,
+                "input": "text",
+                "maxLength": 2
+              },
+              {
+                "column": "state_region",
+                "label": "State Region",
+                "required": false,
+                "input": "text",
+                "maxLength": 50
+              }
+            ]
+          },
+          "generatedHash": "bfaf630bb186313a4049540d03c2f4441e559791d418801860a965d060bb1503"
+        }
+      }
+    ],
+    "warnings": [
+      "skipped join table public.customer_customer_demo — hidden from nav, relation still powers M2M (05 §8.2)",
+      "skipped join table public.employee_territories — hidden from nav, relation still powers M2M (05 §8.2)"
+    ]
+  }
+}

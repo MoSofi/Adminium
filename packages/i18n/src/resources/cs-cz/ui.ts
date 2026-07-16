@@ -201,6 +201,304 @@ export default {
         "returned": "{title} se vrátilo na původní místo.",
         "failed": "{title} nelze přesunout; vrátilo se na původní místo."
       }
+    },
+    "communication": {
+      "conversationInbox": {
+        "description": "Vybíratelný seznam konverzací s počtem nepřečtených, stavem přítomnosti a náhledem poslední zprávy.",
+        "emptyTitle": "Žádné konverzace",
+        "emptyBody": "Konverzace se zde zobrazí, jakmile dorazí zprávy.",
+        "noMatchesTitle": "Žádná konverzace neodpovídá",
+        "searchLabel": "Hledat v konverzacích",
+        "searchPlaceholder": "Hledat v konverzacích…"
+      },
+      "chatThread": {
+        "description": "Bubliny zpráv seskupené podle autora a dne, s přílohami a polem pro psaní.",
+        "emptyTitle": "Zatím žádné zprávy",
+        "emptyBody": "Zprávy z této konverzace se zobrazí zde.",
+        "composerPlaceholder": "Napište zprávu…",
+        "sendLabel": "Odeslat",
+        "attachLabel": "Přidat přílohu",
+        "typingLabel": "píše…"
+      },
+      "aiChatPanel": {
+        "description": "Panel asistenta pro dotazy na vaše schéma a data.",
+        "emptyTitle": "Zeptejte se na svá data",
+        "emptyBody": "Začněte otázkou na schéma, tabulky nebo metriky.",
+        "composerPlaceholder": "Položte otázku…",
+        "sendLabel": "Odeslat",
+        "pendingLabel": "Přemýšlím…",
+        "configureTitle": "Není nastaven žádný poskytovatel AI",
+        "configureBody": "Přidejte klíč Anthropic nebo OpenAI — nebo nasměrujte Adminium na vlastní endpoint — a ptejte se na své schéma.",
+        "configureCtaLabel": "Nastavit poskytovatele"
+      }
+    },
+    "domain": {
+      "orgChart": {
+        "description": "Strom podřízenosti sestavený z odkazu na nadřízeného v tabulce osob, se sbalitelnými větvemi.",
+        "emptyTitle": "Žádná organizační struktura",
+        "emptyBody": "Organizační schéma se zobrazí, jakmile řádky osob budou odkazovat na nadřízeného.",
+        "reportsLabel": "Podřízení · {count}",
+        "a11yLabel": "Organizační schéma"
+      },
+      "ganttChart": {
+        "description": "Pruhy úkolů na časové ose seskupené podle fáze, s průběhem, milníky a značkou dneška.",
+        "emptyTitle": "Nic není naplánováno",
+        "emptyBody": "Úkoly se zde zobrazí, jakmile budou mít datum zahájení a ukončení.",
+        "ungroupedLabel": "Úkoly"
+      }
+    },
+    "media": {
+      "fileBrowser": {
+        "description": "Procházejte soubory a složky jako mřížku dlaždic nebo seznam – s drobečkovou navigací, ikonami typů a hvězdičkami.",
+        "emptyTitle": "Tato složka je prázdná",
+        "emptyBody": "Začněte nahráním souborů nebo vytvořením složky."
+      },
+      "uploadDropzone": {
+        "description": "Cíl pro nahrávání souborů přetažením, s omezením formátu a velikosti.",
+        "dropTitle": "Přetáhněte sem soubory k nahrání",
+        "browsePrefix": "nebo",
+        "browseLabel": "procházet"
+      },
+      "uploadProgressList": {
+        "description": "Řádky jednotlivých souborů s ukazatelem průběhu a stavem; obsluhuje i úlohy exportní fronty.",
+        "emptyTitle": "Neprobíhá žádné nahrávání",
+        "emptyBody": "Nahrávané soubory zde zobrazí svůj průběh."
+      },
+      "attachmentList": {
+        "description": "Soubory připojené k záznamu, s ikonami typů, velikostmi a akcemi stažení či smazání.",
+        "emptyTitle": "Žádné přílohy",
+        "emptyBody": "Soubory připojené k tomuto záznamu se zobrazí zde."
+      },
+      "imageBoard": {
+        "description": "Mřížka moodboardu s místy pro obrázky a popisky, pro tabulky s URL obrázků.",
+        "emptyTitle": "Zatím žádné obrázky",
+        "emptyBody": "Referenční obrázky se zobrazí na této nástěnce."
+      },
+      "linkList": {
+        "description": "Referenční odkazy s názvy a adresami URL, otevírané na nové kartě.",
+        "emptyTitle": "Zatím žádné odkazy",
+        "emptyBody": "Referenční odkazy se zobrazí zde."
+      },
+      "root": "Soubory",
+      "breadcrumb": "Drobečková navigace",
+      "gridView": "Zobrazení mřížky",
+      "listView": "Zobrazení seznamu",
+      "nameHeader": "Název",
+      "sizeHeader": "Velikost",
+      "modifiedHeader": "Změněno",
+      "star": "Hvězdička",
+      "items": "položek",
+      "done": "Hotovo",
+      "failed": "Selhalo",
+      "queued": "Ve frontě",
+      "retry": "Zkusit znovu",
+      "download": "Stáhnout",
+      "cancel": "Zrušit",
+      "delete": "Smazat",
+      "remove": "Odebrat",
+      "addImage": "Přidat obrázek",
+      "caption": "Popisek",
+      "addLink": "Přidat odkaz",
+      "linkTitlePlaceholder": "Název",
+      "linkUrlPlaceholder": "https://…",
+      "add": "Přidat"
+    },
+    "forms": {
+      "modalWizard": {
+        "description": "Modální formulář pro vytvoření s potvrzením — standardní postup „nový záznam“.",
+        "trigger": "Vytvořit",
+        "submit": "Vytvořit",
+        "cancel": "Zrušit",
+        "done": "Hotovo",
+        "successTitle": "Záznam vytvořen",
+        "successBody": "Záznam byl uložen.",
+        "required": "Toto pole je povinné."
+      },
+      "drawerForm": {
+        "description": "Boční panel pro vytvoření či úpravu záznamů s větším počtem polí.",
+        "trigger": "Nový",
+        "submit": "Uložit",
+        "cancel": "Zrušit"
+      },
+      "stepper": {
+        "description": "Ukazatel kroků zobrazující postup vícekrokového procesu.",
+        "a11yLabel": "Průběh"
+      },
+      "progressBar": {
+        "description": "Ukazatel průběhu s procentem.",
+        "label": "Průběh"
+      },
+      "otpInput": {
+        "description": "Pole pro zadání jednorázového kódu.",
+        "label": "Jednorázový kód"
+      },
+      "chipInput": {
+        "description": "Zadávání štítků: odebíratelné čipy a volný text potvrzený klávesou Enter.",
+        "remove": "Odebrat",
+        "placeholder": "Napište a stiskněte Enter…"
+      },
+      "segmentedControl": {
+        "description": "Přepínač s jedním výběrem pro období, prostředí a filtry.",
+        "a11yLabel": "Vyberte možnost"
+      },
+      "filterChipBar": {
+        "description": "Filtrovací čipy s živými počty spočítanými ze seznamu, který filtrují.",
+        "all": "Vše",
+        "a11yLabel": "Filtr",
+        "meta": "{shown} z {total}"
+      },
+      "toggleSwitchList": {
+        "description": "Seznam nastavení, každé s přepínačem.",
+        "save": "Uložit",
+        "dirty": "Máte neuložené změny",
+        "emptyTitle": "Žádná nastavení",
+        "emptyBody": "Nastavení se zde objeví, jakmile budou nakonfigurována."
+      },
+      "optionCards": {
+        "description": "Mřížka karet s jedním výběrem pro zdroje, šablony a tarify.",
+        "a11yLabel": "Vyberte možnost"
+      },
+      "passwordStrengthMeter": {
+        "description": "Čtyřsegmentový ukazatel síly hesla.",
+        "label": "Síla hesla",
+        "weak": "Slabé",
+        "fair": "Průměrné",
+        "good": "Dobré",
+        "strong": "Silné"
+      },
+      "validationIssuesList": {
+        "description": "Problémy importu a validace, nejzávažnější první, s počtem dotčených řádků.",
+        "emptyTitle": "Žádné problémy",
+        "emptyBody": "Vše je v pořádku — můžete importovat."
+      }
+    },
+    "chrome": {
+      "sidebarNav": {
+        "description": "Seskupený navigační panel aplikace s živými počty.",
+        "a11yLabel": "Hlavní navigace",
+        "emptyTitle": "Zatím žádná navigace",
+        "emptyBody": "Zahrnuté tabulky se zde objeví po vygenerování připojení."
+      },
+      "commandPalette": {
+        "description": "Paleta ⌘K: hledejte akce, stránky a záznamy odkudkoli.",
+        "title": "Paleta příkazů",
+        "placeholder": "Hledat akce, stránky a záznamy…",
+        "navigate": "Navigovat",
+        "select": "Otevřít",
+        "close": "Zavřít",
+        "emptyTitle": "Žádné výsledky",
+        "emptyBody": "Začněte psát pro vyhledávání.",
+        "groupActions": "Akce",
+        "groupNavigate": "Navigovat",
+        "groupRecent": "Nedávné",
+        "groupPages": "Stránky",
+        "groupMetrics": "Metriky",
+        "groupPeople": "Lidé",
+        "groupRecords": "Záznamy"
+      },
+      "globalSearch": {
+        "description": "Vyhledávání napříč entitami s filtry podle typu a úryvky výsledků.",
+        "placeholder": "Hledat vše…",
+        "all": "Vše",
+        "summary": "{count} výsledků pro „{query}“",
+        "emptyTitle": "Žádné výsledky",
+        "emptyBody": "Zkuste jiný výraz."
+      },
+      "breadcrumb": {
+        "description": "Cesta k aktuálnímu záznamu nebo složce.",
+        "a11yLabel": "Drobečková navigace"
+      },
+      "tabBar": {
+        "description": "Záložky přepínající panely nebo navigující, volitelně s počty.",
+        "a11yLabel": "Záložky"
+      },
+      "navCard": {
+        "description": "Mřížka odkazových karet pro rozcestníky a úvodní stránky.",
+        "emptyTitle": "Není co zobrazit",
+        "emptyBody": "Odkazy se zde objeví po vygenerování stránek."
+      },
+      "shortcutsPanel": {
+        "description": "Přehled klávesových zkratek.",
+        "footerHint": "Kdykoli stiskněte ?",
+        "then": "poté",
+        "emptyTitle": "Nejsou registrovány žádné zkratky."
+      },
+      "avatarStack": {
+        "description": "Překrývající se avatary s přetečením „+N“ a volitelnou přítomností.",
+        "online": "{count} online"
+      }
+    },
+    "system": {
+      "stateHero": {
+        "description": "Celostránková stavová obrazovka pro 404, 500, offline, zakázáno a údržbu.",
+        "notFoundTitle": "Tato stránka zabloudila",
+        "notFoundBody": "Hledaná stránka byla přesunuta, přejmenována, nebo nikdy neexistovala.",
+        "serverErrorTitle": "Na naší straně se něco pokazilo",
+        "serverErrorBody": "Chyba byla zaznamenána a tým informován. Opakování často pomůže.",
+        "offlineTitle": "Jste offline",
+        "offlineBody": "Zkontrolujte připojení — dashboard se připojí automaticky.",
+        "forbiddenTitle": "Nemáte přístup",
+        "forbiddenBody": "Požádejte správce pracovního prostoru o oprávnění k této stránce.",
+        "maintenanceTitle": "Probíhá údržba",
+        "maintenanceBody": "Vylepšujeme věci. Obvykle to trvá několik minut.",
+        "connErrorTitle": "Databáze není dostupná",
+        "connErrorBody": "Připojení bylo odmítnuto nebo vypršelo. Zkontrolujte nastavení připojení.",
+        "backToDashboard": "Zpět na dashboard",
+        "tryAgain": "Zkusit znovu",
+        "retry": "Opakovat",
+        "testConnection": "Otestovat připojení"
+      },
+      "emptyState": {
+        "description": "Vystředěný panel „zatím nic“ s volitelnými akcemi."
+      },
+      "statusPill": {
+        "description": "Barevný odznak pro enum sloupec — univerzální zobrazení stavu."
+      },
+      "alertBanner": {
+        "description": "Vložené upozornění na kvóty, zmrazení a plánování.",
+        "dismiss": "Zavřít"
+      },
+      "statusBannerHero": {
+        "description": "Hlavička stavu služeb, jejíž stav se odvozuje od nejhorší služby v seznamu.",
+        "upTitle": "Všechny systémy funkční",
+        "upBody": "Všechny sledované služby odpovídají normálně.",
+        "degradedTitle": "Snížený výkon",
+        "degradedBody": "Některé služby jsou pomalejší než obvykle. Prošetřujeme to.",
+        "downTitle": "Rozsáhlý výpadek",
+        "downBody": "Jedna či více služeb je nedostupných. Pracujeme na tom."
+      },
+      "connectionStatus": {
+        "description": "Výsledek připojení nebo testu databázového připojení.",
+        "idle": "Nepřipojeno",
+        "connecting": "Připojování…",
+        "connected": "Připojeno",
+        "failed": "Připojení selhalo",
+        "test": "Otestovat"
+      },
+      "autosaveIndicator": {
+        "description": "Odznak „neuloženo → ukládání → uloženo“ pro automaticky ukládané dokumenty.",
+        "dirty": "Neuložené změny",
+        "saving": "Ukládání…",
+        "saved": "Vše uloženo",
+        "error": "Uložení selhalo"
+      },
+      "progressLogConsole": {
+        "description": "Streamovaná konzole logu s ukazatelem průběhu pro dlouho běžící úlohy.",
+        "a11yLabel": "Log průběhu",
+        "progressLabel": "Průběh",
+        "emptyTitle": "Zatím není co hlásit",
+        "emptyBody": "Řádky logu se objeví po spuštění úlohy."
+      },
+      "diagnosticsReadout": {
+        "description": "Výsledky kontrol připojení jako barevné řádky klíč/hodnota s časovým razítkem.",
+        "checkedAt": "Naposledy zkontrolováno",
+        "host": "Hostitel",
+        "dns": "DNS",
+        "tcp": "TCP",
+        "tls": "TLS",
+        "auth": "Ověření",
+        "latency": "Latence"
+      }
     }
   },
   "grid": {

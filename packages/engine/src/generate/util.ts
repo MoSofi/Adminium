@@ -80,17 +80,41 @@ function sortKeysDeep(value: unknown): unknown {
  * wins") from untouched generated ones (updated in place).
  */
 /**
+ * How many characters of the slug fit into a connection-scoped page id:
+ * 'page_' (5) + hash8 (8) + '_' (1) = 14, leaving 22 of the char(36) PK.
+ */
+export const ID_SLUG_BUDGET = 22;
+
+/**
+ * The slug as it appears inside a page id, within {@link ID_SLUG_BUDGET}.
+ *
+ * Must be INJECTIVE: `SlugRegistry` only de-duplicates against the full
+ * {@link MAX_SLUG_LENGTH} slug, so a plain `slice(0, 22)` maps distinct slugs to
+ * one id — `order_details_archive_2024` and `..._2025` both became
+ * `page_<scope>_order-details-archive-`. `pagesRepo.upsertGenerated` rejects
+ * duplicate ids, so that collision failed the WHOLE connection's generation run,
+ * not just the colliding pair. Over-budget slugs therefore keep a readable head
+ * and earn a digest of the full slug, which distinct slugs cannot share.
+ */
+function idSlug(slug: string): string {
+  if (slug.length <= ID_SLUG_BUDGET) return slug;
+  const digest = sha256Hex(slug).slice(0, 8);
+  const head = slug.slice(0, ID_SLUG_BUDGET - digest.length - 1).replace(/-+$/, '');
+  return `${head}-${digest}`;
+}
+
+/**
  * Stable, connection-scoped page id. Ids are GLOBALLY unique in
  * adminium_pages (char(36) PK), while slugs are only unique per connection —
  * so multi-connection installs need the connection folded into the id
  * (regression: second connection's 'page_customers' collided with the
- * first's). Connection-less (universal) pages keep the bare readable form.
+ * first's). Connection-less (universal) pages keep the bare readable form
+ * ('page_' + a slug already capped at 31 = 36).
  */
 export function pageIdFor(connectionId: string | null, slug: string): string {
   if (connectionId === null) return `page_${slug}`;
   const scope = sha256Hex(connectionId).slice(0, 8);
-  // 'page_' (5) + 8 + '_' (1) = 14; slug caps at 22 to fit char(36).
-  return `page_${scope}_${slug.slice(0, 22)}`;
+  return `page_${scope}_${idSlug(slug)}`;
 }
 
 export function hashEnvelope(envelope: Record<string, unknown>): string {

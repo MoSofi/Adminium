@@ -193,6 +193,304 @@
         "returned": "{title} 已返回原位。",
         "failed": "無法移動 {title}；已返回原位。"
       }
+    },
+    "communication": {
+      "conversationInbox": {
+        "description": "可選取的對話清單，顯示未讀數量、上線狀態與最近訊息預覽。",
+        "emptyTitle": "尚無對話",
+        "emptyBody": "收到訊息後，對話將顯示在這裡。",
+        "noMatchesTitle": "沒有相符的對話",
+        "searchLabel": "搜尋對話",
+        "searchPlaceholder": "搜尋對話…"
+      },
+      "chatThread": {
+        "description": "依傳送者與日期分組的訊息泡泡，支援附件與輸入框。",
+        "emptyTitle": "尚無訊息",
+        "emptyBody": "此對話中的訊息將顯示在這裡。",
+        "composerPlaceholder": "輸入訊息…",
+        "sendLabel": "傳送",
+        "attachLabel": "新增附件",
+        "typingLabel": "正在輸入…"
+      },
+      "aiChatPanel": {
+        "description": "用於詢問資料庫結構與資料的助理面板。",
+        "emptyTitle": "詢問你的資料",
+        "emptyBody": "提出關於結構、資料表或指標的問題即可開始。",
+        "composerPlaceholder": "提出問題…",
+        "sendLabel": "傳送",
+        "pendingLabel": "思考中…",
+        "configureTitle": "尚未設定 AI 供應商",
+        "configureBody": "新增 Anthropic 或 OpenAI 金鑰，或將 Adminium 指向你自己的端點，即可詢問資料庫結構。",
+        "configureCtaLabel": "設定供應商"
+      }
+    },
+    "domain": {
+      "orgChart": {
+        "description": "依人員資料表的主管參照建立的匯報關係樹，分支可摺疊。",
+        "emptyTitle": "尚無匯報結構",
+        "emptyBody": "當人員記錄參照主管後，組織圖便會顯示於此。",
+        "reportsLabel": "部屬 · {count}",
+        "a11yLabel": "組織圖"
+      },
+      "ganttChart": {
+        "description": "時間軸上的任務長條，依階段分組，含進度、里程碑與今日標記。",
+        "emptyTitle": "尚無排程",
+        "emptyBody": "任務設定開始與結束日期後便會顯示於此。",
+        "ungroupedLabel": "任務"
+      }
+    },
+    "media": {
+      "fileBrowser": {
+        "description": "以磁磚格線或清單瀏覽檔案與資料夾，支援麵包屑導覽、類型圖示與星號標記。",
+        "emptyTitle": "此資料夾是空的",
+        "emptyBody": "上傳檔案或建立資料夾即可開始。"
+      },
+      "uploadDropzone": {
+        "description": "用於上傳檔案的拖放區域，可限制格式與大小。",
+        "dropTitle": "拖放檔案以上傳",
+        "browsePrefix": "或",
+        "browseLabel": "瀏覽"
+      },
+      "uploadProgressList": {
+        "description": "逐一檔案的上傳列，附進度列與狀態；同樣適用於匯出佇列作業。",
+        "emptyTitle": "沒有進行中的上傳",
+        "emptyBody": "您上傳的檔案將在此顯示進度。"
+      },
+      "attachmentList": {
+        "description": "附加至記錄的檔案，附類型圖示、大小以及下載或刪除動作。",
+        "emptyTitle": "沒有附件",
+        "emptyBody": "附加至此記錄的檔案將顯示於此。"
+      },
+      "imageBoard": {
+        "description": "附說明文字的圖片格線靈感板，適用於含圖片 URL 的資料表。",
+        "emptyTitle": "尚無圖片",
+        "emptyBody": "參考圖片將顯示在此看板上。"
+      },
+      "linkList": {
+        "description": "附標題與網址的參考連結，於新分頁開啟。",
+        "emptyTitle": "尚無連結",
+        "emptyBody": "參考連結將顯示於此。"
+      },
+      "root": "檔案",
+      "breadcrumb": "麵包屑導覽",
+      "gridView": "格線檢視",
+      "listView": "清單檢視",
+      "nameHeader": "名稱",
+      "sizeHeader": "大小",
+      "modifiedHeader": "修改時間",
+      "star": "星號標記",
+      "items": "項",
+      "done": "完成",
+      "failed": "失敗",
+      "queued": "佇列中",
+      "retry": "重試",
+      "download": "下載",
+      "cancel": "取消",
+      "delete": "刪除",
+      "remove": "移除",
+      "addImage": "新增圖片",
+      "caption": "說明文字",
+      "addLink": "新增連結",
+      "linkTitlePlaceholder": "標題",
+      "linkUrlPlaceholder": "https://…",
+      "add": "新增"
+    },
+    "forms": {
+      "modalWizard": {
+        "description": "帶成功確認的彈窗建立表單——標準的「新增記錄」流程。",
+        "trigger": "建立",
+        "submit": "建立",
+        "cancel": "取消",
+        "done": "完成",
+        "successTitle": "記錄已建立",
+        "successBody": "記錄已儲存。",
+        "required": "此欄位為必填。"
+      },
+      "drawerForm": {
+        "description": "用於欄位較多記錄的側邊抽屜建立或編輯表單。",
+        "trigger": "新增",
+        "submit": "儲存",
+        "cancel": "取消"
+      },
+      "stepper": {
+        "description": "顯示多步驟流程進度的步驟指示器。",
+        "a11yLabel": "進度"
+      },
+      "progressBar": {
+        "description": "帶百分比說明的確定進度條。",
+        "label": "進度"
+      },
+      "otpInput": {
+        "description": "一次性驗證碼輸入欄位。",
+        "label": "一次性驗證碼"
+      },
+      "chipInput": {
+        "description": "標籤輸入：可移除的標籤加上按 Enter 提交的自由文字。",
+        "remove": "移除",
+        "placeholder": "輸入後按 Enter…"
+      },
+      "segmentedControl": {
+        "description": "用於時間範圍、環境與篩選的單選分段控制項。",
+        "a11yLabel": "選擇一項"
+      },
+      "filterChipBar": {
+        "description": "篩選標籤，計數依所篩選的清單即時計算。",
+        "all": "全部",
+        "a11yLabel": "篩選",
+        "meta": "{total} 筆中的 {shown} 筆"
+      },
+      "toggleSwitchList": {
+        "description": "設定列清單，每列附一個開關。",
+        "save": "儲存",
+        "dirty": "您有未儲存的變更",
+        "emptyTitle": "尚無設定",
+        "emptyBody": "設定完成後將顯示於此。"
+      },
+      "optionCards": {
+        "description": "用於資料來源、範本與方案的單選卡片格線。",
+        "a11yLabel": "選擇一項"
+      },
+      "passwordStrengthMeter": {
+        "description": "顯示密碼強度的四段式指示器。",
+        "label": "密碼強度",
+        "weak": "弱",
+        "fair": "普通",
+        "good": "良好",
+        "strong": "強"
+      },
+      "validationIssuesList": {
+        "description": "匯入與驗證問題，依嚴重程度排序，並顯示受影響的列數。",
+        "emptyTitle": "未發現問題",
+        "emptyBody": "一切正常——可以開始匯入。"
+      }
+    },
+    "chrome": {
+      "sidebarNav": {
+        "description": "應用程式的分組導覽列，附即時計數標記。",
+        "a11yLabel": "主導覽",
+        "emptyTitle": "尚無導覽",
+        "emptyBody": "產生連線後，已納入的資料表將顯示於此。"
+      },
+      "commandPalette": {
+        "description": "⌘K 命令面板：隨時搜尋動作、頁面與記錄。",
+        "title": "命令面板",
+        "placeholder": "搜尋動作、頁面與記錄…",
+        "navigate": "導覽",
+        "select": "開啟",
+        "close": "關閉",
+        "emptyTitle": "無結果",
+        "emptyBody": "開始輸入以搜尋。",
+        "groupActions": "動作",
+        "groupNavigate": "導覽",
+        "groupRecent": "最近",
+        "groupPages": "頁面",
+        "groupMetrics": "指標",
+        "groupPeople": "人員",
+        "groupRecords": "記錄"
+      },
+      "globalSearch": {
+        "description": "跨所有實體搜尋，附類型分面與結果摘要。",
+        "placeholder": "搜尋全部…",
+        "all": "全部",
+        "summary": "「{query}」的 {count} 筆結果",
+        "emptyTitle": "無結果",
+        "emptyBody": "請嘗試其他搜尋字詞。"
+      },
+      "breadcrumb": {
+        "description": "目前記錄或資料夾的階層路徑。",
+        "a11yLabel": "麵包屑導覽"
+      },
+      "tabBar": {
+        "description": "用於切換面板或導覽的分頁，可附計數。",
+        "a11yLabel": "分頁"
+      },
+      "navCard": {
+        "description": "用於導覽頁與登陸頁的連結卡片格線。",
+        "emptyTitle": "無內容可顯示",
+        "emptyBody": "頁面產生後連結將顯示於此。"
+      },
+      "shortcutsPanel": {
+        "description": "鍵盤快速鍵速查表。",
+        "footerHint": "隨時按 ?",
+        "then": "接著",
+        "emptyTitle": "未註冊任何快速鍵。"
+      },
+      "avatarStack": {
+        "description": "帶「+N」溢位與可選在線狀態的重疊頭像。",
+        "online": "{count} 人在線"
+      }
+    },
+    "system": {
+      "stateHero": {
+        "description": "用於 404、500、離線、無權限與維護狀態的整頁狀態畫面。",
+        "notFoundTitle": "這個頁面走錯路了",
+        "notFoundBody": "您要找的頁面已被移動、重新命名，或從未存在。",
+        "serverErrorTitle": "我們這邊出了點問題",
+        "serverErrorBody": "錯誤已記錄並已通知團隊。重試通常有效。",
+        "offlineTitle": "您已離線",
+        "offlineBody": "請檢查網路連線——儀表板會自動重新連線。",
+        "forbiddenTitle": "您沒有存取權限",
+        "forbiddenBody": "請聯絡工作區管理員為您授予此頁面的權限。",
+        "maintenanceTitle": "維護中",
+        "maintenanceBody": "我們正在改進。通常只需幾分鐘。",
+        "connErrorTitle": "無法連線資料庫",
+        "connErrorBody": "連線遭拒或逾時。請檢查連線設定。",
+        "backToDashboard": "返回儀表板",
+        "tryAgain": "重試",
+        "retry": "重試",
+        "testConnection": "測試連線"
+      },
+      "emptyState": {
+        "description": "帶可選動作的置中「尚無內容」面板。"
+      },
+      "statusPill": {
+        "description": "用於列舉欄位的彩色標記——通用狀態呈現器。"
+      },
+      "alertBanner": {
+        "description": "用於配額、凍結與排程提示的內嵌提示列。",
+        "dismiss": "關閉"
+      },
+      "statusBannerHero": {
+        "description": "服務健康狀態橫幅，其狀態取自清單中最差的服務。",
+        "upTitle": "所有系統運作正常",
+        "upBody": "所有受監控的服務均正常回應。",
+        "degradedTitle": "效能降低",
+        "degradedBody": "部分服務比平常慢。我們正在調查。",
+        "downTitle": "重大故障",
+        "downBody": "一項或多項服務無法使用。我們正在處理。"
+      },
+      "connectionStatus": {
+        "description": "資料庫連線的連線或測試結果。",
+        "idle": "未連線",
+        "connecting": "連線中…",
+        "connected": "已連線",
+        "failed": "連線失敗",
+        "test": "測試"
+      },
+      "autosaveIndicator": {
+        "description": "自動儲存文件的「未儲存 → 儲存中 → 已儲存」標記。",
+        "dirty": "有未儲存的變更",
+        "saving": "儲存中…",
+        "saved": "所有變更已儲存",
+        "error": "儲存失敗"
+      },
+      "progressLogConsole": {
+        "description": "帶進度條的串流日誌主控台，用於長時間執行的工作。",
+        "a11yLabel": "進度日誌",
+        "progressLabel": "進度",
+        "emptyTitle": "尚無內容",
+        "emptyBody": "工作開始後日誌將顯示於此。"
+      },
+      "diagnosticsReadout": {
+        "description": "連線檢查結果，以帶顏色的鍵/值列顯示，並附檢查時間。",
+        "checkedAt": "最後檢查",
+        "host": "主機",
+        "dns": "DNS",
+        "tcp": "TCP",
+        "tls": "TLS",
+        "auth": "驗證",
+        "latency": "延遲"
+      }
     }
   },
   "grid": {

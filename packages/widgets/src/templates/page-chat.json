@@ -1,0 +1,16 @@
+{
+  "id": "page-chat",
+  "version": 1,
+  "titleKey": "templates.chat.title",
+  "slots": [
+    { "slot": "inbox", "accepts": { "widgets": ["conversation-inbox"] },
+      "area": { "x": 0, "y": 0, "w": 3, "h": 16 }, "required": true },
+    { "slot": "thread", "accepts": { "widgets": ["chat-thread", "ai-chat-panel"] },
+      "area": { "x": 3, "y": 0, "w": 6, "h": 16 }, "required": true },
+    { "slot": "attachments", "accepts": { "widgets": ["attachment-list"] },
+      "area": { "x": 9, "y": 0, "w": 3, "h": 10 } },
+    { "slot": "call", "accepts": { "widgets": ["call-widget"] },
+      "area": { "x": 9, "y": 10, "w": 3, "h": 6 }, "fallback": "omit" }
+  ],
+  "chrome": { "toolbar": ["global-search"], "overlays": ["toast-stack"] }
+}
