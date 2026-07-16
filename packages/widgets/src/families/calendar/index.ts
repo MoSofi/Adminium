@@ -41,20 +41,81 @@ export {
   type CapacityBoardConfig,
   type CapacityBoardProps,
 } from './CapacityBoard.js';
+// M7 Wave-4 TAIL — the four §5 widgets that complete the family.
+export {
+  CalendarLegendFilter,
+  CalendarLegendFilterWidget,
+  calendarLegendFilterConfigSchema,
+  calendarLegendFilterDemoData,
+  legendCategoriesOf,
+  type CalendarLegendFilterConfig,
+  type CalendarLegendFilterProps,
+  type LegendCategory,
+} from './CalendarLegendFilter.js';
+export {
+  UpcomingEventsList,
+  UpcomingEventsListWidget,
+  cutoffDayOf,
+  upcomingEventsListConfigSchema,
+  upcomingEventsListDemoData,
+  upcomingEventsOf,
+  type UpcomingEventsListConfig,
+  type UpcomingEventsListProps,
+} from './UpcomingEventsList.js';
+export {
+  DateRangePicker,
+  DateRangePickerWidget,
+  dateRangePickerConfigSchema,
+  dateRangePickerDemoData,
+  nextRange,
+  rangeValueOf,
+  type DateRangePickerConfig,
+  type DateRangePickerProps,
+} from './DateRangePicker.js';
+export {
+  ScheduledJobsList,
+  ScheduledJobsListWidget,
+  scheduledJobsListConfigSchema,
+  scheduledJobsListDemoData,
+  scheduledJobsOf,
+  type ScheduledJobsListConfig,
+  type ScheduledJobsListProps,
+} from './ScheduledJobsList.js';
 export type {
   CalendarEvent,
   CapacityAssignment,
   CapacityBoardData,
   CapacityMember,
+  DateRangePreset,
+  DateRangeValue,
+  EventCategory,
   ScheduleAssignment,
   ScheduleMatrixData,
   ScheduleResource,
   ScheduleShiftType,
+  ScheduledJob,
+  ScheduledJobsData,
+  UpcomingEvent,
 } from './calendar-types.js';
 export {
+  DEFAULT_RANGE_PRESETS,
+  addDays,
+  aggregateCategories,
+  bindingSourceOf,
+  daysBetween,
+  isInRange,
+  resolvePreset,
+  upcomingFrom,
+  type BindingSource,
+} from './calendar-lib.js';
+export {
+  calendarLegendFilterDefinition,
   calendarMonthDefinition,
   calendarTrackDefinitions,
   capacityBoardDefinition,
+  dateRangePickerDefinition,
   dayAgendaDefinition,
   scheduleMatrixDefinition,
+  scheduledJobsListDefinition,
+  upcomingEventsListDefinition,
 } from './calendar-track.definitions.js';

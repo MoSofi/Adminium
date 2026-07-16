@@ -117,16 +117,40 @@ describe('shipped manifests × the widget registry', () => {
 
 describe('crossCheckTemplate — failure modes', () => {
   /**
-   * A genuinely still-pending annex id, used as the fixture for the pending-id
-   * gradings below. It must NOT be registered — pick it from the live
-   * PENDING_TEMPLATE_WIDGET_IDS rather than hard-coding, so this suite keeps
-   * testing the grading logic instead of rotting the day the id it names ships
-   * (which is exactly what happened to `modal-wizard` when Track FCS landed).
+   * The fixture for the pending-id gradings below: an id that is declared
+   * pending but NOT registered.
+   *
+   * This used to be mined from the live `PENDING_TEMPLATE_WIDGET_IDS`, with a
+   * guard test asserting the map still had a usable entry ("no pending ids left
+   * — inline a fixture pending map below"). M7 Wave 4 emptied the map: every
+   * annex §14 id a shipped manifest references is now registered, which is the
+   * shrink-to-empty end state the discipline was driving at. So the guard has
+   * come true and this suite now does what it said: it INLINES its own pending
+   * map and injects it via `crossCheckTemplate`'s third parameter (the same
+   * thing the `stale-pending-entry` test below has always done).
+   *
+   * That is also strictly better than mining the live map: the grading logic
+   * under test is a pure function of (manifest, isRegistered, pending), so
+   * pinning the fixture stops this suite from rotting the day its chosen id
+   * ships — which is exactly what happened to `modal-wizard` when Track FCS
+   * landed, and to `toast-stack`/`auto-insights` when TRACK KPI-FEEDS did.
+   *
+   * The id must stay UNREGISTERED to mean anything; `x-` prefixed ids are not
+   * annex ids and can never register, and the test below pins that invariant.
    */
-  const pendingExample = Object.keys(PENDING_TEMPLATE_WIDGET_IDS).find((id) => !isRegistered(id));
+  const pendingExample = 'x-pending-widget';
+  const pendingFixture: Readonly<Record<string, string>> = { [pendingExample]: 'kpi' };
 
-  it('has a still-pending id available to exercise the pending gradings', () => {
-    expect(pendingExample, 'no pending ids left — inline a fixture pending map below').toBeDefined();
+  it('uses a pending fixture that is genuinely unregistered', () => {
+    expect(isRegistered(pendingExample)).toBe(false);
+  });
+
+  it('the live pending map never holds an id that has since registered', () => {
+    // The shrink-to-empty invariant, kept as a live assertion now that the map
+    // is empty: a stale entry must fail here (and in `crossCheckTemplates`
+    // against the real manifests) rather than sit unnoticed.
+    const stale = Object.keys(PENDING_TEMPLATE_WIDGET_IDS).filter((id) => isRegistered(id));
+    expect(stale).toEqual([]);
   });
 
   const withWidget = (widget: string, required: boolean, fallback = 'omit'): ReturnType<typeof parsePageTemplate> =>
@@ -166,13 +190,13 @@ describe('crossCheckTemplate — failure modes', () => {
       slots: [
         {
           slot: 'detail',
-          accepts: { shapes: ['record'], widgets: ['detail-key-value', pendingExample as string] },
+          accepts: { shapes: ['record'], widgets: ['detail-key-value', pendingExample] },
           area: { x: 0, y: 0, w: 12, h: 6 },
           required: true,
         },
       ],
     });
-    expect(crossCheckTemplate(manifest, isRegistered)).toEqual([]);
+    expect(crossCheckTemplate(manifest, isRegistered, pendingFixture)).toEqual([]);
   });
 
   it('does not fail a required widgets-only slot that has a registered sibling', () => {
@@ -183,13 +207,13 @@ describe('crossCheckTemplate — failure modes', () => {
       slots: [
         {
           slot: 'directory',
-          accepts: { widgets: ['card-gallery', pendingExample as string] },
+          accepts: { widgets: ['card-gallery', pendingExample] },
           area: { x: 0, y: 0, w: 12, h: 6 },
           required: true,
         },
       ],
     });
-    expect(crossCheckTemplate(manifest, isRegistered)).toEqual([]);
+    expect(crossCheckTemplate(manifest, isRegistered, pendingFixture)).toEqual([]);
   });
 
   it('still fails a required slot when EVERY accept is unregistered and no shape fills it', () => {
@@ -200,13 +224,13 @@ describe('crossCheckTemplate — failure modes', () => {
       slots: [
         {
           slot: 'body',
-          accepts: { widgets: [pendingExample as string, 'x-also-not-a-widget'] },
+          accepts: { widgets: [pendingExample, 'x-also-not-a-widget'] },
           area: { x: 0, y: 0, w: 12, h: 6 },
           required: true,
         },
       ],
     });
-    expect(crossCheckTemplate(manifest, isRegistered).map((i) => i.code)).toEqual([
+    expect(crossCheckTemplate(manifest, isRegistered, pendingFixture).map((i) => i.code)).toEqual([
       'required-slot-unregistered',
     ]);
   });
@@ -227,17 +251,17 @@ describe('crossCheckTemplate — failure modes', () => {
   });
 
   it('passes an unregistered id that is declared pending, in a degradable position', () => {
-    expect(crossCheckTemplate(withWidget(pendingExample!, false), isRegistered)).toEqual([]);
+    expect(crossCheckTemplate(withWidget(pendingExample, false), isRegistered, pendingFixture)).toEqual([]);
   });
 
   it('still fails a declared-pending id in a required slot', () => {
-    expect(crossCheckTemplate(withWidget(pendingExample!, true), isRegistered).map((i) => i.code)).toEqual([
+    expect(crossCheckTemplate(withWidget(pendingExample, true), isRegistered, pendingFixture).map((i) => i.code)).toEqual([
       'required-slot-unregistered',
     ]);
   });
 
   it('fails a pending-only slot that does not fall back to omit', () => {
-    const issues = crossCheckTemplate(withWidget(pendingExample!, false, 'empty-state'), isRegistered);
+    const issues = crossCheckTemplate(withWidget(pendingExample, false, 'empty-state'), isRegistered, pendingFixture);
     expect(issues.map((i) => i.code)).toEqual(['pending-id-not-degradable']);
   });
 

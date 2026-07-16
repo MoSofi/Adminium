@@ -28,6 +28,7 @@ import type {
   NotificationItem,
   StreamEvent,
   TimelineEntry,
+  ToastEntry,
 } from './feeds-types.js';
 import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
@@ -221,4 +222,98 @@ export type UnreadBadgeConfig = z.infer<typeof unreadBadgeConfigSchema>;
 export function unreadBadgeDemoData(seed: number): { value: number } {
   const random = mulberry32(seed || 1);
   return { value: Math.floor(random() * 40) + 1 };
+}
+
+// ── load-older-paginator (annex §4) ────────────────────────────────────────
+export const loadOlderPaginatorConfigSchema = widgetSharedConfigSchema.extend({
+  /** Older records appended per click (annex §4 `batchSize`). */
+  batchSize: z.number().int().min(1).max(200).default(20),
+  /** Button copy ("Load older"). */
+  label: z.string().optional(),
+  /** In-flight copy ("Loading…"). */
+  loadingLabel: z.string().optional(),
+  /** Relabel on exhaustion — the annex's "relabels/disappears" (annex §4). */
+  exhaustedLabel: z.string().optional(),
+  /** Disappear instead of relabelling once the pool is drained. */
+  hideWhenExhausted: z.boolean().default(false),
+  /** Show the "N of M" mono progress caption above the button. */
+  showRemaining: z.boolean().default(true),
+  /** Caption connective ("of"). */
+  ofLabel: z.string().optional(),
+});
+export type LoadOlderPaginatorConfig = z.infer<typeof loadOlderPaginatorConfigSchema>;
+
+/**
+ * Deterministic `record-list` cursor demo payload (04 §7.7). The annex's
+ * contract is "cursor into older pool", which rides the canonical §3
+ * `record-list` envelope: `rows` are what is already on screen, `total` is the
+ * pool size, and a non-null `cursor` is what makes more fetchable.
+ */
+export function loadOlderPaginatorDemoData(seed: number): {
+  rows: unknown[];
+  total: number;
+  cursor: string;
+  loaded: number;
+} {
+  const random = mulberry32(seed || 1);
+  const total = 40 + Math.floor(random() * 160);
+  const loaded = 10 + Math.floor(random() * 20);
+  return { rows: Array.from({ length: loaded }, (_, index) => ({ id: index + 1 })), total, cursor: `older-${loaded}`, loaded };
+}
+
+// ── toast-stack (annex §4; cross-listed as undo-toast in §12) ──────────────
+
+/**
+ * The overlay toast HOST. Registered as a thin wrapper over @adminium/ui's
+ * `ToastStack` + `useToastQueue` (03 §7.2) rather than a reimplementation —
+ * max-4 clamping, FIFO overflow, per-variant auto-dismiss, pause-on-hover and
+ * the undo-action duration already live there and are already tested.
+ */
+export const toastStackConfigSchema = widgetSharedConfigSchema.extend({
+  /** Simultaneously visible toasts (annex §4 `maxVisible`, max 4). */
+  maxVisible: z.number().int().min(1).max(4).default(4),
+  /** Auto-dismiss in ms (annex §4 `durations`: 2.6s plain). */
+  duration: z.number().int().min(500).max(60_000).default(2600),
+  /** Auto-dismiss for a toast carrying Undo (annex §4: 5.2s). */
+  undoDuration: z.number().int().min(500).max(60_000).default(5200),
+  /** Annex §4 `position`. */
+  position: z.enum(['bottom-center', 'bottom-end', 'top-center', 'top-end']).default('bottom-center'),
+  undoLabel: z.string().optional(),
+  dismissLabel: z.string().optional(),
+  /** Accessible name for the toast region. */
+  regionLabel: z.string().optional(),
+});
+export type ToastStackConfig = z.infer<typeof toastStackConfigSchema>;
+
+const TOAST_SAMPLES: readonly { message: string; variant: string; undoable: boolean; table?: string }[] = [
+  { message: 'Invoice #4821 deleted', variant: 'success', undoable: true, table: 'invoices' },
+  { message: 'Acme Holdings updated', variant: 'success', undoable: true, table: 'customers' },
+  { message: '3 tickets moved to Done', variant: 'success', undoable: true, table: 'tickets' },
+  { message: 'Export queued — we will email you the file', variant: 'info', undoable: false },
+  { message: 'Webhook endpoint could not be reached', variant: 'error', undoable: false },
+  { message: 'API key rotated', variant: 'warning', undoable: true, table: 'api_keys' },
+];
+
+/**
+ * Deterministic ephemeral-toast demo payload (04 §7.7). SEEDED rather than
+ * fixed: `toast-stack` is a `static`-contract widget, but its payload is a
+ * SAMPLE from a catalogue (unlike `upload-dropzone`/`empty-state`, whose whole
+ * payload IS their config), so the determinism gate's "seed actually threads
+ * into the generator" check applies and the id stays off `SEED_INVARIANT_IDS`.
+ */
+export function toastStackDemoData(seed: number): { toasts: ToastEntry[] } {
+  const random = mulberry32(seed || 1);
+  const count = 2 + Math.floor(random() * 3);
+  const offset = Math.floor(random() * TOAST_SAMPLES.length);
+  const toasts = Array.from({ length: count }, (_, index) => {
+    const sample = TOAST_SAMPLES[(offset + index) % TOAST_SAMPLES.length] as (typeof TOAST_SAMPLES)[number];
+    return {
+      id: `toast-${index + 1}`,
+      message: sample.message,
+      variant: sample.variant,
+      ...(sample.undoable ? { undoToken: `undo-${index + 1}` } : {}),
+      ...(sample.table === undefined ? {} : { table: sample.table, recordId: index + 1 }),
+    } satisfies ToastEntry;
+  });
+  return { toasts };
 }

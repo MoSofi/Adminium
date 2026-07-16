@@ -1,0 +1,17 @@
+{
+  "id": "page-builder",
+  "version": 1,
+  "titleKey": "templates.builder.title",
+  "slots": [
+    { "slot": "palette", "accepts": { "widgets": ["chip-cloud"] },
+      "area": { "x": 0, "y": 0, "w": 3, "h": 24 }, "fallback": "omit" },
+    { "slot": "canvas", "accepts": { "widgets": ["document-canvas", "question-builder", "flow-builder"] },
+      "area": { "x": 3, "y": 0, "w": 6, "h": 24 }, "required": true },
+    { "slot": "inspector", "accepts": { "widgets": ["inline-editable-field"] },
+      "area": { "x": 9, "y": 0, "w": 3, "h": 24 }, "fallback": "omit" }
+  ],
+  "chrome": {
+    "toolbar": ["autosave-indicator"],
+    "overlays": ["starter-template-picker", "modal-wizard", "toast-stack"]
+  }
+}

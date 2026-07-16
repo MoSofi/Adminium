@@ -189,6 +189,100 @@ export function chatThreadDemoData(seed: number): {
   return { rows, total: rows.length };
 }
 
+// ── typing-indicator (annex §9) ────────────────────────────────────────────
+/**
+ * "Avatar + italic 'typing…' row bound to a boolean" — a `boolean-map` keyed by
+ * conversation id (annex §9: "boolean per conversation"). `conversationId`
+ * selects this instance's row; the display NAMES are config, not data, because
+ * the thread hosting the indicator already knows its peer (the annex places it
+ * as a child of `chat-thread`).
+ */
+export const typingIndicatorConfigSchema = widgetSharedConfigSchema.extend({
+  /** Which `entries` key this instance watches. Unset → any live entry counts. */
+  conversationId: z.string().optional(),
+  /** 1:1 chat: the single peer whose avatar shows beside the label. */
+  peerName: z.string().optional(),
+  /** Group chat: the names currently typing; falls back to `peerName`. */
+  typists: z.array(z.string()).default([]),
+  /** Already-translated "typing…" copy (the host resolves the i18n key). */
+  label: z.string().optional(),
+  showAvatar: z.boolean().default(true),
+  /** Avatars shown before collapsing into AvatarStack's `+N` chip. */
+  maxAvatars: z.number().int().min(1).max(5).default(3),
+  emptyTitle: z.string().optional(),
+  emptyBody: z.string().optional(),
+});
+export type TypingIndicatorConfig = z.infer<typeof typingIndicatorConfigSchema>;
+
+/**
+ * Deterministic `boolean-map` of per-conversation typing state (04 §7.7), keyed
+ * by the same `c1…c7` ids `conversationInboxDemoData` emits so an inbox + thread
+ * + indicator demo page lines up.
+ *
+ * `c1` is pinned live for EVERY seed: `c1` is the inbox's first row (and so the
+ * thread's default selection), and a demo/VRT frame of a typing indicator that
+ * renders nothing would be a useless capture. The remaining six vary with the
+ * seed, which is what threads it through (the determinism gate asserts distinct
+ * seeds yield distinct payloads).
+ */
+export function typingIndicatorDemoData(seed: number): { entries: Record<string, boolean> } {
+  const random = mulberry32(seed || 1);
+  const entries: Record<string, boolean> = {};
+  for (const [index] of INBOX_DEMO_PEOPLE.entries()) {
+    entries[`c${index + 1}`] = index === 0 ? true : random() > 0.6;
+  }
+  return { entries };
+}
+
+// ── call-widget (annex §9) ─────────────────────────────────────────────────
+/**
+ * The ringing overlay: "{kind, peer, state}" — the §3 `record` shape. Niche by
+ * the annex's own note ("kept for marketplace apps: POS support line,
+ * telehealth micro-SaaS"), so it stays a thin, config-labelled shell: it renders
+ * call state and emits accept/decline as `mutate` intents. It never touches a
+ * media device — WebRTC (if a marketplace app ever wants it) is the host's.
+ */
+export const callWidgetConfigSchema = widgetSharedConfigSchema.extend({
+  kindField: z.string().default('kind'),
+  peerField: z.string().default('peer'),
+  stateField: z.string().default('state'),
+  /** Accept/decline/end controls; false → a display-only ringing card. */
+  actions: z.boolean().default(true),
+  voiceLabel: z.string().optional(),
+  videoLabel: z.string().optional(),
+  ringingLabel: z.string().optional(),
+  connectingLabel: z.string().optional(),
+  activeLabel: z.string().optional(),
+  endedLabel: z.string().optional(),
+  acceptLabel: z.string().optional(),
+  declineLabel: z.string().optional(),
+  endLabel: z.string().optional(),
+  emptyTitle: z.string().optional(),
+  emptyBody: z.string().optional(),
+});
+export type CallWidgetConfig = z.infer<typeof callWidgetConfigSchema>;
+
+const CALL_DEMO_PEERS = ['Morgan Lee', 'Sam Park', 'Priya Rao', 'Casey Ford', 'Jordan Smith'] as const;
+
+/**
+ * Deterministic `record` envelope for the ringing card (04 §7.7). Pinned to
+ * `ringing` for every seed — it is the annex's headline state (the expanding
+ * accent ring), so it is what the demo and every VRT capture must show; the
+ * peer and kind vary with the seed.
+ */
+export function callWidgetDemoData(seed: number): { row: Record<string, unknown> } {
+  const random = mulberry32(seed || 1);
+  return {
+    row: {
+      id: 'call-1',
+      peer: pickFrom(random, CALL_DEMO_PEERS),
+      kind: random() > 0.5 ? 'video' : 'voice',
+      state: 'ringing',
+      startedAt: new Date(CHAT_DEMO_EPOCH).toISOString(),
+    },
+  };
+}
+
 // ── ai-chat-panel (annex §9) ───────────────────────────────────────────────
 /**
  * The schema-Q&A / in-dashboard AI panel SHELL (04 §11, 06 §10). Rendering

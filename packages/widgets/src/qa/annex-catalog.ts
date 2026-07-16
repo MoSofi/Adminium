@@ -94,68 +94,93 @@ export const ALL_ANNEX_IDS: ReadonlySet<string> = new Set(
  *   - delivering a pending id without removing it here also fails the gate,
  * forcing each list to shrink to empty as its family completes.
  *
- * SCOPE (M7 Wave 3): this used to be `WAVE1_PENDING`, scoped to the four Wave-1
+ * SCOPE (M7 Wave 4): this used to be `WAVE1_PENDING`, scoped to the four Wave-1
  * families (kpi/charts/tables/feeds) while Wave 2/3 families were merely
- * "known-pending, not failing". Waves 2 and 3 have now landed — calendar,
- * boards, media, communication, domain, system, chrome, forms all deliver into
- * the registry — so the gate covers all 13 families uniformly and every newly
- * delivered id is asserted. `geo` is the only family with nothing built; its
- * whole annex slice is pending, which keeps the same equation true for it.
- *
- * Delivered slice as of M7 Wave 3: kpi 2/10, charts 37/37, tables 11/17,
- * feeds 5/7, calendar 4/8, boards 2/4, geo 0/2, media 6/6, communication 3/5,
- * forms 12/20, chrome 8/8, system 9/9, domain 2/43 → 101 widgets.
+ * "known-pending, not failing". Every family now delivers into the registry, so
+ * the gate covers all 13 uniformly and every newly delivered id is asserted.
+ * Wave 4 opened the last family (`geo`), so no family is wholly pending any
+ * more — each remaining list is a tail, and the equation shrinks to `[]` per
+ * family as the tail lands.
  */
 export const ANNEX_PENDING: Record<WidgetFamily, readonly string[]> = {
-  // Remaining §1 KPI slice (built after the M4 kpi-stat-card / usage-meter slice).
-  kpi: [
-    'kpi-stat-tile-compact', 'metric-hero', 'stat-pair-card', 'gauge-ring', 'gauge-arc',
-    'period-comparison', 'micro-kpi-subtitle', 'auto-insights',
-  ],
+  // §1 fully delivered: the M4 kpi-stat-card / usage-meter slice plus the M7
+  // Wave-4 tail (TRACK KPI-FEEDS) — compact tile, metric hero, stat pair, the
+  // two SVG gauges, period comparison, micro-kpi subtitle, auto-insights.
+  kpi: [],
   // Time/flow charts (04-T09) — multiline, stream, forecast, anomaly,
   // candlestick, bump, timeline-lanes — landed and wired into the registry, so
   // the charts family is fully delivered.
   charts: [],
-  // Remaining §3 list widgets.
-  tables: [
-    'sparkline-table', 'top-movers-list', 'ranked-entity-list', 'accordion-list',
-    'comparison-matrix', 'chip-cloud',
-  ],
-  // Remaining §4 feed widgets (load-older-paginator; toast-stack is the overlay
-  // toast host, cross-listed as undo-toast in §12).
-  feeds: ['load-older-paginator', 'toast-stack'],
-  // Remaining §5 calendar slice (Track CAL delivered month/agenda/matrix/capacity).
-  calendar: [
-    'calendar-legend-filter', 'upcoming-events-list', 'date-range-picker', 'scheduled-jobs-list',
-  ],
-  // Remaining §6 board slice — `board-card` ships as a sub-component of
-  // kanban-board (not separately registered) and inline-compose is a later wave.
-  boards: ['board-card', 'inline-compose-card'],
-  // §7 — the geo family is not built yet.
-  geo: ['map-bubble', 'map-choropleth-grid'],
+  // §3 fully delivered — the M4 slice + Track F + the M7 Wave-4 TAIL
+  // (sparkline-table, top-movers-list, ranked-entity-list, accordion-list,
+  // comparison-matrix, chip-cloud).
+  tables: [],
+  // §4 fully delivered: the Track-F slice plus the M7 Wave-4 tail (TRACK
+  // KPI-FEEDS) — load-older-paginator and toast-stack, the overlay toast host
+  // (cross-listed as undo-toast in §12), which wraps @adminium/ui's
+  // ToastStack + useToastQueue rather than reimplementing the queue.
+  feeds: [],
+  // §5 fully delivered: the Track-CAL month/agenda/matrix/capacity slice plus
+  // the M7 Wave-4 TAIL — legend filter, upcoming feed, the range-picker control,
+  // and the scheduled-jobs list. The legend/upcoming slots page-calendar.json
+  // holds open (`fallback: 'omit'`) now fill, as does its date-range-picker
+  // toolbar chrome (and page-scheduler.json's / page-log-viewer.json's).
+  calendar: [],
+  // §6 fully delivered by the M7 Wave-4 TAIL — `board-card` is now registered
+  // under its own annex id (the same component the kanban columns render, no
+  // longer only their private sub-component), and `inline-compose-card` fills
+  // page-board.json's `compose` slot.
+  boards: [],
+  // §7 fully delivered by the M7 Wave-4 tail (TRACK COMM-GEO) — the Leaflet
+  // bubble map, and the region-coded tilegram the annex cross-lists with
+  // `chart-choropleth-grid` (one visual, two entry points; the geo id is what
+  // the §7 rule emits when a table has region codes but no coordinates).
+  geo: [],
   // §8 fully delivered by Track MEDIA (the file-browser exit criterion).
   media: [],
-  // Remaining §9 — typing-indicator and call-widget are a later wave.
-  communication: ['typing-indicator', 'call-widget'],
-  // Remaining §10 forms slice — the builder/importer-facing widgets.
-  forms: [
-    'rule-builder', 'flow-builder', 'connection-string-field', 'table-inclusion-checklist',
-    'column-mapping-table', 'export-builder', 'question-builder', 'inline-editable-field',
-  ],
+  // §9 fully delivered: the Track-COMM inbox/thread/AI-panel slice plus the M7
+  // Wave-4 tail (TRACK COMM-GEO) — typing-indicator (also the thread's own
+  // embedded typing row) and the niche call-widget.
+  communication: [],
+  // §10 fully delivered: the Track-FCS wizard/input slice plus the M7 Wave-4
+  // TAIL (TRACK FORMS) — the rule/flow/question builder canvases, the export
+  // builder, the import wizard's column mapper, the document-canvas inline
+  // field, and the two widgets LIFTED out of the Studio connect wizard
+  // (connection-string-field, table-inclusion-checklist), which now render the
+  // widgets-side component instead of a divergent copy of it.
+  forms: [],
   // §11 fully delivered by Track FCS.
   chrome: [],
   // §12 fully delivered by Track FCS.
   system: [],
   // Remaining §13 — Track DOMAIN delivered the two M7 exit-criteria widgets
-  // (org-chart, gantt-chart); the document-canvas block vocabulary and the
-  // ops/billing/API cards are a later wave.
+  // (org-chart, gantt-chart), and the M7 Wave-4 TRACK BUILDER delivered the
+  // DOCUMENT half: `document-canvas` plus its 22-block shared library
+  // (block-totals-summary … block-highlight-box), which is why they are no
+  // longer listed here. The ops/billing/API cards are the remaining tail.
+  //
+  // THE ONE NON-EMPTY LIST AT THE END OF M7 WAVE 4, and the justification for
+  // it: TRACK OPS did not finish. It landed its pure foundations —
+  // `domain-ops-lib.ts`, `domain-ops-types.ts`, and all 18 Zod schemas +
+  // seeded demo generators in `domain-ops-config.ts` — plus 7 of the 18
+  // components (SloMonitorCard, UptimeSegmentBar, ExperimentVariantCompare,
+  // CreditCardTile, PlanPricingCards, ApiKeysPanel, ApiPlayground) and their
+  // shared OpsEmpty. It did NOT land the remaining 11 components, the lazy
+  // `domain-ops-track-components` barrel, a `domain-ops.definitions.ts`, the
+  // i18n keys, or the index-barrel exports — so NONE of these 18 ids can
+  // register, and the 7 finished components are currently unreferenced by any
+  // barrel (dead code, not wired into a chunk).
+  //
+  // These stay listed rather than being force-registered: the parity gate is
+  // two-sided, so listing them here is what keeps `annex \ delivered` exact and
+  // makes the gate fail the moment TRACK OPS registers one without deleting its
+  // line. `starter-template-picker` is cross-referenced from
+  // `templates/crosscheck.ts`'s PENDING_TEMPLATE_WIDGET_IDS for the same
+  // reason — page-builder's `chrome.overlays` names it ahead of delivery.
+  //
+  // TRACK OPS: delete each id here as it registers; the family reaches [] and
+  // the annex closes at 176/176 when the last one lands.
   domain: [
-    'document-canvas', 'block-totals-summary', 'block-line-items', 'block-kpi-row',
-    'block-bar-chart', 'block-line-chart', 'block-two-col-table', 'block-tax-breakdown',
-    'block-multi-currency', 'block-payment-history', 'block-discount-codes',
-    'block-loyalty-banner', 'block-recurring-banner', 'block-qr-pay', 'block-delivery-stepper',
-    'block-signature', 'block-terms-checkbox', 'block-approval', 'block-attachments',
-    'block-late-fees', 'block-image-placeholder', 'block-contact', 'block-highlight-box',
     'starter-template-picker', 'slo-monitor-card', 'uptime-segment-bar',
     'experiment-variant-compare', 'credit-card-tile', 'plan-pricing-cards', 'api-keys-panel',
     'api-playground', 'code-snippet-block', 'webhook-endpoints-list', 'resource-api-card',

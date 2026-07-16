@@ -64,3 +64,81 @@ export {
   type ToggleMatrixGridProps,
 } from './ToggleMatrixWidget.js';
 export { tablesTrackFDefinitions } from './tables-track-f.definitions.js';
+
+// M7 Wave-4 TAIL (annex §3) — the six list widgets that complete the family.
+export {
+  SparklineTable,
+  SparklineTableWidget,
+  sparkRowsOf,
+  sparklineTableConfigSchema,
+  sparklineTableDemoData,
+  type SparkMetricRow,
+  type SparklineTableConfig,
+  type SparklineTableProps,
+} from './SparklineTable.js';
+export {
+  TopMoversList,
+  TopMoversListWidget,
+  moverRowsOf,
+  topMoversListConfigSchema,
+  topMoversListDemoData,
+  type MoverRow,
+  type TopMoversListConfig,
+  type TopMoversListProps,
+} from './TopMoversList.js';
+export {
+  RankedEntityList,
+  RankedEntityListWidget,
+  rankedEntitiesOf,
+  rankedEntityListConfigSchema,
+  rankedEntityListDemoData,
+  type RankedEntity,
+  type RankedEntityListConfig,
+  type RankedEntityListProps,
+} from './RankedEntityList.js';
+export {
+  AccordionList,
+  AccordionListWidget,
+  accordionListConfigSchema,
+  accordionListDemoData,
+  accordionRowsOf,
+  type AccordionListConfig,
+  type AccordionListProps,
+  type AccordionRow,
+} from './AccordionList.js';
+export {
+  ComparisonMatrix,
+  ComparisonMatrixWidget,
+  comparisonDataOf,
+  comparisonMatrixConfigSchema,
+  comparisonMatrixDemoData,
+  type ComparisonCell,
+  type ComparisonColumn,
+  type ComparisonMatrixConfig,
+  type ComparisonMatrixData,
+  type ComparisonMatrixProps,
+  type ComparisonRow,
+} from './ComparisonMatrix.js';
+export {
+  ChipCloud,
+  ChipCloudWidget,
+  chipCloudConfigSchema,
+  chipCloudDemoData,
+  cloudChipsOf,
+  type ChipCloudConfig,
+  type ChipCloudProps,
+  type CloudChip,
+} from './ChipCloud.js';
+export {
+  formatDelta,
+  formatMetricValue,
+  goodDirectionFor,
+  isBadMove,
+  moverTone,
+  rankRows,
+  toggleOpen,
+  trendOf,
+  type GoodDirection,
+  type RankedRow,
+} from './tables-tail-lib.js';
+export { tablesTailDefinitions } from './tables-tail.definitions.js';

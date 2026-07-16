@@ -16,8 +16,34 @@
  *   01-architecture.md §3.1),
  * - AdapterError code → remediation copy mapping,
  * - sessionStorage persistence (refresh-safe wizard, §8.2).
+ *
+ * WHERE THE SHARED RULES LIVE NOW (M7 Wave 4): the DSN grammar (scheme→engine,
+ * validation, placeholders, quick-fill chips, scheme rewrite) and the
+ * table-inclusion defaults moved to `@adminium/widgets`, where they back the
+ * annex §10 `connection-string-field` and `table-inclusion-checklist` widgets.
+ * They were BORN here, and this module now consumes them: `@adminium/widgets`
+ * may never import `apps/*`, and a second copy of "what is a valid DSN" or "how
+ * big is too big" would drift — the wizard and the widget would disagree about
+ * the same database. What stays here is what is genuinely wizard-only: the
+ * 3-engine vocabulary this build can connect to, the host/port FIELDS form (the
+ * inverse of the DSN grammar), the `SchemaTable` → `InclusionTable` mapping, and
+ * the translated copy. The thin wrappers below keep every existing call site —
+ * and this module's unit tests — pointed at the same names as before.
  */
 import { getFormatters } from '@adminium/i18n';
+import {
+  HIGH_VOLUME_ROWS,
+  defaultIncludedIds,
+  dsnPlaceholder as dsnPlaceholderFor,
+  dsnValidationCode,
+  dsnWithEngine as dsnWithEngineFor,
+  engineForDsn as engineForDsnIn,
+  isHighVolume,
+  providerChipsFor as providerChipsForEngine,
+  type DsnEngine,
+  type DsnProviderChip,
+  type InclusionTable,
+} from '@adminium/widgets';
 
 import type { LlmLocale, LlmSection } from '../ai/api.js';
 import type { ConnectionEngine, DsnPrivileges, GenerateIntent, SchemaTable } from '../api.js';
@@ -75,13 +101,25 @@ export const DEFAULT_PORTS: Readonly<Record<ConnectionEngine, string>> = {
 };
 
 export function dsnPlaceholder(engine: ConnectionEngine): string {
+  return dsnPlaceholderFor(engine);
+}
+
+/**
+ * Narrow the widgets-side engine vocabulary onto the one this build connects to.
+ * Exhaustive rather than a cast: if `DsnEngine` grows a scheme Adminium learns
+ * to speak, this stops compiling until someone decides whether the wizard should
+ * offer it — which is the moment that decision should be made.
+ */
+export function asConnectionEngine(engine: DsnEngine | null): ConnectionEngine | null {
   switch (engine) {
     case 'postgres':
-      return 'postgres://user:password@host:5432/database';
     case 'mysql':
-      return 'mysql://user:password@host:3306/database';
     case 'sqlite':
-      return 'sqlite:/absolute/path/app.db';
+      return engine;
+    case 'mongodb':
+    case 'mssql':
+    case null:
+      return null;
   }
 }
 
@@ -106,35 +144,33 @@ export const EMPTY_FIELDS: FieldsInput = {
   file: '',
 };
 
-/** DSN scheme → engine (live validation on the mono input). */
-const SCHEME_ENGINES: ReadonlyArray<[RegExp, ConnectionEngine]> = [
-  [/^postgres(ql)?:\/\//i, 'postgres'],
-  [/^mysql:\/\//i, 'mysql'],
-  [/^mariadb:\/\//i, 'mysql'],
-  [/^sqlite:/i, 'sqlite'],
-];
-
+/**
+ * The engine a DSN names — restricted to `SOURCE_ENGINES`, so a scheme the
+ * widgets-side grammar can parse but this build cannot connect to (`mongodb://`)
+ * still reads as unrecognised here, exactly as it always has.
+ */
 export function engineForDsn(dsn: string): ConnectionEngine | null {
-  for (const [pattern, engine] of SCHEME_ENGINES) {
-    if (pattern.test(dsn.trim())) return engine;
-  }
-  return null;
+  return asConnectionEngine(engineForDsnIn(dsn, SOURCE_ENGINES));
 }
 
-/** `null` when valid; a translated error otherwise. */
+/** `null` when valid; a translated error otherwise (the widget returns a CODE). */
 export function dsnValidationError(dsn: string): string | null {
-  const trimmed = dsn.trim();
-  if (trimmed.length === 0) return null; // empty = untouched, not invalid
-  if (engineForDsn(trimmed) === null) {
-    return t(
+  const code = dsnValidationCode(dsn, SOURCE_ENGINES);
+  if (code === null) return null;
+  return code === 'invalid-scheme'
+    ? t('studio.source.dsn.invalidScheme', 'Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:')
+    : t('studio.source.dsn.incomplete', 'Add host and database, e.g. postgres://user@host:5432/db');
+}
+
+/** The translated copy the lifted `ConnectionStringField` renders per code. */
+export function dsnErrorText(): Record<'invalid-scheme' | 'incomplete', string> {
+  return {
+    'invalid-scheme': t(
       'studio.source.dsn.invalidScheme',
       'Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:',
-    );
-  }
-  if (/^(postgres|postgresql|mysql|mariadb):\/\/$/i.test(trimmed)) {
-    return t('studio.source.dsn.incomplete', 'Add host and database, e.g. postgres://user@host:5432/db');
-  }
-  return null;
+    ),
+    incomplete: t('studio.source.dsn.incomplete', 'Add host and database, e.g. postgres://user@host:5432/db'),
+  };
 }
 
 export function composeDsn(fields: FieldsInput, engine: ConnectionEngine = 'postgres'): string {
@@ -149,41 +185,34 @@ export function composeDsn(fields: FieldsInput, engine: ConnectionEngine = 'post
 }
 
 /**
- * Rewrite a DSN's scheme to match a newly picked engine. Network engines
- * swap schemes in place; to/from SQLite (a file path, not host/port) there
- * is nothing meaningful to carry over — the input resets.
+ * Rewrite a DSN's scheme to match a newly picked engine. Network engines swap
+ * schemes in place; to/from SQLite (a file path, not host/port) there is nothing
+ * meaningful to carry over — the input resets.
+ *
+ * `SOURCE_ENGINES` is threaded through for the same reason it is everywhere else
+ * in this module: a scheme this build cannot connect to (`mongodb://`,
+ * `sqlserver://`) is UNRECOGNISED here, so picking an engine resets the field and
+ * forces a clean retype — instead of rewriting the scheme in place and handing
+ * back a valid-looking `mysql://…@cluster0.mongodb.net/db`.
  */
 export function dsnWithEngine(dsn: string, engine: ConnectionEngine): string {
-  const trimmed = dsn.trim();
-  if (trimmed.length === 0) return trimmed;
-  const current = engineForDsn(trimmed);
-  if (current === engine) return trimmed;
-  if (current === null || current === 'sqlite' || engine === 'sqlite') return '';
-  return trimmed.replace(/^[a-z]+:\/\//i, `${engine}://`);
+  return dsnWithEngineFor(dsn, engine, SOURCE_ENGINES);
 }
 
-export interface ProviderChip {
-  key: string;
-  label: string;
+/** A quick-fill chip, narrowed to the engines this build can connect to. */
+export interface ProviderChip extends Omit<DsnProviderChip, 'engine'> {
   engine: ConnectionEngine;
-  dsn: string;
 }
 
 /**
- * Quick-fill provider chips (Console + Connect Database comps), shown only
- * for the engine they belong to — the postgres row stays postgres-relevant
- * only (M9-T04).
+ * Quick-fill provider chips (Console + Connect Database comps), shown only for
+ * the engine they belong to — the postgres row stays postgres-relevant only
+ * (M9-T04). `providerChipsForEngine` filters on `chip.engine === engine`, so
+ * re-stamping `engine` here is a re-type of a value that is already exactly
+ * that, not a coercion.
  */
-export const PROVIDER_CHIPS: readonly ProviderChip[] = [
-  { key: 'supabase', label: 'Supabase', engine: 'postgres', dsn: 'postgres://postgres.PROJECT:PASSWORD@aws-0-region.pooler.supabase.com:5432/postgres' },
-  { key: 'neon', label: 'Neon', engine: 'postgres', dsn: 'postgres://USER:PASSWORD@ep-name-123456.us-east-2.aws.neon.tech/neondb?sslmode=require' },
-  { key: 'rds', label: 'RDS', engine: 'postgres', dsn: 'postgres://USER:PASSWORD@mydb.abc123.us-east-1.rds.amazonaws.com:5432/postgres' },
-  { key: 'localhost', label: 'localhost', engine: 'postgres', dsn: 'postgres://postgres@localhost:5432/app_dev' },
-  { key: 'planetscale', label: 'PlanetScale', engine: 'mysql', dsn: 'mysql://USER:PASSWORD@aws.connect.psdb.cloud/mydb?ssl={"rejectUnauthorized":true}' },
-];
-
 export function providerChipsFor(engine: ConnectionEngine): ProviderChip[] {
-  return PROVIDER_CHIPS.filter((chip) => chip.engine === engine);
+  return providerChipsForEngine(engine, SOURCE_ENGINES).map((chip) => ({ ...chip, engine }));
 }
 
 // --- schema-file format choice (M9-T03/T04) -----------------------------------
@@ -237,19 +266,21 @@ export function fileFormatLabel(format: FileFormat): string {
 
 // --- table inclusion (M5-T02) --------------------------------------------------
 
-/** 05: row estimate above this ⇒ ops-volume table ⇒ starts unchecked. */
-export const HIGH_VOLUME_ROWS = 100_000;
+/**
+ * The inclusion RULES (>100k unchecked, join/system pre-hidden) and the shape
+ * they read now live in `@adminium/widgets` behind `table-inclusion-checklist` —
+ * re-exported here so every existing call site and test keeps its import.
+ */
+export { HIGH_VOLUME_ROWS, defaultIncludedIds };
+/** One includable table, as the checklist widget and its rules see it. */
+export type WizardTable = InclusionTable;
 
-export interface WizardTable {
-  id: string;
-  rowEstimate: number | null;
-  /** Columns whose classifier flagged PII. */
-  piiColumns: number;
-  highVolume: boolean;
-  /** Join/system tables are pre-hidden — never listed as includable. */
-  preHidden: boolean;
-}
-
+/**
+ * Reduce `@adminium/engine`'s introspected tables to what the inclusion rules
+ * read. This mapping stays wizard-side: `SchemaTable` is the app's own
+ * dependency, and the widget binds a §3 `record-list` instead — `InclusionTable`
+ * is where the two meet.
+ */
 export function summarizeTables(tables: readonly SchemaTable[]): WizardTable[] {
   return tables.map((table) => {
     const role = table.semantics?.role ?? 'entity';
@@ -261,15 +292,10 @@ export function summarizeTables(tables: readonly SchemaTable[]): WizardTable[] {
         const pii = column.semantics?.flags?.pii;
         return pii !== null && pii !== undefined;
       }).length,
-      highVolume: rowEstimate !== null && rowEstimate > HIGH_VOLUME_ROWS,
+      highVolume: isHighVolume(rowEstimate),
       preHidden: table.system === true || role === 'join-table' || role === 'system',
     };
   });
-}
-
-/** Default inclusion: everything visible except high-volume ops tables. */
-export function defaultIncludedIds(tables: readonly WizardTable[]): string[] {
-  return tables.filter((table) => !table.preHidden && !table.highVolume).map((table) => table.id);
 }
 
 /** How trustworthy row counts are for the source — @adminium/engine vocabulary. */

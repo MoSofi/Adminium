@@ -6,5 +6,7 @@
  * kpi/charts/feeds/boards `*-components.ts` convention.
  */
 export { AiChatPanelWidget } from './AiChatPanel.js';
+export { CallWidgetWidget } from './CallWidget.js';
 export { ChatThreadWidget } from './ChatThread.js';
 export { ConversationInboxWidget } from './ConversationInbox.js';
+export { TypingIndicatorWidget } from './TypingIndicator.js';

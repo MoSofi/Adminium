@@ -9,11 +9,19 @@
  * M9-T04: the row-count column degrades per source instead of showing wrong
  * data — MySQL estimates render with ≈ (InnoDB drift), schema files render —
  * (no live database), both explained by a tooltip.
+ *
+ * M7 Wave 4: the checklist itself is `@adminium/widgets`'
+ * `TableInclusionChecklist` — the annex §10 `table-inclusion-checklist` widget's
+ * presentational half — and the >100k rule behind the default selection is that
+ * widget's rule too. This step used to own both. What stays here is what the
+ * widget cannot know: the query, the search filter, the per-source row-count
+ * degradation (passed in as `renderRowMeta`), and the explanatory notes.
  */
 import { useQuery } from '@tanstack/react-query';
-import { EyeOff, ShieldAlert } from 'lucide-react';
+import { EyeOff } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Checkbox, MonoText, SearchInput, Skeleton, Tooltip } from '@adminium/ui';
+import { TableInclusionChecklist } from '@adminium/widgets';
+import { MonoText, SearchInput, Skeleton, Tooltip } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
 import { studioApi, type SchemaTable } from '../../api.js';
@@ -107,36 +115,22 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
         <MonoText className="shrink-0 text-body-sm text-fg-muted">{`${selected.size}/${visible.length}`}</MonoText>
       </div>
 
-      <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface">
-        {filtered.map((table) => {
-          const checked = selected.has(table.id);
-          return (
-            <li key={table.id} className="flex items-center gap-3 px-3.5 py-2.5">
-              <Checkbox
-                checked={checked}
-                onCheckedChange={(next) => toggle(table.id, next === true)}
-                aria-label={table.id}
-              />
-              <MonoText className="min-w-0 flex-1 truncate text-body-sm text-fg">{table.id}</MonoText>
-              {table.piiColumns > 0 ? (
-                <Badge tone="warn">
-                  <ShieldAlert aria-hidden="true" className="size-3" />
-                  {`${t('studio.tables.pii', 'PII')} · ${table.piiColumns}`}
-                </Badge>
-              ) : null}
-              {table.highVolume ? (
-                <Badge tone="neutral">{t('studio.tables.highVolume', 'high volume')}</Badge>
-              ) : null}
-              <RowEstimateCell source={source} estimate={table.rowEstimate} />
-            </li>
-          );
-        })}
-        {filtered.length === 0 ? (
-          <li className="px-3.5 py-6 text-center text-body-sm text-fg-muted">
-            {t('studio.tables.emptyFilter', 'No tables match your filter.')}
-          </li>
-        ) : null}
-      </ul>
+      <TableInclusionChecklist
+        tables={filtered}
+        selected={selected}
+        onToggle={toggle}
+        piiLabel={t('studio.tables.pii', 'PII')}
+        highVolumeLabel={t('studio.tables.highVolume', 'high volume')}
+        // The list gets its OWN name, narrower than the enclosing <section>'s.
+        // Reusing the step title here would give two nested landmarks the same
+        // accessible name ("Choose your tables, region" then "Choose your
+        // tables, list"), which distinguishes neither.
+        a11yLabel={t('studio.tables.listLabel', 'Includable tables')}
+        // The counter lives next to the search box on this screen, so the
+        // widget's own header count would be a second copy of it.
+        emptyContent={t('studio.tables.emptyFilter', 'No tables match your filter.')}
+        renderRowMeta={(table) => <RowEstimateCell source={source} estimate={table.rowEstimate} />}
+      />
 
       <div className="flex flex-col gap-1">
         {source.kind === 'import' ? (

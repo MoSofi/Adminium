@@ -54,10 +54,33 @@ export {
   type UnreadBadgeProps,
 } from './UnreadBadge.js';
 export {
+  LoadOlderPaginator,
+  LoadOlderPaginatorWidget,
+  cursorStateOf,
+  loadOlderPaginatorConfigSchema,
+  loadOlderPaginatorDemoData,
+  type LoadOlderPaginatorConfig,
+  type LoadOlderPaginatorProps,
+} from './LoadOlderPaginator.js';
+export {
+  MAX_VISIBLE_TOASTS,
+  TOAST_ACTION_DURATION,
+  ToastStackWidget,
+  toastStackConfigSchema,
+  toastStackDemoData,
+  toastVariantOf,
+  toastsOf,
+  useToastQueue,
+  type ToastEntry,
+  type ToastStackConfig,
+} from './ToastStack.js';
+export {
   activityFeedDefinition,
   feedsTrackFDefinitions,
+  loadOlderPaginatorDefinition,
   notificationFeedDefinition,
   realtimeFeedDefinition,
   timelineVerticalDefinition,
+  toastStackDefinition,
   unreadBadgeDefinition,
 } from './feeds-track-f.definitions.js';

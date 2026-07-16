@@ -225,6 +225,78 @@ export function attachmentsOf(value: unknown): ChatAttachment[] {
   });
 }
 
+// ── typing-indicator: the §3 `boolean-map` envelope ─────────────────────────
+
+/**
+ * A `boolean-map` envelope's `entries` (04 §3; `isEmptyByShape['boolean-map']`
+ * reads the same key, so an `{}` payload routes to WidgetFrame's empty state
+ * before the widget ever sees it). Annex §9 types `typing-indicator` as
+ * "boolean per conversation", so the keys are conversation ids.
+ *
+ * Tolerant of the bare-record shorthand (`{ c1: true }`) a hand-written demo or
+ * a thin host adapter may pass, and coerces 1/0 + 'true'/'false' cells the way
+ * `boolField` does — a driver that returns MySQL TINYINT(1) or a stringified
+ * boolean must not read as "nobody is typing".
+ */
+export function typingEntriesOf(data: unknown): Record<string, boolean> {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return {};
+  const envelope = data as { entries?: unknown };
+  const source =
+    typeof envelope.entries === 'object' && envelope.entries !== null && !Array.isArray(envelope.entries)
+      ? (envelope.entries as Record<string, unknown>)
+      : (data as Record<string, unknown>);
+  const out: Record<string, boolean> = {};
+  for (const key of Object.keys(source)) {
+    if (key === 'entries') continue; // never fold the envelope key into itself
+    out[key] = boolField(source, key);
+  }
+  return out;
+}
+
+/**
+ * Is anyone typing? `conversationId` selects the annex's "boolean per
+ * conversation"; without one (an unbound/demo instance) ANY live entry counts,
+ * so the widget still animates instead of sitting mute.
+ */
+export function isTypingIn(entries: Record<string, boolean>, conversationId?: string | undefined): boolean {
+  if (conversationId !== undefined) return entries[conversationId] === true;
+  return Object.values(entries).some((value) => value);
+}
+
+// ── call-widget: the §3 `record` envelope ───────────────────────────────────
+
+/** A `record` envelope's row (04 §3: `isEmpty ⇔ row == null`). Tolerant of a bare object. */
+export function recordRowOf(data: unknown): Record<string, unknown> | null {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
+  const envelope = data as { row?: unknown };
+  if (typeof envelope.row === 'object' && envelope.row !== null && !Array.isArray(envelope.row)) {
+    return envelope.row as Record<string, unknown>;
+  }
+  return 'row' in envelope ? null : (data as Record<string, unknown>);
+}
+
+/** The two call kinds annex §9 names ("voice/video kind label"). */
+export const CALL_KINDS = ['voice', 'video'] as const;
+export type CallKind = (typeof CALL_KINDS)[number];
+
+/**
+ * Call lifecycle. `ringing` is the annex's headline state (the expanding accent
+ * ring); the rest let one stored instance cover the whole call rather than
+ * needing a widget per phase.
+ */
+export const CALL_STATES = ['ringing', 'connecting', 'active', 'ended'] as const;
+export type CallState = (typeof CALL_STATES)[number];
+
+/** Coerce an untrusted cell to a known call kind (default `voice`). */
+export function callKindOf(value: unknown): CallKind {
+  return (CALL_KINDS as readonly string[]).includes(String(value)) ? (value as CallKind) : 'voice';
+}
+
+/** Coerce an untrusted cell to a known call state (default `ringing`). */
+export function callStateOf(value: unknown): CallState {
+  return (CALL_STATES as readonly string[]).includes(String(value)) ? (value as CallState) : 'ringing';
+}
+
 // ── Intl-routed formatting (data context — latn digits per 10 §4.2) ──────────
 
 /**

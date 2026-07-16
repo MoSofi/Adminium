@@ -1,19 +1,37 @@
 // @vitest-environment happy-dom
 /**
- * `feeds` family (annex §4, Track F): render + interaction tests for
- * activity-feed, notification-feed, realtime-feed, timeline-vertical, and
- * unread-badge, plus deterministic demoData and the four WidgetFrame states
- * through WidgetHost. Clocks are pinned so relative timestamps are stable.
+ * `feeds` family (annex §4): render + interaction tests for the complete 7-id
+ * slice — the Track-F five (activity-feed, notification-feed, realtime-feed,
+ * timeline-vertical, unread-badge) plus the M7 Wave-4 tail
+ * (load-older-paginator, toast-stack) — with deterministic demoData and the
+ * four WidgetFrame states through WidgetHost. Clocks are pinned so relative
+ * timestamps are stable.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ActivityFeed, ActivityFeedWidget, activityFeedConfigSchema, activityFeedDemoData } from './ActivityFeed.js';
 import {
+  LoadOlderPaginator,
+  LoadOlderPaginatorWidget,
+  cursorStateOf,
+  loadOlderPaginatorConfigSchema,
+} from './LoadOlderPaginator.js';
+import {
+  MAX_VISIBLE_TOASTS,
+  ToastStackWidget,
+  toastStackConfigSchema,
+  toastVariantOf,
+  toastsOf,
+  useToastQueue,
+} from './ToastStack.js';
+import {
   activityFeedDefinition,
+  loadOlderPaginatorDefinition,
   notificationFeedDefinition,
   realtimeFeedDefinition,
   timelineVerticalDefinition,
+  toastStackDefinition,
   unreadBadgeDefinition,
 } from './feeds-track-f.definitions.js';
 import { NotificationFeed, bucketOf, notificationFeedDemoData } from './NotificationFeed.js';
@@ -26,6 +44,7 @@ import { buildRegistry } from '../../registry/index.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
 const NOW = Date.UTC(2026, 6, 14, 12, 0, 0);
+const noop = () => {};
 
 describe('activity-feed', () => {
   it('renders tone-tinted rows with the actor/action/target sentence', () => {
@@ -201,21 +220,221 @@ describe('timeline-vertical', () => {
   });
 });
 
+// ── load-older-paginator (annex §4; M7 Wave 4) ─────────────────────────────
+
+describe('load-older-paginator', () => {
+  it('renders the button and the "N of M" count, and loads on click', () => {
+    const onLoadOlder = vi.fn();
+    render(<LoadOlderPaginator loaded={20} total={80} hasMore onLoadOlder={onLoadOlder} />);
+    expect(screen.getByText('20 of 80')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /load older/i }));
+    expect(onLoadOlder).toHaveBeenCalledTimes(1);
+  });
+
+  it('relabels and disables on exhaustion (annex §4 "relabels/disappears")', () => {
+    const { container } = render(<LoadOlderPaginator loaded={80} total={80} hasMore={false} onLoadOlder={noop} />);
+    expect(container.querySelector('[data-part="load-older-paginator"]')?.getAttribute('data-exhausted')).toBe(
+      'true',
+    );
+    const button = screen.getByRole('button');
+    expect(button.textContent).toContain('Nothing older');
+    expect(button.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('disappears entirely on exhaustion when hideWhenExhausted is set', () => {
+    const { container } = render(
+      <LoadOlderPaginator loaded={80} total={80} hasMore={false} onLoadOlder={noop} hideWhenExhausted />,
+    );
+    expect(container.querySelector('[data-part="load-older-paginator"]')).toBeNull();
+  });
+
+  it('shows only the loaded count when the pool size is unknown (cursor-only mode)', () => {
+    render(<LoadOlderPaginator loaded={20} total={null} hasMore onLoadOlder={noop} />);
+    expect(screen.getByText('20')).toBeDefined();
+  });
+
+  it('hides the count caption when showRemaining is off', () => {
+    const { container } = render(
+      <LoadOlderPaginator loaded={20} total={80} hasMore onLoadOlder={noop} showRemaining={false} />,
+    );
+    expect(container.querySelector('[data-part="paginator-count"]')).toBeNull();
+  });
+
+  it('disables the button and swaps the label while loading', () => {
+    render(<LoadOlderPaginator loaded={20} total={80} hasMore onLoadOlder={noop} loading />);
+    const button = screen.getByRole('button');
+    expect(button.textContent).toContain('Loading');
+    expect(button.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('narrows the cursor envelope, preferring an explicit `loaded` over rows.length', () => {
+    expect(cursorStateOf({ rows: [{}, {}], total: 40, cursor: 'c1' })).toEqual({
+      loaded: 2,
+      total: 40,
+      hasCursor: true,
+    });
+    expect(cursorStateOf({ rows: [{}], total: 40, loaded: 25, cursor: null })).toEqual({
+      loaded: 25,
+      total: 40,
+      hasCursor: false,
+    });
+    expect(cursorStateOf(null)).toEqual({ loaded: 0, total: null, hasCursor: false });
+  });
+
+  it('the widget appends a batch per click and stops at the pool size', () => {
+    render(
+      <LoadOlderPaginatorWidget
+        config={loadOlderPaginatorConfigSchema.parse({ batchSize: 20, format: { locale: 'en-US' } })}
+        data={{ rows: [], total: 30, loaded: 10, cursor: 'c' }}
+        instanceId="lop"
+        onEvent={noop}
+      />,
+    );
+    expect(screen.getByText('10 of 30')).toBeDefined();
+    fireEvent.click(screen.getByRole('button'));
+    // Clamped to the pool: 10 + 20 = 30, not past it.
+    expect(screen.getByText('30 of 30')).toBeDefined();
+    expect(screen.getByRole('button').textContent).toContain('Nothing older');
+  });
+});
+
+// ── toast-stack (annex §4; cross-listed as undo-toast in §12) ──────────────
+
+describe('toast-stack', () => {
+  const toasts = [
+    { id: 't1', message: 'Invoice #4821 deleted', variant: 'success', undoToken: 'u1', table: 'invoices', recordId: 4821 },
+    { id: 't2', message: 'Export queued', variant: 'info' },
+  ];
+
+  function stack(config: Record<string, unknown> = {}, onEvent = noop, data: unknown = { toasts }) {
+    const { container } = render(
+      <ToastStackWidget
+        config={toastStackConfigSchema.parse(config)}
+        data={data}
+        instanceId="ts"
+        onEvent={onEvent}
+      />,
+    );
+    return container;
+  }
+
+  it('renders one @adminium/ui toast per payload entry', () => {
+    stack();
+    expect(screen.getByText('Invoice #4821 deleted')).toBeDefined();
+    expect(screen.getByText('Export queued')).toBeDefined();
+  });
+
+  it('offers Undo only on toasts carrying an undoToken', () => {
+    stack();
+    expect(screen.getAllByText('Undo')).toHaveLength(1);
+  });
+
+  it('Undo emits a mutate INTENT — the widget never performs the write itself', () => {
+    const onEvent = vi.fn();
+    // The binding descriptor is `binding.source.name` (+ optional schema) — the
+    // connectionId rides on the emitted intent so the host targets the right DB.
+    stack(
+      { binding: { connectionId: 'conn-1', source: { name: 'invoices' }, shape: 'static' } },
+      onEvent,
+    );
+    fireEvent.click(screen.getByText('Undo'));
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'mutate',
+      intent: 'update',
+      connectionId: 'conn-1',
+      table: 'invoices',
+      recordId: 4821,
+      values: { undoToken: 'u1' },
+    });
+  });
+
+  it('an unbound (demo) toast with no table dismisses without emitting a targetless intent', () => {
+    const onEvent = vi.fn();
+    stack({}, onEvent, { toasts: [{ id: 'x', message: 'Local only', undoToken: 'u9' }] });
+    fireEvent.click(screen.getByText('Undo'));
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(screen.queryByText('Local only')).toBeNull();
+  });
+
+  it('dismissal is local state — it never round-trips through the host', () => {
+    const onEvent = vi.fn();
+    stack({}, onEvent);
+    fireEvent.click(screen.getAllByRole('button', { name: /dismiss/i })[0]!);
+    expect(screen.queryByText('Invoice #4821 deleted')).toBeNull();
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+
+  it('clamps to maxVisible (annex §4: max 4)', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ id: `m${i}`, message: `Toast ${i}` }));
+    stack({ maxVisible: 2 }, noop, { toasts: many });
+    expect(screen.getByText('Toast 0')).toBeDefined();
+    expect(screen.getByText('Toast 1')).toBeDefined();
+    expect(screen.queryByText('Toast 2')).toBeNull();
+    expect(toastStackConfigSchema.safeParse({ maxVisible: 5 }).success).toBe(false);
+  });
+
+  it('applies the annex durations: 2.6s plain, 5.2s with undo', () => {
+    const { container } = render(
+      <ToastStackWidget
+        config={toastStackConfigSchema.parse({})}
+        data={{ toasts }}
+        instanceId="ts-d"
+        onEvent={noop}
+      />,
+    );
+    const bars = container.querySelectorAll('[data-testid="toast-timer-bar"]');
+    expect(bars[0]?.getAttribute('style')).toContain('5200ms'); // carries Undo
+    expect(bars[1]?.getAttribute('style')).toContain('2600ms');
+  });
+
+  it('anchors by position with LOGICAL utilities so RTL flips the trailing edge', () => {
+    // `end-4` resolves to the right in LTR and the LEFT in RTL — a physical
+    // `right-4` would strand the toast under the RTL sidebar.
+    expect(stack({ position: 'bottom-end' }).querySelector('[data-widget]')?.className).toContain('end-4');
+    expect(stack({ position: 'top-end' }).querySelector('[data-widget]')?.className).toContain('top-4');
+    const centered = stack({ position: 'bottom-center' }).querySelector('[data-widget]')?.className;
+    expect(centered).toContain('start-1/2');
+    expect(centered).toContain('rtl:translate-x-1/2'); // the mirror of the LTR centering shift
+  });
+
+  it('narrows the payload: drops malformed rows and unknown variants', () => {
+    expect(toastVariantOf('success')).toBe('success');
+    expect(toastVariantOf('explode')).toBe('info');
+    expect(toastVariantOf(undefined)).toBe('info');
+    expect(toastsOf({ toasts: [null, 42, { id: 'a' }, { id: 'b', message: '' }] })).toEqual([]);
+    expect(toastsOf(null)).toEqual([]);
+    expect(toastsOf({ toasts: [{ message: 'no id' }] })[0]?.id).toBe('toast-0');
+  });
+
+  it('re-exports @adminium/ui’s queue as the annex’s imperative toast API', () => {
+    // annex §4: "Imperative API `toast(msg, icon, onUndo)`" — that IS
+    // useToastQueue().push; the widget wraps the same primitive, it does not
+    // fork a second queue implementation.
+    expect(typeof useToastQueue).toBe('function');
+    expect(MAX_VISIBLE_TOASTS).toBe(4);
+  });
+});
+
 describe('feeds definitions + four WidgetFrame states', () => {
   const defs: WidgetDefinition[] = [
     activityFeedDefinition,
     notificationFeedDefinition,
     realtimeFeedDefinition,
     timelineVerticalDefinition,
+    loadOlderPaginatorDefinition,
+    toastStackDefinition,
     unreadBadgeDefinition,
   ];
 
   it('exposes the exact annex ids and the feeds family', () => {
+    // M7 Wave 4 closed §4 out; ANNEX_PENDING.feeds is now [].
     expect(defs.map((d) => d.id).sort()).toEqual([
       'activity-feed',
+      'load-older-paginator',
       'notification-feed',
       'realtime-feed',
       'timeline-vertical',
+      'toast-stack',
       'unread-badge',
     ]);
     for (const def of defs) {

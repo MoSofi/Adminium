@@ -10,9 +10,19 @@
  * format picker over the 8 import formats with auto-detect default, showing
  * what was detected and re-parsing on override; parser warnings surfaced on
  * the preview card.
+ *
+ * M7 Wave 4: the DSN field itself is no longer built here — it is
+ * `@adminium/widgets`' `ConnectionStringField`, the annex §10
+ * `connection-string-field` widget's presentational half. This step used to own
+ * a copy of the mono input, the provider quick-fill chips, the engine-aware
+ * placeholder and the detected-engine tag; the widget registry needed the same
+ * field, and two copies would have drifted. This step keeps what is
+ * wizard-specific around it: the source-mode switch, the engine picker, the
+ * fields form, and the schema-file upload path.
  */
 import { FileCode2, FormInput, Link2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { ConnectionStringField } from '@adminium/widgets';
 import {
   Alert,
   Badge,
@@ -32,16 +42,15 @@ import { Dropzone } from '../Dropzone.js';
 import {
   FILE_FORMATS,
   SOURCE_ENGINES,
+  asConnectionEngine,
   composeDsn,
+  dsnErrorText,
   dsnInputPatch,
-  dsnPlaceholder,
-  dsnValidationError,
   engineForDsn,
   engineLabel,
   enginePickPatch,
   fileFormatFromImportFormat,
   fileFormatLabel,
-  providerChipsFor,
   type FieldsInput,
   type FileFormatChoice,
   type SourceMode,
@@ -67,10 +76,8 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
   /** Last uploaded file, kept in memory so a format override can re-parse. */
   const lastFileRef = useRef<{ name: string; content: string } | null>(null);
 
-  const dsnError = dsnValidationError(state.dsn);
   const inferredEngine = engineForDsn(state.dsn);
   const pickerEngine: ConnectionEngine = state.mode === 'dsn' ? (inferredEngine ?? state.engine) : state.engine;
-  const chips = providerChipsFor(pickerEngine);
 
   const parseContent = (name: string, content: string, format: FileFormatChoice) => {
     setParsing(true);
@@ -168,47 +175,29 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
       ) : null}
 
       {state.mode === 'dsn' ? (
-        <div className="flex flex-col gap-3">
-          <FormField
-            label={t('studio.source.dsn.label', 'Connection string')}
-            required
-            {...(dsnError === null ? {} : { error: dsnError })}
-            {...(inferredEngine === null ? {} : { tag: <Tag>{inferredEngine}</Tag> })}
-            helper={
-              dsnError === null
-                ? t('studio.source.dsn.helper', 'postgres://user:password@host:5432/database — mysql:// and sqlite: work too.')
-                : undefined
-            }
-          >
-            <Input
-              mono
-              value={state.dsn}
-              onChange={(event) => onPatch(dsnInputPatch(event.currentTarget.value, state.engine))}
-              placeholder={dsnPlaceholder(pickerEngine)}
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </FormField>
-          {chips.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-caption text-fg-subtle">{t('studio.source.dsn.quickFill', 'Quick fill:')}</span>
-              {chips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={() => onPatch({ dsn: chip.dsn, engine: chip.engine })}
-                  className={
-                    'rounded-full border border-border-strong bg-surface px-2.5 py-0.5 text-caption font-semibold text-fg-muted ' +
-                    'transition-colors duration-150 hover:border-fg-subtle hover:text-fg ' +
-                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-                  }
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <ConnectionStringField
+          value={state.dsn}
+          onValueChange={(dsn) => onPatch(dsnInputPatch(dsn, state.engine))}
+          // v1 connects to Postgres/MySQL/SQLite only — `protocols` is what keeps
+          // `mongodb://` reading as an unrecognised scheme here even though the
+          // shared grammar can parse it.
+          protocols={SOURCE_ENGINES}
+          placeholderEngine={pickerEngine}
+          label={t('studio.source.dsn.label', 'Connection string')}
+          required
+          helper={t(
+            'studio.source.dsn.helper',
+            'postgres://user:password@host:5432/database — mysql:// and sqlite: work too.',
+          )}
+          errorText={dsnErrorText()}
+          quickFillLabel={t('studio.source.dsn.quickFill', 'Quick fill:')}
+          // A chip carries its own engine: moving the picker in the SAME patch is
+          // what stops it pointing at Postgres while the DSN now says MySQL.
+          onQuickFill={(chip) => {
+            const engine = asConnectionEngine(chip.engine);
+            onPatch({ dsn: chip.dsn, ...(engine === null ? {} : { engine }) });
+          }}
+        />
       ) : null}
 
       {state.mode === 'fields' ? (

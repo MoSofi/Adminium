@@ -22,5 +22,11 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // Paired with the `asyncUtilTimeout` bump in src/test/setup.ts — see the
+    // rationale there. Under `turbo run test` this suite shares the CPU with the
+    // (now much larger) @adminium/widgets suite, so a correct render can take
+    // several seconds. The enclosing test budget has to exceed the async-util
+    // budget, or the timeout it reports is the misleading one.
+    testTimeout: 20_000,
   },
 });

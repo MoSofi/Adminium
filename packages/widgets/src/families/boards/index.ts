@@ -28,9 +28,23 @@ export {
 } from './KanbanSwimlaneGrid.js';
 export {
   BoardCard,
+  BoardCardWidget,
+  boardCardConfigSchema,
+  boardCardDemoData,
+  boardCardOf,
+  type BoardCardConfig,
   type BoardCardProps,
 } from './BoardCard.js';
 export {
+  InlineComposeCard,
+  InlineComposeCardWidget,
+  inlineComposeCardConfigSchema,
+  inlineComposeCardDemoData,
+  type InlineComposeCardConfig,
+  type InlineComposeCardProps,
+} from './InlineComposeCard.js';
+export {
+  bindingSourceOf,
   boardRowsOf,
   boardToneOf,
   cardsInCell,
@@ -41,6 +55,7 @@ export {
   resolveLanes,
   sumPoints,
   toBoardCard,
+  type BindingSource,
   type BoardCardData,
   type ColumnDef,
   type LaneDef,
@@ -51,7 +66,9 @@ export {
   type MoveResult,
 } from './board-dnd.js';
 export {
+  boardCardDefinition,
   boardsTrackDefinitions,
+  inlineComposeCardDefinition,
   kanbanBoardDefinition,
   kanbanSwimlaneGridDefinition,
 } from './boards-track.definitions.js';

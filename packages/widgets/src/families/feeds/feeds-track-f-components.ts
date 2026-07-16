@@ -10,3 +10,6 @@ export { NotificationFeedWidget } from './NotificationFeed.js';
 export { RealtimeFeedWidget } from './RealtimeFeed.js';
 export { TimelineVerticalWidget } from './TimelineVertical.js';
 export { UnreadBadgeWidget } from './UnreadBadge.js';
+// M7 Wave 4 (TRACK KPI-FEEDS) — the §4 tail that completes the family.
+export { LoadOlderPaginatorWidget } from './LoadOlderPaginator.js';
+export { ToastStackWidget } from './ToastStack.js';

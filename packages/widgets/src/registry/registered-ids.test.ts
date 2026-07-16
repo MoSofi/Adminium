@@ -29,10 +29,17 @@ describe('REGISTERED_WIDGET_IDS mirrors the live widgetRegistry', () => {
   it('isRegisteredWidgetId answers for registered and unregistered ids', () => {
     expect(isRegisteredWidgetId('data-grid')).toBe(true);
     expect(isRegisteredWidgetId('widget-missing')).toBe(true);
-    // Declared pending in PENDING_TEMPLATE_WIDGET_IDS — a manifest names them
-    // ahead of their family, and generation must keep them out of stored pages.
-    expect(isRegisteredWidgetId('toast-stack')).toBe(false);
-    expect(isRegisteredWidgetId('date-range-picker')).toBe(false);
+    // `toast-stack` and `date-range-picker` stood here as the declared-pending
+    // cases until M7 Wave 4 delivered them. They now register, so asserting they
+    // do NOT would assert the opposite of the truth. `starter-template-picker`
+    // replaces them as the live example of the case: it is the last id still in
+    // PENDING_TEMPLATE_WIDGET_IDS — `page-builder`'s `chrome.overlays` names it
+    // ahead of TRACK OPS delivering it, and generation must keep it out of
+    // stored pages until then. Now that they ship, both former pending ids are
+    // asserted positively, so this stays a two-sided test.
+    expect(isRegisteredWidgetId('toast-stack')).toBe(true);
+    expect(isRegisteredWidgetId('date-range-picker')).toBe(true);
+    expect(isRegisteredWidgetId('starter-template-picker')).toBe(false);
     expect(isRegisteredWidgetId('no-such-widget')).toBe(false);
   });
 });

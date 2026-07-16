@@ -68,3 +68,23 @@ export interface StreamEvent {
   category?: string | undefined;
   tone?: string | undefined;
 }
+
+/**
+ * One `toast-stack` toast (annex §4: ephemeral `{message, icon, onUndo?}`).
+ * `undoToken` is an OPAQUE handle the host round-trips back to its own undo
+ * stack — the widget never carries a callback across the data boundary and never
+ * performs the undo itself: it emits the intent through `onEvent` and the host's
+ * CRUD layer runs it with audit (04 §2.1, "widgets never write").
+ */
+export interface ToastEntry {
+  id: string;
+  message: string;
+  /** Toast variant key selecting the tinted glyph. */
+  variant?: string | undefined;
+  description?: string | undefined;
+  /** Present ⇒ the toast offers Undo, carrying this token back to the host. */
+  undoToken?: string | undefined;
+  /** Table the toast's mutation touched — carried on the emitted undo intent. */
+  table?: string | undefined;
+  recordId?: string | number | undefined;
+}

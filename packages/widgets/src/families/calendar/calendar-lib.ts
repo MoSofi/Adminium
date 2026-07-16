@@ -46,6 +46,31 @@ export function resolveLocale(locale: string | undefined): string {
   return locale !== undefined && locale.trim() !== '' ? locale : 'en-US';
 }
 
+// --- Binding source -----------------------------------------------------------
+
+/** The `connectionId` + qualified table a `record-open`/`mutate` event carries. */
+export interface BindingSource {
+  connectionId: string;
+  table: string;
+}
+
+/**
+ * The event target for a bound widget: `connectionId` + the schema-qualified
+ * table name, or `null` when the widget is running on `demoData` (no binding) —
+ * an unbound widget must never emit a mutation against a table that isn't there
+ * (the tables/CardGallery + boards + media convention).
+ *
+ * NB the descriptor is `binding.source.name` (+ optional `schema`), NOT a flat
+ * `binding.table` (04 §5.1).
+ */
+export function bindingSourceOf(
+  binding: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined,
+): BindingSource | null {
+  if (binding === undefined) return null;
+  const { schema, name } = binding.source;
+  return { connectionId: binding.connectionId, table: schema === undefined ? name : `${schema}.${name}` };
+}
+
 /** Persona names (BRIEF §4) for the resource/member scheduling widgets. */
 export const PERSONA_NAMES = [
   'Ada Lovelace',
@@ -224,6 +249,12 @@ export function weekDays(startIso: string, firstJs: number): { key: string; date
 const weekdayFmts = new Map<string, Intl.DateTimeFormat>();
 const monthTitleFmts = new Map<string, Intl.DateTimeFormat>();
 const dayLabelFmts = new Map<string, Intl.DateTimeFormat>();
+/**
+ * Short month names get their OWN cache. `memoFmt` keys on the resolved tag, so
+ * two option sets sharing a map would collide on the first tag they see and the
+ * second caller would silently get the first one's format.
+ */
+const monthShortFmts = new Map<string, Intl.DateTimeFormat>();
 
 function memoFmt(
   cache: Map<string, Intl.DateTimeFormat>,
@@ -279,4 +310,130 @@ export function fmtColumnDay(tag: string, date: Date): { weekday: string; day: s
 export function fmtEventTime(tag: string, event: { date: string; time?: string | undefined }): string {
   if (event.time === undefined) return '';
   return getFormatters(tag).time(eventInstant(event), { timeZone: 'UTC' });
+}
+
+/** Short month name for the `upcoming-events-list` date block ("Jul", "يوليو"). */
+export function fmtMonthShort(tag: string, date: Date): string {
+  return memoFmt(monthShortFmts, tag, { month: 'short' }).format(date);
+}
+
+/**
+ * A job's next-run instant ("Jul 20, 09:00"). Data context via the Intl layer —
+ * `getFormatters` already pins latn digits + gregorian for it, so callers must
+ * NOT also wrap the tag in `latnDataTag`.
+ */
+export function fmtNextRun(tag: string, iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return getFormatters(tag).dateTime(date, { timeZone: 'UTC' });
+}
+
+// --- calendar-legend-filter ---------------------------------------------------
+
+/**
+ * Aggregate a `calendar-events` payload into legend categories with counts
+ * (annex §5: "categories aggregated from events"). Order is first-seen so the
+ * legend is stable across renders and locales; uncategorized events bucket under
+ * `fallback` rather than vanishing from the counts.
+ */
+export function aggregateCategories(
+  events: readonly { category?: string | undefined; tone?: string | undefined }[],
+  map?: Record<string, string> | undefined,
+  fallback = 'other',
+): { name: string; count: number; tone: Tone }[] {
+  const order: string[] = [];
+  const counts = new Map<string, number>();
+  const tones = new Map<string, Tone>();
+  for (const event of events) {
+    const name = event.category ?? fallback;
+    if (!counts.has(name)) {
+      order.push(name);
+      tones.set(name, event.tone === undefined ? categoryTone(name, map) : toneOf(event.tone));
+    }
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return order.map((name) => ({
+    name,
+    count: counts.get(name) ?? 0,
+    tone: tones.get(name) ?? 'accent',
+  }));
+}
+
+// --- upcoming-events-list -----------------------------------------------------
+
+/**
+ * Events at or after `fromKey` (`YYYY-MM-DD`), date-then-time ascending, capped
+ * at `n` — the annex's "events WHERE date ≥ today ORDER BY date LIMIT n".
+ *
+ * The cutoff is a DAY key, not an instant: an event earlier today is still
+ * "upcoming" until the day rolls over, which is what the Release Calendar comp
+ * shows (today's release stays on the list all day).
+ */
+export function upcomingFrom<T extends { date: string; time?: string | undefined }>(
+  events: readonly T[],
+  fromKey: string,
+  n: number,
+): T[] {
+  return events
+    .filter((event) => event.date.slice(0, 10) >= fromKey)
+    .sort((a, b) => eventInstant(a).getTime() - eventInstant(b).getTime())
+    .slice(0, Math.max(1, n));
+}
+
+// --- date-range-picker --------------------------------------------------------
+
+/** `YYYY-MM-DD` `days` after (or, negative, before) an ISO day. */
+export function addDays(key: string, days: number): string {
+  const date = parseIsoDay(key);
+  return isoDayKey(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days)));
+}
+
+/** Inclusive day-key range test — string compare is safe for `YYYY-MM-DD`. */
+export function isInRange(key: string, start: string | null, end: string | null): boolean {
+  if (start === null || end === null) return false;
+  const [lo, hi] = start <= end ? [start, end] : [end, start];
+  return key >= lo && key <= hi;
+}
+
+/** Whole days between two day keys, inclusive of both endpoints. */
+export function daysBetween(start: string, end: string): number {
+  const from = parseIsoDay(start).getTime();
+  const to = parseIsoDay(end).getTime();
+  return Math.abs(Math.round((to - from) / 86_400_000)) + 1;
+}
+
+/**
+ * The default quick presets (annex §5: "quick presets (7d/30d/QTD…)"). Labels
+ * are ENGLISH DEFAULTS: widgets are locale-agnostic and the host passes
+ * translated labels through config, the same contract as the boards family's
+ * announcements (04 §2).
+ */
+export const DEFAULT_RANGE_PRESETS: readonly { id: string; label: string; days?: number; anchor?: 'mtd' | 'qtd' | 'ytd' }[] = [
+  { id: '7d', label: 'Last 7 days', days: 7 },
+  { id: '30d', label: 'Last 30 days', days: 30 },
+  { id: '90d', label: 'Last 90 days', days: 90 },
+  { id: 'mtd', label: 'Month to date', anchor: 'mtd' },
+  { id: 'qtd', label: 'Quarter to date', anchor: 'qtd' },
+  { id: 'ytd', label: 'Year to date', anchor: 'ytd' },
+];
+
+/**
+ * Resolve a preset against a reference day (`YYYY-MM-DD`) into an inclusive day
+ * pair. `days: 7` means "the last 7 days INCLUDING today" (today − 6 … today),
+ * which is what the comps' "Last 7 days" summary counts — an off-by-one here
+ * silently shifts every bound query the picker feeds.
+ */
+export function resolvePreset(
+  preset: { days?: number | undefined; anchor?: 'mtd' | 'qtd' | 'ytd' | undefined },
+  referenceKey: string,
+): { start: string; end: string } {
+  const reference = parseIsoDay(referenceKey);
+  if (preset.anchor !== undefined) {
+    const year = reference.getUTCFullYear();
+    const month = reference.getUTCMonth();
+    const startMonth = preset.anchor === 'mtd' ? month : preset.anchor === 'qtd' ? Math.floor(month / 3) * 3 : 0;
+    return { start: isoDayKey(new Date(Date.UTC(year, startMonth, 1))), end: referenceKey };
+  }
+  const span = preset.days ?? 1;
+  return { start: addDays(referenceKey, -(Math.max(1, span) - 1)), end: referenceKey };
 }

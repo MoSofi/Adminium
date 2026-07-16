@@ -118,10 +118,28 @@ describe('engine picker rules (M9-T04)', () => {
     expect(enginePickPatch(state, 'postgres')).toEqual({}); // no-op on same engine
   });
 
+  /**
+   * A scheme this build cannot connect to is UNRECOGNISED to the whole wizard —
+   * including the rewrite. Rewriting it in place would hand back a
+   * `mysql://…@cluster0.mongodb.net/db` that passes `dsnValidationError`, so the
+   * user is one click from testing a MySQL driver against a Mongo host and being
+   * told the database is unreachable rather than unsupported.
+   */
+  it('dsnWithEngine resets an out-of-scope DSN rather than rewriting its scheme', () => {
+    expect(dsnWithEngine('mongodb+srv://USER:PASSWORD@cluster0.abcde.mongodb.net/mydb', 'mysql')).toBe('');
+    expect(dsnWithEngine('sqlserver://u:p@host:1433/db', 'postgres')).toBe('');
+  });
+
   it('enginePickPatch rewrites a present DSN', () => {
     const state: WizardState = { ...INITIAL_WIZARD_STATE, dsn: 'postgres://u@h/db' };
     expect(enginePickPatch(state, 'mysql')).toMatchObject({ engine: 'mysql', dsn: 'mysql://u@h/db' });
     expect(enginePickPatch(state, 'sqlite')).toMatchObject({ engine: 'sqlite', dsn: '' });
+  });
+
+  it('enginePickPatch resets — never repoints — a DSN the wizard cannot connect to', () => {
+    const state: WizardState = { ...INITIAL_WIZARD_STATE, dsn: 'mongodb+srv://u:p@cluster0.abcde.mongodb.net/mydb' };
+    expect(enginePickPatch(state, 'mysql')).toMatchObject({ engine: 'mysql', dsn: '' });
+    expect(dsnValidationError('mysql://u:p@cluster0.abcde.mongodb.net/mydb')).toBeNull(); // …which is why the reset matters
   });
 
   it('effectiveEngine: dsn scheme wins, fields mode uses the picker, file mode has none', () => {

@@ -17,35 +17,48 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AiChatPanel } from './AiChatPanel.js';
+import { CallWidget, CallWidgetWidget } from './CallWidget.js';
 import { ChatThread } from './ChatThread.js';
 import { ConversationInbox } from './ConversationInbox.js';
+import { TypingIndicator, TypingIndicatorWidget } from './TypingIndicator.js';
 import {
   CHAT_DEMO_EPOCH,
   attachmentsOf,
+  callKindOf,
+  callStateOf,
   chatRowsOf,
   fmtClock,
   fmtCount,
   fmtDaySeparator,
   groupMessages,
+  isTypingIn,
   isoDayOf,
   localeOf,
+  recordRowOf,
   sortBySentAt,
   sourceOf,
   toChatMessage,
+  typingEntriesOf,
 } from './chat-lib.js';
 import type { ChatMessage } from './chat-lib.js';
 import {
   aiChatPanelConfigSchema,
   aiChatPanelDemoData,
+  callWidgetConfigSchema,
+  callWidgetDemoData,
   chatThreadConfigSchema,
   chatThreadDemoData,
   conversationInboxConfigSchema,
   conversationInboxDemoData,
+  typingIndicatorConfigSchema,
+  typingIndicatorDemoData,
 } from './communication-config.js';
 import {
   aiChatPanelDefinition,
+  callWidgetDefinition,
   chatThreadDefinition,
   conversationInboxDefinition,
+  typingIndicatorDefinition,
 } from './communication-track.definitions.js';
 import { WidgetHost } from '../../frame/WidgetHost.js';
 import { buildRegistry } from '../../registry/index.js';
@@ -690,6 +703,335 @@ describe('communication registry definitions (annex §9)', () => {
     expect(conversationInboxDefinition.capabilities?.editsData).toBeUndefined();
     expect(chatThreadDefinition.capabilities?.editsData).toBe(true);
     expect(aiChatPanelDefinition.capabilities?.editsData).toBe(true);
+    // typing-indicator only READS a boolean; call-widget emits state transitions.
+    expect(typingIndicatorDefinition.capabilities?.editsData).toBeUndefined();
+    expect(callWidgetDefinition.capabilities?.editsData).toBe(true);
+  });
+
+  it('registers the Wave-4 tail with the exact annex ids and §3 contracts', () => {
+    expect(typingIndicatorDefinition.id).toBe('typing-indicator');
+    expect(callWidgetDefinition.id).toBe('call-widget');
+    // annex §9: "boolean per conversation" and "{kind, peer, state}".
+    expect(typingIndicatorDefinition.dataContract).toBe('boolean-map');
+    expect(callWidgetDefinition.dataContract).toBe('record');
+  });
+
+  it('places the tail per the annex ("child of thread" / "modal overlay")', () => {
+    expect(typingIndicatorDefinition.placement).toBe('inline');
+    expect(callWidgetDefinition.placement).toBe('overlay');
+  });
+
+  /**
+   * page-chat.json holds a 3×6 optional `call` slot open for this widget. A slot
+   * shorter than the widget's registered minimum persists a layout item below
+   * the widget's own enforced floor (04 §6.1), so it renders clipped and reflows
+   * on the first drag in edit mode.
+   */
+  it('sizes call-widget to fit page-chat’s call slot (3×6)', () => {
+    expect(callWidgetDefinition.sizing.minW).toBeLessThanOrEqual(3);
+    expect(callWidgetDefinition.sizing.minH).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('communication tail demoData (04 §7.7)', () => {
+  it('typing-indicator: deterministic per seed, and varies across seeds', () => {
+    expect(JSON.stringify(typingIndicatorDemoData(7))).toBe(JSON.stringify(typingIndicatorDemoData(7)));
+    const payloads = new Set([0, 1, 7, 42, 1234, 65_535].map((s) => JSON.stringify(typingIndicatorDemoData(s))));
+    expect(payloads.size).toBeGreaterThan(1);
+  });
+
+  /**
+   * `c1` is the inbox's first row and so the thread's default selection: a demo
+   * or VRT frame of a typing indicator that renders nothing would be a useless
+   * capture, so the headline entry is pinned live for every seed while the rest
+   * carry the seed variance.
+   */
+  it('typing-indicator: c1 is live for every seed so the demo always shows the row', () => {
+    for (const seed of [0, 1, 7, 42, 1234, 65_535]) {
+      expect(typingIndicatorDemoData(seed).entries['c1']).toBe(true);
+    }
+  });
+
+  it('typing-indicator: keys match the conversation ids the inbox demo emits', () => {
+    const inboxIds = conversationInboxDemoData(7).rows.map((row) => row['id']);
+    expect(Object.keys(typingIndicatorDemoData(7).entries)).toEqual(inboxIds);
+  });
+
+  it('call-widget: deterministic per seed, varies across seeds, and always rings', () => {
+    expect(JSON.stringify(callWidgetDemoData(7))).toBe(JSON.stringify(callWidgetDemoData(7)));
+    const payloads = new Set([0, 1, 7, 42, 1234, 65_535].map((s) => JSON.stringify(callWidgetDemoData(s))));
+    expect(payloads.size).toBeGreaterThan(1);
+    // `ringing` is the annex's headline state (the expanding ring) — what the
+    // demo and every VRT capture must show.
+    for (const seed of [0, 1, 7, 42]) expect(callWidgetDemoData(seed).row['state']).toBe('ringing');
+  });
+
+  it('tail config schemas parse their defaults', () => {
+    expect(typingIndicatorConfigSchema.safeParse({}).success).toBe(true);
+    expect(callWidgetConfigSchema.safeParse({}).success).toBe(true);
+  });
+});
+
+// ── typing-indicator (annex §9) ─────────────────────────────────────────────
+
+describe('typingEntriesOf / isTypingIn', () => {
+  it('reads the §3 boolean-map envelope', () => {
+    expect(typingEntriesOf({ entries: { c1: true, c2: false } })).toEqual({ c1: true, c2: false });
+  });
+
+  it('reads the bare-record shorthand a thin host adapter may pass', () => {
+    expect(typingEntriesOf({ c1: true })).toEqual({ c1: true });
+  });
+
+  /**
+   * The driver-coercion case. MySQL returns TINYINT(1) as 1/0 and some adapters
+   * stringify booleans; a strict `=== true` read would render "nobody is typing"
+   * against a live payload that says otherwise.
+   */
+  it('coerces 1/0 and "true"/"false" cells the way boolField does', () => {
+    expect(typingEntriesOf({ entries: { a: 1, b: 0, c: 'true', d: 'false' } })).toEqual({
+      a: true,
+      b: false,
+      c: true,
+      d: false,
+    });
+  });
+
+  it('tolerates junk payloads', () => {
+    expect(typingEntriesOf(null)).toEqual({});
+    expect(typingEntriesOf('nope')).toEqual({});
+    expect(typingEntriesOf([])).toEqual({});
+  });
+
+  it('selects the configured conversation, else falls back to "anyone is typing"', () => {
+    const entries = { c1: false, c2: true };
+    expect(isTypingIn(entries, 'c1')).toBe(false);
+    expect(isTypingIn(entries, 'c2')).toBe(true);
+    expect(isTypingIn(entries, 'missing')).toBe(false);
+    // Unbound/demo instance: any live entry counts, so it still animates.
+    expect(isTypingIn(entries)).toBe(true);
+    expect(isTypingIn({ c1: false })).toBe(false);
+  });
+});
+
+describe('typing-indicator', () => {
+  it('renders the avatar, the italic label, and the dots when typing', () => {
+    const { container } = render(<TypingIndicator typing typists={['Morgan Lee']} label="typing…" />);
+    expect(screen.getByText('typing…')).toBeTruthy();
+    expect(container.querySelector('[data-part="typing-dots"]')).not.toBeNull();
+    expect(container.querySelector('[data-part="typing-indicator"]')).not.toBeNull();
+  });
+
+  /**
+   * Idle renders nothing VISIBLE but keeps the live region mounted. A typing
+   * indicator is ephemeral and is an `inline` widget (no card of its own), so an
+   * idle instance must occupy no space — but an element inserted WITH
+   * `aria-live` already on it is not reliably announced, so the region has to
+   * outlive the transition for the row to be spoken when it appears.
+   */
+  it('renders nothing visible when idle, but keeps the live region mounted', () => {
+    const { container } = render(<TypingIndicator typing={false} typists={['Morgan Lee']} label="typing…" />);
+    expect(container.querySelector('[data-part="typing-indicator"]')).toBeNull();
+    expect(screen.queryByText('typing…')).toBeNull();
+    const live = container.querySelector('[data-widget="typing-indicator"]');
+    expect(live?.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('stacks avatars for a group chat and collapses past maxAvatars', () => {
+    const { container } = render(
+      <TypingIndicator typing typists={['A One', 'B Two', 'C Three', 'D Four']} maxAvatars={2} label="typing…" />,
+    );
+    expect(container.textContent).toContain('+2');
+  });
+
+  it('drops blank typist names rather than rendering an empty avatar', () => {
+    const { container } = render(<TypingIndicator typing typists={['', '  ']} label="typing…" />);
+    expect(container.querySelectorAll('[data-part="typing-dots"]')).toHaveLength(1);
+    expect(screen.getByText('typing…')).toBeTruthy();
+  });
+
+  it('uses no physical-direction utility (10 §5.2)', () => {
+    const { container } = render(<TypingIndicator typing typists={['Morgan Lee']} label="typing…" />);
+    expect(allClassNames(container).filter((name) => PHYSICAL.test(name))).toEqual([]);
+  });
+
+  it('widget wrapper reads the bound conversation and names the peer from config', () => {
+    const config = typingIndicatorConfigSchema.parse({ conversationId: 'c2', peerName: 'Morgan Lee', label: 'typing…' });
+    const { container } = render(
+      <TypingIndicatorWidget
+        config={config}
+        data={{ entries: { c1: false, c2: true } }}
+        instanceId="ti"
+        onEvent={() => {}}
+      />,
+    );
+    expect(container.querySelector('[data-part="typing-indicator"]')).not.toBeNull();
+  });
+
+  it('widget wrapper stays silent for a conversation whose boolean is false', () => {
+    const config = typingIndicatorConfigSchema.parse({ conversationId: 'c1', peerName: 'Morgan Lee' });
+    const { container } = render(
+      <TypingIndicatorWidget
+        config={config}
+        data={{ entries: { c1: false, c2: true } }}
+        instanceId="ti2"
+        onEvent={() => {}}
+      />,
+    );
+    // c2 is typing, but this instance is bound to c1 — it must not leak.
+    expect(container.querySelector('[data-part="typing-indicator"]')).toBeNull();
+  });
+
+  /**
+   * The annex places typing-indicator as a "child of thread", so the thread's
+   * embedded row must BE this component, not a lookalike. Guards the reuse
+   * against someone re-inlining the markup and letting the two drift.
+   */
+  it('is the same component chat-thread renders for its own typing row', () => {
+    const { container } = render(
+      <ChatThread messages={[message('m1', false, 'hi', 0)]} typingIndicator peerName="Morgan Lee" now={CHAT_DEMO_EPOCH} />,
+    );
+    expect(container.querySelector('[data-widget="typing-indicator"]')).not.toBeNull();
+    expect(container.querySelector('[data-part="typing-dots"]')).not.toBeNull();
+  });
+});
+
+// ── call-widget (annex §9) ──────────────────────────────────────────────────
+
+describe('recordRowOf / call coercion', () => {
+  it('reads the §3 record envelope and the bare-object shorthand', () => {
+    expect(recordRowOf({ row: { peer: 'Morgan Lee' } })).toEqual({ peer: 'Morgan Lee' });
+    expect(recordRowOf({ peer: 'Morgan Lee' })).toEqual({ peer: 'Morgan Lee' });
+    expect(recordRowOf({ row: null })).toBeNull();
+    expect(recordRowOf(null)).toBeNull();
+    expect(recordRowOf([])).toBeNull();
+  });
+
+  it('coerces unknown kinds/states to safe defaults instead of rendering junk', () => {
+    expect(callKindOf('video')).toBe('video');
+    expect(callKindOf('hologram')).toBe('voice');
+    expect(callKindOf(undefined)).toBe('voice');
+    expect(callStateOf('active')).toBe('active');
+    expect(callStateOf('exploded')).toBe('ringing');
+  });
+});
+
+describe('call-widget', () => {
+  it('renders the ringing card: peer, kind label, and the expanding accent ring', () => {
+    const { container } = render(<CallWidget peer="Morgan Lee" kind="video" state="ringing" stateLabel="Ringing…" />);
+    expect(screen.getByText('Morgan Lee')).toBeTruthy();
+    expect(screen.getByText('Video call')).toBeTruthy();
+    expect(screen.getByText('Ringing…')).toBeTruthy();
+    expect(container.querySelector('[data-part="call-ring"]')).not.toBeNull();
+  });
+
+  /**
+   * The ring is decoration. Under `prefers-reduced-motion` it must not animate —
+   * hence `motion-safe:`, not a bare `animate-ping` — and the meaning has to
+   * survive its absence, which is what the state label is for (02 §6).
+   */
+  it('animates the ring only under motion-safe, and states the call in text regardless', () => {
+    const { container } = render(<CallWidget peer="Morgan Lee" kind="voice" state="ringing" stateLabel="Ringing…" />);
+    const ring = container.querySelector('[data-part="call-ring"]');
+    expect(ring?.className).toContain('motion-safe:animate-ping');
+    expect(ring?.className).not.toMatch(/(^|\s)animate-ping/);
+    expect(ring?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('[data-part="call-state"]')?.textContent).toBe('Ringing…');
+  });
+
+  it('does not ring once the call is connected', () => {
+    const { container } = render(<CallWidget peer="Morgan Lee" kind="voice" state="active" />);
+    expect(container.querySelector('[data-part="call-ring"]')).toBeNull();
+  });
+
+  it('offers Accept only while ringing; a live call offers only End', () => {
+    const { rerender } = render(<CallWidget peer="Morgan Lee" kind="voice" state="ringing" />);
+    expect(screen.getByRole('button', { name: /accept/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /decline/i })).toBeTruthy();
+
+    rerender(<CallWidget peer="Morgan Lee" kind="voice" state="active" />);
+    expect(screen.queryByRole('button', { name: /accept/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /end call/i })).toBeTruthy();
+  });
+
+  it('offers no actions once the call has ended', () => {
+    render(<CallWidget peer="Morgan Lee" kind="voice" state="ended" />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('renders the empty state when no call is in flight', () => {
+    render(<CallWidget peer="" kind="voice" state="ringing" emptyTitle="No active call" />);
+    expect(screen.getByText('No active call')).toBeTruthy();
+  });
+
+  it('uses no physical-direction utility (10 §5.2)', () => {
+    const { container } = render(<CallWidget peer="Morgan Lee" kind="video" state="ringing" />);
+    expect(allClassNames(container).filter((name) => PHYSICAL.test(name))).toEqual([]);
+  });
+});
+
+describe('call-widget wrapper — accept/decline are mutate intents, never writes', () => {
+  const data = { row: { id: 'call-1', peer: 'Morgan Lee', kind: 'video', state: 'ringing' } };
+
+  it('emits an update intent to the bound table on Accept', () => {
+    const onEvent = vi.fn();
+    const config = callWidgetConfigSchema.parse({
+      binding: { connectionId: 'conn-1', source: { name: 'calls' }, shape: 'record' },
+    });
+    render(<CallWidgetWidget config={config} data={data} instanceId="cw" onEvent={onEvent} />);
+    fireEvent.click(screen.getByRole('button', { name: /accept/i }));
+    // The widget describes the change; the HOST runs it through the CRUD API
+    // (audit + undo). It never mutates, and it never opens a media device.
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'mutate',
+      intent: 'update',
+      connectionId: 'conn-1',
+      table: 'calls',
+      recordId: 'call-1',
+      values: { state: 'active' },
+    });
+  });
+
+  it('emits an update intent ending the call on Decline', () => {
+    const onEvent = vi.fn();
+    const config = callWidgetConfigSchema.parse({});
+    render(<CallWidgetWidget config={config} data={data} instanceId="cw2" onEvent={onEvent} />);
+    fireEvent.click(screen.getByRole('button', { name: /decline/i }));
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'mutate', intent: 'update', table: 'records', values: { state: 'ended' } }),
+    );
+  });
+
+  it('writes back through the CONFIGURED state column, not a hard-coded "state"', () => {
+    const onEvent = vi.fn();
+    const config = callWidgetConfigSchema.parse({ stateField: 'call_status' });
+    render(
+      <CallWidgetWidget
+        config={config}
+        data={{ row: { id: 'c9', peer: 'Sam Park', kind: 'voice', call_status: 'ringing' } }}
+        instanceId="cw3"
+        onEvent={onEvent}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /decline/i }));
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ values: { call_status: 'ended' } }),
+    );
+  });
+
+  it('omits recordId rather than inventing one when the row has no id', () => {
+    const onEvent = vi.fn();
+    const config = callWidgetConfigSchema.parse({});
+    render(
+      <CallWidgetWidget
+        config={config}
+        data={{ row: { peer: 'Sam Park', kind: 'voice', state: 'ringing' } }}
+        instanceId="cw4"
+        onEvent={onEvent}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /decline/i }));
+    expect(onEvent.mock.calls[0]?.[0]).not.toHaveProperty('recordId');
   });
 });
 
@@ -699,15 +1041,26 @@ describe('communication widgets render four states through WidgetHost', () => {
   const registry = buildRegistry([
     conversationInboxDefinition,
     chatThreadDefinition,
+    typingIndicatorDefinition,
     aiChatPanelDefinition,
+    callWidgetDefinition,
   ] as WidgetDefinition[]);
 
-  for (const definition of [conversationInboxDefinition, chatThreadDefinition, aiChatPanelDefinition]) {
+  for (const definition of [
+    conversationInboxDefinition,
+    chatThreadDefinition,
+    typingIndicatorDefinition,
+    aiChatPanelDefinition,
+    callWidgetDefinition,
+  ]) {
     it(`${definition.id}: skeleton, empty, and error states resolve through the frame`, () => {
       const { rerender } = render(
         <WidgetHost widgetId={definition.id} instanceId={`${definition.id}-l`} data={{ status: 'loading' }} registry={registry} />,
       );
-      expect(document.querySelector('[data-skeleton-variant="list"]')).not.toBeNull();
+      // Reads the DECLARED silhouette rather than hard-coding 'list': the family
+      // is no longer all lists (call-widget is a 'card'), and a definition whose
+      // skeleton drifts from what it renders should fail here.
+      expect(document.querySelector(`[data-skeleton-variant="${definition.skeleton}"]`)).not.toBeNull();
 
       rerender(
         <WidgetHost

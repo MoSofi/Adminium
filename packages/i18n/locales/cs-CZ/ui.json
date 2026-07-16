@@ -54,6 +54,45 @@
     "dismiss": "Zavřít oznámení"
   },
   "widgets": {
+    "kpi": {
+      "statCard": {
+        "description": "Základní karta metriky: hlavní agregát s volitelnou plaketou trendu a mini sparkline."
+      },
+      "usageMeter": {
+        "description": "Spotřeba kvóty vůči limitu; po překročení vašich prahů se pruh zbarví oranžově a poté červeně."
+      },
+      "statTileCompact": {
+        "description": "Úzká dlaždice metriky s mikropopiskem, čipem trendu a šestipruhovým sparkem — pro husté řady po 4 až 6."
+      },
+      "metricHero": {
+        "description": "Jedna zvětšená metrika, která se při načtení odpočítává nahoru, s plaketou trendu, sparkem a postupem k cíli.",
+        "goalLabel": "Cíl"
+      },
+      "statPairCard": {
+        "description": "Dvě metriky vedle sebe; druhou lze odvodit z první."
+      },
+      "gaugeRing": {
+        "description": "Prstencový ukazatel pro skóre nebo procento, obarvený podle pásma, do kterého hodnota spadá."
+      },
+      "gaugeArc": {
+        "description": "Oblouk tachometru s kvalitativními pásmy a ručičkou; vykreslí i mřížku ukazatelů."
+      },
+      "periodComparison": {
+        "description": "Toto období proti minulému jako dva pruhy, s rozdílem spočítaným pod nimi.",
+        "higherLabel": "více",
+        "lowerLabel": "méně",
+        "flatLabel": "beze změny"
+      },
+      "microKpiSubtitle": {
+        "description": "Jednořádková statistika v záhlaví sestavená ze šablony a přepočítávaná ze živého stavu."
+      },
+      "autoInsights": {
+        "description": "Seřazené postřehy — hlavní číslo, věta a spark — s rotací při obnovení.",
+        "emptyTitle": "Zatím žádné postřehy",
+        "emptyBody": "Postřehy se objeví, jakmile bude dost dat na rozpoznání vzorce.",
+        "refreshLabel": "Obnovit"
+      }
+    },
     "charts": {
       "boxplot": {
         "description": "Krabicový graf rozpětí číselného sloupce podle kategorie – minimum, kvartily, medián a maximum.",
@@ -115,6 +154,19 @@
       "unreadBadge": {
         "description": "Počítadlo nepřečtených položek synchronizované se stavem kanálu.",
         "unitLabel": "nepřečtené"
+      },
+      "loadOlderPaginator": {
+        "description": "Tlačítko v patičce, které načítá starší záznamy po dávkách, dokud se kanál nevyčerpá.",
+        "label": "Načíst starší",
+        "loadingLabel": "Načítání…",
+        "exhaustedLabel": "Nic staršího",
+        "ofLabel": "z"
+      },
+      "toastStack": {
+        "description": "Překryvný hostitel oznámení: krátká potvrzení s volitelným krokem zpět.",
+        "undoLabel": "Zpět",
+        "dismissLabel": "Zavřít",
+        "regionLabel": "Oznámení"
       }
     },
     "calendar": {
@@ -137,6 +189,39 @@
         "description": "Pruhy vytížení podle člena s rozpisem projektů a stavem zátěže.",
         "emptyTitle": "Žádná data o vytížení",
         "emptyBody": "Vytížení členů se zobrazí, jakmile budou existovat přiřazení."
+      },
+      "calendarLegendFilter": {
+        "description": "Kategorie událostí s počty; přepnutí filtruje sousední kalendář.",
+        "emptyTitle": "Zatím žádné kategorie",
+        "emptyBody": "Kategorie událostí se zobrazí, jakmile budou nějaké události.",
+        "uncategorizedLabel": "Bez kategorie"
+      },
+      "upcomingEventsList": {
+        "description": "Nejbližší události podle data, s vlastníkem a stavem.",
+        "emptyTitle": "Nic nadcházejícího",
+        "emptyBody": "Naplánované události se zde zobrazí, jakmile vzniknou."
+      },
+      "dateRangePicker": {
+        "description": "Rozsah dat s rychlými předvolbami, který filtruje zbytek stránky.",
+        "previousLabel": "Předchozí měsíc",
+        "nextLabel": "Další měsíc",
+        "summaryLabel": "Vybráno {n} dní",
+        "presets": {
+          "7d": "Posledních 7 dní",
+          "30d": "Posledních 30 dní",
+          "90d": "Posledních 90 dní",
+          "mtd": "Tento měsíc",
+          "qtd": "Toto čtvrtletí",
+          "ytd": "Tento rok"
+        }
+      },
+      "scheduledJobsList": {
+        "description": "Opakované reporty a exporty s frekvencí, dalším během a přepínačem.",
+        "emptyTitle": "Žádné naplánované úlohy",
+        "emptyBody": "Opakované reporty a exporty se zobrazí po naplánování.",
+        "nextRunLabel": "Další běh",
+        "toggleLabel": "Povolit plán",
+        "recipientsLabel": "Příjemci"
       }
     },
     "tables": {
@@ -169,6 +254,38 @@
         "description": "Interaktivní mřížka logických přepínačů pro role, zásady nebo kanály.",
         "emptyTitle": "Žádná matice nenakonfigurována",
         "emptyBody": "Řádky a sloupce se zde zobrazí po konfiguraci."
+      },
+      "sparklineTable": {
+        "description": "Řádky metrik s mikrografem, aktuální hodnotou a odznakem změny, který rozlišuje dobrý a špatný směr.",
+        "emptyTitle": "Žádné metriky",
+        "emptyBody": "Metriky se zobrazí, jakmile budou k dispozici data."
+      },
+      "topMoversList": {
+        "description": "Metriky s největší změnou, se směrem vyhodnoceným jako dobrý či špatný.",
+        "emptyTitle": "Žádné změny",
+        "emptyBody": "Metriky s největší změnou se zobrazí zde."
+      },
+      "rankedEntityList": {
+        "description": "Nejlepší položky podle metriky, s pořadím a poměrným pruhem.",
+        "emptyTitle": "Zatím žádné pořadí",
+        "emptyBody": "Nejlepší položky se zobrazí, jakmile bude co řadit."
+      },
+      "accordionList": {
+        "description": "Rozbalovací řádky s odznakem a panelem detailu, jednotlivě nebo více najednou.",
+        "emptyTitle": "Není co rozbalit",
+        "emptyBody": "Položky se zobrazí, jakmile nějaké budou."
+      },
+      "comparisonMatrix": {
+        "description": "Srovnávací mřížka tarifů s jedním zvýrazněným sloupcem.",
+        "includedLabel": "Zahrnuto",
+        "notIncludedLabel": "Není zahrnuto",
+        "promotedLabel": "Doporučeno"
+      },
+      "chipCloud": {
+        "description": "Zalamované štítky pro nalezené tabulky, proměnné nebo návrhy.",
+        "emptyTitle": "Zatím nic nenalezeno",
+        "emptyBody": "Tabulky a proměnné se zde zobrazí jako štítky, jakmile budou nalezeny.",
+        "moreLabel": "+{n} dalších"
       }
     },
     "boards": {
@@ -192,6 +309,18 @@
         "moved": "{title} přesunuto do {cell}.",
         "returned": "{title} se vrátilo na původní místo.",
         "failed": "{title} nelze přesunout; vrátilo se na původní místo."
+      },
+      "boardCard": {
+        "description": "Jedna karta nástěnky: štítek, název, průběh, vlastník a termín.",
+        "emptyTitle": "Žádná karta",
+        "emptyBody": "K této kartě zatím není připojen žádný záznam."
+      },
+      "inlineComposeCard": {
+        "description": "Rychlé přidání, které vytvoří záznam s výchozími hodnotami sloupce.",
+        "placeholder": "Název karty…",
+        "addLabel": "Přidat",
+        "cancelLabel": "Zrušit",
+        "openLabel": "Přidat kartu"
       }
     },
     "communication": {
@@ -222,6 +351,43 @@
         "configureTitle": "Není nastaven žádný poskytovatel AI",
         "configureBody": "Přidejte klíč Anthropic nebo OpenAI — nebo nasměrujte Adminium na vlastní endpoint — a ptejte se na své schéma.",
         "configureCtaLabel": "Nastavit poskytovatele"
+      },
+      "typingIndicator": {
+        "description": "Avatar a kurzívní řádek „píše…“ navázaný na živou booleovskou hodnotu u každé konverzace.",
+        "label": "píše…",
+        "emptyTitle": "Žádná aktivita psaní",
+        "emptyBody": "Stav psaní se zobrazí, jakmile bude konverzace živá."
+      },
+      "callWidget": {
+        "description": "Příchozí hlasový nebo video hovor: avatar volajícího, stav hovoru a akce pro přijetí či odmítnutí.",
+        "voiceLabel": "Hlasový hovor",
+        "videoLabel": "Video hovor",
+        "ringingLabel": "Vyzvání…",
+        "connectingLabel": "Připojování…",
+        "activeLabel": "Probíhá hovor",
+        "endedLabel": "Hovor ukončen",
+        "acceptLabel": "Přijmout",
+        "declineLabel": "Odmítnout",
+        "endLabel": "Ukončit hovor",
+        "emptyTitle": "Žádný aktivní hovor",
+        "emptyBody": "Příchozí hovor se zobrazí zde."
+      }
+    },
+    "geo": {
+      "mapBubble": {
+        "description": "Mapa s kruhovými značkami, jejichž velikost určuje zvolená metrika, spolu se žebříčkem nejvýznamnějších míst.",
+        "emptyTitle": "Žádná místa",
+        "emptyBody": "Řádky se zeměpisnou šířkou a délkou se zde zobrazí jako značky na mapě.",
+        "mapUnavailableLabel": "Mapu se nepodařilo načíst. Žebříček zobrazuje stejná data.",
+        "regionsLabel": "Nejvýznamnější regiony",
+        "metricLabel": "Metrika"
+      },
+      "mapChoroplethGrid": {
+        "description": "Dlaždice regionů obarvené podle hodnoty – pro tabulky s kódy regionů, ale bez souřadnic.",
+        "emptyTitle": "Žádné regiony",
+        "emptyBody": "Řádky s kódem regionu a číselnou hodnotou se zde zobrazí jako obarvené dlaždice.",
+        "legendLowLabel": "Nízká",
+        "legendHighLabel": "Vysoká"
       }
     },
     "domain": {
@@ -237,6 +403,150 @@
         "emptyTitle": "Nic není naplánováno",
         "emptyBody": "Úkoly se zde zobrazí, jakmile budou mít datum zahájení a ukončení.",
         "ungroupedLabel": "Úkoly"
+      },
+      "documentCanvas": {
+        "description": "Plátno dokumentu ve stylu papíru — faktura, zpráva nebo e-mail — jehož bloky lze vybírat, přeskupovat a odebírat.",
+        "emptyTitle": "V tomto dokumentu nic není",
+        "emptyBody": "Přidejte blok z palety a začněte sestavovat dokument.",
+        "addBlockLabel": "Přidat blok",
+        "removeBlockLabel": "Odebrat blok",
+        "moveUpLabel": "Posunout blok nahoru",
+        "moveDownLabel": "Posunout blok dolů",
+        "blockListLabel": "Bloky dokumentu",
+        "billedToLabel": "Fakturováno pro",
+        "issuedLabel": "Vystaveno",
+        "dueLabel": "Splatnost"
+      },
+      "blockTotalsSummary": {
+        "description": "Součty dokumentu — mezisoučet, sleva, daň a celková částka, přepočítané z položek.",
+        "emptyTitle": "Zatím žádné součty",
+        "emptyBody": "Součty se zobrazí, jakmile bude dokument obsahovat položky.",
+        "subtotalLabel": "Mezisoučet",
+        "discountLabel": "Sleva",
+        "taxLabel": "Daň",
+        "totalLabel": "Celkem k úhradě"
+      },
+      "blockLineItems": {
+        "description": "Upravitelné řádky s popisem, množstvím a sazbou, které vstupují do součtů dokumentu.",
+        "emptyTitle": "Žádné položky",
+        "emptyBody": "Přidejte položku, abyste mohli vyúčtovat práci na tomto dokumentu.",
+        "descHeader": "Popis",
+        "qtyHeader": "Množství",
+        "rateHeader": "Sazba",
+        "amountHeader": "Částka"
+      },
+      "blockKpiRow": {
+        "description": "Řada dlaždic s ukazateli, jejichž změna je obarvena podle znaménka.",
+        "emptyTitle": "Žádné ukazatele",
+        "emptyBody": "Ukazatele se zde zobrazí, jakmile bude zpráva obsahovat čísla."
+      },
+      "blockBarChart": {
+        "description": "Malý sloupcový graf v barvě dokumentu, uzpůsobený bloku dokumentu.",
+        "emptyTitle": "Žádná data pro graf",
+        "emptyBody": "Sloupce se zobrazí, jakmile bude zpráva obsahovat řadu dat."
+      },
+      "blockLineChart": {
+        "description": "Malý spojnicový graf s volitelnou výplní plochy, uzpůsobený bloku dokumentu.",
+        "emptyTitle": "Žádná data pro graf",
+        "emptyBody": "Spojnice se zobrazí, jakmile bude zpráva obsahovat řadu dat."
+      },
+      "blockTwoColTable": {
+        "description": "Dvousloupcová tabulka se stylovaným záhlavím a sloupcem hodnot v neproporcionálním písmu.",
+        "emptyTitle": "Žádné řádky",
+        "emptyBody": "Řádky se zde zobrazí, jakmile bude zpráva obsahovat hodnoty."
+      },
+      "blockTaxBreakdown": {
+        "description": "Daňové řádky s popisem, sazbou a částkou, uplatněné na mezisoučet dokumentu.",
+        "emptyTitle": "Žádné daňové řádky",
+        "emptyBody": "Daňové řádky se zobrazí, jakmile bude dokument obsahovat sazby."
+      },
+      "blockMultiCurrency": {
+        "description": "Celková částka dokumentu přepočtená pro každou měnu uvedeným kurzem.",
+        "emptyTitle": "Žádné přepočty",
+        "emptyBody": "Přepočty se zobrazí, jakmile bude dokument obsahovat směnné kurzy.",
+        "footnote": "Kurzy jsou orientační a při vypořádání se mohou lišit."
+      },
+      "blockPaymentHistory": {
+        "description": "Dřívější platby s datem, maskovaným způsobem úhrady, částkou a štítkem stavu.",
+        "emptyTitle": "Zatím žádné platby",
+        "emptyBody": "Platby k tomuto dokumentu se zobrazí zde."
+      },
+      "blockDiscountCodes": {
+        "description": "Uplatněné slevové kódy s popisem a připsanou částkou.",
+        "emptyTitle": "Neuplatněny žádné slevy",
+        "emptyBody": "Slevové kódy uplatněné na tento dokument se zobrazí zde."
+      },
+      "blockLoyaltyBanner": {
+        "description": "Věrnostní pruh se zůstatkem bodů, úrovní a body získanými za tuto objednávku.",
+        "emptyTitle": "Žádný věrnostní zůstatek",
+        "emptyBody": "Věrnostní pruh se zobrazí, jakmile bude mít zákazník body.",
+        "balanceLabel": "{balance} b. · {tier}",
+        "earnedLabel": "+{earned} získáno za tuto objednávku"
+      },
+      "blockRecurringBanner": {
+        "description": "Pruh oznamující četnost fakturace, datum další platby a počet zbývajících cyklů.",
+        "emptyTitle": "Neopakuje se",
+        "emptyBody": "Tento pruh se zobrazí, jakmile bude dokument fakturován opakovaně.",
+        "template": "Opakovaně — {freq} · Příště {next} · {count} cyklů"
+      },
+      "blockQrPay": {
+        "description": "Dlaždice k naskenování a zaplacení s popiskem a splatnou částkou.",
+        "emptyTitle": "Není co platit",
+        "emptyBody": "Platební kód se zobrazí, jakmile bude mít dokument splatnou částku.",
+        "amountLabel": "Splatná částka"
+      },
+      "blockDeliveryStepper": {
+        "description": "Vodorovné kroky doručení označené jako hotové, aktuální nebo nadcházející.",
+        "emptyTitle": "Žádné kroky doručení",
+        "emptyBody": "Kroky se zobrazí, jakmile bude mít objednávka trasu doručení."
+      },
+      "blockSignature": {
+        "description": "Podpisové řádky pro jméno a funkci, s datem podpisu.",
+        "emptyTitle": "Žádný podpis",
+        "emptyBody": "Podpisové řádky se zobrazí, jakmile dokument uvede podepisující osobu.",
+        "namePlaceholder": "Celé jméno",
+        "titlePlaceholder": "Funkce",
+        "dateLabel": "Datum"
+      },
+      "blockTermsCheckbox": {
+        "description": "Přepínač souhlasu s podmínkami s upravitelným popiskem.",
+        "defaultLabel": "Souhlasím s obchodními podmínkami"
+      },
+      "blockApproval": {
+        "description": "Karta schvalovatele se štítkem obarveným podle stavu a volitelnými akcemi schválit nebo zamítnout.",
+        "emptyTitle": "Žádný schvalovatel",
+        "emptyBody": "Karta schválení se zobrazí, jakmile dokument uvede schvalovatele.",
+        "approveLabel": "Schválit",
+        "rejectLabel": "Zamítnout",
+        "pendingLabel": "Čeká na vyřízení",
+        "approvedLabel": "Schváleno",
+        "rejectedLabel": "Zamítnuto"
+      },
+      "blockAttachments": {
+        "description": "Přiložené soubory s názvem a velikostí.",
+        "emptyTitle": "Žádné přílohy",
+        "emptyBody": "Soubory přiložené k tomuto dokumentu se zobrazí zde."
+      },
+      "blockLateFees": {
+        "description": "Varovný rámeček s výší penále z prodlení a lhůtou.",
+        "emptyTitle": "Žádné penále z prodlení",
+        "emptyBody": "Tento rámeček se zobrazí, jakmile dokument stanoví penále z prodlení.",
+        "template": "Po {days} dnech se uplatní penále z prodlení ve výši {rate}."
+      },
+      "blockImagePlaceholder": {
+        "description": "Přerušovaně orámované zástupné pole namísto obrázku, s popiskem.",
+        "emptyTitle": "Žádný obrázek",
+        "emptyBody": "Zástupné pole se zobrazí, jakmile bude mít blok popisek."
+      },
+      "blockContact": {
+        "description": "Kontaktní řádky se jménem, e-mailovou adresou a telefonním číslem.",
+        "emptyTitle": "Žádný kontakt",
+        "emptyBody": "Kontaktní údaje se zobrazí, jakmile dokument uvede kontakt."
+      },
+      "blockHighlightBox": {
+        "description": "Zvýrazněný rámeček spojující popisek s velkou hodnotou v neproporcionálním písmu.",
+        "emptyTitle": "Není co zvýraznit",
+        "emptyBody": "Rámeček se zobrazí, jakmile bude mít blok hodnotu."
       }
     },
     "media": {
@@ -350,6 +660,90 @@
         "description": "Mřížka karet s jedním výběrem pro zdroje, šablony a tarify.",
         "a11yLabel": "Vyberte možnost"
       },
+      "ruleBuilder": {
+        "description": "Editor podmínek, jejichž pravidla se přeloží na filtr — editor segmentů.",
+        "add": "Přidat podmínku",
+        "remove": "Odebrat podmínku",
+        "all": "VŠECHNY",
+        "any": "LIBOVOLNÁ",
+        "field": "Pole",
+        "operator": "Operátor",
+        "value": "Hodnota",
+        "valuePlaceholder": "Hodnota…",
+        "emptyBody": "Zatím žádné podmínky — přidejte jednu a definujte tento segment."
+      },
+      "flowBuilder": {
+        "description": "Svislé plátno pracovního postupu z kroků spouštěč, podmínka a akce.",
+        "add": "Přidat krok",
+        "remove": "Odebrat krok",
+        "paletteTitle": "Přidat krok",
+        "stats": "{runs} spuštění · {rate} % úspěšnost",
+        "emptyBody": "Zatím žádné kroky — přidejte spouštěč a postup se rozběhne."
+      },
+      "connectionStringField": {
+        "description": "Pole pro připojovací řetězec, které při psaní rozpozná databázový stroj.",
+        "label": "Připojovací řetězec",
+        "helper": "postgres://uzivatel:heslo@host:5432/databaze — mysql:// a sqlite: fungují také.",
+        "quickFill": "Rychlé vyplnění:",
+        "host": "Host: {host}",
+        "invalidScheme": "Nerozpoznané schéma připojovacího řetězce.",
+        "incomplete": "Doplňte do připojovacího řetězce host a databázi."
+      },
+      "tableInclusionChecklist": {
+        "description": "Tabulky k zahrnutí, s počty řádků a upozorněními na osobní údaje.",
+        "pii": "Osobní údaje",
+        "highVolume": "velký objem",
+        "a11yLabel": "Tabulky k zahrnutí",
+        "emptyTitle": "Nenalezeny žádné tabulky",
+        "emptyBody": "Připojte databázi a její tabulky se zobrazí zde."
+      },
+      "columnMappingTable": {
+        "description": "Mapuje sloupce nahraného souboru na pole tabulky.",
+        "skip": "Neimportovat",
+        "sourceHeader": "Zdrojový sloupec",
+        "sampleHeader": "Ukázka",
+        "targetHeader": "Cílové pole",
+        "emptyTitle": "Žádné sloupce k mapování",
+        "emptyBody": "Nahrajte soubor a jeho sloupce se zobrazí zde."
+      },
+      "validationIssuesList": {
+        "description": "Problémy importu a validace, nejzávažnější první, s počtem dotčených řádků.",
+        "emptyTitle": "Žádné problémy",
+        "emptyBody": "Vše je v pořádku — můžete importovat."
+      },
+      "exportBuilder": {
+        "description": "Sestaví export dat: formát, časové období a obsah.",
+        "format": "Formát",
+        "from": "Od",
+        "to": "Do",
+        "groupBy": "Seskupit podle",
+        "includeCharts": "Zahrnout grafy",
+        "email": "Poslat export e-mailem",
+        "submit": "Exportovat",
+        "running": "Připravujeme váš export…",
+        "done": "Export je připraven",
+        "failed": "Export se nezdařil. Zkuste to znovu.",
+        "download": "Stáhnout"
+      },
+      "questionBuilder": {
+        "description": "Editor dotazníku: přidávejte typy otázek a měňte jejich pořadí.",
+        "paletteTitle": "Přidat otázku",
+        "add": "Přidat otázku",
+        "remove": "Odebrat otázku",
+        "moveUp": "Posunout nahoru",
+        "moveDown": "Posunout dolů",
+        "required": "Povinné",
+        "questionPlaceholder": "Položte otázku…",
+        "emptyTitle": "Zatím žádné otázky",
+        "emptyBody": "Vyberte typ otázky a začněte sestavovat dotazník."
+      },
+      "inlineEditableField": {
+        "description": "Hodnota upravitelná kliknutím přímo v dokumentu nebo na plátně.",
+        "edit": "Upravit",
+        "save": "Uložit",
+        "cancel": "Zrušit",
+        "empty": "Prázdné"
+      },
       "passwordStrengthMeter": {
         "description": "Čtyřsegmentový ukazatel síly hesla.",
         "label": "Síla hesla",
@@ -357,11 +751,6 @@
         "fair": "Průměrné",
         "good": "Dobré",
         "strong": "Silné"
-      },
-      "validationIssuesList": {
-        "description": "Problémy importu a validace, nejzávažnější první, s počtem dotčených řádků.",
-        "emptyTitle": "Žádné problémy",
-        "emptyBody": "Vše je v pořádku — můžete importovat."
       }
     },
     "chrome": {

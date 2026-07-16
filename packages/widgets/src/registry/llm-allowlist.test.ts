@@ -47,10 +47,24 @@ describe('LLM_ALLOWED_WIDGETS', () => {
 
   it('is the curated dashboard subset shipping today (06 §5 builder notes)', () => {
     // Derived, not hand-maintained: whole kpi/charts/feeds families (minus the
-    // data-editing notification-feed) plus the read-only record-list table tiles.
+    // data-editing notification-feed and toast-stack) plus the read-only
+    // record-list table tiles.
     // Grows as M7 registers widgets — see the ratchet at `includes every widget…`.
+    // M7 Wave 4 completed kpi (§1) and feeds (§4): the eight new kpi ids and
+    // load-older-paginator qualify; `toast-stack` does not — its Undo emits a
+    // mutate intent (`editsData`), and a generated dashboard is read-only
+    // analytics.
+    // Wave 4's tables TAIL adds four read-only record-list summary tiles
+    // (sparkline-table, top-movers-list, ranked-entity-list, accordion-list).
+    // Its other two ids stay out by derivation, not by exclusion:
+    // `comparison-matrix` and `chip-cloud` declare non-`record-list` contracts,
+    // so `isLlmDashboardWidget`'s tables clause never admits them.
+    // The `geo` family Wave 4 opened is not an allow-listed dashboard family
+    // either — maps are not in LLM_DASHBOARD_WIDGET_FAMILIES.
     expect(LLM_ALLOWED_WIDGETS).toEqual([
+      'accordion-list',
       'activity-feed',
+      'auto-insights',
       'card-gallery',
       'chart-anomaly',
       'chart-bar',
@@ -89,12 +103,23 @@ describe('LLM_ALLOWED_WIDGETS', () => {
       'chart-violin',
       'chart-waterfall',
       'chart-wordcloud',
+      'gauge-arc',
+      'gauge-ring',
       'grouped-summary-table',
       'kpi-stat-card',
+      'kpi-stat-tile-compact',
+      'load-older-paginator',
       'log-table',
+      'metric-hero',
+      'micro-kpi-subtitle',
       'mini-table',
+      'period-comparison',
+      'ranked-entity-list',
       'realtime-feed',
+      'sparkline-table',
+      'stat-pair-card',
       'timeline-vertical',
+      'top-movers-list',
       'unread-badge',
       'usage-meter',
     ]);

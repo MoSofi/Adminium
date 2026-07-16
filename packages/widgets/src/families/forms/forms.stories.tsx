@@ -13,14 +13,22 @@ import type { ReactNode } from 'react';
 
 import {
   chipInputDemoData,
+  columnMappingTableDemoData,
+  connectionStringFieldDemoData,
+  exportBuilderDemoData,
   filterChipBarDemoData,
+  flowBuilderDemoData,
+  inlineEditableFieldDemoData,
   modalWizardDemoData,
   optionCardsDemoData,
   otpInputDemoData,
   passwordStrengthMeterDemoData,
   progressBarDemoData,
+  questionBuilderDemoData,
+  ruleBuilderDemoData,
   segmentedControlDemoData,
   stepperDemoData,
+  tableInclusionChecklistDemoData,
   toggleSwitchListDemoData,
   validationIssuesListDemoData,
 } from './forms-config.js';
@@ -173,6 +181,116 @@ export const ValidationIssuesStory = {
   render: () => host('validation-issues-list', 's-issues', issuesConfig, validationIssuesListDemoData(4), 'success', 'h-72'),
 };
 
+// ── M7 Wave-4 TAIL (TRACK FORMS) ───────────────────────────────────────────
+
+export const RuleBuilderStory = {
+  name: 'rule-builder',
+  render: () => host('rule-builder', 's-rules', { title: 'Segment' }, ruleBuilderDemoData(3), 'success', 'h-72'),
+};
+
+export const FlowBuilderStory = {
+  name: 'flow-builder',
+  render: () => host('flow-builder', 's-flow', { title: 'Automation' }, flowBuilderDemoData(5), 'success', 'h-96'),
+};
+
+export const ConnectionStringFieldStory = {
+  name: 'connection-string-field',
+  render: () =>
+    host(
+      'connection-string-field',
+      's-dsn',
+      {
+        label: 'Connection string',
+        shortcut: '⌘V',
+        statusLine: '14 tables detected',
+        hostLabel: 'Host: {host}',
+        quickFillLabel: 'Quick fill:',
+      },
+      connectionStringFieldDemoData(1),
+      'success',
+      'h-48',
+    ),
+};
+
+/** The wizard's own narrowing: v1 connects to Postgres/MySQL/SQLite only. */
+export const ConnectionStringFieldInvalid = {
+  name: 'connection-string-field · rejected scheme',
+  render: () =>
+    host(
+      'connection-string-field',
+      's-dsn-bad',
+      { label: 'Connection string', protocols: ['postgres', 'mysql', 'sqlite'] },
+      { fields: [], values: { dsn: 'mongodb://user@cluster/db' } },
+      'success',
+      'h-40',
+    ),
+};
+
+export const TableInclusionChecklistStory = {
+  name: 'table-inclusion-checklist',
+  render: () =>
+    host(
+      'table-inclusion-checklist',
+      's-tables',
+      { title: 'Tables to include', piiDetection: true },
+      tableInclusionChecklistDemoData(9),
+      'success',
+      'h-80',
+    ),
+};
+
+export const ColumnMappingTableStory = {
+  name: 'column-mapping-table',
+  render: () =>
+    host('column-mapping-table', 's-mapping', { title: 'Map your columns' }, columnMappingTableDemoData(6), 'success', 'h-80'),
+};
+
+/** Seed 2 lands the running phase; seed 9 the done phase (see `exportBuilderDemoData`). */
+export const ExportBuilderStory = {
+  name: 'export-builder',
+  render: () => host('export-builder', 's-export', { title: 'Export' }, exportBuilderDemoData(1), 'success', 'h-96'),
+};
+
+export const ExportBuilderRunning = {
+  name: 'export-builder · running',
+  render: () =>
+    host(
+      'export-builder',
+      's-export-running',
+      { title: 'Export' },
+      { fields: [], values: { format: 'pdf', from: '2026-06-01', to: '2026-06-30', status: 'running', progress: 62 } },
+      'success',
+      'h-96',
+    ),
+};
+
+export const ExportBuilderDone = {
+  name: 'export-builder · done',
+  render: () =>
+    host(
+      'export-builder',
+      's-export-done',
+      { title: 'Export' },
+      {
+        fields: [],
+        values: { format: 'csv', from: '2026-06-01', to: '2026-06-30', status: 'done', progress: 100, downloadHref: '/exports/1' },
+      },
+      'success',
+      'h-96',
+    ),
+};
+
+export const QuestionBuilderStory = {
+  name: 'question-builder',
+  render: () => host('question-builder', 's-survey', { title: 'Survey' }, questionBuilderDemoData(7), 'success', 'h-[36rem]'),
+};
+
+export const InlineEditableFieldStory = {
+  name: 'inline-editable-field',
+  render: () =>
+    host('inline-editable-field', 's-inline', { field: 'name', label: 'Document name' }, inlineEditableFieldDemoData(2), 'success', 'h-20'),
+};
+
 // ── Four WidgetFrame states (acceptance #4) ────────────────────────────────
 
 /** toggle-switch-list: loaded · skeleton · empty · error. */
@@ -228,3 +346,81 @@ export const LightLtr = { name: 'light · LTR', render: () => <Frame dir="ltr">{
 export const LightRtl = { name: 'light · RTL', render: () => <Frame dir="rtl">{matrixCells('light-rtl')}</Frame> };
 export const DarkLtr = { name: 'dark · LTR', render: () => <Frame dark dir="ltr">{matrixCells('dark-ltr')}</Frame> };
 export const DarkRtl = { name: 'dark · RTL', render: () => <Frame dark dir="rtl">{matrixCells('dark-rtl')}</Frame> };
+
+// ── M7 Wave-4 TAIL: four states + theme × direction ────────────────────────
+
+const tablesConfig = { title: 'Tables to include', piiDetection: true };
+
+/** table-inclusion-checklist: the four states on the tail's record-list widget. */
+export const TablesStates = {
+  name: 'table-inclusion-checklist · states',
+  render: () => (
+    <Frame>
+      <div className="grid grid-cols-2 gap-4">
+        {host('table-inclusion-checklist', 'tb-loaded', tablesConfig, tableInclusionChecklistDemoData(9), 'success', 'h-80')}
+        {host('table-inclusion-checklist', 'tb-skeleton', tablesConfig, undefined, 'loading', 'h-80')}
+        {host(
+          'table-inclusion-checklist',
+          'tb-empty',
+          { ...tablesConfig, emptyState: { titleKey: 'No tables found' } },
+          { rows: [], total: 0 },
+          'success',
+          'h-80',
+        )}
+        {host('table-inclusion-checklist', 'tb-error', tablesConfig, undefined, 'error', 'h-80')}
+      </div>
+    </Frame>
+  ),
+};
+
+/** export-builder: the same four states on a form-state widget. */
+export const ExportStates = {
+  name: 'export-builder · states',
+  render: () => (
+    <Frame>
+      <div className="grid grid-cols-2 gap-4">
+        {host('export-builder', 'ex-loaded', { title: 'Export' }, exportBuilderDemoData(1), 'success', 'h-96')}
+        {host('export-builder', 'ex-skeleton', { title: 'Export' }, undefined, 'loading', 'h-96')}
+        {/* `form-state` is never empty by §3 — the frame's empty state only shows
+            when the payload itself is absent, which is what this cell proves. */}
+        {host('export-builder', 'ex-empty', { title: 'Export', emptyState: { titleKey: 'No export configured' } }, undefined, 'success', 'h-96')}
+        {host('export-builder', 'ex-error', { title: 'Export' }, undefined, 'error', 'h-96')}
+      </div>
+    </Frame>
+  ),
+};
+
+/**
+ * REAL mirroring for the tail (acceptance #9). Each cell inherits `dir` from the
+ * wrapper, so in RTL: the rule rows' `ms-auto` remove button swaps edge and the
+ * ALL/ANY divider hangs off the other side; the flow connector's `ms-5` keeps it
+ * under the icon tile as the tile itself moves; the DSN field's leading database
+ * icon and trailing ⌘ badge trade places inside `InputGroup`'s logical padding;
+ * the checklist's `text-end` row counts swap; the mapping grid's three columns
+ * reverse; the survey palette rail moves to the other side of the canvas.
+ */
+function tailMatrixCells(key: string) {
+  return (
+    <div className="grid gap-4">
+      {host('rule-builder', `t-rules-${key}`, { title: 'Segment' }, ruleBuilderDemoData(3), 'success', 'h-72')}
+      {host('flow-builder', `t-flow-${key}`, { title: 'Automation' }, flowBuilderDemoData(5), 'success', 'h-80')}
+      {host(
+        'connection-string-field',
+        `t-dsn-${key}`,
+        { label: 'Connection string', shortcut: '⌘V', statusLine: '14 tables detected', quickFillLabel: 'Quick fill:' },
+        connectionStringFieldDemoData(1),
+        'success',
+        'h-48',
+      )}
+      {host('table-inclusion-checklist', `t-tables-${key}`, tablesConfig, tableInclusionChecklistDemoData(9), 'success', 'h-72')}
+      {host('column-mapping-table', `t-mapping-${key}`, { title: 'Map your columns' }, columnMappingTableDemoData(6), 'success', 'h-72')}
+      {host('question-builder', `t-survey-${key}`, { title: 'Survey' }, questionBuilderDemoData(7), 'success', 'h-96')}
+      {host('inline-editable-field', `t-inline-${key}`, { field: 'name' }, inlineEditableFieldDemoData(2), 'success', 'h-20')}
+    </div>
+  );
+}
+
+export const TailLightLtr = { name: 'tail · light · LTR', render: () => <Frame dir="ltr">{tailMatrixCells('t-light-ltr')}</Frame> };
+export const TailLightRtl = { name: 'tail · light · RTL', render: () => <Frame dir="rtl">{tailMatrixCells('t-light-rtl')}</Frame> };
+export const TailDarkLtr = { name: 'tail · dark · LTR', render: () => <Frame dark dir="ltr">{tailMatrixCells('t-dark-ltr')}</Frame> };
+export const TailDarkRtl = { name: 'tail · dark · RTL', render: () => <Frame dark dir="rtl">{tailMatrixCells('t-dark-rtl')}</Frame> };

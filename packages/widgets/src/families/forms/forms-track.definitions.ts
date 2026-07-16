@@ -3,10 +3,20 @@ import { lazy } from 'react';
 import {
   chipInputConfigSchema,
   chipInputDemoData,
+  columnMappingTableConfigSchema,
+  columnMappingTableDemoData,
+  connectionStringFieldConfigSchema,
+  connectionStringFieldDemoData,
   drawerFormConfigSchema,
   drawerFormDemoData,
+  exportBuilderConfigSchema,
+  exportBuilderDemoData,
   filterChipBarConfigSchema,
   filterChipBarDemoData,
+  flowBuilderConfigSchema,
+  flowBuilderDemoData,
+  inlineEditableFieldConfigSchema,
+  inlineEditableFieldDemoData,
   modalWizardConfigSchema,
   modalWizardDemoData,
   optionCardsConfigSchema,
@@ -17,10 +27,16 @@ import {
   passwordStrengthMeterDemoData,
   progressBarConfigSchema,
   progressBarDemoData,
+  questionBuilderConfigSchema,
+  questionBuilderDemoData,
+  ruleBuilderConfigSchema,
+  ruleBuilderDemoData,
   segmentedControlConfigSchema,
   segmentedControlDemoData,
   stepperConfigSchema,
   stepperDemoData,
+  tableInclusionChecklistConfigSchema,
+  tableInclusionChecklistDemoData,
   toggleSwitchListConfigSchema,
   toggleSwitchListDemoData,
   validationIssuesListConfigSchema,
@@ -195,6 +211,86 @@ export const optionCardsDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.forms.optionCards.description',
 });
 
+/**
+ * THE BUILDERS (`rule-builder`, `flow-builder`, `question-builder`) all take
+ * `form-state`, not `record-list` — even though each carries a list. §3's
+ * `record-list` is EMPTY when `total === 0`, which would hand a brand-new
+ * builder the frame's "no data" state; a builder with no rows yet is not empty,
+ * it is waiting for its first one and must show its add affordance.
+ * `form-state` is never empty by §3, which is exactly right for a canvas.
+ */
+export const ruleBuilderDefinition: WidgetDefinition = defineWidget({
+  id: 'rule-builder',
+  family: 'forms',
+  component: lazy(() => import('./forms-track-components.js').then((m) => ({ default: m.RuleBuilderWidget }))),
+  configSchema: ruleBuilderConfigSchema,
+  dataContract: 'form-state',
+  sizing: { minW: 6, minH: 4, defaultW: 8, defaultH: 6 }, // annex "min 6×2, default 8×3"
+  placement: 'grid',
+  skeleton: 'block',
+  capabilities: { editsData: true },
+  demoData: ruleBuilderDemoData,
+  descriptionKey: 'widgets.forms.ruleBuilder.description',
+});
+
+export const flowBuilderDefinition: WidgetDefinition = defineWidget({
+  id: 'flow-builder',
+  family: 'forms',
+  component: lazy(() => import('./forms-track-components.js').then((m) => ({ default: m.FlowBuilderWidget }))),
+  configSchema: flowBuilderConfigSchema,
+  dataContract: 'form-state',
+  sizing: { minW: 6, minH: 10, defaultW: 8, defaultH: 12 }, // annex "main pane min 6×5"
+  placement: 'grid',
+  skeleton: 'block',
+  capabilities: { editsData: true },
+  demoData: flowBuilderDemoData,
+  descriptionKey: 'widgets.forms.flowBuilder.description',
+});
+
+export const connectionStringFieldDefinition: WidgetDefinition = defineWidget({
+  id: 'connection-string-field',
+  family: 'forms',
+  component: lazy(() => import('./forms-track-components.js').then((m) => ({ default: m.ConnectionStringFieldWidget }))),
+  configSchema: connectionStringFieldConfigSchema,
+  dataContract: 'form-state',
+  sizing: { minW: 6, minH: 2, defaultW: 8, defaultH: 3 }, // annex "min 6×1"
+  placement: 'inline',
+  skeleton: 'block',
+  capabilities: { editsData: true },
+  demoData: connectionStringFieldDemoData,
+  descriptionKey: 'widgets.forms.connectionStringField.description',
+});
+
+export const tableInclusionChecklistDefinition: WidgetDefinition = defineWidget({
+  id: 'table-inclusion-checklist',
+  family: 'forms',
+  component: lazy(() =>
+    import('./forms-track-components.js').then((m) => ({ default: m.TableInclusionChecklistWidget })),
+  ),
+  configSchema: tableInclusionChecklistConfigSchema,
+  dataContract: 'record-list',
+  sizing: { minW: 4, minH: 6, defaultW: 6, defaultH: 8 }, // annex "min 4×3"
+  placement: 'grid',
+  skeleton: 'list',
+  capabilities: { editsData: true },
+  demoData: tableInclusionChecklistDemoData,
+  descriptionKey: 'widgets.forms.tableInclusionChecklist.description',
+});
+
+export const columnMappingTableDefinition: WidgetDefinition = defineWidget({
+  id: 'column-mapping-table',
+  family: 'forms',
+  component: lazy(() => import('./forms-track-components.js').then((m) => ({ default: m.ColumnMappingTableWidget }))),
+  configSchema: columnMappingTableConfigSchema,
+  dataContract: 'record-list',
+  sizing: { minW: 6, minH: 8, defaultW: 8, defaultH: 10 }, // annex "min 6×4"
+  placement: 'grid',
+  skeleton: 'table',
+  capabilities: { editsData: true },
+  demoData: columnMappingTableDemoData,
+  descriptionKey: 'widgets.forms.columnMappingTable.description',
+});
+
 export const passwordStrengthMeterDefinition: WidgetDefinition = defineWidget({
   id: 'password-strength-meter',
   family: 'forms',
@@ -223,7 +319,62 @@ export const validationIssuesListDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.forms.validationIssuesList.description',
 });
 
-/** Every `forms` widget delivered by TRACK FCS, in annex §10 order. */
+export const exportBuilderDefinition: WidgetDefinition = defineWidget({
+  id: 'export-builder',
+  family: 'forms',
+  component: lazy(() => import('./forms-track-components.js').then((m) => ({ default: m.ExportBuilderWidget }))),
+  configSchema: exportBuilderConfigSchema,
+  dataContract: 'form-state',
+  sizing: { minW: 3, minH: 6, defaultW: 4, defaultH: 8 }, // annex "min 3×3 / modal"
+  placement: 'grid',
+  skeleton: 'block',
+  // `insert`: submitting queues an export JOB — a new record in the host's
+  // export queue, not an edit to the data being exported.
+  capabilities: { editsData: true },
+  demoData: exportBuilderDemoData,
+  descriptionKey: 'widgets.forms.exportBuilder.description',
+});
+
+export const questionBuilderDefinition: WidgetDefinition = defineWidget({
+  id: 'question-builder',
+  family: 'forms',
+  component: lazy(() => import('./forms-track-components.js').then((m) => ({ default: m.QuestionBuilderWidget }))),
+  configSchema: questionBuilderConfigSchema,
+  dataContract: 'form-state',
+  // annex "palette rail 3×5 + canvas 6×6" — the pair is ONE widget, so the
+  // default is their sum (9 wide); the rail collapses below `sm`, which is what
+  // lets minW stay at the canvas's own 6.
+  sizing: { minW: 6, minH: 10, defaultW: 9, defaultH: 12 },
+  placement: 'grid',
+  skeleton: 'block',
+  capabilities: { editsData: true },
+  demoData: questionBuilderDemoData,
+  descriptionKey: 'widgets.forms.questionBuilder.description',
+});
+
+export const inlineEditableFieldDefinition: WidgetDefinition = defineWidget({
+  id: 'inline-editable-field',
+  family: 'forms',
+  component: lazy(() => import('./forms-track-components.js').then((m) => ({ default: m.InlineEditableFieldWidget }))),
+  configSchema: inlineEditableFieldConfigSchema,
+  // annex "bound field path on a doc object" — one row + one column name.
+  dataContract: 'record',
+  sizing: { minW: 2, minH: 1, defaultW: 3, defaultH: 2 }, // annex "inline"
+  placement: 'inline',
+  skeleton: 'block',
+  capabilities: { editsData: true },
+  demoData: inlineEditableFieldDemoData,
+  descriptionKey: 'widgets.forms.inlineEditableField.description',
+});
+
+/**
+ * Every `forms` widget, in annex §10 order — the TRACK FCS slice (M7 Wave 3)
+ * plus the M7 Wave-4 TAIL that completes the family (TRACK FORMS): the two
+ * builder canvases, the two Studio-wizard widgets lifted out of
+ * `apps/dashboard` (see `ConnectionStringField.tsx` / `TableInclusionChecklist.tsx`),
+ * the import wizard's column mapper, the export builder, the survey editor and
+ * the document-canvas inline field.
+ */
 export const formsTrackDefinitions: readonly WidgetDefinition[] = [
   modalWizardDefinition,
   drawerFormDefinition,
@@ -235,6 +386,14 @@ export const formsTrackDefinitions: readonly WidgetDefinition[] = [
   filterChipBarDefinition,
   toggleSwitchListDefinition,
   optionCardsDefinition,
-  passwordStrengthMeterDefinition,
+  ruleBuilderDefinition,
+  flowBuilderDefinition,
+  connectionStringFieldDefinition,
+  tableInclusionChecklistDefinition,
+  columnMappingTableDefinition,
   validationIssuesListDefinition,
+  exportBuilderDefinition,
+  questionBuilderDefinition,
+  inlineEditableFieldDefinition,
+  passwordStrengthMeterDefinition,
 ];

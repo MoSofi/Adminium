@@ -54,6 +54,45 @@
     "dismiss": "關閉通知"
   },
   "widgets": {
+    "kpi": {
+      "statCard": {
+        "description": "常用指標卡：一個主要彙總值，可選趨勢標章與迷你走勢圖。"
+      },
+      "usageMeter": {
+        "description": "配額用量與上限的對比；超過所設門檻後，進度列會依序轉為橘色和紅色。"
+      },
+      "statTileCompact": {
+        "description": "纖薄的指標磚，含微型標籤、趨勢標記與 6 條走勢圖——適合 4 至 6 個一列的密集版面。"
+      },
+      "metricHero": {
+        "description": "一個超大指標，載入時數字遞增，並附趨勢標章、走勢圖與目標進度。",
+        "goalLabel": "目標"
+      },
+      "statPairCard": {
+        "description": "兩個指標並排顯示；第二個可由第一個推導而得。"
+      },
+      "gaugeRing": {
+        "description": "用於分數或百分比的環形量表，依數值所在區間著色。"
+      },
+      "gaugeArc": {
+        "description": "帶定性區間與指針的速度表弧線；也可呈現量表格線。"
+      },
+      "periodComparison": {
+        "description": "本期與上期以兩條進度列對比，下方列出計算出的差額。",
+        "higherLabel": "較高",
+        "lowerLabel": "較低",
+        "flatLabel": "持平"
+      },
+      "microKpiSubtitle": {
+        "description": "由範本產生的單行頁首統計，隨即時狀態重新計算。"
+      },
+      "autoInsights": {
+        "description": "依重要性排序的洞察項目——主要數字、說明句與走勢圖——並可重新整理輪替。",
+        "emptyTitle": "尚無洞察",
+        "emptyBody": "資料足以呈現規律後，洞察就會顯示在這裡。",
+        "refreshLabel": "重新整理"
+      }
+    },
     "charts": {
       "boxplot": {
         "description": "依類別彙總數值欄位分佈的盒鬚圖——最小值、四分位數、中位數與最大值。",
@@ -115,6 +154,19 @@
       "unreadBadge": {
         "description": "顯示未讀項目的計數標記，與資訊流狀態同步。",
         "unitLabel": "未讀"
+      },
+      "loadOlderPaginator": {
+        "description": "頁尾按鈕，分批載入較早的記錄，直到動態消息載入完畢。",
+        "label": "載入較早",
+        "loadingLabel": "載入中…",
+        "exhaustedLabel": "沒有更早的了",
+        "ofLabel": "/"
+      },
+      "toastStack": {
+        "description": "浮層提示宿主：簡短的操作確認，可附帶復原。",
+        "undoLabel": "復原",
+        "dismissLabel": "關閉",
+        "regionLabel": "通知"
       }
     },
     "calendar": {
@@ -137,6 +189,39 @@
         "description": "依成員顯示使用率長條，含專案細分與負載狀態。",
         "emptyTitle": "尚無工作量資料",
         "emptyBody": "有指派後，成員的使用率將顯示在此處。"
+      },
+      "calendarLegendFilter": {
+        "description": "附計數的事件類別；切換即可篩選旁邊的行事曆。",
+        "emptyTitle": "尚無類別",
+        "emptyBody": "有事件後，事件類別會顯示在這裡。",
+        "uncategorizedLabel": "未分類"
+      },
+      "upcomingEventsList": {
+        "description": "依日期排序的近期事件，含負責人與狀態。",
+        "emptyTitle": "沒有即將到來的事件",
+        "emptyBody": "排定的事件會陸續顯示在這裡。"
+      },
+      "dateRangePicker": {
+        "description": "附快捷選項的日期區間，可篩選頁面其餘內容。",
+        "previousLabel": "上個月",
+        "nextLabel": "下個月",
+        "summaryLabel": "已選擇 {n} 天",
+        "presets": {
+          "7d": "最近 7 天",
+          "30d": "最近 30 天",
+          "90d": "最近 90 天",
+          "mtd": "本月至今",
+          "qtd": "本季至今",
+          "ytd": "今年至今"
+        }
+      },
+      "scheduledJobsList": {
+        "description": "週期性報表與匯出作業，含頻率、下次執行時間與開關。",
+        "emptyTitle": "尚無排程作業",
+        "emptyBody": "排定週期性報表或匯出後，會顯示在這裡。",
+        "nextRunLabel": "下次執行",
+        "toggleLabel": "啟用排程",
+        "recipientsLabel": "收件者"
       }
     },
     "tables": {
@@ -169,6 +254,38 @@
         "description": "用於角色、原則或管道的布林開關互動格線。",
         "emptyTitle": "尚未設定矩陣",
         "emptyBody": "設定後列與欄將顯示在這裡。"
+      },
+      "sparklineTable": {
+        "description": "指標列，包含迷你走勢圖、目前數值以及可分辨好壞方向的變化標籤。",
+        "emptyTitle": "尚無指標",
+        "emptyBody": "有資料可彙總後，指標會顯示在這裡。"
+      },
+      "topMoversList": {
+        "description": "變化最大的指標，並依各項指標判斷方向是好是壞。",
+        "emptyTitle": "尚無變化",
+        "emptyBody": "變化最大的指標會顯示在這裡。"
+      },
+      "rankedEntityList": {
+        "description": "依指標排名的項目，附名次與等比長條。",
+        "emptyTitle": "尚無排名",
+        "emptyBody": "有資料可排序後，排名靠前的項目會顯示在這裡。"
+      },
+      "accordionList": {
+        "description": "可展開的列，含標記與詳細面板，支援單開或多開。",
+        "emptyTitle": "沒有可展開的內容",
+        "emptyBody": "有項目後就會顯示在這裡。"
+      },
+      "comparisonMatrix": {
+        "description": "比較方案的功能表格，其中一欄會特別標示。",
+        "includedLabel": "包含",
+        "notIncludedLabel": "未包含",
+        "promotedLabel": "推薦"
+      },
+      "chipCloud": {
+        "description": "自動換行的標籤，用於呈現探索到的資料表、合併變數或建議。",
+        "emptyTitle": "尚未探索到內容",
+        "emptyBody": "找到資料表與變數後，會以標籤形式顯示在這裡。",
+        "moreLabel": "還有 {n} 個"
       }
     },
     "boards": {
@@ -192,6 +309,18 @@
         "moved": "已將 {title} 移動到 {cell}。",
         "returned": "{title} 已返回原位。",
         "failed": "無法移動 {title}；已返回原位。"
+      },
+      "boardCard": {
+        "description": "單張看板卡片：標籤、標題、進度、負責人與到期日。",
+        "emptyTitle": "沒有卡片",
+        "emptyBody": "這張卡片尚未綁定任何記錄。"
+      },
+      "inlineComposeCard": {
+        "description": "快速新增，使用該欄的預設值建立新記錄。",
+        "placeholder": "卡片標題…",
+        "addLabel": "新增",
+        "cancelLabel": "取消",
+        "openLabel": "新增卡片"
       }
     },
     "communication": {
@@ -222,6 +351,43 @@
         "configureTitle": "尚未設定 AI 供應商",
         "configureBody": "新增 Anthropic 或 OpenAI 金鑰，或將 Adminium 指向你自己的端點，即可詢問資料庫結構。",
         "configureCtaLabel": "設定供應商"
+      },
+      "typingIndicator": {
+        "description": "頭像加斜體「輸入中…」列，繫結至每個對話的即時布林值。",
+        "label": "輸入中…",
+        "emptyTitle": "沒有輸入動態",
+        "emptyBody": "對話開始後，輸入狀態會顯示在這裡。"
+      },
+      "callWidget": {
+        "description": "來電（語音或視訊）：來電者頭像、通話狀態，以及接聽或拒接操作。",
+        "voiceLabel": "語音通話",
+        "videoLabel": "視訊通話",
+        "ringingLabel": "響鈴中…",
+        "connectingLabel": "連線中…",
+        "activeLabel": "通話中",
+        "endedLabel": "通話已結束",
+        "acceptLabel": "接聽",
+        "declineLabel": "拒接",
+        "endLabel": "結束通話",
+        "emptyTitle": "沒有進行中的通話",
+        "emptyBody": "來電會顯示在這裡。"
+      }
+    },
+    "geo": {
+      "mapBubble": {
+        "description": "地圖上的圓形標記依所選指標縮放，並附上排名靠前地點的清單。",
+        "emptyTitle": "沒有位置",
+        "emptyBody": "包含緯度與經度的列會在這裡顯示為地圖標記。",
+        "mapUnavailableLabel": "地圖無法載入。排名清單顯示的是相同資料。",
+        "regionsLabel": "熱門區域",
+        "metricLabel": "指標"
+      },
+      "mapChoroplethGrid": {
+        "description": "依數值著色的區域方塊——適用於只有區域代碼、沒有座標的資料表。",
+        "emptyTitle": "沒有區域",
+        "emptyBody": "包含區域代碼與數值的列會在這裡顯示為著色方塊。",
+        "legendLowLabel": "低",
+        "legendHighLabel": "高"
       }
     },
     "domain": {
@@ -237,6 +403,150 @@
         "emptyTitle": "尚無排程",
         "emptyBody": "任務設定開始與結束日期後便會顯示於此。",
         "ungroupedLabel": "任務"
+      },
+      "documentCanvas": {
+        "description": "紙張風格的文件畫布（發票、報表或郵件），其中的區塊可選取、重新排序與移除。",
+        "emptyTitle": "此文件是空的",
+        "emptyBody": "從面板中加入區塊，開始編排文件。",
+        "addBlockLabel": "新增區塊",
+        "removeBlockLabel": "移除區塊",
+        "moveUpLabel": "將區塊上移",
+        "moveDownLabel": "將區塊下移",
+        "blockListLabel": "文件區塊",
+        "billedToLabel": "帳單開立對象",
+        "issuedLabel": "開立日期",
+        "dueLabel": "到期日"
+      },
+      "blockTotalsSummary": {
+        "description": "文件總計：小計、折扣、稅金與應付總額，皆依明細列重新計算。",
+        "emptyTitle": "尚無總計",
+        "emptyBody": "文件包含明細列後，總計將顯示於此。",
+        "subtotalLabel": "小計",
+        "discountLabel": "折扣",
+        "taxLabel": "稅金",
+        "totalLabel": "應付總額"
+      },
+      "blockLineItems": {
+        "description": "可編輯的說明、數量與單價列，用於計算文件總計。",
+        "emptyTitle": "尚無明細列",
+        "emptyBody": "新增明細列即可為此文件的工作計費。",
+        "descHeader": "說明",
+        "qtyHeader": "數量",
+        "rateHeader": "單價",
+        "amountHeader": "金額"
+      },
+      "blockKpiRow": {
+        "description": "一列指標方塊，變化值依正負著色。",
+        "emptyTitle": "尚無指標",
+        "emptyBody": "報表包含數據後，指標將顯示於此。"
+      },
+      "blockBarChart": {
+        "description": "採用文件強調色的迷你長條圖，尺寸適合文件區塊。",
+        "emptyTitle": "尚無繪圖資料",
+        "emptyBody": "報表包含資料數列後，長條將顯示於此。"
+      },
+      "blockLineChart": {
+        "description": "迷你折線圖，可選填滿區域，尺寸適合文件區塊。",
+        "emptyTitle": "尚無繪圖資料",
+        "emptyBody": "報表包含資料數列後，折線將顯示於此。"
+      },
+      "blockTwoColTable": {
+        "description": "兩欄表格，首列為樣式化表頭，右欄使用等寬字型。",
+        "emptyTitle": "尚無列",
+        "emptyBody": "報表包含數值後，列將顯示於此。"
+      },
+      "blockTaxBreakdown": {
+        "description": "含名稱、稅率與金額的稅金列，依文件小計計算。",
+        "emptyTitle": "尚無稅金列",
+        "emptyBody": "文件設定稅率後，稅金列將顯示於此。"
+      },
+      "blockMultiCurrency": {
+        "description": "依指定匯率將文件總額換算為各幣別金額。",
+        "emptyTitle": "尚無換算",
+        "emptyBody": "文件列出匯率後，換算結果將顯示於此。",
+        "footnote": "匯率僅供參考，實際結算時可能有所不同。"
+      },
+      "blockPaymentHistory": {
+        "description": "歷史付款紀錄，含日期、遮罩付款方式、金額與狀態標籤。",
+        "emptyTitle": "尚無付款紀錄",
+        "emptyBody": "針對此文件的付款將顯示於此。"
+      },
+      "blockDiscountCodes": {
+        "description": "已套用的折扣碼，含名稱與折抵金額。",
+        "emptyTitle": "未套用折扣",
+        "emptyBody": "套用於此文件的折扣碼將顯示於此。"
+      },
+      "blockLoyaltyBanner": {
+        "description": "會員橫幅，顯示點數餘額、等級與此訂單獲得的點數。",
+        "emptyTitle": "尚無點數餘額",
+        "emptyBody": "客戶擁有點數餘額後，會員橫幅將顯示於此。",
+        "balanceLabel": "{balance} 點 · {tier}",
+        "earnedLabel": "此訂單獲得 +{earned}"
+      },
+      "blockRecurringBanner": {
+        "description": "橫幅，顯示計費週期、下次扣款日期與剩餘期數。",
+        "emptyTitle": "非週期性",
+        "emptyBody": "文件採用週期性計費後，此橫幅將顯示於此。",
+        "template": "週期性 — {freq} · 下次 {next} · 共 {count} 期"
+      },
+      "blockQrPay": {
+        "description": "掃碼付款方塊，含說明文字與應付金額。",
+        "emptyTitle": "無須付款",
+        "emptyBody": "文件有應付金額後，付款碼將顯示於此。",
+        "amountLabel": "應付金額"
+      },
+      "blockDeliveryStepper": {
+        "description": "橫向配送步驟，標記為已完成、進行中或待處理。",
+        "emptyTitle": "尚無配送步驟",
+        "emptyBody": "訂單有配送路線後，步驟將顯示於此。"
+      },
+      "blockSignature": {
+        "description": "姓名與職稱的簽名欄，含簽署日期。",
+        "emptyTitle": "尚無簽名",
+        "emptyBody": "文件指定簽署人後，簽名欄將顯示於此。",
+        "namePlaceholder": "姓名",
+        "titlePlaceholder": "職稱",
+        "dateLabel": "日期"
+      },
+      "blockTermsCheckbox": {
+        "description": "條款勾選方塊，標籤可編輯。",
+        "defaultLabel": "我接受條款與條件"
+      },
+      "blockApproval": {
+        "description": "簽核人卡片，含依狀態著色的標籤，以及選用的核准或退回操作。",
+        "emptyTitle": "尚無簽核人",
+        "emptyBody": "文件指定簽核人後，簽核卡片將顯示於此。",
+        "approveLabel": "核准",
+        "rejectLabel": "退回",
+        "pendingLabel": "待處理",
+        "approvedLabel": "已核准",
+        "rejectedLabel": "已退回"
+      },
+      "blockAttachments": {
+        "description": "附件檔案，含檔名與大小。",
+        "emptyTitle": "尚無附件",
+        "emptyBody": "此文件的附件將顯示於此。"
+      },
+      "blockLateFees": {
+        "description": "警告提示框，說明逾期費用與寬限期。",
+        "emptyTitle": "無逾期費用",
+        "emptyBody": "文件設定逾期費用規則後，此提示框將顯示於此。",
+        "template": "逾期 {days} 天後將收取 {rate} 的逾期費用。"
+      },
+      "blockImagePlaceholder": {
+        "description": "虛線佔位框，用於替代圖片，並附說明文字。",
+        "emptyTitle": "尚無圖片",
+        "emptyBody": "區塊設定說明文字後，佔位框將顯示於此。"
+      },
+      "blockContact": {
+        "description": "聯絡人列，含姓名、電子郵件與電話號碼。",
+        "emptyTitle": "尚無聯絡人",
+        "emptyBody": "文件指定聯絡人後，聯絡資訊將顯示於此。"
+      },
+      "blockHighlightBox": {
+        "description": "提示框，將標籤與等寬大型數值配對顯示。",
+        "emptyTitle": "尚無重點內容",
+        "emptyBody": "區塊有數值後，提示框將顯示於此。"
       }
     },
     "media": {
@@ -350,6 +660,90 @@
         "description": "用於資料來源、範本與方案的單選卡片格線。",
         "a11yLabel": "選擇一項"
       },
+      "ruleBuilder": {
+        "description": "條件建構器，其規則會編譯成篩選條件——即分眾編輯器。",
+        "add": "新增條件",
+        "remove": "移除條件",
+        "all": "全部符合",
+        "any": "任一符合",
+        "field": "欄位",
+        "operator": "運算子",
+        "value": "值",
+        "valuePlaceholder": "值…",
+        "emptyBody": "尚無條件——新增一個以定義此分眾。"
+      },
+      "flowBuilder": {
+        "description": "由觸發器、條件與動作步驟組成的直向工作流程畫布。",
+        "add": "新增步驟",
+        "remove": "移除步驟",
+        "paletteTitle": "新增步驟",
+        "stats": "{runs} 次執行 · {rate}% 成功率",
+        "emptyBody": "尚無步驟——新增觸發器以啟動此工作流程。"
+      },
+      "connectionStringField": {
+        "description": "連線字串輸入欄，輸入時自動辨識資料庫引擎。",
+        "label": "連線字串",
+        "helper": "postgres://user:password@host:5432/database——mysql:// 與 sqlite: 同樣支援。",
+        "quickFill": "快速填入：",
+        "host": "主機：{host}",
+        "invalidScheme": "無法辨識的連線字串通訊協定。",
+        "incomplete": "請在連線字串中補上主機與資料庫。"
+      },
+      "tableInclusionChecklist": {
+        "description": "要納入的資料表，附列數與個人資料提示。",
+        "pii": "個人資料",
+        "highVolume": "資料量大",
+        "a11yLabel": "要納入的資料表",
+        "emptyTitle": "找不到資料表",
+        "emptyBody": "連線資料庫後，其資料表會顯示在此處。"
+      },
+      "columnMappingTable": {
+        "description": "將上傳檔案的欄位對應到資料表的欄位。",
+        "skip": "不匯入",
+        "sourceHeader": "來源欄位",
+        "sampleHeader": "範例",
+        "targetHeader": "目標欄位",
+        "emptyTitle": "沒有可對應的欄位",
+        "emptyBody": "上傳檔案後，其欄位會顯示在此處。"
+      },
+      "validationIssuesList": {
+        "description": "匯入與驗證問題，依嚴重程度排序，並顯示受影響的列數。",
+        "emptyTitle": "未發現問題",
+        "emptyBody": "一切正常——可以開始匯入。"
+      },
+      "exportBuilder": {
+        "description": "設定資料匯出：格式、日期範圍與包含內容。",
+        "format": "格式",
+        "from": "起始",
+        "to": "截止",
+        "groupBy": "分組依據",
+        "includeCharts": "包含圖表",
+        "email": "將匯出結果寄到我的信箱",
+        "submit": "匯出",
+        "running": "正在準備匯出…",
+        "done": "匯出已就緒",
+        "failed": "匯出失敗，請再試一次。",
+        "download": "下載"
+      },
+      "questionBuilder": {
+        "description": "問卷編輯器：新增題型並調整題目順序。",
+        "paletteTitle": "新增題目",
+        "add": "新增題目",
+        "remove": "移除題目",
+        "moveUp": "上移",
+        "moveDown": "下移",
+        "required": "必填",
+        "questionPlaceholder": "輸入題目…",
+        "emptyTitle": "尚無題目",
+        "emptyBody": "選擇一種題型，開始建立您的問卷。"
+      },
+      "inlineEditableField": {
+        "description": "文件或畫布中可點擊編輯的值。",
+        "edit": "編輯",
+        "save": "儲存",
+        "cancel": "取消",
+        "empty": "空白"
+      },
       "passwordStrengthMeter": {
         "description": "顯示密碼強度的四段式指示器。",
         "label": "密碼強度",
@@ -357,11 +751,6 @@
         "fair": "普通",
         "good": "良好",
         "strong": "強"
-      },
-      "validationIssuesList": {
-        "description": "匯入與驗證問題，依嚴重程度排序，並顯示受影響的列數。",
-        "emptyTitle": "未發現問題",
-        "emptyBody": "一切正常——可以開始匯入。"
       }
     },
     "chrome": {

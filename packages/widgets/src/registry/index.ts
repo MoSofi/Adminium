@@ -7,12 +7,15 @@ import { matrixGeoChartDefinitions } from '../families/charts/defs.matrix-geo.js
 import { timeFlowChartDefinitions } from '../families/charts/time-flow-definitions.js';
 import { tablesWidgetDefinitions } from '../families/tables/definitions.js';
 import { tablesTrackFDefinitions } from '../families/tables/tables-track-f.definitions.js';
+import { tablesTailDefinitions } from '../families/tables/tables-tail.definitions.js';
 import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
 import { calendarTrackDefinitions } from '../families/calendar/calendar-track.definitions.js';
 import { boardsTrackDefinitions } from '../families/boards/boards-track.definitions.js';
+import { geoTrackDefinitions } from '../families/geo/geo-track.definitions.js';
 import { mediaTrackDefinitions } from '../families/media/media-track.definitions.js';
 import { communicationTrackDefinitions } from '../families/communication/communication-track.definitions.js';
 import { domainTrackDefinitions } from '../families/domain/domain-track.definitions.js';
+import { blocksTrackDefinitions } from '../families/domain/blocks-track.definitions.js';
 import { systemTrackDefinitions } from '../families/system/system-track.definitions.js';
 import { chromeTrackDefinitions } from '../families/chrome/chrome-track.definitions.js';
 import { formsTrackDefinitions } from '../families/forms/forms-track.definitions.js';
@@ -62,9 +65,10 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   ...partWholeChartDefinitions,
   ...matrixGeoChartDefinitions,
   ...timeFlowChartDefinitions,
-  // tables (M4 slice + Track F)
+  // tables (M4 slice + Track F + the M7 Wave-4 tail that completes annex §3)
   ...tablesWidgetDefinitions,
   ...tablesTrackFDefinitions,
+  ...tablesTailDefinitions,
   // feeds (Track F)
   ...feedsTrackFDefinitions,
   // calendar (Track CAL — M7 Wave 2)
@@ -72,12 +76,20 @@ export const widgetRegistry: ReadonlyMap<string, WidgetDefinition> = buildRegist
   // boards (Track BOARDS — M7 Wave 2; dnd-kit stays behind the lazy
   // boards-track-components chunk — the definitions import metadata only)
   ...boardsTrackDefinitions,
+  // geo (TRACK COMM-GEO — M7 Wave 4; annex §7, the last family to open. The
+  // definitions are metadata only and MapBubble imports Leaflet dynamically
+  // inside its mount effect, so neither this map nor the shared bundle pulls
+  // Leaflet until a bubble map is actually placed — acceptance #3.)
+  ...geoTrackDefinitions,
   // media (Track MEDIA — M7 Wave 3; annex §8, the file-browser exit criterion)
   ...mediaTrackDefinitions,
   // communication (Track COMM — M7 Wave 3; annex §9, the chat exit criterion)
   ...communicationTrackDefinitions,
   // domain (Track DOMAIN — M7 Wave 3; annex §13, the org-chart/gantt exit criteria)
   ...domainTrackDefinitions,
+  // domain (TRACK BUILDER — M7 Wave 4; annex §13's document half: document-canvas
+  // plus its 22 block-* widgets, behind the blocks-track-components lazy barrel)
+  ...blocksTrackDefinitions,
   // system (Track FCS — M7 Wave 3; annex §12)
   ...systemTrackDefinitions,
   // chrome (Track FCS — M7 Wave 3; annex §11)

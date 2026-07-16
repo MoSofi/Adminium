@@ -104,6 +104,14 @@ export type WidgetEvent =
       connectionId?: string | undefined;
       table: string;
       recordId: string | number;
+      /**
+       * Instance id of a sibling widget this selection pairs with — the host
+       * MAY focus/scroll it to the same record (annex §7 `map-bubble.linkedList`
+       * names a `ranked-entity-list`). Widgets never talk to each other, so the
+       * pairing rides on the event and the host decides what to do with it;
+       * absent → an unpaired open, which every existing host already handles.
+       */
+      linkedInstanceId?: string | undefined;
     }
   /**
    * Mutation *intent* — widgets with `capabilities.editsData` describe the

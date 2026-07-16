@@ -3,12 +3,16 @@ import { lazy } from 'react';
 import {
   activityFeedConfigSchema,
   activityFeedDemoData,
+  loadOlderPaginatorConfigSchema,
+  loadOlderPaginatorDemoData,
   notificationFeedConfigSchema,
   notificationFeedDemoData,
   realtimeFeedConfigSchema,
   realtimeFeedDemoData,
   timelineVerticalConfigSchema,
   timelineVerticalDemoData,
+  toastStackConfigSchema,
+  toastStackDemoData,
   unreadBadgeConfigSchema,
   unreadBadgeDemoData,
 } from './feeds-config.js';
@@ -94,10 +98,59 @@ export const unreadBadgeDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.feeds.unreadBadge.description',
 });
 
+/**
+ * `load-older-paginator` (annex §4; M7 Wave 4). The annex's "cursor into older
+ * pool" rides the canonical §3 `record-list` envelope — `total` + a non-null
+ * `cursor` are what make more fetchable — so no bespoke shape is needed.
+ * `placement: 'inline'`: it is attached to a feed's footer, never grid-placed.
+ */
+export const loadOlderPaginatorDefinition: WidgetDefinition = defineWidget({
+  id: 'load-older-paginator',
+  family: 'feeds',
+  component: lazy(() =>
+    import('./feeds-track-f-components.js').then((m) => ({ default: m.LoadOlderPaginatorWidget })),
+  ),
+  configSchema: loadOlderPaginatorConfigSchema,
+  dataContract: 'record-list',
+  sizing: { minW: 3, minH: 1, defaultW: 4, defaultH: 1 }, // annex "attached to feeds"
+  placement: 'inline',
+  skeleton: 'block',
+  demoData: loadOlderPaginatorDemoData,
+  descriptionKey: 'widgets.feeds.loadOlderPaginator.description',
+});
+
+/**
+ * `toast-stack` (annex §4; cross-listed as `undo-toast` in §12) — the overlay
+ * toast HOST, wrapping @adminium/ui's `ToastStack` + `useToastQueue` (03 §7.2)
+ * rather than reimplementing the queue.
+ *
+ * `dataContract: 'static'` per annex §4 ("ephemeral `{message, icon, onUndo?}`"):
+ * toasts are pushed imperatively, never queried, so there is no bound shape and
+ * `isEmptyByShape.static` correctly never routes this to the empty state.
+ *
+ * `capabilities.editsData` because the Undo action emits a `mutate` intent — the
+ * host's CRUD layer performs the reversal with audit; the widget never writes.
+ */
+export const toastStackDefinition: WidgetDefinition = defineWidget({
+  id: 'toast-stack',
+  family: 'feeds',
+  component: lazy(() => import('./feeds-track-f-components.js').then((m) => ({ default: m.ToastStackWidget }))),
+  configSchema: toastStackConfigSchema,
+  dataContract: 'static',
+  sizing: { minW: 2, minH: 2, defaultW: 3, defaultH: 2 }, // annex "overlay (portal)"
+  placement: 'overlay',
+  skeleton: 'block',
+  capabilities: { editsData: true },
+  demoData: toastStackDemoData,
+  descriptionKey: 'widgets.feeds.toastStack.description',
+});
+
 export const feedsTrackFDefinitions: readonly WidgetDefinition[] = [
   activityFeedDefinition,
   notificationFeedDefinition,
   realtimeFeedDefinition,
   timelineVerticalDefinition,
+  loadOlderPaginatorDefinition,
+  toastStackDefinition,
   unreadBadgeDefinition,
 ];

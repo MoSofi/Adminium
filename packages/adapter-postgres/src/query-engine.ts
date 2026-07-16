@@ -42,6 +42,28 @@ export function createQueryEngine(config: DataConnectionConfig | string): QueryE
     connectionString: dsn,
     max: poolMax ?? DEFAULT_DATA_POOL_MAX,
   });
+  // Surface idle-client failures as pool-level noise, not process crashes —
+  // the same guard `createAdapter`'s pool carries in ./index.ts, which this
+  // pool was missing.
+  //
+  // `pg` emits 'error' on the POOL when a client dies while idle in the pool
+  // (nobody is awaiting a query, so there is no promise to reject). An EventEmitter
+  // 'error' event with no listener is rethrown as an uncaught exception, so a
+  // Postgres-side termination of an idle connection — failover, a restart, an
+  // admin `pg_terminate_backend`, `DROP DATABASE ... WITH (FORCE)`, or an idle
+  // timeout on the server — would take the whole Node process down rather than
+  // being retried on the next checkout. Every one of those is routine operational
+  // life for a long-lived data pool, and the pool recovers on its own: the dead
+  // client is discarded and the next `connect()` opens a fresh one.
+  //
+  // Found by the M7 Wave 4 verification pass: apps/server's crud.test.ts drops its
+  // test database WITH (FORCE) in `afterAll`, which terminates any client still
+  // closing (57P01). That surfaced as a *rare* unhandled error failing the whole
+  // `pnpm test` run — the harness merely reproduced, under load, what a production
+  // failover does on purpose.
+  pool.on('error', () => {
+    /* mapped when the next query fails */
+  });
 
   // Structural cast: kysely's `PostgresPool` narrows `QueryResult.command`
   // to a command-name union while `pg` types it as `string`. The runtime

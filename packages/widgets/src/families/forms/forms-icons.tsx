@@ -1,19 +1,29 @@
 import {
+  AlignLeft,
   Bell,
+  Calendar,
+  ChevronDown,
   CircleAlert,
+  CircleDot,
   Database,
   FileText,
+  Gauge,
   Info,
   Mail,
   Shield,
+  SquareCheck,
+  Star,
   Table,
   TriangleAlert,
+  Type,
   Upload,
   Users,
   Zap,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { QUESTION_KINDS } from './forms-builders.js';
+import type { QuestionKind } from './forms-builders.js';
 import { DEFAULT_SEVERITY_TONE, ISSUE_SEVERITIES } from './forms-lib.js';
 import type { IssueSeverity } from './forms-lib.js';
 
@@ -59,7 +69,28 @@ export function severityIcon(severity: IssueSeverity): ReactNode {
   return SEVERITY_ICON[severity];
 }
 
+/**
+ * The glyph per `question-builder` palette type (annex §10). Keyed by the CLOSED
+ * `QuestionKind` vocabulary rather than by a config-supplied name, so the palette
+ * is total by construction — every enabled kind has a glyph, and no manifest can
+ * ask for one that does not.
+ */
+const QUESTION_KIND_ICON: Record<QuestionKind, ReactNode> = {
+  'single-choice': <CircleDot />,
+  'multi-choice': <SquareCheck />,
+  dropdown: <ChevronDown />,
+  'short-text': <Type />,
+  'long-text': <AlignLeft />,
+  rating: <Star />,
+  nps: <Gauge />,
+  date: <Calendar />,
+};
+
+export function questionKindIcon(kind: QuestionKind): ReactNode {
+  return QUESTION_KIND_ICON[kind];
+}
+
 /** Every id the closed vocabulary accepts — used by the family's tests. */
 export const FORM_ICON_NAMES: readonly string[] = Object.keys(FORM_ICONS);
 
-export { DEFAULT_SEVERITY_TONE, ISSUE_SEVERITIES };
+export { DEFAULT_SEVERITY_TONE, ISSUE_SEVERITIES, QUESTION_KINDS };

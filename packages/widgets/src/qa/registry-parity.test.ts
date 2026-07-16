@@ -19,6 +19,7 @@
  * live `widgetRegistry`. Those two are now identical by invariant #4 — the
  * ratchet that used to skip until the green loop caught up is a hard gate.
  */
+import { EN_US_RESOURCES } from '@adminium/i18n/resources';
 import { describe, expect, it } from 'vitest';
 
 import { ALL_ANNEX_IDS, ANNEX_CATALOG, ANNEX_PENDING, EXPECTED_IDS } from './annex-catalog.js';
@@ -108,5 +109,94 @@ describe('registry parity — live green-loop wiring (acceptance #1)', () => {
       );
       expect(live).toEqual(sorted(EXPECTED_IDS[family]));
     }
+  });
+});
+
+// ── descriptionKey resolution ───────────────────────────────────────────────
+
+/**
+ * Every `descriptionKey` a definition declares must name a REAL en-US message.
+ *
+ * Nothing else catches this today: `WidgetHost` passes `definition.descriptionKey`
+ * to `WidgetFrame` as `info` and the frame renders it raw, with no `t()` — a
+ * documented interim state until 04-T06 wires the translator. So a dangling key
+ * is currently invisible, and the moment the translator lands it turns into the
+ * literal string `widgets.charts.lineArea.description` in the info popover.
+ *
+ * The 35 ids below are the M4 charts/tables slice, which shipped `description`
+ * keys that were never added to `ui.json`. They are QUARANTINED rather than
+ * ignored: the second test asserts each one is STILL dangling, so the list can
+ * only shrink — writing the missing message makes that test fail until the id is
+ * removed from here, and no new widget may join it.
+ */
+const DANGLING_DESCRIPTION_IDS: readonly string[] = [
+  'bulk-action-toolbar',
+  'chart-anomaly',
+  'chart-bar',
+  'chart-bullet',
+  'chart-bump',
+  'chart-candlestick',
+  'chart-choropleth-grid',
+  'chart-chord',
+  'chart-cohort-matrix',
+  'chart-donut',
+  'chart-forecast',
+  'chart-funnel',
+  'chart-heat-month',
+  'chart-heatmap-calendar',
+  'chart-line-area',
+  'chart-marimekko',
+  'chart-multiline',
+  'chart-pareto',
+  'chart-radar',
+  'chart-radial-bar',
+  'chart-ranking-bars',
+  'chart-sankey',
+  'chart-slope',
+  'chart-sparkline',
+  'chart-stacked-bar-100',
+  'chart-stream',
+  'chart-sunburst',
+  'chart-timeline-lanes',
+  'chart-treemap',
+  'chart-waterfall',
+  'chart-wordcloud',
+  'data-grid',
+  'detail-key-value',
+  'mini-table',
+  'pagination-footer',
+];
+
+/** The en-US `ui` message a dotted key names, or `undefined` when it dangles. */
+function enUsMessage(key: string): string | undefined {
+  let node: unknown = EN_US_RESOURCES.ui;
+  for (const part of key.split('.')) {
+    if (typeof node !== 'object' || node === null) return undefined;
+    node = (node as Record<string, unknown>)[part];
+  }
+  return typeof node === 'string' ? node : undefined;
+}
+
+describe('registry parity — descriptionKey resolution', () => {
+  const quarantined = new Set(DANGLING_DESCRIPTION_IDS);
+
+  it('every descriptionKey outside the documented quarantine resolves in en-US', () => {
+    const dangling = deliveredDefinitions
+      .filter((d) => !quarantined.has(d.id))
+      .filter((d) => d.descriptionKey !== undefined && enUsMessage(d.descriptionKey) === undefined)
+      .map((d) => `${d.id} → ${String(d.descriptionKey)}`);
+    expect(dangling).toEqual([]);
+  });
+
+  it('the quarantine is shrink-only: every listed id is a delivered id that still dangles', () => {
+    const byId = new Map(deliveredDefinitions.map((d) => [d.id, d]));
+    const stale = DANGLING_DESCRIPTION_IDS.filter((id) => {
+      const definition = byId.get(id);
+      // Gone from the registry, or its message now exists → drop it from the list.
+      return definition === undefined || definition.descriptionKey === undefined
+        ? true
+        : enUsMessage(definition.descriptionKey) !== undefined;
+    });
+    expect(stale).toEqual([]);
   });
 });

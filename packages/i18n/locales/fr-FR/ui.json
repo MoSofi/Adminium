@@ -54,6 +54,45 @@
     "dismiss": "Fermer la notification"
   },
   "widgets": {
+    "kpi": {
+      "statCard": {
+        "description": "La carte de mesure de référence : un agrégat principal avec pastille de tendance et mini-sparkline en option."
+      },
+      "usageMeter": {
+        "description": "Consommation du quota par rapport à une limite ; la barre passe à l'orange puis au rouge au-delà de vos seuils."
+      },
+      "statTileCompact": {
+        "description": "Une tuile de mesure fine avec micro-libellé, puce de tendance et spark à 6 barres — pour des rangées denses de 4 à 6."
+      },
+      "metricHero": {
+        "description": "Une mesure surdimensionnée qui s'incrémente au chargement, avec pastille de tendance, spark et progression vers l'objectif.",
+        "goalLabel": "Objectif"
+      },
+      "statPairCard": {
+        "description": "Deux mesures côte à côte ; la seconde peut être dérivée de la première."
+      },
+      "gaugeRing": {
+        "description": "Une jauge annulaire pour un score ou un pourcentage, teintée selon la plage où tombe la valeur."
+      },
+      "gaugeArc": {
+        "description": "Un arc de compteur avec plages qualitatives et aiguille ; affiche aussi une grille de jauges."
+      },
+      "periodComparison": {
+        "description": "Cette période face à la précédente en deux barres, avec l'écart calculé en dessous.",
+        "higherLabel": "de plus",
+        "lowerLabel": "de moins",
+        "flatLabel": "stable"
+      },
+      "microKpiSubtitle": {
+        "description": "Une statistique d'en-tête sur une ligne, construite à partir d'un modèle et recalculée en direct."
+      },
+      "autoInsights": {
+        "description": "Des constats classés — un chiffre clé, une phrase et un spark — avec rotation par actualisation.",
+        "emptyTitle": "Aucun constat pour l'instant",
+        "emptyBody": "Les constats apparaissent dès qu'il y a assez de données pour dégager une tendance.",
+        "refreshLabel": "Actualiser"
+      }
+    },
     "charts": {
       "boxplot": {
         "description": "Résumé en boîte à moustaches de la dispersion d'une colonne numérique par catégorie — min, quartiles, médiane et max.",
@@ -115,6 +154,19 @@
       "unreadBadge": {
         "description": "Une pastille de comptage des éléments non lus, synchronisée avec le fil.",
         "unitLabel": "non lus"
+      },
+      "loadOlderPaginator": {
+        "description": "Un bouton de pied de page qui charge les enregistrements plus anciens par lots jusqu'à épuisement du flux.",
+        "label": "Charger plus anciens",
+        "loadingLabel": "Chargement…",
+        "exhaustedLabel": "Rien de plus ancien",
+        "ofLabel": "sur"
+      },
+      "toastStack": {
+        "description": "L'hôte des notifications éphémères : de brèves confirmations avec une annulation en option.",
+        "undoLabel": "Annuler",
+        "dismissLabel": "Fermer",
+        "regionLabel": "Notifications"
       }
     },
     "calendar": {
@@ -137,6 +189,39 @@
         "description": "Des barres d'utilisation par membre avec une répartition par projet et un statut de charge.",
         "emptyTitle": "Aucune donnée de charge",
         "emptyBody": "L'utilisation des membres apparaîtra ici une fois les affectations créées."
+      },
+      "calendarLegendFilter": {
+        "description": "Catégories d'événements avec compteur ; cocher filtre le calendrier voisin.",
+        "emptyTitle": "Aucune catégorie",
+        "emptyBody": "Les catégories d'événements apparaîtront ici dès qu'il y aura des événements.",
+        "uncategorizedLabel": "Sans catégorie"
+      },
+      "upcomingEventsList": {
+        "description": "Les prochains événements par ordre de date, avec responsable et statut.",
+        "emptyTitle": "Rien à venir",
+        "emptyBody": "Les événements planifiés apparaîtront ici au fur et à mesure."
+      },
+      "dateRangePicker": {
+        "description": "Une plage de dates avec raccourcis, qui filtre le reste de la page.",
+        "previousLabel": "Mois précédent",
+        "nextLabel": "Mois suivant",
+        "summaryLabel": "{n} jours sélectionnés",
+        "presets": {
+          "7d": "7 derniers jours",
+          "30d": "30 derniers jours",
+          "90d": "90 derniers jours",
+          "mtd": "Mois en cours",
+          "qtd": "Trimestre en cours",
+          "ytd": "Année en cours"
+        }
+      },
+      "scheduledJobsList": {
+        "description": "Rapports et exports récurrents avec fréquence, prochaine exécution et interrupteur.",
+        "emptyTitle": "Aucune tâche planifiée",
+        "emptyBody": "Les rapports et exports récurrents apparaîtront ici une fois planifiés.",
+        "nextRunLabel": "Prochaine exécution",
+        "toggleLabel": "Activer la planification",
+        "recipientsLabel": "Destinataires"
       }
     },
     "tables": {
@@ -169,6 +254,38 @@
         "description": "Une grille interactive de bascules booléennes pour rôles, règles ou canaux.",
         "emptyTitle": "Aucune matrice configurée",
         "emptyBody": "Les lignes et colonnes apparaîtront ici une fois configurées."
+      },
+      "sparklineTable": {
+        "description": "Lignes de métriques avec micro-courbe, valeur actuelle et pastille d'évolution positive ou négative.",
+        "emptyTitle": "Aucune métrique",
+        "emptyBody": "Les métriques apparaîtront ici dès qu'il y aura des données à résumer."
+      },
+      "topMoversList": {
+        "description": "Les métriques qui ont le plus évolué, avec un sens jugé favorable ou défavorable.",
+        "emptyTitle": "Aucune évolution",
+        "emptyBody": "Les métriques qui évoluent le plus apparaîtront ici."
+      },
+      "rankedEntityList": {
+        "description": "Les meilleures entités selon une métrique, avec rang et barre proportionnelle.",
+        "emptyTitle": "Aucun classement",
+        "emptyBody": "Les meilleures entités apparaîtront ici dès qu'il y aura des données à classer."
+      },
+      "accordionList": {
+        "description": "Lignes dépliables avec badge et panneau de détail, ouverture simple ou multiple.",
+        "emptyTitle": "Rien à déplier",
+        "emptyBody": "Les entrées apparaîtront ici dès qu'il y en aura."
+      },
+      "comparisonMatrix": {
+        "description": "Une grille comparant les offres, avec une colonne mise en avant.",
+        "includedLabel": "Inclus",
+        "notIncludedLabel": "Non inclus",
+        "promotedLabel": "Recommandé"
+      },
+      "chipCloud": {
+        "description": "Puces à la ligne pour les tables détectées, les variables ou les suggestions.",
+        "emptyTitle": "Rien de détecté",
+        "emptyBody": "Les tables et variables apparaîtront ici sous forme de puces une fois détectées.",
+        "moreLabel": "+{n} de plus"
       }
     },
     "boards": {
@@ -192,6 +309,18 @@
         "moved": "{title} déplacée vers {cell}.",
         "returned": "{title} est revenue à sa position d'origine.",
         "failed": "Impossible de déplacer {title} ; elle est revenue à sa position d'origine."
+      },
+      "boardCard": {
+        "description": "Une carte de tableau : étiquette, titre, progression, responsable et échéance.",
+        "emptyTitle": "Aucune carte",
+        "emptyBody": "Aucun enregistrement n'est encore associé à cette carte."
+      },
+      "inlineComposeCard": {
+        "description": "Ajout rapide qui crée un enregistrement avec les valeurs par défaut de la colonne.",
+        "placeholder": "Titre de la carte…",
+        "addLabel": "Ajouter",
+        "cancelLabel": "Annuler",
+        "openLabel": "Ajouter une carte"
       }
     },
     "communication": {
@@ -222,6 +351,43 @@
         "configureTitle": "Aucun fournisseur d'IA configuré",
         "configureBody": "Ajoutez une clé Anthropic ou OpenAI — ou pointez Adminium vers votre propre point de terminaison — pour poser des questions sur votre schéma.",
         "configureCtaLabel": "Configurer un fournisseur"
+      },
+      "typingIndicator": {
+        "description": "Un avatar et une ligne en italique « en train d’écrire… », liée à un booléen actif par conversation.",
+        "label": "en train d’écrire…",
+        "emptyTitle": "Aucune saisie en cours",
+        "emptyBody": "L’état de saisie apparaîtra ici dès que la conversation sera active."
+      },
+      "callWidget": {
+        "description": "Un appel entrant, audio ou vidéo : avatar de l’appelant, état de l’appel et actions pour accepter ou refuser.",
+        "voiceLabel": "Appel audio",
+        "videoLabel": "Appel vidéo",
+        "ringingLabel": "Sonnerie…",
+        "connectingLabel": "Connexion…",
+        "activeLabel": "En communication",
+        "endedLabel": "Appel terminé",
+        "acceptLabel": "Accepter",
+        "declineLabel": "Refuser",
+        "endLabel": "Raccrocher",
+        "emptyTitle": "Aucun appel en cours",
+        "emptyBody": "Un appel entrant apparaîtra ici."
+      }
+    },
+    "geo": {
+      "mapBubble": {
+        "description": "Une carte dont les marqueurs circulaires sont dimensionnés selon la métrique choisie, accompagnée d’un classement des principaux lieux.",
+        "emptyTitle": "Aucun lieu",
+        "emptyBody": "Les lignes comportant une latitude et une longitude apparaissent ici sous forme de marqueurs.",
+        "mapUnavailableLabel": "La carte n’a pas pu être chargée. Le classement présente les mêmes données.",
+        "regionsLabel": "Principales régions",
+        "metricLabel": "Métrique"
+      },
+      "mapChoroplethGrid": {
+        "description": "Des tuiles de régions teintées selon la valeur — pour les tables comportant des codes de région mais pas de coordonnées.",
+        "emptyTitle": "Aucune région",
+        "emptyBody": "Les lignes comportant un code de région et une valeur numérique apparaissent ici sous forme de tuiles teintées.",
+        "legendLowLabel": "Faible",
+        "legendHighLabel": "Élevé"
       }
     },
     "domain": {
@@ -237,6 +403,150 @@
         "emptyTitle": "Rien de planifié",
         "emptyBody": "Les tâches apparaissent ici dès qu'elles ont une date de début et de fin.",
         "ungroupedLabel": "Tâches"
+      },
+      "documentCanvas": {
+        "description": "Un canevas de document au style papier — facture, rapport ou e-mail — dont les blocs peuvent être sélectionnés, réordonnés et supprimés.",
+        "emptyTitle": "Ce document est vide",
+        "emptyBody": "Ajoutez un bloc depuis la palette pour commencer à composer le document.",
+        "addBlockLabel": "Ajouter un bloc",
+        "removeBlockLabel": "Supprimer le bloc",
+        "moveUpLabel": "Déplacer le bloc vers le haut",
+        "moveDownLabel": "Déplacer le bloc vers le bas",
+        "blockListLabel": "Blocs du document",
+        "billedToLabel": "Facturé à",
+        "issuedLabel": "Émis le",
+        "dueLabel": "Échéance"
+      },
+      "blockTotalsSummary": {
+        "description": "Les totaux du document — sous-total, remise, taxe et total dû, recalculés à partir des lignes.",
+        "emptyTitle": "Pas encore de totaux",
+        "emptyBody": "Les totaux apparaissent dès que le document comporte des lignes.",
+        "subtotalLabel": "Sous-total",
+        "discountLabel": "Remise",
+        "taxLabel": "Taxe",
+        "totalLabel": "Total dû"
+      },
+      "blockLineItems": {
+        "description": "Lignes modifiables de description, quantité et tarif qui alimentent les totaux du document.",
+        "emptyTitle": "Aucune ligne",
+        "emptyBody": "Ajoutez une ligne pour facturer une prestation sur ce document.",
+        "descHeader": "Description",
+        "qtyHeader": "Qté",
+        "rateHeader": "Tarif",
+        "amountHeader": "Montant"
+      },
+      "blockKpiRow": {
+        "description": "Une rangée de tuiles de statistiques dont la variation est colorée selon son signe.",
+        "emptyTitle": "Aucun indicateur",
+        "emptyBody": "Les indicateurs apparaissent ici dès que le rapport contient des chiffres."
+      },
+      "blockBarChart": {
+        "description": "Un mini-graphique à barres dans la couleur du document, dimensionné pour un bloc.",
+        "emptyTitle": "Aucune donnée à représenter",
+        "emptyBody": "Les barres apparaissent dès que le rapport contient une série."
+      },
+      "blockLineChart": {
+        "description": "Un mini-graphique en courbe avec aire remplie facultative, dimensionné pour un bloc.",
+        "emptyTitle": "Aucune donnée à représenter",
+        "emptyBody": "La courbe apparaît dès que le rapport contient une série."
+      },
+      "blockTwoColTable": {
+        "description": "Un tableau à deux colonnes avec une ligne d'en-tête stylisée et une colonne de valeurs en chasse fixe.",
+        "emptyTitle": "Aucune ligne",
+        "emptyBody": "Les lignes apparaissent ici dès que le rapport contient des valeurs."
+      },
+      "blockTaxBreakdown": {
+        "description": "Lignes de taxe avec libellé, taux et montant, appliquées au sous-total du document.",
+        "emptyTitle": "Aucune ligne de taxe",
+        "emptyBody": "Les lignes de taxe apparaissent dès que le document comporte des taux."
+      },
+      "blockMultiCurrency": {
+        "description": "Le total du document converti par devise aux taux indiqués.",
+        "emptyTitle": "Aucune conversion",
+        "emptyBody": "Les conversions apparaissent dès que le document indique des taux de change.",
+        "footnote": "Les taux sont indicatifs et peuvent différer au règlement."
+      },
+      "blockPaymentHistory": {
+        "description": "Paiements passés avec date, moyen masqué, montant et pastille de statut.",
+        "emptyTitle": "Aucun paiement",
+        "emptyBody": "Les paiements liés à ce document apparaissent ici."
+      },
+      "blockDiscountCodes": {
+        "description": "Codes de remise appliqués avec leur libellé et le montant crédité.",
+        "emptyTitle": "Aucune remise appliquée",
+        "emptyBody": "Les codes de remise appliqués à ce document apparaissent ici."
+      },
+      "blockLoyaltyBanner": {
+        "description": "Une bannière de fidélité avec le solde de points, le niveau et les points gagnés sur cette commande.",
+        "emptyTitle": "Aucun solde de fidélité",
+        "emptyBody": "La bannière de fidélité apparaît dès que le client dispose de points.",
+        "balanceLabel": "{balance} pts · {tier}",
+        "earnedLabel": "+{earned} gagnés sur cette commande"
+      },
+      "blockRecurringBanner": {
+        "description": "Une bannière annonçant la fréquence de facturation, la prochaine échéance et les cycles restants.",
+        "emptyTitle": "Non récurrent",
+        "emptyBody": "Cette bannière apparaît dès que le document suit un échéancier récurrent.",
+        "template": "Récurrent — {freq} · Prochain le {next} · {count} cycles"
+      },
+      "blockQrPay": {
+        "description": "Une tuile à scanner pour payer, avec légende et montant dû.",
+        "emptyTitle": "Rien à payer",
+        "emptyBody": "Le code de paiement apparaît dès que le document comporte un montant dû.",
+        "amountLabel": "Montant dû"
+      },
+      "blockDeliveryStepper": {
+        "description": "Étapes de livraison horizontales marquées comme faites, en cours ou à venir.",
+        "emptyTitle": "Aucune étape de livraison",
+        "emptyBody": "Les étapes apparaissent dès que la commande a un parcours de livraison."
+      },
+      "blockSignature": {
+        "description": "Lignes de signature pour un nom et une fonction, avec la date de signature.",
+        "emptyTitle": "Aucune signature",
+        "emptyBody": "Les lignes de signature apparaissent dès que le document désigne un signataire.",
+        "namePlaceholder": "Nom complet",
+        "titlePlaceholder": "Fonction",
+        "dateLabel": "Date"
+      },
+      "blockTermsCheckbox": {
+        "description": "Une case pour les conditions, avec libellé modifiable.",
+        "defaultLabel": "J'accepte les conditions générales"
+      },
+      "blockApproval": {
+        "description": "Une carte d'approbateur avec pastille teintée selon le statut et actions facultatives d'approbation ou de rejet.",
+        "emptyTitle": "Aucun approbateur",
+        "emptyBody": "La carte d'approbation apparaît dès que le document désigne un approbateur.",
+        "approveLabel": "Approuver",
+        "rejectLabel": "Rejeter",
+        "pendingLabel": "En attente",
+        "approvedLabel": "Approuvé",
+        "rejectedLabel": "Rejeté"
+      },
+      "blockAttachments": {
+        "description": "Fichiers joints avec leur nom et leur taille.",
+        "emptyTitle": "Aucune pièce jointe",
+        "emptyBody": "Les fichiers joints à ce document apparaissent ici."
+      },
+      "blockLateFees": {
+        "description": "Un encadré d'avertissement indiquant les pénalités de retard et le délai de grâce.",
+        "emptyTitle": "Aucune pénalité de retard",
+        "emptyBody": "Cet encadré apparaît dès que le document définit une pénalité de retard.",
+        "template": "Une pénalité de retard de {rate} s'applique après {days} jours."
+      },
+      "blockImagePlaceholder": {
+        "description": "Un cadre en pointillés tenant lieu d'image, avec une légende.",
+        "emptyTitle": "Aucune image",
+        "emptyBody": "Le cadre apparaît dès que le bloc comporte une légende."
+      },
+      "blockContact": {
+        "description": "Lignes de contact pour un nom, une adresse e-mail et un numéro de téléphone.",
+        "emptyTitle": "Aucun contact",
+        "emptyBody": "Les coordonnées apparaissent dès que le document désigne un contact."
+      },
+      "blockHighlightBox": {
+        "description": "Un encadré associant un libellé à une grande valeur en chasse fixe.",
+        "emptyTitle": "Rien à mettre en avant",
+        "emptyBody": "L'encadré apparaît dès que le bloc comporte une valeur."
       }
     },
     "media": {
@@ -350,6 +660,90 @@
         "description": "Une grille de cartes à choix unique pour sources, modèles et forfaits.",
         "a11yLabel": "Choisir une option"
       },
+      "ruleBuilder": {
+        "description": "Un éditeur de conditions dont les règles deviennent un filtre — l’éditeur de segments.",
+        "add": "Ajouter une condition",
+        "remove": "Supprimer la condition",
+        "all": "TOUTES",
+        "any": "AU MOINS UNE",
+        "field": "Champ",
+        "operator": "Opérateur",
+        "value": "Valeur",
+        "valuePlaceholder": "Valeur…",
+        "emptyBody": "Aucune condition — ajoutez-en une pour définir ce segment."
+      },
+      "flowBuilder": {
+        "description": "Un canevas vertical de workflow : étapes déclencheur, condition et action.",
+        "add": "Ajouter une étape",
+        "remove": "Supprimer l’étape",
+        "paletteTitle": "Ajouter une étape",
+        "stats": "{runs} exécutions · {rate} % de réussite",
+        "emptyBody": "Aucune étape — ajoutez un déclencheur pour démarrer ce workflow."
+      },
+      "connectionStringField": {
+        "description": "Un champ de chaîne de connexion qui détecte le moteur de base de données à la saisie.",
+        "label": "Chaîne de connexion",
+        "helper": "postgres://user:motdepasse@hote:5432/base — mysql:// et sqlite: fonctionnent aussi.",
+        "quickFill": "Remplissage rapide :",
+        "host": "Hôte : {host}",
+        "invalidScheme": "Schéma de chaîne de connexion non reconnu.",
+        "incomplete": "Ajoutez un hôte et une base à la chaîne de connexion."
+      },
+      "tableInclusionChecklist": {
+        "description": "Les tables à inclure, avec le nombre de lignes et les alertes de données personnelles.",
+        "pii": "DCP",
+        "highVolume": "volume élevé",
+        "a11yLabel": "Tables à inclure",
+        "emptyTitle": "Aucune table trouvée",
+        "emptyBody": "Connectez une base de données et ses tables apparaîtront ici."
+      },
+      "columnMappingTable": {
+        "description": "Associe les colonnes d’un fichier importé aux champs d’une table.",
+        "skip": "Ne pas importer",
+        "sourceHeader": "Colonne source",
+        "sampleHeader": "Exemple",
+        "targetHeader": "Champ cible",
+        "emptyTitle": "Aucune colonne à associer",
+        "emptyBody": "Importez un fichier et ses colonnes apparaîtront ici."
+      },
+      "validationIssuesList": {
+        "description": "Problèmes d’import et de validation, du plus grave au moins grave, avec le nombre de lignes.",
+        "emptyTitle": "Aucun problème détecté",
+        "emptyBody": "Tout est en ordre — vous pouvez importer."
+      },
+      "exportBuilder": {
+        "description": "Configure un export de données : format, période et contenu.",
+        "format": "Format",
+        "from": "Du",
+        "to": "Au",
+        "groupBy": "Grouper par",
+        "includeCharts": "Inclure les graphiques",
+        "email": "M’envoyer l’export par e-mail",
+        "submit": "Exporter",
+        "running": "Préparation de votre export…",
+        "done": "Export prêt",
+        "failed": "L’export a échoué. Réessayez.",
+        "download": "Télécharger"
+      },
+      "questionBuilder": {
+        "description": "Un éditeur de sondage : ajoutez des types de question et réordonnez-les.",
+        "paletteTitle": "Ajouter une question",
+        "add": "Ajouter une question",
+        "remove": "Supprimer la question",
+        "moveUp": "Monter",
+        "moveDown": "Descendre",
+        "required": "Obligatoire",
+        "questionPlaceholder": "Posez une question…",
+        "emptyTitle": "Aucune question",
+        "emptyBody": "Choisissez un type de question pour commencer votre sondage."
+      },
+      "inlineEditableField": {
+        "description": "Une valeur modifiable d’un clic dans un document ou un canevas.",
+        "edit": "Modifier",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "empty": "Vide"
+      },
       "passwordStrengthMeter": {
         "description": "Un indicateur en quatre segments de la robustesse du mot de passe.",
         "label": "Robustesse du mot de passe",
@@ -357,11 +751,6 @@
         "fair": "Moyen",
         "good": "Bon",
         "strong": "Fort"
-      },
-      "validationIssuesList": {
-        "description": "Problèmes d’import et de validation, du plus grave au moins grave, avec le nombre de lignes.",
-        "emptyTitle": "Aucun problème détecté",
-        "emptyBody": "Tout est en ordre — vous pouvez importer."
       }
     },
     "chrome": {

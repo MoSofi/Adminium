@@ -173,3 +173,82 @@ export function kanbanSwimlaneGridDemoData(seed: number): { data: Record<string,
   });
   return { data, total: data.length };
 }
+
+// ── board-card (annex §6) ──────────────────────────────────────────────────
+/**
+ * The card is registered in its OWN right, not only as the boards' child: the
+ * annex gives it an id, and the detail/preview surfaces (a linked card in a
+ * timeline, a card preview in the builder palette) instantiate exactly one of
+ * them against a single `record`. The component is the same `BoardCard` the
+ * kanban columns render, so a card looks identical wherever it appears.
+ */
+export const boardCardConfigSchema = widgetSharedConfigSchema.extend({
+  /** Visible field allow-list (annex "visible fields"); unset → every field present. */
+  fields: z.array(z.enum(['tag', 'priority', 'points', 'client', 'budget', 'pct', 'owner', 'due', 'id'])).optional(),
+  /** Progress-bar + tag accent tone; normally the card's column tone. */
+  columnTone: toneEnum.optional(),
+  /** Drill-through target for the card (annex `linkTarget`). */
+  linkTarget: z.string().optional(),
+  titleField: z.string().default('title'),
+  pointsUnit: z.string().optional(),
+  gripLabel: z.string().optional(),
+});
+export type BoardCardConfig = z.infer<typeof boardCardConfigSchema>;
+
+/**
+ * Deterministic single-`record` payload (04 §7.7). The `record` shape's envelope
+ * is `{ row }` — that is what the host's shared `isEmptyByShape['record']`
+ * predicate reads, so an unbound/missing card empty-states instead of rendering
+ * a blank frame.
+ */
+export function boardCardDemoData(seed: number): { row: Record<string, unknown> } {
+  const random = mulberry32(seed || 1);
+  const column = pickFrom(random, BOARD_DEMO_COLUMNS);
+  const done = column.id === 'done';
+  const due = new Date(BOARD_DEMO_EPOCH + 3 * 86_400_000);
+  return {
+    row: {
+      id: `PRJ-${100 + Math.floor(random() * 40)}`,
+      title: pickFrom(random, BOARD_DEMO_TITLES),
+      status: column.id,
+      tag: pickFrom(random, BOARD_DEMO_TAGS),
+      tagTone: column.tone,
+      priority: pickFrom(random, BOARD_DEMO_PRIORITIES),
+      owner: pickFrom(random, BOARD_DEMO_OWNERS),
+      pct: done ? 100 : Math.floor(random() * 90),
+      points: pickFrom(random, [1, 2, 3, 5, 8] as const),
+      client: pickFrom(random, BOARD_DEMO_CLIENTS),
+      due: `${due.getUTCMonth() + 1}/${due.getUTCDate()}`,
+    },
+  };
+}
+
+// ── inline-compose-card (annex §6) ─────────────────────────────────────────
+export const inlineComposeCardConfigSchema = widgetSharedConfigSchema.extend({
+  /**
+   * Column defaults stamped onto the new record (annex `defaults`). Values are
+   * primitives only: a stored config must never be able to smuggle a nested
+   * object/expression into an INSERT the host will run.
+   */
+  defaults: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).default({}),
+  /** The field the typed text lands in. */
+  titleField: z.string().default('title'),
+  placeholder: z.string().optional(),
+  addLabel: z.string().optional(),
+  cancelLabel: z.string().optional(),
+  /** Keep the composer open after adding, for rapid entry (Project Board). */
+  keepOpen: z.boolean().default(true),
+  /** Start expanded (a dedicated compose slot) vs. behind the add affordance. */
+  defaultOpen: z.boolean().default(false),
+});
+export type InlineComposeCardConfig = z.infer<typeof inlineComposeCardConfigSchema>;
+
+/**
+ * Deterministic `form-state` payload (04 §7.7) — the transient draft. The seed
+ * picks the placeholder-ish suggestion the demo shows, so the payload threads
+ * its seed while staying wall-clock free.
+ */
+export function inlineComposeCardDemoData(seed: number): { value: { title: string } } {
+  const random = mulberry32(seed || 1);
+  return { value: { title: pickFrom(random, BOARD_DEMO_TITLES) } };
+}

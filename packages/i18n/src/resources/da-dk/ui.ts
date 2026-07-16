@@ -62,6 +62,45 @@ export default {
     "dismiss": "Luk notifikation"
   },
   "widgets": {
+    "kpi": {
+      "statCard": {
+        "description": "Standardkortet til nøgletal: ét hovedtal med valgfri trendplakette og mini-sparkline."
+      },
+      "usageMeter": {
+        "description": "Kvoteforbrug op mod en grænse; bjælken skifter til gul og derefter rød ud over dine tærskler."
+      },
+      "statTileCompact": {
+        "description": "En smal nøgletalsflise med mikroetiket, trendchip og 6-bjælkers spark — til tætte rækker på 4 til 6."
+      },
+      "metricHero": {
+        "description": "Ét overdimensioneret nøgletal, der tæller op ved indlæsning, med trendplakette, spark og målfremdrift.",
+        "goalLabel": "Mål"
+      },
+      "statPairCard": {
+        "description": "To nøgletal side om side; det andet kan udledes af det første."
+      },
+      "gaugeRing": {
+        "description": "En ringmåler til en score eller procent, farvet efter det bånd, værdien falder i."
+      },
+      "gaugeArc": {
+        "description": "En speedometerbue med kvalitative bånd og en viser; viser også et gitter af målere."
+      },
+      "periodComparison": {
+        "description": "Denne periode mod den forrige som to bjælker, med forskellen beregnet nedenunder.",
+        "higherLabel": "højere",
+        "lowerLabel": "lavere",
+        "flatLabel": "uændret"
+      },
+      "microKpiSubtitle": {
+        "description": "Et enkeltlinjes nøgletal i sidehovedet, bygget ud fra en skabelon og genberegnet løbende."
+      },
+      "autoInsights": {
+        "description": "Rangerede indsigter — et hovedtal, en sætning og et spark — med rotation ved opdatering.",
+        "emptyTitle": "Ingen indsigter endnu",
+        "emptyBody": "Indsigter dukker op, når der er data nok til at se et mønster.",
+        "refreshLabel": "Opdatér"
+      }
+    },
     "charts": {
       "boxplot": {
         "description": "Boksplot-oversigt over en numerisk kolonnes spredning pr. kategori – min, kvartiler, median og maks.",
@@ -123,6 +162,19 @@ export default {
       "unreadBadge": {
         "description": "En tællermærkat for ulæste elementer, synkroniseret med feedets tilstand.",
         "unitLabel": "ulæste"
+      },
+      "loadOlderPaginator": {
+        "description": "En knap i bunden, der henter ældre poster i portioner, indtil feedet er opbrugt.",
+        "label": "Hent ældre",
+        "loadingLabel": "Henter …",
+        "exhaustedLabel": "Ikke mere",
+        "ofLabel": "af"
+      },
+      "toastStack": {
+        "description": "Overlay-værten for toasts: korte bekræftelser med valgfri fortryd.",
+        "undoLabel": "Fortryd",
+        "dismissLabel": "Luk",
+        "regionLabel": "Notifikationer"
       }
     },
     "calendar": {
@@ -145,6 +197,39 @@ export default {
         "description": "Udnyttelsesbjælker pr. medlem med projektopdeling og belastningsstatus.",
         "emptyTitle": "Ingen arbejdsbelastningsdata",
         "emptyBody": "Medlemmernes udnyttelse vises her, når der findes tildelinger."
+      },
+      "calendarLegendFilter": {
+        "description": "Begivenhedskategorier med antal; et klik filtrerer kalenderen ved siden af.",
+        "emptyTitle": "Ingen kategorier endnu",
+        "emptyBody": "Begivenhedskategorier vises her, når der er begivenheder.",
+        "uncategorizedLabel": "Uden kategori"
+      },
+      "upcomingEventsList": {
+        "description": "De næste begivenheder i datorækkefølge, med ejer og status.",
+        "emptyTitle": "Intet på vej",
+        "emptyBody": "Planlagte begivenheder vises her, efterhånden som de oprettes."
+      },
+      "dateRangePicker": {
+        "description": "Et datointerval med hurtigvalg, der filtrerer resten af siden.",
+        "previousLabel": "Forrige måned",
+        "nextLabel": "Næste måned",
+        "summaryLabel": "{n} dage valgt",
+        "presets": {
+          "7d": "Seneste 7 dage",
+          "30d": "Seneste 30 dage",
+          "90d": "Seneste 90 dage",
+          "mtd": "Måned til dato",
+          "qtd": "Kvartal til dato",
+          "ytd": "År til dato"
+        }
+      },
+      "scheduledJobsList": {
+        "description": "Tilbagevendende rapporter og eksporter med kadence, næste kørsel og til/fra-knap.",
+        "emptyTitle": "Ingen planlagte job",
+        "emptyBody": "Tilbagevendende rapporter og eksporter vises her, når de er planlagt.",
+        "nextRunLabel": "Næste kørsel",
+        "toggleLabel": "Aktivér tidsplan",
+        "recipientsLabel": "Modtagere"
       }
     },
     "tables": {
@@ -177,6 +262,38 @@ export default {
         "description": "Et interaktivt gitter af boolske kontakter til roller, politikker eller kanaler.",
         "emptyTitle": "Ingen matrix konfigureret",
         "emptyBody": "Rækker og kolonner vises her, når de er konfigureret."
+      },
+      "sparklineTable": {
+        "description": "Målingsrækker med mini-graf, aktuel værdi og en ændringsmarkering, der skelner godt fra skidt.",
+        "emptyTitle": "Ingen målinger",
+        "emptyBody": "Målinger vises her, når der er data at opsummere."
+      },
+      "topMoversList": {
+        "description": "De målinger, der har ændret sig mest — retningen vurderes som god eller dårlig pr. måling.",
+        "emptyTitle": "Ingen bevægelser",
+        "emptyBody": "Målinger med de største ændringer vises her."
+      },
+      "rankedEntityList": {
+        "description": "Topemner efter en måling, hver med placering og en proportional bjælke.",
+        "emptyTitle": "Ingen rangering endnu",
+        "emptyBody": "Topemner vises her, når der er data at rangere."
+      },
+      "accordionList": {
+        "description": "Udfoldelige rækker med mærkat og detaljepanel, enkelt- eller flerudfoldning.",
+        "emptyTitle": "Intet at folde ud",
+        "emptyBody": "Poster vises her, når der er nogen."
+      },
+      "comparisonMatrix": {
+        "description": "Et funktionsgitter, der sammenligner abonnementer, med én fremhævet kolonne.",
+        "includedLabel": "Inkluderet",
+        "notIncludedLabel": "Ikke inkluderet",
+        "promotedLabel": "Anbefalet"
+      },
+      "chipCloud": {
+        "description": "Ombrydende chips til fundne tabeller, flettevariabler eller forslag.",
+        "emptyTitle": "Intet fundet endnu",
+        "emptyBody": "Tabeller og variabler vises her som chips, når de er fundet.",
+        "moreLabel": "+{n} mere"
       }
     },
     "boards": {
@@ -200,6 +317,18 @@ export default {
         "moved": "{title} flyttet til {cell}.",
         "returned": "{title} vendte tilbage til sin oprindelige placering.",
         "failed": "{title} kunne ikke flyttes; den blev sat tilbage."
+      },
+      "boardCard": {
+        "description": "Ét tavlekort: mærkat, titel, fremdrift, ejer og forfaldsdato.",
+        "emptyTitle": "Intet kort",
+        "emptyBody": "Der er endnu ingen post knyttet til dette kort."
+      },
+      "inlineComposeCard": {
+        "description": "Hurtig tilføjelse, der opretter en post med kolonnens standardværdier.",
+        "placeholder": "Kortets titel…",
+        "addLabel": "Tilføj",
+        "cancelLabel": "Annuller",
+        "openLabel": "Tilføj kort"
       }
     },
     "communication": {
@@ -230,6 +359,43 @@ export default {
         "configureTitle": "Ingen AI-udbyder konfigureret",
         "configureBody": "Tilføj en Anthropic- eller OpenAI-nøgle — eller peg Adminium mod dit eget endpoint — for at stille spørgsmål om dit skema.",
         "configureCtaLabel": "Konfigurér en udbyder"
+      },
+      "typingIndicator": {
+        "description": "En avatar og en kursiv “skriver…”-række, bundet til en live-boolean pr. samtale.",
+        "label": "skriver…",
+        "emptyTitle": "Ingen skriveaktivitet",
+        "emptyBody": "Skrivestatus vises her, når samtalen er aktiv."
+      },
+      "callWidget": {
+        "description": "Et indgående tale- eller videoopkald: opkalderens avatar, opkaldets status og handlinger til at acceptere eller afvise.",
+        "voiceLabel": "Taleopkald",
+        "videoLabel": "Videoopkald",
+        "ringingLabel": "Ringer…",
+        "connectingLabel": "Opretter forbindelse…",
+        "activeLabel": "I opkald",
+        "endedLabel": "Opkald afsluttet",
+        "acceptLabel": "Accepter",
+        "declineLabel": "Afvis",
+        "endLabel": "Afslut opkald",
+        "emptyTitle": "Intet aktivt opkald",
+        "emptyBody": "Et indgående opkald vises her."
+      }
+    },
+    "geo": {
+      "mapBubble": {
+        "description": "Et kort med cirkelmarkører, hvis størrelse følger den valgte måling, sammen med en rangliste over de største steder.",
+        "emptyTitle": "Ingen lokationer",
+        "emptyBody": "Rækker med bredde- og længdegrad vises her som kortmarkører.",
+        "mapUnavailableLabel": "Kortet kunne ikke indlæses. Ranglisten viser de samme data.",
+        "regionsLabel": "Førende regioner",
+        "metricLabel": "Måling"
+      },
+      "mapChoroplethGrid": {
+        "description": "Regionsfelter tonet efter værdi – til tabeller med regionskoder, men uden koordinater.",
+        "emptyTitle": "Ingen regioner",
+        "emptyBody": "Rækker med en regionskode og en talværdi vises her som tonede felter.",
+        "legendLowLabel": "Lav",
+        "legendHighLabel": "Høj"
       }
     },
     "domain": {
@@ -245,6 +411,150 @@ export default {
         "emptyTitle": "Intet planlagt",
         "emptyBody": "Opgaver vises her, når de har start- og slutdato.",
         "ungroupedLabel": "Opgaver"
+      },
+      "documentCanvas": {
+        "description": "Et dokumentlærred i papirstil — faktura, rapport eller e-mail — hvis blokke kan vælges, omarrangeres og fjernes.",
+        "emptyTitle": "Intet i dette dokument",
+        "emptyBody": "Tilføj en blok fra paletten for at begynde at bygge dokumentet.",
+        "addBlockLabel": "Tilføj blok",
+        "removeBlockLabel": "Fjern blok",
+        "moveUpLabel": "Flyt blok op",
+        "moveDownLabel": "Flyt blok ned",
+        "blockListLabel": "Dokumentblokke",
+        "billedToLabel": "Faktureret til",
+        "issuedLabel": "Udstedt",
+        "dueLabel": "Forfalder"
+      },
+      "blockTotalsSummary": {
+        "description": "Dokumentets totaler — subtotal, rabat, moms og det samlede skyldige beløb, genberegnet ud fra linjerne.",
+        "emptyTitle": "Ingen totaler endnu",
+        "emptyBody": "Totaler vises, når dokumentet har linjer.",
+        "subtotalLabel": "Subtotal",
+        "discountLabel": "Rabat",
+        "taxLabel": "Moms",
+        "totalLabel": "I alt at betale"
+      },
+      "blockLineItems": {
+        "description": "Redigerbare linjer med beskrivelse, antal og sats, der indgår i dokumentets totaler.",
+        "emptyTitle": "Ingen linjer",
+        "emptyBody": "Tilføj en linje for at fakturere arbejde på dette dokument.",
+        "descHeader": "Beskrivelse",
+        "qtyHeader": "Antal",
+        "rateHeader": "Sats",
+        "amountHeader": "Beløb"
+      },
+      "blockKpiRow": {
+        "description": "En række nøgletalsfliser, hvor ændringen farves efter fortegn.",
+        "emptyTitle": "Ingen nøgletal",
+        "emptyBody": "Nøgletal vises her, når rapporten har tal at vise."
+      },
+      "blockBarChart": {
+        "description": "Et mini-søjlediagram i dokumentets farve, tilpasset en dokumentblok.",
+        "emptyTitle": "Ingen data til diagrammet",
+        "emptyBody": "Søjlerne vises, når rapporten har en dataserie."
+      },
+      "blockLineChart": {
+        "description": "Et mini-kurvediagram med valgfrit udfyldt areal, tilpasset en dokumentblok.",
+        "emptyTitle": "Ingen data til diagrammet",
+        "emptyBody": "Kurven vises, når rapporten har en dataserie."
+      },
+      "blockTwoColTable": {
+        "description": "En tokolonnetabel med en formateret overskriftsrække og en værdikolonne med fast bredde.",
+        "emptyTitle": "Ingen rækker",
+        "emptyBody": "Rækker vises her, når rapporten har værdier at vise."
+      },
+      "blockTaxBreakdown": {
+        "description": "Momslinjer med tekst, sats og beløb, anvendt på dokumentets subtotal.",
+        "emptyTitle": "Ingen momslinjer",
+        "emptyBody": "Momslinjer vises, når dokumentet har satser at anvende."
+      },
+      "blockMultiCurrency": {
+        "description": "Dokumentets total omregnet pr. valuta til de angivne kurser.",
+        "emptyTitle": "Ingen omregninger",
+        "emptyBody": "Omregninger vises, når dokumentet angiver valutakurser.",
+        "footnote": "Kurserne er vejledende og kan afvige ved afregning."
+      },
+      "blockPaymentHistory": {
+        "description": "Tidligere betalinger med dato, maskeret betalingsmetode, beløb og statusmærkat.",
+        "emptyTitle": "Ingen betalinger endnu",
+        "emptyBody": "Betalinger på dette dokument vises her."
+      },
+      "blockDiscountCodes": {
+        "description": "Anvendte rabatkoder med tekst og krediteret beløb.",
+        "emptyTitle": "Ingen rabatter anvendt",
+        "emptyBody": "Rabatkoder anvendt på dette dokument vises her."
+      },
+      "blockLoyaltyBanner": {
+        "description": "Et loyalitetsbanner med pointsaldo, niveau og point optjent på denne ordre.",
+        "emptyTitle": "Ingen pointsaldo",
+        "emptyBody": "Loyalitetsbanneret vises, når kunden har en pointsaldo.",
+        "balanceLabel": "{balance} point · {tier}",
+        "earnedLabel": "+{earned} optjent på denne ordre"
+      },
+      "blockRecurringBanner": {
+        "description": "Et banner med faktureringsfrekvensen, næste opkrævningsdato og de resterende cyklusser.",
+        "emptyTitle": "Ikke tilbagevendende",
+        "emptyBody": "Dette banner vises, når dokumentet faktureres efter en fast plan.",
+        "template": "Tilbagevendende — {freq} · Næste den {next} · {count} cyklusser"
+      },
+      "blockQrPay": {
+        "description": "En scan-og-betal-flise med billedtekst og skyldigt beløb.",
+        "emptyTitle": "Intet at betale",
+        "emptyBody": "Betalingskoden vises, når dokumentet har et skyldigt beløb.",
+        "amountLabel": "Skyldigt beløb"
+      },
+      "blockDeliveryStepper": {
+        "description": "Vandrette leveringstrin markeret som fuldført, aktuelt eller kommende.",
+        "emptyTitle": "Ingen leveringstrin",
+        "emptyBody": "Trin vises, når ordren har en leveringsrute."
+      },
+      "blockSignature": {
+        "description": "Underskriftslinjer til navn og titel, med underskriftsdato.",
+        "emptyTitle": "Ingen underskrift",
+        "emptyBody": "Underskriftslinjerne vises, når dokumentet angiver en underskriver.",
+        "namePlaceholder": "Fulde navn",
+        "titlePlaceholder": "Titel",
+        "dateLabel": "Dato"
+      },
+      "blockTermsCheckbox": {
+        "description": "En vilkårsafkrydsning med redigerbar tekst.",
+        "defaultLabel": "Jeg accepterer vilkår og betingelser"
+      },
+      "blockApproval": {
+        "description": "Et godkenderkort med statusfarvet mærkat og valgfrie handlinger til at godkende eller afvise.",
+        "emptyTitle": "Ingen godkender",
+        "emptyBody": "Godkendelseskortet vises, når dokumentet angiver en godkender.",
+        "approveLabel": "Godkend",
+        "rejectLabel": "Afvis",
+        "pendingLabel": "Afventer",
+        "approvedLabel": "Godkendt",
+        "rejectedLabel": "Afvist"
+      },
+      "blockAttachments": {
+        "description": "Vedhæftede filer med navn og størrelse.",
+        "emptyTitle": "Ingen vedhæftede filer",
+        "emptyBody": "Filer vedhæftet dette dokument vises her."
+      },
+      "blockLateFees": {
+        "description": "En advarselsboks med rykkergebyret og fristen.",
+        "emptyTitle": "Intet rykkergebyr",
+        "emptyBody": "Denne boks vises, når dokumentet fastsætter et rykkergebyr.",
+        "template": "Et rykkergebyr på {rate} pålægges efter {days} dage."
+      },
+      "blockImagePlaceholder": {
+        "description": "En stiplet pladsholderboks i stedet for et billede, med billedtekst.",
+        "emptyTitle": "Intet billede",
+        "emptyBody": "Pladsholderen vises, når blokken har en billedtekst."
+      },
+      "blockContact": {
+        "description": "Kontaktlinjer med navn, e-mailadresse og telefonnummer.",
+        "emptyTitle": "Ingen kontakt",
+        "emptyBody": "Kontaktoplysninger vises, når dokumentet angiver en kontakt."
+      },
+      "blockHighlightBox": {
+        "description": "En fremhævningsboks, der parrer en tekst med en stor værdi med fast bredde.",
+        "emptyTitle": "Intet at fremhæve",
+        "emptyBody": "Boksen vises, når blokken har en værdi at vise."
       }
     },
     "media": {
@@ -358,6 +668,90 @@ export default {
         "description": "Et kortgitter med enkeltvalg til kilder, skabeloner og abonnementer.",
         "a11yLabel": "Vælg en mulighed"
       },
+      "ruleBuilder": {
+        "description": "En betingelsesbygger, hvis regler bliver til et filter — segmenteditoren.",
+        "add": "Tilføj betingelse",
+        "remove": "Fjern betingelse",
+        "all": "ALLE",
+        "any": "MINDST ÉN",
+        "field": "Felt",
+        "operator": "Operator",
+        "value": "Værdi",
+        "valuePlaceholder": "Værdi…",
+        "emptyBody": "Ingen betingelser endnu — tilføj en for at definere dette segment."
+      },
+      "flowBuilder": {
+        "description": "Et lodret workflow-lærred af trigger-, betingelses- og handlingstrin.",
+        "add": "Tilføj trin",
+        "remove": "Fjern trin",
+        "paletteTitle": "Tilføj et trin",
+        "stats": "{runs} kørsler · {rate} % succes",
+        "emptyBody": "Ingen trin endnu — tilføj en trigger for at starte dette workflow."
+      },
+      "connectionStringField": {
+        "description": "Et forbindelsesstreng-felt, der genkender databasemotoren, mens du skriver.",
+        "label": "Forbindelsesstreng",
+        "helper": "postgres://bruger:adgangskode@vært:5432/database — mysql:// og sqlite: virker også.",
+        "quickFill": "Hurtig udfyldning:",
+        "host": "Vært: {host}",
+        "invalidScheme": "Ukendt skema i forbindelsesstrengen.",
+        "incomplete": "Tilføj vært og database til forbindelsesstrengen."
+      },
+      "tableInclusionChecklist": {
+        "description": "Tabellerne der skal medtages, med rækketal og advarsler om personoplysninger.",
+        "pii": "Personoplysninger",
+        "highVolume": "stor mængde",
+        "a11yLabel": "Tabeller der medtages",
+        "emptyTitle": "Ingen tabeller fundet",
+        "emptyBody": "Forbind en database, så vises dens tabeller her."
+      },
+      "columnMappingTable": {
+        "description": "Knytter kolonnerne i en uploadet fil til felterne i en tabel.",
+        "skip": "Importér ikke",
+        "sourceHeader": "Kildekolonne",
+        "sampleHeader": "Eksempel",
+        "targetHeader": "Målfelt",
+        "emptyTitle": "Ingen kolonner at knytte",
+        "emptyBody": "Upload en fil, så vises dens kolonner her."
+      },
+      "validationIssuesList": {
+        "description": "Import- og valideringsproblemer, de alvorligste først, med antal berørte rækker.",
+        "emptyTitle": "Ingen problemer fundet",
+        "emptyBody": "Alt ser godt ud — du kan importere."
+      },
+      "exportBuilder": {
+        "description": "Opbygger en dataeksport: format, datointerval og indhold.",
+        "format": "Format",
+        "from": "Fra",
+        "to": "Til",
+        "groupBy": "Gruppér efter",
+        "includeCharts": "Medtag diagrammer",
+        "email": "Send eksporten til mig på e-mail",
+        "submit": "Eksportér",
+        "running": "Forbereder din eksport…",
+        "done": "Eksporten er klar",
+        "failed": "Eksporten mislykkedes. Prøv igen.",
+        "download": "Download"
+      },
+      "questionBuilder": {
+        "description": "En spørgeskemaeditor: tilføj spørgsmålstyper og ombyt rækkefølgen.",
+        "paletteTitle": "Tilføj et spørgsmål",
+        "add": "Tilføj spørgsmål",
+        "remove": "Fjern spørgsmål",
+        "moveUp": "Flyt op",
+        "moveDown": "Flyt ned",
+        "required": "Påkrævet",
+        "questionPlaceholder": "Stil et spørgsmål…",
+        "emptyTitle": "Ingen spørgsmål endnu",
+        "emptyBody": "Vælg en spørgsmålstype for at begynde på dit spørgeskema."
+      },
+      "inlineEditableField": {
+        "description": "En værdi, der redigeres med et klik inde i et dokument eller lærred.",
+        "edit": "Rediger",
+        "save": "Gem",
+        "cancel": "Annullér",
+        "empty": "Tom"
+      },
       "passwordStrengthMeter": {
         "description": "En firedelt måler for adgangskodens styrke.",
         "label": "Adgangskodens styrke",
@@ -365,11 +759,6 @@ export default {
         "fair": "Middel",
         "good": "God",
         "strong": "Stærk"
-      },
-      "validationIssuesList": {
-        "description": "Import- og valideringsproblemer, de alvorligste først, med antal berørte rækker.",
-        "emptyTitle": "Ingen problemer fundet",
-        "emptyBody": "Alt ser godt ud — du kan importere."
       }
     },
     "chrome": {

@@ -77,6 +77,18 @@ function pickRowArray(data: unknown): unknown[] {
 }
 
 /**
+ * Read the single row out of a §3 `record` envelope (`{ row: {...} }`), or
+ * `null`. A bare object is accepted so template/story composition can hand a row
+ * directly — the same latitude `formValuesOf` gives `form-state`.
+ */
+export function recordRowOf(data: unknown): Rec | null {
+  const envelope = rec(data);
+  if (envelope === null) return null;
+  if ('row' in envelope) return rec(envelope['row']);
+  return envelope;
+}
+
+/**
  * Read the `entries` map out of a §3 `boolean-map` envelope. Non-boolean values
  * are dropped: a `boolean-map` whose values are strings is a server bug, and
  * silently coercing `"false"` to `true` would flip a user's setting.

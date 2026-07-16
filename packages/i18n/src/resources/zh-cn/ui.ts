@@ -62,6 +62,45 @@ export default {
     "dismiss": "关闭通知"
   },
   "widgets": {
+    "kpi": {
+      "statCard": {
+        "description": "常用指标卡：一个主要聚合值，可选趋势徽标和迷你迷你图。"
+      },
+      "usageMeter": {
+        "description": "配额用量与上限的对比；超过所设阈值后，进度条会依次变为橙色和红色。"
+      },
+      "statTileCompact": {
+        "description": "纤薄的指标磁贴，含微型标签、趋势标记和 6 条迷你图——适合 4 至 6 个一行的密集布局。"
+      },
+      "metricHero": {
+        "description": "一个超大指标，加载时数字递增，附带趋势徽标、迷你图和目标进度。",
+        "goalLabel": "目标"
+      },
+      "statPairCard": {
+        "description": "两个指标并排显示；第二个可由第一个推导得出。"
+      },
+      "gaugeRing": {
+        "description": "用于分数或百分比的环形仪表，按数值所处区间着色。"
+      },
+      "gaugeArc": {
+        "description": "带定性区间和指针的速度表弧线；也可呈现仪表网格。"
+      },
+      "periodComparison": {
+        "description": "本期与上期以两条进度条对比，下方给出计算出的差值。",
+        "higherLabel": "更高",
+        "lowerLabel": "更低",
+        "flatLabel": "持平"
+      },
+      "microKpiSubtitle": {
+        "description": "由模板生成的单行页眉统计，随实时状态重新计算。"
+      },
+      "autoInsights": {
+        "description": "按重要性排序的洞察条目——主要数字、说明句和迷你图——并可刷新轮换。",
+        "emptyTitle": "暂无洞察",
+        "emptyBody": "数据足以呈现规律后，洞察就会显示在这里。",
+        "refreshLabel": "刷新"
+      }
+    },
     "charts": {
       "boxplot": {
         "description": "按类别汇总数值列分布的箱线图——最小值、四分位数、中位数和最大值。",
@@ -123,6 +162,19 @@ export default {
       "unreadBadge": {
         "description": "显示未读条目的计数标记，与信息流状态同步。",
         "unitLabel": "未读"
+      },
+      "loadOlderPaginator": {
+        "description": "页脚按钮，分批加载更早的记录，直至动态流加载完毕。",
+        "label": "加载更早",
+        "loadingLabel": "加载中…",
+        "exhaustedLabel": "没有更早的了",
+        "ofLabel": "/"
+      },
+      "toastStack": {
+        "description": "浮层提示宿主：简短的操作确认，可附带撤销。",
+        "undoLabel": "撤销",
+        "dismissLabel": "关闭",
+        "regionLabel": "通知"
       }
     },
     "calendar": {
@@ -145,6 +197,39 @@ export default {
         "description": "按成员显示利用率条，含项目细分和负载状态。",
         "emptyTitle": "暂无工作量数据",
         "emptyBody": "有分配后，成员的利用率将显示在此处。"
+      },
+      "calendarLegendFilter": {
+        "description": "带计数的事件类别；切换即可筛选旁边的日历。",
+        "emptyTitle": "暂无类别",
+        "emptyBody": "有事件后，事件类别将显示在这里。",
+        "uncategorizedLabel": "未分类"
+      },
+      "upcomingEventsList": {
+        "description": "按日期排列的近期事件，含负责人和状态。",
+        "emptyTitle": "暂无即将开始的事件",
+        "emptyBody": "计划中的事件将陆续显示在这里。"
+      },
+      "dateRangePicker": {
+        "description": "带快捷选项的日期范围，可筛选页面其余内容。",
+        "previousLabel": "上个月",
+        "nextLabel": "下个月",
+        "summaryLabel": "已选择 {n} 天",
+        "presets": {
+          "7d": "最近 7 天",
+          "30d": "最近 30 天",
+          "90d": "最近 90 天",
+          "mtd": "本月至今",
+          "qtd": "本季度至今",
+          "ytd": "今年至今"
+        }
+      },
+      "scheduledJobsList": {
+        "description": "周期性报表和导出任务，含频率、下次运行时间和开关。",
+        "emptyTitle": "暂无计划任务",
+        "emptyBody": "计划周期性报表或导出后，将显示在这里。",
+        "nextRunLabel": "下次运行",
+        "toggleLabel": "启用计划",
+        "recipientsLabel": "接收人"
       }
     },
     "tables": {
@@ -177,6 +262,38 @@ export default {
         "description": "用于角色、策略或渠道的布尔开关交互网格。",
         "emptyTitle": "尚未配置矩阵",
         "emptyBody": "配置后行和列将显示在这里。"
+      },
+      "sparklineTable": {
+        "description": "指标行，包含迷你走势图、当前值和可区分好坏方向的变化标签。",
+        "emptyTitle": "暂无指标",
+        "emptyBody": "有数据可汇总后，指标将显示在这里。"
+      },
+      "topMoversList": {
+        "description": "变化最大的指标，并按每项指标判断方向是好还是坏。",
+        "emptyTitle": "暂无变化",
+        "emptyBody": "变化最大的指标将显示在这里。"
+      },
+      "rankedEntityList": {
+        "description": "按指标排名的实体，附排名序号和等比条形。",
+        "emptyTitle": "暂无排名",
+        "emptyBody": "有数据可排序后，排名靠前的实体将显示在这里。"
+      },
+      "accordionList": {
+        "description": "可展开的行，带徽标和详情面板，支持单开或多开。",
+        "emptyTitle": "暂无可展开内容",
+        "emptyBody": "有条目后将显示在这里。"
+      },
+      "comparisonMatrix": {
+        "description": "对比套餐的功能网格，其中一列会突出显示。",
+        "includedLabel": "包含",
+        "notIncludedLabel": "不包含",
+        "promotedLabel": "推荐"
+      },
+      "chipCloud": {
+        "description": "自动换行的标签，用于展示发现的数据表、合并变量或建议。",
+        "emptyTitle": "尚未发现内容",
+        "emptyBody": "发现数据表和变量后，将以标签形式显示在这里。",
+        "moreLabel": "还有 {n} 个"
       }
     },
     "boards": {
@@ -200,6 +317,18 @@ export default {
         "moved": "已将 {title} 移动到 {cell}。",
         "returned": "{title} 已返回原位。",
         "failed": "无法移动 {title}；已返回原位。"
+      },
+      "boardCard": {
+        "description": "单张看板卡片：标签、标题、进度、负责人和截止日期。",
+        "emptyTitle": "暂无卡片",
+        "emptyBody": "此卡片尚未绑定任何记录。"
+      },
+      "inlineComposeCard": {
+        "description": "快速添加，使用该列的默认值创建新记录。",
+        "placeholder": "卡片标题…",
+        "addLabel": "添加",
+        "cancelLabel": "取消",
+        "openLabel": "添加卡片"
       }
     },
     "communication": {
@@ -230,6 +359,43 @@ export default {
         "configureTitle": "尚未配置 AI 提供方",
         "configureBody": "添加 Anthropic 或 OpenAI 密钥，或将 Adminium 指向你自己的接口地址，即可询问数据库结构。",
         "configureCtaLabel": "配置提供方"
+      },
+      "typingIndicator": {
+        "description": "头像加斜体“正在输入…”行，绑定到每个会话的实时布尔值。",
+        "label": "正在输入…",
+        "emptyTitle": "暂无输入动态",
+        "emptyBody": "会话开始后，输入状态会显示在这里。"
+      },
+      "callWidget": {
+        "description": "来电（语音或视频）：来电者头像、通话状态，以及接听或拒接操作。",
+        "voiceLabel": "语音通话",
+        "videoLabel": "视频通话",
+        "ringingLabel": "正在响铃…",
+        "connectingLabel": "正在连接…",
+        "activeLabel": "通话中",
+        "endedLabel": "通话已结束",
+        "acceptLabel": "接听",
+        "declineLabel": "拒接",
+        "endLabel": "结束通话",
+        "emptyTitle": "没有进行中的通话",
+        "emptyBody": "来电会显示在这里。"
+      }
+    },
+    "geo": {
+      "mapBubble": {
+        "description": "地图上的圆形标记按所选指标缩放，并附带排名靠前地点的列表。",
+        "emptyTitle": "没有位置",
+        "emptyBody": "包含纬度和经度的行会在这里显示为地图标记。",
+        "mapUnavailableLabel": "地图无法加载。排名列表显示的是相同数据。",
+        "regionsLabel": "热门区域",
+        "metricLabel": "指标"
+      },
+      "mapChoroplethGrid": {
+        "description": "按数值着色的区域方块——适用于只有区域代码、没有坐标的表。",
+        "emptyTitle": "没有区域",
+        "emptyBody": "包含区域代码和数值的行会在这里显示为着色方块。",
+        "legendLowLabel": "低",
+        "legendHighLabel": "高"
       }
     },
     "domain": {
@@ -245,6 +411,150 @@ export default {
         "emptyTitle": "暂无排期",
         "emptyBody": "任务设置开始和结束日期后将显示在此处。",
         "ungroupedLabel": "任务"
+      },
+      "documentCanvas": {
+        "description": "纸张风格的文档画布（发票、报告或邮件），其中的区块可选中、重新排序和删除。",
+        "emptyTitle": "此文档为空",
+        "emptyBody": "从面板中添加区块，开始编排文档。",
+        "addBlockLabel": "添加区块",
+        "removeBlockLabel": "删除区块",
+        "moveUpLabel": "上移区块",
+        "moveDownLabel": "下移区块",
+        "blockListLabel": "文档区块",
+        "billedToLabel": "开票给",
+        "issuedLabel": "开具日期",
+        "dueLabel": "到期日"
+      },
+      "blockTotalsSummary": {
+        "description": "文档合计：小计、折扣、税费和应付总额，均根据明细行重新计算。",
+        "emptyTitle": "暂无合计",
+        "emptyBody": "文档包含明细行后，合计将显示在此处。",
+        "subtotalLabel": "小计",
+        "discountLabel": "折扣",
+        "taxLabel": "税费",
+        "totalLabel": "应付总额"
+      },
+      "blockLineItems": {
+        "description": "可编辑的说明、数量和单价行，用于计算文档合计。",
+        "emptyTitle": "暂无明细行",
+        "emptyBody": "添加明细行即可对此文档的工作计费。",
+        "descHeader": "说明",
+        "qtyHeader": "数量",
+        "rateHeader": "单价",
+        "amountHeader": "金额"
+      },
+      "blockKpiRow": {
+        "description": "一行指标磁贴，变化值按正负着色。",
+        "emptyTitle": "暂无指标",
+        "emptyBody": "报告包含数据后，指标将显示在此处。"
+      },
+      "blockBarChart": {
+        "description": "采用文档强调色的迷你柱状图，尺寸适配文档区块。",
+        "emptyTitle": "暂无绘图数据",
+        "emptyBody": "报告包含数据系列后，柱形将显示在此处。"
+      },
+      "blockLineChart": {
+        "description": "迷你折线图，可选填充区域，尺寸适配文档区块。",
+        "emptyTitle": "暂无绘图数据",
+        "emptyBody": "报告包含数据系列后，折线将显示在此处。"
+      },
+      "blockTwoColTable": {
+        "description": "两列表格，首行为样式化表头，右列使用等宽字体。",
+        "emptyTitle": "暂无行",
+        "emptyBody": "报告包含数值后，行将显示在此处。"
+      },
+      "blockTaxBreakdown": {
+        "description": "含名称、税率和金额的税费行，按文档小计计算。",
+        "emptyTitle": "暂无税费行",
+        "emptyBody": "文档设置税率后，税费行将显示在此处。"
+      },
+      "blockMultiCurrency": {
+        "description": "按给定汇率将文档总额换算为各币种金额。",
+        "emptyTitle": "暂无换算",
+        "emptyBody": "文档列出汇率后，换算结果将显示在此处。",
+        "footnote": "汇率仅供参考，实际结算时可能有所不同。"
+      },
+      "blockPaymentHistory": {
+        "description": "历史付款记录，含日期、脱敏付款方式、金额和状态标签。",
+        "emptyTitle": "暂无付款记录",
+        "emptyBody": "针对此文档的付款将显示在此处。"
+      },
+      "blockDiscountCodes": {
+        "description": "已使用的折扣码，含名称和抵扣金额。",
+        "emptyTitle": "未使用折扣",
+        "emptyBody": "应用于此文档的折扣码将显示在此处。"
+      },
+      "blockLoyaltyBanner": {
+        "description": "会员横幅，显示积分余额、等级以及本次订单获得的积分。",
+        "emptyTitle": "暂无积分余额",
+        "emptyBody": "客户拥有积分余额后，会员横幅将显示在此处。",
+        "balanceLabel": "{balance} 积分 · {tier}",
+        "earnedLabel": "本次订单获得 +{earned}"
+      },
+      "blockRecurringBanner": {
+        "description": "横幅，显示计费周期、下次扣款日期和剩余期数。",
+        "emptyTitle": "非周期性",
+        "emptyBody": "文档采用周期性计费后，此横幅将显示在此处。",
+        "template": "周期性 — {freq} · 下次 {next} · 共 {count} 期"
+      },
+      "blockQrPay": {
+        "description": "扫码支付磁贴，含说明文字和应付金额。",
+        "emptyTitle": "无需付款",
+        "emptyBody": "文档有应付金额后，支付码将显示在此处。",
+        "amountLabel": "应付金额"
+      },
+      "blockDeliveryStepper": {
+        "description": "横向配送步骤，标记为已完成、进行中或待处理。",
+        "emptyTitle": "暂无配送步骤",
+        "emptyBody": "订单有配送路径后，步骤将显示在此处。"
+      },
+      "blockSignature": {
+        "description": "姓名和职务的签名栏，含签署日期。",
+        "emptyTitle": "暂无签名",
+        "emptyBody": "文档指定签署人后，签名栏将显示在此处。",
+        "namePlaceholder": "姓名",
+        "titlePlaceholder": "职务",
+        "dateLabel": "日期"
+      },
+      "blockTermsCheckbox": {
+        "description": "条款勾选框，标签可编辑。",
+        "defaultLabel": "我接受条款和条件"
+      },
+      "blockApproval": {
+        "description": "审批人卡片，含按状态着色的标签，以及可选的批准或驳回操作。",
+        "emptyTitle": "暂无审批人",
+        "emptyBody": "文档指定审批人后，审批卡片将显示在此处。",
+        "approveLabel": "批准",
+        "rejectLabel": "驳回",
+        "pendingLabel": "待处理",
+        "approvedLabel": "已批准",
+        "rejectedLabel": "已驳回"
+      },
+      "blockAttachments": {
+        "description": "附件文件，含文件名和大小。",
+        "emptyTitle": "暂无附件",
+        "emptyBody": "此文档的附件将显示在此处。"
+      },
+      "blockLateFees": {
+        "description": "警告提示框，说明滞纳金和宽限期。",
+        "emptyTitle": "无滞纳金",
+        "emptyBody": "文档设置滞纳金规则后，此提示框将显示在此处。",
+        "template": "逾期 {days} 天后将收取 {rate} 的滞纳金。"
+      },
+      "blockImagePlaceholder": {
+        "description": "虚线占位框，用于替代图片，并附说明文字。",
+        "emptyTitle": "暂无图片",
+        "emptyBody": "区块设置说明文字后，占位框将显示在此处。"
+      },
+      "blockContact": {
+        "description": "联系人行，含姓名、电子邮箱和电话号码。",
+        "emptyTitle": "暂无联系人",
+        "emptyBody": "文档指定联系人后，联系方式将显示在此处。"
+      },
+      "blockHighlightBox": {
+        "description": "提示框，将标签与等宽大号数值配对显示。",
+        "emptyTitle": "暂无重点内容",
+        "emptyBody": "区块有数值后，提示框将显示在此处。"
       }
     },
     "media": {
@@ -358,6 +668,90 @@ export default {
         "description": "用于数据源、模板和套餐的单选卡片网格。",
         "a11yLabel": "选择一项"
       },
+      "ruleBuilder": {
+        "description": "条件构建器，其规则将编译为过滤条件——即分群编辑器。",
+        "add": "添加条件",
+        "remove": "移除条件",
+        "all": "全部满足",
+        "any": "任一满足",
+        "field": "字段",
+        "operator": "运算符",
+        "value": "值",
+        "valuePlaceholder": "值…",
+        "emptyBody": "尚无条件——添加一个来定义此分群。"
+      },
+      "flowBuilder": {
+        "description": "由触发器、条件和动作步骤组成的纵向工作流画布。",
+        "add": "添加步骤",
+        "remove": "移除步骤",
+        "paletteTitle": "添加步骤",
+        "stats": "{runs} 次运行 · {rate}% 成功率",
+        "emptyBody": "尚无步骤——添加触发器以启动此工作流。"
+      },
+      "connectionStringField": {
+        "description": "连接字符串输入框，输入时自动识别数据库引擎。",
+        "label": "连接字符串",
+        "helper": "postgres://user:password@host:5432/database——mysql:// 和 sqlite: 同样支持。",
+        "quickFill": "快速填充：",
+        "host": "主机：{host}",
+        "invalidScheme": "无法识别的连接字符串协议。",
+        "incomplete": "请在连接字符串中补充主机和数据库。"
+      },
+      "tableInclusionChecklist": {
+        "description": "要纳入的数据表，附行数与个人信息提示。",
+        "pii": "个人信息",
+        "highVolume": "数据量大",
+        "a11yLabel": "要纳入的数据表",
+        "emptyTitle": "未找到数据表",
+        "emptyBody": "连接数据库后，其数据表将显示在此处。"
+      },
+      "columnMappingTable": {
+        "description": "将上传文件的列映射到数据表的字段。",
+        "skip": "不导入",
+        "sourceHeader": "源列",
+        "sampleHeader": "示例",
+        "targetHeader": "目标字段",
+        "emptyTitle": "没有可映射的列",
+        "emptyBody": "上传文件后，其列将显示在此处。"
+      },
+      "validationIssuesList": {
+        "description": "导入与校验问题，按严重程度排序，并显示受影响的行数。",
+        "emptyTitle": "未发现问题",
+        "emptyBody": "一切正常——可以开始导入。"
+      },
+      "exportBuilder": {
+        "description": "配置数据导出：格式、日期范围与包含内容。",
+        "format": "格式",
+        "from": "起始",
+        "to": "截止",
+        "groupBy": "分组依据",
+        "includeCharts": "包含图表",
+        "email": "将导出结果发送到我的邮箱",
+        "submit": "导出",
+        "running": "正在准备导出…",
+        "done": "导出已就绪",
+        "failed": "导出失败，请重试。",
+        "download": "下载"
+      },
+      "questionBuilder": {
+        "description": "问卷编辑器：添加题型并调整题目顺序。",
+        "paletteTitle": "添加题目",
+        "add": "添加题目",
+        "remove": "移除题目",
+        "moveUp": "上移",
+        "moveDown": "下移",
+        "required": "必填",
+        "questionPlaceholder": "输入题目…",
+        "emptyTitle": "尚无题目",
+        "emptyBody": "选择一种题型，开始搭建您的问卷。"
+      },
+      "inlineEditableField": {
+        "description": "文档或画布中可点击编辑的值。",
+        "edit": "编辑",
+        "save": "保存",
+        "cancel": "取消",
+        "empty": "空"
+      },
       "passwordStrengthMeter": {
         "description": "显示密码强度的四段式指示器。",
         "label": "密码强度",
@@ -365,11 +759,6 @@ export default {
         "fair": "一般",
         "good": "良好",
         "strong": "强"
-      },
-      "validationIssuesList": {
-        "description": "导入与校验问题，按严重程度排序，并显示受影响的行数。",
-        "emptyTitle": "未发现问题",
-        "emptyBody": "一切正常——可以开始导入。"
       }
     },
     "chrome": {

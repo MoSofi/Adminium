@@ -3,6 +3,7 @@ import { Paperclip, Send } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 
+import { TypingIndicator } from './TypingIndicator.js';
 import {
   chatRowsOf,
   fmtClock,
@@ -155,12 +156,15 @@ export function ChatThread({
               ))}
             </div>
           ))}
-          {typingIndicator && (
-            <div data-part="typing-indicator" className="flex items-center gap-2 py-1.5">
-              {peerName !== undefined && <Avatar name={peerName} size="sm" locale={locale} />}
-              <span className="text-caption italic text-fg-subtle">{typingLabel ?? 'typing…'}</span>
-            </div>
-          )}
+          {/* annex §9 places `typing-indicator` as a "child of thread", so the
+              embedded row IS that widget's component — one implementation, and
+              both already live in this family's single lazy chunk. */}
+          <TypingIndicator
+            typing={typingIndicator}
+            typists={peerName === undefined ? [] : [peerName]}
+            locale={locale}
+            {...(typingLabel === undefined ? {} : { label: typingLabel })}
+          />
         </div>
       )}
 

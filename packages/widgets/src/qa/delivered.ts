@@ -25,21 +25,24 @@ import { boardsTrackDefinitions } from '../families/boards/boards-track.definiti
 import { calendarTrackDefinitions } from '../families/calendar/calendar-track.definitions.js';
 import { chromeTrackDefinitions } from '../families/chrome/chrome-track.definitions.js';
 import { communicationTrackDefinitions } from '../families/communication/communication-track.definitions.js';
+import { blocksTrackDefinitions } from '../families/domain/blocks-track.definitions.js';
 import { domainTrackDefinitions } from '../families/domain/domain-track.definitions.js';
 import { feedsTrackFDefinitions } from '../families/feeds/feeds-track-f.definitions.js';
 import { formsTrackDefinitions } from '../families/forms/forms-track.definitions.js';
+import { geoTrackDefinitions } from '../families/geo/geo-track.definitions.js';
 import { kpiWidgetDefinitions } from '../families/kpi/definitions.js';
 import { mediaTrackDefinitions } from '../families/media/media-track.definitions.js';
 import { systemTrackDefinitions } from '../families/system/system-track.definitions.js';
 import { tablesWidgetDefinitions } from '../families/tables/definitions.js';
 import { tablesTrackFDefinitions } from '../families/tables/tables-track-f.definitions.js';
+import { tablesTailDefinitions } from '../families/tables/tables-tail.definitions.js';
 import { buildRegistry } from '../registry/index.js';
 import { widgetMissingDefinition } from '../registry/widget-missing.js';
 import type { WidgetDefinition, WidgetFamily } from '../registry/types.js';
 
 /** Every per-track definition array delivered so far, in family order. */
 const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
-  // kpi (M4 slice)
+  // kpi (M4 slice + the M7 Wave-4 tail — annex §1 complete, 10/10)
   kpiWidgetDefinitions,
   // charts (M4 slice + 04-T09 waves)
   chartsWidgetDefinitions,
@@ -48,21 +51,33 @@ const DELIVERED_ARRAYS: readonly (readonly WidgetDefinition[])[] = [
   partWholeChartDefinitions,
   matrixGeoChartDefinitions,
   timeFlowChartDefinitions,
-  // tables (M4 slice + Track F)
+  // tables (M4 slice + Track F + the M7 Wave-4 TAIL that completes annex §3)
   tablesWidgetDefinitions,
   tablesTrackFDefinitions,
-  // feeds (Track F)
+  tablesTailDefinitions,
+  // feeds (Track F + the M7 Wave-4 tail — annex §4 complete, 7/7)
   feedsTrackFDefinitions,
-  // calendar (Track CAL — M7 Wave 2)
+  // calendar (Track CAL — M7 Wave 2 + the Wave-4 tail: legend filter, upcoming
+  // feed, date-range-picker control, scheduled-jobs list)
   calendarTrackDefinitions,
-  // boards (Track BOARDS — M7 Wave 2)
+  // boards (Track BOARDS — M7 Wave 2 + the Wave-4 tail: board-card and
+  // inline-compose-card)
   boardsTrackDefinitions,
+  // geo (TRACK COMM-GEO — M7 Wave 4; the last family to open. Importing this
+  // array does NOT pull Leaflet: it is metadata only, and the map component
+  // dynamically imports Leaflet inside its mount effect — acceptance #3.)
+  geoTrackDefinitions,
   // media (Track MEDIA — M7 Wave 3; the file-browser exit criterion)
   mediaTrackDefinitions,
-  // communication (Track COMM — M7 Wave 3)
+  // communication (Track COMM — M7 Wave 3 + the Wave-4 typing/call tail)
   communicationTrackDefinitions,
   // domain (Track DOMAIN — M7 Wave 3; the two exit-criteria widgets)
   domainTrackDefinitions,
+  // domain (TRACK BUILDER — M7 Wave 4; the §13 DOCUMENT half: `document-canvas`
+  // and its 22-block shared library. Metadata only: the blocks load through
+  // `blocks-track-components.js` behind a dynamic import, so importing this
+  // array costs no component code — acceptance #3.)
+  blocksTrackDefinitions,
   // system (Track FCS — M7 Wave 3; annex §12)
   systemTrackDefinitions,
   // chrome (Track FCS — M7 Wave 3; annex §11)

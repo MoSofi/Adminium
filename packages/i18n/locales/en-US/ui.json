@@ -54,6 +54,45 @@
     "dismiss": "Dismiss notification"
   },
   "widgets": {
+    "kpi": {
+      "statCard": {
+        "description": "The workhorse metric card: a headline aggregate with an optional trend pill and mini sparkline."
+      },
+      "usageMeter": {
+        "description": "Quota consumption against a limit; the bar turns amber, then red, past your thresholds."
+      },
+      "statTileCompact": {
+        "description": "A slim metric tile with a micro-label, trend chip, and 6-bar spark — for dense rows of 4 to 6."
+      },
+      "metricHero": {
+        "description": "One oversized metric that counts up on load, with a trend pill, spark, and goal progress.",
+        "goalLabel": "Goal"
+      },
+      "statPairCard": {
+        "description": "Two metrics side by side; the second can be derived from the first."
+      },
+      "gaugeRing": {
+        "description": "A ring gauge for a score or percentage, tinted by the band the value falls in."
+      },
+      "gaugeArc": {
+        "description": "A speedometer arc with qualitative bands and a needle; also renders a grid of gauges."
+      },
+      "periodComparison": {
+        "description": "This period against last as two bars, with the difference computed underneath.",
+        "higherLabel": "higher",
+        "lowerLabel": "lower",
+        "flatLabel": "flat"
+      },
+      "microKpiSubtitle": {
+        "description": "A one-line header stat built from a template, recomputed from live state."
+      },
+      "autoInsights": {
+        "description": "Ranked insight bullets — a headline stat, a sentence, and a spark — with a refresh rotation.",
+        "emptyTitle": "No insights yet",
+        "emptyBody": "Insights appear once there is enough data to spot a pattern.",
+        "refreshLabel": "Refresh"
+      }
+    },
     "charts": {
       "boxplot": {
         "description": "Whisker-and-box summary of a numeric column's spread per category — min, quartiles, median and max.",
@@ -115,6 +154,19 @@
       "unreadBadge": {
         "description": "A count pill showing unread items, synced with feed state.",
         "unitLabel": "unread"
+      },
+      "loadOlderPaginator": {
+        "description": "A footer button that loads older records in batches until the feed is exhausted.",
+        "label": "Load older",
+        "loadingLabel": "Loading…",
+        "exhaustedLabel": "Nothing older",
+        "ofLabel": "of"
+      },
+      "toastStack": {
+        "description": "The overlay toast host: brief confirmations with an optional Undo.",
+        "undoLabel": "Undo",
+        "dismissLabel": "Dismiss",
+        "regionLabel": "Notifications"
       }
     },
     "calendar": {
@@ -137,6 +189,39 @@
         "description": "Per-member utilization bars with a project breakdown and load status.",
         "emptyTitle": "No workload data",
         "emptyBody": "Member utilization will appear here once assignments exist."
+      },
+      "calendarLegendFilter": {
+        "description": "Event categories with counts; toggling one filters the calendar beside it.",
+        "emptyTitle": "No categories yet",
+        "emptyBody": "Event categories will appear here once events exist.",
+        "uncategorizedLabel": "Uncategorized"
+      },
+      "upcomingEventsList": {
+        "description": "The next scheduled events, date-ascending, with owner and status.",
+        "emptyTitle": "Nothing upcoming",
+        "emptyBody": "Scheduled events will appear here as they are planned."
+      },
+      "dateRangePicker": {
+        "description": "A start/end date range with quick presets that filters the rest of the page.",
+        "previousLabel": "Previous month",
+        "nextLabel": "Next month",
+        "summaryLabel": "{n} days selected",
+        "presets": {
+          "7d": "Last 7 days",
+          "30d": "Last 30 days",
+          "90d": "Last 90 days",
+          "mtd": "Month to date",
+          "qtd": "Quarter to date",
+          "ytd": "Year to date"
+        }
+      },
+      "scheduledJobsList": {
+        "description": "Recurring reports and exports with their cadence, next run, and an on/off switch.",
+        "emptyTitle": "No scheduled jobs",
+        "emptyBody": "Recurring reports and exports will appear here once scheduled.",
+        "nextRunLabel": "Next run",
+        "toggleLabel": "Enable schedule",
+        "recipientsLabel": "Recipients"
       }
     },
     "tables": {
@@ -169,6 +254,38 @@
         "description": "An interactive grid of boolean toggles for roles, policies, or channels.",
         "emptyTitle": "No matrix configured",
         "emptyBody": "Rows and columns will appear here once configured."
+      },
+      "sparklineTable": {
+        "description": "Metric rows with a micro sparkline, the current value, and a good/bad-aware change pill.",
+        "emptyTitle": "No metrics to show",
+        "emptyBody": "Metrics will appear here once there is data to summarize."
+      },
+      "topMoversList": {
+        "description": "The metrics that changed the most, with the direction judged good or bad per metric.",
+        "emptyTitle": "No movers",
+        "emptyBody": "Metrics that changed the most will appear here."
+      },
+      "rankedEntityList": {
+        "description": "Top entities by a metric, each with its rank and a proportional bar.",
+        "emptyTitle": "Nothing ranked yet",
+        "emptyBody": "Top entities will appear here once there is data to rank."
+      },
+      "accordionList": {
+        "description": "Expandable rows with a badge and a detail panel, single- or multi-open.",
+        "emptyTitle": "Nothing to expand",
+        "emptyBody": "Entries will appear here once there are any."
+      },
+      "comparisonMatrix": {
+        "description": "A feature grid comparing plans or tiers, with one column promoted.",
+        "includedLabel": "Included",
+        "notIncludedLabel": "Not included",
+        "promotedLabel": "Recommended"
+      },
+      "chipCloud": {
+        "description": "Wrapped chips for discovered tables, merge variables, or suggestions.",
+        "emptyTitle": "Nothing discovered yet",
+        "emptyBody": "Tables and variables will appear here as chips once they are found.",
+        "moreLabel": "+{n} more"
       }
     },
     "boards": {
@@ -192,6 +309,18 @@
         "moved": "Moved {title} to {cell}.",
         "returned": "{title} returned to its original position.",
         "failed": "Could not move {title}; it was returned to its original position."
+      },
+      "boardCard": {
+        "description": "A single board card: tag, title, progress, owner, and due date.",
+        "emptyTitle": "No card",
+        "emptyBody": "This card has no record bound to it yet."
+      },
+      "inlineComposeCard": {
+        "description": "A quick-add card that inserts a new record with the column's defaults.",
+        "placeholder": "Card title…",
+        "addLabel": "Add",
+        "cancelLabel": "Cancel",
+        "openLabel": "Add card"
       }
     },
     "communication": {
@@ -222,6 +351,43 @@
         "configureTitle": "No AI provider configured",
         "configureBody": "Add an Anthropic or OpenAI key — or point Adminium at your own endpoint — to ask questions about your schema.",
         "configureCtaLabel": "Configure a provider"
+      },
+      "typingIndicator": {
+        "description": "An avatar and an italic “typing…” row, bound to a live per-conversation boolean.",
+        "label": "typing…",
+        "emptyTitle": "No typing activity",
+        "emptyBody": "Typing state appears here once the conversation is live."
+      },
+      "callWidget": {
+        "description": "An incoming voice or video call: the caller’s avatar, the call state, and accept or decline actions.",
+        "voiceLabel": "Voice call",
+        "videoLabel": "Video call",
+        "ringingLabel": "Ringing…",
+        "connectingLabel": "Connecting…",
+        "activeLabel": "In call",
+        "endedLabel": "Call ended",
+        "acceptLabel": "Accept",
+        "declineLabel": "Decline",
+        "endLabel": "End call",
+        "emptyTitle": "No active call",
+        "emptyBody": "An incoming call will appear here."
+      }
+    },
+    "geo": {
+      "mapBubble": {
+        "description": "A map whose circle markers are sized by the metric you choose, alongside a ranked list of the top places.",
+        "emptyTitle": "No locations",
+        "emptyBody": "Rows with latitude and longitude values appear here as map markers.",
+        "mapUnavailableLabel": "The map could not be loaded. The ranked list shows the same data.",
+        "regionsLabel": "Top regions",
+        "metricLabel": "Metric"
+      },
+      "mapChoroplethGrid": {
+        "description": "Region tiles tinted by value — for tables that carry region codes but no coordinates.",
+        "emptyTitle": "No regions",
+        "emptyBody": "Rows with a region code and a numeric value appear here as tinted tiles.",
+        "legendLowLabel": "Low",
+        "legendHighLabel": "High"
       }
     },
     "domain": {
@@ -237,6 +403,150 @@
         "emptyTitle": "Nothing scheduled",
         "emptyBody": "Tasks appear here once they have start and end dates.",
         "ungroupedLabel": "Tasks"
+      },
+      "documentCanvas": {
+        "description": "A paper-styled document canvas — invoice, report or email — whose blocks can be selected, reordered and removed.",
+        "emptyTitle": "Nothing in this document",
+        "emptyBody": "Add a block from the palette to start building the document.",
+        "addBlockLabel": "Add block",
+        "removeBlockLabel": "Remove block",
+        "moveUpLabel": "Move block up",
+        "moveDownLabel": "Move block down",
+        "blockListLabel": "Document blocks",
+        "billedToLabel": "Billed to",
+        "issuedLabel": "Issued",
+        "dueLabel": "Due"
+      },
+      "blockTotalsSummary": {
+        "description": "The document totals — subtotal, discount, tax and the total due, recomputed from the line items.",
+        "emptyTitle": "No totals yet",
+        "emptyBody": "Totals appear once the document has line items.",
+        "subtotalLabel": "Subtotal",
+        "discountLabel": "Discount",
+        "taxLabel": "Tax",
+        "totalLabel": "Total due"
+      },
+      "blockLineItems": {
+        "description": "Editable description, quantity and rate rows that feed the document totals.",
+        "emptyTitle": "No line items",
+        "emptyBody": "Add a line item to bill for work on this document.",
+        "descHeader": "Description",
+        "qtyHeader": "Qty",
+        "rateHeader": "Rate",
+        "amountHeader": "Amount"
+      },
+      "blockKpiRow": {
+        "description": "A row of stat tiles with sign-aware delta coloring.",
+        "emptyTitle": "No metrics",
+        "emptyBody": "Metrics appear here once the report has figures to show."
+      },
+      "blockBarChart": {
+        "description": "A mini bar chart in the document accent, sized for a document block.",
+        "emptyTitle": "No data to chart",
+        "emptyBody": "The bars appear once the report has a series to plot."
+      },
+      "blockLineChart": {
+        "description": "A mini line chart with an optional filled area, sized for a document block.",
+        "emptyTitle": "No data to chart",
+        "emptyBody": "The line appears once the report has a series to plot."
+      },
+      "blockTwoColTable": {
+        "description": "A two-column table with a styled header row and a mono value column.",
+        "emptyTitle": "No rows",
+        "emptyBody": "Rows appear here once the report has values to list."
+      },
+      "blockTaxBreakdown": {
+        "description": "Tax lines with label, rate and amount, applied to the document subtotal.",
+        "emptyTitle": "No tax lines",
+        "emptyBody": "Tax lines appear once the document has rates to apply."
+      },
+      "blockMultiCurrency": {
+        "description": "The document total converted per currency at the given rates.",
+        "emptyTitle": "No conversions",
+        "emptyBody": "Conversions appear once the document lists exchange rates.",
+        "footnote": "Rates are indicative and may differ at settlement."
+      },
+      "blockPaymentHistory": {
+        "description": "Past payments with date, masked method, amount and a status pill.",
+        "emptyTitle": "No payments yet",
+        "emptyBody": "Payments against this document appear here."
+      },
+      "blockDiscountCodes": {
+        "description": "Applied discount codes with their label and credited amount.",
+        "emptyTitle": "No discounts applied",
+        "emptyBody": "Discount codes applied to this document appear here."
+      },
+      "blockLoyaltyBanner": {
+        "description": "A loyalty banner with the points balance, tier and points earned on this order.",
+        "emptyTitle": "No loyalty balance",
+        "emptyBody": "The loyalty banner appears once the customer has a points balance.",
+        "balanceLabel": "{balance} pts · {tier}",
+        "earnedLabel": "+{earned} earned on this order"
+      },
+      "blockRecurringBanner": {
+        "description": "A banner announcing the billing frequency, the next charge date and the cycles remaining.",
+        "emptyTitle": "Not recurring",
+        "emptyBody": "This banner appears once the document is on a recurring schedule.",
+        "template": "Recurring — {freq} · Next on {next} · {count} cycles"
+      },
+      "blockQrPay": {
+        "description": "A scan-to-pay tile with a caption and the amount due.",
+        "emptyTitle": "Nothing to pay",
+        "emptyBody": "The payment code appears once the document has an amount due.",
+        "amountLabel": "Amount due"
+      },
+      "blockDeliveryStepper": {
+        "description": "Horizontal delivery steps marked done, current or upcoming.",
+        "emptyTitle": "No delivery steps",
+        "emptyBody": "Steps appear once the order has a delivery route."
+      },
+      "blockSignature": {
+        "description": "Signature lines for a name and title, with the date signed.",
+        "emptyTitle": "No signature",
+        "emptyBody": "The signature lines appear once the document names a signer.",
+        "namePlaceholder": "Full name",
+        "titlePlaceholder": "Title",
+        "dateLabel": "Date"
+      },
+      "blockTermsCheckbox": {
+        "description": "A terms toggle with an editable label.",
+        "defaultLabel": "I accept the terms and conditions"
+      },
+      "blockApproval": {
+        "description": "An approver card with a status-tinted pill and optional approve or reject actions.",
+        "emptyTitle": "No approver",
+        "emptyBody": "The approval card appears once the document names an approver.",
+        "approveLabel": "Approve",
+        "rejectLabel": "Reject",
+        "pendingLabel": "Pending",
+        "approvedLabel": "Approved",
+        "rejectedLabel": "Rejected"
+      },
+      "blockAttachments": {
+        "description": "Attached files with their names and sizes.",
+        "emptyTitle": "No attachments",
+        "emptyBody": "Files attached to this document appear here."
+      },
+      "blockLateFees": {
+        "description": "A warning callout stating the late fee and the grace period.",
+        "emptyTitle": "No late fee",
+        "emptyBody": "This callout appears once the document sets a late-fee policy.",
+        "template": "A {rate} late fee applies after {days} days."
+      },
+      "blockImagePlaceholder": {
+        "description": "A dashed placeholder box standing in for an image, with a caption.",
+        "emptyTitle": "No image",
+        "emptyBody": "The placeholder appears once the block has a caption."
+      },
+      "blockContact": {
+        "description": "Contact rows for a name, email address and phone number.",
+        "emptyTitle": "No contact",
+        "emptyBody": "Contact details appear once the document names a contact."
+      },
+      "blockHighlightBox": {
+        "description": "A callout box pairing a label with a large mono value.",
+        "emptyTitle": "Nothing to highlight",
+        "emptyBody": "The callout appears once the block has a value to show."
       }
     },
     "media": {
@@ -350,6 +660,90 @@
         "description": "A single-select card grid for sources, templates and plans.",
         "a11yLabel": "Choose an option"
       },
+      "ruleBuilder": {
+        "description": "A condition builder whose rules compile to a filter — the segment/audience editor.",
+        "add": "Add condition",
+        "remove": "Remove condition",
+        "all": "ALL",
+        "any": "ANY",
+        "field": "Field",
+        "operator": "Operator",
+        "value": "Value",
+        "valuePlaceholder": "Value…",
+        "emptyBody": "No conditions yet — add one to define this segment."
+      },
+      "flowBuilder": {
+        "description": "A vertical workflow canvas of trigger, condition and action steps.",
+        "add": "Add step",
+        "remove": "Remove step",
+        "paletteTitle": "Add a step",
+        "stats": "{runs} runs · {rate}% success",
+        "emptyBody": "No steps yet — add a trigger to start this workflow."
+      },
+      "connectionStringField": {
+        "description": "A connection-string field that detects the database engine as you type.",
+        "label": "Connection string",
+        "helper": "postgres://user:password@host:5432/database — mysql:// and sqlite: work too.",
+        "quickFill": "Quick fill:",
+        "host": "Host: {host}",
+        "invalidScheme": "Unrecognized connection-string scheme.",
+        "incomplete": "Add a host and database to the connection string."
+      },
+      "tableInclusionChecklist": {
+        "description": "The tables to include, with row counts and PII warnings.",
+        "pii": "PII",
+        "highVolume": "high volume",
+        "a11yLabel": "Tables to include",
+        "emptyTitle": "No tables found",
+        "emptyBody": "Connect a database and its tables will appear here."
+      },
+      "columnMappingTable": {
+        "description": "Maps the columns of an uploaded file onto the fields of a table.",
+        "skip": "Don't import",
+        "sourceHeader": "Source column",
+        "sampleHeader": "Sample",
+        "targetHeader": "Target field",
+        "emptyTitle": "No columns to map",
+        "emptyBody": "Upload a file and its columns will appear here."
+      },
+      "validationIssuesList": {
+        "description": "Import and validation issues, most severe first, with affected row counts.",
+        "emptyTitle": "No issues found",
+        "emptyBody": "Everything checks out — you are good to import."
+      },
+      "exportBuilder": {
+        "description": "Builds a data export: format, date range and what to include.",
+        "format": "Format",
+        "from": "From",
+        "to": "To",
+        "groupBy": "Group by",
+        "includeCharts": "Include charts",
+        "email": "Email me the export",
+        "submit": "Export",
+        "running": "Preparing your export…",
+        "done": "Export ready",
+        "failed": "The export failed. Try again.",
+        "download": "Download"
+      },
+      "questionBuilder": {
+        "description": "A survey editor: add question types and reorder the questions.",
+        "paletteTitle": "Add a question",
+        "add": "Add question",
+        "remove": "Remove question",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "required": "Required",
+        "questionPlaceholder": "Ask a question…",
+        "emptyTitle": "No questions yet",
+        "emptyBody": "Pick a question type to start building your survey."
+      },
+      "inlineEditableField": {
+        "description": "A click-to-edit value inside a document or canvas.",
+        "edit": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "empty": "Empty"
+      },
       "passwordStrengthMeter": {
         "description": "A four-segment meter showing how strong a password is.",
         "label": "Password strength",
@@ -357,11 +751,6 @@
         "fair": "Fair",
         "good": "Good",
         "strong": "Strong"
-      },
-      "validationIssuesList": {
-        "description": "Import and validation issues, most severe first, with affected row counts.",
-        "emptyTitle": "No issues found",
-        "emptyBody": "Everything checks out — you are good to import."
       }
     },
     "chrome": {

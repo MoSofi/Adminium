@@ -162,3 +162,37 @@ export * from './families/tables/index.js';
 
 // Page templates — page-crud (09 §7.1): template component + CrudApi contract.
 export * from './templates/page-crud/index.js';
+
+// Forms family — the two §10 widgets the Studio connect wizard COMPOSES, plus
+// the pure rules behind them. Exported by NAME (not `export *`) because this is
+// a deliberate cross-package contract, not the family's whole surface: the
+// wizard used to carry its own copy of the DSN field and the table checklist,
+// and `@adminium/widgets` may never import `apps/*`, so the shared half lives
+// here and the wizard consumes it. See `families/forms/forms-dsn.ts` and
+// `families/forms/forms-tables.ts` for why the duplication had to end.
+export {
+  ConnectionStringField,
+  TableInclusionChecklist,
+  type ConnectionStringFieldProps,
+  type TableInclusionChecklistProps,
+} from './families/forms/index.js';
+export {
+  DSN_ENGINES,
+  DSN_PROVIDER_CHIPS,
+  dsnHost,
+  dsnPlaceholder,
+  dsnValidationCode,
+  dsnWithEngine,
+  engineForDsn,
+  providerChipsFor,
+  type DsnEngine,
+  type DsnProviderChip,
+  type DsnValidationCode,
+} from './families/forms/forms-dsn.js';
+export {
+  HIGH_VOLUME_ROWS,
+  defaultIncludedIds,
+  inclusionCounts,
+  isHighVolume,
+  type InclusionTable,
+} from './families/forms/forms-tables.js';

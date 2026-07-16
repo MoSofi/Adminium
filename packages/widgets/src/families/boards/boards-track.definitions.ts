@@ -1,6 +1,10 @@
 import { lazy } from 'react';
 
 import {
+  boardCardConfigSchema,
+  boardCardDemoData,
+  inlineComposeCardConfigSchema,
+  inlineComposeCardDemoData,
   kanbanBoardConfigSchema,
   kanbanBoardDemoData,
   kanbanSwimlaneGridConfigSchema,
@@ -55,7 +59,43 @@ export const kanbanSwimlaneGridDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.boards.kanbanSwimlaneGrid.description',
 });
 
+// ── M7 Wave-4 TAIL — the two §6 widgets that complete the family ───────────
+
+export const boardCardDefinition: WidgetDefinition = defineWidget({
+  id: 'board-card',
+  family: 'boards',
+  component: lazy(() => import('./boards-track-components.js').then((m) => ({ default: m.BoardCardWidget }))),
+  configSchema: boardCardConfigSchema,
+  // annex §6: "single record {title, tag, pct?, points?, priority?, owner, due?,
+  // budget?}" — the `record` shape, whose envelope is `{ row }`.
+  dataContract: 'record',
+  sizing: { minW: 3, minH: 4, defaultW: 3, defaultH: 4 }, // annex "child of board"
+  placement: 'inline', // a card is composed into a column, never grid-placed
+  skeleton: 'card',
+  demoData: boardCardDemoData,
+  descriptionKey: 'widgets.boards.boardCard.description',
+});
+
+export const inlineComposeCardDefinition: WidgetDefinition = defineWidget({
+  id: 'inline-compose-card',
+  family: 'boards',
+  component: lazy(() => import('./boards-track-components.js').then((m) => ({ default: m.InlineComposeCardWidget }))),
+  configSchema: inlineComposeCardConfigSchema,
+  // annex §6: "transient draft → INSERT with defaults" — a draft IS `form-state`.
+  dataContract: 'form-state',
+  sizing: { minW: 3, minH: 3, defaultW: 4, defaultH: 4 }, // annex "child of column"
+  placement: 'inline',
+  skeleton: 'card',
+  // Add emits a `mutate` INSERT intent; the host runs it through the CRUD API
+  // with the column's defaults — the widget never writes.
+  capabilities: { editsData: true },
+  demoData: inlineComposeCardDemoData,
+  descriptionKey: 'widgets.boards.inlineComposeCard.description',
+});
+
 export const boardsTrackDefinitions: readonly WidgetDefinition[] = [
   kanbanBoardDefinition,
   kanbanSwimlaneGridDefinition,
+  boardCardDefinition,
+  inlineComposeCardDefinition,
 ];

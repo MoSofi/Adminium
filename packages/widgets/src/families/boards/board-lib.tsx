@@ -214,6 +214,31 @@ export function toBoardCard(
   };
 }
 
+// --- Binding source -----------------------------------------------------------
+
+/** The `connectionId` + qualified table a `record-open`/`mutate` event carries. */
+export interface BindingSource {
+  connectionId: string;
+  table: string;
+}
+
+/**
+ * The event target for a bound widget: `connectionId` + the schema-qualified
+ * table name, or `null` when the widget is running on `demoData` (no binding) —
+ * an unbound widget must never emit a mutation against a table that isn't there
+ * (the tables/media convention).
+ *
+ * NB the descriptor is `binding.source.name` (+ optional `schema`), NOT a flat
+ * `binding.table` (04 §5.1).
+ */
+export function bindingSourceOf(
+  binding: { connectionId: string; source: { schema?: string | undefined; name: string } } | undefined,
+): BindingSource | null {
+  if (binding === undefined) return null;
+  const { schema, name } = binding.source;
+  return { connectionId: binding.connectionId, table: schema === undefined ? name : `${schema}.${name}` };
+}
+
 /** Extract the record-list rows from a data envelope (mirrors feeds/feedRowsOf). */
 export function boardRowsOf(data: unknown): Record<string, unknown>[] {
   if (Array.isArray(data)) return data as Record<string, unknown>[];

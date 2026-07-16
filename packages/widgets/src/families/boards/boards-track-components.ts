@@ -8,3 +8,6 @@
  */
 export { KanbanBoardWidget } from './KanbanBoard.js';
 export { KanbanSwimlaneGridWidget } from './KanbanSwimlaneGrid.js';
+// M7 Wave-4 TAIL — the two §6 widgets that complete the family.
+export { BoardCardWidget } from './BoardCard.js';
+export { InlineComposeCardWidget } from './InlineComposeCard.js';

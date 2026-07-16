@@ -16,6 +16,14 @@ export {
   type AiTurn,
 } from './AiChatPanel.js';
 export {
+  CallWidget,
+  CallWidgetWidget,
+  callWidgetConfigSchema,
+  callWidgetDemoData,
+  type CallWidgetConfig,
+  type CallWidgetProps,
+} from './CallWidget.js';
+export {
   ChatThread,
   ChatThreadWidget,
   chatThreadConfigSchema,
@@ -23,6 +31,14 @@ export {
   type ChatThreadConfig,
   type ChatThreadProps,
 } from './ChatThread.js';
+export {
+  TypingIndicator,
+  TypingIndicatorWidget,
+  typingIndicatorConfigSchema,
+  typingIndicatorDemoData,
+  type TypingIndicatorConfig,
+  type TypingIndicatorProps,
+} from './TypingIndicator.js';
 export {
   ConversationInbox,
   ConversationInboxWidget,
@@ -33,18 +49,27 @@ export {
   type ConversationRow,
 } from './ConversationInbox.js';
 export {
+  CALL_KINDS,
+  CALL_STATES,
   CHAT_DEMO_EPOCH,
   attachmentsOf,
+  callKindOf,
+  callStateOf,
   chatRowsOf,
   fmtClock,
   fmtCount,
   fmtDaySeparator,
   groupMessages,
+  isTypingIn,
   isoDayOf,
   localeOf,
+  recordRowOf,
   sortBySentAt,
   sourceOf,
   toChatMessage,
+  typingEntriesOf,
+  type CallKind,
+  type CallState,
   type ChatAttachment,
   type ChatBubble,
   type ChatDayGroup,
@@ -52,7 +77,9 @@ export {
 } from './chat-lib.js';
 export {
   aiChatPanelDefinition,
+  callWidgetDefinition,
   chatThreadDefinition,
   communicationTrackDefinitions,
   conversationInboxDefinition,
+  typingIndicatorDefinition,
 } from './communication-track.definitions.js';

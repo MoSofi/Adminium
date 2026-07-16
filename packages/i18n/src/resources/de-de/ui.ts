@@ -62,6 +62,45 @@ export default {
     "dismiss": "Benachrichtigung schließen"
   },
   "widgets": {
+    "kpi": {
+      "statCard": {
+        "description": "Die Standard-Kennzahlenkarte: ein Hauptwert mit optionaler Trendplakette und Mini-Sparkline."
+      },
+      "usageMeter": {
+        "description": "Kontingentverbrauch gegen ein Limit; der Balken wechselt ab Ihren Schwellenwerten zu Gelb und dann zu Rot."
+      },
+      "statTileCompact": {
+        "description": "Eine schmale Kennzahlenkachel mit Mikro-Label, Trend-Chip und 6-Balken-Spark – für dichte Reihen von 4 bis 6."
+      },
+      "metricHero": {
+        "description": "Eine übergroße Kennzahl, die beim Laden hochzählt – mit Trendplakette, Spark und Zielfortschritt.",
+        "goalLabel": "Ziel"
+      },
+      "statPairCard": {
+        "description": "Zwei Kennzahlen nebeneinander; die zweite kann aus der ersten abgeleitet werden."
+      },
+      "gaugeRing": {
+        "description": "Eine Ringanzeige für einen Wert oder Prozentsatz, eingefärbt nach dem Bereich, in den der Wert fällt."
+      },
+      "gaugeArc": {
+        "description": "Ein Tachobogen mit qualitativen Bereichen und Zeiger; stellt auch ein Raster aus Anzeigen dar."
+      },
+      "periodComparison": {
+        "description": "Dieser Zeitraum gegen den letzten als zwei Balken, mit der Differenz darunter.",
+        "higherLabel": "höher",
+        "lowerLabel": "niedriger",
+        "flatLabel": "unverändert"
+      },
+      "microKpiSubtitle": {
+        "description": "Eine einzeilige Kopfzeilen-Kennzahl aus einer Vorlage, live neu berechnet."
+      },
+      "autoInsights": {
+        "description": "Bewertete Erkenntnisse – Hauptwert, Satz und Spark – mit Aktualisierungsrotation.",
+        "emptyTitle": "Noch keine Erkenntnisse",
+        "emptyBody": "Erkenntnisse erscheinen, sobald genug Daten für ein Muster vorliegen.",
+        "refreshLabel": "Aktualisieren"
+      }
+    },
     "charts": {
       "boxplot": {
         "description": "Box-Whisker-Zusammenfassung der Streuung einer numerischen Spalte je Kategorie – Minimum, Quartile, Median und Maximum.",
@@ -123,6 +162,19 @@ export default {
       "unreadBadge": {
         "description": "Ein Zähler-Chip für ungelesene Elemente, synchron mit dem Feed-Status.",
         "unitLabel": "ungelesen"
+      },
+      "loadOlderPaginator": {
+        "description": "Eine Schaltfläche im Fuß, die ältere Einträge stapelweise lädt, bis der Feed erschöpft ist.",
+        "label": "Ältere laden",
+        "loadingLabel": "Wird geladen …",
+        "exhaustedLabel": "Nichts Älteres",
+        "ofLabel": "von"
+      },
+      "toastStack": {
+        "description": "Der Overlay-Host für Toasts: kurze Bestätigungen mit optionalem Rückgängig.",
+        "undoLabel": "Rückgängig",
+        "dismissLabel": "Schließen",
+        "regionLabel": "Benachrichtigungen"
       }
     },
     "calendar": {
@@ -145,6 +197,39 @@ export default {
         "description": "Auslastungsbalken pro Mitglied mit Projektaufschlüsselung und Laststatus.",
         "emptyTitle": "Keine Auslastungsdaten",
         "emptyBody": "Die Auslastung der Mitglieder erscheint hier, sobald Zuweisungen bestehen."
+      },
+      "calendarLegendFilter": {
+        "description": "Ereigniskategorien mit Anzahl; ein Klick filtert den Kalender daneben.",
+        "emptyTitle": "Noch keine Kategorien",
+        "emptyBody": "Ereigniskategorien erscheinen hier, sobald Termine vorhanden sind.",
+        "uncategorizedLabel": "Ohne Kategorie"
+      },
+      "upcomingEventsList": {
+        "description": "Die nächsten Termine in zeitlicher Reihenfolge, mit Verantwortlichen und Status.",
+        "emptyTitle": "Nichts anstehend",
+        "emptyBody": "Geplante Termine erscheinen hier, sobald sie angelegt werden."
+      },
+      "dateRangePicker": {
+        "description": "Ein Datumsbereich mit Schnellauswahl, der die übrige Seite filtert.",
+        "previousLabel": "Voriger Monat",
+        "nextLabel": "Nächster Monat",
+        "summaryLabel": "{n} Tage ausgewählt",
+        "presets": {
+          "7d": "Letzte 7 Tage",
+          "30d": "Letzte 30 Tage",
+          "90d": "Letzte 90 Tage",
+          "mtd": "Laufender Monat",
+          "qtd": "Laufendes Quartal",
+          "ytd": "Laufendes Jahr"
+        }
+      },
+      "scheduledJobsList": {
+        "description": "Wiederkehrende Berichte und Exporte mit Rhythmus, nächster Ausführung und Ein/Aus-Schalter.",
+        "emptyTitle": "Keine geplanten Aufgaben",
+        "emptyBody": "Wiederkehrende Berichte und Exporte erscheinen hier, sobald sie geplant sind.",
+        "nextRunLabel": "Nächste Ausführung",
+        "toggleLabel": "Zeitplan aktivieren",
+        "recipientsLabel": "Empfänger"
       }
     },
     "tables": {
@@ -177,6 +262,38 @@ export default {
         "description": "Ein interaktives Raster boolescher Schalter für Rollen, Richtlinien oder Kanäle.",
         "emptyTitle": "Keine Matrix konfiguriert",
         "emptyBody": "Zeilen und Spalten erscheinen hier nach der Konfiguration."
+      },
+      "sparklineTable": {
+        "description": "Metrikzeilen mit Mini-Sparkline, aktuellem Wert und einer Änderungs-Pille, die Gut/Schlecht berücksichtigt.",
+        "emptyTitle": "Keine Metriken vorhanden",
+        "emptyBody": "Metriken erscheinen hier, sobald Daten zum Auswerten vorliegen."
+      },
+      "topMoversList": {
+        "description": "Die Metriken mit der stärksten Veränderung — je Metrik als gut oder schlecht bewertet.",
+        "emptyTitle": "Keine Veränderungen",
+        "emptyBody": "Metriken mit der stärksten Veränderung erscheinen hier."
+      },
+      "rankedEntityList": {
+        "description": "Top-Einträge nach einer Metrik, jeweils mit Rang und proportionalem Balken.",
+        "emptyTitle": "Noch keine Rangliste",
+        "emptyBody": "Top-Einträge erscheinen hier, sobald Daten zum Sortieren vorliegen."
+      },
+      "accordionList": {
+        "description": "Aufklappbare Zeilen mit Badge und Detailbereich, einzeln oder mehrfach geöffnet.",
+        "emptyTitle": "Nichts zum Aufklappen",
+        "emptyBody": "Einträge erscheinen hier, sobald welche vorhanden sind."
+      },
+      "comparisonMatrix": {
+        "description": "Eine Funktionsmatrix zum Vergleich von Tarifen, mit einer hervorgehobenen Spalte.",
+        "includedLabel": "Enthalten",
+        "notIncludedLabel": "Nicht enthalten",
+        "promotedLabel": "Empfohlen"
+      },
+      "chipCloud": {
+        "description": "Umbrechende Chips für gefundene Tabellen, Platzhalter oder Vorschläge.",
+        "emptyTitle": "Noch nichts gefunden",
+        "emptyBody": "Tabellen und Variablen erscheinen hier als Chips, sobald sie gefunden werden.",
+        "moreLabel": "+{n} weitere"
       }
     },
     "boards": {
@@ -200,6 +317,18 @@ export default {
         "moved": "{title} nach {cell} verschoben.",
         "returned": "{title} an die ursprüngliche Position zurückgesetzt.",
         "failed": "{title} konnte nicht verschoben werden; die Karte wurde zurückgesetzt."
+      },
+      "boardCard": {
+        "description": "Eine einzelne Board-Karte: Tag, Titel, Fortschritt, Verantwortliche und Fälligkeit.",
+        "emptyTitle": "Keine Karte",
+        "emptyBody": "Dieser Karte ist noch kein Datensatz zugeordnet."
+      },
+      "inlineComposeCard": {
+        "description": "Schnellerfassung, die einen neuen Datensatz mit den Standardwerten der Spalte anlegt.",
+        "placeholder": "Kartentitel…",
+        "addLabel": "Hinzufügen",
+        "cancelLabel": "Abbrechen",
+        "openLabel": "Karte hinzufügen"
       }
     },
     "communication": {
@@ -230,6 +359,43 @@ export default {
         "configureTitle": "Kein KI-Anbieter konfiguriert",
         "configureBody": "Fügen Sie einen Anthropic- oder OpenAI-Schlüssel hinzu — oder verweisen Sie Adminium auf Ihren eigenen Endpunkt —, um Fragen zu Ihrem Schema zu stellen.",
         "configureCtaLabel": "Anbieter konfigurieren"
+      },
+      "typingIndicator": {
+        "description": "Ein Avatar und eine kursive Zeile „tippt …“, gebunden an einen Live-Status pro Unterhaltung.",
+        "label": "tippt …",
+        "emptyTitle": "Keine Tippaktivität",
+        "emptyBody": "Der Tippstatus erscheint hier, sobald die Unterhaltung aktiv ist."
+      },
+      "callWidget": {
+        "description": "Ein eingehender Sprach- oder Videoanruf: Avatar des Anrufers, Anrufstatus sowie Aktionen zum Annehmen oder Ablehnen.",
+        "voiceLabel": "Sprachanruf",
+        "videoLabel": "Videoanruf",
+        "ringingLabel": "Klingelt …",
+        "connectingLabel": "Verbindung wird hergestellt …",
+        "activeLabel": "Im Gespräch",
+        "endedLabel": "Anruf beendet",
+        "acceptLabel": "Annehmen",
+        "declineLabel": "Ablehnen",
+        "endLabel": "Anruf beenden",
+        "emptyTitle": "Kein aktiver Anruf",
+        "emptyBody": "Ein eingehender Anruf erscheint hier."
+      }
+    },
+    "geo": {
+      "mapBubble": {
+        "description": "Eine Karte, deren Kreismarkierungen sich nach der gewählten Kennzahl skalieren, samt Rangliste der wichtigsten Orte.",
+        "emptyTitle": "Keine Standorte",
+        "emptyBody": "Zeilen mit Breiten- und Längengrad erscheinen hier als Kartenmarkierungen.",
+        "mapUnavailableLabel": "Die Karte konnte nicht geladen werden. Die Rangliste zeigt dieselben Daten.",
+        "regionsLabel": "Top-Regionen",
+        "metricLabel": "Kennzahl"
+      },
+      "mapChoroplethGrid": {
+        "description": "Nach Wert eingefärbte Regionskacheln – für Tabellen mit Regionscodes, aber ohne Koordinaten.",
+        "emptyTitle": "Keine Regionen",
+        "emptyBody": "Zeilen mit Regionscode und numerischem Wert erscheinen hier als eingefärbte Kacheln.",
+        "legendLowLabel": "Niedrig",
+        "legendHighLabel": "Hoch"
       }
     },
     "domain": {
@@ -245,6 +411,150 @@ export default {
         "emptyTitle": "Nichts geplant",
         "emptyBody": "Aufgaben erscheinen hier, sobald sie ein Start- und Enddatum haben.",
         "ungroupedLabel": "Aufgaben"
+      },
+      "documentCanvas": {
+        "description": "Eine Dokumentfläche im Papierstil — Rechnung, Bericht oder E-Mail — deren Blöcke ausgewählt, umsortiert und entfernt werden können.",
+        "emptyTitle": "Nichts in diesem Dokument",
+        "emptyBody": "Fügen Sie einen Block aus der Palette hinzu, um das Dokument aufzubauen.",
+        "addBlockLabel": "Block hinzufügen",
+        "removeBlockLabel": "Block entfernen",
+        "moveUpLabel": "Block nach oben verschieben",
+        "moveDownLabel": "Block nach unten verschieben",
+        "blockListLabel": "Dokumentblöcke",
+        "billedToLabel": "Rechnung an",
+        "issuedLabel": "Ausgestellt",
+        "dueLabel": "Fällig"
+      },
+      "blockTotalsSummary": {
+        "description": "Die Dokumentsummen — Zwischensumme, Rabatt, Steuer und Gesamtbetrag, neu berechnet aus den Positionen.",
+        "emptyTitle": "Noch keine Summen",
+        "emptyBody": "Summen erscheinen, sobald das Dokument Positionen enthält.",
+        "subtotalLabel": "Zwischensumme",
+        "discountLabel": "Rabatt",
+        "taxLabel": "Steuer",
+        "totalLabel": "Gesamtbetrag"
+      },
+      "blockLineItems": {
+        "description": "Bearbeitbare Zeilen für Beschreibung, Menge und Satz, die in die Dokumentsummen einfließen.",
+        "emptyTitle": "Keine Positionen",
+        "emptyBody": "Fügen Sie eine Position hinzu, um Leistungen abzurechnen.",
+        "descHeader": "Beschreibung",
+        "qtyHeader": "Menge",
+        "rateHeader": "Satz",
+        "amountHeader": "Betrag"
+      },
+      "blockKpiRow": {
+        "description": "Eine Reihe von Kennzahlkacheln mit vorzeichenabhängiger Delta-Färbung.",
+        "emptyTitle": "Keine Kennzahlen",
+        "emptyBody": "Kennzahlen erscheinen hier, sobald der Bericht Werte enthält."
+      },
+      "blockBarChart": {
+        "description": "Ein Mini-Balkendiagramm in der Dokumentfarbe, passend für einen Dokumentblock.",
+        "emptyTitle": "Keine Daten für das Diagramm",
+        "emptyBody": "Die Balken erscheinen, sobald der Bericht eine Datenreihe enthält."
+      },
+      "blockLineChart": {
+        "description": "Ein Mini-Liniendiagramm mit optionaler Flächenfüllung, passend für einen Dokumentblock.",
+        "emptyTitle": "Keine Daten für das Diagramm",
+        "emptyBody": "Die Linie erscheint, sobald der Bericht eine Datenreihe enthält."
+      },
+      "blockTwoColTable": {
+        "description": "Eine zweispaltige Tabelle mit gestalteter Kopfzeile und Wertespalte in Monospace.",
+        "emptyTitle": "Keine Zeilen",
+        "emptyBody": "Zeilen erscheinen hier, sobald der Bericht Werte enthält."
+      },
+      "blockTaxBreakdown": {
+        "description": "Steuerzeilen mit Bezeichnung, Satz und Betrag, angewendet auf die Zwischensumme.",
+        "emptyTitle": "Keine Steuerzeilen",
+        "emptyBody": "Steuerzeilen erscheinen, sobald das Dokument Sätze enthält."
+      },
+      "blockMultiCurrency": {
+        "description": "Der Dokumentbetrag, je Währung zum angegebenen Kurs umgerechnet.",
+        "emptyTitle": "Keine Umrechnungen",
+        "emptyBody": "Umrechnungen erscheinen, sobald das Dokument Wechselkurse enthält.",
+        "footnote": "Die Kurse sind unverbindlich und können bei der Abrechnung abweichen."
+      },
+      "blockPaymentHistory": {
+        "description": "Frühere Zahlungen mit Datum, maskierter Zahlungsart, Betrag und Statuskennzeichen.",
+        "emptyTitle": "Noch keine Zahlungen",
+        "emptyBody": "Zahlungen zu diesem Dokument erscheinen hier."
+      },
+      "blockDiscountCodes": {
+        "description": "Eingelöste Rabattcodes mit Bezeichnung und gutgeschriebenem Betrag.",
+        "emptyTitle": "Keine Rabatte eingelöst",
+        "emptyBody": "Auf dieses Dokument angewendete Rabattcodes erscheinen hier."
+      },
+      "blockLoyaltyBanner": {
+        "description": "Ein Treuebanner mit Punktestand, Stufe und den mit dieser Bestellung erworbenen Punkten.",
+        "emptyTitle": "Kein Punktestand",
+        "emptyBody": "Das Treuebanner erscheint, sobald die Kundin oder der Kunde Punkte hat.",
+        "balanceLabel": "{balance} Pkt. · {tier}",
+        "earnedLabel": "+{earned} mit dieser Bestellung erworben"
+      },
+      "blockRecurringBanner": {
+        "description": "Ein Banner mit Abrechnungsintervall, nächstem Abbuchungsdatum und verbleibenden Zyklen.",
+        "emptyTitle": "Nicht wiederkehrend",
+        "emptyBody": "Dieses Banner erscheint, sobald das Dokument wiederkehrend abgerechnet wird.",
+        "template": "Wiederkehrend — {freq} · Nächste am {next} · {count} Zyklen"
+      },
+      "blockQrPay": {
+        "description": "Eine Scan-und-zahlen-Kachel mit Bildunterschrift und fälligem Betrag.",
+        "emptyTitle": "Nichts zu zahlen",
+        "emptyBody": "Der Zahlcode erscheint, sobald das Dokument einen fälligen Betrag hat.",
+        "amountLabel": "Fälliger Betrag"
+      },
+      "blockDeliveryStepper": {
+        "description": "Waagerechte Lieferschritte, markiert als erledigt, aktuell oder ausstehend.",
+        "emptyTitle": "Keine Lieferschritte",
+        "emptyBody": "Schritte erscheinen, sobald die Bestellung einen Lieferweg hat."
+      },
+      "blockSignature": {
+        "description": "Unterschriftslinien für Name und Funktion, mit Unterschriftsdatum.",
+        "emptyTitle": "Keine Unterschrift",
+        "emptyBody": "Die Unterschriftslinien erscheinen, sobald das Dokument eine unterzeichnende Person nennt.",
+        "namePlaceholder": "Vollständiger Name",
+        "titlePlaceholder": "Funktion",
+        "dateLabel": "Datum"
+      },
+      "blockTermsCheckbox": {
+        "description": "Ein Schalter für die Bedingungen mit bearbeitbarer Beschriftung.",
+        "defaultLabel": "Ich akzeptiere die Allgemeinen Geschäftsbedingungen"
+      },
+      "blockApproval": {
+        "description": "Eine Freigabekarte mit statusgefärbtem Kennzeichen und optionalen Aktionen zum Genehmigen oder Ablehnen.",
+        "emptyTitle": "Keine freigebende Person",
+        "emptyBody": "Die Freigabekarte erscheint, sobald das Dokument eine freigebende Person nennt.",
+        "approveLabel": "Genehmigen",
+        "rejectLabel": "Ablehnen",
+        "pendingLabel": "Ausstehend",
+        "approvedLabel": "Genehmigt",
+        "rejectedLabel": "Abgelehnt"
+      },
+      "blockAttachments": {
+        "description": "Angehängte Dateien mit Namen und Größe.",
+        "emptyTitle": "Keine Anhänge",
+        "emptyBody": "An dieses Dokument angehängte Dateien erscheinen hier."
+      },
+      "blockLateFees": {
+        "description": "Ein Warnhinweis mit der Mahngebühr und der Zahlungsfrist.",
+        "emptyTitle": "Keine Mahngebühr",
+        "emptyBody": "Dieser Hinweis erscheint, sobald das Dokument eine Mahngebühr festlegt.",
+        "template": "Nach {days} Tagen fällt eine Mahngebühr von {rate} an."
+      },
+      "blockImagePlaceholder": {
+        "description": "Ein gestrichelter Platzhalter für ein Bild, mit Bildunterschrift.",
+        "emptyTitle": "Kein Bild",
+        "emptyBody": "Der Platzhalter erscheint, sobald der Block eine Bildunterschrift hat."
+      },
+      "blockContact": {
+        "description": "Kontaktzeilen für Name, E-Mail-Adresse und Telefonnummer.",
+        "emptyTitle": "Kein Kontakt",
+        "emptyBody": "Kontaktdaten erscheinen, sobald das Dokument einen Kontakt nennt."
+      },
+      "blockHighlightBox": {
+        "description": "Ein Hinweisfeld, das eine Beschriftung mit einem großen Wert in Monospace verbindet.",
+        "emptyTitle": "Nichts hervorzuheben",
+        "emptyBody": "Das Hinweisfeld erscheint, sobald der Block einen Wert hat."
       }
     },
     "media": {
@@ -358,6 +668,90 @@ export default {
         "description": "Eine Kartenauswahl für Quellen, Vorlagen und Tarife.",
         "a11yLabel": "Option wählen"
       },
+      "ruleBuilder": {
+        "description": "Ein Bedingungs-Editor, dessen Regeln zu einem Filter werden — der Segment-Editor.",
+        "add": "Bedingung hinzufügen",
+        "remove": "Bedingung entfernen",
+        "all": "ALLE",
+        "any": "BELIEBIGE",
+        "field": "Feld",
+        "operator": "Operator",
+        "value": "Wert",
+        "valuePlaceholder": "Wert…",
+        "emptyBody": "Noch keine Bedingungen — fügen Sie eine hinzu, um dieses Segment zu definieren."
+      },
+      "flowBuilder": {
+        "description": "Eine vertikale Workflow-Fläche aus Auslöser-, Bedingungs- und Aktionsschritten.",
+        "add": "Schritt hinzufügen",
+        "remove": "Schritt entfernen",
+        "paletteTitle": "Schritt hinzufügen",
+        "stats": "{runs} Durchläufe · {rate} % erfolgreich",
+        "emptyBody": "Noch keine Schritte — fügen Sie einen Auslöser hinzu, um den Workflow zu starten."
+      },
+      "connectionStringField": {
+        "description": "Ein Verbindungszeichenfolgen-Feld, das die Datenbank-Engine beim Tippen erkennt.",
+        "label": "Verbindungszeichenfolge",
+        "helper": "postgres://user:passwort@host:5432/datenbank — mysql:// und sqlite: gehen auch.",
+        "quickFill": "Schnell ausfüllen:",
+        "host": "Host: {host}",
+        "invalidScheme": "Unbekanntes Schema in der Verbindungszeichenfolge.",
+        "incomplete": "Ergänzen Sie Host und Datenbank in der Verbindungszeichenfolge."
+      },
+      "tableInclusionChecklist": {
+        "description": "Die einzubeziehenden Tabellen, mit Zeilenzahlen und PII-Warnungen.",
+        "pii": "PII",
+        "highVolume": "hohes Volumen",
+        "a11yLabel": "Einzubeziehende Tabellen",
+        "emptyTitle": "Keine Tabellen gefunden",
+        "emptyBody": "Verbinden Sie eine Datenbank, dann erscheinen hier ihre Tabellen."
+      },
+      "columnMappingTable": {
+        "description": "Ordnet die Spalten einer hochgeladenen Datei den Feldern einer Tabelle zu.",
+        "skip": "Nicht importieren",
+        "sourceHeader": "Quellspalte",
+        "sampleHeader": "Beispiel",
+        "targetHeader": "Zielfeld",
+        "emptyTitle": "Keine Spalten zuzuordnen",
+        "emptyBody": "Laden Sie eine Datei hoch, dann erscheinen hier ihre Spalten."
+      },
+      "validationIssuesList": {
+        "description": "Import- und Validierungsprobleme, schwerwiegendste zuerst, mit Zeilenanzahl.",
+        "emptyTitle": "Keine Probleme gefunden",
+        "emptyBody": "Alles in Ordnung — der Import kann starten."
+      },
+      "exportBuilder": {
+        "description": "Erstellt einen Datenexport: Format, Zeitraum und Inhalt.",
+        "format": "Format",
+        "from": "Von",
+        "to": "Bis",
+        "groupBy": "Gruppieren nach",
+        "includeCharts": "Diagramme einschließen",
+        "email": "Export per E-Mail senden",
+        "submit": "Exportieren",
+        "running": "Export wird vorbereitet…",
+        "done": "Export bereit",
+        "failed": "Der Export ist fehlgeschlagen. Bitte erneut versuchen.",
+        "download": "Herunterladen"
+      },
+      "questionBuilder": {
+        "description": "Ein Umfrage-Editor: Fragetypen hinzufügen und Fragen umsortieren.",
+        "paletteTitle": "Frage hinzufügen",
+        "add": "Frage hinzufügen",
+        "remove": "Frage entfernen",
+        "moveUp": "Nach oben",
+        "moveDown": "Nach unten",
+        "required": "Pflichtfeld",
+        "questionPlaceholder": "Stellen Sie eine Frage…",
+        "emptyTitle": "Noch keine Fragen",
+        "emptyBody": "Wählen Sie einen Fragetyp, um Ihre Umfrage zu erstellen."
+      },
+      "inlineEditableField": {
+        "description": "Ein per Klick bearbeitbarer Wert in einem Dokument oder auf einer Fläche.",
+        "edit": "Bearbeiten",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "empty": "Leer"
+      },
       "passwordStrengthMeter": {
         "description": "Eine vierstufige Anzeige der Passwortstärke.",
         "label": "Passwortstärke",
@@ -365,11 +759,6 @@ export default {
         "fair": "Mäßig",
         "good": "Gut",
         "strong": "Stark"
-      },
-      "validationIssuesList": {
-        "description": "Import- und Validierungsprobleme, schwerwiegendste zuerst, mit Zeilenanzahl.",
-        "emptyTitle": "Keine Probleme gefunden",
-        "emptyBody": "Alles in Ordnung — der Import kann starten."
       }
     },
     "chrome": {

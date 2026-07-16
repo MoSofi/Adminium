@@ -3,10 +3,14 @@ import { lazy } from 'react';
 import {
   aiChatPanelConfigSchema,
   aiChatPanelDemoData,
+  callWidgetConfigSchema,
+  callWidgetDemoData,
   chatThreadConfigSchema,
   chatThreadDemoData,
   conversationInboxConfigSchema,
   conversationInboxDemoData,
+  typingIndicatorConfigSchema,
+  typingIndicatorDemoData,
 } from './communication-config.js';
 import { defineWidget } from '../../registry/types.js';
 import type { WidgetDefinition } from '../../registry/types.js';
@@ -72,8 +76,47 @@ export const aiChatPanelDefinition: WidgetDefinition = defineWidget({
   descriptionKey: 'widgets.communication.aiChatPanel.description',
 });
 
+export const typingIndicatorDefinition: WidgetDefinition = defineWidget({
+  id: 'typing-indicator',
+  family: 'communication',
+  component: lazy(() =>
+    import('./communication-track-components.js').then((m) => ({ default: m.TypingIndicatorWidget })),
+  ),
+  configSchema: typingIndicatorConfigSchema,
+  // annex §9: "boolean per conversation" — the §3 `boolean-map` shape, keyed by
+  // conversation id (`isEmptyByShape` reads `entries`, so an unbound instance
+  // routes to the empty state rather than sitting silently idle).
+  dataContract: 'boolean-map',
+  sizing: { minW: 2, minH: 1, defaultW: 3, defaultH: 1 }, // annex "child of thread"
+  placement: 'inline',
+  skeleton: 'list',
+  demoData: typingIndicatorDemoData,
+  descriptionKey: 'widgets.communication.typingIndicator.description',
+});
+
+export const callWidgetDefinition: WidgetDefinition = defineWidget({
+  id: 'call-widget',
+  family: 'communication',
+  component: lazy(() => import('./communication-track-components.js').then((m) => ({ default: m.CallWidgetWidget }))),
+  configSchema: callWidgetConfigSchema,
+  // annex §9: "{kind, peer, state}" — one row, i.e. the §3 `record` shape.
+  dataContract: 'record',
+  // annex "modal overlay"; the sizing is what `page-chat`'s optional `call`
+  // slot (3×6) reserves, so a host that grid-places it instead still fits.
+  sizing: { minW: 3, minH: 6, defaultW: 3, defaultH: 6 },
+  placement: 'overlay',
+  skeleton: 'card',
+  // Accept/decline are `mutate` intents on the call row — the host runs them
+  // through the CRUD API (audit + undo). The widget itself never writes.
+  capabilities: { editsData: true },
+  demoData: callWidgetDemoData,
+  descriptionKey: 'widgets.communication.callWidget.description',
+});
+
 export const communicationTrackDefinitions: readonly WidgetDefinition[] = [
   conversationInboxDefinition,
   chatThreadDefinition,
+  typingIndicatorDefinition,
   aiChatPanelDefinition,
+  callWidgetDefinition,
 ];

@@ -24,7 +24,11 @@ const manifestFiles = readdirSync(TEMPLATES_DIR)
   .filter((f) => f.startsWith('page-') && f.endsWith('.json'))
   .sort();
 
-/** The nine M7 archetypes + the two the M4 generator already emits (deliverables 3 & 4). */
+/**
+ * The nine M7 archetypes + the two the M4 generator already emits (deliverables
+ * 3 & 4) + the M7 Wave-4 `page-builder` (TRACK BUILDER), which ships with the
+ * §13 document vocabulary it composes.
+ */
 const EXPECTED_IDS = [
   'page-crud',
   'page-dashboard',
@@ -37,10 +41,11 @@ const EXPECTED_IDS = [
   'page-log-viewer',
   'page-files',
   'page-chat',
+  'page-builder',
 ];
 
 describe('shipped page-template manifests', () => {
-  it('ships exactly the 11 expected archetypes', () => {
+  it('ships exactly the 12 expected archetypes', () => {
     expect([...PAGE_TEMPLATE_IDS].sort()).toEqual([...EXPECTED_IDS].sort());
     expect(manifestFiles).toHaveLength(EXPECTED_IDS.length);
   });

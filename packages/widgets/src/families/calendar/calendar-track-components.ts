@@ -9,3 +9,8 @@ export { CalendarMonthWidget } from './CalendarMonth.js';
 export { DayAgendaWidget } from './DayAgenda.js';
 export { ScheduleMatrixWidget } from './ScheduleMatrix.js';
 export { CapacityBoardWidget } from './CapacityBoard.js';
+// M7 Wave-4 TAIL — the four §5 widgets that complete the family.
+export { CalendarLegendFilterWidget } from './CalendarLegendFilter.js';
+export { UpcomingEventsListWidget } from './UpcomingEventsList.js';
+export { DateRangePickerWidget } from './DateRangePicker.js';
+export { ScheduledJobsListWidget } from './ScheduledJobsList.js';

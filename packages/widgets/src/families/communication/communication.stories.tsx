@@ -14,14 +14,18 @@
 import type { ReactNode } from 'react';
 
 import { AiChatPanel, aiChatPanelDemoData } from './AiChatPanel.js';
+import { CallWidget, callWidgetDemoData } from './CallWidget.js';
 import { ChatThread, chatThreadDemoData } from './ChatThread.js';
 import { ConversationInbox, conversationInboxDemoData } from './ConversationInbox.js';
+import { TypingIndicator, typingIndicatorDemoData } from './TypingIndicator.js';
 import { CHAT_DEMO_EPOCH, toChatMessage } from './chat-lib.js';
 import type { ChatMessage } from './chat-lib.js';
 import {
   aiChatPanelDefinition,
+  callWidgetDefinition,
   chatThreadDefinition,
   conversationInboxDefinition,
+  typingIndicatorDefinition,
 } from './communication-track.definitions.js';
 import { WidgetHost } from '../../frame/WidgetHost.js';
 import { buildRegistry } from '../../registry/index.js';
@@ -30,7 +34,9 @@ import type { WidgetDefinition } from '../../registry/types.js';
 const registry = buildRegistry([
   conversationInboxDefinition,
   chatThreadDefinition,
+  typingIndicatorDefinition,
   aiChatPanelDefinition,
+  callWidgetDefinition,
 ] as WidgetDefinition[]);
 
 const meta = { title: 'Widgets/Communication' };
@@ -111,6 +117,129 @@ export const ChatThreadStory = {
 export const AiChatPanelStory = {
   name: 'ai-chat-panel',
   render: () => host('ai-chat-panel', 's-ai', aiConfig, aiChatPanelDemoData(7)),
+};
+
+const typingConfig = { conversationId: 'c1', peerName: 'Morgan Lee', label: 'typing…' };
+const callConfig = {
+  title: 'Incoming call',
+  voiceLabel: 'Voice call',
+  videoLabel: 'Video call',
+  ringingLabel: 'Ringing…',
+  acceptLabel: 'Accept',
+  declineLabel: 'Decline',
+};
+
+export const TypingIndicatorStory = {
+  name: 'typing-indicator',
+  render: () => host('typing-indicator', 's-typing', typingConfig, typingIndicatorDemoData(7)),
+};
+
+export const CallWidgetStory = {
+  name: 'call-widget',
+  render: () => host('call-widget', 's-call', callConfig, callWidgetDemoData(7)),
+};
+
+/**
+ * The typing row's two states side by side. Idle renders NOTHING — a typing
+ * indicator is ephemeral and is an inline widget with no card of its own, so an
+ * idle instance must take no space in the thread. The empty frame on the right
+ * is the correct capture, not a broken one.
+ */
+export const TypingIndicatorStates = {
+  name: 'typing-indicator (live · idle · group)',
+  render: () => (
+    <Frame>
+      <div className="flex flex-col gap-4">
+        <div className="rounded-lg border border-border bg-surface p-3">
+          <TypingIndicator typing typists={['Morgan Lee']} label="typing…" />
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-3">
+          <TypingIndicator typing={false} typists={['Morgan Lee']} label="typing…" />
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-3">
+          <TypingIndicator typing typists={['Morgan Lee', 'Priya Rao', 'Sam Park', 'Casey Ford']} maxAvatars={3} label="are typing…" />
+        </div>
+      </div>
+    </Frame>
+  ),
+};
+
+/** Every call state the annex's {kind, peer, state} contract can carry. */
+export const CallWidgetStates = {
+  name: 'call-widget (ringing · connecting · active · ended)',
+  render: () => (
+    <Frame>
+      <div className="grid grid-cols-4 gap-4">
+        {(['ringing', 'connecting', 'active', 'ended'] as const).map((state) => (
+          <div key={state} className="h-[16rem] rounded-lg border border-border bg-surface">
+            <CallWidget peer="Morgan Lee" kind="video" state={state} stateLabel={state} />
+          </div>
+        ))}
+      </div>
+    </Frame>
+  ),
+};
+
+export const CallWidgetFrameStates = {
+  name: 'call-widget (four states)',
+  render: () => (
+    <Frame>
+      <div className="grid grid-cols-2 gap-4">
+        {host('call-widget', 'cw-loaded', callConfig, callWidgetDemoData(7))}
+        {host('call-widget', 'cw-skeleton', callConfig, undefined, 'loading')}
+        {host('call-widget', 'cw-empty', { ...callConfig, emptyState: { titleKey: 'No active call' } }, { row: null })}
+        {host('call-widget', 'cw-error', callConfig, undefined, 'error')}
+      </div>
+    </Frame>
+  ),
+};
+
+export const TypingIndicatorFrameStates = {
+  name: 'typing-indicator (four states)',
+  render: () => (
+    <Frame>
+      <div className="grid grid-cols-2 gap-4">
+        {host('typing-indicator', 'ti-loaded', typingConfig, typingIndicatorDemoData(7))}
+        {host('typing-indicator', 'ti-skeleton', typingConfig, undefined, 'loading')}
+        {host(
+          'typing-indicator',
+          'ti-empty',
+          { ...typingConfig, emptyState: { titleKey: 'No typing activity' } },
+          { entries: {} },
+        )}
+        {host('typing-indicator', 'ti-error', typingConfig, undefined, 'error')}
+      </div>
+    </Frame>
+  ),
+};
+
+/**
+ * Light × dark × LTR × RTL for the Wave-4 tail. Both mirror through logical
+ * properties alone: the typing row is `flex` + `gap`, and the call card is a
+ * centered column — so the RTL frames genuinely re-flow rather than re-label.
+ */
+export const TailThemeAndDirectionMatrix = {
+  name: 'typing-indicator + call-widget (light/dark × LTR/RTL)',
+  render: () => {
+    const tail = () => (
+      <div className="flex items-center gap-4">
+        <div className="rounded-lg border border-border bg-surface p-3">
+          <TypingIndicator typing typists={['Morgan Lee', 'Priya Rao']} label="are typing…" />
+        </div>
+        <div className="h-[16rem] w-[14rem] rounded-lg border border-border bg-surface">
+          <CallWidget peer="Morgan Lee" kind="video" state="ringing" stateLabel="Ringing…" />
+        </div>
+      </div>
+    );
+    return (
+      <div className="flex flex-col gap-4">
+        <Frame dir="ltr">{tail()}</Frame>
+        <Frame dir="rtl">{tail()}</Frame>
+        <Frame dark dir="ltr">{tail()}</Frame>
+        <Frame dark dir="rtl">{tail()}</Frame>
+      </div>
+    );
+  },
 };
 
 /**

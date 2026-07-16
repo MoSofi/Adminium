@@ -43,20 +43,36 @@ export const PENDING_TEMPLATE_WIDGET_IDS: Readonly<Record<string, string>> = {
   // filter-chip-bar, modal-wizard, segmented-control, breadcrumb, global-search,
   // tab-bar — were delivered by Track FCS in M7 Wave 3 and are now registered,
   // so they were removed per the shrink-to-empty discipline above.
-  // feeds/system overlays (annex §4/§12) — the remaining Wave-1 feeds slice.
-  'toast-stack': 'feeds',
-  // kpi family (annex §1) — the remaining Wave-1 kpi slice.
-  'auto-insights': 'kpi',
-  'micro-kpi-subtitle': 'kpi',
-  'stat-pair-card': 'kpi',
-  // calendar family (annex §5) — the remaining calendar slice.
-  'calendar-legend-filter': 'calendar',
-  'date-range-picker': 'calendar',
-  'upcoming-events-list': 'calendar',
-  // boards family (annex §6).
-  'inline-compose-card': 'boards',
-  // communication family (annex §9).
-  'call-widget': 'communication',
+  // NOTE: the kpi (§1) entries — auto-insights, micro-kpi-subtitle,
+  // stat-pair-card — and the feeds (§4) overlay `toast-stack` were delivered by
+  // TRACK KPI-FEEDS in M7 Wave 4 and are now registered, so they were removed
+  // per the same discipline (`crosscheck.test.ts` fails on a stale entry —
+  // `stale-pending-entry` — which is what forced this edit). Their manifest
+  // sites needed no change: the slots were already holding open with
+  // `fallback: 'omit'` / sitting in `chrome`, so registering the ids is what
+  // fills them.
+  // NOTE: the calendar (§5) entries — calendar-legend-filter, date-range-picker,
+  // upcoming-events-list — and the boards (§6) inline-compose-card were
+  // delivered by TRACK TABLES-CAL-BOARDS in M7 Wave 4 and are now registered, so
+  // they were removed per the shrink-to-empty discipline above. Their manifest
+  // sites needed no edit: page-calendar's `legend`/`upcoming` and page-board's
+  // `compose` were already holding the slots open with `fallback: 'omit'`, and
+  // the pickers were already listed in the calendar/scheduler/log-viewer/
+  // dashboard toolbars — registering the ids is what fills them.
+  // NOTE: `call-widget` (§9, page-chat's optional `call` slot) was delivered by
+  // TRACK COMM-GEO in M7 Wave 4 and is now registered, so it was removed per the
+  // shrink-to-empty discipline above — `crosscheck.test.ts` fails on a stale
+  // entry (`stale-pending-entry`), which is what forced this edit.
+
+  // §13, referenced by `page-builder`'s `chrome.overlays` (TRACK BUILDER, M7
+  // Wave 4). The modal starter picker is the one id in the §14 `page-builder`
+  // composition the document half does not deliver — TRACK OPS owns it, in the
+  // same wave. Declared here so the manifest can record the annex composition
+  // ahead of it: `composeTemplate` filters unregistered chrome ids before they
+  // reach the output, so until it registers the picker simply does not mount.
+  // TRACK OPS: delete this line when `starter-template-picker` registers —
+  // `crosscheck.test.ts` fails on the stale entry and will point you here.
+  'starter-template-picker': 'domain',
 };
 
 export type CrossCheckCode =

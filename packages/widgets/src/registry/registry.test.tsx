@@ -44,7 +44,12 @@ describe('widgetRegistry (global)', () => {
 
   it('widgetsByFamily filters by family', () => {
     expect(widgetsByFamily('system').map((d) => d.id)).toContain(WIDGET_MISSING_ID);
-    expect(widgetsByFamily('geo')).toEqual([]);
+    // `geo` was this assertion's empty-family case until M7 Wave 4 opened the
+    // family (annex §7). It is no longer empty, so the case it stood for — a
+    // filter that returns only its own family and nothing else — is asserted
+    // directly instead of via emptiness, which would now just be wrong.
+    expect(widgetsByFamily('geo').map((d) => d.id)).toEqual(['map-bubble', 'map-choropleth-grid']);
+    expect(widgetsByFamily('geo').every((d) => d.family === 'geo')).toBe(true);
   });
 });
 
