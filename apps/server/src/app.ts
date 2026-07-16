@@ -18,15 +18,21 @@ import {
 
 import type { MetaDb } from '@adminium/meta';
 
+import { hashPassword } from './auth/passwords.js';
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
 import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { staticPlugin } from './plugins/static.js';
+import { createSetupService } from './setup/service.js';
+import { createUpdateCheckService } from './telemetry/update-check.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
+import { aboutRoutes } from './routes/about/index.js';
 import { authRoutes } from './routes/auth/index.js';
 import { bootstrapRoutes } from './routes/bootstrap/index.js';
 import { meRoutes } from './routes/me/index.js';
+import { setupRoutes } from './routes/setup/index.js';
+import { APP_VERSION } from './version.js';
 
 /** Pino deny-by-path redaction set (08-server-api.md §1.3 + ADMINIUM_SECRET). */
 export const REDACT_PATHS: readonly string[] = [
@@ -269,6 +275,20 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       await api.register(authRoutes);
       await api.register(meRoutes);
       await api.register(bootstrapRoutes);
+
+      // First-run setup + About (M10-T04). Both need a meta store to say
+      // anything at all, so — unlike auth, whose 503 is itself the answer —
+      // they are wired only when one is configured. Composition roots that
+      // want injected services (tests with a stubbed release feed, the CLI)
+      // build the server without `metaDb` and register these factories
+      // themselves, exactly as the LLM/settings resources are wired.
+      const meta = opts.metaDb;
+      if (meta !== undefined && meta !== null) {
+        await api.register(setupRoutes({ service: createSetupService({ meta, hashPassword }) }));
+        await api.register(
+          aboutRoutes({ meta, updates: createUpdateCheckService({ meta, version: APP_VERSION }) }),
+        );
+      }
     },
     { prefix: API_PREFIX },
   );

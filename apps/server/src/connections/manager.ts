@@ -200,6 +200,33 @@ export class ConnectionManager {
     return provider.create({ role: 'introspect', dsn: dsns.introspectDsn });
   }
 
+  /**
+   * Short-lived DATA-role adapter for one run — the symmetric twin of
+   * {@link introspectAdapter}, and the only way to reach the adapter methods
+   * that need row access (`collectTableStats`, 06 §4.2). The caller owns the
+   * lifecycle and must `close()` it. Deliberately NOT pooled alongside
+   * {@link data}: that handle is a long-lived Kysely for CRUD serving, whereas
+   * this is opened for one statistics pass and released.
+   *
+   * The DATA role, not introspect: the introspect role is schema-only by design
+   * (§3), so aggregates collected over it would fail on permissions.
+   */
+  async dataAdapter(connectionId: string): Promise<DatabaseAdapter<'data'>> {
+    const connection = await this.mustFind(connectionId);
+    if (connection.sourceKind !== 'dsn') {
+      throw new ValidationFailedError('Schema-file connections have no live database to read.', {
+        connectionId,
+      });
+    }
+    const dsns = await this.connections.getDsns(connectionId);
+    if (dsns?.dataDsn == null) {
+      throw new ValidationFailedError('Connection has no data DSN.', { connectionId });
+    }
+    guardDsn(dsns.dataDsn, { blockLoopback: this.#blockLoopback });
+    const provider = this.provider(connection.engine);
+    return provider.create({ role: 'data', dsn: dsns.dataDsn });
+  }
+
   /** Pooled data handle (dynamic Kysely over the data DSN); lazy + cached. */
   async data(connectionId: string): Promise<DataHandle> {
     const cached = this.#dataHandles.get(connectionId);

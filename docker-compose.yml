@@ -1,0 +1,109 @@
+# Adminium via Docker Compose — 01-architecture.md §4.2.
+#
+#   ADMINIUM_SECRET=$(openssl rand -hex 32) docker compose up
+#     → http://localhost:4600 → the first-run wizard.
+#
+# Meta store: by default Adminium falls back to embedded SQLite under the
+# `adminium-data` volume (§3.1) and says so at boot. For a real deployment, run
+# the bundled Postgres AND point Adminium at it — the profile starts the
+# container, it does not wire anything to it, so BOTH of these are needed:
+#
+#   export ADMINIUM_META_URL=postgres://adminium:adminium@meta-db:5432/adminium
+#   docker compose --profile with-meta up
+#
+# Set the profile alone and ADMINIUM_META_URL stays empty: Adminium silently
+# falls back to embedded SQLite while postgres:16 sits idle beside it, and the
+# only sign is the "Using embedded SQLite meta store" line at boot — which reads
+# as informational to someone who believes they just started Postgres.
+#
+# YOUR SOURCE DATABASE IS ALWAYS EXTERNAL to this file (§4.2) — Adminium connects
+# out to it. There is deliberately no source-DB service here to "get started
+# with"; you point Adminium at the database you already have, in the wizard or
+# via the optional DATABASE_URL seed below.
+
+name: adminium
+
+services:
+  adminium:
+    image: ghcr.io/adminium/adminium:${ADMINIUM_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - '4600:4600'
+    environment:
+      # Required. Derives the AES-256-GCM key for every stored DSN and API key,
+      # the session HMAC key, and the CSRF key (§7.1). It is NOT baked into the
+      # image and it must be stable across restarts: change it and every stored
+      # secret becomes undecryptable.
+      # Quoted, and with no `$(...)` in the message, on purpose: an unquoted
+      # value containing ": " parses as a nested YAML mapping, and Compose
+      # interpolates `$` inside `${...}` — so a bare command substitution here
+      # would need escaping as `$$(...)`. Either one breaks `compose config`.
+      ADMINIUM_SECRET: '${ADMINIUM_SECRET:?required - generate one with openssl rand -hex 32}'
+      # Meta-store DSN: postgres:// | mysql:// | sqlite:<path>. Unset → embedded
+      # SQLite in ADMINIUM_DATA_DIR. With --profile with-meta, use:
+      #   ADMINIUM_META_URL=postgres://adminium:adminium@meta-db:5432/adminium
+      ADMINIUM_META_URL: ${ADMINIUM_META_URL:-}
+      # Optional SEED ONLY (§7.1): imported as the first source connection on the
+      # first boot, then ignored. Manage connections in Studio afterwards.
+      DATABASE_URL: ${DATABASE_URL:-}
+      # Matches the volume mount below; also the image default.
+      ADMINIUM_DATA_DIR: /data
+    volumes:
+      # Files, exports, backups, and the embedded SQLite meta store. Named, so
+      # the instance survives `docker compose down` and image upgrades.
+      - adminium-data:/data
+    healthcheck:
+      # LIVENESS, pinned here as well as in the image so the contract is visible
+      # at the deployment surface. Hits the REAL API route and asserts the JSON
+      # body: bare /healthz has no route and would be answered by the SPA
+      # history fallback with index.html + HTTP 200, i.e. "healthy" with no API
+      # running at all.
+      #
+      # It does NOT check the meta store — /api/v1/healthz answers {ok:true}
+      # unconditionally — and that is deliberate: this probe drives `restart`
+      # below, and restarting cannot reconnect a dead database. For readiness
+      # (is the meta store reachable?) probe /api/v1/readyz, which answers 503
+      # when it is not.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4600/api/v1/healthz').then(r=>r.ok?r.json():Promise.reject(r.status)).then(b=>process.exit(b.ok===true?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # Generous: the first boot applies the meta migrations before listening.
+      start_period: 40s
+
+  # Optional meta store. Off unless `--profile with-meta` is passed.
+  #
+  # No `depends_on: [meta-db]` on the adminium service above, deliberately: a
+  # dependency on a profiled service breaks plain `docker compose up` for
+  # everyone not using the profile. `restart: unless-stopped` covers the startup
+  # race instead — if Postgres is not accepting connections yet, Adminium exits
+  # and is restarted until it is.
+  meta-db:
+    profiles: ['with-meta']
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${META_DB_USER:-adminium}
+      POSTGRES_PASSWORD: ${META_DB_PASSWORD:-adminium}
+      POSTGRES_DB: ${META_DB_NAME:-adminium}
+    volumes:
+      - meta-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${META_DB_USER:-adminium} -d ${META_DB_NAME:-adminium}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Not published to the host by default: the meta store is Adminium's private
+    # state and only needs to be reachable on the compose network.
+    expose:
+      - '5432'
+
+volumes:
+  adminium-data:
+  meta-db-data:

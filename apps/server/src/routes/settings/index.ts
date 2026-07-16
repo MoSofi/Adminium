@@ -21,8 +21,11 @@ import {
   settingsBrandingPutBody,
   settingsDefaultsPutBody,
   settingsDefaultsReply,
+  settingsTelemetryPutBody,
+  settingsTelemetryReply,
   settingsWorkspaceReply,
   type SettingsDefaultsReply,
+  type SettingsTelemetryReply,
   type SettingsWorkspaceReply,
 } from './schema.js';
 
@@ -94,6 +97,15 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
   async function workspaceReply(): Promise<SettingsWorkspaceReply> {
     const appName = await settings.get('branding.appName');
     return { data: { branding: { appName } } };
+  }
+
+  /** The two outbound-call consents (M10-T04). */
+  async function telemetryReply(): Promise<SettingsTelemetryReply> {
+    const [telemetry, updateCheck] = await Promise.all([
+      settings.get('telemetry.enabled'),
+      settings.get('updates.checkEnabled'),
+    ]);
+    return { data: { telemetry, updateCheck } };
   }
 
   return async (app) => {
@@ -184,6 +196,55 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
           changes: { before: { ...before }, after: { ...request.body } },
         });
         return workspaceReply();
+      },
+    );
+
+    // --- telemetry + update check (M10-T04) ----------------------------------
+    // Where the first-run consent answers are revisited. Audited like every
+    // other settings write: flipping telemetry on is a decision someone should
+    // be able to trace later.
+
+    app.get(
+      '/settings/telemetry',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { response: { 200: settingsTelemetryReply } },
+      },
+      async () => telemetryReply(),
+    );
+
+    app.put(
+      '/settings/telemetry',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { body: settingsTelemetryPutBody, response: { 200: settingsTelemetryReply } },
+      },
+      async (request) => {
+        const before = (await telemetryReply()).data;
+        const next = request.body;
+        const at = app.rbac.now();
+        const actingUserId =
+          request.apiKeyPrincipal === null
+            ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
+            : null;
+
+        if (before.telemetry !== next.telemetry) {
+          await settings.set('telemetry.enabled', next.telemetry, { updatedBy: actingUserId, at });
+        }
+        if (before.updateCheck !== next.updateCheck) {
+          await settings.set('updates.checkEnabled', next.updateCheck, {
+            updatedBy: actingUserId,
+            at,
+          });
+        }
+
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'settings.telemetry.update',
+          changes: { before: { ...before }, after: { ...next } },
+        });
+
+        return telemetryReply();
       },
     );
   };

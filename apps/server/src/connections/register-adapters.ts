@@ -26,7 +26,14 @@ function isAdapterProvider(value: unknown): value is AdapterProvider {
 export function providerFromModule(mod: unknown): AdapterProvider | null {
   if (typeof mod !== 'object' || mod === null) return null;
   const exportsRecord = mod as Record<string, unknown>;
-  const preferred = ['postgresAdapter', 'adapterProvider', 'provider', 'default'];
+  const preferred = [
+    'postgresAdapter',
+    'mysqlAdapter',
+    'sqliteAdapter',
+    'adapterProvider',
+    'provider',
+    'default',
+  ];
   for (const key of preferred) {
     if (isAdapterProvider(exportsRecord[key])) return exportsRecord[key] as AdapterProvider;
   }
@@ -44,6 +51,26 @@ export interface RegisterAdaptersResult {
 }
 
 /**
+ * The v1 adapter packages — all THREE engines BRIEF §3 ships and the `init`
+ * wizard offers (PostgreSQL, MySQL/MariaDB, SQLite), and all three that M10's
+ * exit criterion names ("connect any of the 3 engines").
+ *
+ * Registering only postgres here meant the wizard let the user answer every
+ * prompt, pick "Point at a SQLite file" or "MySQL / MariaDB", and then die on
+ * the registry's bare UNSUPPORTED error at `manager.testDsn` — after all the
+ * questions, with no hint. Both packages exported working providers the whole
+ * time; they were simply never composed in. They are also declared dependencies
+ * of `@adminium/server` now, so they resolve inside the deployed image and not
+ * just in a workspace checkout (01 §2.3.1: the server, and only the server,
+ * composes concrete adapters).
+ */
+export const ADAPTER_PACKAGES: readonly string[] = [
+  '@adminium/adapter-postgres',
+  '@adminium/adapter-mysql',
+  '@adminium/adapter-sqlite',
+];
+
+/**
  * Register every available adapter package. Idempotent: dialects already in
  * the registry are left untouched (tests re-build apps against the same
  * process-wide registry).
@@ -52,7 +79,7 @@ export async function registerAdapters(
   registry: AdapterRegistry<AdapterProvider> = adapterRegistry,
 ): Promise<RegisterAdaptersResult> {
   const result: RegisterAdaptersResult = { registered: [], missing: [] };
-  const packages = ['@adminium/adapter-postgres'];
+  const packages = ADAPTER_PACKAGES;
   for (const pkg of packages) {
     let mod: unknown;
     try {

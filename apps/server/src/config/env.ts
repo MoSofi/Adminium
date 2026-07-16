@@ -32,12 +32,28 @@ export const envSchema = z.object({
   ADMINIUM_META_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_DATA_DIR: z.preprocess(emptyToUndefined, z.string().default('./data')),
   ADMINIUM_LOG_LEVEL: z.preprocess(emptyToUndefined, z.enum(LOG_LEVELS).default('info')),
+  /**
+   * The telemetry OVERRIDE, and — unlike its siblings — deliberately tri-state:
+   * `true` / `false` / `undefined` (unset).
+   *
+   * `undefined` MUST survive parsing. The real gate is the `telemetry.enabled`
+   * setting, written by the first-run consent screen; an env var that collapsed
+   * "unset" to `false` could not be layered over it without silently vetoing
+   * every consenting instance. So: set ⇒ the environment wins outright (01 §7.2
+   * "environment always wins"); unset ⇒ the consent answer stands.
+   *
+   * It is layered at all because it was documented as the kill-switch
+   * (`self-hosting/telemetry.md`, `env-vars.md`) while being read by NOTHING —
+   * an org that put `ADMINIUM_TELEMETRY=off` in its compose file to enforce a
+   * no-phone-home policy had exactly no protection if any user later clicked
+   * "yes" on the consent screen. A documented control has to be a control.
+   */
   ADMINIUM_TELEMETRY: z.preprocess(
     emptyToUndefined,
     z
       .enum(BOOLEANISH)
       .optional()
-      .transform((value) => (value === undefined ? false : TRUTHY.has(value))),
+      .transform((value) => (value === undefined ? undefined : TRUTHY.has(value))),
   ),
   ADMINIUM_TRUST_PROXY: z.preprocess(
     emptyToUndefined,

@@ -1,0 +1,245 @@
+name: docker
+
+# M10-T02 / 01-T11. The release workflow builds the multi-arch image on a tag —
+# by which point a broken Dockerfile is an incident, not a review comment. This
+# workflow is the feedback loop that keeps that from happening:
+#
+#   validate    lint the Dockerfile + resolve docker-compose.yml (seconds)
+#   build-smoke build amd64 and assert the M10-T02 exit criterion for real —
+#               "docker run boots to the first-run wizard" — on BOTH meta-store
+#               topologies §4.2 describes: the embedded SQLite fallback and a
+#               separate Postgres (the `with-meta` profile)
+#
+# Path-filtered rather than run on every PR: the build does a full workspace
+# install + turbo build inside the image, which is far too slow to tax every
+# change with. The nightly schedule covers the other direction — a change to
+# apps/ or packages/ that breaks the image without touching a docker file.
+
+on:
+  push:
+    branches: [main]
+    # Duplicated rather than shared via a YAML anchor: the Actions workflow
+    # parser does not support anchors/aliases.
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - '.github/workflows/docker.yml'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - '.github/workflows/docker.yml'
+  schedule:
+    - cron: '41 3 * * *' # nightly — catches app changes that break the image
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint the Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          # DL3008 (pin apt versions): Debian point releases vanish from the
+          # archive, so pinning python3/make/g++/dumb-init makes the image
+          # un-buildable on a schedule we do not control. The base image is
+          # pinned instead.
+          ignore: DL3008
+          failure-threshold: warning
+
+      - name: Resolve docker-compose.yml
+        env:
+          # Only to satisfy the `:?` guard on ADMINIUM_SECRET — `config` renders
+          # the file, it does not start anything.
+          ADMINIUM_SECRET: validate-only-not-a-real-secret
+        run: |
+          set -euo pipefail
+          docker compose config >/dev/null
+          echo "default profile resolves"
+          docker compose --profile with-meta config >/dev/null
+          echo "with-meta profile resolves"
+
+      - name: Assert the with-meta profile is opt-in
+        env:
+          ADMINIUM_SECRET: validate-only-not-a-real-secret
+        run: |
+          set -euo pipefail
+          # meta-db must NOT appear without the profile — a plain `up` has to
+          # stay a single-service deployment (01-architecture.md §4.2).
+          if docker compose config --services | grep -qx 'meta-db'; then
+            echo "::error::meta-db is active without --profile with-meta"
+            exit 1
+          fi
+          docker compose --profile with-meta config --services | grep -qx 'meta-db'
+          echo "meta-db is opt-in via --profile with-meta"
+
+  build-smoke:
+    name: build-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # amd64 only here. The arm64 leg is emulated and slow; it is the release
+      # workflow's job, and nothing in this Dockerfile is arch-conditional.
+      - name: Build (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: adminium:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The exit criterion, asserted end-to-end: a clean machine, no meta store
+      # configured, nothing but ADMINIUM_SECRET — exactly `docker run`.
+      - name: Boot to the first-run wizard
+        run: |
+          set -euo pipefail
+          docker run -d --name adminium-smoke \
+            -e ADMINIUM_SECRET=smoke-test-secret-not-a-real-one \
+            -p 4600:4600 adminium:ci
+
+          # Wait on Docker's own HEALTHCHECK: this proves the probe works, not
+          # just the server. A probe pointed at bare /healthz would pass here on
+          # the SPA fallback alone, which is why it asserts parsed JSON.
+          for i in $(seq 1 60); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' adminium-smoke 2>/dev/null || echo starting)"
+            [ "$status" = "healthy" ] && break
+            if [ "$status" = "unhealthy" ] || [ "$i" -eq 60 ]; then
+              echo "::error::container did not become healthy (status=$status)"
+              docker logs adminium-smoke
+              exit 1
+            fi
+            sleep 2
+          done
+
+          curl -fsS http://127.0.0.1:4600/api/v1/healthz | grep -q '"ok":true'
+          echo "API healthy"
+
+          # The dashboard build must be bundled (Dockerfile's bundle-dashboard
+          # step) or the wizard never renders.
+          curl -fsS http://127.0.0.1:4600/ | grep -qi '<!doctype html'
+          echo "dashboard served"
+
+      - name: Assert non-root and the data volume
+        run: |
+          set -euo pipefail
+          uid="$(docker exec adminium-smoke id -u)"
+          if [ "$uid" = "0" ]; then
+            echo "::error::image runs as root (01-architecture.md §4.2 requires non-root)"
+            exit 1
+          fi
+          echo "runs as uid $uid"
+          # /data must be writable by that user, or files/exports/backups and the
+          # embedded SQLite meta store all fail at runtime rather than at boot.
+          docker exec adminium-smoke test -w /data
+          echo "/data is writable"
+          # dumb-init must be PID 1 so `docker stop` reaches Fastify as SIGTERM.
+          pid1="$(docker exec adminium-smoke cat /proc/1/cmdline | tr '\0' ' ')"
+          case "$pid1" in
+            *dumb-init*) echo "PID 1 is dumb-init" ;;
+            *) echo "::error::PID 1 is not dumb-init: $pid1"; exit 1 ;;
+          esac
+
+      - name: State persists across a restart
+        run: |
+          set -euo pipefail
+          # The /data volume is the whole point of the mount: an embedded-SQLite
+          # instance must not silently reset to a fresh wizard on restart.
+          docker exec adminium-smoke test -f /data/meta.db
+          docker restart adminium-smoke
+          for i in $(seq 1 60); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' adminium-smoke 2>/dev/null || echo starting)"
+            [ "$status" = "healthy" ] && break
+            if [ "$i" -eq 60 ]; then
+              echo "::error::container did not recover after restart (status=$status)"
+              docker logs adminium-smoke
+              exit 1
+            fi
+            sleep 2
+          done
+          docker exec adminium-smoke test -f /data/meta.db
+          echo "meta store survived the restart"
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker logs adminium-smoke || true
+
+      - name: Clean up the smoke container
+        if: always()
+        run: docker rm -f adminium-smoke || true
+
+      # §4.2's PRODUCTION shape, which nothing above touches: everything so far
+      # runs on the embedded SQLite fallback (only ADMINIUM_SECRET is set), i.e.
+      # the meta store §3.1 explicitly tells self-hosters not to rely on. The
+      # `validate` job asserts the with-meta profile *resolves*, which reads like
+      # coverage but only parses YAML — it never starts anything.
+      #
+      # That gap is load-bearing: the drivers are dynamically imported per
+      # dialect, so a missing `pg` in the image is invisible to every SQLite
+      # test and fatal to every deployment following the docs.
+      - name: Boot against a Postgres meta store (the with-meta profile)
+        env:
+          ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
+          ADMINIUM_META_URL: postgres://adminium:adminium@meta-db:5432/adminium
+          ADMINIUM_VERSION: ci-local
+        run: |
+          set -euo pipefail
+          # docker-compose.yml names the published image; point that tag at the
+          # image this job just built rather than pulling a released one.
+          docker tag adminium:ci ghcr.io/adminium/adminium:ci-local
+          docker compose --profile with-meta up -d --wait --wait-timeout 180
+
+          # It must have USED Postgres. Without this the fallback would keep the
+          # test green while proving nothing — the exact failure mode above.
+          if docker compose logs adminium | grep -qi 'embedded SQLite'; then
+            echo "::error::fell back to embedded SQLite despite ADMINIUM_META_URL"
+            docker compose logs adminium
+            exit 1
+          fi
+          info="$(curl -fsS http://127.0.0.1:4600/api/v1/system/info)"
+          echo "$info" | grep -q '"dialect":"postgres"' || {
+            echo "::error::meta dialect is not postgres: $info"; exit 1;
+          }
+          echo "meta store is postgres"
+
+          # Readiness actually checks the store, unlike the liveness healthcheck.
+          curl -fsS http://127.0.0.1:4600/api/v1/readyz | grep -q '"meta":"ok"'
+          echo "readyz confirms the meta store"
+
+          # Migrations ran against Postgres and the wizard is reachable — the
+          # M10-T02 exit criterion, on the topology §4.2 actually specifies.
+          curl -fsS http://127.0.0.1:4600/api/v1/setup/state | grep -q '"required":true'
+          echo "first-run wizard reachable on a postgres meta store"
+
+      - name: Compose logs (on failure)
+        if: failure()
+        env:
+          ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
+        run: docker compose --profile with-meta logs || true
+
+      - name: Clean up the compose stack
+        if: always()
+        env:
+          ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
+        run: docker compose --profile with-meta down -v || true

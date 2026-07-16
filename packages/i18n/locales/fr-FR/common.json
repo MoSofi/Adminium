@@ -833,5 +833,266 @@
       "system": "Système",
       "domain": "Domaine"
     }
+  },
+  "setup": {
+    "title": "Configurer Adminium",
+    "subtitle": "Créez le premier administrateur. Cela n’arrive qu’une fois.",
+    "progress": "Progression de la configuration",
+    "steps": {
+      "account": "Compte administrateur",
+      "consent": "Confidentialité"
+    },
+    "account": {
+      "name": "Votre nom",
+      "email": "E-mail",
+      "emailInvalid": "Saisissez une adresse e-mail valide.",
+      "password": "Mot de passe",
+      "passwordHelper": "Au moins {min} caractères.",
+      "passwordTooShort": "Utilisez au moins {min} caractères.",
+      "confirm": "Confirmer le mot de passe",
+      "passwordMismatch": "Les mots de passe ne correspondent pas.",
+      "continue": "Continuer",
+      "strength": "Robustesse du mot de passe",
+      "strengthLevels": {
+        "weak": "Faible",
+        "fair": "Moyen",
+        "good": "Bon",
+        "strong": "Fort"
+      }
+    },
+    "consent": {
+      "telemetry": {
+        "title": "Partager des données d’usage anonymes",
+        "description": "Nous aide à voir quels moteurs de base de données prioriser. Désactivé tant que vous ne l’activez pas."
+      },
+      "updates": {
+        "title": "Rechercher les nouvelles versions",
+        "description": "Affiche un avis lorsqu’une nouvelle version — y compris un correctif de sécurité — est disponible. Cela interroge GitHub sur la dernière version, ce qui lui révèle l’adresse IP et la version de cette instance. Rien d’autre n’est envoyé."
+      },
+      "sentTitle": "Exactement ce qui est envoyé :",
+      "sent": {
+        "instanceId": "Un identifiant d’instance aléatoire (un UUID généré ici ; non dérivé de votre nom, de votre hôte ni de votre base de données)",
+        "version": "La version d’Adminium exécutée par cette instance",
+        "engines": "Les types de moteurs de base de données connectés (par ex. « postgres ») — les types seulement"
+      },
+      "neverTitle": "Jamais envoyé :",
+      "never": {
+        "schema": "Votre schéma — aucun nom de table, de colonne ni d’énumération",
+        "rows": "Vos données — pas une seule ligne, jamais",
+        "connections": "Chaînes de connexion, noms d’hôte ou identifiants",
+        "people": "E-mails, noms ou identifiants d’utilisateurs",
+        "llm": "Invites d’IA ou contenus d’exécution"
+      },
+      "reversible": "Les deux sont désactivés par défaut et vous pourrez les modifier plus tard dans les Paramètres.",
+      "back": "Retour",
+      "finish": "Créer le compte administrateur"
+    },
+    "error": {
+      "alreadyCompleted": "Cette instance a déjà été configurée. Connectez-vous avec le compte administrateur existant.",
+      "rejected": "Le serveur a refusé ces informations. Vérifiez l’e-mail et le mot de passe, puis réessayez.",
+      "failed": "Échec de la configuration. Vérifiez votre connexion et réessayez."
+    }
+  },
+  "about": {
+    "title": "À propos d’Adminium",
+    "subtitle": "Version, licence et emplacement du code source de cette instance.",
+    "version": "Version",
+    "license": "Licence",
+    "metaStore": "Métabase",
+    "node": "Node.js",
+    "engine": {
+      "postgres": "PostgreSQL",
+      "mysql": "MySQL / MariaDB",
+      "sqlite": "SQLite"
+    },
+    "licenseCard": {
+      "title": "Libre et open source",
+      "body": "Adminium est distribué sous licence GNU Affero General Public License v3.0. Vous êtes libre de l’exécuter, de l’étudier, de le modifier et de le partager. Si vous proposez une version modifiée à d’autres via un réseau, l’AGPL vous demande de leur proposer aussi son code source."
+    },
+    "viewLicense": "Lire la licence",
+    "viewSource": "Obtenir le code source",
+    "updates": {
+      "title": "Mises à jour",
+      "description": "Si cette instance recherche de nouvelles versions."
+    },
+    "update": {
+      "disabled": "La recherche de mises à jour est désactivée : cette instance ne contacte jamais GitHub. Activez-la dans les Paramètres pour être informé des nouvelles versions.",
+      "current": "Vous utilisez la dernière version.",
+      "available": "Adminium {version} est disponible",
+      "availableBody": "Vous utilisez actuellement {version}.",
+      "viewRelease": "Voir les notes de version"
+    }
+  },
+  "apiKeys": {
+    "title": "Clés d’API et jetons",
+    "subtitle": "Gérez l’accès programmatique à votre espace de travail.",
+    "createButton": "Créer une clé",
+    "copy": "Copier",
+    "copied": "Copié",
+    "revoke": "Révoquer la clé",
+    "neverUsed": "Jamais utilisée",
+    "lastUsed": "Dernière utilisation {since}",
+    "scopesOverflow": "+{count} de plus",
+    "status": {
+      "active": "Active",
+      "revoked": "Révoquée",
+      "expired": "Expirée"
+    },
+    "list": {
+      "title": "Clés",
+      "activeCount": "{count, plural, one {# clé active} other {# clés actives}}"
+    },
+    "empty": {
+      "title": "Aucune clé d’API",
+      "body": "Créez-en une pour appeler l’API Adminium depuis votre propre code."
+    },
+    "revealed": {
+      "title": "Nouvelle clé créée",
+      "body": "Copiez-la maintenant — vous ne pourrez plus jamais la voir."
+    },
+    "rolesUnavailable": {
+      "title": "Les rôles ne vous sont pas visibles",
+      "body": "Créer une clé, c’est choisir le rôle sous lequel elle agit, et votre compte ne peut pas lire la liste des rôles. Demandez à un administrateur la permission « Gérer les rôles »."
+    },
+    "quickStart": {
+      "title": "Démarrage rapide",
+      "body": "Authentifiez vos requêtes avec votre clé dans l’en-tête Authorization."
+    },
+    "create": {
+      "title": "Créer une clé d’API",
+      "description": "La clé agit avec les permissions du rôle que vous choisissez.",
+      "name": "Nom",
+      "namePlaceholder": "ex. Pipeline analytique",
+      "role": "Rôle",
+      "roleHelper": "Choisissez le rôle le moins privilégié qui suffise.",
+      "expires": "Expire le",
+      "expiresHelper": "Laissez vide pour une clé qui n’expire jamais.",
+      "submit": "Créer la clé",
+      "failed": "Impossible de créer la clé"
+    },
+    "revokeConfirm": {
+      "title": "Révoquer la clé d’API",
+      "body": "Tout code appelant encore l’API avec « {name} » échouera immédiatement. C’est irréversible.",
+      "prompt": "Saisissez « {name} » pour confirmer",
+      "confirm": "Révoquer la clé"
+    }
+  },
+  "changelog": {
+    "title": "Journal des modifications",
+    "subtitle": "Nouveautés produit et versions.",
+    "allReleases": "Toutes les versions",
+    "tag": {
+      "new": "Nouveau",
+      "improved": "Amélioré",
+      "fixed": "Corrigé",
+      "security": "Sécurité"
+    },
+    "filter": {
+      "all": "Tout",
+      "label": "Filtrer les modifications par type"
+    },
+    "empty": {
+      "title": "Rien sous ce filtre",
+      "body": "Aucune version n’a encore comporté de modification de ce type.",
+      "clear": "Afficher toutes les modifications"
+    }
+  },
+  "kb": {
+    "title": "Base de connaissances",
+    "subtitle": "{count, plural, one {# guide} other {# guides}} · documentation complète sur docs.adminium.ai",
+    "openDocs": "Ouvrir la documentation",
+    "browse": "Parcourir par thème",
+    "hero": {
+      "title": "Comment pouvons-nous vous aider ?",
+      "subtitle": "Cherchez dans les guides, la doc API et le dépannage.",
+      "placeholder": "Rechercher dans la base de connaissances…",
+      "label": "Rechercher dans la base de connaissances",
+      "clear": "Effacer la recherche"
+    },
+    "category": {
+      "start": "Premiers pas",
+      "connect": "Connecter des données",
+      "api": "API et développement",
+      "security": "Sécurité et accès",
+      "selfhost": "Auto-hébergement",
+      "trouble": "Dépannage",
+      "count": "{count, plural, one {# article} other {# articles}}",
+      "selected": "Filtré"
+    },
+    "list": {
+      "all": "Tous les guides",
+      "clear": "Effacer le filtre"
+    },
+    "empty": {
+      "title": "Aucun guide ne correspond à votre recherche",
+      "body": "Essayez un autre mot, ou cherchez dans la documentation complète sur docs.adminium.ai.",
+      "openDocs": "Ouvrir la documentation"
+    },
+    "article": {
+      "install": {
+        "title": "Installer Adminium",
+        "excerpt": "Lancez npx adminium, ou docker run, et atteignez l’assistant de première exécution en une minute."
+      },
+      "firstAdmin": {
+        "title": "Créer votre premier super-administrateur",
+        "excerpt": "Ce que demande l’assistant de première exécution, et pourquoi il ne peut s’exécuter qu’une fois."
+      },
+      "connectDb": {
+        "title": "Connecter votre première base de données",
+        "excerpt": "Pointez Adminium vers PostgreSQL, MySQL ou SQLite et générez une application d’administration."
+      },
+      "schemaFile": {
+        "title": "Générer depuis un fichier de schéma",
+        "excerpt": "Importez un schéma Prisma, un models.py Django, un schema.rb Rails ou un dump .sql — sans aucune connexion."
+      },
+      "readOnly": {
+        "title": "Utiliser un rôle en lecture seule",
+        "excerpt": "L’introspection ne lit que les métadonnées du schéma. Donnez à Adminium le minimum de privilèges."
+      },
+      "apiKeys": {
+        "title": "S’authentifier avec des clés d’API",
+        "excerpt": "Créer et révoquer des clés, et pourquoi une clé ne vous est montrée qu’une seule fois."
+      },
+      "rest": {
+        "title": "Référence de l’API REST",
+        "excerpt": "Tous les points d’accès exposés par l’application générée, avec les formats de requête et de réponse."
+      },
+      "manifest": {
+        "title": "Le manifeste de page",
+        "excerpt": "Comment une page se décrit en configuration, et comment en modifier une à la main."
+      },
+      "roles": {
+        "title": "Rôles et permissions",
+        "excerpt": "Attribuez Lecteur, Éditeur et Admin, et construisez vos propres rôles depuis la matrice de permissions."
+      },
+      "audit": {
+        "title": "Lire le journal d’audit",
+        "excerpt": "Qui a changé quoi, quand, et depuis où."
+      },
+      "secrets": {
+        "title": "Comment Adminium stocke vos secrets",
+        "excerpt": "Les identifiants de connexion sont chiffrés au repos avec ADMINIUM_SECRET. Les clés d’API sont hachées."
+      },
+      "docker": {
+        "title": "Auto-héberger avec Docker",
+        "excerpt": "L’image officielle, docker-compose, et l’usage d’une base méta séparée."
+      },
+      "backup": {
+        "title": "Sauvegarder et déplacer une instance",
+        "excerpt": "export-zip regroupe votre configuration serveur ; l’import rejoue la même installation ailleurs."
+      },
+      "telemetry": {
+        "title": "Télémétrie et vérification des mises à jour",
+        "excerpt": "Les deux sont opt-in et désactivées par défaut. Ce qui est envoyé si vous les activez."
+      },
+      "connectionFails": {
+        "title": "Une connexion à la base échoue",
+        "excerpt": "Lisez la carte de diagnostic : hôte, port, TLS, et l’IP que votre base doit autoriser."
+      },
+      "missingTables": {
+        "title": "Des tables manquent après l’introspection",
+        "excerpt": "Visibilité du schéma, tables exclues, et relance de la génération."
+      }
+    }
   }
 }

@@ -195,7 +195,11 @@ export function ApiKeysPanelView({
                     <RefreshCw className="size-3.5" />
                   </IconButton>
                 )}
-                {onRevoke === undefined ? null : (
+                {/* `revocable: false` = already revoked or expired. The button
+                    is omitted rather than rendered inert: a host cannot revoke
+                    a dead key, so offering the action could only ever swallow
+                    the click. Absent flag ⇒ revocable (the common case). */}
+                {onRevoke === undefined || key.revocable === false ? null : (
                   <IconButton
                     size="sm"
                     variant="ghost"

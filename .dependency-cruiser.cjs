@@ -80,6 +80,17 @@ module.exports = {
       to: { path: ANY_WORKSPACE, pathNot: ['^packages/charts/', pkg('tokens')] },
     },
     {
+      name: 'docs-only-tokens',
+      comment:
+        '@adminium/docs may import only @adminium/tokens from the workspace ' +
+        '(01 §2.3 dependency matrix, 14-docs-site.md §2 / 14-T01). The docs site is ' +
+        'static prose + a token remap: it must never import product runtime code, ' +
+        'or the published site would ship the app it documents.',
+      severity: 'error',
+      from: { path: '^apps/docs/' },
+      to: { path: ANY_WORKSPACE, pathNot: ['^apps/docs/', pkg('tokens')] },
+    },
+    {
       name: 'ui-no-charts-widgets-engine',
       comment: '@adminium/ui must never import charts, widgets, or engine (01 §2.3).',
       severity: 'error',

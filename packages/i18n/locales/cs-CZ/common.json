@@ -833,5 +833,266 @@
       "system": "Systém",
       "domain": "Doména"
     }
+  },
+  "setup": {
+    "title": "Nastavení Adminia",
+    "subtitle": "Vytvořte prvního správce. To se děje jen jednou.",
+    "progress": "Průběh nastavení",
+    "steps": {
+      "account": "Účet správce",
+      "consent": "Soukromí"
+    },
+    "account": {
+      "name": "Vaše jméno",
+      "email": "E-mail",
+      "emailInvalid": "Zadejte platnou e-mailovou adresu.",
+      "password": "Heslo",
+      "passwordHelper": "Nejméně {min} znaků.",
+      "passwordTooShort": "Použijte nejméně {min} znaků.",
+      "confirm": "Potvrzení hesla",
+      "passwordMismatch": "Hesla se neshodují.",
+      "continue": "Pokračovat",
+      "strength": "Síla hesla",
+      "strengthLevels": {
+        "weak": "Slabé",
+        "fair": "Průměrné",
+        "good": "Dobré",
+        "strong": "Silné"
+      }
+    },
+    "consent": {
+      "telemetry": {
+        "title": "Sdílet anonymní data o používání",
+        "description": "Pomáhá nám zjistit, které databázové enginy upřednostnit. Dokud to nezapnete, je vypnuto."
+      },
+      "updates": {
+        "title": "Kontrolovat nové verze",
+        "description": "Zobrazí upozornění, když je k dispozici nová verze — včetně bezpečnostní opravy. Dotazuje se GitHubu na nejnovější vydání, čímž GitHubu prozradí IP adresu a verzi této instance. Nic dalšího se neodesílá."
+      },
+      "sentTitle": "Přesně toto se odesílá:",
+      "sent": {
+        "instanceId": "Náhodné ID instance (UUID vygenerované zde; neodvozuje se z vašeho jména, hostitele ani databáze)",
+        "version": "Verze Adminia, kterou tato instance používá",
+        "engines": "Které typy databázových enginů jsou připojeny (např. „postgres“) — pouze typy"
+      },
+      "neverTitle": "Nikdy se neodesílá:",
+      "never": {
+        "schema": "Vaše schéma — žádné názvy tabulek, sloupců ani výčtů",
+        "rows": "Vaše data — nikdy ani jeden řádek",
+        "connections": "Připojovací řetězce, názvy hostitelů ani přihlašovací údaje",
+        "people": "E-maily, jména ani ID uživatelů",
+        "llm": "Zadání pro AI ani obsah běhů"
+      },
+      "reversible": "Obojí je ve výchozím stavu vypnuté a kdykoli později to změníte v Nastavení.",
+      "back": "Zpět",
+      "finish": "Vytvořit účet správce"
+    },
+    "error": {
+      "alreadyCompleted": "Tato instance už byla nastavena. Přihlaste se stávajícím účtem správce.",
+      "rejected": "Server tyto údaje odmítl. Zkontrolujte e-mail a heslo a zkuste to znovu.",
+      "failed": "Nastavení se nezdařilo. Zkontrolujte připojení a zkuste to znovu."
+    }
+  },
+  "about": {
+    "title": "O Adminiu",
+    "subtitle": "Verze, licence a kde najdete zdrojový kód této instance.",
+    "version": "Verze",
+    "license": "Licence",
+    "metaStore": "Meta úložiště",
+    "node": "Node.js",
+    "engine": {
+      "postgres": "PostgreSQL",
+      "mysql": "MySQL / MariaDB",
+      "sqlite": "SQLite"
+    },
+    "licenseCard": {
+      "title": "Svobodný a otevřený software",
+      "body": "Adminium je licencováno pod GNU Affero General Public License v3.0. Můžete jej volně spouštět, studovat, upravovat a sdílet. Pokud upravenou verzi nabídnete ostatním po síti, AGPL vyžaduje, abyste jim nabídli i její zdrojový kód."
+    },
+    "viewLicense": "Přečíst licenci",
+    "viewSource": "Získat zdrojový kód",
+    "updates": {
+      "title": "Aktualizace",
+      "description": "Zda tato instance kontroluje nové verze."
+    },
+    "update": {
+      "disabled": "Kontrola aktualizací je vypnutá, takže tato instance nikdy nekontaktuje GitHub. Zapněte ji v Nastavení, abyste se dozvěděli o nových verzích.",
+      "current": "Používáte nejnovější verzi.",
+      "available": "Je k dispozici Adminium {version}",
+      "availableBody": "Aktuálně používáte {version}.",
+      "viewRelease": "Zobrazit poznámky k vydání"
+    }
+  },
+  "apiKeys": {
+    "title": "Klíče API a tokeny",
+    "subtitle": "Spravujte programový přístup ke svému pracovnímu prostoru.",
+    "createButton": "Vytvořit klíč",
+    "copy": "Kopírovat",
+    "copied": "Zkopírováno",
+    "revoke": "Odvolat klíč",
+    "neverUsed": "Nikdy nepoužit",
+    "lastUsed": "Naposledy použit {since}",
+    "scopesOverflow": "+{count} dalších",
+    "status": {
+      "active": "Aktivní",
+      "revoked": "Odvolaný",
+      "expired": "Vypršelý"
+    },
+    "list": {
+      "title": "Klíče",
+      "activeCount": "{count, plural, one {# aktivní klíč} few {# aktivní klíče} many {# aktivního klíče} other {# aktivních klíčů}}"
+    },
+    "empty": {
+      "title": "Zatím žádné klíče API",
+      "body": "Vytvořte si klíč a volejte API Adminia z vlastního kódu."
+    },
+    "revealed": {
+      "title": "Nový klíč vytvořen",
+      "body": "Zkopírujte si ho hned — už ho nikdy neuvidíte."
+    },
+    "rolesUnavailable": {
+      "title": "Role pro vás nejsou viditelné",
+      "body": "Vytvořit klíč znamená zvolit roli, pod kterou jedná, a váš účet nemůže číst seznam rolí. Požádejte správce o oprávnění „Spravovat role“."
+    },
+    "quickStart": {
+      "title": "Rychlý start",
+      "body": "Požadavky ověřujte klíčem v hlavičce Authorization."
+    },
+    "create": {
+      "title": "Vytvořit klíč API",
+      "description": "Klíč jedná s oprávněními role, kterou zvolíte.",
+      "name": "Název",
+      "namePlaceholder": "např. Analytická pipeline",
+      "role": "Role",
+      "roleHelper": "Zvolte roli s nejnižšími oprávněními, která na to stačí.",
+      "expires": "Platnost do",
+      "expiresHelper": "Ponechte prázdné pro klíč bez expirace.",
+      "submit": "Vytvořit klíč",
+      "failed": "Klíč se nepodařilo vytvořit"
+    },
+    "revokeConfirm": {
+      "title": "Odvolat klíč API",
+      "body": "Každý kód, který ještě volá API klíčem „{name}“, začne okamžitě selhávat. Tuto akci nelze vrátit.",
+      "prompt": "Pro potvrzení napište „{name}“",
+      "confirm": "Odvolat klíč"
+    }
+  },
+  "changelog": {
+    "title": "Seznam změn",
+    "subtitle": "Novinky produktu a vydání.",
+    "allReleases": "Všechna vydání",
+    "tag": {
+      "new": "Novinka",
+      "improved": "Vylepšeno",
+      "fixed": "Opraveno",
+      "security": "Bezpečnost"
+    },
+    "filter": {
+      "all": "Vše",
+      "label": "Filtrovat změny podle typu"
+    },
+    "empty": {
+      "title": "Pod tímto filtrem nic není",
+      "body": "Zatím žádné vydání neobsahovalo změnu tohoto druhu.",
+      "clear": "Zobrazit všechny změny"
+    }
+  },
+  "kb": {
+    "title": "Znalostní báze",
+    "subtitle": "{count, plural, one {# návod} few {# návody} many {# návodu} other {# návodů}} · kompletní dokumentace na docs.adminium.ai",
+    "openDocs": "Otevřít dokumentaci",
+    "browse": "Procházet podle témat",
+    "hero": {
+      "title": "S čím vám můžeme pomoci?",
+      "subtitle": "Prohledejte návody, dokumentaci API a řešení potíží.",
+      "placeholder": "Hledat ve znalostní bázi…",
+      "label": "Hledat ve znalostní bázi",
+      "clear": "Vymazat hledání"
+    },
+    "category": {
+      "start": "Začínáme",
+      "connect": "Připojení dat",
+      "api": "API a vývoj",
+      "security": "Zabezpečení a přístup",
+      "selfhost": "Vlastní hosting",
+      "trouble": "Řešení potíží",
+      "count": "{count, plural, one {# článek} few {# články} many {# článku} other {# článků}}",
+      "selected": "Filtrováno"
+    },
+    "list": {
+      "all": "Všechny návody",
+      "clear": "Zrušit filtr"
+    },
+    "empty": {
+      "title": "Vašemu hledání neodpovídá žádný návod",
+      "body": "Zkuste jiné slovo nebo prohledejte úplnou dokumentaci na docs.adminium.ai.",
+      "openDocs": "Otevřít dokumentaci"
+    },
+    "article": {
+      "install": {
+        "title": "Instalace Adminia",
+        "excerpt": "Spusťte npx adminium nebo docker run a během minuty jste u průvodce prvním spuštěním."
+      },
+      "firstAdmin": {
+        "title": "Vytvoření prvního supersprávce",
+        "excerpt": "Na co se průvodce prvním spuštěním ptá a proč může proběhnout jen jednou."
+      },
+      "connectDb": {
+        "title": "Připojení první databáze",
+        "excerpt": "Nasměrujte Adminium na PostgreSQL, MySQL nebo SQLite a vygenerujte administraci."
+      },
+      "schemaFile": {
+        "title": "Generování ze souboru se schématem",
+        "excerpt": "Nahrajte schéma Prisma, models.py z Djanga, schema.rb z Rails nebo výpis .sql — bez připojení."
+      },
+      "readOnly": {
+        "title": "Použití role jen pro čtení",
+        "excerpt": "Introspekce čte pouze metadata schématu. Dejte Adminiu co nejméně oprávnění."
+      },
+      "apiKeys": {
+        "title": "Ověřování pomocí klíčů API",
+        "excerpt": "Vytváření a odvolávání klíčů — a proč se vám klíč ukáže jen jednou."
+      },
+      "rest": {
+        "title": "Referenční příručka REST API",
+        "excerpt": "Každý koncový bod vygenerované aplikace, s tvarem požadavku i odpovědi."
+      },
+      "manifest": {
+        "title": "Manifest stránky",
+        "excerpt": "Jak je stránka popsána konfigurací a jak ji upravit ručně."
+      },
+      "roles": {
+        "title": "Role a oprávnění",
+        "excerpt": "Přidělte role Divák, Editor a Správce a sestavte si vlastní z matice oprávnění."
+      },
+      "audit": {
+        "title": "Čtení auditního záznamu",
+        "excerpt": "Kdo co změnil, kdy a odkud."
+      },
+      "secrets": {
+        "title": "Jak Adminium ukládá vaše tajemství",
+        "excerpt": "Přihlašovací údaje k připojení jsou šifrovány pomocí ADMINIUM_SECRET. Klíče API se hashují."
+      },
+      "docker": {
+        "title": "Vlastní hosting s Dockerem",
+        "excerpt": "Oficiální image, docker-compose a provoz samostatné meta databáze."
+      },
+      "backup": {
+        "title": "Záloha a přesun instance",
+        "excerpt": "export-zip zabalí konfiguraci serveru; import ji jinde přehraje ve stejné podobě."
+      },
+      "telemetry": {
+        "title": "Telemetrie a kontrola aktualizací",
+        "excerpt": "Obojí je dobrovolné a ve výchozím stavu vypnuté. Co se odesílá, když je zapnete."
+      },
+      "connectionFails": {
+        "title": "Připojení k databázi selhává",
+        "excerpt": "Přečtěte si diagnostickou kartu: host, port, TLS a IP, kterou musí databáze povolit."
+      },
+      "missingTables": {
+        "title": "Po introspekci chybí tabulky",
+        "excerpt": "Viditelnost schématu, vyloučené tabulky a opětovné spuštění generování."
+      }
+    }
   }
 }

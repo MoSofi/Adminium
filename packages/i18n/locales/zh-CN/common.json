@@ -833,5 +833,266 @@
       "system": "系统",
       "domain": "领域"
     }
+  },
+  "setup": {
+    "title": "设置 Adminium",
+    "subtitle": "创建第一位管理员。此操作只进行一次。",
+    "progress": "设置进度",
+    "steps": {
+      "account": "管理员账户",
+      "consent": "隐私"
+    },
+    "account": {
+      "name": "你的姓名",
+      "email": "邮箱",
+      "emailInvalid": "请输入有效的邮箱地址。",
+      "password": "密码",
+      "passwordHelper": "至少 {min} 个字符。",
+      "passwordTooShort": "请至少使用 {min} 个字符。",
+      "confirm": "确认密码",
+      "passwordMismatch": "两次输入的密码不一致。",
+      "continue": "继续",
+      "strength": "密码强度",
+      "strengthLevels": {
+        "weak": "弱",
+        "fair": "一般",
+        "good": "良好",
+        "strong": "强"
+      }
+    },
+    "consent": {
+      "telemetry": {
+        "title": "共享匿名使用数据",
+        "description": "帮助我们了解应优先支持哪些数据库引擎。默认关闭，除非你主动开启。"
+      },
+      "updates": {
+        "title": "检查新版本",
+        "description": "当有新版本（包括安全修复）可用时显示提示。这会向 GitHub 查询最新发行版，因而会向 GitHub 暴露本实例的 IP 地址和版本。除此之外不会发送任何内容。"
+      },
+      "sentTitle": "发送的内容仅限于：",
+      "sent": {
+        "instanceId": "一个随机实例 ID（在本地生成的 UUID；不由你的姓名、主机或数据库推导而来）",
+        "version": "本实例运行的 Adminium 版本",
+        "engines": "已连接的数据库引擎类型（例如 “postgres”）——仅类型"
+      },
+      "neverTitle": "绝不发送：",
+      "never": {
+        "schema": "你的表结构——不含任何表名、列名或枚举名",
+        "rows": "你的数据——从不发送任何一行",
+        "connections": "连接字符串、主机名或凭据",
+        "people": "用户的邮箱、姓名或 ID",
+        "llm": "AI 提示词或运行内容"
+      },
+      "reversible": "两项默认均为关闭，之后你可以随时在“设置”中更改。",
+      "back": "返回",
+      "finish": "创建管理员账户"
+    },
+    "error": {
+      "alreadyCompleted": "本实例已完成设置。请使用现有的管理员账户登录。",
+      "rejected": "服务器拒绝了这些信息。请检查邮箱和密码后重试。",
+      "failed": "设置失败。请检查网络连接后重试。"
+    }
+  },
+  "about": {
+    "title": "关于 Adminium",
+    "subtitle": "版本、许可证，以及本实例源代码的位置。",
+    "version": "版本",
+    "license": "许可证",
+    "metaStore": "元数据存储",
+    "node": "Node.js",
+    "engine": {
+      "postgres": "PostgreSQL",
+      "mysql": "MySQL / MariaDB",
+      "sqlite": "SQLite"
+    },
+    "licenseCard": {
+      "title": "自由与开源",
+      "body": "Adminium 基于 GNU Affero 通用公共许可证 v3.0 授权。你可以自由地运行、研究、修改和分享它。如果你通过网络向他人提供修改后的版本，AGPL 要求你同样向他们提供其源代码。"
+    },
+    "viewLicense": "阅读许可证",
+    "viewSource": "获取源代码",
+    "updates": {
+      "title": "更新",
+      "description": "本实例是否检查新版本。"
+    },
+    "update": {
+      "disabled": "更新检查已关闭，因此本实例从不联系 GitHub。可在“设置”中开启以获知新版本。",
+      "current": "你正在使用最新版本。",
+      "available": "Adminium {version} 已发布",
+      "availableBody": "你当前运行的是 {version}。",
+      "viewRelease": "查看发行说明"
+    }
+  },
+  "apiKeys": {
+    "title": "API 密钥与令牌",
+    "subtitle": "管理对工作区的程序化访问。",
+    "createButton": "创建密钥",
+    "copy": "复制",
+    "copied": "已复制",
+    "revoke": "吊销密钥",
+    "neverUsed": "从未使用",
+    "lastUsed": "上次使用于 {since}",
+    "scopesOverflow": "另有 {count} 项",
+    "status": {
+      "active": "有效",
+      "revoked": "已吊销",
+      "expired": "已过期"
+    },
+    "list": {
+      "title": "密钥",
+      "activeCount": "{count, plural, other {# 个有效密钥}}"
+    },
+    "empty": {
+      "title": "尚无 API 密钥",
+      "body": "创建一个，即可在自己的代码中调用 Adminium API。"
+    },
+    "revealed": {
+      "title": "新密钥已创建",
+      "body": "请立即复制 —— 之后将无法再次查看。"
+    },
+    "rolesUnavailable": {
+      "title": "你无权查看角色",
+      "body": "创建密钥需要选择它所代表的角色，而你的账号无法读取角色列表。请向管理员申请“管理角色”权限。"
+    },
+    "quickStart": {
+      "title": "快速开始",
+      "body": "在 Authorization 请求头中携带密钥完成鉴权。"
+    },
+    "create": {
+      "title": "创建 API 密钥",
+      "description": "该密钥将以你所选角色的权限运行。",
+      "name": "名称",
+      "namePlaceholder": "例如：分析数据管道",
+      "role": "角色",
+      "roleHelper": "选择能完成任务的最小权限角色。",
+      "expires": "过期时间",
+      "expiresHelper": "留空表示密钥永不过期。",
+      "submit": "创建密钥",
+      "failed": "无法创建密钥"
+    },
+    "revokeConfirm": {
+      "title": "吊销 API 密钥",
+      "body": "任何仍在使用“{name}”调用 API 的代码将立即失败。此操作无法撤销。",
+      "prompt": "输入“{name}”以确认",
+      "confirm": "吊销密钥"
+    }
+  },
+  "changelog": {
+    "title": "更新日志",
+    "subtitle": "产品更新与版本发布。",
+    "allReleases": "全部版本",
+    "tag": {
+      "new": "新增",
+      "improved": "改进",
+      "fixed": "修复",
+      "security": "安全"
+    },
+    "filter": {
+      "all": "全部",
+      "label": "按类型筛选变更"
+    },
+    "empty": {
+      "title": "该筛选下暂无内容",
+      "body": "还没有版本包含此类变更。",
+      "clear": "显示全部变更"
+    }
+  },
+  "kb": {
+    "title": "知识库",
+    "subtitle": "{count, plural, other {# 篇指南}} · 完整文档见 docs.adminium.ai",
+    "openDocs": "打开文档",
+    "browse": "按主题浏览",
+    "hero": {
+      "title": "需要什么帮助？",
+      "subtitle": "搜索指南、API 文档与故障排查。",
+      "placeholder": "搜索知识库…",
+      "label": "搜索知识库",
+      "clear": "清除搜索"
+    },
+    "category": {
+      "start": "入门",
+      "connect": "连接数据",
+      "api": "API 与开发",
+      "security": "安全与访问",
+      "selfhost": "自托管",
+      "trouble": "故障排查",
+      "count": "{count, plural, other {# 篇文章}}",
+      "selected": "筛选中"
+    },
+    "list": {
+      "all": "全部指南",
+      "clear": "清除筛选"
+    },
+    "empty": {
+      "title": "没有匹配的指南",
+      "body": "换个关键词，或前往 docs.adminium.ai 搜索完整文档。",
+      "openDocs": "打开文档"
+    },
+    "article": {
+      "install": {
+        "title": "安装 Adminium",
+        "excerpt": "运行 npx adminium 或 docker run，一分钟内进入首次运行向导。"
+      },
+      "firstAdmin": {
+        "title": "创建第一位超级管理员",
+        "excerpt": "首次运行向导会询问什么，以及它为何只能运行一次。"
+      },
+      "connectDb": {
+        "title": "连接你的第一个数据库",
+        "excerpt": "将 Adminium 指向 PostgreSQL、MySQL 或 SQLite，生成后台管理应用。"
+      },
+      "schemaFile": {
+        "title": "从模式文件生成",
+        "excerpt": "上传 Prisma schema、Django models.py、Rails schema.rb 或 .sql 转储 —— 无需数据库连接。"
+      },
+      "readOnly": {
+        "title": "使用只读角色",
+        "excerpt": "内省仅读取模式元数据。请只授予 Adminium 必需的最小权限。"
+      },
+      "apiKeys": {
+        "title": "使用 API 密钥鉴权",
+        "excerpt": "创建与吊销密钥，以及密钥为何只向你展示一次。"
+      },
+      "rest": {
+        "title": "REST API 参考",
+        "excerpt": "生成应用暴露的每个端点，含请求与响应结构。"
+      },
+      "manifest": {
+        "title": "页面清单",
+        "excerpt": "页面如何以配置描述，以及如何手工编辑。"
+      },
+      "roles": {
+        "title": "角色与权限",
+        "excerpt": "分配查看者、编辑者与管理员，并用权限矩阵自建角色。"
+      },
+      "audit": {
+        "title": "阅读审计日志",
+        "excerpt": "谁在何时、从何处更改了什么。"
+      },
+      "secrets": {
+        "title": "Adminium 如何保存你的机密",
+        "excerpt": "连接凭据使用 ADMINIUM_SECRET 加密存储，API 密钥则以哈希保存。"
+      },
+      "docker": {
+        "title": "使用 Docker 自托管",
+        "excerpt": "官方镜像、docker-compose，以及独立元数据库的运行方式。"
+      },
+      "backup": {
+        "title": "备份与迁移实例",
+        "excerpt": "export-zip 打包服务器配置；导入后可在别处重放同一套设置。"
+      },
+      "telemetry": {
+        "title": "遥测与更新检查",
+        "excerpt": "两者均为选择性开启，默认关闭。开启后会发送哪些内容。"
+      },
+      "connectionFails": {
+        "title": "数据库连接失败",
+        "excerpt": "查看诊断卡片：主机、端口、TLS，以及数据库需放行的 IP。"
+      },
+      "missingTables": {
+        "title": "内省后缺少表",
+        "excerpt": "模式可见性、被排除的表，以及重新运行生成。"
+      }
+    }
   }
 }

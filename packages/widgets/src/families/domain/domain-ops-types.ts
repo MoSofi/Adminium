@@ -124,6 +124,16 @@ export interface ApiKeyRecord {
   lastUsed?: number | undefined;
   /** `secret` keys mask by default and offer a reveal; `publishable` never mask. */
   kind: 'secret' | 'publishable';
+  /**
+   * Can this key still be revoked? Absent ⇒ yes (the common case).
+   *
+   * `false` for a key that is already revoked or expired: revoking it is a no-op,
+   * and the panel hides the control rather than rendering a button whose click
+   * does nothing. A dead control that swallows clicks silently — no confirm, no
+   * toast, no disabled state — leaves the user unable to tell whether the app is
+   * broken or the action simply did not apply.
+   */
+  revocable?: boolean | undefined;
 }
 
 // --- webhook-endpoints-list ---------------------------------------------------

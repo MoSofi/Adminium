@@ -115,6 +115,57 @@ for (const dialect of TEST_DIALECTS) {
       ).rejects.toThrow(FirstUserExistsError);
     });
 
+    /**
+     * The once-only property under real concurrency (M10-T04). This lives here,
+     * in the dialect-parameterized suite, on purpose: on SQLite the driver holds
+     * a single mutex-guarded connection, so `Promise.all` cannot actually
+     * interleave two bootstraps and the SQLite leg of this test would pass even
+     * against a naive check-then-act implementation. The PostgreSQL and MySQL
+     * legs DO race, and they are where this test earns its keep — they fail
+     * without the `system.superAdminCreatedAt` PRIMARY KEY claim.
+     */
+    it('createFirstSuperAdmin admits exactly one winner under a concurrent storm', async () => {
+      await firstRun(t.meta);
+
+      const attempts = await Promise.allSettled(
+        Array.from({ length: 8 }, (_, i) =>
+          createFirstSuperAdmin(t.meta, { email: `racer${String(i)}@example.com`, passwordHash: 'h' }),
+        ),
+      );
+
+      const winners = attempts.filter((a) => a.status === 'fulfilled');
+      const losers = attempts.filter((a) => a.status === 'rejected');
+      expect(winners).toHaveLength(1);
+      expect(losers).toHaveLength(7);
+      // Every loser fails for the RIGHT reason — not a 500-shaped surprise.
+      for (const loser of losers) {
+        expect((loser as PromiseRejectedResult).reason).toBeInstanceOf(FirstUserExistsError);
+      }
+
+      // Exactly one user exists, they are the super admin, and the losers' whole
+      // transactions rolled back (no orphan user rows).
+      expect(await usersRepo(t.meta).count()).toBe(1);
+      const winner = (winners[0] as PromiseFulfilledResult<{ id: string }>).value;
+      expect((await rolesRepo(t.meta).rolesForUser(winner.id)).map((r) => r.slug)).toEqual(['super-admin']);
+      expect(await isBootstrapRequired(t.meta)).toBe(false);
+    });
+
+    it('the bootstrap claim is permanent — deleting every user does not re-open setup', async () => {
+      await firstRun(t.meta);
+      await createFirstSuperAdmin(t.meta, { email: 'owner@example.com', passwordHash: 'h' });
+
+      // A data-only foothold (or an operator cleaning up) empties the table. A
+      // user-count-only gate would hand the next caller a fresh super admin.
+      await t.meta.db.deleteFrom('adminium_users').execute();
+      expect(await usersRepo(t.meta).count()).toBe(0);
+
+      expect(await isBootstrapRequired(t.meta)).toBe(false);
+      await expect(
+        createFirstSuperAdmin(t.meta, { email: 'mallory@evil.test', passwordHash: 'h' }),
+      ).rejects.toThrow(FirstUserExistsError);
+      expect(await usersRepo(t.meta).count()).toBe(0);
+    });
+
     it('createFirstSuperAdmin requires roles to be seeded first', async () => {
       const { applyMigrations } = await import('../src/index.js');
       await applyMigrations(t.meta.db, { dialect: t.meta.dialect });

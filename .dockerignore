@@ -1,0 +1,61 @@
+# Build context for the Dockerfile at the repo root (01-architecture.md §4.2).
+#
+# The build stage runs `pnpm install --frozen-lockfile` and a full workspace
+# build, so the context must carry the sources, every package.json, and the
+# lockfile — but nothing that is regenerated inside the image or irrelevant to
+# it. Anything host-built that leaks in is worse than useless: host node_modules
+# would shadow the install and carry darwin/arm64 native binaries into a linux
+# image.
+
+# Installed and built inside the image.
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+
+# Generated at build time by scripts/bundle-dashboard.mjs.
+apps/server/dashboard
+
+# VCS + CI metadata: not needed to build the app.
+.git
+.gitignore
+.github
+.changeset
+
+# Design comps and the work plan — large, and never part of the image.
+# Markdown in general is NOT excluded: it is negligible in size, and a blanket
+# `**/*.md` rule would silently break any build input that ever reads one.
+workplan
+designs
+
+# Local/editor/test noise.
+.DS_Store
+**/.DS_Store
+.vscode
+.idea
+.claude
+coverage
+**/coverage
+*.log
+**/*.log
+
+# Never ship host secrets or local state into a build context.
+.env
+.env.*
+!.env.example
+/data
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Test artefacts.
+**/test-results
+**/playwright-report
+**/storybook-static
+
+# The image itself.
+Dockerfile
+.dockerignore
+docker-compose.yml

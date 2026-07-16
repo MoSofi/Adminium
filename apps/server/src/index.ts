@@ -63,3 +63,67 @@ export {
   writeBootstrap,
   type Bootstrap,
 } from './config/bootstrap.js';
+// Meta-store resolution + connection (01 §3.1/§7.2). The wrappers — CLI today,
+// Docker/Electron next — all answer "where does the meta store live?" here.
+export {
+  META_URL_KEY_SALT,
+  MetaDriverMissingError,
+  MetaUrlError,
+  connectMetaStore,
+  embeddedMetaWarning,
+  metaEngineFromUrl,
+  metaUrlCryptoFromSecret,
+  openMetaStore,
+  resolveMetaUrl,
+  sqlitePathFromUrl,
+  type ConnectMetaStoreOptions,
+  type MetaEngine,
+  type MetaStoreHandle,
+  type MetaUrlCrypto,
+  type MetaUrlSource,
+  type ResolveMetaUrlOptions,
+  type ResolvedMetaUrl,
+} from './meta/store.js';
+// The `adminium` CLI (01 §4.1). `runCli` returns an exit code and never touches
+// `process` — `src/cli/index.ts` is the only module that exits.
+export { COMMANDS, findCommand, runCli, type RunCliOptions } from './cli/run.js';
+export {
+  defaultCliDeps,
+  displayUrl,
+  loadCliEnv,
+  openRuntime,
+  startServer,
+  type CliDeps,
+  type CliRuntime,
+  type EnvOverrides,
+  type OpenRuntimeOptions,
+  type StartedServer,
+} from './cli/runtime.js';
+export { BUNDLED_DASHBOARD_DIR, resolveStaticRoot, staticRootCandidates } from './cli/static-root.js';
+export {
+  CliError,
+  CliUsageError,
+  EXIT_ERROR,
+  EXIT_NOTHING_ACCEPTED,
+  EXIT_OK,
+  EXIT_VALIDATION_FAILED,
+  type ExitCode,
+} from './cli/exit.js';
+// M10-T03 — the config bundle: `export-zip` / `import-zip` and, later, the
+// Studio download/upload routes are front doors onto these two services.
+export {
+  EXPORT_ZIP_MANIFEST_VERSION,
+  exportZip,
+  type ExportZip,
+  type ExportZipOptions,
+  type ExportZipResult,
+} from './export/zip-service.js';
+export {
+  ImportZipError,
+  importZip,
+  type ImportZip,
+  type ImportZipOptions,
+  type ImportZipResult,
+} from './export/import-service.js';
+export { PlaintextSecretError } from './export/redaction.js';
+export type { BundleManifest, ConfigBundle } from './export/bundle.js';

@@ -6,9 +6,22 @@
   "type": "module",
   "description": "docs.adminium.ai (Astro Starlight)",
   "scripts": {
-    "build": "echo '@adminium/docs: scaffolded in M10 (see workplan/16-milestones.md)'",
-    "lint": "echo 'no sources yet'",
-    "typecheck": "echo 'no sources yet'",
-    "test": "echo 'no tests yet'"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "astro check --minimumSeverity error",
+    "typecheck": "astro check --minimumSeverity error",
+    "test": "echo '@adminium/docs: the build is the gate (link validator + frontmatter schema); see astro.config.mjs'"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.3",
+    "astro": "^7.1.0",
+    "starlight-links-validator": "^0.25.2"
+  },
+  "devDependencies": {
+    "@adminium/config": "workspace:*",
+    "@adminium/tokens": "workspace:*",
+    "@astrojs/check": "^0.9.9",
+    "typescript": "catalog:"
   }
 }

@@ -1,0 +1,166 @@
+/**
+ * `/about` — the About / version / license screen (M10-T04; v0.5 exit
+ * criterion "the About screen shows version/license").
+ *
+ * Carries the AGPL §13 source offer (01-architecture.md §9.3: an instance
+ * satisfies §13 by linking the corresponding source from its About screen), the
+ * running version, the meta-store engine, and the self-host update notice.
+ *
+ * The update notice is gated on `updates.checkEnabled`: when the instance has
+ * opted out this page does not even ISSUE the request (`enabled` below), and
+ * the server would answer `disabled` without a network call regardless. An
+ * opted-out instance therefore makes no outbound call from this screen.
+ */
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { ArrowUpCircle, CheckCircle2, ExternalLink, RefreshCw, Scale } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Alert, Button, Card, CardBody, CardHeader, IconTile, KeyValueList } from '@adminium/ui';
+
+import { t } from '../i18n/t.js';
+import { aboutQuery, updateCheckQuery, type AboutData, type MetaEngine } from './aboutApi.js';
+
+/** Display names for the three v1 meta engines (07-meta-store.md). */
+function engineLabel(engine: MetaEngine): string {
+  switch (engine) {
+    case 'postgres':
+      return t('about.engine.postgres', 'PostgreSQL');
+    case 'mysql':
+      return t('about.engine.mysql', 'MySQL / MariaDB');
+    case 'sqlite':
+      return t('about.engine.sqlite', 'SQLite');
+  }
+}
+
+function SectionHeader(props: { icon: ReactNode; title: string; description?: string }): ReactNode {
+  return (
+    <CardHeader className="flex items-start gap-3">
+      <IconTile tone="accent" size="md" icon={props.icon} />
+      <div className="flex min-w-0 flex-col gap-1">
+        <h2 className="text-section text-fg">{props.title}</h2>
+        {props.description === undefined ? null : (
+          <p className="text-body-sm text-fg-muted">{props.description}</p>
+        )}
+      </div>
+    </CardHeader>
+  );
+}
+
+/**
+ * The self-host update notice. Renders nothing when the feed was unreachable —
+ * a transient network failure is not news worth a banner.
+ */
+function UpdateNotice({ about }: { about: AboutData }): ReactNode {
+  const check = useQuery({ ...updateCheckQuery(), enabled: about.updates.checkEnabled });
+
+  if (!about.updates.checkEnabled) {
+    return (
+      <p className="text-body-sm text-fg-muted" data-testid="about-update-optout">
+        {t(
+          'about.update.disabled',
+          'Update checks are off, so this instance never contacts GitHub. Turn them on in Settings to hear about new releases.',
+        )}
+      </p>
+    );
+  }
+
+  if (check.data === undefined || check.data.status === 'disabled' || check.data.status === 'unknown') {
+    return null;
+  }
+
+  if (check.data.status === 'current') {
+    return (
+      <p className="flex items-center gap-2 text-body-sm text-fg-muted" data-testid="about-update-current">
+        <CheckCircle2 className="size-4 text-pos" aria-hidden="true" />
+        {t('about.update.current', 'You are on the latest release.')}
+      </p>
+    );
+  }
+
+  const { latest, url } = check.data;
+  return (
+    <Alert
+      tone="info"
+      icon={<ArrowUpCircle className="size-[18px]" />}
+      data-testid="about-update-available"
+      title={t('about.update.available', 'Adminium {version} is available', { version: latest })}
+      body={t('about.update.availableBody', 'You are running {version}.', { version: about.version })}
+      action={
+        <Button asChild variant="soft" size="sm">
+          <a href={url} target="_blank" rel="noreferrer noopener">
+            {t('about.update.viewRelease', 'View release notes')}
+            <ExternalLink className="size-3.5" aria-hidden="true" />
+          </a>
+        </Button>
+      }
+    />
+  );
+}
+
+export function AboutPage(): ReactNode {
+  const { data: about } = useSuspenseQuery(aboutQuery());
+
+  return (
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 p-6">
+      <div className="flex flex-col gap-1.5">
+        <h1 className="text-h2 font-extrabold tracking-[-0.02em] text-fg">
+          {t('about.title', 'About Adminium')}
+        </h1>
+        <p className="text-body-sm text-fg-muted">
+          {t('about.subtitle', 'Version, licence, and where this instance’s source code lives.')}
+        </p>
+      </div>
+
+      <Card padded={false}>
+        <CardBody>
+          <KeyValueList
+            items={[
+              { label: t('about.version', 'Version'), value: about.version, mono: true },
+              { label: t('about.license', 'Licence'), value: about.license },
+              { label: t('about.metaStore', 'Meta store'), value: engineLabel(about.metaEngine) },
+              { label: t('about.node', 'Node.js'), value: about.node, mono: true },
+            ]}
+          />
+        </CardBody>
+      </Card>
+
+      <Card padded={false}>
+        <SectionHeader
+          icon={<Scale />}
+          title={t('about.licenseCard.title', 'Free and open source')}
+          description={t(
+            'about.licenseCard.body',
+            'Adminium is licensed under the GNU Affero General Public License v3.0. You are free to run, study, modify, and share it. If you offer a modified version to others over a network, the AGPL asks you to offer them its source code too.',
+          )}
+        />
+        <CardBody>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" size="md">
+              <a href={about.licenseUrl} target="_blank" rel="noreferrer noopener">
+                {t('about.viewLicense', 'Read the licence')}
+                <ExternalLink className="size-3.5" aria-hidden="true" />
+              </a>
+            </Button>
+            {/* The AGPL §13 source offer — this link IS the compliance artifact. */}
+            <Button asChild variant="outline" size="md">
+              <a href={about.sourceUrl} target="_blank" rel="noreferrer noopener">
+                {t('about.viewSource', 'Get the source code')}
+                <ExternalLink className="size-3.5" aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card padded={false}>
+        <SectionHeader
+          icon={<RefreshCw />}
+          title={t('about.updates.title', 'Updates')}
+          description={t('about.updates.description', 'Whether this instance checks for new releases.')}
+        />
+        <CardBody>
+          <UpdateNotice about={about} />
+        </CardBody>
+      </Card>
+    </div>
+  );
+}

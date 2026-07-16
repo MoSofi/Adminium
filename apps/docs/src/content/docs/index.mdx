@@ -1,0 +1,82 @@
+---
+title: Adminium
+description: Point Adminium at a database and get a real admin panel — read-and-write, self-hosted, open source.
+template: splash
+hero:
+  tagline: Point it at a database. Get a real admin panel — one you can write to, not just look at.
+  actions:
+    - text: Quickstart
+      link: /getting-started/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/adminium/adminium
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+
+<Code
+  code={`export ADMINIUM_SECRET=$(openssl rand -hex 32)
+npx adminium`}
+  lang="bash"
+  title="One command, complete install"
+/>
+
+## Start here
+
+<CardGrid stagger>
+  <Card title="Quickstart" icon="rocket">
+    Install with `npx adminium`, answer the setup wizard, and have an admin panel
+    on your own schema in a few minutes.
+
+    [Quickstart with npx →](/getting-started/quickstart/)
+  </Card>
+
+  <Card title="Run with Docker" icon="seti:docker">
+    A single container, or Compose with a managed Postgres meta store.
+
+    [Run with Docker →](/getting-started/docker/)
+  </Card>
+
+  <Card title="Connect a database" icon="setting">
+    PostgreSQL, MySQL/MariaDB, and SQLite — or import a schema file and connect
+    nothing at all.
+
+    [Connect your first database →](/getting-started/first-connection/)
+  </Card>
+
+  <Card title="Self-host it properly" icon="approve-check">
+    Meta-store placement, reverse proxies, secrets, upgrades, and telemetry.
+
+    [Self-hosting overview →](/self-hosting/)
+  </Card>
+</CardGrid>
+
+## What Adminium is
+
+Adminium reads your database **schema** — never your rows — classifies it, and
+interprets that model at runtime as a working admin application: tables with
+filters and inline edit, detail pages that follow your foreign keys, dashboards,
+roles, and an audit trail.
+
+Two things follow from "interprets at runtime", and both matter:
+
+- **It is not a code generator.** There is no `src/` directory to eject into and
+  maintain. Your schema changes; you re-introspect; the app follows.
+- **What you export is configuration, not source.** `adminium export-zip` gives
+  you the server plus its config bundle so you can move or replay an instance —
+  it does not hand you a generated codebase. See
+  [Export & restore](/self-hosting/export-zip/).
+
+## What it is not
+
+- **Not read-only BI.** Adminium writes. That is the point — it is the internal
+  tool your team uses to fix a stuck order, not a dashboard they screenshot.
+- **Not a hosted-only product.** The whole thing is AGPL-3.0 and runs on your
+  machine, your VPS, or your Kubernetes cluster with no phone-home.
+  [Telemetry is opt-in and off by default](/self-hosting/telemetry/).
+- **Not an LLM wrapper.** Schema classification is heuristic and deterministic.
+  The [LLM assist](/guides/llm-assist/) is optional, reviewable, and has a
+  copy-paste path that performs **zero network I/O**.

@@ -841,5 +841,266 @@ export default {
       "system": "系統",
       "domain": "領域"
     }
+  },
+  "setup": {
+    "title": "設定 Adminium",
+    "subtitle": "建立第一位管理員。此操作只會進行一次。",
+    "progress": "設定進度",
+    "steps": {
+      "account": "管理員帳戶",
+      "consent": "隱私"
+    },
+    "account": {
+      "name": "您的姓名",
+      "email": "電子郵件",
+      "emailInvalid": "請輸入有效的電子郵件地址。",
+      "password": "密碼",
+      "passwordHelper": "至少 {min} 個字元。",
+      "passwordTooShort": "請至少使用 {min} 個字元。",
+      "confirm": "確認密碼",
+      "passwordMismatch": "兩次輸入的密碼不一致。",
+      "continue": "繼續",
+      "strength": "密碼強度",
+      "strengthLevels": {
+        "weak": "弱",
+        "fair": "普通",
+        "good": "良好",
+        "strong": "強"
+      }
+    },
+    "consent": {
+      "telemetry": {
+        "title": "分享匿名使用資料",
+        "description": "協助我們瞭解應優先支援哪些資料庫引擎。預設關閉，除非您主動開啟。"
+      },
+      "updates": {
+        "title": "檢查新版本",
+        "description": "當有新版本（包括安全性修正）可用時顯示提示。這會向 GitHub 查詢最新發行版，因而會向 GitHub 揭露本執行個體的 IP 位址與版本。除此之外不會傳送任何內容。"
+      },
+      "sentTitle": "傳送的內容僅限於：",
+      "sent": {
+        "instanceId": "一組隨機執行個體 ID（在本機產生的 UUID；並非由您的姓名、主機或資料庫推導而來）",
+        "version": "本執行個體執行的 Adminium 版本",
+        "engines": "已連線的資料庫引擎類型（例如「postgres」）——僅類型"
+      },
+      "neverTitle": "絕不傳送：",
+      "never": {
+        "schema": "您的結構描述——不含任何資料表、欄位或列舉名稱",
+        "rows": "您的資料——從不傳送任何一列",
+        "connections": "連線字串、主機名稱或憑證",
+        "people": "使用者的電子郵件、姓名或 ID",
+        "llm": "AI 提示詞或執行內容"
+      },
+      "reversible": "兩項預設皆為關閉，之後您可以隨時在「設定」中變更。",
+      "back": "返回",
+      "finish": "建立管理員帳戶"
+    },
+    "error": {
+      "alreadyCompleted": "本執行個體已完成設定。請使用現有的管理員帳戶登入。",
+      "rejected": "伺服器拒絕了這些資訊。請檢查電子郵件與密碼後再試一次。",
+      "failed": "設定失敗。請檢查您的網路連線後再試一次。"
+    }
+  },
+  "about": {
+    "title": "關於 Adminium",
+    "subtitle": "版本、授權條款，以及本執行個體原始碼的位置。",
+    "version": "版本",
+    "license": "授權條款",
+    "metaStore": "中繼資料儲存區",
+    "node": "Node.js",
+    "engine": {
+      "postgres": "PostgreSQL",
+      "mysql": "MySQL / MariaDB",
+      "sqlite": "SQLite"
+    },
+    "licenseCard": {
+      "title": "自由與開放原始碼",
+      "body": "Adminium 以 GNU Affero 通用公共授權條款 v3.0 授權。您可以自由地執行、研究、修改與分享它。若您透過網路向他人提供修改後的版本，AGPL 要求您同樣向他們提供其原始碼。"
+    },
+    "viewLicense": "閱讀授權條款",
+    "viewSource": "取得原始碼",
+    "updates": {
+      "title": "更新",
+      "description": "本執行個體是否檢查新版本。"
+    },
+    "update": {
+      "disabled": "更新檢查已關閉，因此本執行個體從不聯絡 GitHub。可在「設定」中開啟以得知新版本。",
+      "current": "您正在使用最新版本。",
+      "available": "Adminium {version} 已發行",
+      "availableBody": "您目前執行的是 {version}。",
+      "viewRelease": "檢視發行說明"
+    }
+  },
+  "apiKeys": {
+    "title": "API 金鑰與權杖",
+    "subtitle": "管理對工作區的程式化存取。",
+    "createButton": "建立金鑰",
+    "copy": "複製",
+    "copied": "已複製",
+    "revoke": "撤銷金鑰",
+    "neverUsed": "從未使用",
+    "lastUsed": "上次使用於 {since}",
+    "scopesOverflow": "另有 {count} 項",
+    "status": {
+      "active": "有效",
+      "revoked": "已撤銷",
+      "expired": "已逾期"
+    },
+    "list": {
+      "title": "金鑰",
+      "activeCount": "{count, plural, other {# 個有效金鑰}}"
+    },
+    "empty": {
+      "title": "尚無 API 金鑰",
+      "body": "建立一個，即可在自己的程式碼中呼叫 Adminium API。"
+    },
+    "revealed": {
+      "title": "新金鑰已建立",
+      "body": "請立即複製 —— 之後將無法再次檢視。"
+    },
+    "rolesUnavailable": {
+      "title": "你無權檢視角色",
+      "body": "建立金鑰須選擇它所代表的角色，而你的帳號無法讀取角色清單。請向管理員申請「管理角色」權限。"
+    },
+    "quickStart": {
+      "title": "快速開始",
+      "body": "在 Authorization 標頭中帶入金鑰完成驗證。"
+    },
+    "create": {
+      "title": "建立 API 金鑰",
+      "description": "此金鑰將以你所選角色的權限運作。",
+      "name": "名稱",
+      "namePlaceholder": "例如：分析資料管線",
+      "role": "角色",
+      "roleHelper": "選擇足以完成工作的最小權限角色。",
+      "expires": "到期時間",
+      "expiresHelper": "留空表示金鑰永不到期。",
+      "submit": "建立金鑰",
+      "failed": "無法建立金鑰"
+    },
+    "revokeConfirm": {
+      "title": "撤銷 API 金鑰",
+      "body": "任何仍以「{name}」呼叫 API 的程式碼將立即失敗。此動作無法復原。",
+      "prompt": "輸入「{name}」以確認",
+      "confirm": "撤銷金鑰"
+    }
+  },
+  "changelog": {
+    "title": "變更紀錄",
+    "subtitle": "產品更新與版本發佈。",
+    "allReleases": "所有版本",
+    "tag": {
+      "new": "新增",
+      "improved": "改進",
+      "fixed": "修正",
+      "security": "安全性"
+    },
+    "filter": {
+      "all": "全部",
+      "label": "依類型篩選變更"
+    },
+    "empty": {
+      "title": "此篩選下沒有內容",
+      "body": "尚無版本包含這類變更。",
+      "clear": "顯示所有變更"
+    }
+  },
+  "kb": {
+    "title": "知識庫",
+    "subtitle": "{count, plural, other {# 篇指南}} · 完整文件請見 docs.adminium.ai",
+    "openDocs": "開啟文件",
+    "browse": "依主題瀏覽",
+    "hero": {
+      "title": "需要什麼協助？",
+      "subtitle": "搜尋指南、API 文件與疑難排解。",
+      "placeholder": "搜尋知識庫…",
+      "label": "搜尋知識庫",
+      "clear": "清除搜尋"
+    },
+    "category": {
+      "start": "入門",
+      "connect": "連接資料",
+      "api": "API 與開發",
+      "security": "安全性與存取",
+      "selfhost": "自架",
+      "trouble": "疑難排解",
+      "count": "{count, plural, other {# 篇文章}}",
+      "selected": "篩選中"
+    },
+    "list": {
+      "all": "所有指南",
+      "clear": "清除篩選"
+    },
+    "empty": {
+      "title": "沒有符合的指南",
+      "body": "換個關鍵字，或前往 docs.adminium.ai 搜尋完整文件。",
+      "openDocs": "開啟文件"
+    },
+    "article": {
+      "install": {
+        "title": "安裝 Adminium",
+        "excerpt": "執行 npx adminium 或 docker run，一分鐘內進入首次執行精靈。"
+      },
+      "firstAdmin": {
+        "title": "建立第一位超級管理員",
+        "excerpt": "首次執行精靈會詢問什麼，以及它為何只能執行一次。"
+      },
+      "connectDb": {
+        "title": "連接你的第一個資料庫",
+        "excerpt": "將 Adminium 指向 PostgreSQL、MySQL 或 SQLite，產生後台管理應用。"
+      },
+      "schemaFile": {
+        "title": "從結構描述檔產生",
+        "excerpt": "上傳 Prisma schema、Django models.py、Rails schema.rb 或 .sql 傾印檔 —— 無需資料庫連線。"
+      },
+      "readOnly": {
+        "title": "使用唯讀角色",
+        "excerpt": "自省僅讀取結構描述中繼資料。請只授予 Adminium 必要的最小權限。"
+      },
+      "apiKeys": {
+        "title": "使用 API 金鑰驗證",
+        "excerpt": "建立與撤銷金鑰，以及金鑰為何只向你顯示一次。"
+      },
+      "rest": {
+        "title": "REST API 參考",
+        "excerpt": "產生的應用所公開的每個端點，含請求與回應結構。"
+      },
+      "manifest": {
+        "title": "頁面資訊清單",
+        "excerpt": "頁面如何以組態描述，以及如何手動編輯。"
+      },
+      "roles": {
+        "title": "角色與權限",
+        "excerpt": "指派檢視者、編輯者與管理員，並以權限矩陣自訂角色。"
+      },
+      "audit": {
+        "title": "閱讀稽核紀錄",
+        "excerpt": "誰在何時、從何處更動了什麼。"
+      },
+      "secrets": {
+        "title": "Adminium 如何保存你的機密",
+        "excerpt": "連線憑證以 ADMINIUM_SECRET 加密儲存，API 金鑰則以雜湊保存。"
+      },
+      "docker": {
+        "title": "以 Docker 自架",
+        "excerpt": "官方映像檔、docker-compose，以及獨立中繼資料庫的運行方式。"
+      },
+      "backup": {
+        "title": "備份與搬遷執行個體",
+        "excerpt": "export-zip 會打包伺服器組態；匯入後可在他處重現同一套設定。"
+      },
+      "telemetry": {
+        "title": "遙測與更新檢查",
+        "excerpt": "兩者皆為選擇性啟用，預設關閉。啟用後會送出哪些內容。"
+      },
+      "connectionFails": {
+        "title": "資料庫連線失敗",
+        "excerpt": "查看診斷卡片：主機、連接埠、TLS，以及資料庫須放行的 IP。"
+      },
+      "missingTables": {
+        "title": "自省後缺少資料表",
+        "excerpt": "結構描述可見性、被排除的資料表，以及重新執行產生。"
+      }
+    }
   }
 } as const;

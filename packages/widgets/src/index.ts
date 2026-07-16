@@ -160,6 +160,17 @@ export { ChartDirectionBridge, type ChartDirectionBridgeProps } from './frame/Ch
 // for template/host composition (the registry still lazy-loads its own refs).
 export * from './families/tables/index.js';
 
+// Domain family — the annex §13 props-only VIEWS the Studio/platform surfaces
+// compose. Exported by NAME (not `export *`) because this is a deliberate
+// cross-package contract, not the family's whole surface — same rule as the
+// forms family below. `ApiKeysPanelView` backs the M10-T06 API Keys page and
+// `CodeSnippetBlockView` its quick-start snippet: the *-Widget halves stay
+// registry-only (they bind to generated-app tables; the platform page drives
+// the view from `/api/v1/api-keys` instead).
+export { ApiKeysPanelView, type ApiKeysPanelViewProps } from './families/domain/ApiKeysPanel.js';
+export { CodeSnippetBlockView, type CodeSnippetBlockViewProps } from './families/domain/OpsApi.js';
+export type { ApiKeyRecord } from './families/domain/domain-ops-types.js';
+
 // Page templates — page-crud (09 §7.1): template component + CrudApi contract.
 export * from './templates/page-crud/index.js';
 

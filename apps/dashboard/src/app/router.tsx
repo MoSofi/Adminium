@@ -19,8 +19,14 @@ import {
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge } from '@adminium/widgets';
 
+import { AboutPage } from '../about/AboutPage.js';
+import { ApiKeysPage } from '../api-keys/ApiKeysPage.js';
+import { ChangelogPage } from '../changelog/ChangelogPage.js';
+import { KnowledgeBasePage } from '../kb/KnowledgeBasePage.js';
 import { AccountPage } from '../pages/AccountPage.js';
 import { PreferencesPage } from '../account/PreferencesPage.js';
+import { SetupPage } from '../setup/SetupPage.js';
+import { setupStateQuery } from '../setup/setupApi.js';
 import { GlobalDefaultsPage } from '../settings/GlobalDefaultsPage.js';
 import { OnboardingChecklist } from '../onboarding/OnboardingChecklist.js';
 import { HomePage } from '../pages/HomePage.js';
@@ -34,6 +40,7 @@ import { AppShell } from '../shell/AppShell.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
 import { pageQuery } from '../api/pages.js';
+import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
 import { api, ApiError } from './api.js';
 import { bootstrapQuery, defaultPageSlug, findNavItemBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
@@ -97,6 +104,26 @@ function redirectIfAuthed(queryClient: QueryClient): void {
   }
 }
 
+/**
+ * First-run gate (M10-T04). A never-bootstrapped instance has no user to sign
+ * in as, so every pre-auth surface routes to the wizard instead of showing a
+ * sign-in form nobody can satisfy. `setupStateQuery` is `staleTime: Infinity`
+ * and setup state is a one-way door, so this costs one request per session.
+ *
+ * Never fatal: if the probe itself fails (offline, 503 META_NOT_CONFIGURED),
+ * fall through to the normal screen rather than trapping the user on a wizard
+ * we cannot confirm they need.
+ */
+async function redirectIfSetupRequired(queryClient: QueryClient): Promise<void> {
+  let required: boolean;
+  try {
+    required = (await queryClient.ensureQueryData(setupStateQuery())).required;
+  } catch {
+    return;
+  }
+  if (required) throw redirect({ to: '/setup' });
+}
+
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
@@ -104,8 +131,27 @@ const loginRoute = createRoute({
     typeof search.returnTo === 'string' && search.returnTo.startsWith('/')
       ? { returnTo: search.returnTo }
       : {},
-  beforeLoad: ({ context }) => redirectIfAuthed(context.queryClient),
+  beforeLoad: async ({ context }) => {
+    redirectIfAuthed(context.queryClient);
+    await redirectIfSetupRequired(context.queryClient);
+  },
   component: LoginPage,
+});
+
+/**
+ * `/setup` — the first-run wizard. Reachable ONLY while setup is required: once
+ * the super admin exists this redirects to `/login`, so the wizard cannot be
+ * re-opened on a configured instance. (The server's 409 is the actual
+ * guarantee; this is the UX that keeps users away from a dead end.)
+ */
+const setupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/setup',
+  beforeLoad: async ({ context }) => {
+    const state = await context.queryClient.ensureQueryData(setupStateQuery());
+    if (!state.required) throw redirect({ to: '/login' });
+  },
+  component: SetupPage,
 });
 
 const forgotRoute = createRoute({
@@ -156,6 +202,9 @@ const appRoute = createRoute({
       // 401 → login with returnTo (09 §2.1 failure branches); everything else
       // falls through to the errorComponent's system-state mapping.
       if (error instanceof ApiError && error.status === 401) {
+        // ...unless nobody has bootstrapped this instance yet, in which case
+        // there is no account to return to — send them to the wizard (M10-T04).
+        await redirectIfSetupRequired(context.queryClient);
         throw redirect({ to: '/login', search: { returnTo: location.href } });
       }
       throw error;
@@ -252,6 +301,48 @@ const accountSplatRoute = createRoute({
   component: AccountPage,
 });
 
+/** About / version / licence + the self-host update notice (M10-T04). */
+const aboutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/about',
+  component: AboutPage,
+});
+
+// --- M10-T06 in-app product comms -------------------------------------------
+// Two of these are for EVERYONE and one is not, and the split is the point:
+// help and release notes are things any signed-in user needs (a viewer hitting
+// a wall needs the docs more than an admin does), while API keys mint
+// credentials and stay behind the same role ≥ Admin gate as the rest of the
+// platform surfaces (`ia-mapping.md` §2B lists all three under Surface B).
+// The server independently guards `/api-keys` with `system:api-keys:manage` —
+// this gate is UX, not the security boundary.
+
+const knowledgeBaseRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/help',
+  component: KnowledgeBasePage,
+});
+
+const changelogRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/changelog',
+  component: ChangelogPage,
+});
+
+function ApiKeysRouteComponent() {
+  return (
+    <StudioGuard>
+      <ApiKeysPage />
+    </StudioGuard>
+  );
+}
+
+const apiKeysRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/api-keys',
+  component: ApiKeysRouteComponent,
+});
+
 // --- assembly ----------------------------------------------------------------
 
 const routeTree = rootRoute.addChildren([
@@ -260,6 +351,7 @@ const routeTree = rootRoute.addChildren([
   resetRoute,
   otpRoute,
   stateRoute,
+  setupRoute,
   appRoute.addChildren([
     indexRoute,
     pageRoute,
@@ -268,7 +360,11 @@ const routeTree = rootRoute.addChildren([
     welcomeRoute,
     accountPreferencesRoute,
     accountSplatRoute,
+    aboutRoute,
     settingsDefaultsRoute,
+    knowledgeBaseRoute,
+    changelogRoute,
+    apiKeysRoute,
     // Studio (09 §8.1): connect wizard + remap route contract, role ≥ Admin.
     ...studioRoutes(appRoute),
   ]),

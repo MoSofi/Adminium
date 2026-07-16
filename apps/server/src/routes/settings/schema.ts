@@ -60,3 +60,26 @@ export const settingsWorkspaceReply = z.object({
   }),
 });
 export type SettingsWorkspaceReply = z.infer<typeof settingsWorkspaceReply>;
+
+// --- telemetry + update check (M10-T04, 08 §2.16 `settingsTelemetryPutBody`) ----
+// Both are OFF by default in the registry and are first asked on the first-run
+// consent screen; this section is how they are revisited later. Unlike the
+// `auth.*` controls above, these two ARE exposed because both are enforced
+// today: `telemetry.enabled` gates ../../telemetry/service.ts and
+// `updates.checkEnabled` gates ../../telemetry/update-check.ts, each of which
+// returns before touching the network when its key is false.
+
+/** `PUT /settings/telemetry` — the two outbound-call consents (full write). */
+export const settingsTelemetryPutBody = z.object({
+  telemetry: z.boolean(),
+  updateCheck: z.boolean(),
+});
+export type SettingsTelemetryPutBody = z.infer<typeof settingsTelemetryPutBody>;
+
+export const settingsTelemetryReply = z.object({
+  data: z.object({
+    telemetry: z.boolean(),
+    updateCheck: z.boolean(),
+  }),
+});
+export type SettingsTelemetryReply = z.infer<typeof settingsTelemetryReply>;

@@ -841,5 +841,266 @@ export default {
       "system": "System",
       "domain": "Domain"
     }
+  },
+  "setup": {
+    "title": "Set up Adminium",
+    "subtitle": "Create the first administrator. This happens once.",
+    "progress": "Setup progress",
+    "steps": {
+      "account": "Admin account",
+      "consent": "Privacy"
+    },
+    "account": {
+      "name": "Your name",
+      "email": "Email",
+      "emailInvalid": "Enter a valid email address.",
+      "password": "Password",
+      "passwordHelper": "At least {min} characters.",
+      "passwordTooShort": "Use at least {min} characters.",
+      "confirm": "Confirm password",
+      "passwordMismatch": "Passwords do not match.",
+      "continue": "Continue",
+      "strength": "Password strength",
+      "strengthLevels": {
+        "weak": "Weak",
+        "fair": "Fair",
+        "good": "Good",
+        "strong": "Strong"
+      }
+    },
+    "consent": {
+      "telemetry": {
+        "title": "Share anonymous usage data",
+        "description": "Helps us see which database engines to prioritize. Off unless you turn it on."
+      },
+      "updates": {
+        "title": "Check for new releases",
+        "description": "Shows a notice when a new version — including a security fix — is available. This asks GitHub for the latest release, which reveals this instance’s IP address and version to GitHub. Nothing else is sent."
+      },
+      "sentTitle": "Exactly what is sent:",
+      "sent": {
+        "instanceId": "A random instance ID (a UUID generated here; not derived from your name, host, or database)",
+        "version": "The Adminium version this instance runs",
+        "engines": "Which database engine types are connected (e.g. \"postgres\") — types only"
+      },
+      "neverTitle": "Never sent:",
+      "never": {
+        "schema": "Your schema — no table, column, or enum names",
+        "rows": "Your data — not a single row, ever",
+        "connections": "Connection strings, hostnames, or credentials",
+        "people": "User emails, names, or IDs",
+        "llm": "AI prompts or run contents"
+      },
+      "reversible": "Both are off by default and you can change either one later in Settings.",
+      "back": "Back",
+      "finish": "Create admin account"
+    },
+    "error": {
+      "alreadyCompleted": "This instance has already been set up. Sign in with the existing admin account.",
+      "rejected": "The server rejected those details. Check the email and password and try again.",
+      "failed": "Setup failed. Check your connection and try again."
+    }
+  },
+  "about": {
+    "title": "About Adminium",
+    "subtitle": "Version, licence, and where this instance’s source code lives.",
+    "version": "Version",
+    "license": "Licence",
+    "metaStore": "Meta store",
+    "node": "Node.js",
+    "engine": {
+      "postgres": "PostgreSQL",
+      "mysql": "MySQL / MariaDB",
+      "sqlite": "SQLite"
+    },
+    "licenseCard": {
+      "title": "Free and open source",
+      "body": "Adminium is licensed under the GNU Affero General Public License v3.0. You are free to run, study, modify, and share it. If you offer a modified version to others over a network, the AGPL asks you to offer them its source code too."
+    },
+    "viewLicense": "Read the licence",
+    "viewSource": "Get the source code",
+    "updates": {
+      "title": "Updates",
+      "description": "Whether this instance checks for new releases."
+    },
+    "update": {
+      "disabled": "Update checks are off, so this instance never contacts GitHub. Turn them on in Settings to hear about new releases.",
+      "current": "You are on the latest release.",
+      "available": "Adminium {version} is available",
+      "availableBody": "You are running {version}.",
+      "viewRelease": "View release notes"
+    }
+  },
+  "apiKeys": {
+    "title": "API keys & tokens",
+    "subtitle": "Manage programmatic access to your workspace.",
+    "createButton": "Create key",
+    "copy": "Copy",
+    "copied": "Copied",
+    "revoke": "Revoke key",
+    "neverUsed": "Never used",
+    "lastUsed": "Last used {since}",
+    "scopesOverflow": "+{count} more",
+    "status": {
+      "active": "Active",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "list": {
+      "title": "Keys",
+      "activeCount": "{count, plural, one {# active key} other {# active keys}}"
+    },
+    "empty": {
+      "title": "No API keys yet",
+      "body": "Create one to call the Adminium API from your own code."
+    },
+    "revealed": {
+      "title": "New key created",
+      "body": "Copy it now — you won’t be able to see it again."
+    },
+    "rolesUnavailable": {
+      "title": "Roles are not visible to you",
+      "body": "Creating a key means choosing the role it acts as, and your account cannot read the role list. Ask an administrator for the “Manage roles” permission."
+    },
+    "quickStart": {
+      "title": "Quick start",
+      "body": "Authenticate requests with your key in the Authorization header."
+    },
+    "create": {
+      "title": "Create API key",
+      "description": "The key acts with the permissions of the role you pick.",
+      "name": "Name",
+      "namePlaceholder": "e.g. Analytics pipeline",
+      "role": "Role",
+      "roleHelper": "Pick the least-privileged role that can do the job.",
+      "expires": "Expires",
+      "expiresHelper": "Leave empty for a key that never expires.",
+      "submit": "Create key",
+      "failed": "Could not create the key"
+    },
+    "revokeConfirm": {
+      "title": "Revoke API key",
+      "body": "Any code still calling the API with “{name}” starts failing immediately. This cannot be undone.",
+      "prompt": "Type “{name}” to confirm",
+      "confirm": "Revoke key"
+    }
+  },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "Product updates & releases.",
+    "allReleases": "All releases",
+    "tag": {
+      "new": "New",
+      "improved": "Improved",
+      "fixed": "Fixed",
+      "security": "Security"
+    },
+    "filter": {
+      "all": "All",
+      "label": "Filter changes by type"
+    },
+    "empty": {
+      "title": "Nothing under this filter",
+      "body": "No release has carried a change of this kind yet.",
+      "clear": "Show all changes"
+    }
+  },
+  "kb": {
+    "title": "Knowledge Base",
+    "subtitle": "{count, plural, one {# guide} other {# guides}} · full docs at docs.adminium.ai",
+    "openDocs": "Open the docs",
+    "browse": "Browse by topic",
+    "hero": {
+      "title": "How can we help?",
+      "subtitle": "Search guides, API docs and troubleshooting.",
+      "placeholder": "Search the knowledge base…",
+      "label": "Search the knowledge base",
+      "clear": "Clear search"
+    },
+    "category": {
+      "start": "Getting started",
+      "connect": "Connecting data",
+      "api": "API & developers",
+      "security": "Security & access",
+      "selfhost": "Self-hosting",
+      "trouble": "Troubleshooting",
+      "count": "{count, plural, one {# article} other {# articles}}",
+      "selected": "Filtering"
+    },
+    "list": {
+      "all": "All guides",
+      "clear": "Clear filter"
+    },
+    "empty": {
+      "title": "No guides match your search",
+      "body": "Try a different word, or search the full documentation at docs.adminium.ai.",
+      "openDocs": "Open the docs"
+    },
+    "article": {
+      "install": {
+        "title": "Install Adminium",
+        "excerpt": "Run npx adminium, or docker run, and reach the first-run wizard in a minute."
+      },
+      "firstAdmin": {
+        "title": "Create your first super admin",
+        "excerpt": "What the first-run wizard asks for, and why it can only run once."
+      },
+      "connectDb": {
+        "title": "Connecting your first database",
+        "excerpt": "Point Adminium at PostgreSQL, MySQL or SQLite and generate an admin app."
+      },
+      "schemaFile": {
+        "title": "Generate from a schema file",
+        "excerpt": "Upload a Prisma schema, a Django models.py, a Rails schema.rb or a .sql dump — no connection needed."
+      },
+      "readOnly": {
+        "title": "Use a read-only role",
+        "excerpt": "Introspection reads schema metadata only. Give Adminium the least privilege it needs."
+      },
+      "apiKeys": {
+        "title": "Authenticating with API keys",
+        "excerpt": "Create and revoke keys, and why a key is only ever shown to you once."
+      },
+      "rest": {
+        "title": "REST API reference",
+        "excerpt": "Every endpoint the generated app exposes, with request and response shapes."
+      },
+      "manifest": {
+        "title": "The page manifest",
+        "excerpt": "How a page is described as config, and how to hand-edit one."
+      },
+      "roles": {
+        "title": "Roles & permissions",
+        "excerpt": "Assign Viewer, Editor and Admin, and build your own roles from the permission matrix."
+      },
+      "audit": {
+        "title": "Reading the audit log",
+        "excerpt": "Who changed what, when, and from where."
+      },
+      "secrets": {
+        "title": "How Adminium stores your secrets",
+        "excerpt": "Connection credentials are encrypted at rest with ADMINIUM_SECRET. API keys are hashed."
+      },
+      "docker": {
+        "title": "Self-host with Docker",
+        "excerpt": "The official image, docker-compose, and running a separate meta database."
+      },
+      "backup": {
+        "title": "Back up and move an instance",
+        "excerpt": "export-zip bundles your server config; import it to replay the same setup elsewhere."
+      },
+      "telemetry": {
+        "title": "Telemetry and update checks",
+        "excerpt": "Both are opt-in and off by default. What is sent if you turn them on."
+      },
+      "connectionFails": {
+        "title": "A database connection fails",
+        "excerpt": "Read the diagnostics card: host, port, TLS, and the IP your database must allow."
+      },
+      "missingTables": {
+        "title": "Tables are missing after introspection",
+        "excerpt": "Schema visibility, excluded tables, and re-running generation."
+      }
+    }
   }
 } as const;

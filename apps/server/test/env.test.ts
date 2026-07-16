@@ -31,10 +31,26 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_META_URL: undefined,
       ADMINIUM_DATA_DIR: './data',
       ADMINIUM_LOG_LEVEL: 'info',
-      ADMINIUM_TELEMETRY: false,
+      // UNDEFINED, not `false`. This variable overrides the `telemetry.enabled`
+      // consent answer, so "unset" has to stay distinguishable from "off" —
+      // collapsing it to `false` would make the override veto every consenting
+      // instance. Telemetry is still off by default; that default lives in the
+      // settings registry, not here.
+      ADMINIUM_TELEMETRY: undefined,
       ADMINIUM_TRUST_PROXY: false,
       ADMINIUM_CORS_ORIGINS: undefined,
     });
+  });
+
+  it('leaves ADMINIUM_TELEMETRY undefined when unset, so consent can decide', () => {
+    const env = loadEnv({ ADMINIUM_SECRET: SECRET }, makeStderr());
+    expect(env.ADMINIUM_TELEMETRY).toBeUndefined();
+    // An empty value is unset, not "off" — a compose file with
+    // `ADMINIUM_TELEMETRY: ${ADMINIUM_TELEMETRY:-}` must not veto the setting.
+    expect(
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_TELEMETRY: '' }, makeStderr())
+        .ADMINIUM_TELEMETRY,
+    ).toBeUndefined();
   });
 
   it('parses explicit values (PORT coerced to a number)', () => {

@@ -230,13 +230,35 @@ function userLockedSuggestionId(o: SchemaOverride): string | null {
   }
 }
 
-/** Diff rows that are accept/reject units for review accounting (§8.2). */
-const ACTIONABLE_STATUSES: ReadonlySet<SuggestionDiff['status']> = new Set([
+/**
+ * Diff rows that are accept/reject units for review accounting (§8.2).
+ * `heuristic-only` (the LLM offered nothing) and `user-locked` (§8.2 provenance:
+ * a user edit is never superseded) are not offered for acceptance at all.
+ */
+export const ACTIONABLE_STATUSES: ReadonlySet<SuggestionDiff['status']> = new Set([
   'agree',
   'conflict',
   'llm-new',
   'rejects-heuristic',
 ]);
+
+/**
+ * The headless form of the review screen's "Accept all ≥ N" bulk control
+ * (§10.3). Lives here, beside {@link ACTIONABLE_STATUSES}, because "which rows
+ * may be accepted" is a diff-semantics question — the CLI's `--yes-above` and
+ * any future bulk-apply caller must not each decide it for themselves.
+ *
+ * Only actionable rows qualify, so a threshold of 0 still cannot accept a
+ * `user-locked` row.
+ */
+export function selectAcceptedByConfidence(
+  diff: readonly SuggestionDiff[],
+  minConfidence: number,
+): string[] {
+  return diff
+    .filter((row) => ACTIONABLE_STATUSES.has(row.status) && row.confidence >= minConfidence)
+    .map((row) => row.id);
+}
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 

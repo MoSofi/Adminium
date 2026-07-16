@@ -15,6 +15,7 @@ import { permissionsRepo } from './repos/permissions.js';
 import { rolesRepo, type Role } from './repos/roles.js';
 import { settingsRepo } from './repos/settings.js';
 import { usersRepo, type User } from './repos/users.js';
+import { packJson } from './repos/util.js';
 
 export interface BuiltinRoleDef {
   slug: string;
@@ -140,34 +141,110 @@ export interface CreateFirstSuperAdminInput {
 }
 
 /**
- * Create the very first user and grant `super-admin` (§6 step 2). Guarded:
- * throws {@link FirstUserExistsError} when any user already exists.
+ * The settings key whose ROW PRESENCE claims the one-and-only first-run
+ * bootstrap (M10-T04). See the registry entry for why it exists.
+ */
+const SUPER_ADMIN_CLAIM_KEY = 'system.superAdminCreatedAt';
+
+/**
+ * Create the very first user and grant `super-admin` (§6 step 2). This is the
+ * entire attack surface of a self-hosted first boot, so it is once-only by
+ * CONSTRUCTION rather than by a check-then-act read:
+ *
+ * everything runs in ONE transaction that first INSERTs the
+ * `system.superAdminCreatedAt` claim row. `adminium_settings.key` is a PRIMARY
+ * KEY, so a second — or a concurrently racing — attempt either sees the row
+ * (fast path below) or loses the INSERT to a duplicate-key violation, and its
+ * whole transaction rolls back. Either way exactly one super admin can ever be
+ * created, on every dialect and across processes/replicas; a plain
+ * `count() === 0` read could not promise that (two racers both read zero).
+ *
+ * Throws {@link FirstUserExistsError} when the claim is already taken or any
+ * user already exists.
  */
 export async function createFirstSuperAdmin(
   meta: MetaDb,
   input: CreateFirstSuperAdminInput,
   at: number = Date.now(),
 ): Promise<User> {
-  const users = usersRepo(meta);
-  const roles = rolesRepo(meta);
+  return meta.db.transaction().execute(async (trx) => {
+    const tmeta: MetaDb = { db: trx, dialect: meta.dialect };
+    const users = usersRepo(tmeta);
+    const roles = rolesRepo(tmeta);
 
-  if ((await users.count()) > 0) throw new FirstUserExistsError();
+    // Fast, readable rejections for the common (non-racing) cases.
+    const claimed = await trx
+      .selectFrom('adminium_settings')
+      .select('key')
+      .where('key', '=', SUPER_ADMIN_CLAIM_KEY)
+      .executeTakeFirst();
+    if (claimed !== undefined) throw new FirstUserExistsError();
+    if ((await users.count()) > 0) throw new FirstUserExistsError();
 
-  const superAdmin = await roles.findBySlug('super-admin');
-  if (!superAdmin) {
-    throw new BootstrapStateError('built-in roles missing — run firstRun() before createFirstSuperAdmin().');
-  }
+    const superAdmin = await roles.findBySlug('super-admin');
+    if (!superAdmin) {
+      throw new BootstrapStateError('built-in roles missing — run firstRun() before createFirstSuperAdmin().');
+    }
 
-  const name = input.name ?? input.email.split('@')[0] ?? input.email;
-  const user = await users.create(
-    { email: input.email, name, passwordHash: input.passwordHash, status: 'active' },
-    at,
-  );
-  await roles.assignToUser(user.id, superAdmin.id, null, at);
-  return user;
+    // The claim itself. A racer that passed the reads above collides here and
+    // its transaction aborts — this INSERT, not the reads, is the guarantee.
+    try {
+      await trx
+        .insertInto('adminium_settings')
+        .values({ key: SUPER_ADMIN_CLAIM_KEY, value: packJson(at), updatedAt: at, updatedBy: null })
+        .execute();
+    } catch (error) {
+      // The only row that can already hold this PK is another bootstrap's
+      // claim (nothing else ever writes this key), so a failed INSERT means
+      // we lost the race. Anything genuinely unexpected still surfaces: it
+      // would have to be a non-duplicate write error, which we rethrow.
+      if (isDuplicateKeyError(error)) throw new FirstUserExistsError();
+      throw error;
+    }
+
+    const name = input.name ?? input.email.split('@')[0] ?? input.email;
+    const user = await users.create(
+      { email: input.email, name, passwordHash: input.passwordHash, status: 'active' },
+      at,
+    );
+    await roles.assignToUser(user.id, superAdmin.id, null, at);
+    return user;
+  });
 }
 
-/** Zero users ⇒ setup mode: the server serves only /setup/* (§6 step 1). */
+/**
+ * Duplicate-key detection across the three v1 dialects: SQLite
+ * (`SQLITE_CONSTRAINT_PRIMARYKEY` / "UNIQUE constraint failed"), Postgres
+ * (SQLSTATE 23505), MySQL/MariaDB (errno 1062 / `ER_DUP_ENTRY`). Falls back to
+ * a message probe so an unrecognized driver shape still reads as a duplicate
+ * rather than a 500 on the security-critical path.
+ */
+function isDuplicateKeyError(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false;
+  const e = error as { code?: unknown; errno?: unknown; message?: unknown };
+  if (typeof e.code === 'string') {
+    if (e.code === '23505') return true; // Postgres unique_violation
+    if (e.code.startsWith('SQLITE_CONSTRAINT')) return true;
+    if (e.code === 'ER_DUP_ENTRY') return true;
+  }
+  if (e.errno === 1062) return true; // MySQL/MariaDB
+  return typeof e.message === 'string' && /duplicate|unique constraint/i.test(e.message);
+}
+
+/**
+ * Zero users AND an unclaimed bootstrap ⇒ setup mode: the server serves only
+ * /setup/* (§6 step 1).
+ *
+ * The claim is checked as well as the user count so that bootstrap is
+ * PERMANENTLY closed once it has run: deleting every user later must not
+ * re-open an unauthenticated super-admin-creation endpoint (M10-T04).
+ */
 export async function isBootstrapRequired(meta: MetaDb): Promise<boolean> {
-  return (await usersRepo(meta).count()) === 0;
+  if ((await usersRepo(meta).count()) > 0) return false;
+  const claimed = await meta.db
+    .selectFrom('adminium_settings')
+    .select('key')
+    .where('key', '=', SUPER_ADMIN_CLAIM_KEY)
+    .executeTakeFirst();
+  return claimed === undefined;
 }

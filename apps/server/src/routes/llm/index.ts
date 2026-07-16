@@ -28,13 +28,12 @@
  * {@link LlmRoutesDeps}.
  */
 
-import { parseDatabaseModel, type DatabaseModel, type StatsResult } from '@adminium/engine';
+import { parseDatabaseModel, type DatabaseModel } from '@adminium/engine';
 import {
   ProviderError,
   type AllowedVocabularies,
   type LlmKeyCrypto,
   type LocaleCode,
-  type ProviderId,
   type RequestedSection,
   type Sampling,
 } from '@adminium/llm';
@@ -47,6 +46,13 @@ import { LLM_RUN_KIND } from '../../jobs/llm-run.js';
 import type { ApplyService } from '../../llm/apply-service.js';
 import { RunNotApplicableError, SnapshotNotFoundError } from '../../llm/apply-service.js';
 import { LlmApplyUndoStore } from '../../llm/apply-undo-store.js';
+import {
+  createPromptService,
+  NO_STATS,
+  ProviderNotSelectedError,
+  SnapshotRequiredError,
+  type CollectRunStats,
+} from '../../llm/prompt-service.js';
 import { CHUNK_SEPARATOR } from '../../llm/run-service.js';
 import {
   ByoTelemetryError,
@@ -90,21 +96,12 @@ import {
 /** Every `/api/v1/llm/*` route requires this grant — Admin + Super-Admin only (§10.1). */
 export const LLM_RUN_PERMISSION = 'system:llm:run';
 
-export interface CollectRunStatsInput {
-  connectionId: string;
-  snapshotId: string;
-  /** The classified schema IR from the run's snapshot (privacy flags + types). */
-  model: DatabaseModel;
-  /** Sampling opt-in (§4.2) — sample-free when `null`. */
-  sampling: Sampling;
-}
-
 /**
- * Collects §4.2 aggregate statistics for a run's snapshot. Injected so the routes
- * stay testable WITHOUT a live source database (tests pass a stub returning `[]`);
- * the app-wiring layer supplies a `ConnectionManager`-backed implementation.
+ * The §4.2 stats collector contract now lives with the prompt service — the CLI
+ * injects the same shape. Re-exported here so existing importers of
+ * `routes/llm/index.js` keep resolving.
  */
-export type CollectRunStats = (input: CollectRunStatsInput) => Promise<readonly StatsResult[]>;
+export type { CollectRunStats, CollectRunStatsInput } from '../../llm/prompt-service.js';
 
 export interface LlmRoutesDeps {
   meta: MetaDb;
@@ -128,9 +125,6 @@ export interface LlmRoutesDeps {
   /** In-process apply-undo token store (default: a fresh instance per plugin). */
   undoStore?: LlmApplyUndoStore;
 }
-
-/** Default stats collector: sample-free with no aggregates (statistics omitted). */
-const NO_STATS: CollectRunStats = async () => [];
 
 /** Extract the acting session-user id (API-key principals stamp NULL, like siblings). */
 function actorIdOf(request: FastifyRequest): string | null {
@@ -187,24 +181,15 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
   const settings = settingsRepo(meta);
   const collectStats = deps.collectStats ?? NO_STATS;
   const undoStore = deps.undoStore ?? new LlmApplyUndoStore();
+  const promptService = createPromptService({
+    meta,
+    runService,
+    allowed,
+    ...(deps.collectStats === undefined ? {} : { collectStats: deps.collectStats }),
+  });
 
   const allowedTemplates = allowed.templates;
   const allowedWidgets = allowed.widgets;
-
-  /** Load the connection's latest snapshot model, or 409 when none exists yet. */
-  async function loadModel(connectionId: string): Promise<{ snapshotId: string; model: DatabaseModel }> {
-    const snapshot = await snapshots.latest(connectionId);
-    if (snapshot === null) {
-      throw new ConflictError(
-        'Introspect the connection before running AI enrichment.',
-        'CONFLICT',
-        { connectionId },
-      );
-    }
-    // The stored snapshot already carries its classified semantics (mirrors
-    // `llm/provider-resolver.ts`, which uses `snapshot.schema` as the IR directly).
-    return { snapshotId: snapshot.id, model: parseDatabaseModel(snapshot.schema) };
-  }
 
   async function loadModelForRun(run: LlmRun): Promise<DatabaseModel> {
     const snapshot = await snapshots.findById(run.snapshotId);
@@ -311,54 +296,34 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
       { preHandler: guard, schema: { body: createRunBody, response: { 201: createRunReply } } },
       async (request, reply) => {
         const body = request.body;
-        const { snapshotId, model } = await loadModel(body.connectionId);
-        const locales = (body.locales ?? ['en_US']) as LocaleCode[];
-        const sections = (body.sections ?? []) as RequestedSection[];
-        const sampling: Sampling = body.sampling ?? null;
 
-        let provider: ProviderId | null = null;
-        let providerModel: string | null = null;
-        if (body.path === 'provider') {
-          provider = await settings.get('llm.provider');
-          if (provider === null) {
-            throw new ConflictError('Configure an AI provider before running the direct path.', 'CONFLICT');
-          }
-          providerModel = await settings.get('llm.model');
-        }
-
-        const stats = await collectStats({ connectionId: body.connectionId, snapshotId, model, sampling });
-
+        // The orchestration lives in the prompt service so `adminium
+        // generate-prompt` runs the identical path (06 §10.4 CLI parity).
         let created;
         try {
-          created = await runService.createRun({
+          created = await promptService.createRunForConnection({
             connectionId: body.connectionId,
-            snapshotId,
-            schemaIr: model,
-            stats,
-            locales,
-            sections,
-            sampling,
-            mode: body.path,
-            provider,
-            model: providerModel,
-            allowed,
+            path: body.path,
+            ...(body.locales === undefined ? {} : { locales: body.locales as LocaleCode[] }),
+            ...(body.sections === undefined ? {} : { sections: body.sections as RequestedSection[] }),
+            sampling: (body.sampling ?? null) as Sampling,
             createdBy: actorIdOf(request),
           });
         } catch (error) {
+          if (error instanceof SnapshotRequiredError) {
+            throw new ConflictError(error.message, 'CONFLICT', { connectionId: body.connectionId });
+          }
+          if (error instanceof ProviderNotSelectedError) {
+            throw new ConflictError(error.message, 'CONFLICT');
+          }
           if (error instanceof ByoTelemetryError) throw new ValidationFailedError(error.message);
           throw error;
         }
 
-        // BYO runs immediately await a pasted response (§10.2 step 4).
-        let run = created.run;
-        if (body.path === 'byo') {
-          run = await runService.markAwaitingResponse(run.id);
-        }
-
         return reply.status(201).send({
-          run: toRunDto(run),
+          run: toRunDto(created.run),
           prompt: {
-            promptVersion: run.promptVersion,
+            promptVersion: created.run.promptVersion,
             tokenEstimate: created.artifact.tokenEstimate,
             chunks: created.artifact.chunks.map((chunk) => ({
               index: chunk.index,

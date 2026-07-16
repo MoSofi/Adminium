@@ -841,5 +841,266 @@ export default {
       "system": "System",
       "domain": "Domæne"
     }
+  },
+  "setup": {
+    "title": "Konfigurer Adminium",
+    "subtitle": "Opret den første administrator. Det sker kun én gang.",
+    "progress": "Opsætningsforløb",
+    "steps": {
+      "account": "Administratorkonto",
+      "consent": "Privatliv"
+    },
+    "account": {
+      "name": "Dit navn",
+      "email": "E-mail",
+      "emailInvalid": "Indtast en gyldig e-mailadresse.",
+      "password": "Adgangskode",
+      "passwordHelper": "Mindst {min} tegn.",
+      "passwordTooShort": "Brug mindst {min} tegn.",
+      "confirm": "Bekræft adgangskode",
+      "passwordMismatch": "Adgangskoderne er ikke ens.",
+      "continue": "Fortsæt",
+      "strength": "Adgangskodens styrke",
+      "strengthLevels": {
+        "weak": "Svag",
+        "fair": "Nogenlunde",
+        "good": "God",
+        "strong": "Stærk"
+      }
+    },
+    "consent": {
+      "telemetry": {
+        "title": "Del anonyme brugsdata",
+        "description": "Hjælper os med at se, hvilke databasemotorer vi skal prioritere. Slået fra, indtil du slår det til."
+      },
+      "updates": {
+        "title": "Søg efter nye udgivelser",
+        "description": "Viser en besked, når en ny version — også en sikkerhedsrettelse — er tilgængelig. Det spørger GitHub om den nyeste udgivelse, hvilket afslører denne instans’ IP-adresse og version over for GitHub. Der sendes ikke andet."
+      },
+      "sentTitle": "Præcis hvad der sendes:",
+      "sent": {
+        "instanceId": "Et tilfældigt instans-id (en UUID genereret her; ikke udledt af dit navn, din vært eller din database)",
+        "version": "Den Adminium-version, denne instans kører",
+        "engines": "Hvilke typer databasemotorer der er forbundet (f.eks. “postgres”) — kun typerne"
+      },
+      "neverTitle": "Sendes aldrig:",
+      "never": {
+        "schema": "Dit skema — ingen tabel-, kolonne- eller enum-navne",
+        "rows": "Dine data — ikke en eneste række, aldrig",
+        "connections": "Forbindelsesstrenge, værtsnavne eller legitimationsoplysninger",
+        "people": "Brugeres e-mails, navne eller id’er",
+        "llm": "AI-prompter eller kørselsindhold"
+      },
+      "reversible": "Begge dele er slået fra som standard, og du kan ændre dem senere under Indstillinger.",
+      "back": "Tilbage",
+      "finish": "Opret administratorkonto"
+    },
+    "error": {
+      "alreadyCompleted": "Denne instans er allerede sat op. Log ind med den eksisterende administratorkonto.",
+      "rejected": "Serveren afviste de oplysninger. Tjek e-mail og adgangskode, og prøv igen.",
+      "failed": "Opsætningen mislykkedes. Tjek din forbindelse, og prøv igen."
+    }
+  },
+  "about": {
+    "title": "Om Adminium",
+    "subtitle": "Version, licens og hvor denne instans’ kildekode findes.",
+    "version": "Version",
+    "license": "Licens",
+    "metaStore": "Metalager",
+    "node": "Node.js",
+    "engine": {
+      "postgres": "PostgreSQL",
+      "mysql": "MySQL / MariaDB",
+      "sqlite": "SQLite"
+    },
+    "licenseCard": {
+      "title": "Frit og open source",
+      "body": "Adminium er licenseret under GNU Affero General Public License v3.0. Du må frit køre, studere, ændre og dele det. Hvis du tilbyder en ændret version til andre over et netværk, beder AGPL dig om også at tilbyde dem kildekoden."
+    },
+    "viewLicense": "Læs licensen",
+    "viewSource": "Hent kildekoden",
+    "updates": {
+      "title": "Opdateringer",
+      "description": "Om denne instans søger efter nye udgivelser."
+    },
+    "update": {
+      "disabled": "Opdateringstjek er slået fra, så denne instans kontakter aldrig GitHub. Slå det til under Indstillinger for at høre om nye udgivelser.",
+      "current": "Du kører den nyeste udgivelse.",
+      "available": "Adminium {version} er tilgængelig",
+      "availableBody": "Du kører {version}.",
+      "viewRelease": "Se udgivelsesnoter"
+    }
+  },
+  "apiKeys": {
+    "title": "API-nøgler og tokens",
+    "subtitle": "Administrér programmatisk adgang til dit workspace.",
+    "createButton": "Opret nøgle",
+    "copy": "Kopiér",
+    "copied": "Kopieret",
+    "revoke": "Tilbagekald nøgle",
+    "neverUsed": "Aldrig brugt",
+    "lastUsed": "Sidst brugt {since}",
+    "scopesOverflow": "+{count} mere",
+    "status": {
+      "active": "Aktiv",
+      "revoked": "Tilbagekaldt",
+      "expired": "Udløbet"
+    },
+    "list": {
+      "title": "Nøgler",
+      "activeCount": "{count, plural, one {# aktiv nøgle} other {# aktive nøgler}}"
+    },
+    "empty": {
+      "title": "Ingen API-nøgler endnu",
+      "body": "Opret en for at kalde Adminiums API fra din egen kode."
+    },
+    "revealed": {
+      "title": "Ny nøgle oprettet",
+      "body": "Kopiér den nu — du får den aldrig at se igen."
+    },
+    "rolesUnavailable": {
+      "title": "Roller er ikke synlige for dig",
+      "body": "At oprette en nøgle er at vælge den rolle, den handler som, og din konto må ikke læse rollelisten. Bed en administrator om rettigheden „Administrér roller“."
+    },
+    "quickStart": {
+      "title": "Kom hurtigt i gang",
+      "body": "Godkend forespørgsler med din nøgle i Authorization-headeren."
+    },
+    "create": {
+      "title": "Opret API-nøgle",
+      "description": "Nøglen handler med rettighederne fra den rolle, du vælger.",
+      "name": "Navn",
+      "namePlaceholder": "f.eks. Analytics-pipeline",
+      "role": "Rolle",
+      "roleHelper": "Vælg den mindst privilegerede rolle, der kan klare opgaven.",
+      "expires": "Udløber",
+      "expiresHelper": "Lad feltet stå tomt for en nøgle, der aldrig udløber.",
+      "submit": "Opret nøgle",
+      "failed": "Nøglen kunne ikke oprettes"
+    },
+    "revokeConfirm": {
+      "title": "Tilbagekald API-nøgle",
+      "body": "Al kode, der stadig kalder API’et med „{name}“, begynder straks at fejle. Det kan ikke fortrydes.",
+      "prompt": "Skriv „{name}“ for at bekræfte",
+      "confirm": "Tilbagekald nøgle"
+    }
+  },
+  "changelog": {
+    "title": "Ændringslog",
+    "subtitle": "Produktnyheder og udgivelser.",
+    "allReleases": "Alle udgivelser",
+    "tag": {
+      "new": "Nyt",
+      "improved": "Forbedret",
+      "fixed": "Rettet",
+      "security": "Sikkerhed"
+    },
+    "filter": {
+      "all": "Alle",
+      "label": "Filtrér ændringer efter type"
+    },
+    "empty": {
+      "title": "Intet under dette filter",
+      "body": "Ingen udgivelse har endnu indeholdt en ændring af den slags.",
+      "clear": "Vis alle ændringer"
+    }
+  },
+  "kb": {
+    "title": "Vidensbase",
+    "subtitle": "{count, plural, one {# guide} other {# guides}} · fuld dokumentation på docs.adminium.ai",
+    "openDocs": "Åbn dokumentationen",
+    "browse": "Gennemse efter emne",
+    "hero": {
+      "title": "Hvad kan vi hjælpe med?",
+      "subtitle": "Søg i guides, API-dokumentation og fejlfinding.",
+      "placeholder": "Søg i vidensbasen…",
+      "label": "Søg i vidensbasen",
+      "clear": "Ryd søgning"
+    },
+    "category": {
+      "start": "Kom godt i gang",
+      "connect": "Forbind data",
+      "api": "API og udvikling",
+      "security": "Sikkerhed og adgang",
+      "selfhost": "Selv-hosting",
+      "trouble": "Fejlfinding",
+      "count": "{count, plural, one {# artikel} other {# artikler}}",
+      "selected": "Filtreret"
+    },
+    "list": {
+      "all": "Alle guides",
+      "clear": "Ryd filter"
+    },
+    "empty": {
+      "title": "Ingen guides matcher din søgning",
+      "body": "Prøv et andet ord, eller søg i den fulde dokumentation på docs.adminium.ai.",
+      "openDocs": "Åbn dokumentationen"
+    },
+    "article": {
+      "install": {
+        "title": "Installér Adminium",
+        "excerpt": "Kør npx adminium eller docker run, og nå førstegangsguiden på et minut."
+      },
+      "firstAdmin": {
+        "title": "Opret din første superadministrator",
+        "excerpt": "Hvad førstegangsguiden spørger om, og hvorfor den kun kan køre én gang."
+      },
+      "connectDb": {
+        "title": "Forbind din første database",
+        "excerpt": "Peg Adminium mod PostgreSQL, MySQL eller SQLite og generér en adminapp."
+      },
+      "schemaFile": {
+        "title": "Generér ud fra en skemafil",
+        "excerpt": "Upload et Prisma-skema, en Django-models.py, en Rails-schema.rb eller et .sql-dump — uden forbindelse."
+      },
+      "readOnly": {
+        "title": "Brug en skrivebeskyttet rolle",
+        "excerpt": "Introspektion læser kun skemametadata. Giv Adminium færrest mulige rettigheder."
+      },
+      "apiKeys": {
+        "title": "Godkendelse med API-nøgler",
+        "excerpt": "Opret og tilbagekald nøgler — og hvorfor en nøgle kun vises for dig én gang."
+      },
+      "rest": {
+        "title": "REST API-reference",
+        "excerpt": "Hvert endpoint den genererede app udstiller, med request- og responseformater."
+      },
+      "manifest": {
+        "title": "Sidemanifestet",
+        "excerpt": "Hvordan en side beskrives som konfiguration, og hvordan du redigerer en i hånden."
+      },
+      "roles": {
+        "title": "Roller og rettigheder",
+        "excerpt": "Tildel Læser, Redaktør og Admin, og byg dine egne roller ud fra rettighedsmatricen."
+      },
+      "audit": {
+        "title": "Læs revisionsloggen",
+        "excerpt": "Hvem ændrede hvad, hvornår og hvorfra."
+      },
+      "secrets": {
+        "title": "Sådan opbevarer Adminium dine hemmeligheder",
+        "excerpt": "Forbindelsesoplysninger krypteres med ADMINIUM_SECRET. API-nøgler hashes."
+      },
+      "docker": {
+        "title": "Selv-hosting med Docker",
+        "excerpt": "Det officielle image, docker-compose og drift af en separat metadatabase."
+      },
+      "backup": {
+        "title": "Sikkerhedskopiér og flyt en instans",
+        "excerpt": "export-zip samler din serverkonfiguration; importér den for at genskabe samme opsætning et andet sted."
+      },
+      "telemetry": {
+        "title": "Telemetri og opdateringstjek",
+        "excerpt": "Begge er tilvalg og slået fra som standard. Hvad der sendes, hvis du slår dem til."
+      },
+      "connectionFails": {
+        "title": "En databaseforbindelse fejler",
+        "excerpt": "Læs diagnosekortet: vært, port, TLS og den IP, din database skal tillade."
+      },
+      "missingTables": {
+        "title": "Tabeller mangler efter introspektion",
+        "excerpt": "Skemasynlighed, udeladte tabeller og en ny generering."
+      }
+    }
   }
 } as const;

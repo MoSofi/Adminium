@@ -156,6 +156,22 @@ export interface ReceiveResponseInput {
   stats?: readonly StatsResult[];
   /** Tables present only as chunk context (§4.5). */
   stubTables?: readonly string[];
+  /**
+   * Validate WITHOUT persisting anything: no `recordResponse`, no status
+   * transition, no chunk counted. The returned `run` is a projection of what the
+   * row WOULD have become, so callers can render the same summary they would
+   * from a real intake.
+   *
+   * This exists because `adminium apply-llm-response --dry-run` promises
+   * "Nothing was written" and validation is the only thing it can honestly do
+   * along the way: intake is a WRITE (it commits the response and flips the run
+   * to `validated`, after which the run can never take a different pasted
+   * response). Doing it and then printing "nothing was written" was the
+   * opposite of the flag. Chunked runs made it worse — a dry run of chunk 1
+   * consumed the slot, so a later real apply of chunk 1 could reach
+   * `chunksReceived === chunksTotal` with chunk 2 never pasted.
+   */
+  dryRun?: boolean;
 }
 
 export interface ReceiveResponseResult {
@@ -332,8 +348,21 @@ export function createRunService(deps: RunServiceDeps) {
         runId: run.id,
       });
 
+      const dryRun = input.dryRun === true;
+
       if (validation.response === undefined) {
         // Fatal (stage 1–4): stays awaiting_response, errors preserved (§7.2/§7.5).
+        if (dryRun) {
+          return {
+            run: {
+              ...run,
+              validationStatus: 'invalid',
+              responseRaw: input.text,
+              validationErrors: validation.errors,
+            },
+            validation,
+          };
+        }
         await runs.recordResponse(run.id, {
           status: 'awaiting_response',
           validationStatus: 'invalid',
@@ -347,6 +376,23 @@ export function createRunService(deps: RunServiceDeps) {
       const allReceived = chunksReceived >= run.chunksTotal;
       const nextStatus: LlmRunStatus = allReceived ? 'validated' : 'awaiting_response';
       const validationStatus = validation.errors.length > 0 ? 'partial' : 'valid';
+
+      if (dryRun) {
+        // The row the caller WOULD have got — computed from the same values the
+        // write below uses, so the projection cannot drift from the real thing.
+        return {
+          run: {
+            ...run,
+            status: nextStatus,
+            validationStatus,
+            responseRaw: input.text,
+            responseJson: validation.response,
+            validationErrors: validation.errors.length > 0 ? validation.errors : null,
+            chunksReceived,
+          },
+          validation,
+        };
+      }
 
       await runs.recordResponse(run.id, {
         status: nextStatus,

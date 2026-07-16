@@ -1,0 +1,107 @@
+/**
+ * 14-docs-site.md §4 — restyle Starlight onto @adminium/tokens.
+ *
+ * Starlight ships its own CSS-variable theme. This file remaps those variables
+ * onto the product's tokens so a reader moving between docs.adminium.ai and
+ * their own dashboard sees the same accent, the same dark palette, the same
+ * Manrope/JetBrains-Mono type — not generic Starlight blue.
+ *
+ * Token hexes are NEVER forked here: every value below is a var() reference into
+ * @adminium/tokens (imported ahead of this file in astro.config.mjs). The dark
+ * palette is the hand-tuned one from 02-design-system.md §1.1, not auto-derived.
+ *
+ * Starlight's theme toggle writes data-theme="light|dark" on <html>; the tokens
+ * package keys its dark block off the same attribute, so the two stay in sync
+ * with no bridging logic.
+ */
+
+:root {
+  /* Accent — indigo #4f46e5 by default, via [data-accent] in accents.css. */
+  --sl-color-accent: var(--accent);
+  --sl-color-accent-low: var(--accent-soft);
+  --sl-color-accent-high: var(--accent-hover);
+  --sl-color-text-accent: var(--accent);
+
+  /* Surfaces + text. Starlight's gray ramp runs 1 (lightest text) → 7. */
+  --sl-color-white: var(--fg);
+  --sl-color-black: var(--bg);
+  --sl-color-gray-1: var(--fg);
+  --sl-color-gray-2: var(--fg-muted);
+  --sl-color-gray-3: var(--fg-subtle);
+  --sl-color-gray-4: var(--border-strong);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--surface-2);
+  --sl-color-gray-7: var(--surface-3);
+  --sl-color-bg: var(--bg);
+  --sl-color-bg-nav: var(--surface);
+  --sl-color-bg-sidebar: var(--surface);
+  --sl-color-bg-inline-code: var(--surface-3);
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-light: var(--border);
+  --sl-color-hairline-shade: var(--border-strong);
+  --sl-color-text: var(--fg);
+  --sl-color-text-invert: var(--accent-fg);
+
+  /* Aside/callout tones — the product's semantic pairs (§4). */
+  --sl-color-green: var(--pos);
+  --sl-color-green-low: var(--pos-soft);
+  --sl-color-green-high: var(--pos);
+  --sl-color-orange: var(--warn);
+  --sl-color-orange-low: var(--warn-soft);
+  --sl-color-orange-high: var(--warn);
+  --sl-color-red: var(--danger);
+  --sl-color-red-low: var(--danger-soft);
+  --sl-color-red-high: var(--danger);
+  --sl-color-blue: var(--info);
+  --sl-color-blue-low: var(--info-soft);
+  --sl-color-blue-high: var(--info);
+  --sl-color-purple: var(--accent);
+  --sl-color-purple-low: var(--accent-soft);
+  --sl-color-purple-high: var(--accent);
+
+  --sl-shadow-sm: var(--shadow);
+  --sl-shadow-md: var(--shadow-md);
+  --sl-shadow-lg: var(--shadow-lg);
+
+  /* Type. Font binaries are bundled by @adminium/tokens/fonts.css — no CDN,
+     no Google Fonts (§1 principle 3). */
+  --sl-font: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* Starlight's dark theme flips its own ramp; tokens.css already flips ours off
+   the same [data-theme="dark"] selector, so only the values that genuinely
+   differ in dark are restated here. */
+:root[data-theme='dark'] {
+  --sl-color-white: var(--fg);
+  --sl-color-black: var(--bg);
+  --sl-color-gray-1: var(--fg);
+  --sl-color-gray-2: var(--fg-muted);
+  --sl-color-gray-3: var(--fg-subtle);
+  --sl-color-gray-4: var(--border-strong);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--surface-2);
+  --sl-color-gray-7: var(--surface-3);
+}
+
+/* Numerals, IDs, connection strings, and kbd chips render in the mono face
+   (02-design-system.md §2 — tabular figures for anything scannable). */
+code,
+kbd,
+.sl-markdown-content code {
+  font-family: var(--sl-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ar_EG: IBM Plex Sans Arabic is the Arabic family (10-i18n-theming.md §5.1).
+   Scoped to [dir='rtl'] so the Latin tree keeps Manrope. */
+[dir='rtl'] {
+  --sl-font: 'IBM Plex Sans Arabic', 'Manrope', system-ui, sans-serif;
+}
+
+/* The hero on the landing page reads as product chrome, not as a Starlight
+   template: the accent glow is the same one the dashboard uses for primary
+   actions. */
+.hero .actions .sl-link-button.primary {
+  box-shadow: var(--accent-glow);
+}
