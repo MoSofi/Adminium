@@ -8,8 +8,8 @@
  */
 import { randomBytes } from 'node:crypto';
 
-import { fastify, type FastifyBaseLogger, type FastifyError } from 'fastify';
-import { pino, type Logger } from 'pino';
+import { fastify, type FastifyBaseLogger, type FastifyError, type FastifyRequest } from 'fastify';
+import { pino, type DestinationStream, type Logger, type LoggerOptions } from 'pino';
 import {
   serializerCompiler,
   validatorCompiler,
@@ -21,6 +21,7 @@ import type { MetaDb } from '@adminium/meta';
 import { hashPassword } from './auth/passwords.js';
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
+import { scrubUrlForLog } from './log-scrub.js';
 import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { staticPlugin } from './plugins/static.js';
@@ -49,22 +50,56 @@ export const REDACT_PATHS: readonly string[] = [
   '*.dsn',
   '*.connectionString',
   '*.smtpUrl',
+  // 11-electron.md §2.2 step 4: the desktop per-boot token. `*.token` above does
+  // not match `bootToken` — pino paths are field names, not substrings — and the
+  // field travels in this product (the §5 exchange body). The QUERY-STRING half
+  // of the same secret is `log-scrub.ts`'s job; paths cannot reach into a string.
+  '*.bootToken',
+  'ADMINIUM_BOOT_TOKEN',
+  '*.ADMINIUM_BOOT_TOKEN',
 ];
 
 export interface BuildLoggerOptions {
   /** Force pino-pretty on/off; default: dev (`NODE_ENV !== 'production'`) on a TTY. */
   pretty?: boolean | undefined;
+  /** Test seam: write to a capturing stream instead of stdout. */
+  stream?: DestinationStream | undefined;
+}
+
+/**
+ * The `req` serializer, which REPLACES Fastify's default one.
+ *
+ * Fastify merges the serializers off a supplied `loggerInstance` OVER its own
+ * (`lib/logger-pino.js`: `Object.assign({}, opts.serializers, prevLogger[serializersSym])`),
+ * so defining `req` here wins — and therefore has to reproduce the default's
+ * shape, or every request line in the product silently loses fields. It is the
+ * default, verbatim, with the one change this exists for: {@link scrubUrlForLog}
+ * on the url. Deliberately still no `headers` — the fields below are the whole
+ * contract, and `REDACT_PATHS` covers the header paths for anyone who logs `req`
+ * by hand.
+ */
+function serializeRequest(request: FastifyRequest): Record<string, unknown> {
+  return {
+    method: request.method,
+    url: scrubUrlForLog(request.url),
+    version: request.headers['accept-version'],
+    host: request.host,
+    remoteAddress: request.ip,
+    remotePort: request.socket.remotePort,
+  };
 }
 
 /** Structured pino logger: level from env, §1.3 redaction, pretty in dev. */
 export function buildLogger(env: Env, opts: BuildLoggerOptions = {}): Logger {
   const pretty =
     opts.pretty ?? (process.env.NODE_ENV !== 'production' && Boolean(process.stdout.isTTY));
-  return pino({
+  const options: LoggerOptions = {
     level: env.ADMINIUM_LOG_LEVEL,
     redact: { paths: [...REDACT_PATHS], censor: '[REDACTED]' },
+    serializers: { req: serializeRequest },
     ...(pretty ? { transport: { target: 'pino-pretty', options: { colorize: true } } } : {}),
-  });
+  };
+  return opts.stream === undefined ? pino(options) : pino(options, opts.stream);
 }
 
 /** Maps residual (non-AppError) status codes to §1.4 canonical codes. */

@@ -1,0 +1,16 @@
+{
+  "extends": "../../packages/config/tsconfig.base.json",
+  "compilerOptions": {
+    // electron-vite emits every bundle; tsc is a checker here, never a builder.
+    "noEmit": true,
+    // `DOM` is for src/preload, which touches `window` through contextBridge.
+    // The main and server bundles are Node — Electron 43 ships Node 22, which
+    // the repo's engines.node >= 22 requires (11-electron.md §2.1).
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    // `electron-vite/node` declares the ?asset / ?nodeWorker / *.node module
+    // shims the main + server bundles may import (11-T13 uses ?asset&asarUnpack
+    // for the native binaries).
+    "types": ["node", "electron-vite/node"]
+  },
+  "include": ["src", "electron.vite.config.ts", "vitest.config.ts"]
+}

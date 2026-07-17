@@ -1094,5 +1094,20 @@
         "excerpt": "結構描述可見性、被排除的資料表，以及重新執行產生。"
       }
     }
+  },
+  "desktop": {
+    "settings": {
+      "explainer": "這些設定僅適用於這台電腦上的 Adminium 應用程式，會儲存在本機，不會儲存到你的工作區。"
+    },
+    "security": {
+      "heading": "登入"
+    },
+    "requireLogin": {
+      "label": "在此裝置上要求登入",
+      "description": "Adminium 通常會在這台電腦上自動登入。開啟後，每次啟動都會要求輸入密碼——如果其他人也可能使用這台電腦，建議開啟。此設定會在下次開啟 Adminium 時生效。",
+      "savedOn": "下次啟動時需要登入",
+      "savedOff": "Adminium 將在這台電腦上略過登入",
+      "saveFailed": "無法儲存此設定，請重試。"
+    }
   }
 }

@@ -9,6 +9,16 @@
         "dist/**"
       ]
     },
+    "@adminium/desktop#build": {
+      "dependsOn": [
+        "@adminium/dashboard#build",
+        "@adminium/server#build",
+        "^build"
+      ],
+      "outputs": [
+        "out/**"
+      ]
+    },
     "typecheck": {
       "dependsOn": [
         "^build"

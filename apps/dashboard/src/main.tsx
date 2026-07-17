@@ -13,12 +13,20 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@adminium/i18n/react';
 
+import { exchangeBootToken } from './desktop/bootToken.js';
 import { initDashboardI18n } from './i18n/setup.js';
 import { createQueryClient } from './app/query.js';
 import { createAppRouter } from './app/router.js';
 import './styles.css';
 
 async function start(): Promise<void> {
+  // BEFORE the router (11-electron.md §2.2 step 8, §5). Two reasons, both hard:
+  // the token has to leave `window.location` before anything can read it into
+  // router state or a `Referer` header, and the session cookie has to exist
+  // before the app route's bootstrap query decides login-vs-dashboard. A no-op
+  // on every non-desktop boot — see `desktop/bootToken.ts`.
+  await exchangeBootToken();
+
   const i18n = await initDashboardI18n();
 
   const queryClient = createQueryClient();

@@ -1102,5 +1102,20 @@ export default {
         "excerpt": "Schema-Sichtbarkeit, ausgeschlossene Tabellen und ein erneuter Generierungslauf."
       }
     }
+  },
+  "desktop": {
+    "settings": {
+      "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in Ihrem Workspace."
+    },
+    "security": {
+      "heading": "Anmeldung"
+    },
+    "requireLogin": {
+      "label": "Anmeldung auf diesem Gerät verlangen",
+      "description": "Adminium meldet Sie auf diesem Computer normalerweise automatisch an. Aktivieren Sie diese Option, um bei jedem Start nach Ihrem Passwort zu fragen — sinnvoll, wenn andere Personen diesen Computer nutzen können. Die Änderung gilt ab dem nächsten Start von Adminium.",
+      "savedOn": "Beim nächsten Start ist eine Anmeldung erforderlich",
+      "savedOff": "Adminium überspringt die Anmeldung auf diesem Computer",
+      "saveFailed": "Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen."
+    }
   }
 } as const;

@@ -39,7 +39,41 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_TELEMETRY: undefined,
       ADMINIUM_TRUST_PROXY: false,
       ADMINIUM_CORS_ORIGINS: undefined,
+      // The 11-electron.md §2.2 desktop block. `self-host` is the default because
+      // every deployment that is not the Electron shell is one, and because the
+      // value gates whether `POST /auth/desktop-session` EXISTS (§5) — the safe
+      // answer to "nobody said" is the one with no auto-login door.
+      ADMINIUM_RUNTIME: 'self-host',
+      ADMINIUM_BOOT_TOKEN: undefined,
+      // Tri-state like ADMINIUM_TELEMETRY, and for the same reason: it mirrors an
+      // answer stored elsewhere (config.json, §2.3), so "unset" must stay
+      // distinguishable from "off" or the mirror would overwrite what it mirrors.
+      ADMINIUM_DESKTOP_SINGLE_USER: undefined,
     });
+  });
+
+  it('rejects a boot token that is not 32 bytes of hex', () => {
+    // The shape is §2.2 step 4's, and a truncating or re-encoding generator
+    // upstream must fail the boot loudly rather than ship a weaker token.
+    for (const token of ['abc', 'g'.repeat(64), 'a'.repeat(63), 'a'.repeat(65)]) {
+      expect(() =>
+        loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_BOOT_TOKEN: token }, makeStderr()),
+      ).toThrow(EnvValidationError);
+    }
+    expect(
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_BOOT_TOKEN: 'a'.repeat(64) }, makeStderr())
+        .ADMINIUM_BOOT_TOKEN,
+    ).toBe('a'.repeat(64));
+  });
+
+  it('rejects an unknown runtime rather than defaulting it', () => {
+    expect(() =>
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_RUNTIME: 'desktop-ish' }, makeStderr()),
+    ).toThrow(EnvValidationError);
+    expect(
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_RUNTIME: 'desktop' }, makeStderr())
+        .ADMINIUM_RUNTIME,
+    ).toBe('desktop');
   });
 
   it('leaves ADMINIUM_TELEMETRY undefined when unset, so consent can decide', () => {

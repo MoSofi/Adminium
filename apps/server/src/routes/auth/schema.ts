@@ -95,3 +95,17 @@ export const auth2faDisableBody = z.object({
   code: z.string().trim().min(6).max(20).optional(),
 });
 export type Auth2faDisableBody = z.infer<typeof auth2faDisableBody>;
+
+/**
+ * `POST /auth/desktop-session` (11-electron.md §5) — the desktop shell's per-boot
+ * token, exchanged for a normal session.
+ *
+ * The shape is pinned to §2.2 step 4's token (32 bytes, hex) rather than left as
+ * a loose string: a body that cannot be the token is rejected by the schema
+ * before any comparison runs, and 422-on-malformed keeps the handler's own 401
+ * meaning exactly one thing — "well-formed, and wrong".
+ */
+export const authDesktopSessionBody = z.object({
+  bootToken: z.string().regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex characters'),
+});
+export type AuthDesktopSessionBody = z.infer<typeof authDesktopSessionBody>;

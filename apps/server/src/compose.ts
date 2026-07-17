@@ -29,6 +29,7 @@
  */
 
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
+import { settingsRepo } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from './app.js';
 import type { Env } from './config/env.js';
@@ -45,6 +46,7 @@ import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
 import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { auditRoutes } from './routes/audit/index.js';
+import { desktopSessionRoutes } from './routes/auth/desktop-session.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { generateRoutes } from './routes/generate/index.js';
@@ -103,6 +105,28 @@ export interface ComposedServer {
   jobs: JobsAndRealtime;
   /** True when the `/llm` resource was registered (i.e. `allowed` was present). */
   llmEnabled: boolean;
+  /**
+   * True when `POST /auth/desktop-session` was registered (11-electron.md §5).
+   * Reported rather than inferred: whether that route exists is the single most
+   * security-relevant fact about a composed server, and a caller (or a test)
+   * asking "did the boot-token door get opened?" should not have to re-derive
+   * the answer from the same two env vars this module already read.
+   */
+  desktopSessionEnabled: boolean;
+}
+
+/**
+ * Mirror `config.json`'s §2.3 `singleUser` into the setting the §5 route reads.
+ *
+ * §5: "only while `config.singleUser` is true (mirrored into `adminium_settings`
+ * … by the server at boot)". The desktop main process owns `config.json` and the
+ * child cannot read it (different process, different lifetime, and §2.3 makes the
+ * main process its only writer), so the env var IS the mirror channel — see
+ * `config/env.ts`. Unset ⇒ this does nothing at all, deliberately: absent input
+ * must not be read as `false` and quietly overwrite an answer the user gave.
+ */
+async function mirrorDesktopSingleUser(meta: MetaStoreHandle['meta'], value: boolean): Promise<void> {
+  await settingsRepo(meta).set('desktop.singleUser', value, { updatedBy: null });
 }
 
 /**
@@ -165,8 +189,38 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   const undoStore = new UndoStore();
 
+  /**
+   * THE DESKTOP AUTO-LOGIN DOOR (11-electron.md §5) — the one route in the
+   * product that mints a super-admin session without a password.
+   *
+   * Both conditions are load-bearing, and the AND is the point:
+   *
+   *  - `ADMINIUM_RUNTIME=desktop` — §5 registers this "only when" the Electron
+   *    shell is the wrapper. Every other deployment (self-host, Docker, npx, and
+   *    every test that does not opt in) composes a server with NO such route:
+   *    `/auth/desktop-session` 404s there, which is a stronger guarantee than any
+   *    runtime check inside a handler could make.
+   *  - a boot token — a desktop boot without one has nothing to exchange, so the
+   *    route would be an unreachable surface. §2.2 mints a fresh token per boot;
+   *    absence means the shell chose not to (or could not), and the app lands on
+   *    the normal login screen.
+   *
+   * The mirror runs first so the route's own §5 policy gate reads THIS boot's
+   * answer rather than the last one's.
+   */
+  const desktopSession =
+    env.ADMINIUM_RUNTIME === 'desktop' && env.ADMINIUM_BOOT_TOKEN !== undefined
+      ? { bootToken: env.ADMINIUM_BOOT_TOKEN }
+      : null;
+  if (env.ADMINIUM_RUNTIME === 'desktop' && env.ADMINIUM_DESKTOP_SINGLE_USER !== undefined) {
+    await mirrorDesktopSingleUser(meta, env.ADMINIUM_DESKTOP_SINGLE_USER);
+  }
+
   await app.register(
     async (api) => {
+      if (desktopSession !== null) {
+        await api.register(desktopSessionRoutes({ meta, bootToken: desktopSession.bootToken }));
+      }
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
       await api.register(dataRoutes({ manager, meta, undoStore }));
@@ -224,5 +278,5 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     await manager.disposeAll();
   });
 
-  return { app, jobs, llmEnabled: llm !== null };
+  return { app, jobs, llmEnabled: llm !== null, desktopSessionEnabled: desktopSession !== null };
 }

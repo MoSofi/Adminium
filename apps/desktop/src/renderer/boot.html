@@ -1,0 +1,180 @@
+<!doctype html>
+<!--
+  The splash page (11-electron.md §2.2 step 6): "Show the bundled static splash
+  page (logo, spinner, tokens from @adminium/tokens; works with zero network)."
+  Owned by 11-T05.
+
+  ─── THE OFFLINE CONTRACT (§7) ───────────────────────────────────────────────
+  This page is shown BEFORE a server exists, so it cannot reach even loopback,
+  let alone the internet. Everything it needs is on disk next to it:
+
+    tokens.css   copied here at build time by electron.vite.config.ts's
+                 copyTokenCss plugin. §3 calls this "token CSS inlined"; it is a
+                 relative <link> to a COPY rather than an import because
+                 .dependency-cruiser.cjs's `desktop-shell-only` rule bans the
+                 shell from importing @adminium/tokens at all — "the boot/crash
+                 splash pages get their CSS COPIED next to them at build time,
+                 which is a file, not an import edge".
+    everything   else is in the <style> block below. No <script> at all, no
+                 <link> to any origin, no webfont.
+
+  ─── NO WEBFONT, DELIBERATELY ────────────────────────────────────────────────
+  §7 self-hosts Manrope/JetBrains Mono/IBM Plex Sans Arabic in @adminium/tokens,
+  and the SPA uses them. This page does not, for two reasons. The narrow one:
+  copyTokenCss copies fonts.css but NOT the src/fonts/ tree its ten @font-face
+  rules point at, so linking it today fires ten file lookups that all miss and
+  fall back to exactly the stack below (reported out of this track — the plugin
+  is 11-T01's file). The broad one: a splash is on screen for under a second, and
+  blocking its only line of text on a font load — or flashing it when the font
+  arrives — costs more than matching the SPA's typeface for that second buys. The
+  system stack renders on the first frame, on every machine, forever.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      No network is reachable here, so this CSP is not stopping an attack in
+      progress — it stops this page from ever quietly acquiring a remote
+      dependency. `default-src 'none'` means a <link>, <img> or fetch added later
+      fails loudly in dev instead of shipping and turning up as an offline-smoke
+      -test failure (§7). `script-src 'none'`: this page has no script and never
+      needs one. 'self' covers tokens.css — a sibling file on the same origin.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Adminium</title>
+    <link rel="stylesheet" href="./tokens/tokens.css" />
+    <style>
+      /*
+        tokens.css exposes its dark palette under [data-theme="dark"], which the
+        SPA sets from the user's stored preference. This page has no script and
+        no preference to read — it runs before the server that stores one — so it
+        follows the OS instead. The values are pinned copies of tokens.css's dark
+        block, and src/main/window.test.ts asserts they still match it, so this
+        duplication cannot drift silently.
+      */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --bg: #0a0a0d;
+          --surface: #141419;
+          --border: rgba(255, 255, 255, 0.07);
+          --fg: #f4f4f6;
+          --fg-muted: #9a9aa6;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--fg);
+        /* See the header: system stack, first frame, no fetch. */
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        /* A splash is not a document. */
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+      }
+
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+
+      /*
+        The logo, as CSS. A mark drawn from a div and a pseudo-element cannot
+        404, needs no img-src at load time, and adds no file that a packaging
+        change could drop — which for the page that proves the app launched is
+        worth more than fidelity to the full lockup.
+      */
+      .mark {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        display: grid;
+        place-items: center;
+        box-shadow: var(--shadow);
+      }
+
+      .mark::after {
+        content: '';
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        background: var(--info);
+      }
+
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        border-top-color: var(--fg-muted);
+        animation: spin 0.7s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /*
+        Vestibular safety, and not decorative here: this is the first thing the
+        app ever renders, so it is the first chance it has to get this wrong. The
+        spinner still signals "working" — it pulses instead of rotating.
+      */
+      @media (prefers-reduced-motion: reduce) {
+        .spinner {
+          animation: pulse 1.4s ease-in-out infinite;
+        }
+      }
+
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+
+      .status {
+        margin: 0;
+        color: var(--fg-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      role="status" on the text, aria-hidden on the spinner: a screen reader
+      announces "Starting Adminium" once rather than describing an animation.
+      There is nothing to focus and nothing to do, which is the whole message.
+    -->
+    <main aria-busy="true">
+      <div class="mark" role="img" aria-label="Adminium"></div>
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="status" role="status">Starting Adminium…</p>
+    </main>
+  </body>
+</html>

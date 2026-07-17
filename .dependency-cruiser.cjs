@@ -190,14 +190,70 @@ module.exports = {
       from: { path: '^apps/dashboard/' },
       to: { path: [pkg('meta'), pkg('adapter-[^/]+', 'adapter-[^/]+'), pkg('llm')].join('|') },
     },
+    {
+      name: 'dashboard-desktop-api-leaf-only',
+      comment:
+        'The ONE thing @adminium/dashboard may name from the Electron app is the ' +
+        '`@adminium/desktop/api` types leaf (11-electron.md §4: "Typed contract lives in ' +
+        'apps/desktop/src/preload/api.d.ts and is re-exported to the dashboard as ' +
+        '@adminium/desktop/api (types only) so @adminium/dashboard compiles without Electron ' +
+        'installed"). Everything else in apps/desktop is main-process code — Electron, zod, ' +
+        '`node:fs`, better-sqlite3 — and this is a browser bundle.\n' +
+        'The rule is about the SPELLING, because that is what can go wrong. The specifier ' +
+        'resolves through a tsconfig `paths` mapping (apps/dashboard/tsconfig.json), NOT a ' +
+        'package dependency — @adminium/desktop#build already dependsOn @adminium/dashboard#build ' +
+        '(turbo.json), so a package edge in this direction, of either kind, closes a task cycle. ' +
+        'The cost of `paths` is that a relative reach into ../desktop/src would work just as ' +
+        'well and would be a real app -> app source edge; this rule is what makes the one ' +
+        'sanctioned specifier the only way in.\n' +
+        'It stays TYPES-ONLY without needing a rule: api.d.ts is a declaration file, and ' +
+        "apps/desktop/package.json exports './api' under the `types` condition alone, so a " +
+        'runtime import has nothing to resolve to.',
+      severity: 'error',
+      from: { path: '^apps/dashboard/' },
+      to: {
+        // The SPECIFIER, and only the specifier. Not the file it maps to: the
+        // `paths` mapping is invisible to dependency-cruiser (it reports the
+        // unresolved `@adminium/desktop/api`), so a carve-out for
+        // `apps/desktop/src/preload/api.d.ts` would whitelist nothing except a
+        // relative `../../desktop/src/preload/api.js` — the one bypass this rule
+        // is here to catch.
+        path: '^(apps/desktop|node_modules/@adminium/desktop|@adminium/desktop)(/|$)',
+        pathNot: ['^@adminium/desktop/api$'],
+      },
+    },
+    {
+      name: 'desktop-shell-only',
+      comment:
+        '@adminium/desktop may import ONLY @adminium/server from the workspace (01 §2.3: ' +
+        '"`@adminium/server` (spawned), dashboard build output (static files)" | must never ' +
+        'import "packages\' internals"). The Electron shell contains zero business logic ' +
+        '(11-electron.md §1 principle 1) — anything feature-shaped belongs in the server or ' +
+        'the dashboard, gated by runtime flag, not reached into from here.\n' +
+        'The two absences are the point. @adminium/dashboard is consumed as BUILD OUTPUT: ' +
+        'electron.vite.config.ts copies its dist/ and the server serves it, so an IMPORT of ' +
+        'it would mean the shell had started rendering product UI itself. @adminium/meta is ' +
+        'banned because §1 principle 2 makes the server the only data owner — the main ' +
+        'process never opens the meta-store, it asks the server. @adminium/tokens is absent ' +
+        'too: the boot/crash splash pages (§2.2 step 6) get their CSS COPIED next to them at ' +
+        'build time, which is a file, not an import edge.',
+      severity: 'error',
+      from: { path: '^apps/desktop/' },
+      to: { path: ANY_WORKSPACE, pathNot: ['^apps/desktop/', app('server')] },
+    },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
     // Tooling config files (eslint/vitest configs, build scripts) import @adminium/config
     // by design — they are dev-time wiring, not part of the runtime import graph the
     // 01-architecture.md §2.3 matrix governs.
+    // `out/` joins `dist/` for the same reason: it is BUILD OUTPUT, not source.
+    // apps/desktop emits there (electron-vite's convention, 11-electron.md §3),
+    // and it also receives a copy of the dashboard's bundle. Cruising it reports
+    // rollup's chunk graph — 47 `no-circular` errors about hashed asset chunks
+    // that no human wrote and no rule governs.
     exclude: {
-      path: '(^|/)(eslint|vitest|prettier|playwright)\\.config\\.(js|ts|mjs|cjs)$|(^|/)scripts/|(^|/)storybook-static/|(^|/)vrt/|(^|/)dist/|(^|/)playwright-report/|(^|/)test-results/',
+      path: '(^|/)(eslint|vitest|prettier|playwright|electron\\.vite)\\.config\\.(js|ts|mjs|cjs)$|(^|/)scripts/|(^|/)storybook-static/|(^|/)vrt/|(^|/)dist/|(^|/)out/|(^|/)playwright-report/|(^|/)test-results/',
     },
     moduleSystems: ['es6', 'cjs'],
     tsPreCompilationDeps: true,

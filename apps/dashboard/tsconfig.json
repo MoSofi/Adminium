@@ -4,7 +4,29 @@
     "jsx": "react-jsx",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
-    "noEmit": true
+    "noEmit": true,
+
+    // `@adminium/desktop/api` — the preload bridge contract (11-electron.md §4:
+    // "re-exported to the dashboard as `@adminium/desktop/api` (types only) so
+    // `@adminium/dashboard` compiles without Electron installed"). It types
+    // `window.adminiumDesktop`; src/lib/desktop-runtime.ts is the only file that
+    // imports it, and only with `import type`.
+    //
+    // WHY A PATH AND NOT A DEPENDENCY. `@adminium/desktop#build` dependsOn
+    // `@adminium/dashboard#build` (turbo.json — the shell packages the SPA's
+    // dist/), and Turborepo builds its task graph from `dependencies` AND
+    // `devDependencies`. So a `"@adminium/desktop": "workspace:*"` entry here,
+    // of either kind, would close a cycle and every `turbo run` in the repo
+    // would fail with "Invalid task dependency graph". A `paths` mapping is a
+    // tsc-only edge: no package edge, no task edge, no Electron in this app's
+    // install tree — which is the sentence §4 is asking for.
+    //
+    // It cannot become a runtime import by accident: the target is a `.d.ts`,
+    // and apps/desktop/package.json exports `./api` under the `types` condition
+    // ONLY, so any resolver looking for a module to execute finds nothing.
+    "paths": {
+      "@adminium/desktop/api": ["../desktop/src/preload/api.d.ts"]
+    }
   },
   "include": ["src", "vite.config.ts", "vitest.config.ts"]
 }

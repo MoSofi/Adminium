@@ -1094,5 +1094,20 @@
         "excerpt": "Schema visibility, excluded tables, and re-running generation."
       }
     }
+  },
+  "desktop": {
+    "settings": {
+      "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in your workspace."
+    },
+    "security": {
+      "heading": "Sign-in"
+    },
+    "requireLogin": {
+      "label": "Require login on this device",
+      "description": "Adminium normally signs you in automatically on this computer. Turn this on to ask for your password at every launch — worth it if other people can use this machine. It takes effect the next time you open Adminium.",
+      "savedOn": "Login required on the next launch",
+      "savedOff": "Adminium will skip the login on this computer",
+      "saveFailed": "Could not save that setting. Try again."
+    }
   }
 }

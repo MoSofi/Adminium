@@ -1094,5 +1094,20 @@
         "excerpt": "Skemasynlighed, udeladte tabeller og en ny generering."
       }
     }
+  },
+  "desktop": {
+    "settings": {
+      "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i dit workspace."
+    },
+    "security": {
+      "heading": "Login"
+    },
+    "requireLogin": {
+      "label": "Kræv login på denne enhed",
+      "description": "Adminium logger dig normalt ind automatisk på denne computer. Slå dette til for at blive bedt om din adgangskode ved hver opstart — en god idé, hvis andre kan bruge maskinen. Det træder i kraft, næste gang du åbner Adminium.",
+      "savedOn": "Der kræves login ved næste opstart",
+      "savedOff": "Adminium springer login over på denne computer",
+      "saveFailed": "Indstillingen kunne ikke gemmes. Prøv igen."
+    }
   }
 }

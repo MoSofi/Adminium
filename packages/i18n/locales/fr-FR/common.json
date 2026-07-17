@@ -1094,5 +1094,20 @@
         "excerpt": "Visibilité du schéma, tables exclues, et relance de la génération."
       }
     }
+  },
+  "desktop": {
+    "settings": {
+      "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans votre espace de travail."
+    },
+    "security": {
+      "heading": "Connexion"
+    },
+    "requireLogin": {
+      "label": "Exiger une connexion sur cet appareil",
+      "description": "Adminium vous connecte normalement de façon automatique sur cet ordinateur. Activez cette option pour demander votre mot de passe à chaque démarrage — utile si d’autres personnes peuvent utiliser cette machine. La modification prend effet au prochain démarrage d’Adminium.",
+      "savedOn": "Connexion requise au prochain démarrage",
+      "savedOff": "Adminium ignorera la connexion sur cet ordinateur",
+      "saveFailed": "Impossible d’enregistrer ce paramètre. Réessayez."
+    }
   }
 }

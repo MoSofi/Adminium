@@ -107,10 +107,48 @@ export const SETTINGS_REGISTRY = {
   // inheriting consent from the telemetry answer (M10-T04).
   'updates.checkEnabled': def(z.boolean(), false, 'Check for new releases (opt-in outbound call)', P),
   // ── NOT portable ──────────────────────────────────────────────────────────
-  // Everything below identifies THIS instance or records that something already
-  // happened to it. A bundle that carried any of them would fuse two installs
-  // into one identity, or — worse, for the claim — hand a fresh install a
-  // "setup already done" flag it can never clear. See `SettingDef.portable`.
+  // Everything below identifies THIS instance, records that something already
+  // happened to it, or answers a question about the MACHINE it runs on. A
+  // bundle that carried any of them would fuse two installs into one identity,
+  // decide one device's login policy from another's, or — worst, for the claim —
+  // hand a fresh install a "setup already done" flag it can never clear. See
+  // `SettingDef.portable`.
+  /**
+   * The desktop shell's §5 "Skip login on this computer" answer, mirrored out of
+   * `<userData>/config.json` (11-electron.md §2.3 `singleUser`) at every boot by
+   * the composition root. `POST /api/v1/auth/desktop-session` reads THIS — the
+   * route refuses while it is false, which is what the "Require login on this
+   * device" toggle turns off.
+   *
+   * NAMING: §5 spells the key `desktop.single_user`. This registry's convention
+   * is `<domain>.<camelCase>` for all 30 of its siblings, and the key is a TS
+   * literal type here rather than a string in a doc, so it follows the code.
+   *
+   * DEFAULT FALSE — i.e. "ask for the password" — even though §2.3's `config.json`
+   * default is `true` and §6 step 3's checkbox ships ticked. That is not a
+   * contradiction, because THIS DEFAULT IS ONLY EVER REACHED WHEN THE MIRROR DID
+   * NOT RUN. When the desktop shell passes `ADMINIUM_DESKTOP_SINGLE_USER`, every
+   * boot overwrites this row with the user's real answer and the default is dead
+   * code; the only world where it decides anything is one where the wrapper
+   * failed to tell the server what the user chose.
+   *
+   * In that world the two candidate defaults fail in opposite directions:
+   *
+   *   true  ⇒ a user who explicitly turned ON "Require login on this device" is
+   *           silently auto-logged-in anyway. The control fails OPEN, against
+   *           exactly the threat it exists for (someone else at this keyboard),
+   *           and nothing anywhere says so.
+   *   false ⇒ auto-login stops working and the user sees the standard login
+   *           screen. A visible missing convenience, and their password still
+   *           opens the app.
+   *
+   * A broken promise about a password beats a broken promise about a shortcut, so
+   * the unmirrored case fails closed and loudly rather than open and silently.
+   *
+   * NEVER portable: it is per-DEVICE policy. A bundle that carried it would
+   * answer "may this machine skip its login?" using another machine's answer.
+   */
+  'desktop.singleUser': def(z.boolean(), false, 'Desktop: skip login on this computer (11-electron.md §5)'),
   'system.instanceId': def<string | null>(z.string().nullable(), null, 'Stable instance identity (seeded at bootstrap)'),
   'system.bootstrappedAt': def<number | null>(z.number().nullable(), null, 'First-run timestamp (epoch ms)'),
   /**

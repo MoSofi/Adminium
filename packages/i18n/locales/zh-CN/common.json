@@ -1094,5 +1094,20 @@
         "excerpt": "模式可见性、被排除的表，以及重新运行生成。"
       }
     }
+  },
+  "desktop": {
+    "settings": {
+      "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到你的工作区。"
+    },
+    "security": {
+      "heading": "登录"
+    },
+    "requireLogin": {
+      "label": "在此设备上要求登录",
+      "description": "Adminium 通常会在这台电脑上自动登录。开启后，每次启动都会要求输入密码——如果其他人也能使用这台电脑，建议开启。该设置将在下次打开 Adminium 时生效。",
+      "savedOn": "下次启动时需要登录",
+      "savedOff": "Adminium 将在这台电脑上跳过登录",
+      "saveFailed": "无法保存该设置，请重试。"
+    }
   }
 }

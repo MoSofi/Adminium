@@ -25,6 +25,7 @@ import { ChangelogPage } from '../changelog/ChangelogPage.js';
 import { KnowledgeBasePage } from '../kb/KnowledgeBasePage.js';
 import { AccountPage } from '../pages/AccountPage.js';
 import { PreferencesPage } from '../account/PreferencesPage.js';
+import { DesktopSettingsPage } from '../desktop/DesktopSettingsPage.js';
 import { SetupPage } from '../setup/SetupPage.js';
 import { setupStateQuery } from '../setup/setupApi.js';
 import { GlobalDefaultsPage } from '../settings/GlobalDefaultsPage.js';
@@ -301,6 +302,18 @@ const accountSplatRoute = createRoute({
   component: AccountPage,
 });
 
+/**
+ * The desktop settings panel (11-electron.md §2.3/§8) — this device's own
+ * settings, not the workspace's. Renders the 404 state outside the Electron
+ * shell; the component owns that check, because "is this the desktop app?" is a
+ * §4 bridge question and not something a route guard can ask the server.
+ */
+const settingsDesktopRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/desktop',
+  component: DesktopSettingsPage,
+});
+
 /** About / version / licence + the self-host update notice (M10-T04). */
 const aboutRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -362,6 +375,7 @@ const routeTree = rootRoute.addChildren([
     accountSplatRoute,
     aboutRoute,
     settingsDefaultsRoute,
+    settingsDesktopRoute,
     knowledgeBaseRoute,
     changelogRoute,
     apiKeysRoute,

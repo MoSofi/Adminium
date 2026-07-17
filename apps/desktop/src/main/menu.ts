@@ -1,0 +1,315 @@
+/**
+ * Native application menu (11-electron.md §14). Structure owned by 11-T05;
+ * 11-T19 replaces {@link EN_US_MENU_LABELS} with `@adminium/i18n` bundles and
+ * wires the locale-change rebuild.
+ *
+ * §14 has two rules that are easy to miss and expensive to get wrong, and both
+ * are load-bearing in the structure below —
+ *
+ *  1. The Edit menu must use the standard ROLES. Without them ⌘C/⌘V do nothing
+ *     on macOS, in every text field in the app, including the password field in
+ *     the first-run wizard. Roles are how Electron reaches Chromium's native
+ *     editing commands; a `click` handler is not a substitute, and the failure
+ *     is invisible on Windows and Linux, where the OS handles the keystrokes
+ *     whether or not a menu item claims them.
+ *  2. Native accelerators stay confined to these items so they cannot collide
+ *     with the SPA's keyboard vocabulary (⌘K, G-chords, J/K, ⌘E —
+ *     `designs/Shortcuts Panel.dc.html`), which the dashboard owns and this
+ *     shell must not touch. A native accelerator WINS: it fires in the main
+ *     process and the keystroke never reaches the page, so a collision does not
+ *     merely double-fire, it silently deletes an in-app shortcut. ⌘K is
+ *     deliberately NOT a native accelerator, and {@link RESERVED_SPA_ACCELERATORS}
+ *     is asserted against the built template by the unit suite.
+ *
+ * {@link appMenuTemplate} is pure and exported for that test: it returns the
+ * template rather than installing it, so the whole structure is inspectable
+ * without an Electron instance to hang a menu on.
+ */
+
+import { Menu, shell, type MenuItemConstructorOptions } from 'electron';
+
+// ─── Labels (§14: "All labels localized via @adminium/i18n") ─────────────────
+
+/**
+ * Every string the menu shows. 11-T19 maps these onto `@adminium/i18n` keys —
+ * the shape is already a lookup so that change is a different `t`, not a
+ * different template.
+ *
+ * ROLE ITEMS ARE ABSENT ON PURPOSE. `{ role: 'copy' }` carries a label supplied
+ * and localized by the OS itself; giving it one of ours would replace a string
+ * the platform already translated into the user's language with a string we
+ * would then have to translate into all eight. The labels here are only for the
+ * items that are ours: the top-level titles and the File/Help commands.
+ */
+export type MenuLabelKey =
+  | 'file'
+  | 'file.newDatabase'
+  | 'file.openSqlite'
+  | 'file.backupNow'
+  | 'file.restore'
+  | 'edit'
+  | 'view'
+  | 'window'
+  | 'help'
+  | 'help.docs'
+  | 'help.shortcuts'
+  | 'help.logs'
+  | 'help.checkForUpdates'
+  | 'help.about';
+
+/** The labels hook. 11-T19 supplies an i18n-backed one; the default is en-US. */
+export type MenuTranslate = (key: MenuLabelKey) => string;
+
+/**
+ * en-US, and the fallback for {@link buildAppMenu} until 11-T19 lands. Ellipses
+ * are the single-character U+2026, and the ones that carry it are exactly the
+ * items that open a further dialog — a platform convention on every OS we ship.
+ */
+export const EN_US_MENU_LABELS: Readonly<Record<MenuLabelKey, string>> = Object.freeze({
+  file: 'File',
+  'file.newDatabase': 'New local database…',
+  'file.openSqlite': 'Open SQLite file…',
+  'file.backupNow': 'Back up now…',
+  'file.restore': 'Restore from backup…',
+  edit: 'Edit',
+  view: 'View',
+  window: 'Window',
+  help: 'Help',
+  'help.docs': 'Adminium Docs',
+  'help.shortcuts': 'Keyboard Shortcuts',
+  'help.logs': 'Show Logs',
+  'help.checkForUpdates': 'Check for Updates…',
+  'help.about': 'About Adminium',
+});
+
+const defaultTranslate: MenuTranslate = (key) => EN_US_MENU_LABELS[key];
+
+// ─── Handlers ────────────────────────────────────────────────────────────────
+
+/**
+ * What the menu's own commands do. Every one of them belongs to another track —
+ * File is 11-T07's wizard flows and 11-T12's backup coordinator, Help is
+ * 11-T16's updater and 11-T18's About panel — so they arrive as callbacks and
+ * this module holds no opinion about any of them. All optional: an unwired
+ * handler renders its item DISABLED rather than absent, so a half-built menu
+ * looks like a feature that is not ready instead of one that does not exist.
+ */
+export interface MenuHandlers {
+  newDatabase?: (() => void) | undefined;
+  openSqlite?: (() => void) | undefined;
+  backupNow?: (() => void) | undefined;
+  restore?: (() => void) | undefined;
+  shortcuts?: (() => void) | undefined;
+  showLogs?: (() => void) | undefined;
+  checkForUpdates?: (() => void) | undefined;
+  about?: (() => void) | undefined;
+}
+
+/**
+ * §14: "Adminium Docs ↗" opens the system browser. `https:` only, per §2.4's
+ * external-link policy — this constant is the one place a docs URL exists in the
+ * shell, so it is the only thing `check-offline-assets.mjs` (§7) has to allow.
+ */
+export const DOCS_URL = 'https://adminium.io/docs';
+
+export interface BuildAppMenuOptions {
+  /** `process.platform`. Drives the mac app menu and the mac-only Edit items. */
+  platform: NodeJS.Platform;
+  /** §14: "Toggle Developer Tools **in dev builds only**". */
+  isDev: boolean;
+  /** §14 label localization. Defaults to {@link EN_US_MENU_LABELS} until 11-T19. */
+  t?: MenuTranslate | undefined;
+  handlers?: MenuHandlers | undefined;
+  /** Injected for the unit suite; defaults to `shell.openExternal`. */
+  openExternal?: ((url: string) => void) | undefined;
+}
+
+/**
+ * Accelerators the SPA owns (`designs/Shortcuts Panel.dc.html`) and the native
+ * menu must never claim. Asserted against {@link appMenuTemplate} in the tests —
+ * see rule 2 in the module header for why a collision is silent and total.
+ */
+export const RESERVED_SPA_ACCELERATORS: readonly string[] = [
+  // The command palette. §14: "⌘K is deliberately NOT a native accelerator."
+  'CmdOrCtrl+K',
+  // Inline edit.
+  'CmdOrCtrl+E',
+];
+
+// ─── The template (pure) ─────────────────────────────────────────────────────
+
+/**
+ * §14's menu bar: File · Edit · View · Window · Help, plus the macOS app menu.
+ *
+ * Pure — it builds the template and installs nothing, which is what lets the
+ * unit suite assert the two §14 rules without an Electron instance.
+ */
+export function appMenuTemplate(opts: BuildAppMenuOptions): MenuItemConstructorOptions[] {
+  const t = opts.t ?? defaultTranslate;
+  const handlers = opts.handlers ?? {};
+  const openExternal = opts.openExternal ?? ((url: string) => void shell.openExternal(url));
+  const isMac = opts.platform === 'darwin';
+
+  /** An unwired command is disabled, not missing — see {@link MenuHandlers}. */
+  const command = (
+    key: MenuLabelKey,
+    handler: (() => void) | undefined,
+    accelerator?: string,
+  ): MenuItemConstructorOptions => ({
+    label: t(key),
+    ...(accelerator === undefined ? {} : { accelerator }),
+    enabled: handler !== undefined,
+    click: () => handler?.(),
+  });
+
+  const template: MenuItemConstructorOptions[] = [];
+
+  // ── macOS app menu ──
+  // Hand-built rather than `role: 'appMenu'` for one reason: `role: 'about'`
+  // opens Electron's own about panel, and §13 specifies OURS (app + server +
+  // migration + Electron versions, data dir, AGPL notice, third-party notices).
+  // The rest of the submenu is the mac convention and must stay in this order.
+  if (isMac) {
+    template.push({
+      role: 'appMenu',
+      submenu: [
+        command('help.about', handlers.about),
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    });
+  }
+
+  // ── File ──
+  template.push({
+    label: t('file'),
+    submenu: [
+      command('file.newDatabase', handlers.newDatabase, 'CmdOrCtrl+N'),
+      command('file.openSqlite', handlers.openSqlite, 'CmdOrCtrl+O'),
+      { type: 'separator' },
+      // Shift+⌘B rather than ⌘S: there is no "document" here to save, and ⌘S in
+      // a data app reads as "commit this row", which is the SPA's to define.
+      command('file.backupNow', handlers.backupNow, 'CmdOrCtrl+Shift+B'),
+      command('file.restore', handlers.restore),
+      { type: 'separator' },
+      // §14: "Close Window / Quit". On mac Quit lives in the app menu above and
+      // repeating it in File is not a thing mac apps do.
+      { role: 'close' },
+      ...(isMac ? [] : [{ role: 'quit' } as MenuItemConstructorOptions]),
+    ],
+  });
+
+  // ── Edit ──
+  // Roles only. See rule 1 in the module header: these are the bridge to
+  // Chromium's native editing commands, and without them ⌘C/⌘V are dead on mac.
+  template.push({
+    label: t('edit'),
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      ...(isMac
+        ? ([
+            { role: 'pasteAndMatchStyle' },
+            { role: 'delete' },
+            { role: 'selectAll' },
+            { type: 'separator' },
+            { label: 'Speech', submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }] },
+          ] satisfies MenuItemConstructorOptions[])
+        : ([
+            { role: 'delete' },
+            { type: 'separator' },
+            { role: 'selectAll' },
+          ] satisfies MenuItemConstructorOptions[])),
+    ],
+  });
+
+  // ── View ──
+  // §14 names exactly these: "Reload, Actual Size/Zoom In/Out, Toggle Developer
+  // Tools in dev builds only". `forceReload` is deliberately absent — it drops
+  // the SPA's session-scoped caches for no benefit the user can perceive — and
+  // so is `toggleDevTools` in production, where it is a support-call generator
+  // and a way to run arbitrary script against the loopback origin.
+  template.push({
+    label: t('view'),
+    submenu: [
+      { role: 'reload' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' },
+      ...(opts.isDev
+        ? ([{ type: 'separator' }, { role: 'toggleDevTools' }] satisfies MenuItemConstructorOptions[])
+        : []),
+    ],
+  });
+
+  // ── Window ── §14: "Window (standard)".
+  template.push({ role: 'windowMenu', label: t('window') });
+
+  // ── Help ──
+  template.push({
+    role: 'help',
+    label: t('help'),
+    submenu: [
+      {
+        // §14 renders this "Adminium Docs ↗"; the arrow is the affordance for
+        // §2.4's rule that it leaves the app for the system browser.
+        label: `${t('help.docs')} ↗`,
+        click: () => {
+          openExternal(DOCS_URL);
+        },
+      },
+      // §14: "opens the in-app Shortcuts Panel" — the SPA's own ⌘/ surface, so
+      // no accelerator here; the panel already owns one.
+      command('help.shortcuts', handlers.shortcuts),
+      { type: 'separator' },
+      command('help.logs', handlers.showLogs),
+      command('help.checkForUpdates', handlers.checkForUpdates),
+      // On mac About is in the app menu, where the platform puts it.
+      ...(isMac ? [] : [{ type: 'separator' } as MenuItemConstructorOptions, command('help.about', handlers.about)]),
+    ],
+  });
+
+  return template;
+}
+
+/** Build {@link appMenuTemplate} and install it as the application menu. */
+export function buildAppMenu(opts: BuildAppMenuOptions): void {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(appMenuTemplate(opts)));
+}
+
+// ─── Introspection (for the §14 accelerator test) ────────────────────────────
+
+/** Every accelerator the template claims, submenus included. */
+export function collectAccelerators(
+  template: readonly MenuItemConstructorOptions[],
+): string[] {
+  const found: string[] = [];
+  for (const item of template) {
+    if (typeof item.accelerator === 'string') found.push(item.accelerator);
+    if (Array.isArray(item.submenu)) found.push(...collectAccelerators(item.submenu));
+  }
+  return found;
+}
+
+/** Every `role` the template uses, submenus included. */
+export function collectRoles(template: readonly MenuItemConstructorOptions[]): string[] {
+  const found: string[] = [];
+  for (const item of template) {
+    if (typeof item.role === 'string') found.push(item.role);
+    if (Array.isArray(item.submenu)) found.push(...collectRoles(item.submenu));
+  }
+  return found;
+}

@@ -1102,5 +1102,20 @@ export default {
         "excerpt": "Viditelnost schématu, vyloučené tabulky a opětovné spuštění generování."
       }
     }
+  },
+  "desktop": {
+    "settings": {
+      "explainer": "Tato nastavení platí pouze pro aplikaci Adminium na tomto počítači. Ukládají se na tomto zařízení, ne ve vašem pracovním prostoru."
+    },
+    "security": {
+      "heading": "Přihlášení"
+    },
+    "requireLogin": {
+      "label": "Vyžadovat přihlášení na tomto zařízení",
+      "description": "Adminium vás na tomto počítači obvykle přihlásí automaticky. Zapněte tuto volbu, pokud chcete zadávat heslo při každém spuštění — hodí se, když počítač může používat i někdo další. Změna se projeví při příštím spuštění Adminia.",
+      "savedOn": "Při příštím spuštění bude vyžadováno přihlášení",
+      "savedOff": "Adminium na tomto počítači přihlášení přeskočí",
+      "saveFailed": "Nastavení se nepodařilo uložit. Zkuste to znovu."
+    }
   }
 } as const;

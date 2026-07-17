@@ -1,0 +1,260 @@
+<!doctype html>
+<!--
+  The crash page (11-electron.md §2.2 steps 7 and 9): the failure reason, the log
+  excerpt, and three actions — Restart server / Show logs / Quit. Owned by 11-T05.
+
+  Same offline contract as boot.html (§7), and for a sharper reason: this page is
+  what the user sees when the server could not start AT ALL, so anything it
+  needed to fetch is precisely what would not be there. See boot.html's header
+  for why tokens.css is a relative <link> to a build-time copy and why no webfont
+  is loaded.
+
+  ─── HOW IT GETS ITS CONTENT: A STATIC SKELETON, FILLED BY THE MAIN PROCESS ──
+  This file has no script. src/main/window.ts loads it and then calls
+  `webContents.executeJavaScript(crashRenderScript(info))`, which writes text
+  into the [data-slot] elements below and hides the ones that do not apply.
+
+  That split is the point. The page must render when everything else has failed,
+  so it is a real file that stands on its own, and the only dynamic step is text
+  going into slots. `script-src 'none'` therefore holds — which matters more here
+  than anywhere else in the app, because the thing this page displays is a RAW
+  SERVER LOG EXCERPT: the one string most likely to contain something
+  adversarial-shaped. The injected function only ever assigns textContent, so
+  `<img onerror=…>` in a log line becomes those characters on screen.
+
+  ─── AND WHY THE BUTTONS ARE LINKS ───────────────────────────────────────────
+  <a href="?action=retry"> — a click fires `will-navigate` in the main process,
+  where window.ts's `parseCrashAction` reads it and preventDefaults. No script,
+  no preload bridge (§4's bridge is a loopback-page affordance, and this page is
+  file://, and handing it to the log viewer would be the wrong direction).
+
+  ─── DEGRADATION IS DELIBERATE ───────────────────────────────────────────────
+  If the injection never runs, the static markup below still states what
+  happened and still offers all three actions. The slots that would be EMPTY
+  without it (reason, log path, excerpt) start hidden and are revealed by the
+  script; the ACTIONS start visible and are only ever hidden by it. That
+  direction is chosen so the failure mode of the crash page is "less detail",
+  never "no way out".
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Adminium — server stopped</title>
+    <link rel="stylesheet" href="./tokens/tokens.css" />
+    <style>
+      /* Pinned from tokens.css's [data-theme="dark"] block; see boot.html's
+         note, and src/main/window.test.ts, which asserts they still match. */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --bg: #0a0a0d;
+          --surface: #141419;
+          --surface-2: #1a1a20;
+          --border: rgba(255, 255, 255, 0.07);
+          --border-strong: rgba(255, 255, 255, 0.13);
+          --fg: #f4f4f6;
+          --fg-muted: #9a9aa6;
+          --danger: #ff6b6b;
+          --danger-soft: rgba(255, 107, 107, 0.14);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 40px 24px;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      main {
+        width: 100%;
+        max-width: 620px;
+      }
+
+      .badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--danger-soft);
+        color: var(--danger);
+        font-size: 22px;
+        line-height: 1;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .reason,
+      .hint {
+        margin: 0 0 16px;
+        color: var(--fg-muted);
+      }
+
+      /*
+        `overflow-wrap: anywhere` on both of these, and it is load-bearing rather
+        than tidy: the two strings this page shows are an absolute filesystem
+        path and a server log line, and neither has spaces where a window edge
+        needs them. Without it the crash page is the one page in the app that
+        scrolls sideways.
+      */
+      .reason {
+        color: var(--fg);
+        overflow-wrap: anywhere;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+      }
+
+      .label {
+        margin: 0 0 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--fg-muted);
+      }
+
+      .path {
+        margin: 0;
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+        /* The one thing on this page worth copying by hand. */
+        -webkit-user-select: text;
+        user-select: text;
+      }
+
+      pre.excerpt {
+        margin: 0;
+        max-height: 220px;
+        overflow: auto;
+        background: var(--surface-2, var(--surface));
+        border-radius: 6px;
+        padding: 10px;
+        font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        /* Log lines are long; wrap rather than scroll horizontally. */
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        -webkit-user-select: text;
+        user-select: text;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      /*
+        Anchors, not buttons — see the header. Styled as buttons because that is
+        what they are to the user, and given an explicit focus-visible ring
+        because keyboard is the only input some users have here.
+      */
+      a.action {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border-strong);
+        background: var(--surface);
+        color: var(--fg);
+        font: inherit;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: default;
+      }
+
+      a.action:hover {
+        border-color: var(--fg-subtle);
+      }
+
+      a.action:focus-visible {
+        outline: 2px solid var(--info);
+        outline-offset: 2px;
+      }
+
+      a.action.primary {
+        background: var(--fg);
+        border-color: var(--fg);
+        color: var(--bg);
+      }
+
+      a.action[hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="badge" role="img" aria-label="Error">!</div>
+
+      <!--
+        The heading is static and says the whole thing on its own. `info.reason`
+        is a refinement of it, not a replacement — which is why the page still
+        makes sense if the injection never lands.
+      -->
+      <h1>Adminium could not start its server</h1>
+      <p class="reason" data-slot="reason" hidden></p>
+      <p class="hint">
+        Your data has not been touched. Restarting the server usually clears a
+        temporary problem — a busy port, or a file another program was holding.
+      </p>
+
+      <div class="panel" data-slot="log-path-row" hidden>
+        <p class="label">Log file</p>
+        <p class="path" data-slot="log-path"></p>
+      </div>
+
+      <div class="panel" data-slot="excerpt-row" hidden>
+        <p class="label">Last lines of the log</p>
+        <pre class="excerpt" data-slot="excerpt"></pre>
+      </div>
+
+      <div class="actions">
+        <!-- §2.2 step 9. `retry` is hidden by the injected script once the
+             3-crashes-in-60 s budget is spent; `logs` when there is no log
+             path to show. -->
+        <a class="action primary" href="?action=retry" data-slot="retry">Restart server</a>
+        <a class="action" href="?action=logs" data-slot="logs">Show logs</a>
+        <a class="action" href="?action=quit" data-slot="quit">Quit</a>
+      </div>
+    </main>
+  </body>
+</html>
