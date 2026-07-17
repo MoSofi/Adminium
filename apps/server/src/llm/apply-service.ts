@@ -475,7 +475,8 @@ async function upsertTemplatePage(
   const slug = slugify(`${w.table}-${w.template}`);
   const title = titleCase(localName(w.table));
   // Minimal §8.3 seed `{ type, table, config, source: 'llm' }`; the full page body
-  // is materialized by the regeneration hook from the active snapshot.
+  // is materialized by the regeneration hook from the active snapshot
+  // (runGeneration → generate/materialize-llm.ts, wired in cli/runtime.ts).
   const config = { source: { connectionId: plan.connectionId, table: w.table }, llmRunId: plan.llmRunId ?? null };
   await upsertPageRow(tmeta, {
     id,

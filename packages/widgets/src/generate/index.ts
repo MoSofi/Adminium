@@ -1,13 +1,17 @@
 /**
  * `@adminium/widgets/generate` — the **pure generator leaf** subpath.
  *
- * WHAT IT IS: the three registry-owned, engine-facing pieces of the
+ * WHAT IT IS: the registry-owned, engine-facing pieces of the
  * auto-instantiation pipeline (04-widget-registry.md §8), and nothing else:
  *
  *   - **H1/H2** `emitCandidates` + `candidateRules` + the §14 archetype triggers
  *     (`../registry/candidates.ts`, `../registry/archetypes.ts`);
  *   - **H4** `composeTemplate` + the shipped `page-*.json` manifests +
- *     `pageTemplateSchema` (`../templates/`).
+ *     `pageTemplateSchema` (`../templates/`);
+ *   - the generated-page body vocabulary: `composeCrudBody` (the typed
+ *     `page-crud` config body, 09 §3.3) and `emitDomainDashboardCandidates`
+ *     (the §15 per-domain dashboard widget set) — `./crud-body.ts`,
+ *     `./dashboard-domain.ts`.
  *
  * WHY IT EXISTS: 04 §8 puts hooks H1/H2/H4 in the Engine's hands
  * ("`composeTemplate(templateId, candidates, ctx)` … → `PageConfig` rows written
@@ -22,9 +26,9 @@
  *
  *   **PURITY CONTRACT** — every module reachable from here imports only `zod`,
  *   the `page-config` leaf, and each other. No React, no component code, no
- *   `node:` builtins, no `@adminium/ui|charts|i18n|tokens`. `generate-leaf-
- *   purity.test.ts` is the gate; `.dependency-cruiser.cjs` (`engine-no-full-
- *   widgets`) carves out this path and nothing else.
+ *   `node:` builtins, no `@adminium/ui|charts|i18n|tokens`. `leaf-purity.test.ts`
+ *   is the gate; `.dependency-cruiser.cjs` (`engine-no-full-widgets`) carves out
+ *   this path and nothing else.
  *
  * Notably absent: `../templates/crosscheck.ts` (it reads the live
  * `widgetRegistry`, i.e. component code) and `../templates/page-crud|page-
@@ -43,8 +47,10 @@ export {
   candidateRules,
   emitCandidates,
   emitModelCandidates,
+  humanize,
   type CandidateColumn,
   type CandidateContext,
+  type CandidateRelation,
   type CandidateRule,
   type CandidateTable,
   type CandidateTableInput,
@@ -54,6 +60,33 @@ export {
   type ViewColumn,
   type WidgetCandidate,
 } from '../registry/candidates.js';
+
+/* -------------------------- generated-page bodies: crud + domain dashboards */
+export {
+  composeCrudBody,
+  enumTones,
+  type CrudBodyContext,
+  type CrudDetailTab,
+  type CrudEnumTone,
+  type CrudFormField,
+  type CrudPageBody,
+  type CrudSortSpec,
+} from './crud-body.js';
+
+export {
+  domainHasDashboardSignal,
+  emitDomainDashboardCandidates,
+  type DashboardDomain,
+  type DashboardDomainContext,
+} from './dashboard-domain.js';
+
+/* ------------------------------------- page-crud config-body column contract */
+export {
+  gridColumnSpecSchema,
+  type GridColumnSpec,
+  type GridColumnSpecInput,
+  type GridTone,
+} from '../page-config/grid-column-spec.js';
 
 export {
   REGISTERED_WIDGET_IDS,

@@ -12,7 +12,11 @@
  * whose `origin` is not `generated` (user/manifest/system pages) are never
  * touched or pruned. The M5 regeneration safety net keys on the
  * `config.generatedHash` the engine embeds in each generated envelope
- * (04-widget-registry.md §6.3 note: user delta wins).
+ * (04-widget-registry.md §6.3 note: user delta wins): when the caller supplies
+ * the hash function, a stored document whose embedded hash no longer matches
+ * (a human edited it — `setLayout` deliberately leaves the hash stale) is
+ * skipped, not overwritten, and reported in `skippedEdited` — the full diff
+ * proposal UI is 04-T15.
  */
 
 import type { Selectable } from 'kysely';
@@ -82,6 +86,16 @@ export interface UpsertGeneratedOptions {
   /** Delete generated rows the new set no longer contains. Default true. */
   prune?: boolean;
   at?: number;
+  /**
+   * The engine's `hashEnvelope` (canonical-JSON sha256, embedded-hash
+   * excluded), injected because `@adminium/meta` never imports the engine.
+   * When present, a changed generated-origin row is re-hashed first: a
+   * mismatch with its embedded `config.generatedHash` means a human edited the
+   * stored document, so the overwrite is skipped (user delta wins, 04 §6.3)
+   * and the id lands in `skippedEdited`. Omitted ⇒ the pre-M5 overwrite
+   * behavior (unit tests, seeds).
+   */
+  hashEnvelope?: (envelope: Record<string, unknown>) => string;
 }
 
 export interface UpsertGeneratedResult {
@@ -91,6 +105,27 @@ export interface UpsertGeneratedResult {
   pruned: number;
   /** Ids that exist with a non-generated origin — left untouched (user wins). */
   preserved: string[];
+  /** Generated-origin ids whose stored document was human-edited — not overwritten. */
+  skippedEdited: string[];
+}
+
+/**
+ * True when a stored generated-origin envelope no longer matches its embedded
+ * `config.generatedHash` — the edited-page signal (human writes update the
+ * document but never the hash). Rows without a string hash are treated as
+ * untouched: only the generator embeds one, and regenerating restores it.
+ */
+function isEditedEnvelope(
+  stored: unknown,
+  hashEnvelope: (envelope: Record<string, unknown>) => string,
+): boolean {
+  if (typeof stored !== 'object' || stored === null) return false;
+  const envelope = stored as Record<string, unknown>;
+  const config = envelope['config'];
+  if (typeof config !== 'object' || config === null) return false;
+  const embedded = (config as Record<string, unknown>)['generatedHash'];
+  if (typeof embedded !== 'string') return false;
+  return hashEnvelope(envelope) !== embedded;
 }
 
 function decode(row: Selectable<AdminiumPagesTable>): Page {
@@ -156,6 +191,7 @@ export function pagesRepo(meta: MetaDb) {
           unchanged: 0,
           pruned: 0,
           preserved: [],
+          skippedEdited: [],
         };
 
         for (const input of pages) {
@@ -203,6 +239,16 @@ export function pagesRepo(meta: MetaDb) {
             row.navOrder === (input.navOrder ?? 0);
           if (unchanged) {
             result.unchanged += 1;
+            continue;
+          }
+          if (
+            opts.hashEnvelope !== undefined &&
+            isEditedEnvelope(readJson(row.config), opts.hashEnvelope)
+          ) {
+            // User delta wins (04 §6.3): the stored document was edited after
+            // generation, so this run must not clobber it. The row keeps its
+            // snapshot lineage too — it no longer descends from this run.
+            result.skippedEdited.push(row.id);
             continue;
           }
           await trx
@@ -291,8 +337,12 @@ export function pagesRepo(meta: MetaDb) {
      * envelope validator both read `envelope.config.layout`). Merges over the
      * stored envelope so the rest of the document (title/source/nav and the
      * other template config keys) is untouched, and bumps `updatedAt` so the
-     * bootstrap `configVersion` advances and clients re-fetch. The `layout`
-     * value is validated by the server route before it reaches here. Returns the
+     * bootstrap `configVersion` advances and clients re-fetch. `revision`
+     * bumps too — the counter tracks every changed document, human or machine
+     * (override-staleness and future H5 diff/telemetry read it) — while the
+     * embedded `config.generatedHash` deliberately stays stale: that mismatch
+     * IS the edited-page signal `upsertGenerated` keys on. The `layout` value
+     * is validated by the server route before it reaches here. Returns the
      * reloaded page, or null if the id does not exist.
      */
     async setLayout(pageId: string, layout: unknown, at: number = Date.now()): Promise<Page | null> {
@@ -309,10 +359,55 @@ export function pagesRepo(meta: MetaDb) {
       const nextEnvelope = { ...envelope, config: { ...templateConfig, layout } };
       await db
         .updateTable('adminium_pages')
-        .set({ config: packJson(nextEnvelope), updatedAt: at })
+        .set({ config: packJson(nextEnvelope), revision: page.revision + 1, updatedAt: at })
         .where('id', '=', pageId)
         .execute();
       return this.findById(pageId);
+    },
+
+    /**
+     * Replace a page's whole config document — the 06-llm-assist.md §8.3
+     * materialization write: the apply executor seeds `origin: 'llm'` rows with
+     * a minimal `{source, llmRunId}` config and the regeneration hook expands
+     * it into the full validated envelope from the active snapshot. Bumps
+     * `revision` + `updatedAt` (configVersion advances → clients re-fetch);
+     * `icon` is back-filled only when the row has none. Returns the reloaded
+     * page, or null if the id does not exist.
+     */
+    async replaceConfig(
+      pageId: string,
+      config: unknown,
+      opts: { icon?: string | null; at?: number } = {},
+    ): Promise<Page | null> {
+      const page = await this.findById(pageId);
+      if (page === null) return null;
+      const at = opts.at ?? Date.now();
+      const icon = opts.icon ?? null;
+      await db
+        .updateTable('adminium_pages')
+        .set({
+          config: packJson(config),
+          ...(page.icon === null && icon !== null ? { icon } : {}),
+          revision: page.revision + 1,
+          updatedAt: at,
+        })
+        .where('id', '=', pageId)
+        .execute();
+      return this.findById(pageId);
+    },
+
+    /**
+     * Toggle a page's visibility (nav + GET both key on `isEnabled`). Bumps
+     * `updatedAt` only — the document itself is unchanged, so `revision`
+     * stays. Used by the §8.3 materialization pass to park an llm seed whose
+     * template cannot compose yet, instead of serving an invalid-config card.
+     */
+    async setEnabled(pageId: string, isEnabled: boolean, at: number = Date.now()): Promise<void> {
+      await db
+        .updateTable('adminium_pages')
+        .set({ isEnabled: writeBool(meta, isEnabled), updatedAt: at })
+        .where('id', '=', pageId)
+        .execute();
     },
 
     /** Slugs are unique per connection (uq_adminium_pages_conn_slug). */

@@ -28,7 +28,11 @@ export const generateReply = z.object({
     unchanged: z.number().int().nonnegative(),
     pruned: z.number().int().nonnegative(),
     preserved: z.array(z.string()),
+    /** Human-edited generated pages left untouched (user delta wins, 04 §6.3). */
+    skippedEdited: z.array(z.string()),
   }),
+  /** `origin: 'llm'` seed rows expanded into envelopes this run (06 §8.3). */
+  llmPagesMaterialized: z.number().int().nonnegative(),
   warnings: z.array(z.string()),
   durationMs: z.number().nonnegative(),
 });

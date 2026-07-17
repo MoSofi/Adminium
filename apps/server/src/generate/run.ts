@@ -11,6 +11,7 @@
 
 import {
   generatePages,
+  hashEnvelope,
   parseDatabaseModel,
   type DatabaseModel,
   type GenerateIntent,
@@ -26,6 +27,7 @@ import {
 
 import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager } from '../connections/manager.js';
+import { materializeLlmPages } from './materialize-llm.js';
 
 export interface RunGenerationOptions {
   manager: ConnectionManager;
@@ -45,6 +47,8 @@ export interface GenerationRunResult {
   navGroups: string[];
   warnings: string[];
   persistence: UpsertGeneratedResult;
+  /** `origin: 'llm'` seed rows expanded into envelopes this run (06 §8.3). */
+  llmPagesMaterialized: number;
   durationMs: number;
 }
 
@@ -133,8 +137,18 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   const persistence = await pagesRepo(meta).upsertGenerated(
     connectionId,
     validated.map(toGeneratedPageInput),
-    { snapshotId: snapshot.id, createdBy: opts.createdBy ?? null },
+    // `hashEnvelope` arms the H5 edited-page guard (04 §6.3 "user delta wins"):
+    // stored documents whose embedded generatedHash went stale were edited by a
+    // human and are skipped, not overwritten.
+    { snapshotId: snapshot.id, createdBy: opts.createdBy ?? null, hashEnvelope },
   );
+  for (const id of persistence.skippedEdited) {
+    warnings.push(`page ${id} was edited after generation — kept as-is (user delta wins, 04 §6.3)`);
+  }
+
+  // §8.3 step 3 tail: expand `origin: 'llm'` seed rows into real envelopes.
+  const llm = await materializeLlmPages({ meta, model, connectionId });
+  warnings.push(...llm.warnings);
 
   const navGroups = [...new Set(validated.map((page) => page.nav.group))];
   return {
@@ -145,6 +159,7 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
     navGroups,
     warnings,
     persistence,
+    llmPagesMaterialized: llm.materialized.length,
     durationMs: Date.now() - startedAt,
   };
 }

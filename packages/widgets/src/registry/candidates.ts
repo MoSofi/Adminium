@@ -38,11 +38,23 @@ import type { WidgetFamily } from './types.js';
  */
 export interface CandidateColumn {
   name: string;
+  /** 1-based position (pg attnum-style); 0/absent = unspecified (imports). */
+  ordinal?: number | undefined;
   /** `@adminium/engine`'s `LogicalType`, widened: 'text' | 'integer' | 'enum' | … */
   logicalType: string;
   nullable?: boolean | undefined;
   isPrimaryKey?: boolean | undefined;
   isUnique?: boolean | undefined;
+  /** Computed/stored generated column — never a form field. */
+  isGenerated?: boolean | undefined;
+  /**
+   * `ColumnDefault.kind` ('literal' | 'expression' | 'autoincrement' | 'now' |
+   * 'uuid'); null/absent ⇔ no DB default. The crud composer needs the kind, not
+   * just presence: literal/expression defaults still make a natural PK a create
+   * input, while autoincrement/now/uuid PKs are skipped.
+   */
+  defaultKind?: string | null | undefined;
+  maxLength?: number | null | undefined;
   /** Resolved `EnumDef.values` for `logicalType: 'enum'` (or CHECK-derived). */
   enumValues?: readonly string[] | undefined;
   references?: { tableId: string; column: string } | null | undefined;
@@ -58,6 +70,8 @@ export interface CandidateTable {
   rowCountEstimate?: number | null | undefined;
   /** pg_stat write activity (inserts+updates+deletes); null ⇔ unknown. */
   writeVelocity?: number | null | undefined;
+  /** Ordered PK column names; []/absent ⇔ no PK (table renders read-only). */
+  primaryKey?: readonly string[] | undefined;
   columns: readonly CandidateColumn[];
 }
 
@@ -69,6 +83,8 @@ export interface ClassifiedColumnInput {
   format?: string | null | undefined;
   secret?: boolean | undefined;
   pii?: string | null | undefined;
+  /** `ColumnSemantics.flags.maskedByDefault` — drives the spec's `pii` flag. */
+  maskedByDefault?: boolean | undefined;
   pair?: { role: string; partner: string } | null | undefined;
 }
 
@@ -90,6 +106,22 @@ export interface ClassifiedTableInput {
 export interface CandidateTableInput {
   table: CandidateTable;
   classified: ClassifiedTableInput;
+}
+
+/**
+ * The `Relation` fields the generator leaves read (structural mirror). The
+ * crud-body composer derives detail tabs from inbound FKs, and the domain
+ * dashboard assembly derives hub adjacency — neither needs kind/cardinality.
+ */
+export interface CandidateRelation {
+  /** Stable relation id — detail-tab ordering sorts on it. */
+  id: string;
+  /** FK side ("many" side for 1:N). */
+  from: { tableId: string; columns: readonly string[] };
+  /** Referenced side. */
+  to: { tableId: string };
+  /** 1.0 declared/override; <1 inferred (05 §6 thresholds). */
+  confidence: number;
 }
 
 export interface CandidateContext {
@@ -190,9 +222,11 @@ export interface CandidateRule {
  * `generate/util.ts` helper: candidate configs carry human titles, and the
  * package boundary (see the module docstring) forbids importing it. Kept
  * behaviourally identical — `packages/engine/test/generate-archetypes.test.ts`
- * asserts the titles the engine ends up persisting.
+ * asserts the titles the engine ends up persisting. Exported for the sibling
+ * generator-leaf modules (`../generate/crud-body.ts`, `dashboard-domain.ts`),
+ * whose labels must match what the bespoke generator produced byte-for-byte.
  */
-function humanize(name: string): string {
+export function humanize(name: string): string {
   const bare = name.includes('.') ? (name.split('.').pop() ?? name) : name;
   return bare
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')

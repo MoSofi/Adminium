@@ -10,10 +10,11 @@
  * research/widget-registry.md §15 step 3 in full: "Per table emit: `page-crud`
  * always; **plus the highest-scoring archetype from §14 triggers**; plus KPI
  * candidates and 2–4 chart candidates". `./crud.ts` + `./dashboard.ts` deliver
- * the first and last clauses via the bespoke M4 path that the v0.1 gate proved;
- * this module adds the middle clause and touches neither. Archetype pages are
- * **purely additive** — a table that earns one keeps its `page-crud` unchanged,
- * and a table that earns none loses nothing.
+ * the first and last clauses through the same leaf (`composeCrudBody`,
+ * `emitDomainDashboardCandidates`), fed by this module's adapter; this module
+ * adds the middle clause. Archetype pages are **purely additive** — a table
+ * that earns one keeps its `page-crud` unchanged, and a table that earns none
+ * loses nothing.
  *
  * WHERE THE RULES LIVE: in `@adminium/widgets`, not here — 04 §8 assigns the
  * catalog and its triggers to the Registry ("so the catalog and its trigger
@@ -27,7 +28,10 @@
 
 import {
   composeTemplate,
+  emitCandidates,
+  isRegisteredWidgetId,
   type ArchetypeSelection,
+  type CandidateContext,
   type CandidateTable,
   type CandidateTableInput,
   type ClassifiedTableInput,
@@ -36,8 +40,8 @@ import {
   type WidgetCandidate,
 } from '@adminium/widgets/generate';
 
-import type { ClassifiedTable } from '../classify/index.js';
-import type { DatabaseModel, TableModel } from '../schema-model.js';
+import { classifyModel, type ClassifiedTable } from '../classify/index.js';
+import type { ColumnSemantics, DatabaseModel, TableModel } from '../schema-model.js';
 import { ID_SLUG_BUDGET, humanize, pageIdFor } from './util.js';
 
 /**
@@ -92,7 +96,13 @@ function enumValuesFor(model: DatabaseModel, column: { enumRef: string | null })
   return model.enums.find((e) => e.id === column.enumRef)?.values;
 }
 
-/** `TableModel` → the rules' structural table contract. */
+/**
+ * `TableModel` → the rules' structural table contract. Beyond what the §14
+ * triggers read, the mirror carries the crud-body facts (`ordinal`,
+ * `defaultKind`, `isGenerated`, `maxLength`, `primaryKey`) — `composeCrudBody`
+ * reproduces the bespoke builder byte-for-byte only when these map exactly
+ * (undefined ⇔ the engine's null for `enumValues`; `default?.kind ?? null`).
+ */
 function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTable {
   const activity = table.activity;
   return {
@@ -103,20 +113,44 @@ function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTab
     rowCountEstimate: table.rowCountEstimate,
     writeVelocity:
       activity === null ? null : activity.inserts + activity.updates + activity.deletes,
+    primaryKey: table.primaryKey,
     columns: table.columns.map((column) => ({
       name: column.name,
+      ordinal: column.ordinal,
       logicalType: column.logicalType,
       nullable: column.nullable,
       isPrimaryKey: column.isPrimaryKey,
       isUnique: column.isUnique,
+      isGenerated: column.isGenerated,
+      defaultKind: column.default?.kind ?? null,
+      maxLength: column.maxLength,
       enumValues: enumValuesFor(model, column),
       references: column.references,
     })),
   };
 }
 
-/** `ClassifiedTable` → the rules' structural classification contract. */
-function toClassifiedInput(classified: ClassifiedTable): ClassifiedTableInput {
+/**
+ * `ClassifiedTable` → the rules' structural classification contract.
+ *
+ * SEMANTIC SOURCE (05 §7 "overrides always win"): recomputed heuristics are
+ * authoritative for the model *as generated* — post `includedTables` filtering,
+ * a join table whose partner is excluded genuinely stops being a join table,
+ * and its columns reclassify on the filtered model (deliberate change from the
+ * bespoke dashboard builder, which read full-model stamps). But a column
+ * stamped `source: 'llm' | 'override'` is an explicit enrichment, not a
+ * heuristic, so it beats the recomputed tag — the same rule
+ * `applyClassification` uses when stamping the model. Table semantics carry no
+ * `source`, so roles stay recomputed-only.
+ */
+function toClassifiedInput(table: TableModel, classified: ClassifiedTable): ClassifiedTableInput {
+  const stampedByName = new Map(table.columns.map((c) => [c.name, c.semantics]));
+  const semanticsFor = (column: string, recomputed: ColumnSemantics): ColumnSemantics => {
+    const stamped = stampedByName.get(column);
+    return stamped !== null && stamped !== undefined && stamped.source !== 'heuristic'
+      ? stamped
+      : recomputed;
+  };
   return {
     tableId: classified.tableId,
     shape: classified.shape.kind,
@@ -124,14 +158,18 @@ function toClassifiedInput(classified: ClassifiedTable): ClassifiedTableInput {
     displayColumn: classified.displayColumn,
     naturalKey: classified.naturalKey,
     hierarchyColumn: classified.semantics.hierarchy?.parentColumn ?? null,
-    columns: classified.columns.map((column) => ({
-      column: column.column,
-      semantic: column.semantics.primary,
-      format: column.semantics.format,
-      secret: column.semantics.flags.secret,
-      pii: column.semantics.flags.pii,
-      pair: column.semantics.pair,
-    })),
+    columns: classified.columns.map((column) => {
+      const semantics = semanticsFor(column.column, column.semantics);
+      return {
+        column: column.column,
+        semantic: semantics.primary,
+        format: semantics.format,
+        secret: semantics.flags.secret,
+        pii: semantics.flags.pii,
+        maskedByDefault: semantics.flags.maskedByDefault,
+        pair: semantics.pair,
+      };
+    }),
   };
 }
 
@@ -152,7 +190,7 @@ export function toCandidateModel(
     if (info === undefined) continue;
     out.push({
       table: toCandidateTable(model, table),
-      classified: toClassifiedInput(info),
+      classified: toClassifiedInput(table, info),
     });
   }
   return out;
@@ -178,6 +216,11 @@ export interface ArchetypeBuildContext {
   connectionId: string;
   /** Unique, already-claimed slug for this page. */
   slug: string;
+  /**
+   * Explicit page id — the 06 §8.3 materialization path targets an existing
+   * `page_<sha30>` row. Defaults to `pageIdFor(connectionId, slug)`.
+   */
+  id?: string | undefined;
   navOrder: number;
   /** Live registry membership test, threaded to H1 and H4 (04 §10). */
   isRegistered?: ((widgetId: string) => boolean) | undefined;
@@ -224,7 +267,7 @@ export function buildArchetypeEnvelope(
     envelope: {
       v: 1,
       kind: composed.page.type,
-      id: pageIdFor(ctx.connectionId, ctx.slug),
+      id: ctx.id ?? pageIdFor(ctx.connectionId, ctx.slug),
       template: composed.page.template,
       title: { key: `nav.${ctx.slug}`, fallback: title },
       source: { connectionId: ctx.connectionId, table: table.id },
@@ -241,6 +284,49 @@ export function buildArchetypeEnvelope(
       },
     },
   };
+}
+
+/**
+ * Compose one REQUESTED §14 archetype page — the 06-llm-assist.md §8.3
+ * materialization path: an accepted LLM template suggestion seeds a page row
+ * carrying only `{type, table, source: 'llm'}`, and the regeneration hook
+ * expands it here from the active snapshot. Nothing is scored — the template
+ * id was chosen upstream — but the candidates, the manifest and the
+ * required-slot failure mode are exactly the §15 pass's. Returns a null
+ * envelope when the table is missing/system/join or composition fails; the
+ * caller records a warning and the seed row stays as it was.
+ */
+export function composeRequestedArchetype(
+  model: DatabaseModel,
+  tableId: string,
+  template: string,
+  ctx: ArchetypeBuildContext,
+): ArchetypeBuildResult {
+  const classified = new Map(classifyModel(model).tables.map((t) => [t.tableId, t]));
+  // The same include rule as generatePages' splitTables: system and join
+  // tables never earn a page (05 §8.2).
+  const tables = [...model.tables]
+    .filter((table) => {
+      const role = classified.get(table.id)?.semantics.role ?? table.semantics?.role ?? 'entity';
+      return !table.system && role !== 'system' && role !== 'join-table';
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const table = tables.find((t) => t.id === tableId);
+  if (table === undefined) return { envelope: null, warnings: [] };
+
+  const isRegistered = ctx.isRegistered ?? isRegisteredWidgetId;
+  const candidateModel = toCandidateModel(model, tables, classified);
+  const entry = candidateModel.find((e) => e.table.id === tableId);
+  if (entry === undefined) return { envelope: null, warnings: [] };
+
+  const candidateCtx: CandidateContext = { connectionId: ctx.connectionId, model: candidateModel, isRegistered };
+  const candidates = emitCandidates(entry.table, entry.classified, candidateCtx);
+  return buildArchetypeEnvelope(
+    table,
+    { template, score: 0, reasons: ['accepted LLM suggestion (06 §8.3)'] },
+    candidates,
+    { ...ctx, isRegistered },
+  );
 }
 
 /** Slug for a table's archetype page, inside the {@link ID_SLUG_BUDGET}. */

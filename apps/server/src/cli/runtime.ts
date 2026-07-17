@@ -26,6 +26,7 @@ import { dsnCryptoFromSecret } from '../connections/crypto.js';
 import { registerAdapters } from '../connections/register-adapters.js';
 import { importZip as defaultImportZip, type ImportZip } from '../export/import-service.js';
 import { exportZip as defaultExportZip, type ExportZip } from '../export/zip-service.js';
+import { runGeneration } from '../generate/run.js';
 import { createApplyService, type ApplyService } from '../llm/apply-service.js';
 import { createPromptService, type PromptService } from '../llm/prompt-service.js';
 import { createRunService, type RunService } from '../llm/run-service.js';
@@ -142,7 +143,18 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
   });
 
   const runService = createRunService({ meta: metaStore.meta });
-  const applyService = createApplyService({ meta: metaStore.meta, runService });
+  const applyService = createApplyService({
+    meta: metaStore.meta,
+    runService,
+    // §8.3 step 3 — the real runGeneration-backed hook (both front doors share
+    // this service graph): pages pick up the freshly applied overrides, and the
+    // apply's `origin: 'llm'` seed rows are expanded into envelopes
+    // (generate/materialize-llm.ts). Failures propagate to the caller AFTER the
+    // apply is durable — applyRun fires the hook post-commit by design.
+    regenerate: async ({ connectionId, appliedBy }) => {
+      await runGeneration({ manager, meta: metaStore.meta, connectionId, createdBy: appliedBy });
+    },
+  });
 
   // The real §4.2 collector, not the `NO_STATS` default: `generate-prompt
   // --sampling` promises "sampled example values in the prompt" in its own

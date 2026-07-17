@@ -19,6 +19,15 @@ export const pageReply = z.object({
   /** Whether the caller holds `page:<id>:edit` — the dashboard builder routes
    *  edits to the shared default (true) vs. a personal override (false). */
   canEditLayout: z.boolean(),
+  /**
+   * Present (true) only when the served layout is the caller's per-user
+   * override AND the shared document's revision moved past the one stamped on
+   * the override at PUT time — the page was regenerated (or its default
+   * re-edited) out from under the override. The client can offer "Reset
+   * layout" (DELETE /me/views/:pageId/layout) instead of leaving the user on
+   * silently dead bindings.
+   */
+  layoutStale: z.boolean().optional(),
 });
 
 /**

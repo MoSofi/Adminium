@@ -1,4 +1,4 @@
-import { Avatar, Badge, MonoText, StatusPill } from '@adminium/ui';
+import { Avatar, Badge, MonoText, StatusPill, type Tone } from '@adminium/ui';
 import { Check, Eye, EyeOff, X } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -9,8 +9,9 @@ import {
   formatMoney,
   formatRelativeTime,
   maskedColumnsOf,
+  uiToneOf,
 } from './column-spec.js';
-import type { GridColumnSpec, GridRow, GridTone } from './column-spec.js';
+import type { GridColumnSpec, GridRow } from './column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
 /**
@@ -118,8 +119,9 @@ function FkChipCell({
   );
 }
 
-function enumTone(column: GridColumnSpec, value: string): GridTone | undefined {
-  return column.enumTones?.[value];
+function enumTone(column: GridColumnSpec, value: string): Tone | undefined {
+  const tone = column.enumTones?.[value];
+  return tone === undefined ? undefined : uiToneOf(tone);
 }
 
 /**

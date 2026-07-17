@@ -49,6 +49,12 @@ const envelopeShape = z.object({
   // Per-template body. Unknown fields are preserved on round-trip
   // (forward compatibility, 01-architecture.md §6.2); per-template schemas
   // live in @adminium/widgets/page-config and are applied by kind below.
+  // `config.templateVersion` (stamped by composeTemplate from the manifest) is
+  // ADVISORY-ONLY until the 04-T15 per-template migrations/ mechanism lands:
+  // nothing validates or migrates on it — the migration chain keys solely on
+  // the envelope `v` above, and stored pre-stamp documents render fine because
+  // layouts are self-contained. 04 §10's "version bumps let H5 migrate old
+  // configs deliberately" gets its enforcement surface with 04-T15.
   config: z.record(z.string(), z.unknown()),
 });
 

@@ -77,9 +77,18 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
                 typeof envelope['config'] === 'object' && envelope['config'] !== null
                   ? (envelope['config'] as Record<string, unknown>)
                   : {};
+              // Staleness signal: the PUT stamped the shared document's
+              // revision into the override; the default moving past it —
+              // regeneration or a shared PATCH — means this caller keeps a
+              // pre-change layout (after a schema-driven regeneration that is
+              // per-widget WIDGET_DATA errors with no hint). Flag it so the
+              // client can offer "Reset layout". Pre-stamp rows read as fresh.
+              const authoredAt = (override.config as Record<string, unknown>)['pageRevision'];
+              const layoutStale = typeof authoredAt === 'number' && authoredAt < page.revision;
               return {
                 data: { ...envelope, config: { ...templateConfig, layout: parsed.data } },
                 canEditLayout,
+                ...(layoutStale ? { layoutStale: true } : {}),
               };
             }
           }

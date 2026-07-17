@@ -25,6 +25,13 @@
           "permissions": []
         },
         "config": {
+          "templateVersion": 2,
+          "toolbar": [
+            "date-range-picker"
+          ],
+          "overlays": [
+            "toast-stack"
+          ],
           "domain": {
             "key": "orders",
             "label": "Orders",
@@ -225,7 +232,7 @@
               }
             ]
           },
-          "generatedHash": "4f72d8a4c211c1bdd3ce597ccbc60f2ff7f30709f5370fbc5ad7a2a4e1fce2e4"
+          "generatedHash": "0174b222607a169408837ad7ed4b44ae4f94b7641257845a8f4d438345dd1fb5"
         }
       },
       {
@@ -2124,6 +2131,13 @@
           "permissions": []
         },
         "config": {
+          "templateVersion": 2,
+          "toolbar": [
+            "date-range-picker"
+          ],
+          "overlays": [
+            "toast-stack"
+          ],
           "domain": {
             "key": "orders",
             "label": "Orders",
@@ -2324,7 +2338,7 @@
               }
             ]
           },
-          "generatedHash": "4f72d8a4c211c1bdd3ce597ccbc60f2ff7f30709f5370fbc5ad7a2a4e1fce2e4"
+          "generatedHash": "0174b222607a169408837ad7ed4b44ae4f94b7641257845a8f4d438345dd1fb5"
         }
       },
       {

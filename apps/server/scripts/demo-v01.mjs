@@ -7,8 +7,10 @@
  *
  * 1. creates a throwaway local Postgres database `adminium_demo_<rand>`
  *    (via psql) and loads the Northwind seed,
- * 2. boots the real server on a temp SQLite meta store, seeds the first
- *    super admin, registers the connections/schema/data/generate routes,
+ * 2. boots the real server through the SHARED COMPOSITION ROOT — the same
+ *    `openRuntime` → `composeServer` path `adminium start` runs (src/compose.ts;
+ *    this script used to hand-wire every route itself, a second composition
+ *    path that could drift from the shipped one),
  * 3. creates the connection, runs introspection, runs generation —
  *    all over plain HTTP with a real session cookie,
  * 4. prints the timing breakdown + the URL and credentials, then leaves the
@@ -102,78 +104,21 @@ const psqlFile = (database, file) =>
   });
 
 // --- dynamic imports (dist + workspace deps) ------------------------------------------
+// Everything the old version imported route-by-route (rbac, jobs, every
+// routes/*/index.js, the LLM services, the widgets allow-list file URL) is now
+// internal to `openRuntime` + `composeServer` — the point of the fold.
 
 const distUrl = (rel) => pathToFileURL(join(serverRoot, 'dist', rel)).href;
 
-const [
-  { buildServer },
-  { envSchema },
-  { hashPassword },
-  { rbacPlugin },
-  { registerJobsAndRealtime },
-  { dsnCryptoFromSecret },
-  { ConnectionManager },
-  { registerAdapters },
-  { connectionsRoutes },
-  { schemaRoutes },
-  { dataRoutes },
-  { generateRoutes },
-  { schemaImportRoutes },
-  { pagesRoutes },
-  { widgetDataRoutes },
-  { settingsRoutes },
-  { viewsRoutes },
-  { meViewsRoutes },
-  { onboardingRoutes },
-  { llmRoutes },
-  { createRunService },
-  { createApplyService },
-  { createProviderResolver },
-  { deriveKey, encryptSecret, decryptSecret },
-  { UndoStore },
-  meta_,
-  llm_,
-  { adapterRegistry },
-  { default: BetterSqlite3 },
-] = await Promise.all([
-  import(distUrl('app.js')),
-  import(distUrl('config/env.js')),
-  import(distUrl('auth/passwords.js')),
-  import(distUrl('plugins/rbac.js')),
-  import(distUrl('jobs/register.js')),
-  import(distUrl('connections/crypto.js')),
-  import(distUrl('connections/manager.js')),
-  import(distUrl('connections/register-adapters.js')),
-  import(distUrl('routes/connections/index.js')),
-  import(distUrl('routes/schema/index.js')),
-  import(distUrl('routes/data/index.js')),
-  import(distUrl('routes/generate/index.js')),
-  import(distUrl('routes/schema-import/index.js')),
-  import(distUrl('routes/pages/index.js')),
-  import(distUrl('routes/widget-data/index.js')),
-  import(distUrl('routes/settings/index.js')),
-  import(distUrl('routes/views/index.js')),
-  import(distUrl('routes/me-views/index.js')),
-  import(distUrl('routes/onboarding/index.js')),
-  import(distUrl('routes/llm/index.js')),
-  import(distUrl('llm/run-service.js')),
-  import(distUrl('llm/apply-service.js')),
-  import(distUrl('llm/provider-resolver.js')),
-  import(distUrl('config/secrets.js')),
-  import(distUrl('crud/undo.js')),
-  import('@adminium/meta'),
-  import('@adminium/llm'),
-  import('@adminium/engine/adapter'),
-  import('better-sqlite3'),
-]);
-const { createSqliteMetaDb, firstRun, createFirstSuperAdmin, pagesRepo } = meta_;
-const { llmKeyCryptoFromSecret } = llm_;
-// The LLM allowed-lists live in @adminium/widgets, which the server tree may not
-// import (01 §2.3). The wiring script (excluded from check-deps) loads them from
-// the built widgets dist by file path — the app-wiring layer supplies them.
-const widgetsAllowlistUrl = pathToFileURL(
-  join(repoRoot, 'packages', 'widgets', 'dist', 'registry', 'llm-allowlist.js'),
-).href;
+const [{ loadCliEnv, openRuntime }, { composeServer }, { resolveStaticRoot }, { hashPassword }, meta_] =
+  await Promise.all([
+    import(distUrl('cli/runtime.js')),
+    import(distUrl('compose.js')),
+    import(distUrl('cli/static-root.js')),
+    import(distUrl('auth/passwords.js')),
+    import('@adminium/meta'),
+  ]);
+const { firstRun, createFirstSuperAdmin, pagesRepo } = meta_;
 
 // --- the demo --------------------------------------------------------------------------
 
@@ -196,6 +141,7 @@ console.log('=================================================================')
 const wallStart = performance.now();
 
 let app = null;
+let runtime = null;
 let dropped = false;
 const dropDemoDb = () => {
   if (dropped) return;
@@ -215,96 +161,52 @@ try {
   const tableCount = psql(demoDb, "SELECT count(*) FROM pg_tables WHERE schemaname='public'").trim();
   ok(`Northwind loaded — ${tableCount} tables`);
 
-  step('boot server (temp SQLite meta, super admin seeded)');
-  const meta = createSqliteMetaDb({ database: new BetterSqlite3(join(tempDir, 'meta.sqlite')) });
-  await timed('meta firstRun', () => firstRun(meta));
-  await createFirstSuperAdmin(meta, {
-    email: EMAIL,
-    name: 'Demo Admin',
-    passwordHash: await hashPassword(PASSWORD),
-  });
-
-  const env = envSchema.parse({ ADMINIUM_SECRET: SECRET, PORT: String(PORT), HOST: '127.0.0.1' });
-  const dashboardDist = join(repoRoot, 'apps', 'dashboard', 'dist');
-  const staticRoot = existsSync(join(dashboardDist, 'index.html')) ? dashboardDist : undefined;
+  step('boot server (temp SQLite meta, super admin seeded, shared composition root)');
+  // Hermetic env: nothing inherited. ADMINIUM_DATA_DIR drives the embedded
+  // meta-store fallback into the temp dir; no ADMINIUM_RUNTIME means every
+  // desktop-only door in composeServer stays closed, exactly like self-host.
+  const env = loadCliEnv(
+    { ADMINIUM_SECRET: SECRET },
+    { port: PORT, host: '127.0.0.1', dataDir: tempDir },
+  );
 
   await timed('server boot', async () => {
-    await registerAdapters(adapterRegistry);
-    const manager = new ConnectionManager({
-      meta,
-      crypto: dsnCryptoFromSecret(SECRET),
-      metaDsn: null,
-      blockLoopback: false, // the demo database IS local by design
-    });
-    const undoStore = new UndoStore();
-    app = await buildServer({ env, metaDb: meta, staticRoot, logger: false });
-    await app.register(rbacPlugin, { meta });
-
-    // --- LLM assist wiring (M6, 06-llm-assist.md §10.5) --------------------------
-    // Degrades gracefully: if the widgets allow-lists aren't built, the demo's
-    // core connection→app flow is unaffected and only the AI routes are skipped.
-    let llmWiring = null;
-    try {
-      const { LLM_ALLOWED_TEMPLATES, LLM_ALLOWED_WIDGETS } = await import(widgetsAllowlistUrl);
-      const keyCrypto = llmKeyCryptoFromSecret(SECRET, { deriveKey, encryptSecret, decryptSecret });
-      const runService = createRunService({ meta });
-      const applyService = createApplyService({ meta, runService });
-      const resolve = createProviderResolver({
-        meta,
-        keyCrypto,
-        allowedTemplates: LLM_ALLOWED_TEMPLATES,
-        allowedWidgets: LLM_ALLOWED_WIDGETS,
-      });
-      llmWiring = {
-        runService,
-        applyService,
-        keyCrypto,
-        resolve,
-        allowed: { templates: LLM_ALLOWED_TEMPLATES, widgets: LLM_ALLOWED_WIDGETS },
-      };
-    } catch (error) {
-      info(`AI assist routes skipped (${error.message})`);
+    // openRuntime = adapters + meta store + ConnectionManager + run/apply
+    // services + stats collector + widgets allow-lists (null ⇒ /llm skipped,
+    // same degradation the old hand-rolled try/catch had).
+    runtime = await openRuntime(env, { blockLoopback: false }); // the demo database IS local by design
+    if (runtime.promptServiceError !== null) {
+      info(`AI assist routes skipped (${runtime.promptServiceError.message})`);
     }
 
-    await registerJobsAndRealtime(app, {
-      meta,
-      resolveUser: (req) => req.user ?? null,
-      can: (user, permission) => app.rbac.can(user, permission),
-      ...(llmWiring ? { llm: { resolve: llmWiring.resolve } } : {}),
+    // openRuntime deliberately does NOT bootstrap (migrate/start own that);
+    // the demo seeds its throwaway meta store here, as `adminium start` does.
+    await firstRun(runtime.metaStore.meta);
+    await createFirstSuperAdmin(runtime.metaStore.meta, {
+      email: EMAIL,
+      name: 'Demo Admin',
+      passwordHash: await hashPassword(PASSWORD),
     });
-    await app.register(
-      async (api) => {
-        await api.register(connectionsRoutes({ manager, meta }));
-        await api.register(schemaRoutes({ manager, meta }));
-        await api.register(dataRoutes({ manager, meta, undoStore }));
-        await api.register(generateRoutes({ manager, meta }));
-        await api.register(schemaImportRoutes());
-        await api.register(pagesRoutes({ meta }));
-        await api.register(widgetDataRoutes({ manager, meta }));
-        await api.register(settingsRoutes({ meta }));
-        await api.register(viewsRoutes({ meta }));
-        await api.register(meViewsRoutes({ meta }));
-        await api.register(onboardingRoutes({ meta }));
-        if (llmWiring) {
-          await api.register(
-            llmRoutes({
-              meta,
-              runService: llmWiring.runService,
-              applyService: llmWiring.applyService,
-              keyCrypto: llmWiring.keyCrypto,
-              allowed: llmWiring.allowed,
-            }),
-          );
-        }
-      },
-      { prefix: '/api/v1' },
-    );
-    app.addHook('onClose', async () => {
-      await manager.disposeAll();
+
+    const staticRoot = resolveStaticRoot();
+    const composed = await composeServer({
+      env,
+      metaStore: runtime.metaStore,
+      manager: runtime.manager,
+      runService: runtime.runService,
+      applyService: runtime.applyService,
+      allowed: runtime.allowed,
+      collectStats: runtime.collectStats,
+      logger: false,
+      telemetry: false, // a throwaway demo registers no reporting schedule
+      ...(staticRoot === undefined ? {} : { staticRoot }),
     });
+    app = composed.app;
     await app.listen({ port: PORT, host: '127.0.0.1' });
+    return composed;
   });
-  ok(`listening on http://localhost:${PORT}${staticRoot ? ' (dashboard build served)' : ' (API only — build apps/dashboard for the UI)'}`);
+  const servedUi = resolveStaticRoot() !== undefined;
+  ok(`listening on http://localhost:${PORT}${servedUi ? ' (dashboard build served)' : ' (API only — build apps/dashboard for the UI)'}`);
 
   const base = `http://127.0.0.1:${PORT}`;
   const api = async (method, path, { cookie, body } = {}) => {
@@ -361,7 +263,7 @@ try {
   ok(`${g.pages} pages generated → nav groups [${g.navGroups.join(', ')}] (intent: ${g.intent})`);
   for (const warning of g.warnings) info(`note: ${warning}`);
 
-  const pages = await pagesRepo(meta).listForConnection(connectionId);
+  const pages = await pagesRepo(runtime.metaStore.meta).listForConnection(connectionId);
   const dashboards = pages.filter((p) => p.type === 'page-dashboard');
   const crud = pages.filter((p) => p.type === 'page-crud');
   assert(dashboards.length >= 1, 'at least one dashboard');
@@ -398,6 +300,7 @@ try {
   if (NO_WAIT) {
     console.log('\n--no-wait: shutting down.');
     await app.close();
+    await runtime.close();
     dropDemoDb();
     process.exit(0);
   }
@@ -409,13 +312,19 @@ try {
       dropDemoDb();
       process.exit(0);
     };
-    app.close().then(finish, finish);
+    // app.close() disposes the manager (compose.ts onClose); runtime.close()
+    // is idempotent over that and additionally closes the meta store.
+    app
+      .close()
+      .then(() => runtime.close())
+      .then(finish, finish);
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
 } catch (error) {
   console.error(`\n✗ ${error.message}`);
   if (app !== null) await app.close().catch(() => {});
+  if (runtime !== null) await runtime.close().catch(() => {});
   dropDemoDb();
   process.exit(1);
 }

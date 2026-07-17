@@ -51,25 +51,25 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     await expect(page.getByRole('heading', { name: 'New connection' })).toBeVisible();
 
     // Step 1 — intent (default "full admin").
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 2 — source, DSN mode. A `sqlite:` scheme auto-syncs the engine picker;
     // the wizard points a NEW connection at the same seeded Northwind file.
     await page.getByLabel('Connection name').fill('northwind-enrich-e2e');
     await page.getByLabel('Connection string').fill(enrichWizardDsn());
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 3 — test + introspect auto-runs; the log ends in "Ready".
     await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 60_000 });
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 4 — table inclusion (defaults persist on Continue).
     await expect(page.getByRole('heading', { name: 'Choose your tables' })).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 5 — meta placement: a writable sqlite file → same-db card is enabled.
     await page.getByRole('radio', { name: /Same database/ }).click();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 6 — Enrich with AI → the BYO copy-paste path.
     await expect(page.getByRole('heading', { name: 'Enrich with AI' })).toBeVisible();
@@ -90,7 +90,10 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     // this POST runs entirely on the server — no outbound network).
     await page.getByLabel('Paste the JSON response').fill(GOLDEN_RESPONSE);
     await page.getByRole('button', { name: 'Validate' }).click();
-    await expect(page.getByText('Response validated')).toBeVisible({ timeout: 30_000 });
+    // "Response validated" renders twice by design in the single-chunk flow
+    // (status chip + ready card) — the ready card's CTA is the unambiguous
+    // "validated AND merged" signal, and it is what the next step clicks.
+    await expect(page.getByRole('button', { name: 'Continue to review' })).toBeVisible({ timeout: 30_000 });
 
     // Continue to the review-diff screen (both AI paths land here).
     await page.getByRole('button', { name: 'Continue to review' }).click();

@@ -11,10 +11,12 @@
  */
 
 import {
+  domainHasDashboardSignal,
   emitCandidates,
   isRegisteredWidgetId,
   selectArchetype,
   type CandidateContext,
+  type CandidateTableInput,
 } from '@adminium/widgets/generate';
 import { z } from 'zod';
 
@@ -27,19 +29,25 @@ import {
 import type { DatabaseModel, TableModel } from '../schema-model.js';
 import { archetypeSlug, buildArchetypeEnvelope, toCandidateModel } from './archetype.js';
 import { buildCrudEnvelope, type CrudBuildContext } from './crud.js';
-import { buildDashboardEnvelope, hasDashboardSignal } from './dashboard.js';
+import { buildDashboardEnvelope } from './dashboard.js';
 import { detectDomains, type Domain } from './domains.js';
 import { hashEnvelope, humanize, slugify, SlugRegistry } from './util.js';
 
 export {
   archetypeSlug,
   buildArchetypeEnvelope,
+  composeRequestedArchetype,
   toCandidateModel,
   type ArchetypeBuildContext,
   type ArchetypeBuildResult,
 } from './archetype.js';
-export { buildCrudEnvelope, enumTones } from './crud.js';
-export { buildDashboardEnvelope, hasDashboardSignal } from './dashboard.js';
+export { buildCrudEnvelope, enumTones, type CrudBuildContext, type CrudEnumTone } from './crud.js';
+export {
+  buildDashboardEnvelope,
+  hasDashboardSignal,
+  type DashboardBuildContext,
+  type DashboardBuildResult,
+} from './dashboard.js';
 export { detectDomains, type Domain } from './domains.js';
 export {
   ID_SLUG_BUDGET,
@@ -186,9 +194,8 @@ interface ArchetypePassOptions {
  * template has an unfillable `required` slot yield nothing.
  */
 function archetypePages(
-  model: DatabaseModel,
+  candidateModel: readonly CandidateTableInput[],
   tables: readonly TableModel[],
-  classified: ReadonlyMap<string, ClassifiedTable>,
   opts: ArchetypePassOptions,
 ): Record<string, unknown>[] {
   const { connectionId, warnings } = opts;
@@ -199,7 +206,6 @@ function archetypePages(
     return [];
   }
 
-  const candidateModel = toCandidateModel(model, tables, classified);
   const ctx: CandidateContext = {
     connectionId,
     model: candidateModel,
@@ -264,7 +270,11 @@ function archetypePages(
  * {@link DASHBOARD_CAP}), honoring the 09 §8.4 intent. The model should come
  * out of `applyClassification` (snapshots persist that form); classification
  * is recomputed here regardless — `classifyModel` is pure and cheap, and the
- * generator also needs the non-persisted shape/displayColumn outputs.
+ * generator also needs the non-persisted shape/displayColumn outputs. Column
+ * stamps with `source: 'llm' | 'override'` still beat the recomputed tags
+ * (05 §7, `archetype.ts#toClassifiedInput`); heuristic stamps do not — the
+ * recomputed classification of the model as handed in (post `includedTables`
+ * filtering) is authoritative.
  */
 export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}): GenerateResult {
   const intent = opts.intent ?? 'full-admin';
@@ -284,6 +294,12 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
   const slugs = new SlugRegistry();
   const rawPages: Record<string, unknown>[] = [];
 
+  // The Engine↔Registry adapter runs ONCE — crud bodies, domain dashboards and
+  // the archetype pass all read the same mirrored model (archetype.ts is where
+  // the two vocabularies meet).
+  const candidateModel = toCandidateModel(model, tables, classified);
+  const entryById = new Map(candidateModel.map((entry) => [entry.table.id, entry]));
+
   // -- dashboards first: they own the WORKSPACE group and low nav orders ----
   // `crud` gets "no dashboards beyond a minimal home" and `support-console` has
   // "analytics omitted" — both per 09 §8.4.
@@ -301,7 +317,7 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
         }))
         .filter((domain) => domain.tableIds.length > 0);
       const eligible = domains.filter((domain) => {
-        if (hasDashboardSignal(model, domain, tables)) return true;
+        if (domainHasDashboardSignal(domain, candidateModel, model.relations)) return true;
         warnings.push(`domain ${domain.key} has no timestamp column — dashboard skipped (05 §8)`);
         return false;
       });
@@ -316,14 +332,26 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
       for (const domain of chosen) {
         const slug = slugs.claim(multi ? slugify(`dashboard-${domain.key}`) : 'dashboard');
         const title = multi ? `${domain.label} Dashboard` : 'Dashboard';
-        const envelope = buildDashboardEnvelope(model, domain, tables, {
+        const built = buildDashboardEnvelope(domain, candidateModel, model.relations, {
           connectionId,
           slug,
           title,
           navOrder,
+          isRegistered,
         });
-        if (envelope === null) continue; // hub filtered away — cannot happen after eligibility
-        rawPages.push(envelope);
+        if (built.envelope === null) {
+          // Unreachable after eligibility unless a required slot cannot fill
+          // (a registry stripped of kpi/line widgets) — the domain keeps no page.
+          const detail = built.warnings
+            .filter((w) => w.code === 'required-slot-unfillable' || w.code === 'invalid-layout')
+            .map((w) => w.message)
+            .join('; ');
+          warnings.push(
+            `page-dashboard for domain ${domain.key} skipped — ${detail || 'composition produced no page'}`,
+          );
+          continue;
+        }
+        rawPages.push(built.envelope);
         navOrder += 1;
       }
     }
@@ -337,6 +365,7 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
   const crudPlacement = new Map<string, { slug: string; navOrder: number }>();
   for (const table of tables) {
     const info = classified.get(table.id) as ClassifiedTable;
+    const entry = entryById.get(table.id) as CandidateTableInput;
     const people = info.shape.kind === 'people' || info.semantics.role === 'people';
     const group = people ? 'people' : 'library';
     const order = 20 + 10 * (people ? counters.people++ : counters.library++);
@@ -348,9 +377,10 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
       navOrder: order,
       readOnly,
       includedTableIds: includedIds,
+      relations: model.relations,
     };
     crudPlacement.set(table.id, { slug: ctx.slug, navOrder: order });
-    rawPages.push(buildCrudEnvelope(model, table, info, ctx));
+    rawPages.push(buildCrudEnvelope(entry, ctx));
   }
 
   // -- plus the highest-scoring §14 archetype per table (§15 step 3) -------
@@ -362,7 +392,7 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
   // and nav orders slot between the crud orders (+5) without touching the
   // counters. `test/generate-baseline.test.ts` is the regression guard.
   if (intent !== 'crud') {
-    for (const raw of archetypePages(model, tables, classified, {
+    for (const raw of archetypePages(candidateModel, tables, {
       connectionId,
       slugs,
       crudPlacement,

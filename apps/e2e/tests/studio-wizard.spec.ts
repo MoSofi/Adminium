@@ -21,24 +21,24 @@ test.describe('studio connect wizard (DSN mode)', () => {
     await expect(page.getByRole('heading', { name: 'New connection' })).toBeVisible();
 
     // Step 1 — intent (default "full admin" is fine).
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 2 — source, DSN mode (the default input mode).
     await page.getByLabel('Connection name').fill('wizard-e2e');
     await page.getByLabel('Connection string').fill(wizardDsn());
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 3 — test + introspect auto-runs; the log ends in "Ready".
     await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 60_000 });
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 4 — table inclusion (defaults persist on Continue).
     await expect(page.getByRole('heading', { name: 'Choose your tables' })).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 5 — meta placement: superuser DSN → same-db card is enabled.
     await page.getByRole('radio', { name: /Same database/ }).click();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
     // Step 6 — generate → success → into the app.
     await page.getByRole('button', { name: 'Generate dashboard' }).click();

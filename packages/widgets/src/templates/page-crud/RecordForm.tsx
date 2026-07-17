@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 
 import { coerceFieldValue, fieldKindFor, fieldTypeTag, formColumns, isRequired } from './field-mapping.js';
 import type { CrudApi, CrudLookupOption, CrudRow } from './crud-api.js';
+import { uiToneOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 
 /**
@@ -188,11 +189,14 @@ export function RecordForm({
           return (
             <FormField key={column.name} {...common}>
               <SegmentedControl
-                options={(column.enumValues ?? []).map((member) => ({
-                  value: member,
-                  label: member,
-                  ...(column.enumTones?.[member] !== undefined ? { dot: column.enumTones[member] } : {}),
-                }))}
+                options={(column.enumValues ?? []).map((member) => {
+                  const tone = column.enumTones?.[member];
+                  return {
+                    value: member,
+                    label: member,
+                    ...(tone === undefined ? {} : { dot: uiToneOf(tone) }),
+                  };
+                })}
                 {...(typeof value === 'string' ? { value } : {})}
                 onValueChange={(next) => setField(column.name, next)}
               />

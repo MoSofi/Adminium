@@ -17,7 +17,7 @@
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
-import { pagesRepo, viewsRepo, type MetaDb } from '@adminium/meta';
+import { pagesRepo, viewsRepo, type MetaDb, type Page } from '@adminium/meta';
 
 import { NotFoundError, UnauthorizedError } from '../../errors.js';
 import { meLayoutOkReply, meLayoutParams, meLayoutPutBody, meLayoutReply } from './schema.js';
@@ -47,11 +47,12 @@ export function meViewsRoutes(deps: MeViewsRoutesDeps): FastifyPluginAsyncZod {
     }
 
     /** The page must exist and be enabled to hold an override (matches GET). */
-    async function requireVisiblePage(pageId: string): Promise<void> {
+    async function requireVisiblePage(pageId: string): Promise<Page> {
       const page = await pages.findById(pageId);
       if (page === null || !page.isEnabled) {
         throw new NotFoundError(`page ${pageId} does not exist`);
       }
+      return page;
     }
 
     app.put(
@@ -63,8 +64,16 @@ export function meViewsRoutes(deps: MeViewsRoutesDeps): FastifyPluginAsyncZod {
       async (request) => {
         const userId = requireUserId(request);
         const { pageId } = request.params;
-        await requireVisiblePage(pageId);
-        await views.upsertLayoutOverride(pageId, userId, request.body);
+        const page = await requireVisiblePage(pageId);
+        // Stamp the shared document's revision the override was authored
+        // against: the pages GET compares it to the live revision to surface
+        // `layoutStale` after a regeneration (or a shared PATCH) moves the
+        // default on. `pageLayoutSchema` strips unknown keys on read, so the
+        // stamp never leaks into a served layout.
+        await views.upsertLayoutOverride(pageId, userId, {
+          ...request.body,
+          pageRevision: page.revision,
+        });
         return { data: { layout: request.body } };
       },
     );

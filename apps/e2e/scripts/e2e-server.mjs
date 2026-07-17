@@ -9,10 +9,11 @@
  *        postgres → (re)creates E2E_DATABASE on TEST_POSTGRES_URL via `pg`
  *        mysql    → (re)creates E2E_DATABASE on TEST_MYSQL_URL via `mysql2`
  *   2. temp SQLite meta store: firstRun + first super admin
- *   3. compose the server exactly like apps/server/scripts/demo-v01.mjs
- *      (buildServer + rbac + jobs/realtime + connections/schema/data/
- *      generate/schema-import/pages/widget-data/settings routes), with all
- *      three engine adapters registered
+ *   3. compose the server through the SHARED COMPOSITION ROOT — the same
+ *      `openRuntime` → `composeServer` path `adminium start` runs (this script
+ *      used to hand-wire every route itself, mirroring the pre-fold
+ *      demo-v01.mjs; that was a composition path that could drift from the
+ *      shipped one, and the e2e suite exists to test the shipped one)
  *   4. seed via `app.inject()` (login → create connection → introspect →
  *      generate), and only THEN listen — a 200 from /api/v1/healthz therefore
  *      means "fully seeded and ready", which is what Playwright's webServer
@@ -60,86 +61,20 @@ if (!existsSync(join(dashboardDist, 'index.html'))) {
 }
 
 // --- imports: @adminium/server public API + non-exported dist modules ----------------
-// (same pattern as apps/server/scripts/demo-v01.mjs — routes/plugins are not
-// part of the package's export surface, so they are loaded by dist path).
+// Everything the old version imported route-by-route (rbac, jobs, every
+// routes/*/index.js, the inline LLM key-crypto mirror, the widgets allow-list
+// file URL, the per-engine adapter modules) is internal to `openRuntime` +
+// `composeServer` now. Only `hashPassword` is off the package barrel.
 
 const distUrl = (rel) => pathToFileURL(join(serverRoot, 'dist', rel)).href;
 
-const [
-  { buildServer, envSchema },
-  { hashPassword },
-  { rbacPlugin },
-  { registerJobsAndRealtime },
-  { dsnCryptoFromSecret },
-  { ConnectionManager },
-  { registerAdapters },
-  { connectionsRoutes },
-  { schemaRoutes },
-  { dataRoutes },
-  { generateRoutes },
-  { schemaImportRoutes },
-  { pagesRoutes },
-  { widgetDataRoutes },
-  { settingsRoutes },
-  { meViewsRoutes },
-  { llmRoutes },
-  { createRunService },
-  { createApplyService },
-  { createProviderResolver },
-  { deriveKey, encryptSecret, decryptSecret },
-  { UndoStore },
-  { createSqliteMetaDb, firstRun, createFirstSuperAdmin },
-  { adapterRegistry },
-  sqliteAdapterModule,
-  mysqlAdapterModule,
-  { default: BetterSqlite3 },
-] = await Promise.all([
-  import('@adminium/server'),
-  import(distUrl('auth/passwords.js')),
-  import(distUrl('plugins/rbac.js')),
-  import(distUrl('jobs/register.js')),
-  import(distUrl('connections/crypto.js')),
-  import(distUrl('connections/manager.js')),
-  import(distUrl('connections/register-adapters.js')),
-  import(distUrl('routes/connections/index.js')),
-  import(distUrl('routes/schema/index.js')),
-  import(distUrl('routes/data/index.js')),
-  import(distUrl('routes/generate/index.js')),
-  import(distUrl('routes/schema-import/index.js')),
-  import(distUrl('routes/pages/index.js')),
-  import(distUrl('routes/widget-data/index.js')),
-  import(distUrl('routes/settings/index.js')),
-  import(distUrl('routes/me-views/index.js')),
-  import(distUrl('routes/llm/index.js')),
-  import(distUrl('llm/run-service.js')),
-  import(distUrl('llm/apply-service.js')),
-  import(distUrl('llm/provider-resolver.js')),
-  import(distUrl('config/secrets.js')),
-  import(distUrl('crud/undo.js')),
-  import('@adminium/meta'),
-  import('@adminium/engine/adapter'),
-  import('@adminium/adapter-sqlite'),
-  import('@adminium/adapter-mysql'),
-  import('better-sqlite3'),
-]);
-/**
- * Build the LLM API-key crypto closures (`LlmKeyCrypto` — 06 §3.2) inline from
- * the server's AES-256-GCM `secrets` primitives, scoped by the LLM key salt.
- * Mirrors `@adminium/llm`'s `llmKeyCryptoFromSecret` WITHOUT importing that
- * package — it is not an apps/e2e dependency, and the BYO golden path only needs
- * the closures the routes require, not the package's browser-safe barrel.
- */
-const LLM_KEY_SALT = 'adminium:llm-key:v1';
-const llmKeyCryptoFromSecret = (secret) => {
-  const key = deriveKey(secret, LLM_KEY_SALT);
-  return { encrypt: (plaintext) => encryptSecret(plaintext, key), decrypt: (token) => decryptSecret(token, key) };
-};
-// The LLM allow-lists live in @adminium/widgets, which the server tree may not
-// import (01 §2.3) — the app-wiring layer supplies them. Load from the built
-// widgets dist by file path (same pattern as apps/server/scripts/demo-v01.mjs).
-const widgetsAllowlistUrl = pathToFileURL(
-  join(repoRoot, 'packages', 'widgets', 'dist', 'registry', 'llm-allowlist.js'),
-).href;
+const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun, createFirstSuperAdmin }, { default: BetterSqlite3 }] =
+  await Promise.all([
+    import('@adminium/server'),
+    import(distUrl('auth/passwords.js')),
+    import('@adminium/meta'),
+    import('better-sqlite3'),
+  ]);
 
 // --- source database per engine -------------------------------------------------------
 
@@ -223,6 +158,7 @@ async function prepareSourceDb() {
 // --- boot --------------------------------------------------------------------------
 
 let app = null;
+let runtime = null;
 const cleanup = () => {
   rmSync(tempDir, { recursive: true, force: true });
   if (sqliteSourceFile !== null) rmSync(sqliteSourceFile, { force: true });
@@ -231,98 +167,45 @@ const cleanup = () => {
 try {
   const dsn = await prepareSourceDb();
 
-  // Meta store: temp SQLite file + first super admin.
-  const meta = createSqliteMetaDb({ database: new BetterSqlite3(join(tempDir, 'meta.sqlite')) });
-  await firstRun(meta);
-  await createFirstSuperAdmin(meta, {
+  const SECRET = randomBytes(32).toString('hex');
+  // Hermetic env: nothing inherited. ADMINIUM_DATA_DIR drives the embedded
+  // meta-store fallback into the temp dir; no ADMINIUM_RUNTIME means every
+  // desktop-only door in composeServer stays closed, exactly like self-host.
+  const env = loadCliEnv(
+    { ADMINIUM_SECRET: SECRET },
+    { port: PORT, host: HOST, dataDir: tempDir },
+  );
+
+  // openRuntime = all three engine adapters + meta store + ConnectionManager +
+  // run/apply services + stats collector + widgets allow-lists (null ⇒ /llm
+  // skipped — the T15 BYO leg would fail loudly, core flow unaffected).
+  runtime = await openRuntime(env, { blockLoopback: false }); // every e2e database is loopback by design
+  if (runtime.promptServiceError !== null) {
+    log(`AI assist routes skipped (${runtime.promptServiceError.message})`);
+  }
+
+  // openRuntime deliberately does NOT bootstrap (migrate/start own that);
+  // the e2e harness seeds its throwaway meta store here.
+  await firstRun(runtime.metaStore.meta);
+  await createFirstSuperAdmin(runtime.metaStore.meta, {
     email: ADMIN_EMAIL,
     name: ADMIN_NAME,
     passwordHash: await hashPassword(ADMIN_PASSWORD),
   });
 
-  // All three engine adapters into the process-wide registry.
-  await registerAdapters(adapterRegistry);
-  for (const provider of [sqliteAdapterModule.sqliteAdapter, mysqlAdapterModule.mysqlAdapter]) {
-    if (provider !== undefined && !adapterRegistry.has(provider.dialect)) {
-      adapterRegistry.register(provider);
-    }
-  }
-
-  const SECRET = randomBytes(32).toString('hex');
-  const env = envSchema.parse({ ADMINIUM_SECRET: SECRET, PORT: String(PORT), HOST });
-
-  const manager = new ConnectionManager({
-    meta,
-    crypto: dsnCryptoFromSecret(SECRET),
-    metaDsn: null,
-    blockLoopback: false, // every e2e database is loopback by design
+  const composed = await composeServer({
+    env,
+    metaStore: runtime.metaStore,
+    manager: runtime.manager,
+    runService: runtime.runService,
+    applyService: runtime.applyService,
+    allowed: runtime.allowed,
+    collectStats: runtime.collectStats,
+    staticRoot: dashboardDist,
+    logger: false,
+    telemetry: false, // a throwaway e2e server registers no reporting schedule
   });
-  const undoStore = new UndoStore();
-
-  app = await buildServer({ env, metaDb: meta, staticRoot: dashboardDist, logger: false });
-  await app.register(rbacPlugin, { meta });
-
-  // --- LLM assist wiring (M6, 06-llm-assist.md §10.5) --------------------------
-  // Enables the connect wizard's "Enrich with AI" step + review/apply so the
-  // T15 golden BYO round-trip e2e can run. Degrades gracefully: if the widgets
-  // allow-lists aren't built, only the AI routes are skipped (core flow unaffected).
-  let llmWiring = null;
-  try {
-    const { LLM_ALLOWED_TEMPLATES, LLM_ALLOWED_WIDGETS } = await import(widgetsAllowlistUrl);
-    const keyCrypto = llmKeyCryptoFromSecret(SECRET);
-    const runService = createRunService({ meta });
-    const applyService = createApplyService({ meta, runService });
-    const resolve = createProviderResolver({
-      meta,
-      keyCrypto,
-      allowedTemplates: LLM_ALLOWED_TEMPLATES,
-      allowedWidgets: LLM_ALLOWED_WIDGETS,
-    });
-    llmWiring = {
-      runService,
-      applyService,
-      keyCrypto,
-      resolve,
-      allowed: { templates: LLM_ALLOWED_TEMPLATES, widgets: LLM_ALLOWED_WIDGETS },
-    };
-  } catch (error) {
-    log(`AI assist routes skipped (${error?.message ?? error})`);
-  }
-
-  await registerJobsAndRealtime(app, {
-    meta,
-    resolveUser: (req) => req.user ?? null,
-    can: (user, permission) => app.rbac.can(user, permission),
-    ...(llmWiring ? { llm: { resolve: llmWiring.resolve } } : {}),
-  });
-  await app.register(
-    async (api) => {
-      await api.register(connectionsRoutes({ manager, meta }));
-      await api.register(schemaRoutes({ manager, meta }));
-      await api.register(dataRoutes({ manager, meta, undoStore }));
-      await api.register(generateRoutes({ manager, meta }));
-      await api.register(schemaImportRoutes());
-      await api.register(pagesRoutes({ meta }));
-      await api.register(widgetDataRoutes({ manager, meta }));
-      await api.register(settingsRoutes({ meta }));
-      await api.register(meViewsRoutes({ meta }));
-      if (llmWiring) {
-        await api.register(
-          llmRoutes({
-            meta,
-            runService: llmWiring.runService,
-            applyService: llmWiring.applyService,
-            keyCrypto: llmWiring.keyCrypto,
-            allowed: llmWiring.allowed,
-          }),
-        );
-      }
-    },
-    { prefix: '/api/v1' },
-  );
-  app.addHook('onClose', async () => {
-    await manager.disposeAll();
-  });
+  app = composed.app;
   await app.ready();
 
   // --- seed over the real API (inject: not listening yet — readiness probe
@@ -393,6 +276,7 @@ try {
 } catch (error) {
   console.error(`[e2e-server] boot failed: ${error?.stack ?? error}`);
   if (app !== null) await app.close().catch(() => {});
+  if (runtime !== null) await runtime.close().catch(() => {});
   cleanup();
   process.exit(1);
 }
@@ -402,7 +286,12 @@ const shutdown = () => {
     cleanup();
     process.exit(0);
   };
-  app.close().then(finish, finish);
+  // app.close() disposes the manager (compose.ts onClose); runtime.close()
+  // is idempotent over that and additionally closes the meta store.
+  app
+    .close()
+    .then(() => runtime.close())
+    .then(finish, finish);
 };
 process.once('SIGINT', shutdown);
 process.once('SIGTERM', shutdown);

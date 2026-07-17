@@ -23,6 +23,25 @@
  * `page-kb-docs`, `page-auth`, `page-system-state`, `page-marketing`,
  * `page-hub-home`, `page-onboarding-checklist`) land with the families they are
  * built from.
+ *
+ * `page-dashboard` VERSION 2 (04 §10): v2 raises the chart-slot heights
+ * (`hero-chart`/`breakdown`/`grid-secondary`) from h6 to h8 and re-stacks the
+ * rows below, matching the bespoke generator's CHART_HEIGHT=8 so migrating
+ * generated dashboards onto `composeTemplate` preserves their shipped
+ * geometry. No `migrations/` folder ships with the bump: nothing in the
+ * runtime consumes per-template migrations yet (H5 regenerates untouched
+ * pages in place, which re-composes against the current manifest), and 04 §10
+ * says migrations arrive with their first consumer, not speculatively.
+ *
+ * `page-crud` IS A TYPED-BODY TEMPLATE (09-generated-app.md §3.3): its stored
+ * config carries `columns[]`/`defaultSort`/`form`/`detail` (composed by
+ * `../generate/crud-body.ts`), NOT a `config.layout`, and `PageCrud.tsx` never
+ * reads slots. The slot list in `page-crud.json` is therefore *descriptive* —
+ * it records the §10 composition the hand-built template implements (grid +
+ * pagination + detail rails), keeping the manifest inside the published §10
+ * schema, which deliberately has no typed-body marker (see the SCHEMA FIDELITY
+ * note in `./template-schema.ts`). Do not feed `page-crud` through
+ * `composeTemplate` expecting the renderer to honour the result.
  */
 import pageBoard from './page-board.json' with { type: 'json' };
 import pageBuilder from './page-builder.json' with { type: 'json' };

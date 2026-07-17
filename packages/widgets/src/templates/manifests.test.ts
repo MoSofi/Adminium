@@ -91,8 +91,27 @@ describe('shipped page-template manifests', () => {
     }
   });
 
-  it('starts every template version at 1 (no migrations shipped yet)', () => {
-    for (const manifest of pageTemplateManifests.values()) expect(manifest.version).toBe(1);
+  it('keeps every template at version 1 except page-dashboard v2 (no migrations shipped)', () => {
+    // page-dashboard v2 = the bespoke-parity height bump (see manifests.ts docs);
+    // no migrations/ folder ships because nothing consumes template migrations yet.
+    for (const manifest of pageTemplateManifests.values()) {
+      expect(manifest.version, manifest.id).toBe(manifest.id === 'page-dashboard' ? 2 : 1);
+    }
+  });
+
+  it('page-dashboard v2 reproduces the bespoke generator geometry (CHART_HEIGHT=8)', () => {
+    const dashboard = pageTemplateManifests.get('page-dashboard');
+    const area = (slot: string) => dashboard?.slots.find((s) => s.slot === slot)?.area;
+    // KPI tiles: 3×3 from y0 (bespoke KPI_SPAN=3 / KPI_HEIGHT=3).
+    expect(area('kpi-row')).toEqual({ x: 0, y: 0, w: 3, h: 3 });
+    // Hero + breakdown: 8/4 split under the KPI row, both CHART_HEIGHT=8.
+    expect(area('hero-chart')).toEqual({ x: 0, y: 3, w: 8, h: 8 });
+    expect(area('breakdown')).toEqual({ x: 8, y: 3, w: 4, h: 8 });
+    // Secondary charts keep chart height; the rows below re-stack without overlap.
+    expect(area('grid-secondary')).toEqual({ x: 0, y: 11, w: 6, h: 8 });
+    expect(area('recent')).toEqual({ x: 0, y: 19, w: 6, h: 6 });
+    expect(area('activity')).toEqual({ x: 6, y: 19, w: 6, h: 6 });
+    expect(area('insights')).toEqual({ x: 6, y: 25, w: 6, h: 4 });
   });
 
   it('maps only page-dashboard to the dashboard envelope kind (09 §3.2)', () => {

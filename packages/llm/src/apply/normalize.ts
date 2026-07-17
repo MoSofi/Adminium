@@ -14,10 +14,11 @@
  * (`import type`) — never engine runtime, which would risk pulling non-browser
  * code into the client bundle. The two tiny heuristics the baseline needs but
  * the classifier does not persist — identifier humanization and enum-tone
- * keyword mapping — are mirrored here from `@adminium/engine`
- * (`generate/util.ts#humanize`, `generate/crud.ts#enumTones`) so no runtime
- * edge is created. Everything is pure and deterministic (no Date.now /
- * Math.random) — the diff UI and golden tests depend on it (§3.1 temperature 0).
+ * keyword mapping — are mirrored here from the `@adminium/widgets/generate`
+ * leaf (`registry/candidates.ts#humanize`, `generate/crud-body.ts#enumTones`)
+ * so no runtime edge is created. Everything is pure and deterministic (no
+ * Date.now / Math.random) — the diff UI and golden tests depend on it (§3.1
+ * temperature 0).
  */
 import type {
   ClassifiedModel,
@@ -198,9 +199,11 @@ export function normalizeHeuristicBaseline(
 // ─── Local mirrors of the two engine heuristics the classifier doesn't persist ─
 
 /**
- * Mirror of `@adminium/engine` `generate/util.ts#humanize`: `order_details` →
- * `Order Details`; `public.orders` → `Orders`. Kept byte-faithful so the
- * heuristic baseline labels match what the generator emits.
+ * Mirror of `@adminium/widgets/generate` `registry/candidates.ts#humanize`
+ * (byte-identical twin of the engine's `generate/util.ts#humanize`):
+ * `order_details` → `Order Details`; `public.orders` → `Orders`. Kept
+ * byte-faithful so the heuristic baseline labels match what the generator
+ * emits.
  */
 function humanize(name: string): string {
   const bare = name.includes('.') ? (name.split('.').pop() ?? name) : name;
@@ -214,8 +217,9 @@ function humanize(name: string): string {
 }
 
 /**
- * Mirror of `@adminium/engine` `generate/crud.ts#enumTones` (§7.1 rule-7 tone
- * map), narrowed to the `Tone` union. The engine map never emits `accent`.
+ * Mirror of `@adminium/widgets/generate` `generate/crud-body.ts#enumTones`
+ * (§7.1 rule-7 tone map), narrowed to the `Tone` union. The generator map
+ * never emits `accent`.
  */
 const TONE_POS = /^(active|paid|done|completed?|closed|approved|healthy|shipped|delivered)$/i;
 const TONE_WARN = /^(pending|trial|review|in_review|draft|queued|on_hold|paused|open|new)$/i;

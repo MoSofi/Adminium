@@ -190,6 +190,25 @@ describe('dashboard layout persistence', () => {
     expect(layoutOf(await get(t.editor))).toEqual(layout('by-admin')); // follows default
   });
 
+  it('flags a stale personal override once the shared default moves on (layoutStale)', async () => {
+    await putPersonal(t.viewer, layout('by-viewer'));
+    // Fresh: authored against the current shared revision.
+    expect((await get(t.viewer)).json().layoutStale).toBeUndefined();
+
+    // The shared default moves on — a PATCH bumps `revision`, exactly like a
+    // regeneration update does — so the override now trails the document.
+    await patchShared(t.superAdmin, layout('by-admin'));
+
+    const stale = (await get(t.viewer)).json();
+    expect(stale.layoutStale).toBe(true);
+    expect(stale.data.config.layout).toEqual(layout('by-viewer')); // still served, stamp stripped
+
+    // No override → no flag; re-saving re-stamps and clears it.
+    expect((await get(t.editor)).json().layoutStale).toBeUndefined();
+    await putPersonal(t.viewer, layout('by-viewer-2'));
+    expect((await get(t.viewer)).json().layoutStale).toBeUndefined();
+  });
+
   it('rejects an out-of-range layout item with 422 (both write paths)', async () => {
     const bad = { version: 1, items: [{ ...item('bad'), x: 12 }] }; // x max is 11
     const shared = await patchShared(t.superAdmin, bad);

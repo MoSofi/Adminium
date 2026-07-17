@@ -112,6 +112,90 @@ for (const dialect of TEST_DIALECTS) {
       expect(row?.origin).toBe('user');
     });
 
+    // Stand-in for the engine's hashEnvelope: same contract (canonical value,
+    // embedded config.generatedHash excluded), no crypto — the guard only ever
+    // compares this function's own outputs.
+    const testHash = (envelope: Record<string, unknown>): string => {
+      const clone = JSON.parse(JSON.stringify(envelope)) as { config?: Record<string, unknown> };
+      if (clone.config !== undefined) delete clone.config['generatedHash'];
+      return `th:${JSON.stringify(clone)}`;
+    };
+    const stamped = (slug: string, marker: string): GeneratedPageInput => {
+      const envelope: Record<string, unknown> = {
+        v: 1,
+        kind: 'page',
+        id: `page_${slug}`,
+        config: { marker },
+      };
+      (envelope['config'] as Record<string, unknown>)['generatedHash'] = testHash(envelope);
+      return crudPage(slug, { config: envelope });
+    };
+
+    it('upsertGenerated armed with hashEnvelope skips human-edited rows (user delta wins)', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(
+        connectionId,
+        [stamped('customers', 'v1'), stamped('orders', 'v1')],
+        { at: 1_000, hashEnvelope: testHash },
+      );
+
+      // A human edit through the production path: setLayout changes the stored
+      // document but deliberately leaves the embedded hash stale.
+      await repo.setLayout('page_customers', { version: 1, items: [] }, 2_000);
+
+      const result = await repo.upsertGenerated(
+        connectionId,
+        [stamped('customers', 'v2'), stamped('orders', 'v2')],
+        { at: 3_000, hashEnvelope: testHash },
+      );
+      expect(result).toMatchObject({ updated: 1, skippedEdited: ['page_customers'], pruned: 0 });
+
+      // The edited document survived byte-for-byte; the untouched sibling moved.
+      const kept = await repo.findById('page_customers');
+      const keptConfig = (kept?.config as { config: Record<string, unknown> }).config;
+      expect(keptConfig['marker']).toBe('v1');
+      expect(keptConfig['layout']).toEqual({ version: 1, items: [] });
+      const moved = await repo.findById('page_orders');
+      expect((moved?.config as { config: Record<string, unknown> }).config['marker']).toBe('v2');
+
+      // Unarmed (no hashEnvelope) keeps the pre-M5 overwrite semantics.
+      const unarmed = await repo.upsertGenerated(
+        connectionId,
+        [stamped('customers', 'v3'), stamped('orders', 'v2')],
+        { at: 4_000 },
+      );
+      expect(unarmed).toMatchObject({ updated: 1, unchanged: 1, skippedEdited: [] });
+    });
+
+    it('setLayout bumps revision — a human edit is a tracked change', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(connectionId, [crudPage('customers')], { at: 1_000 });
+      const updated = await repo.setLayout('page_customers', { version: 1, items: [] }, 2_000);
+      expect(updated?.revision).toBe(2);
+      expect(updated?.updatedAt).toBe(2_000);
+    });
+
+    it('replaceConfig swaps the document, bumps revision, back-fills only a missing icon', async () => {
+      const repo = pagesRepo(t.meta);
+      const seeded = await repo.create({
+        connectionId,
+        slug: 'orders-queue',
+        type: 'page-queue-inbox',
+        title: 'Orders Queue',
+        config: { source: { connectionId, table: 'public.orders' }, llmRunId: 'run_1' },
+        origin: 'llm',
+      });
+
+      const envelope = { v: 1, kind: 'page', id: seeded.id, config: { generatedHash: 'g' } };
+      const materialized = await repo.replaceConfig(seeded.id, envelope, { icon: 'inbox', at: 9_000 });
+      expect(materialized).toMatchObject({ config: envelope, revision: 2, icon: 'inbox', updatedAt: 9_000 });
+
+      // An icon the row already has is never clobbered.
+      const again = await repo.replaceConfig(seeded.id, envelope, { icon: 'table', at: 9_500 });
+      expect(again?.icon).toBe('inbox');
+      expect(again?.revision).toBe(3);
+    });
+
     it('rejects duplicate ids and ids over char(36)', async () => {
       const repo = pagesRepo(t.meta);
       await expect(

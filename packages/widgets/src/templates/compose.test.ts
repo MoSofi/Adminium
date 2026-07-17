@@ -53,7 +53,7 @@ describe('composeTemplate — happy path', () => {
     expect(warnings.filter((w) => w.code === 'required-slot-unfillable')).toEqual([]);
     expect(page?.type).toBe('dashboard');
     expect(page?.template).toBe('page-dashboard');
-    expect(page?.templateVersion).toBe(1);
+    expect(page?.templateVersion).toBe(2);
     expect(page?.layout.version).toBe(1);
 
     expect(page?.layout.items.map((i) => [i.i, i.widget, i.x, i.y, i.w, i.h])).toEqual([
@@ -61,12 +61,12 @@ describe('composeTemplate — happy path', () => {
       ['kpi-row-2', 'kpi-stat-card', 3, 0, 3, 3],
       ['kpi-row-3', 'kpi-stat-card', 6, 0, 3, 3],
       ['kpi-row-4', 'kpi-stat-card', 9, 0, 3, 3],
-      ['hero-chart', 'chart-line-area', 0, 3, 8, 6],
-      ['breakdown', 'chart-donut', 8, 3, 4, 6],
-      ['grid-secondary-1', 'chart-bar', 0, 9, 6, 6],
-      ['grid-secondary-2', 'chart-heatmap-calendar', 6, 9, 6, 6],
-      ['recent', 'mini-table', 0, 15, 6, 6],
-      ['activity', 'activity-feed', 6, 15, 6, 6],
+      ['hero-chart', 'chart-line-area', 0, 3, 8, 8],
+      ['breakdown', 'chart-donut', 8, 3, 4, 8],
+      ['grid-secondary-1', 'chart-bar', 0, 11, 6, 8],
+      ['grid-secondary-2', 'chart-heatmap-calendar', 6, 11, 6, 8],
+      ['recent', 'mini-table', 0, 19, 6, 6],
+      ['activity', 'activity-feed', 6, 19, 6, 6],
     ]);
   });
 

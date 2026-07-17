@@ -68,6 +68,7 @@ export function generateRoutes(deps: GenerateRoutesDeps): FastifyPluginAsyncZod 
               updated: run.persistence.updated,
               unchanged: run.persistence.unchanged,
               pruned: run.persistence.pruned,
+              skippedEdited: run.persistence.skippedEdited.length,
             },
           },
         });
@@ -87,6 +88,7 @@ export function generateRoutes(deps: GenerateRoutesDeps): FastifyPluginAsyncZod 
           introspected: run.introspected,
           intent: run.intent,
           result: run.persistence,
+          llmPagesMaterialized: run.llmPagesMaterialized,
           warnings: run.warnings,
           durationMs: run.durationMs,
         };

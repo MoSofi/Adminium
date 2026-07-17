@@ -94,6 +94,9 @@ describe('@adminium/widgets/generate is a pure leaf', () => {
     expect(modules).toContain('templates/compose.ts');
     expect(modules).toContain('templates/manifests.ts');
     expect(modules).toContain('templates/template-schema.ts');
+    expect(modules).toContain('generate/crud-body.ts');
+    expect(modules).toContain('generate/dashboard-domain.ts');
+    expect(modules).toContain('page-config/grid-column-spec.ts');
   });
 
   it('imports no package other than zod', () => {
