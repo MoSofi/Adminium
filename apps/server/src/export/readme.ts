@@ -133,7 +133,7 @@ export function renderReadme(manifest: BundleManifest): string {
     '',
     '---',
     '',
-    'Docs: https://docs.adminium.ai',
+    'Docs: https://docs.adminium.dev',
     '',
   ].join('\n');
 }

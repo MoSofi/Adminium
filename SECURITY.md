@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please report suspected vulnerabilities **privately** to **security@adminium.ai**. Do not open a public issue, discussion, or PR for anything security-sensitive.
+Please report suspected vulnerabilities **privately** to **security@adminium.dev**. Do not open a public issue, discussion, or PR for anything security-sensitive.
 
 Include what you can of:
 
@@ -32,6 +32,6 @@ After 1.0 this table will be replaced with a concrete maintenance window per rel
 
 **Self-host / Docker / Desktop (this repository):** vulnerabilities in the Adminium server, dashboard, Electron app, published `@adminium/*` packages, and the official Docker image are in scope. Note that Adminium is an admin tool: instance administrators are highly privileged by design, so reports must demonstrate crossing a real trust boundary (e.g. unauthenticated access, RBAC bypass, SQL injection through the query builder, secrets exposure at rest or in logs) — "an admin can do admin things" is not a vulnerability. Issues caused solely by an unsupported deployment configuration (e.g. deliberately exposing the server without TLS) are out of scope.
 
-**Cloud (adminium.app / adminium.ai):** the hosted control plane, provisioning, and billing services live in a private repository, but reports for them are welcome at the same address and follow the same process. Never test against customer instances you do not own; use your own workspace. Denial-of-service, volumetric attacks, and social engineering of staff are out of scope.
+**Cloud (adminium.app / adminium.dev):** the hosted control plane, provisioning, and billing services live in a private repository, but reports for them are welcome at the same address and follow the same process. Never test against customer instances you do not own; use your own workspace. Denial-of-service, volumetric attacks, and social engineering of staff are out of scope.
 
 There is currently no paid bounty program.

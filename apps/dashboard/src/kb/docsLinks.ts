@@ -6,7 +6,7 @@
  * file changes. Track DOCS owns what lives at these paths; this module owns
  * only the fact that they are addressed from one base.
  */
-export const DOCS_BASE_URL = 'https://docs.adminium.ai';
+export const DOCS_BASE_URL = 'https://docs.adminium.dev';
 
 export function docsUrl(path: string): string {
   return `${DOCS_BASE_URL}/${path.replace(/^\/+/, '')}`;

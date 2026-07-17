@@ -1,7 +1,7 @@
 /**
  * `/help` (M10-T06): local search over the checked-in index, category cards
  * that double as filter toggles (the `ia-mapping.md` §4 keeper), the filtered
- * empty state, and the deep links out to docs.adminium.ai.
+ * empty state, and the deep links out to docs.adminium.dev.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -146,7 +146,7 @@ describe('KnowledgeBasePage', () => {
     // catching it. `docs-contract.test.ts` (apps/server) checks every article's
     // path against the docs content tree; this one just proves the link renders.
     const link = screen.getByRole('link', { name: /Self-host with Docker/ });
-    expect(link.getAttribute('href')).toBe('https://docs.adminium.ai/self-hosting/docker-compose');
+    expect(link.getAttribute('href')).toBe('https://docs.adminium.dev/self-hosting/docker-compose');
     expect(link.getAttribute('rel')).toContain('noopener');
   });
 
@@ -186,7 +186,7 @@ describe('KnowledgeBasePage', () => {
     const escape = within(screen.getByTestId('kb-empty')).getByRole('link', {
       name: /Open the docs/,
     });
-    expect(escape.getAttribute('href')).toBe('https://docs.adminium.ai');
+    expect(escape.getAttribute('href')).toBe('https://docs.adminium.dev');
   });
 
   it('uses the category cards as filter toggles — click filters, click again clears', async () => {

@@ -24,7 +24,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { buildTelemetryPayload, type TelemetryEngine, type TelemetryPayload } from './payload.js';
 
 /** Where consenting instances report. Overridable for tests/self-host mirrors. */
-export const TELEMETRY_ENDPOINT = 'https://telemetry.adminium.ai/v1/ping';
+export const TELEMETRY_ENDPOINT = 'https://telemetry.adminium.dev/v1/ping';
 
 export type TelemetryReport =
   | { sent: false; reason: 'disabled' | 'no-instance-id' | 'failed' }

@@ -60,12 +60,12 @@ The authoritative schema is published as JSON Schema, so you can validate before
 importing and get editor completion while writing:
 
 ```
-https://adminium.ai/schemas/ir-v1.json
+https://adminium.dev/schemas/ir-v1.json
 ```
 
 ```json title="my-schema.json"
 {
-  "$schema": "https://adminium.ai/schemas/ir-v1.json",
+  "$schema": "https://adminium.dev/schemas/ir-v1.json",
   "irVersion": 1,
   "tables": []
 }

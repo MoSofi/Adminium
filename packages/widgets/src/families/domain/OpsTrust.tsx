@@ -56,7 +56,7 @@ export type { IpAllowlistCardConfig, PolicyListConfig, TestimonialCardConfig, Tr
  * the toggle renders read-only rather than lying about a state it cannot persist.
  *
  * `testimonial-card` / `trust-badges` are the marketing pair (annex: "Kept for
- * adminium.ai landing/marketplace pages"): presentational, no intents, no
+ * adminium.dev landing/marketplace pages"): presentational, no intents, no
  * writes.
  */
 

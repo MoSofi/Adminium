@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/adminium/adminium/discussions
     about: Ask questions, share ideas, and discuss Adminium with the community.
   - name: Documentation
-    url: https://docs.adminium.ai
+    url: https://docs.adminium.dev
     about: Setup guides, configuration reference, and how-tos.
   - name: Security vulnerability
     url: https://github.com/adminium/adminium/blob/main/SECURITY.md

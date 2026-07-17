@@ -1087,7 +1087,7 @@ export default {
   },
   "kb": {
     "title": "Wissensdatenbank",
-    "subtitle": "{count, plural, one {# Anleitung} other {# Anleitungen}} · vollständige Doku unter docs.adminium.ai",
+    "subtitle": "{count, plural, one {# Anleitung} other {# Anleitungen}} · vollständige Doku unter docs.adminium.dev",
     "openDocs": "Doku öffnen",
     "browse": "Nach Thema stöbern",
     "hero": {
@@ -1113,7 +1113,7 @@ export default {
     },
     "empty": {
       "title": "Keine Anleitung passt zu Ihrer Suche",
-      "body": "Versuchen Sie ein anderes Wort oder durchsuchen Sie die vollständige Dokumentation auf docs.adminium.ai.",
+      "body": "Versuchen Sie ein anderes Wort oder durchsuchen Sie die vollständige Dokumentation auf docs.adminium.dev.",
       "openDocs": "Doku öffnen"
     },
     "article": {

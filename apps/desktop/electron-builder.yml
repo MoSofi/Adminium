@@ -94,7 +94,7 @@ win:
 linux:
   target: [AppImage, deb, rpm]
   category: Development
-  maintainer: Adminium <hello@adminium.ai>
+  maintainer: Adminium <hello@adminium.dev>
   icon: resources/icons/icon.png
 
 publish:

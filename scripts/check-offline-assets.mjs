@@ -169,7 +169,7 @@ const ALLOWED_HOSTS = [
     why: 'JSON Schema dialect identifiers ($schema) emitted by Zod. Identifiers, same as above',
   },
   {
-    test: /^docs\.adminium\.ai$/,
+    test: /^docs\.adminium\.dev$/,
     why: 'the docs site (14-docs-site.md). §2.4: docs links open the SYSTEM BROWSER via shell.openExternal — the app never embeds remote content',
   },
   {
@@ -256,7 +256,7 @@ const ASSET_POSITION_PATTERNS = [
  * The port stays because `localhost:11434` reads as itself in a report, and the
  * allowlist patterns that care about ports say so. Trailing punctuation is
  * stripped: a URL at the end of an English sentence in a bundled string is common
- * and `docs.adminium.ai.` is not a different host.
+ * and `docs.adminium.dev.` is not a different host.
  */
 function hostOf(url) {
   // `https:\/\/host` → `https://host`. A URL inside a JSON string in a bundle is

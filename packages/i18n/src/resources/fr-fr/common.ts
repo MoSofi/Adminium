@@ -1087,7 +1087,7 @@ export default {
   },
   "kb": {
     "title": "Base de connaissances",
-    "subtitle": "{count, plural, one {# guide} other {# guides}} · documentation complète sur docs.adminium.ai",
+    "subtitle": "{count, plural, one {# guide} other {# guides}} · documentation complète sur docs.adminium.dev",
     "openDocs": "Ouvrir la documentation",
     "browse": "Parcourir par thème",
     "hero": {
@@ -1113,7 +1113,7 @@ export default {
     },
     "empty": {
       "title": "Aucun guide ne correspond à votre recherche",
-      "body": "Essayez un autre mot, ou cherchez dans la documentation complète sur docs.adminium.ai.",
+      "body": "Essayez un autre mot, ou cherchez dans la documentation complète sur docs.adminium.dev.",
       "openDocs": "Ouvrir la documentation"
     },
     "article": {

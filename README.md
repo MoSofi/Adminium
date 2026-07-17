@@ -15,7 +15,7 @@ introspects the structure and relations, and generates a complete, professional,
 | `apps/server` | `@adminium/server` | Fastify API + serves the dashboard |
 | `apps/dashboard` | `@adminium/dashboard` | React SPA: Studio + Generated App |
 | `apps/desktop` | `@adminium/desktop` | Electron offline app |
-| `apps/docs` | `@adminium/docs` | docs.adminium.ai |
+| `apps/docs` | `@adminium/docs` | docs.adminium.dev |
 | `packages/tokens` | `@adminium/tokens` | Design tokens, palettes, fonts, Tailwind preset |
 | `packages/ui` | `@adminium/ui` | Component library (Tiers 1–3) |
 | `packages/charts` | `@adminium/charts` | Dependency-light SVG charts |

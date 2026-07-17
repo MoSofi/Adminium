@@ -2,7 +2,7 @@
  * 14-docs-site.md §4 — restyle Starlight onto @adminium/tokens.
  *
  * Starlight ships its own CSS-variable theme. This file remaps those variables
- * onto the product's tokens so a reader moving between docs.adminium.ai and
+ * onto the product's tokens so a reader moving between docs.adminium.dev and
  * their own dashboard sees the same accent, the same dark palette, the same
  * Manrope/JetBrains-Mono type — not generic Starlight blue.
  *

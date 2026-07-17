@@ -12,7 +12,7 @@
  *
  * §5.5 known defects / sample-domain fictions NOT copied:
  *   - **The "New article" authoring modal.** The comp is a help-centre CMS:
- *     write, categorize, publish. Adminium's docs live at docs.adminium.ai and
+ *     write, categorize, publish. Adminium's docs live at docs.adminium.dev and
  *     are versioned with the code (14-docs-site.md); an in-app editor writing to
  *     a second, unversioned content store is a product we did not build. The
  *     header action links to the docs site instead.
@@ -150,7 +150,7 @@ export function KnowledgeBasePage(): ReactNode {
             {t('kb.title', 'Knowledge Base')}
           </h1>
           <p className="text-body-sm text-fg-muted">
-            {t('kb.subtitle', '{count, plural, one {# guide} other {# guides}} · full docs at docs.adminium.ai', {
+            {t('kb.subtitle', '{count, plural, one {# guide} other {# guides}} · full docs at docs.adminium.dev', {
               count: KB_ARTICLES.length,
             })}
           </p>
@@ -236,7 +236,7 @@ export function KnowledgeBasePage(): ReactNode {
             title={t('kb.empty.title', 'No guides match your search')}
             body={t(
               'kb.empty.body',
-              'Try a different word, or search the full documentation at docs.adminium.ai.',
+              'Try a different word, or search the full documentation at docs.adminium.dev.',
             )}
             actions={
               // The docs HOME, not a search deep-link: Starlight's search is a

@@ -175,7 +175,7 @@ describe('check-offline-assets — what it must NOT flag', () => {
         'app.js': [
           'const ns = "http://www.w3.org/2000/svg";',
           'const schema = "https://json-schema.org/draft/2020-12/schema";',
-          'const docs = "https://docs.adminium.ai";',
+          'const docs = "https://docs.adminium.dev";',
           'const src = "https://github.com/adminium/adminium";',
           'const err = "https://react.dev/errors/";',
           'const ollama = "http://localhost:11434";',

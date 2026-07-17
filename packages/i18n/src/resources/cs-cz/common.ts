@@ -1087,7 +1087,7 @@ export default {
   },
   "kb": {
     "title": "Znalostní báze",
-    "subtitle": "{count, plural, one {# návod} few {# návody} many {# návodu} other {# návodů}} · kompletní dokumentace na docs.adminium.ai",
+    "subtitle": "{count, plural, one {# návod} few {# návody} many {# návodu} other {# návodů}} · kompletní dokumentace na docs.adminium.dev",
     "openDocs": "Otevřít dokumentaci",
     "browse": "Procházet podle témat",
     "hero": {
@@ -1113,7 +1113,7 @@ export default {
     },
     "empty": {
       "title": "Vašemu hledání neodpovídá žádný návod",
-      "body": "Zkuste jiné slovo nebo prohledejte úplnou dokumentaci na docs.adminium.ai.",
+      "body": "Zkuste jiné slovo nebo prohledejte úplnou dokumentaci na docs.adminium.dev.",
       "openDocs": "Otevřít dokumentaci"
     },
     "article": {

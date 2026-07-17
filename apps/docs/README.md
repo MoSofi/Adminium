@@ -1,6 +1,6 @@
 # @adminium/docs
 
-[docs.adminium.ai](https://docs.adminium.ai) — Astro 5 + Starlight.
+[docs.adminium.dev](https://docs.adminium.dev) — Astro 5 + Starlight.
 
 Plan: `workplan/14-docs-site.md`. Milestone: M10 (M10-T05).
 

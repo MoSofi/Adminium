@@ -1087,7 +1087,7 @@ export default {
   },
   "kb": {
     "title": "Vidensbase",
-    "subtitle": "{count, plural, one {# guide} other {# guides}} · fuld dokumentation på docs.adminium.ai",
+    "subtitle": "{count, plural, one {# guide} other {# guides}} · fuld dokumentation på docs.adminium.dev",
     "openDocs": "Åbn dokumentationen",
     "browse": "Gennemse efter emne",
     "hero": {
@@ -1113,7 +1113,7 @@ export default {
     },
     "empty": {
       "title": "Ingen guides matcher din søgning",
-      "body": "Prøv et andet ord, eller søg i den fulde dokumentation på docs.adminium.ai.",
+      "body": "Prøv et andet ord, eller søg i den fulde dokumentation på docs.adminium.dev.",
       "openDocs": "Åbn dokumentationen"
     },
     "article": {

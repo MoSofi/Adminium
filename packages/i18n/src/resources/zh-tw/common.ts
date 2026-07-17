@@ -1087,7 +1087,7 @@ export default {
   },
   "kb": {
     "title": "知識庫",
-    "subtitle": "{count, plural, other {# 篇指南}} · 完整文件請見 docs.adminium.ai",
+    "subtitle": "{count, plural, other {# 篇指南}} · 完整文件請見 docs.adminium.dev",
     "openDocs": "開啟文件",
     "browse": "依主題瀏覽",
     "hero": {
@@ -1113,7 +1113,7 @@ export default {
     },
     "empty": {
       "title": "沒有符合的指南",
-      "body": "換個關鍵字，或前往 docs.adminium.ai 搜尋完整文件。",
+      "body": "換個關鍵字，或前往 docs.adminium.dev 搜尋完整文件。",
       "openDocs": "開啟文件"
     },
     "article": {

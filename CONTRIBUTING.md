@@ -108,7 +108,7 @@ Never copy comp markup verbatim (comps use inline styles, which are banned). Fol
 
 ## Code of conduct
 
-We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Be kind; reports go to conduct@adminium.ai.
+We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Be kind; reports go to conduct@adminium.dev.
 
 ## Security
 

@@ -215,7 +215,7 @@ describe('the Help menu (§14)', () => {
   // constant to the address the docs are actually served from. `out/main` is
   // outside check-offline-assets.mjs's roots (§7), so this literal is the only
   // gate on that value.
-  const DOCS_ORIGIN = 'https://docs.adminium.ai';
+  const DOCS_ORIGIN = 'https://docs.adminium.dev';
 
   it('opens the docs in the system browser over https', () => {
     // §14: "Adminium Docs ↗" — and §2.4: external links go to the system

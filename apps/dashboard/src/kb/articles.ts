@@ -3,7 +3,7 @@
  *
  * WHAT THIS IS — AND DELIBERATELY IS NOT. This is an INDEX, not a copy of the
  * documentation. Each entry is a title, a one-line excerpt, a category and a
- * deep link to docs.adminium.ai (Track DOCS, M10-T05), which is the single
+ * deep link to docs.adminium.dev (Track DOCS, M10-T05), which is the single
  * source of truth for the prose. Duplicating the docs here would create two
  * copies of every answer with no mechanism to keep them in step — and the
  * in-app copy would be the stale one, because it ships on the app's release
@@ -40,7 +40,7 @@ export const kbArticleSchema = z.object({
   titleFallback: z.string().min(1),
   excerptKey: z.string().min(1),
   excerptFallback: z.string().min(1),
-  /** Path on docs.adminium.ai — resolved through `docsLinks.ts`. */
+  /** Path on docs.adminium.dev — resolved through `docsLinks.ts`. */
   docsPath: z.string().min(1),
 });
 

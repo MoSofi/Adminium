@@ -86,6 +86,6 @@ export function renderRootHelp(commands: readonly Command[], version: string): s
     `${INDENT}ADMINIUM_DATA_DIR  Writable data directory (default ./data).`,
     `${INDENT}PORT, HOST         Listen address (default 4600, 0.0.0.0).`,
     '',
-    'Flags override the environment. Docs: https://docs.adminium.ai',
+    'Flags override the environment. Docs: https://docs.adminium.dev',
   ].join('\n');
 }

@@ -145,7 +145,7 @@ export interface MenuHandlers {
  * both together; `menu.test.ts` pins the value so the drift is a red test rather
  * than a Help menu that lands on a parked domain.
  *
- * No `/docs` suffix: 14-docs-site.md §3 puts the site AT `docs.adminium.ai`, so
+ * No `/docs` suffix: 14-docs-site.md §3 puts the site AT `docs.adminium.dev`, so
  * the origin is the docs home (the same URL `DOCS_SEARCH_URL` resolves to).
  *
  * NOT covered by `check-offline-assets.mjs`: that scanner's roots are the
@@ -154,7 +154,7 @@ export interface MenuHandlers {
  * was, which is how `adminium.io` — a host the scanner does not allow and would
  * have failed on sight — survived in the shipped Help menu.
  */
-export const DOCS_URL = 'https://docs.adminium.ai';
+export const DOCS_URL = 'https://docs.adminium.dev';
 
 export interface BuildAppMenuOptions {
   /** `process.platform`. Drives the mac app menu and the mac-only Edit items. */

@@ -1087,7 +1087,7 @@ export default {
   },
   "kb": {
     "title": "知识库",
-    "subtitle": "{count, plural, other {# 篇指南}} · 完整文档见 docs.adminium.ai",
+    "subtitle": "{count, plural, other {# 篇指南}} · 完整文档见 docs.adminium.dev",
     "openDocs": "打开文档",
     "browse": "按主题浏览",
     "hero": {
@@ -1113,7 +1113,7 @@ export default {
     },
     "empty": {
       "title": "没有匹配的指南",
-      "body": "换个关键词，或前往 docs.adminium.ai 搜索完整文档。",
+      "body": "换个关键词，或前往 docs.adminium.dev 搜索完整文档。",
       "openDocs": "打开文档"
     },
     "article": {
