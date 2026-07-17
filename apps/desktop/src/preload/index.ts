@@ -41,8 +41,11 @@ import type {
   CapabilityDescriptor,
   ChooseDirectoryOptions,
   DesktopBridgeErrorLike,
+  DesktopBundledTextKind,
   DesktopConfigPatch,
+  DesktopDiagnostics,
   DesktopErrorCode,
+  DesktopMenuLabels,
   DesktopRuntimeInfo,
   DesktopUpdateCheckResult,
   DesktopUpdateEvent,
@@ -247,6 +250,15 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
       invoke: (capabilityId: string, method: string, payload: unknown): Promise<unknown> =>
         unwrap(ipc.invoke(IPC_CHANNELS.capabilitiesInvoke, { capabilityId, method, payload })),
     },
+
+    setMenuLabels: (labels: DesktopMenuLabels): Promise<void> =>
+      unwrap(ipc.invoke(IPC_CHANNELS.setMenuLabels, labels)),
+
+    getDiagnostics: (): Promise<DesktopDiagnostics> =>
+      unwrap(ipc.invoke(IPC_CHANNELS.getDiagnostics)),
+
+    readBundledText: (kind: DesktopBundledTextKind): Promise<string | null> =>
+      unwrap(ipc.invoke(IPC_CHANNELS.readBundledText, kind)),
 
     relaunch: (): Promise<void> => unwrap(ipc.invoke(IPC_CHANNELS.relaunch)),
 

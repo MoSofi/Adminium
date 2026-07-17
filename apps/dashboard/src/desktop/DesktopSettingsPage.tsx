@@ -26,6 +26,7 @@ import { Card, CardBody, CardHeader, IconTile, Label, Switch } from '@adminium/u
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { StatePage } from '../states/StatePage.js';
+import { CapabilitiesCard } from './capabilities/CapabilitiesCard.js';
 import { LanShareCard } from './LanShareCard.js';
 import { isDesktopRuntime, readSingleUser, setRequireLogin } from './singleUser.js';
 
@@ -125,6 +126,7 @@ export function DesktopSettingsPage(): ReactNode {
       </div>
       <RequireLoginCard />
       <LanShareCard />
+      <CapabilitiesCard />
     </div>
   );
 }

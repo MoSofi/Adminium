@@ -14,7 +14,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { BackupCoordinator } from './backup.js';
-import { createDefaultConfig, type DesktopConfig } from './config.js';
+import { createDefaultConfig, type DesktopConfig, type UpdateMode } from './config.js';
 import {
   appUrl,
   applyConfigPatch,
@@ -28,7 +28,7 @@ import {
   type DesktopConfigPort,
 } from './index.js';
 import type { ProbeResult } from './lan.js';
-import type { MenuHandlers } from './menu.js';
+import type { MenuHandlers, MenuTranslate } from './menu.js';
 import type {
   CreateServerManagerOptions,
   ServerExit,
@@ -36,6 +36,7 @@ import type {
   ServerReadyInfo,
   ServerState,
 } from './server-manager.js';
+import type { UpdateManager } from './updates.js';
 import type { CrashAction, CrashScreenInfo, DesktopWindows } from './window.js';
 
 // ─── Fakes ───────────────────────────────────────────────────────────────────
@@ -69,7 +70,15 @@ interface Harness {
   backupWiring: () => BackupWiring | null;
   /** §14's File/Help handlers, or null if the menu was never installed. */
   menuHandlers: () => MenuHandlers | null;
+  /** §14: the translator the last `installMenu` was given (`null` if never). */
+  menuTranslate: () => MenuTranslate | null;
+  /** §14: how many times the menu was (re)installed — one per locale rebuild. */
+  installMenuCount: () => number;
   autoBackupRunning: () => boolean;
+  /** §11: every `createUpdateManager` input, in order (11-T16). */
+  updateManagerInputs: () => { mode: UpdateMode }[];
+  /** §11: how many times the boot `dispose()`d the updater (quit teardown). */
+  updateDisposed: () => number;
 }
 
 const READY: ServerReadyInfo = {
@@ -102,6 +111,14 @@ function harness(
     managerState?: ServerState;
     /** §2.2 step 1's launch argv. */
     argv?: readonly string[];
+    /**
+     * §11: what `deps.createUpdateManager` returns (11-T16). `null` models the
+     * `disabled`/air-gapped port contract; `undefined` (the default) gives the
+     * recording fake below.
+     */
+    updates?: UpdateManager | null;
+    /** §11: the env kill-switch fact carried into the runtime snapshot. */
+    updatesDisabledByEnv?: boolean;
   } = {},
 ): Harness {
   const calls: string[] = [];
@@ -117,6 +134,9 @@ function harness(
 
   let backupWiring: BackupWiring | null = null;
   let menuHandlers: MenuHandlers | null = null;
+  /** §14: the translator the last `installMenu` used, and how many rebuilds ran. */
+  let menuTranslate: MenuTranslate | null = null;
+  let installMenuCount = 0;
 
   let secondInstance: (argv: readonly string[]) => void = () => undefined;
   let activate: () => void = () => undefined;
@@ -228,6 +248,24 @@ function harness(
   // — four wiring facts, each of which was previously absent and none of which a
   // test inside `backup.ts` could ever have noticed.
   let autoBackupRunning = false;
+  // §11's updater (11-T16), as a recorder. The wiring facts this pins: the boot
+  // must BUILD one at step 5 (with the config mode), and `dispose()` it on quit —
+  // and the `disabled` port returns `null`, which the boot must tolerate (menu
+  // item left off, nothing to dispose).
+  const updateManagerInputs: { mode: UpdateMode }[] = [];
+  let updateDisposed = 0;
+  const fakeUpdateManager: UpdateManager = {
+    checkForUpdates: () => {
+      calls.push('update.checkForUpdates');
+      return Promise.resolve({ status: 'none' as const });
+    },
+    downloadUpdate: () => Promise.resolve(),
+    quitAndInstall: () => undefined,
+    dispose: () => {
+      calls.push('update.dispose');
+      updateDisposed += 1;
+    },
+  };
   const backupCoordinator: BackupCoordinator = {
     backupNow: () => {
       calls.push('backup.backupNow');
@@ -352,10 +390,18 @@ function harness(
         backupWiring = wiring;
         return backupCoordinator;
       },
-      installMenu: (handlers) => {
+      installMenu: ({ handlers, t }) => {
         calls.push('installMenu');
         menuHandlers = handlers;
+        menuTranslate = t;
+        installMenuCount += 1;
       },
+      createUpdateManager: (input) => {
+        calls.push(`createUpdateManager:${input.mode}`);
+        updateManagerInputs.push(input);
+        return overrides.updates === undefined ? fakeUpdateManager : overrides.updates;
+      },
+      updatesDisabledByEnv: overrides.updatesDisabledByEnv ?? false,
     },
     calls,
     crashes,
@@ -386,7 +432,11 @@ function harness(
     restarts: () => restarts,
     backupWiring: () => backupWiring,
     menuHandlers: () => menuHandlers,
+    menuTranslate: () => menuTranslate,
+    installMenuCount: () => installMenuCount,
     autoBackupRunning: () => autoBackupRunning,
+    updateManagerInputs: () => updateManagerInputs,
+    updateDisposed: () => updateDisposed,
   };
 }
 
@@ -485,11 +535,14 @@ describe('createDesktopApp boot sequence', () => {
       'setCrashActionHandler',
       'config.load',
       'config.resolveSecret',
-      // §9's coordinator and §14's menu, between the config and the fork: both
-      // need the dataDir (step 2) and the manager (step 5), and the menu needs
-      // the coordinator. Before `showBoot`, so the File menu is real from the
-      // first frame rather than appearing once the server answers.
+      // §9's coordinator, §11's updater and §14's menu, between the config and
+      // the fork: all need the dataDir (step 2) and the manager (step 5), the
+      // menu needs the coordinator, and its "Check for updates…" item needs the
+      // updater — so the updater is built before the menu. Before `showBoot`, so
+      // the File menu is real from the first frame rather than appearing once the
+      // server answers.
       'createBackup',
+      'createUpdateManager:notify',
       'installMenu',
       'backup.startAutoBackup',
       'server.start',
@@ -654,7 +707,14 @@ describe('the bridge context handed to registerBridge', () => {
       dataDir: '/data',
       secretStorage: 'safeStorage',
       serverPort: 51234,
+      updatesDisabledByEnv: false,
     });
+  });
+
+  it('carries the env update kill-switch into the runtime snapshot (§11)', async () => {
+    const h = harness({ updatesDisabledByEnv: true });
+    await createDesktopApp(h.deps).start();
+    expect(h.bridge()?.runtime()).toMatchObject({ updatesDisabledByEnv: true });
   });
 
   it('reports no runtime before boot step 2, so getRuntimeInfo answers UNAVAILABLE', () => {
@@ -1166,6 +1226,45 @@ describe('§9 backup/restore wiring (11-T12)', () => {
     });
   });
 
+  it('rebuilds the native menu with localized labels on a locale push (§14)', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    // Step 5 installs the menu once, in the en-US boot default — no labels have
+    // been pushed yet (§2.2 step 6 has no SPA to resolve them).
+    const initialInstalls = h.installMenuCount();
+    expect(initialInstalls).toBeGreaterThan(0);
+    expect(h.menuTranslate()?.('file')).toBe('File');
+    expect(h.menuTranslate()?.('help.about')).toBe('About Adminium');
+
+    // The SPA resolved its i18n and pushed a locale (§4 `setMenuLabels` →
+    // `ipc.ts` → this bridge port). The menu rebuilds with the same handlers and
+    // the pushed labels — this is §14's "menu rebuilds on locale change".
+    h.bridge()?.setMenuLabels({
+      file: 'Datei',
+      'file.newDatabase': 'Neue lokale Datenbank…',
+      'file.openSqlite': 'SQLite-Datei öffnen…',
+      'file.backupNow': 'Jetzt sichern…',
+      'file.restore': 'Aus Sicherung wiederherstellen…',
+      edit: 'Bearbeiten',
+      view: 'Ansicht',
+      window: 'Fenster',
+      help: 'Hilfe',
+      'help.docs': 'Adminium-Dokumentation',
+      'help.shortcuts': 'Tastaturkürzel',
+      'help.logs': 'Protokolle anzeigen',
+      'help.checkForUpdates': 'Nach Updates suchen…',
+      'help.about': 'Über Adminium',
+    });
+
+    expect(h.installMenuCount()).toBe(initialInstalls + 1);
+    expect(h.menuTranslate()?.('file')).toBe('Datei');
+    expect(h.menuTranslate()?.('help.about')).toBe('Über Adminium');
+    // The rebuild keeps the File/Help commands wired — a locale change must not
+    // silently disable "Back up now…".
+    expect(h.menuHandlers()?.backupNow).toBeTypeOf('function');
+  });
+
   it('does not restore when the open dialog is cancelled', async () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
@@ -1219,6 +1318,70 @@ describe('§9 backup/restore wiring (11-T12)', () => {
     expect(h.calls.indexOf('backup.stopAutoBackup')).toBeLessThan(
       h.calls.lastIndexOf('server.stop'),
     );
+  });
+});
+
+// ─── §11's updater wiring (11-T16) ───────────────────────────────────────────
+
+describe('the updater is built at step 5 and wired to the menu + quit (§11)', () => {
+  it('builds the updater with the config mode, once, after the config load', async () => {
+    const h = harness({ config: { updates: { mode: 'notify' } } });
+    await createDesktopApp(h.deps).start();
+
+    // THE WIRING FACT: `createUpdateManager` was actually called — the same class
+    // of proof the backup coordinator and the menu get, a grep for the call site
+    // rather than a passing unit test of a module nobody invokes.
+    expect(h.updateManagerInputs()).toEqual([{ mode: 'notify' }]);
+    // …and after the coordinator/menu exist, so its "Check for updates" handler
+    // has something to reach.
+    expect(h.calls.indexOf('createBackup')).toBeLessThan(
+      h.calls.indexOf('createUpdateManager:notify'),
+    );
+    expect(h.calls.indexOf('createUpdateManager:notify')).toBeLessThan(
+      h.calls.indexOf('installMenu'),
+    );
+  });
+
+  it('passes the mode straight through — disabled stays disabled here (the port resolves the env)', async () => {
+    const h = harness({ config: { updates: { mode: 'disabled' } }, updates: null });
+    await createDesktopApp(h.deps).start();
+    expect(h.updateManagerInputs()).toEqual([{ mode: 'disabled' }]);
+  });
+
+  it('wires the Help menu "Check for updates…" to the updater when one exists', async () => {
+    const h = harness({ config: { updates: { mode: 'manual' } } });
+    await createDesktopApp(h.deps).start();
+
+    expect(h.menuHandlers()?.checkForUpdates).toBeTypeOf('function');
+    h.menuHandlers()?.checkForUpdates?.();
+    expect(h.calls).toContain('update.checkForUpdates');
+  });
+
+  it('leaves the menu item unwired when updates are disabled (the port returned null)', async () => {
+    const h = harness({ config: { updates: { mode: 'disabled' } }, updates: null });
+    await createDesktopApp(h.deps).start();
+    // `menu.ts` renders an unwired handler DISABLED, so "off" is a real state,
+    // not a dead-but-clickable item.
+    expect(h.menuHandlers()?.checkForUpdates).toBeUndefined();
+  });
+
+  it('disposes the updater on quit, so its 30 s / 24 h schedules cannot fire into a closing app', async () => {
+    const h = harness({ config: { updates: { mode: 'notify' } } });
+    await createDesktopApp(h.deps).start();
+    expect(h.updateDisposed()).toBe(0);
+
+    h.fireBeforeQuit();
+    expect(h.updateDisposed()).toBe(1);
+    // Before the server stop, on the same beat as the auto-backup schedule — a
+    // check landing mid-teardown would post to a server we are stopping.
+    expect(h.calls.indexOf('update.dispose')).toBeLessThan(h.calls.lastIndexOf('server.stop'));
+  });
+
+  it('tolerates a disabled updater on quit — nothing to dispose', async () => {
+    const h = harness({ config: { updates: { mode: 'disabled' } }, updates: null });
+    await createDesktopApp(h.deps).start();
+    expect(() => h.fireBeforeQuit()).not.toThrow();
+    expect(h.updateDisposed()).toBe(0);
   });
 });
 

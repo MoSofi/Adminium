@@ -929,6 +929,78 @@
       "available": "Adminium {version} est disponible",
       "availableBody": "Vous utilisez actuellement {version}.",
       "viewRelease": "Voir les notes de version"
+    },
+    "desktop": {
+      "unknown": "Inconnu",
+      "appVersion": "Version de l’application",
+      "serverVersion": "Version du serveur",
+      "migration": "Migration du méta-store",
+      "electron": "Electron",
+      "chromium": "Chromium",
+      "runtimeNode": "Runtime Node",
+      "system": {
+        "title": "Système"
+      },
+      "dataDir": "Répertoire de données",
+      "reveal": "Afficher dans le dossier",
+      "secret": {
+        "title": "Stockage du secret",
+        "safe": "Chiffré par votre système d’exploitation",
+        "plainWarning": "Cet ordinateur ne dispose d’aucun trousseau système, votre secret Adminium est donc stocké en clair sur le disque. Toute personne pouvant lire les fichiers de cette machine peut le lire. Configurez un trousseau de connexion (ou un service de secrets Linux) et redémarrez Adminium pour le protéger."
+      },
+      "updates": {
+        "title": "Mises à jour",
+        "mode": {
+          "notify": "M’avertir des nouvelles versions",
+          "manual": "Uniquement quand je vérifie",
+          "disabled": "Désactivé (hors ligne)"
+        },
+        "disabledBody": "Les mises à jour automatiques sont désactivées (hors ligne). Installez les nouvelles versions manuellement.",
+        "check": "Rechercher des mises à jour",
+        "checking": "Vérification…",
+        "lastChecked": "Dernière vérification {when}",
+        "available": "La version {version} est disponible",
+        "none": "Vous utilisez la dernière version.",
+        "unavailable": "Les mises à jour sont désactivées dans cette installation.",
+        "error": "Impossible de rechercher des mises à jour.",
+        "download": "Télécharger la mise à jour",
+        "downloading": "Téléchargement… {percent} %",
+        "downloaded": "La version {version} est prête à être installée",
+        "restart": "Redémarrer pour installer",
+        "downloadError": "Le téléchargement ne s’est pas terminé. Vous pouvez réessayer.",
+        "toast": {
+          "available": "Une nouvelle version d’Adminium est disponible",
+          "view": "Afficher",
+          "downloaded": "Mise à jour prête à installer",
+          "restart": "Redémarrer maintenant"
+        }
+      },
+      "legal": {
+        "title": "Licences",
+        "agpl": "Adminium Desktop est un logiciel libre sous licence GNU Affero General Public License v3.0.",
+        "viewLicense": "Voir la licence",
+        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseUnavailable": "Le fichier de licence intégré n’est pas disponible dans cette version.",
+        "viewNotices": "Licences tierces",
+        "noticesTitle": "Mentions des tiers",
+        "noticesUnavailable": "Les mentions des tiers sont générées lors de l’empaquetage de l’application et ne sont pas disponibles dans cette version.",
+        "source": "Code source",
+        "close": "Fermer"
+      },
+      "telemetry": {
+        "title": "Données d’utilisation anonymes",
+        "label": "Partager des données d’utilisation anonymes",
+        "description": "Nous aide à décider quels moteurs de base de données prioriser. Désactivé sauf si vous l’activez ; aucun schéma, donnée ou information personnelle n’est jamais envoyé.",
+        "saveFailed": "Impossible d’enregistrer ce paramètre. Réessayez."
+      },
+      "diagnostics": {
+        "title": "Diagnostics",
+        "description": "Détails utiles pour signaler un problème. Aucun schéma ni donnée n’est inclus.",
+        "copy": "Copier les infos de diagnostic",
+        "copied": "Copié",
+        "showLogs": "Afficher les journaux",
+        "dataSize": "Taille des données : {size}"
+      }
     }
   },
   "apiKeys": {
@@ -1104,6 +1176,22 @@
     }
   },
   "desktop": {
+    "menu": {
+      "file": "Fichier",
+      "fileNewDatabase": "Nouvelle base de données locale…",
+      "fileOpenSqlite": "Ouvrir un fichier SQLite…",
+      "fileBackupNow": "Sauvegarder maintenant…",
+      "fileRestore": "Restaurer depuis une sauvegarde…",
+      "edit": "Édition",
+      "view": "Affichage",
+      "window": "Fenêtre",
+      "help": "Aide",
+      "helpDocs": "Documentation Adminium",
+      "helpShortcuts": "Raccourcis clavier",
+      "helpLogs": "Afficher les journaux",
+      "helpCheckForUpdates": "Rechercher des mises à jour…",
+      "helpAbout": "À propos d’Adminium"
+    },
     "settings": {
       "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans votre espace de travail."
     },
@@ -1258,6 +1346,42 @@
         "failedBody": "Un problème est survenu. Réessayez.",
         "retry": "Réessayer"
       }
+    }
+  },
+  "capabilities": {
+    "heading": "Autorisations des applications",
+    "description": "Les applications que vous installez peuvent demander à utiliser le matériel de cet ordinateur. Vous approuvez chacune d’elles et pouvez révoquer l’accès à tout moment.",
+    "grantedTo": "Autorisé pour {app}",
+    "status": {
+      "available": "Disponible",
+      "stub": "Pas encore disponible",
+      "unavailable": "Indisponible"
+    },
+    "allow": {
+      "action": "Autoriser…"
+    },
+    "revoke": {
+      "action": "Révoquer",
+      "saved": "Accès révoqué",
+      "failed": "Impossible de révoquer l’accès. Réessayez."
+    },
+    "grant": {
+      "saved": "Accès autorisé",
+      "failed": "Impossible d’autoriser l’accès. Réessayez."
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "Imprimante de reçus (ESC/POS)",
+        "scope": "Imprimer sur des imprimantes de reçus et ouvrir un tiroir-caisse connecté"
+      }
+    },
+    "consent": {
+      "title": "Autoriser {app} ?",
+      "subtitle": "{app} demande à utiliser le matériel de cet ordinateur.",
+      "willAllow": "Cela permettra à {app} de :",
+      "revokeNote": "Vous pouvez révoquer ceci à tout moment dans Paramètres → Bureau. N’autorisez que les applications de confiance.",
+      "deny": "Pas maintenant",
+      "approve": "Autoriser"
     }
   }
 }

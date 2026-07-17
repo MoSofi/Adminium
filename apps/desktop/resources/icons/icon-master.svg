@@ -1,0 +1,27 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Adminium">
+  <!--
+    The 1024px icon master — 11-electron.md §10, owned by 11-T13. This SVG is the
+    ONLY checked-in icon source (apps/desktop/.gitignore ignores the derived
+    *.icns/*.ico/*.png next to it); scripts/make-icons.mjs rasterizes it to every
+    platform format. Keeping the source a vector is what makes §10's "so accent
+    changes re-derive cleanly" literally true.
+
+    TWO COLORS ONLY, by contract. make-icons.mjs re-derives the icon for the
+    active accent by string-substituting exactly these two hex values with the
+    resolved @adminium/tokens colors before rasterizing — #4f46e5 is the accent
+    of [data-accent="indigo"] (02-design-system.md, the default), and #ffffff is
+    the accent-fg. Introduce a third colour and the substitution can no longer be
+    scoped to a plain find-replace; don't. (Note: no CSS custom-property names in
+    this comment — an XML comment may not contain a double hyphen, and a strict
+    rasterizer like librsvg rejects the whole file if it does.)
+
+    The mark: an accent app-tile carrying a light panel of stacked rows — a table
+    / admin list, the thing Adminium generates. It echoes the boot splash mark
+    (src/renderer/boot.html: a rounded tile with an inner square) at icon scale.
+  -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#4f46e5"/>
+  <rect x="256" y="256" width="512" height="512" rx="96" fill="#ffffff"/>
+  <rect x="320" y="344" width="384" height="64" rx="32" fill="#4f46e5"/>
+  <rect x="320" y="456" width="384" height="64" rx="32" fill="#4f46e5"/>
+  <rect x="320" y="568" width="240" height="64" rx="32" fill="#4f46e5"/>
+</svg>

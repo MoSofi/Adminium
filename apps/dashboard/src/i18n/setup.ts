@@ -21,6 +21,7 @@ import {
 import { STORAGE_KEYS } from '@adminium/tokens';
 import { subscribeTheme } from '@adminium/ui';
 
+import { pushDesktopMenuLabels } from '../desktop/menuLabels.js';
 import { setI18nInstance } from './t.js';
 
 /** The locale the pre-hydration script painted with (localStorage cache). */
@@ -79,11 +80,22 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   });
 
   setI18nInstance(i18n);
+  // §14 (Electron): the native menu is localized by the SPA — resolve the labels
+  // now that i18n is ready and push them to the shell. No-op off the desktop
+  // shell (`getDesktopApi()` is null on self-host/Cloud), so this same one bundle
+  // stays runtime-agnostic.
+  pushDesktopMenuLabels();
 
   // ThemeProvider owns the locale axis; follow its resolution live (§7.4).
   subscribeTheme((resolved) => {
     if (tagForLocale(resolved.locale) === i18n.language) return;
-    void switchLocale(i18n, resolved.locale);
+    // Rebuild the native menu once the new locale's strings have actually loaded
+    // (`switchLocale` awaits the bundle), never before — pushing mid-switch would
+    // carry the OUTGOING locale (§7.4's "no half-translated frame" applies to the
+    // menu bar too).
+    void switchLocale(i18n, resolved.locale).then(() => {
+      pushDesktopMenuLabels();
+    });
   });
 
   return i18n;

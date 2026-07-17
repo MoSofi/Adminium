@@ -929,6 +929,78 @@
       "available": "Adminium {version} 已发布",
       "availableBody": "你当前运行的是 {version}。",
       "viewRelease": "查看发行说明"
+    },
+    "desktop": {
+      "unknown": "未知",
+      "appVersion": "应用版本",
+      "serverVersion": "服务器版本",
+      "migration": "元数据库迁移",
+      "electron": "Electron",
+      "chromium": "Chromium",
+      "runtimeNode": "Node 运行时",
+      "system": {
+        "title": "系统"
+      },
+      "dataDir": "数据目录",
+      "reveal": "在文件夹中显示",
+      "secret": {
+        "title": "密钥存储",
+        "safe": "由操作系统加密",
+        "plainWarning": "此电脑没有可用的系统钥匙串，因此你的 Adminium 密钥以未加密方式存储在磁盘上。任何能读取本机文件的人都能读取它。请设置登录钥匙串（或 Linux 密钥服务）并重启 Adminium 以保护它。"
+      },
+      "updates": {
+        "title": "更新",
+        "mode": {
+          "notify": "有新版本时通知我",
+          "manual": "仅在我检查时",
+          "disabled": "关闭（离线）"
+        },
+        "disabledBody": "自动更新已关闭（离线）。请手动安装新版本。",
+        "check": "检查更新",
+        "checking": "正在检查…",
+        "lastChecked": "上次检查 {when}",
+        "available": "版本 {version} 可用",
+        "none": "你已是最新版本。",
+        "unavailable": "此安装已关闭更新。",
+        "error": "无法检查更新。",
+        "download": "下载更新",
+        "downloading": "正在下载… {percent}%",
+        "downloaded": "版本 {version} 已可安装",
+        "restart": "重启以安装",
+        "downloadError": "下载未完成。你可以重试。",
+        "toast": {
+          "available": "有新版本的 Adminium 可用",
+          "view": "查看",
+          "downloaded": "更新已可安装",
+          "restart": "立即重启"
+        }
+      },
+      "legal": {
+        "title": "许可证",
+        "agpl": "Adminium Desktop 是遵循 GNU Affero General Public License v3.0 的自由软件。",
+        "viewLicense": "查看许可证",
+        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseUnavailable": "此构建中没有随附的许可证文件。",
+        "viewNotices": "第三方许可证",
+        "noticesTitle": "第三方声明",
+        "noticesUnavailable": "第三方声明在应用打包时生成，此构建中不可用。",
+        "source": "源代码",
+        "close": "关闭"
+      },
+      "telemetry": {
+        "title": "匿名使用数据",
+        "label": "共享匿名使用数据",
+        "description": "帮助我们决定优先支持哪些数据库引擎。除非你开启，否则默认关闭；绝不会发送架构、数据或个人信息。",
+        "saveFailed": "无法保存该设置。请重试。"
+      },
+      "diagnostics": {
+        "title": "诊断",
+        "description": "有助于你报告问题的详细信息。不包含任何架构或数据。",
+        "copy": "复制诊断信息",
+        "copied": "已复制",
+        "showLogs": "显示日志",
+        "dataSize": "数据大小：{size}"
+      }
     }
   },
   "apiKeys": {
@@ -1104,6 +1176,22 @@
     }
   },
   "desktop": {
+    "menu": {
+      "file": "文件",
+      "fileNewDatabase": "新建本地数据库…",
+      "fileOpenSqlite": "打开 SQLite 文件…",
+      "fileBackupNow": "立即备份…",
+      "fileRestore": "从备份恢复…",
+      "edit": "编辑",
+      "view": "视图",
+      "window": "窗口",
+      "help": "帮助",
+      "helpDocs": "Adminium 文档",
+      "helpShortcuts": "键盘快捷键",
+      "helpLogs": "显示日志",
+      "helpCheckForUpdates": "检查更新…",
+      "helpAbout": "关于 Adminium"
+    },
     "settings": {
       "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到你的工作区。"
     },
@@ -1258,6 +1346,42 @@
         "failedBody": "出了点问题。请重试。",
         "retry": "重试"
       }
+    }
+  },
+  "capabilities": {
+    "heading": "应用权限",
+    "description": "您安装的应用可以请求使用本计算机的硬件。您需逐一批准，并可随时撤销访问权限。",
+    "grantedTo": "已允许 {app}",
+    "status": {
+      "available": "可用",
+      "stub": "尚不可用",
+      "unavailable": "不可用"
+    },
+    "allow": {
+      "action": "允许…"
+    },
+    "revoke": {
+      "action": "撤销",
+      "saved": "已撤销访问权限",
+      "failed": "无法撤销访问权限，请重试。"
+    },
+    "grant": {
+      "saved": "已允许访问",
+      "failed": "无法允许访问，请重试。"
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "小票打印机 (ESC/POS)",
+        "scope": "在小票打印机上打印并打开连接的钱箱"
+      }
+    },
+    "consent": {
+      "title": "允许 {app}？",
+      "subtitle": "{app} 请求使用本计算机的硬件。",
+      "willAllow": "这将允许 {app}：",
+      "revokeNote": "您可以随时在“设置 → 桌面”中撤销。仅允许您信任的应用。",
+      "deny": "暂不",
+      "approve": "允许"
     }
   }
 }

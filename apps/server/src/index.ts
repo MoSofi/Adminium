@@ -187,6 +187,22 @@ export {
   type DesktopBackupBody,
   type DesktopBackupReply,
 } from './routes/desktop/schema.js';
+// §12 capability plumbing. The main process reaches the grant table over the
+// loopback REST API (`main/capabilities/host.ts`'s grant reader), so it imports
+// the grant SHAPE and the closed id vocabulary from here — the same "restate the
+// name and pin it with a test" arrangement `SESSION_COOKIE` and the backup format
+// use, and for the same reason: main must not load Fastify to read a string.
+export {
+  desktopCapabilityRoutes,
+  type DesktopCapabilityRoutesDeps,
+} from './routes/desktop-capabilities/index.js';
+export {
+  capabilityIdSchema,
+  isKnownCapabilityId,
+  KNOWN_CAPABILITY_IDS,
+  type KnownCapabilityId,
+} from './capabilities/catalog.js';
+export type { CapabilityGrant } from '@adminium/meta';
 // Meta-store resolution + connection (01 §3.1/§7.2). The wrappers — CLI today,
 // Docker/Electron next — all answer "where does the meta store live?" here.
 export {

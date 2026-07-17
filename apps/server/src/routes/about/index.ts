@@ -35,6 +35,31 @@ export interface AboutRoutesDeps {
   version?: string | undefined;
 }
 
+/**
+ * The newest applied migration name, or `null` when there is none or the read
+ * fails (11-electron.md §13's About version field).
+ *
+ * NEVER THROWS, for the reason `smtpConfigured` in the system route does not: a
+ * meta-store blip must not take the whole About payload — including `version`
+ * and the AGPL source offer, which are the compliance artifact — down with it.
+ * `null` is the honest "unknown" the desktop panel already renders as a
+ * fallback. `adminium_migrations.name` is the same row `readMetaMigrationVersion`
+ * reads for a §9 backup manifest, so the two agree by construction.
+ */
+async function latestMetaMigration(meta: MetaDb): Promise<string | null> {
+  try {
+    const rows = await meta.db
+      .selectFrom('adminium_migrations')
+      .select('name')
+      .orderBy('name', 'desc')
+      .limit(1)
+      .execute();
+    return rows[0]?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function aboutRoutes(deps: AboutRoutesDeps): FastifyPluginAsyncZod {
   const { meta, updates } = deps;
   const version = deps.version ?? APP_VERSION;
@@ -48,9 +73,10 @@ export function aboutRoutes(deps: AboutRoutesDeps): FastifyPluginAsyncZod {
         schema: { response: { 200: aboutReply } },
       },
       async (): Promise<AboutReply> => {
-        const [telemetryEnabled, updateCheckEnabled] = await Promise.all([
+        const [telemetryEnabled, updateCheckEnabled, metaMigrationVersion] = await Promise.all([
           settings.get('telemetry.enabled'),
           settings.get('updates.checkEnabled'),
+          latestMetaMigration(meta),
         ]);
         return {
           data: {
@@ -59,6 +85,7 @@ export function aboutRoutes(deps: AboutRoutesDeps): FastifyPluginAsyncZod {
             sourceUrl: SOURCE_URL,
             licenseUrl: LICENSE_URL,
             metaEngine: meta.dialect,
+            metaMigrationVersion,
             node: process.version,
             telemetry: { enabled: telemetryEnabled },
             updates: { checkEnabled: updateCheckEnabled },

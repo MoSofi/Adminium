@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  macOS hardened-runtime entitlements — 11-electron.md §10 checklist, 11-T15.
+  electron-builder passes this file (and, via entitlementsInherit, the same file)
+  to `codesign` for every Mach-O in the notarized app.
+
+  This list is deliberately SHORT. Three decisions are load-bearing:
+
+  * com.apple.security.cs.allow-jit — GRANTED. V8 needs a writable-then-executable
+    (MAP_JIT) region to JIT JavaScript; under the hardened runtime that requires an
+    explicit entitlement. This is the NARROW one.
+
+  * com.apple.security.cs.allow-unsigned-executable-memory — NOT granted, on
+    purpose (§10 checklist). It is the BROAD sibling of allow-jit and would let any
+    unsigned page execute; allow-jit alone is sufficient for modern Electron, so
+    granting the broad one only widens the attack surface a notarized app is
+    supposed to shrink.
+
+  * App Sandbox (com.apple.security.app-sandbox) — NOT present. The app opens
+    user-chosen SQLite files by absolute path anywhere on disk (§6 "Open an
+    existing SQLite file… opened in place"); the sandbox's power-scoped file model
+    is incompatible with that, and this app ships outside the Mac App Store, so it
+    is not required. No sandbox means no need for user-selected-file entitlements
+    either — the app already has ordinary file access.
+
+  Nothing here disables library validation: with npmRebuild the native addons are
+  rebuilt from source and then co-signed by electron-builder with the same
+  Developer ID as the app, so the default (strict) validation passes.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+  </dict>
+</plist>

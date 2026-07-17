@@ -131,6 +131,9 @@ export { HeatMonthChart } from './components/HeatMonthChart.js';
 export type { HeatMonthChartProps } from './components/HeatMonthChart.js';
 export { ChoroplethGridChart } from './components/ChoroplethGridChart.js';
 export type { ChoroplethGridChartProps } from './components/ChoroplethGridChart.js';
+// Pure geometry (server-safe): the tilegram-placeability predicate the geo
+// widget uses to degrade an empty `us-tilegram` to the code-agnostic `grid`.
+export { hasUsTilegramTiles } from './geometry/choropleth.js';
 export { SankeyChart } from './components/SankeyChart.js';
 export type { SankeyChartProps } from './components/SankeyChart.js';
 

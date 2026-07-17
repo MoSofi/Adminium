@@ -19,6 +19,16 @@ export const aboutReply = z.object({
     licenseUrl: z.string(),
     /** Which engine backs the meta store (07-meta-store.md). */
     metaEngine: metaDialect,
+    /**
+     * The newest applied meta-store migration (`adminium_migrations.name`),
+     * or `null` when it cannot be read. 11-electron.md §13 lists it among the
+     * desktop About screen's version fields; it is harmless on self-host and
+     * the same fact `readMetaMigrationVersion` puts in a §9 backup manifest.
+     * Nullable rather than required because About must render even when the
+     * migrations table is empty or unreadable — a version panel that 500s is
+     * worse than one that says "unknown".
+     */
+    metaMigrationVersion: z.string().nullable(),
     node: z.string(),
     /** Current preferences, so About can explain (and link to) both switches. */
     telemetry: z.object({ enabled: z.boolean() }),

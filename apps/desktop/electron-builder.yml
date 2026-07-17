@@ -1,0 +1,107 @@
+# electron-builder configuration — 11-electron.md §10, owned by 11-T13/11-T15.
+#
+# electron-builder auto-detects this file in the package directory; the packaging
+# entry points are the `pack`/`dist` scripts in package.json (its only call site
+# — a config no script invokes packages nothing). `directories.buildResources`
+# defaults to `build/`, which is why `mac.entitlements` below and the icon
+# masters resolve the way they do.
+#
+# ─── THE NATIVE-MODULE REBUILD (§2.1, the crux of M11) ───────────────────────
+# better-sqlite3 and argon2 are native (.node) addons. The forked utilityProcess
+# runs Electron's bundled Node, whose ABI (NODE_MODULE_VERSION) differs from the
+# local Node every other suite in the repo runs at, so the workspace-shared
+# prebuild cannot be dlopen'd under Electron. §2.1 wants @electron/rebuild — but
+# read apps/desktop/package.json's //native-modules note first: a `postinstall`
+# rebuild here would rewrite the pnpm-SHARED better_sqlite3.node in place and turn
+# every Node-side suite in the repo red. The rebuild therefore belongs ONLY here,
+# where `npmRebuild: true` operates on electron-builder's STAGED, private copy of
+# node_modules against Electron's ABI, paired with `asarUnpack` so the resulting
+# .node files sit on disk (a .node inside an asar cannot be dlopen'd). This is
+# the half of §2.1's sentence the pnpm layout permits, and the half that ships —
+# it is what unblocks the packaged app's meta-store.
+
+appId: ai.adminium.desktop
+productName: Adminium
+artifactName: "adminium-${version}-${os}-${arch}.${ext}"
+
+# asar on, but the two native addons unpacked next to it. `**/*.node` is the
+# whole set (§10): better-sqlite3's build/Release/better_sqlite3.node and argon2's
+# prebuilds. Anything dlopen'd at runtime must be a real file, not an asar entry.
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# Rebuild native deps for Electron's ABI in the staged app dir — see the header.
+# This is the ONLY sanctioned home for the @electron/rebuild step; never a
+# postinstall (apps/desktop/package.json //native-modules).
+npmRebuild: true
+
+# `out/**` is electron-vite's four bundles (main/server/preload/renderer) plus the
+# copied dashboard build (out/dashboard). `resources/**` carries the demo seed
+# (resources/demo/**, the §6 first-run demo DB — MUST ship), the generated
+# THIRD-PARTY-NOTICES.txt + LICENSE (§13), and the derived icons. node_modules and
+# package.json are always included by electron-builder (prod deps only), which is
+# how the externalized @adminium/server and its computed-specifier deps — the
+# adapters, drivers, native addons — reach the packaged app (§2.1, the app loads
+# the same files `adminium start` does, resolved from apps/desktop/node_modules).
+files:
+  - "out/**"
+  - "resources/**"
+
+mac:
+  category: public.app-category.developer-tools
+  # dmg is the human download; zip is MANDATORY — electron-updater consumes the
+  # zip, not the dmg (§10, §11). Both arches: Apple Silicon + Intel.
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  icon: resources/icons/icon.icns
+  # Hardened runtime + notarization: a Developer ID IS owned (Open Decision 1),
+  # so macOS is fully signed. `notarize: true` runs @electron/notarize from the
+  # APPLE_API_KEY_* env (App Store Connect API key); signing reads the Developer
+  # ID cert from CSC_LINK/CSC_KEY_PASSWORD. The entitlements withhold
+  # allow-unsigned-executable-memory and grant no app sandbox — see the plist.
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: true
+
+win:
+  target: [nsis]
+  icon: resources/icons/icon.ico
+  # WINDOWS SHIPS UNSIGNED FOR v1. No Windows certificate is owned (Open Decision
+  # 1, DECIDED 2026-07-17), so `win.signtoolOptions` is ABSENT — its absence is
+  # the structural signal that signing is off, matching the release workflow's
+  # `if: env.WIN_CSC_LINK != ''` gate. Acquiring a cert later is a secrets change,
+  # not a code change, and does not re-open the Azure-vs-OV/EV method decision
+  # (either populates CSC_*/AZURE_*). The cost is a SmartScreen interstitial on
+  # every download; the sha256 checksums file the release job ships is the only
+  # integrity signal an unsigned installer has.
+  #
+  # §10's YAML lists `signingHashAlgorithms: [sha256]` directly under `win`; that
+  # was valid on the electron-builder the doc was written against, but v26 — the
+  # version this repo pins — moved it into `signtoolOptions` (WindowsConfiguration
+  # is now additionalProperties:false), so a direct key here makes the whole
+  # config schema-INVALID and a real `electron-builder` run aborts before it
+  # builds. sha256 is also electron-builder's signing default, so it is inert
+  # while unsigned. The intent is therefore honored, not dropped: it belongs at
+  #   win.signtoolOptions.signingHashAlgorithms: [sha256]
+  # and gets added there, next to the cert inputs, the day Windows signing is
+  # enabled — a secrets-time change, exactly as the decision requires.
+
+linux:
+  target: [AppImage, deb, rpm]
+  category: Development
+  maintainer: Adminium <hello@adminium.ai>
+  icon: resources/icons/icon.png
+
+publish:
+  provider: github
+  owner: adminium
+  repo: adminium
+  # Desktop tags are `desktop-vX.Y.Z` (§11), NOT `vX.Y.Z` — they interleave with
+  # the monorepo's npm/Docker releases. Without this the GitHub provider would
+  # look for a `v`-prefixed tag and never find the feed.
+  vPrefixedTagName: false

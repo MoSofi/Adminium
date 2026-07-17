@@ -242,6 +242,29 @@ export interface DesktopUpdateEvent {
 /** §4 `onUpdateEvent` returns its own unsubscriber. */
 export type Unsubscribe = () => void;
 
+// ─── About / diagnostics (§13) ───────────────────────────────────────────────
+
+/**
+ * §13's "Copy diagnostic info … dataDir size" — the one figure in that blob the
+ * renderer cannot compute. The versions and platform are already on this object,
+ * the locale is the SPA's, but the size of the data directory is a filesystem
+ * walk only the main process can do (the renderer has no path access at all).
+ * Kept to that one number: a diagnostics bundle is "NO user data" (§13), so this
+ * carries a byte count and nothing that could name a file, a table, or a row.
+ */
+export interface DesktopDiagnostics {
+  /** Total size on disk of `dataDir` (§2.3), in bytes. `0` if it cannot be read. */
+  readonly dataDirBytes: number;
+}
+
+/**
+ * §13's two in-app viewers: the bundled AGPL `LICENSE` and the generated
+ * `resources/THIRD-PARTY-NOTICES.txt`. Both are files inside the packaged app,
+ * which only the main process can locate (`process.resourcesPath` is not a
+ * renderer concept) — so reading them is a native affordance, not a REST call.
+ */
+export type DesktopBundledTextKind = 'license' | 'third-party-notices';
+
 // ─── Capabilities (§12) ──────────────────────────────────────────────────────
 
 /**
@@ -269,6 +292,55 @@ export interface DesktopCapabilitiesApi {
   list(): Promise<CapabilityDescriptor[]>;
   invoke(capabilityId: string, method: string, payload: unknown): Promise<unknown>;
 }
+
+// ─── Native menu labels (§14) ────────────────────────────────────────────────
+
+/**
+ * Every label the native menu shows that the shell OWNS (§14) — the top-level
+ * titles and the File/Help commands. NOT the Edit/View/Window role items, whose
+ * strings the OS already localizes into the user's language (`{ role: 'copy' }`
+ * carries a platform-supplied label; giving it one of ours would replace eight
+ * OS translations with one we then owe eight of).
+ *
+ * ─── Why this key set lives HERE, in the shared contract ─────────────────────
+ *
+ * Three files must agree on it and only api.d.ts is visible to all three:
+ * `src/main/menu.ts` builds the menu from these keys, `src/main/ipc.ts` pins
+ * this type against the menu's own `MenuLabelKey`, and `@adminium/dashboard`
+ * resolves each key through `@adminium/i18n` and pushes the result over
+ * {@link AdminiumDesktopApi.setMenuLabels}. The shell CANNOT import
+ * `@adminium/i18n` (`.dependency-cruiser.cjs`'s `desktop-shell-only` rule: it
+ * may import `@adminium/server` and nothing else), so the eight translations
+ * live in the i18n package, the RENDERER resolves them, and they cross this
+ * boundary as data — never as an import edge.
+ *
+ * The dotted spelling matches `menu.ts`'s `MenuLabelKey` exactly; a
+ * compile-time assertion in `src/main/ipc.ts` fails the desktop typecheck if the
+ * two ever diverge.
+ */
+export type DesktopMenuLabelKey =
+  | 'file'
+  | 'file.newDatabase'
+  | 'file.openSqlite'
+  | 'file.backupNow'
+  | 'file.restore'
+  | 'edit'
+  | 'view'
+  | 'window'
+  | 'help'
+  | 'help.docs'
+  | 'help.shortcuts'
+  | 'help.logs'
+  | 'help.checkForUpdates'
+  | 'help.about';
+
+/**
+ * The full label set for one locale. A `Record` (not a `Partial`) so the
+ * dashboard's resolver cannot forget a key: a missing entry is a desktop
+ * typecheck error at the push site, not a menu item that silently falls back to
+ * en-US at runtime.
+ */
+export type DesktopMenuLabels = Record<DesktopMenuLabelKey, string>;
 
 // ─── Errors ──────────────────────────────────────────────────────────────────
 
@@ -390,6 +462,37 @@ export interface AdminiumDesktopApi {
 
   // capabilities (§12)
   readonly capabilities: DesktopCapabilitiesApi;
+
+  /**
+   * §14: the native menu's labels, localized. The renderer resolves them from
+   * `@adminium/i18n` and calls this on first paint AND whenever the locale
+   * changes ("the menu rebuilds on locale change"); the main process rebuilds
+   * the native menu from them.
+   *
+   * A native affordance requiring main-process authority, which is what earns it
+   * a place on this deliberately minimal object: the OS menu bar is a
+   * main-process object the server cannot own, so this is not a REST call that
+   * would work on self-host — there is no native menu there. It is one named
+   * method over one channel, not a generic `send`; a renderer cannot reach any
+   * other channel through it.
+   */
+  setMenuLabels(labels: DesktopMenuLabels): Promise<void>;
+
+  // about / diagnostics (§13)
+  /**
+   * §13's diagnostics figure the renderer cannot get on its own — the size of
+   * the data directory. A filesystem walk, so it is async and belongs to the
+   * process that has filesystem access.
+   */
+  getDiagnostics(): Promise<DesktopDiagnostics>;
+  /**
+   * §13's in-app licence viewers: the bundled `LICENSE` (the AGPL text) and the
+   * generated `THIRD-PARTY-NOTICES.txt`. `null` when the file is absent — the
+   * notices exist only in a packaged build (they are generated by
+   * `scripts/generate-notices.mjs` at build), so a dev run legitimately has
+   * none, and the viewer says so rather than showing an error.
+   */
+  readBundledText(kind: DesktopBundledTextKind): Promise<string | null>;
 
   relaunch(): Promise<void>;
   showLogs(): Promise<void>;

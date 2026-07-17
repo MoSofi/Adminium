@@ -74,6 +74,31 @@ const llmProviderSchema = z
   .enum(['anthropic', 'openai', 'openai-compatible', 'ollama', 'adminium-managed'])
   .nullable();
 
+/**
+ * One row of the desktop capability grant table (11-electron.md §12).
+ *
+ * A grant is the record that an installed micro-SaaS manifest was consented to a
+ * host capability — `{ manifestId, capabilityId }` is its identity, `grantedAt`
+ * its audit trail. The desktop `CapabilityHost` reads these to decide whether a
+ * `capabilities.invoke` (§4) may reach a provider; a call with no matching grant
+ * is refused with `CAPABILITY_NOT_GRANTED`. The dashboard's consent step writes
+ * one and its revoke control removes one.
+ *
+ * Bounds, not free strings: `capabilityId` is a dotted id from a closed host
+ * vocabulary (`printer.escpos`, …) and `manifestId` a reverse-DNS app id, so both
+ * are short. This is the meta-store boundary; the route validates `capabilityId`
+ * against the known set on top of it.
+ */
+export const capabilityGrantSchema = z.object({
+  manifestId: z.string().min(1).max(200),
+  capabilityId: z.string().min(1).max(120),
+  grantedAt: z.number().int().nonnegative(),
+});
+export const capabilityGrantsSchema = z.array(capabilityGrantSchema);
+
+/** One consented desktop capability grant (11-electron.md §12). */
+export type CapabilityGrant = z.infer<typeof capabilityGrantSchema>;
+
 export const SETTINGS_REGISTRY = {
   'appearance.theme': def<z.infer<typeof themeSchema>>(themeSchema, 'system', 'Default UI theme', P),
   'appearance.accent': def<z.infer<typeof accentSchema>>(accentSchema, 'indigo', 'Default accent color', P),
@@ -149,6 +174,26 @@ export const SETTINGS_REGISTRY = {
    * answer "may this machine skip its login?" using another machine's answer.
    */
   'desktop.singleUser': def(z.boolean(), false, 'Desktop: skip login on this computer (11-electron.md §5)'),
+  /**
+   * The desktop capability grant table (11-electron.md §12). Written by the
+   * consent step on manifest install and cleared by its revoke control; read by
+   * the main-process `CapabilityHost` on every `capabilities.invoke` to gate a
+   * call against a real, revocable grant.
+   *
+   * NAMING: §12 spells the `adminium_settings` key `desktop.capability_grants`.
+   * This registry's convention is `<domain>.<camelCase>` — the same override
+   * `desktop.singleUser` makes over §5's `desktop.single_user`, and for the same
+   * reason: the key is a TS literal type here, so it follows the code.
+   *
+   * NEVER portable: a grant is a per-DEVICE authorization to touch THIS machine's
+   * hardware. A bundle that carried it would silently pre-authorize an app to
+   * reach a receipt printer on a machine whose owner never consented.
+   */
+  'desktop.capabilityGrants': def<z.infer<typeof capabilityGrantsSchema>>(
+    capabilityGrantsSchema,
+    [],
+    'Desktop: consented capability grants (11-electron.md §12)',
+  ),
   'system.instanceId': def<string | null>(z.string().nullable(), null, 'Stable instance identity (seeded at bootstrap)'),
   'system.bootstrappedAt': def<number | null>(z.number().nullable(), null, 'First-run timestamp (epoch ms)'),
   /**

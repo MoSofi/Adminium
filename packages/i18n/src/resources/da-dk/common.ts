@@ -937,6 +937,78 @@ export default {
       "available": "Adminium {version} er tilgængelig",
       "availableBody": "Du kører {version}.",
       "viewRelease": "Se udgivelsesnoter"
+    },
+    "desktop": {
+      "unknown": "Ukendt",
+      "appVersion": "App-version",
+      "serverVersion": "Serverversion",
+      "migration": "Meta-store-migrering",
+      "electron": "Electron",
+      "chromium": "Chromium",
+      "runtimeNode": "Node-runtime",
+      "system": {
+        "title": "System"
+      },
+      "dataDir": "Datamappe",
+      "reveal": "Vis i mappe",
+      "secret": {
+        "title": "Hemmelighedslager",
+        "safe": "Krypteret af dit operativsystem",
+        "plainWarning": "Denne computer har ingen tilgængelig systemnøglering, så din Adminium-hemmelighed gemmes ukrypteret på disken. Alle, der kan læse denne maskines filer, kan læse den. Opret en login-nøglering (eller en Linux-secret-service), og genstart Adminium for at beskytte den."
+      },
+      "updates": {
+        "title": "Opdateringer",
+        "mode": {
+          "notify": "Underret mig om nye versioner",
+          "manual": "Kun når jeg tjekker",
+          "disabled": "Fra (offline)"
+        },
+        "disabledBody": "Automatiske opdateringer er slået fra (offline). Installér nye versioner manuelt.",
+        "check": "Søg efter opdateringer",
+        "checking": "Tjekker…",
+        "lastChecked": "Sidst tjekket {when}",
+        "available": "Version {version} er tilgængelig",
+        "none": "Du har den nyeste version.",
+        "unavailable": "Opdateringer er slået fra i denne installation.",
+        "error": "Kunne ikke søge efter opdateringer.",
+        "download": "Hent opdatering",
+        "downloading": "Henter… {percent} %",
+        "downloaded": "Version {version} er klar til installation",
+        "restart": "Genstart for at installere",
+        "downloadError": "Overførslen blev ikke gennemført. Du kan prøve igen.",
+        "toast": {
+          "available": "En ny version af Adminium er tilgængelig",
+          "view": "Vis",
+          "downloaded": "Opdateringen er klar til installation",
+          "restart": "Genstart nu"
+        }
+      },
+      "legal": {
+        "title": "Licenser",
+        "agpl": "Adminium Desktop er fri software under GNU Affero General Public License v3.0.",
+        "viewLicense": "Vis licens",
+        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseUnavailable": "Den medfølgende licensfil er ikke tilgængelig i denne build.",
+        "viewNotices": "Tredjepartslicenser",
+        "noticesTitle": "Tredjepartsmeddelelser",
+        "noticesUnavailable": "Tredjepartsmeddelelser genereres, når appen pakkes, og er ikke tilgængelige i denne build.",
+        "source": "Kildekode",
+        "close": "Luk"
+      },
+      "telemetry": {
+        "title": "Anonyme brugsdata",
+        "label": "Del anonyme brugsdata",
+        "description": "Hjælper os med at beslutte, hvilke databasemotorer vi skal prioritere. Slået fra, medmindre du slår det til; der sendes aldrig skema, data eller personlige oplysninger.",
+        "saveFailed": "Indstillingen kunne ikke gemmes. Prøv igen."
+      },
+      "diagnostics": {
+        "title": "Diagnostik",
+        "description": "Oplysninger, der hjælper, når du rapporterer et problem. Der medtages intet skema eller data.",
+        "copy": "Kopiér diagnostiske oplysninger",
+        "copied": "Kopieret",
+        "showLogs": "Vis logfiler",
+        "dataSize": "Datastørrelse: {size}"
+      }
     }
   },
   "apiKeys": {
@@ -1112,6 +1184,22 @@ export default {
     }
   },
   "desktop": {
+    "menu": {
+      "file": "Fil",
+      "fileNewDatabase": "Ny lokal database…",
+      "fileOpenSqlite": "Åbn SQLite-fil…",
+      "fileBackupNow": "Sikkerhedskopiér nu…",
+      "fileRestore": "Gendan fra sikkerhedskopi…",
+      "edit": "Rediger",
+      "view": "Vis",
+      "window": "Vindue",
+      "help": "Hjælp",
+      "helpDocs": "Adminium-dokumentation",
+      "helpShortcuts": "Tastaturgenveje",
+      "helpLogs": "Vis logfiler",
+      "helpCheckForUpdates": "Søg efter opdateringer…",
+      "helpAbout": "Om Adminium"
+    },
     "settings": {
       "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i dit workspace."
     },
@@ -1266,6 +1354,42 @@ export default {
         "failedBody": "Noget gik galt. Prøv igen.",
         "retry": "Prøv igen"
       }
+    }
+  },
+  "capabilities": {
+    "heading": "App-tilladelser",
+    "description": "Apps, du installerer, kan bede om at bruge denne computers hardware. Du godkender hver enkelt og kan tilbagekalde adgang når som helst.",
+    "grantedTo": "Tilladt for {app}",
+    "status": {
+      "available": "Tilgængelig",
+      "stub": "Ikke tilgængelig endnu",
+      "unavailable": "Utilgængelig"
+    },
+    "allow": {
+      "action": "Tillad…"
+    },
+    "revoke": {
+      "action": "Tilbagekald",
+      "saved": "Adgang tilbagekaldt",
+      "failed": "Kunne ikke tilbagekalde adgang. Prøv igen."
+    },
+    "grant": {
+      "saved": "Adgang tilladt",
+      "failed": "Kunne ikke tillade adgang. Prøv igen."
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "Kvitteringsprinter (ESC/POS)",
+        "scope": "Udskriv på kvitteringsprintere og åbn en tilsluttet kasseskuffe"
+      }
+    },
+    "consent": {
+      "title": "Tillad {app}?",
+      "subtitle": "{app} beder om at bruge denne computers hardware.",
+      "willAllow": "Dette vil tillade {app} at:",
+      "revokeNote": "Du kan tilbagekalde dette når som helst under Indstillinger → Skrivebord. Tillad kun apps, du stoler på.",
+      "deny": "Ikke nu",
+      "approve": "Tillad"
     }
   }
 } as const;

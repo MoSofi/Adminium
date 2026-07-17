@@ -32,6 +32,7 @@ function makeAbout(overrides: Partial<AboutData> = {}): AboutData {
     sourceUrl: 'https://github.com/adminium/adminium',
     licenseUrl: 'https://github.com/adminium/adminium/blob/main/LICENSE',
     metaEngine: 'postgres',
+    metaMigrationVersion: '0042_add_widgets',
     node: 'v22.14.0',
     telemetry: { enabled: false },
     updates: { checkEnabled: false },

@@ -937,6 +937,78 @@ export default {
       "available": "Adminium {version} is available",
       "availableBody": "You are running {version}.",
       "viewRelease": "View release notes"
+    },
+    "desktop": {
+      "unknown": "Unknown",
+      "appVersion": "App version",
+      "serverVersion": "Server version",
+      "migration": "Meta-store migration",
+      "electron": "Electron",
+      "chromium": "Chromium",
+      "runtimeNode": "Node runtime",
+      "system": {
+        "title": "System"
+      },
+      "dataDir": "Data directory",
+      "reveal": "Show in folder",
+      "secret": {
+        "title": "Secret storage",
+        "safe": "Encrypted by your operating system",
+        "plainWarning": "This computer has no system keychain available, so your Adminium secret is stored unencrypted on disk. Anyone who can read this machine’s files can read it. Set up a login keychain (or a Linux secret service) and restart Adminium to protect it."
+      },
+      "updates": {
+        "title": "Updates",
+        "mode": {
+          "notify": "Notify me about new versions",
+          "manual": "Only when I check",
+          "disabled": "Off (air-gapped)"
+        },
+        "disabledBody": "Automatic updates are off (air-gapped). Install new versions manually.",
+        "check": "Check for updates",
+        "checking": "Checking…",
+        "lastChecked": "Last checked {when}",
+        "available": "Version {version} is available",
+        "none": "You are on the latest version.",
+        "unavailable": "Updates are turned off in this installation.",
+        "error": "Could not check for updates.",
+        "download": "Download update",
+        "downloading": "Downloading… {percent}%",
+        "downloaded": "Version {version} is ready to install",
+        "restart": "Restart to install",
+        "downloadError": "The download did not finish. You can try again.",
+        "toast": {
+          "available": "A new version of Adminium is available",
+          "view": "View",
+          "downloaded": "Update ready to install",
+          "restart": "Restart now"
+        }
+      },
+      "legal": {
+        "title": "Licences",
+        "agpl": "Adminium Desktop is free software under the GNU Affero General Public License v3.0.",
+        "viewLicense": "View licence",
+        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseUnavailable": "The bundled licence file is not available in this build.",
+        "viewNotices": "Third-party licences",
+        "noticesTitle": "Third-party notices",
+        "noticesUnavailable": "Third-party notices are generated when the app is packaged and are not available in this build.",
+        "source": "Source code",
+        "close": "Close"
+      },
+      "telemetry": {
+        "title": "Anonymous usage data",
+        "label": "Share anonymous usage data",
+        "description": "Helps us decide which database engines to prioritise. Off unless you turn it on; no schema, data, or personal information is ever sent.",
+        "saveFailed": "Could not save that setting. Try again."
+      },
+      "diagnostics": {
+        "title": "Diagnostics",
+        "description": "Details that help when you report a problem. No schema or data is included.",
+        "copy": "Copy diagnostic info",
+        "copied": "Copied",
+        "showLogs": "Show logs",
+        "dataSize": "Data size: {size}"
+      }
     }
   },
   "apiKeys": {
@@ -1112,6 +1184,22 @@ export default {
     }
   },
   "desktop": {
+    "menu": {
+      "file": "File",
+      "fileNewDatabase": "New local database…",
+      "fileOpenSqlite": "Open SQLite file…",
+      "fileBackupNow": "Back up now…",
+      "fileRestore": "Restore from backup…",
+      "edit": "Edit",
+      "view": "View",
+      "window": "Window",
+      "help": "Help",
+      "helpDocs": "Adminium Docs",
+      "helpShortcuts": "Keyboard Shortcuts",
+      "helpLogs": "Show Logs",
+      "helpCheckForUpdates": "Check for Updates…",
+      "helpAbout": "About Adminium"
+    },
     "settings": {
       "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in your workspace."
     },
@@ -1266,6 +1354,42 @@ export default {
         "failedBody": "Something went wrong. Try again.",
         "retry": "Try again"
       }
+    }
+  },
+  "capabilities": {
+    "heading": "App permissions",
+    "description": "Apps you install can ask to use this computer’s hardware. You approve each one, and can revoke access anytime.",
+    "grantedTo": "Allowed for {app}",
+    "status": {
+      "available": "Available",
+      "stub": "Not available yet",
+      "unavailable": "Unavailable"
+    },
+    "allow": {
+      "action": "Allow…"
+    },
+    "revoke": {
+      "action": "Revoke",
+      "saved": "Access revoked",
+      "failed": "Could not revoke access. Try again."
+    },
+    "grant": {
+      "saved": "Access allowed",
+      "failed": "Could not allow access. Try again."
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "Receipt printer (ESC/POS)",
+        "scope": "Print to receipt printers and open a connected cash drawer"
+      }
+    },
+    "consent": {
+      "title": "Allow {app}?",
+      "subtitle": "{app} is asking to use this computer’s hardware.",
+      "willAllow": "This will allow {app} to:",
+      "revokeNote": "You can revoke this at any time in Settings → Desktop. Only allow apps you trust.",
+      "deny": "Not now",
+      "approve": "Allow"
     }
   }
 } as const;

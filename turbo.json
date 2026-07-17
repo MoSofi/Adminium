@@ -45,6 +45,18 @@
         "TEST_*",
         "PLAYWRIGHT_*"
       ]
+    },
+    "@adminium/e2e#e2e:desktop": {
+      "dependsOn": [
+        "@adminium/desktop#build"
+      ],
+      "cache": false,
+      "env": [
+        "CI",
+        "E2E_*",
+        "PLAYWRIGHT_*",
+        "ADMINIUM_DISABLE_UPDATES"
+      ]
     }
   }
 }

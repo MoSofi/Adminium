@@ -70,6 +70,13 @@ jobs:
       - name: Check offline assets
         run: pnpm run check-offline-assets
 
+      # 11-electron.md §13: the desktop build must ship a licence notice for every
+      # bundled dependency. `desktop#build` chains this too, but a turbo CACHE HIT
+      # skips the whole task — so, like the offline gate above, re-run it here
+      # unconditionally. It FAILS on a bundled package that carries no licence.
+      - name: Generate third-party notices
+        run: pnpm run generate-notices
+
   dep-graph:
     name: dep-graph
     runs-on: ubuntu-latest

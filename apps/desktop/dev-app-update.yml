@@ -1,0 +1,20 @@
+# Dev / test update feed (11-electron.md §11, 11-T16).
+#
+# A packaged build reads `app-update.yml`, which electron-builder generates from
+# the electron-builder.yml `publish` block (11-T13). This file is its stand-in
+# for the two contexts that have no generated one:
+#
+#   * `pnpm --filter @adminium/desktop dev`, where the app is unpacked and
+#     electron-updater (with `forceDevUpdateConfig`) looks for THIS file next to
+#     the app path instead;
+#   * the updater test fixtures, which point a fake feed here rather than at the
+#     network.
+#
+# It names the SAME adminium/adminium GitHub Releases feed the shipped app uses,
+# under the `desktop-v*` tag discipline, so a manual dev check resolves a real
+# `latest*.yml` rather than 404ing. `main/updates.ts` also calls `setFeedURL`
+# with this provider explicitly, so this file is the fallback, not the source of
+# truth — but electron-updater still requires it to exist in dev.
+provider: github
+owner: adminium
+repo: adminium

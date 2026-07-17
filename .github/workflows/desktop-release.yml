@@ -1,0 +1,329 @@
+name: desktop-release
+
+# 11-electron.md §10 (CI) + §11 (update-feed discipline), tasks 11-T14 and the CI
+# half of 11-T15.
+#
+# On a `desktop-v*` tag, build @adminium/desktop on all three OSes, sign +
+# notarize on macOS, package everywhere, and upload EVERY artifact — installers,
+# the electron-updater feed files (latest.yml / latest-mac.yml / latest-linux.yml),
+# and a sha256 checksums file — to a DRAFT GitHub Release. A human reviews and
+# presses Publish; nothing here makes a release public.
+#
+# WHY the tag is `desktop-v*` and not `v*`: the monorepo also ships as an npm
+# package and a Docker image, released under `v*` (release.yml). Desktop builds
+# interleave on their own `desktop-vX.Y.Z` tags so a docs typo release never
+# drags an Electron matrix along, and — critically for §11 — so the
+# electron-updater GitHub provider can resolve "the newest release that carries
+# feed files" unambiguously. THIS WORKFLOW IS THE ONLY THING IN THE REPO ALLOWED
+# TO UPLOAD FILES NAMED latest*.yml. If any other job ever attaches one, the
+# provider would resolve the wrong release and ship a bad update to every desktop
+# install. The `assert feed-file discipline` step below is the tripwire.
+#
+# WHAT DEPENDS ON A SIBLING TRACK: the `electron-builder` invocations read
+# apps/desktop/electron-builder.yml, and packaging (icons, native-module rebuild
+# against Electron's ABI via electron-builder `npmRebuild`) is owned by 11-T13.
+# This workflow is 11-T14/T15: the release pipeline that drives that config.
+
+on:
+  push:
+    tags: ['desktop-v*']
+  # Manual runs build the matrix for validation but never touch a Release — the
+  # `release` job is gated on a real `desktop-v*` tag ref (see its `if:`). Use
+  # this to prove a green build before cutting the tag.
+  workflow_dispatch: {}
+
+concurrency:
+  # Never cancel a release mid-flight: a half-uploaded draft is worse than a
+  # queued one. Keyed on the ref so two different tags can build in parallel but
+  # a re-push of the same tag serialises.
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+# Least privilege by default; the release job widens to `contents: write` to
+# create the draft and attach assets.
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    # macos-14 is Apple silicon; electron-builder cross-builds the x64 dmg/zip on
+    # it. windows-2022 and ubuntu-22.04 are the §10 canonical runners.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: mac
+          - os: windows-2022
+            platform: win
+          - os: ubuntu-22.04
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    # §10: "All signing secrets live only in GitHub Actions environments with
+    # required reviewers." Declaring the environment here means the run pauses for
+    # a human approval before ANY signing material is exposed to the job, on every
+    # OS leg (the linux leg carries no secrets but is gated the same for a single
+    # approval surface per run).
+    environment: desktop-release
+    # WIN_CSC_LINK lives at JOB level (not on the signing step) so the step's own
+    # `if: env.WIN_CSC_LINK != ''` can see it — the `env` context in a step's `if`
+    # resolves workflow/job env, never that same step's `env:`. Empty today (no
+    # Windows cert is owned); adding the secret to the desktop-release environment
+    # flips the gate on with no edit to this file (decision 1).
+    env:
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # The feed files electron-builder writes (latest*.yml) encode the version
+      # from apps/desktop/package.json. If the tag and that version disagree, the
+      # updater would advertise a version that does not match the tag's assets —
+      # so refuse to build rather than ship a mismatched feed. Tag push only.
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#desktop-v}"
+          pkg_version="$(node -p "require('./apps/desktop/package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::tag desktop-v$tag_version does not match apps/desktop/package.json version $pkg_version"
+            exit 1
+          fi
+          echo "Releasing desktop $pkg_version (tag $GITHUB_REF_NAME)"
+
+      # Builds @adminium/desktop AND its workspace deps: turbo's task graph makes
+      # desktop#build depend on dashboard#build + server#build, so this produces
+      # out/ (main/preload/server bundles + the copied dashboard dist), runs the
+      # offline-asset gate, and writes THIRD-PARTY-NOTICES.txt — exactly the
+      # inputs electron-builder's `files:` globs pack.
+      - name: Build desktop bundle + workspace deps
+        run: pnpm turbo run build --filter=@adminium/desktop
+
+      # Step 2 of the packaging sequence documented in apps/desktop/package.json
+      # //packaging: derive resources/icons/* from the checked-in master (the
+      # outputs are .gitignored, so a fresh CI checkout has none). electron-builder
+      # .yml points mac/win/linux `.icon` at these files, so this MUST run before
+      # `dist`. The `icons` script fails loudly if its build-only deps are absent
+      # rather than emitting a half-set — an icon that silently didn't regenerate,
+      # or a default Electron icon shipped in its place, is the exact "green but
+      # broken" trap this milestone keeps hitting, so it is deliberately not
+      # guarded away.
+      - name: Generate app icons
+        run: pnpm --filter @adminium/desktop run icons
+
+      # ── macOS: Developer ID signing + notarization (§10, decision 1) ─────────
+      #
+      # @electron/notarize (invoked by electron-builder when mac.notarize is true)
+      # expects APPLE_API_KEY to be a FILE PATH to the .p8 App Store Connect key,
+      # not its contents. The secret carries the base64 of the .p8; materialise it
+      # to a runner-local file and repoint APPLE_API_KEY at that path. The file
+      # lives under RUNNER_TEMP and is discarded with the runner.
+      - name: Stage notarization API key (macOS)
+        if: matrix.platform == 'mac'
+        shell: bash
+        env:
+          APPLE_API_KEY_B64: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          set -euo pipefail
+          key_path="$RUNNER_TEMP/appstoreconnect_api_key.p8"
+          printf '%s' "$APPLE_API_KEY_B64" | base64 --decode > "$key_path"
+          echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
+
+      # ── Windows: signing DISABLED for v1, structurally present (decision 1) ───
+      #
+      # No Windows Authenticode certificate is owned. This step maps the (absent)
+      # WIN_CSC_LINK secret onto the CSC_LINK/CSC_KEY_PASSWORD env electron-builder
+      # signs with. Because the guard is `env.WIN_CSC_LINK != ''`, it is a no-op
+      # today and the Windows build below produces an UNSIGNED nsis installer.
+      # Turning signing on later is a SECRETS change (add WIN_CSC_LINK +
+      # WIN_CSC_KEY_PASSWORD to the desktop-release environment) — no edit to this
+      # file, no re-decision of the signing method: whichever cert is chosen
+      # populates the same CSC_* inputs. The consequence of shipping unsigned
+      # (SmartScreen interstitial) is documented in the release-desktop docs page.
+      - name: Enable Windows code signing
+        if: matrix.platform == 'win' && env.WIN_CSC_LINK != ''
+        shell: bash
+        env:
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          {
+            echo "CSC_LINK=$WIN_CSC_LINK"
+            echo "CSC_KEY_PASSWORD=$WIN_CSC_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "Windows code signing enabled (WIN_CSC_LINK present)"
+
+      # ── Step 3: package + (mac) sign + notarize ──────────────────────────────
+      #
+      # The `dist` script (= `electron-builder`) is the ONLY sanctioned call site
+      # of electron-builder.yml (apps/desktop/package.json //packaging); driving
+      # electron-builder any other way would fork that contract. No platform flag
+      # is needed — electron-builder targets the host OS, and each matrix leg runs
+      # on its matching runner.
+      #
+      # `--publish never`: electron-builder still WRITES latest*.yml + .blockmap
+      # into apps/desktop/dist (feed generation is part of building an
+      # updater-capable target when a `publish` provider is configured), it just
+      # does not upload them. Passed WITHOUT a `--` separator on purpose: `pnpm
+      # run <script> --publish never` appends the args to the script command,
+      # whereas `-- --publish never` forwards a literal `--` that electron-builder
+      # would choke on (verified against pnpm 10). The dedicated `release` job
+      # below owns the upload so the draft state and the desktop-v* tag stay under
+      # our control instead of electron-builder's tag-naming assumptions.
+      #
+      # macOS env are the §10 secrets: CSC_LINK/CSC_KEY_PASSWORD is the Developer
+      # ID Application cert; APPLE_API_KEY(_ID/_ISSUER) drive notarytool (the .p8
+      # path was staged above). On Windows CSC_* is set only if the signing guard
+      # above ran; on Linux there is no signing at all.
+      - name: Package (electron-builder)
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: pnpm --filter @adminium/desktop run dist --publish never
+
+      # electron-builder emits its full artifact set (dmg/zip, nsis, AppImage/deb/
+      # rpm), the feed files, and .blockmaps into dist/. Ship the whole directory
+      # to the release job; retention is short because these are release-candidate
+      # binaries, not long-lived history (the published Release is the archive).
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: apps/desktop/dist
+          if-no-files-found: error
+          retention-days: 5
+
+  release:
+    name: draft release
+    needs: build
+    # Only ever create a Release from a real desktop-v* tag. A workflow_dispatch
+    # run (no such ref) builds the matrix and stops — deliberately, so validation
+    # runs cannot mint releases or touch feed files.
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # Create the draft Release and attach assets.
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # Flatten the three per-OS artifact directories into one upload set. Each OS
+      # contributes disjoint filenames (adminium-<v>-mac/win/linux.*, and exactly
+      # one of latest.yml / latest-mac.yml / latest-linux.yml), so nothing
+      # collides and the merge is lossless.
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          # Installers, the updater feed files, and their blockmaps — but ONLY
+          # `latest*.yml`, never electron-builder's own `builder-debug.yml` /
+          # `builder-effective-config.yaml` dumps (which also end in .yml/.yaml and
+          # would be noise on the Release, or worse, confuse the feed).
+          #
+          # `-not -path '*-unpacked/*'` is load-bearing: electron-builder stages the
+          # raw app tree in `win-unpacked/` and `linux-unpacked/` NEXT TO the real
+          # installers, and `win-unpacked/` carries the launcher `Adminium.exe`
+          # (productName). Without the exclusion the `*.exe` clause sweeps that raw
+          # launcher into the draft release and SHA256SUMS.txt — a bogus download
+          # that cannot run standalone (it needs the whole unpacked DLL/resource
+          # tree) and a checksum entry that is not the installer. Only the packaged
+          # artifacts at the top of each `dist/` sit outside those trees.
+          find artifacts -type f \
+            -not -path '*-unpacked/*' \
+            \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' \
+               -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \
+               -o -name 'latest*.yml' -o -name '*.blockmap' \) \
+            -exec cp -n {} release/ \;
+          echo "Collected:"; ls -1 release
+
+      # §11 tripwire. This job is already gated on a desktop-v* ref, but assert it
+      # again at the point of upload: the feed files are the sharp edge, and a
+      # release WITHOUT them is a desktop release that silently stops advertising
+      # updates. Both directions are bugs, so check both.
+      - name: Assert feed-file discipline
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            desktop-v*) : ;;
+            *) echo "::error::feed files may only ship on desktop-v* tags, got $GITHUB_REF_NAME"; exit 1 ;;
+          esac
+          missing=0
+          for f in latest.yml latest-mac.yml latest-linux.yml; do
+            if [ ! -f "release/$f" ]; then
+              echo "::error::expected updater feed file release/$f is missing"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+
+      # §10: Windows ships unsigned, so a checksums file is its only integrity
+      # signal — and Linux gets one too. Cover every user-facing installer (not
+      # the feed files, which carry their own hashes inside). Computed on one
+      # runner with one tool so the file format is uniform.
+      - name: Generate sha256 checksums
+        working-directory: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=( *.dmg *.zip *.exe *.AppImage *.deb *.rpm )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no installer artifacts to checksum"
+            exit 1
+          fi
+          sha256sum "${files[@]}" > SHA256SUMS.txt
+          echo "SHA256SUMS.txt:"; cat SHA256SUMS.txt
+
+      # Create the draft (or refresh assets on a re-run of the same tag). DRAFT is
+      # non-negotiable: §10 says a human publishes. The seeded body is a starting
+      # point — the release editor writes the real notes, which updates.ts renders
+      # in-app (§11), and MUST flag any migration-bearing version (07-meta-store.md
+      # forward-only policy: there is no downgrade path).
+      - name: Create or update draft Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          version="${tag#desktop-v}"
+          title="Adminium Desktop $version"
+          notes=$'Draft — review before publishing.\n\nWindows installers are **unsigned** for v1: SmartScreen will warn on download (More info → Run anyway). Verify downloads against `SHA256SUMS.txt`.\n\n- [ ] Replace this body with real release notes.\n- [ ] Flag any meta-store migration (no downgrade path).\n- [ ] `spctl -a -vv` the macOS app on a clean machine before publishing.'
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag exists — refreshing assets"
+            gh release upload "$tag" release/* --clobber
+          else
+            gh release create "$tag" release/* \
+              --draft \
+              --title "$title" \
+              --notes "$notes"
+          fi
+          echo "Draft release ready: $tag (a human must press Publish)"

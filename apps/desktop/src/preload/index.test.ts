@@ -90,11 +90,14 @@ describe('the exposed surface', () => {
     'checkForUpdates',
     'chooseDirectory',
     'downloadUpdate',
+    // §13's About panel: diagnostics copy + the in-app licence/notices viewer.
+    'getDiagnostics',
     'getRuntimeInfo',
     'onUpdateEvent',
     'openFile',
     'platform',
     'quitAndInstall',
+    'readBundledText',
     'relaunch',
     'saveFile',
     'setConfig',
@@ -104,6 +107,9 @@ describe('the exposed surface', () => {
     // channel with its own gate rather than becoming a key `setConfigSchema`
     // exists to reject. See `main/ipc.ts`'s `setDataDirSchema`.
     'setDataDir',
+    // §14: the renderer pushes the native menu's localized labels here, so it
+    // rebuilds on locale change without the shell importing `@adminium/i18n`.
+    'setMenuLabels',
     'showItemInFolder',
     'showLogs',
     'versions',

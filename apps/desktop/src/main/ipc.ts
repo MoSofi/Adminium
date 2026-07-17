@@ -47,7 +47,10 @@ import { z } from 'zod';
 
 import type {
   CapabilityDescriptor as BridgeCapabilityDescriptor,
+  DesktopBundledTextKind,
   DesktopConfigPatch,
+  DesktopDiagnostics,
+  DesktopMenuLabels,
   DesktopRuntimeInfo,
   DesktopUpdateCheckResult,
   DesktopUpdateEvent,
@@ -164,6 +167,47 @@ const setDataDirSchema = z.strictObject({
   acknowledgeCloudSync: z.boolean().optional(),
 });
 
+/**
+ * §14 `setMenuLabels`: the native menu's localized strings, pushed by the
+ * renderer (see `main/menu.ts`'s header for why the shell cannot resolve them
+ * itself).
+ *
+ * A `strictObject` requiring all 14 keys, because {@link DesktopMenuLabels} is a
+ * full `Record` and the dashboard's resolver is typed to send every one — a
+ * partial arrival is a bug in the sender, not a supported shape, and this is the
+ * untrusted boundary (§2.4). The keys are stated once here and pinned to the
+ * contract by {@link _MenuLabelsMatchSchema}; drift becomes a desktop typecheck
+ * failure rather than a menu the main process quietly leaves in English. The
+ * `.max` is generous — a menu label is a few words in any locale — and exists
+ * only to bound what a compromised renderer can push into a native widget.
+ */
+const menuLabelSchema = z.string().min(1).max(200);
+const menuLabelsSchema = z.strictObject({
+  file: menuLabelSchema,
+  'file.newDatabase': menuLabelSchema,
+  'file.openSqlite': menuLabelSchema,
+  'file.backupNow': menuLabelSchema,
+  'file.restore': menuLabelSchema,
+  edit: menuLabelSchema,
+  view: menuLabelSchema,
+  window: menuLabelSchema,
+  help: menuLabelSchema,
+  'help.docs': menuLabelSchema,
+  'help.shortcuts': menuLabelSchema,
+  'help.logs': menuLabelSchema,
+  'help.checkForUpdates': menuLabelSchema,
+  'help.about': menuLabelSchema,
+});
+
+/**
+ * §13 `readBundledText(kind)`. A closed enum, not a path: the renderer names
+ * WHICH document (the AGPL licence or the third-party notices), never a file —
+ * the two paths live on the trusted side (see
+ * {@link RegisterIpcHandlersOptions.readBundledText}), so the untrusted side
+ * cannot turn this into an arbitrary-file read.
+ */
+const bundledTextSchema = z.enum(['license', 'third-party-notices']);
+
 const capabilityInvokeSchema = z.strictObject({
   capabilityId: z.string().min(1).max(120),
   method: z.string().min(1).max(120),
@@ -253,6 +297,19 @@ export type _UpdateCheckMatches = Assert<
 /** §2.2 step 3's storage modes ≡ §4's. */
 export type _SecretStorageMatches = Assert<Mutual<DesktopRuntimeInfo['secretStorage'], SecretStorage>>;
 
+/**
+ * §14: the `setMenuLabels` schema accepts exactly §4's `DesktopMenuLabels`.
+ *
+ * The one direction nothing else catches: a menu label key added to `api.d.ts`
+ * (and to `menu.ts`, which aliases the same union) but forgotten in
+ * {@link menuLabelsSchema} would typecheck in the dashboard, ship, and then be
+ * rejected at runtime by `strictObject` — the whole localized push refused on a
+ * boundary the SPA cannot see, leaving the native menu in English forever.
+ */
+export type _MenuLabelsMatchSchema = Assert<
+  Mutual<DesktopMenuLabels, z.infer<typeof menuLabelsSchema>>
+>;
+
 // ─── Ports ───────────────────────────────────────────────────────────────────
 
 /** The `senderFrame` of an inbound message, narrowed to the field a policy needs. */
@@ -293,6 +350,21 @@ export interface DesktopRuntimeSnapshot {
   readonly dataDir: string;
   readonly secretStorage: SecretStorage;
   readonly serverPort: number;
+  /**
+   * §11: has the env kill-switch (`ADMINIUM_DISABLE_UPDATES=1`) forced updates
+   * off for THIS launch? A boot-time fact, resolved by `main/index.ts` from
+   * `process.env` — which this Electron-free module must not read — and carried
+   * here so `getRuntimeInfo` reports the mode the updater ACTUALLY runs in.
+   *
+   * Without it the panel reads `config.updates.mode` alone, so a fleet admin who
+   * air-gaps the install with the env var — while `config.json` keeps the default
+   * `notify` — is shown "Notify me about new versions" and an enabled "Check for
+   * updates" button, while `createUpdateManager` has already resolved `disabled`
+   * and built no updater at all (§11). The panel would misrepresent the very
+   * air-gap posture that admin set, and the button would fail closed to
+   * UNAVAILABLE, contradicting its own header.
+   */
+  readonly updatesDisabledByEnv: boolean;
 }
 
 /**
@@ -341,14 +413,47 @@ export interface RegisterIpcHandlersOptions {
   setDataDir: (opts: SetDataDirOptions) => Promise<SetDataDirResult>;
   dialogs: DesktopDialogs;
   /**
-   * §11: `null` when `updates.mode: "disabled"` or `ADMINIUM_DISABLE_UPDATES=1`.
-   * Nullable rather than a no-op manager because §11 requires the updater to
-   * never be INITIALIZED in that mode — "not initialized-then-not-asked" — and a
-   * port that was never constructed is the only shape that cannot get that
-   * wrong. The three update channels then answer `UNAVAILABLE`.
+   * §11: a GETTER for the live updater, `null` when `updates.mode: "disabled"`
+   * or `ADMINIUM_DISABLE_UPDATES=1`. Nullable rather than a no-op manager because
+   * §11 requires the updater to never be INITIALIZED in that mode — "not
+   * initialized-then-not-asked" — and a port that was never constructed is the
+   * only shape that cannot get that wrong. The three update channels then answer
+   * `UNAVAILABLE`.
+   *
+   * A GETTER, not a value, because of the boot ORDER: `registerIpcHandlers` runs
+   * before `config.json` is loaded (`main/index.ts` registers the bridge before
+   * the first window, which a config error at step 2 would open), so the mode —
+   * and therefore whether an updater exists at all — is not known yet. The boot
+   * creates the manager at step 5 and this getter reads it thereafter; it is read
+   * per call, never cached, so a `disabled` boot returns `null` forever and a
+   * `notify`/`manual` boot returns the one manager the moment it exists.
    */
-  updates: UpdateManager | null;
+  updates: () => UpdateManager | null;
   capabilities: CapabilityHost;
+  /**
+   * §14: apply the renderer's localized menu labels — rebuild the native menu.
+   *
+   * A port because the menu is `main/index.ts`'s to (re)install: it owns the
+   * `MenuHandlers` (§9's backup, Help's logs) and the platform/dev flags, and it
+   * holds the labels between pushes so a later `MenuHandlers` change rebuilds
+   * with the locale already chosen. This file's job is unchanged — parse the
+   * push, hand it over, wrap the answer.
+   */
+  setMenuLabels: (labels: DesktopMenuLabels) => void;
+  /**
+   * §13's "Copy diagnostic info … dataDir size". A port because only the main
+   * process can walk the data directory — the renderer has no filesystem access
+   * (§2.4), and the server owns the data but not its on-disk footprint. `main/
+   * index.ts` supplies the walk; this file parses, calls, and wraps.
+   */
+  getDiagnostics: () => Promise<DesktopDiagnostics>;
+  /**
+   * §13's in-app licence viewers. A port because the two files live inside the
+   * packaged app and only the main process can locate them (`process.
+   * resourcesPath`). `null` is the honest answer for a dev run where the
+   * generated notices do not exist yet — the viewer says so.
+   */
+  readBundledText: (kind: DesktopBundledTextKind) => Promise<string | null>;
   /** §8.3's reachable `http://<LAN-IPv4>:<port>` list. Defaults to none. */
   lanShareUrls?: (() => readonly string[]) | undefined;
   /** Help → "Show logs" (§9): reveal `<userData>/logs`. */
@@ -570,7 +675,13 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
         // that did not ask to share them is not a neutral act (§8.3).
         urls: config.lanShare.enabled ? [...lanShareUrls()] : [],
       },
-      updates: { mode: config.updates.mode },
+      // §11: the mode the updater ACTUALLY runs in. `config.updates.mode` is the
+      // live value the settings panel writes (so notify↔manual stay honest as the
+      // user toggles them), but the env kill-switch overrides it to `disabled`
+      // without touching the file — `createUpdateManager` resolved the same
+      // override and built no updater, so reporting the raw config here would
+      // paint "Notify" over an install that makes zero update traffic.
+      updates: { mode: runtime.updatesDisabledByEnv ? 'disabled' : config.updates.mode },
       secretStorage: runtime.secretStorage,
     });
   });
@@ -588,13 +699,13 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   register(
     IPC_CHANNELS.checkForUpdates,
     noPayloadSchema,
-    (): Promise<DesktopUpdateCheckResult> => requireUpdates(opts.updates).checkForUpdates(),
+    (): Promise<DesktopUpdateCheckResult> => requireUpdates(opts.updates()).checkForUpdates(),
   );
   register(IPC_CHANNELS.downloadUpdate, noPayloadSchema, () =>
-    requireUpdates(opts.updates).downloadUpdate(),
+    requireUpdates(opts.updates()).downloadUpdate(),
   );
   register(IPC_CHANNELS.quitAndInstall, noPayloadSchema, () => {
-    requireUpdates(opts.updates).quitAndInstall();
+    requireUpdates(opts.updates()).quitAndInstall();
     return Promise.resolve();
   });
 
@@ -607,6 +718,24 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   );
   register(IPC_CHANNELS.capabilitiesInvoke, capabilityInvokeSchema, (input) =>
     opts.capabilities.invoke(input.capabilityId, input.method, input.payload),
+  );
+
+  // ─── native menu (§14) ─────────────────────────────────────────────────────
+
+  register(IPC_CHANNELS.setMenuLabels, menuLabelsSchema, (labels) => {
+    opts.setMenuLabels(labels);
+    return Promise.resolve();
+  });
+
+  // ─── about / diagnostics (§13) ─────────────────────────────────────────────
+
+  register(
+    IPC_CHANNELS.getDiagnostics,
+    noPayloadSchema,
+    (): Promise<DesktopDiagnostics> => opts.getDiagnostics(),
+  );
+  register(IPC_CHANNELS.readBundledText, bundledTextSchema, (kind): Promise<string | null> =>
+    opts.readBundledText(kind),
   );
 
   // ─── lifecycle ─────────────────────────────────────────────────────────────

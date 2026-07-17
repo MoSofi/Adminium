@@ -13,6 +13,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  INVOKE_CHANNELS,
   IPC_CHANNELS,
   type BridgeBootstrap,
   type IpcResult,
@@ -118,6 +119,7 @@ const RUNTIME: DesktopRuntimeSnapshot = {
   dataDir: DATA_DIR,
   secretStorage: 'safeStorage',
   serverPort: 51234,
+  updatesDisabledByEnv: false,
 };
 
 interface Harness {
@@ -134,7 +136,17 @@ interface Harness {
   handlers: ReturnType<typeof registerIpcHandlers>;
 }
 
-function harness(overrides: Partial<RegisterIpcHandlersOptions> = {}): Harness {
+/**
+ * `updates` is the RESOLVED manager (or null), not the getter §11 wires — the
+ * boot creates the manager after config load and `ipc.ts` reads it through a
+ * `() => UpdateManager | null` port. The harness takes the value for readability
+ * and wraps it in the getter below, so the disabled case is `{ updates: null }`.
+ */
+function harness(
+  overrides: Partial<Omit<RegisterIpcHandlersOptions, 'updates'>> & {
+    updates?: UpdateManager | null;
+  } = {},
+): Harness {
   const ipc = new FakeIpcMain();
   const config = createDefaultConfig(DATA_DIR);
   const dialogs = overrides.dialogs ?? stubDialogs();
@@ -157,11 +169,17 @@ function harness(overrides: Partial<RegisterIpcHandlersOptions> = {}): Harness {
     writeConfig,
     setDataDir,
     dialogs,
-    updates,
     capabilities,
+    setMenuLabels: vi.fn(),
+    getDiagnostics: vi.fn(() => Promise.resolve({ dataDirBytes: 4096 })),
+    readBundledText: vi.fn(() => Promise.resolve('licence text')),
     showLogs,
     relaunch,
     ...overrides,
+    // §11: the resolved manager wrapped as the getter `ipc.ts` reads. Placed
+    // AFTER the spread so it wins over `overrides.updates` (which carries the
+    // VALUE the harness took for readability, not the getter the port wants).
+    updates: () => updates,
   });
 
   return {
@@ -194,26 +212,15 @@ const expectFail = (result: IpcResult<unknown>): { code: string; message: string
 describe('registration', () => {
   it('answers every §4 channel and nothing else', () => {
     const { ipc } = harness();
-    expect([...ipc.handlers.keys()].sort()).toEqual(
-      [
-        IPC_CHANNELS.capabilitiesInvoke,
-        IPC_CHANNELS.capabilitiesList,
-        IPC_CHANNELS.checkForUpdates,
-        IPC_CHANNELS.chooseDirectory,
-        IPC_CHANNELS.downloadUpdate,
-        IPC_CHANNELS.getRuntimeInfo,
-        IPC_CHANNELS.openFile,
-        IPC_CHANNELS.quitAndInstall,
-        IPC_CHANNELS.relaunch,
-        IPC_CHANNELS.saveFile,
-        IPC_CHANNELS.setConfig,
-        // §6 step 1's data-dir move: its own channel, because it commits and
-        // relaunches rather than patching config (see `setDataDirSchema`).
-        IPC_CHANNELS.setDataDir,
-        IPC_CHANNELS.showItemInFolder,
-        IPC_CHANNELS.showLogs,
-      ].sort(),
-    );
+    // The registered `invoke` handlers are EXACTLY `INVOKE_CHANNELS` — the same
+    // list `dispose()` tears down, so this pins the two together: a channel added
+    // to `INVOKE_CHANNELS` without a `register()` call fails here, and one
+    // registered but left off the list leaks a handler `dispose()` never removes.
+    // Asserting against that source of truth (rather than a second hand-kept copy)
+    // is also what lets parallel tracks add channels — §11 updates, §12
+    // capabilities, §13 diagnostics, §14 `setMenuLabels` — without this test going
+    // stale the moment a sibling lands.
+    expect([...ipc.handlers.keys()].sort()).toEqual([...INVOKE_CHANNELS].sort());
     expect([...ipc.syncListeners.keys()]).toEqual([IPC_CHANNELS.bootstrap]);
   });
 
@@ -389,6 +396,19 @@ describe('getRuntimeInfo', () => {
       lanShare: { enabled: false, port: 4600, urls: [] },
       updates: { mode: 'notify' },
       secretStorage: 'safeStorage',
+    });
+  });
+
+  it('reports `disabled` when the env kill-switch forced it, even if config says notify (§11)', async () => {
+    // The fleet-admin case: `ADMINIUM_DISABLE_UPDATES=1` set, but `config.json`
+    // kept the default `notify`. `main/index.ts` resolves the override into the
+    // runtime snapshot, so the About panel shows the air-gapped state instead of
+    // "Notify me about new versions" over an install that makes zero traffic.
+    const { ipc } = harness({
+      runtime: () => ({ ...RUNTIME, updatesDisabledByEnv: true }),
+    });
+    expect(expectOk(await ipc.invoke(IPC_CHANNELS.getRuntimeInfo))).toMatchObject({
+      updates: { mode: 'disabled' },
     });
   });
 

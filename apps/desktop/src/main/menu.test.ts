@@ -19,6 +19,7 @@ import {
   appMenuTemplate,
   collectAccelerators,
   collectRoles,
+  menuTranslator,
   type BuildAppMenuOptions,
   type MenuLabelKey,
 } from './menu.js';
@@ -302,9 +303,51 @@ describe('the labels hook', () => {
   });
 
   it('has an en-US string for every key it can be asked for', () => {
-    // The fallback until 11-T19 lands, and the source list it will translate.
+    // The boot menu (§2.2 step 6, before the SPA pushes a locale) and the
+    // per-key fallback behind every pushed label.
     for (const [key, value] of Object.entries(EN_US_MENU_LABELS)) {
       expect(value, `${key} has no en-US label`).toBeTruthy();
     }
+  });
+});
+
+// ─── menuTranslator (§14: labels pushed by the renderer, rebuilt per locale) ──
+
+describe('menuTranslator (§14 locale rebuild)', () => {
+  const KEYS = Object.keys(EN_US_MENU_LABELS) as MenuLabelKey[];
+
+  it('renders the pushed labels and falls back to en-US per missing key', () => {
+    const t = menuTranslator({ file: 'Datei', 'help.about': 'Über Adminium' });
+    expect(t('file')).toBe('Datei');
+    expect(t('help.about')).toBe('Über Adminium');
+    // A key the push omitted shows en-US, not a blank native menu item.
+    expect(t('edit')).toBe(EN_US_MENU_LABELS.edit);
+  });
+
+  it('is the en-US default when nothing has been pushed (the boot menu)', () => {
+    for (const labels of [null, undefined] as const) {
+      const t = menuTranslator(labels);
+      for (const key of KEYS) expect(t(key)).toBe(EN_US_MENU_LABELS[key]);
+    }
+  });
+
+  it('drives a fully localized template when fed a full label set', () => {
+    // The exact call `index.ts` makes on a locale push: build the template with
+    // a translator over the pushed labels. Here every label is a marked string
+    // no en-US literal could be, proving no title or command escaped the hook.
+    const labels = Object.fromEntries(KEYS.map((k) => [k, `xx-${k}`])) as Record<
+      MenuLabelKey,
+      string
+    >;
+    const built = appMenuTemplate({
+      platform: 'win32',
+      isDev: false,
+      openExternal: () => {},
+      t: menuTranslator(labels),
+    });
+    expect(menu(built, 'xx-file').map((item) => item.label)).toContain('xx-file.newDatabase');
+    // The Help "Docs ↗" item keeps its external-link affordance around the label.
+    expect(menu(built, 'xx-help').some((item) => item.label === 'xx-help.docs ↗')).toBe(true);
+    expect(menu(built, 'xx-help').map((item) => item.label)).toContain('xx-help.logs');
   });
 });

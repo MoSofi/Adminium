@@ -48,6 +48,9 @@ export const IPC_CHANNELS = {
   quitAndInstall: 'adminium-desktop:quit-and-install',
   capabilitiesList: 'adminium-desktop:capabilities-list',
   capabilitiesInvoke: 'adminium-desktop:capabilities-invoke',
+  setMenuLabels: 'adminium-desktop:set-menu-labels',
+  getDiagnostics: 'adminium-desktop:get-diagnostics',
+  readBundledText: 'adminium-desktop:read-bundled-text',
   relaunch: 'adminium-desktop:relaunch',
   showLogs: 'adminium-desktop:show-logs',
   /** main → renderer push, §4 `onUpdateEvent`. The only one-way channel. */
@@ -70,6 +73,9 @@ export const INVOKE_CHANNELS = [
   IPC_CHANNELS.quitAndInstall,
   IPC_CHANNELS.capabilitiesList,
   IPC_CHANNELS.capabilitiesInvoke,
+  IPC_CHANNELS.setMenuLabels,
+  IPC_CHANNELS.getDiagnostics,
+  IPC_CHANNELS.readBundledText,
   IPC_CHANNELS.relaunch,
   IPC_CHANNELS.showLogs,
 ] as const;

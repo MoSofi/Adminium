@@ -377,7 +377,7 @@ function main() {
     // and list where it surfaced underneath.
     const byUrl = new Map();
     for (const violation of violations) {
-      const key = `${violation.rule} ${violation.url}`;
+      const key = `${violation.rule}\x00${violation.url}`;
       const group = byUrl.get(key) ?? { ...violation, files: [] };
       group.files.push(violation.file);
       byUrl.set(key, group);

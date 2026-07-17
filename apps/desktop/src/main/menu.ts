@@ -1,7 +1,25 @@
 /**
  * Native application menu (11-electron.md §14). Structure owned by 11-T05;
- * 11-T19 replaces {@link EN_US_MENU_LABELS} with `@adminium/i18n` bundles and
- * wires the locale-change rebuild.
+ * 11-T19 wires the localization.
+ *
+ * ─── How this menu is localized, and why not by importing @adminium/i18n ─────
+ *
+ * §14: "All labels localized via @adminium/i18n bundles at menu build time; menu
+ * rebuilds on locale change." The shell cannot do that directly — the
+ * `desktop-shell-only` rule (`.dependency-cruiser.cjs`) lets `apps/desktop`
+ * import `@adminium/server` and nothing else, so `@adminium/i18n` is off-limits
+ * here exactly as `@adminium/tokens` and `@adminium/dashboard` are. And it
+ * should be: the locale the menu must follow is the one the USER picked in the
+ * SPA (10-i18n-theming.md's ThemeProvider owns that axis), not `app.getLocale()`
+ * — only the renderer knows it, and only the renderer knows when it changes.
+ *
+ * So the renderer resolves these labels through its own i18n and pushes the
+ * result over §4's `setMenuLabels` ({@link DesktopMenuLabels}); `main/index.ts`
+ * rebuilds the menu from them. This module holds ZERO translations beyond the
+ * en-US fallback below, which is the boot menu (there is no SPA yet at §2.2 step
+ * 6) and the safety net for any key a push omits. {@link menuTranslator} is the
+ * seam: hand it the pushed labels and it becomes the {@link MenuTranslate} the
+ * template already accepts.
  *
  * §14 has two rules that are easy to miss and expensive to get wrong, and both
  * are load-bearing in the structure below —
@@ -28,12 +46,18 @@
 
 import { Menu, shell, type MenuItemConstructorOptions } from 'electron';
 
+import type { DesktopMenuLabelKey, DesktopMenuLabels } from '../preload/api.js';
+
 // ─── Labels (§14: "All labels localized via @adminium/i18n") ─────────────────
 
 /**
- * Every string the menu shows. 11-T19 maps these onto `@adminium/i18n` keys —
- * the shape is already a lookup so that change is a different `t`, not a
- * different template.
+ * Every string the menu shows that is OURS to translate.
+ *
+ * The key set is the shared contract's {@link DesktopMenuLabelKey}, not a
+ * private union: the same keys the renderer resolves from `@adminium/i18n` and
+ * pushes back over `setMenuLabels` (see the module header). Aliased rather than
+ * re-declared so there is exactly one list, pinned by `main/ipc.ts`'s
+ * `_MenuLabelsMatchSchema` assertion.
  *
  * ROLE ITEMS ARE ABSENT ON PURPOSE. `{ role: 'copy' }` carries a label supplied
  * and localized by the OS itself; giving it one of ours would replace a string
@@ -41,23 +65,9 @@ import { Menu, shell, type MenuItemConstructorOptions } from 'electron';
  * would then have to translate into all eight. The labels here are only for the
  * items that are ours: the top-level titles and the File/Help commands.
  */
-export type MenuLabelKey =
-  | 'file'
-  | 'file.newDatabase'
-  | 'file.openSqlite'
-  | 'file.backupNow'
-  | 'file.restore'
-  | 'edit'
-  | 'view'
-  | 'window'
-  | 'help'
-  | 'help.docs'
-  | 'help.shortcuts'
-  | 'help.logs'
-  | 'help.checkForUpdates'
-  | 'help.about';
+export type MenuLabelKey = DesktopMenuLabelKey;
 
-/** The labels hook. 11-T19 supplies an i18n-backed one; the default is en-US. */
+/** The labels hook: an i18n-backed one is built by {@link menuTranslator}. */
 export type MenuTranslate = (key: MenuLabelKey) => string;
 
 /**
@@ -83,6 +93,24 @@ export const EN_US_MENU_LABELS: Readonly<Record<MenuLabelKey, string>> = Object.
 });
 
 const defaultTranslate: MenuTranslate = (key) => EN_US_MENU_LABELS[key];
+
+/**
+ * A {@link MenuTranslate} backed by labels the renderer pushed
+ * ({@link DesktopMenuLabels}, §4 `setMenuLabels`), with the en-US fallback
+ * behind every key.
+ *
+ * `null`/`undefined` labels — the boot menu, before the SPA has pushed anything
+ * (§2.2 step 6) — collapse to the en-US default. A partial map falls back
+ * per-key, so a locale bundle that is missing one string shows that one item in
+ * en-US rather than blanking it; the parity gate (`packages/i18n`) makes a
+ * missing key a red test long before it reaches here, but a native menu with a
+ * blank item is a worse failure than a briefly-English one, so the fallback
+ * stays.
+ */
+export function menuTranslator(labels?: Partial<DesktopMenuLabels> | null): MenuTranslate {
+  if (labels === null || labels === undefined) return defaultTranslate;
+  return (key) => labels[key] ?? EN_US_MENU_LABELS[key];
+}
 
 // ─── Handlers ────────────────────────────────────────────────────────────────
 

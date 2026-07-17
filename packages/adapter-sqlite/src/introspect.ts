@@ -574,7 +574,7 @@ export async function introspectSqlite(
   for (const row of fkRows) {
     const table = tables.get(str(row['table_name']) ?? '');
     if (table === undefined) continue;
-    const key = `${table.name} ${num(row['fk_id']) ?? 0}`;
+    const key = `${table.name}\x00${num(row['fk_id']) ?? 0}`;
     let acc = fkAccumulators.get(key);
     if (acc === undefined) {
       acc = {

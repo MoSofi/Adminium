@@ -937,6 +937,78 @@ export default {
       "available": "Adminium {version} ist verfügbar",
       "availableBody": "Sie nutzen derzeit {version}.",
       "viewRelease": "Release-Notes ansehen"
+    },
+    "desktop": {
+      "unknown": "Unbekannt",
+      "appVersion": "App-Version",
+      "serverVersion": "Server-Version",
+      "migration": "Meta-Store-Migration",
+      "electron": "Electron",
+      "chromium": "Chromium",
+      "runtimeNode": "Node-Laufzeit",
+      "system": {
+        "title": "System"
+      },
+      "dataDir": "Datenverzeichnis",
+      "reveal": "Im Ordner anzeigen",
+      "secret": {
+        "title": "Geheimnisspeicher",
+        "safe": "Von Ihrem Betriebssystem verschlüsselt",
+        "plainWarning": "Auf diesem Computer ist kein System-Schlüsselbund verfügbar, daher wird Ihr Adminium-Geheimnis unverschlüsselt auf der Festplatte gespeichert. Jeder, der die Dateien dieses Rechners lesen kann, kann es lesen. Richten Sie einen Anmelde-Schlüsselbund (oder einen Linux-Secret-Service) ein und starten Sie Adminium neu, um es zu schützen."
+      },
+      "updates": {
+        "title": "Updates",
+        "mode": {
+          "notify": "Über neue Versionen benachrichtigen",
+          "manual": "Nur wenn ich prüfe",
+          "disabled": "Aus (offline)"
+        },
+        "disabledBody": "Automatische Updates sind aus (offline). Installieren Sie neue Versionen manuell.",
+        "check": "Nach Updates suchen",
+        "checking": "Wird geprüft…",
+        "lastChecked": "Zuletzt geprüft {when}",
+        "available": "Version {version} ist verfügbar",
+        "none": "Sie verwenden die neueste Version.",
+        "unavailable": "Updates sind in dieser Installation deaktiviert.",
+        "error": "Nach Updates konnte nicht gesucht werden.",
+        "download": "Update herunterladen",
+        "downloading": "Wird heruntergeladen… {percent} %",
+        "downloaded": "Version {version} ist installationsbereit",
+        "restart": "Zum Installieren neu starten",
+        "downloadError": "Der Download wurde nicht abgeschlossen. Sie können es erneut versuchen.",
+        "toast": {
+          "available": "Eine neue Version von Adminium ist verfügbar",
+          "view": "Anzeigen",
+          "downloaded": "Update installationsbereit",
+          "restart": "Jetzt neu starten"
+        }
+      },
+      "legal": {
+        "title": "Lizenzen",
+        "agpl": "Adminium Desktop ist freie Software unter der GNU Affero General Public License v3.0.",
+        "viewLicense": "Lizenz anzeigen",
+        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseUnavailable": "Die mitgelieferte Lizenzdatei ist in diesem Build nicht verfügbar.",
+        "viewNotices": "Drittanbieter-Lizenzen",
+        "noticesTitle": "Drittanbieter-Hinweise",
+        "noticesUnavailable": "Drittanbieter-Hinweise werden beim Paketieren der App erzeugt und sind in diesem Build nicht verfügbar.",
+        "source": "Quellcode",
+        "close": "Schließen"
+      },
+      "telemetry": {
+        "title": "Anonyme Nutzungsdaten",
+        "label": "Anonyme Nutzungsdaten teilen",
+        "description": "Hilft uns zu entscheiden, welche Datenbank-Engines wir priorisieren. Aus, sofern Sie es nicht aktivieren; es werden niemals Schema, Daten oder personenbezogene Informationen gesendet.",
+        "saveFailed": "Diese Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen."
+      },
+      "diagnostics": {
+        "title": "Diagnose",
+        "description": "Details, die bei einer Problemmeldung helfen. Kein Schema und keine Daten sind enthalten.",
+        "copy": "Diagnoseinfo kopieren",
+        "copied": "Kopiert",
+        "showLogs": "Protokolle anzeigen",
+        "dataSize": "Datengröße: {size}"
+      }
     }
   },
   "apiKeys": {
@@ -1112,6 +1184,22 @@ export default {
     }
   },
   "desktop": {
+    "menu": {
+      "file": "Datei",
+      "fileNewDatabase": "Neue lokale Datenbank…",
+      "fileOpenSqlite": "SQLite-Datei öffnen…",
+      "fileBackupNow": "Jetzt sichern…",
+      "fileRestore": "Aus Sicherung wiederherstellen…",
+      "edit": "Bearbeiten",
+      "view": "Ansicht",
+      "window": "Fenster",
+      "help": "Hilfe",
+      "helpDocs": "Adminium-Dokumentation",
+      "helpShortcuts": "Tastaturkürzel",
+      "helpLogs": "Protokolle anzeigen",
+      "helpCheckForUpdates": "Nach Updates suchen…",
+      "helpAbout": "Über Adminium"
+    },
     "settings": {
       "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in Ihrem Workspace."
     },
@@ -1266,6 +1354,42 @@ export default {
         "failedBody": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
         "retry": "Erneut versuchen"
       }
+    }
+  },
+  "capabilities": {
+    "heading": "App-Berechtigungen",
+    "description": "Von Ihnen installierte Apps können den Zugriff auf die Hardware dieses Computers anfordern. Sie genehmigen jede einzeln und können den Zugriff jederzeit widerrufen.",
+    "grantedTo": "Erlaubt für {app}",
+    "status": {
+      "available": "Verfügbar",
+      "stub": "Noch nicht verfügbar",
+      "unavailable": "Nicht verfügbar"
+    },
+    "allow": {
+      "action": "Erlauben…"
+    },
+    "revoke": {
+      "action": "Widerrufen",
+      "saved": "Zugriff widerrufen",
+      "failed": "Zugriff konnte nicht widerrufen werden. Bitte erneut versuchen."
+    },
+    "grant": {
+      "saved": "Zugriff erlaubt",
+      "failed": "Zugriff konnte nicht erlaubt werden. Bitte erneut versuchen."
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "Bondrucker (ESC/POS)",
+        "scope": "Auf Bondruckern drucken und eine angeschlossene Kassenschublade öffnen"
+      }
+    },
+    "consent": {
+      "title": "{app} erlauben?",
+      "subtitle": "{app} möchte die Hardware dieses Computers verwenden.",
+      "willAllow": "Dies erlaubt {app}:",
+      "revokeNote": "Sie können dies jederzeit unter Einstellungen → Desktop widerrufen. Erlauben Sie nur Apps, denen Sie vertrauen.",
+      "deny": "Nicht jetzt",
+      "approve": "Erlauben"
     }
   }
 } as const;

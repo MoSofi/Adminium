@@ -16,8 +16,10 @@ import { ArrowUpCircle, CheckCircle2, ExternalLink, RefreshCw, Scale } from 'luc
 import type { ReactNode } from 'react';
 import { Alert, Button, Card, CardBody, CardHeader, IconTile, KeyValueList } from '@adminium/ui';
 
+import { isDesktopRuntime } from '../lib/desktop-runtime.js';
 import { t } from '../i18n/t.js';
 import { aboutQuery, updateCheckQuery, type AboutData, type MetaEngine } from './aboutApi.js';
+import { DesktopAboutSections } from './DesktopAboutSections.js';
 
 /** Display names for the three v1 meta engines (07-meta-store.md). */
 function engineLabel(engine: MetaEngine): string {
@@ -98,6 +100,12 @@ function UpdateNotice({ about }: { about: AboutData }): ReactNode {
 
 export function AboutPage(): ReactNode {
   const { data: about } = useSuspenseQuery(aboutQuery());
+  // The Electron shell adds §13's desktop-only sections (versions, data dir,
+  // secret-storage mode, in-app licence viewers, telemetry, diagnostics) and
+  // replaces the self-host GitHub update notice with §11's desktop updater — so
+  // the two are mutually exclusive, not stacked. `isDesktopRuntime()` is §4's
+  // detection contract; the extra data is native-affordance only.
+  const desktop = isDesktopRuntime();
 
   return (
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 p-6">
@@ -110,57 +118,71 @@ export function AboutPage(): ReactNode {
         </p>
       </div>
 
-      <Card padded={false}>
-        <CardBody>
-          <KeyValueList
-            items={[
-              { label: t('about.version', 'Version'), value: about.version, mono: true },
-              { label: t('about.license', 'Licence'), value: about.license },
-              { label: t('about.metaStore', 'Meta store'), value: engineLabel(about.metaEngine) },
-              { label: t('about.node', 'Node.js'), value: about.node, mono: true },
-            ]}
-          />
-        </CardBody>
-      </Card>
+      {/* The self-host summary. On desktop it is omitted: §13's System card
+          below carries the same version/engine facts in fuller form, and showing
+          both would print the server version twice. */}
+      {desktop ? null : (
+        <Card padded={false}>
+          <CardBody>
+            <KeyValueList
+              items={[
+                { label: t('about.version', 'Version'), value: about.version, mono: true },
+                { label: t('about.license', 'Licence'), value: about.license },
+                { label: t('about.metaStore', 'Meta store'), value: engineLabel(about.metaEngine) },
+                { label: t('about.node', 'Node.js'), value: about.node, mono: true },
+              ]}
+            />
+          </CardBody>
+        </Card>
+      )}
 
-      <Card padded={false}>
-        <SectionHeader
-          icon={<Scale />}
-          title={t('about.licenseCard.title', 'Free and open source')}
-          description={t(
-            'about.licenseCard.body',
-            'Adminium is licensed under the GNU Affero General Public License v3.0. You are free to run, study, modify, and share it. If you offer a modified version to others over a network, the AGPL asks you to offer them its source code too.',
-          )}
-        />
-        <CardBody>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" size="md">
-              <a href={about.licenseUrl} target="_blank" rel="noreferrer noopener">
-                {t('about.viewLicense', 'Read the licence')}
-                <ExternalLink className="size-3.5" aria-hidden="true" />
-              </a>
-            </Button>
-            {/* The AGPL §13 source offer — this link IS the compliance artifact. */}
-            <Button asChild variant="outline" size="md">
-              <a href={about.sourceUrl} target="_blank" rel="noreferrer noopener">
-                {t('about.viewSource', 'Get the source code')}
-                <ExternalLink className="size-3.5" aria-hidden="true" />
-              </a>
-            </Button>
-          </div>
-        </CardBody>
-      </Card>
+      {desktop ? (
+        // §13: the shell owns its own AGPL notice (with an in-app licence viewer),
+        // its own §11 updater, telemetry, and diagnostics — so the self-host
+        // licence + GitHub-update cards below are replaced, not supplemented.
+        <DesktopAboutSections about={about} />
+      ) : (
+        <>
+          <Card padded={false}>
+            <SectionHeader
+              icon={<Scale />}
+              title={t('about.licenseCard.title', 'Free and open source')}
+              description={t(
+                'about.licenseCard.body',
+                'Adminium is licensed under the GNU Affero General Public License v3.0. You are free to run, study, modify, and share it. If you offer a modified version to others over a network, the AGPL asks you to offer them its source code too.',
+              )}
+            />
+            <CardBody>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button asChild variant="outline" size="md">
+                  <a href={about.licenseUrl} target="_blank" rel="noreferrer noopener">
+                    {t('about.viewLicense', 'Read the licence')}
+                    <ExternalLink className="size-3.5" aria-hidden="true" />
+                  </a>
+                </Button>
+                {/* The AGPL §13 source offer — this link IS the compliance artifact. */}
+                <Button asChild variant="outline" size="md">
+                  <a href={about.sourceUrl} target="_blank" rel="noreferrer noopener">
+                    {t('about.viewSource', 'Get the source code')}
+                    <ExternalLink className="size-3.5" aria-hidden="true" />
+                  </a>
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
 
-      <Card padded={false}>
-        <SectionHeader
-          icon={<RefreshCw />}
-          title={t('about.updates.title', 'Updates')}
-          description={t('about.updates.description', 'Whether this instance checks for new releases.')}
-        />
-        <CardBody>
-          <UpdateNotice about={about} />
-        </CardBody>
-      </Card>
+          <Card padded={false}>
+            <SectionHeader
+              icon={<RefreshCw />}
+              title={t('about.updates.title', 'Updates')}
+              description={t('about.updates.description', 'Whether this instance checks for new releases.')}
+            />
+            <CardBody>
+              <UpdateNotice about={about} />
+            </CardBody>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

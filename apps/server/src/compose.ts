@@ -53,6 +53,7 @@ import { demoSeedScriptPath } from './desktop/demo-seed.js';
 import { desktopDemoRoutes } from './routes/desktop-demo/index.js';
 import { desktopLanRoutes } from './routes/desktop-lan/index.js';
 import { desktopLocalDbRoutes } from './routes/desktop-local-db/index.js';
+import { desktopCapabilityRoutes } from './routes/desktop-capabilities/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { generateRoutes } from './routes/generate/index.js';
@@ -145,6 +146,13 @@ export interface ComposedServer {
    * caller reads rather than re-derives.
    */
   desktopBackupEnabled: boolean;
+  /**
+   * True when the §12 capability grant routes were registered. Reported for the
+   * same reason as its siblings: the dashboard's consent/revoke UI and the
+   * main-process `CapabilityHost` both reach `adminium_settings` through this
+   * door, so whether it exists is a fact a caller reads rather than re-derives.
+   */
+  desktopCapabilitiesEnabled: boolean;
 }
 
 /**
@@ -305,6 +313,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const desktopBackup = env.ADMINIUM_RUNTIME === 'desktop';
 
+  /**
+   * §12's capability grant table, behind gate 1 of
+   * `routes/desktop-capabilities/index.ts`. One condition, like its siblings:
+   * every desktop boot can install an app that declares a capability, so the
+   * consent/revoke door and the grant reader the `CapabilityHost` calls both
+   * need to exist. Off-desktop there is no host and no hardware, so §12's answer
+   * there is "every capability `unavailable`" — a claim the SPA makes, not a
+   * grant table.
+   */
+  const desktopCapabilities = env.ADMINIUM_RUNTIME === 'desktop';
+
   await app.register(
     async (api) => {
       if (desktopSession !== null) {
@@ -340,6 +359,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
             metaPath: sqlitePathFromUrl(opts.metaStore.url),
           }),
         );
+      }
+      // Also after `rbacPlugin`: all three verbs guard on `system:settings:manage`.
+      if (desktopCapabilities) {
+        await api.register(desktopCapabilityRoutes({ meta }));
       }
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
@@ -407,5 +430,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     desktopLocalDbEnabled: desktopLocalDb,
     desktopDemoEnabled: desktopDemo !== null,
     desktopBackupEnabled: desktopBackup,
+    desktopCapabilitiesEnabled: desktopCapabilities,
   };
 }

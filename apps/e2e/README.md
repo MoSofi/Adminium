@@ -55,3 +55,47 @@ E2E_ENGINE=mysql TEST_MYSQL_URL=mysql://root:root@127.0.0.1:3306 \
 CI runs the three legs as separate jobs in `.github/workflows/e2e.yml`
 (postgres:16 / mysql:8.4 service containers), uploading traces and the HTML
 report only on failure.
+
+## Desktop (`_electron`) suite — 11-T20
+
+A second, independent suite (`tests-desktop/`, config
+`playwright.desktop.config.ts`, project `desktop-e2e`) drives the **built
+Electron app** (`apps/desktop/out/main/index.js`) via Playwright's `_electron`.
+It launches the app against a hermetic `--user-data-dir` and walks 11-electron.md
+§6/§7/§9:
+
+- **`desktop-app.spec.ts`** — first-run → demo DB → dashboard → CRUD edit →
+  chart render → backup, plus the §2.4 renderer security posture (contextIsolation
+  on, sandbox on, nodeIntegration off, navigation locked to loopback, external
+  links open the system browser).
+- **`desktop-offline.spec.ts`** — the §7 offline smoke: `session.webRequest`
+  deny-all except `127.0.0.1`; the same walk; assert **zero** blocked requests
+  (no Google Fonts, no tiles, no CDN). Launched with `ADMINIUM_DISABLE_UPDATES=1`
+  (updates off) and telemetry off.
+- **`desktop-crash-wal.spec.ts`** — commit a write, SIGKILL the app, relaunch the
+  same data dir, assert the committed data survived (WAL durability, §9).
+
+It is **not** part of `pnpm test` — apps/e2e has no `test` script, so exactly like
+the engine legs it stays out of the repo-wide gate. Run it explicitly:
+
+```sh
+pnpm --filter @adminium/desktop build          # produces out/**
+# rebuild native modules for Electron's ABI (see below), then:
+pnpm --filter @adminium/e2e e2e:desktop
+# or, with build ordering handled by turbo:
+pnpm turbo run e2e:desktop --filter=@adminium/e2e
+```
+
+**Prerequisites (why it is CI-only, not run in-repo on every commit):**
+
+1. A **display** — `_electron` launches a real Electron window.
+2. A **built** desktop app (`out/**`).
+3. **Native modules rebuilt for Electron's ABI.** A plain `electron-vite build`
+   does *not* rebuild `better-sqlite3`/`argon2` for Electron (see
+   `apps/desktop/package.json` `//native-modules` for why that cannot be a
+   workspace `postinstall`). Without the rebuild the utilityProcess server crashes
+   at boot and the specs fail on the crash screen. In the desktop-e2e CI job, run
+   e.g. `pnpm --filter @adminium/desktop exec electron-builder install-app-deps`
+   between build and run — the job runs only Playwright, so rewriting the shared
+   `better-sqlite3` copy is safe there (it would break Node-ABI vitest suites in a
+   shared job).

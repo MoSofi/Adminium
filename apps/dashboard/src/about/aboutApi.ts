@@ -15,6 +15,11 @@ export interface AboutData {
   sourceUrl: string;
   licenseUrl: string;
   metaEngine: MetaEngine;
+  /**
+   * The newest applied meta-store migration, or `null` when unreadable.
+   * 11-electron.md §13's desktop About version field; see the server schema.
+   */
+  metaMigrationVersion: string | null;
   node: string;
   telemetry: { enabled: boolean };
   updates: { checkEnabled: boolean };

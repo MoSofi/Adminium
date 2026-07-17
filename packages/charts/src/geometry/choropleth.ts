@@ -145,3 +145,18 @@ export function choroplethLayout(
     height: rows > 0 ? rows * step - gap : 0,
   };
 }
+
+/**
+ * Whether any point carries a region code the US tilegram can actually place.
+ *
+ * The `us-tilegram` layout is a geographic island: it plots only the 50 states +
+ * DC it knows and silently drops every other code (the placement loop above). So
+ * a payload of non-US codes — or of coordinate-only points that carry no `code`
+ * at all — produces ZERO tiles there, leaving just the low→high legend: a legend
+ * for a map that is not on the page. Callers use this to fall back to the
+ * code-agnostic `grid` layout (which lays every point out in reading order,
+ * regardless of code) rather than render an empty board.
+ */
+export function hasUsTilegramTiles(points: readonly RegionPoint[]): boolean {
+  return points.some((point) => US_TILEGRAM[(point.code ?? '').toUpperCase()] !== undefined);
+}

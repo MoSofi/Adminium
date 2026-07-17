@@ -14,4 +14,7 @@ resources/icons/*.icns
 resources/icons/*.ico
 
 # Generated at build by 11-T18's scripts/generate-notices.mjs; never hand-edited.
+# THIRD-PARTY-NOTICES.txt is the generated attribution file; LICENSE is a copy of
+# the repo LICENSE staged next to it for §13's in-app viewer (one source of truth).
 resources/THIRD-PARTY-NOTICES.txt
+resources/LICENSE

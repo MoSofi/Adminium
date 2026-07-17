@@ -524,7 +524,7 @@ export async function introspectMysql(
     const table = tables.get(str(row['table_name']) ?? '');
     if (table === undefined) continue;
     const indexName = str(row['index_name']) ?? '';
-    const key = `${table.name} ${indexName}`;
+    const key = `${table.name}\x00${indexName}`;
     let acc = indexAccumulators.get(key);
     if (acc === undefined) {
       acc = {
@@ -541,7 +541,7 @@ export async function introspectMysql(
     }
   }
   for (const [key, acc] of indexAccumulators) {
-    const indexName = key.split(' ')[1] ?? '';
+    const indexName = key.split('\x00')[1] ?? '';
     const columns = acc.columns.sort((a, b) => a.seq - b.seq).map((c) => c.name);
     const primary = indexName === 'PRIMARY';
     acc.table.indexes.push({
@@ -584,7 +584,7 @@ export async function introspectMysql(
     const table = tables.get(str(row['table_name']) ?? '');
     if (table === undefined) continue;
     const constraintName = str(row['constraint_name']) ?? '';
-    const key = `${table.name} ${constraintName}`;
+    const key = `${table.name}\x00${constraintName}`;
     let acc = fkAccumulators.get(key);
     if (acc === undefined) {
       acc = {
@@ -604,7 +604,7 @@ export async function introspectMysql(
     });
   }
   for (const [key, acc] of fkAccumulators) {
-    const constraintName = key.split(' ')[1] ?? '';
+    const constraintName = key.split('\x00')[1] ?? '';
     const ordered = acc.columns.sort((a, b) => a.seq - b.seq);
     const columns = ordered.map((c) => c.from);
     const refColumns = ordered.map((c) => c.to);

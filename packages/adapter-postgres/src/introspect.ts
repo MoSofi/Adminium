@@ -649,7 +649,7 @@ export async function introspectPostgres(
   for (const relation of relations) {
     const table = [...tablesByOid.values()].find((t) => t.id === relation.from.tableId);
     if (table === undefined) continue;
-    const key = [...relation.from.columns].sort().join(' ');
+    const key = [...relation.from.columns].sort().join('\x00');
     const uniqueSets = [
       table.primaryKey,
       ...table.uniques.map((u) => u.columns),
@@ -657,7 +657,7 @@ export async function introspectPostgres(
         .filter((i) => i.unique && !i.partial && i.expression === null)
         .map((i) => i.columns),
     ];
-    if (uniqueSets.some((set) => set.length > 0 && [...set].sort().join(' ') === key)) {
+    if (uniqueSets.some((set) => set.length > 0 && [...set].sort().join('\x00') === key)) {
       relation.cardinality = 'one-to-one';
     }
   }

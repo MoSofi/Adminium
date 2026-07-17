@@ -179,6 +179,7 @@ describe('composition root (compose.ts)', () => {
       ['POST', '/api/v1/desktop/demo-database'],
       ['POST', '/api/v1/desktop/local-database'],
       ['GET', '/api/v1/desktop/lan-share'],
+      ['GET', '/api/v1/desktop/capability-grants'],
       ['POST', '/api/v1/auth/desktop-session'],
     ] as const;
     for (const [method, url] of routes) {
@@ -193,6 +194,7 @@ describe('composition root (compose.ts)', () => {
     expect(flags.desktopLanEnabled).toBe(true);
     expect(flags.desktopLocalDbEnabled).toBe(true);
     expect(flags.desktopDemoEnabled).toBe(true);
+    expect(flags.desktopCapabilitiesEnabled).toBe(true);
 
     await app.close();
     await meta.db.destroy();
@@ -213,6 +215,7 @@ describe('composition root (compose.ts)', () => {
       ['POST', '/api/v1/desktop/demo-database'],
       ['POST', '/api/v1/desktop/local-database'],
       ['GET', '/api/v1/desktop/lan-share'],
+      ['GET', '/api/v1/desktop/capability-grants'],
       ['POST', '/api/v1/auth/desktop-session'],
     ] as const;
     for (const [method, url] of routes) {
@@ -225,6 +228,7 @@ describe('composition root (compose.ts)', () => {
     expect(flags.desktopLanEnabled).toBe(false);
     expect(flags.desktopLocalDbEnabled).toBe(false);
     expect(flags.desktopDemoEnabled).toBe(false);
+    expect(flags.desktopCapabilitiesEnabled).toBe(false);
 
     // …while the ordinary API is unaffected: this is a targeted absence, not a
     // server that failed to compose.

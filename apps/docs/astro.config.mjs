@@ -138,7 +138,10 @@ export default defineConfig({
         },
         {
           label: 'Contributing',
-          items: [{ label: 'Monorepo setup', link: '/contributing/' }],
+          items: [
+            { label: 'Monorepo setup', link: '/contributing/' },
+            { label: 'Release the desktop app', link: '/contributing/release-desktop/' },
+          ],
         },
       ],
     }),

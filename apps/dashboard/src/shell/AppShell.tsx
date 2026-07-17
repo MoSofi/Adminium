@@ -22,6 +22,7 @@ import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
 import { t } from '../i18n/t.js';
+import { DesktopUpdateToaster } from '../desktop/updates.js';
 import { OnboardingEntry } from '../onboarding/OnboardingEntry.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { ShortcutsPanel } from './ShortcutsPanel.js';
@@ -186,6 +187,11 @@ export function AppShell() {
         onShowShortcuts={() => setShortcutsOpen(true)}
       />
       <ShortcutsPanel open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      {/* §11: the app-global surface for `notify`-mode update availability — a
+          desktop-only, guarded no-op elsewhere. Without a subscriber here the
+          main process's broadcast update events fall off the end (green-but-
+          broken); with it, a new version is heard app-wide, not only on /about. */}
+      <DesktopUpdateToaster />
     </div>
     </AppToastProvider>
   );

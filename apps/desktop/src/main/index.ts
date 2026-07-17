@@ -20,8 +20,9 @@
  */
 
 import { constants } from 'node:fs';
-import { access, mkdir } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { access, mkdir, readFile, readdir, stat } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -37,8 +38,12 @@ import {
 import { z } from 'zod';
 
 import type {
+  DesktopBundledTextKind,
   DesktopConfigPatch,
+  DesktopDiagnostics,
+  DesktopMenuLabels,
   DesktopPlatform,
+  DesktopUpdateEvent,
   SetDataDirOptions,
   SetDataDirResult,
 } from '../preload/api.js';
@@ -50,7 +55,8 @@ import {
   type BackupServerControl,
   type BackupTransport,
 } from './backup.js';
-import { createUngrantedCapabilityHost } from './capabilities/host.js';
+import { createCapabilityHost, type CapabilityGrantReader } from './capabilities/host.js';
+import { createEscposPrinterProvider } from './capabilities/printer-escpos.js';
 import {
   configPathFor,
   createDefaultConfig,
@@ -63,6 +69,7 @@ import {
   type ConfigLogger,
   type DesktopConfig,
   type SecretStorage,
+  type UpdateMode,
 } from './config.js';
 import {
   lanShareUrls,
@@ -71,7 +78,7 @@ import {
   WILDCARD_HOST,
   type ProbeResult,
 } from './lan.js';
-import { buildAppMenu, type MenuHandlers } from './menu.js';
+import { buildAppMenu, menuTranslator, type MenuHandlers, type MenuTranslate } from './menu.js';
 import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
 import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { createDesktopLogging } from './logging.js';
@@ -83,6 +90,13 @@ import {
   type ServerReadyInfo,
   type ServerState,
 } from './server-manager.js';
+import {
+  canSelfUpdate,
+  createUpdateManager as buildUpdateManager,
+  resolveUpdateMode,
+  type UpdateManager,
+  type UpdaterPort,
+} from './updates.js';
 import {
   createNativeDialogs,
   createWindowManager,
@@ -195,6 +209,21 @@ function bootTokenParam(singleUser: boolean, token: string | null): { bootToken?
  * entire purpose is to reveal them.
  */
 export const LAN_SHARE_PATH = '/settings/desktop';
+
+/**
+ * Where §14's native "About Adminium" menu item sends the window (§13). The same
+ * `/about` route the Settings → About panel uses — "the native menu item opens
+ * the same panel" — so there is one About surface, not two.
+ *
+ * A MAIN-PROCESS CONSTANT for the reason {@link AppUrlOptions.path} demands one:
+ * this string becomes the window's URL, and §2.4's navigation lockdown exists to
+ * control that. Sourcing it from the renderer would let the untrusted side pick
+ * where the trusted side navigates. The navigation is a full load (no boot token
+ * — the session cookie is already set), which is why it works from any app state
+ * and cannot silently break the way a "menu → push → SPA subscriber" chain can if
+ * the subscriber is ever unmounted.
+ */
+export const ABOUT_PATH = '/about';
 
 // ─── LAN share (§8.3) ────────────────────────────────────────────────────────
 
@@ -333,6 +362,13 @@ export interface DesktopBridgeContext {
   writeConfig: (patch: DesktopConfigPatch) => Promise<void>;
   /** §6 step 1's data-directory change — gate, write, relaunch. */
   setDataDir: (opts: SetDataDirOptions) => Promise<SetDataDirResult>;
+  /**
+   * §14: the renderer's localized menu labels. Stores them and rebuilds the
+   * native menu (see {@link DesktopBootDeps.installMenu}). Registered with the
+   * §4 bridge like the other ports here, so `main/ipc.ts`'s `setMenuLabels`
+   * handler routes a push straight to it.
+   */
+  setMenuLabels: (labels: DesktopMenuLabels) => void;
 }
 
 /** What the boot sequence knows about itself; 11-T04's `getRuntimeInfo` reads it. */
@@ -421,13 +457,19 @@ export interface DesktopBootDeps {
    */
   createBackup: (wiring: BackupWiring) => BackupCoordinator;
   /**
-   * §14's native menu. A port because `Menu.setApplicationMenu` needs a ready
-   * app and real Electron, and because the File items it wires (§9's "Back up
-   * now…" / "Restore from backup…") only have handlers once the coordinator
-   * above exists — which is why this is CALLED from the boot sequence rather
-   * than at module scope in `menu.ts`.
+   * §14's native menu, (re)installed. A port because `Menu.setApplicationMenu`
+   * needs a ready app and real Electron, and because the File items it wires
+   * (§9's "Back up now…" / "Restore from backup…") only have handlers once the
+   * coordinator above exists — which is why this is CALLED from the boot
+   * sequence rather than at module scope in `menu.ts`.
+   *
+   * Takes BOTH the handlers and the {@link MenuTranslate} because §14's "menu
+   * rebuilds on locale change" makes install a repeated act: the boot sequence
+   * calls this once at step 5 with the en-US default, then again every time the
+   * renderer pushes a new locale ({@link DesktopBridgeContext.setMenuLabels}),
+   * carrying the same handlers and a fresh `t`.
    */
-  installMenu: (handlers: MenuHandlers) => void;
+  installMenu: (opts: { handlers: MenuHandlers; t: MenuTranslate }) => void;
   /**
    * File → "Restore from backup…" — §4's `openFile({ kind: 'backup' })`.
    *
@@ -437,6 +479,31 @@ export interface DesktopBootDeps {
    * could not serve them.
    */
   pickBackupFile: () => Promise<string | null>;
+  /**
+   * §11 (11-T16). Build the updater for this launch, or `null` when there must
+   * not be one. A port — like `createServerManager` / `createBackup` — because
+   * the mode lives in `config.json` (known at step 2) and the updater needs
+   * electron-updater plus the ipc event sink, neither of which a unit suite can
+   * supply.
+   *
+   * `null` is the CORRECTNESS contract for `disabled` (§11): the port resolves
+   * the `ADMINIUM_DISABLE_UPDATES=1` override (a `process.env` fact this
+   * Electron-free sequence must not read) and, on that path, never even loads
+   * electron-updater — so an air-gapped install makes zero non-loopback requests.
+   * The boot owns only WHEN this is called (step 5, after the config load that
+   * carries the mode) and WHAT it wires to (the Help menu's "Check for updates…",
+   * and — through the port's own closure — the ipc `updates` getter).
+   */
+  createUpdateManager: (input: { mode: UpdateMode }) => UpdateManager | null;
+  /**
+   * §11: does the env kill-switch (`ADMINIUM_DISABLE_UPDATES=1`) force updates
+   * off for this launch? A `process.env` fact this Electron-free sequence must
+   * not read itself — the same reason `createUpdateManager` resolves the override
+   * behind its own port — so it is injected as a boot constant and carried into
+   * the runtime snapshot (`DesktopRuntimeSnapshot.updatesDisabledByEnv`) so §13's
+   * About panel reports the mode the updater actually runs in, not the raw config.
+   */
+  updatesDisabledByEnv: boolean;
 }
 
 /** What {@link DesktopBootDeps.createBackup} needs from the boot sequence (§9). */
@@ -500,6 +567,13 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
   /** §9's croner handle. Stopped on quit so it cannot fire into a closing app. */
   let stopAutoBackup: (() => void) | null = null;
   /**
+   * §11's updater, `null` until step 5 and `null` forever in `disabled` mode
+   * (11-T16). Held here — rather than a step-5 const — for the quit hook below,
+   * which `dispose()`s it so its 30 s / 24 h schedules cannot fire into a closing
+   * app (the same reason `stopAutoBackup` lives at this scope).
+   */
+  let updateManager: UpdateManager | null = null;
+  /**
    * Where the NEXT `ready` should land the window, consumed once (§8.3).
    *
    * A one-shot rather than a parameter because the `subscribe` listener that
@@ -511,6 +585,23 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
    * for.
    */
   let pendingAppPath: string | null = null;
+
+  /**
+   * §14's menu state, held across rebuilds. `menuLabels` is the last locale the
+   * renderer pushed (`null` ⇒ the en-US boot menu, §2.2 step 6); `menuHandlers`
+   * is the command set assembled at step 5. "The menu rebuilds on locale change"
+   * makes install a repeated act — a push after step 5 rebuilds with the new
+   * labels and the SAME handlers — so both go through {@link rebuildMenu}, the
+   * one place that turns the pair into an installed native menu. A push that
+   * arrives before step 5 (it cannot: the renderer that sends it only loads at
+   * step 8) would still be safe — the empty `menuHandlers` gives a titles-only
+   * menu that step 5 immediately supersedes.
+   */
+  let menuLabels: DesktopMenuLabels | null = null;
+  let menuHandlers: MenuHandlers = {};
+  const rebuildMenu = (): void => {
+    deps.installMenu({ handlers: menuHandlers, t: menuTranslator(menuLabels) });
+  };
 
   /**
    * §2.2 step 1 / §9: what to do with a file the OS handed us.
@@ -662,6 +753,11 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
                 dataDir: runtime.dataDir,
                 secretStorage: runtime.secretStorage,
                 serverPort: runtime.serverPort,
+                // §11: a boot constant (the env var does not change mid-session),
+                // so it is safe to read straight off the injected dep here — and
+                // it makes `getRuntimeInfo` truthful the moment a runtime exists
+                // (step 2), not only once the updater is built (step 5).
+                updatesDisabledByEnv: deps.updatesDisabledByEnv,
               },
         readConfig: () => {
           if (config === null) {
@@ -728,6 +824,13 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           host.relaunch();
           return { status: 'applied', dataDir: dir };
         },
+        // §14: a locale push from the SPA. Store it and rebuild the native menu
+        // with the same handlers — this is "the menu rebuilds on locale change",
+        // and it is wired to the §4 `setMenuLabels` channel through `ipc.ts`.
+        setMenuLabels: (labels) => {
+          menuLabels = labels;
+          rebuildMenu();
+        },
       });
 
       // §2.2 step 9's three buttons, and §9's graceful shutdown. BOTH before the
@@ -793,6 +896,11 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         // crash on the way out.
         stopAutoBackup?.();
         stopAutoBackup = null;
+        // §11: cancel the updater's launch/periodic schedules and detach its
+        // autoUpdater listeners on the same beat, so a check cannot fire into a
+        // closing app. `null` in `disabled` mode and before step 5 — both no-ops.
+        updateManager?.dispose();
+        updateManager = null;
         const target = manager;
         // No child yet (a quit during boot steps 1–4): nothing to shut down, and
         // cancelling the quit to await nothing would hang the app instead.
@@ -912,7 +1020,30 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       });
       const coordinator = backup;
 
-      deps.installMenu({
+      // §11's updater (11-T16). Created HERE, after the config load that carries
+      // `updates.mode`, and BEFORE the menu that wires its "Check for updates…"
+      // item. THIS IS THE WIRING: `deps.createUpdateManager` is the same class of
+      // call as `createBackup` above, and the port feeds two consumers from one
+      // manager — the ipc `updates` getter (so §4's checkForUpdates /
+      // downloadUpdate / quitAndInstall reach it from the SPA) and the Help menu
+      // below. `null` in `disabled` mode (or under `ADMINIUM_DISABLE_UPDATES=1`,
+      // which the port resolves): the correctness rule (§11) — nothing is
+      // constructed, so an air-gapped install makes zero non-loopback requests.
+      // `notify` mode schedules its own launch + daily checks; nothing here
+      // drives them.
+      updateManager = deps.createUpdateManager({ mode: loadedConfig.updates.mode });
+
+      // §14: assemble the menu's command handlers ONCE, here at step 5 — File's
+      // backup/restore (§9's coordinator), Help's Show Logs, and (when the
+      // updater exists) Help's Check for updates. `rebuildMenu` turns them plus
+      // the current labels into the installed menu; a later locale push
+      // (`setMenuLabels`) rebuilds with these SAME handlers and the new `t`.
+      //
+      // THIS IS THE WIRING: `deps.installMenu` is reached only through
+      // `rebuildMenu`, and `rebuildMenu` was called by nothing before this line —
+      // so the whole native menu bar, and its locale rebuild, would otherwise be
+      // absent from every launch while `menu.ts` compiled and unit-tested green.
+      menuHandlers = {
         backupNow: () => void coordinator.backupNow(),
         restore: () => {
           void (async () => {
@@ -923,7 +1054,31 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           })();
         },
         showLogs: () => void deps.showLogs(),
-      });
+        // §13 / §14: "About Adminium" opens the SAME `/about` panel the Settings
+        // surface uses. A window navigation, not an IPC push to the SPA: the
+        // route exists and the server serves it, so this cannot regress into a
+        // dead item the way a push whose renderer subscriber went unmounted would
+        // (the exact "green but broken" shape §7's crash-page note warns about).
+        // Guarded on `ready` because before the handshake there is no origin to
+        // navigate to — the item is reachable only after the app is up anyway.
+        about: () => {
+          const state = startedManager.state;
+          if (state.status !== 'ready') return;
+          void windows.loadApp(
+            appUrl({ host: state.host, port: state.port, firstRun: false, path: ABOUT_PATH }),
+          );
+        },
+        // §11 / §14 Help → "Check for updates…". In `manual` mode this is the
+        // ONLY check path; in `notify` it supplements the scheduled ones. `null`
+        // (disabled) leaves the item disabled via `menu.ts`'s unwired-handler
+        // rule. An `available` result surfaces through the ONE notification
+        // pipeline (`onUpdateEvent`); a `none`/`error` result is the SPA button's
+        // to render (§13 About / Settings), not this native item's.
+        ...(updateManager === null
+          ? {}
+          : { checkForUpdates: (): void => void updateManager?.checkForUpdates() }),
+      };
+      rebuildMenu();
 
       // §9's daily 03:00 auto-backup. Started here rather than lazily on the
       // first tick because a schedule nobody constructs is a schedule that never
@@ -1156,6 +1311,82 @@ function bundledDemoSeedScript(): string {
 }
 
 /**
+ * `out/main/` → `../../resources/` — §13's `LICENSE` and `THIRD-PARTY-NOTICES.txt`.
+ *
+ * The same `../../resources` arithmetic {@link bundledDemoSeedScript} uses, and
+ * the same reason it holds in both dev and a packaged build: §10's
+ * `files: [out/**, resources/**]` keeps that relative layout inside the app.
+ * `scripts/generate-notices.mjs` writes both files here at build; a dev run that
+ * never ran it legitimately has neither, and {@link readBundledDocument} returns
+ * `null` rather than throwing.
+ */
+function bundledResourcesDir(): string {
+  return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'resources');
+}
+
+/** §13's `readBundledText` kind → the file `generate-notices.mjs` stages. */
+const BUNDLED_DOCUMENT_FILE: Readonly<Record<DesktopBundledTextKind, string>> = {
+  license: 'LICENSE',
+  'third-party-notices': 'THIRD-PARTY-NOTICES.txt',
+};
+
+/**
+ * §13's in-app licence viewers, over the packaged resources dir. `null` — not a
+ * throw — when the file is absent: the notices are a BUILD artifact
+ * (`generate-notices.mjs`), so a `pnpm --filter @adminium/desktop dev` run has
+ * none, and the viewer shows "not available in this build" rather than an error.
+ * `readFile` also fails closed on anything unreadable, which is the same answer.
+ */
+async function readBundledDocument(kind: DesktopBundledTextKind): Promise<string | null> {
+  try {
+    return await readFile(join(bundledResourcesDir(), BUNDLED_DOCUMENT_FILE[kind]), 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * §13's "Copy diagnostic info … dataDir size" — the total bytes under `dir`,
+ * walked breadth-first with a bounded, error-tolerant traversal.
+ *
+ * Off the main thread's critical path (it answers an on-demand button, not a
+ * paint), and every failure — an unreadable entry, a vanished file mid-walk, a
+ * symlink loop the depth cap severs — is swallowed into "count what we can":
+ * a diagnostics figure is a rough total the user pastes into a bug report, and
+ * a partial one is worth more than an error where a number should be. Symlinks
+ * are NOT followed (`stat` on the entry, not its target's tree) and depth is
+ * capped, so the walk terminates on any directory shape.
+ */
+async function directorySizeBytes(dir: string): Promise<number> {
+  const MAX_DEPTH = 32;
+  let total = 0;
+  const walk = async (current: string, depth: number): Promise<void> => {
+    if (depth > MAX_DEPTH) return;
+    let entries;
+    try {
+      entries = await readdir(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join(current, entry.name);
+      if (entry.isSymbolicLink()) continue;
+      if (entry.isDirectory()) {
+        await walk(full, depth + 1);
+      } else if (entry.isFile()) {
+        try {
+          total += (await stat(full)).size;
+        } catch {
+          /* vanished mid-walk — count what we can */
+        }
+      }
+    }
+  };
+  await walk(dir, 0);
+  return total;
+}
+
+/**
  * §9's backup transport: `POST /api/v1/desktop/backup`, carrying the WINDOW'S
  * session cookie.
  *
@@ -1267,6 +1498,83 @@ const backupReplySchema = z.object({
     bytes: z.number().int().nonnegative(),
     manifest: backupManifestSchema,
     rotated: z.array(z.string()),
+  }),
+});
+
+/**
+ * §12's grant reader: `GET /api/v1/desktop/capability-grants`, carrying the
+ * WINDOW'S session cookie. `electronBackupTransport`'s sibling, and its reasons
+ * are the same one word for word — the route is session-guarded, main has no
+ * session of its own but owns the window's cookie jar, and the cookie is read
+ * PER CALL because a captured one turns a stale-session 401 into a mystery.
+ *
+ * The `CapabilityHost` calls this on every invoke to gate against a live grant
+ * (`main/capabilities/host.ts`). `null` — no server yet, no cookie, or a 401 — is
+ * read by the host as "no grants", so an invoke made before sign-in (or after a
+ * revoke that also killed the session) fails closed with CAPABILITY_NOT_GRANTED
+ * rather than reaching a provider.
+ */
+function electronCapabilityGrantReader(
+  serverOrigin: () => string | null,
+): CapabilityGrantReader {
+  return async () => {
+    const origin = serverOrigin();
+    if (origin === null) return null;
+
+    const cookies = await session.defaultSession.cookies.get({
+      url: origin,
+      name: SESSION_COOKIE_NAME,
+    });
+    const cookie = cookies[0];
+    if (cookie === undefined) return null;
+
+    const response = await fetch(`${origin}/api/v1/desktop/capability-grants`, {
+      method: 'GET',
+      headers: { cookie: `${cookie.name}=${cookie.value}` },
+    });
+    // 401 = the cookie is stale: the same user-visible fact as no cookie, and the
+    // same answer — nothing is granted to honour until sign-in. Any other non-2xx
+    // is a real fault the host logs and surfaces as INTERNAL.
+    if (response.status === 401) return null;
+    if (!response.ok) {
+      const detail = await readErrorMessage(response);
+      throw new Error(
+        `the Adminium server refused the capability-grant read (HTTP ${String(response.status)})${
+          detail === null ? '' : `: ${detail}`
+        }`,
+      );
+    }
+    // Parsed, not cast — `main/ipc.ts`'s cross-process rule: a shape change in the
+    // route surfaces here naming the field, not as an undefined deref in the gate.
+    const parsed = capabilityGrantsReplySchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new Error(
+        `the Adminium server sent a capability-grant reply this build does not understand: ${parsed.error.issues
+          .map((issue) => `${issue.path.map(String).join('.') || '(root)'}: ${issue.message}`)
+          .join('; ')}`,
+      );
+    }
+    return parsed.data.data.grants;
+  };
+}
+
+/**
+ * §12's grant-list reply (`routes/desktop-capabilities/schema.ts`).
+ *
+ * A local mirror, like `backupReplySchema` above and for the same reason: a
+ * runtime import of the server's schema would pull Fastify into the main process.
+ * The shapes are pinned by `host.ts`'s `_CapabilityGrantMatchesServer` assertion,
+ * so this stays honest.
+ */
+const capabilityGrantsReplySchema = z.object({
+  data: z.object({
+    grants: z.array(
+      z.object({
+        manifestId: z.string(),
+        capabilityId: z.string(),
+        grantedAt: z.number(),
+      }),
+    ),
   }),
 });
 
@@ -1393,6 +1701,26 @@ export function electronBootDeps(): DesktopBootDeps {
     if (error !== '') mainLog(`[main] could not open the logs folder: ${error}`);
   };
 
+  // ── §11's updater plumbing (11-T16) ──
+  // electron-updater is a CJS dependency; `require` it lazily so a unit test that
+  // imports this module never loads it, and — the correctness rule — so a
+  // `disabled` boot never even resolves it (`createUpdateManager`'s `getUpdater`
+  // below is the only reader, and `buildUpdateManager` skips it in disabled mode).
+  const requireFromMain = createRequire(import.meta.url);
+  /**
+   * The ONE update-notification sink (§4 `onUpdateEvent`), assigned when
+   * `registerBridge` registers the ipc handlers (their typed `emitUpdateEvent`).
+   * A no-op until then; `registerBridge` (boot step 2) always runs before the
+   * step-5 `createUpdateManager` call whose `emit` closes over this.
+   */
+  let emitUpdateEvent: (event: DesktopUpdateEvent) => void = () => {};
+  /**
+   * The live updater, so the ipc `updates` getter can reach it after step 5.
+   * `null` before then, and forever in `disabled` mode (§11) — which is exactly
+   * the `UNAVAILABLE` the getter's consumers expect.
+   */
+  let updateManager: UpdateManager | null = null;
+
   return {
     host: {
       argv: process.argv,
@@ -1429,6 +1757,39 @@ export function electronBootDeps(): DesktopBootDeps {
     logsDir,
     showLogs,
     createServerManager,
+
+    // ── §11's updater (11-T16) ──
+    // Delegates to `updates.ts`'s pure factory, adding the three parts only this
+    // Electron side can: the env override (`process.env`), the lazily-`require`d
+    // electron-updater, and the platform's self-replace capability.
+    createUpdateManager: ({ mode }) => {
+      updateManager = buildUpdateManager({
+        // The env kill-switch is a `process.env` fact the Electron-free boot
+        // sequence must not read; resolve it HERE. `disabled` ⇒ `buildUpdateManager`
+        // returns null WITHOUT calling `getUpdater`, so electron-updater is never
+        // even `require`d and never touches the network (§11 correctness rule).
+        mode: resolveUpdateMode(mode, process.env),
+        getUpdater: (): UpdaterPort => {
+          // Reading the `autoUpdater` export CONSTRUCTS the platform updater
+          // (§11 warns it checks on construction in some configs), so this runs
+          // only for notify/manual, at most once — never in `disabled`, never in
+          // the vitest program that imports this module.
+          const updaterModule: unknown = requireFromMain('electron-updater');
+          return (updaterModule as { autoUpdater: unknown }).autoUpdater as UpdaterPort;
+        },
+        // The ONE §4 notification pipeline. `emitUpdateEvent` is bound by
+        // `registerBridge` (boot step 2), which always runs before this (step 5).
+        emit: (event) => emitUpdateEvent(event),
+        canSelfUpdate: canSelfUpdate(process.platform, process.env),
+        log: mainLog,
+      });
+      return updateManager;
+    },
+    // §11: the env kill-switch as a boot constant for the runtime snapshot.
+    // Reuses `resolveUpdateMode`'s exact `ADMINIUM_DISABLE_UPDATES=1` rule (a
+    // truthy-string check would let `=0` disable updates) so the About panel and
+    // the updater agree on what "air-gapped" means.
+    updatesDisabledByEnv: resolveUpdateMode('notify', process.env) === 'disabled',
 
     // ── §9's backup/restore (11-T12) ──
     pickBackupFile: () => dialogs.openFile({ kind: 'backup' }),
@@ -1502,11 +1863,16 @@ export function electronBootDeps(): DesktopBootDeps {
     // `app.isPackaged` is Electron's own answer and cannot be spoofed by an env
     // var a user copied off a forum, which is what makes it the right gate for a
     // menu item that runs arbitrary script against the loopback origin (§2.4).
-    installMenu: (handlers) => {
+    installMenu: ({ handlers, t }) => {
       buildAppMenu({
         platform: process.platform,
         isDev: !app.isPackaged,
         handlers,
+        // §14's localized labels, resolved by the renderer and pushed over
+        // `setMenuLabels`; `menuTranslator(null)` (the boot menu) falls back to
+        // en-US. The boot sequence rebuilds through this same port on every
+        // locale change.
+        t,
       });
     },
     createBootToken: generateBootToken,
@@ -1520,7 +1886,7 @@ export function electronBootDeps(): DesktopBootDeps {
     demoSeedScript: bundledDemoSeedScript(),
 
     registerBridge: (context) => {
-      registerIpcHandlers({
+      const handlers = registerIpcHandlers({
         ipc: ipcMain,
         // §4's two synchronous properties. `versions.app` is `app.getVersion()`
         // and exists ONLY here: a sandboxed preload's polyfilled `process` knows
@@ -1558,22 +1924,57 @@ export function electronBootDeps(): DesktopBootDeps {
         lanShareUrls: () => lanShareUrls(context.readConfig().lanShare.port),
         dialogs: createNativeDialogs(),
         /**
-         * §11 is 11-T16's, and `null` is its contract for "not wired", not a
-         * placeholder: the three update channels answer §4's `UNAVAILABLE`
-         * rather than rejecting with Electron's "No handler registered" prose.
-         * It also satisfies §11's one CORRECTNESS rule for free — an updater
-         * that is never constructed cannot make a network request, which is
-         * what the air-gapped acceptance criterion asserts.
+         * §11 (11-T16). A GETTER over the outer `updateManager`, which the
+         * step-5 `createUpdateManager` port assigns AFTER this bridge registers
+         * (registerBridge is boot step 2). Until then, and forever in `disabled`
+         * mode, it reads `null` — the contract the three update channels answer
+         * §4 `UNAVAILABLE` for, which also satisfies §11's correctness rule: an
+         * updater that is never constructed cannot make a network request.
          */
-        updates: null,
-        // §12's registry, grant table and consent flow are 11-T17's. This host
-        // lists nothing and refuses every invoke with the typed
-        // CAPABILITY_NOT_GRANTED §12 specifies for an ungranted call.
-        capabilities: createUngrantedCapabilityHost(),
+        updates: () => updateManager,
+        // §12's capability plumbing (11-T17). The host gates EVERY invoke on a
+        // fresh read of the grant table over loopback — the same session-cookie
+        // transport §9's backup uses — and the escpos stub is v1's one provider.
+        // The origin is derived from the LIVE runtime snapshot, not captured: the
+        // child's port moves on every restart (§2.2 step 9), so a captured string
+        // would post to a dead port the first time LAN share flipped.
+        capabilities: createCapabilityHost({
+          readGrants: electronCapabilityGrantReader(() => {
+            const rt = context.runtime();
+            return rt === null || rt.serverPort < 0
+              ? null
+              : `http://127.0.0.1:${String(rt.serverPort)}`;
+          }),
+          providers: [createEscposPrinterProvider()],
+          log: mainLog,
+        }),
+        // §13's About panel data.
+        //
+        // THIS IS THE WIRING: `main/ipc.ts` registered the two channels the moment
+        // it was written, but they reject with §4's INTERNAL "no port" until this
+        // object supplies one — the About panel's "Copy diagnostic info" and its
+        // two licence viewers would be dead the same way `getRuntimeInfo`'s
+        // `lanShareUrls` was before it got a getter here.
+        //
+        // `getDiagnostics` walks the data directory for the ONE diagnostics figure
+        // the renderer cannot compute; it reads `dataDir` off the live runtime
+        // snapshot (`0` before boot, when there is nothing to size). `readBundledText`
+        // serves the packaged `LICENSE` / `THIRD-PARTY-NOTICES.txt` — files only
+        // the main process can locate — to §13's in-app viewers.
+        getDiagnostics: async (): Promise<DesktopDiagnostics> => {
+          const rt = context.runtime();
+          return { dataDirBytes: rt === null ? 0 : await directorySizeBytes(rt.dataDir) };
+        },
+        readBundledText: (kind) => readBundledDocument(kind),
         showLogs,
         relaunch: relaunchApp,
         log: mainLog,
       });
+      // §11: the ipc's typed emitter IS the ONE notification pipeline (§4
+      // onUpdateEvent). Bind it now, before the step-5 `createUpdateManager`
+      // whose `emit` forwards through it, so an update event reaches the SPA's
+      // notification centre unchanged.
+      emitUpdateEvent = handlers.emitUpdateEvent;
     },
   };
 }

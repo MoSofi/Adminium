@@ -929,6 +929,78 @@
       "available": "Adminium {version} 已發行",
       "availableBody": "您目前執行的是 {version}。",
       "viewRelease": "檢視發行說明"
+    },
+    "desktop": {
+      "unknown": "未知",
+      "appVersion": "應用程式版本",
+      "serverVersion": "伺服器版本",
+      "migration": "中繼資料庫遷移",
+      "electron": "Electron",
+      "chromium": "Chromium",
+      "runtimeNode": "Node 執行環境",
+      "system": {
+        "title": "系統"
+      },
+      "dataDir": "資料目錄",
+      "reveal": "在資料夾中顯示",
+      "secret": {
+        "title": "祕密儲存",
+        "safe": "由作業系統加密",
+        "plainWarning": "此電腦沒有可用的系統金鑰圈，因此你的 Adminium 祕密以未加密方式儲存在磁碟上。任何能讀取本機檔案的人都能讀取它。請設定登入金鑰圈（或 Linux 祕密服務）並重新啟動 Adminium 以保護它。"
+      },
+      "updates": {
+        "title": "更新",
+        "mode": {
+          "notify": "有新版本時通知我",
+          "manual": "僅在我檢查時",
+          "disabled": "關閉（離線）"
+        },
+        "disabledBody": "自動更新已關閉（離線）。請手動安裝新版本。",
+        "check": "檢查更新",
+        "checking": "正在檢查…",
+        "lastChecked": "上次檢查 {when}",
+        "available": "版本 {version} 可用",
+        "none": "你已是最新版本。",
+        "unavailable": "此安裝已關閉更新。",
+        "error": "無法檢查更新。",
+        "download": "下載更新",
+        "downloading": "正在下載… {percent}%",
+        "downloaded": "版本 {version} 已可安裝",
+        "restart": "重新啟動以安裝",
+        "downloadError": "下載未完成。你可以重試。",
+        "toast": {
+          "available": "有新版本的 Adminium 可用",
+          "view": "檢視",
+          "downloaded": "更新已可安裝",
+          "restart": "立即重新啟動"
+        }
+      },
+      "legal": {
+        "title": "授權",
+        "agpl": "Adminium Desktop 是遵循 GNU Affero General Public License v3.0 的自由軟體。",
+        "viewLicense": "檢視授權",
+        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseUnavailable": "此組建中沒有隨附的授權檔案。",
+        "viewNotices": "第三方授權",
+        "noticesTitle": "第三方聲明",
+        "noticesUnavailable": "第三方聲明在應用程式封裝時產生，此組建中不可用。",
+        "source": "原始碼",
+        "close": "關閉"
+      },
+      "telemetry": {
+        "title": "匿名使用資料",
+        "label": "分享匿名使用資料",
+        "description": "協助我們決定優先支援哪些資料庫引擎。除非你開啟，否則預設關閉；絕不會傳送結構描述、資料或個人資訊。",
+        "saveFailed": "無法儲存該設定。請重試。"
+      },
+      "diagnostics": {
+        "title": "診斷",
+        "description": "有助於你回報問題的詳細資訊。不包含任何結構描述或資料。",
+        "copy": "複製診斷資訊",
+        "copied": "已複製",
+        "showLogs": "顯示記錄",
+        "dataSize": "資料大小：{size}"
+      }
     }
   },
   "apiKeys": {
@@ -1104,6 +1176,22 @@
     }
   },
   "desktop": {
+    "menu": {
+      "file": "檔案",
+      "fileNewDatabase": "新增本機資料庫…",
+      "fileOpenSqlite": "開啟 SQLite 檔案…",
+      "fileBackupNow": "立即備份…",
+      "fileRestore": "從備份還原…",
+      "edit": "編輯",
+      "view": "檢視",
+      "window": "視窗",
+      "help": "說明",
+      "helpDocs": "Adminium 文件",
+      "helpShortcuts": "鍵盤快速鍵",
+      "helpLogs": "顯示日誌",
+      "helpCheckForUpdates": "檢查更新…",
+      "helpAbout": "關於 Adminium"
+    },
     "settings": {
       "explainer": "這些設定僅適用於這台電腦上的 Adminium 應用程式，會儲存在本機，不會儲存到你的工作區。"
     },
@@ -1258,6 +1346,42 @@
         "failedBody": "出了點問題。請重試。",
         "retry": "重試"
       }
+    }
+  },
+  "capabilities": {
+    "heading": "應用程式權限",
+    "description": "您安裝的應用程式可以要求使用本電腦的硬體。您需逐一核准，並可隨時撤銷存取權限。",
+    "grantedTo": "已允許 {app}",
+    "status": {
+      "available": "可用",
+      "stub": "尚未可用",
+      "unavailable": "無法使用"
+    },
+    "allow": {
+      "action": "允許…"
+    },
+    "revoke": {
+      "action": "撤銷",
+      "saved": "已撤銷存取權限",
+      "failed": "無法撤銷存取權限，請重試。"
+    },
+    "grant": {
+      "saved": "已允許存取",
+      "failed": "無法允許存取，請重試。"
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "收據印表機 (ESC/POS)",
+        "scope": "在收據印表機上列印並開啟連接的錢櫃"
+      }
+    },
+    "consent": {
+      "title": "允許 {app}？",
+      "subtitle": "{app} 要求使用本電腦的硬體。",
+      "willAllow": "這將允許 {app}：",
+      "revokeNote": "您可以隨時在「設定 → 桌面」中撤銷。僅允許您信任的應用程式。",
+      "deny": "暫不",
+      "approve": "允許"
     }
   }
 }

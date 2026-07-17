@@ -937,6 +937,78 @@ export default {
       "available": "Je k dispozici Adminium {version}",
       "availableBody": "Aktuálně používáte {version}.",
       "viewRelease": "Zobrazit poznámky k vydání"
+    },
+    "desktop": {
+      "unknown": "Neznámé",
+      "appVersion": "Verze aplikace",
+      "serverVersion": "Verze serveru",
+      "migration": "Migrace meta-úložiště",
+      "electron": "Electron",
+      "chromium": "Chromium",
+      "runtimeNode": "Běhové prostředí Node",
+      "system": {
+        "title": "Systém"
+      },
+      "dataDir": "Datový adresář",
+      "reveal": "Zobrazit ve složce",
+      "secret": {
+        "title": "Úložiště tajemství",
+        "safe": "Šifrováno vaším operačním systémem",
+        "plainWarning": "Tento počítač nemá k dispozici systémovou klíčenku, takže vaše tajemství Adminium je uloženo na disku nezašifrované. Přečíst je může kdokoli, kdo má přístup k souborům tohoto počítače. Nastavte přihlašovací klíčenku (nebo linuxovou službu tajemství) a restartujte Adminium, abyste je ochránili."
+      },
+      "updates": {
+        "title": "Aktualizace",
+        "mode": {
+          "notify": "Upozornit na nové verze",
+          "manual": "Jen když zkontroluji",
+          "disabled": "Vypnuto (bez sítě)"
+        },
+        "disabledBody": "Automatické aktualizace jsou vypnuté (bez sítě). Nové verze instalujte ručně.",
+        "check": "Zkontrolovat aktualizace",
+        "checking": "Kontroluji…",
+        "lastChecked": "Naposledy zkontrolováno {when}",
+        "available": "Je dostupná verze {version}",
+        "none": "Máte nejnovější verzi.",
+        "unavailable": "Aktualizace jsou v této instalaci vypnuté.",
+        "error": "Aktualizace se nepodařilo zkontrolovat.",
+        "download": "Stáhnout aktualizaci",
+        "downloading": "Stahování… {percent} %",
+        "downloaded": "Verze {version} je připravena k instalaci",
+        "restart": "Restartovat a nainstalovat",
+        "downloadError": "Stahování se nedokončilo. Můžete to zkusit znovu.",
+        "toast": {
+          "available": "Je dostupná nová verze Adminia",
+          "view": "Zobrazit",
+          "downloaded": "Aktualizace je připravena k instalaci",
+          "restart": "Restartovat nyní"
+        }
+      },
+      "legal": {
+        "title": "Licence",
+        "agpl": "Adminium Desktop je svobodný software pod licencí GNU Affero General Public License v3.0.",
+        "viewLicense": "Zobrazit licenci",
+        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseUnavailable": "Přibalený licenční soubor není v tomto sestavení k dispozici.",
+        "viewNotices": "Licence třetích stran",
+        "noticesTitle": "Oznámení třetích stran",
+        "noticesUnavailable": "Oznámení třetích stran se generují při balení aplikace a nejsou v tomto sestavení k dispozici.",
+        "source": "Zdrojový kód",
+        "close": "Zavřít"
+      },
+      "telemetry": {
+        "title": "Anonymní data o používání",
+        "label": "Sdílet anonymní data o používání",
+        "description": "Pomáhá nám rozhodnout, které databázové enginy upřednostnit. Vypnuto, dokud to nezapnete; nikdy se neodesílá schéma, data ani osobní údaje.",
+        "saveFailed": "Toto nastavení se nepodařilo uložit. Zkuste to znovu."
+      },
+      "diagnostics": {
+        "title": "Diagnostika",
+        "description": "Údaje, které pomohou při hlášení problému. Neobsahuje žádné schéma ani data.",
+        "copy": "Kopírovat diagnostické údaje",
+        "copied": "Zkopírováno",
+        "showLogs": "Zobrazit protokoly",
+        "dataSize": "Velikost dat: {size}"
+      }
     }
   },
   "apiKeys": {
@@ -1112,6 +1184,22 @@ export default {
     }
   },
   "desktop": {
+    "menu": {
+      "file": "Soubor",
+      "fileNewDatabase": "Nová místní databáze…",
+      "fileOpenSqlite": "Otevřít soubor SQLite…",
+      "fileBackupNow": "Zálohovat nyní…",
+      "fileRestore": "Obnovit ze zálohy…",
+      "edit": "Úpravy",
+      "view": "Zobrazení",
+      "window": "Okno",
+      "help": "Nápověda",
+      "helpDocs": "Dokumentace Adminium",
+      "helpShortcuts": "Klávesové zkratky",
+      "helpLogs": "Zobrazit protokoly",
+      "helpCheckForUpdates": "Zkontrolovat aktualizace…",
+      "helpAbout": "O aplikaci Adminium"
+    },
     "settings": {
       "explainer": "Tato nastavení platí pouze pro aplikaci Adminium na tomto počítači. Ukládají se na tomto zařízení, ne ve vašem pracovním prostoru."
     },
@@ -1266,6 +1354,42 @@ export default {
         "failedBody": "Něco se pokazilo. Zkuste to znovu.",
         "retry": "Zkusit znovu"
       }
+    }
+  },
+  "capabilities": {
+    "heading": "Oprávnění aplikací",
+    "description": "Aplikace, které nainstalujete, mohou požádat o přístup k hardwaru tohoto počítače. Každou z nich schvalujete a přístup můžete kdykoli odvolat.",
+    "grantedTo": "Povoleno pro {app}",
+    "status": {
+      "available": "Dostupné",
+      "stub": "Zatím nedostupné",
+      "unavailable": "Nedostupné"
+    },
+    "allow": {
+      "action": "Povolit…"
+    },
+    "revoke": {
+      "action": "Odvolat",
+      "saved": "Přístup odvolán",
+      "failed": "Přístup se nepodařilo odvolat. Zkuste to znovu."
+    },
+    "grant": {
+      "saved": "Přístup povolen",
+      "failed": "Přístup se nepodařilo povolit. Zkuste to znovu."
+    },
+    "catalog": {
+      "printerEscpos": {
+        "name": "Tiskárna účtenek (ESC/POS)",
+        "scope": "Tisknout na tiskárnách účtenek a otevřít připojenou pokladní zásuvku"
+      }
+    },
+    "consent": {
+      "title": "Povolit {app}?",
+      "subtitle": "{app} žádá o použití hardwaru tohoto počítače.",
+      "willAllow": "Toto umožní aplikaci {app}:",
+      "revokeNote": "Toto můžete kdykoli odvolat v Nastavení → Plocha. Povolujte jen aplikace, kterým důvěřujete.",
+      "deny": "Teď ne",
+      "approve": "Povolit"
     }
   }
 } as const;
