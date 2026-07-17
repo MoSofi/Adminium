@@ -31,6 +31,7 @@ import {
   type IpcSyncEventLike,
   type RegisterIpcHandlersOptions,
 } from './ipc.js';
+import type { SetDataDirResult } from '../preload/api.js';
 import type { UpdateManager } from './updates.js';
 
 // ─── Fakes ───────────────────────────────────────────────────────────────────
@@ -126,6 +127,7 @@ interface Harness {
   capabilities: CapabilityHost;
   updates: UpdateManager | null;
   writeConfig: ReturnType<typeof vi.fn>;
+  setDataDir: ReturnType<typeof vi.fn>;
   relaunch: ReturnType<typeof vi.fn>;
   showLogs: ReturnType<typeof vi.fn>;
   broadcast: ReturnType<typeof vi.fn>;
@@ -139,6 +141,9 @@ function harness(overrides: Partial<RegisterIpcHandlersOptions> = {}): Harness {
   const capabilities = overrides.capabilities ?? stubCapabilities();
   const updates = overrides.updates === undefined ? stubUpdates() : overrides.updates;
   const writeConfig = vi.fn(() => Promise.resolve());
+  const setDataDir = vi.fn(() =>
+    Promise.resolve<SetDataDirResult>({ status: 'applied', dataDir: '/data' }),
+  );
   const relaunch = vi.fn();
   const showLogs = vi.fn(() => Promise.resolve());
   const broadcast = vi.fn();
@@ -150,6 +155,7 @@ function harness(overrides: Partial<RegisterIpcHandlersOptions> = {}): Harness {
     runtime: () => RUNTIME,
     readConfig: () => config,
     writeConfig,
+    setDataDir,
     dialogs,
     updates,
     capabilities,
@@ -158,7 +164,19 @@ function harness(overrides: Partial<RegisterIpcHandlersOptions> = {}): Harness {
     ...overrides,
   });
 
-  return { ipc, config, dialogs, capabilities, updates, writeConfig, relaunch, showLogs, broadcast, handlers };
+  return {
+    ipc,
+    config,
+    dialogs,
+    capabilities,
+    updates,
+    writeConfig,
+    setDataDir,
+    relaunch,
+    showLogs,
+    broadcast,
+    handlers,
+  };
 }
 
 const expectOk = <T>(result: IpcResult<T>): T => {
@@ -189,6 +207,9 @@ describe('registration', () => {
         IPC_CHANNELS.relaunch,
         IPC_CHANNELS.saveFile,
         IPC_CHANNELS.setConfig,
+        // §6 step 1's data-dir move: its own channel, because it commits and
+        // relaunches rather than patching config (see `setDataDirSchema`).
+        IPC_CHANNELS.setDataDir,
         IPC_CHANNELS.showItemInFolder,
         IPC_CHANNELS.showLogs,
       ].sort(),

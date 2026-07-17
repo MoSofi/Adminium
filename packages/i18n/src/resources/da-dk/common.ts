@@ -44,7 +44,8 @@ export default {
       "back": "Tilbage til login",
       "done": "Tilbage til login",
       "rateLimited": "For mange anmodninger — prøv igen senere.",
-      "failed": "Noget gik galt. Prøv igen."
+      "failed": "Noget gik galt. Prøv igen.",
+      "smtpUnconfigured": "Dette Adminium har ingen mailserver konfigureret og kan derfor ikke sende et nulstillingslink. Bed en administrator om at nulstille din adgangskode."
     },
     "reset": {
       "title": "Vælg en ny adgangskode",
@@ -426,7 +427,10 @@ export default {
         "ollama": {
           "label": "Ollama (lokal)",
           "desc": "Modeller kører lokalt via Ollama — ingen nøgle, ingen sky."
-        }
+        },
+        "requiresNetwork": "Kræver internet og en API-nøgle",
+        "networkDisabledTitle": "Direkte AI-udbydere er slået fra i denne installation",
+        "networkDisabledBody": "Dette Adminium er konfigureret uden udgående internetadgang og kan ikke nå en udbyder-API. Brug kopier-indsæt-turen nedenfor — den kræver hverken nøgle eller netværk."
       },
       "configure": {
         "heading": "Konfigurér {provider}"
@@ -469,7 +473,9 @@ export default {
         "guarantee2": "Ingen legitimationsoplysninger, instans-URL eller identifikatorer er indlejret.",
         "guarantee3": "BYO-kørsler foretager ingen netværkskald og afregnes aldrig.",
         "promptVersion": "Prompt {version}",
-        "schemaVersion": "Skema {version}"
+        "schemaVersion": "Skema {version}",
+        "headingRecommended": "Brug dit eget AI-værktøj — ingen nøgle nødvendig",
+        "recommended": "Anbefalet"
       },
       "history": {
         "heading": "Kørselshistorik",
@@ -527,7 +533,8 @@ export default {
         "description": "Kør berigelsen nu mod din konfigurerede udbyder. Du gennemgår hvert forslag som en diff.",
         "unconfigured": "Der er endnu ikke konfigureret nogen AI-udbyder — kopiér en prompt til dit eget værktøj nedenfor, eller konfigurér først en udbyder.",
         "settingsHint": "Vil du køre den direkte?",
-        "settingsLink": "Konfigurér en udbyder i Indstillinger → AI"
+        "settingsLink": "Konfigurér en udbyder i Indstillinger → AI",
+        "networkDisabled": "Dette Adminium har ingen udgående internetadgang og kan ikke nå en udbyder-API. Brug kopier-indsæt-turen i stedet — samme prompt, samme gennemgang."
       },
       "byo": {
         "cardTitle": "Kopiér en prompt til mit eget AI-værktøj",
@@ -559,7 +566,8 @@ export default {
         "pendingBodyChunked": "Hver del skal valideres, før forslagene flettes. Indsæt og validér hver prompt ovenfor.",
         "requestFailed": "Kunne ikke nå serveren for at validere — prøv igen.",
         "continueReview": "Fortsæt til gennemgang",
-        "wholeDocument": "hele dokumentet"
+        "wholeDocument": "hele dokumentet",
+        "cardTitleRecommended": "Kopiér en prompt til mit eget AI-værktøj — anbefalet"
       },
       "direct": {
         "title": "Beriger med AI",
@@ -1116,6 +1124,148 @@ export default {
       "savedOn": "Der kræves login ved næste opstart",
       "savedOff": "Adminium springer login over på denne computer",
       "saveFailed": "Indstillingen kunne ikke gemmes. Prøv igen."
+    },
+    "chip": {
+      "local": "Lokal",
+      "lanShare": "Lokal · Deles på netværket",
+      "remoteDb": "Lokal + fjerndatabase",
+      "remoteDbOffline": "Fjerndatabase offline",
+      "remoteDbOfflineDetail": "Kan ikke nå {names}. Sider for disse forbindelser viser en genforbindelsestilstand."
+    },
+    "lan": {
+      "heading": "Del på lokalt netværk",
+      "label": "Lad andre enheder på dette netværk bruge Adminium",
+      "description": "Andre computere, tablets og telefoner på samme netværk kan åbne Adminium i en browser og logge ind med deres egen konto. Adminium skal blive ved med at være åbent på denne computer, for at de kan nå det.",
+      "savedOn": "Deler på dit lokale netværk",
+      "savedOff": "Deling stoppet — Adminium er tilbage på kun denne computer",
+      "saveFailed": "Kunne ikke ændre netværksdeling",
+      "noUsers": "Du er den eneste med en konto, så ingen andre kan logge ind endnu. Deling virker alligevel — du skal bare invitere folk, før de kan bruge det.",
+      "usersUnknown": "Adminium kunne ikke tjekke, hvem der ellers har en konto på denne computer. Deling virker stadig, og alle med en konto kan logge ind — det er kun dette tjek, der fejlede.",
+      "acknowledge": "Forstået — jeg inviterer folk bagefter",
+      "port": "Port",
+      "portHelper": "Standard {port}",
+      "portInvalid": "Brug et tal mellem 1024 og 65535.",
+      "applyPort": "Skift port",
+      "portInUse": "Port {port} bruges allerede af et andet program.",
+      "portInUseHint": "Intet blev ændret — deling er stadig slået fra.",
+      "portInUseNoSuggestion": "Intet blev ændret. Prøv en anden port.",
+      "tryPort": "Prøv {port}",
+      "urlsHeading": "Åbn dette på en anden enhed",
+      "noUrls": "Denne computer er ikke forbundet til et netværk lige nu, så der er ingen adresse at dele. Forbind til Wi-Fi eller sæt et kabel i, så udfyldes listen.",
+      "copyUrl": "Kopiér",
+      "sessions": "{count, plural, =0 {Ingen enheder er logget ind fra dette netværk} one {# enhed logget ind fra dette netværk} other {# enheder logget ind fra dette netværk}}",
+      "sessionsUnknown": "Tjekker hvem der er forbundet…",
+      "pending": "Starter deling…",
+      "mismatch": "Adminium kan stadig nås på dette netværk",
+      "mismatchBody": "Deling er slået fra, men serveren har endnu ikke frigivet netværket. Genstart Adminium for at lukke det.",
+      "transportTitle": "Trafik på dit lokale netværk er ikke krypteret.",
+      "transportBody": "Del kun på netværk, du stoler på. Brug Adminium self-host bag HTTPS til fjernadgang.",
+      "firewall": "Første gang du deler, spørger dit styresystem, om indgående forbindelser skal tillades — vælg Tillad, ellers kan andre enheder ikke nå Adminium."
+    },
+    "setup": {
+      "title": "Velkommen til Adminium",
+      "subtitle": "Fire korte trin, og Adminium har bygget en administrationsapp ud fra din database. Alt bliver på denne computer.",
+      "progress": "Opsætningsforløb",
+      "back": "Tilbage",
+      "continue": "Fortsæt",
+      "createAccount": "Opret konto og fortsæt",
+      "step": {
+        "location": "Velkommen",
+        "database": "Din første database",
+        "account": "Din konto",
+        "generate": "Generér"
+      },
+      "dataDir": {
+        "heading": "Hvor skal Adminium gemme dine data?",
+        "description": "Dine databaser, indstillinger og sikkerhedskopier ligger alle i denne mappe. Alt bliver på denne computer — intet uploades nogen steder.",
+        "label": "Datamappe",
+        "loading": "Læser den nuværende placering…",
+        "pending": "Adminium genstarter, når du fortsætter, så det kan flytte til denne mappe.",
+        "change": "Skift…",
+        "revert": "Fortryd",
+        "dialogTitle": "Vælg, hvor Adminium gemmer dine data",
+        "cloudSyncTitle": "Denne mappe synkroniseres til skyen",
+        "cloudSyncWarning": "Adminium gemmer sine data i SQLite-filer. {provider} synkroniserer filer i “{folder}” ved at kopiere dem i baggrunden, hvilket kan ødelægge en database, der er åben — og miste data uden varsel. Vælg en mappe uden for {provider}.",
+        "chooseAnother": "Vælg en anden mappe",
+        "useAnyway": "Brug den alligevel — jeg accepterer risikoen",
+        "unusableTitle": "Adminium kan ikke bruge den mappe",
+        "failed": "Adminium kunne ikke bruge den mappe."
+      },
+      "source": {
+        "heading": "Hvad skal Adminium bygge ud fra?",
+        "description": "Adminium læser en databases skema og genererer en administrationsapp ud fra det. Du kan tilføje flere databaser senere.",
+        "groupLabel": "Databasekilde",
+        "local": {
+          "title": "Opret en ny lokal database",
+          "description": "Start fra ingenting, eller fra en skemafil du allerede har. Databasen oprettes inde i din datamappe.",
+          "name": "Databasenavn",
+          "namePlaceholder": "Drift",
+          "nameUnusable": "Brug mindst ét bogstav eller tal — filnavnet bygges ud fra dette.",
+          "fileHelper": "Opretter {file}",
+          "schemaLabel": "Start fra",
+          "blank": "Tom",
+          "fromFile": "En skemafil",
+          "schemaFile": "Skemafil",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django eller Adminium-JSON. Adminium oversætter det til SQLite.",
+          "placeholder": "Generér pladsholderposter automatisk",
+          "placeholderHelper": "Du importerede et skema uden rækker. Fyld hver tabel med realistiske eksempeldata, så dine dashboards og diagrammer vises med det samme."
+        },
+        "openSqlite": {
+          "title": "Åbn en eksisterende SQLite-fil",
+          "description": "Peg Adminium mod en .sqlite-fil på denne computer. Den åbnes, hvor den ligger — intet kopieres eller flyttes.",
+          "browse": "Vælg en .sqlite-fil…",
+          "change": "Vælg en anden fil…",
+          "networkTitle": "Den fil ligger på et netværksdrev",
+          "networkBody": "SQLite-låsning er upålidelig over netværksdrev, og en afbrudt forbindelse midt i en skrivning kan ødelægge databasen. En kopi på denne computers egen disk er sikrere."
+        },
+        "remote": {
+          "title": "Forbind til en serverdatabase",
+          "description": "PostgreSQL eller MySQL. Kræver en database, der kan nås på netværket; Adminiums egne tabeller bliver stadig på denne computer.",
+          "networkNote": "Kræver en database, der kan nås på netværket",
+          "metaNote": "Adminiums egne tabeller — dine sider, indstillinger og login — bliver i datamappen på denne computer under alle omstændigheder.",
+          "engine": "Motor",
+          "name": "Forbindelsesnavn",
+          "namePlaceholder": "Produktion",
+          "dsn": "Forbindelsesstreng",
+          "dsnHelper": "Adminium tester den, når det forbinder. Brug en skrivebeskyttet rolle, hvis du kun vil have dashboards."
+        },
+        "demo": {
+          "title": "Udforsk demodatabasen",
+          "description": "En færdig database over teamdrift, så du kan se, hvad Adminium bygger, før du peger det mod dine egne data. Slet den, når du vil.",
+          "unavailable": "Denne udgave indeholder ikke demodataene, så der er intet at indlæse. Vælg en af mulighederne ovenfor."
+        }
+      },
+      "account": {
+        "heading": "Opret din konto",
+        "description": "Dette er administratorkontoen for denne kopi af Adminium. Adgangskoden beskytter dine sikkerhedskopier og alle, du deler med på dit netværk — du bliver ikke spurgt om den ved hver opstart.",
+        "name": "Dit navn",
+        "email": "E-mail",
+        "password": "Adgangskode",
+        "passwordHelper": "Mindst {min} tegn.",
+        "confirm": "Bekræft adgangskode",
+        "strength": "Adgangskodens styrke",
+        "strengthLevels": {
+          "weak": "Svag",
+          "fair": "Nogenlunde",
+          "good": "God",
+          "strong": "Stærk"
+        },
+        "singleUser": "Spring login over på denne computer",
+        "singleUserHelper": "Adminium logger dig automatisk ind, når du åbner det her. Slå dette fra, hvis andre bruger denne maskine. Du kan ændre det senere under Indstillinger → Skrivebord.",
+        "locale": "Sprog",
+        "theme": "Udseende",
+        "alreadyExists": "Denne kopi af Adminium har allerede en konto. Log ind med den i stedet.",
+        "failed": "Adminium kunne ikke oprette den konto."
+      },
+      "generate": {
+        "creating": "Sætter din database op…",
+        "introspecting": "Læser dit skema — tabeller, kolonner og relationer…",
+        "working": "Arbejder…",
+        "offlineNote": "Alt dette sker på denne computer.",
+        "failedTitle": "Adminium kunne ikke sætte den database op",
+        "failedBody": "Noget gik galt. Prøv igen.",
+        "retry": "Prøv igen"
+      }
     }
   }
 } as const;

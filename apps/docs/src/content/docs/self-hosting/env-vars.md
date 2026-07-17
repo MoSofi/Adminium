@@ -21,6 +21,7 @@ half-configured and fail later.
 | `DATABASE_URL` | No | — | **First-boot seed only** — see below. |
 | `ADMINIUM_LOG_LEVEL` | No | `info` | `fatal` · `error` · `warn` · `info` · `debug` · `trace` |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
+| `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
 
@@ -140,6 +141,32 @@ It does not govern the update check, which has its own consent
 (`updates.checkEnabled`, also off by default).
 
 → [Telemetry](/self-hosting/telemetry/)
+
+## `ADMINIUM_NETWORK_FEATURES`
+
+Accepts `on`, `true`, `1` (and `off`, `false`, `0`). Default `on`.
+
+This is a **policy** answer, not a connectivity check. Adminium never probes the
+internet to find out whether it is reachable — that outbound call is exactly what
+an air-gapped install is promised it will not make. So the server reports what
+you told it, and the UI adapts.
+
+Set it `off` on an install with no outbound network. Features that need the
+internet — webhooks, OAuth integrations, provider-API AI enrichment — then say so
+up front instead of being discovered one timeout at a time. Nothing is hidden:
+each surface explains why it is unavailable.
+
+Everything Adminium does locally is unaffected: browsing and editing data, charts,
+generation, exports, scheduled reports, and the copy/paste AI round-trip all work
+exactly the same.
+
+```bash
+ADMINIUM_NETWORK_FEATURES=off
+ADMINIUM_TELEMETRY=off
+```
+
+Together with `ADMINIUM_TELEMETRY=off` and `updates.checkEnabled` left at its
+default, that is a complete no-phone-home configuration.
 
 ## Flags override the environment
 

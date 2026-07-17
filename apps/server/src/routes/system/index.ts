@@ -11,13 +11,31 @@
  *    instance that would 500 every request.
  * Point orchestration at whichever question you are actually asking; see
  * `./handlers.ts` for why conflating the two is a trap.
+ *
+ * `/system/info` answers a third, unrelated question — "what is this
+ * deployment, and what may it do?" — and is the surface 11-electron.md §8.1/§8.2
+ * gate the desktop UX on (runtime chip, SMTP-gated email, network-dependent
+ * features). See `./schema.ts` for what each flag is entitled to claim.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
+import type { Env } from '../../config/env.js';
 import { healthz, readyz, systemInfo } from './handlers.js';
 import { systemHealthzReply, systemInfoReply, systemReadyzReply } from './schema.js';
 
-export const systemRoutes: FastifyPluginAsyncZod = async (app) => {
+export interface SystemRoutesDeps {
+  /**
+   * The validated boot environment. INJECTED rather than read off `process.env`
+   * inside the handler for the reason `config/env.ts` gives at length: the two
+   * §8.2 flags this reply derives from the environment (`runtime`,
+   * `networkFeaturesAllowed`) are answers the SPA gates features on, and a typo
+   * sampled from ambient state deep in a handler reads as a plausible default
+   * instead of failing the boot.
+   */
+  env: Env;
+}
+
+export const systemRoutes = ({ env }: SystemRoutesDeps): FastifyPluginAsyncZod => async (app) => {
   app.get('/healthz', { schema: { response: { 200: systemHealthzReply } } }, async () => healthz());
 
   app.get(
@@ -36,7 +54,8 @@ export const systemRoutes: FastifyPluginAsyncZod = async (app) => {
     '/system/info',
     { schema: { response: { 200: systemInfoReply } } },
     // The meta handle rides on `authContext`, which is null when the server
-    // boots without a meta store — then `dialect` is honestly null.
-    async () => systemInfo(app.authContext?.meta.dialect ?? null),
+    // boots without a meta store — then `dialect` is honestly null and
+    // `smtpConfigured` honestly false (the setting cannot exist without a store).
+    async () => systemInfo({ env, meta: app.authContext?.meta ?? null }),
   );
 };

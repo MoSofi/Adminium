@@ -113,6 +113,23 @@ function stubFetch(options: StubOptions = {}) {
     if (url.startsWith('/api/v1/bootstrap')) {
       return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ nav: { groups: [] } }) }));
     }
+    // The page suspends on this now: 11-electron.md §8.2's LLM row decides
+    // whether the BYO panel or the provider form leads, and that is the order of
+    // the page, so it may not be decided after first paint (see
+    // `studioAiLocalMode.test.tsx` for the ordering itself). Self-host + network
+    // allowed is this suite's world — the pre-§8.2 behaviour, unchanged.
+    if (url.startsWith('/api/v1/system/info')) {
+      return Promise.resolve(
+        jsonResponse(200, {
+          version: '0.5.0',
+          node: 'v22.0.0',
+          dialect: 'sqlite',
+          runtime: 'self-host',
+          smtpConfigured: false,
+          networkFeaturesAllowed: true,
+        }),
+      );
+    }
     if (url === '/api/v1/llm/config' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, config));
     }
@@ -296,6 +313,20 @@ describe('StudioAiPage RBAC', () => {
       calls.push({ method, url, body: null });
       if (url.startsWith('/api/v1/bootstrap')) {
         return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ roles, nav: { groups: [] } }) }));
+      }
+      // The page suspends on this (see the sibling stub above) — and so does
+      // the topbar's runtime chip, which this route renders too.
+      if (url.startsWith('/api/v1/system/info')) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            version: '0.5.0',
+            node: 'v22.0.0',
+            dialect: 'sqlite',
+            runtime: 'self-host',
+            smtpConfigured: false,
+            networkFeaturesAllowed: true,
+          }),
+        );
       }
       if (url === '/api/v1/connections' && method === 'GET') {
         return Promise.resolve(jsonResponse(200, { connections: [] }));

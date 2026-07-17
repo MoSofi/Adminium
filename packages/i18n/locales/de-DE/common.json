@@ -36,7 +36,8 @@
       "back": "Zurück zur Anmeldung",
       "done": "Zurück zur Anmeldung",
       "rateLimited": "Zu viele Anfragen — versuchen Sie es später erneut.",
-      "failed": "Etwas ist schiefgelaufen. Versuchen Sie es erneut."
+      "failed": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
+      "smtpUnconfigured": "Für dieses Adminium ist kein E-Mail-Server konfiguriert, daher kann kein Link zum Zurücksetzen gesendet werden. Bitten Sie eine Administratorin oder einen Administrator, Ihr Passwort zurückzusetzen."
     },
     "reset": {
       "title": "Neues Passwort festlegen",
@@ -418,7 +419,10 @@
         "ollama": {
           "label": "Ollama (lokal)",
           "desc": "Modelle laufen lokal über Ollama — kein Schlüssel, keine Cloud."
-        }
+        },
+        "requiresNetwork": "Erfordert Internet und einen API-Schlüssel",
+        "networkDisabledTitle": "Direkte KI-Anbieter sind in dieser Installation deaktiviert",
+        "networkDisabledBody": "Dieses Adminium ist ohne ausgehenden Internetzugang konfiguriert und kann keine Anbieter-API erreichen. Nutzen Sie unten den Kopieren-und-Einfügen-Weg — er braucht weder Schlüssel noch Netzwerk."
       },
       "configure": {
         "heading": "{provider} konfigurieren"
@@ -461,7 +465,9 @@
         "guarantee2": "Keine Anmeldedaten, keine Instanz-URL, keine Kennungen sind eingebettet.",
         "guarantee3": "BYO-Läufe machen keinerlei Netzwerkaufrufe und werden nie abgerechnet.",
         "promptVersion": "Prompt {version}",
-        "schemaVersion": "Schema {version}"
+        "schemaVersion": "Schema {version}",
+        "headingRecommended": "Eigenes KI-Tool verwenden — kein Schlüssel nötig",
+        "recommended": "Empfohlen"
       },
       "history": {
         "heading": "Laufverlauf",
@@ -519,7 +525,8 @@
         "description": "Führen Sie die Anreicherung jetzt mit Ihrem konfigurierten Anbieter aus. Sie prüfen jeden Vorschlag als Diff.",
         "unconfigured": "Es ist noch kein KI-Anbieter konfiguriert — kopieren Sie unten einen Prompt in Ihr eigenes Tool, oder konfigurieren Sie zuerst einen Anbieter.",
         "settingsHint": "Möchten Sie es direkt ausführen?",
-        "settingsLink": "Anbieter in Einstellungen → KI konfigurieren"
+        "settingsLink": "Anbieter in Einstellungen → KI konfigurieren",
+        "networkDisabled": "Dieses Adminium hat keinen ausgehenden Internetzugang und kann keine Anbieter-API erreichen. Nutzen Sie stattdessen den Kopieren-und-Einfügen-Weg — gleicher Prompt, gleiche Prüfung."
       },
       "byo": {
         "cardTitle": "Einen Prompt in mein eigenes KI-Tool kopieren",
@@ -551,7 +558,8 @@
         "pendingBodyChunked": "Jeder Abschnitt muss validiert werden, bevor die Vorschläge zusammengeführt werden. Fügen Sie jeden Prompt oben ein und validieren Sie ihn.",
         "requestFailed": "Der Server war für die Validierung nicht erreichbar — erneut versuchen.",
         "continueReview": "Weiter zur Prüfung",
-        "wholeDocument": "gesamtes Dokument"
+        "wholeDocument": "gesamtes Dokument",
+        "cardTitleRecommended": "Prompt in mein eigenes KI-Tool kopieren — empfohlen"
       },
       "direct": {
         "title": "Anreicherung mit KI",
@@ -1108,6 +1116,148 @@
       "savedOn": "Beim nächsten Start ist eine Anmeldung erforderlich",
       "savedOff": "Adminium überspringt die Anmeldung auf diesem Computer",
       "saveFailed": "Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen."
+    },
+    "chip": {
+      "local": "Lokal",
+      "lanShare": "Lokal · Im Netzwerk freigegeben",
+      "remoteDb": "Lokal + Remote-Datenbank",
+      "remoteDbOffline": "Remote-Datenbank offline",
+      "remoteDbOfflineDetail": "{names} ist nicht erreichbar. Seiten dieser Verbindungen zeigen einen Wiederverbindungs-Status."
+    },
+    "lan": {
+      "heading": "Im lokalen Netzwerk freigeben",
+      "label": "Anderen Geräten in diesem Netzwerk die Nutzung von Adminium erlauben",
+      "description": "Andere Computer, Tablets und Telefone im selben Netzwerk können Adminium im Browser öffnen und sich mit ihrem eigenen Konto anmelden. Adminium muss auf diesem Computer geöffnet bleiben, damit sie es erreichen.",
+      "savedOn": "Im lokalen Netzwerk freigegeben",
+      "savedOff": "Freigabe beendet — Adminium läuft wieder nur auf diesem Computer",
+      "saveFailed": "Netzwerkfreigabe konnte nicht geändert werden",
+      "noUsers": "Sie sind die einzige Person mit einem Konto, deshalb kann sich sonst noch niemand anmelden. Die Freigabe funktioniert trotzdem — Sie müssen nur Personen einladen, bevor sie sie nutzen können.",
+      "usersUnknown": "Adminium konnte nicht prüfen, wer sonst noch ein Konto auf diesem Computer hat. Die Freigabe funktioniert weiterhin, und jede Person mit einem Konto kann sich anmelden — nur diese Prüfung ist fehlgeschlagen.",
+      "acknowledge": "Verstanden — ich lade als Nächstes Personen ein",
+      "port": "Port",
+      "portHelper": "Standard {port}",
+      "portInvalid": "Verwenden Sie eine Zahl zwischen 1024 und 65535.",
+      "applyPort": "Port ändern",
+      "portInUse": "Port {port} wird bereits von einem anderen Programm verwendet.",
+      "portInUseHint": "Es wurde nichts geändert — die Freigabe ist weiterhin aus.",
+      "portInUseNoSuggestion": "Es wurde nichts geändert. Versuchen Sie einen anderen Port.",
+      "tryPort": "{port} versuchen",
+      "urlsHeading": "Auf einem anderen Gerät öffnen",
+      "noUrls": "Dieser Computer ist gerade mit keinem Netzwerk verbunden, deshalb gibt es keine Adresse zum Teilen. Verbinden Sie sich mit dem WLAN oder stecken Sie ein Kabel ein, dann füllt sich diese Liste.",
+      "copyUrl": "Kopieren",
+      "sessions": "{count, plural, =0 {Keine Geräte aus diesem Netzwerk angemeldet} one {# Gerät aus diesem Netzwerk angemeldet} other {# Geräte aus diesem Netzwerk angemeldet}}",
+      "sessionsUnknown": "Verbundene Geräte werden geprüft…",
+      "pending": "Freigabe wird gestartet…",
+      "mismatch": "Adminium ist in diesem Netzwerk weiterhin erreichbar",
+      "mismatchBody": "Die Freigabe ist ausgeschaltet, aber der Server hat das Netzwerk noch nicht freigegeben. Starten Sie Adminium neu, um sie zu schließen.",
+      "transportTitle": "Der Datenverkehr in Ihrem lokalen Netzwerk ist nicht verschlüsselt.",
+      "transportBody": "Geben Sie nur in Netzwerken frei, denen Sie vertrauen. Nutzen Sie für den Fernzugriff Adminium self-host hinter HTTPS.",
+      "firewall": "Beim ersten Freigeben fragt Ihr Betriebssystem, ob eingehende Verbindungen erlaubt werden sollen — wählen Sie Zulassen, sonst können andere Geräte Adminium nicht erreichen."
+    },
+    "setup": {
+      "title": "Willkommen bei Adminium",
+      "subtitle": "Vier kurze Schritte und Adminium hat aus Ihrer Datenbank eine Admin-App gebaut. Alles bleibt auf diesem Computer.",
+      "progress": "Einrichtungsfortschritt",
+      "back": "Zurück",
+      "continue": "Weiter",
+      "createAccount": "Konto erstellen und fortfahren",
+      "step": {
+        "location": "Willkommen",
+        "database": "Ihre erste Datenbank",
+        "account": "Ihr Konto",
+        "generate": "Generieren"
+      },
+      "dataDir": {
+        "heading": "Wo soll Adminium Ihre Daten speichern?",
+        "description": "Ihre Datenbanken, Einstellungen und Backups liegen alle in diesem Ordner. Alles bleibt auf diesem Computer — nichts wird irgendwohin hochgeladen.",
+        "label": "Datenordner",
+        "loading": "Aktueller Speicherort wird gelesen…",
+        "pending": "Adminium startet beim Fortfahren neu, um in diesen Ordner zu wechseln.",
+        "change": "Ändern…",
+        "revert": "Rückgängig",
+        "dialogTitle": "Wählen Sie, wo Adminium Ihre Daten speichert",
+        "cloudSyncTitle": "Dieser Ordner wird mit der Cloud synchronisiert",
+        "cloudSyncWarning": "Adminium speichert seine Daten in SQLite-Dateien. {provider} synchronisiert Dateien in „{folder}“, indem es sie im Hintergrund kopiert — das kann eine geöffnete Datenbank beschädigen und ohne Warnung Daten vernichten. Wählen Sie einen Ordner außerhalb von {provider}.",
+        "chooseAnother": "Anderen Ordner wählen",
+        "useAnyway": "Trotzdem verwenden — ich akzeptiere das Risiko",
+        "unusableTitle": "Adminium kann diesen Ordner nicht verwenden",
+        "failed": "Adminium konnte diesen Ordner nicht verwenden."
+      },
+      "source": {
+        "heading": "Woraus soll Adminium bauen?",
+        "description": "Adminium liest das Schema einer Datenbank und generiert daraus eine Admin-App. Weitere Datenbanken können Sie später hinzufügen.",
+        "groupLabel": "Datenbankquelle",
+        "local": {
+          "title": "Neue lokale Datenbank erstellen",
+          "description": "Beginnen Sie bei null oder mit einer Schemadatei, die Sie bereits haben. Die Datenbank wird in Ihrem Datenordner angelegt.",
+          "name": "Datenbankname",
+          "namePlaceholder": "Betrieb",
+          "nameUnusable": "Verwenden Sie mindestens einen Buchstaben oder eine Ziffer — daraus wird der Dateiname gebildet.",
+          "fileHelper": "Erstellt {file}",
+          "schemaLabel": "Beginnen mit",
+          "blank": "Leer",
+          "fromFile": "Einer Schemadatei",
+          "schemaFile": "Schemadatei",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django oder Adminium-JSON. Adminium übersetzt es nach SQLite.",
+          "placeholder": "Platzhaltereinträge automatisch erzeugen",
+          "placeholderHelper": "Sie haben ein Schema ohne Zeilen importiert. Befüllen Sie jede Tabelle mit realistischen Beispieldaten, damit Ihre Dashboards und Diagramme sofort etwas anzeigen."
+        },
+        "openSqlite": {
+          "title": "Vorhandene SQLite-Datei öffnen",
+          "description": "Richten Sie Adminium auf eine .sqlite-Datei auf diesem Computer. Sie wird dort geöffnet, wo sie liegt — nichts wird kopiert oder verschoben.",
+          "browse": ".sqlite-Datei auswählen…",
+          "change": "Andere Datei auswählen…",
+          "networkTitle": "Diese Datei liegt auf einer Netzwerkfreigabe",
+          "networkBody": "Die Sperrmechanik von SQLite ist über Netzwerkfreigaben unzuverlässig, und eine abbrechende Verbindung mitten im Schreibvorgang kann die Datenbank beschädigen. Eine Kopie auf der lokalen Festplatte dieses Computers ist sicherer."
+        },
+        "remote": {
+          "title": "Mit einer Server-Datenbank verbinden",
+          "description": "PostgreSQL oder MySQL. Erfordert eine erreichbare Netzwerkdatenbank; Adminiums eigene Tabellen bleiben trotzdem auf diesem Computer.",
+          "networkNote": "Erfordert eine erreichbare Netzwerkdatenbank",
+          "metaNote": "Adminiums eigene Tabellen — Ihre Seiten, Einstellungen und Anmeldung — bleiben in jedem Fall im Datenordner auf diesem Computer.",
+          "engine": "Engine",
+          "name": "Verbindungsname",
+          "namePlaceholder": "Produktion",
+          "dsn": "Verbindungszeichenfolge",
+          "dsnHelper": "Adminium testet dies beim Verbinden. Verwenden Sie eine Nur-Lese-Rolle, wenn Sie nur Dashboards möchten."
+        },
+        "demo": {
+          "title": "Demo-Datenbank erkunden",
+          "description": "Eine fertige Team-Betriebsdatenbank, damit Sie sehen, was Adminium baut, bevor Sie es auf Ihre eigenen Daten richten. Löschen Sie sie, wann immer Sie möchten.",
+          "unavailable": "Dieses Build enthält die Demodaten nicht, es gibt also nichts zu laden. Wählen Sie eine der Optionen oben."
+        }
+      },
+      "account": {
+        "heading": "Konto erstellen",
+        "description": "Dies ist das Administratorkonto für diese Adminium-Installation. Das Passwort schützt Ihre Backups und alle, mit denen Sie im Netzwerk teilen — bei jedem Start wird es nicht abgefragt.",
+        "name": "Ihr Name",
+        "email": "E-Mail",
+        "password": "Passwort",
+        "passwordHelper": "Mindestens {min} Zeichen.",
+        "confirm": "Passwort bestätigen",
+        "strength": "Passwortstärke",
+        "strengthLevels": {
+          "weak": "Schwach",
+          "fair": "Mittel",
+          "good": "Gut",
+          "strong": "Stark"
+        },
+        "singleUser": "Anmeldung auf diesem Computer überspringen",
+        "singleUserHelper": "Adminium meldet Sie hier automatisch an. Schalten Sie dies aus, wenn andere Personen diesen Computer nutzen. Sie können es später unter Einstellungen → Desktop ändern.",
+        "locale": "Sprache",
+        "theme": "Darstellung",
+        "alreadyExists": "Diese Adminium-Installation hat bereits ein Konto. Melden Sie sich stattdessen damit an.",
+        "failed": "Adminium konnte dieses Konto nicht erstellen."
+      },
+      "generate": {
+        "creating": "Ihre Datenbank wird eingerichtet…",
+        "introspecting": "Ihr Schema wird gelesen — Tabellen, Spalten und Beziehungen…",
+        "working": "Wird ausgeführt…",
+        "offlineNote": "All dies geschieht auf diesem Computer.",
+        "failedTitle": "Adminium konnte diese Datenbank nicht einrichten",
+        "failedBody": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
+        "retry": "Erneut versuchen"
+      }
     }
   }
 }

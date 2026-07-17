@@ -61,6 +61,15 @@ jobs:
         env:
           TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306
 
+      # 11-electron.md §7: the desktop build must work with the network cable
+      # unplugged, forever. `desktop#build` already chains this (see that
+      # package's //scripts note), but a turbo CACHE HIT skips the whole task —
+      # so this step re-runs it unconditionally against the restored outputs.
+      # Named separately for the same reason check-deps is: when it fails, the
+      # failure should say what broke, not "build".
+      - name: Check offline assets
+        run: pnpm run check-offline-assets
+
   dep-graph:
     name: dep-graph
     runs-on: ubuntu-latest

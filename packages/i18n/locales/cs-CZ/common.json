@@ -36,7 +36,8 @@
       "back": "Zpět na přihlášení",
       "done": "Zpět na přihlášení",
       "rateLimited": "Příliš mnoho požadavků — zkuste to později.",
-      "failed": "Něco se pokazilo. Zkuste to znovu."
+      "failed": "Něco se pokazilo. Zkuste to znovu.",
+      "smtpUnconfigured": "Toto Adminium nemá nastavený e-mailový server, takže nemůže odeslat odkaz pro obnovení hesla. Požádejte správce, aby vám heslo obnovil."
     },
     "reset": {
       "title": "Nastavte si nové heslo",
@@ -418,7 +419,10 @@
         "ollama": {
           "label": "Ollama (lokálně)",
           "desc": "Modely běžící lokálně přes Ollama — bez klíče, bez cloudu."
-        }
+        },
+        "requiresNetwork": "Vyžaduje internet a API klíč",
+        "networkDisabledTitle": "Přímí AI poskytovatelé jsou v této instalaci vypnuti",
+        "networkDisabledBody": "Toto Adminium je nastaveno bez odchozího přístupu k internetu, takže nemůže oslovit API poskytovatele. Použijte níže kolečko kopírovat-vložit — nepotřebuje klíč ani síť."
       },
       "configure": {
         "heading": "Nastavit {provider}"
@@ -461,7 +465,9 @@
         "guarantee2": "Nejsou vloženy žádné přihlašovací údaje, URL instance ani identifikátory.",
         "guarantee3": "Běhy BYO nedělají žádné síťové volání a nikdy se neúčtují.",
         "promptVersion": "Prompt {version}",
-        "schemaVersion": "Schéma {version}"
+        "schemaVersion": "Schéma {version}",
+        "headingRecommended": "Použijte vlastní AI nástroj — klíč není potřeba",
+        "recommended": "Doporučeno"
       },
       "history": {
         "heading": "Historie běhů",
@@ -519,7 +525,8 @@
         "description": "Spusťte obohacení nyní s nakonfigurovaným poskytovatelem. Každý návrh zkontrolujete jako rozdíl.",
         "unconfigured": "Zatím není nakonfigurován žádný poskytovatel AI — zkopírujte prompt do vlastního nástroje níže, nebo nejprve nakonfigurujte poskytovatele.",
         "settingsHint": "Chcete jej spustit přímo?",
-        "settingsLink": "Nakonfigurujte poskytovatele v Nastavení → AI"
+        "settingsLink": "Nakonfigurujte poskytovatele v Nastavení → AI",
+        "networkDisabled": "Toto Adminium nemá odchozí přístup k internetu, takže nemůže oslovit API poskytovatele. Použijte místo toho kolečko kopírovat-vložit — stejný prompt, stejná kontrola."
       },
       "byo": {
         "cardTitle": "Zkopírovat prompt do vlastního nástroje AI",
@@ -551,7 +558,8 @@
         "pendingBodyChunked": "Každá část musí být ověřena, než se návrhy sloučí. Vložte a ověřte každý prompt výše.",
         "requestFailed": "Server nebyl pro ověření dostupný — zkuste to znovu.",
         "continueReview": "Pokračovat ke kontrole",
-        "wholeDocument": "celý dokument"
+        "wholeDocument": "celý dokument",
+        "cardTitleRecommended": "Zkopírovat prompt do vlastního AI nástroje — doporučeno"
       },
       "direct": {
         "title": "Obohacování pomocí AI",
@@ -1108,6 +1116,148 @@
       "savedOn": "Při příštím spuštění bude vyžadováno přihlášení",
       "savedOff": "Adminium na tomto počítači přihlášení přeskočí",
       "saveFailed": "Nastavení se nepodařilo uložit. Zkuste to znovu."
+    },
+    "chip": {
+      "local": "Místní",
+      "lanShare": "Místní · Sdíleno v síti",
+      "remoteDb": "Místní + vzdálená databáze",
+      "remoteDbOffline": "Vzdálená databáze offline",
+      "remoteDbOfflineDetail": "Nelze se připojit k {names}. Stránky těchto připojení zobrazují stav opětovného připojení."
+    },
+    "lan": {
+      "heading": "Sdílet v místní síti",
+      "label": "Umožnit ostatním zařízením v této síti používat Adminium",
+      "description": "Ostatní počítače, tablety a telefony ve stejné síti mohou otevřít Adminium v prohlížeči a přihlásit se vlastním účtem. Aby se k němu dostaly, musí Adminium na tomto počítači zůstat spuštěné.",
+      "savedOn": "Sdílení v místní síti je zapnuté",
+      "savedOff": "Sdílení ukončeno — Adminium je opět jen na tomto počítači",
+      "saveFailed": "Sdílení v síti se nepodařilo změnit",
+      "noUsers": "Jste jediný člověk s účtem, takže se zatím nikdo jiný nemůže přihlásit. Sdílení přesto funguje — jen budete muset lidi nejdřív pozvat.",
+      "usersUnknown": "Adminium nemohlo zjistit, kdo další má na tomto počítači účet. Sdílení funguje dál a kdokoli s účtem se může přihlásit — selhala pouze tato kontrola.",
+      "acknowledge": "Rozumím — lidi pozvu vzápětí",
+      "port": "Port",
+      "portHelper": "Výchozí {port}",
+      "portInvalid": "Použijte číslo mezi 1024 a 65535.",
+      "applyPort": "Změnit port",
+      "portInUse": "Port {port} už používá jiný program.",
+      "portInUseHint": "Nic se nezměnilo — sdílení je stále vypnuté.",
+      "portInUseNoSuggestion": "Nic se nezměnilo. Zkuste jiný port.",
+      "tryPort": "Zkusit {port}",
+      "urlsHeading": "Otevřete to na jiném zařízení",
+      "noUrls": "Tento počítač teď není připojený k síti, takže není co sdílet. Připojte se k Wi-Fi nebo zapojte kabel a seznam se doplní.",
+      "copyUrl": "Kopírovat",
+      "sessions": "{count, plural, =0 {Z této sítě není přihlášené žádné zařízení} one {# zařízení přihlášené z této sítě} few {# zařízení přihlášená z této sítě} many {# zařízení přihlášeno z této sítě} other {# zařízení přihlášeno z této sítě}}",
+      "sessionsUnknown": "Zjišťujeme, kdo je připojený…",
+      "pending": "Spouštíme sdílení…",
+      "mismatch": "Adminium je v této síti stále dostupné",
+      "mismatchBody": "Sdílení je vypnuté, ale server síť zatím neuvolnil. Zavřete ji restartem Adminia.",
+      "transportTitle": "Provoz ve vaší místní síti není šifrovaný.",
+      "transportBody": "Sdílejte jen v sítích, kterým důvěřujete. Pro vzdálený přístup použijte vlastní hosting Adminia za HTTPS.",
+      "firewall": "Při prvním sdílení se váš operační systém zeptá, zda povolit příchozí připojení — zvolte Povolit, jinak se k Adminiu ostatní zařízení nedostanou."
+    },
+    "setup": {
+      "title": "Vítejte v Adminiu",
+      "subtitle": "Čtyři krátké kroky a Adminium z vaší databáze postaví administrační aplikaci. Vše zůstává v tomto počítači.",
+      "progress": "Průběh nastavení",
+      "back": "Zpět",
+      "continue": "Pokračovat",
+      "createAccount": "Vytvořit účet a pokračovat",
+      "step": {
+        "location": "Vítejte",
+        "database": "Vaše první databáze",
+        "account": "Váš účet",
+        "generate": "Generovat"
+      },
+      "dataDir": {
+        "heading": "Kam má Adminium ukládat vaše data?",
+        "description": "Vaše databáze, nastavení i zálohy žijí v této složce. Vše zůstává v tomto počítači — nikam se nic nenahrává.",
+        "label": "Složka s daty",
+        "loading": "Načítá se aktuální umístění…",
+        "pending": "Adminium se po pokračování restartuje, aby přešlo do této složky.",
+        "change": "Změnit…",
+        "revert": "Vrátit zpět",
+        "dialogTitle": "Vyberte, kam má Adminium ukládat vaše data",
+        "cloudSyncTitle": "Tato složka se synchronizuje do cloudu",
+        "cloudSyncWarning": "Adminium ukládá data do souborů SQLite. {provider} synchronizuje soubory ve složce „{folder}“ tak, že je na pozadí kopíruje, což může poškodit otevřenou databázi — a bez varování ztratit data. Zvolte složku mimo {provider}.",
+        "chooseAnother": "Zvolit jinou složku",
+        "useAnyway": "Přesto ji použít — beru riziko na vědomí",
+        "unusableTitle": "Adminium tuto složku nemůže použít",
+        "failed": "Adminium tuto složku nemohlo použít."
+      },
+      "source": {
+        "heading": "Z čeho má Adminium stavět?",
+        "description": "Adminium přečte schéma databáze a vygeneruje z něj administrační aplikaci. Další databáze můžete přidat později.",
+        "groupLabel": "Zdroj databáze",
+        "local": {
+          "title": "Vytvořit novou místní databázi",
+          "description": "Začněte od nuly, nebo ze souboru se schématem, který už máte. Databáze se vytvoří ve vaší složce s daty.",
+          "name": "Název databáze",
+          "namePlaceholder": "Provoz",
+          "nameUnusable": "Použijte alespoň jedno písmeno nebo číslici — z toho se sestaví název souboru.",
+          "fileHelper": "Vytvoří {file}",
+          "schemaLabel": "Začít z",
+          "blank": "Prázdné",
+          "fromFile": "Souboru se schématem",
+          "schemaFile": "Soubor se schématem",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django nebo JSON Adminia. Adminium jej přeloží do SQLite.",
+          "placeholder": "Automaticky vygenerovat ukázkové záznamy",
+          "placeholderHelper": "Naimportovali jste schéma bez řádků. Naplňte každou tabulku realistickými ukázkovými daty, aby se vaše přehledy a grafy vykreslily hned."
+        },
+        "openSqlite": {
+          "title": "Otevřít existující soubor SQLite",
+          "description": "Nasměrujte Adminium na soubor .sqlite v tomto počítači. Otevře se tam, kde je — nic se nekopíruje ani nepřesouvá.",
+          "browse": "Vybrat soubor .sqlite…",
+          "change": "Vybrat jiný soubor…",
+          "networkTitle": "Tento soubor je na síťovém sdílení",
+          "networkBody": "Zamykání SQLite je přes síťová sdílení nespolehlivé a přerušené spojení uprostřed zápisu může databázi poškodit. Kopie na disku tohoto počítače je bezpečnější."
+        },
+        "remote": {
+          "title": "Připojit se k serverové databázi",
+          "description": "PostgreSQL nebo MySQL. Vyžaduje dostupnou síťovou databázi; vlastní tabulky Adminia i tak zůstanou v tomto počítači.",
+          "networkNote": "Vyžaduje dostupnou síťovou databázi",
+          "metaNote": "Vlastní tabulky Adminia — vaše stránky, nastavení a přihlášení — zůstávají tak jako tak ve složce s daty v tomto počítači.",
+          "engine": "Engine",
+          "name": "Název připojení",
+          "namePlaceholder": "Produkce",
+          "dsn": "Připojovací řetězec",
+          "dsnHelper": "Adminium jej při připojení otestuje. Pokud chcete jen přehledy, použijte roli jen pro čtení."
+        },
+        "demo": {
+          "title": "Prozkoumat ukázkovou databázi",
+          "description": "Hotová databáze týmového provozu, abyste viděli, co Adminium postaví, ještě než ho nasměrujete na vlastní data. Kdykoli ji smažete.",
+          "unavailable": "Tento build ukázková data neobsahuje, není tedy co načíst. Zvolte některou z možností výše."
+        }
+      },
+      "account": {
+        "heading": "Vytvořte si účet",
+        "description": "Toto je účet správce této kopie Adminia. Heslo chrání vaše zálohy i všechny, s nimiž sdílíte po síti — při každém spuštění o něj nebudete žádáni.",
+        "name": "Vaše jméno",
+        "email": "E-mail",
+        "password": "Heslo",
+        "passwordHelper": "Alespoň {min} znaků.",
+        "confirm": "Potvrďte heslo",
+        "strength": "Síla hesla",
+        "strengthLevels": {
+          "weak": "Slabé",
+          "fair": "Ucházející",
+          "good": "Dobré",
+          "strong": "Silné"
+        },
+        "singleUser": "Přeskočit přihlášení v tomto počítači",
+        "singleUserHelper": "Adminium vás zde po otevření přihlásí automaticky. Vypněte to, pokud tento počítač používají i jiní lidé. Změnit to můžete později v Nastavení → Desktop.",
+        "locale": "Jazyk",
+        "theme": "Vzhled",
+        "alreadyExists": "Tato kopie Adminia už účet má. Přihlaste se místo toho jím.",
+        "failed": "Adminium nemohlo tento účet vytvořit."
+      },
+      "generate": {
+        "creating": "Nastavuje se vaše databáze…",
+        "introspecting": "Čte se vaše schéma — tabulky, sloupce a vztahy…",
+        "working": "Pracuje se…",
+        "offlineNote": "Vše se odehrává v tomto počítači.",
+        "failedTitle": "Adminium nemohlo tuto databázi nastavit",
+        "failedBody": "Něco se pokazilo. Zkuste to znovu.",
+        "retry": "Zkusit znovu"
+      }
     }
   }
 }

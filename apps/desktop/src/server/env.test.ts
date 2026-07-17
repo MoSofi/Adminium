@@ -9,6 +9,8 @@
  * breaks: the app works fine, it is just reachable from the coffee shop's Wi-Fi.
  */
 
+import { resolve } from 'node:path';
+
 import { envSchema } from '@adminium/server';
 import { describe, expect, it } from 'vitest';
 
@@ -62,6 +64,7 @@ describe('buildServerEnv', () => {
       ADMINIUM_SECRET: SECRET,
       ADMINIUM_BOOT_TOKEN: TOKEN,
       ADMINIUM_DESKTOP_SINGLE_USER: 'on',
+      ADMINIUM_TRUST_PROXY: 'off',
       ADMINIUM_DISABLE_TELEMETRY: '1',
     });
   });
@@ -117,6 +120,21 @@ describe('buildServerEnv', () => {
       expect(env.ADMINIUM_BOOT_TOKEN).toBe(TOKEN);
     });
 
+    it('forces ADMINIUM_TRUST_PROXY off, whatever the shell says (§8.3)', () => {
+      // Nothing is ever in front of this child, so a forwarding header is never
+      // legitimate — it is only ever a LAN peer's spelling of `request.ip`. With
+      // it on, §8.3's "the audit log records their LAN IPs" records whatever the
+      // peer typed, and its rate limiting is evaded by rotating the header.
+      const env = buildServerEnv({
+        ...base,
+        host: '0.0.0.0',
+        port: 4600,
+        inherit: { ADMINIUM_TRUST_PROXY: '1' },
+      });
+
+      expect(env.ADMINIUM_TRUST_PROXY).toBe('off');
+    });
+
     it('drops undefined values instead of stringifying them', () => {
       // `{ FOO: undefined }` reaching the child as the STRING "undefined" is a
       // classic way to make a Zod default silently not apply.
@@ -146,6 +164,36 @@ describe('buildServerEnv', () => {
     const env = buildServerEnv({ ...base, logLevel: 'debug', staticRoot: '/app/resources/dash' });
     expect(env.ADMINIUM_LOG_LEVEL).toBe('debug');
     expect(env.ADMINIUM_STATIC_ROOT).toBe('/app/resources/dash');
+  });
+
+  describe('the demo seed script (§6 step 2 card 4, 11-T08)', () => {
+    it('passes an absolute path through, and resolves a relative one', () => {
+      // Absolute because the server `import()`s it: the child's cwd is not this
+      // process's, so a relative specifier would resolve somewhere else entirely.
+      const env = buildServerEnv({
+        ...base,
+        demoSeedScript: '/app/resources/demo/demo-seed.mjs',
+      });
+      expect(env.ADMINIUM_DEMO_SEED_SCRIPT).toBe('/app/resources/demo/demo-seed.mjs');
+      expect(buildServerEnv({ ...base, demoSeedScript: 'resources/demo/demo-seed.mjs' })
+        .ADMINIUM_DEMO_SEED_SCRIPT).toBe(resolve('resources/demo/demo-seed.mjs'));
+    });
+
+    it('omits the key entirely when no script is given', () => {
+      // `compose.ts` gates the route on this key being present, so "absent" must
+      // stay absent rather than arriving as the string "undefined".
+      expect('ADMINIUM_DEMO_SEED_SCRIPT' in buildServerEnv({ ...base })).toBe(false);
+    });
+
+    it('strips an inherited value — the shell chooses which module the server imports', () => {
+      // This variable names a file the server process EXECUTES. An inherited
+      // value would let anything that can set an environment variable pick it.
+      const env = buildServerEnv({
+        ...base,
+        inherit: { ADMINIUM_DEMO_SEED_SCRIPT: '/tmp/evil.mjs' },
+      });
+      expect('ADMINIUM_DEMO_SEED_SCRIPT' in env).toBe(false);
+    });
   });
 
   it('rejects a relative dataDir', () => {
@@ -215,6 +263,49 @@ describe('the desktop → server env chain, end to end', () => {
     // "Require login on this device" ON must actively write the setting, or a
     // previously-true mirror would stand and the toggle would do nothing.
     expect(throughTheChain(false)).toBe(false);
+  });
+
+  it('delivers the demo seed script path to compose.ts (11-T08)', () => {
+    // The same failure mode this describe block exists for: `compose.ts` gates
+    // the demo route on `ADMINIUM_DEMO_SEED_SCRIPT !== undefined`, so a key that
+    // is dropped anywhere along the chain costs §6's fourth card its route while
+    // both ends' own suites stay green. `toServerEnvRecord` carries it through
+    // by inheritance rather than naming it — which is exactly the kind of thing
+    // that works until someone stops spreading `inherit`.
+    const script = '/app/resources/demo/demo-seed.mjs';
+    const built = buildServerEnv({ ...base, demoSeedScript: script });
+    const desktop = parseDesktopServerEnv(built);
+    const parsed = envSchema.parse(toServerEnvRecord(desktop, built));
+
+    expect(parsed.ADMINIUM_DEMO_SEED_SCRIPT).toBe(script);
+    // Both halves of compose's AND, at the far end of the real chain.
+    expect(parsed.ADMINIUM_RUNTIME).toBe('desktop');
+  });
+
+  it('leaves compose.ts with no demo route when the shell names no script', () => {
+    const built = buildServerEnv({ ...base });
+    const parsed = envSchema.parse(toServerEnvRecord(parseDesktopServerEnv(built), built));
+    expect(parsed.ADMINIUM_DEMO_SEED_SCRIPT).toBeUndefined();
+  });
+
+  it('delivers trustProxy: false to the real server schema while sharing on the LAN (§8.3)', () => {
+    // THE POINT OF THIS TEST is the far end. `buildServerEnv` setting the key
+    // proves nothing on its own — `toServerEnvRecord` carries it by SPREADING
+    // `inherit` rather than naming it, so the value only survives as long as
+    // nobody stops doing that. What §8.3's audit-log promise actually rests on
+    // is `Env.ADMINIUM_TRUST_PROXY` being `false` at the end of the real chain,
+    // because that is what makes Fastify's `request.ip` the kernel's answer
+    // instead of a LAN peer's `X-Forwarded-For`.
+    const built = buildServerEnv({
+      ...base,
+      host: '0.0.0.0',
+      port: 4600,
+      inherit: { ADMINIUM_TRUST_PROXY: '1' },
+    });
+    const parsed = envSchema.parse(toServerEnvRecord(parseDesktopServerEnv(built), built));
+
+    expect(parsed.ADMINIUM_TRUST_PROXY).toBe(false);
+    expect(parsed.HOST).toBe('0.0.0.0');
   });
 });
 

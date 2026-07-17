@@ -36,7 +36,8 @@
       "back": "Back to sign in",
       "done": "Back to sign in",
       "rateLimited": "Too many requests — try again later.",
-      "failed": "Something went wrong. Try again."
+      "failed": "Something went wrong. Try again.",
+      "smtpUnconfigured": "This Adminium has no email server configured, so it cannot send a reset link. Ask an administrator to reset your password for you."
     },
     "reset": {
       "title": "Set a new password",
@@ -418,7 +419,10 @@
         "ollama": {
           "label": "Ollama (local)",
           "desc": "Models running locally through Ollama — no key, no cloud."
-        }
+        },
+        "requiresNetwork": "Requires internet & an API key",
+        "networkDisabledTitle": "Direct AI providers are turned off on this install",
+        "networkDisabledBody": "This Adminium is configured with no outbound internet access, so it cannot reach a provider API. Use the copy-paste round-trip below — it needs no key and no network."
       },
       "configure": {
         "heading": "Configure {provider}"
@@ -461,7 +465,9 @@
         "guarantee2": "No credentials, instance URL, or identifiers are embedded.",
         "guarantee3": "BYO runs make zero network calls and are never metered.",
         "promptVersion": "Prompt {version}",
-        "schemaVersion": "Schema {version}"
+        "schemaVersion": "Schema {version}",
+        "headingRecommended": "Use your own AI tool — no key needed",
+        "recommended": "Recommended"
       },
       "history": {
         "heading": "Run history",
@@ -519,7 +525,8 @@
         "description": "Run enrichment now against your configured provider. You review every suggestion as a diff.",
         "unconfigured": "No AI provider is configured yet — copy a prompt to your own tool below, or configure a provider first.",
         "settingsHint": "Want to run it directly?",
-        "settingsLink": "Configure a provider in Settings → AI"
+        "settingsLink": "Configure a provider in Settings → AI",
+        "networkDisabled": "This Adminium has no outbound internet access, so it cannot reach a provider API. Use the copy-paste round-trip instead — same prompt, same review."
       },
       "byo": {
         "cardTitle": "Copy a prompt to my own AI tool",
@@ -551,7 +558,8 @@
         "pendingBodyChunked": "Each chunk must validate before the suggestions merge. Paste and validate every prompt above.",
         "requestFailed": "Could not reach the server to validate — retry.",
         "continueReview": "Continue to review",
-        "wholeDocument": "whole document"
+        "wholeDocument": "whole document",
+        "cardTitleRecommended": "Copy a prompt to my own AI tool — recommended"
       },
       "direct": {
         "title": "Enriching with AI",
@@ -1108,6 +1116,148 @@
       "savedOn": "Login required on the next launch",
       "savedOff": "Adminium will skip the login on this computer",
       "saveFailed": "Could not save that setting. Try again."
+    },
+    "chip": {
+      "local": "Local",
+      "lanShare": "Local · Sharing on LAN",
+      "remoteDb": "Local + remote DB",
+      "remoteDbOffline": "Remote DB offline",
+      "remoteDbOfflineDetail": "Can't reach {names}. Pages for those connections show a reconnect state."
+    },
+    "lan": {
+      "heading": "Share on local network",
+      "label": "Let other devices on this network use Adminium",
+      "description": "Other computers, tablets and phones on the same network can open Adminium in a browser and sign in with their own account. Adminium has to stay open on this computer for them to reach it.",
+      "savedOn": "Sharing on your local network",
+      "savedOff": "Sharing stopped — Adminium is back to this computer only",
+      "saveFailed": "Could not change network sharing",
+      "noUsers": "You're the only person with an account, so nobody else can sign in yet. Sharing still works — you'll just need to invite people before they can use it.",
+      "usersUnknown": "Adminium couldn't check who else has an account on this computer. Sharing still works, and anyone with an account can sign in — this check is the only thing that failed.",
+      "acknowledge": "I understand — I'll invite people next",
+      "port": "Port",
+      "portHelper": "Default {port}",
+      "portInvalid": "Use a number between 1024 and 65535.",
+      "applyPort": "Change port",
+      "portInUse": "Port {port} is already in use by another program.",
+      "portInUseHint": "Nothing was changed — sharing is still off.",
+      "portInUseNoSuggestion": "Nothing was changed. Try a different port.",
+      "tryPort": "Try {port}",
+      "urlsHeading": "Open this on another device",
+      "noUrls": "This computer isn't connected to a network right now, so there's no address to share. Connect to Wi-Fi or plug in a cable and this list will fill in.",
+      "copyUrl": "Copy",
+      "sessions": "{count, plural, =0 {No devices signed in from this network} one {# device signed in from this network} other {# devices signed in from this network}}",
+      "sessionsUnknown": "Checking who is connected…",
+      "pending": "Starting to share…",
+      "mismatch": "Adminium is still reachable on this network",
+      "mismatchBody": "Sharing is switched off, but the server has not released the network yet. Restart Adminium to close it.",
+      "transportTitle": "Traffic on your local network is not encrypted.",
+      "transportBody": "Share only on networks you trust. For remote access, use Adminium self-host behind HTTPS.",
+      "firewall": "The first time you share, your operating system will ask whether to allow incoming connections — choose Allow, or other devices will not be able to reach Adminium."
+    },
+    "setup": {
+      "title": "Welcome to Adminium",
+      "subtitle": "Four short steps and Adminium will have built an admin app from your database. Everything stays on this computer.",
+      "progress": "Setup progress",
+      "back": "Back",
+      "continue": "Continue",
+      "createAccount": "Create account and continue",
+      "step": {
+        "location": "Welcome",
+        "database": "Your first database",
+        "account": "Your account",
+        "generate": "Generate"
+      },
+      "dataDir": {
+        "heading": "Where should Adminium keep your data?",
+        "description": "Your databases, settings and backups all live in this folder. Everything stays on this computer — nothing is uploaded anywhere.",
+        "label": "Data folder",
+        "loading": "Reading the current location…",
+        "pending": "Adminium restarts when you continue, so it can move to this folder.",
+        "change": "Change…",
+        "revert": "Undo",
+        "dialogTitle": "Choose where Adminium keeps your data",
+        "cloudSyncTitle": "This folder is synced to the cloud",
+        "cloudSyncWarning": "Adminium stores its data in SQLite files. {provider} syncs files in “{folder}” by copying them in the background, which can corrupt a database that is open — losing data with no warning. Pick a folder outside {provider}.",
+        "chooseAnother": "Choose another folder",
+        "useAnyway": "Use it anyway — I accept the risk",
+        "unusableTitle": "Adminium cannot use that folder",
+        "failed": "Adminium could not use that folder."
+      },
+      "source": {
+        "heading": "What should Adminium build from?",
+        "description": "Adminium reads a database’s schema and generates an admin app from it. You can add more databases later.",
+        "groupLabel": "Database source",
+        "local": {
+          "title": "Create a new local database",
+          "description": "Start from nothing, or from a schema file you already have. The database is created inside your data folder.",
+          "name": "Database name",
+          "namePlaceholder": "Operations",
+          "nameUnusable": "Use at least one letter or number — the file name is built from this.",
+          "fileHelper": "Creates {file}",
+          "schemaLabel": "Start from",
+          "blank": "Blank",
+          "fromFile": "A schema file",
+          "schemaFile": "Schema file",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django or Adminium JSON. Adminium translates it to SQLite.",
+          "placeholder": "Auto-generate placeholder entries",
+          "placeholderHelper": "You imported a schema with no rows. Seed each table with realistic sample data so your dashboards and charts render immediately."
+        },
+        "openSqlite": {
+          "title": "Open an existing SQLite file",
+          "description": "Point Adminium at a .sqlite file on this computer. It is opened where it is — nothing is copied or moved.",
+          "browse": "Choose a .sqlite file…",
+          "change": "Choose a different file…",
+          "networkTitle": "That file is on a network share",
+          "networkBody": "SQLite locking is unreliable over network file shares, and a dropped connection mid-write can corrupt the database. A copy on this computer’s own disk is safer."
+        },
+        "remote": {
+          "title": "Connect to a server database",
+          "description": "PostgreSQL or MySQL. Requires a reachable network database; Adminium’s own tables still stay on this computer.",
+          "networkNote": "Requires a reachable network database",
+          "metaNote": "Adminium’s own tables — your pages, settings and sign-in — stay in the data folder on this computer either way.",
+          "engine": "Engine",
+          "name": "Connection name",
+          "namePlaceholder": "Production",
+          "dsn": "Connection string",
+          "dsnHelper": "Adminium tests this when it connects. Use a read-only role if you only want dashboards."
+        },
+        "demo": {
+          "title": "Explore the demo database",
+          "description": "A ready-made team-operations database, so you can see what Adminium builds before pointing it at your own data. Delete it whenever you like.",
+          "unavailable": "This build does not include the demo data, so there is nothing to load. Pick one of the options above."
+        }
+      },
+      "account": {
+        "heading": "Create your account",
+        "description": "This is the administrator account for this copy of Adminium. The password protects your backups and anyone you share with on your network — you will not be asked for it at every launch.",
+        "name": "Your name",
+        "email": "Email",
+        "password": "Password",
+        "passwordHelper": "At least {min} characters.",
+        "confirm": "Confirm password",
+        "strength": "Password strength",
+        "strengthLevels": {
+          "weak": "Weak",
+          "fair": "Fair",
+          "good": "Good",
+          "strong": "Strong"
+        },
+        "singleUser": "Skip login on this computer",
+        "singleUserHelper": "Adminium signs you in automatically when you open it here. Turn this off if other people use this machine. You can change it later in Settings → Desktop.",
+        "locale": "Language",
+        "theme": "Appearance",
+        "alreadyExists": "This copy of Adminium already has an account. Sign in with it instead.",
+        "failed": "Adminium could not create that account."
+      },
+      "generate": {
+        "creating": "Setting up your database…",
+        "introspecting": "Reading your schema — tables, columns and relationships…",
+        "working": "Working…",
+        "offlineNote": "All of this happens on this computer.",
+        "failedTitle": "Adminium could not set that database up",
+        "failedBody": "Something went wrong. Try again.",
+        "retry": "Try again"
+      }
     }
   }
 }

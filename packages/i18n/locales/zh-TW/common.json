@@ -36,7 +36,8 @@
       "back": "返回登入",
       "done": "返回登入",
       "rateLimited": "要求次數過多——請稍後再試。",
-      "failed": "發生錯誤。請再試一次。"
+      "failed": "發生錯誤。請再試一次。",
+      "smtpUnconfigured": "此 Adminium 未設定郵件伺服器，無法寄送重設連結。請請管理員為你重設密碼。"
     },
     "reset": {
       "title": "設定新密碼",
@@ -418,7 +419,10 @@
         "ollama": {
           "label": "Ollama（本機）",
           "desc": "透過 Ollama 在本機執行模型——免金鑰，免雲端。"
-        }
+        },
+        "requiresNetwork": "需要網際網路與 API 金鑰",
+        "networkDisabledTitle": "此安裝已關閉直連 AI 服務商",
+        "networkDisabledBody": "此 Adminium 設定為無對外網路存取，無法連線服務商 API。請使用下方的複製貼上往返方式——不需金鑰，也不需連網。"
       },
       "configure": {
         "heading": "設定 {provider}"
@@ -461,7 +465,9 @@
         "guarantee2": "不嵌入任何憑證、執行個體 URL 或識別碼。",
         "guarantee3": "BYO 執行不進行任何網路呼叫，也絕不計費。",
         "promptVersion": "提示詞 {version}",
-        "schemaVersion": "結構描述 {version}"
+        "schemaVersion": "結構描述 {version}",
+        "headingRecommended": "使用你自己的 AI 工具——不需金鑰",
+        "recommended": "建議"
       },
       "history": {
         "heading": "執行紀錄",
@@ -519,7 +525,8 @@
         "description": "立即使用已設定的供應商執行豐富。你將以差異形式審閱每則建議。",
         "unconfigured": "尚未設定 AI 供應商——請在下方將提示複製到你自己的工具，或先設定一個供應商。",
         "settingsHint": "想直接執行嗎？",
-        "settingsLink": "在「設定 → AI」中設定供應商"
+        "settingsLink": "在「設定 → AI」中設定供應商",
+        "networkDisabled": "此 Adminium 無對外網路存取，無法連線服務商 API。請改用複製貼上往返方式——同樣的提示詞，同樣的審閱。"
       },
       "byo": {
         "cardTitle": "複製提示到我自己的 AI 工具",
@@ -551,7 +558,8 @@
         "pendingBodyChunked": "每個分塊都必須先驗證，建議才會合併。請貼上並驗證上方的每個提示。",
         "requestFailed": "無法連接伺服器進行驗證——請重試。",
         "continueReview": "繼續審閱",
-        "wholeDocument": "整份文件"
+        "wholeDocument": "整份文件",
+        "cardTitleRecommended": "把提示詞複製到我自己的 AI 工具——建議"
       },
       "direct": {
         "title": "正在使用 AI 豐富",
@@ -1108,6 +1116,148 @@
       "savedOn": "下次啟動時需要登入",
       "savedOff": "Adminium 將在這台電腦上略過登入",
       "saveFailed": "無法儲存此設定，請重試。"
+    },
+    "chip": {
+      "local": "本機",
+      "lanShare": "本機 · 已在區域網路分享",
+      "remoteDb": "本機 + 遠端資料庫",
+      "remoteDbOffline": "遠端資料庫離線",
+      "remoteDbOfflineDetail": "無法連線 {names}。這些連線的頁面會顯示重新連線狀態。"
+    },
+    "lan": {
+      "heading": "在區域網路中分享",
+      "label": "允許此網路中的其他裝置使用 Adminium",
+      "description": "同一網路中的其他電腦、平板和手機可以在瀏覽器中開啟 Adminium，並用各自的帳戶登入。Adminium 必須在這台電腦上保持開啟，他們才能存取。",
+      "savedOn": "正在區域網路中分享",
+      "savedOff": "已停止分享 — Adminium 恢復為僅限這台電腦",
+      "saveFailed": "無法變更網路分享",
+      "noUsers": "目前只有你擁有帳戶，因此還沒有其他人能登入。分享仍然可用 — 只是需要先邀請其他人才能使用。",
+      "usersUnknown": "Adminium 無法檢查這台電腦上還有誰擁有帳戶。共用仍然有效，任何擁有帳戶的人都可以登入——只有這項檢查失敗了。",
+      "acknowledge": "我知道了 — 我接下來會邀請其他人",
+      "port": "連接埠",
+      "portHelper": "預設 {port}",
+      "portInvalid": "請輸入 1024 到 65535 之間的數字。",
+      "applyPort": "變更連接埠",
+      "portInUse": "連接埠 {port} 已被其他程式占用。",
+      "portInUseHint": "未做任何變更 — 分享仍處於關閉狀態。",
+      "portInUseNoSuggestion": "未做任何變更。請嘗試其他連接埠。",
+      "tryPort": "嘗試 {port}",
+      "urlsHeading": "在其他裝置上開啟",
+      "noUrls": "這台電腦目前未連線到網路，因此沒有可分享的位址。連線 Wi-Fi 或插入網路線後，此清單會自動填入。",
+      "copyUrl": "複製",
+      "sessions": "{count, plural, =0 {沒有來自此網路的裝置登入} other {已有 # 台裝置從此網路登入}}",
+      "sessionsUnknown": "正在檢查已連線的裝置…",
+      "pending": "正在開始分享…",
+      "mismatch": "Adminium 在此網路中仍可存取",
+      "mismatchBody": "分享已關閉，但伺服器尚未釋放網路。請重新啟動 Adminium 以關閉它。",
+      "transportTitle": "區域網路中的流量未加密。",
+      "transportBody": "僅在你信任的網路中分享。如需遠端存取，請使用置於 HTTPS 之後的 Adminium 自架版本。",
+      "firewall": "首次分享時，作業系統會詢問是否允許傳入連線 — 請選擇「允許」，否則其他裝置將無法存取 Adminium。"
+    },
+    "setup": {
+      "title": "歡迎使用 Adminium",
+      "subtitle": "只需四個簡短步驟，Adminium 就能從你的資料庫生成一個管理應用程式。所有內容都保留在這台電腦上。",
+      "progress": "設定進度",
+      "back": "上一步",
+      "continue": "繼續",
+      "createAccount": "建立帳戶並繼續",
+      "step": {
+        "location": "歡迎",
+        "database": "你的第一個資料庫",
+        "account": "你的帳戶",
+        "generate": "生成"
+      },
+      "dataDir": {
+        "heading": "Adminium 應該把你的資料儲存在哪裡？",
+        "description": "你的資料庫、設定和備份都存放在這個資料夾中。所有內容都保留在這台電腦上——不會上傳到任何地方。",
+        "label": "資料夾",
+        "loading": "正在讀取目前位置…",
+        "pending": "繼續時 Adminium 會重新啟動，以便切換到這個資料夾。",
+        "change": "變更…",
+        "revert": "復原",
+        "dialogTitle": "選擇 Adminium 儲存資料的位置",
+        "cloudSyncTitle": "該資料夾會同步到雲端",
+        "cloudSyncWarning": "Adminium 將資料儲存在 SQLite 檔案中。{provider} 會在背景複製「{folder}」中的檔案進行同步，這可能損毀正在開啟的資料庫——並在毫無提示的情況下遺失資料。請選擇 {provider} 之外的資料夾。",
+        "chooseAnother": "選擇其他資料夾",
+        "useAnyway": "仍然使用——我接受風險",
+        "unusableTitle": "Adminium 無法使用該資料夾",
+        "failed": "Adminium 無法使用該資料夾。"
+      },
+      "source": {
+        "heading": "Adminium 應該根據什麼來建構？",
+        "description": "Adminium 會讀取資料庫的結構並據此生成管理應用程式。你之後可以新增更多資料庫。",
+        "groupLabel": "資料庫來源",
+        "local": {
+          "title": "建立新的本機資料庫",
+          "description": "從零開始，或使用你已有的結構檔。資料庫會建立在你的資料夾中。",
+          "name": "資料庫名稱",
+          "namePlaceholder": "營運",
+          "nameUnusable": "請至少使用一個字母或數字——檔名由此生成。",
+          "fileHelper": "將建立 {file}",
+          "schemaLabel": "起始方式",
+          "blank": "空白",
+          "fromFile": "結構檔",
+          "schemaFile": "結構檔",
+          "schemaFileHelper": ".sql、pg_dump、Prisma、Drizzle、TypeORM、Sequelize、schema.rb、Django 或 Adminium JSON。Adminium 會將其轉換為 SQLite。",
+          "placeholder": "自動生成佔位資料",
+          "placeholderHelper": "你匯入的結構沒有資料列。為每個資料表填入逼真的範例資料，讓儀表板和圖表立刻能夠呈現。"
+        },
+        "openSqlite": {
+          "title": "開啟現有的 SQLite 檔案",
+          "description": "讓 Adminium 指向這台電腦上的 .sqlite 檔案。檔案會在原處開啟——不會複製或移動。",
+          "browse": "選擇一個 .sqlite 檔案…",
+          "change": "選擇其他檔案…",
+          "networkTitle": "該檔案位於網路共用上",
+          "networkBody": "SQLite 的鎖定機制在網路檔案共用上並不可靠，寫入過程中斷線可能損毀資料庫。複製到這台電腦本機磁碟上更安全。"
+        },
+        "remote": {
+          "title": "連線到伺服器資料庫",
+          "description": "PostgreSQL 或 MySQL。需要一個可存取的網路資料庫；Adminium 自身的資料表仍然保留在這台電腦上。",
+          "networkNote": "需要一個可存取的網路資料庫",
+          "metaNote": "無論如何，Adminium 自身的資料表——你的頁面、設定和登入資訊——都保留在這台電腦的資料夾中。",
+          "engine": "引擎",
+          "name": "連線名稱",
+          "namePlaceholder": "正式環境",
+          "dsn": "連線字串",
+          "dsnHelper": "Adminium 會在連線時測試它。如果你只需要儀表板，請使用唯讀角色。"
+        },
+        "demo": {
+          "title": "體驗示範資料庫",
+          "description": "一個現成的團隊營運資料庫，讓你在指向自己的資料之前先看看 Adminium 會建構出什麼。你可以隨時刪除它。",
+          "unavailable": "此版本不包含示範資料，因此沒有可載入的內容。請選擇上面的某個選項。"
+        }
+      },
+      "account": {
+        "heading": "建立你的帳戶",
+        "description": "這是這份 Adminium 的管理員帳戶。密碼用於保護你的備份以及你在網路上共用的對象——每次啟動時不會向你索取密碼。",
+        "name": "你的姓名",
+        "email": "電子郵件",
+        "password": "密碼",
+        "passwordHelper": "至少 {min} 個字元。",
+        "confirm": "確認密碼",
+        "strength": "密碼強度",
+        "strengthLevels": {
+          "weak": "弱",
+          "fair": "普通",
+          "good": "良好",
+          "strong": "強"
+        },
+        "singleUser": "在這台電腦上略過登入",
+        "singleUserHelper": "在這裡開啟時，Adminium 會自動為你登入。如果其他人也使用這台機器，請關閉此項。你之後可以在 設定 → 桌面 中變更。",
+        "locale": "語言",
+        "theme": "外觀",
+        "alreadyExists": "這份 Adminium 已經有一個帳戶。請改用該帳戶登入。",
+        "failed": "Adminium 無法建立該帳戶。"
+      },
+      "generate": {
+        "creating": "正在設定你的資料庫…",
+        "introspecting": "正在讀取你的結構——資料表、欄位和關聯…",
+        "working": "處理中…",
+        "offlineNote": "這一切都在這台電腦上完成。",
+        "failedTitle": "Adminium 無法設定該資料庫",
+        "failedBody": "出了點問題。請重試。",
+        "retry": "重試"
+      }
     }
   }
 }

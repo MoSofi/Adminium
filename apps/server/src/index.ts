@@ -4,6 +4,8 @@
  * app; `start()` runs the boot sequence and listens (01-architecture.md §8.1 —
  * meta connect/migration gates join in a later wave).
  */
+import { ALL_MIGRATIONS } from '@adminium/meta';
+
 export {
   buildLogger,
   buildServer,
@@ -108,6 +110,83 @@ export {
  * the wrapper differs".
  */
 export { firstRun, type FirstRunResult } from '@adminium/meta';
+/**
+ * The newest migration this build ships (11-electron.md §9, 11-T12).
+ *
+ * Re-exported for the same reason `firstRun` above is: the Electron
+ * utilityProcess entry has no legal path to `@adminium/meta` (01 §2.3 gives
+ * `@adminium/desktop` exactly two inputs), and it needs this string to tell the
+ * main process how new the app is — which is what lets main refuse a backup
+ * whose `metaMigrationVersion` is newer than itself BEFORE it moves any data
+ * aside. Computed here rather than restated, so it cannot fall behind the
+ * ledger it names.
+ */
+export const LATEST_META_MIGRATION: string = (() => {
+  const latest = ALL_MIGRATIONS[ALL_MIGRATIONS.length - 1]?.name;
+  if (latest === undefined) {
+    throw new Error('@adminium/meta shipped an empty migration ledger — this build is broken.');
+  }
+  return latest;
+})();
+// The §9 desktop backup format, frozen at formatVersion 1. Exported because it
+// is a CONTRACT, not an implementation: the Electron main process validates an
+// archive against these types before a restore (`import type` only — see
+// `apps/desktop/src/main/backup-archive.ts`), and the M10 CLI's import reads the
+// same manifest out of the same zip.
+export {
+  BACKUP_CONFIG_PATH,
+  BACKUP_DATABASES_DIR,
+  BACKUP_FILE_PATTERN,
+  BACKUP_FORMAT_VERSION,
+  BACKUP_MANIFEST_PATH,
+  BACKUP_META_PATH,
+  BACKUP_SLUG_PATTERN,
+  PRE_RESTORE_PREFIX,
+  backupDatabasePath,
+  backupFileName,
+  backupManifestSchema,
+  compareMetaMigrationVersion,
+  deriveDatabaseSlug,
+  preRestoreDirName,
+  sha256Hex,
+  uniqueSlug,
+  type BackupDatabaseEntry,
+  type BackupExternalDatabase,
+  type BackupLocalDatabase,
+  type BackupManifest,
+  type BackupMetaEntry,
+  type BackupVersionOrder,
+} from './backup/format.js';
+export {
+  BACKUPS_DIR,
+  BACKUP_STAGING_DIR,
+  BackupRedactionError,
+  DEFAULT_AUTO_BACKUP_KEEP,
+  createBackup,
+  rotateBackups,
+  rotateBackupsOnDisk,
+  type CreateBackupOptions,
+  type CreateBackupResult,
+  type RotateBackupsResult,
+} from './backup/backup-service.js';
+export { BACKUP_NOTIFICATION_KIND } from './backup/notify.js';
+/**
+ * The session cookie's name (08-server-api.md §2.1).
+ *
+ * Exported because the Electron main process has to send it: §9's backup route
+ * is session-guarded and main calls it carrying the WINDOW'S cookie, read out of
+ * Electron's own cookie jar (`main/index.ts`'s `electronBackupTransport`). Main
+ * cannot import this at runtime — that would load Fastify into the main process
+ * to read a string — so it restates the name and pins it here with a test.
+ */
+export { SESSION_COOKIE } from './auth/sessions.js';
+export { desktopRoutes, type DesktopRoutesDeps } from './routes/desktop/index.js';
+export {
+  desktopBackupBody,
+  desktopBackupReply,
+  type DesktopBackupBody,
+  type DesktopBackupReply,
+} from './routes/desktop/schema.js';
 // Meta-store resolution + connection (01 §3.1/§7.2). The wrappers — CLI today,
 // Docker/Electron next — all answer "where does the meta store live?" here.
 export {

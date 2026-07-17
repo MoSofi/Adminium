@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Adminium</title>
     <!--
+      NO WEBFONT LINKS HERE. 11-electron.md §7's fonts row: Manrope, JetBrains
+      Mono and IBM Plex Sans Arabic ship as self-hosted woff2 in
+      `@adminium/tokens` (02-design-system.md §2.4), reaching this page through
+      `src/styles.css` → `@adminium/tokens/index.css` → `fonts.css`. A remote
+      stylesheet here is unstyled text the moment the network is gone — which for
+      the desktop build is "forever, by design".
+
+      This head used to carry a Google Fonts stylesheet link and a gstatic
+      preconnect, both written SCHEME-RELATIVE (no "https:", just the two
+      slashes), pulling a font — Inter — that appears nowhere in the design
+      system. `check-offline-assets.mjs` required a literal scheme in every
+      pattern, so it never saw them: the gate whose entire purpose is this rule
+      reported "ok" on every build while the shipped SPA asked Google for a
+      stylesheet on every page load. It sees them now — including, deliberately,
+      inside a comment like this one, which is why this paragraph spells no URL
+      out. The scanner reads bytes, not syntax, and a shipped index.html's
+      comments are bytes it is right not to trust.
+    -->
+    <!--
       Pre-hydration flash guard (02-design-system.md §4.3). This MUST be the
       first script, before any stylesheet paints content.
 

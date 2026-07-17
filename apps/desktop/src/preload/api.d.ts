@@ -151,6 +151,73 @@ export interface DesktopConfigPatch {
   readonly autoBackup?: DesktopAutoBackupConfig | undefined;
 }
 
+// ─── Data directory (§6 step 1) ──────────────────────────────────────────────
+
+/** The four providers §6 step 1 names. Mirrors `main/config.ts`'s union. */
+export type DesktopCloudSyncProvider = 'dropbox' | 'icloud' | 'onedrive' | 'googleDrive';
+
+/**
+ * A cloud-sync folder the wizard must warn about, as `main/config.ts`'s
+ * `detectCloudSyncFolder` reports it.
+ *
+ * The DETECTOR is the main process's and stays there — it is 11-T03's, it knows
+ * the platform's mount shapes, and a second copy in the SPA is a second answer.
+ * What crosses is its verdict. `providerLabel` is a brand name and deliberately
+ * untranslated; `messageKey` is the i18n key the wizard resolves, so the
+ * detector names the message and the wizard owns the 8 translations of it.
+ */
+export interface DesktopCloudSyncWarning {
+  readonly provider: DesktopCloudSyncProvider;
+  readonly providerLabel: string;
+  /** The path segment that matched, e.g. `"Dropbox (Personal)"`. */
+  readonly matchedSegment: string;
+  readonly messageKey: string;
+}
+
+export interface SetDataDirOptions {
+  /** Absolute path, as `chooseDirectory` returned it. */
+  readonly dir: string;
+  /**
+   * §6 step 1's "require explicit confirmation". FALSE (or absent) means the
+   * user has not seen the warning yet, and a path inside a sync folder is
+   * REFUSED rather than written — see {@link SetDataDirResult}.
+   */
+  readonly acknowledgeCloudSync?: boolean | undefined;
+}
+
+/**
+ * Why this is a RESULT and not a `Promise<void>` that rejects.
+ *
+ * §6 step 1's warning is blocking and needs the provider's name in its copy, and
+ * a rejection cannot carry one: `main/ipc.ts` flattens a throw to
+ * `{ code, message }` and nothing else survives (see
+ * {@link DesktopBridgeErrorLike}). Encoding a brand name into a message for the
+ * renderer to parse back out is what §8.3's `LAN_PORT_IN_USE` had to do, and
+ * that was a concession to an existing error channel, not a pattern to copy.
+ *
+ * The refusal lives on the TRUSTED side on purpose. The renderer cannot reach
+ * `detectCloudSyncFolder`, so a wizard that forgot to check — or a future caller
+ * that never knew to — cannot write a data directory into Dropbox. The check is
+ * not advice this method gives; it is a gate this method holds.
+ */
+export type SetDataDirResult =
+  /**
+   * Written. The app RELAUNCHES: `dataDir` decides how the server is forked
+   * (§2.2 step 5), and the child froze its copy at boot — so there is no
+   * in-place way to move it, and §6 step 1 is explicit that changing it later is
+   * "a guarded operation (quit-and-move instructions)". The caller should expect
+   * this promise's resolution to be the last thing that happens in this window.
+   */
+  | { readonly status: 'applied'; readonly dataDir: string }
+  /**
+   * Refused: the path is inside a sync folder and `acknowledgeCloudSync` was not
+   * set. NOTHING was written. Show the warning; call again with the flag if the
+   * user insists.
+   */
+  | { readonly status: 'cloud-sync-blocked'; readonly warning: DesktopCloudSyncWarning }
+  /** Refused: the path is unusable (not a directory, not writable, …). */
+  | { readonly status: 'unusable'; readonly reason: string };
+
 // ─── Updates (§11) ───────────────────────────────────────────────────────────
 
 export type DesktopUpdateStatus = 'available' | 'none' | 'error';
@@ -222,6 +289,12 @@ export interface DesktopCapabilitiesApi {
  *   INITIALIZED, not merely never asked.
  * - `CAPABILITY_NOT_GRANTED` / `CAPABILITY_STUB` — §12's typed rejections,
  *   forwarded from the CapabilityHost so the SPA sees them unchanged.
+ * - `LAN_PORT_IN_USE` — §8.3's port collision, refused by `setConfig` BEFORE
+ *   anything is written or restarted. It is a code and not an `INTERNAL`
+ *   message because §8.3 asks for "an inline error with a 'Try 4601'
+ *   suggestion", and a settings form can only render a suggestion for a failure
+ *   it can identify; the suggested port rides in the message (see
+ *   `main/lan.ts`'s `suggestNextPort`).
  * - `INTERNAL` — anything else the handler threw; the message is carried, the
  *   stack is not.
  */
@@ -231,6 +304,7 @@ export type DesktopErrorCode =
   | 'UNAVAILABLE'
   | 'CAPABILITY_NOT_GRANTED'
   | 'CAPABILITY_STUB'
+  | 'LAN_PORT_IN_USE'
   | 'INTERNAL';
 
 /**
@@ -275,7 +349,38 @@ export interface AdminiumDesktopApi {
 
   // runtime info & config
   getRuntimeInfo(): Promise<DesktopRuntimeInfo>;
+  /**
+   * Merge a patch into `config.json` (§2.3) and apply whatever it implies.
+   *
+   * NOT a pure write, and the one key where that matters is `lanShare`: §8.3
+   * makes the toggle and the rebind a single act ("flipping the toggle updates
+   * `config.lanShare` … *and* gracefully restarts the utilityProcess"), so this
+   * call resolves only once the server is listening on the new bind. A caller
+   * that awaited it has a running server; a rejection means nothing changed —
+   * `LAN_PORT_IN_USE` is refused before the write, and any later failure reverts
+   * the file and rebinds to loopback rather than leaving the app with a config
+   * that cannot boot.
+   *
+   * The window RELOADS on a successful `lanShare` change: the port moves, so the
+   * origin does, and `main/index.ts` re-navigates to the new one.
+   */
   setConfig(patch: DesktopConfigPatch): Promise<void>;
+
+  /**
+   * §6 step 1's "Change…", committed.
+   *
+   * Deliberately NOT a `setConfig` key, and the split is the security property
+   * {@link DesktopConfigPatch} describes: that patch is a merge of five
+   * user-facing values, while this one repoints the app's entire storage and
+   * ends the process. Folding it in would put `dataDir` inside a `strictObject`
+   * whose whole job is to reject it.
+   *
+   * The two-call shape the wizard uses — `chooseDirectory` for the dialog, then
+   * this to commit — is why the sync-folder gate is HERE and not in the picker:
+   * a caller can arrive with a path from anywhere, and only the write is a
+   * chokepoint every path goes through.
+   */
+  setDataDir(opts: SetDataDirOptions): Promise<SetDataDirResult>;
 
   // updates (§11)
   checkForUpdates(): Promise<DesktopUpdateCheckResult>;

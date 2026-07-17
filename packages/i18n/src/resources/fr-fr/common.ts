@@ -44,7 +44,8 @@ export default {
       "back": "Retour à la connexion",
       "done": "Retour à la connexion",
       "rateLimited": "Trop de demandes — réessayez plus tard.",
-      "failed": "Une erreur s’est produite. Réessayez."
+      "failed": "Une erreur s’est produite. Réessayez.",
+      "smtpUnconfigured": "Cet Adminium n'a pas de serveur e-mail configuré : il ne peut pas envoyer de lien de réinitialisation. Demandez à un administrateur de réinitialiser votre mot de passe."
     },
     "reset": {
       "title": "Définir un nouveau mot de passe",
@@ -426,7 +427,10 @@ export default {
         "ollama": {
           "label": "Ollama (local)",
           "desc": "Modèles exécutés localement via Ollama — sans clé, sans cloud."
-        }
+        },
+        "requiresNetwork": "Nécessite Internet et une clé API",
+        "networkDisabledTitle": "Les fournisseurs IA directs sont désactivés sur cette installation",
+        "networkDisabledBody": "Cet Adminium est configuré sans accès Internet sortant : il ne peut joindre aucune API de fournisseur. Utilisez l'aller-retour copier-coller ci-dessous — ni clé ni réseau requis."
       },
       "configure": {
         "heading": "Configurer {provider}"
@@ -469,7 +473,9 @@ export default {
         "guarantee2": "Aucun identifiant, URL d’instance ni justificatif n’y est intégré.",
         "guarantee3": "Les exécutions BYO ne font aucun appel réseau et ne sont jamais facturées.",
         "promptVersion": "Prompt {version}",
-        "schemaVersion": "Schéma {version}"
+        "schemaVersion": "Schéma {version}",
+        "headingRecommended": "Utilisez votre propre outil IA — aucune clé requise",
+        "recommended": "Recommandé"
       },
       "history": {
         "heading": "Historique des exécutions",
@@ -527,7 +533,8 @@ export default {
         "description": "Lancez l’enrichissement maintenant avec votre fournisseur configuré. Vous vérifiez chaque suggestion sous forme de diff.",
         "unconfigured": "Aucun fournisseur d’IA n’est encore configuré — copiez une invite dans votre propre outil ci-dessous, ou configurez d’abord un fournisseur.",
         "settingsHint": "Vous voulez le lancer directement ?",
-        "settingsLink": "Configurer un fournisseur dans Paramètres → IA"
+        "settingsLink": "Configurer un fournisseur dans Paramètres → IA",
+        "networkDisabled": "Cet Adminium n'a pas d'accès Internet sortant : il ne peut joindre aucune API de fournisseur. Utilisez plutôt l'aller-retour copier-coller — même invite, même revue."
       },
       "byo": {
         "cardTitle": "Copier une invite vers mon propre outil d’IA",
@@ -559,7 +566,8 @@ export default {
         "pendingBodyChunked": "Chaque segment doit être validé avant la fusion des suggestions. Collez et validez chaque invite ci-dessus.",
         "requestFailed": "Impossible de joindre le serveur pour valider — réessayez.",
         "continueReview": "Continuer vers la vérification",
-        "wholeDocument": "document entier"
+        "wholeDocument": "document entier",
+        "cardTitleRecommended": "Copier une invite vers mon propre outil IA — recommandé"
       },
       "direct": {
         "title": "Enrichissement par IA",
@@ -1116,6 +1124,148 @@ export default {
       "savedOn": "Connexion requise au prochain démarrage",
       "savedOff": "Adminium ignorera la connexion sur cet ordinateur",
       "saveFailed": "Impossible d’enregistrer ce paramètre. Réessayez."
+    },
+    "chip": {
+      "local": "Local",
+      "lanShare": "Local · Partagé sur le réseau",
+      "remoteDb": "Local + base distante",
+      "remoteDbOffline": "Base distante hors ligne",
+      "remoteDbOfflineDetail": "Impossible de joindre {names}. Les pages de ces connexions affichent un état de reconnexion."
+    },
+    "lan": {
+      "heading": "Partager sur le réseau local",
+      "label": "Autoriser les autres appareils de ce réseau à utiliser Adminium",
+      "description": "Les autres ordinateurs, tablettes et téléphones du même réseau peuvent ouvrir Adminium dans un navigateur et se connecter avec leur propre compte. Adminium doit rester ouvert sur cet ordinateur pour qu'ils puissent y accéder.",
+      "savedOn": "Partagé sur votre réseau local",
+      "savedOff": "Partage arrêté — Adminium est de nouveau limité à cet ordinateur",
+      "saveFailed": "Impossible de modifier le partage réseau",
+      "noUsers": "Vous êtes la seule personne à avoir un compte, donc personne d'autre ne peut encore se connecter. Le partage fonctionne quand même — il vous suffira d'inviter des personnes avant qu'elles puissent l'utiliser.",
+      "usersUnknown": "Adminium n'a pas pu vérifier qui d'autre possède un compte sur cet ordinateur. Le partage fonctionne toujours et toute personne disposant d'un compte peut se connecter — seule cette vérification a échoué.",
+      "acknowledge": "J'ai compris — j'inviterai des personnes ensuite",
+      "port": "Port",
+      "portHelper": "Par défaut {port}",
+      "portInvalid": "Utilisez un nombre entre 1024 et 65535.",
+      "applyPort": "Changer de port",
+      "portInUse": "Le port {port} est déjà utilisé par un autre programme.",
+      "portInUseHint": "Rien n'a été modifié — le partage est toujours désactivé.",
+      "portInUseNoSuggestion": "Rien n'a été modifié. Essayez un autre port.",
+      "tryPort": "Essayer {port}",
+      "urlsHeading": "Ouvrir ceci sur un autre appareil",
+      "noUrls": "Cet ordinateur n'est connecté à aucun réseau pour le moment, il n'y a donc aucune adresse à partager. Connectez-vous au Wi-Fi ou branchez un câble et cette liste se remplira.",
+      "copyUrl": "Copier",
+      "sessions": "{count, plural, =0 {Aucun appareil connecté depuis ce réseau} one {# appareil connecté depuis ce réseau} other {# appareils connectés depuis ce réseau}}",
+      "sessionsUnknown": "Vérification des appareils connectés…",
+      "pending": "Démarrage du partage…",
+      "mismatch": "Adminium reste accessible sur ce réseau",
+      "mismatchBody": "Le partage est désactivé, mais le serveur n'a pas encore libéré le réseau. Redémarrez Adminium pour le fermer.",
+      "transportTitle": "Le trafic sur votre réseau local n'est pas chiffré.",
+      "transportBody": "Ne partagez que sur des réseaux de confiance. Pour un accès à distance, utilisez Adminium self-host derrière HTTPS.",
+      "firewall": "La première fois que vous partagez, votre système d'exploitation vous demandera d'autoriser les connexions entrantes — choisissez Autoriser, sinon les autres appareils ne pourront pas accéder à Adminium."
+    },
+    "setup": {
+      "title": "Bienvenue dans Adminium",
+      "subtitle": "Quatre étapes rapides et Adminium aura construit une application d’administration à partir de votre base de données. Tout reste sur cet ordinateur.",
+      "progress": "Progression de la configuration",
+      "back": "Retour",
+      "continue": "Continuer",
+      "createAccount": "Créer le compte et continuer",
+      "step": {
+        "location": "Bienvenue",
+        "database": "Votre première base de données",
+        "account": "Votre compte",
+        "generate": "Générer"
+      },
+      "dataDir": {
+        "heading": "Où Adminium doit-il conserver vos données ?",
+        "description": "Vos bases de données, vos réglages et vos sauvegardes vivent tous dans ce dossier. Tout reste sur cet ordinateur — rien n’est envoyé nulle part.",
+        "label": "Dossier de données",
+        "loading": "Lecture de l’emplacement actuel…",
+        "pending": "Adminium redémarre lorsque vous continuez, afin de basculer vers ce dossier.",
+        "change": "Modifier…",
+        "revert": "Annuler",
+        "dialogTitle": "Choisissez où Adminium conserve vos données",
+        "cloudSyncTitle": "Ce dossier est synchronisé avec le cloud",
+        "cloudSyncWarning": "Adminium stocke ses données dans des fichiers SQLite. {provider} synchronise les fichiers de « {folder} » en les copiant en arrière-plan, ce qui peut corrompre une base de données ouverte — et faire perdre des données sans avertissement. Choisissez un dossier en dehors de {provider}.",
+        "chooseAnother": "Choisir un autre dossier",
+        "useAnyway": "L’utiliser quand même — j’accepte le risque",
+        "unusableTitle": "Adminium ne peut pas utiliser ce dossier",
+        "failed": "Adminium n’a pas pu utiliser ce dossier."
+      },
+      "source": {
+        "heading": "À partir de quoi Adminium doit-il construire ?",
+        "description": "Adminium lit le schéma d’une base de données et en génère une application d’administration. Vous pourrez ajouter d’autres bases plus tard.",
+        "groupLabel": "Source de la base de données",
+        "local": {
+          "title": "Créer une base de données locale",
+          "description": "Partez de zéro, ou d’un fichier de schéma que vous avez déjà. La base est créée dans votre dossier de données.",
+          "name": "Nom de la base de données",
+          "namePlaceholder": "Opérations",
+          "nameUnusable": "Utilisez au moins une lettre ou un chiffre — le nom du fichier en est dérivé.",
+          "fileHelper": "Crée {file}",
+          "schemaLabel": "Partir de",
+          "blank": "Vide",
+          "fromFile": "Un fichier de schéma",
+          "schemaFile": "Fichier de schéma",
+          "schemaFileHelper": ".sql, pg_dump, Prisma, Drizzle, TypeORM, Sequelize, schema.rb, Django ou JSON Adminium. Adminium le traduit en SQLite.",
+          "placeholder": "Générer automatiquement des entrées d’exemple",
+          "placeholderHelper": "Vous avez importé un schéma sans lignes. Remplissez chaque table de données d’exemple réalistes pour que vos tableaux de bord et graphiques s’affichent immédiatement."
+        },
+        "openSqlite": {
+          "title": "Ouvrir un fichier SQLite existant",
+          "description": "Pointez Adminium vers un fichier .sqlite de cet ordinateur. Il est ouvert là où il se trouve — rien n’est copié ni déplacé.",
+          "browse": "Choisir un fichier .sqlite…",
+          "change": "Choisir un autre fichier…",
+          "networkTitle": "Ce fichier se trouve sur un partage réseau",
+          "networkBody": "Le verrouillage SQLite n’est pas fiable sur les partages de fichiers réseau, et une connexion interrompue en pleine écriture peut corrompre la base. Une copie sur le disque de cet ordinateur est plus sûre."
+        },
+        "remote": {
+          "title": "Se connecter à une base de données serveur",
+          "description": "PostgreSQL ou MySQL. Nécessite une base de données accessible sur le réseau ; les tables propres à Adminium restent malgré tout sur cet ordinateur.",
+          "networkNote": "Nécessite une base de données accessible sur le réseau",
+          "metaNote": "Les tables propres à Adminium — vos pages, vos réglages et votre connexion — restent dans le dossier de données de cet ordinateur dans tous les cas.",
+          "engine": "Moteur",
+          "name": "Nom de la connexion",
+          "namePlaceholder": "Production",
+          "dsn": "Chaîne de connexion",
+          "dsnHelper": "Adminium la teste au moment de se connecter. Utilisez un rôle en lecture seule si vous ne voulez que des tableaux de bord."
+        },
+        "demo": {
+          "title": "Explorer la base de démonstration",
+          "description": "Une base d’exploitation d’équipe prête à l’emploi, pour voir ce qu’Adminium construit avant de le pointer vers vos propres données. Supprimez-la quand vous voulez.",
+          "unavailable": "Cette version n’inclut pas les données de démonstration, il n’y a donc rien à charger. Choisissez l’une des options ci-dessus."
+        }
+      },
+      "account": {
+        "heading": "Créez votre compte",
+        "description": "Il s’agit du compte administrateur de cette copie d’Adminium. Le mot de passe protège vos sauvegardes et toute personne avec qui vous partagez sur votre réseau — il ne vous sera pas demandé à chaque lancement.",
+        "name": "Votre nom",
+        "email": "E-mail",
+        "password": "Mot de passe",
+        "passwordHelper": "Au moins {min} caractères.",
+        "confirm": "Confirmer le mot de passe",
+        "strength": "Force du mot de passe",
+        "strengthLevels": {
+          "weak": "Faible",
+          "fair": "Moyen",
+          "good": "Bon",
+          "strong": "Fort"
+        },
+        "singleUser": "Ignorer la connexion sur cet ordinateur",
+        "singleUserHelper": "Adminium vous connecte automatiquement lorsque vous l’ouvrez ici. Désactivez cette option si d’autres personnes utilisent cette machine. Vous pourrez la modifier plus tard dans Réglages → Bureau.",
+        "locale": "Langue",
+        "theme": "Apparence",
+        "alreadyExists": "Cette copie d’Adminium possède déjà un compte. Connectez-vous avec celui-ci.",
+        "failed": "Adminium n’a pas pu créer ce compte."
+      },
+      "generate": {
+        "creating": "Configuration de votre base de données…",
+        "introspecting": "Lecture de votre schéma — tables, colonnes et relations…",
+        "working": "En cours…",
+        "offlineNote": "Tout cela se passe sur cet ordinateur.",
+        "failedTitle": "Adminium n’a pas pu configurer cette base de données",
+        "failedBody": "Un problème est survenu. Réessayez.",
+        "retry": "Réessayer"
+      }
     }
   }
 } as const;

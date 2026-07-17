@@ -30,15 +30,30 @@
 
 import type { AdminiumDesktopApi, DesktopErrorCode } from '@adminium/desktop/api';
 
-/** Every code §4's bridge can reject with, for {@link desktopErrorCode}. */
-const DESKTOP_ERROR_CODES: readonly DesktopErrorCode[] = [
-  'INVALID_PAYLOAD',
-  'UNTRUSTED_SENDER',
-  'UNAVAILABLE',
-  'CAPABILITY_NOT_GRANTED',
-  'CAPABILITY_STUB',
-  'INTERNAL',
-];
+/**
+ * Every code §4's bridge can reject with, for {@link desktopErrorCode}.
+ *
+ * A `Record<DesktopErrorCode, true>` and not an array, because an array is how
+ * this went wrong: `readonly DesktopErrorCode[]` accepts a list that is MISSING
+ * a member — only a wrong one is an error — so when §8.3 added
+ * `LAN_PORT_IN_USE` to `api.d.ts` this list kept typechecking without it, and
+ * `desktopErrorCode()` answered `null` for the one rejection the LAN settings
+ * form has to identify to render §8.3's "Try 4601". The failure was invisible
+ * in exactly the way a missing case always is: nothing throws, the code is
+ * simply not recognized, and the form shows a generic error forever.
+ *
+ * The mapped type makes the compiler the reviewer — adding a code to
+ * `DesktopErrorCode` without adding it here is now a build error.
+ */
+const DESKTOP_ERROR_CODES: Readonly<Record<DesktopErrorCode, true>> = {
+  INVALID_PAYLOAD: true,
+  UNTRUSTED_SENDER: true,
+  UNAVAILABLE: true,
+  CAPABILITY_NOT_GRANTED: true,
+  CAPABILITY_STUB: true,
+  LAN_PORT_IN_USE: true,
+  INTERNAL: true,
+};
 
 /**
  * §4's detection contract, and the only correct spelling of it.
@@ -84,5 +99,5 @@ export function desktopErrorCode(error: unknown): DesktopErrorCode | null {
 }
 
 function isDesktopErrorCode(value: string): value is DesktopErrorCode {
-  return (DESKTOP_ERROR_CODES as readonly string[]).includes(value);
+  return Object.hasOwn(DESKTOP_ERROR_CODES, value);
 }

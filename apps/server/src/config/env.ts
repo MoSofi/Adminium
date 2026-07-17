@@ -103,6 +103,22 @@ export const envSchema = z.object({
       .transform((value) => (value === undefined ? undefined : TRUTHY.has(value))),
   ),
   /**
+   * Absolute path to `demo-seed.mjs` — the §6 step 2 "Explore the demo database"
+   * seed script, which ships in `apps/desktop/resources/` (11-T08).
+   *
+   * The server cannot find this itself and must not try: the script's location is
+   * a fact about the SHELL's layout (`resources/demo/` in the repo, inside the
+   * app bundle once §10 packages it), and `@adminium/server` may not import
+   * `@adminium/desktop` to ask. So the shell states it, the same way it states
+   * the boot token — and, like the boot token, this being absent is a
+   * DEGRADATION rather than an error: `compose.ts` skips the route and the
+   * wizard's demo card has nothing to call, while every other first-run path
+   * still works. A missing demo must not cost you your app.
+   *
+   * Only meaningful when {@link Runtime} is `desktop`; compose requires both.
+   */
+  ADMINIUM_DEMO_SEED_SCRIPT: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /**
    * The telemetry OVERRIDE, and — unlike its siblings — deliberately tri-state:
    * `true` / `false` / `undefined` (unset).
    *
@@ -124,6 +140,41 @@ export const envSchema = z.object({
       .enum(BOOLEANISH)
       .optional()
       .transform((value) => (value === undefined ? undefined : TRUTHY.has(value))),
+  ),
+  /**
+   * May this deployment use network-dependent features at all
+   * (11-electron.md §8.2 `networkFeaturesAllowed`)?
+   *
+   * READ THIS BEFORE USING IT: THIS IS A POLICY ANSWER, NOT A REACHABILITY
+   * ANSWER. It does not mean "the internet is up" and must never be rendered as
+   * if it did. The server cannot know whether the network is reachable without
+   * making an outbound call, and 11-electron.md §7 ("Offline is the default,
+   * network is the exception. Every network touchpoint … is explicit,
+   * user-visible, and individually disableable") is precisely the promise an
+   * unprompted reachability probe would break — the desktop offline smoke test
+   * fails the build over exactly that request. So the honest thing the server
+   * CAN report is the one it owns: whether the operator has permitted outbound
+   * features here. §8.2's webhooks row is written to match — those rows carry a
+   * "Requires internet" HINT rather than a claim, because nothing in this
+   * process is entitled to make the claim.
+   *
+   * Default `on`, because a self-host behind a normal internet connection is the
+   * common case and webhooks/OAuth are ordinary features there. `off` is the
+   * air-gap switch for the fleet admin who already reaches for
+   * `ADMINIUM_DISABLE_UPDATES=1` (§11) and `ADMINIUM_TELEMETRY=off`: it tells the
+   * SPA to stop offering what this network cannot do, instead of letting users
+   * discover it one timeout at a time.
+   *
+   * NOT tri-state, unlike `ADMINIUM_TELEMETRY`: there is no stored setting
+   * underneath for an unset value to defer to, so "unset" has exactly one
+   * possible meaning and a boolean says it without pretending otherwise.
+   */
+  ADMINIUM_NETWORK_FEATURES: z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(BOOLEANISH)
+      .optional()
+      .transform((value) => (value === undefined ? true : TRUTHY.has(value))),
   ),
   ADMINIUM_TRUST_PROXY: z.preprocess(
     emptyToUndefined,
@@ -172,7 +223,10 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_RUNTIME: `one of ${RUNTIMES.join(', ')} (default self-host; set to desktop only by the Electron shell)`,
   ADMINIUM_BOOT_TOKEN: `${String(BOOT_TOKEN_HEX_LENGTH)} hex characters, generated per boot by the desktop shell`,
   ADMINIUM_DESKTOP_SINGLE_USER: `one of ${BOOLEANISH.join(', ')} (desktop only; mirrors config.json's singleUser)`,
+  ADMINIUM_DEMO_SEED_SCRIPT:
+    'absolute path to the desktop shell’s demo-seed.mjs (desktop only; enables the first-run demo card)',
   ADMINIUM_TELEMETRY: `one of ${BOOLEANISH.join(', ')} (default off)`,
+  ADMINIUM_NETWORK_FEATURES: `one of ${BOOLEANISH.join(', ')} (default on; set off on air-gapped installs so the UI stops offering webhooks/OAuth)`,
   ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
   ADMINIUM_CORS_ORIGINS:
     'CSV of exact origins for split deployments, e.g. https://admin.acme.io — no wildcard',

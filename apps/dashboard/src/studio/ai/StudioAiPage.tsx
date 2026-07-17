@@ -44,6 +44,7 @@ import {
   type Tone,
 } from '@adminium/ui';
 
+import { llmAffordances, systemInfoQuery } from '../../app/capabilities.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
@@ -167,7 +168,7 @@ function initialDraft(provider: ConfigurableProvider, config: LlmConfig): DraftS
   };
 }
 
-function ProviderConfigForm({ config }: { config: LlmConfig }): ReactNode {
+function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; networkAllowed: boolean }): ReactNode {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
 
@@ -253,7 +254,15 @@ function ProviderConfigForm({ config }: { config: LlmConfig }): ReactNode {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-section text-fg">{t('studio.settingsAi.provider.heading', 'AI provider')}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-section text-fg">{t('studio.settingsAi.provider.heading', 'AI provider')}</h2>
+          {/* 11-electron.md §8.2, LLM row: provider-API mode is "Available,
+              LABELED". §6 step 4 gives the label its words. It rides beside the
+              heading in every runtime, not just desktop — the direct path needs
+              the internet on a self-host too, and a self-host admin choosing
+              between the two paths deserves the same fact. */}
+          <Tag>{t('studio.settingsAi.provider.requiresNetwork', 'Requires internet & an API key')}</Tag>
+        </div>
         <p className="mt-0.5 text-body-sm text-fg-muted">
           {t(
             'studio.settingsAi.provider.subtitle',
@@ -261,6 +270,21 @@ function ProviderConfigForm({ config }: { config: LlmConfig }): ReactNode {
           )}
         </p>
       </div>
+
+      {/* Never hide, always explain (`designs/Empty States.dc.html`): an
+          air-gapped install keeps the whole form visible and readable, and says
+          why saving a key here would buy nothing. The copy-paste round-trip
+          below is the path that works, and still does. */}
+      {networkAllowed ? null : (
+        <Alert
+          tone="info"
+          title={t('studio.settingsAi.provider.networkDisabledTitle', 'Direct AI providers are turned off on this install')}
+          body={t(
+            'studio.settingsAi.provider.networkDisabledBody',
+            'This Adminium is configured with no outbound internet access, so it cannot reach a provider API. Use the copy-paste round-trip below — it needs no key and no network.',
+          )}
+        />
+      )}
 
       <RadioGroup
         aria-label={t('studio.settingsAi.provider.heading', 'AI provider')}
@@ -574,19 +598,31 @@ function TestResult({
 
 // ── BYO explainer panel ─────────────────────────────────────────────────────────
 
-function ByoPanel(): ReactNode {
+/**
+ * `highlighted` is §8.2's "highlighted first in desktop" — the visual half of
+ * the same decision the page's ordering makes. It changes the accent, the tile
+ * tone and the heading, because leading with a card that opens "No key?" would
+ * still frame the round-trip as the consolation prize on the one runtime where
+ * it is the recommendation (§6 step 4, §7's LLM row).
+ */
+function ByoPanel({ highlighted = false }: { highlighted?: boolean }): ReactNode {
   return (
-    <Card>
+    <Card className={highlighted ? 'border-accent/40' : undefined}>
       <CardHeader className="flex items-center gap-3">
-        <IconTile tone="neutral" size="md" icon={<KeyRound />} />
+        <IconTile tone={highlighted ? 'accent' : 'neutral'} size="md" icon={<KeyRound />} />
         <div className="min-w-0 flex-1">
           <h3 className="text-section text-fg">
-            {t('studio.settingsAi.byo.heading', 'No key? Use your own AI tool')}
+            {highlighted
+              ? t('studio.settingsAi.byo.headingRecommended', 'Use your own AI tool — no key needed')
+              : t('studio.settingsAi.byo.heading', 'No key? Use your own AI tool')}
           </h3>
           <p className="text-caption text-fg-subtle">
             {t('studio.settingsAi.byo.subtitle', 'The copy-paste round-trip — nothing leaves this machine.')}
           </p>
         </div>
+        {highlighted ? (
+          <Badge tone="accent">{t('studio.settingsAi.byo.recommended', 'Recommended')}</Badge>
+        ) : null}
       </CardHeader>
       <CardBody className="flex flex-col gap-3">
         <p className="text-body-sm text-fg-muted">
@@ -791,6 +827,22 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
   const { data: config } = useSuspenseQuery(aiConfigQuery());
   const { data: connections } = useSuspenseQuery(connectionsQuery());
 
+  // 11-electron.md §8.2, LLM row: "BYO round-trip is the default and is
+  // highlighted first in desktop".
+  //
+  // SUSPENDING, unlike this module's other capability reads, because this one
+  // decides the ORDER OF THE PAGE. The unresolved runtime is `self-host`, so a
+  // non-suspending read would paint provider-first and then visibly swap the two
+  // panels the moment the probe lands — on desktop, i.e. on every single load of
+  // the one runtime this ordering exists for. The page already suspends on
+  // `aiConfigQuery` and `connectionsQuery`; joining them costs nothing and the
+  // reader sees one layout.
+  const { data: info } = useSuspenseQuery(systemInfoQuery());
+  const { providerApi, byoFirst } = llmAffordances(info);
+
+  const byo = <ByoPanel key="byo" highlighted={byoFirst} />;
+  const provider = <ProviderConfigForm key="provider" config={config} networkAllowed={providerApi.enabled} />;
+
   return (
     <div className="mx-auto flex w-full max-w-narrow flex-col gap-6 p-6">
       <header className="flex items-start gap-3">
@@ -806,8 +858,11 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
         </div>
       </header>
 
-      <ProviderConfigForm config={config} />
-      <ByoPanel />
+      {/* Order IS the recommendation — the top card is what an admin reads
+          first and what they take to be the normal way. On desktop (and on any
+          air-gapped install) that has to be the round-trip. Keyed so React moves
+          the nodes rather than remounting them and dropping the provider draft. */}
+      {byoFirst ? [byo, provider] : [provider, byo]}
       <RunHistorySection connections={connections} onOpenReview={onOpenReview} />
     </div>
   );

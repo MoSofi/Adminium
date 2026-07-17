@@ -51,6 +51,8 @@ import type {
   DesktopRuntimeInfo,
   DesktopUpdateCheckResult,
   DesktopUpdateEvent,
+  SetDataDirOptions,
+  SetDataDirResult,
 } from '../preload/api.js';
 import {
   INVOKE_CHANNELS,
@@ -142,6 +144,24 @@ const setConfigSchema = z.strictObject({
   updates: updatesSchema.optional(),
   telemetryOptIn: z.boolean().optional(),
   autoBackup: autoBackupSchema.optional(),
+});
+
+/**
+ * §6 step 1 `setDataDir`. The one key `setConfigSchema` above exists to refuse,
+ * on its own channel with its own gate (see {@link RegisterIpcHandlersOptions.setDataDir}).
+ *
+ * Absolute-only for `revealPathSchema`'s reason and one more: this path is
+ * resolved against the main process's cwd otherwise, which in a packaged app is
+ * `/` on macOS and the install directory on Windows — so a relative path would
+ * not be wrong so much as meaningless.
+ */
+const setDataDirSchema = z.strictObject({
+  dir: z
+    .string()
+    .min(1)
+    .max(4096)
+    .refine(isAbsolute, { message: 'must be an absolute path' }),
+  acknowledgeCloudSync: z.boolean().optional(),
 });
 
 const capabilityInvokeSchema = z.strictObject({
@@ -309,6 +329,16 @@ export interface RegisterIpcHandlersOptions {
   readConfig: () => DesktopConfig;
   /** Merge + persist a §4 patch. The atomic write is 11-T03's `saveConfig`. */
   writeConfig: (patch: DesktopConfigPatch) => Promise<void>;
+  /**
+   * §6 step 1's data-directory change, gate included.
+   *
+   * A port rather than logic here, because every part of the act belongs to
+   * `main/index.ts`: 11-T03's `detectCloudSyncFolder` is the gate, `config.save`
+   * is the write, and `app.relaunch()` is what makes the new directory the one
+   * the server is forked against (§2.2 step 5). This module's job is the same as
+   * for every other channel — parse the payload, hand it over, wrap the answer.
+   */
+  setDataDir: (opts: SetDataDirOptions) => Promise<SetDataDirResult>;
   dialogs: DesktopDialogs;
   /**
    * §11: `null` when `updates.mode: "disabled"` or `ADMINIUM_DISABLE_UPDATES=1`.
@@ -396,6 +426,20 @@ function senderUrlOf(event: IpcInvokeEventLike): string | null {
 /** §11's `disabled` mode, as seen from the bridge: the port does not exist. */
 class UnavailableError extends Error {}
 
+/**
+ * §8.3's port collision, as a code the settings form can branch on.
+ *
+ * Spelled as a MESSAGE PREFIX rather than a custom error class, because that is
+ * the only shape that survives: {@link toErrorPayload} is what maps a throw onto
+ * §4's closed union, and it recognises prefixes — the same convention §12's
+ * providers use (`printer-escpos.ts` rejects with `` `${CAPABILITY_STUB}: …` ``).
+ * A class would work here and nowhere else, since the thrower is
+ * `RegisterIpcHandlersOptions.writeConfig` — an injected port that belongs to
+ * `main/index.ts` and cannot import this module without the circular edge
+ * `.dependency-cruiser.cjs` forbids.
+ */
+export const LAN_PORT_IN_USE = 'LAN_PORT_IN_USE';
+
 function requireUpdates(updates: UpdateManager | null): UpdateManager {
   if (updates === null) {
     throw new UnavailableError('Updates are disabled in this installation.');
@@ -417,11 +461,11 @@ function formatIssues(error: z.ZodError): string {
  *
  * §12's providers reject with `` `${CAPABILITY_NOT_GRANTED}: …` `` — a code
  * inside a message, which is how that section specifies it and how
- * `printer-escpos.ts` implements it. Recognising the prefix is what keeps it a
- * CODE across the bridge instead of decaying into prose; the prefix is then
- * stripped, because the preload puts it back (`DesktopBridgeError`) and a
- * doubled `CAPABILITY_STUB: CAPABILITY_STUB: …` is nobody's idea of a typed
- * error.
+ * `printer-escpos.ts` implements it. §8.3's `LAN_PORT_IN_USE` joins them on the
+ * same convention. Recognising the prefix is what keeps it a CODE across the
+ * bridge instead of decaying into prose; the prefix is then stripped, because
+ * the preload puts it back (`DesktopBridgeError`) and a doubled
+ * `CAPABILITY_STUB: CAPABILITY_STUB: …` is nobody's idea of a typed error.
  *
  * Everything else is `INTERNAL`, with its message carried and its stack dropped:
  * a stack in the renderer is an information leak, and the §9 log has the real
@@ -430,7 +474,7 @@ function formatIssues(error: z.ZodError): string {
 export function toErrorPayload(error: unknown): IpcErrorPayload {
   if (error instanceof UnavailableError) return { code: 'UNAVAILABLE', message: error.message };
   const message = error instanceof Error ? error.message : String(error);
-  for (const code of [CAPABILITY_NOT_GRANTED, CAPABILITY_STUB] as const) {
+  for (const code of [CAPABILITY_NOT_GRANTED, CAPABILITY_STUB, LAN_PORT_IN_USE] as const) {
     const prefix = `${code}: `;
     if (message.startsWith(prefix)) return { code, message: message.slice(prefix.length) };
   }
@@ -534,6 +578,10 @@ export function registerIpcHandlers(opts: RegisterIpcHandlersOptions): IpcHandle
   register(IPC_CHANNELS.setConfig, setConfigSchema, async (patch) => {
     await opts.writeConfig(patch);
   });
+
+  register(IPC_CHANNELS.setDataDir, setDataDirSchema, (input): Promise<SetDataDirResult> =>
+    opts.setDataDir(input),
+  );
 
   // ─── updates (§11) ─────────────────────────────────────────────────────────
 

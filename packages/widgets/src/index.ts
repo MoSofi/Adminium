@@ -45,6 +45,19 @@ export {
   widgetMissingConfigSchema,
   widgetMissingDefinition,
 } from './registry/widget-missing.js';
+
+// Offline asset policy (11-electron.md §7): `map-*` → `map-choropleth-grid` when
+// the host app reports a desktop/offline runtime. WidgetHost applies it on every
+// mount; the host app supplies the env through `WidgetRuntimeProvider`.
+export {
+  DEFAULT_WIDGET_RUNTIME_ENV,
+  MAP_WIDGET_PREFIX,
+  OFFLINE_MAP_FALLBACK_ID,
+  offlineAssetsRequired,
+  resolveOfflineWidgetId,
+  type WidgetRuntime,
+  type WidgetRuntimeEnv,
+} from './registry/offline.js';
 export { isEmptyByShape, isEmptyData } from './registry/data-empty.js';
 
 // Page-template registry — the source of truth the LLM allow-lists derive from
@@ -153,6 +166,12 @@ export {
 export { SkeletonSilhouette, type SkeletonSilhouetteProps } from './frame/SkeletonSilhouette.js';
 export { WidgetErrorBoundary, type WidgetErrorBoundaryProps } from './frame/WidgetErrorBoundary.js';
 export { WidgetHost, type WidgetDataState, type WidgetHostProps } from './frame/WidgetHost.js';
+export {
+  WidgetRuntimeProvider,
+  useWidgetRuntimeEnv,
+  useResolvedWidgetId,
+  type WidgetRuntimeProviderProps,
+} from './frame/WidgetRuntimeContext.js';
 export { ChartDirectionBridge, type ChartDirectionBridgeProps } from './frame/ChartDirectionBridge.js';
 
 // Tables family — standalone components + column-spec vocabulary (M4-T03).

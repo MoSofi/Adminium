@@ -17,7 +17,7 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
-import { ChartDirectionBridge } from '@adminium/widgets';
+import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
 import { AboutPage } from '../about/AboutPage.js';
 import { ApiKeysPage } from '../api-keys/ApiKeysPage.js';
@@ -26,6 +26,7 @@ import { KnowledgeBasePage } from '../kb/KnowledgeBasePage.js';
 import { AccountPage } from '../pages/AccountPage.js';
 import { PreferencesPage } from '../account/PreferencesPage.js';
 import { DesktopSettingsPage } from '../desktop/DesktopSettingsPage.js';
+import { DesktopSetupHost } from '../desktop/setup/desktopSetupHost.js';
 import { SetupPage } from '../setup/SetupPage.js';
 import { setupStateQuery } from '../setup/setupApi.js';
 import { GlobalDefaultsPage } from '../settings/GlobalDefaultsPage.js';
@@ -43,8 +44,10 @@ import { StatePage } from '../states/StatePage.js';
 import { pageQuery } from '../api/pages.js';
 import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
+import { widgetRuntimeEnv } from '../lib/widget-runtime.js';
 import { api, ApiError } from './api.js';
 import { bootstrapQuery, defaultPageSlug, findNavItemBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
+import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
 
 export interface RouterContext {
@@ -83,7 +86,16 @@ function RootComponent() {
         <ShortcutsProvider>
           {/* Bridge i18n dir → charts so chart chrome mirrors in RTL (§5.5). */}
           <ChartDirectionBridge>
-            <Outlet />
+            {/* The offline asset policy (11-electron.md §7). It belongs HERE, on
+                the root route, rather than deeper: every widget in the product
+                mounts through a WidgetHost under this Outlet — generated pages,
+                the dashboard builder's canvas, the palette's previews — and each
+                one reads this context to decide whether a `map-*` id may load a
+                map engine. One provider below any of them is a page that can
+                still pull Leaflet in the desktop shell. */}
+            <WidgetRuntimeProvider env={widgetRuntimeEnv}>
+              <Outlet />
+            </WidgetRuntimeProvider>
           </ChartDirectionBridge>
         </ShortcutsProvider>
       </TooltipProvider>
@@ -155,6 +167,47 @@ const setupRoute = createRoute({
   component: SetupPage,
 });
 
+/**
+ * `/desktop/setup` — the DESKTOP first-run wizard (11-electron.md §6, 11-T07).
+ *
+ * NOT `/setup`, and the two are not variants of each other. `/setup` above is
+ * M10's self-host bootstrap: an admin account and the consent answers, on a
+ * server someone has already configured. This one also picks the data
+ * directory, seeds the first database from one of §6's four source cards, and
+ * writes `config.json` — none of which exists off the desktop shell.
+ *
+ * ─── THIS ROUTE IS THE SHELL'S FRONT DOOR ────────────────────────────────────
+ *
+ * `main/index.ts`'s `appUrl` navigates the window here on EVERY launch with no
+ * `config.json` (§2.2 step 8), and only this wizard writes one. The route
+ * missing is therefore not a dead link, it is an unusable product: the shipped
+ * tree navigated here, TanStack fell through to `notFoundComponent`, and a
+ * brand-new user's first and only screen was the branded 404 — with no account,
+ * no database, and no way forward on this or any subsequent launch.
+ *
+ * ─── WHY THERE IS NO `beforeLoad` GUARD ──────────────────────────────────────
+ *
+ * `/setup` guards on `setupStateQuery().required` and bounces to `/login` when
+ * setup is done. This one deliberately does not, because the checks that would
+ * matter here cannot be made from a route guard:
+ *
+ *  - "is this the desktop app?" is a §4 BRIDGE question (`window.adminiumDesktop`),
+ *    and `settingsDesktopRoute` below already establishes the house answer —
+ *    the component owns that check, not the guard.
+ *  - "is this a first run?" is a question about `config.json`, which the SERVER
+ *    cannot see (§2.3: main owns that file) — so no server probe can answer it.
+ *
+ * The component is what degrades: off-desktop, or on a configured install, it
+ * renders through and the server's own 409 on `POST /setup/super-admin` is the
+ * real guarantee — the same division of labour `/setup`'s header states ("The
+ * server's 409 is the actual guarantee; this is the UX").
+ */
+const desktopSetupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/desktop/setup',
+  component: DesktopSetupHost,
+});
+
 const forgotRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/forgot',
@@ -175,8 +228,18 @@ const otpRoute = createRoute({
   component: OtpPage,
 });
 
+/**
+ * `/state/$stateId` addresses every system state directly (§6.1) — including
+ * `suspended`, the 402 "billing past due" screen with an "Update payment"
+ * button. 11-electron.md §8.2 row 1 says hosted-plan surfaces are "not rendered
+ * at all" outside Cloud, and on self-host/desktop that button already goes
+ * nowhere (`StatePage`'s `suspended: () => undefined`), so this is the one
+ * hosted-plan surface the SPA can actually reach. The 404 is the honest answer:
+ * on a build with no billing, a billing page does not exist.
+ */
 function StateRouteComponent() {
   const { stateId } = stateRoute.useParams();
+  if (isHostedPlanSurface(stateId)) return <NotFoundPage />;
   return <StatePage stateId={stateId} />;
 }
 
@@ -365,6 +428,11 @@ const routeTree = rootRoute.addChildren([
   otpRoute,
   stateRoute,
   setupRoute,
+  // §6's wizard. A CHILD OF ROOT, not of `appRoute`: `appRoute`'s beforeLoad
+  // demands a bootstrap, and at first run there is no user to bootstrap as — it
+  // would redirect the wizard to `/login`, which is the screen nobody can
+  // satisfy on an install with zero accounts.
+  desktopSetupRoute,
   appRoute.addChildren([
     indexRoute,
     pageRoute,

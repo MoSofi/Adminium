@@ -136,15 +136,28 @@ export function defaultEnrichChoices(): EnrichChoices {
 
 /**
  * Whether the "Use my AI provider" card can be picked: a provider must be
- * configured (bootstrap `llm.enabled`) and there must be a live connection to
- * snapshot — schema-file sources have none (§10.2, GenerateStep parity).
+ * configured (bootstrap `llm.enabled`), there must be a live connection to
+ * snapshot — schema-file sources have none (§10.2, GenerateStep parity) — and
+ * the deployment must be allowed to make the outbound call at all
+ * (11-electron.md §8.2's LLM row, via `/system/info`'s `networkFeaturesAllowed`).
+ *
+ * `networkAllowed` DEFAULTS TRUE, which is the one default in this file that is
+ * not merely convenience: it is the answer for every deployment that has not
+ * said otherwise, and it keeps a caller that has not yet heard back from
+ * `/system/info` from briefly greying out a card that works.
  */
 export function providerCardEnabled(input: {
   providerConfigured: boolean;
   connectionId: string | null;
   sourceIsFile: boolean;
+  networkAllowed?: boolean;
 }): boolean {
-  return input.providerConfigured && input.connectionId !== null && !input.sourceIsFile;
+  return (
+    input.providerConfigured &&
+    input.connectionId !== null &&
+    !input.sourceIsFile &&
+    (input.networkAllowed ?? true)
+  );
 }
 
 /** Reshape the shared choices into a `POST /runs` body (§10.5). */

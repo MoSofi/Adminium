@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "e2e": "turbo run e2e",
     "check-deps": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "check-offline-assets": "node scripts/check-offline-assets.mjs",
     "changeset": "changeset"
   },
   "devDependencies": {

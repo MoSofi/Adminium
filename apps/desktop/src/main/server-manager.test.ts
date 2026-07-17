@@ -32,7 +32,21 @@ import {
 // ─── Fakes ───────────────────────────────────────────────────────────────────
 
 const SECRET = 's'.repeat(32);
-const TOKEN = 'a'.repeat(BOOT_TOKEN_HEX_LENGTH);
+
+/**
+ * Fork N's boot token — distinct per fork, and still 64 hex characters because
+ * `buildServerEnv` validates the length (a short marker would fail the env
+ * contract instead of the assertion it was written for).
+ */
+function tokenFor(index: number): string {
+  return (index.toString(16).padStart(2, '0') + 'a'.repeat(BOOT_TOKEN_HEX_LENGTH)).slice(
+    0,
+    BOOT_TOKEN_HEX_LENGTH,
+  );
+}
+
+/** Fork 0's — the token the app's FIRST child is born with. */
+const TOKEN = tokenFor(0);
 const DATA_DIR = '/tmp/adminium-desktop-test';
 
 /** A `utilityProcess` child the test drives by hand. */
@@ -67,7 +81,12 @@ class FakeChild implements ServerChildLike {
 
   /** §2.2 step 7's ready message. */
   ready(port = 51234, applied = 0): void {
-    this.send({ type: 'ready', port, host: '127.0.0.1', migrations: { applied } });
+    this.send({
+      type: 'ready',
+      port,
+      host: '127.0.0.1',
+      migrations: { applied, version: '0009_views_kind' },
+    });
   }
 
   exit(code: number): void {
@@ -128,11 +147,14 @@ function harness(overrides: Partial<CreateServerManagerOptions> = {}): Harness {
   const clock = fakeTimers();
   const log = createMemoryLogSink();
 
+  // One token per fork (§5), numbered so a test can tell child 0's from child
+  // 1's: `TOKEN` is fork 0's, `tokenFor(1)` is the restart's.
+  let minted = 0;
   const manager = createServerManager({
     entry: '/app/out/server/index.js',
     dataDir: DATA_DIR,
     secret: SECRET,
-    bootToken: TOKEN,
+    createBootToken: () => tokenFor(minted++),
     singleUser: true,
     log,
     timers: clock.api,
@@ -610,7 +632,13 @@ describe('ServerManager.restart', () => {
     expect(h.exits).toEqual([]);
   });
 
-  it('keeps the boot token stable across a restart', async () => {
+  it('has no boot token before the first fork', () => {
+    // Not a placeholder: until a child exists there is no boot, and §5's token
+    // is a per-boot fact. `appUrl` omits the parameter entirely for this.
+    expect(harness().manager.bootToken).toBeNull();
+  });
+
+  it('mints a FRESH boot token for every fork', async () => {
     const h = harness();
     const first = h.manager.start();
     childAt(h, 0).ready();
@@ -618,6 +646,46 @@ describe('ServerManager.restart', () => {
 
     expect(h.manager.bootToken).toBe(TOKEN);
     expect(h.forkCalls[0]?.env.ADMINIUM_BOOT_TOKEN).toBe(TOKEN);
+
+    // §8.3's LAN toggle. The regression this pins is the one this suite used to
+    // ASSERT as correct under the name "keeps the boot token stable across a
+    // restart": the manager re-emitted `#opts.bootToken` into every fork, so the
+    // restarted child built a fresh `createBootTokenGuard(T)` with
+    // `consumed = false` and T — already spent by the first exchange, and still
+    // sitting in the window URL — bought a SECOND passwordless super-admin
+    // session.
+    const restarting = h.manager.restart({ host: '0.0.0.0', port: 4600 });
+    childAt(h, 0).exit(0);
+    await vi.waitFor(() => {
+      expect(h.children).toHaveLength(2);
+    });
+    childAt(h, 1).ready(4600);
+    await restarting;
+
+    expect(h.forkCalls[1]?.env.ADMINIUM_BOOT_TOKEN).toBe(tokenFor(1));
+    expect(h.forkCalls[1]?.env.ADMINIUM_BOOT_TOKEN).not.toBe(TOKEN);
+    // The getter follows the live child, so the shell's window URL does too.
+    expect(h.manager.bootToken).toBe(tokenFor(1));
+  });
+
+  it('mints a fresh boot token for a CRASH restart too', async () => {
+    // The path a `setBootToken()` on §8.3's toggle would have missed entirely:
+    // nobody calls anything here, the supervisor just forks again — up to 3
+    // times per 60 s, each one previously re-arming the same spent token.
+    const h = harness();
+    const first = h.manager.start();
+    childAt(h, 0).ready();
+    await first;
+
+    childAt(h, 0).exit(1);
+    h.clock.advance(500);
+    childAt(h, 1).ready();
+    await vi.waitFor(() => {
+      expect(h.manager.state.status).toBe('ready');
+    });
+
+    expect(h.forkCalls[1]?.env.ADMINIUM_BOOT_TOKEN).toBe(tokenFor(1));
+    expect(h.manager.bootToken).toBe(tokenFor(1));
   });
 });
 

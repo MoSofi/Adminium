@@ -110,7 +110,7 @@ describe('decideNavigation (§2.4)', () => {
     ['an app API call', `${APP_ORIGIN}/api/v1/system/info`, 'allow'],
 
     // ── external, and safe to hand to the OS ──
-    ['the docs site', 'https://adminium.io/docs', 'external'],
+    ['the docs site', 'https://docs.adminium.ai', 'external'],
     ['any https page', 'https://example.com/a/b?c=d#e', 'external'],
 
     // ── external, and NOT safe to hand to the OS ──
@@ -156,7 +156,7 @@ describe('decideNavigation (§2.4)', () => {
     // there is nothing that could legitimately be it.
     expect(decideNavigation(`${APP_ORIGIN}/`, null).action).toBe('deny');
     // https still escapes to the browser — a docs link on the crash page works.
-    expect(decideNavigation('https://adminium.io/docs', null).action).toBe('external');
+    expect(decideNavigation('https://docs.adminium.ai', null).action).toBe('external');
   });
 
   it('never hands a denied URL to the OS', () => {

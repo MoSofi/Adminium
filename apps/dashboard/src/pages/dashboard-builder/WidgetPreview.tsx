@@ -10,6 +10,8 @@ import { useMemo } from 'react';
 import {
   WidgetErrorBoundary,
   WidgetHost,
+  getWidget,
+  useResolvedWidgetId,
   type WidgetDataState,
   type WidgetDefinition,
 } from '@adminium/widgets';
@@ -30,10 +32,19 @@ export interface WidgetPreviewProps {
 }
 
 export function WidgetPreview({ definition, className }: WidgetPreviewProps) {
+  // §7's offline policy: `WidgetHost` below mounts the RESOLVED id, so the demo
+  // data must come from the resolved definition. Passing `definition.demoData`
+  // straight through fed map-bubble points to the choropleth tilegram on
+  // desktop — the palette advertised the fallback with a blank map.
+  //
+  // The seed stays keyed to the STORED id so a widget's preview is stable
+  // regardless of runtime, which is what `seedFromString` is for.
+  const resolvedId = useResolvedWidgetId(definition.id);
+  const rendered = getWidget(resolvedId) ?? definition;
   const seed = seedFromString(definition.id);
   const data: WidgetDataState = useMemo(
-    () => ({ status: 'success', data: definition.demoData(seed) }),
-    [definition, seed],
+    () => ({ status: 'success', data: rendered.demoData(seed) }),
+    [rendered, seed],
   );
   return (
     <div

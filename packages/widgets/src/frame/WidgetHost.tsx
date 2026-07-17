@@ -8,6 +8,7 @@ import { widgetMissingDefinition } from '../registry/widget-missing.js';
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
 import { WidgetFrame } from './WidgetFrame.js';
 import type { WidgetFrameState } from './WidgetFrame.js';
+import { useResolvedWidgetId } from './WidgetRuntimeContext.js';
 import type { WidgetDefinition, WidgetEvent } from '../registry/types.js';
 
 /**
@@ -62,6 +63,8 @@ function errorMessageOf(error: unknown): string | undefined {
  * state to WidgetFrame and the lazy widget component (04 §2.2, §4):
  *
  * - unknown widget id → the `widget-missing` system card, never a crash;
+ * - `map-*` → `map-choropleth-grid` under the offline asset policy, so the
+ *   desktop app never imports a map engine (11-electron.md §7; registry/offline.ts);
  * - `validateInstanceConfig` on mount, per-field default fallback + one
  *   structured console warning;
  * - loading → skeleton silhouette; error → error card + Retry (refetch);
@@ -80,7 +83,14 @@ export function WidgetHost({
   registry,
 }: WidgetHostProps) {
   const map = registry ?? widgetRegistry;
-  const resolved = map.get(widgetId);
+  // §7's offline asset policy, applied BEFORE the map is read — resolving the id
+  // is what keeps the map chunk (and Leaflet behind it) from ever being imported
+  // in the desktop shell. Identity online, so self-host/Cloud are untouched.
+  // A custom `registry` that lacks the fallback target renders widget-missing
+  // rather than the map: in an offline runtime that is the conservative answer,
+  // and `registry/offline.test.tsx` pins the target's presence in the real map.
+  const resolvedId = useResolvedWidgetId(widgetId);
+  const resolved = map.get(resolvedId);
   const missing = resolved === undefined;
   const definition = resolved ?? widgetMissingDefinition;
 

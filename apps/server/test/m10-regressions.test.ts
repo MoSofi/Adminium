@@ -100,7 +100,7 @@ describe('bootstrap: the built-in roles exist on a real boot', () => {
 // ─── F5 + F2: the composition root serves the whole API ───────────────────────
 
 describe('composition root (compose.ts)', () => {
-  async function compose(meta: MetaDb) {
+  async function compose(meta: MetaDb, envOverrides: Record<string, string> = {}) {
     const manager = new ConnectionManager({
       meta,
       crypto: dsnCryptoFromSecret('a-sufficiently-long-test-secret'),
@@ -108,7 +108,7 @@ describe('composition root (compose.ts)', () => {
     });
     const runService = createRunService({ meta });
     return composeServer({
-      env: makeEnv(),
+      env: makeEnv(envOverrides),
       metaStore: storeHandle(meta),
       manager,
       runService,
@@ -146,6 +146,90 @@ describe('composition root (compose.ts)', () => {
       const res = await app.inject({ method, url });
       expect(res.statusCode, `${method} ${url} must be registered`).not.toBe(404);
     }
+
+    await app.close();
+    await meta.db.destroy();
+  });
+
+  /**
+   * The M11 repeat of the bug this whole describe block exists for.
+   *
+   * `desktopRoutes` (§9's backup) was written, exported from `src/index.ts`,
+   * and covered by a suite that registered the plugin ITSELF — so every gate
+   * stayed green while `compose.ts` registered it nowhere and the File menu's
+   * "Back up now…" would have 404'd on a shipped build. An injected-dependency
+   * test structurally cannot catch that: it injects its own deps and never
+   * exercises the production wiring. Hence this pair, driving the real
+   * `composeServer` with only an env difference between them.
+   */
+  it('registers every §6/§8/§9 desktop route under the desktop runtime', async () => {
+    const meta = memoryMeta();
+    const { app, ...flags } = await compose(meta, {
+      ADMINIUM_RUNTIME: 'desktop',
+      ADMINIUM_BOOT_TOKEN: 'b'.repeat(64),
+      ADMINIUM_DEMO_SEED_SCRIPT: '/nonexistent/demo-seed.mjs',
+    });
+    await app.ready();
+
+    // 401/403/422 all PASS: the route exists and a gate ran. 404 is the failure
+    // this pins — the seed script above is deliberately absent to prove the
+    // route's EXISTENCE does not depend on the work it would do succeeding.
+    const routes = [
+      ['POST', '/api/v1/desktop/backup'],
+      ['POST', '/api/v1/desktop/demo-database'],
+      ['POST', '/api/v1/desktop/local-database'],
+      ['GET', '/api/v1/desktop/lan-share'],
+      ['POST', '/api/v1/auth/desktop-session'],
+    ] as const;
+    for (const [method, url] of routes) {
+      const res = await app.inject({ method, url, payload: {} });
+      expect(res.statusCode, `${method} ${url} must be registered on desktop`).not.toBe(404);
+    }
+
+    // The reported flags must agree with the routes that actually exist —
+    // a caller reads these rather than re-deriving them from env.
+    expect(flags.desktopBackupEnabled).toBe(true);
+    expect(flags.desktopSessionEnabled).toBe(true);
+    expect(flags.desktopLanEnabled).toBe(true);
+    expect(flags.desktopLocalDbEnabled).toBe(true);
+    expect(flags.desktopDemoEnabled).toBe(true);
+
+    await app.close();
+    await meta.db.destroy();
+  });
+
+  it('registers NO desktop route on self-host — an absent route cannot be bypassed', async () => {
+    // The other half, and the security-relevant one. Gate 1 of each desktop
+    // route is compose refusing to register it off-desktop; §5's boot-token
+    // door mints a super-admin session without a password, and §9's backup is
+    // every row in every database in one request. On Docker/npx they must not
+    // exist at all — a stronger guarantee than any in-handler runtime check.
+    const meta = memoryMeta();
+    const { app, ...flags } = await compose(meta);
+    await app.ready();
+
+    const routes = [
+      ['POST', '/api/v1/desktop/backup'],
+      ['POST', '/api/v1/desktop/demo-database'],
+      ['POST', '/api/v1/desktop/local-database'],
+      ['GET', '/api/v1/desktop/lan-share'],
+      ['POST', '/api/v1/auth/desktop-session'],
+    ] as const;
+    for (const [method, url] of routes) {
+      const res = await app.inject({ method, url, payload: {} });
+      expect(res.statusCode, `${method} ${url} must NOT exist off-desktop`).toBe(404);
+    }
+
+    expect(flags.desktopBackupEnabled).toBe(false);
+    expect(flags.desktopSessionEnabled).toBe(false);
+    expect(flags.desktopLanEnabled).toBe(false);
+    expect(flags.desktopLocalDbEnabled).toBe(false);
+    expect(flags.desktopDemoEnabled).toBe(false);
+
+    // …while the ordinary API is unaffected: this is a targeted absence, not a
+    // server that failed to compose.
+    const alive = await app.inject({ method: 'GET', url: '/api/v1/connections' });
+    expect(alive.statusCode).toBe(401);
 
     await app.close();
     await meta.db.destroy();

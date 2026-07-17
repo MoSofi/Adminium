@@ -17,12 +17,12 @@ describe('parseServerMessage', () => {
       type: 'ready',
       port: 51234,
       host: '127.0.0.1',
-      migrations: { applied: 3 },
+      migrations: { applied: 3, version: '0009_views_kind' },
     });
 
     expect(result).toEqual({
       ok: true,
-      message: { type: 'ready', port: 51234, host: '127.0.0.1', migrations: { applied: 3 } },
+      message: { type: 'ready', port: 51234, host: '127.0.0.1', migrations: { applied: 3, version: '0009_views_kind' } },
     });
   });
 
@@ -34,7 +34,7 @@ describe('parseServerMessage', () => {
       type: 'ready',
       port: 1,
       host: '127.0.0.1',
-      migrations: { applied: 0 },
+      migrations: { applied: 0, version: '0009_views_kind' },
     });
 
     expect(result.ok).toBe(true);
@@ -64,18 +64,18 @@ describe('parseServerMessage', () => {
   });
 
   it.each([
-    ['a port of 0', { type: 'ready', port: 0, host: '127.0.0.1', migrations: { applied: 0 } }],
+    ['a port of 0', { type: 'ready', port: 0, host: '127.0.0.1', migrations: { applied: 0, version: '0009_views_kind' } }],
     [
       'a port above 65535',
-      { type: 'ready', port: 70000, host: '127.0.0.1', migrations: { applied: 0 } },
+      { type: 'ready', port: 70000, host: '127.0.0.1', migrations: { applied: 0, version: '0009_views_kind' } },
     ],
     [
       'a non-integer port',
-      { type: 'ready', port: 5123.5, host: '127.0.0.1', migrations: { applied: 0 } },
+      { type: 'ready', port: 5123.5, host: '127.0.0.1', migrations: { applied: 0, version: '0009_views_kind' } },
     ],
     [
       'a stringly-typed port',
-      { type: 'ready', port: '51234', host: '127.0.0.1', migrations: { applied: 0 } },
+      { type: 'ready', port: '51234', host: '127.0.0.1', migrations: { applied: 0, version: '0009_views_kind' } },
     ],
     ['a missing migrations block', { type: 'ready', port: 51234, host: '127.0.0.1' }],
     ['an unknown stage', { type: 'error', stage: 'wat', message: 'x' }],
@@ -96,7 +96,7 @@ describe('parseServerMessage', () => {
       type: 'ready',
       port: 0,
       host: '127.0.0.1',
-      migrations: { applied: 0 },
+      migrations: { applied: 0, version: '0009_views_kind' },
     });
 
     expect(result.ok).toBe(false);

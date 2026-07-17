@@ -37,6 +37,13 @@ describe('loadEnv — valid input', () => {
       // instance. Telemetry is still off by default; that default lives in the
       // settings registry, not here.
       ADMINIUM_TELEMETRY: undefined,
+      // `true`, and NOT tri-state, unlike the two above: no stored setting sits
+      // underneath for an unset value to defer to, so "unset" has exactly one
+      // meaning. It reports 11-electron.md §8.2's `networkFeaturesAllowed` —
+      // operator POLICY for outbound features, never a claim that the network is
+      // reachable. Default on because a self-host with an internet connection is
+      // the common case; `off` is the air-gap switch.
+      ADMINIUM_NETWORK_FEATURES: true,
       ADMINIUM_TRUST_PROXY: false,
       ADMINIUM_CORS_ORIGINS: undefined,
       // The 11-electron.md §2.2 desktop block. `self-host` is the default because

@@ -50,7 +50,31 @@ export const serverReadyMessageSchema = z.object({
   type: z.literal('ready'),
   port: z.number().int().min(1).max(65535),
   host: z.string().min(1),
-  migrations: z.object({ applied: z.number().int().min(0) }),
+  migrations: z.object({
+    applied: z.number().int().min(0),
+    /**
+     * The newest migration this SERVER BUILD ships — `0009_views_kind` — and the
+     * only channel by which the main process can ever learn it (11-T12, §9).
+     *
+     * §9 makes the main process refuse "a backup whose `metaMigrationVersion` is
+     * newer than the app", and §9's flow puts that check BEFORE the restore
+     * stops the server and moves data aside. So main has to answer "how new am
+     * I?" itself. It cannot look the answer up: `ALL_MIGRATIONS` lives in
+     * `@adminium/meta`, which the shell may not import (§1 principle 2,
+     * `.dependency-cruiser.cjs` `desktop-shell-only`), and importing
+     * `@adminium/server` for the constant would drag the whole Fastify graph
+     * into the main process to read one string. The child already knows, and it
+     * is already sending a message. So it says.
+     *
+     * The BUILD's latest, not the STORE's high-water mark, and the difference is
+     * the question being asked: a backup is restorable iff this app's migration
+     * runner can carry its schema forward, which is a fact about the code, not
+     * about whatever the store happens to be at. (After any boot they are equal
+     * — `firstRun` fast-forwards — so this only diverges when something is
+     * already wrong, which is exactly when the honest answer matters.)
+     */
+    version: z.string().min(1),
+  }),
 });
 
 /** A boot that failed before `ready`. Turns a 30 s timeout into a real reason. */

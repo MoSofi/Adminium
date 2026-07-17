@@ -46,7 +46,63 @@ describe('GET /api/v1/system/info', () => {
       version: APP_VERSION,
       node: process.version,
       dialect: null,
+      // 11-electron.md §8.2 flags. `smtpConfigured` is false because a server
+      // with no meta store has no `email.smtp` setting to read — email genuinely
+      // cannot send, so this is the answer, not a fallback.
+      runtime: 'self-host',
+      smtpConfigured: false,
+      networkFeaturesAllowed: true,
+      // §8.1's LAN chip. False here for the same reason `runtime` is
+      // 'self-host': the flag is env-derived, and only the Electron shell binds
+      // `0.0.0.0` (§8.3 applies the toggle by re-forking the child). This stays
+      // an exact-equality assertion on purpose — it is what caught this field
+      // arriving unannounced, and an unannounced field on an unauthenticated
+      // route is exactly what should have to be spelled out here.
+      lanShare: false,
+      // §6 step 2 card 4: can this build seed the demo database? False for a
+      // third time for the same reason — it is env-derived, and both halves of
+      // the condition (desktop runtime AND a seed script) fail on self-host.
+      // Spelled out because this assertion caught it too, which is the point.
+      desktopDemo: false,
     });
+  });
+
+  it('reports desktopDemo:true only when the shell also named a seed script', async () => {
+    // BOTH halves, because the wizard gates its fourth source card on this and
+    // `compose.ts` gates the ROUTE on the same predicate (`desktop/demo-seed.ts`).
+    // A flag that said `true` on a desktop build with no script would offer a
+    // card whose button 404s — §8.2's "never hide, always explain" inverted.
+    const withoutScript = await build({ ADMINIUM_RUNTIME: 'desktop' });
+    const off = await withoutScript.inject({ method: 'GET', url: '/api/v1/system/info' });
+    expect(off.json<{ desktopDemo: boolean }>().desktopDemo).toBe(false);
+
+    const withScript = await build({
+      ADMINIUM_RUNTIME: 'desktop',
+      ADMINIUM_DEMO_SEED_SCRIPT: '/app/resources/demo/demo-seed.mjs',
+    });
+    const on = await withScript.inject({ method: 'GET', url: '/api/v1/system/info' });
+    expect(on.json<{ desktopDemo: boolean }>().desktopDemo).toBe(true);
+  });
+
+  it('never reports desktopDemo:true off the desktop runtime', async () => {
+    // A self-host operator who happens to set the variable does not get a demo
+    // route (`compose.ts` requires the runtime too), so the flag must not claim
+    // one exists.
+    const server = await build({ ADMINIUM_DEMO_SEED_SCRIPT: '/app/resources/demo/demo-seed.mjs' });
+    const res = await server.inject({ method: 'GET', url: '/api/v1/system/info' });
+    expect(res.json<{ desktopDemo: boolean }>().desktopDemo).toBe(false);
+  });
+
+  it('reports the desktop runtime the Electron shell booted it with (§4)', async () => {
+    const server = await build({ ADMINIUM_RUNTIME: 'desktop' });
+    const res = await server.inject({ method: 'GET', url: '/api/v1/system/info' });
+    expect(res.json<{ runtime: string }>().runtime).toBe('desktop');
+  });
+
+  it('reports networkFeaturesAllowed:false when the operator air-gapped the install', async () => {
+    const server = await build({ ADMINIUM_NETWORK_FEATURES: 'off' });
+    const res = await server.inject({ method: 'GET', url: '/api/v1/system/info' });
+    expect(res.json<{ networkFeaturesAllowed: boolean }>().networkFeaturesAllowed).toBe(false);
   });
 });
 

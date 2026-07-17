@@ -188,6 +188,52 @@ describe('ForgotPasswordForm', () => {
     await user.click(screen.getByRole('button', { name: 'Back to sign in' }));
     expect(onBack).toHaveBeenCalledOnce();
   });
+
+  /**
+   * `disabled` is 11-electron.md §8.2's email row: the instance has no relay, so
+   * there is no mail to wait for. It must not merely stop the click — a form
+   * still submits on Enter, and a "reset link sent" that was never sent is the
+   * whole failure the flag exists to prevent.
+   */
+  describe('disabled (no SMTP relay, §8.2)', () => {
+    it('never calls onSubmit, by button or by Enter', async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(
+        <ForgotPasswordForm labels={forgotLabels} onSubmit={onSubmit} disabled defaultEmail="ava@adminium.io" />,
+      );
+
+      const submit = screen.getByRole('button', { name: 'Send reset link' });
+      expect(submit.hasAttribute('disabled')).toBe(true);
+      await user.click(submit);
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      screen.getByLabelText('Email').focus();
+      await user.keyboard('{Enter}');
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it('renders the notice as guidance, not as the visitor’s error', () => {
+      render(
+        <ForgotPasswordForm
+          labels={forgotLabels}
+          onSubmit={() => {}}
+          disabled
+          notice="No email server is configured. Ask an administrator."
+        />,
+      );
+      const notice = screen.getByText('No email server is configured. Ask an administrator.');
+      expect(notice).toBeDefined();
+      // Not `role="alert"` — an unconfigured relay is the operator's state of
+      // the world, not something to interrupt a screen reader about.
+      expect(notice.closest('[role="alert"]')).toBeNull();
+    });
+
+    it('leaves the form enabled and alert-free by default', () => {
+      render(<ForgotPasswordForm labels={forgotLabels} onSubmit={() => {}} />);
+      expect(screen.getByRole('button', { name: 'Send reset link' }).hasAttribute('disabled')).toBe(false);
+    });
+  });
 });
 
 describe('ForgotSentState', () => {

@@ -19,26 +19,61 @@
  * the real shell.
  */
 
+import { constants } from 'node:fs';
+import { access, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { app, ipcMain, safeStorage, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  powerMonitor,
+  safeStorage,
+  session,
+  shell,
+} from 'electron';
+import { z } from 'zod';
 
-import type { DesktopConfigPatch, DesktopPlatform } from '../preload/api.js';
+import type {
+  DesktopConfigPatch,
+  DesktopPlatform,
+  SetDataDirOptions,
+  SetDataDirResult,
+} from '../preload/api.js';
+import { backupManifestSchema } from './backup-archive.js';
+import {
+  createBackupCoordinator,
+  IDLE_THRESHOLD_SECONDS,
+  type BackupCoordinator,
+  type BackupServerControl,
+  type BackupTransport,
+} from './backup.js';
 import { createUngrantedCapabilityHost } from './capabilities/host.js';
 import {
   configPathFor,
   createDefaultConfig,
   defaultDataDirFor,
+  detectCloudSyncFolder,
   loadConfig,
+  redactConfig,
   resolveSecret,
   saveConfig,
   type ConfigLogger,
   type DesktopConfig,
   type SecretStorage,
 } from './config.js';
-import { generateBootToken } from '../server/env.js';
-import { registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
+import {
+  lanShareUrls,
+  probeBindable,
+  suggestNextPort,
+  WILDCARD_HOST,
+  type ProbeResult,
+} from './lan.js';
+import { buildAppMenu, type MenuHandlers } from './menu.js';
+import { EPHEMERAL_PORT, generateBootToken, LOOPBACK_HOST } from '../server/env.js';
+import { LAN_PORT_IN_USE, registerIpcHandlers, type DesktopRuntimeSnapshot } from './ipc.js';
 import { createDesktopLogging } from './logging.js';
 import {
   createServerManager,
@@ -96,6 +131,17 @@ export interface AppUrlOptions {
    * standard login instead of waving a token nobody will accept.
    */
   bootToken?: string | undefined;
+  /**
+   * Where in the SPA to land. Defaults to `/`.
+   *
+   * Exists for exactly one caller — §8.3's LAN toggle ({@link LAN_SHARE_PATH})
+   * — and the constraint on it is that a MAIN-PROCESS CONSTANT is the only legal
+   * argument. This string becomes the window's URL, and the window's URL is what
+   * §2.4's navigation lockdown exists to control; a path that could be sourced
+   * from the renderer would let the untrusted side choose where the trusted side
+   * navigates. Nothing here validates it, because nothing here should have to.
+   */
+  path?: string | undefined;
 }
 
 /**
@@ -113,10 +159,86 @@ export function appUrl(opts: AppUrlOptions): string {
   const origin = `http://${hostname}:${String(opts.port)}`;
   // First run has no super-admin yet, so there is no session for a token to buy.
   if (opts.firstRun) return `${origin}/desktop/setup`;
-  if (opts.bootToken === undefined) return `${origin}/`;
-  const url = new URL('/', origin);
+  const path = opts.path ?? '/';
+  if (opts.bootToken === undefined) return `${origin}${path}`;
+  const url = new URL(path, origin);
   url.searchParams.set('bootToken', opts.bootToken);
   return url.toString();
+}
+
+/**
+ * §5's two preconditions for putting a token in the window URL, in one place:
+ * auto-login is enabled, and a token exists.
+ *
+ * Both are genuine `undefined` answers rather than an empty string, so this
+ * spreads into {@link AppUrlOptions} instead of returning one — `bootToken: ''`
+ * would be a token the server would compare and reject, and `appUrl` branches on
+ * the KEY's absence.
+ *
+ * The second condition is not defensive padding: `ServerManager.bootToken` is
+ * `null` until the first fork, and every caller here runs after `ready`. If it
+ * is ever null at a call site, the honest URL is the one with no token — the SPA
+ * then lands on the standard login rather than exchanging a `"null"` string.
+ */
+function bootTokenParam(singleUser: boolean, token: string | null): { bootToken?: string } {
+  return singleUser && token !== null ? { bootToken: token } : {};
+}
+
+/**
+ * Where §8.3's toggle sends the window after the rebind — the panel the user was
+ * looking at when they flipped it (`app/router.tsx`'s `/settings/desktop`).
+ *
+ * A LAN toggle always reloads the window, because it always changes the port and
+ * therefore the origin (§8.3: "Fixed port ⇒ stable URLs"; §2.1: loopback shares
+ * are ephemeral). Landing on `/` would be the mechanically correct thing and the
+ * wrong one: the URLs the user just turned on are ON this page, and the toggle's
+ * entire purpose is to reveal them.
+ */
+export const LAN_SHARE_PATH = '/settings/desktop';
+
+// ─── LAN share (§8.3) ────────────────────────────────────────────────────────
+
+/** A bind for the server child: §2.2 step 5's `ADMINIUM_HOST` + `ADMINIUM_PORT`. */
+export interface ServerBinding {
+  host: string;
+  port: number;
+}
+
+/**
+ * The bind `config.lanShare` implies (§8.3, §2.4).
+ *
+ * The `false` arm is not "leave it alone" — it is the explicit loopback +
+ * ephemeral pair, i.e. exactly what boot step 5 forks with when the toggle is
+ * off. That matters for `restart()`: the manager REMEMBERS the last host and
+ * port it was given, so a disable that only passed `{ host: '127.0.0.1' }` would
+ * keep the fixed 4600 and leave a loopback server squatting on the LAN port —
+ * visibly "off" and still holding the socket that the next enable has to probe.
+ */
+export function lanBindingFor(config: DesktopConfig): ServerBinding {
+  return config.lanShare.enabled
+    ? { host: WILDCARD_HOST, port: config.lanShare.port }
+    : { host: LOOPBACK_HOST, port: EPHEMERAL_PORT };
+}
+
+/**
+ * The bind a config change implies, or `null` when it implies none.
+ *
+ * `null` for every patch that does not touch `lanShare` — which is most of them
+ * (§5's login toggle, §11's update mode, §9's backup schedule all write this
+ * same file) and none of which has any business restarting the server. A port
+ * edit while sharing is OFF is also `null`: nothing is bound to the old port, so
+ * there is nothing to rebind, and the new number simply takes effect the next
+ * time the toggle goes on.
+ */
+export function lanBindingChange(
+  previous: DesktopConfig,
+  next: DesktopConfig,
+): ServerBinding | null {
+  const was = previous.lanShare;
+  const now = next.lanShare;
+  if (was.enabled === now.enabled && was.port === now.port) return null;
+  if (!was.enabled && !now.enabled) return null;
+  return lanBindingFor(next);
 }
 
 // ─── Ports ───────────────────────────────────────────────────────────────────
@@ -143,6 +265,16 @@ export interface DesktopAppHost {
   onBeforeQuit(handler: (event: QuitEvent) => void): void;
   whenReady(): Promise<void>;
   quit(): void;
+  /**
+   * Queue a restart of this app, then end it — §14's "relaunch", and the only
+   * way §6 step 1's data-directory change can take effect.
+   *
+   * On the host rather than a free function because it is app lifecycle, and
+   * because the boot sequence is now its second caller: §4's `relaunch()` port
+   * was the first, and two Electron `app.relaunch()` call sites would be two
+   * chances to forget the `quit()` that actually ends the process.
+   */
+  relaunch(): void;
 }
 
 /** Electron's `Event`, narrowed to the one member the quit hook needs. */
@@ -160,6 +292,21 @@ export interface DesktopConfigPort {
    * generated secret, or a plaintext→safeStorage upgrade).
    */
   resolveSecret(config: DesktopConfig): Promise<{ secret: string; secretStorage: SecretStorage }>;
+  /**
+   * §6 step 1: can the app actually use `dir` as its data directory? Creates it
+   * (and its parents) when absent.
+   *
+   * A port, not an inline `mkdir`, for the reason everything else here is one:
+   * this module holds the boot ORDER and touches no I/O, so a `node:fs` import
+   * would make the sequence untestable in exactly the place a data-directory
+   * change most needs a test.
+   *
+   * It must be answered BEFORE the write. A `dataDir` that cannot be created is
+   * a config.json that boots into a crash screen on the very next launch — and
+   * since the next launch is the whole point of a data-dir change, that failure
+   * would arrive with no UI left to report it.
+   */
+  ensureDataDir(dir: string): Promise<{ ok: true } | { ok: false; reason: string }>;
   /**
    * Persist a config the §4 bridge's `setConfig` has just patched (§2.3's atomic
    * write). Not part of the boot sequence — the boot's own writes are decided
@@ -184,6 +331,8 @@ export interface DesktopBridgeContext {
   readConfig: () => DesktopConfig;
   /** Merge a §4 patch into the live config and persist it. */
   writeConfig: (patch: DesktopConfigPatch) => Promise<void>;
+  /** §6 step 1's data-directory change — gate, write, relaunch. */
+  setDataDir: (opts: SetDataDirOptions) => Promise<SetDataDirResult>;
 }
 
 /** What the boot sequence knows about itself; 11-T04's `getRuntimeInfo` reads it. */
@@ -209,6 +358,16 @@ export interface DesktopBootDeps {
   createServerManager: (opts: CreateServerManagerOptions) => ServerManager;
   /** §2.2 step 4 — 32 random bytes, hex, per boot. Never persisted, never logged. */
   createBootToken: () => string;
+  /**
+   * §8.3's collision pre-flight: can the child bind `host:port` right now?
+   *
+   * A port because it opens a real socket, which a unit suite cannot do
+   * deterministically — a free port on the test runner is not a fact, it is a
+   * race. `main/lan.ts`'s `probeBindable` is the production implementation and
+   * explains why this runs BEFORE the restart rather than being discovered by
+   * it.
+   */
+  probeLanPort: (host: string, port: number) => Promise<ProbeResult>;
   /** §9's `<userData>/logs`; the manager rotates `adminium-server.log` in it. */
   logsDir: string;
   /** Absolute path to the forked bundle — `out/server/index.js` (§2.1). */
@@ -227,6 +386,15 @@ export interface DesktopBootDeps {
    */
   staticRoot?: string | undefined;
   /**
+   * §6 step 2 card 4: the path to `resources/demo/demo-seed.mjs`, which the
+   * server imports to seed the demo database (11-T08).
+   *
+   * Optional for the same reason `staticRoot` is — the suites do not pass it —
+   * but the shipped app always does ({@link bundledDemoSeedScript}). Omitted ⇒
+   * the server registers no demo route and the wizard's fourth card is dead.
+   */
+  demoSeedScript?: string | undefined;
+  /**
    * 11-T04. Wire §4's `ipcMain` handlers — called ONCE, before the first window.
    *
    * A port rather than a call to `registerIpcHandlers` inside `start()`, for the
@@ -241,6 +409,53 @@ export interface DesktopBootDeps {
   registerBridge: (context: DesktopBridgeContext) => void;
   /** Help → "Show logs" (§9) and the crash page's `logs` button: reveal `<userData>/logs`. */
   showLogs: () => Promise<void>;
+  /**
+   * 11-T12 (§9). A FACTORY, for the same reason `createServerManager` is one:
+   * the coordinator needs the `dataDir` (step 2) and the ServerManager (step 5),
+   * neither of which exists when the deps are built.
+   *
+   * `electronBootDeps` supplies the parts that need Electron — the native
+   * dialogs, `powerMonitor`, and the transport that reaches the server carrying
+   * the WINDOW'S session cookie (see `backup.ts`'s header). The boot sequence
+   * supplies the parts only it knows.
+   */
+  createBackup: (wiring: BackupWiring) => BackupCoordinator;
+  /**
+   * §14's native menu. A port because `Menu.setApplicationMenu` needs a ready
+   * app and real Electron, and because the File items it wires (§9's "Back up
+   * now…" / "Restore from backup…") only have handlers once the coordinator
+   * above exists — which is why this is CALLED from the boot sequence rather
+   * than at module scope in `menu.ts`.
+   */
+  installMenu: (handlers: MenuHandlers) => void;
+  /**
+   * File → "Restore from backup…" — §4's `openFile({ kind: 'backup' })`.
+   *
+   * Separate from the coordinator because the coordinator takes a PATH: §9's
+   * other two entry points (the launch argument, and Settings → Desktop →
+   * Backups) already have one, and a `restoreFrom()` that opened its own dialog
+   * could not serve them.
+   */
+  pickBackupFile: () => Promise<string | null>;
+}
+
+/** What {@link DesktopBootDeps.createBackup} needs from the boot sequence (§9). */
+export interface BackupWiring {
+  /** The live `config.json` — `autoBackup`, and the redacted copy for the zip. */
+  readConfig: () => DesktopConfig;
+  /** §2.3 `dataDir`: where a restore unpacks and moves the old data aside. */
+  dataDir: string;
+  /** Stop/start/`metaVersion` — §9's restore drives the child through these. */
+  server: BackupServerControl;
+  /**
+   * `http://127.0.0.1:<port>`, or `null` before the §2.2 step 7 handshake.
+   *
+   * A getter, not a string: the child listens on `:0` and comes back on a
+   * DIFFERENT port after every restart (§2.2 step 9), so a captured origin would
+   * be stale the first time the LAN toggle flipped — and a backup posting to a
+   * dead port is a failure the user sees as "backup broken".
+   */
+  serverOrigin: () => string | null;
 }
 
 export interface DesktopApp {
@@ -274,6 +489,133 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
    * over a manager that does not exist yet.
    */
   let manager: ServerManager | null = null;
+  /**
+   * `null` until step 5, for the same reason `manager` is: §9's coordinator
+   * needs the dataDir and the ServerManager. The file-argument router below is
+   * installed at step 1 and reads this rather than closing over it — a
+   * double-click that lands before the boot finishes must not be handed to
+   * `undefined`.
+   */
+  let backup: BackupCoordinator | null = null;
+  /** §9's croner handle. Stopped on quit so it cannot fire into a closing app. */
+  let stopAutoBackup: (() => void) | null = null;
+  /**
+   * Where the NEXT `ready` should land the window, consumed once (§8.3).
+   *
+   * A one-shot rather than a parameter because the `subscribe` listener that
+   * navigates is a single handler for every restart in the app's life — a crash
+   * recovery, the 3-in-60 s policy's re-fork, and §8.3's toggle all arrive at it
+   * as the same `ready`. Only the toggle knows the user was mid-flow on a
+   * particular page, so only the toggle leaves a note; everything else finds
+   * `null` and gets `/`, which is the right answer for a restart nobody asked
+   * for.
+   */
+  let pendingAppPath: string | null = null;
+
+  /**
+   * §2.2 step 1 / §9: what to do with a file the OS handed us.
+   *
+   * A `.zip` is a backup and belongs to §9's restore, which runs ENTIRELY in
+   * this process — validate, confirm, stop, unpack, start — and needs no SPA at
+   * all. That matters: `window.ts`'s `pendingFileArgument` note says delivering a
+   * launch file to the renderer needs a new §4 bridge method, and for a backup it
+   * turns out nothing does. Everything else (`.sqlite`, `.db`, `.sqlite3`) is
+   * §6 step 2's "Open an existing SQLite file", which IS the wizard's, and is
+   * still held for 11-T07 to collect.
+   */
+  const routeFileArgument = (file: string): void => {
+    if (!file.toLowerCase().endsWith('.zip')) {
+      windows.handleFileArgument(file);
+      return;
+    }
+    const coordinator = backup;
+    if (coordinator === null) {
+      // Pre-step-5: nothing can restore yet. Hold it the same way a `.sqlite`
+      // is held rather than dropping it silently — the boot below drains
+      // `pendingFileArgument()` once the coordinator exists.
+      windows.handleFileArgument(file);
+      return;
+    }
+    void coordinator.restoreFrom(file);
+  };
+
+  /**
+   * §8.3's toggle, end to end: "flipping the toggle updates `config.lanShare` …
+   * and gracefully restarts the utilityProcess with `ADMINIUM_HOST=0.0.0.0`,
+   * `ADMINIUM_PORT=4600`".
+   *
+   * ─── The order is the whole design, and each step earns its place ───────────
+   *
+   * 1. **Probe before writing.** §8.3 wants "an inline error with a 'Try 4601'
+   *    suggestion", and only a failure that changes NOTHING can be rendered
+   *    inline: the moment this function writes or restarts, the window navigates
+   *    to a new origin (step 4) and the renderer awaiting this call is gone, so
+   *    an error thrown after that point has nobody left to show it to. Probing
+   *    first keeps the overwhelmingly common failure — a port something else
+   *    already holds — inside one IPC round-trip with no side effects at all.
+   *    See `lan.ts`'s `probeBindable` for why this is a pre-flight and not a
+   *    lock.
+   * 2. **Write, then restart.** The reverse order would leave a server bound to
+   *    the LAN with a `config.json` that says it is not — and `config.json` is
+   *    what the NEXT boot reads (§2.2 step 5), so a crash in the window between
+   *    the two would resolve to "silently sharing on the next launch".
+   * 3. **Revert on failure, both halves.** A restart that fails leaves the app
+   *    with no server AND a config that will fail the same way at every future
+   *    launch: a brick, made by a settings toggle. So the file goes back and the
+   *    child is brought up on loopback, which is the bind that was working sixty
+   *    milliseconds ago.
+   * 4. The window's re-navigation is `subscribe`'s, not this function's — a
+   *    restart produces a `ready` and that listener already exists to handle
+   *    every one of them. All this does is leave {@link pendingAppPath} so the
+   *    reload lands back on the panel.
+   */
+  const applyLanShare = async (
+    previous: DesktopConfig,
+    next: DesktopConfig,
+    binding: ServerBinding,
+  ): Promise<void> => {
+    const target = manager;
+    if (target === null) {
+      // No child yet — a toggle during boot steps 1–4. There is nothing to
+      // rebind because there is nothing bound; step 5 forks against this file.
+      await deps.config.save(next);
+      config = next;
+      return;
+    }
+
+    // Step 1. Only when going ON: releasing a port cannot collide with anything.
+    if (next.lanShare.enabled) {
+      const probe = await deps.probeLanPort(binding.host, binding.port);
+      if (!probe.ok) throw lanBindError(binding.port, probe);
+    }
+
+    // Step 2.
+    await deps.config.save(next);
+    config = next;
+    pendingAppPath = LAN_SHARE_PATH;
+
+    try {
+      await target.restart(binding);
+      // `subscribe` navigates on the resulting `ready`.
+    } catch (error) {
+      // Step 3. Put the file back FIRST: if the rebind below also fails, the
+      // crash screen's Restart button re-forks from `config`, and it must find
+      // the bind that worked rather than the one that just did not.
+      pendingAppPath = null;
+      await deps.config.save(previous);
+      config = previous;
+      try {
+        await target.restart(lanBindingFor(previous));
+      } catch (revertError) {
+        // Both binds are gone. Nothing is listening and the window is pointed at
+        // a dead port, so this is the one path here that owes the user a screen
+        // — `restart()` rejects rather than emitting an exit, so `onExit` will
+        // never fire and without this the app is a blank window forever.
+        await windows.showCrash(crashFromStartError(revertError));
+      }
+      throw error;
+    }
+  };
 
   return {
     get runtime() {
@@ -291,7 +633,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       host.onSecondInstance((argv) => {
         windows.focus();
         const file = extractFileArgument(argv);
-        if (file !== null) windows.handleFileArgument(file);
+        if (file !== null) routeFileArgument(file);
       });
 
       // §14: single window; closing the last one quits everywhere but macOS,
@@ -331,9 +673,60 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           if (config === null) {
             throw new Error('the desktop config has not been loaded yet (§2.2 step 2).');
           }
-          const next = applyConfigPatch(config, patch);
+          const previous = config;
+          const next = applyConfigPatch(previous, patch);
+          const binding = lanBindingChange(previous, next);
+          if (binding === null) {
+            await deps.config.save(next);
+            config = next;
+            return;
+          }
+          await applyLanShare(previous, next, binding);
+        },
+        /**
+         * §6 step 1's "Change…", end to end: gate, write, relaunch.
+         *
+         * WHY THIS RELAUNCHES THE APP rather than restarting the child. The
+         * server was forked against `ADMINIUM_DATA_DIR` at step 5 and derives
+         * `ADMINIUM_META_DSN` from it; §9's BackupCoordinator captured the same
+         * value at step 5 for the same reason. Both are snapshots of a decision
+         * this boot already made, and there is no in-place way to un-make it —
+         * which is precisely why §6 step 1 says to choose NOW, and calls a later
+         * change "a guarded operation (quit-and-move instructions)".
+         *
+         * The wizard survives it because the wizard was never the thing that
+         * knew: §6 gates `/desktop/setup` server-side on "desktop runtime + zero
+         * users", so the relaunched app lands back in the wizard — at step 1,
+         * now showing the directory the user picked.
+         */
+        setDataDir: async (input): Promise<SetDataDirResult> => {
+          if (config === null) {
+            throw new Error('the desktop config has not been loaded yet (§2.2 step 2).');
+          }
+          const dir = resolve(input.dir);
+          // Nothing to do, and therefore nothing to relaunch for. This is the
+          // wizard's ordinary Continue with the default directory untouched:
+          // treating it as a change would restart the app on every first run.
+          if (dir === config.dataDir) return { status: 'applied', dataDir: dir };
+
+          // §6 step 1's blocking warning, enforced HERE rather than in the
+          // renderer. The renderer cannot see `detectCloudSyncFolder`, so this
+          // is the only place the check can be a gate instead of a suggestion.
+          const warning = detectCloudSyncFolder(dir);
+          if (warning !== null && input.acknowledgeCloudSync !== true) {
+            return { status: 'cloud-sync-blocked', warning };
+          }
+
+          const probe = await deps.config.ensureDataDir(dir);
+          if (!probe.ok) return { status: 'unusable', reason: probe.reason };
+
+          // Write first, relaunch second — the whole point is that the NEXT boot
+          // reads this. A relaunch before the write would silently discard it.
+          const next: DesktopConfig = { ...config, dataDir: dir };
           await deps.config.save(next);
           config = next;
+          host.relaunch();
+          return { status: 'applied', dataDir: dir };
         },
       });
 
@@ -394,6 +787,12 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         // The second pass — our own `host.quit()` re-emits `before-quit`.
         // Letting it through is what actually ends the app.
         if (stopping) return;
+        // §9's schedule, before anything else: a 03:00 tick that landed during
+        // teardown would post a backup to a server we are in the middle of
+        // stopping, and the manager would classify the resulting failure as a
+        // crash on the way out.
+        stopAutoBackup?.();
+        stopAutoBackup = null;
         const target = manager;
         // No child yet (a quit during boot steps 1–4): nothing to shut down, and
         // cancelling the quit to await nothing would hang the app instead.
@@ -440,15 +839,17 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       }
       const loadedConfig = config;
 
-      // Step 4.
-      const bootToken = deps.createBootToken();
-
-      // Step 5.
+      // Step 5. Step 4's token is minted by the manager, once per FORK — see
+      // `CreateServerManagerOptions.createBootToken`. The shell must therefore
+      // read `manager.bootToken` at each navigation instead of closing over a
+      // value: a `const` here would be a token every restart invalidates, and
+      // (worse, before the manager owned the mint) one that every restart
+      // re-armed for a second passwordless session.
       manager = deps.createServerManager({
         entry: deps.serverEntry,
         dataDir: loadedConfig.dataDir,
         secret,
-        bootToken,
+        createBootToken: deps.createBootToken,
         logsDir: deps.logsDir,
         telemetryOptIn: loadedConfig.telemetryOptIn,
         // §5's mirror. The child writes this into `adminium_settings` at boot
@@ -457,6 +858,8 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         singleUser: loadedConfig.singleUser,
         // §3: where the SPA is. See DesktopBootDeps.staticRoot.
         ...(deps.staticRoot === undefined ? {} : { staticRoot: deps.staticRoot }),
+        // §6: where the demo seed script is. See DesktopBootDeps.demoSeedScript.
+        ...(deps.demoSeedScript === undefined ? {} : { demoSeedScript: deps.demoSeedScript }),
         // §2.4: loopback unless the user opted into LAN share (§8.3). Omitting
         // both is not laziness — the manager defaults to 127.0.0.1 + port 0, so
         // the shell cannot bind every interface by forgetting something.
@@ -464,6 +867,68 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
           ? { host: '0.0.0.0', port: loadedConfig.lanShare.port }
           : {}),
       });
+      const startedManager = manager;
+
+      // §9's coordinator, and §14's menu — both here, because both need the
+      // manager that only just came into existence.
+      //
+      // THIS IS THE WIRING. `createBackupCoordinator` and `buildAppMenu` were
+      // each called by NOTHING before this line, which meant §9's backup/restore
+      // and the entire native menu bar were absent from every launch while both
+      // modules compiled, unit-tested green, and looked finished. That is the
+      // failure this codebase has now shipped five times (`registerIpcHandlers`
+      // never called; `staticRoot` never passed). The grep that proves it is
+      // fixed is a grep for THIS call site, not a passing test.
+      backup = deps.createBackup({
+        // `config`, NOT `loadedConfig`. The two differ the moment the settings
+        // panel writes: `writeConfig` reassigns the outer `config`, and
+        // `loadedConfig` is the step-2 snapshot the rest of this function uses
+        // for values the SERVER FORK froze anyway (dataDir, singleUser). §9's
+        // scheduler is the opposite case — it re-reads on every tick precisely
+        // so "Automatic backups: off" takes effect at 03:00 tonight rather than
+        // next launch. Handing it the snapshot would make that toggle, and
+        // `keep`, silently inert.
+        readConfig: () => config ?? loadedConfig,
+        // dataDir is genuinely immutable for this boot: the server was forked
+        // against it at step 5, and §6 step 1 makes changing it a
+        // quit-and-move operation. The snapshot is the honest source here.
+        dataDir: loadedConfig.dataDir,
+        server: {
+          stop: () => startedManager.stop(),
+          start: async () => {
+            const ready = await startedManager.start();
+            return { metaVersion: ready.metaVersion };
+          },
+          // §2.2 step 7's handshake is the only source (`protocol.ts`); `null`
+          // before it, which `validateArchive` turns into a refusal rather than
+          // a skipped check.
+          metaVersion: () =>
+            startedManager.state.status === 'ready' ? startedManager.state.metaVersion : null,
+        },
+        serverOrigin: () =>
+          startedManager.state.status === 'ready'
+            ? `http://127.0.0.1:${String(startedManager.state.port)}`
+            : null,
+      });
+      const coordinator = backup;
+
+      deps.installMenu({
+        backupNow: () => void coordinator.backupNow(),
+        restore: () => {
+          void (async () => {
+            // The open dialog is §4's, and the coordinator does not own one —
+            // it takes a path (§9's launch-argument path hands it one directly).
+            const file = await deps.pickBackupFile();
+            if (file !== null) await coordinator.restoreFrom(file);
+          })();
+        },
+        showLogs: () => void deps.showLogs(),
+      });
+
+      // §9's daily 03:00 auto-backup. Started here rather than lazily on the
+      // first tick because a schedule nobody constructs is a schedule that never
+      // fires — the same bug as the two above, one layer down.
+      stopAutoBackup = coordinator.startAutoBackup();
 
       // Steps 5 and 6, in the doc's order and for the doc's reason: the fork is
       // started but NOT awaited, so the splash paints while the server migrates.
@@ -488,12 +953,15 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       // Step 8. The token rides in the URL only while `singleUser` is on — with
       // it off the desktop-session route is not registered (§5) and the SPA must
       // fall through to the standard login.
+      //
+      // Read from the manager, never cached: it minted this token for the child
+      // that just reported `ready`, and the next restart mints another.
       await windows.loadApp(
         appUrl({
           host: ready.host,
           port: ready.port,
           firstRun,
-          ...(loadedConfig.singleUser ? { bootToken } : {}),
+          ...bootTokenParam(loadedConfig.singleUser, manager.bootToken),
         }),
       );
 
@@ -528,6 +996,13 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       // exchange still works against the new process.)
       manager.subscribe((state: ServerState) => {
         if (state.status !== 'ready') return;
+        // §8.3's toggle leaves a path here; every other restart finds none and
+        // lands on `/`. Consumed as soon as a `ready` arrives — INCLUDING the
+        // one the port guard below discards, which is the case that matters: a
+        // rebind that happened to land on the same port navigates nowhere, and a
+        // note left behind by it would hijack the next crash recovery's URL.
+        const path = pendingAppPath;
+        pendingAppPath = null;
         if (runtime !== null && state.port === runtime.serverPort) return;
         runtime = runtime === null ? runtime : { ...runtime, serverPort: state.port };
         void windows.loadApp(
@@ -535,7 +1010,12 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
             host: state.host,
             port: state.port,
             firstRun,
-            ...(loadedConfig.singleUser ? { bootToken } : {}),
+            // The RESTARTED child's token, not the one this app launched with.
+            // `manager` re-mints per fork, so the URL below carries a token the
+            // process now listening has actually heard of — and the previous
+            // one is dead rather than re-armed for a second free session (§5).
+            ...bootTokenParam(loadedConfig.singleUser, manager?.bootToken ?? null),
+            ...(path === null ? {} : { path }),
           }),
         );
       });
@@ -543,7 +1023,7 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
       // A file handed to us on the command line is a restore/open request (§9),
       // and it can only be acted on once the SPA is up to render the flow.
       const launchFile = extractFileArgument(host.argv);
-      if (launchFile !== null) windows.handleFileArgument(launchFile);
+      if (launchFile !== null) routeFileArgument(launchFile);
     },
   };
 }
@@ -576,6 +1056,35 @@ export function applyConfigPatch(config: DesktopConfig, patch: DesktopConfigPatc
   if (patch.telemetryOptIn !== undefined) next.telemetryOptIn = patch.telemetryOptIn;
   if (patch.autoBackup !== undefined) next.autoBackup = { ...patch.autoBackup };
   return next;
+}
+
+/**
+ * §8.3's port collision, as the code + message §4's bridge carries.
+ *
+ * The suggested port is IN THE MESSAGE rather than in a structured field because
+ * the wire has no room for one: `main/ipc.ts` maps a throw onto `{ code,
+ * message }` and nothing else survives the crossing (see `api.d.ts`'s
+ * `DesktopBridgeErrorLike` on why even `code` is duplicated into the prefix). So
+ * the settings form parses the number back out — one regex, pinned by a test on
+ * both sides — which is a smaller price than a second error channel.
+ *
+ * `refused` is deliberately NOT `LAN_PORT_IN_USE`. An EACCES on a privileged
+ * port, or a bind the OS rejects for its own reasons, is not a collision, and
+ * "Try 4601" is advice that cannot work for it: 4601 is privileged too if 4600
+ * was. It falls through as `INTERNAL` carrying the OS's own message, which at
+ * least names the real problem.
+ */
+function lanBindError(port: number, probe: Extract<ProbeResult, { ok: false }>): Error {
+  if (probe.reason !== 'in-use') {
+    return new Error(
+      `The Adminium server could not bind port ${String(port)}: ${probe.message}`,
+    );
+  }
+  const suggestion = suggestNextPort(port);
+  return new Error(
+    `${LAN_PORT_IN_USE}: Port ${String(port)} is already in use by another program.` +
+      (suggestion === null ? '' : ` Try ${String(suggestion)}.`),
+  );
 }
 
 /**
@@ -622,6 +1131,156 @@ function bundledStaticRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dashboard');
 }
 
+/**
+ * `resources/demo/demo-seed.mjs` — the §6 step 2 seed script the server imports
+ * to build the demo database (11-T08).
+ *
+ * `out/main/` → `../../resources/demo/`, which resolves identically in dev (the
+ * repo's `apps/desktop/resources/`) and in a packaged build (§10's
+ * `files: [out/**, resources/**]` keeps that relative layout inside the app).
+ *
+ * PACKAGING NOTE for 11-T13: `resources/demo/**` must be listed in
+ * `asarUnpack`. The server reaches this file with a real `import()`, and an
+ * asar-packed path is not something the ESM loader can be relied on to open —
+ * unpacked, it is an ordinary file on disk and the import is ordinary too.
+ */
+function bundledDemoSeedScript(): string {
+  return resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'resources',
+    'demo',
+    'demo-seed.mjs',
+  );
+}
+
+/**
+ * §9's backup transport: `POST /api/v1/desktop/backup`, carrying the WINDOW'S
+ * session cookie.
+ *
+ * ─── Why the cookie, spelled out where it happens ────────────────────────────
+ *
+ * The route is session-guarded (§9), and the main process has no session of its
+ * own — but it owns the one the window uses. `session.defaultSession.cookies` is
+ * the same jar the SPA's `adminium_session` cookie landed in when §5's
+ * boot-token exchange ran, and reading it here is what makes the backup run as
+ * THE SIGNED-IN USER: the audit row names a person, `adminium_notifications` has
+ * an inbox to land in (`user_id` is NOT NULL), and §5's "Require login on this
+ * device" keeps meaning something. No session ⇒ `null` ⇒ the coordinator says
+ * "sign in first", which is the right answer for an archive containing every row
+ * in the install.
+ *
+ * The cookie is read PER CALL, never cached: sessions expire, the user can sign
+ * out, and a captured `Cookie` header would turn a 401 into a mystery.
+ */
+function electronBackupTransport(serverOrigin: () => string | null): BackupTransport {
+  return async (body) => {
+    const origin = serverOrigin();
+    // Pre-handshake, or mid-restart. Not an error — there is simply no server to
+    // ask yet, and the schedule's next tick will find one.
+    if (origin === null) return null;
+
+    const cookies = await session.defaultSession.cookies.get({
+      url: origin,
+      name: SESSION_COOKIE_NAME,
+    });
+    const cookie = cookies[0];
+    if (cookie === undefined) return null;
+
+    const response = await fetch(`${origin}/api/v1/desktop/backup`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: `${cookie.name}=${cookie.value}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    // 401 ONLY. It means "the cookie we found is stale", which is the same
+    // user-visible fact as having no cookie at all: sign in.
+    //
+    // 403 is NOT that, and collapsing the two would be actively misleading. The
+    // route returns 403 for a non-loopback peer AND for a signed-in user
+    // without `system:settings:manage` — so an editor clicking "Back up now"
+    // would be told to "sign in first" while already signed in, advice that
+    // cannot work and that hides the real answer (they need a super admin).
+    // It falls through to the error path below, where the server's own message
+    // — written for a person — is what they see.
+    if (response.status === 401) return null;
+    if (!response.ok) {
+      const detail = await readErrorMessage(response);
+      throw new Error(
+        `the Adminium server refused the backup (HTTP ${String(response.status)})${
+          detail === null ? '' : `: ${detail}`
+        }`,
+      );
+    }
+    // Parsed, not cast. This is a cross-process boundary and `main/ipc.ts`'s
+    // rule applies to it: a shape change in the route should surface here,
+    // naming the field, rather than as an undefined deref inside the move.
+    const parsed = backupReplySchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new Error(
+        `the Adminium server sent a backup reply this build does not understand: ${parsed.error.issues
+          .map((issue) => `${issue.path.map(String).join('.') || '(root)'}: ${issue.message}`)
+          .join('; ')}`,
+      );
+    }
+    return parsed.data.data;
+  };
+}
+
+/**
+ * The §1.4 error envelope's `message`, or `null`.
+ *
+ * The envelope is `{ error: { code, message, requestId } }`; showing a user the
+ * raw JSON of that would be worse than showing them nothing. Falls back to the
+ * body text for a failure that never reached the error handler (a proxy, a
+ * socket reset).
+ */
+async function readErrorMessage(response: Response): Promise<string | null> {
+  const body = await response.text().catch(() => '');
+  if (body === '') return null;
+  try {
+    const envelope = JSON.parse(body) as { error?: { message?: unknown } };
+    const message = envelope.error?.message;
+    if (typeof message === 'string' && message !== '') return message;
+  } catch {
+    // Not JSON — fall through to the raw text.
+  }
+  return body.slice(0, 400);
+}
+
+/**
+ * §9's reply (`routes/desktop/schema.ts`).
+ *
+ * The manifest arm REUSES `backup-archive.ts`'s schema rather than restating it:
+ * that module already mirrors the server's contract and
+ * `backup-format-parity.test.ts` already pins the two together, so borrowing it
+ * gets the strictness for free and keeps the number of copies at two. A third
+ * — here, unpinned — is exactly how the set would drift.
+ */
+const backupReplySchema = z.object({
+  data: z.object({
+    path: z.string().min(1),
+    bytes: z.number().int().nonnegative(),
+    manifest: backupManifestSchema,
+    rotated: z.array(z.string()),
+  }),
+});
+
+/**
+ * The session cookie's name (`auth/sessions.ts`).
+ *
+ * Restated rather than imported for the reason `backup-archive.ts`'s schema is:
+ * an `import { SESSION_COOKIE } from '@adminium/server'` would load Fastify into
+ * the main process to read a string. Exported so
+ * `backup-format-parity.test.ts` can pin it against the server's — a typo here
+ * is not a crash, it is a backup that silently reports "sign in first" forever.
+ */
+export const SESSION_COOKIE_NAME = 'adminium_session';
+
 /** §10's three build targets, as §4's `platform` narrows them. */
 function desktopPlatform(): DesktopPlatform {
   const platform = process.platform;
@@ -648,6 +1307,20 @@ function desktopPlatform(): DesktopPlatform {
 function electronConfigPort(userDataDir: string, logger: ConfigLogger): DesktopConfigPort {
   const path = configPathFor(userDataDir);
   return {
+    async ensureDataDir(dir) {
+      try {
+        // `recursive` makes an existing directory a success rather than EEXIST,
+        // which is the common case: the user picks a folder that is already
+        // there. The write probe is separate because `mkdir` on an existing
+        // read-only directory succeeds — the failure §6 step 1 must catch is a
+        // location the app cannot WRITE, and only writing proves that.
+        await mkdir(dir, { recursive: true });
+        await access(dir, constants.W_OK);
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+      }
+    },
     async load() {
       const result = await loadConfig(path, { logger });
       if (result.status === 'missing') {
@@ -702,6 +1375,15 @@ export function electronBootDeps(): DesktopBootDeps {
     logging.main.write(line);
   };
   const windows = createWindowManager({ userDataDir });
+  const dialogs = createNativeDialogs();
+  /** §14's relaunch — one implementation, two callers (the host and §4's port). */
+  const relaunchApp = (): void => {
+    // `relaunch()` only QUEUES the restart. It is `quit()` that ends this
+    // process, and the `before-quit` hook that stops the server gracefully on
+    // the way out.
+    app.relaunch();
+    app.quit();
+  };
   const showLogs = async (): Promise<void> => {
     // §9: "Help → 'Show logs' reveals the folder." `openPath` returns a
     // NON-EMPTY string on failure rather than throwing, which is a shape worth
@@ -740,15 +1422,102 @@ export function electronBootDeps(): DesktopBootDeps {
       quit: () => {
         app.quit();
       },
+      relaunch: relaunchApp,
     },
     config: electronConfigPort(userDataDir, mainProcessConfigLogger(mainLog)),
     windows,
     logsDir,
     showLogs,
     createServerManager,
+
+    // ── §9's backup/restore (11-T12) ──
+    pickBackupFile: () => dialogs.openFile({ kind: 'backup' }),
+    createBackup: (wiring) =>
+      createBackupCoordinator({
+        readConfig: wiring.readConfig,
+        // `redactConfig` and not a local re-implementation: `main/config.ts`
+        // builds the redacted body as an explicit ALLOW-LIST precisely so a
+        // secret-bearing field added later cannot leak by default, and there
+        // must be exactly one function that decides that. The server asserts on
+        // receipt regardless (`assertNoSecrets`), which is the belt to this
+        // brace.
+        redactConfig,
+        transport: electronBackupTransport(wiring.serverOrigin),
+        dialogs: {
+          saveFile: (opts) => dialogs.saveFile(opts),
+          showItemInFolder: (path) => dialogs.showItemInFolder(path),
+          confirm: async (opts) => {
+            const parent =
+              BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+            const options: Electron.MessageBoxOptions = {
+              type: 'warning',
+              buttons: [opts.confirmLabel, opts.cancelLabel],
+              // Cancel is the DEFAULT and the escape route. This dialog replaces
+              // every database in the install; the button a stray Return key
+              // presses must be the one that does nothing.
+              defaultId: 1,
+              cancelId: 1,
+              title: opts.title,
+              message: opts.title,
+              detail: opts.message,
+            };
+            const result =
+              parent === null
+                ? await dialog.showMessageBox(options)
+                : await dialog.showMessageBox(parent, options);
+            return result.response === 0;
+          },
+          notify: async (opts) => {
+            const parent =
+              BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
+            const options: Electron.MessageBoxOptions = {
+              type: opts.kind === 'error' ? 'error' : 'info',
+              buttons: ['OK'],
+              title: opts.title,
+              message: opts.title,
+              detail: opts.message,
+            };
+            if (parent === null) await dialog.showMessageBox(options);
+            else await dialog.showMessageBox(parent, options);
+          },
+        },
+        server: wiring.server,
+        dataDir: wiring.dataDir,
+        // §9's "first idle moment after 03:00". `powerMonitor` is a main-process
+        // API and has no equivalent inside the utilityProcess — which is the
+        // reason the schedule lives here at all (see `backup.ts`'s header).
+        idle: {
+          isIdle: () =>
+            Promise.resolve(powerMonitor.getSystemIdleTime() >= IDLE_THRESHOLD_SECONDS),
+          wait: (ms) =>
+            new Promise((resolve_) => {
+              setTimeout(resolve_, ms);
+            }),
+        },
+        log: mainLog,
+      }),
+
+    // ── §14's native menu ──
+    // `isDev`: §14 allows Toggle Developer Tools "in dev builds only".
+    // `app.isPackaged` is Electron's own answer and cannot be spoofed by an env
+    // var a user copied off a forum, which is what makes it the right gate for a
+    // menu item that runs arbitrary script against the loopback origin (§2.4).
+    installMenu: (handlers) => {
+      buildAppMenu({
+        platform: process.platform,
+        isDev: !app.isPackaged,
+        handlers,
+      });
+    },
     createBootToken: generateBootToken,
+    // §8.3's collision pre-flight, on a real socket. Not `probeBindable`
+    // directly: the port's signature is `(host, port)` and `probeBindable`'s
+    // third parameter is its own test seam, which the boot sequence has no
+    // business forwarding.
+    probeLanPort: (host, port) => probeBindable(host, port),
     serverEntry: bundledServerEntry(),
     staticRoot: bundledStaticRoot(),
+    demoSeedScript: bundledDemoSeedScript(),
 
     registerBridge: (context) => {
       registerIpcHandlers({
@@ -770,6 +1539,23 @@ export function electronBootDeps(): DesktopBootDeps {
           windows.broadcast(channel, payload);
         },
         ...context,
+        /**
+         * §8.3's "reachable URLs … for each non-internal interface, via
+         * `os.networkInterfaces()`".
+         *
+         * THIS IS THE WIRING. `main/ipc.ts` has accepted this port since 11-T04
+         * and nothing ever passed it, so its `?? (() => [])` default answered
+         * every call: `getRuntimeInfo().lanShare.urls` was `[]` in every build
+         * that has ever run, and the panel §8.3 describes had nothing to list.
+         * Another unused export that typechecks — the failure this codebase has
+         * now shipped five times.
+         *
+         * `context.readConfig()` per call, not a captured port: the number the
+         * user just typed into the panel is in `config.json`, and `ipc.ts` only
+         * reaches this getter once it has already read the config and found
+         * sharing ON — so there is no pre-boot call to guard against here.
+         */
+        lanShareUrls: () => lanShareUrls(context.readConfig().lanShare.port),
         dialogs: createNativeDialogs(),
         /**
          * §11 is 11-T16's, and `null` is its contract for "not wired", not a
@@ -785,13 +1571,7 @@ export function electronBootDeps(): DesktopBootDeps {
         // CAPABILITY_NOT_GRANTED §12 specifies for an ungranted call.
         capabilities: createUngrantedCapabilityHost(),
         showLogs,
-        relaunch: () => {
-          // §14. `relaunch()` only QUEUES the restart — it is `quit()` that ends
-          // this process, and the `before-quit` hook that stops the server
-          // gracefully on the way out.
-          app.relaunch();
-          app.quit();
-        },
+        relaunch: relaunchApp,
         log: mainLog,
       });
     },

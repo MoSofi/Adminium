@@ -204,11 +204,23 @@ describe('the File menu (§14)', () => {
 });
 
 describe('the Help menu (§14)', () => {
+  // The docs site's real origin (14-docs-site.md §3; `apps/docs/astro.config.mjs`
+  // `site:`; the dashboard's `kb/docsLinks.ts` `DOCS_BASE_URL`).
+  //
+  // Pinned as a LITERAL, deliberately. Asserting `DOCS_URL === DOCS_URL` is what
+  // the rest of this suite already does by construction, and it is exactly why
+  // the Help menu shipped pointing at `adminium.io` — a placeholder domain from
+  // the demo persona — while every test stayed green: nothing ever compared the
+  // constant to the address the docs are actually served from. `out/main` is
+  // outside check-offline-assets.mjs's roots (§7), so this literal is the only
+  // gate on that value.
+  const DOCS_ORIGIN = 'https://docs.adminium.ai';
+
   it('opens the docs in the system browser over https', () => {
     // §14: "Adminium Docs ↗" — and §2.4: external links go to the system
-    // browser, https only. This is the shell's only outbound URL, so it is the
-    // only thing §7's check-offline-assets.mjs has to allow.
+    // browser, https only.
     expect(DOCS_URL.startsWith('https://')).toBe(true);
+    expect(DOCS_URL).toBe(DOCS_ORIGIN);
 
     const opened: string[] = [];
     const items = menu(template({ openExternal: (url) => opened.push(url) }), EN_US_MENU_LABELS.help);

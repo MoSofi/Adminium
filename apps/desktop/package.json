@@ -35,9 +35,18 @@
       "types": "./src/preload/api.d.ts"
     }
   },
+  "//scripts": [
+    "`build` chains the offline asset gate because 11-electron.md §7 says it 'runs",
+    "in CI on every desktop build' — and the only way to make that literal, rather",
+    "than a workflow step someone can forget to keep next to the build, is to make",
+    "it part of the build. It scans out/renderer + out/dashboard, which do not",
+    "exist until electron-vite has run, so this is also the earliest point it CAN",
+    "run. The root `pnpm check-offline-assets` script is the same check as a named",
+    "CI step (matching check-deps); both are wanted."
+  ],
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && node ../../scripts/check-offline-assets.mjs",
     "preview": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
@@ -81,7 +90,9 @@
     "@adminium/server": "workspace:*",
     "argon2": "^0.44.0",
     "better-sqlite3": "^12.2.0",
+    "croner": "^9.1.0",
     "electron-updater": "^6.8.9",
+    "fflate": "^0.8.3",
     "zod": "catalog:"
   },
   "optionalDependencies": {

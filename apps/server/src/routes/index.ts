@@ -6,14 +6,15 @@
  */
 import type { FastifyInstance } from 'fastify';
 
+import type { Env } from '../config/env.js';
 import { systemRoutes } from './system/index.js';
 
 export const API_PREFIX = '/api/v1';
 
-export async function registerRoutes(app: FastifyInstance): Promise<void> {
+export async function registerRoutes(app: FastifyInstance, env: Env): Promise<void> {
   await app.register(
     async (api) => {
-      await api.register(systemRoutes);
+      await api.register(systemRoutes({ env }));
     },
     { prefix: API_PREFIX },
   );

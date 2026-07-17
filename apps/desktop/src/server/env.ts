@@ -118,6 +118,14 @@ export interface BuildServerEnvInput {
   /** §3: the dashboard build copied into `resources/` at package time. */
   staticRoot?: string | undefined;
   /**
+   * §6 step 2 card 4: `resources/demo/demo-seed.mjs`, which the server imports by
+   * path to seed the demo database (11-T08). Omitted ⇒ the server does not
+   * register the demo route and the wizard's fourth card has nothing to call —
+   * a degradation, not a failure, so this is optional here even though the
+   * shipped app always passes it.
+   */
+  demoSeedScript?: string | undefined;
+  /**
    * The environment the child inherits before Adminium's own keys are layered
    * on. Defaults to `process.env`. Injected by the suites.
    */
@@ -160,6 +168,27 @@ export const STRIPPED_INHERITED_ENV_KEYS: readonly string[] = [
   // states it — but the strip is what makes "always" independent of the order
   // the keys happen to be assigned in below.
   'ADMINIUM_DESKTOP_SINGLE_USER',
+  // The server IMPORTS this path (11-T08). An inherited value would let anything
+  // that can set an environment variable choose which module the server process
+  // executes — a much larger promotion than the rest of this list prevents. The
+  // shell knows where its own resources are; nothing else gets a vote.
+  'ADMINIUM_DEMO_SEED_SCRIPT',
+  // §8.3 is what makes this one a security control rather than hygiene.
+  //
+  // `trustProxy` tells Fastify to believe `X-Forwarded-For`, which is correct
+  // behind Caddy/nginx and catastrophic here: NOTHING is ever in front of this
+  // child. Main forks it directly (§2.1) and LAN peers reach it over the socket
+  // it binds (§8.3) — there is no proxy to be behind, so a forwarding header is
+  // never legitimate and is only ever an attacker's spelling of `request.ip`.
+  //
+  // With it on, every LAN peer picks its own address: §8.3's audit-log promise
+  // ("the audit log records their LAN IPs") records a chosen string, §8.3's
+  // "rate limiting and lockout behave as on self-host" is evaded by rotating the
+  // header, and the share panel's session count reads the same forged value.
+  // Auto-login survives it — §5's route and the panel's own gate read
+  // `socket.remoteAddress`, which is the kernel's and not a header's — and that
+  // is precisely the standard the rest of this list is held to.
+  'ADMINIUM_TRUST_PROXY',
 ];
 
 /**
@@ -206,6 +235,14 @@ export function buildServerEnv(input: BuildServerEnvInput): Record<string, strin
   // `config.json`. `on`/`off` are `config/env.ts`'s BOOLEANISH spelling.
   env.ADMINIUM_DESKTOP_SINGLE_USER = input.singleUser ? 'on' : 'off';
 
+  // §8.3. Stated rather than left to the server schema's `default off`, for the
+  // reason the strip above exists: this is the value that decides whether
+  // `request.ip` is the kernel's answer or a LAN peer's claim, and "off because
+  // nobody set it" is a weaker guarantee than "off because we said so". The
+  // desktop child is never behind a proxy, so there is no configuration of this
+  // app in which the other value is right.
+  env.ADMINIUM_TRUST_PROXY = 'off';
+
   // §7: opting IN does not mean "report" — it means "let the server's own
   // consent setting decide", which is what leaving both variables unset does
   // (`ADMINIUM_TELEMETRY` is tri-state on purpose; see `config/env.ts`). Opting
@@ -216,6 +253,11 @@ export function buildServerEnv(input: BuildServerEnvInput): Record<string, strin
 
   if (input.logLevel !== undefined) env.ADMINIUM_LOG_LEVEL = input.logLevel;
   if (input.staticRoot !== undefined) env.ADMINIUM_STATIC_ROOT = resolve(input.staticRoot);
+  // Absolute: the child's cwd is not this process's, and `import()` of a relative
+  // path would resolve against whatever the utilityProcess happened to start in.
+  if (input.demoSeedScript !== undefined) {
+    env.ADMINIUM_DEMO_SEED_SCRIPT = resolve(input.demoSeedScript);
+  }
 
   return env;
 }

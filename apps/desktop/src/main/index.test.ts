@@ -13,6 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
+import type { BackupCoordinator } from './backup.js';
 import { createDefaultConfig, type DesktopConfig } from './config.js';
 import {
   appUrl,
@@ -20,11 +21,14 @@ import {
   createDesktopApp,
   extractFileArgument,
   isElectronMain,
+  type BackupWiring,
   type DesktopAppHost,
   type DesktopBootDeps,
   type DesktopBridgeContext,
   type DesktopConfigPort,
 } from './index.js';
+import type { ProbeResult } from './lan.js';
+import type { MenuHandlers } from './menu.js';
 import type {
   CreateServerManagerOptions,
   ServerExit,
@@ -59,6 +63,13 @@ interface Harness {
   managerOptions: () => CreateServerManagerOptions[];
   stopped: () => number;
   restarted: () => number;
+  /** Every `restart()` argument, in order — §8.3's rebind is only this. */
+  restarts: () => { host?: string; port?: number }[];
+  /** §9's coordinator wiring, or null if the boot never built one. */
+  backupWiring: () => BackupWiring | null;
+  /** §14's File/Help handlers, or null if the menu was never installed. */
+  menuHandlers: () => MenuHandlers | null;
+  autoBackupRunning: () => boolean;
 }
 
 const READY: ServerReadyInfo = {
@@ -66,6 +77,7 @@ const READY: ServerReadyInfo = {
   port: 51234,
   url: 'http://127.0.0.1:51234',
   migrationsApplied: 9,
+  metaVersion: '0009_views_kind',
   pid: 4242,
 };
 
@@ -79,8 +91,17 @@ function harness(
     /** Make boot step 2 or 3 throw — the config.ts error classes (§2.2). */
     load?: () => Promise<{ config: DesktopConfig; firstRun: boolean }>;
     resolveSecret?: () => Promise<{ secret: string; secretStorage: 'safeStorage' | 'plain' }>;
-    restart?: () => Promise<ServerReadyInfo>;
+    /** §6 step 1's writability probe. Defaults to a usable directory. */
+    ensureDataDir?: (dir: string) => Promise<{ ok: true } | { ok: false; reason: string }>;
+    restart?: (changes?: { host?: string; port?: number }) => Promise<ServerReadyInfo>;
     staticRoot?: string;
+    /** §8.3's collision pre-flight verdict. Defaults to a free port. */
+    probe?: ProbeResult;
+    /** What File → "Restore from backup…"'s dialog returns. */
+    pickedBackup?: string;
+    managerState?: ServerState;
+    /** §2.2 step 1's launch argv. */
+    argv?: readonly string[];
   } = {},
 ): Harness {
   const calls: string[] = [];
@@ -88,10 +109,14 @@ function harness(
   const loaded: string[] = [];
   const saved: DesktopConfig[] = [];
   const managerOptions: CreateServerManagerOptions[] = [];
+  const restarts: { host?: string; port?: number }[] = [];
   let quitCount = 0;
   let stopped = 0;
   let restarted = 0;
   const windowExists = { value: false };
+
+  let backupWiring: BackupWiring | null = null;
+  let menuHandlers: MenuHandlers | null = null;
 
   let secondInstance: (argv: readonly string[]) => void = () => undefined;
   let activate: () => void = () => undefined;
@@ -105,7 +130,7 @@ function harness(
   const config: DesktopConfig = { ...createDefaultConfig('/data'), ...overrides.config };
 
   const host: DesktopAppHost = {
-    argv: ['/Applications/Adminium.app/Contents/MacOS/Adminium'],
+    argv: overrides.argv ?? ['/Applications/Adminium.app/Contents/MacOS/Adminium'],
     platform: overrides.platform ?? 'darwin',
     requestSingleInstanceLock: () => {
       calls.push('lock');
@@ -135,9 +160,18 @@ function harness(
       // actually close?" question has an answer here.
       beforeQuit?.({ preventDefault: () => calls.push('quit:prevented') });
     },
+    relaunch: () => {
+      calls.push('relaunch');
+    },
   };
 
   const configPort: DesktopConfigPort = {
+    ensureDataDir:
+      overrides.ensureDataDir ??
+      ((dir) => {
+        calls.push(`config.ensureDataDir:${dir}`);
+        return Promise.resolve({ ok: true as const });
+      }),
     load:
       overrides.load ??
       (() => {
@@ -189,27 +223,83 @@ function harness(
     },
   };
 
+  // §9's coordinator, as a recorder. The boot sequence's job is to BUILD one,
+  // wire the menu to it, start its schedule and route a `.zip` argument into it
+  // — four wiring facts, each of which was previously absent and none of which a
+  // test inside `backup.ts` could ever have noticed.
+  let autoBackupRunning = false;
+  const backupCoordinator: BackupCoordinator = {
+    backupNow: () => {
+      calls.push('backup.backupNow');
+      return Promise.resolve();
+    },
+    restoreFrom: (path) => {
+      calls.push(`backup.restoreFrom:${path}`);
+      return Promise.resolve();
+    },
+    startAutoBackup: () => {
+      calls.push('backup.startAutoBackup');
+      autoBackupRunning = true;
+      return () => {
+        calls.push('backup.stopAutoBackup');
+        autoBackupRunning = false;
+      };
+    },
+  };
+
+  // §5's token, as the REAL manager produces it: minted from the factory the
+  // shell injects, once per fork — so `start` and `restart` each mint, and
+  // `bootToken` reports the live child's.
+  //
+  // A fake that returned a fixed string here would make every assertion below
+  // about the token vacuous: the shell used to mint once and close over the
+  // value, and this fake's old `bootToken: 'unused'` could not tell the
+  // difference — which is precisely how the same token survived every restart,
+  // re-arming a fresh unconsumed guard for a second passwordless session.
+  let mintBootToken: () => string = () => {
+    throw new Error('the shell never handed ServerManager a createBootToken factory');
+  };
+  let liveBootToken: string | null = null;
+  const fork = <T>(run: () => T): T => {
+    liveBootToken = mintBootToken();
+    return run();
+  };
+
   const manager: ServerManager = {
-    state: { status: 'idle' },
-    bootToken: 'unused',
-    start:
-      overrides.start ??
-      (() => {
-        calls.push('server.start');
-        return Promise.resolve(READY);
-      }),
+    state: overrides.managerState ?? { status: 'ready', ...READY },
+    get bootToken() {
+      return liveBootToken;
+    },
+    start: () =>
+      fork(
+        overrides.start ??
+          (() => {
+            calls.push('server.start');
+            return Promise.resolve(READY);
+          }),
+      ),
     stop: () => {
       stopped += 1;
       calls.push('server.stop');
       return Promise.resolve();
     },
-    restart:
-      overrides.restart ??
-      (() => {
-        restarted += 1;
-        calls.push('server.restart');
-        return Promise.resolve(READY);
-      }),
+    restart: (changes) => {
+      restarted += 1;
+      restarts.push(changes ?? {});
+      calls.push('server.restart');
+      // The REAL manager emits `ready` on a successful restart, and the
+      // subscriber that listens is what navigates the window — so a fake that
+      // only resolved would make every "did the window come back?" assertion
+      // vacuously pass. §8.3's toggle IS that navigation.
+      //
+      // A restart is a FORK, so it mints too — before `ready` fires, because
+      // the subscriber reads `manager.bootToken` to build the URL.
+      const done = overrides.restart ?? (() => Promise.resolve(READY));
+      return fork(() => done(changes)).then((ready) => {
+        stateListener({ status: 'ready', ...ready });
+        return ready;
+      });
+    },
     onExit: (l) => {
       exitListener = l;
       return () => undefined;
@@ -230,9 +320,18 @@ function harness(
       windows,
       createServerManager: (opts) => {
         managerOptions.push(opts);
+        // The wiring fact this pins: the shell must hand the MINTER to the
+        // manager, not a minted token. If it ever goes back to calling
+        // `deps.createBootToken()` itself, `mintBootToken` stays unset and every
+        // boot in this suite throws rather than quietly re-arming one token.
+        mintBootToken = opts.createBootToken;
         return manager;
       },
       createBootToken: () => 'b'.repeat(64),
+      probeLanPort: (probeHost, probePort) => {
+        calls.push(`probeLanPort:${probeHost}:${String(probePort)}`);
+        return Promise.resolve(overrides.probe ?? { ok: true });
+      },
       logsDir: '/logs',
       serverEntry: '/app/out/server/index.js',
       staticRoot: overrides.staticRoot ?? '/app/out/dashboard',
@@ -243,6 +342,19 @@ function harness(
       showLogs: () => {
         calls.push('showLogs');
         return Promise.resolve();
+      },
+      pickBackupFile: () => {
+        calls.push('pickBackupFile');
+        return Promise.resolve(overrides.pickedBackup ?? null);
+      },
+      createBackup: (wiring) => {
+        calls.push('createBackup');
+        backupWiring = wiring;
+        return backupCoordinator;
+      },
+      installMenu: (handlers) => {
+        calls.push('installMenu');
+        menuHandlers = handlers;
       },
     },
     calls,
@@ -271,6 +383,10 @@ function harness(
     managerOptions: () => managerOptions,
     stopped: () => stopped,
     restarted: () => restarted,
+    restarts: () => restarts,
+    backupWiring: () => backupWiring,
+    menuHandlers: () => menuHandlers,
+    autoBackupRunning: () => autoBackupRunning,
   };
 }
 
@@ -369,6 +485,13 @@ describe('createDesktopApp boot sequence', () => {
       'setCrashActionHandler',
       'config.load',
       'config.resolveSecret',
+      // §9's coordinator and §14's menu, between the config and the fork: both
+      // need the dataDir (step 2) and the manager (step 5), and the menu needs
+      // the coordinator. Before `showBoot`, so the File menu is real from the
+      // first frame rather than appearing once the server answers.
+      'createBackup',
+      'installMenu',
+      'backup.startAutoBackup',
       'server.start',
       'showBoot',
       'loadApp',
@@ -436,9 +559,11 @@ describe('createDesktopApp boot sequence', () => {
     const h = harness();
     await createDesktopApp(h.deps).start();
 
-    h.fireSecondInstance(['/path/Adminium', '/Users/ava/backup.zip']);
+    // A `.sqlite` — §6 step 2's "Open an existing SQLite file", which is the
+    // SPA's. (A `.zip` goes to §9's restore instead; see the wiring suite.)
+    h.fireSecondInstance(['/path/Adminium', '/Users/ava/app.sqlite']);
     expect(h.calls).toContain('focus');
-    expect(h.calls).toContain('handleFileArgument:/Users/ava/backup.zip');
+    expect(h.calls).toContain('handleFileArgument:/Users/ava/app.sqlite');
   });
 
   it('sends the window to the wizard on first run (§6)', async () => {
@@ -552,6 +677,131 @@ describe('the bridge context handed to registerBridge', () => {
     expect(h.saved[0]?.dataDir).toBe('/data');
     // And the live config is the patched one, so the next read agrees with disk.
     expect(h.bridge()?.readConfig().singleUser).toBe(false);
+  });
+});
+
+// ─── §8.3's LAN toggle, end to end through the real boot sequence ────────────
+
+describe('the LAN share toggle (§8.3)', () => {
+  it('REBINDS the child to 0.0.0.0:4600 when the toggle goes on', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    await h.bridge()?.writeConfig({ lanShare: { enabled: true, port: 4600 } });
+
+    // The rebind is the feature. A toggle that wrote the file and left the child
+    // on loopback would look identical in the panel and share nothing.
+    expect(h.restarts()).toEqual([{ host: '0.0.0.0', port: 4600 }]);
+    expect(h.saved.at(-1)?.lanShare).toEqual({ enabled: true, port: 4600 });
+  });
+
+  it('returns to loopback + an EPHEMERAL port when the toggle goes off', async () => {
+    const h = harness({ config: { lanShare: { enabled: true, port: 4600 } } });
+    await createDesktopApp(h.deps).start();
+
+    await h.bridge()?.writeConfig({ lanShare: { enabled: false, port: 4600 } });
+
+    // Port 0, not 4600. `restart()` REMEMBERS its last bind, so a disable that
+    // only sent `{ host: '127.0.0.1' }` would leave a loopback server squatting
+    // on the LAN port — visibly "off" while still holding the socket the next
+    // enable has to probe.
+    expect(h.restarts()).toEqual([{ host: '127.0.0.1', port: 0 }]);
+    expect(h.saved.at(-1)?.lanShare.enabled).toBe(false);
+  });
+
+  it('persists the share state across launches (§8.3)', async () => {
+    // The next boot forks from `config.json` — no toggle, no restart, just the
+    // bind the file already asked for. This is the whole of "the share state
+    // persists across launches"; `binds loopback … unless LAN share is on`
+    // above covers the fork itself.
+    const h = harness({ config: { lanShare: { enabled: true, port: 4601 } } });
+    await createDesktopApp(h.deps).start();
+
+    expect(h.managerOptions()[0]).toMatchObject({ host: '0.0.0.0', port: 4601 });
+    expect(h.restarts()).toEqual([]);
+  });
+
+  it('refuses a busy port with LAN_PORT_IN_USE + a "Try" suggestion, changing NOTHING', async () => {
+    const h = harness({ probe: { ok: false, reason: 'in-use' } });
+    await createDesktopApp(h.deps).start();
+
+    await expect(
+      h.bridge()?.writeConfig({ lanShare: { enabled: true, port: 4600 } }),
+    ).rejects.toThrow(/LAN_PORT_IN_USE: Port 4600 is already in use by another program\. Try 4601\./);
+
+    // "Changing nothing" is the requirement, not a nicety: §8.3 asks for an
+    // INLINE error, and only a failure with no side effects can be rendered by a
+    // window that was never navigated away from.
+    expect(h.saved).toHaveLength(0);
+    expect(h.restarts()).toEqual([]);
+    expect(h.bridge()?.readConfig().lanShare.enabled).toBe(false);
+  });
+
+  it('does not probe — or restart — when the toggle goes OFF', async () => {
+    // Releasing a port cannot collide with anything, and a probe of the port we
+    // are about to free would be asking whether we are still holding it.
+    let probes = 0;
+    const h = harness({ config: { lanShare: { enabled: true, port: 4600 } } });
+    await createDesktopApp({
+      ...h.deps,
+      probeLanPort: (host, port) => {
+        probes += 1;
+        return h.deps.probeLanPort(host, port);
+      },
+    }).start();
+
+    await h.bridge()?.writeConfig({ lanShare: { enabled: false, port: 4600 } });
+
+    expect(probes).toBe(0);
+  });
+
+  it('leaves the server alone for a patch that does not touch lanShare', async () => {
+    // §5's login toggle, §11's update mode and §9's backup schedule all write
+    // this same file, and none of them has any business restarting the server.
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    await h.bridge()?.writeConfig({ singleUser: false });
+    await h.bridge()?.writeConfig({ updates: { mode: 'disabled' } });
+
+    expect(h.restarts()).toEqual([]);
+  });
+
+  it('does not restart for a port edit while sharing is off', async () => {
+    // Nothing is bound to the old port, so there is nothing to rebind; the new
+    // number takes effect at the next enable.
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    await h.bridge()?.writeConfig({ lanShare: { enabled: false, port: 4601 } });
+
+    expect(h.restarts()).toEqual([]);
+    expect(h.saved.at(-1)?.lanShare.port).toBe(4601);
+  });
+
+  it('reverts the file AND the bind when the rebind itself fails', async () => {
+    // Otherwise a settings toggle bricks the app: no server now, and a config
+    // that will fail the same way at every future launch (§2.2 step 5).
+    let calls = 0;
+    const h = harness({
+      restart: () => {
+        calls += 1;
+        return calls === 1 ? Promise.reject(new Error('bind failed')) : Promise.resolve(READY);
+      },
+    });
+    await createDesktopApp(h.deps).start();
+
+    await expect(
+      h.bridge()?.writeConfig({ lanShare: { enabled: true, port: 4600 } }),
+    ).rejects.toThrow('bind failed');
+
+    // Second restart = the revert, back to the bind that worked a moment ago.
+    expect(h.restarts()).toEqual([
+      { host: '0.0.0.0', port: 4600 },
+      { host: '127.0.0.1', port: 0 },
+    ]);
+    expect(h.saved.at(-1)?.lanShare.enabled).toBe(false);
+    expect(h.bridge()?.readConfig().lanShare.enabled).toBe(false);
   });
 });
 
@@ -729,8 +979,10 @@ describe('crash-page actions', () => {
 
     h.fireCrashAction('retry');
     await vi.waitFor(() => expect(h.restarted()).toBe(1));
-    // The splash first: the crash page must not sit there while the server boots.
-    expect(h.calls).toEqual(['showBoot', 'server.restart']);
+    // The splash first: the crash page must not sit there while the server
+    // boots. `loadApp` is the `ready` the restart itself produced — the fake
+    // emits it exactly where the real manager does.
+    expect(h.calls).toEqual(['showBoot', 'server.restart', 'loadApp']);
   });
 
   it('re-navigates after a retry even when the server comes back on the SAME port', async () => {
@@ -738,13 +990,13 @@ describe('crash-page actions', () => {
     await createDesktopApp(h.deps).start();
     h.loaded.length = 0;
 
-    h.fireCrashAction('retry');
-    await vi.waitFor(() => expect(h.restarted()).toBe(1));
     // The subscribe listener suppresses a `ready` on the port it is already on
     // — a guard that exists to make the replay-on-subscribe harmless. After a
     // retry it would strand the window on the splash forever, so the retry
-    // clears the port first.
-    h.emitState({ status: 'ready', ...READY });
+    // clears the port first. `READY` is the SAME port the boot landed on, which
+    // is what makes this the regression test and not a tautology.
+    h.fireCrashAction('retry');
+    await vi.waitFor(() => expect(h.restarted()).toBe(1));
     expect(h.loaded.at(-1)).toBe('http://127.0.0.1:51234/?bootToken=' + 'b'.repeat(64));
   });
 
@@ -825,6 +1077,148 @@ describe('window lifecycle conventions', () => {
     h.windowExists.value = false;
     h.fireActivate();
     expect(h.calls).toContain('reopen');
+  });
+});
+
+/**
+ * §9's backup/restore, seen from the boot sequence — i.e. the WIRING.
+ *
+ * These exist because `backup.ts` and `menu.ts` both compiled, unit-tested green
+ * and were called by NOTHING: `createBackupCoordinator` threw a scaffold error
+ * nobody ever hit, and `buildAppMenu` built a template nobody ever installed, so
+ * every launch had no File menu and no way to reach a backup. An
+ * injected-dependency test inside those modules structurally cannot catch that —
+ * it injects its own deps and never exercises the production path. What can
+ * catch it is asserting, from the entry point, that the ports were CALLED.
+ */
+describe('§9 backup/restore wiring (11-T12)', () => {
+  it('builds the coordinator, installs the menu, and starts the auto-backup schedule', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    // The three that were absent. If any of these regresses to "never called",
+    // the feature is gone from the product and nothing else here would notice.
+    expect(h.calls).toContain('createBackup');
+    expect(h.calls).toContain('installMenu');
+    expect(h.calls).toContain('backup.startAutoBackup');
+    expect(h.autoBackupRunning()).toBe(true);
+  });
+
+  it('gives the coordinator a LIVE config view, not the boot snapshot', async () => {
+    // §9's scheduler re-reads on every tick precisely so "Automatic backups:
+    // off" takes effect tonight rather than next launch. Wiring it to the
+    // step-2 snapshot — which is what the rest of the boot uses — would make
+    // that toggle, and `keep`, silently inert: the settings panel would write
+    // config.json, report success, and change nothing until a relaunch.
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+    expect(h.backupWiring()?.readConfig().autoBackup).toEqual({ enabled: true, keep: 7 });
+
+    await h.bridge()?.writeConfig({ autoBackup: { enabled: false, keep: 3 } });
+
+    expect(h.backupWiring()?.readConfig().autoBackup).toEqual({ enabled: false, keep: 3 });
+  });
+
+  it('gives the coordinator the real dataDir, config and server control', async () => {
+    const h = harness({ config: { dataDir: '/data/adminium' } });
+    await createDesktopApp(h.deps).start();
+
+    const wiring = h.backupWiring();
+    expect(wiring).not.toBeNull();
+    expect(wiring?.dataDir).toBe('/data/adminium');
+    expect(wiring?.readConfig().autoBackup.keep).toBe(7);
+    // §9's refusal rule needs THIS app's migration version, and the §2.2 step 7
+    // handshake is its only source. `null` here would make every restore refuse.
+    expect(wiring?.server.metaVersion()).toBe('0009_views_kind');
+    expect(wiring?.serverOrigin()).toBe('http://127.0.0.1:51234');
+  });
+
+  it('reports no server origin or metaVersion before the handshake', async () => {
+    // The honest pre-`ready` answer. `validateArchive` turns a null metaVersion
+    // into a refusal rather than a skipped check — see its `appMetaVersion`.
+    const h = harness({ managerState: { status: 'starting', attempt: 0 } });
+    await createDesktopApp(h.deps).start();
+
+    expect(h.backupWiring()?.serverOrigin()).toBeNull();
+    expect(h.backupWiring()?.server.metaVersion()).toBeNull();
+  });
+
+  it('wires File → "Back up now…" to the coordinator', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    // §14 renders an unwired command DISABLED. A handler that is `undefined`
+    // here is a greyed-out menu item, which is exactly what shipped.
+    expect(h.menuHandlers()?.backupNow).toBeTypeOf('function');
+    h.menuHandlers()?.backupNow?.();
+    expect(h.calls).toContain('backup.backupNow');
+  });
+
+  it('wires File → "Restore from backup…" through the open dialog', async () => {
+    const h = harness({ pickedBackup: '/Users/ava/adminium-backup-20260712-1430.zip' });
+    await createDesktopApp(h.deps).start();
+
+    h.menuHandlers()?.restore?.();
+    await vi.waitFor(() => {
+      expect(h.calls).toContain(
+        'backup.restoreFrom:/Users/ava/adminium-backup-20260712-1430.zip',
+      );
+    });
+  });
+
+  it('does not restore when the open dialog is cancelled', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    h.menuHandlers()?.restore?.();
+    await vi.waitFor(() => {
+      expect(h.calls).toContain('pickBackupFile');
+    });
+    expect(h.calls.some((call) => call.startsWith('backup.restoreFrom'))).toBe(false);
+  });
+
+  it('routes a .zip launch argument straight into the restore flow (§2.2 step 1)', async () => {
+    // §9: "also handles a backup zip passed as a launch argument". It never
+    // reaches the SPA — the whole restore runs in main — which is why
+    // `window.ts`'s `pendingFileArgument` note does not block this half.
+    const h = harness({ argv: ['/Applications/Adminium.app', '/Users/ava/backup.zip'] });
+    await createDesktopApp(h.deps).start();
+
+    expect(h.calls).toContain('backup.restoreFrom:/Users/ava/backup.zip');
+    // And NOT to the SPA: a backup zip is not the wizard's business.
+    expect(h.calls).not.toContain('handleFileArgument:/Users/ava/backup.zip');
+  });
+
+  it('still hands a .sqlite launch argument to the SPA, not the restore flow', async () => {
+    // §6 step 2's "Open an existing SQLite file" IS the wizard's (11-T07), and
+    // routing it into a restore would try to unzip a database.
+    const h = harness({ argv: ['/Applications/Adminium.app', '/Users/ava/app.sqlite'] });
+    await createDesktopApp(h.deps).start();
+
+    expect(h.calls).toContain('handleFileArgument:/Users/ava/app.sqlite');
+    expect(h.calls.some((call) => call.startsWith('backup.restoreFrom'))).toBe(false);
+  });
+
+  it('routes a .zip from a second instance into the restore flow too', async () => {
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+
+    h.fireSecondInstance(['/Applications/Adminium.app', '/Users/ava/second.zip']);
+    expect(h.calls).toContain('backup.restoreFrom:/Users/ava/second.zip');
+  });
+
+  it('stops the auto-backup schedule on quit, before the server goes down', async () => {
+    // A 03:00 tick during teardown would post to a server mid-shutdown, and the
+    // manager would classify the resulting exit as a crash on the way out.
+    const h = harness();
+    await createDesktopApp(h.deps).start();
+    expect(h.autoBackupRunning()).toBe(true);
+
+    h.fireBeforeQuit();
+    expect(h.autoBackupRunning()).toBe(false);
+    expect(h.calls.indexOf('backup.stopAutoBackup')).toBeLessThan(
+      h.calls.lastIndexOf('server.stop'),
+    );
   });
 });
 

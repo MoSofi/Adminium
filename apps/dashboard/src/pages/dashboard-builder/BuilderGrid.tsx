@@ -17,6 +17,8 @@ import {
   GridDragHandle,
   WidgetHost,
   getWidget,
+  resolveOfflineWidgetId,
+  useWidgetRuntimeEnv,
   type GridEditLabelsInput,
   type MinSize,
   type WidgetDataState,
@@ -74,6 +76,13 @@ export function BuilderGrid({
   onRemove,
   onLayoutChange,
 }: BuilderGridProps) {
+  // The canvas must preview what the PAGE will render, and §7's offline policy
+  // decides that: `WidgetHost` mounts `resolveOfflineWidgetId(item.widget)`, so
+  // the demo data below has to come from the same id. Reading the stored id here
+  // fed a map-bubble's lat/lng points to the choropleth tilegram on desktop —
+  // a blank map, in the builder the user is authoring the page in.
+  const runtimeEnv = useWidgetRuntimeEnv();
+
   return (
     <DashboardGrid
       layout={draft}
@@ -85,10 +94,17 @@ export function BuilderGrid({
       testId="dashboard-builder-canvas"
       renderItem={(item, ctx) => {
         const definition = getWidget(item.widget);
+        // The STORED definition names the item, because the Configure/Duplicate/
+        // Remove buttons below act on what the user PLACED — a "Bubble map" is
+        // still what they added and still what they would configure.
         const name = definition !== undefined ? widgetDisplayName(definition) : humanize(item.widget);
+        // The RESOLVED definition owns the demo data, because §7's policy decides
+        // which component `WidgetHost` mounts and the two have different data
+        // contracts. Same id ⇒ same object in every online runtime.
+        const rendered = getWidget(resolveOfflineWidgetId(item.widget, runtimeEnv));
         const data: WidgetDataState =
-          definition !== undefined
-            ? { status: 'success', data: definition.demoData(seedFromString(item.i)) }
+          rendered !== undefined
+            ? { status: 'success', data: rendered.demoData(seedFromString(item.i)) }
             : { status: 'success', data: undefined };
         const selected = item.i === selectedId;
         return (

@@ -3,9 +3,15 @@
  * user-facing in [config.json] is also editable from the dashboard's desktop
  * settings panel (§8)").
  *
- * 11-T06 lands ONE card: §5's "Require login on this device". The panel is the
- * shape the rest of §8 grows into (LAN share, updates, auto-backup, data dir),
- * which is why it is a page with sections rather than a lone switch.
+ * Two cards so far: §5's "Require login on this device" (11-T06) and §8.3's
+ * "Share on local network" (11-T11). The panel is the shape the rest of §8 grows
+ * into (updates, auto-backup, data dir), which is why it is a page with sections
+ * rather than a lone switch.
+ *
+ * The order is deliberate and it is not alphabetical: sign-in first, sharing
+ * second. §8.3's toggle is the one that changes who can reach this machine, and
+ * the question it raises — "wait, does it ask them for a password?" — is
+ * answered by the card directly above it.
  *
  * DESKTOP ONLY. Without the preload bridge there is no `config.json` to write, so
  * the route renders the 404 state rather than a toggle that cannot do anything —
@@ -20,6 +26,7 @@ import { Card, CardBody, CardHeader, IconTile, Label, Switch } from '@adminium/u
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
 import { StatePage } from '../states/StatePage.js';
+import { LanShareCard } from './LanShareCard.js';
 import { isDesktopRuntime, readSingleUser, setRequireLogin } from './singleUser.js';
 
 export const DESKTOP_RUNTIME_QUERY_KEY = ['desktop', 'runtime-info'] as const;
@@ -117,6 +124,7 @@ export function DesktopSettingsPage(): ReactNode {
         </p>
       </div>
       <RequireLoginCard />
+      <LanShareCard />
     </div>
   );
 }

@@ -53,6 +53,7 @@
 // 01-architecture.md §2.3 matrix gives this app two inputs — "`@adminium/server`
 // (spawned)" and "dashboard build output (static files)" — and no others.
 import {
+  LATEST_META_MIGRATION,
   composeServer,
   firstRun,
   loadCliEnv,
@@ -142,6 +143,8 @@ export interface BootedServer {
   port: number;
   host: string;
   migrationsApplied: number;
+  /** The newest migration THIS BUILD ships — see `protocol.ts`'s `migrations.version`. */
+  metaMigrationVersion: string;
 }
 
 /**
@@ -221,6 +224,7 @@ export async function bootDesktopServer(
       port,
       host: desktop.host,
       migrationsApplied: appliedMigrations.length,
+      metaMigrationVersion: LATEST_META_MIGRATION,
     };
   } catch (error) {
     await runtime.close().catch(() => undefined);
@@ -301,7 +305,7 @@ export async function runServerEntry(opts: RunServerEntryOptions): Promise<Boote
     type: 'ready',
     port: booted.port,
     host: booted.host,
-    migrations: { applied: booted.migrationsApplied },
+    migrations: { applied: booted.migrationsApplied, version: booted.metaMigrationVersion },
   });
 
   return booted;

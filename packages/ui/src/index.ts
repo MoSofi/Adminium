@@ -49,6 +49,7 @@ export * from './components/popover/index.js';
 export * from './components/progress-bar/index.js';
 export * from './components/radio/index.js';
 export * from './components/radio-card/index.js';
+export * from './components/runtime-chip/index.js';
 export * from './components/search-input/index.js';
 export * from './components/secret-input/index.js';
 export * from './components/segmented-control/index.js';

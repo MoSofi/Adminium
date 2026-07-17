@@ -41,6 +41,22 @@ export interface ForgotPasswordFormProps
   error?: ReactNode;
   /** Request in flight. */
   loading?: boolean | undefined;
+  /**
+   * The instance cannot send this mail at all — 11-electron.md §8.2's email row
+   * ("Enabled only when SMTP is configured in settings; otherwise buttons
+   * disabled"). Distinct from `loading`, which means "wait"; this means "not
+   * from here". Pair it with {@link ForgotPasswordFormProps.notice} — a disabled
+   * button with no explanation is the exact thing `designs/Empty States.dc.html`
+   * forbids.
+   */
+  disabled?: boolean | undefined;
+  /**
+   * Info `Alert` above the field: why the form is disabled, and what to do
+   * instead. Not `error` — an unconfigured relay is the operator's state of the
+   * world, not this visitor's mistake, and `role="alert"` would interrupt a
+   * screen reader to say so.
+   */
+  notice?: ReactNode;
   defaultEmail?: string | undefined;
 }
 
@@ -62,6 +78,8 @@ export function ForgotPasswordForm({
   onBack,
   error,
   loading = false,
+  disabled = false,
+  notice,
   defaultEmail,
   className,
   ...props
@@ -71,6 +89,10 @@ export function ForgotPasswordForm({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Belt and braces: the button is disabled, but a form still submits on
+    // Enter in some browsers, and this must not raise a "check your email" for
+    // mail that has nowhere to go.
+    if (disabled) return;
     if (!looksLikeEmail(email.trim())) {
       setFieldError(labels.emailInvalid);
       return;
@@ -108,6 +130,10 @@ export function ForgotPasswordForm({
         <Alert tone="danger" role="alert" title={error} className="mt-4" />
       )}
 
+      {notice === undefined || notice === null ? null : (
+        <Alert tone="info" title={notice} className="mt-4" />
+      )}
+
       <div className="mt-6 flex flex-col gap-4">
         <FormField label={labels.email} error={fieldError}>
           <InputGroup
@@ -117,11 +143,11 @@ export function ForgotPasswordForm({
             iconLeading={<Mail />}
             placeholder={labels.emailPlaceholder}
             value={email}
-            disabled={loading}
+            disabled={loading || disabled}
             onChange={(event) => setEmail(event.target.value)}
           />
         </FormField>
-        <Button type="submit" loading={loading} className="w-full">
+        <Button type="submit" loading={loading} disabled={disabled} className="w-full">
           {labels.submit}
         </Button>
       </div>

@@ -44,7 +44,8 @@ export default {
       "back": "返回登录",
       "done": "返回登录",
       "rateLimited": "请求过多——请稍后再试。",
-      "failed": "出错了。请重试。"
+      "failed": "出错了。请重试。",
+      "smtpUnconfigured": "此 Adminium 未配置邮件服务器，无法发送重置链接。请让管理员为你重置密码。"
     },
     "reset": {
       "title": "设置新密码",
@@ -426,7 +427,10 @@ export default {
         "ollama": {
           "label": "Ollama（本地）",
           "desc": "通过 Ollama 在本地运行模型——无需密钥，无需云端。"
-        }
+        },
+        "requiresNetwork": "需要联网和 API 密钥",
+        "networkDisabledTitle": "此安装已关闭直连 AI 服务商",
+        "networkDisabledBody": "此 Adminium 配置为无出站网络访问，无法连接服务商 API。请使用下方的复制粘贴往返方式——无需密钥，也无需联网。"
       },
       "configure": {
         "heading": "配置 {provider}"
@@ -469,7 +473,9 @@ export default {
         "guarantee2": "不嵌入任何凭据、实例 URL 或标识符。",
         "guarantee3": "BYO 运行不进行任何网络调用，也绝不计费。",
         "promptVersion": "提示词 {version}",
-        "schemaVersion": "架构 {version}"
+        "schemaVersion": "架构 {version}",
+        "headingRecommended": "使用你自己的 AI 工具——无需密钥",
+        "recommended": "推荐"
       },
       "history": {
         "heading": "运行历史",
@@ -527,7 +533,8 @@ export default {
         "description": "立即使用已配置的提供商运行丰富。你将以差异形式审阅每条建议。",
         "unconfigured": "尚未配置 AI 提供商——请在下方将提示复制到你自己的工具，或先配置一个提供商。",
         "settingsHint": "想直接运行吗？",
-        "settingsLink": "在“设置 → AI”中配置提供商"
+        "settingsLink": "在“设置 → AI”中配置提供商",
+        "networkDisabled": "此 Adminium 无出站网络访问，无法连接服务商 API。请改用复制粘贴往返方式——同样的提示词，同样的审阅。"
       },
       "byo": {
         "cardTitle": "复制提示到我自己的 AI 工具",
@@ -559,7 +566,8 @@ export default {
         "pendingBodyChunked": "每个分块都必须先验证，建议才会合并。请粘贴并验证上方的每个提示。",
         "requestFailed": "无法连接服务器进行验证——请重试。",
         "continueReview": "继续审阅",
-        "wholeDocument": "整个文档"
+        "wholeDocument": "整个文档",
+        "cardTitleRecommended": "把提示词复制到我自己的 AI 工具——推荐"
       },
       "direct": {
         "title": "正在使用 AI 丰富",
@@ -1116,6 +1124,148 @@ export default {
       "savedOn": "下次启动时需要登录",
       "savedOff": "Adminium 将在这台电脑上跳过登录",
       "saveFailed": "无法保存该设置，请重试。"
+    },
+    "chip": {
+      "local": "本地",
+      "lanShare": "本地 · 已在局域网共享",
+      "remoteDb": "本地 + 远程数据库",
+      "remoteDbOffline": "远程数据库离线",
+      "remoteDbOfflineDetail": "无法连接 {names}。这些连接的页面会显示重新连接状态。"
+    },
+    "lan": {
+      "heading": "在局域网中共享",
+      "label": "允许此网络中的其他设备使用 Adminium",
+      "description": "同一网络中的其他电脑、平板和手机可以在浏览器中打开 Adminium，并用各自的账户登录。Adminium 必须在这台电脑上保持打开，他们才能访问。",
+      "savedOn": "正在局域网中共享",
+      "savedOff": "已停止共享 — Adminium 恢复为仅限这台电脑",
+      "saveFailed": "无法更改网络共享",
+      "noUsers": "目前只有你拥有账户，因此还没有其他人能登录。共享仍然可用 — 只是需要先邀请其他人才能使用。",
+      "usersUnknown": "Adminium 无法检查这台电脑上还有谁拥有账户。共享仍然有效，任何拥有账户的人都可以登录——只有这项检查失败了。",
+      "acknowledge": "我知道了 — 我接下来会邀请其他人",
+      "port": "端口",
+      "portHelper": "默认 {port}",
+      "portInvalid": "请输入 1024 到 65535 之间的数字。",
+      "applyPort": "更改端口",
+      "portInUse": "端口 {port} 已被其他程序占用。",
+      "portInUseHint": "未做任何更改 — 共享仍处于关闭状态。",
+      "portInUseNoSuggestion": "未做任何更改。请尝试其他端口。",
+      "tryPort": "尝试 {port}",
+      "urlsHeading": "在其他设备上打开",
+      "noUrls": "这台电脑当前未连接到网络，因此没有可共享的地址。连接 Wi-Fi 或插入网线后，此列表会自动填充。",
+      "copyUrl": "复制",
+      "sessions": "{count, plural, =0 {没有来自此网络的设备登录} other {已有 # 台设备从此网络登录}}",
+      "sessionsUnknown": "正在检查已连接的设备…",
+      "pending": "正在开始共享…",
+      "mismatch": "Adminium 在此网络中仍可访问",
+      "mismatchBody": "共享已关闭，但服务器尚未释放网络。请重启 Adminium 以关闭它。",
+      "transportTitle": "局域网中的流量未加密。",
+      "transportBody": "仅在你信任的网络中共享。如需远程访问，请使用置于 HTTPS 之后的 Adminium 自托管版本。",
+      "firewall": "首次共享时，操作系统会询问是否允许传入连接 — 请选择\"允许\"，否则其他设备将无法访问 Adminium。"
+    },
+    "setup": {
+      "title": "欢迎使用 Adminium",
+      "subtitle": "只需四个简短步骤，Adminium 就能从你的数据库生成一个管理应用。所有内容都保留在这台电脑上。",
+      "progress": "设置进度",
+      "back": "上一步",
+      "continue": "继续",
+      "createAccount": "创建账户并继续",
+      "step": {
+        "location": "欢迎",
+        "database": "你的第一个数据库",
+        "account": "你的账户",
+        "generate": "生成"
+      },
+      "dataDir": {
+        "heading": "Adminium 应该把你的数据保存在哪里？",
+        "description": "你的数据库、设置和备份都存放在这个文件夹中。所有内容都保留在这台电脑上——不会上传到任何地方。",
+        "label": "数据文件夹",
+        "loading": "正在读取当前位置…",
+        "pending": "继续时 Adminium 会重启，以便切换到这个文件夹。",
+        "change": "更改…",
+        "revert": "撤销",
+        "dialogTitle": "选择 Adminium 保存数据的位置",
+        "cloudSyncTitle": "该文件夹会同步到云端",
+        "cloudSyncWarning": "Adminium 将数据存储在 SQLite 文件中。{provider} 会在后台复制“{folder}”中的文件进行同步，这可能损坏正在打开的数据库——并在毫无提示的情况下丢失数据。请选择 {provider} 之外的文件夹。",
+        "chooseAnother": "选择其他文件夹",
+        "useAnyway": "仍然使用——我接受风险",
+        "unusableTitle": "Adminium 无法使用该文件夹",
+        "failed": "Adminium 无法使用该文件夹。"
+      },
+      "source": {
+        "heading": "Adminium 应该基于什么来构建？",
+        "description": "Adminium 会读取数据库的结构并据此生成管理应用。你之后可以添加更多数据库。",
+        "groupLabel": "数据库来源",
+        "local": {
+          "title": "创建新的本地数据库",
+          "description": "从零开始，或使用你已有的结构文件。数据库会创建在你的数据文件夹中。",
+          "name": "数据库名称",
+          "namePlaceholder": "运营",
+          "nameUnusable": "请至少使用一个字母或数字——文件名由此生成。",
+          "fileHelper": "将创建 {file}",
+          "schemaLabel": "起始方式",
+          "blank": "空白",
+          "fromFile": "结构文件",
+          "schemaFile": "结构文件",
+          "schemaFileHelper": ".sql、pg_dump、Prisma、Drizzle、TypeORM、Sequelize、schema.rb、Django 或 Adminium JSON。Adminium 会将其转换为 SQLite。",
+          "placeholder": "自动生成占位数据",
+          "placeholderHelper": "你导入的结构没有数据行。为每个表填充逼真的示例数据，让仪表板和图表立刻能够呈现。"
+        },
+        "openSqlite": {
+          "title": "打开现有的 SQLite 文件",
+          "description": "让 Adminium 指向这台电脑上的 .sqlite 文件。文件会在原位打开——不会复制或移动。",
+          "browse": "选择一个 .sqlite 文件…",
+          "change": "选择其他文件…",
+          "networkTitle": "该文件位于网络共享上",
+          "networkBody": "SQLite 的锁机制在网络文件共享上并不可靠，写入过程中断开连接可能损坏数据库。复制到这台电脑本地磁盘上更安全。"
+        },
+        "remote": {
+          "title": "连接到服务器数据库",
+          "description": "PostgreSQL 或 MySQL。需要一个可访问的网络数据库；Adminium 自身的数据表仍然保留在这台电脑上。",
+          "networkNote": "需要一个可访问的网络数据库",
+          "metaNote": "无论如何，Adminium 自身的数据表——你的页面、设置和登录信息——都保留在这台电脑的数据文件夹中。",
+          "engine": "引擎",
+          "name": "连接名称",
+          "namePlaceholder": "生产环境",
+          "dsn": "连接字符串",
+          "dsnHelper": "Adminium 会在连接时测试它。如果你只需要仪表板，请使用只读角色。"
+        },
+        "demo": {
+          "title": "体验演示数据库",
+          "description": "一个现成的团队运营数据库，让你在指向自己的数据之前先看看 Adminium 会构建出什么。你可以随时删除它。",
+          "unavailable": "此版本不包含演示数据，因此没有可加载的内容。请选择上面的某个选项。"
+        }
+      },
+      "account": {
+        "heading": "创建你的账户",
+        "description": "这是这份 Adminium 的管理员账户。密码用于保护你的备份以及你在网络上共享的对象——每次启动时不会向你索取密码。",
+        "name": "你的姓名",
+        "email": "邮箱",
+        "password": "密码",
+        "passwordHelper": "至少 {min} 个字符。",
+        "confirm": "确认密码",
+        "strength": "密码强度",
+        "strengthLevels": {
+          "weak": "弱",
+          "fair": "一般",
+          "good": "良好",
+          "strong": "强"
+        },
+        "singleUser": "在这台电脑上跳过登录",
+        "singleUserHelper": "在这里打开时，Adminium 会自动为你登录。如果其他人也使用这台机器，请关闭此项。你之后可以在 设置 → 桌面 中更改。",
+        "locale": "语言",
+        "theme": "外观",
+        "alreadyExists": "这份 Adminium 已经有一个账户。请改用该账户登录。",
+        "failed": "Adminium 无法创建该账户。"
+      },
+      "generate": {
+        "creating": "正在设置你的数据库…",
+        "introspecting": "正在读取你的结构——表、列和关系…",
+        "working": "处理中…",
+        "offlineNote": "这一切都在这台电脑上完成。",
+        "failedTitle": "Adminium 无法设置该数据库",
+        "failedBody": "出了点问题。请重试。",
+        "retry": "重试"
+      }
     }
   }
 } as const;

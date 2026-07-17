@@ -107,10 +107,26 @@ export interface MenuHandlers {
 
 /**
  * §14: "Adminium Docs ↗" opens the system browser. `https:` only, per §2.4's
- * external-link policy — this constant is the one place a docs URL exists in the
- * shell, so it is the only thing `check-offline-assets.mjs` (§7) has to allow.
+ * external-link policy.
+ *
+ * MUST equal `@adminium/dashboard`'s `kb/docsLinks.ts` `DOCS_BASE_URL`, which
+ * calls itself "the one place the docs site's origin is written down" and is
+ * right to — this is a second place, and it exists only because the shell may
+ * not import the dashboard (`.dependency-cruiser.cjs`'s `desktop-shell-only`
+ * rule: `apps/desktop` may import `@adminium/server` and nothing else). Change
+ * both together; `menu.test.ts` pins the value so the drift is a red test rather
+ * than a Help menu that lands on a parked domain.
+ *
+ * No `/docs` suffix: 14-docs-site.md §3 puts the site AT `docs.adminium.ai`, so
+ * the origin is the docs home (the same URL `DOCS_SEARCH_URL` resolves to).
+ *
+ * NOT covered by `check-offline-assets.mjs`: that scanner's roots are the
+ * renderer and dashboard builds (§7), never `out/main`, so nothing here is
+ * checked against its allowlist. An earlier version of this comment claimed it
+ * was, which is how `adminium.io` — a host the scanner does not allow and would
+ * have failed on sight — survived in the shipped Help menu.
  */
-export const DOCS_URL = 'https://adminium.io/docs';
+export const DOCS_URL = 'https://docs.adminium.ai';
 
 export interface BuildAppMenuOptions {
   /** `process.platform`. Drives the mac app menu and the mac-only Edit items. */

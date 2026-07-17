@@ -18,6 +18,8 @@ import { fnv1a } from '@adminium/charts';
 
 import { widgetRegistry } from '../../registry/index.js';
 import { queryDescriptorSchema, type PageLayout, type QueryDescriptor } from '../../page-config/index.js';
+import { resolveOfflineWidgetId } from '../../registry/offline.js';
+import { useWidgetRuntimeEnv } from '../../frame/WidgetRuntimeContext.js';
 import type { WidgetDataState } from '../../frame/WidgetHost.js';
 import type { WidgetDefinition } from '../../registry/types.js';
 
@@ -70,15 +72,22 @@ export function useDashboardData(
     return requests;
   }, [layout]);
 
+  // §7's offline policy decides WHICH widget mounts, so it must also decide
+  // whose `demoData` runs — `WidgetHost` resolves the id before it reads the
+  // registry, and this used to read the registry with the STORED id. On desktop
+  // that fed a map-bubble's lat/lng points to the choropleth tilegram: a blank
+  // map with a list of world cities under it. See `useResolvedWidgetId`.
+  const runtimeEnv = useWidgetRuntimeEnv();
+
   const demoStates = useMemo<DashboardDataStates>(() => {
     const boundIds = new Set(bound.map((request) => request.instanceId));
     const states: DashboardDataStates = {};
     for (const item of layout.items) {
       if (adapter !== undefined && boundIds.has(item.i)) continue;
-      states[item.i] = demoState(item.i, registry.get(item.widget));
+      states[item.i] = demoState(item.i, registry.get(resolveOfflineWidgetId(item.widget, runtimeEnv)));
     }
     return states;
-  }, [layout, bound, adapter, registry]);
+  }, [layout, bound, adapter, registry, runtimeEnv]);
 
   const [remoteStates, setRemoteStates] = useState<DashboardDataStates>({});
   const generation = useRef(0);

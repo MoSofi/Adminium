@@ -48,6 +48,8 @@ import type {
   DesktopUpdateEvent,
   OpenFileOptions,
   SaveFileOptions,
+  SetDataDirOptions,
+  SetDataDirResult,
   Unsubscribe,
 } from './api.js';
 import {
@@ -207,6 +209,9 @@ export function createDesktopApi(deps: Pick<PreloadDeps, 'ipc' | 'bootstrap'>): 
 
     setConfig: (patch: DesktopConfigPatch): Promise<void> =>
       unwrap(ipc.invoke(IPC_CHANNELS.setConfig, patch)),
+
+    setDataDir: (opts: SetDataDirOptions): Promise<SetDataDirResult> =>
+      unwrap(ipc.invoke(IPC_CHANNELS.setDataDir, opts)),
 
     checkForUpdates: (): Promise<DesktopUpdateCheckResult> =>
       unwrap(ipc.invoke(IPC_CHANNELS.checkForUpdates)),

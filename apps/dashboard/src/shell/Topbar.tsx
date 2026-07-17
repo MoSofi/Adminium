@@ -1,8 +1,9 @@
 /**
  * Sticky translucent topbar (09-generated-app.md §5.1, ia-mapping §5
- * color-mix + blur keeper): current page title, global search affordance
- * (`/` focuses, click opens ⌘K), chord-pending indicator ("G…"), theme
- * toggle, NotificationBell placeholder, and the avatar menu.
+ * color-mix + blur keeper): current page title, the desktop runtime chip
+ * (11-electron.md §8.1), global search affordance (`/` focuses, click opens
+ * ⌘K), chord-pending indicator ("G…"), theme toggle, NotificationBell
+ * placeholder, and the avatar menu.
  */
 import { Bell, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
 import {
@@ -25,6 +26,7 @@ import {
 
 import type { BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { RuntimeChipHost } from './RuntimeChipHost.js';
 import { useChordPending } from './ShortcutsProvider.js';
 
 export interface TopbarProps {
@@ -49,6 +51,13 @@ export function Topbar({ bootstrap, title, onOpenPalette, onSignOut, onOpenAccou
       className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-[color-mix(in_srgb,var(--bg)_82%,transparent)] px-4 backdrop-blur-[8px]"
     >
       <h1 className="min-w-0 truncate text-section text-fg">{title}</h1>
+
+      {/* 11-electron.md §8.1: "The topbar … gains a runtime chip next to the
+          environment area, desktop only." There is no environment chip in the
+          shell yet (03's app-shell reserves the slot), so the chip takes the
+          slot beside the title — the same position, and the one place a fact
+          about WHICH Adminium this is belongs. Renders `null` off-desktop. */}
+      <RuntimeChipHost />
 
       {pending === null ? null : (
         <span data-part="chord-pending" className="text-caption font-bold text-fg-subtle">

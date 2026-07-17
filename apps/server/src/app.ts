@@ -301,7 +301,7 @@ export async function buildServer(opts: BuildServerOptions = {}) {
       );
   });
 
-  await registerRoutes(app);
+  await registerRoutes(app, env);
 
   // Auth + me + bootstrap resources (08-server-api.md §2.1–§2.2,
   // 09-generated-app.md §2.1) under the same prefix.

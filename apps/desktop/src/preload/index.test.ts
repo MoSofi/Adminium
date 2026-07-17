@@ -98,6 +98,12 @@ describe('the exposed surface', () => {
     'relaunch',
     'saveFile',
     'setConfig',
+    // NOT in §4's listing, and deliberately so: §6 step 1's "Change…" needs a
+    // COMMIT, which `setConfig` must not be. Moving the data dir relaunches the
+    // app and can refuse (cloud-sync path, non-empty target), so it gets its own
+    // channel with its own gate rather than becoming a key `setConfigSchema`
+    // exists to reject. See `main/ipc.ts`'s `setDataDirSchema`.
+    'setDataDir',
     'showItemInFolder',
     'showLogs',
     'versions',

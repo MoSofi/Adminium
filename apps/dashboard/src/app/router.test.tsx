@@ -106,10 +106,70 @@ describe('system-state routes', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * 11-electron.md §8.2 row 1: hosted-plan surfaces are "not rendered at all"
+   * outside Cloud. `/state/suspended` is the one the SPA can reach — a 402
+   * billing screen whose "Update payment" button already goes nowhere on
+   * self-host and desktop, because there is no billing here to update.
+   */
+  it('404s the Cloud-only billing state rather than rendering it', async () => {
+    await renderAt('/state/suspended', { authed: false });
+    expect(await screen.findByText('This page went missing')).toBeDefined();
+    expect(screen.queryByText('This workspace is suspended')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Update payment/ })).toBeNull();
+  });
+
   it('renders the branded 404 for unknown routes', async () => {
     await renderAt('/totally/unknown', { authed: false });
     expect(await screen.findByText('This page went missing')).toBeDefined();
     expect(screen.getByText(/req_[0-9a-f]/)).toBeDefined();
     expect(screen.getByText('Popular destinations')).toBeDefined();
+  });
+
+  /**
+   * ─── THE DESKTOP APP'S FRONT DOOR (11-electron.md §6, §2.2 step 8) ─────────
+   *
+   * `apps/desktop/src/main/index.ts`'s `appUrl({ firstRun: true, … })` navigates
+   * the BrowserWindow to `<origin>/desktop/setup` on EVERY launch with no
+   * `config.json`, and only the wizard at that path writes one. So this route
+   * missing is not a dead link — it is a product that can never be set up: the
+   * user lands on the 404, cannot create the super-admin, `firstRun` stays true,
+   * and the next launch does it again.
+   *
+   * That shipped. The route did not exist, TanStack fell through to
+   * `notFoundComponent`, and `main/index.test.ts` asserted
+   * `appUrl({firstRun: true, …})` === 'http://127.0.0.1:4600/desktop/setup' and
+   * PASSED the whole time — because string-comparing a URL builder never asks
+   * whether anything answers at that URL.
+   *
+   * This test asks. It drives the REAL route tree at the REAL path and requires
+   * something other than the 404, which is the one assertion the URL-builder
+   * test structurally could not make.
+   */
+  it('serves the desktop first-run wizard at /desktop/setup — the URL main navigates to', async () => {
+    // `authed: false` is the honest fixture: a first run has ZERO users, so
+    // bootstrap 401s. A wizard behind an auth guard would be unreachable exactly
+    // when it is needed, which is why the route is a child of root and not of
+    // `appRoute`.
+    await renderAt('/desktop/setup', { authed: false });
+
+    expect(await screen.findByText('Where should Adminium keep your data?')).toBeDefined();
+    // The 404 this route used to render. Named explicitly: "the heading is
+    // present" would also pass if the wizard rendered *underneath* a 404.
+    expect(screen.queryByText('This page went missing')).toBeNull();
+    // And it did not bounce to the login nobody can satisfy on a fresh install.
+    expect(screen.queryByText('Welcome back')).toBeNull();
+  });
+
+  it('does not send the desktop wizard to /login the way an app-route child would', async () => {
+    // The regression a future refactor is most likely to introduce: moving
+    // `desktopSetupRoute` under `appRoute` for tidiness. `appRoute.beforeLoad`
+    // ensures a bootstrap and redirects a 401 to `/login?returnTo=…`, so the
+    // wizard would vanish behind a sign-in form on precisely the install that
+    // has no account to sign in with.
+    const { router } = await renderAt('/desktop/setup', { authed: false });
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/desktop/setup');
+    });
   });
 });

@@ -34,6 +34,7 @@ import { settingsRepo } from '@adminium/meta';
 import { buildServer, type AdminiumServer } from './app.js';
 import type { Env } from './config/env.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
+import { dsnCryptoFromSecret } from './connections/crypto.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { UndoStore } from './crud/undo.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
@@ -47,6 +48,11 @@ import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
 import { auditRoutes } from './routes/audit/index.js';
 import { desktopSessionRoutes } from './routes/auth/desktop-session.js';
+import { desktopRoutes } from './routes/desktop/index.js';
+import { demoSeedScriptPath } from './desktop/demo-seed.js';
+import { desktopDemoRoutes } from './routes/desktop-demo/index.js';
+import { desktopLanRoutes } from './routes/desktop-lan/index.js';
+import { desktopLocalDbRoutes } from './routes/desktop-local-db/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { generateRoutes } from './routes/generate/index.js';
@@ -62,7 +68,7 @@ import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
 import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
-import type { MetaStoreHandle } from './meta/store.js';
+import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
 
 /**
  * Daily, at 04:00 UTC, with an hour of jitter (below). Telemetry is the least
@@ -113,6 +119,32 @@ export interface ComposedServer {
    * the answer from the same two env vars this module already read.
    */
   desktopSessionEnabled: boolean;
+  /**
+   * True when `GET /desktop/lan-share` was registered (11-electron.md §8.3) —
+   * i.e. this is the Electron shell's child. Mirrors
+   * {@link ComposedServer.desktopSessionEnabled} and is reported for the same
+   * reason: which desktop-only doors a composed server opened is a fact a caller
+   * should read rather than re-derive.
+   */
+  desktopLanEnabled: boolean;
+  /**
+   * True when `POST /desktop/local-database` was registered (§6 step 2 card 1).
+   */
+  desktopLocalDbEnabled: boolean;
+  /**
+   * True when `POST /desktop/demo-database` was registered (§6 step 2 card 4) —
+   * i.e. desktop runtime AND a seed script to run. The wizard hides the card
+   * when this is false, which is why the two flags are reported separately
+   * rather than as one "desktop extras" boolean.
+   */
+  desktopDemoEnabled: boolean;
+  /**
+   * True when `POST /desktop/backup` was registered (§9). Reported for the same
+   * reason as its siblings: the shell's BackupCoordinator drives the File menu
+   * and the 03:00 scheduler off this route, so "does the door exist" is a fact a
+   * caller reads rather than re-derives.
+   */
+  desktopBackupEnabled: boolean;
 }
 
 /**
@@ -216,10 +248,98 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     await mirrorDesktopSingleUser(meta, env.ADMINIUM_DESKTOP_SINGLE_USER);
   }
 
+  /**
+   * §8.3's share panel, behind gate 1 of `routes/desktop-lan/index.ts`.
+   *
+   * ONE condition, unlike the boot-token door above, and the asymmetry is
+   * deliberate. That route needs a token to exchange, so a desktop boot without
+   * one has nothing to serve. This one reports on the SOCKET this process is
+   * bound to, which every desktop boot has — including (especially) a
+   * loopback-only one, where the honest answer `active: false` is what tells the
+   * panel that a toggle the user flipped has not taken effect.
+   */
+  const desktopLan = env.ADMINIUM_RUNTIME === 'desktop';
+
+  /**
+   * §6 step 2's two server-side source cards — "Create a new local database"
+   * (card 1) and "Explore the demo database" (card 4).
+   *
+   * Both are gated on the runtime for the same reason, and it is not the §5
+   * reason: neither mints a credential, and both do exactly what
+   * `POST /connections` does, under the same `system:connections:manage` grant.
+   * What makes them desktop-only is their SUBJECT. Both write into
+   * `<dataDir>/databases/`, a directory that exists because the Electron shell
+   * created it and passed `ADMINIUM_DATA_DIR` (§2.2 step 5). On Docker that path
+   * is inside a container, so a database created there is one the user can
+   * neither find with a file dialog, back up, nor delete — a button that appears
+   * to work and produces something unreachable.
+   *
+   * The demo carries a second condition, and it is load-bearing in the same way
+   * the boot token is for §5: with no seed script there is nothing to run, so the
+   * route would be an unreachable surface and the wizard hides the card instead
+   * of offering a demo it cannot seed.
+   */
+  const desktopLocalDb = env.ADMINIUM_RUNTIME === 'desktop';
+  // `demoSeedScriptPath` rather than the condition inline: `/system/info`'s
+  // `desktopDemo` flag reports whether this route exists, and the wizard gates
+  // its fourth source card on that answer. Two spellings of one condition is a
+  // card that offers a 404 (or hides a working one) the day they diverge.
+  const seedScriptPath = demoSeedScriptPath(env);
+  const desktopDemo = seedScriptPath === null ? null : { seedScriptPath };
+
+  /**
+   * §9's backup, behind gate 1 of `routes/desktop/index.ts` (the route's own
+   * header documents gates 2 and 3 — loopback peer, then `settings:manage`).
+   *
+   * One condition, like the LAN panel and for the same reason: every desktop
+   * boot has data to back up. What makes it desktop-only is `<dataDir>/backups`
+   * and `config.json` — self-host's answer to "back up my instance" is
+   * `adminium export-zip` plus whatever backs up its Postgres.
+   *
+   * `metaPath` is derived rather than passed because §2.1 makes it an invariant:
+   * the meta store is ALWAYS local SQLite on desktop (`ADMINIUM_META_DSN=
+   * sqlite:<dataDir>/meta.db`, §2.2 step 5), even when the source DB is a remote
+   * Postgres. `metaStore.url` is therefore the one true answer to "which file is
+   * the live meta store", and asking the caller to repeat it would let the two
+   * drift — the backup would snapshot a file the server is not using.
+   */
+  const desktopBackup = env.ADMINIUM_RUNTIME === 'desktop';
+
   await app.register(
     async (api) => {
       if (desktopSession !== null) {
         await api.register(desktopSessionRoutes({ meta, bootToken: desktopSession.bootToken }));
+      }
+      // AFTER `rbacPlugin` above, which is what `app.rbac.require` needs to
+      // exist at registration time — the reason this lives here and not in
+      // `buildServer`'s route block, where `settingsManage` could not be
+      // enforced at all.
+      if (desktopLan) {
+        await api.register(desktopLanRoutes({ meta, env }));
+      }
+      // Also after `rbacPlugin`: both guard on `system:connections:manage`.
+      if (desktopLocalDb) {
+        await api.register(desktopLocalDbRoutes({ manager, dataDir: env.ADMINIUM_DATA_DIR }));
+      }
+      if (desktopDemo !== null) {
+        await api.register(
+          desktopDemoRoutes({
+            manager,
+            dataDir: env.ADMINIUM_DATA_DIR,
+            seedScriptPath: desktopDemo.seedScriptPath,
+          }),
+        );
+      }
+      // Also after `rbacPlugin`: guards on `system:settings:manage`.
+      if (desktopBackup) {
+        await api.register(
+          desktopRoutes({
+            meta,
+            crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
+            dataDir: env.ADMINIUM_DATA_DIR,
+            metaPath: sqlitePathFromUrl(opts.metaStore.url),
+          }),
+        );
       }
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
@@ -278,5 +398,14 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     await manager.disposeAll();
   });
 
-  return { app, jobs, llmEnabled: llm !== null, desktopSessionEnabled: desktopSession !== null };
+  return {
+    app,
+    jobs,
+    llmEnabled: llm !== null,
+    desktopSessionEnabled: desktopSession !== null,
+    desktopLanEnabled: desktopLan,
+    desktopLocalDbEnabled: desktopLocalDb,
+    desktopDemoEnabled: desktopDemo !== null,
+    desktopBackupEnabled: desktopBackup,
+  };
 }
