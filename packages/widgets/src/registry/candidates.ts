@@ -65,6 +65,12 @@ export interface CandidateTable {
   id: string;
   schema?: string | undefined;
   name: string;
+  /**
+   * Effective display label (override channel, provenance user > llm >
+   * heuristic). No rule reads it — it rides the mirror so the engine's
+   * envelope wrap can title pages `label ?? humanize(name)`.
+   */
+  label?: string | undefined;
   kind?: 'table' | 'view' | 'materialized-view' | undefined;
   /** ESTIMATE only (05 §8); null ⇔ unknown. */
   rowCountEstimate?: number | null | undefined;

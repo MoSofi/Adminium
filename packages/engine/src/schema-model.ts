@@ -277,6 +277,14 @@ const tableModelBaseSchema = z.strictObject({
   id: z.string().min(1).optional(),
   schema: z.string().min(1).default('public'),
   name: z.string().min(1),
+  /**
+   * Effective display label (Studio remap `table.label` / accepted LLM
+   * `llm.label`, provenance user > llm > heuristic). Never emitted by
+   * introspection — snapshots stay label-free; the server overlays it onto
+   * the parsed model before generation so title fallbacks read
+   * `table.label ?? humanize(table.name)`. Absent ⇔ heuristic naming.
+   */
+  label: z.string().min(1).optional(),
   kind: z.enum(['table', 'view', 'materialized-view']).default('table'),
   comment: z.string().nullable().default(null),
   columns: z.array(columnModelSchema).min(1),

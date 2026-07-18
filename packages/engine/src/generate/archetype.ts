@@ -109,6 +109,7 @@ function toCandidateTable(model: DatabaseModel, table: TableModel): CandidateTab
     id: table.id,
     schema: table.schema,
     name: table.name,
+    label: table.label,
     kind: table.kind,
     rowCountEstimate: table.rowCountEstimate,
     writeVelocity:
@@ -260,7 +261,7 @@ export function buildArchetypeEnvelope(
   if (composed.page === null) return { envelope: null, warnings: composed.warnings };
 
   const suffix = ARCHETYPE_TITLE[selection.template] ?? 'Page';
-  const title = `${humanize(table.name)} ${suffix}`;
+  const title = `${table.label ?? humanize(table.name)} ${suffix}`;
 
   return {
     warnings: composed.warnings,

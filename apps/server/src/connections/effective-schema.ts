@@ -42,21 +42,96 @@ function tableId(table: TableModel): string {
   return table.id;
 }
 
+/** Locale every connection resolves L10n bundles to in v1 (06 §6.1: always required). */
+const DEFAULT_LOCALE = 'en_US';
+
+/** Resolve one §8.3 locale→string map to `locale`, falling back to en_US. */
+function resolveLocalized(map: unknown, locale: string): string | null {
+  if (typeof map !== 'object' || map === null || Array.isArray(map)) return null;
+  const rec = map as Record<string, unknown>;
+  const candidate = rec[locale] ?? rec[DEFAULT_LOCALE];
+  return typeof candidate === 'string' && candidate.length > 0 ? candidate : null;
+}
+
+/**
+ * Effective table-label map (`tableName` → label) from active override rows.
+ * Provenance user > llm > heuristic (06 §8.3): a user `table.label` row beats
+ * an accepted `llm.label` bundle for the same table REGARDLESS of created_at
+ * order; within one origin, later rows win (§3.15). `llm.label` values are
+ * localized bundles — resolved to the connection's default locale (en_US).
+ *
+ * Shared by {@link applyOverrides} (the read path) and the generation
+ * pipeline (`generate/run.ts` overlays it onto the parsed model so generated
+ * page titles — and through `adminium_pages`, the sidebar nav — carry
+ * renames).
+ */
+export function activeTableLabels(
+  overrides: readonly SchemaOverride[],
+  defaultLocale: string = DEFAULT_LOCALE,
+): Map<string, string> {
+  const labels = new Map<string, string>();
+  const userLabeled = new Set<string>();
+  for (const row of overrides) {
+    if (row.status !== 'active') continue;
+    const op: string = row.op;
+    if (op === 'table.label') {
+      // ANY active user row locks the table against llm bundles — including a
+      // degenerate empty label (the write path now rejects '', but legacy rows
+      // may exist). '' acts as an explicit clear so §3.15 later-row-wins holds
+      // verbatim without ever emitting a label the engine's min(1) forbids.
+      userLabeled.add(row.tableName);
+      const label = row.value.label;
+      if (typeof label === 'string' && label.length > 0) {
+        labels.set(row.tableName, label);
+      } else {
+        labels.delete(row.tableName);
+      }
+    } else if (op === 'llm.label' && row.columnName === null && !userLabeled.has(row.tableName)) {
+      const resolved = resolveLocalized(row.value.label, defaultLocale);
+      if (resolved !== null) labels.set(row.tableName, resolved);
+    }
+  }
+  return labels;
+}
+
+export interface ApplyOverridesOptions {
+  /** Locale `llm.label` L10n bundles resolve to; en_US in v1. */
+  defaultLocale?: string;
+}
+
 /** Apply active override rows (already in created_at order) onto a snapshot model. */
-export function applyOverrides(model: DatabaseModel, overrides: readonly SchemaOverride[]): EffectiveModel {
+export function applyOverrides(
+  model: DatabaseModel,
+  overrides: readonly SchemaOverride[],
+  opts: ApplyOverridesOptions = {},
+): EffectiveModel {
+  const locale = opts.defaultLocale ?? DEFAULT_LOCALE;
   const effective = structuredClone(model) as unknown as EffectiveModel;
   const tables = new Map<string, EffectiveTable>(effective.tables.map((t) => [tableId(t as TableModel), t]));
   const columnOf = (table: EffectiveTable | undefined, name: string | null): EffectiveColumn | undefined =>
     table?.columns.find((c) => c.name === name);
 
+  // Provenance user > llm for COLUMN labels too: a user `column.label` row
+  // locks its column against the llm bundle regardless of created_at order.
+  const userLabeledColumns = new Set<string>();
+  for (const row of overrides) {
+    if (row.status === 'active' && (row.op as string) === 'column.label' && row.columnName !== null) {
+      userLabeledColumns.add(`${row.tableName}\u0000${row.columnName}`);
+    }
+  }
+
   for (const row of overrides) {
     if (row.status !== 'active') continue;
     const table = tables.get(row.tableName);
     const value: Record<string, unknown> = row.value;
-    switch (row.op) {
+    switch (row.op as string) {
       case 'table.label': {
         if (table === undefined) break;
-        table.label = value.label as string;
+        // Empty label = explicit clear (legacy rows only — the write path
+        // rejects ''); mirrors activeTableLabels so both paths agree.
+        const label = value.label;
+        if (typeof label === 'string' && label.length > 0) table.label = label;
+        else delete table.label;
         if (typeof value.labelPlural === 'string') table.labelPlural = value.labelPlural;
         if (typeof value.icon === 'string') table.icon = value.icon;
         break;
@@ -71,7 +146,12 @@ export function applyOverrides(model: DatabaseModel, overrides: readonly SchemaO
       }
       case 'column.label': {
         const column = columnOf(table, row.columnName);
-        if (column !== undefined) column.label = value.label as string;
+        if (column === undefined) break;
+        // Same '' = explicit clear normalization as table.label; the row still
+        // locks the column against llm bundles via userLabeledColumns.
+        const label = value.label;
+        if (typeof label === 'string' && label.length > 0) column.label = label;
+        else delete column.label;
         break;
       }
       case 'column.semanticType': {
@@ -117,6 +197,21 @@ export function applyOverrides(model: DatabaseModel, overrides: readonly SchemaO
         if (column !== undefined) column.hidden = value.hidden === true;
         break;
       }
+      case 'llm.label': {
+        // §8.3 label bundle (origin 'llm'): `value.label` is a locale→string
+        // map; table-scoped when columnName is null, column-scoped otherwise.
+        // Silently skipped before M11 — the accepted rename never reached the
+        // effective model. TABLE labels are folded in by the post-loop
+        // `activeTableLabels` pass (single home for the user>llm precedence);
+        // only the column scope is handled here.
+        if (row.columnName === null) break;
+        if (userLabeledColumns.has(`${row.tableName}\u0000${row.columnName}`)) break;
+        const column = columnOf(table, row.columnName);
+        if (column === undefined) break;
+        const resolved = resolveLocalized(value.label, locale);
+        if (resolved !== null) column.label = resolved;
+        break;
+      }
       case 'relation.add': {
         const from = row.tableName;
         const relation: EffectiveRelation = {
@@ -157,6 +252,14 @@ export function applyOverrides(model: DatabaseModel, overrides: readonly SchemaO
       }
     }
   }
+
+  // Table labels last, from the ONE precedence-aware resolver — a user
+  // `table.label` beats an accepted `llm.label` bundle whichever came first.
+  for (const [name, label] of activeTableLabels(overrides, locale)) {
+    const table = tables.get(name);
+    if (table !== undefined) table.label = label;
+  }
+
   return effective;
 }
 

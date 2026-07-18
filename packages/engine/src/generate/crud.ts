@@ -58,7 +58,7 @@ export function buildCrudEnvelope(
     kind: 'page',
     id: pageIdFor(ctx.connectionId, ctx.slug),
     template: 'page-crud',
-    title: { key: `nav.${ctx.slug}`, fallback: humanize(table.name) },
+    title: { key: `nav.${ctx.slug}`, fallback: table.label ?? humanize(table.name) },
     source: { connectionId: ctx.connectionId, table: table.id },
     nav: { group: ctx.navGroup, icon: ctx.navIcon, order: ctx.navOrder, slug: ctx.slug },
     access: {

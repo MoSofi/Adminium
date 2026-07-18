@@ -172,13 +172,21 @@ export type ConnectionSettings = z.infer<typeof connectionSettingsSchema>;
 const toneSchema = z.string();
 
 export const overridePatchSchema = z.discriminatedUnion('op', [
+  // Labels are min(1): the engine's `TableModel.label` forbids '' and an empty
+  // rename is meaningless (the remap UI drops the op instead of staging '').
+  // Rejecting at write time keeps §3.15 last-write-wins + user>llm provenance
+  // free of empty-string special cases on the read path.
   z.object({
     op: z.literal('table.label'),
-    value: z.object({ label: z.string(), labelPlural: z.string().optional(), icon: z.string().optional() }),
+    value: z.object({
+      label: z.string().min(1),
+      labelPlural: z.string().optional(),
+      icon: z.string().optional(),
+    }),
   }),
   z.object({ op: z.literal('table.exclude'), value: z.object({ excluded: z.boolean() }) }),
   z.object({ op: z.literal('table.keyField'), value: z.object({ column: z.string() }) }),
-  z.object({ op: z.literal('column.label'), value: z.object({ label: z.string() }) }),
+  z.object({ op: z.literal('column.label'), value: z.object({ label: z.string().min(1) }) }),
   z.object({
     op: z.literal('column.semanticType'),
     value: z.object({ semanticType: z.string(), currency: z.string().optional() }),

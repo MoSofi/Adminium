@@ -18,6 +18,7 @@ import {
 } from '@adminium/engine';
 import { pageEnvelopeSchema, type PageEnvelope } from '@adminium/engine/config';
 import {
+  overridesRepo,
   pagesRepo,
   snapshotsRepo,
   type GeneratedPageInput,
@@ -25,6 +26,7 @@ import {
   type UpsertGeneratedResult,
 } from '@adminium/meta';
 
+import { activeTableLabels } from '../connections/effective-schema.js';
 import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { materializeLlmPages } from './materialize-llm.js';
@@ -128,6 +130,22 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
     parseDatabaseModel(snapshot.schema),
     connection.settings.includedTables,
   );
+
+  // Overlay effective table labels (user `table.label` > accepted `llm.label`,
+  // provenance 06 §8.3) onto the parsed model BEFORE generation, so every
+  // renamed table's page titles — and through `adminium_pages`, the sidebar
+  // nav — carry the rename. The stored snapshot stays label-free; this is a
+  // per-run, in-memory attachment. L10n bundles resolve to the connection's
+  // default locale (en_US in v1).
+  const overrides = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
+  const labels = activeTableLabels(overrides);
+  if (labels.size > 0) {
+    for (const table of model.tables) {
+      const label = labels.get(table.id);
+      if (label !== undefined) table.label = label;
+    }
+  }
+
   const { pages, warnings } = generatePages(model, { connectionId, intent });
 
   // Belt and braces: the engine validated on emit; the server re-validates

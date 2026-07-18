@@ -241,6 +241,21 @@ for (const dialect of TEST_DIALECTS) {
         await expect(
           overrides.create({ connectionId: conn.id, op: 'column.label', tableName: 't', value: { label: 'X' } }),
         ).rejects.toThrow(MetaValidationError);
+        // Empty labels refuse to persist — the engine's TableModel.label is
+        // min(1) and the read path treats '' as an explicit clear, so a stored
+        // '' would only exist as a legacy/degenerate row.
+        await expect(
+          overrides.create({ connectionId: conn.id, op: 'table.label', tableName: 't', value: { label: '' } }),
+        ).rejects.toThrow(MetaValidationError);
+        await expect(
+          overrides.create({
+            connectionId: conn.id,
+            op: 'column.label',
+            tableName: 't',
+            columnName: 'c',
+            value: { label: '' },
+          }),
+        ).rejects.toThrow(MetaValidationError);
         await expect(
           overrides.create({
             connectionId: conn.id,

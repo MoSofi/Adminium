@@ -128,13 +128,21 @@ export function detectDomains(model: DatabaseModel, tables: readonly TableModel[
     const schema = hubTable?.schema ?? 'public';
     const meaningful = schema !== 'public' && schema !== 'main' && schema !== model.name;
     const rawLabel = meaningful ? humanize(schema) : humanize(hub);
-    const label = meaningful
+    const heuristic = meaningful
       ? rawLabel
       : rawLabel
           .split(' ')
           .map((w, i, all) => (i === all.length - 1 ? pluralizeWord(w) : w))
           .join(' ');
-    return { key: slugify(label), label, tableIds: members, hubTableId: hub };
+    // A hub table carrying an effective label (Studio remap / accepted LLM
+    // rename) names the domain verbatim — it is already human-authored, so it
+    // is never pluralized. The KEY stays heuristic-derived: it feeds dashboard
+    // slugs and page ids, which must not move when a table is renamed.
+    // DELIBERATE asymmetry: in a meaningful (named) schema the SCHEMA names
+    // the domain, so renaming the hub table retitles its crud/archetype pages
+    // but NOT the '<Domain> Dashboard' — the schema name stays authoritative.
+    const label = meaningful ? heuristic : (hubTable?.label ?? heuristic);
+    return { key: slugify(heuristic), label, tableIds: members, hubTableId: hub };
   };
 
   const domains = [...components.values()].map(named);

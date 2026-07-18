@@ -40,7 +40,14 @@ test.describe('studio connect wizard (DSN mode)', () => {
     await page.getByRole('radio', { name: /Same database/ }).click();
     await page.getByRole('button', { name: 'Continue', exact: true }).click();
 
-    // Step 6 — generate → success → into the app.
+    // Step 6 — Enrich with AI (M6): Continue stays disabled until a path is
+    // chosen; this leg keeps the heuristic baseline (mirrors the enrich-step
+    // interaction of llm-enrichment.spec.ts, which takes the BYO path).
+    await expect(page.getByRole('heading', { name: 'Enrich with AI' })).toBeVisible();
+    await page.getByRole('radio', { name: /Skip — use heuristics only/ }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+    // Step 7 — generate → success → into the app.
     await page.getByRole('button', { name: 'Generate dashboard' }).click();
     await expect(page.getByText('Your dashboard is ready')).toBeVisible({ timeout: 120_000 });
     await page.getByRole('button', { name: 'Open your app' }).click();

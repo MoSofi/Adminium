@@ -21,7 +21,8 @@ export interface EffectiveColumn extends ColumnModel {
 
 export interface EffectiveTable extends Omit<TableModel, 'columns'> {
   columns: EffectiveColumn[];
-  label?: string;
+  /** Widened to match engine `TableModel.label` (now carries the field) under exactOptionalPropertyTypes. */
+  label?: string | undefined;
   labelPlural?: string;
   icon?: string;
   excluded?: boolean;
