@@ -108,15 +108,15 @@ describe('system-state routes', () => {
 
   /**
    * 11-electron.md §8.2 row 1: hosted-plan surfaces are "not rendered at all"
-   * outside Cloud. `/state/suspended` is the one the SPA can reach — a 402
-   * billing screen whose "Update payment" button already goes nowhere on
-   * self-host and desktop, because there is no billing here to update.
+   * outside Cloud. `/state/suspended` is the one the SPA can reach — the 402
+   * workspace-suspended screen, which a self-host/desktop instance can never
+   * legitimately produce.
    */
-  it('404s the Cloud-only billing state rather than rendering it', async () => {
+  it('404s the Cloud-only suspended state rather than rendering it', async () => {
     await renderAt('/state/suspended', { authed: false });
     expect(await screen.findByText('This page went missing')).toBeDefined();
     expect(screen.queryByText('This workspace is suspended')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Update payment/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Contact owner/ })).toBeNull();
   });
 
   it('renders the branded 404 for unknown routes', async () => {

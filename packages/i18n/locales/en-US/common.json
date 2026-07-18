@@ -5,7 +5,11 @@
     "retry": "Retry",
     "undo": "Undo",
     "close": "Close",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "back": "Back",
+    "loading": "Loading",
+    "clearSearch": "Clear search",
+    "save": "Save"
   },
   "auth": {
     "headline": "Turn any database into a dashboard.",
@@ -76,12 +80,26 @@
     "connection": {
       "shared": "Shared",
       "unnamed": "Connection"
+    },
+    "imports": "Import data",
+    "exports": "Data exports",
+    "emailTemplates": "Email templates",
+    "notificationSettings": "Notification settings",
+    "scheduledReports": "Scheduled reports",
+    "group": {
+      "workspace": "Workspace",
+      "library": "Library",
+      "planning": "Planning",
+      "people": "People",
+      "account": "Account"
     }
   },
   "topbar": {
     "search": "Search…",
     "notifications": "Notifications",
-    "notificationsSoon": "Notifications arrive with the notification center (M7).",
+    "notificationsLoading": "Loading notifications",
+    "notificationsError": "Couldn’t load notifications.",
+    "notificationsEmpty": "You’re all caught up.",
     "theme": "Toggle light / dark",
     "userMenu": "Account menu",
     "profile": "Profile",
@@ -214,6 +232,19 @@
       "saved": "Workspace defaults updated",
       "saveFailed": "Could not save workspace defaults. Try again.",
       "liveNote": "Saving broadcasts the change live — signed-in users who follow a default see it apply without a reload."
+    },
+    "notifications": {
+      "subtitle": "Choose what you’re notified about and how",
+      "matrixLabel": "Notify me about",
+      "rowHeader": "Event",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "unavailable": "Not available yet",
+      "loading": "Loading preferences",
+      "errorTitle": "These settings failed to load",
+      "emptyTitle": "Nothing to configure yet",
+      "emptyBody": "Notification events appear here as producers ship.",
+      "saveFailed": "Could not save this change."
     }
   },
   "studio": {
@@ -463,7 +494,7 @@
         "guaranteeTitle": "Telemetry-free guarantee",
         "guarantee1": "The prompt carries only your schema and aggregate stats — never row data by default.",
         "guarantee2": "No credentials, instance URL, or identifiers are embedded.",
-        "guarantee3": "BYO runs make zero network calls and are never metered.",
+        "guarantee3": "BYO runs make zero network calls.",
         "promptVersion": "Prompt {version}",
         "schemaVersion": "Schema {version}",
         "headingRecommended": "Use your own AI tool — no key needed",
@@ -840,7 +871,14 @@
       "chrome": "Navigation",
       "system": "System",
       "domain": "Domain"
-    }
+    },
+    "versions": "Versions",
+    "versionsEmpty": "No saved versions yet",
+    "saveAsVersion": "Save as version",
+    "saveVersionTitle": "Save a version",
+    "saveVersionBody": "Snapshots the current document. Restore it any time from Versions.",
+    "versionName": "Version name",
+    "versionNamePlaceholder": "e.g. Before Q3 rates change"
   },
   "setup": {
     "title": "Set up Adminium",
@@ -1382,6 +1420,255 @@
       "revokeNote": "You can revoke this at any time in Settings → Desktop. Only allow apps you trust.",
       "deny": "Not now",
       "approve": "Allow"
+    }
+  },
+  "emailTemplates": {
+    "title": "Email templates",
+    "subtitle": "Transactional and lifecycle emails your workspace sends.",
+    "search": "Search templates…",
+    "loadFailed": "Couldn’t load templates",
+    "empty": "No email templates yet",
+    "emptyBody": "Templates appear here once the server seeds or you create them.",
+    "noMatches": "No matching templates",
+    "noMatchesBody": "Try a different search.",
+    "live": "Live",
+    "disabled": "Disabled",
+    "name": "Template name",
+    "subject": "Subject",
+    "enabled": "Enabled"
+  },
+  "board": {
+    "addCard": "Add card",
+    "compose": {
+      "placeholder": "Card title…",
+      "add": "Add",
+      "cancel": "Cancel"
+    },
+    "empty": {
+      "title": "No board columns",
+      "body": "Add a status field to group cards into columns."
+    }
+  },
+  "calendar": {
+    "dateRange": "Date range",
+    "compose": {
+      "placeholder": "Event title…",
+      "add": "Add",
+      "cancel": "Cancel",
+      "open": "Add event"
+    },
+    "agenda": {
+      "empty": "Nothing scheduled"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "week": "Week",
+    "month": "Month",
+    "resource": "Resource",
+    "coverage": "Coverage",
+    "addShift": "Add shift",
+    "shiftCount": "{n} shifts"
+  },
+  "planning": {
+    "drawer": {
+      "close": "Close",
+      "loading": "Loading record",
+      "error": "Could not load this record."
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "Uploads are not available on this page yet."
+  },
+  "chat": {
+    "messageSent": "Message sent",
+    "sendFailed": "The message could not be sent."
+  },
+  "templates": {
+    "crud": {
+      "title": "Records"
+    },
+    "dashboard": {
+      "title": "Dashboard"
+    },
+    "board": {
+      "title": "Board"
+    },
+    "calendar": {
+      "title": "Calendar"
+    },
+    "scheduler": {
+      "title": "Scheduler"
+    },
+    "logViewer": {
+      "title": "Logs"
+    },
+    "files": {
+      "title": "Files"
+    },
+    "chat": {
+      "title": "Chat"
+    },
+    "builder": {
+      "title": "Builder"
+    },
+    "wizard": {
+      "title": "Wizard"
+    },
+    "settings": {
+      "title": "Settings"
+    },
+    "directory": {
+      "title": "Directory",
+      "searchPlaceholder": "Search people…",
+      "allFilter": "All",
+      "clearFilters": "Clear filters",
+      "detailTitle": "Person",
+      "emptyTitle": "No people yet",
+      "emptyBody": "People appear here as rows land in the table.",
+      "noMatchesTitle": "No matching people",
+      "noMatchesBody": "Try a different search or remove a filter.",
+      "errorTitle": "This directory failed to load",
+      "loading": "Loading people",
+      "memberCount": "{count} people"
+    },
+    "masterDetail": {
+      "title": "List & detail",
+      "allFilter": "All",
+      "clearFilters": "Clear filters",
+      "emptyTitle": "Nothing here yet",
+      "emptyBody": "Records appear here as rows land in the table.",
+      "noMatchesTitle": "No matching records",
+      "noMatchesBody": "Try removing a filter.",
+      "errorTitle": "This list failed to load",
+      "loading": "Loading records",
+      "selectPrompt": "Select a record"
+    },
+    "queueInbox": {
+      "title": "Queue",
+      "approve": "Approve",
+      "reject": "Reject",
+      "allSegment": "All",
+      "approvedToast": "{count} approved.",
+      "rejectedToast": "{count} rejected.",
+      "undoneToast": "Decision undone.",
+      "failedToast": "Decision failed.",
+      "bulkFailed": "{failed} of {total} selected rows could not be updated.",
+      "undoFailedToast": "Could not undo this decision.",
+      "rejectTitle": "Reject requests",
+      "rejectCount": "Selected · {count}",
+      "rejectNote": "The requester will be notified with your note.",
+      "rejectPlaceholder": "Add a note for the requester…",
+      "rejectConfirm": "Reject",
+      "emptyTitle": "Nothing in the queue",
+      "emptyBody": "New requests appear here as they arrive.",
+      "caughtUpTitle": "You’re all caught up",
+      "caughtUpBody": "No requests in this tab right now.",
+      "errorTitle": "This queue failed to load",
+      "loading": "Loading queue",
+      "selectPrompt": "Select a request",
+      "daysUnit": "{count} days"
+    }
+  },
+  "dataio": {
+    "back": "Back",
+    "import": {
+      "title": "Import data",
+      "stepUpload": "Upload",
+      "stepMap": "Map columns",
+      "stepValidate": "Validate",
+      "stepRun": "Import & review",
+      "targetLabel": "Target table",
+      "targetPlaceholder": "Choose a table page…",
+      "notATable": "That page is not a table — pick a table page to import into.",
+      "dropTitle": "Drop a CSV file to import",
+      "dropHint": "CSV up to 32 MB — the first row must be the header",
+      "skipTarget": "Don’t import",
+      "mapHint": "{count} data rows in {file} — choose a target for each column.",
+      "validating": "Validating…",
+      "toValidate": "Validate",
+      "validateFailed": "Validation failed.",
+      "validationSummary": "{valid} of {total} rows ready to import — {invalid} will be skipped.",
+      "allValid": "All rows passed validation",
+      "run": "Run import",
+      "runSkipping": "Import {valid} rows (skip {invalid})",
+      "progressLabel": "Import progress",
+      "running": "Importing…",
+      "kpiTotal": "Rows in file",
+      "kpiCreated": "Created",
+      "kpiUpdated": "Updated",
+      "kpiSkipped": "Skipped",
+      "inconsistent": "Import numbers are inconsistent — total must equal created + updated + skipped.",
+      "downloadErrors": "Download the skipped-rows report (CSV)",
+      "runFailed": "The import failed."
+    },
+    "exports": {
+      "title": "Data exports",
+      "tableLabel": "Table",
+      "tablePlaceholder": "Choose a table…",
+      "notATable": "That page is not a table — pick a table page to export.",
+      "formatLabel": "Format",
+      "create": "Export",
+      "createFailed": "Could not request the export.",
+      "retention": "Exports are kept for 30 days, then expire.",
+      "statusProcessing": "Processing…",
+      "statusReady": "Ready — {rows} rows · click to download",
+      "statusFailed": "Failed — {error}",
+      "statusCancelled": "Cancelled",
+      "statusExpired": "Expired",
+      "emptyTitle": "No exports yet",
+      "emptyBody": "Request one above — artifacts appear here with their status."
+    }
+  },
+  "reports": {
+    "title": "Scheduled reports",
+    "subtitle": "Recurring data snapshots of a page, delivered as in-app notifications.",
+    "new": "New report",
+    "loadFailed": "Could not load scheduled reports.",
+    "saveFailed": "Could not save this report.",
+    "nextRun": "Next run",
+    "emptyTitle": "No scheduled reports yet",
+    "emptyBody": "Create one to get a recurring data snapshot of any table page.",
+    "createTitle": "New scheduled report",
+    "editTitle": "Edit scheduled report",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Weekly revenue",
+    "pageLabel": "Page",
+    "pagePlaceholder": "Choose a page…",
+    "frequencyLabel": "Frequency",
+    "frequency": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "dayOfWeekLabel": "Day",
+    "dayOfMonthLabel": "Day of month",
+    "timeLabel": "Time",
+    "timezoneLabel": "Timezone",
+    "formatLabel": "Delivery",
+    "formatHint": "Data snapshot (PDF/PNG rendering arrives in a later release) — each run produces a CSV snapshot and an in-app notification.",
+    "recipientsLabel": "Recipients",
+    "recipientsHint": "Stored with the report. Email delivery arrives in a later release — runs notify you in-app for now.",
+    "deliveryBadge": "CSV snapshot",
+    "delete": "Delete",
+    "create": "Create",
+    "cadence": {
+      "daily": "Daily at {time} ({zone})",
+      "weekly": "Weekly · {day} at {time} ({zone})",
+      "monthly": "Monthly · day {day} at {time} ({zone})"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "In-app",
+      "email": "Email",
+      "push": "Push"
+    },
+    "event": {
+      "reportReady": "Scheduled report ready",
+      "reportFailed": "Scheduled report failed",
+      "backupCompleted": "Backup completed"
     }
   }
 }

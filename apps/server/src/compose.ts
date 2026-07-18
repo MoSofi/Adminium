@@ -29,7 +29,7 @@
  */
 
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
-import { settingsRepo } from '@adminium/meta';
+import { exportsRepo, filesRepo, settingsRepo, type EnqueueJobInput } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from './app.js';
 import type { Env } from './config/env.js';
@@ -37,7 +37,13 @@ import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { UndoStore } from './crud/undo.js';
+import { createFileStorage } from './files/storage.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
+import {
+  SCHEDULED_REPORTS_POLL_CRON,
+  SCHEDULED_REPORTS_POLL_NAME,
+  enqueueDueReports,
+} from './jobs/report-run.js';
 import type { ApplyService } from './llm/apply-service.js';
 import type { CollectRunStats } from './llm/prompt-service.js';
 import { createProviderResolver } from './llm/provider-resolver.js';
@@ -56,12 +62,17 @@ import { desktopLocalDbRoutes } from './routes/desktop-local-db/index.js';
 import { desktopCapabilityRoutes } from './routes/desktop-capabilities/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
+import { emailTemplatesRoutes } from './routes/email-templates/index.js';
+import { exportsRoutes } from './routes/exports/index.js';
 import { generateRoutes } from './routes/generate/index.js';
+import { importsRoutes } from './routes/imports/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
+import { notificationsRoutes } from './routes/notifications/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
 import { pagesRoutes } from './routes/pages/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
+import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
@@ -82,6 +93,16 @@ export const TELEMETRY_SCHEDULE_NAME = 'telemetry-ping';
 export const TELEMETRY_CRON = '0 4 * * *';
 /** De-synchronize a fleet so a self-host cohort does not ping in lockstep. */
 export const TELEMETRY_JITTER_MS = 60 * 60 * 1000;
+
+/**
+ * Daily export-retention sweep (M7-T07): flips `ready` → `expired` on
+ * `adminium_exports` rows past `expires_at`, then GCs the expired artifacts'
+ * BYTES (`filesRepo.markDeleted` + `storage.remove`) so a snapshot never
+ * outlives the "kept for 30 days, then expire" promise on disk. Offset from
+ * the telemetry ping so the two dailies never contend.
+ */
+export const EXPORTS_RETENTION_SCHEDULE_NAME = 'exports-retention-sweep';
+export const EXPORTS_RETENTION_CRON = '30 4 * * *';
 
 export interface ComposeServerOptions {
   env: Env;
@@ -209,9 +230,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           };
         })();
 
+  // Artifact storage for the data-io pipeline (M7-T07): exports, imports and
+  // scheduled-report snapshots all live under `<dataDir>/files/`.
+  const storage = createFileStorage({ dataDir: env.ADMINIUM_DATA_DIR });
+
   const jobs = await registerJobsAndRealtime(app, {
     meta,
     resolveUser: (req) => req.user ?? null,
+    // Registers the export-run / import-run / report-run handlers on the shared
+    // registry — the same instances the exports/imports routes receive below.
+    dataIo: { manager, storage },
     // The realtime hub authorizes a SUBSCRIBED USER, not a request, so it cannot
     // reuse `request.can()` (which caches per request and needs a principal on
     // one). It goes through the same resolver + the same decision function the
@@ -367,6 +395,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
       await api.register(dataRoutes({ manager, meta, undoStore }));
+      // M7 data-io + reports/notifications (T5/T6): exports and imports share
+      // the jobs pipeline wired above; scheduled reports ride the same registry
+      // via the poll schedule below.
+      const enqueueDataIo = (input: EnqueueJobInput) => jobs.enqueue(input);
+      await api.register(exportsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
+      await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
+      await api.register(notificationsRoutes({ meta, hub: jobs.hub }));
+      await api.register(scheduledReportsRoutes({ meta }));
+      await api.register(emailTemplatesRoutes({ meta }));
       await api.register(generateRoutes({ manager, meta }));
       await api.register(schemaImportRoutes());
       await api.register(pagesRoutes({ meta }));
@@ -414,6 +451,29 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       { jitterMs: TELEMETRY_JITTER_MS },
     );
   }
+
+  // Scheduled-reports poll (M7 T6): every minute, enqueue a `report-run` job
+  // per due report. `enqueueDueReports` dedupes per occurrence
+  // (`report-run:<id>:<nextRunAt>`), so overlapping ticks collapse; the
+  // scheduler's own no-overlap guard rides on top.
+  jobs.scheduler.registerSchedule(SCHEDULED_REPORTS_POLL_NAME, SCHEDULED_REPORTS_POLL_CRON, async () => {
+    await enqueueDueReports(meta, (input) => jobs.enqueue(input));
+  });
+
+  // Export retention (M7-T07): daily `ready` → `expired` sweep past
+  // `expires_at`, then byte GC — expired snapshots (potentially unmasked PII)
+  // must not persist on disk past the promised retention window. `remove` is
+  // idempotent and the worklist re-derives from rows, so a crash mid-pass
+  // self-heals on the next tick.
+  jobs.scheduler.registerSchedule(EXPORTS_RETENTION_SCHEDULE_NAME, EXPORTS_RETENTION_CRON, async () => {
+    const repo = exportsRepo(meta);
+    await repo.expireDue();
+    const files = filesRepo(meta);
+    for (const artifact of await repo.listExpiredArtifacts()) {
+      await files.markDeleted(artifact.fileId);
+      await storage.remove(artifact.storageKey);
+    }
+  });
 
   // The manager owns live source-DB pools; the server owns the manager's
   // lifetime once it is listening (the CLI hands it over at `startServer`).

@@ -5,7 +5,11 @@
     "retry": "Zkusit znovu",
     "undo": "Vrátit zpět",
     "close": "Zavřít",
-    "cancel": "Zrušit"
+    "cancel": "Zrušit",
+    "back": "Zpět",
+    "loading": "Načítání",
+    "clearSearch": "Vymazat hledání",
+    "save": "Uložit"
   },
   "auth": {
     "headline": "Proměňte jakoukoli databázi v přehledový panel.",
@@ -76,12 +80,26 @@
     "connection": {
       "shared": "Sdílené",
       "unnamed": "Připojení"
+    },
+    "imports": "Import dat",
+    "exports": "Exporty dat",
+    "emailTemplates": "E-mailové šablony",
+    "notificationSettings": "Nastavení oznámení",
+    "scheduledReports": "Naplánované sestavy",
+    "group": {
+      "workspace": "Pracovní prostor",
+      "library": "Knihovna",
+      "planning": "Plánování",
+      "people": "Lidé",
+      "account": "Účet"
     }
   },
   "topbar": {
     "search": "Hledat…",
     "notifications": "Oznámení",
-    "notificationsSoon": "Oznámení dorazí spolu s centrem oznámení (M7).",
+    "notificationsLoading": "Načítání oznámení",
+    "notificationsError": "Oznámení se nepodařilo načíst.",
+    "notificationsEmpty": "Vše vyřízeno.",
     "theme": "Přepnout světlý / tmavý režim",
     "userMenu": "Nabídka účtu",
     "profile": "Profil",
@@ -214,6 +232,19 @@
       "saved": "Výchozí nastavení prostoru aktualizována",
       "saveFailed": "Výchozí nastavení prostoru se nepodařilo uložit. Zkuste to znovu.",
       "liveNote": "Uložení rozešle změnu naživo — přihlášení uživatelé, kteří se řídí výchozím nastavením, ji uvidí bez opětovného načtení."
+    },
+    "notifications": {
+      "subtitle": "Zvolte, o čem a jak budete informováni",
+      "matrixLabel": "Upozornit mě na",
+      "rowHeader": "Událost",
+      "saving": "Ukládání…",
+      "saved": "Uloženo",
+      "unavailable": "Zatím není k dispozici",
+      "loading": "Načítání předvoleb",
+      "errorTitle": "Tato nastavení se nepodařilo načíst",
+      "emptyTitle": "Zatím není co nastavovat",
+      "emptyBody": "Události oznámení se zde objeví, jakmile budou jejich producenti nasazeni.",
+      "saveFailed": "Tuto změnu se nepodařilo uložit."
     }
   },
   "studio": {
@@ -463,7 +494,7 @@
         "guaranteeTitle": "Záruka bez telemetrie",
         "guarantee1": "Prompt nese jen vaše schéma a agregované statistiky — ve výchozím stavu nikdy data řádků.",
         "guarantee2": "Nejsou vloženy žádné přihlašovací údaje, URL instance ani identifikátory.",
-        "guarantee3": "Běhy BYO nedělají žádné síťové volání a nikdy se neúčtují.",
+        "guarantee3": "Běhy BYO nedělají žádné síťové volání.",
         "promptVersion": "Prompt {version}",
         "schemaVersion": "Schéma {version}",
         "headingRecommended": "Použijte vlastní AI nástroj — klíč není potřeba",
@@ -840,7 +871,14 @@
       "chrome": "Navigace",
       "system": "Systém",
       "domain": "Doména"
-    }
+    },
+    "versions": "Verze",
+    "versionsEmpty": "Zatím žádné uložené verze",
+    "saveAsVersion": "Uložit jako verzi",
+    "saveVersionTitle": "Uložit verzi",
+    "saveVersionBody": "Vytvoří snímek aktuálního dokumentu. Kdykoli jej obnovíte z Verzí.",
+    "versionName": "Název verze",
+    "versionNamePlaceholder": "např. Před změnou sazeb za Q3"
   },
   "setup": {
     "title": "Nastavení Adminia",
@@ -1382,6 +1420,255 @@
       "revokeNote": "Toto můžete kdykoli odvolat v Nastavení → Plocha. Povolujte jen aplikace, kterým důvěřujete.",
       "deny": "Teď ne",
       "approve": "Povolit"
+    }
+  },
+  "emailTemplates": {
+    "title": "E-mailové šablony",
+    "subtitle": "Transakční e-maily a e-maily životního cyklu, které váš pracovní prostor odesílá.",
+    "search": "Hledat šablony…",
+    "loadFailed": "Šablony se nepodařilo načíst",
+    "empty": "Zatím žádné e-mailové šablony",
+    "emptyBody": "Šablony se zde objeví, jakmile je server založí nebo je vytvoříte.",
+    "noMatches": "Žádné odpovídající šablony",
+    "noMatchesBody": "Zkuste jiné hledání.",
+    "live": "Aktivní",
+    "disabled": "Vypnuto",
+    "name": "Název šablony",
+    "subject": "Předmět",
+    "enabled": "Zapnuto"
+  },
+  "board": {
+    "addCard": "Přidat kartu",
+    "compose": {
+      "placeholder": "Název karty…",
+      "add": "Přidat",
+      "cancel": "Zrušit"
+    },
+    "empty": {
+      "title": "Žádné sloupce nástěnky",
+      "body": "Přidejte stavové pole, aby se karty seskupily do sloupců."
+    }
+  },
+  "calendar": {
+    "dateRange": "Rozsah dat",
+    "compose": {
+      "placeholder": "Název události…",
+      "add": "Přidat",
+      "cancel": "Zrušit",
+      "open": "Přidat událost"
+    },
+    "agenda": {
+      "empty": "Nic naplánováno"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "Předchozí týden",
+    "nextWeek": "Další týden",
+    "week": "Týden",
+    "month": "Měsíc",
+    "resource": "Zdroj",
+    "coverage": "Pokrytí",
+    "addShift": "Přidat směnu",
+    "shiftCount": "{n} směn"
+  },
+  "planning": {
+    "drawer": {
+      "close": "Zavřít",
+      "loading": "Načítání záznamu",
+      "error": "Tento záznam se nepodařilo načíst."
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "Nahrávání na této stránce zatím není k dispozici."
+  },
+  "chat": {
+    "messageSent": "Zpráva odeslána",
+    "sendFailed": "Zprávu se nepodařilo odeslat."
+  },
+  "templates": {
+    "crud": {
+      "title": "Záznamy"
+    },
+    "dashboard": {
+      "title": "Přehled"
+    },
+    "board": {
+      "title": "Nástěnka"
+    },
+    "calendar": {
+      "title": "Kalendář"
+    },
+    "scheduler": {
+      "title": "Plánovač"
+    },
+    "logViewer": {
+      "title": "Protokoly"
+    },
+    "files": {
+      "title": "Soubory"
+    },
+    "chat": {
+      "title": "Chat"
+    },
+    "builder": {
+      "title": "Editor"
+    },
+    "wizard": {
+      "title": "Průvodce"
+    },
+    "settings": {
+      "title": "Nastavení"
+    },
+    "directory": {
+      "title": "Adresář",
+      "searchPlaceholder": "Hledat osoby…",
+      "allFilter": "Vše",
+      "clearFilters": "Vymazat filtry",
+      "detailTitle": "Osoba",
+      "emptyTitle": "Zatím žádné osoby",
+      "emptyBody": "Osoby se zde objeví, jakmile do tabulky přibudou řádky.",
+      "noMatchesTitle": "Žádné odpovídající osoby",
+      "noMatchesBody": "Zkuste jiné hledání nebo odeberte filtr.",
+      "errorTitle": "Tento adresář se nepodařilo načíst",
+      "loading": "Načítání osob",
+      "memberCount": "{count} osob"
+    },
+    "masterDetail": {
+      "title": "Seznam a detail",
+      "allFilter": "Vše",
+      "clearFilters": "Vymazat filtry",
+      "emptyTitle": "Zatím tu nic není",
+      "emptyBody": "Záznamy se zde objeví, jakmile do tabulky přibudou řádky.",
+      "noMatchesTitle": "Žádné odpovídající záznamy",
+      "noMatchesBody": "Zkuste odebrat filtr.",
+      "errorTitle": "Tento seznam se nepodařilo načíst",
+      "loading": "Načítání záznamů",
+      "selectPrompt": "Vyberte záznam"
+    },
+    "queueInbox": {
+      "title": "Fronta",
+      "approve": "Schválit",
+      "reject": "Zamítnout",
+      "allSegment": "Vše",
+      "approvedToast": "{count} schváleno.",
+      "rejectedToast": "{count} zamítnuto.",
+      "undoneToast": "Rozhodnutí vráceno zpět.",
+      "failedToast": "Rozhodnutí se nezdařilo.",
+      "bulkFailed": "{failed} z {total} vybraných řádků se nepodařilo aktualizovat.",
+      "undoFailedToast": "Toto rozhodnutí se nepodařilo vrátit zpět.",
+      "rejectTitle": "Zamítnout žádosti",
+      "rejectCount": "Vybráno · {count}",
+      "rejectNote": "Žadatel bude informován spolu s vaší poznámkou.",
+      "rejectPlaceholder": "Přidejte poznámku pro žadatele…",
+      "rejectConfirm": "Zamítnout",
+      "emptyTitle": "Ve frontě nic není",
+      "emptyBody": "Nové žádosti se zde objeví, jakmile dorazí.",
+      "caughtUpTitle": "Vše vyřízeno",
+      "caughtUpBody": "V této záložce teď nejsou žádné žádosti.",
+      "errorTitle": "Tuto frontu se nepodařilo načíst",
+      "loading": "Načítání fronty",
+      "selectPrompt": "Vyberte žádost",
+      "daysUnit": "{count} dní"
+    }
+  },
+  "dataio": {
+    "back": "Zpět",
+    "import": {
+      "title": "Import dat",
+      "stepUpload": "Nahrát",
+      "stepMap": "Namapovat sloupce",
+      "stepValidate": "Ověřit",
+      "stepRun": "Importovat a zkontrolovat",
+      "targetLabel": "Cílová tabulka",
+      "targetPlaceholder": "Vyberte stránku tabulky…",
+      "notATable": "Tato stránka není tabulka — vyberte stránku tabulky, do které se má importovat.",
+      "dropTitle": "Přetáhněte sem soubor CSV k importu",
+      "dropHint": "CSV do 32 MB — první řádek musí být hlavička",
+      "skipTarget": "Neimportovat",
+      "mapHint": "{count} datových řádků v {file} — vyberte cíl pro každý sloupec.",
+      "validating": "Ověřování…",
+      "toValidate": "Ověřit",
+      "validateFailed": "Ověření se nezdařilo.",
+      "validationSummary": "{valid} z {total} řádků připraveno k importu — {invalid} bude přeskočeno.",
+      "allValid": "Všechny řádky prošly ověřením",
+      "run": "Spustit import",
+      "runSkipping": "Importovat {valid} řádků (přeskočit {invalid})",
+      "progressLabel": "Průběh importu",
+      "running": "Importuje se…",
+      "kpiTotal": "Řádků v souboru",
+      "kpiCreated": "Vytvořeno",
+      "kpiUpdated": "Aktualizováno",
+      "kpiSkipped": "Přeskočeno",
+      "inconsistent": "Čísla importu nesedí — celkem se musí rovnat vytvořeno + aktualizováno + přeskočeno.",
+      "downloadErrors": "Stáhnout report přeskočených řádků (CSV)",
+      "runFailed": "Import se nezdařil."
+    },
+    "exports": {
+      "title": "Exporty dat",
+      "tableLabel": "Tabulka",
+      "tablePlaceholder": "Vyberte tabulku…",
+      "notATable": "Tato stránka není tabulka — vyberte stránku tabulky k exportu.",
+      "formatLabel": "Formát",
+      "create": "Exportovat",
+      "createFailed": "Export se nepodařilo vyžádat.",
+      "retention": "Exporty se uchovávají 30 dní, poté vyprší.",
+      "statusProcessing": "Zpracovává se…",
+      "statusReady": "Hotovo — {rows} řádků · stáhnete klepnutím",
+      "statusFailed": "Nezdařilo se — {error}",
+      "statusCancelled": "Zrušeno",
+      "statusExpired": "Vypršelo",
+      "emptyTitle": "Zatím žádné exporty",
+      "emptyBody": "Vyžádejte si jeden výše — artefakty se zde objeví se svým stavem."
+    }
+  },
+  "reports": {
+    "title": "Naplánované sestavy",
+    "subtitle": "Opakované datové snímky stránky doručované jako oznámení v aplikaci.",
+    "new": "Nová sestava",
+    "loadFailed": "Naplánované sestavy se nepodařilo načíst.",
+    "saveFailed": "Tuto sestavu se nepodařilo uložit.",
+    "nextRun": "Další spuštění",
+    "emptyTitle": "Zatím žádné naplánované sestavy",
+    "emptyBody": "Vytvořte jednu a získáte opakovaný datový snímek libovolné stránky tabulky.",
+    "createTitle": "Nová naplánovaná sestava",
+    "editTitle": "Upravit naplánovanou sestavu",
+    "nameLabel": "Název",
+    "namePlaceholder": "např. Týdenní tržby",
+    "pageLabel": "Stránka",
+    "pagePlaceholder": "Vyberte stránku…",
+    "frequencyLabel": "Frekvence",
+    "frequency": {
+      "daily": "Denně",
+      "weekly": "Týdně",
+      "monthly": "Měsíčně"
+    },
+    "dayOfWeekLabel": "Den",
+    "dayOfMonthLabel": "Den v měsíci",
+    "timeLabel": "Čas",
+    "timezoneLabel": "Časové pásmo",
+    "formatLabel": "Doručení",
+    "formatHint": "Datový snímek (vykreslování PDF/PNG dorazí v pozdější verzi) — každé spuštění vytvoří CSV snímek a oznámení v aplikaci.",
+    "recipientsLabel": "Příjemci",
+    "recipientsHint": "Uloženo se sestavou. Doručování e-mailem dorazí v pozdější verzi — spuštění vás zatím upozorní v aplikaci.",
+    "deliveryBadge": "CSV snímek",
+    "delete": "Smazat",
+    "create": "Vytvořit",
+    "cadence": {
+      "daily": "Denně v {time} ({zone})",
+      "weekly": "Týdně · {day} v {time} ({zone})",
+      "monthly": "Měsíčně · {day}. den v {time} ({zone})"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "V aplikaci",
+      "email": "E-mail",
+      "push": "Push"
+    },
+    "event": {
+      "reportReady": "Naplánovaná sestava připravena",
+      "reportFailed": "Naplánovaná sestava selhala",
+      "backupCompleted": "Záloha dokončena"
     }
   }
 }

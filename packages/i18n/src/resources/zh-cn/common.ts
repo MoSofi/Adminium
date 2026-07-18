@@ -13,7 +13,11 @@ export default {
     "retry": "重试",
     "undo": "撤销",
     "close": "关闭",
-    "cancel": "取消"
+    "cancel": "取消",
+    "back": "返回",
+    "loading": "加载中",
+    "clearSearch": "清除搜索",
+    "save": "保存"
   },
   "auth": {
     "headline": "把任何数据库变成仪表盘。",
@@ -84,12 +88,26 @@ export default {
     "connection": {
       "shared": "共享",
       "unnamed": "连接"
+    },
+    "imports": "导入数据",
+    "exports": "数据导出",
+    "emailTemplates": "邮件模板",
+    "notificationSettings": "通知设置",
+    "scheduledReports": "定时报告",
+    "group": {
+      "workspace": "工作区",
+      "library": "资源库",
+      "planning": "规划",
+      "people": "人员",
+      "account": "账户"
     }
   },
   "topbar": {
     "search": "搜索…",
     "notifications": "通知",
-    "notificationsSoon": "通知功能将随通知中心一起推出（M7）。",
+    "notificationsLoading": "正在加载通知",
+    "notificationsError": "无法加载通知。",
+    "notificationsEmpty": "没有新通知。",
     "theme": "切换浅色 / 深色",
     "userMenu": "账户菜单",
     "profile": "个人资料",
@@ -222,6 +240,19 @@ export default {
       "saved": "工作区默认值已更新",
       "saveFailed": "无法保存工作区默认值。请重试。",
       "liveNote": "保存后更改会实时推送——遵循默认值的在线用户无需刷新即可看到。"
+    },
+    "notifications": {
+      "subtitle": "选择通知内容与方式",
+      "matrixLabel": "通知我",
+      "rowHeader": "事件",
+      "saving": "保存中…",
+      "saved": "已保存",
+      "unavailable": "暂不可用",
+      "loading": "正在加载偏好设置",
+      "errorTitle": "无法加载这些设置",
+      "emptyTitle": "暂无可配置项",
+      "emptyBody": "随着功能上线，通知事件将显示在这里。",
+      "saveFailed": "无法保存此更改。"
     }
   },
   "studio": {
@@ -471,7 +502,7 @@ export default {
         "guaranteeTitle": "无遥测保证",
         "guarantee1": "提示词仅包含你的架构和聚合统计——默认绝不包含行数据。",
         "guarantee2": "不嵌入任何凭据、实例 URL 或标识符。",
-        "guarantee3": "BYO 运行不进行任何网络调用，也绝不计费。",
+        "guarantee3": "BYO 运行不进行任何网络调用。",
         "promptVersion": "提示词 {version}",
         "schemaVersion": "架构 {version}",
         "headingRecommended": "使用你自己的 AI 工具——无需密钥",
@@ -848,7 +879,14 @@ export default {
       "chrome": "导航",
       "system": "系统",
       "domain": "领域"
-    }
+    },
+    "versions": "版本",
+    "versionsEmpty": "还没有保存的版本",
+    "saveAsVersion": "保存为版本",
+    "saveVersionTitle": "保存版本",
+    "saveVersionBody": "为当前文档创建快照。可随时从“版本”中恢复。",
+    "versionName": "版本名称",
+    "versionNamePlaceholder": "例如：Q3 费率调整前"
   },
   "setup": {
     "title": "设置 Adminium",
@@ -1390,6 +1428,255 @@ export default {
       "revokeNote": "您可以随时在“设置 → 桌面”中撤销。仅允许您信任的应用。",
       "deny": "暂不",
       "approve": "允许"
+    }
+  },
+  "emailTemplates": {
+    "title": "邮件模板",
+    "subtitle": "工作区发送的事务性和生命周期邮件。",
+    "search": "搜索模板…",
+    "loadFailed": "无法加载模板",
+    "empty": "还没有邮件模板",
+    "emptyBody": "服务器初始化模板或您创建模板后，将显示在这里。",
+    "noMatches": "没有匹配的模板",
+    "noMatchesBody": "试试其他搜索词。",
+    "live": "已启用",
+    "disabled": "已禁用",
+    "name": "模板名称",
+    "subject": "主题",
+    "enabled": "已启用"
+  },
+  "board": {
+    "addCard": "添加卡片",
+    "compose": {
+      "placeholder": "卡片标题…",
+      "add": "添加",
+      "cancel": "取消"
+    },
+    "empty": {
+      "title": "没有看板列",
+      "body": "添加状态字段以将卡片分组到列中。"
+    }
+  },
+  "calendar": {
+    "dateRange": "日期范围",
+    "compose": {
+      "placeholder": "事件标题…",
+      "add": "添加",
+      "cancel": "取消",
+      "open": "添加事件"
+    },
+    "agenda": {
+      "empty": "暂无安排"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "上一周",
+    "nextWeek": "下一周",
+    "week": "周",
+    "month": "月",
+    "resource": "资源",
+    "coverage": "覆盖",
+    "addShift": "添加班次",
+    "shiftCount": "{n} 个班次"
+  },
+  "planning": {
+    "drawer": {
+      "close": "关闭",
+      "loading": "正在加载记录",
+      "error": "无法加载此记录。"
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "此页面暂不支持上传。"
+  },
+  "chat": {
+    "messageSent": "消息已发送",
+    "sendFailed": "消息发送失败。"
+  },
+  "templates": {
+    "crud": {
+      "title": "记录"
+    },
+    "dashboard": {
+      "title": "仪表盘"
+    },
+    "board": {
+      "title": "看板"
+    },
+    "calendar": {
+      "title": "日历"
+    },
+    "scheduler": {
+      "title": "排班"
+    },
+    "logViewer": {
+      "title": "日志"
+    },
+    "files": {
+      "title": "文件"
+    },
+    "chat": {
+      "title": "聊天"
+    },
+    "builder": {
+      "title": "构建器"
+    },
+    "wizard": {
+      "title": "向导"
+    },
+    "settings": {
+      "title": "设置"
+    },
+    "directory": {
+      "title": "通讯录",
+      "searchPlaceholder": "搜索人员…",
+      "allFilter": "全部",
+      "clearFilters": "清除筛选",
+      "detailTitle": "人员",
+      "emptyTitle": "还没有人员",
+      "emptyBody": "表中有数据后，人员将显示在这里。",
+      "noMatchesTitle": "没有匹配的人员",
+      "noMatchesBody": "试试其他搜索词或移除筛选。",
+      "errorTitle": "无法加载此通讯录",
+      "loading": "正在加载人员",
+      "memberCount": "{count} 人"
+    },
+    "masterDetail": {
+      "title": "列表与详情",
+      "allFilter": "全部",
+      "clearFilters": "清除筛选",
+      "emptyTitle": "这里还没有内容",
+      "emptyBody": "表中有数据后，记录将显示在这里。",
+      "noMatchesTitle": "没有匹配的记录",
+      "noMatchesBody": "试试移除筛选。",
+      "errorTitle": "无法加载此列表",
+      "loading": "正在加载记录",
+      "selectPrompt": "选择一条记录"
+    },
+    "queueInbox": {
+      "title": "队列",
+      "approve": "批准",
+      "reject": "拒绝",
+      "allSegment": "全部",
+      "approvedToast": "已批准 {count} 项。",
+      "rejectedToast": "已拒绝 {count} 项。",
+      "undoneToast": "已撤销该决定。",
+      "failedToast": "操作失败。",
+      "bulkFailed": "所选行中有 {failed}/{total} 行未能更新。",
+      "undoFailedToast": "无法撤销该决定。",
+      "rejectTitle": "拒绝请求",
+      "rejectCount": "已选 · {count}",
+      "rejectNote": "请求者将收到通知及您的备注。",
+      "rejectPlaceholder": "为请求者添加备注…",
+      "rejectConfirm": "拒绝",
+      "emptyTitle": "队列为空",
+      "emptyBody": "新请求到达后将显示在这里。",
+      "caughtUpTitle": "全部处理完毕",
+      "caughtUpBody": "此标签页当前没有请求。",
+      "errorTitle": "无法加载此队列",
+      "loading": "正在加载队列",
+      "selectPrompt": "选择一个请求",
+      "daysUnit": "{count} 天"
+    }
+  },
+  "dataio": {
+    "back": "返回",
+    "import": {
+      "title": "导入数据",
+      "stepUpload": "上传",
+      "stepMap": "映射列",
+      "stepValidate": "校验",
+      "stepRun": "导入并核查",
+      "targetLabel": "目标表",
+      "targetPlaceholder": "选择一个表页面…",
+      "notATable": "该页面不是数据表——请选择要导入的表页面。",
+      "dropTitle": "拖放 CSV 文件以导入",
+      "dropHint": "CSV 最大 32 MB——第一行必须是表头",
+      "skipTarget": "不导入",
+      "mapHint": "{file} 中有 {count} 行数据——请为每一列选择目标。",
+      "validating": "正在校验…",
+      "toValidate": "校验",
+      "validateFailed": "校验失败。",
+      "validationSummary": "{total} 行中有 {valid} 行可导入——将跳过 {invalid} 行。",
+      "allValid": "所有行均通过校验",
+      "run": "运行导入",
+      "runSkipping": "导入 {valid} 行（跳过 {invalid} 行）",
+      "progressLabel": "导入进度",
+      "running": "正在导入…",
+      "kpiTotal": "文件中的行数",
+      "kpiCreated": "已创建",
+      "kpiUpdated": "已更新",
+      "kpiSkipped": "已跳过",
+      "inconsistent": "导入数字不一致——总数必须等于已创建 + 已更新 + 已跳过。",
+      "downloadErrors": "下载跳过行报告（CSV）",
+      "runFailed": "导入失败。"
+    },
+    "exports": {
+      "title": "数据导出",
+      "tableLabel": "数据表",
+      "tablePlaceholder": "选择数据表…",
+      "notATable": "该页面不是数据表——请选择要导出的表页面。",
+      "formatLabel": "格式",
+      "create": "导出",
+      "createFailed": "无法发起导出。",
+      "retention": "导出文件保留 30 天后过期。",
+      "statusProcessing": "处理中…",
+      "statusReady": "已就绪——{rows} 行·点击下载",
+      "statusFailed": "失败——{error}",
+      "statusCancelled": "已取消",
+      "statusExpired": "已过期",
+      "emptyTitle": "还没有导出",
+      "emptyBody": "在上方发起导出——生成的文件将连同状态显示在这里。"
+    }
+  },
+  "reports": {
+    "title": "定时报告",
+    "subtitle": "页面的定期数据快照，以应用内通知送达。",
+    "new": "新建报告",
+    "loadFailed": "无法加载定时报告。",
+    "saveFailed": "无法保存此报告。",
+    "nextRun": "下次运行",
+    "emptyTitle": "还没有定时报告",
+    "emptyBody": "创建一个，即可定期获取任意表页面的数据快照。",
+    "createTitle": "新建定时报告",
+    "editTitle": "编辑定时报告",
+    "nameLabel": "名称",
+    "namePlaceholder": "例如：每周营收",
+    "pageLabel": "页面",
+    "pagePlaceholder": "选择页面…",
+    "frequencyLabel": "频率",
+    "frequency": {
+      "daily": "每天",
+      "weekly": "每周",
+      "monthly": "每月"
+    },
+    "dayOfWeekLabel": "星期",
+    "dayOfMonthLabel": "每月日期",
+    "timeLabel": "时间",
+    "timezoneLabel": "时区",
+    "formatLabel": "送达方式",
+    "formatHint": "数据快照（PDF/PNG 渲染将在后续版本推出）——每次运行都会生成 CSV 快照和应用内通知。",
+    "recipientsLabel": "收件人",
+    "recipientsHint": "与报告一起保存。邮件送达将在后续版本推出——目前运行结果以应用内通知提醒您。",
+    "deliveryBadge": "CSV 快照",
+    "delete": "删除",
+    "create": "创建",
+    "cadence": {
+      "daily": "每天 {time}（{zone}）",
+      "weekly": "每周 · {day} {time}（{zone}）",
+      "monthly": "每月 · {day} 日 {time}（{zone}）"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "应用内",
+      "email": "邮件",
+      "push": "推送"
+    },
+    "event": {
+      "reportReady": "定时报告已就绪",
+      "reportFailed": "定时报告失败",
+      "backupCompleted": "备份完成"
     }
   }
 } as const;

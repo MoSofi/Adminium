@@ -1,0 +1,19 @@
+{
+  "id": "page-wizard",
+  "version": 1,
+  "titleKey": "templates.wizard.title",
+  "slots": [
+    { "slot": "upload", "accepts": { "widgets": ["upload-dropzone", "option-cards"] },
+      "area": { "x": 0, "y": 0, "w": 12, "h": 6 }, "required": true },
+    { "slot": "mapping", "accepts": { "widgets": ["column-mapping-table"] },
+      "area": { "x": 0, "y": 6, "w": 12, "h": 8 }, "required": true },
+    { "slot": "validation", "accepts": { "widgets": ["validation-issues-list"] },
+      "area": { "x": 0, "y": 14, "w": 12, "h": 6 }, "required": true },
+    { "slot": "run-progress", "accepts": { "widgets": ["progress-bar"] },
+      "area": { "x": 0, "y": 20, "w": 12, "h": 2 }, "required": true },
+    { "slot": "review", "accepts": { "shapes": ["metric+delta", "single-metric"] },
+      "area": { "x": 0, "y": 22, "w": 3, "h": 3 }, "repeat": { "max": 4, "flow": "row" },
+      "fallback": "empty-state" }
+  ],
+  "chrome": { "overlays": ["toast-stack"] }
+}

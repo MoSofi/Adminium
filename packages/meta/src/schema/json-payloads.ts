@@ -87,6 +87,14 @@ export const SYSTEM_ACTION_KEYS = [
   'manifests.manage',
   'audit.read',
   'sql.run',
+  // M7 wave 2 — data-io (T5) + scheduled reports (T6). `exports.manage` /
+  // `imports.manage` gate seeing/downloading OTHER users' artifacts (lists are
+  // mine-only without them); `reports.manage` gates the scheduled-reports
+  // admin verbs. Email templates deliberately add NO key: PUT rides the
+  // existing `settings.manage` (T6 supersedes the builders track's assumption).
+  'exports.manage',
+  'imports.manage',
+  'reports.manage',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);

@@ -38,6 +38,14 @@ export function invalidateForRealtimeEvent(queryClient: QueryClient, event: Real
     return;
   }
 
+  // notifications:<userId> (M7 T6): fresh rows / read stamps → the sidebar
+  // unread badge, the notification feed and the prefs matrix share the
+  // ['notifications'] prefix.
+  if (event.channel.startsWith('notifications:')) {
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    return;
+  }
+
   const match = TABLE_CHANNEL.exec(event.channel);
   if (match === null) return;
   const [, connectionId, table] = match as unknown as [string, string, string];

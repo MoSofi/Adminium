@@ -48,9 +48,15 @@ describe('invalidateForRealtimeEvent', () => {
     ]);
   });
 
+  it('notifications:<userId> → the ["notifications"] prefix (badge/feed/prefs, M7 T6)', () => {
+    const { queryClient, invalidate } = spyClient();
+    invalidateForRealtimeEvent(queryClient, makeEvent('notifications:usr_1', 'notification.created'));
+    expect(invalidate.mock.calls.map((call) => call[0]?.queryKey)).toEqual([['notifications']]);
+  });
+
   it('ignores unrelated channels', () => {
     const { queryClient, invalidate } = spyClient();
-    invalidateForRealtimeEvent(queryClient, makeEvent('notifications:usr_1'));
+    invalidateForRealtimeEvent(queryClient, makeEvent('jobs:job_01H'));
     expect(invalidate).not.toHaveBeenCalled();
   });
 });

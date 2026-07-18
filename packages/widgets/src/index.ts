@@ -193,6 +193,55 @@ export type { ApiKeyRecord } from './families/domain/domain-ops-types.js';
 // Page templates — page-crud (09 §7.1): template component + CrudApi contract.
 export * from './templates/page-crud/index.js';
 
+// Page templates — planning archetypes (09 §7.5/§7.6): board, calendar, scheduler.
+export * from './templates/page-board/index.js';
+export * from './templates/page-calendar/index.js';
+export * from './templates/page-scheduler/index.js';
+
+// Page templates — the M7 people/queues archetypes (09 §7.3/§7.4/§7.7).
+export * from './templates/page-directory/index.js';
+export * from './templates/page-master-detail/index.js';
+export * from './templates/page-queue-inbox/index.js';
+
+// Page templates — page-log-viewer / page-files / page-chat (09 §7.8/§7.9).
+export * from './templates/page-log-viewer/index.js';
+export * from './templates/page-files/index.js';
+export * from './templates/page-chat/index.js';
+
+// Page templates — page-builder (09 §7.11): renderer + doc algebra. `isBlockId`
+// rides along for the email-templates editor's block ⇄ doc mapping (the block
+// vocabulary is already public via BLOCK_IDS on this template's index).
+export * from './templates/page-builder/index.js';
+export { isBlockId } from './families/domain/block-lib.js';
+
+// Page templates — page-wizard (M7-T07, 09 §11.1): the stepped-flow shell the
+// Import Wizard binding mounts, plus the family widgets its steps and the
+// Data Exports page compose. Named exports, same cross-package-contract rule
+// as the forms block below.
+export * from './templates/page-wizard/index.js';
+
+// Page templates — page-settings (M7 T6, comp: Notification Settings): the
+// event × channel preference matrix with per-cell autosave.
+export * from './templates/page-settings/index.js';
+export {
+  ColumnMappingTableWidget,
+  ValidationIssuesListWidget,
+  mappingRowsOf,
+  issuesOf,
+  type ColumnMappingTableConfig,
+  type MappingRow,
+  type ValidationIssue,
+  type ValidationIssuesListConfig,
+} from './families/forms/index.js';
+export {
+  columnMappingTableConfigSchema,
+  validationIssuesListConfigSchema,
+} from './families/forms/forms-config.js';
+export { SKIP_TARGET } from './families/forms/forms-builders.js';
+export { UploadDropzone, type UploadDropzoneProps } from './families/media/UploadDropzone.js';
+export { ScheduledJobsList, type ScheduledJobsListProps } from './families/calendar/ScheduledJobsList.js';
+export type { ScheduledJob } from './families/calendar/calendar-types.js';
+
 // Forms family — the two §10 widgets the Studio connect wizard COMPOSES, plus
 // the pure rules behind them. Exported by NAME (not `export *`) because this is
 // a deliberate cross-package contract, not the family's whole surface: the

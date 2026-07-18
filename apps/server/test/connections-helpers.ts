@@ -19,6 +19,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import BetterSqlite3 from 'better-sqlite3';
+import type { FastifyInstance } from 'fastify';
 import {
   createSqliteMetaDb,
   firstRun,
@@ -166,6 +167,14 @@ export interface BuildDataTestAppOptions {
   now?: (() => number) | undefined;
   /** Custom adapter registry (fake-adapter suites); default: real postgres. */
   registry?: AdapterRegistry<AdapterProvider> | undefined;
+  /**
+   * Extra route plugins registered under `/api/v1` alongside the standard
+   * set (additive seam — the M7 data-io suite mounts its exports/imports
+   * routes here; explicit registration per the test idiom).
+   */
+  extraRoutes?:
+    | ((api: FastifyInstance, ctx: { meta: MetaDb; manager: ConnectionManager }) => Promise<void>)
+    | undefined;
 }
 
 export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Promise<DataTestContext> {
@@ -235,6 +244,9 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
       await api.register(schemaRoutes({ manager, meta }));
       await api.register(dataRoutes({ manager, meta, undoStore }));
       await api.register(widgetDataRoutes({ manager, meta, cache: widgetCache }));
+      if (opts.extraRoutes !== undefined) {
+        await opts.extraRoutes(api as unknown as FastifyInstance, { meta, manager });
+      }
     },
     { prefix: '/api/v1' },
   );

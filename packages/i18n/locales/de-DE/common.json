@@ -5,7 +5,11 @@
     "retry": "Erneut versuchen",
     "undo": "Rückgängig",
     "close": "Schließen",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "back": "Zurück",
+    "loading": "Wird geladen",
+    "clearSearch": "Suche löschen",
+    "save": "Speichern"
   },
   "auth": {
     "headline": "Machen Sie aus jeder Datenbank ein Dashboard.",
@@ -76,12 +80,26 @@
     "connection": {
       "shared": "Gemeinsam",
       "unnamed": "Verbindung"
+    },
+    "imports": "Daten importieren",
+    "exports": "Datenexporte",
+    "emailTemplates": "E-Mail-Vorlagen",
+    "notificationSettings": "Benachrichtigungseinstellungen",
+    "scheduledReports": "Geplante Berichte",
+    "group": {
+      "workspace": "Arbeitsbereich",
+      "library": "Bibliothek",
+      "planning": "Planung",
+      "people": "Personen",
+      "account": "Konto"
     }
   },
   "topbar": {
     "search": "Suchen…",
     "notifications": "Benachrichtigungen",
-    "notificationsSoon": "Benachrichtigungen kommen mit der Benachrichtigungszentrale (M7).",
+    "notificationsLoading": "Benachrichtigungen werden geladen",
+    "notificationsError": "Benachrichtigungen konnten nicht geladen werden.",
+    "notificationsEmpty": "Alles erledigt.",
     "theme": "Hell / Dunkel umschalten",
     "userMenu": "Kontomenü",
     "profile": "Profil",
@@ -214,6 +232,19 @@
       "saved": "Workspace-Standards aktualisiert",
       "saveFailed": "Die Workspace-Standards konnten nicht gespeichert werden. Versuchen Sie es erneut.",
       "liveNote": "Beim Speichern wird die Änderung live übertragen — angemeldete Benutzer, die einem Standard folgen, sehen sie ohne Neuladen."
+    },
+    "notifications": {
+      "subtitle": "Wählen Sie, worüber und wie Sie benachrichtigt werden",
+      "matrixLabel": "Benachrichtigen bei",
+      "rowHeader": "Ereignis",
+      "saving": "Wird gespeichert…",
+      "saved": "Gespeichert",
+      "unavailable": "Noch nicht verfügbar",
+      "loading": "Einstellungen werden geladen",
+      "errorTitle": "Diese Einstellungen konnten nicht geladen werden",
+      "emptyTitle": "Noch nichts zu konfigurieren",
+      "emptyBody": "Benachrichtigungsereignisse erscheinen hier, sobald ihre Produzenten ausgeliefert werden.",
+      "saveFailed": "Diese Änderung konnte nicht gespeichert werden."
     }
   },
   "studio": {
@@ -463,7 +494,7 @@
         "guaranteeTitle": "Telemetriefreie Garantie",
         "guarantee1": "Der Prompt enthält nur Ihr Schema und aggregierte Statistiken — standardmäßig nie Zeilendaten.",
         "guarantee2": "Keine Anmeldedaten, keine Instanz-URL, keine Kennungen sind eingebettet.",
-        "guarantee3": "BYO-Läufe machen keinerlei Netzwerkaufrufe und werden nie abgerechnet.",
+        "guarantee3": "BYO-Läufe machen keinerlei Netzwerkaufrufe.",
         "promptVersion": "Prompt {version}",
         "schemaVersion": "Schema {version}",
         "headingRecommended": "Eigenes KI-Tool verwenden — kein Schlüssel nötig",
@@ -840,7 +871,14 @@
       "chrome": "Navigation",
       "system": "System",
       "domain": "Domäne"
-    }
+    },
+    "versions": "Versionen",
+    "versionsEmpty": "Noch keine gespeicherten Versionen",
+    "saveAsVersion": "Als Version speichern",
+    "saveVersionTitle": "Version speichern",
+    "saveVersionBody": "Erstellt einen Schnappschuss des aktuellen Dokuments. Über „Versionen“ jederzeit wiederherstellbar.",
+    "versionName": "Versionsname",
+    "versionNamePlaceholder": "z. B. Vor der Q3-Preisänderung"
   },
   "setup": {
     "title": "Adminium einrichten",
@@ -1382,6 +1420,255 @@
       "revokeNote": "Sie können dies jederzeit unter Einstellungen → Desktop widerrufen. Erlauben Sie nur Apps, denen Sie vertrauen.",
       "deny": "Nicht jetzt",
       "approve": "Erlauben"
+    }
+  },
+  "emailTemplates": {
+    "title": "E-Mail-Vorlagen",
+    "subtitle": "Transaktions- und Lifecycle-E-Mails, die dieser Workspace versendet.",
+    "search": "Vorlagen durchsuchen…",
+    "loadFailed": "Vorlagen konnten nicht geladen werden",
+    "empty": "Noch keine E-Mail-Vorlagen",
+    "emptyBody": "Vorlagen erscheinen hier, sobald der Server welche anlegt oder Sie welche erstellen.",
+    "noMatches": "Keine passenden Vorlagen",
+    "noMatchesBody": "Versuchen Sie eine andere Suche.",
+    "live": "Aktiv",
+    "disabled": "Deaktiviert",
+    "name": "Vorlagenname",
+    "subject": "Betreff",
+    "enabled": "Aktiviert"
+  },
+  "board": {
+    "addCard": "Karte hinzufügen",
+    "compose": {
+      "placeholder": "Kartentitel…",
+      "add": "Hinzufügen",
+      "cancel": "Abbrechen"
+    },
+    "empty": {
+      "title": "Keine Board-Spalten",
+      "body": "Fügen Sie ein Statusfeld hinzu, um Karten in Spalten zu gruppieren."
+    }
+  },
+  "calendar": {
+    "dateRange": "Zeitraum",
+    "compose": {
+      "placeholder": "Termintitel…",
+      "add": "Hinzufügen",
+      "cancel": "Abbrechen",
+      "open": "Termin hinzufügen"
+    },
+    "agenda": {
+      "empty": "Nichts geplant"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "Vorherige Woche",
+    "nextWeek": "Nächste Woche",
+    "week": "Woche",
+    "month": "Monat",
+    "resource": "Ressource",
+    "coverage": "Abdeckung",
+    "addShift": "Schicht hinzufügen",
+    "shiftCount": "{n} Schichten"
+  },
+  "planning": {
+    "drawer": {
+      "close": "Schließen",
+      "loading": "Datensatz wird geladen",
+      "error": "Dieser Datensatz konnte nicht geladen werden."
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "Uploads sind auf dieser Seite noch nicht verfügbar."
+  },
+  "chat": {
+    "messageSent": "Nachricht gesendet",
+    "sendFailed": "Die Nachricht konnte nicht gesendet werden."
+  },
+  "templates": {
+    "crud": {
+      "title": "Datensätze"
+    },
+    "dashboard": {
+      "title": "Dashboard"
+    },
+    "board": {
+      "title": "Board"
+    },
+    "calendar": {
+      "title": "Kalender"
+    },
+    "scheduler": {
+      "title": "Dienstplan"
+    },
+    "logViewer": {
+      "title": "Protokolle"
+    },
+    "files": {
+      "title": "Dateien"
+    },
+    "chat": {
+      "title": "Chat"
+    },
+    "builder": {
+      "title": "Editor"
+    },
+    "wizard": {
+      "title": "Assistent"
+    },
+    "settings": {
+      "title": "Einstellungen"
+    },
+    "directory": {
+      "title": "Verzeichnis",
+      "searchPlaceholder": "Personen suchen…",
+      "allFilter": "Alle",
+      "clearFilters": "Filter zurücksetzen",
+      "detailTitle": "Person",
+      "emptyTitle": "Noch keine Personen",
+      "emptyBody": "Personen erscheinen hier, sobald Zeilen in der Tabelle ankommen.",
+      "noMatchesTitle": "Keine passenden Personen",
+      "noMatchesBody": "Versuchen Sie eine andere Suche oder entfernen Sie einen Filter.",
+      "errorTitle": "Dieses Verzeichnis konnte nicht geladen werden",
+      "loading": "Personen werden geladen",
+      "memberCount": "{count} Personen"
+    },
+    "masterDetail": {
+      "title": "Liste & Detail",
+      "allFilter": "Alle",
+      "clearFilters": "Filter zurücksetzen",
+      "emptyTitle": "Noch nichts vorhanden",
+      "emptyBody": "Datensätze erscheinen hier, sobald Zeilen in der Tabelle ankommen.",
+      "noMatchesTitle": "Keine passenden Datensätze",
+      "noMatchesBody": "Entfernen Sie einen Filter.",
+      "errorTitle": "Diese Liste konnte nicht geladen werden",
+      "loading": "Datensätze werden geladen",
+      "selectPrompt": "Datensatz auswählen"
+    },
+    "queueInbox": {
+      "title": "Warteschlange",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "allSegment": "Alle",
+      "approvedToast": "{count} genehmigt.",
+      "rejectedToast": "{count} abgelehnt.",
+      "undoneToast": "Entscheidung rückgängig gemacht.",
+      "failedToast": "Entscheidung fehlgeschlagen.",
+      "bulkFailed": "{failed} von {total} ausgewählten Zeilen konnten nicht aktualisiert werden.",
+      "undoFailedToast": "Diese Entscheidung konnte nicht rückgängig gemacht werden.",
+      "rejectTitle": "Anfragen ablehnen",
+      "rejectCount": "Ausgewählt · {count}",
+      "rejectNote": "Der Antragsteller wird mit Ihrer Notiz benachrichtigt.",
+      "rejectPlaceholder": "Notiz für den Antragsteller hinzufügen…",
+      "rejectConfirm": "Ablehnen",
+      "emptyTitle": "Nichts in der Warteschlange",
+      "emptyBody": "Neue Anfragen erscheinen hier, sobald sie eintreffen.",
+      "caughtUpTitle": "Alles erledigt",
+      "caughtUpBody": "Derzeit keine Anfragen in diesem Tab.",
+      "errorTitle": "Diese Warteschlange konnte nicht geladen werden",
+      "loading": "Warteschlange wird geladen",
+      "selectPrompt": "Anfrage auswählen",
+      "daysUnit": "{count} Tage"
+    }
+  },
+  "dataio": {
+    "back": "Zurück",
+    "import": {
+      "title": "Daten importieren",
+      "stepUpload": "Hochladen",
+      "stepMap": "Spalten zuordnen",
+      "stepValidate": "Prüfen",
+      "stepRun": "Importieren & prüfen",
+      "targetLabel": "Zieltabelle",
+      "targetPlaceholder": "Tabellenseite wählen…",
+      "notATable": "Diese Seite ist keine Tabelle — wählen Sie eine Tabellenseite als Ziel.",
+      "dropTitle": "CSV-Datei zum Import hier ablegen",
+      "dropHint": "CSV bis 32 MB — die erste Zeile muss die Kopfzeile sein",
+      "skipTarget": "Nicht importieren",
+      "mapHint": "{count} Datenzeilen in {file} — wählen Sie für jede Spalte ein Ziel.",
+      "validating": "Wird geprüft…",
+      "toValidate": "Prüfen",
+      "validateFailed": "Prüfung fehlgeschlagen.",
+      "validationSummary": "{valid} von {total} Zeilen bereit zum Import — {invalid} werden übersprungen.",
+      "allValid": "Alle Zeilen haben die Prüfung bestanden",
+      "run": "Import starten",
+      "runSkipping": "{valid} Zeilen importieren ({invalid} überspringen)",
+      "progressLabel": "Importfortschritt",
+      "running": "Wird importiert…",
+      "kpiTotal": "Zeilen in der Datei",
+      "kpiCreated": "Erstellt",
+      "kpiUpdated": "Aktualisiert",
+      "kpiSkipped": "Übersprungen",
+      "inconsistent": "Importzahlen sind inkonsistent — Gesamt muss Erstellt + Aktualisiert + Übersprungen entsprechen.",
+      "downloadErrors": "Bericht der übersprungenen Zeilen herunterladen (CSV)",
+      "runFailed": "Der Import ist fehlgeschlagen."
+    },
+    "exports": {
+      "title": "Datenexporte",
+      "tableLabel": "Tabelle",
+      "tablePlaceholder": "Tabelle wählen…",
+      "notATable": "Diese Seite ist keine Tabelle — wählen Sie eine Tabellenseite zum Export.",
+      "formatLabel": "Format",
+      "create": "Exportieren",
+      "createFailed": "Der Export konnte nicht angefordert werden.",
+      "retention": "Exporte werden 30 Tage aufbewahrt und laufen dann ab.",
+      "statusProcessing": "Wird verarbeitet…",
+      "statusReady": "Fertig — {rows} Zeilen · zum Herunterladen klicken",
+      "statusFailed": "Fehlgeschlagen — {error}",
+      "statusCancelled": "Abgebrochen",
+      "statusExpired": "Abgelaufen",
+      "emptyTitle": "Noch keine Exporte",
+      "emptyBody": "Oben einen anfordern — Artefakte erscheinen hier mit ihrem Status."
+    }
+  },
+  "reports": {
+    "title": "Geplante Berichte",
+    "subtitle": "Wiederkehrende Daten-Schnappschüsse einer Seite, zugestellt als In-App-Benachrichtigungen.",
+    "new": "Neuer Bericht",
+    "loadFailed": "Geplante Berichte konnten nicht geladen werden.",
+    "saveFailed": "Dieser Bericht konnte nicht gespeichert werden.",
+    "nextRun": "Nächste Ausführung",
+    "emptyTitle": "Noch keine geplanten Berichte",
+    "emptyBody": "Erstellen Sie einen, um wiederkehrende Daten-Schnappschüsse einer Tabellenseite zu erhalten.",
+    "createTitle": "Neuer geplanter Bericht",
+    "editTitle": "Geplanten Bericht bearbeiten",
+    "nameLabel": "Name",
+    "namePlaceholder": "z. B. Wöchentlicher Umsatz",
+    "pageLabel": "Seite",
+    "pagePlaceholder": "Seite wählen…",
+    "frequencyLabel": "Häufigkeit",
+    "frequency": {
+      "daily": "Täglich",
+      "weekly": "Wöchentlich",
+      "monthly": "Monatlich"
+    },
+    "dayOfWeekLabel": "Tag",
+    "dayOfMonthLabel": "Tag im Monat",
+    "timeLabel": "Uhrzeit",
+    "timezoneLabel": "Zeitzone",
+    "formatLabel": "Zustellung",
+    "formatHint": "Daten-Schnappschuss (PDF/PNG-Rendering folgt in einer späteren Version) — jede Ausführung erzeugt einen CSV-Schnappschuss und eine In-App-Benachrichtigung.",
+    "recipientsLabel": "Empfänger",
+    "recipientsHint": "Wird mit dem Bericht gespeichert. E-Mail-Zustellung folgt in einer späteren Version — Ausführungen benachrichtigen vorerst in der App.",
+    "deliveryBadge": "CSV-Schnappschuss",
+    "delete": "Löschen",
+    "create": "Erstellen",
+    "cadence": {
+      "daily": "Täglich um {time} ({zone})",
+      "weekly": "Wöchentlich · {day} um {time} ({zone})",
+      "monthly": "Monatlich · Tag {day} um {time} ({zone})"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "In der App",
+      "email": "E-Mail",
+      "push": "Push"
+    },
+    "event": {
+      "reportReady": "Geplanter Bericht fertig",
+      "reportFailed": "Geplanter Bericht fehlgeschlagen",
+      "backupCompleted": "Sicherung abgeschlossen"
     }
   }
 }

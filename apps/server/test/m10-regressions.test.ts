@@ -141,6 +141,14 @@ describe('composition root (compose.ts)', () => {
       ['GET', '/api/v1/jobs'],
       ['GET', '/api/v1/onboarding'],
       ['GET', '/api/v1/llm/runs'],
+      // M7 wave 2 (T5 data-io + T6 reports/notifications): the same class of
+      // bug — resources shipped with their own suites but wired only here.
+      ['GET', '/api/v1/exports'],
+      ['GET', '/api/v1/imports'],
+      ['GET', '/api/v1/me/notifications'],
+      ['GET', '/api/v1/me/notification-prefs'],
+      ['GET', '/api/v1/scheduled-reports'],
+      ['GET', '/api/v1/email-templates'],
     ] as const;
     for (const [method, url] of routes) {
       const res = await app.inject({ method, url });

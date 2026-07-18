@@ -13,7 +13,11 @@ export default {
     "retry": "Prøv igen",
     "undo": "Fortryd",
     "close": "Luk",
-    "cancel": "Annuller"
+    "cancel": "Annuller",
+    "back": "Tilbage",
+    "loading": "Indlæser",
+    "clearSearch": "Ryd søgning",
+    "save": "Gem"
   },
   "auth": {
     "headline": "Forvandl enhver database til et dashboard.",
@@ -84,12 +88,26 @@ export default {
     "connection": {
       "shared": "Delt",
       "unnamed": "Forbindelse"
+    },
+    "imports": "Importér data",
+    "exports": "Dataeksporter",
+    "emailTemplates": "E-mailskabeloner",
+    "notificationSettings": "Notifikationsindstillinger",
+    "scheduledReports": "Planlagte rapporter",
+    "group": {
+      "workspace": "Arbejdsområde",
+      "library": "Bibliotek",
+      "planning": "Planlægning",
+      "people": "Personer",
+      "account": "Konto"
     }
   },
   "topbar": {
     "search": "Søg…",
     "notifications": "Notifikationer",
-    "notificationsSoon": "Notifikationer kommer med notifikationscenteret (M7).",
+    "notificationsLoading": "Indlæser notifikationer",
+    "notificationsError": "Notifikationerne kunne ikke indlæses.",
+    "notificationsEmpty": "Du er helt ajour.",
     "theme": "Skift mellem lys / mørk",
     "userMenu": "Kontomenu",
     "profile": "Profil",
@@ -222,6 +240,19 @@ export default {
       "saved": "Arbejdsområdets standarder er opdateret",
       "saveFailed": "Arbejdsområdets standarder kunne ikke gemmes. Prøv igen.",
       "liveNote": "Når du gemmer, udsendes ændringen live — loggede brugere, der følger en standard, ser den uden at genindlæse."
+    },
+    "notifications": {
+      "subtitle": "Vælg, hvad du får besked om, og hvordan",
+      "matrixLabel": "Giv mig besked om",
+      "rowHeader": "Hændelse",
+      "saving": "Gemmer…",
+      "saved": "Gemt",
+      "unavailable": "Ikke tilgængelig endnu",
+      "loading": "Indlæser præferencer",
+      "errorTitle": "Disse indstillinger kunne ikke indlæses",
+      "emptyTitle": "Intet at konfigurere endnu",
+      "emptyBody": "Notifikationshændelser vises her, efterhånden som producenterne udgives.",
+      "saveFailed": "Denne ændring kunne ikke gemmes."
     }
   },
   "studio": {
@@ -471,7 +502,7 @@ export default {
         "guaranteeTitle": "Telemetrifri garanti",
         "guarantee1": "Prompten indeholder kun dit skema og aggregeret statistik — aldrig rækkedata som standard.",
         "guarantee2": "Ingen legitimationsoplysninger, instans-URL eller identifikatorer er indlejret.",
-        "guarantee3": "BYO-kørsler foretager ingen netværkskald og afregnes aldrig.",
+        "guarantee3": "BYO-kørsler foretager ingen netværkskald.",
         "promptVersion": "Prompt {version}",
         "schemaVersion": "Skema {version}",
         "headingRecommended": "Brug dit eget AI-værktøj — ingen nøgle nødvendig",
@@ -848,7 +879,14 @@ export default {
       "chrome": "Navigation",
       "system": "System",
       "domain": "Domæne"
-    }
+    },
+    "versions": "Versioner",
+    "versionsEmpty": "Ingen gemte versioner endnu",
+    "saveAsVersion": "Gem som version",
+    "saveVersionTitle": "Gem en version",
+    "saveVersionBody": "Tager et øjebliksbillede af det aktuelle dokument. Gendan det når som helst fra Versioner.",
+    "versionName": "Versionsnavn",
+    "versionNamePlaceholder": "f.eks. Før Q3-satsændringen"
   },
   "setup": {
     "title": "Konfigurer Adminium",
@@ -1390,6 +1428,255 @@ export default {
       "revokeNote": "Du kan tilbagekalde dette når som helst under Indstillinger → Skrivebord. Tillad kun apps, du stoler på.",
       "deny": "Ikke nu",
       "approve": "Tillad"
+    }
+  },
+  "emailTemplates": {
+    "title": "E-mailskabeloner",
+    "subtitle": "Transaktions- og livscyklus-e-mails, som dit arbejdsområde sender.",
+    "search": "Søg i skabeloner…",
+    "loadFailed": "Skabelonerne kunne ikke indlæses",
+    "empty": "Ingen e-mailskabeloner endnu",
+    "emptyBody": "Skabeloner vises her, når serveren opretter dem, eller du selv opretter en.",
+    "noMatches": "Ingen matchende skabeloner",
+    "noMatchesBody": "Prøv en anden søgning.",
+    "live": "Aktiv",
+    "disabled": "Deaktiveret",
+    "name": "Skabelonnavn",
+    "subject": "Emne",
+    "enabled": "Aktiveret"
+  },
+  "board": {
+    "addCard": "Tilføj kort",
+    "compose": {
+      "placeholder": "Korttitel…",
+      "add": "Tilføj",
+      "cancel": "Annuller"
+    },
+    "empty": {
+      "title": "Ingen tavlekolonner",
+      "body": "Tilføj et statusfelt for at gruppere kort i kolonner."
+    }
+  },
+  "calendar": {
+    "dateRange": "Datointerval",
+    "compose": {
+      "placeholder": "Begivenhedstitel…",
+      "add": "Tilføj",
+      "cancel": "Annuller",
+      "open": "Tilføj begivenhed"
+    },
+    "agenda": {
+      "empty": "Intet planlagt"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "Forrige uge",
+    "nextWeek": "Næste uge",
+    "week": "Uge",
+    "month": "Måned",
+    "resource": "Ressource",
+    "coverage": "Dækning",
+    "addShift": "Tilføj vagt",
+    "shiftCount": "{n} vagter"
+  },
+  "planning": {
+    "drawer": {
+      "close": "Luk",
+      "loading": "Indlæser post",
+      "error": "Denne post kunne ikke indlæses."
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "Upload er ikke tilgængeligt på denne side endnu."
+  },
+  "chat": {
+    "messageSent": "Besked sendt",
+    "sendFailed": "Beskeden kunne ikke sendes."
+  },
+  "templates": {
+    "crud": {
+      "title": "Poster"
+    },
+    "dashboard": {
+      "title": "Dashboard"
+    },
+    "board": {
+      "title": "Tavle"
+    },
+    "calendar": {
+      "title": "Kalender"
+    },
+    "scheduler": {
+      "title": "Vagtplan"
+    },
+    "logViewer": {
+      "title": "Logfiler"
+    },
+    "files": {
+      "title": "Filer"
+    },
+    "chat": {
+      "title": "Chat"
+    },
+    "builder": {
+      "title": "Editor"
+    },
+    "wizard": {
+      "title": "Guide"
+    },
+    "settings": {
+      "title": "Indstillinger"
+    },
+    "directory": {
+      "title": "Katalog",
+      "searchPlaceholder": "Søg efter personer…",
+      "allFilter": "Alle",
+      "clearFilters": "Ryd filtre",
+      "detailTitle": "Person",
+      "emptyTitle": "Ingen personer endnu",
+      "emptyBody": "Personer vises her, efterhånden som rækker lander i tabellen.",
+      "noMatchesTitle": "Ingen matchende personer",
+      "noMatchesBody": "Prøv en anden søgning, eller fjern et filter.",
+      "errorTitle": "Dette katalog kunne ikke indlæses",
+      "loading": "Indlæser personer",
+      "memberCount": "{count} personer"
+    },
+    "masterDetail": {
+      "title": "Liste og detaljer",
+      "allFilter": "Alle",
+      "clearFilters": "Ryd filtre",
+      "emptyTitle": "Intet her endnu",
+      "emptyBody": "Poster vises her, efterhånden som rækker lander i tabellen.",
+      "noMatchesTitle": "Ingen matchende poster",
+      "noMatchesBody": "Prøv at fjerne et filter.",
+      "errorTitle": "Denne liste kunne ikke indlæses",
+      "loading": "Indlæser poster",
+      "selectPrompt": "Vælg en post"
+    },
+    "queueInbox": {
+      "title": "Kø",
+      "approve": "Godkend",
+      "reject": "Afvis",
+      "allSegment": "Alle",
+      "approvedToast": "{count} godkendt.",
+      "rejectedToast": "{count} afvist.",
+      "undoneToast": "Beslutning fortrudt.",
+      "failedToast": "Beslutningen mislykkedes.",
+      "bulkFailed": "{failed} af {total} valgte rækker kunne ikke opdateres.",
+      "undoFailedToast": "Beslutningen kunne ikke fortrydes.",
+      "rejectTitle": "Afvis anmodninger",
+      "rejectCount": "Valgt · {count}",
+      "rejectNote": "Anmoderen får besked sammen med din note.",
+      "rejectPlaceholder": "Tilføj en note til anmoderen…",
+      "rejectConfirm": "Afvis",
+      "emptyTitle": "Intet i køen",
+      "emptyBody": "Nye anmodninger vises her, når de ankommer.",
+      "caughtUpTitle": "Du er helt ajour",
+      "caughtUpBody": "Ingen anmodninger under denne fane lige nu.",
+      "errorTitle": "Denne kø kunne ikke indlæses",
+      "loading": "Indlæser kø",
+      "selectPrompt": "Vælg en anmodning",
+      "daysUnit": "{count} dage"
+    }
+  },
+  "dataio": {
+    "back": "Tilbage",
+    "import": {
+      "title": "Importér data",
+      "stepUpload": "Upload",
+      "stepMap": "Tilknyt kolonner",
+      "stepValidate": "Validér",
+      "stepRun": "Importér og gennemgå",
+      "targetLabel": "Måltabel",
+      "targetPlaceholder": "Vælg en tabelside…",
+      "notATable": "Den side er ikke en tabel — vælg en tabelside at importere til.",
+      "dropTitle": "Slip en CSV-fil for at importere",
+      "dropHint": "CSV op til 32 MB — første række skal være headeren",
+      "skipTarget": "Importér ikke",
+      "mapHint": "{count} datarækker i {file} — vælg et mål for hver kolonne.",
+      "validating": "Validerer…",
+      "toValidate": "Validér",
+      "validateFailed": "Validering mislykkedes.",
+      "validationSummary": "{valid} af {total} rækker klar til import — {invalid} springes over.",
+      "allValid": "Alle rækker bestod valideringen",
+      "run": "Kør import",
+      "runSkipping": "Importér {valid} rækker (spring {invalid} over)",
+      "progressLabel": "Importfremdrift",
+      "running": "Importerer…",
+      "kpiTotal": "Rækker i filen",
+      "kpiCreated": "Oprettet",
+      "kpiUpdated": "Opdateret",
+      "kpiSkipped": "Sprunget over",
+      "inconsistent": "Importtallene stemmer ikke — total skal være lig oprettet + opdateret + sprunget over.",
+      "downloadErrors": "Download rapporten over oversprungne rækker (CSV)",
+      "runFailed": "Importen mislykkedes."
+    },
+    "exports": {
+      "title": "Dataeksporter",
+      "tableLabel": "Tabel",
+      "tablePlaceholder": "Vælg en tabel…",
+      "notATable": "Den side er ikke en tabel — vælg en tabelside at eksportere.",
+      "formatLabel": "Format",
+      "create": "Eksportér",
+      "createFailed": "Eksporten kunne ikke startes.",
+      "retention": "Eksporter gemmes i 30 dage og udløber derefter.",
+      "statusProcessing": "Behandler…",
+      "statusReady": "Klar — {rows} rækker · klik for at downloade",
+      "statusFailed": "Mislykkedes — {error}",
+      "statusCancelled": "Annulleret",
+      "statusExpired": "Udløbet",
+      "emptyTitle": "Ingen eksporter endnu",
+      "emptyBody": "Anmod om en ovenfor — artefakter vises her med deres status."
+    }
+  },
+  "reports": {
+    "title": "Planlagte rapporter",
+    "subtitle": "Tilbagevendende dataøjebliksbilleder af en side, leveret som notifikationer i appen.",
+    "new": "Ny rapport",
+    "loadFailed": "Planlagte rapporter kunne ikke indlæses.",
+    "saveFailed": "Denne rapport kunne ikke gemmes.",
+    "nextRun": "Næste kørsel",
+    "emptyTitle": "Ingen planlagte rapporter endnu",
+    "emptyBody": "Opret en for at få et tilbagevendende dataøjebliksbillede af enhver tabelside.",
+    "createTitle": "Ny planlagt rapport",
+    "editTitle": "Redigér planlagt rapport",
+    "nameLabel": "Navn",
+    "namePlaceholder": "f.eks. Ugentlig omsætning",
+    "pageLabel": "Side",
+    "pagePlaceholder": "Vælg en side…",
+    "frequencyLabel": "Frekvens",
+    "frequency": {
+      "daily": "Dagligt",
+      "weekly": "Ugentligt",
+      "monthly": "Månedligt"
+    },
+    "dayOfWeekLabel": "Dag",
+    "dayOfMonthLabel": "Dag i måneden",
+    "timeLabel": "Tidspunkt",
+    "timezoneLabel": "Tidszone",
+    "formatLabel": "Levering",
+    "formatHint": "Dataøjebliksbillede (PDF/PNG-gengivelse kommer i en senere udgivelse) — hver kørsel producerer et CSV-øjebliksbillede og en notifikation i appen.",
+    "recipientsLabel": "Modtagere",
+    "recipientsHint": "Gemmes med rapporten. E-mail-levering kommer i en senere udgivelse — kørsler giver dig indtil videre besked i appen.",
+    "deliveryBadge": "CSV-øjebliksbillede",
+    "delete": "Slet",
+    "create": "Opret",
+    "cadence": {
+      "daily": "Dagligt kl. {time} ({zone})",
+      "weekly": "Ugentligt · {day} kl. {time} ({zone})",
+      "monthly": "Månedligt · dag {day} kl. {time} ({zone})"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "I appen",
+      "email": "E-mail",
+      "push": "Push"
+    },
+    "event": {
+      "reportReady": "Planlagt rapport klar",
+      "reportFailed": "Planlagt rapport mislykkedes",
+      "backupCompleted": "Backup fuldført"
     }
   }
 } as const;

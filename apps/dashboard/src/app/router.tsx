@@ -24,7 +24,11 @@ import { ApiKeysPage } from '../api-keys/ApiKeysPage.js';
 import { ChangelogPage } from '../changelog/ChangelogPage.js';
 import { KnowledgeBasePage } from '../kb/KnowledgeBasePage.js';
 import { AccountPage } from '../pages/AccountPage.js';
+import { NotificationSettingsPage } from '../account/NotificationSettingsPage.js';
 import { PreferencesPage } from '../account/PreferencesPage.js';
+import { EmailTemplatesPage } from '../pages/builders/EmailTemplatesPage.js';
+import { dataIoRoutes } from '../data-io/routes.js';
+import { reportsRoutes } from '../reports/routes.js';
 import { DesktopSettingsPage } from '../desktop/DesktopSettingsPage.js';
 import { DesktopSetupHost } from '../desktop/setup/desktopSetupHost.js';
 import { SetupPage } from '../setup/SetupPage.js';
@@ -230,11 +234,12 @@ const otpRoute = createRoute({
 
 /**
  * `/state/$stateId` addresses every system state directly (§6.1) — including
- * `suspended`, the 402 "billing past due" screen with an "Update payment"
- * button. 11-electron.md §8.2 row 1 says hosted-plan surfaces are "not rendered
- * at all" outside Cloud, and on self-host/desktop that button already goes
- * nowhere (`StatePage`'s `suspended: () => undefined`), so this is the one
- * hosted-plan surface the SPA can actually reach. The 404 is the honest answer:
+ * `suspended`, the 402 workspace-suspended screen (administrative copy since the
+ * free-launch pivot, 17-deferred-monetization.md). 11-electron.md §8.2 row 1 says
+ * hosted-plan surfaces are "not rendered at all" outside Cloud, and on
+ * self-host/desktop its primary action already goes nowhere (`StatePage`'s
+ * `suspended: () => undefined`), so this is the one hosted-plan surface the SPA
+ * can actually reach. The 404 is the honest answer:
  * on a build with no billing, a billing page does not exist.
  */
 function StateRouteComponent() {
@@ -353,6 +358,31 @@ const accountPreferencesRoute = createRoute({
   component: PreferencesPage,
 });
 
+/**
+ * Notification settings (M7 T6, ia-mapping §2A ACCOUNT group) — the
+ * `page-settings` binding on a static route until the Engine seeds the
+ * utility page (see account/NotificationSettingsPage.tsx). Per-user surface,
+ * no role guard: `/me/notification-prefs` is session-scoped on the server.
+ */
+const accountNotificationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/account/notifications',
+  component: NotificationSettingsPage,
+});
+
+/**
+ * Email templates manager (M7 wave 2, TRACK BUILDERS; ia-mapping §2A LIBRARY
+ * group). No client role guard: GET list/detail are session-scoped on the
+ * server — the manager is read-useful to non-admins — and PUT is guarded by
+ * `system:settings:manage`, whose 403 flows through the standard route error
+ * mapping. The NAV entry (SidebarNav) is what gates discovery to admins.
+ */
+const emailTemplatesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/email-templates',
+  component: EmailTemplatesPage,
+});
+
 const settingsDefaultsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/settings/defaults',
@@ -440,6 +470,7 @@ const routeTree = rootRoute.addChildren([
     accountRoute,
     welcomeRoute,
     accountPreferencesRoute,
+    accountNotificationsRoute,
     accountSplatRoute,
     aboutRoute,
     settingsDefaultsRoute,
@@ -447,8 +478,14 @@ const routeTree = rootRoute.addChildren([
     knowledgeBaseRoute,
     changelogRoute,
     apiKeysRoute,
+    emailTemplatesRoute,
     // Studio (09 §8.1): connect wizard + remap route contract, role ≥ Admin.
     ...studioRoutes(appRoute),
+    // M7 wave 2 SPA surfaces (data-io §11, scheduled reports): same factory
+    // pattern as studioRoutes — the modules define the surfaces, the router
+    // only wires them. Server-side grants are the security boundary.
+    ...dataIoRoutes(appRoute),
+    ...reportsRoutes(appRoute),
   ]),
 ]);
 

@@ -13,7 +13,11 @@ export default {
     "retry": "إعادة المحاولة",
     "undo": "تراجع",
     "close": "إغلاق",
-    "cancel": "إلغاء"
+    "cancel": "إلغاء",
+    "back": "رجوع",
+    "loading": "جارٍ التحميل",
+    "clearSearch": "مسح البحث",
+    "save": "حفظ"
   },
   "auth": {
     "headline": "حوِّل أي قاعدة بيانات إلى لوحة معلومات.",
@@ -84,12 +88,26 @@ export default {
     "connection": {
       "shared": "مشترك",
       "unnamed": "اتصال"
+    },
+    "imports": "استيراد البيانات",
+    "exports": "عمليات تصدير البيانات",
+    "emailTemplates": "قوالب البريد الإلكتروني",
+    "notificationSettings": "إعدادات الإشعارات",
+    "scheduledReports": "التقارير المجدولة",
+    "group": {
+      "workspace": "مساحة العمل",
+      "library": "المكتبة",
+      "planning": "التخطيط",
+      "people": "الأشخاص",
+      "account": "الحساب"
     }
   },
   "topbar": {
     "search": "بحث…",
     "notifications": "الإشعارات",
-    "notificationsSoon": "تصل الإشعارات مع مركز الإشعارات (M7).",
+    "notificationsLoading": "جارٍ تحميل الإشعارات",
+    "notificationsError": "تعذّر تحميل الإشعارات.",
+    "notificationsEmpty": "لا إشعارات جديدة.",
     "theme": "التبديل بين الفاتح / الداكن",
     "userMenu": "قائمة الحساب",
     "profile": "الملف الشخصي",
@@ -222,6 +240,19 @@ export default {
       "saved": "تم تحديث افتراضيات مساحة العمل",
       "saveFailed": "تعذَّر حفظ افتراضيات مساحة العمل. حاول مجددًا.",
       "liveNote": "عند الحفظ يُبث التغيير مباشرة — فيراه المستخدمون المسجَّلون الذين يتبعون الإعداد الافتراضي دون إعادة تحميل."
+    },
+    "notifications": {
+      "subtitle": "اختر ما تريد أن يصلك من إشعارات وكيفية وصولها",
+      "matrixLabel": "إشعاري بشأن",
+      "rowHeader": "الحدث",
+      "saving": "جارٍ الحفظ…",
+      "saved": "تم الحفظ",
+      "unavailable": "غير متاح بعد",
+      "loading": "جارٍ تحميل التفضيلات",
+      "errorTitle": "تعذّر تحميل هذه الإعدادات",
+      "emptyTitle": "لا يوجد ما يمكن ضبطه بعد",
+      "emptyBody": "تظهر أحداث الإشعارات هنا مع توفر مصادرها.",
+      "saveFailed": "تعذّر حفظ هذا التغيير."
     }
   },
   "studio": {
@@ -471,7 +502,7 @@ export default {
         "guaranteeTitle": "ضمان الخلو من القياس عن بُعد",
         "guarantee1": "تحمل المطالبة مخططك والإحصاءات المجمّعة فقط — ولا تحمل بيانات الصفوف افتراضيًا أبدًا.",
         "guarantee2": "لا تُضمَّن أي بيانات اعتماد أو عنوان URL للنسخة أو معرّفات.",
-        "guarantee3": "عمليات BYO لا تُجري أي اتصالات شبكية ولا تُحتسب أبدًا.",
+        "guarantee3": "عمليات BYO لا تُجري أي اتصالات شبكية.",
         "promptVersion": "المطالبة {version}",
         "schemaVersion": "المخطط {version}",
         "headingRecommended": "استخدم أداة الذكاء الاصطناعي الخاصة بك — دون الحاجة إلى مفتاح",
@@ -848,7 +879,14 @@ export default {
       "chrome": "التنقل",
       "system": "النظام",
       "domain": "المجال"
-    }
+    },
+    "versions": "الإصدارات",
+    "versionsEmpty": "لا توجد إصدارات محفوظة بعد",
+    "saveAsVersion": "حفظ كإصدار",
+    "saveVersionTitle": "حفظ إصدار",
+    "saveVersionBody": "يلتقط نسخة من المستند الحالي. يمكنك استعادتها في أي وقت من الإصدارات.",
+    "versionName": "اسم الإصدار",
+    "versionNamePlaceholder": "مثل: قبل تغيير أسعار الربع الثالث"
   },
   "setup": {
     "title": "إعداد Adminium",
@@ -1390,6 +1428,255 @@ export default {
       "revokeNote": "يمكنك إلغاء ذلك في أي وقت من الإعدادات ← سطح المكتب. اسمح فقط للتطبيقات التي تثق بها.",
       "deny": "ليس الآن",
       "approve": "السماح"
+    }
+  },
+  "emailTemplates": {
+    "title": "قوالب البريد الإلكتروني",
+    "subtitle": "رسائل المعاملات ودورة الحياة التي ترسلها مساحة العمل.",
+    "search": "البحث في القوالب…",
+    "loadFailed": "تعذّر تحميل القوالب",
+    "empty": "لا توجد قوالب بريد إلكتروني بعد",
+    "emptyBody": "تظهر القوالب هنا بمجرد أن يُنشئها الخادم أو تُنشئها بنفسك.",
+    "noMatches": "لا توجد قوالب مطابقة",
+    "noMatchesBody": "جرّب بحثًا مختلفًا.",
+    "live": "مفعّل",
+    "disabled": "معطّل",
+    "name": "اسم القالب",
+    "subject": "الموضوع",
+    "enabled": "مفعّل"
+  },
+  "board": {
+    "addCard": "إضافة بطاقة",
+    "compose": {
+      "placeholder": "عنوان البطاقة…",
+      "add": "إضافة",
+      "cancel": "إلغاء"
+    },
+    "empty": {
+      "title": "لا توجد أعمدة للوحة",
+      "body": "أضف حقل حالة لتجميع البطاقات في أعمدة."
+    }
+  },
+  "calendar": {
+    "dateRange": "نطاق التاريخ",
+    "compose": {
+      "placeholder": "عنوان الحدث…",
+      "add": "إضافة",
+      "cancel": "إلغاء",
+      "open": "إضافة حدث"
+    },
+    "agenda": {
+      "empty": "لا يوجد شيء مجدول"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "الأسبوع السابق",
+    "nextWeek": "الأسبوع التالي",
+    "week": "أسبوع",
+    "month": "شهر",
+    "resource": "المورد",
+    "coverage": "التغطية",
+    "addShift": "إضافة وردية",
+    "shiftCount": "{n} وردية"
+  },
+  "planning": {
+    "drawer": {
+      "close": "إغلاق",
+      "loading": "جارٍ تحميل السجل",
+      "error": "تعذّر تحميل هذا السجل."
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "رفع الملفات غير متاح في هذه الصفحة بعد."
+  },
+  "chat": {
+    "messageSent": "تم إرسال الرسالة",
+    "sendFailed": "تعذّر إرسال الرسالة."
+  },
+  "templates": {
+    "crud": {
+      "title": "السجلات"
+    },
+    "dashboard": {
+      "title": "لوحة المعلومات"
+    },
+    "board": {
+      "title": "اللوحة"
+    },
+    "calendar": {
+      "title": "التقويم"
+    },
+    "scheduler": {
+      "title": "جدول المناوبات"
+    },
+    "logViewer": {
+      "title": "سجلات الأحداث"
+    },
+    "files": {
+      "title": "الملفات"
+    },
+    "chat": {
+      "title": "الدردشة"
+    },
+    "builder": {
+      "title": "المنشئ"
+    },
+    "wizard": {
+      "title": "المعالج"
+    },
+    "settings": {
+      "title": "الإعدادات"
+    },
+    "directory": {
+      "title": "الدليل",
+      "searchPlaceholder": "البحث عن الأشخاص…",
+      "allFilter": "الكل",
+      "clearFilters": "مسح عوامل التصفية",
+      "detailTitle": "الشخص",
+      "emptyTitle": "لا يوجد أشخاص بعد",
+      "emptyBody": "يظهر الأشخاص هنا كلما وصلت صفوف إلى الجدول.",
+      "noMatchesTitle": "لا يوجد أشخاص مطابقون",
+      "noMatchesBody": "جرّب بحثًا مختلفًا أو أزل أحد عوامل التصفية.",
+      "errorTitle": "تعذّر تحميل هذا الدليل",
+      "loading": "جارٍ تحميل الأشخاص",
+      "memberCount": "{count} شخص"
+    },
+    "masterDetail": {
+      "title": "قائمة وتفاصيل",
+      "allFilter": "الكل",
+      "clearFilters": "مسح عوامل التصفية",
+      "emptyTitle": "لا يوجد شيء هنا بعد",
+      "emptyBody": "تظهر السجلات هنا كلما وصلت صفوف إلى الجدول.",
+      "noMatchesTitle": "لا توجد سجلات مطابقة",
+      "noMatchesBody": "جرّب إزالة أحد عوامل التصفية.",
+      "errorTitle": "تعذّر تحميل هذه القائمة",
+      "loading": "جارٍ تحميل السجلات",
+      "selectPrompt": "اختر سجلًا"
+    },
+    "queueInbox": {
+      "title": "قائمة الانتظار",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "allSegment": "الكل",
+      "approvedToast": "تمت الموافقة على {count}.",
+      "rejectedToast": "تم رفض {count}.",
+      "undoneToast": "تم التراجع عن القرار.",
+      "failedToast": "فشل تنفيذ القرار.",
+      "bulkFailed": "تعذّر تحديث {failed} من {total} من الصفوف المحددة.",
+      "undoFailedToast": "تعذّر التراجع عن هذا القرار.",
+      "rejectTitle": "رفض الطلبات",
+      "rejectCount": "المحدد · {count}",
+      "rejectNote": "سيتم إشعار مقدم الطلب مع ملاحظتك.",
+      "rejectPlaceholder": "أضف ملاحظة لمقدم الطلب…",
+      "rejectConfirm": "رفض",
+      "emptyTitle": "لا يوجد شيء في قائمة الانتظار",
+      "emptyBody": "تظهر الطلبات الجديدة هنا فور وصولها.",
+      "caughtUpTitle": "لقد أنجزت كل شيء",
+      "caughtUpBody": "لا توجد طلبات في علامة التبويب هذه حاليًا.",
+      "errorTitle": "تعذّر تحميل قائمة الانتظار هذه",
+      "loading": "جارٍ تحميل قائمة الانتظار",
+      "selectPrompt": "اختر طلبًا",
+      "daysUnit": "{count} يوم"
+    }
+  },
+  "dataio": {
+    "back": "رجوع",
+    "import": {
+      "title": "استيراد البيانات",
+      "stepUpload": "رفع",
+      "stepMap": "مطابقة الأعمدة",
+      "stepValidate": "التحقق",
+      "stepRun": "الاستيراد والمراجعة",
+      "targetLabel": "الجدول الهدف",
+      "targetPlaceholder": "اختر صفحة جدول…",
+      "notATable": "هذه الصفحة ليست جدولًا — اختر صفحة جدول للاستيراد إليها.",
+      "dropTitle": "أسقط ملف CSV للاستيراد",
+      "dropHint": "ملف CSV حتى 32 ميغابايت — يجب أن يكون الصف الأول هو صف العناوين",
+      "skipTarget": "عدم الاستيراد",
+      "mapHint": "{count} صفوف بيانات في {file} — اختر هدفًا لكل عمود.",
+      "validating": "جارٍ التحقق…",
+      "toValidate": "التحقق",
+      "validateFailed": "فشل التحقق.",
+      "validationSummary": "{valid} من {total} صفًا جاهزة للاستيراد — سيتم تخطي {invalid}.",
+      "allValid": "اجتازت جميع الصفوف التحقق",
+      "run": "تشغيل الاستيراد",
+      "runSkipping": "استيراد {valid} صفًا (تخطي {invalid})",
+      "progressLabel": "تقدم الاستيراد",
+      "running": "جارٍ الاستيراد…",
+      "kpiTotal": "صفوف الملف",
+      "kpiCreated": "تم إنشاؤها",
+      "kpiUpdated": "تم تحديثها",
+      "kpiSkipped": "تم تخطيها",
+      "inconsistent": "أرقام الاستيراد غير متسقة — يجب أن يساوي الإجمالي مجموع ما تم إنشاؤه وتحديثه وتخطيه.",
+      "downloadErrors": "تنزيل تقرير الصفوف المتخطاة (CSV)",
+      "runFailed": "فشل الاستيراد."
+    },
+    "exports": {
+      "title": "عمليات تصدير البيانات",
+      "tableLabel": "الجدول",
+      "tablePlaceholder": "اختر جدولًا…",
+      "notATable": "هذه الصفحة ليست جدولًا — اختر صفحة جدول لتصديرها.",
+      "formatLabel": "التنسيق",
+      "create": "تصدير",
+      "createFailed": "تعذّر طلب التصدير.",
+      "retention": "تُحفظ عمليات التصدير لمدة 30 يومًا ثم تنتهي صلاحيتها.",
+      "statusProcessing": "جارٍ المعالجة…",
+      "statusReady": "جاهز — {rows} صفًا · انقر للتنزيل",
+      "statusFailed": "فشل — {error}",
+      "statusCancelled": "أُلغي",
+      "statusExpired": "منتهي الصلاحية",
+      "emptyTitle": "لا توجد عمليات تصدير بعد",
+      "emptyBody": "اطلب واحدة أعلاه — تظهر الملفات الناتجة هنا مع حالتها."
+    }
+  },
+  "reports": {
+    "title": "التقارير المجدولة",
+    "subtitle": "لقطات بيانات دورية لصفحة ما تصلك كإشعارات داخل التطبيق.",
+    "new": "تقرير جديد",
+    "loadFailed": "تعذّر تحميل التقارير المجدولة.",
+    "saveFailed": "تعذّر حفظ هذا التقرير.",
+    "nextRun": "التشغيل التالي",
+    "emptyTitle": "لا توجد تقارير مجدولة بعد",
+    "emptyBody": "أنشئ تقريرًا للحصول على لقطة بيانات دورية لأي صفحة جدول.",
+    "createTitle": "تقرير مجدول جديد",
+    "editTitle": "تعديل التقرير المجدول",
+    "nameLabel": "الاسم",
+    "namePlaceholder": "مثل: الإيرادات الأسبوعية",
+    "pageLabel": "الصفحة",
+    "pagePlaceholder": "اختر صفحة…",
+    "frequencyLabel": "التكرار",
+    "frequency": {
+      "daily": "يوميًا",
+      "weekly": "أسبوعيًا",
+      "monthly": "شهريًا"
+    },
+    "dayOfWeekLabel": "اليوم",
+    "dayOfMonthLabel": "اليوم من الشهر",
+    "timeLabel": "الوقت",
+    "timezoneLabel": "المنطقة الزمنية",
+    "formatLabel": "التسليم",
+    "formatHint": "لقطة بيانات (سيتوفر إخراج PDF/PNG في إصدار لاحق) — ينتج عن كل تشغيل لقطة CSV وإشعار داخل التطبيق.",
+    "recipientsLabel": "المستلمون",
+    "recipientsHint": "تُحفظ مع التقرير. سيتوفر التسليم عبر البريد الإلكتروني في إصدار لاحق — حتى ذلك الحين ستصلك إشعارات داخل التطبيق.",
+    "deliveryBadge": "لقطة CSV",
+    "delete": "حذف",
+    "create": "إنشاء",
+    "cadence": {
+      "daily": "يوميًا في {time} ({zone})",
+      "weekly": "أسبوعيًا · {day} في {time} ({zone})",
+      "monthly": "شهريًا · اليوم {day} في {time} ({zone})"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "داخل التطبيق",
+      "email": "البريد الإلكتروني",
+      "push": "إشعارات فورية"
+    },
+    "event": {
+      "reportReady": "التقرير المجدول جاهز",
+      "reportFailed": "فشل التقرير المجدول",
+      "backupCompleted": "اكتمل النسخ الاحتياطي"
     }
   }
 } as const;

@@ -41,6 +41,12 @@ export const PERMISSIONS = {
   settingsManage: 'system:settings:manage',
   auditRead: 'system:audit:read',
   apiKeysManage: 'system:api-keys:manage',
+  // M7 wave 2 (T5 data-io + T6 scheduled reports). The routes carry local
+  // constants (EXPORTS_MANAGE_PERMISSION / IMPORTS_MANAGE_PERMISSION /
+  // REPORTS_MANAGE_PERMISSION); these are the canonical spellings.
+  exportsManage: 'system:exports:manage',
+  importsManage: 'system:imports:manage',
+  reportsManage: 'system:reports:manage',
 } as const;
 
 export type ParsedGrant =

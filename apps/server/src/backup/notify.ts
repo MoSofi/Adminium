@@ -2,13 +2,11 @@
  * The completion notification (11-electron.md §9: "Completion raises an
  * `adminium_notifications` entry with 'Show in folder'").
  *
- * ─── Why this is a hand-rolled insert ────────────────────────────────────────
- *
- * `adminium_notifications` has no repo in `@adminium/meta` because nothing has
- * ever written one — this is the first producer in the product. A repo is the
- * right home for the second one; inventing the whole notifications API from
- * inside the backup track would be a worse kind of guess than a scoped insert
- * with its reasoning written down. Flagged rather than hidden.
+ * Originally a hand-rolled insert — the first producer in the product, which
+ * predated any notifications repo and said so. The repo now exists
+ * (`notificationsRepo`, M7 reports/notifications track) and this module rides
+ * the shared writer in `../notifications/notify.ts`, exactly the refactor the
+ * original comment invited.
  *
  * ─── "Show in folder" is not an `action_url` ─────────────────────────────────
  *
@@ -31,7 +29,9 @@
  * this kind. Same shape the audit log uses for the same reason.
  */
 
-import { newId, packJson, type MetaDb } from '@adminium/meta';
+import type { MetaDb } from '@adminium/meta';
+
+import { notify, type NotificationPublisher } from '../notifications/notify.js';
 
 /** The stable key the notification centre localizes on. */
 export const BACKUP_NOTIFICATION_KIND = 'desktop.backup.completed';
@@ -45,6 +45,8 @@ export interface BackupNotificationInput {
   bytes: number;
   /** How many local source DBs went in, for the body line. */
   databases: number;
+  /** Optional realtime fan-out (`notifications:<userId>`) when the caller has the hub. */
+  hub?: NotificationPublisher | undefined;
   at?: number | undefined;
 }
 
@@ -61,28 +63,23 @@ function humanBytes(bytes: number): string {
 }
 
 /**
- * Insert the row. Best-effort at the CALL SITE, not here: a failure to write a
- * notification must never fail the backup that succeeded (see the route), but it
- * must also not be silently swallowed inside the writer, where nobody would ever
- * learn about it.
+ * Insert the row through the shared writer. Best-effort at the CALL SITE, not
+ * here: a failure to write a notification must never fail the backup that
+ * succeeded (see the route), but it must also not be silently swallowed inside
+ * the writer, where nobody would ever learn about it.
  */
 export async function notifyBackupCompleted(input: BackupNotificationInput): Promise<void> {
-  const at = input.at ?? Date.now();
-  await input.meta.db
-    .insertInto('adminium_notifications')
-    .values({
-      id: newId('ntf'),
+  await notify(
+    input.meta,
+    {
       userId: input.userId,
       kind: BACKUP_NOTIFICATION_KIND,
-      actorLabel: 'Adminium',
       title: 'Backup complete',
       body: `${String(input.databases)} database${input.databases === 1 ? '' : 's'} · ${humanBytes(
         input.bytes,
       )}`,
-      entity: packJson({ kind: 'backup', path: input.path, bytes: input.bytes }),
-      actionUrl: null,
-      readAt: null,
-      createdAt: at,
-    })
-    .execute();
+      entity: { kind: 'backup', path: input.path, bytes: input.bytes },
+    },
+    { hub: input.hub, at: input.at },
+  );
 }

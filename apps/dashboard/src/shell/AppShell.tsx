@@ -66,9 +66,11 @@ export function AppShell() {
   // --- realtime: config-changed → invalidate; offline banner signal --------
   useEffect(() => {
     const client = createRealtimeClient({
-      channels: ['config-changed'],
+      // notifications:<userId> feeds the sidebar unread badge + feeds (M7 T6).
+      channels: ['config-changed', `notifications:${bootstrap.user.id}`],
       // config-changed → bootstrap + page invalidation; table/widget-data
-      // publications → data-list + widget-data invalidation (src/api/realtime.ts).
+      // publications → data-list + widget-data invalidation; notifications:*
+      // → the ['notifications'] prefix (src/api/realtime.ts).
       onEvent: (event) => invalidateForRealtimeEvent(queryClient, event),
       onStatusChange: (connected) => setOffline(!connected),
     });
@@ -82,7 +84,7 @@ export function AppShell() {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     };
-  }, [queryClient]);
+  }, [queryClient, bootstrap.user.id]);
 
   // --- global shortcut registrations (§5.3) --------------------------------
   useShortcut({

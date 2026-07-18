@@ -12,14 +12,15 @@
  * are checked in, `manifests.test.ts` is the CI gate (acceptance #16), and a
  * template the runtime cannot parse must never reach page generation.
  *
- * COVERAGE: 12 of the 23 §14 archetypes ship today — the two the M4 generator
+ * COVERAGE: 14 of the 23 §14 archetypes ship today — the two the M4 generator
  * already emits (`page-crud`, `page-dashboard`, whose components live under
  * `templates/page-crud/` and `templates/page-dashboard/`; the manifests here
  * *describe* those compositions) plus the nine M7 archetypes, plus the M7 Wave-4
  * `page-builder` (TRACK BUILDER) — the archetype the §13 document vocabulary is
  * built for, which is why it lands with `document-canvas` rather than waiting on
- * the families its optional rails reference. The remaining eleven
- * (`page-settings`, `page-wizard`, `page-status`, `page-billing`, `page-api`,
+ * the families its optional rails reference — plus wave 2's `page-wizard`
+ * (T5 data-io stepped flows) and `page-settings` (T6 notification preference
+ * matrix). The remaining nine (`page-status`, `page-billing`, `page-api`,
  * `page-kb-docs`, `page-auth`, `page-system-state`, `page-marketing`,
  * `page-hub-home`, `page-onboarding-checklist`) land with the families they are
  * built from.
@@ -55,6 +56,8 @@ import pageLogViewer from './page-log-viewer.json' with { type: 'json' };
 import pageMasterDetail from './page-master-detail.json' with { type: 'json' };
 import pageQueueInbox from './page-queue-inbox.json' with { type: 'json' };
 import pageScheduler from './page-scheduler.json' with { type: 'json' };
+import pageSettings from './page-settings.json' with { type: 'json' };
+import pageWizard from './page-wizard.json' with { type: 'json' };
 import { parsePageTemplate, type PageTemplate } from './template-schema.js';
 
 /**
@@ -76,6 +79,8 @@ const MANIFEST_JSON: readonly unknown[] = [
   pageFiles,
   pageChat,
   pageBuilder,
+  pageWizard,
+  pageSettings,
 ];
 
 export class DuplicatePageTemplateManifestError extends Error {

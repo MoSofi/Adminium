@@ -28,7 +28,12 @@ import { jobOwnerId, jobsRoutes } from '../routes/jobs/index.js';
 import { RealtimeHub } from '../realtime/hub.js';
 import { registerSseRoute } from '../realtime/sse.js';
 import { registerWsRoute, type RealtimeGatewayDeps } from '../realtime/ws.js';
+import type { ConnectionManager } from '../connections/manager.js';
+import type { FileStorage } from '../files/storage.js';
+import { EXPORT_RUN_KIND, registerExportRunHandler } from './export-run.js';
+import { IMPORT_RUN_KIND, registerImportRunHandler } from './import-run.js';
 import { LLM_RUN_KIND, registerLlmRunHandler, type ResolveRun } from './llm-run.js';
+import { REPORT_RUN_KIND, registerReportRunHandler } from './report-run.js';
 import { createJobRegistry, registerNoopProgressHandler, type JobRegistry } from './registry.js';
 import { JobScheduler } from './scheduler.js';
 import { JobWorker } from './worker.js';
@@ -51,6 +56,18 @@ export interface JobsAndRealtimeOptions {
   llm?:
     | {
         resolve: ResolveRun;
+      }
+    | undefined;
+  /**
+   * Wire the M7-T07 data-io runners (`export-run` / `import-run`). When
+   * supplied, both handlers are registered on the registry (unless a custom
+   * registry already carries them). `manager`/`storage` are the same
+   * instances the exports/imports routes receive in compose.
+   */
+  dataIo?:
+    | {
+        manager: ConnectionManager;
+        storage: FileStorage;
       }
     | undefined;
   /** Worker tuning knobs. */
@@ -106,6 +123,21 @@ export async function registerJobsAndRealtime(
   }
 
   const hub = new RealtimeHub();
+  if (opts.dataIo !== undefined) {
+    const { manager, storage } = opts.dataIo;
+    if (!registry.has(EXPORT_RUN_KIND)) {
+      registerExportRunHandler(registry, { meta, manager, storage });
+    }
+    if (!registry.has(IMPORT_RUN_KIND)) {
+      registerImportRunHandler(registry, { meta, manager, storage, hub });
+    }
+    // report-run rides the SAME option: it drives the export-run handler
+    // through this registry (jobs/report-run.ts), so it is only meaningful
+    // where the data-io pipeline is wired.
+    if (!registry.has(REPORT_RUN_KIND)) {
+      registerReportRunHandler(registry, { meta, registry, hub });
+    }
+  }
   const worker = new JobWorker({
     meta,
     registry,

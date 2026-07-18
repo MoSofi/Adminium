@@ -5,7 +5,11 @@
     "retry": "重試",
     "undo": "復原",
     "close": "關閉",
-    "cancel": "取消"
+    "cancel": "取消",
+    "back": "返回",
+    "loading": "載入中",
+    "clearSearch": "清除搜尋",
+    "save": "儲存"
   },
   "auth": {
     "headline": "把任何資料庫變成儀表板。",
@@ -76,12 +80,26 @@
     "connection": {
       "shared": "共用",
       "unnamed": "連線"
+    },
+    "imports": "匯入資料",
+    "exports": "資料匯出",
+    "emailTemplates": "郵件範本",
+    "notificationSettings": "通知設定",
+    "scheduledReports": "排程報表",
+    "group": {
+      "workspace": "工作區",
+      "library": "資源庫",
+      "planning": "規劃",
+      "people": "人員",
+      "account": "帳戶"
     }
   },
   "topbar": {
     "search": "搜尋…",
     "notifications": "通知",
-    "notificationsSoon": "通知功能將隨通知中心一起推出（M7）。",
+    "notificationsLoading": "正在載入通知",
+    "notificationsError": "無法載入通知。",
+    "notificationsEmpty": "沒有新通知。",
     "theme": "切換淺色 / 深色",
     "userMenu": "帳戶選單",
     "profile": "個人資料",
@@ -214,6 +232,19 @@
       "saved": "已更新工作區預設值",
       "saveFailed": "無法儲存工作區預設值。請再試一次。",
       "liveNote": "儲存後變更會即時廣播——遵循預設值的線上使用者不必重新載入就會看到。"
+    },
+    "notifications": {
+      "subtitle": "選擇通知內容與方式",
+      "matrixLabel": "通知我",
+      "rowHeader": "事件",
+      "saving": "儲存中…",
+      "saved": "已儲存",
+      "unavailable": "尚不可用",
+      "loading": "正在載入偏好設定",
+      "errorTitle": "無法載入這些設定",
+      "emptyTitle": "尚無可設定項目",
+      "emptyBody": "隨著功能推出，通知事件會顯示在這裡。",
+      "saveFailed": "無法儲存此變更。"
     }
   },
   "studio": {
@@ -463,7 +494,7 @@
         "guaranteeTitle": "無遙測保證",
         "guarantee1": "提示詞僅包含你的結構描述與彙總統計——預設絕不包含列資料。",
         "guarantee2": "不嵌入任何憑證、執行個體 URL 或識別碼。",
-        "guarantee3": "BYO 執行不進行任何網路呼叫，也絕不計費。",
+        "guarantee3": "BYO 執行不進行任何網路呼叫。",
         "promptVersion": "提示詞 {version}",
         "schemaVersion": "結構描述 {version}",
         "headingRecommended": "使用你自己的 AI 工具——不需金鑰",
@@ -840,7 +871,14 @@
       "chrome": "導覽",
       "system": "系統",
       "domain": "領域"
-    }
+    },
+    "versions": "版本",
+    "versionsEmpty": "尚未儲存任何版本",
+    "saveAsVersion": "儲存為版本",
+    "saveVersionTitle": "儲存版本",
+    "saveVersionBody": "為目前文件建立快照。可隨時從「版本」還原。",
+    "versionName": "版本名稱",
+    "versionNamePlaceholder": "例如：Q3 費率調整前"
   },
   "setup": {
     "title": "設定 Adminium",
@@ -1382,6 +1420,255 @@
       "revokeNote": "您可以隨時在「設定 → 桌面」中撤銷。僅允許您信任的應用程式。",
       "deny": "暫不",
       "approve": "允許"
+    }
+  },
+  "emailTemplates": {
+    "title": "郵件範本",
+    "subtitle": "工作區傳送的交易與生命週期郵件。",
+    "search": "搜尋範本…",
+    "loadFailed": "無法載入範本",
+    "empty": "尚未有郵件範本",
+    "emptyBody": "伺服器建立範本或您建立範本後，會顯示在這裡。",
+    "noMatches": "沒有相符的範本",
+    "noMatchesBody": "試試其他搜尋詞。",
+    "live": "已啟用",
+    "disabled": "已停用",
+    "name": "範本名稱",
+    "subject": "主旨",
+    "enabled": "已啟用"
+  },
+  "board": {
+    "addCard": "新增卡片",
+    "compose": {
+      "placeholder": "卡片標題…",
+      "add": "新增",
+      "cancel": "取消"
+    },
+    "empty": {
+      "title": "沒有看板欄",
+      "body": "新增狀態欄位，將卡片分組到欄中。"
+    }
+  },
+  "calendar": {
+    "dateRange": "日期範圍",
+    "compose": {
+      "placeholder": "事件標題…",
+      "add": "新增",
+      "cancel": "取消",
+      "open": "新增事件"
+    },
+    "agenda": {
+      "empty": "尚無排程"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "上一週",
+    "nextWeek": "下一週",
+    "week": "週",
+    "month": "月",
+    "resource": "資源",
+    "coverage": "覆蓋",
+    "addShift": "新增班次",
+    "shiftCount": "{n} 個班次"
+  },
+  "planning": {
+    "drawer": {
+      "close": "關閉",
+      "loading": "正在載入記錄",
+      "error": "無法載入此記錄。"
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "此頁面尚不支援上傳。"
+  },
+  "chat": {
+    "messageSent": "訊息已傳送",
+    "sendFailed": "訊息無法傳送。"
+  },
+  "templates": {
+    "crud": {
+      "title": "記錄"
+    },
+    "dashboard": {
+      "title": "儀表板"
+    },
+    "board": {
+      "title": "看板"
+    },
+    "calendar": {
+      "title": "行事曆"
+    },
+    "scheduler": {
+      "title": "排班"
+    },
+    "logViewer": {
+      "title": "記錄檔"
+    },
+    "files": {
+      "title": "檔案"
+    },
+    "chat": {
+      "title": "聊天"
+    },
+    "builder": {
+      "title": "建立工具"
+    },
+    "wizard": {
+      "title": "精靈"
+    },
+    "settings": {
+      "title": "設定"
+    },
+    "directory": {
+      "title": "通訊錄",
+      "searchPlaceholder": "搜尋人員…",
+      "allFilter": "全部",
+      "clearFilters": "清除篩選",
+      "detailTitle": "人員",
+      "emptyTitle": "尚未有人員",
+      "emptyBody": "資料表有資料後，人員會顯示在這裡。",
+      "noMatchesTitle": "沒有相符的人員",
+      "noMatchesBody": "試試其他搜尋詞或移除篩選。",
+      "errorTitle": "無法載入此通訊錄",
+      "loading": "正在載入人員",
+      "memberCount": "{count} 人"
+    },
+    "masterDetail": {
+      "title": "清單與詳情",
+      "allFilter": "全部",
+      "clearFilters": "清除篩選",
+      "emptyTitle": "這裡還沒有內容",
+      "emptyBody": "資料表有資料後，記錄會顯示在這裡。",
+      "noMatchesTitle": "沒有相符的記錄",
+      "noMatchesBody": "試試移除篩選。",
+      "errorTitle": "無法載入此清單",
+      "loading": "正在載入記錄",
+      "selectPrompt": "選擇一筆記錄"
+    },
+    "queueInbox": {
+      "title": "佇列",
+      "approve": "核准",
+      "reject": "拒絕",
+      "allSegment": "全部",
+      "approvedToast": "已核准 {count} 項。",
+      "rejectedToast": "已拒絕 {count} 項。",
+      "undoneToast": "已復原該決定。",
+      "failedToast": "操作失敗。",
+      "bulkFailed": "所選列中有 {failed}/{total} 列未能更新。",
+      "undoFailedToast": "無法復原該決定。",
+      "rejectTitle": "拒絕請求",
+      "rejectCount": "已選 · {count}",
+      "rejectNote": "請求者會收到通知與您的備註。",
+      "rejectPlaceholder": "為請求者新增備註…",
+      "rejectConfirm": "拒絕",
+      "emptyTitle": "佇列是空的",
+      "emptyBody": "新請求送達後會顯示在這裡。",
+      "caughtUpTitle": "全部處理完畢",
+      "caughtUpBody": "此索引標籤目前沒有請求。",
+      "errorTitle": "無法載入此佇列",
+      "loading": "正在載入佇列",
+      "selectPrompt": "選擇一個請求",
+      "daysUnit": "{count} 天"
+    }
+  },
+  "dataio": {
+    "back": "返回",
+    "import": {
+      "title": "匯入資料",
+      "stepUpload": "上傳",
+      "stepMap": "對應欄位",
+      "stepValidate": "驗證",
+      "stepRun": "匯入並檢查",
+      "targetLabel": "目標資料表",
+      "targetPlaceholder": "選擇一個資料表頁面…",
+      "notATable": "該頁面不是資料表——請選擇要匯入的資料表頁面。",
+      "dropTitle": "拖放 CSV 檔案以匯入",
+      "dropHint": "CSV 最大 32 MB——第一列必須是標題列",
+      "skipTarget": "不匯入",
+      "mapHint": "{file} 中有 {count} 行資料——請為每一欄選擇目標。",
+      "validating": "正在驗證…",
+      "toValidate": "驗證",
+      "validateFailed": "驗證失敗。",
+      "validationSummary": "{total} 行中有 {valid} 行可匯入——將略過 {invalid} 行。",
+      "allValid": "所有列均通過驗證",
+      "run": "執行匯入",
+      "runSkipping": "匯入 {valid} 行（略過 {invalid} 行）",
+      "progressLabel": "匯入進度",
+      "running": "正在匯入…",
+      "kpiTotal": "檔案中的列數",
+      "kpiCreated": "已建立",
+      "kpiUpdated": "已更新",
+      "kpiSkipped": "已略過",
+      "inconsistent": "匯入數字不一致——總數必須等於已建立 + 已更新 + 已略過。",
+      "downloadErrors": "下載略過列報告（CSV）",
+      "runFailed": "匯入失敗。"
+    },
+    "exports": {
+      "title": "資料匯出",
+      "tableLabel": "資料表",
+      "tablePlaceholder": "選擇資料表…",
+      "notATable": "該頁面不是資料表——請選擇要匯出的資料表頁面。",
+      "formatLabel": "格式",
+      "create": "匯出",
+      "createFailed": "無法發起匯出。",
+      "retention": "匯出檔案保留 30 天後過期。",
+      "statusProcessing": "處理中…",
+      "statusReady": "已就緒——{rows} 行·點擊下載",
+      "statusFailed": "失敗——{error}",
+      "statusCancelled": "已取消",
+      "statusExpired": "已過期",
+      "emptyTitle": "尚未有匯出",
+      "emptyBody": "在上方發起匯出——產出的檔案會連同狀態顯示在這裡。"
+    }
+  },
+  "reports": {
+    "title": "排程報表",
+    "subtitle": "頁面的定期資料快照，以應用程式內通知送達。",
+    "new": "新增報表",
+    "loadFailed": "無法載入排程報表。",
+    "saveFailed": "無法儲存此報表。",
+    "nextRun": "下次執行",
+    "emptyTitle": "尚未有排程報表",
+    "emptyBody": "建立一個，即可定期取得任一資料表頁面的資料快照。",
+    "createTitle": "新增排程報表",
+    "editTitle": "編輯排程報表",
+    "nameLabel": "名稱",
+    "namePlaceholder": "例如：每週營收",
+    "pageLabel": "頁面",
+    "pagePlaceholder": "選擇頁面…",
+    "frequencyLabel": "頻率",
+    "frequency": {
+      "daily": "每天",
+      "weekly": "每週",
+      "monthly": "每月"
+    },
+    "dayOfWeekLabel": "星期",
+    "dayOfMonthLabel": "每月日期",
+    "timeLabel": "時間",
+    "timezoneLabel": "時區",
+    "formatLabel": "送達方式",
+    "formatHint": "資料快照（PDF/PNG 轉譯將在後續版本推出）——每次執行都會產生 CSV 快照與應用程式內通知。",
+    "recipientsLabel": "收件者",
+    "recipientsHint": "與報表一起儲存。郵件送達將在後續版本推出——目前執行結果以應用程式內通知提醒您。",
+    "deliveryBadge": "CSV 快照",
+    "delete": "刪除",
+    "create": "建立",
+    "cadence": {
+      "daily": "每天 {time}（{zone}）",
+      "weekly": "每週 · {day} {time}（{zone}）",
+      "monthly": "每月 · {day} 日 {time}（{zone}）"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "應用程式內",
+      "email": "郵件",
+      "push": "推播"
+    },
+    "event": {
+      "reportReady": "排程報表已就緒",
+      "reportFailed": "排程報表失敗",
+      "backupCompleted": "備份完成"
     }
   }
 }

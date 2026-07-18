@@ -1,0 +1,14 @@
+{
+  "id": "page-settings",
+  "version": 1,
+  "titleKey": "templates.settings.title",
+  "slots": [
+    { "slot": "channel-summary", "accepts": { "widgets": ["toggle-switch-list"] },
+      "area": { "x": 0, "y": 0, "w": 12, "h": 6 }, "fallback": "omit" },
+    { "slot": "matrix", "accepts": { "widgets": ["toggle-matrix"] },
+      "area": { "x": 0, "y": 6, "w": 12, "h": 10 }, "required": true },
+    { "slot": "schedule", "accepts": { "widgets": ["toggle-switch-list", "option-cards"] },
+      "area": { "x": 0, "y": 16, "w": 12, "h": 6 }, "fallback": "omit" }
+  ],
+  "chrome": { "overlays": ["toast-stack"] }
+}

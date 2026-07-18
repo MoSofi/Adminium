@@ -160,14 +160,18 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
   });
 
   // M7 page-template legs (queue/board/directory as per-item template pages).
-  // Only `page-crud` + `page-dashboard` are registered in this build, so a
-  // template recommendation would be dropped as a per-item referential error;
-  // the golden response omits `pageTemplates`. Unskip once M7 registers the
-  // template renderers and the golden gains a `pageTemplates` block.
+  // HALF the gate has lifted: the M7 wave-2 assembly registered all 14
+  // template renderers (apps/dashboard/src/pages/templates.tsx), and the
+  // seeded archetype pages are pinned end-to-end by template-pages.spec.ts.
+  // What still blocks THIS leg is the golden fixture: the BYO response
+  // (`fixtures/northwind-enrichment.json`) carries no `pageTemplates` block,
+  // so there is no LLM-recommended template page to round-trip through
+  // validate → review → apply. Unskip once the golden gains a `pageTemplates`
+  // block (and this body drives it through the review screen).
   test.fixme(
     'BYO round-trip applies queue/board/directory template pages (M7)',
     async () => {
-      // Intentionally empty: template pages are not renderable until M7.
+      // Intentionally empty until the golden fixture carries `pageTemplates`.
     },
   );
 });

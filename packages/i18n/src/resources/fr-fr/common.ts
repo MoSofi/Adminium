@@ -13,7 +13,11 @@ export default {
     "retry": "Réessayer",
     "undo": "Annuler",
     "close": "Fermer",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "back": "Retour",
+    "loading": "Chargement",
+    "clearSearch": "Effacer la recherche",
+    "save": "Enregistrer"
   },
   "auth": {
     "headline": "Transformez n’importe quelle base de données en tableau de bord.",
@@ -84,12 +88,26 @@ export default {
     "connection": {
       "shared": "Partagé",
       "unnamed": "Connexion"
+    },
+    "imports": "Importer des données",
+    "exports": "Exports de données",
+    "emailTemplates": "Modèles d’e-mail",
+    "notificationSettings": "Paramètres de notification",
+    "scheduledReports": "Rapports planifiés",
+    "group": {
+      "workspace": "Espace de travail",
+      "library": "Bibliothèque",
+      "planning": "Planification",
+      "people": "Personnes",
+      "account": "Compte"
     }
   },
   "topbar": {
     "search": "Rechercher…",
     "notifications": "Notifications",
-    "notificationsSoon": "Les notifications arrivent avec le centre de notifications (M7).",
+    "notificationsLoading": "Chargement des notifications",
+    "notificationsError": "Impossible de charger les notifications.",
+    "notificationsEmpty": "Vous êtes à jour.",
     "theme": "Basculer clair / sombre",
     "userMenu": "Menu du compte",
     "profile": "Profil",
@@ -222,6 +240,19 @@ export default {
       "saved": "Valeurs par défaut de l’espace de travail mises à jour",
       "saveFailed": "Impossible d’enregistrer les valeurs par défaut. Réessayez.",
       "liveNote": "L’enregistrement diffuse le changement en direct — les utilisateurs connectés qui suivent une valeur par défaut la voient s’appliquer sans recharger."
+    },
+    "notifications": {
+      "subtitle": "Choisissez de quoi vous êtes notifié et comment",
+      "matrixLabel": "Me notifier pour",
+      "rowHeader": "Événement",
+      "saving": "Enregistrement…",
+      "saved": "Enregistré",
+      "unavailable": "Pas encore disponible",
+      "loading": "Chargement des préférences",
+      "errorTitle": "Ces paramètres n’ont pas pu être chargés",
+      "emptyTitle": "Rien à configurer pour l’instant",
+      "emptyBody": "Les événements de notification apparaissent ici à mesure que leurs producteurs sont livrés.",
+      "saveFailed": "Impossible d’enregistrer cette modification."
     }
   },
   "studio": {
@@ -471,7 +502,7 @@ export default {
         "guaranteeTitle": "Garantie sans télémétrie",
         "guarantee1": "Le prompt ne contient que votre schéma et des statistiques agrégées — jamais de données de lignes par défaut.",
         "guarantee2": "Aucun identifiant, URL d’instance ni justificatif n’y est intégré.",
-        "guarantee3": "Les exécutions BYO ne font aucun appel réseau et ne sont jamais facturées.",
+        "guarantee3": "Les exécutions BYO ne font aucun appel réseau.",
         "promptVersion": "Prompt {version}",
         "schemaVersion": "Schéma {version}",
         "headingRecommended": "Utilisez votre propre outil IA — aucune clé requise",
@@ -848,7 +879,14 @@ export default {
       "chrome": "Navigation",
       "system": "Système",
       "domain": "Domaine"
-    }
+    },
+    "versions": "Versions",
+    "versionsEmpty": "Aucune version enregistrée pour l’instant",
+    "saveAsVersion": "Enregistrer comme version",
+    "saveVersionTitle": "Enregistrer une version",
+    "saveVersionBody": "Capture l’état actuel du document. Restaurez-le à tout moment depuis Versions.",
+    "versionName": "Nom de la version",
+    "versionNamePlaceholder": "p. ex. Avant le changement des tarifs T3"
   },
   "setup": {
     "title": "Configurer Adminium",
@@ -1390,6 +1428,255 @@ export default {
       "revokeNote": "Vous pouvez révoquer ceci à tout moment dans Paramètres → Bureau. N’autorisez que les applications de confiance.",
       "deny": "Pas maintenant",
       "approve": "Autoriser"
+    }
+  },
+  "emailTemplates": {
+    "title": "Modèles d’e-mail",
+    "subtitle": "Les e-mails transactionnels et de cycle de vie envoyés par votre espace de travail.",
+    "search": "Rechercher des modèles…",
+    "loadFailed": "Impossible de charger les modèles",
+    "empty": "Aucun modèle d’e-mail pour l’instant",
+    "emptyBody": "Les modèles apparaissent ici dès que le serveur les crée ou que vous en créez.",
+    "noMatches": "Aucun modèle correspondant",
+    "noMatchesBody": "Essayez une autre recherche.",
+    "live": "Actif",
+    "disabled": "Désactivé",
+    "name": "Nom du modèle",
+    "subject": "Objet",
+    "enabled": "Activé"
+  },
+  "board": {
+    "addCard": "Ajouter une carte",
+    "compose": {
+      "placeholder": "Titre de la carte…",
+      "add": "Ajouter",
+      "cancel": "Annuler"
+    },
+    "empty": {
+      "title": "Aucune colonne de tableau",
+      "body": "Ajoutez un champ de statut pour regrouper les cartes en colonnes."
+    }
+  },
+  "calendar": {
+    "dateRange": "Plage de dates",
+    "compose": {
+      "placeholder": "Titre de l’événement…",
+      "add": "Ajouter",
+      "cancel": "Annuler",
+      "open": "Ajouter un événement"
+    },
+    "agenda": {
+      "empty": "Rien de prévu"
+    }
+  },
+  "scheduler": {
+    "prevWeek": "Semaine précédente",
+    "nextWeek": "Semaine suivante",
+    "week": "Semaine",
+    "month": "Mois",
+    "resource": "Ressource",
+    "coverage": "Couverture",
+    "addShift": "Ajouter un créneau",
+    "shiftCount": "{n} créneaux"
+  },
+  "planning": {
+    "drawer": {
+      "close": "Fermer",
+      "loading": "Chargement de l’enregistrement",
+      "error": "Impossible de charger cet enregistrement."
+    }
+  },
+  "files": {
+    "uploadsUnavailable": "Les téléversements ne sont pas encore disponibles sur cette page."
+  },
+  "chat": {
+    "messageSent": "Message envoyé",
+    "sendFailed": "Le message n’a pas pu être envoyé."
+  },
+  "templates": {
+    "crud": {
+      "title": "Enregistrements"
+    },
+    "dashboard": {
+      "title": "Tableau de bord"
+    },
+    "board": {
+      "title": "Tableau"
+    },
+    "calendar": {
+      "title": "Calendrier"
+    },
+    "scheduler": {
+      "title": "Planning"
+    },
+    "logViewer": {
+      "title": "Journaux"
+    },
+    "files": {
+      "title": "Fichiers"
+    },
+    "chat": {
+      "title": "Discussion"
+    },
+    "builder": {
+      "title": "Éditeur"
+    },
+    "wizard": {
+      "title": "Assistant"
+    },
+    "settings": {
+      "title": "Paramètres"
+    },
+    "directory": {
+      "title": "Annuaire",
+      "searchPlaceholder": "Rechercher des personnes…",
+      "allFilter": "Tous",
+      "clearFilters": "Effacer les filtres",
+      "detailTitle": "Personne",
+      "emptyTitle": "Aucune personne pour l’instant",
+      "emptyBody": "Les personnes apparaissent ici à mesure que des lignes arrivent dans la table.",
+      "noMatchesTitle": "Aucune personne correspondante",
+      "noMatchesBody": "Essayez une autre recherche ou retirez un filtre.",
+      "errorTitle": "Cet annuaire n’a pas pu être chargé",
+      "loading": "Chargement des personnes",
+      "memberCount": "{count} personnes"
+    },
+    "masterDetail": {
+      "title": "Liste et détail",
+      "allFilter": "Tous",
+      "clearFilters": "Effacer les filtres",
+      "emptyTitle": "Rien ici pour l’instant",
+      "emptyBody": "Les enregistrements apparaissent ici à mesure que des lignes arrivent dans la table.",
+      "noMatchesTitle": "Aucun enregistrement correspondant",
+      "noMatchesBody": "Essayez de retirer un filtre.",
+      "errorTitle": "Cette liste n’a pas pu être chargée",
+      "loading": "Chargement des enregistrements",
+      "selectPrompt": "Sélectionnez un enregistrement"
+    },
+    "queueInbox": {
+      "title": "File d’attente",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "allSegment": "Tous",
+      "approvedToast": "{count} approuvés.",
+      "rejectedToast": "{count} rejetés.",
+      "undoneToast": "Décision annulée.",
+      "failedToast": "Échec de la décision.",
+      "bulkFailed": "{failed} des {total} lignes sélectionnées n’ont pas pu être mises à jour.",
+      "undoFailedToast": "Impossible d’annuler cette décision.",
+      "rejectTitle": "Rejeter les demandes",
+      "rejectCount": "Sélection · {count}",
+      "rejectNote": "Le demandeur sera notifié avec votre note.",
+      "rejectPlaceholder": "Ajoutez une note pour le demandeur…",
+      "rejectConfirm": "Rejeter",
+      "emptyTitle": "Rien dans la file d’attente",
+      "emptyBody": "Les nouvelles demandes apparaissent ici dès leur arrivée.",
+      "caughtUpTitle": "Vous êtes à jour",
+      "caughtUpBody": "Aucune demande dans cet onglet pour le moment.",
+      "errorTitle": "Cette file d’attente n’a pas pu être chargée",
+      "loading": "Chargement de la file d’attente",
+      "selectPrompt": "Sélectionnez une demande",
+      "daysUnit": "{count} jours"
+    }
+  },
+  "dataio": {
+    "back": "Retour",
+    "import": {
+      "title": "Importer des données",
+      "stepUpload": "Téléverser",
+      "stepMap": "Mapper les colonnes",
+      "stepValidate": "Valider",
+      "stepRun": "Importer et vérifier",
+      "targetLabel": "Table cible",
+      "targetPlaceholder": "Choisissez une page de table…",
+      "notATable": "Cette page n’est pas une table — choisissez une page de table pour l’import.",
+      "dropTitle": "Déposez un fichier CSV à importer",
+      "dropHint": "CSV jusqu’à 32 Mo — la première ligne doit être l’en-tête",
+      "skipTarget": "Ne pas importer",
+      "mapHint": "{count} lignes de données dans {file} — choisissez une cible pour chaque colonne.",
+      "validating": "Validation…",
+      "toValidate": "Valider",
+      "validateFailed": "Échec de la validation.",
+      "validationSummary": "{valid} lignes sur {total} prêtes à l’import — {invalid} seront ignorées.",
+      "allValid": "Toutes les lignes ont passé la validation",
+      "run": "Lancer l’import",
+      "runSkipping": "Importer {valid} lignes (ignorer {invalid})",
+      "progressLabel": "Progression de l’import",
+      "running": "Import en cours…",
+      "kpiTotal": "Lignes dans le fichier",
+      "kpiCreated": "Créées",
+      "kpiUpdated": "Mises à jour",
+      "kpiSkipped": "Ignorées",
+      "inconsistent": "Les totaux de l’import sont incohérents — le total doit égaler créées + mises à jour + ignorées.",
+      "downloadErrors": "Télécharger le rapport des lignes ignorées (CSV)",
+      "runFailed": "L’import a échoué."
+    },
+    "exports": {
+      "title": "Exports de données",
+      "tableLabel": "Table",
+      "tablePlaceholder": "Choisissez une table…",
+      "notATable": "Cette page n’est pas une table — choisissez une page de table à exporter.",
+      "formatLabel": "Format",
+      "create": "Exporter",
+      "createFailed": "Impossible de demander l’export.",
+      "retention": "Les exports sont conservés 30 jours, puis expirent.",
+      "statusProcessing": "Traitement…",
+      "statusReady": "Prêt — {rows} lignes · cliquez pour télécharger",
+      "statusFailed": "Échec — {error}",
+      "statusCancelled": "Annulé",
+      "statusExpired": "Expiré",
+      "emptyTitle": "Aucun export pour l’instant",
+      "emptyBody": "Demandez-en un ci-dessus — les artefacts apparaissent ici avec leur statut."
+    }
+  },
+  "reports": {
+    "title": "Rapports planifiés",
+    "subtitle": "Instantanés de données récurrents d’une page, livrés sous forme de notifications dans l’application.",
+    "new": "Nouveau rapport",
+    "loadFailed": "Impossible de charger les rapports planifiés.",
+    "saveFailed": "Impossible d’enregistrer ce rapport.",
+    "nextRun": "Prochaine exécution",
+    "emptyTitle": "Aucun rapport planifié pour l’instant",
+    "emptyBody": "Créez-en un pour obtenir un instantané de données récurrent de n’importe quelle page de table.",
+    "createTitle": "Nouveau rapport planifié",
+    "editTitle": "Modifier le rapport planifié",
+    "nameLabel": "Nom",
+    "namePlaceholder": "p. ex. Chiffre d’affaires hebdomadaire",
+    "pageLabel": "Page",
+    "pagePlaceholder": "Choisissez une page…",
+    "frequencyLabel": "Fréquence",
+    "frequency": {
+      "daily": "Quotidien",
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuel"
+    },
+    "dayOfWeekLabel": "Jour",
+    "dayOfMonthLabel": "Jour du mois",
+    "timeLabel": "Heure",
+    "timezoneLabel": "Fuseau horaire",
+    "formatLabel": "Livraison",
+    "formatHint": "Instantané de données (le rendu PDF/PNG arrivera dans une version ultérieure) — chaque exécution produit un instantané CSV et une notification dans l’application.",
+    "recipientsLabel": "Destinataires",
+    "recipientsHint": "Enregistrés avec le rapport. La livraison par e-mail arrivera dans une version ultérieure — pour l’instant, les exécutions vous notifient dans l’application.",
+    "deliveryBadge": "Instantané CSV",
+    "delete": "Supprimer",
+    "create": "Créer",
+    "cadence": {
+      "daily": "Quotidien à {time} ({zone})",
+      "weekly": "Hebdomadaire · {day} à {time} ({zone})",
+      "monthly": "Mensuel · le {day} à {time} ({zone})"
+    }
+  },
+  "notifications": {
+    "channel": {
+      "inApp": "Dans l’application",
+      "email": "E-mail",
+      "push": "Push"
+    },
+    "event": {
+      "reportReady": "Rapport planifié prêt",
+      "reportFailed": "Échec du rapport planifié",
+      "backupCompleted": "Sauvegarde terminée"
     }
   }
 } as const;

@@ -9,7 +9,7 @@ import {
   parseGrant,
   parsePermission,
 } from '../src/rbac/permissions.js';
-import type { RolePermission } from '@adminium/meta';
+import { SYSTEM_ACTION_KEYS, type RolePermission } from '@adminium/meta';
 
 describe('parseGrant / parsePermission', () => {
   it('parses system grants against the closed set', () => {
@@ -52,6 +52,26 @@ describe('parseGrant / parsePermission', () => {
     for (const bad of ['', 'nonsense', 'table:::read', 'system: users:manage', 'page::view', 'table:a:b:read:extra']) {
       expect(parseGrant(bad), bad).toBeNull();
     }
+  });
+
+  it('round-trips every SYSTEM_ACTION_KEYS entry through the grant grammar', () => {
+    // The closed set and the grammar must agree: every dotted key becomes a
+    // `system:<area>:<verb>` grant that parses back to the same key. This is
+    // what keeps a new milestone's key (e.g. `exports.manage`, wave 2)
+    // grantable the moment it lands in meta — a key that fails this test is a
+    // permission nobody can ever hold.
+    for (const key of SYSTEM_ACTION_KEYS) {
+      const dot = key.lastIndexOf('.');
+      const area = key.slice(0, dot);
+      const verb = key.slice(dot + 1);
+      const grant = `system:${area}:${verb}`;
+      expect(parseGrant(grant), grant).toEqual({ kind: 'system', area, verb });
+      expect(parsePermission(grant), grant).toEqual({ kind: 'system', area, verb });
+    }
+    // And the wave-2 keys specifically exist in the set.
+    expect(SYSTEM_ACTION_KEYS).toContain('exports.manage');
+    expect(SYSTEM_ACTION_KEYS).toContain('imports.manage');
+    expect(SYSTEM_ACTION_KEYS).toContain('reports.manage');
   });
 
   it('parsePermission refuses wildcards (checks are concrete)', () => {
