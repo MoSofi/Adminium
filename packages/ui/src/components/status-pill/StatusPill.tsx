@@ -2,52 +2,13 @@ import type * as React from 'react';
 
 import { Badge } from '../badge/Badge.js';
 import type { BadgeProps, Tone } from '../badge/Badge.js';
+import { statusTone } from '../../lib/tones.js';
 
-/**
- * Default status→tone registry (workplan/03-component-library.md §7.6).
- * Extended at runtime via `registerStatusTones` (widgets/manifests register
- * domain statuses); tints always derive from the tone — never hardcoded.
- */
-export const DEFAULT_STATUS_TONES: Readonly<Record<string, Tone>> = Object.freeze({
-  paid: 'pos',
-  active: 'pos',
-  connected: 'pos',
-  completed: 'pos',
-  published: 'pos',
-  healthy: 'pos',
-  pending: 'warn',
-  trialing: 'warn',
-  queued: 'warn',
-  degraded: 'warn',
-  past_due: 'warn',
-  failed: 'danger',
-  error: 'danger',
-  suspended: 'danger',
-  overdue: 'danger',
-  canceled: 'danger',
-  refunded: 'info',
-  running: 'info',
-  syncing: 'info',
-  scheduled: 'info',
-  draft: 'neutral',
-  archived: 'neutral',
-  inactive: 'neutral',
-  disabled: 'neutral',
-});
-
-const registry = new Map<string, Tone>(Object.entries(DEFAULT_STATUS_TONES));
-
-/** Idempotent merge of domain statuses into the status→tone registry. */
-export function registerStatusTones(map: Record<string, Tone>): void {
-  for (const [status, tone] of Object.entries(map)) {
-    registry.set(status.toLowerCase(), tone);
-  }
-}
-
-/** Resolve the semantic tone for a status key (case-insensitive). */
-export function statusTone(status: string, fallback: Tone = 'neutral'): Tone {
-  return registry.get(status.toLowerCase()) ?? fallback;
-}
+// The status→tone registry lives in lib/tones.ts (03-component-library.md
+// §7.6) — ONE registry instance package-wide, so a `registerStatusTones`
+// caller and every consumer resolve through the same map. Re-exported here
+// because this module was the barrel's historical source.
+export { DEFAULT_STATUS_TONES, registerStatusTones, statusTone } from '../../lib/tones.js';
 
 export interface StatusPillProps extends Omit<BadgeProps, 'tone' | 'dot' | 'asChild'> {
   /** Status key resolved through the status→tone registry (`statusTone`). */

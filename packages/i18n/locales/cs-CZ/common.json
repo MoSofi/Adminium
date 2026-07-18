@@ -201,7 +201,9 @@
   },
   "account": {
     "title": "Účet",
-    "stub": "Stránky profilu a předvoleb dorazí jako předpřipravené stránky nastavení ve vlně B (09-T18).",
+    "subtitle": "Identita vaší aktuální relace. Předvolby zobrazení a nastavení oznámení spravujete na samostatných stránkách.",
+    "preferencesLink": "Předvolby",
+    "notificationsLink": "Nastavení oznámení",
     "name": "Jméno",
     "email": "E-mail",
     "roles": "Role",
@@ -274,7 +276,48 @@
       },
       "file": {
         "detectedAs": "Rozpoznáno: {format}",
-        "moreWarnings": "+{count} dalších varování — úplný seznam se zobrazí v kroku analýzy."
+        "moreWarnings": "+{count} dalších varování — úplný seznam se zobrazí v kroku analýzy.",
+        "dropTitle": "Přetáhněte sem soubor schématu, nebo procházejte",
+        "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, modely Django, Adminium JSON",
+        "pitch": "Není potřeba připojení k databázi — zpracujeme váš soubor schématu a postavíme stejné nástěnky.",
+        "parsing": "Načítání nahraného souboru schématu…",
+        "tables": "tabulek",
+        "columns": "sloupců",
+        "warnings": "varování",
+        "errorTitle": "Soubor se nepodařilo zpracovat",
+        "parseFailed": "Tento soubor se nepodařilo zpracovat. Pokud automatická detekce odhadla špatně, zvolte formát ručně a zkuste to znovu.",
+        "unsupported": "Tento formát nebyl rozpoznán — podporovány jsou SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, modely Django a Adminium JSON. Zvolte jeden ručně a zkuste to znovu.",
+        "requestFailed": "Nahrání se nezdařilo — zkontrolujte připojení a zkuste to znovu."
+      },
+      "title": "Připojte svou databázi",
+      "subtitle": "Nasměrujte Adminium na databázi a my z jejího schématu vygenerujeme administrační nástěnku.",
+      "name": "Název připojení",
+      "namePlaceholder": "Produkční Postgres",
+      "modeLabel": "Režim zadání zdroje",
+      "mode": {
+        "dsn": "Připojovací řetězec",
+        "fields": "Jednotlivá pole",
+        "file": "Soubor schématu"
+      },
+      "dsn": {
+        "label": "Připojovací řetězec",
+        "helper": "postgres://uzivatel:heslo@host:5432/databaze — fungují také mysql:// a sqlite:.",
+        "incomplete": "Doplňte hostitele a databázi, např. postgres://user@host:5432/db",
+        "invalidScheme": "Nerozpoznané schéma — očekává se postgres://, mysql://, mariadb:// nebo sqlite:",
+        "quickFill": "Rychlé vyplnění:"
+      },
+      "fields": {
+        "host": "Hostitel",
+        "port": "Port",
+        "database": "Databáze",
+        "user": "Uživatel",
+        "password": "Heslo",
+        "ssl": "Režim SSL",
+        "preview": "Náhled připojovacího řetězce:"
+      },
+      "readOnlyRole": {
+        "title": "Použijte roli jen pro čtení",
+        "body": "Adminium do vaší databáze nikdy nezapisuje — nastavení používá pouze metadata schématu. Doporučujeme vyhrazeného uživatele s právy pouze SELECT; kde bude mít Adminium své vlastní tabulky, rozhodnete v kroku úložiště metadat."
       }
     },
     "capability": {
@@ -291,11 +334,51 @@
     },
     "test": {
       "log": {
-        "moreWarnings": "+{count} dalších varování parseru"
+        "moreWarnings": "+{count} dalších varování parseru",
+        "connecting": "Navazuje se zabezpečené připojení…",
+        "connected": "Připojeno ({latency} ms) · introspekce jen pro čtení",
+        "connectFailed": "Připojení se nezdařilo.",
+        "readingSchema": "Čtení schématu: public",
+        "readingFile": "Načítání nahraného souboru schématu…",
+        "parsingFile": "Zpracovává se {file}…",
+        "detected": "Zjištěno {tables} tabulek · {columns} sloupců",
+        "found": "Nalezeno {tables} tabulek · {columns} sloupců",
+        "mapping": "Mapování typů sloupců → vstupní widgety",
+        "relations": "Zjišťování vztahů…",
+        "piiScan": "Vyhledávání sloupců s PII…",
+        "piiDone": "Kontrola PII dokončena — {count} sloupců ve výchozím stavu maskováno",
+        "piiDoneUnknown": "Kontrola PII dokončena",
+        "jobFailed": "Introspekce se nezdařila.",
+        "networkFailed": "Požadavek se nezdařil — zkontrolujte připojení a zkuste to znovu.",
+        "ready": "Připraveno"
+      },
+      "title": "Analýza vašeho schématu",
+      "subtitle": "Probíhá introspekce tabulek, sloupců a vztahů. Zabere to pár sekund.",
+      "trust": "Vaše schéma a data pouze čteme. Nic se nemění.",
+      "errorTitle": "Připojení se nezdařilo",
+      "retry": "Zkusit znovu",
+      "logLabel": "Protokol introspekce",
+      "hint": {
+        "auth": "Ověření se nezdařilo — zkontrolujte uživatelské jméno a heslo v DSN.",
+        "hostUnreachable": "Hostitel je nedostupný — zkontrolujte název hostitele a port a že databáze přijímá připojení z tohoto stroje (povolte naše IP adresy).",
+        "metaPlacement": "Tento zdroj nemůže hostit meta tabulky Adminia — pokračujte se samostatnou meta databází.",
+        "permission": "Role se připojila, ale nemá oprávnění číst schéma — udělte introspekční roli právo USAGE na schéma.",
+        "timeout": "Databáze neodpověděla včas — zkontrolujte síťovou cestu a zátěž a zkuste to znovu.",
+        "tls": "Vyjednávání TLS se nezdařilo — zkuste sslmode=require, nebo nahrajte certifikát CA, který váš server očekává.",
+        "unknown": "Připojení se nezdařilo — ověřte DSN a zkuste to znovu."
       }
     },
     "tables": {
-      "importNoCounts": "Soubory se schématem neobsahují počty řádků — sloupec zobrazuje —, dokud nepřipojíte živou databázi."
+      "importNoCounts": "Soubory se schématem neobsahují počty řádků — sloupec zobrazuje —, dokud nepřipojíte živou databázi.",
+      "title": "Vyberte tabulky",
+      "subtitle": "Zvolte, které zahrnout. Kdykoli to můžete změnit.",
+      "search": "Filtrovat tabulky…",
+      "listLabel": "Tabulky k zahrnutí",
+      "emptyFilter": "Žádné tabulky neodpovídají filtru.",
+      "pii": "PII",
+      "highVolume": "velký objem",
+      "highVolumeNote": "Tabulky s více než 100 000 řádky začínají odškrtnuté — provozní tabulky do nástěnky patří jen zřídka.",
+      "joinHidden": "{count} spojovacích/systémových tabulek je předem skryto — vztahy M:N ale stále zajišťují."
     },
     "hub": {
       "title": "Datová připojení",
@@ -736,6 +819,89 @@
           "copy": "mikrotext"
         }
       }
+    },
+    "wizard": {
+      "title": "Nové připojení",
+      "back": "Zpět",
+      "continue": "Pokračovat",
+      "progress": "Průběh nastavení",
+      "persistFailed": "Výběr tabulek se nepodařilo uložit — zkuste to znovu.",
+      "persistFailedTitle": "Uložení se nezdařilo",
+      "step": {
+        "source": "Zdroj",
+        "test": "Analyzovat",
+        "tables": "Tabulky",
+        "meta": "Úložiště metadat",
+        "intent": "Záměr",
+        "enrich": "Obohatit",
+        "generate": "Generovat"
+      }
+    },
+    "meta": {
+      "title": "Kde má Adminium uchovávat své vlastní tabulky?",
+      "subtitle": "Stránky, role, auditní log a nastavení žijí v tabulkách s předponou adminium_ — nikdy se nemíchají s vašimi daty.",
+      "sameDb": {
+        "title": "Stejná databáze",
+        "description": "Tabulky adminium_* se vytvoří vedle vašich zdrojových tabulek. Nejjednodušší nastavení — vyžaduje roli s právy zápisu a CREATE TABLE.",
+        "disabledReadOnly": "Vaše role je jen pro čtení — Adminium do této databáze nikdy nezapisuje. Zvolte pro vlastní tabulky Adminia samostatnou databázi.",
+        "disabledNoDdl": "Tato role nemůže spouštět DDL — migrace Adminia vyžadují CREATE TABLE. Zvolte pro vlastní tabulky Adminia samostatnou databázi.",
+        "disabledFile": "Soubor schématu nemá živou databázi — zvolte pro vlastní tabulky Adminia samostatnou databázi."
+      },
+      "separate": {
+        "title": "Samostatná databáze",
+        "description": "Adminium drží své tabulky v jiné databázi. Váš zdroj zůstává nedotčen — vyžadováno pro zdroje jen pro čtení.",
+        "dsn": "Připojovací řetězec meta databáze",
+        "helper": "Vyžaduje práva zápisu + DDL — Adminium tam spouští vlastní migrace.",
+        "test": "Otestovat připojení",
+        "ok": "Kompatibilní — zápis ✓ · DDL ✓",
+        "insufficient": "Tato role nemůže hostit meta úložiště — Adminium tam potřebuje práva zápisu a CREATE TABLE.",
+        "errorTitle": "Meta úložiště není kompatibilní"
+      },
+      "testFailed": "Připojení se nezdařilo.",
+      "v1Note": {
+        "title": "O této instalaci",
+        "body": "Tento server si zvolil své meta úložiště při prvním spuštění. Tento krok ověří, že je vaše volba kompatibilní s tímto připojením, a zaznamená ji — server vynucuje stejné pravidlo nezávisle (409 META_PLACEMENT_INVALID). Přesun existujícího meta úložiště je provozní úkol (M10)."
+      }
+    },
+    "intent": {
+      "title": "Co potřebujete?",
+      "subtitle": "Záměr určuje, které stránky se vygenerují. Později ho můžete změnit — změna navrhne regeneraci, nikdy tiché přepsání.",
+      "trust": "Čteme pouze vaše schéma — během nastavení nikdy vaše řádková data.",
+      "fullAdmin": {
+        "title": "Kompletní administrace",
+        "description": "Nástěnky, CRUD stránky, vyhledávání, importy a exporty — vše, co vaše schéma podporuje."
+      },
+      "analytics": {
+        "title": "Analytika jen pro čtení",
+        "description": "Nástěnky, grafy a mřížky jen pro čtení. Žádné formuláře, žádné zápisy — každá role omezena na Prohlížejícího."
+      },
+      "crud": {
+        "title": "CRUD tabulky",
+        "description": "Jedna editační stránka na tabulku plus vyhledávání a import/export — minimální domov, žádné nástěnky."
+      },
+      "support": {
+        "title": "Konzole podpory",
+        "description": "Nejprve fronty, stránky tiketů a detailů zákazníků. Mazání ve výchozím stavu vypnuto. (Šablony front přijdou v M7 — sada stránek v1 odpovídá kompletní administraci.)"
+      }
+    },
+    "generate": {
+      "title": "Vygenerujte svou aplikaci",
+      "subtitle": "Jedna stránka na zahrnutou tabulku plus nástěnky podle domény — záměr:",
+      "run": "Vygenerovat nástěnku",
+      "openApp": "Otevřít aplikaci",
+      "logLabel": "Protokol generování",
+      "log": {
+        "classifying": "Klasifikace schématu…",
+        "composing": "Skládání šablon…",
+        "writing": "Zapisování stránek…",
+        "done": "Vygenerováno {pages} stránek v {groups} navigačních skupinách"
+      },
+      "successTitle": "Vaše nástěnka je připravena",
+      "successBody": "{pages} stránek v {groups} navigačních skupinách — vygenerováno z vašeho schématu, upravitelné ve Studiu.",
+      "errorTitle": "Generování se nezdařilo",
+      "failed": "Generování se nezdařilo — zkuste to znovu, nebo nejprve znovu spusťte introspekci.",
+      "fileTitle": "Soubor schématu zpracován — generování vyžaduje živou databázi",
+      "fileBody": "Vaše schéma se zpracovalo čistě a náhled výše je skutečný. Generování běžící aplikace přímo ze souboru schématu (se zástupnými řádky) zatím není k dispozici — připojte živou databázi a generujte hned."
     }
   },
   "onboarding": {

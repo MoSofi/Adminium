@@ -37,6 +37,8 @@ interface Harness {
   superAdmin: User;
   editor: User;
   viewer: User;
+  /** Holds the built-in `admin` role — system grants only, NO page grants. */
+  outsider: User;
 }
 
 function asUser(user: User): Record<string, string> {
@@ -75,19 +77,26 @@ async function buildHarness(): Promise<Harness> {
   const superAdmin = await makeUser('ava', 'super-admin');
   const editor = await makeUser('noah', 'editor');
   const viewer = await makeUser('liam', 'viewer');
+  const outsider = await makeUser('zoe', 'admin');
 
   const page = await pagesRepo(meta).create({
     connectionId: null,
     slug: 'overview',
     type: 'page-dashboard',
     title: 'Overview',
+    navGroup: 'workspace',
     config: envelope(),
   });
 
-  // Grant page-EDIT to the editor's built-in role for this page only.
+  // Grant page-EDIT to the editor's built-in role for this page only, and
+  // page-VIEW (no edit) to the viewer's — GET /pages/:pageId enforces the
+  // view grant (09 §2.1), and the RBAC split under test is view-vs-edit.
   const editorRole = await roles.findBySlug('editor');
   if (editorRole === null) throw new Error('missing editor role');
   await permissionsRepo(meta).grant(editorRole.id, 'page', page.id, { view: true, edit: true });
+  const viewerRole = await roles.findBySlug('viewer');
+  if (viewerRole === null) throw new Error('missing viewer role');
+  await permissionsRepo(meta).grant(viewerRole.id, 'page', page.id, { view: true, edit: false });
 
   const app = await buildServer({ env: makeEnv(), logger: false, metaDb: meta });
   // Stub session auth: x-test-user-id → request.user + a live session so
@@ -98,7 +107,8 @@ async function buildHarness(): Promise<Harness> {
       const user = await users.findById(id);
       if (user !== null) {
         const req = request as unknown as { user: unknown; session: unknown };
-        req.user = { id: user.id, name: user.name, email: user.email };
+        // The FULL repo row — bootstrap's toUserView reads beyond id/name/email.
+        req.user = user;
         req.session = { id: 'test-session', userId: user.id };
       }
     }
@@ -113,7 +123,7 @@ async function buildHarness(): Promise<Harness> {
   );
   await app.ready();
 
-  return { app, meta, pageId: page.id, superAdmin, editor, viewer };
+  return { app, meta, pageId: page.id, superAdmin, editor, viewer, outsider };
 }
 
 describe('dashboard layout persistence', () => {
@@ -259,5 +269,62 @@ describe('dashboard layout persistence', () => {
       payload: layout('x'),
     });
     expect(personal.statusCode).toBe(404);
+  });
+});
+
+describe('page view gate + nav filter (09 §2.1)', () => {
+  let t: Harness;
+  beforeEach(async () => {
+    t = await buildHarness();
+  });
+  afterEach(async () => {
+    await t.app.close();
+    await t.meta.db.destroy();
+  });
+
+  it('GET /pages/:pageId 403s a user whose roles hold no page:<id>:view grant', async () => {
+    const denied = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/pages/${t.pageId}`,
+      headers: asUser(t.outsider),
+    });
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json().error.code).toBe('PAGE_FORBIDDEN');
+
+    // View grantees and super-admins still read the envelope.
+    for (const user of [t.viewer, t.editor, t.superAdmin]) {
+      const res = await t.app.inject({
+        method: 'GET',
+        url: `/api/v1/pages/${t.pageId}`,
+        headers: asUser(user),
+      });
+      expect(res.statusCode).toBe(200);
+    }
+  });
+
+  it('bootstrap nav is permission-filtered: no view grant ⇒ no nav row (configVersion unaffected)', async () => {
+    const bootstrapFor = async (user: User) => {
+      const res = await t.app.inject({
+        method: 'GET',
+        url: '/api/v1/bootstrap',
+        headers: asUser(user),
+      });
+      expect(res.statusCode, res.body).toBe(200);
+      return res.json().data as {
+        nav: { groups: { key: string; items: { pageId: string }[] }[] };
+        configVersion: number;
+      };
+    };
+
+    const admin = await bootstrapFor(t.superAdmin);
+    expect(admin.nav.groups.map((g) => g.key)).toEqual(['workspace']);
+
+    const granted = await bootstrapFor(t.viewer);
+    expect(granted.nav.groups[0]?.items.map((i) => i.pageId)).toEqual([t.pageId]);
+
+    const hidden = await bootstrapFor(t.outsider);
+    expect(hidden.nav.groups).toEqual([]);
+    // The config stamp tracks ALL rows — hiding a page must not fork caches.
+    expect(hidden.configVersion).toBe(admin.configVersion);
   });
 });

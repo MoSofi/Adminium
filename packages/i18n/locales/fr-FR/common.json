@@ -201,7 +201,9 @@
   },
   "account": {
     "title": "Compte",
-    "stub": "Les pages de profil et de préférences arrivent comme pages de réglages préconfigurées dans la vague B (09-T18).",
+    "subtitle": "L'identité de votre session en cours. Gérez les préférences d'affichage et les paramètres de notification sur leurs pages dédiées.",
+    "preferencesLink": "Préférences",
+    "notificationsLink": "Paramètres de notification",
     "name": "Nom",
     "email": "E-mail",
     "roles": "Rôles",
@@ -274,7 +276,48 @@
       },
       "file": {
         "detectedAs": "Détecté : {format}",
-        "moreWarnings": "+{count} avertissements supplémentaires — la liste complète apparaît à l’étape d’analyse."
+        "moreWarnings": "+{count} avertissements supplémentaires — la liste complète apparaît à l’étape d’analyse.",
+        "dropTitle": "Déposez votre fichier de schéma ici, ou parcourez",
+        "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, modèles Django, Adminium JSON",
+        "pitch": "Aucune connexion à la base requise — nous analysons votre fichier de schéma et construisons les mêmes tableaux de bord.",
+        "parsing": "Lecture du fichier de schéma téléversé…",
+        "tables": "tables",
+        "columns": "colonnes",
+        "warnings": "avertissements",
+        "errorTitle": "Impossible d’analyser le fichier",
+        "parseFailed": "Nous n’avons pas pu analyser ce fichier. Si la détection automatique s’est trompée, choisissez le format explicitement et réessayez.",
+        "unsupported": "Format non reconnu — SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, modèles Django et Adminium JSON sont pris en charge. Choisissez-en un explicitement et réessayez.",
+        "requestFailed": "Échec du téléversement — vérifiez votre connexion et réessayez."
+      },
+      "title": "Connectez votre base de données",
+      "subtitle": "Pointez Adminium vers une base de données et nous générerons un tableau de bord d’administration à partir de son schéma.",
+      "name": "Nom de la connexion",
+      "namePlaceholder": "Postgres de production",
+      "modeLabel": "Mode de saisie de la source",
+      "mode": {
+        "dsn": "Chaîne de connexion",
+        "fields": "Champs individuels",
+        "file": "Fichier de schéma"
+      },
+      "dsn": {
+        "label": "Chaîne de connexion",
+        "helper": "postgres://utilisateur:motdepasse@hote:5432/base — mysql:// et sqlite: fonctionnent aussi.",
+        "incomplete": "Ajoutez l’hôte et la base, p. ex. postgres://user@host:5432/db",
+        "invalidScheme": "Schéma non reconnu — attendu : postgres://, mysql://, mariadb:// ou sqlite:",
+        "quickFill": "Remplissage rapide :"
+      },
+      "fields": {
+        "host": "Hôte",
+        "port": "Port",
+        "database": "Base de données",
+        "user": "Utilisateur",
+        "password": "Mot de passe",
+        "ssl": "Mode SSL",
+        "preview": "Aperçu de la chaîne de connexion :"
+      },
+      "readOnlyRole": {
+        "title": "Utilisez un rôle en lecture seule",
+        "body": "Adminium n’écrit jamais dans votre base — la configuration n’utilise que les métadonnées du schéma. Nous recommandons un utilisateur dédié avec des droits SELECT uniquement ; vous choisirez où Adminium range ses propres tables à l’étape du stockage méta."
       }
     },
     "capability": {
@@ -291,11 +334,51 @@
     },
     "test": {
       "log": {
-        "moreWarnings": "+{count} avertissements du parseur supplémentaires"
+        "moreWarnings": "+{count} avertissements du parseur supplémentaires",
+        "connecting": "Établissement d’une connexion sécurisée…",
+        "connected": "Connecté ({latency} ms) · introspection en lecture seule",
+        "connectFailed": "Échec de la connexion.",
+        "readingSchema": "Lecture du schéma : public",
+        "readingFile": "Lecture du fichier de schéma téléversé…",
+        "parsingFile": "Analyse de {file}…",
+        "detected": "{tables} tables · {columns} colonnes détectées",
+        "found": "{tables} tables · {columns} colonnes trouvées",
+        "mapping": "Correspondance des types de colonnes → widgets de saisie",
+        "relations": "Détection des relations…",
+        "piiScan": "Recherche de colonnes PII…",
+        "piiDone": "Analyse PII terminée — {count} colonnes masquées par défaut",
+        "piiDoneUnknown": "Analyse PII terminée",
+        "jobFailed": "Échec de l’introspection.",
+        "networkFailed": "Échec de la requête — vérifiez votre connexion et réessayez.",
+        "ready": "Prêt"
+      },
+      "title": "Analyse de votre schéma",
+      "subtitle": "Introspection des tables, colonnes et relations. Cela prend quelques secondes.",
+      "trust": "Nous ne faisons que lire votre schéma et vos données. Rien n’est modifié.",
+      "errorTitle": "Échec de la connexion",
+      "retry": "Réessayer",
+      "logLabel": "Journal d’introspection",
+      "hint": {
+        "auth": "Échec de l’authentification — vérifiez le nom d’utilisateur et le mot de passe dans votre DSN.",
+        "hostUnreachable": "Hôte injoignable — vérifiez le nom d’hôte et le port, et que la base accepte les connexions depuis cette machine (ajoutez nos IP à la liste d’autorisation).",
+        "metaPlacement": "Cette source ne peut pas héberger les tables méta d’Adminium — continuez avec une base méta séparée.",
+        "permission": "Le rôle s’est connecté mais n’a pas les droits de lecture du schéma — accordez USAGE sur le schéma à votre rôle d’introspection.",
+        "timeout": "La base n’a pas répondu à temps — vérifiez le chemin réseau et la charge, puis réessayez.",
+        "tls": "Échec de la négociation TLS — essayez sslmode=require, ou téléversez le certificat CA attendu par votre serveur.",
+        "unknown": "Échec de la connexion — vérifiez la DSN et réessayez."
       }
     },
     "tables": {
-      "importNoCounts": "Les fichiers de schéma ne contiennent pas de nombres de lignes — la colonne affiche — tant qu’aucune base réelle n’est connectée."
+      "importNoCounts": "Les fichiers de schéma ne contiennent pas de nombres de lignes — la colonne affiche — tant qu’aucune base réelle n’est connectée.",
+      "title": "Choisissez vos tables",
+      "subtitle": "Choisissez lesquelles inclure. Vous pourrez en changer à tout moment.",
+      "search": "Filtrer les tables…",
+      "listLabel": "Tables incluables",
+      "emptyFilter": "Aucune table ne correspond à votre filtre.",
+      "pii": "PII",
+      "highVolume": "gros volume",
+      "highVolumeNote": "Les tables de plus de 100 000 lignes démarrent décochées — les tables techniques ont rarement leur place dans un tableau de bord.",
+      "joinHidden": "{count} tables de jointure/système sont masquées d’avance — elles alimentent toujours les relations plusieurs-à-plusieurs."
     },
     "hub": {
       "title": "Connexions de données",
@@ -736,6 +819,89 @@
           "copy": "microcopie"
         }
       }
+    },
+    "wizard": {
+      "title": "Nouvelle connexion",
+      "back": "Retour",
+      "continue": "Continuer",
+      "progress": "Progression de la configuration",
+      "persistFailed": "Impossible d’enregistrer votre sélection de tables — réessayez.",
+      "persistFailedTitle": "Échec de l’enregistrement",
+      "step": {
+        "source": "Source",
+        "test": "Analyser",
+        "tables": "Tables",
+        "meta": "Stockage méta",
+        "intent": "Intention",
+        "enrich": "Enrichir",
+        "generate": "Générer"
+      }
+    },
+    "meta": {
+      "title": "Où Adminium doit-il ranger ses propres tables ?",
+      "subtitle": "Pages, rôles, journal d’audit et paramètres vivent dans des tables préfixées adminium_ — jamais mêlés à vos données.",
+      "sameDb": {
+        "title": "Même base de données",
+        "description": "Les tables adminium_* sont créées à côté de vos tables sources. La configuration la plus simple — nécessite un rôle avec droits d’écriture et CREATE TABLE.",
+        "disabledReadOnly": "Votre rôle est en lecture seule — Adminium n’écrit jamais dans cette base. Choisissez une base séparée pour les tables d’Adminium.",
+        "disabledNoDdl": "Ce rôle ne peut pas exécuter de DDL — les migrations d’Adminium exigent CREATE TABLE. Choisissez une base séparée pour les tables d’Adminium.",
+        "disabledFile": "Un fichier de schéma n’a pas de base active — choisissez une base séparée pour les tables d’Adminium."
+      },
+      "separate": {
+        "title": "Base de données séparée",
+        "description": "Adminium garde ses tables dans une autre base. Votre source reste intacte — requis pour les sources en lecture seule.",
+        "dsn": "Chaîne de connexion de la base méta",
+        "helper": "Nécessite des droits d’écriture + DDL — Adminium y exécute ses propres migrations.",
+        "test": "Tester la connexion",
+        "ok": "Compatible — écriture ✓ · DDL ✓",
+        "insufficient": "Ce rôle ne peut pas héberger le magasin méta — Adminium y a besoin des droits d’écriture et CREATE TABLE.",
+        "errorTitle": "Magasin méta incompatible"
+      },
+      "testFailed": "Échec de la connexion.",
+      "v1Note": {
+        "title": "À propos de cette installation",
+        "body": "Ce serveur a choisi son magasin méta au premier démarrage. Cette étape vérifie que votre choix est compatible avec cette connexion et l’enregistre — le serveur applique la même règle indépendamment (409 META_PLACEMENT_INVALID). Déplacer un magasin méta existant est une tâche d’exploitation (M10)."
+      }
+    },
+    "intent": {
+      "title": "De quoi avez-vous besoin ?",
+      "subtitle": "L’intention détermine quelles pages sont générées. Vous pourrez la changer plus tard — la changer propose une régénération, jamais une réécriture silencieuse.",
+      "trust": "Nous ne lisons que votre schéma — jamais vos données de lignes pendant la configuration.",
+      "fullAdmin": {
+        "title": "Panneau d’administration complet",
+        "description": "Tableaux de bord, pages CRUD, recherche, imports et exports — tout ce que votre schéma permet."
+      },
+      "analytics": {
+        "title": "Analytique en lecture seule",
+        "description": "Tableaux de bord, graphiques et grilles en lecture seule. Pas de formulaires, pas d’écritures — chaque rôle plafonné à Lecteur."
+      },
+      "crud": {
+        "title": "Tables CRUD",
+        "description": "Une page d’édition par table plus recherche et import/export — un accueil minimal, sans tableaux de bord."
+      },
+      "support": {
+        "title": "Console de support",
+        "description": "Files d’attente, pages de tickets et de fiches clients d’abord. Suppressions désactivées par défaut. (Les modèles de files arrivent en M7 — l’ensemble de pages v1 correspond à l’admin complet.)"
+      }
+    },
+    "generate": {
+      "title": "Générez votre application",
+      "subtitle": "Une page par table incluse plus des tableaux de bord par domaine — intention :",
+      "run": "Générer le tableau de bord",
+      "openApp": "Ouvrir votre application",
+      "logLabel": "Journal de génération",
+      "log": {
+        "classifying": "Classification du schéma…",
+        "composing": "Composition des modèles…",
+        "writing": "Écriture des pages…",
+        "done": "{pages} pages générées dans {groups} groupes de navigation"
+      },
+      "successTitle": "Votre tableau de bord est prêt",
+      "successBody": "{pages} pages dans {groups} groupes de navigation — générées depuis votre schéma, modifiables dans le Studio.",
+      "errorTitle": "Échec de la génération",
+      "failed": "Échec de la génération — réessayez, ou relancez d’abord l’introspection.",
+      "fileTitle": "Fichier de schéma analysé — la génération nécessite une base active",
+      "fileBody": "Votre schéma a été analysé proprement et l’aperçu ci-dessus est réel. Générer une application fonctionnelle directement depuis un fichier de schéma (avec des lignes fictives) n’est pas encore disponible — connectez une base active pour générer dès aujourd’hui."
     }
   },
   "onboarding": {

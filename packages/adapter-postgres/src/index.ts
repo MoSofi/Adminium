@@ -84,25 +84,29 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     const statementTimeoutMs = Math.floor(
       config.statementTimeoutMs ?? DEFAULT_STATEMENT_TIMEOUT_MS,
     );
+    // Session setup on every new connection — 05 §4.1. Sent in the startup
+    // packet (`options`) rather than an on-connect `client.query()`: the pool
+    // hands a freshly-connected client to its pending waiter in the same
+    // ready-for-query tick as the 'connect' event, so a fire-and-forget setup
+    // query would still be in the client's queue when the waiter's query is
+    // pushed — pg 8.22 deprecates that (removed in pg@9). Startup options cost
+    // zero extra round trips and cannot race. Trade-offs: an explicit
+    // `options` overrides any `options=` in the user DSN (rare), and
+    // transaction-pooling pgbouncer rejects startup options (the previous
+    // per-connection SET was equally broken there).
+    const sessionOptions =
+      `-c statement_timeout=${statementTimeoutMs}` +
+      (this.role === 'introspect'
+        ? ' -c lock_timeout=2s -c idle_in_transaction_session_timeout=10s'
+        : '');
     const pool = new pg.Pool({
       connectionString: config.dsn,
       max: config.poolMax ?? (this.role === 'introspect' ? INTROSPECT_POOL_MAX : DATA_POOL_MAX),
+      options: sessionOptions,
     });
     // Surface idle-client failures as pool-level noise, not process crashes.
     pool.on('error', () => {
       /* mapped when the next query fails */
-    });
-    // Session setup on every new connection — 05 §4.1. Queued first on the
-    // client, so it always runs before any query handed out by the pool.
-    const sessionSetup =
-      `SET statement_timeout = ${statementTimeoutMs};` +
-      (this.role === 'introspect'
-        ? " SET lock_timeout = '2s'; SET idle_in_transaction_session_timeout = '10s';"
-        : '');
-    pool.on('connect', (client) => {
-      client.query(sessionSetup).catch(() => {
-        /* connection-level failures surface on the caller's query instead */
-      });
     });
     this.#pool = pool;
     this.#closed = false;

@@ -4,29 +4,22 @@ import type { VariantProps } from 'class-variance-authority';
 import type * as React from 'react';
 
 import { cn } from '../../lib/cn.js';
+import { toneSoftClasses } from '../../lib/tones.js';
 
-/**
- * Semantic tone vocabulary shared across the library (Badge, StatusPill, Tag,
- * ProgressBar, …). See workplan/03-component-library.md §3.3.
- */
-export type Tone = 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
+// The semantic tone vocabulary lives in lib/tones.ts (03-component-library.md
+// §3.3); re-exported here for the library-internal `../badge/Badge.js` imports.
+export type { Tone } from '../../lib/tones.js';
 
 /**
  * Pill badge: radius-full, 11px/700, soft tone background + strong tone
- * foreground (research/design-system.md §3 Tier 1).
+ * foreground (research/design-system.md §3 Tier 1). The tone→class map is the
+ * shared `toneSoftClasses` recipe — one source of truth for every soft tint.
  */
 export const badgeVariants = cva(
   'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold leading-4',
   {
     variants: {
-      tone: {
-        neutral: 'bg-surface-3 text-fg-muted',
-        accent: 'bg-accent-soft text-accent',
-        pos: 'bg-pos-soft text-pos',
-        warn: 'bg-warn-soft text-warn',
-        danger: 'bg-danger-soft text-danger',
-        info: 'bg-info-soft text-info',
-      },
+      tone: toneSoftClasses,
     },
     defaultVariants: { tone: 'neutral' },
   },

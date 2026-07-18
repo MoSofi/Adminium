@@ -155,6 +155,12 @@ describe('composition root (compose.ts)', () => {
       expect(res.statusCode, `${method} ${url} must be registered`).not.toBe(404);
     }
 
+    // Same bug class, jobs edition (pre-M12 audit): `registerIntrospectJob`
+    // shipped with zero call sites, so the 08 §2.4 async introspection path
+    // (202 + jobId) was dead code in every deployment and the route always
+    // fell back to its synchronous dev/test branch. Compose must register it.
+    expect(app.jobs.registry.has('introspect')).toBe(true);
+
     await app.close();
     await meta.db.destroy();
   });

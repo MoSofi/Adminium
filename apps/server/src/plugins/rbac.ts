@@ -88,7 +88,11 @@ export const rbacPlugin = fp<RbacPluginOptions>(
     app.decorateRequest('rbacResolution', null);
 
     async function resolve(request: FastifyRequest): Promise<PermissionSet> {
-      if (request.rbacResolution !== null) return request.rbacResolution;
+      // `!= null` (not `!== null`): routes registered in encapsulation
+      // contexts created BEFORE this plugin (e.g. bootstrap, inside
+      // buildServer) never get the decorator default, so the property reads
+      // `undefined` there — which must mean "not resolved yet", not a cache hit.
+      if (request.rbacResolution != null) return request.rbacResolution;
       const principal = getPrincipal(request);
       if (principal === null) {
         throw new UnauthorizedError();

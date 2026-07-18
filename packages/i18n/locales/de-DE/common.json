@@ -201,7 +201,9 @@
   },
   "account": {
     "title": "Konto",
-    "stub": "Profil- und Einstellungsseiten kommen als vorbereitete Einstellungsseiten in Welle B (09-T18).",
+    "subtitle": "Die Identität Ihrer aktuellen Sitzung. Anzeigeeinstellungen und Benachrichtigungen verwalten Sie auf ihren eigenen Seiten.",
+    "preferencesLink": "Einstellungen",
+    "notificationsLink": "Benachrichtigungseinstellungen",
     "name": "Name",
     "email": "E-Mail",
     "roles": "Rollen",
@@ -274,7 +276,48 @@
       },
       "file": {
         "detectedAs": "Erkannt: {format}",
-        "moreWarnings": "+{count} weitere Warnungen — die vollständige Liste erscheint im Analyse-Schritt."
+        "moreWarnings": "+{count} weitere Warnungen — die vollständige Liste erscheint im Analyse-Schritt.",
+        "dropTitle": "Schemadatei hier ablegen oder durchsuchen",
+        "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-Modelle, Adminium JSON",
+        "pitch": "Keine Datenbankverbindung nötig — wir parsen Ihre Schemadatei und bauen dieselben Dashboards.",
+        "parsing": "Hochgeladene Schemadatei wird gelesen…",
+        "tables": "Tabellen",
+        "columns": "Spalten",
+        "warnings": "Warnungen",
+        "errorTitle": "Datei konnte nicht geparst werden",
+        "parseFailed": "Diese Datei konnte nicht geparst werden. Falls die automatische Erkennung falsch lag, wählen Sie das Format explizit und versuchen Sie es erneut.",
+        "unsupported": "Dieses Format wird nicht erkannt — unterstützt werden SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-Modelle und Adminium JSON. Wählen Sie eines explizit und versuchen Sie es erneut.",
+        "requestFailed": "Upload fehlgeschlagen — prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+      },
+      "title": "Verbinden Sie Ihre Datenbank",
+      "subtitle": "Richten Sie Adminium auf eine Datenbank — wir generieren aus ihrem Schema ein Admin-Dashboard.",
+      "name": "Verbindungsname",
+      "namePlaceholder": "Produktions-Postgres",
+      "modeLabel": "Eingabemodus der Quelle",
+      "mode": {
+        "dsn": "Verbindungszeichenfolge",
+        "fields": "Einzelne Felder",
+        "file": "Schemadatei"
+      },
+      "dsn": {
+        "label": "Verbindungszeichenfolge",
+        "helper": "postgres://benutzer:passwort@host:5432/datenbank — mysql:// und sqlite: funktionieren ebenfalls.",
+        "incomplete": "Host und Datenbank ergänzen, z. B. postgres://user@host:5432/db",
+        "invalidScheme": "Unbekanntes Schema — erwartet werden postgres://, mysql://, mariadb:// oder sqlite:",
+        "quickFill": "Schnellausfüllen:"
+      },
+      "fields": {
+        "host": "Host",
+        "port": "Port",
+        "database": "Datenbank",
+        "user": "Benutzer",
+        "password": "Passwort",
+        "ssl": "SSL-Modus",
+        "preview": "Vorschau der Verbindungszeichenfolge:"
+      },
+      "readOnlyRole": {
+        "title": "Verwenden Sie eine schreibgeschützte Rolle",
+        "body": "Adminium schreibt nie in Ihre Datenbank — die Einrichtung nutzt nur Schema-Metadaten. Wir empfehlen einen dedizierten Benutzer mit reinen SELECT-Rechten; wo Adminium seine eigenen Tabellen ablegt, entscheiden Sie im Meta-Speicher-Schritt."
       }
     },
     "capability": {
@@ -291,11 +334,51 @@
     },
     "test": {
       "log": {
-        "moreWarnings": "+{count} weitere Parser-Warnungen"
+        "moreWarnings": "+{count} weitere Parser-Warnungen",
+        "connecting": "Sichere Verbindung wird aufgebaut…",
+        "connected": "Verbunden ({latency} ms) · schreibgeschützte Introspektion",
+        "connectFailed": "Verbindung fehlgeschlagen.",
+        "readingSchema": "Schema wird gelesen: public",
+        "readingFile": "Hochgeladene Schemadatei wird gelesen…",
+        "parsingFile": "{file} wird geparst…",
+        "detected": "{tables} Tabellen · {columns} Spalten erkannt",
+        "found": "{tables} Tabellen · {columns} Spalten gefunden",
+        "mapping": "Spaltentypen → Eingabe-Widgets werden zugeordnet",
+        "relations": "Beziehungen werden erkannt…",
+        "piiScan": "Suche nach PII-Spalten…",
+        "piiDone": "PII-Scan abgeschlossen — {count} Spalten standardmäßig maskiert",
+        "piiDoneUnknown": "PII-Scan abgeschlossen",
+        "jobFailed": "Introspektion fehlgeschlagen.",
+        "networkFailed": "Anfrage fehlgeschlagen — prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "ready": "Bereit"
+      },
+      "title": "Ihr Schema wird analysiert",
+      "subtitle": "Tabellen, Spalten und Beziehungen werden introspiziert. Das dauert ein paar Sekunden.",
+      "trust": "Wir lesen nur Ihr Schema und Ihre Daten. Nichts wird verändert.",
+      "errorTitle": "Verbindung fehlgeschlagen",
+      "retry": "Erneut versuchen",
+      "logLabel": "Introspektionsprotokoll",
+      "hint": {
+        "auth": "Authentifizierung fehlgeschlagen — prüfen Sie Benutzername und Passwort in Ihrer DSN.",
+        "hostUnreachable": "Host nicht erreichbar — prüfen Sie Hostname und Port und dass die Datenbank Verbindungen von dieser Maschine akzeptiert (unsere IPs freigeben).",
+        "metaPlacement": "Diese Quelle kann Adminiums Meta-Tabellen nicht aufnehmen — fahren Sie mit einer separaten Meta-Datenbank fort.",
+        "permission": "Die Rolle hat sich verbunden, darf das Schema aber nicht lesen — erteilen Sie Ihrer Introspektionsrolle USAGE auf dem Schema.",
+        "timeout": "Die Datenbank hat nicht rechtzeitig geantwortet — prüfen Sie Netzwerkpfad und Auslastung und versuchen Sie es erneut.",
+        "tls": "TLS-Aushandlung fehlgeschlagen — versuchen Sie sslmode=require oder laden Sie das CA-Zertifikat hoch, das Ihr Server erwartet.",
+        "unknown": "Verbindung fehlgeschlagen — prüfen Sie die DSN und versuchen Sie es erneut."
       }
     },
     "tables": {
-      "importNoCounts": "Schemadateien enthalten keine Zeilenzahlen — die Spalte zeigt —, bis eine Live-Datenbank verbunden ist."
+      "importNoCounts": "Schemadateien enthalten keine Zeilenzahlen — die Spalte zeigt —, bis eine Live-Datenbank verbunden ist.",
+      "title": "Wählen Sie Ihre Tabellen",
+      "subtitle": "Wählen Sie, welche enthalten sein sollen. Sie können das jederzeit ändern.",
+      "search": "Tabellen filtern…",
+      "listLabel": "Einbeziehbare Tabellen",
+      "emptyFilter": "Keine Tabellen entsprechen Ihrem Filter.",
+      "pii": "PII",
+      "highVolume": "hohes Volumen",
+      "highVolumeNote": "Tabellen mit über 100.000 Zeilen sind anfangs abgewählt — Ops-Tabellen gehören selten in ein Dashboard.",
+      "joinHidden": "{count} Join-/Systemtabellen sind vorab ausgeblendet — sie treiben weiterhin m:n-Beziehungen an."
     },
     "hub": {
       "title": "Datenverbindungen",
@@ -736,6 +819,89 @@
           "copy": "Mikrotext"
         }
       }
+    },
+    "wizard": {
+      "title": "Neue Verbindung",
+      "back": "Zurück",
+      "continue": "Weiter",
+      "progress": "Einrichtungsfortschritt",
+      "persistFailed": "Ihre Tabellenauswahl konnte nicht gespeichert werden — versuchen Sie es erneut.",
+      "persistFailedTitle": "Speichern fehlgeschlagen",
+      "step": {
+        "source": "Quelle",
+        "test": "Analysieren",
+        "tables": "Tabellen",
+        "meta": "Meta-Speicher",
+        "intent": "Zweck",
+        "enrich": "Anreichern",
+        "generate": "Generieren"
+      }
+    },
+    "meta": {
+      "title": "Wo soll Adminium seine eigenen Tabellen ablegen?",
+      "subtitle": "Seiten, Rollen, Audit-Log und Einstellungen liegen in Tabellen mit adminium_-Präfix — nie mit Ihren Daten vermischt.",
+      "sameDb": {
+        "title": "Gleiche Datenbank",
+        "description": "adminium_*-Tabellen werden neben Ihren Quelltabellen angelegt. Einfachste Einrichtung — benötigt eine Rolle mit Schreib- und CREATE-TABLE-Rechten.",
+        "disabledReadOnly": "Ihre Rolle ist schreibgeschützt — Adminium schreibt nie in diese Datenbank. Wählen Sie für Adminiums eigene Tabellen eine separate Datenbank.",
+        "disabledNoDdl": "Diese Rolle darf kein DDL ausführen — Adminium-Migrationen benötigen CREATE TABLE. Wählen Sie für Adminiums eigene Tabellen eine separate Datenbank.",
+        "disabledFile": "Eine Schemadatei hat keine Live-Datenbank — wählen Sie für Adminiums eigene Tabellen eine separate Datenbank."
+      },
+      "separate": {
+        "title": "Separate Datenbank",
+        "description": "Adminium hält seine Tabellen in einer anderen Datenbank. Ihre Quelle bleibt unangetastet — erforderlich für schreibgeschützte Quellen.",
+        "dsn": "Verbindungszeichenfolge der Meta-Datenbank",
+        "helper": "Benötigt Schreib- und DDL-Rechte — Adminium führt dort seine eigenen Migrationen aus.",
+        "test": "Verbindung testen",
+        "ok": "Kompatibel — Schreiben ✓ · DDL ✓",
+        "insufficient": "Diese Rolle kann den Meta-Store nicht aufnehmen — Adminium benötigt dort Schreib- und CREATE-TABLE-Rechte.",
+        "errorTitle": "Meta-Store nicht kompatibel"
+      },
+      "testFailed": "Verbindung fehlgeschlagen.",
+      "v1Note": {
+        "title": "Über diese Installation",
+        "body": "Dieser Server hat seinen Meta-Store beim ersten Start gewählt. Dieser Schritt prüft, ob Ihre Wahl mit dieser Verbindung kompatibel ist, und hält sie fest — der Server erzwingt dieselbe Regel unabhängig (409 META_PLACEMENT_INVALID). Einen bestehenden Meta-Store zu verschieben ist eine Ops-Aufgabe (M10)."
+      }
+    },
+    "intent": {
+      "title": "Was brauchen Sie?",
+      "subtitle": "Der Zweck bestimmt, welche Seiten generiert werden. Sie können ihn später ändern — eine Änderung schlägt eine Neugenerierung vor, nie ein stilles Überschreiben.",
+      "trust": "Wir lesen nur Ihr Schema — während der Einrichtung nie Ihre Zeilendaten.",
+      "fullAdmin": {
+        "title": "Vollständiges Admin-Panel",
+        "description": "Dashboards, CRUD-Seiten, Suche, Importe und Exporte — alles, was Ihr Schema unterstützt."
+      },
+      "analytics": {
+        "title": "Schreibgeschützte Analysen",
+        "description": "Dashboards, Diagramme und schreibgeschützte Tabellen. Keine Formulare, keine Schreibvorgänge — jede Rolle auf Betrachter begrenzt."
+      },
+      "crud": {
+        "title": "CRUD-Tabellen",
+        "description": "Eine Bearbeitungsseite pro Tabelle plus Suche und Import/Export — ein minimales Zuhause, keine Dashboards."
+      },
+      "support": {
+        "title": "Support-Konsole",
+        "description": "Zuerst Warteschlangen, Ticket- und Kundendetailseiten. Löschen standardmäßig aus. (Queue-Vorlagen kommen mit M7 — der v1-Seitensatz entspricht dem vollständigen Admin.)"
+      }
+    },
+    "generate": {
+      "title": "Generieren Sie Ihre App",
+      "subtitle": "Eine Seite pro einbezogener Tabelle plus Dashboards je Domäne — Zweck:",
+      "run": "Dashboard generieren",
+      "openApp": "App öffnen",
+      "logLabel": "Generierungsprotokoll",
+      "log": {
+        "classifying": "Schema wird klassifiziert…",
+        "composing": "Vorlagen werden zusammengestellt…",
+        "writing": "Seiten werden geschrieben…",
+        "done": "{pages} Seiten in {groups} Navigationsgruppen generiert"
+      },
+      "successTitle": "Ihr Dashboard ist bereit",
+      "successBody": "{pages} Seiten in {groups} Navigationsgruppen — aus Ihrem Schema generiert, im Studio bearbeitbar.",
+      "errorTitle": "Generierung fehlgeschlagen",
+      "failed": "Generierung fehlgeschlagen — versuchen Sie es erneut oder führen Sie zuerst die Introspektion erneut aus.",
+      "fileTitle": "Schemadatei geparst — die Generierung benötigt eine Live-Datenbank",
+      "fileBody": "Ihr Schema wurde sauber geparst und die Vorschau oben ist echt. Eine laufende App direkt aus einer Schemadatei (mit Platzhalterzeilen) zu generieren ist noch nicht verfügbar — verbinden Sie eine Live-Datenbank, um heute zu generieren."
     }
   },
   "onboarding": {

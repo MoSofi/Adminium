@@ -1,8 +1,8 @@
 # @adminium/dashboard
 
-React 19 + Vite 7 SPA: the Generated App shell (M4 Wave A — 09-generated-app.md §2, §5, §6).
+React 19 + Vite 7 SPA: the Generated App shell (09-generated-app.md §2, §5, §6).
 
-## What's here (M4-T01/T06/T07)
+## What's here
 
 - **Boot** (`src/main.tsx`, `src/app/`): pre-hydration inline script in `index.html`
   (literal copy of `@adminium/tokens` `preHydrationScript`, sync-tested), one
@@ -11,16 +11,20 @@ React 19 + Vite 7 SPA: the Generated App shell (M4 Wave A — 09-generated-app.m
   subscribing `config-changed` → invalidation (`app/ws.ts`).
 - **Router** (`app/router.tsx`): code-based TanStack Router tree — public auth group
   (`/login`, `/forgot`, `/reset/$token`, `/otp`), session-guarded layout with
-  `returnTo` redirect, `/` → first Workspace nav item, dynamic `/p/$slug`
-  (PageRenderer STUB until Wave B), `/account/*` placeholder, `/state/$stateId`,
-  branded 404 catch-all. `hrefForPage`/`hrefForRecord` link helpers.
+  `returnTo` redirect, `/` → first Workspace nav item, dynamic `/p/$slug` rendered by
+  the real `PageRenderer` pipeline (`src/pages/PageRenderer.tsx` — validate/migrate/
+  template mount), `/welcome`, `/account` + `/account/preferences` +
+  `/account/notifications`, Studio routes (`src/studio/routes.tsx`),
+  `/state/$stateId`, branded 404 catch-all. `hrefForPage`/`hrefForRecord` helpers.
 - **Shell** (`src/shell/`): 256px sidebar (logo + version chip, five fixed nav groups,
   persona footer), sticky translucent topbar (⌘K search affordance, theme toggle,
-  bell placeholder, avatar menu), ⌘K palette (`app/palette/`), shortcuts panel from
+  notification center, avatar menu), ⌘K palette (`app/palette/`), shortcuts panel from
   the live registration set, global keyboard manager (`app/shortcuts.ts`) with
   typing-context suppression, platform mapping, and data-driven G-chords.
 - **System states** (`src/states/`): all 12 §6.1 variants (`StateHero` + `stateMap`),
   reachable at `/state/$stateId`, wired to route `errorComponent`s.
+- **i18n**: strings flow through `src/i18n/t.ts`, backed by the shared i18next
+  instance (`@adminium/i18n`) after `initDashboardI18n()`.
 
 ## Dev
 
@@ -35,10 +39,9 @@ pnpm --filter @adminium/dashboard dev    # vite on :5173, proxies /api + /ws →
 its static plugin: `buildServer({ staticRoot: 'apps/dashboard/dist' })` — SPA
 fallback for non-`/api` GETs included (apps/server/src/plugins/static.ts).
 
-## Deferred to Wave B / later
+## Still missing
 
-- PageRenderer pipeline (validate/migrate/template mount, 09-T03), `/welcome`,
-  `/search`, Studio routes, `/signup` (no server endpoint yet).
-- `GET /api/v1/search` palette group + Recent tracking (M4-T06 note in
-  `app/palette/CommandPaletteHost.tsx`); notification center (M7).
-- i18n: strings flow through the `src/i18n/t.ts` stub until M8.
+- `GET /api/v1/search`: the palette's async `Records` group + mixed-entity Recent
+  tracking (M4-T06 note in `app/palette/CommandPaletteHost.tsx`) — the palette
+  searches the nav tree client-side only until the server grows the endpoint.
+- `/signup` (no server endpoint yet).

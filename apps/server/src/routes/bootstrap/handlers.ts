@@ -9,15 +9,19 @@
  *   groups (rows land in M4 Wave B generation — an empty tree is valid);
  * - `version` (server build) + `configVersion` (max page `updatedAt`) so the
  *   client can drop stale caches on WS `config-changed`.
- *
- * TODO(Wave B, 09-T02): filter nav rows by the caller's page `access` grants
- * once page-level permissions land with the pages routes.
+ * - nav rows are permission-filtered server-side (09 §2.1): non-super-admins
+ *   only see pages their roles hold a `page:<id>:view` grant for — the same
+ *   grant `GET /pages/:pageId` enforces, so the nav never links to a 403.
+ * - `llm.enabled` mirrors the §3.2 provider config (06-llm-assist.md): true
+ *   once an admin has set `llm.provider` in Settings → AI, the same check
+ *   `resolveProviderClient` makes before a direct run.
  */
 import type { FastifyRequest } from 'fastify';
 import {
   pagesRepo,
   readBool,
   rolesRepo,
+  settingsRepo,
   userPrefsRepo,
   type PageNavRow,
   type User,
@@ -95,17 +99,38 @@ export async function bootstrapHandler(
 ): Promise<BootstrapReply> {
   const user = principal(request);
 
-  const [roles, prefs, pageRows, connectionRows] = await Promise.all([
+  const [roles, prefs, pageRows, connectionRows, llmProvider] = await Promise.all([
     rolesRepo(ctx.meta).rolesForUser(user.id),
     userPrefsRepo(ctx.meta).resolve(user.id),
     // Shared query path with the generator wave (07 §3.16 pagesRepo).
     pagesRepo(ctx.meta).navRows(),
     // Display names only — no DSN material (07 §3.13), so no crypto needed.
     ctx.meta.db.selectFrom('adminium_connections').select(['id', 'name']).execute(),
+    // `llm.enabled` = a provider is configured (06 §3.2) — the same
+    // `llm.provider` row `resolveProviderClient` gates direct runs on.
+    settingsRepo(ctx.meta).get('llm.provider'),
   ]);
 
-  const { nav, configVersion } = buildNavTree(
-    pageRows,
+  // Permission filter (09 §2.1): drop rows the caller may not view. The
+  // per-request `request.can` cache resolves the permission set once;
+  // super-admins bypass inside it. The `typeof` guard mirrors routes/pages —
+  // minimal harnesses mount this route without the rbac plugin.
+  const visibleRows =
+    typeof request.can === 'function'
+      ? await (async () => {
+          const rows: PageNavRow[] = [];
+          for (const row of pageRows) {
+            if (await request.can(`page:${row.id}:view`)) rows.push(row);
+          }
+          return rows;
+        })()
+      : [...pageRows];
+
+  // configVersion must track ALL rows (a permission change is not a config
+  // change, and a hidden page's regeneration still bumps the stamp).
+  const { configVersion } = buildNavTree(pageRows);
+  const { nav } = buildNavTree(
+    visibleRows,
     new Map(connectionRows.map((row) => [row.id, row.name])),
   );
 
@@ -117,8 +142,7 @@ export async function bootstrapHandler(
       nav,
       version: APP_VERSION,
       configVersion,
-      // LLM assist config lands in M6 (06-llm-assist.md) — hard-off until then.
-      llm: { enabled: false },
+      llm: { enabled: typeof llmProvider === 'string' && llmProvider.length > 0 },
     },
   };
 }

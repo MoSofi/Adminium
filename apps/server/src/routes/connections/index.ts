@@ -293,7 +293,10 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         if (app.hasDecorator('jobs') && app.jobs.registry.has(INTROSPECT_JOB_KIND)) {
           const job = await app.jobs.enqueue({
             kind: INTROSPECT_JOB_KIND,
-            payload: { connectionId: connection.id, createdBy: actorId },
+            // `userId` is the jobs owner convention (routes/jobs jobOwnerId) —
+            // without it the enqueuing non-super-admin could not poll their
+            // own job. `createdBy` is what the snapshot row records.
+            payload: { connectionId: connection.id, createdBy: actorId, userId: actorId },
             dedupeKey: `introspect:${connection.id}`,
           });
           await app.rbac.audit(request, {

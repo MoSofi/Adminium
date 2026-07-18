@@ -201,7 +201,9 @@
   },
   "account": {
     "title": "Konto",
-    "stub": "Profil- og præferencesider kommer som forudopsatte indstillingssider i bølge B (09-T18).",
+    "subtitle": "Identiteten for din aktuelle session. Visningspræferencer og notifikationsindstillinger administreres på deres egne sider.",
+    "preferencesLink": "Præferencer",
+    "notificationsLink": "Notifikationsindstillinger",
     "name": "Navn",
     "email": "E-mail",
     "roles": "Roller",
@@ -274,7 +276,48 @@
       },
       "file": {
         "detectedAs": "Registreret: {format}",
-        "moreWarnings": "+{count} flere advarsler — den fulde liste vises i analysetrinnet."
+        "moreWarnings": "+{count} flere advarsler — den fulde liste vises i analysetrinnet.",
+        "dropTitle": "Slip din skemafil her, eller gennemse",
+        "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-modeller, Adminium JSON",
+        "pitch": "Ingen databaseforbindelse påkrævet — vi fortolker din skemafil og bygger de samme dashboards.",
+        "parsing": "Læser den uploadede skemafil…",
+        "tables": "tabeller",
+        "columns": "kolonner",
+        "warnings": "advarsler",
+        "errorTitle": "Kunne ikke fortolke filen",
+        "parseFailed": "Vi kunne ikke fortolke den fil. Hvis auto-genkendelsen gættede forkert, så vælg formatet eksplicit og prøv igen.",
+        "unsupported": "Formatet blev ikke genkendt — SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-modeller og Adminium JSON understøttes. Vælg ét eksplicit og prøv igen.",
+        "requestFailed": "Upload mislykkedes — tjek din forbindelse og prøv igen."
+      },
+      "title": "Forbind din database",
+      "subtitle": "Peg Adminium mod en database, så genererer vi et admin-dashboard ud fra dens skema.",
+      "name": "Forbindelsesnavn",
+      "namePlaceholder": "Produktions-Postgres",
+      "modeLabel": "Kildeinputtilstand",
+      "mode": {
+        "dsn": "Forbindelsesstreng",
+        "fields": "Enkelte felter",
+        "file": "Skemafil"
+      },
+      "dsn": {
+        "label": "Forbindelsesstreng",
+        "helper": "postgres://bruger:kodeord@vaert:5432/database — mysql:// og sqlite: virker også.",
+        "incomplete": "Tilføj vært og database, f.eks. postgres://user@host:5432/db",
+        "invalidScheme": "Ukendt skema — forventede postgres://, mysql://, mariadb:// eller sqlite:",
+        "quickFill": "Hurtig udfyldning:"
+      },
+      "fields": {
+        "host": "Vært",
+        "port": "Port",
+        "database": "Database",
+        "user": "Bruger",
+        "password": "Adgangskode",
+        "ssl": "SSL-tilstand",
+        "preview": "Forhåndsvisning af forbindelsesstreng:"
+      },
+      "readOnlyRole": {
+        "title": "Brug en skrivebeskyttet rolle",
+        "body": "Adminium skriver aldrig til din database — opsætningen bruger kun skema-metadata. Vi anbefaler en dedikeret bruger med rene SELECT-rettigheder; hvor Adminium gemmer sine egne tabeller, beslutter du i metalagringstrinnet."
       }
     },
     "capability": {
@@ -291,11 +334,51 @@
     },
     "test": {
       "log": {
-        "moreWarnings": "+{count} flere parser-advarsler"
+        "moreWarnings": "+{count} flere parser-advarsler",
+        "connecting": "Etablerer sikker forbindelse…",
+        "connected": "Forbundet ({latency} ms) · skrivebeskyttet introspektion",
+        "connectFailed": "Forbindelsen mislykkedes.",
+        "readingSchema": "Læser skema: public",
+        "readingFile": "Læser den uploadede skemafil…",
+        "parsingFile": "Fortolker {file}…",
+        "detected": "Registrerede {tables} tabeller · {columns} kolonner",
+        "found": "Fandt {tables} tabeller · {columns} kolonner",
+        "mapping": "Kortlægger kolonnetyper → inputwidgets",
+        "relations": "Registrerer relationer…",
+        "piiScan": "Scanner efter PII-kolonner…",
+        "piiDone": "PII-scanning fuldført — {count} kolonner maskeret som standard",
+        "piiDoneUnknown": "PII-scanning fuldført",
+        "jobFailed": "Introspektion mislykkedes.",
+        "networkFailed": "Anmodningen mislykkedes — tjek din forbindelse og prøv igen.",
+        "ready": "Klar"
+      },
+      "title": "Analyserer dit skema",
+      "subtitle": "Introspekterer tabeller, kolonner og relationer. Det tager et par sekunder.",
+      "trust": "Vi læser kun dit skema og dine data. Intet ændres.",
+      "errorTitle": "Forbindelsen mislykkedes",
+      "retry": "Prøv igen",
+      "logLabel": "Introspektionslog",
+      "hint": {
+        "auth": "Godkendelse mislykkedes — tjek brugernavn og adgangskode i din DSN.",
+        "hostUnreachable": "Vært utilgængelig — tjek værtsnavn og port, og at databasen accepterer forbindelser fra denne maskine (tilføj vores IP'er til tilladelseslisten).",
+        "metaPlacement": "Denne kilde kan ikke huse Adminiums metatabeller — fortsæt med en separat metadatabase.",
+        "permission": "Rollen fik forbindelse, men mangler skema-læserettigheder — giv USAGE på skemaet til din introspektionsrolle.",
+        "timeout": "Databasen svarede ikke i tide — tjek netværkssti og belastning, og prøv igen.",
+        "tls": "TLS-forhandling mislykkedes — prøv sslmode=require, eller upload det CA-certifikat din server forventer.",
+        "unknown": "Forbindelsen mislykkedes — kontrollér DSN'en og prøv igen."
       }
     },
     "tables": {
-      "importNoCounts": "Skemafiler indeholder ingen rækkeantal — kolonnen viser —, indtil en live database er forbundet."
+      "importNoCounts": "Skemafiler indeholder ingen rækkeantal — kolonnen viser —, indtil en live database er forbundet.",
+      "title": "Vælg dine tabeller",
+      "subtitle": "Vælg hvilke der skal med. Du kan altid ændre det.",
+      "search": "Filtrér tabeller…",
+      "listLabel": "Tabeller der kan medtages",
+      "emptyFilter": "Ingen tabeller matcher dit filter.",
+      "pii": "PII",
+      "highVolume": "stor volumen",
+      "highVolumeNote": "Tabeller med over 100.000 rækker starter fravalgt — driftstabeller hører sjældent hjemme i et dashboard.",
+      "joinHidden": "{count} join-/systemtabeller er skjult på forhånd — de driver stadig mange-til-mange-relationer."
     },
     "hub": {
       "title": "Dataforbindelser",
@@ -736,6 +819,89 @@
           "copy": "mikrotekst"
         }
       }
+    },
+    "wizard": {
+      "title": "Ny forbindelse",
+      "back": "Tilbage",
+      "continue": "Fortsæt",
+      "progress": "Opsætningsforløb",
+      "persistFailed": "Dit tabelvalg kunne ikke gemmes — prøv igen.",
+      "persistFailedTitle": "Kunne ikke gemme",
+      "step": {
+        "source": "Kilde",
+        "test": "Analysér",
+        "tables": "Tabeller",
+        "meta": "Metalagring",
+        "intent": "Formål",
+        "enrich": "Berig",
+        "generate": "Generér"
+      }
+    },
+    "meta": {
+      "title": "Hvor skal Adminium gemme sine egne tabeller?",
+      "subtitle": "Sider, roller, auditlog og indstillinger bor i tabeller med adminium_-præfiks — aldrig blandet med dine data.",
+      "sameDb": {
+        "title": "Samme database",
+        "description": "adminium_*-tabeller oprettes ved siden af dine kildetabeller. Enkleste opsætning — kræver en rolle med skrive- og CREATE TABLE-rettigheder.",
+        "disabledReadOnly": "Din rolle er skrivebeskyttet — Adminium skriver aldrig til denne database. Vælg en separat database til Adminiums egne tabeller.",
+        "disabledNoDdl": "Denne rolle kan ikke køre DDL — Adminium-migreringer kræver CREATE TABLE. Vælg en separat database til Adminiums egne tabeller.",
+        "disabledFile": "En skemafil har ingen live database — vælg en separat database til Adminiums egne tabeller."
+      },
+      "separate": {
+        "title": "Separat database",
+        "description": "Adminium holder sine tabeller i en anden database. Din kilde forbliver urørt — påkrævet for skrivebeskyttede kilder.",
+        "dsn": "Forbindelsesstreng til metadatabasen",
+        "helper": "Kræver skrive- + DDL-rettigheder — Adminium kører sine egne migreringer dér.",
+        "test": "Test forbindelse",
+        "ok": "Kompatibel — skrivning ✓ · DDL ✓",
+        "insufficient": "Denne rolle kan ikke huse metalageret — Adminium behøver skrive- og CREATE TABLE-rettigheder dér.",
+        "errorTitle": "Metalager ikke kompatibelt"
+      },
+      "testFailed": "Forbindelsen mislykkedes.",
+      "v1Note": {
+        "title": "Om denne installation",
+        "body": "Denne server valgte sit metalager ved første opstart. Dette trin validerer, at dit valg er kompatibelt med denne forbindelse, og registrerer det — serveren håndhæver samme regel uafhængigt (409 META_PLACEMENT_INVALID). Flytning af et eksisterende metalager er en driftsopgave (M10)."
+      }
+    },
+    "intent": {
+      "title": "Hvad har du brug for?",
+      "subtitle": "Formålet afgør, hvilke sider der genereres. Du kan ændre det senere — en ændring foreslår en regenerering, aldrig en stille omskrivning.",
+      "trust": "Vi læser kun dit skema — aldrig dine rækkedata under opsætningen.",
+      "fullAdmin": {
+        "title": "Fuldt adminpanel",
+        "description": "Dashboards, CRUD-sider, søgning, import og eksport — alt hvad dit skema understøtter."
+      },
+      "analytics": {
+        "title": "Skrivebeskyttet analyse",
+        "description": "Dashboards, diagrammer og skrivebeskyttede tabeller. Ingen formularer, ingen skrivninger — hver rolle begrænset til Fremviser."
+      },
+      "crud": {
+        "title": "CRUD-tabeller",
+        "description": "Én redigeringsside pr. tabel plus søgning og import/eksport — et minimalt hjem, ingen dashboards."
+      },
+      "support": {
+        "title": "Supportkonsol",
+        "description": "Køer, ticket- og kundedetaljesider først. Sletning slået fra som standard. (Kø-skabeloner lander i M7 — v1-sidesættet svarer til fuldt admin.)"
+      }
+    },
+    "generate": {
+      "title": "Generér din app",
+      "subtitle": "Én side pr. medtaget tabel plus dashboards pr. domæne — formål:",
+      "run": "Generér dashboard",
+      "openApp": "Åbn din app",
+      "logLabel": "Genereringslog",
+      "log": {
+        "classifying": "Klassificerer skema…",
+        "composing": "Sammensætter skabeloner…",
+        "writing": "Skriver sider…",
+        "done": "{pages} sider genereret på tværs af {groups} navigationsgrupper"
+      },
+      "successTitle": "Dit dashboard er klar",
+      "successBody": "{pages} sider i {groups} navigationsgrupper — genereret fra dit skema, redigerbare i Studio.",
+      "errorTitle": "Generering mislykkedes",
+      "failed": "Generering mislykkedes — prøv igen, eller kør introspektionen igen først.",
+      "fileTitle": "Skemafil fortolket — generering kræver en live database",
+      "fileBody": "Dit skema blev fortolket rent, og forhåndsvisningen ovenfor er ægte. Generering af en kørende app direkte fra en skemafil (med pladsholderrækker) er ikke tilgængelig endnu — forbind en live database for at generere i dag."
     }
   },
   "onboarding": {

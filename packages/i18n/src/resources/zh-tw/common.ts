@@ -209,7 +209,9 @@ export default {
   },
   "account": {
     "title": "帳戶",
-    "stub": "個人資料與偏好設定頁面將於 Wave B（09-T18）以預先建置的設定頁面推出。",
+    "subtitle": "目前工作階段的身分資訊。顯示偏好與通知設定請在各自的專屬頁面中管理。",
+    "preferencesLink": "偏好設定",
+    "notificationsLink": "通知設定",
     "name": "姓名",
     "email": "電子郵件",
     "roles": "角色",
@@ -282,7 +284,48 @@ export default {
       },
       "file": {
         "detectedAs": "偵測到：{format}",
-        "moreWarnings": "還有 {count} 則警告——完整清單會在分析步驟顯示。"
+        "moreWarnings": "還有 {count} 則警告——完整清單會在分析步驟顯示。",
+        "dropTitle": "將結構描述檔案拖放到此處，或瀏覽選取",
+        "dropHint": "SQL DDL / pg_dump、Prisma、Drizzle、TypeORM、Sequelize、Rails schema.rb、Django 模型、Adminium JSON",
+        "pitch": "無需資料庫連線——我們會解析你的結構描述檔案並建立相同的儀表板。",
+        "parsing": "正在讀取上傳的結構描述檔案…",
+        "tables": "個資料表",
+        "columns": "欄",
+        "warnings": "警告",
+        "errorTitle": "無法解析該檔案",
+        "parseFailed": "我們無法解析該檔案。如果自動偵測判斷錯誤，請明確選擇格式後重試。",
+        "unsupported": "無法辨識該格式——支援 SQL DDL、Prisma、Drizzle、TypeORM、Sequelize、Rails schema.rb、Django 模型與 Adminium JSON。請明確選擇一種後重試。",
+        "requestFailed": "上傳失敗——請檢查網路連線後重試。"
+      },
+      "title": "連接你的資料庫",
+      "subtitle": "將 Adminium 指向資料庫，我們會根據其結構描述產生管理儀表板。",
+      "name": "連線名稱",
+      "namePlaceholder": "正式環境 Postgres",
+      "modeLabel": "來源輸入方式",
+      "mode": {
+        "dsn": "連線字串",
+        "fields": "逐項欄位",
+        "file": "結構描述檔案"
+      },
+      "dsn": {
+        "label": "連線字串",
+        "helper": "postgres://user:password@host:5432/database——mysql:// 與 sqlite: 也可使用。",
+        "incomplete": "請補齊主機與資料庫，例如 postgres://user@host:5432/db",
+        "invalidScheme": "無法辨識的協定——應為 postgres://、mysql://、mariadb:// 或 sqlite:",
+        "quickFill": "快速填入："
+      },
+      "fields": {
+        "host": "主機",
+        "port": "連接埠",
+        "database": "資料庫",
+        "user": "使用者",
+        "password": "密碼",
+        "ssl": "SSL 模式",
+        "preview": "連線字串預覽："
+      },
+      "readOnlyRole": {
+        "title": "使用唯讀角色",
+        "body": "Adminium 絕不會寫入你的資料庫——設定過程僅使用結構描述中繼資料。建議使用僅具 SELECT 權限的專用使用者；Adminium 自身資料表的存放位置可在中繼資料儲存步驟中決定。"
       }
     },
     "capability": {
@@ -299,11 +342,51 @@ export default {
     },
     "test": {
       "log": {
-        "moreWarnings": "還有 {count} 則解析器警告"
+        "moreWarnings": "還有 {count} 則解析器警告",
+        "connecting": "正在建立安全連線…",
+        "connected": "已連線（{latency} 毫秒）· 唯讀內省",
+        "connectFailed": "連線失敗。",
+        "readingSchema": "正在讀取結構描述：public",
+        "readingFile": "正在讀取上傳的結構描述檔案…",
+        "parsingFile": "正在解析 {file}…",
+        "detected": "偵測到 {tables} 個資料表 · {columns} 欄",
+        "found": "共找到 {tables} 個資料表 · {columns} 欄",
+        "mapping": "正在對應欄類型 → 輸入元件",
+        "relations": "正在偵測關聯…",
+        "piiScan": "正在掃描 PII 欄…",
+        "piiDone": "PII 掃描完成——預設遮罩 {count} 欄",
+        "piiDoneUnknown": "PII 掃描完成",
+        "jobFailed": "內省失敗。",
+        "networkFailed": "要求失敗——請檢查網路連線後重試。",
+        "ready": "就緒"
+      },
+      "title": "正在分析你的結構描述",
+      "subtitle": "正在內省資料表、欄與關聯。這需要幾秒鐘。",
+      "trust": "我們只讀取你的結構描述與資料，不會進行任何修改。",
+      "errorTitle": "連線失敗",
+      "retry": "重試",
+      "logLabel": "內省記錄",
+      "hint": {
+        "auth": "驗證失敗——請檢查 DSN 中的使用者名稱與密碼。",
+        "hostUnreachable": "無法連上主機——請檢查主機名稱與連接埠，並確認資料庫接受來自本機的連線（將我們的 IP 加入允許清單）。",
+        "metaPlacement": "該資料來源無法承載 Adminium 的中繼資料表——請改用獨立的中繼資料庫繼續。",
+        "permission": "該角色已連線，但缺少讀取結構描述的權限——請為內省角色授予該結構描述的 USAGE 權限。",
+        "timeout": "資料庫未及時回應——請檢查網路路徑與負載後重試。",
+        "tls": "TLS 交涉失敗——請嘗試 sslmode=require，或上傳伺服器所需的 CA 憑證。",
+        "unknown": "連線失敗——請核對 DSN 後重試。"
       }
     },
     "tables": {
-      "importNoCounts": "綱要檔案不含資料列數——在連接即時資料庫之前，此欄會顯示 —。"
+      "importNoCounts": "綱要檔案不含資料列數——在連接即時資料庫之前，此欄會顯示 —。",
+      "title": "選擇資料表",
+      "subtitle": "選擇要納入的資料表。之後可隨時變更。",
+      "search": "篩選資料表…",
+      "listLabel": "可納入的資料表",
+      "emptyFilter": "沒有符合篩選條件的資料表。",
+      "pii": "PII",
+      "highVolume": "高資料量",
+      "highVolumeNote": "超過 100,000 列的資料表預設不勾選——維運類資料表很少適合放進儀表板。",
+      "joinHidden": "{count} 個關聯/系統資料表已預先隱藏——它們仍支撐多對多關聯。"
     },
     "hub": {
       "title": "資料連線",
@@ -744,6 +827,89 @@ export default {
           "copy": "微文案"
         }
       }
+    },
+    "wizard": {
+      "title": "新增連線",
+      "back": "返回",
+      "continue": "繼續",
+      "progress": "設定進度",
+      "persistFailed": "無法儲存你的資料表選擇——請重試。",
+      "persistFailedTitle": "儲存失敗",
+      "step": {
+        "source": "來源",
+        "test": "分析",
+        "tables": "資料表",
+        "meta": "中繼資料儲存",
+        "intent": "意圖",
+        "enrich": "豐富",
+        "generate": "產生"
+      }
+    },
+    "meta": {
+      "title": "Adminium 應將自己的資料表放在哪裡？",
+      "subtitle": "頁面、角色、稽核記錄與設定存放在以 adminium_ 為前綴的資料表中——絕不混入你的資料。",
+      "sameDb": {
+        "title": "同一資料庫",
+        "description": "adminium_* 資料表會建立在你的來源資料表旁。這是最簡單的設定——需要具有寫入與 CREATE TABLE 權限的角色。",
+        "disabledReadOnly": "你的角色為唯讀——Adminium 絕不會寫入此資料庫。請為 Adminium 自身的資料表選擇獨立的資料庫。",
+        "disabledNoDdl": "該角色無法執行 DDL——Adminium 遷移需要 CREATE TABLE 權限。請為 Adminium 自身的資料表選擇獨立的資料庫。",
+        "disabledFile": "結構描述檔案沒有即時資料庫——請為 Adminium 自身的資料表選擇獨立的資料庫。"
+      },
+      "separate": {
+        "title": "獨立的資料庫",
+        "description": "Adminium 會將其資料表保存在另一個資料庫中。你的來源保持不變——唯讀來源必須如此。",
+        "dsn": "中繼資料庫連線字串",
+        "helper": "需要寫入與 DDL 權限——Adminium 會在那裡執行自己的遷移。",
+        "test": "測試連線",
+        "ok": "相容——寫入 ✓ · DDL ✓",
+        "insufficient": "該角色無法承載中繼資料存放區——Adminium 在那裡需要寫入與 CREATE TABLE 權限。",
+        "errorTitle": "中繼資料存放區不相容"
+      },
+      "testFailed": "連線失敗。",
+      "v1Note": {
+        "title": "關於此安裝",
+        "body": "此伺服器在首次啟動時選擇了中繼資料存放區。此步驟會驗證你的選擇與此連線相容並加以記錄——伺服器會獨立執行同一規則（409 META_PLACEMENT_INVALID）。搬移既有中繼資料存放區屬於維運工作（M10）。"
+      }
+    },
+    "intent": {
+      "title": "你需要什麼？",
+      "subtitle": "意圖決定會產生哪些頁面。之後可以變更——變更會提議重新產生，絕不會靜默改寫。",
+      "trust": "我們只讀取你的結構描述——設定期間絕不讀取列資料。",
+      "fullAdmin": {
+        "title": "完整管理面板",
+        "description": "儀表板、CRUD 頁面、搜尋、匯入與匯出——你的結構描述支援的一切。"
+      },
+      "analytics": {
+        "title": "唯讀分析",
+        "description": "儀表板、圖表與唯讀網格。沒有表單、沒有寫入——所有角色上限為檢視者。"
+      },
+      "crud": {
+        "title": "CRUD 資料表",
+        "description": "每個資料表一個編輯頁面，外加搜尋與匯入/匯出——極簡首頁，沒有儀表板。"
+      },
+      "support": {
+        "title": "客服主控台",
+        "description": "優先產生佇列、工單與客戶詳情頁面。預設關閉刪除。（佇列範本將於 M7 推出——v1 頁面集與完整管理面板相同。）"
+      }
+    },
+    "generate": {
+      "title": "產生你的應用程式",
+      "subtitle": "每個已納入的資料表一個頁面，外加依領域產生的儀表板——意圖：",
+      "run": "產生儀表板",
+      "openApp": "開啟你的應用程式",
+      "logLabel": "產生記錄",
+      "log": {
+        "classifying": "正在對結構描述分類…",
+        "composing": "正在組合範本…",
+        "writing": "正在寫入頁面…",
+        "done": "已產生 {pages} 個頁面，分佈於 {groups} 個導覽群組"
+      },
+      "successTitle": "你的儀表板已就緒",
+      "successBody": "{pages} 個頁面，分佈於 {groups} 個導覽群組——由你的結構描述產生，可在 Studio 中編輯。",
+      "errorTitle": "產生失敗",
+      "failed": "產生失敗——請重試，或先重新執行內省。",
+      "fileTitle": "結構描述檔案已解析——產生需要即時資料庫",
+      "fileBody": "你的結構描述解析順利，上方預覽是真實的。直接從結構描述檔案產生可執行的應用程式（含佔位列）尚不可用——請連接即時資料庫立即產生。"
     }
   },
   "onboarding": {

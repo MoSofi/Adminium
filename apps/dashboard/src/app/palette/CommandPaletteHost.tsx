@@ -5,10 +5,11 @@
  * (nav-tree entries with their G-chord hints).
  *
  * Search: apps/server/src/routes has no `/api/v1/search` yet, so the palette
- * searches the nav tree client-side only. TODO(Wave B, M4-T06): merge the
- * async `Records` group from `GET /api/v1/search?q=&limit=5` at query ≥ 2
- * chars, plus the mixed-entity Recent group. The "Ask AI" footer renders only
- * when bootstrap `llm.enabled` (hidden for now — 06-llm-assist.md lands M6).
+ * searches the nav tree client-side only. TODO(M4-T06): merge the async
+ * `Records` group from `GET /api/v1/search?q=&limit=5` at query ≥ 2 chars,
+ * plus the mixed-entity Recent group. The "Ask AI" footer renders when
+ * bootstrap `llm.enabled` — i.e. once an admin configures a provider in
+ * Settings → AI (06-llm-assist.md §3.2).
  */
 import { Keyboard, LogOut, Moon, Sparkles, Sun } from 'lucide-react';
 import { useMemo } from 'react';

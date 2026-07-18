@@ -10,10 +10,12 @@
  * a per-user override (an `adminium_views` row, `kind: 'layout'`) wins over the
  * shared `adminium_pages` default; otherwise the envelope is returned verbatim.
  *
- * The PATCH writes the shared default (the layout every viewer sees) and is
- * gated on page-EDIT permission (`page:<pageId>:edit`; super-admins bypass) and
- * audited. Per-user overrides live on the sibling `me/views` route — any user
- * with page-view access may save their own without the edit grant.
+ * The GET is gated on page-VIEW permission (`page:<pageId>:view`, the same
+ * grant the bootstrap nav filter applies). The PATCH writes the shared default
+ * (the layout every viewer sees) and is gated on page-EDIT permission
+ * (`page:<pageId>:edit`; super-admins bypass both) and audited. Per-user
+ * overrides live on the sibling `me/views` route — any user with page-view
+ * access may save their own without the edit grant.
  */
 
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
@@ -52,6 +54,17 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const page = await pages.findById(request.params.pageId);
         if (page === null || !page.isEnabled) {
           throw new NotFoundError(`page ${request.params.pageId} does not exist`);
+        }
+
+        // View gate (09 §2.1): the same `page:<id>:view` grant the bootstrap
+        // nav filter applies (super-admins bypass inside `request.can`). The
+        // `typeof` guard covers the rbac-less minimal read-only harness.
+        if (typeof request.can === 'function' && !(await request.can(`page:${page.id}:view`))) {
+          throw new ForbiddenError(
+            'You do not have permission to view this page.',
+            'PAGE_FORBIDDEN',
+            { pageId: page.id },
+          );
         }
 
         // Per-page edit capability (§6.3): the SAME `page:<id>:edit` grant the

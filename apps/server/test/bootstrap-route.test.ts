@@ -4,7 +4,7 @@
  * rows dropped, navOrder sort), and the version/configVersion stamps.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { newId, writeBool, type MetaDb } from '@adminium/meta';
+import { newId, settingsRepo, writeBool, type MetaDb } from '@adminium/meta';
 
 import { APP_VERSION } from '../src/version.js';
 import { buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
@@ -83,6 +83,21 @@ describe('GET /api/v1/bootstrap', () => {
     expect(data.version).toBe(APP_VERSION);
     expect(data.configVersion).toBe(0);
     expect(data.llm).toEqual({ enabled: false });
+  });
+
+  it('llm.enabled mirrors the §3.2 provider config (true once llm.provider is set)', async () => {
+    // The regression this pins: llm.enabled was hard-coded false ("lands in
+    // M6") long after M6 shipped, so the wizard's provider card and the
+    // palette's Ask AI footer could never enable.
+    await settingsRepo(t.meta).set('llm.provider', 'openai', { updatedBy: null });
+    const { cookie } = await login(t.app);
+    const res = await t.app.inject({
+      method: 'GET',
+      url: '/api/v1/bootstrap',
+      headers: { cookie: cookie ?? '' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.llm).toEqual({ enabled: true });
   });
 
   it('derives the nav tree: fixed group order, navOrder sort, disabled dropped', async () => {

@@ -158,6 +158,14 @@ interface Harness {
   meta: MetaDb;
   admin: User;
   connectionId: string;
+  /**
+   * Recording stand-in for the PRODUCTION stats collector wired in compose
+   * (llm/stats-collector.ts — it opens the SOURCE database). Prompt build
+   * (§4.2) legitimately calls it ONCE per POST /runs; `armed` makes any later
+   * call throw, so a paste/diff/apply that re-acquires the source DB both
+   * fails its request and shows up in `calls`.
+   */
+  statsRecorder: { calls: number; armed: boolean };
 }
 
 function asUser(user: User): Record<string, string> {
@@ -222,17 +230,36 @@ async function buildHarness(): Promise<Harness> {
     }
   });
   await app.register(rbacPlugin, { meta });
+  const statsRecorder = { calls: 0, armed: false };
+  const recordingCollector = async (): Promise<never[]> => {
+    statsRecorder.calls += 1;
+    if (statsRecorder.armed) {
+      throw new Error('collectStats invoked after prompt build — §9 BYO isolation violated');
+    }
+    return [];
+  };
   await app.register(
     async (api) => {
       // No `createClient`, no provider resolver, no jobs runtime are wired: the
-      // BYO path must reach `applied` without ever needing any of them.
-      await api.register(llmRoutes({ meta, runService, applyService, keyCrypto, allowed: ALLOWED }));
+      // BYO path must reach `applied` without ever needing any of them. The
+      // recording collector occupies the SAME injection point compose wires the
+      // real source-DB collector into, pinning §9 against route re-wiring.
+      await api.register(
+        llmRoutes({
+          meta,
+          runService,
+          applyService,
+          keyCrypto,
+          allowed: ALLOWED,
+          collectStats: recordingCollector,
+        }),
+      );
     },
     { prefix: '/api/v1' },
   );
   await app.ready();
 
-  return { app, meta, admin, connectionId: connection.id };
+  return { app, meta, admin, connectionId: connection.id, statsRecorder };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -262,6 +289,11 @@ describe('BYO round-trip — telemetry-free guarantee (§9, acceptance #9)', () 
       const createdBody = created.json() as { run: { id: string; mode: string } };
       runId = createdBody.run.id;
       expect(createdBody.run.mode).toBe('byo');
+
+      // Prompt build calls the stats collector exactly once (§4.2 enrichment);
+      // from here on ANY invocation is a §9 violation — arm it to throw.
+      expect(t.statsRecorder.calls).toBe(1);
+      t.statsRecorder.armed = true;
 
       // 2) Paste the golden response → validate in-process.
       const pasted = await t.app.inject({
@@ -304,6 +336,10 @@ describe('BYO round-trip — telemetry-free guarantee (§9, acceptance #9)', () 
 
     // The whole round-trip made ZERO outbound network attempts (§9.1: no interception).
     expect(guard.attempts).toEqual([]);
+
+    // And the source-DB stats collector was never re-acquired after prompt
+    // build: paste → diff → apply are fully in-process against the snapshot.
+    expect(t.statsRecorder.calls).toBe(1);
 
     // The writes really landed — the executor ran with the network off.
     const overrides = await llmOverridesRepo(t.meta).listForConnection(t.connectionId);

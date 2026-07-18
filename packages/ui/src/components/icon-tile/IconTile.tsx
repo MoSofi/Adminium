@@ -2,36 +2,12 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn.js';
+import { toneSoftClasses } from '../../lib/tones.js';
 
-/**
- * Semantic tone vocabulary shared by tinted components (research/design-system.md §3,
- * 03-component-library.md §3.3).
- *
- * TODO(wave-2): consolidate into `lib/tones.ts` together with the status→tone
- * registry (03-component-library.md §7.6) — kept local here to avoid creating
- * shared lib files while ui-infra scaffolds `src/lib/` concurrently.
- */
-export type Tone = 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
-
-/** Tone → soft background + strong foreground utility pairs. */
-export const toneSoftClasses: Record<Tone, string> = {
-  neutral: 'bg-surface-3 text-fg-muted',
-  accent: 'bg-accent-soft text-accent',
-  pos: 'bg-pos-soft text-pos',
-  warn: 'bg-warn-soft text-warn',
-  danger: 'bg-danger-soft text-danger',
-  info: 'bg-info-soft text-info',
-};
-
-/** Tone → solid background + on-tone foreground utility pairs. */
-export const toneSolidClasses: Record<Tone, string> = {
-  neutral: 'bg-surface-3 text-fg',
-  accent: 'bg-accent text-accent-fg',
-  pos: 'bg-pos text-white',
-  warn: 'bg-warn text-white',
-  danger: 'bg-danger text-white',
-  info: 'bg-info text-white',
-};
+// Canonical vocabulary lives in lib/tones.ts (03-component-library.md §3.3);
+// re-exported here because this module was the barrel's historical source.
+export { toneSoftClasses, toneSolidClasses } from '../../lib/tones.js';
+export type { Tone } from '../../lib/tones.js';
 
 export const iconTileVariants = cva(
   'inline-flex shrink-0 items-center justify-center [&_svg]:shrink-0 [&_svg]:stroke-2',

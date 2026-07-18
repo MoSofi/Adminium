@@ -111,6 +111,8 @@ export const INTROSPECT_JOB_KIND = 'introspect';
 export const introspectJobPayloadSchema = z.object({
   connectionId: z.string(),
   createdBy: z.string().nullish(),
+  /** Jobs owner convention (routes/jobs `jobOwnerId`) — lets the enqueuing user poll their job. */
+  userId: z.string().nullish(),
 });
 
 /** Minimal structural view of the jobs registry (jobs/registry.ts). */
@@ -118,7 +120,10 @@ export interface IntrospectJobRegistry {
   registerJobHandler<T>(
     kind: string,
     schema: z.ZodType<T>,
-    handler: (payload: T, ctx: { progress(line: string): void | Promise<void> }) => Promise<unknown>,
+    handler: (
+      payload: T,
+      ctx: { progress(pct: number, info?: { step?: string; message?: string }): void },
+    ) => Promise<unknown>,
   ): void;
   has(kind: string): boolean;
 }
@@ -130,14 +135,14 @@ export function registerIntrospectJob(
 ): void {
   if (registry.has(INTROSPECT_JOB_KIND)) return;
   registry.registerJobHandler(INTROSPECT_JOB_KIND, introspectJobPayloadSchema, async (payload, ctx) => {
-    await ctx.progress('Connecting…');
+    ctx.progress(5, { step: 'connecting', message: 'Connecting…' });
     const result = await runIntrospection({
       manager: deps.manager,
       meta: deps.meta,
       connectionId: payload.connectionId,
       createdBy: payload.createdBy ?? null,
     });
-    await ctx.progress('Ready');
+    ctx.progress(100, { step: 'done', message: 'Ready' });
     return { snapshotId: result.snapshot.id, noop: result.noop, proposedMasks: result.proposedMasks };
   });
 }

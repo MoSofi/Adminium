@@ -95,6 +95,13 @@ export const SYSTEM_ACTION_KEYS = [
   'exports.manage',
   'imports.manage',
   'reports.manage',
+  // Jobs visibility/management (08 §2.17): `jobs.read` gates GET /jobs and
+  // reading/subscribing to OTHER users' jobs (owners always see their own via
+  // the payload.userId convention); `jobs.manage` gates POST /jobs and
+  // cancelling other users' jobs. Enforced by routes/jobs and the realtime
+  // hub's jobs:<id> channel authorizer.
+  'jobs.read',
+  'jobs.manage',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);

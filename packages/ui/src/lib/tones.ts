@@ -2,11 +2,10 @@
  * lib/tones.ts — the canonical home of the semantic tone vocabulary and the
  * status→tone registry (workplan/03-component-library.md §3.3, §7.6).
  *
- * Wave 1 shipped local copies of `Tone`/`toneSoftClasses`/`toneSolidClasses`
- * in components/icon-tile and components/badge, and of the status registry in
- * components/status-pill — those files are frozen this wave; the integration
- * pass migrates their imports here and removes the duplicates. New code must
- * import from this module only.
+ * The SINGLE source of truth: components/icon-tile, components/badge and
+ * components/status-pill re-export from here (their wave-1 local copies are
+ * gone), so there is exactly one `Tone` union, one class map per recipe, and
+ * one status→tone registry instance. New code must import from this module.
  */
 
 /** Semantic tone vocabulary shared across the library. */

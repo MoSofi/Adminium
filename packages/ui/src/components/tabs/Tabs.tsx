@@ -2,6 +2,7 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { createContext, useContext, type ComponentPropsWithRef } from 'react';
 
 import { cn } from '../../lib/cn.js';
+import { CountBadge } from '../count-badge/CountBadge.js';
 
 export type TabsVariant = 'underline' | 'pill';
 
@@ -53,9 +54,8 @@ export function TabsList({ className, ...props }: TabsListProps) {
 
 export interface TabsTriggerProps extends ComponentPropsWithRef<typeof TabsPrimitive.Trigger> {
   /**
-   * Optional count pill (mono, surface-3; accent fill when the tab is
-   * active). Inline span for now to avoid cross-batch coupling —
-   * TODO(wave-2): replace with the shared `CountBadge` primitive.
+   * Optional count pill (the shared `CountBadge` primitive — mono, surface-3;
+   * accent fill when the tab is active via the Radix `data-state` group).
    */
   count?: number | undefined;
 }
@@ -85,16 +85,15 @@ export function TabsTrigger({ count, className, children, ...props }: TabsTrigge
     >
       {children}
       {count === undefined ? null : (
-        <span
+        <CountBadge
           data-testid="tab-count"
-          className={cn(
-            'inline-flex min-w-[18px] items-center justify-center rounded-full bg-surface-3 px-1.5 py-px',
-            'font-mono text-[10px] font-bold tabular-nums text-fg-muted',
-            'group-data-[state=active]:bg-accent group-data-[state=active]:text-accent-fg',
-          )}
+          // Active-state accent fill rides the trigger's Radix `data-state`
+          // group (CSS-only) rather than CountBadge's `active` prop, which
+          // would need JS knowledge of the selected tab.
+          className="group-data-[state=active]:bg-accent group-data-[state=active]:text-accent-fg"
         >
           {count}
-        </span>
+        </CountBadge>
       )}
     </TabsPrimitive.Trigger>
   );

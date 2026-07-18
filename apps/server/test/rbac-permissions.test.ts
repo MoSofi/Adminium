@@ -72,6 +72,26 @@ describe('parseGrant / parsePermission', () => {
     expect(SYSTEM_ACTION_KEYS).toContain('exports.manage');
     expect(SYSTEM_ACTION_KEYS).toContain('imports.manage');
     expect(SYSTEM_ACTION_KEYS).toContain('reports.manage');
+    // The jobs keys (08 §2.17): routes/jobs + the realtime hub enforce
+    // system:jobs:read|manage, so both MUST be in the closed set or the
+    // grant is unparseable and no role can ever hold it.
+    expect(SYSTEM_ACTION_KEYS).toContain('jobs.read');
+    expect(SYSTEM_ACTION_KEYS).toContain('jobs.manage');
+  });
+
+  it('jobs grants parse, match, and round-trip through matrix rows', () => {
+    expect(parseGrant('system:jobs:read')).toEqual({ kind: 'system', area: 'jobs', verb: 'read' });
+    expect(parseGrant('system:jobs:manage')).toEqual({ kind: 'system', area: 'jobs', verb: 'manage' });
+    expect(isGranted(new Set(['system:jobs:read']), 'system:jobs:read')).toBe(true);
+    expect(isGranted(new Set(['system:jobs:read']), 'system:jobs:manage')).toBe(false);
+
+    const { rows, invalid } = matrixRowsFromGrants(['system:jobs:read', 'system:jobs:manage']);
+    expect(invalid).toEqual([]);
+    expect(rows.map((row) => row.resourceRef).sort()).toEqual(['jobs.manage', 'jobs.read']);
+    const back = grantsFromMatrixRows(
+      rows.map((row, i) => ({ id: `perm_${i}`, roleId: 'role_x', ...row })) as RolePermission[],
+    );
+    expect(new Set(back)).toEqual(new Set(['system:jobs:read', 'system:jobs:manage']));
   });
 
   it('parsePermission refuses wildcards (checks are concrete)', () => {

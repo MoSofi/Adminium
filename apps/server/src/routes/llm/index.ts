@@ -48,7 +48,6 @@ import { RunNotApplicableError, SnapshotNotFoundError } from '../../llm/apply-se
 import { LlmApplyUndoStore } from '../../llm/apply-undo-store.js';
 import {
   createPromptService,
-  NO_STATS,
   ProviderNotSelectedError,
   SnapshotRequiredError,
   type CollectRunStats,
@@ -179,7 +178,6 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
   const { meta, runService, applyService, keyCrypto, allowed } = deps;
   const snapshots = snapshotsRepo(meta);
   const settings = settingsRepo(meta);
-  const collectStats = deps.collectStats ?? NO_STATS;
   const undoStore = deps.undoStore ?? new LlmApplyUndoStore();
   const promptService = createPromptService({
     meta,
@@ -373,12 +371,12 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
         const run = await runService.getRun(request.params.id);
         if (run === null) throw new NotFoundError('LLM run not found.', { runId: request.params.id });
         const model = await loadModelForRun(run);
-        const stats = await collectStats({
-          connectionId: run.connectionId,
-          snapshotId: run.snapshotId,
-          model,
-          sampling: run.sampling,
-        });
+        // NO stats collection here (§9 zero-network guarantee): pasting a BYO
+        // response must be fully in-process against the stored snapshot —
+        // `collectStats` opens the SOURCE database (up to 200 table scans) and
+        // would 500 the paste when it is unreachable. Stats enrich the PROMPT
+        // at run creation (prompt-service.ts §4.2); validation without them
+        // matches the direct path exactly (jobs/llm-run.ts passes none).
 
         try {
           const result = await runService.receiveResponse(run.id, {
@@ -388,7 +386,6 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
             allowedTemplates,
             allowedWidgets,
             ...(deps.allowedIcons !== undefined ? { allowedIcons: deps.allowedIcons } : {}),
-            stats,
           });
           return {
             run: toRunDetailDto(result.run),

@@ -5,7 +5,11 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+
 import { NOOP_PROGRESS_KIND } from '../src/jobs/registry.js';
+import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
+import { permissionSetAllows, resolvePermissionSet } from '../src/rbac/resolver.js';
 import { jobsRoutes } from '../src/routes/jobs/index.js';
 import {
   buildBareApp,
@@ -238,5 +242,70 @@ describe('POST /jobs/:id/cancel', () => {
     });
     expect(res.statusCode).toBe(409);
     expect(res.json().error.code).toBe('CONFLICT');
+  });
+});
+
+describe('real RBAC path (closed-set regression)', () => {
+  // Regression for the pre-M12 audit finding: `jobs.read`/`jobs.manage` were
+  // missing from meta's SYSTEM_ACTION_KEYS, so `system:jobs:read` was
+  // unparseable — unstorable through PUT /roles/:id/permissions AND never
+  // matched by isGranted. This wires the SAME decision path compose.ts uses
+  // (matrix rows → resolvePermissionSet → permissionSetAllows) instead of the
+  // stub grant map, and proves a role granted system:jobs:read can GET /jobs.
+  it('a role granted system:jobs:read via matrix rows can GET /jobs', async () => {
+    const localCtx = await makeJobsContext();
+    const roles = rolesRepo(localCtx.meta);
+    const users = usersRepo(localCtx.meta);
+    const permissions = permissionsRepo(localCtx.meta);
+
+    const role = await roles.create({ slug: 'job-watcher', name: 'Job Watcher' });
+    const user = await users.create({
+      email: 'watcher@adminium.test',
+      name: 'Watcher',
+      passwordHash: 'test-hash',
+      status: 'active',
+    });
+    await roles.assignToUser(user.id, role.id);
+
+    // Store the grant exactly like PUT /roles/:id/permissions does.
+    const { rows, invalid } = matrixRowsFromGrants(['system:jobs:read']);
+    expect(invalid).toEqual([]); // pre-fix: ['system:jobs:read']
+    for (const row of rows) {
+      await permissions.grant(role.id, row.resourceKind, row.resourceRef, row.actions);
+    }
+
+    const stubUsers = makeStubAuth();
+    const realApp = buildBareApp();
+    await realApp.register(
+      jobsRoutes({
+        meta: localCtx.meta,
+        registry: localCtx.registry,
+        worker: localCtx.worker,
+        hub: localCtx.hub,
+        resolveUser: stubUsers.resolveUser,
+        // compose.ts's `can`: resolver → decision function, super-admin bypass included.
+        can: async (u, permission) =>
+          permissionSetAllows(
+            await resolvePermissionSet(localCtx.meta, { kind: 'user', id: u.id, label: u.id }),
+            permission,
+          ),
+      }),
+      { prefix: '/api/v1' },
+    );
+    await realApp.ready();
+
+    const allowed = await realApp.inject({ url: '/api/v1/jobs', headers: stubUsers.as(user.id) });
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.json().data).toEqual([]);
+
+    // read ≠ manage: enqueueing still requires system:jobs:manage.
+    const denied = await realApp.inject({
+      method: 'POST',
+      url: '/api/v1/jobs',
+      headers: stubUsers.as(user.id),
+      payload: { kind: NOOP_PROGRESS_KIND },
+    });
+    expect(denied.statusCode).toBe(403);
+    await realApp.close();
   });
 });

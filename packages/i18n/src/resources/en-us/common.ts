@@ -209,7 +209,9 @@ export default {
   },
   "account": {
     "title": "Account",
-    "stub": "Profile and preference pages arrive as seeded settings pages in Wave B (09-T18).",
+    "subtitle": "The identity of your current session. Manage display preferences and notification settings on their dedicated pages.",
+    "preferencesLink": "Preferences",
+    "notificationsLink": "Notification settings",
     "name": "Name",
     "email": "Email",
     "roles": "Roles",
@@ -282,7 +284,48 @@ export default {
       },
       "file": {
         "detectedAs": "Detected: {format}",
-        "moreWarnings": "+{count} more warnings — the full list appears in the analyze step."
+        "moreWarnings": "+{count} more warnings — the full list appears in the analyze step.",
+        "dropTitle": "Drop your schema file here, or browse",
+        "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django models, Adminium JSON",
+        "pitch": "No database connection required — we parse your schema file and build the same dashboards.",
+        "parsing": "Reading uploaded schema file…",
+        "tables": "tables",
+        "columns": "columns",
+        "warnings": "warnings",
+        "errorTitle": "Could not parse the file",
+        "parseFailed": "We could not parse that file. If auto-detect guessed wrong, pick the format explicitly and retry.",
+        "unsupported": "That format is not recognized — SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django models and Adminium JSON are supported. Pick one explicitly and retry.",
+        "requestFailed": "Upload failed — check your connection and try again."
+      },
+      "title": "Connect your database",
+      "subtitle": "Point Adminium at a database and we'll generate an admin dashboard from its schema.",
+      "name": "Connection name",
+      "namePlaceholder": "Production Postgres",
+      "modeLabel": "Source input mode",
+      "mode": {
+        "dsn": "Connection string",
+        "fields": "Individual fields",
+        "file": "Schema file"
+      },
+      "dsn": {
+        "label": "Connection string",
+        "helper": "postgres://user:password@host:5432/database — mysql:// and sqlite: work too.",
+        "incomplete": "Add host and database, e.g. postgres://user@host:5432/db",
+        "invalidScheme": "Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:",
+        "quickFill": "Quick fill:"
+      },
+      "fields": {
+        "host": "Host",
+        "port": "Port",
+        "database": "Database",
+        "user": "User",
+        "password": "Password",
+        "ssl": "SSL mode",
+        "preview": "Connection string preview:"
+      },
+      "readOnlyRole": {
+        "title": "Use a read-only role",
+        "body": "Adminium never writes to your database — setup uses schema metadata only. We recommend a dedicated user with SELECT-only grants; you can decide where Adminium keeps its own tables in the meta-storage step."
       }
     },
     "capability": {
@@ -299,11 +342,51 @@ export default {
     },
     "test": {
       "log": {
-        "moreWarnings": "+{count} more parser warnings"
+        "moreWarnings": "+{count} more parser warnings",
+        "connecting": "Establishing secure connection…",
+        "connected": "Connected ({latency} ms) · read-only introspection",
+        "connectFailed": "Connection failed.",
+        "readingSchema": "Reading schema: public",
+        "readingFile": "Reading uploaded schema file…",
+        "parsingFile": "Parsing {file}…",
+        "detected": "Detected {tables} tables · {columns} columns",
+        "found": "Found {tables} tables · {columns} columns",
+        "mapping": "Mapping column types → input widgets",
+        "relations": "Detecting relations…",
+        "piiScan": "Scanning for PII columns…",
+        "piiDone": "PII scan complete — {count} columns masked by default",
+        "piiDoneUnknown": "PII scan complete",
+        "jobFailed": "Introspection failed.",
+        "networkFailed": "Request failed — check your connection and retry.",
+        "ready": "Ready"
+      },
+      "title": "Analyzing your schema",
+      "subtitle": "Introspecting tables, columns, and relationships. This takes a few seconds.",
+      "trust": "We only read your schema and data. Nothing is modified.",
+      "errorTitle": "Connection failed",
+      "retry": "Retry",
+      "logLabel": "Introspection log",
+      "hint": {
+        "auth": "Authentication failed — check the user name and password in your DSN.",
+        "hostUnreachable": "Host unreachable — check the hostname and port, and that the database accepts connections from this machine (allowlist our IPs).",
+        "metaPlacement": "This source cannot host Adminium’s meta tables — continue with a separate meta database.",
+        "permission": "The role connected but lacks schema-read privileges — grant USAGE on the schema to your introspection role.",
+        "timeout": "The database did not answer in time — check network path and load, then retry.",
+        "tls": "TLS negotiation failed — try sslmode=require, or upload the CA certificate your server expects.",
+        "unknown": "Connection failed — verify the DSN and retry."
       }
     },
     "tables": {
-      "importNoCounts": "Schema files carry no row counts — the column shows — until a live database is connected."
+      "importNoCounts": "Schema files carry no row counts — the column shows — until a live database is connected.",
+      "title": "Choose your tables",
+      "subtitle": "Choose which to include. You can change this anytime.",
+      "search": "Filter tables…",
+      "listLabel": "Includable tables",
+      "emptyFilter": "No tables match your filter.",
+      "pii": "PII",
+      "highVolume": "high volume",
+      "highVolumeNote": "Tables over 100,000 rows start unchecked — ops tables rarely belong in a dashboard.",
+      "joinHidden": "{count} join/system tables are pre-hidden — they still power many-to-many relations."
     },
     "hub": {
       "title": "Data connections",
@@ -744,6 +827,89 @@ export default {
           "copy": "micro-copy"
         }
       }
+    },
+    "wizard": {
+      "title": "New connection",
+      "back": "Back",
+      "continue": "Continue",
+      "progress": "Setup progress",
+      "persistFailed": "Could not save your table selection — retry.",
+      "persistFailedTitle": "Save failed",
+      "step": {
+        "source": "Source",
+        "test": "Analyze",
+        "tables": "Tables",
+        "meta": "Meta storage",
+        "intent": "Intent",
+        "enrich": "Enrich",
+        "generate": "Generate"
+      }
+    },
+    "meta": {
+      "title": "Where should Adminium keep its own tables?",
+      "subtitle": "Pages, roles, audit log and settings live in adminium_-prefixed tables — never mixed into your data.",
+      "sameDb": {
+        "title": "Same database",
+        "description": "adminium_* tables are created beside your source tables. Simplest setup — needs a role with write and CREATE TABLE privileges.",
+        "disabledReadOnly": "Your role is read-only — Adminium never writes to this database. Choose a separate database for Adminium’s own tables.",
+        "disabledNoDdl": "This role cannot run DDL — Adminium migrations need CREATE TABLE. Choose a separate database for Adminium’s own tables.",
+        "disabledFile": "A schema file has no live database — choose a separate database for Adminium’s own tables."
+      },
+      "separate": {
+        "title": "Separate database",
+        "description": "Adminium keeps its tables in a different database. Your source stays untouched — required for read-only sources.",
+        "dsn": "Meta database connection string",
+        "helper": "Needs write + DDL privileges — Adminium runs its own migrations there.",
+        "test": "Test connection",
+        "ok": "Compatible — write ✓ · DDL ✓",
+        "insufficient": "This role cannot host the meta store — Adminium needs write and CREATE TABLE privileges there.",
+        "errorTitle": "Meta store not compatible"
+      },
+      "testFailed": "Connection failed.",
+      "v1Note": {
+        "title": "About this install",
+        "body": "This server chose its meta store at first boot. This step validates that your choice is compatible with this connection and records it — the server enforces the same rule independently (409 META_PLACEMENT_INVALID). Moving an existing meta store is an ops task (M10)."
+      }
+    },
+    "intent": {
+      "title": "What do you need?",
+      "subtitle": "The intent shapes which pages get generated. You can change it later — changing it proposes a regeneration, never a silent rewrite.",
+      "trust": "We read your schema only — never your row data during setup.",
+      "fullAdmin": {
+        "title": "Full admin panel",
+        "description": "Dashboards, CRUD pages, search, imports and exports — everything your schema supports."
+      },
+      "analytics": {
+        "title": "Read-only analytics",
+        "description": "Dashboards, charts and read-only grids. No forms, no writes — every role capped at Viewer."
+      },
+      "crud": {
+        "title": "CRUD tables",
+        "description": "One editing page per table plus search and import/export — a minimal home, no dashboards."
+      },
+      "support": {
+        "title": "Support console",
+        "description": "Queues, ticket and customer detail pages first. Deletes off by default. (Queue templates land in M7 — the v1 page set matches Full admin.)"
+      }
+    },
+    "generate": {
+      "title": "Generate your app",
+      "subtitle": "One page per included table plus dashboards per domain — intent:",
+      "run": "Generate dashboard",
+      "openApp": "Open your app",
+      "logLabel": "Generation log",
+      "log": {
+        "classifying": "Classifying schema…",
+        "composing": "Composing templates…",
+        "writing": "Writing pages…",
+        "done": "{pages} pages generated across {groups} nav groups"
+      },
+      "successTitle": "Your dashboard is ready",
+      "successBody": "{pages} pages across {groups} navigation groups — generated from your schema, editable in Studio.",
+      "errorTitle": "Generation failed",
+      "failed": "Generation failed — retry, or re-run introspection first.",
+      "fileTitle": "Schema file parsed — generation needs a live database",
+      "fileBody": "Your schema parsed cleanly and the preview above is real. Generating a running app straight from a schema file (with placeholder rows) is not available yet — connect a live database to generate today."
     }
   },
   "onboarding": {

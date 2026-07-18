@@ -18,9 +18,13 @@
  * Role/label selectors + Playwright auto-waiting only — no arbitrary sleeps.
  *
  * The M7 page-template legs (queue/board/directory as per-item template pages)
- * are intentionally NOT exercised: only `page-crud` + `page-dashboard` are
- * registered in this build, so the golden response omits `pageTemplates`
- * entirely. See the `test.fixme` below tracking the M7 template round-trip.
+ * are intentionally NOT exercised. The 14 M7 template RENDERERS are registered
+ * (apps/dashboard/src/pages/templates.tsx; template-pages.spec.ts pins them),
+ * but the LLM-recommendable vocabulary is not: `pageTemplateDefinitions`
+ * (packages/widgets/src/registry/page-templates.ts) — the source of
+ * `LLM_ALLOWED_TEMPLATES` — still admits only `page-crud` + `page-dashboard`,
+ * so a golden `pageTemplates` block would be referentially dropped
+ * (`LLM_UNKNOWN_TEMPLATE`). See the `test.fixme` below.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -163,15 +167,22 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
   // HALF the gate has lifted: the M7 wave-2 assembly registered all 14
   // template renderers (apps/dashboard/src/pages/templates.tsx), and the
   // seeded archetype pages are pinned end-to-end by template-pages.spec.ts.
-  // What still blocks THIS leg is the golden fixture: the BYO response
-  // (`fixtures/northwind-enrichment.json`) carries no `pageTemplates` block,
-  // so there is no LLM-recommended template page to round-trip through
-  // validate → review → apply. Unskip once the golden gains a `pageTemplates`
-  // block (and this body drives it through the review screen).
+  // What still blocks THIS leg is the LLM template VOCABULARY, not the
+  // renderers and not merely the fixture: `pageTemplateDefinitions`
+  // (packages/widgets/src/registry/page-templates.ts) — the derivation source
+  // of `LLM_ALLOWED_TEMPLATES` in the built allow-list the server loads —
+  // still lists only `page-crud` + `page-dashboard`, so ANY `pageTemplates`
+  // entry added to `fixtures/northwind-enrichment.json` today is referentially
+  // dropped as `LLM_UNKNOWN_TEMPLATE` at validate and the apply produces no
+  // template page. Unskip once (1) the M7 templates are admitted to that
+  // registry (`recommendable: true` + Studio descriptionKey + prompt/allowlist
+  // test updates — a vocabulary decision, not a test edit), and (2) the golden
+  // gains a matching `pageTemplates` block for this body to drive through
+  // validate → review → apply.
   test.fixme(
     'BYO round-trip applies queue/board/directory template pages (M7)',
     async () => {
-      // Intentionally empty until the golden fixture carries `pageTemplates`.
+      // Intentionally empty until LLM_ALLOWED_TEMPLATES admits the M7 templates.
     },
   );
 });

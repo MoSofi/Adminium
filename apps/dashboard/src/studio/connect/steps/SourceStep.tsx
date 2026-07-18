@@ -153,7 +153,10 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
       </FormField>
 
       <SegmentedControl
-        aria-label={t('studio.source.mode', 'Source input mode')}
+        // `modeLabel`, not `mode`: the bundles nest `studio.source.mode.*` for
+        // the three options, so the group label needs its own leaf key
+        // (i18next cannot store a string at an object node).
+        aria-label={t('studio.source.modeLabel', 'Source input mode')}
         value={state.mode}
         onValueChange={(mode) => onPatch({ mode: mode as SourceMode })}
         options={[

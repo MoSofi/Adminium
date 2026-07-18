@@ -209,7 +209,9 @@ export default {
   },
   "account": {
     "title": "账户",
-    "stub": "个人资料与偏好设置页面将在 Wave B（09-T18）作为预置设置页面推出。",
+    "subtitle": "当前会话的身份信息。显示偏好和通知设置请在各自的专属页面中管理。",
+    "preferencesLink": "偏好设置",
+    "notificationsLink": "通知设置",
     "name": "姓名",
     "email": "邮箱",
     "roles": "角色",
@@ -282,7 +284,48 @@ export default {
       },
       "file": {
         "detectedAs": "检测到：{format}",
-        "moreWarnings": "另有 {count} 条警告——完整列表将在分析步骤中显示。"
+        "moreWarnings": "另有 {count} 条警告——完整列表将在分析步骤中显示。",
+        "dropTitle": "将架构文件拖放到此处，或浏览选择",
+        "dropHint": "SQL DDL / pg_dump、Prisma、Drizzle、TypeORM、Sequelize、Rails schema.rb、Django 模型、Adminium JSON",
+        "pitch": "无需数据库连接——我们解析你的架构文件并构建相同的仪表板。",
+        "parsing": "正在读取上传的架构文件…",
+        "tables": "个表",
+        "columns": "列",
+        "warnings": "警告",
+        "errorTitle": "无法解析该文件",
+        "parseFailed": "我们无法解析该文件。如果自动检测判断有误，请明确选择格式后重试。",
+        "unsupported": "无法识别该格式——支持 SQL DDL、Prisma、Drizzle、TypeORM、Sequelize、Rails schema.rb、Django 模型和 Adminium JSON。请明确选择一种后重试。",
+        "requestFailed": "上传失败——请检查网络连接后重试。"
+      },
+      "title": "连接你的数据库",
+      "subtitle": "将 Adminium 指向一个数据库，我们会根据其架构生成管理仪表板。",
+      "name": "连接名称",
+      "namePlaceholder": "生产环境 Postgres",
+      "modeLabel": "来源输入方式",
+      "mode": {
+        "dsn": "连接字符串",
+        "fields": "逐项填写",
+        "file": "架构文件"
+      },
+      "dsn": {
+        "label": "连接字符串",
+        "helper": "postgres://user:password@host:5432/database——mysql:// 和 sqlite: 也可用。",
+        "incomplete": "请补全主机和数据库，例如 postgres://user@host:5432/db",
+        "invalidScheme": "无法识别的协议——应为 postgres://、mysql://、mariadb:// 或 sqlite:",
+        "quickFill": "快速填充："
+      },
+      "fields": {
+        "host": "主机",
+        "port": "端口",
+        "database": "数据库",
+        "user": "用户",
+        "password": "密码",
+        "ssl": "SSL 模式",
+        "preview": "连接字符串预览："
+      },
+      "readOnlyRole": {
+        "title": "使用只读角色",
+        "body": "Adminium 绝不会写入你的数据库——设置过程仅使用架构元数据。建议使用仅有 SELECT 权限的专用用户；Adminium 自己的表放在哪里，可在元数据存储步骤中决定。"
       }
     },
     "capability": {
@@ -299,11 +342,51 @@ export default {
     },
     "test": {
       "log": {
-        "moreWarnings": "另有 {count} 条解析器警告"
+        "moreWarnings": "另有 {count} 条解析器警告",
+        "connecting": "正在建立安全连接…",
+        "connected": "已连接（{latency} 毫秒）· 只读自省",
+        "connectFailed": "连接失败。",
+        "readingSchema": "正在读取架构：public",
+        "readingFile": "正在读取上传的架构文件…",
+        "parsingFile": "正在解析 {file}…",
+        "detected": "检测到 {tables} 个表 · {columns} 列",
+        "found": "共发现 {tables} 个表 · {columns} 列",
+        "mapping": "正在映射列类型 → 输入组件",
+        "relations": "正在检测关系…",
+        "piiScan": "正在扫描 PII 列…",
+        "piiDone": "PII 扫描完成——默认屏蔽 {count} 列",
+        "piiDoneUnknown": "PII 扫描完成",
+        "jobFailed": "自省失败。",
+        "networkFailed": "请求失败——请检查网络连接后重试。",
+        "ready": "就绪"
+      },
+      "title": "正在分析你的架构",
+      "subtitle": "正在自省表、列和关系。这需要几秒钟。",
+      "trust": "我们只读取你的架构和数据，不会做任何修改。",
+      "errorTitle": "连接失败",
+      "retry": "重试",
+      "logLabel": "自省日志",
+      "hint": {
+        "auth": "身份验证失败——请检查 DSN 中的用户名和密码。",
+        "hostUnreachable": "主机不可达——请检查主机名和端口，并确认数据库接受来自本机的连接（将我们的 IP 加入允许列表）。",
+        "metaPlacement": "该数据源无法承载 Adminium 的元数据表——请改用单独的元数据库继续。",
+        "permission": "该角色已连接，但缺少读取架构的权限——请为自省角色授予该架构的 USAGE 权限。",
+        "timeout": "数据库未及时响应——请检查网络路径和负载后重试。",
+        "tls": "TLS 协商失败——请尝试 sslmode=require，或上传服务器所需的 CA 证书。",
+        "unknown": "连接失败——请核对 DSN 后重试。"
       }
     },
     "tables": {
-      "importNoCounts": "架构文件不包含行数——在连接实时数据库之前，该列显示 —。"
+      "importNoCounts": "架构文件不包含行数——在连接实时数据库之前，该列显示 —。",
+      "title": "选择数据表",
+      "subtitle": "选择要包含的表。之后可随时更改。",
+      "search": "筛选表…",
+      "listLabel": "可包含的表",
+      "emptyFilter": "没有匹配筛选条件的表。",
+      "pii": "PII",
+      "highVolume": "高数据量",
+      "highVolumeNote": "超过 100,000 行的表默认不勾选——运维类表很少适合放进仪表板。",
+      "joinHidden": "{count} 个关联/系统表已预先隐藏——它们仍支撑多对多关系。"
     },
     "hub": {
       "title": "数据连接",
@@ -744,6 +827,89 @@ export default {
           "copy": "微文案"
         }
       }
+    },
+    "wizard": {
+      "title": "新建连接",
+      "back": "返回",
+      "continue": "继续",
+      "progress": "设置进度",
+      "persistFailed": "无法保存你的表选择——请重试。",
+      "persistFailedTitle": "保存失败",
+      "step": {
+        "source": "来源",
+        "test": "分析",
+        "tables": "数据表",
+        "meta": "元数据存储",
+        "intent": "意图",
+        "enrich": "丰富",
+        "generate": "生成"
+      }
+    },
+    "meta": {
+      "title": "Adminium 应把自己的表放在哪里？",
+      "subtitle": "页面、角色、审计日志和设置存放在以 adminium_ 为前缀的表中——绝不混入你的数据。",
+      "sameDb": {
+        "title": "同一数据库",
+        "description": "adminium_* 表将创建在你的源表旁边。这是最简单的设置——需要具有写入和 CREATE TABLE 权限的角色。",
+        "disabledReadOnly": "你的角色是只读的——Adminium 绝不会写入此数据库。请为 Adminium 自己的表选择单独的数据库。",
+        "disabledNoDdl": "该角色无法执行 DDL——Adminium 迁移需要 CREATE TABLE 权限。请为 Adminium 自己的表选择单独的数据库。",
+        "disabledFile": "架构文件没有实时数据库——请为 Adminium 自己的表选择单独的数据库。"
+      },
+      "separate": {
+        "title": "单独的数据库",
+        "description": "Adminium 将其表保存在另一个数据库中。你的源保持不变——只读源必须如此。",
+        "dsn": "元数据库连接字符串",
+        "helper": "需要写入和 DDL 权限——Adminium 会在那里运行自己的迁移。",
+        "test": "测试连接",
+        "ok": "兼容——写入 ✓ · DDL ✓",
+        "insufficient": "该角色无法承载元数据存储——Adminium 在那里需要写入和 CREATE TABLE 权限。",
+        "errorTitle": "元数据存储不兼容"
+      },
+      "testFailed": "连接失败。",
+      "v1Note": {
+        "title": "关于此安装",
+        "body": "此服务器在首次启动时选择了元数据存储。此步骤验证你的选择与此连接兼容并记录下来——服务器会独立执行同一规则（409 META_PLACEMENT_INVALID）。迁移现有元数据存储属于运维任务（M10）。"
+      }
+    },
+    "intent": {
+      "title": "你需要什么？",
+      "subtitle": "意图决定生成哪些页面。之后可以更改——更改会提议重新生成，绝不会静默重写。",
+      "trust": "我们只读取你的架构——设置期间绝不读取行数据。",
+      "fullAdmin": {
+        "title": "完整管理面板",
+        "description": "仪表板、CRUD 页面、搜索、导入与导出——你的架构支持的一切。"
+      },
+      "analytics": {
+        "title": "只读分析",
+        "description": "仪表板、图表和只读网格。没有表单、没有写入——所有角色上限为查看者。"
+      },
+      "crud": {
+        "title": "CRUD 数据表",
+        "description": "每个表一个编辑页面，外加搜索和导入/导出——极简主页，没有仪表板。"
+      },
+      "support": {
+        "title": "客服控制台",
+        "description": "优先生成队列、工单和客户详情页面。默认关闭删除。（队列模板在 M7 提供——v1 页面集与完整管理面板相同。）"
+      }
+    },
+    "generate": {
+      "title": "生成你的应用",
+      "subtitle": "每个已包含的表一个页面，外加按领域生成的仪表板——意图：",
+      "run": "生成仪表板",
+      "openApp": "打开你的应用",
+      "logLabel": "生成日志",
+      "log": {
+        "classifying": "正在对架构分类…",
+        "composing": "正在组合模板…",
+        "writing": "正在写入页面…",
+        "done": "已生成 {pages} 个页面，分布于 {groups} 个导航组"
+      },
+      "successTitle": "你的仪表板已就绪",
+      "successBody": "{pages} 个页面，分布于 {groups} 个导航组——由你的架构生成，可在 Studio 中编辑。",
+      "errorTitle": "生成失败",
+      "failed": "生成失败——请重试，或先重新运行自省。",
+      "fileTitle": "架构文件已解析——生成需要实时数据库",
+      "fileBody": "你的架构解析顺利，上方预览是真实的。直接从架构文件生成可运行的应用（含占位行）尚不可用——请连接实时数据库立即生成。"
     }
   },
   "onboarding": {

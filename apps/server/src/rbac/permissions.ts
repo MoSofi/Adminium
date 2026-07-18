@@ -47,6 +47,11 @@ export const PERMISSIONS = {
   exportsManage: 'system:exports:manage',
   importsManage: 'system:imports:manage',
   reportsManage: 'system:reports:manage',
+  // Jobs (08 §2.17). The routes/realtime hub carry local constants
+  // (JOBS_READ_PERMISSION / JOBS_MANAGE_PERMISSION in realtime/hub.ts);
+  // these are the canonical spellings.
+  jobsRead: 'system:jobs:read',
+  jobsManage: 'system:jobs:manage',
 } as const;
 
 export type ParsedGrant =

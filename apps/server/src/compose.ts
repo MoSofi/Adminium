@@ -35,6 +35,7 @@ import { buildServer, type AdminiumServer } from './app.js';
 import type { Env } from './config/env.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
+import { registerIntrospectJob } from './connections/introspect.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { UndoStore } from './crud/undo.js';
 import { createFileStorage } from './files/storage.js';
@@ -254,6 +255,12 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       ),
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
   });
+
+  // The `introspect` job kind (08 §2.4): without this, POST
+  // /connections/:id/introspect silently falls back to its synchronous
+  // dev/test path (30s request-thread budget) in every deployment and the
+  // wizard's job-polling branch never runs.
+  registerIntrospectJob(jobs.registry, { manager, meta });
 
   const undoStore = new UndoStore();
 

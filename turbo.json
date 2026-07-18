@@ -9,6 +9,9 @@
         "dist/**"
       ]
     },
+    "@adminium/config#build": {
+      "outputs": []
+    },
     "@adminium/desktop#build": {
       "dependsOn": [
         "@adminium/dashboard#build",
