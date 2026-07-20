@@ -18,13 +18,16 @@
  * Role/label selectors + Playwright auto-waiting only — no arbitrary sleeps.
  *
  * The M7 page-template legs (queue/board/directory as per-item template pages)
- * are intentionally NOT exercised. The 14 M7 template RENDERERS are registered
+ * are intentionally NOT exercised YET. Both renderers and vocabulary are in
+ * place: the 14 M7 template RENDERERS are registered
  * (apps/dashboard/src/pages/templates.tsx; template-pages.spec.ts pins them),
- * but the LLM-recommendable vocabulary is not: `pageTemplateDefinitions`
- * (packages/widgets/src/registry/page-templates.ts) — the source of
- * `LLM_ALLOWED_TEMPLATES` — still admits only `page-crud` + `page-dashboard`,
- * so a golden `pageTemplates` block would be referentially dropped
- * (`LLM_UNKNOWN_TEMPLATE`). See the `test.fixme` below.
+ * and `LLM_ALLOWED_TEMPLATES` (derived from `pageTemplateDefinitions` in
+ * packages/widgets/src/registry/page-templates.ts) now admits the 10
+ * recommendable ids — `page-dashboard` + the 9 data-shaped archetypes,
+ * including `page-queue-inbox`/`page-board`/`page-directory`. (`page-crud` is
+ * not in the list: it is always generated and keeps its bespoke rejection.)
+ * What remains is authoring: `fixtures/northwind-enrichment.json` carries no
+ * `pageTemplates` block and the spec body below is unwritten. See `test.fixme`.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -164,25 +167,23 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
   });
 
   // M7 page-template legs (queue/board/directory as per-item template pages).
-  // HALF the gate has lifted: the M7 wave-2 assembly registered all 14
-  // template renderers (apps/dashboard/src/pages/templates.tsx), and the
-  // seeded archetype pages are pinned end-to-end by template-pages.spec.ts.
-  // What still blocks THIS leg is the LLM template VOCABULARY, not the
-  // renderers and not merely the fixture: `pageTemplateDefinitions`
-  // (packages/widgets/src/registry/page-templates.ts) — the derivation source
-  // of `LLM_ALLOWED_TEMPLATES` in the built allow-list the server loads —
-  // still lists only `page-crud` + `page-dashboard`, so ANY `pageTemplates`
-  // entry added to `fixtures/northwind-enrichment.json` today is referentially
-  // dropped as `LLM_UNKNOWN_TEMPLATE` at validate and the apply produces no
-  // template page. Unskip once (1) the M7 templates are admitted to that
-  // registry (`recommendable: true` + Studio descriptionKey + prompt/allowlist
-  // test updates — a vocabulary decision, not a test edit), and (2) the golden
-  // gains a matching `pageTemplates` block for this body to drive through
-  // validate → review → apply.
+  // The vocabulary gate has lifted: all 14 template renderers are registered
+  // (apps/dashboard/src/pages/templates.tsx; the seeded archetype pages are
+  // pinned end-to-end by template-pages.spec.ts), and `LLM_ALLOWED_TEMPLATES`
+  // (packages/widgets/src/registry/page-templates.ts → llm-allowlist.ts) now
+  // admits the 9 M7 archetypes — `page-queue-inbox`/`page-board`/
+  // `page-directory` included — so a golden `pageTemplates` block survives
+  // referential validation. The ONLY remaining work is authoring: give
+  // `fixtures/northwind-enrichment.json` a `pageTemplates` block that
+  // recommends queue/board/directory for matching Northwind tables, and write
+  // this body to drive it through validate → review → accept → apply, then
+  // assert the per-item template pages render.
   test.fixme(
     'BYO round-trip applies queue/board/directory template pages (M7)',
     async () => {
-      // Intentionally empty until LLM_ALLOWED_TEMPLATES admits the M7 templates.
+      // Intentionally empty until the golden fixture gains a pageTemplates
+      // block and this body is authored (the vocabulary already admits the
+      // M7 archetypes).
     },
   );
 });

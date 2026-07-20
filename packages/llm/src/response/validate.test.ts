@@ -28,9 +28,15 @@ function fixture(relative: string): string {
 
 const snapshot: DatabaseModel = parseDatabaseModel(fixture('demo-schema.json'));
 
-/** The 11 recommendable templates + `page-crud` (present but never recommended). */
+/**
+ * The recommendable page-template vocabulary — `LLM_ALLOWED_TEMPLATES` as
+ * `@adminium/widgets` derives it: `page-dashboard` + the nine data-shaped M7
+ * archetypes. Deliberately excludes `page-crud` (always generated, rejected
+ * with its bespoke message — 06 §5 decision 6) and the tool surfaces
+ * (`page-builder` / `page-wizard` / `page-settings`), which are renderable but
+ * never recommendable, so membership alone rejects them.
+ */
 const ALLOWED_TEMPLATES = [
-  'page-crud',
   'page-dashboard',
   'page-master-detail',
   'page-queue-inbox',
@@ -41,7 +47,6 @@ const ALLOWED_TEMPLATES = [
   'page-log-viewer',
   'page-files',
   'page-chat',
-  'page-builder',
 ] as const;
 
 /** The curated dashboard-widget subset (06 §5 builder notes). */
@@ -405,6 +410,82 @@ describe('schema_version negotiation through the pipeline (criterion 5)', () => 
     const result = validateResponse(fixture('responses/valid-demo.json'), futureCtx);
     expect(result.errors).toEqual([]);
     expect(result.response).toBeDefined();
+  });
+});
+
+/* -------------------- template vocabulary = recommendable ids only (§7.3) */
+
+describe('page-template suggestions against the recommendable vocabulary (06 §5 decision 6)', () => {
+  // One coherent contract: the prompt injects only recommendable ids and this
+  // same list is the referential membership check. A recommendable M7
+  // archetype (`page-board`) survives; a renderable-but-not-recommendable tool
+  // surface (`page-builder`) fails membership; `page-crud` keeps its bespoke
+  // "always generated" rejection.
+  const response = JSON.stringify({
+    schema_version: 'adminium.llm/v1',
+    tables: [
+      {
+        table: 'public.orders',
+        confidence: 0.9,
+        label: { en_US: 'Orders' },
+        description: { en_US: 'Customer orders.' },
+        icon: 'shopping-cart',
+        displayColumn: null,
+        naturalKey: null,
+        pageTemplates: [
+          {
+            template: 'page-board',
+            rank: 1,
+            triggers: ['status enum classified workflow'],
+            reason: 'Workflow status enum with kanban-shaped states.',
+            confidence: 0.85,
+          },
+          {
+            template: 'page-builder',
+            rank: 2,
+            triggers: ['document-shaped domain'],
+            reason: 'Tool surface — must not be recommended per table.',
+            confidence: 0.7,
+          },
+          {
+            template: 'page-crud',
+            rank: 3,
+            triggers: ['crud'],
+            reason: 'Always generated — must not be recommended.',
+            confidence: 0.5,
+          },
+        ],
+      },
+    ],
+  });
+
+  const result = validateResponse(response, corpusCtx);
+
+  it('keeps the recommendable archetype suggestion', () => {
+    const kept = result.response?.tables[0]?.pageTemplates.map((t) => t.template);
+    expect(kept).toEqual(['page-board']);
+  });
+
+  it('rejects the tool surface via membership (LLM_UNKNOWN_TEMPLATE)', () => {
+    const err = result.errors.find(
+      (e) => e.code === 'LLM_UNKNOWN_TEMPLATE' && e.path === 'tables[0].pageTemplates[1].template',
+    );
+    expect(err).toBeDefined();
+    expect(err?.message).toContain('page-builder');
+    expect(err?.message).toContain('not an allowed page template');
+    expect(err?.severity).toBe('item');
+  });
+
+  it('rejects page-crud with its bespoke always-generated message', () => {
+    const err = result.errors.find(
+      (e) => e.code === 'LLM_UNKNOWN_TEMPLATE' && e.path === 'tables[0].pageTemplates[2].template',
+    );
+    expect(err?.message).toContain('always generated');
+  });
+
+  it('the table itself and its other suggestions survive (per-item drops only)', () => {
+    expect(result.response?.tables).toHaveLength(1);
+    expect(result.response?.tables[0]?.table).toBe('public.orders');
   });
 });
 

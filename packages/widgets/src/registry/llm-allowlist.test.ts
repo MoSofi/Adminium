@@ -6,6 +6,7 @@ import {
   LLM_ALLOWED_TEMPLATES,
   LLM_ALLOWED_WIDGETS,
 } from './llm-allowlist.js';
+import { ARCHETYPE_TEMPLATE_IDS } from './archetypes.js';
 import { widgetRegistry, widgetsByFamily } from './index.js';
 import { pageTemplateRegistry } from './page-templates.js';
 import { widgetSharedConfigSchema } from './shared-config.js';
@@ -15,8 +16,19 @@ const isSortedUnique = (ids: readonly string[]): boolean =>
   ids.every((id, i) => i === 0 || ids[i - 1]!.localeCompare(id, 'en') < 0);
 
 describe('LLM_ALLOWED_PAGE_TEMPLATES', () => {
-  it('is exactly the templates the runtime ships today', () => {
-    expect(LLM_ALLOWED_PAGE_TEMPLATES).toEqual(['page-crud', 'page-dashboard']);
+  it('is exactly the recommendable templates the runtime ships today', () => {
+    expect(LLM_ALLOWED_PAGE_TEMPLATES).toEqual([
+      'page-board',
+      'page-calendar',
+      'page-chat',
+      'page-dashboard',
+      'page-directory',
+      'page-files',
+      'page-log-viewer',
+      'page-master-detail',
+      'page-queue-inbox',
+      'page-scheduler',
+    ]);
   });
 
   it('never lists a template the registry cannot render (regression guard)', () => {
@@ -25,8 +37,24 @@ describe('LLM_ALLOWED_PAGE_TEMPLATES', () => {
     }
   });
 
-  it('covers every registered page template — the set grows with the registry', () => {
-    expect([...LLM_ALLOWED_PAGE_TEMPLATES].sort()).toEqual([...pageTemplateRegistry.keys()].sort());
+  it('is exactly the recommendable subset of the registry — the set grows with it', () => {
+    const recommendable = [...pageTemplateRegistry.values()]
+      .filter((t) => t.recommendable)
+      .map((t) => t.id);
+    expect([...LLM_ALLOWED_PAGE_TEMPLATES].sort()).toEqual(recommendable.sort());
+  });
+
+  it('never lists a non-recommendable template (06 §5 decision 6 + the tool surfaces)', () => {
+    for (const id of ['page-crud', 'page-builder', 'page-wizard', 'page-settings']) {
+      expect(pageTemplateRegistry.has(id), `${id} must stay renderable`).toBe(true);
+      expect(LLM_ALLOWED_PAGE_TEMPLATES).not.toContain(id);
+    }
+  });
+
+  it('admits every template a §14 archetype rule can emit (emitter ⊆ vocabulary)', () => {
+    for (const id of ARCHETYPE_TEMPLATE_IDS) {
+      expect(LLM_ALLOWED_PAGE_TEMPLATES).toContain(id);
+    }
   });
 
   it('LLM_ALLOWED_TEMPLATES aliases the same list (06 §5 builder-note spelling)', () => {

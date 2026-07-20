@@ -27,7 +27,7 @@ export const CONFIGURABLE_PROVIDERS: readonly ConfigurableProvider[] = [
 ];
 
 /** Contract version strings surfaced in the BYO panel (§4.3). Display-only mirrors. */
-export const PROMPT_VERSION = 'adminium.prompt/v1';
+export const PROMPT_VERSION = 'adminium.prompt/v1.1';
 export const SCHEMA_VERSION = 'adminium.llm/v1';
 
 /** How a provider treats the API-key field. */

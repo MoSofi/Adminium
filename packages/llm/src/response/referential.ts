@@ -45,7 +45,13 @@ export interface ReferentialContext {
   snapshot: DatabaseModel;
   /** The run's requested locales (drives the fallback icon check messaging). */
   locales: readonly LocaleCode[];
-  /** `LLM_ALLOWED_TEMPLATES` — may include `page-crud` (rejected separately). */
+  /**
+   * `LLM_ALLOWED_TEMPLATES` — the RECOMMENDABLE page-template vocabulary (the
+   * same list the prompt injected, one coherent contract). Non-recommendable
+   * registry templates (the M7 tool surfaces) are simply absent and fail the
+   * membership check; `page-crud` is rejected separately with its bespoke
+   * "always generated" message whether or not a caller includes it.
+   */
   allowedTemplates: readonly string[];
   /** `LLM_ALLOWED_WIDGETS` — the curated dashboard-widget subset. */
   allowedWidgets: readonly string[];

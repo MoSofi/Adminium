@@ -33,14 +33,26 @@ function dataContractIncludes(contract: DataShape | DataShape[], shape: DataShap
 /* ---------------------------------------------------------- page templates */
 
 /**
- * Every page template the runtime can render, injected as
- * `{{ALLOWED_PAGE_TEMPLATE_IDS_JSON}}`. Includes `page-crud` (renderable, though
- * the prompt separately instructs the model never to recommend it — 06 §5
- * decision 6); Studio and the response referential check consult
- * `pageTemplateRegistry` for the `recommendable` flag.
+ * The RECOMMENDABLE page-template vocabulary, injected as
+ * `{{ALLOWED_PAGE_TEMPLATE_IDS_JSON}}` (06 §5 builder notes: "the recommendable
+ * templates … exported as `LLM_ALLOWED_TEMPLATES`"). One coherent contract,
+ * shared by the prompt and the response referential check (both receive this
+ * same list via `AllowedVocabularies`):
+ *
+ *   - the prompt offers ONLY templates the model may recommend per table;
+ *   - the referential membership check (`referential.ts` §7.3) therefore
+ *     rejects every non-recommendable id — the tool surfaces (`page-builder`,
+ *     `page-wizard`, `page-settings`) fall out as `LLM_UNKNOWN_TEMPLATE`, and
+ *     `page-crud` keeps its bespoke "always generated" rejection (06 §5
+ *     decision 6), which fires before the membership test.
+ *
+ * Renderability stays a superset: `pageTemplateRegistry` still carries the
+ * non-recommendable templates for Studio's picker and the render layer.
  */
 export const LLM_ALLOWED_PAGE_TEMPLATES: readonly string[] = sortedUnique(
-  pageTemplateDefinitions.map((template) => template.id),
+  pageTemplateDefinitions
+    .filter((template) => template.recommendable)
+    .map((template) => template.id),
 );
 
 /**
