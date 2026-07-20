@@ -30,6 +30,15 @@ export interface BuiltinRoleDef {
  * (the RBAC layer short-circuits for `super-admin` anyway); admin gets the §6
  * management set; editor/viewer get table/page grants dynamically at
  * generation time, no system actions.
+ *
+ * Reserved-key footprint: "every system action" includes ALL FOUR
+ * `RESERVED_SYSTEM_ACTION_KEYS` (automations/webhooks/manifests/sql.run —
+ * no v1 enforcement point), and admin's set includes two of them. These
+ * seeded rows are inert no-op grants, but they ARE persisted and read-only
+ * surfaces that render stored grants verbatim (e.g. the API-keys scope chips)
+ * will show them. That display is permitted by the reservation contract
+ * (json-payloads.ts `RESERVED_SYSTEM_ACTION_KEYS`): only grant-EDITING UIs
+ * must hide reserved keys, via `GRANTABLE_SYSTEM_ACTION_KEYS`.
  */
 export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
   {

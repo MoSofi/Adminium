@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  PERMISSIONS,
   grantMatches,
   grantsFromMatrixRows,
   isGranted,
@@ -9,7 +10,12 @@ import {
   parseGrant,
   parsePermission,
 } from '../src/rbac/permissions.js';
-import { SYSTEM_ACTION_KEYS, type RolePermission } from '@adminium/meta';
+import {
+  GRANTABLE_SYSTEM_ACTION_KEYS,
+  RESERVED_SYSTEM_ACTION_KEYS,
+  SYSTEM_ACTION_KEYS,
+  type RolePermission,
+} from '@adminium/meta';
 
 describe('parseGrant / parsePermission', () => {
   it('parses system grants against the closed set', () => {
@@ -77,6 +83,45 @@ describe('parseGrant / parsePermission', () => {
     // grant is unparseable and no role can ever hold it.
     expect(SYSTEM_ACTION_KEYS).toContain('jobs.read');
     expect(SYSTEM_ACTION_KEYS).toContain('jobs.manage');
+  });
+
+  it('keeps the four reserved deferred keys in the grammar but out of every offered list', () => {
+    // The reservation contract (meta RESERVED_SYSTEM_ACTION_KEYS): the keys
+    // stay parseable — stored grants for them must keep round-tripping — but
+    // no surface that OFFERS permissions may list them, because nothing in v1
+    // enforces them and a grantable no-op is misleading security UI.
+    expect([...RESERVED_SYSTEM_ACTION_KEYS].sort()).toEqual(
+      ['automations.manage', 'manifests.manage', 'sql.run', 'webhooks.manage'].sort(),
+    );
+
+    for (const key of RESERVED_SYSTEM_ACTION_KEYS) {
+      const dot = key.lastIndexOf('.');
+      const grant = `system:${key.slice(0, dot)}:${key.slice(dot + 1)}`;
+      // Grammar retained: a role that already holds the grant still parses…
+      expect(parseGrant(grant), grant).not.toBeNull();
+      // …and it round-trips through the matrix mapping (PUT/GET permissions).
+      const { rows, invalid } = matrixRowsFromGrants([grant]);
+      expect(invalid, grant).toEqual([]);
+      const back = grantsFromMatrixRows(
+        rows.map((row, i) => ({ id: `perm_${i}`, roleId: 'role_x', ...row })) as RolePermission[],
+      );
+      expect(back, grant).toEqual([grant]);
+      // …but the authored grantable list never offers it.
+      expect(GRANTABLE_SYSTEM_ACTION_KEYS, key).not.toContain(key);
+    }
+
+    // The non-reserved keys are all still offered (grantable ∪ reserved = closed set).
+    expect([...GRANTABLE_SYSTEM_ACTION_KEYS, ...RESERVED_SYSTEM_ACTION_KEYS].sort()).toEqual(
+      [...SYSTEM_ACTION_KEYS].sort(),
+    );
+
+    // Regression net: every canonical enforced permission maps to a GRANTABLE
+    // key. The moment someone routes a guard through a reserved key, this
+    // fails and forces the key out of the reserved list in the same change.
+    for (const grant of Object.values(PERMISSIONS)) {
+      const [, area, verb] = grant.split(':');
+      expect(GRANTABLE_SYSTEM_ACTION_KEYS, grant).toContain(`${area}.${verb}`);
+    }
   });
 
   it('jobs grants parse, match, and round-trip through matrix rows', () => {
