@@ -9,6 +9,7 @@
     "back": "返回",
     "loading": "載入中",
     "clearSearch": "清除搜尋",
+    "clear": "清除",
     "save": "儲存"
   },
   "auth": {
@@ -902,6 +903,119 @@
       "failed": "產生失敗——請重試，或先重新執行內省。",
       "fileTitle": "結構描述檔案已解析——產生需要即時資料庫",
       "fileBody": "你的結構描述解析順利，上方預覽是真實的。直接從結構描述檔案產生可執行的應用程式（含佔位列）尚不可用——請連接即時資料庫立即產生。"
+    },
+    "remap": {
+      "column": {
+        "nullable": "可為 null",
+        "labelOverride": "顯示標籤",
+        "labelHelper": "推斷：{name}",
+        "logicalType": "邏輯型別",
+        "logicalTypeHelper": "推斷：{type}（來自 {dbType}）——由配接器對應；v1 不可覆寫。",
+        "semantic": "語意型別",
+        "unclassified": "尚未分類。",
+        "semanticHelper": "分類器：{tag} · 信心度 {confidence}% · 來源：{source}",
+        "semanticInferred": "推斷：{tag}",
+        "currency": "貨幣",
+        "currencyHelper": "套用於金額格式的 ISO 4217 代碼。",
+        "pii": "預設遮罩",
+        "piiHelper": "遮罩的值會以隱匿形式呈現；取消遮罩需要 data.unmask_pii 權限，且會寫入稽核記錄。",
+        "enum": "列舉語意",
+        "enumKind": "列舉種類",
+        "enumWorkflow": "工作流程",
+        "enumCategory": "類別",
+        "enumLabelFor": "{value} 的標籤",
+        "enumToneFor": "{value} 的色調",
+        "enumToneAuto": "自動",
+        "enumHelper": "工作流程列舉會驅動狀態膠囊與看板欄；色調會將各值對應到語意色調刻度。"
+      },
+      "diff": {
+        "one": "1 項變更",
+        "count": "{count} 項變更",
+        "saved": "已儲存覆寫。",
+        "revertOne": "還原 {change}",
+        "regenerate": "重新產生頁面",
+        "revertAll": "全部還原",
+        "save": "儲存覆寫"
+      },
+      "table": {
+        "iconPicker": "資料表圖示",
+        "system": "系統",
+        "labelOverride": "顯示標籤",
+        "labelHelper": "推斷：{name}",
+        "icon": "圖示",
+        "navGroup": "導覽群組",
+        "navGroupHelper": "導覽位置由產生器決定——table.navGroup 覆寫不在 v1 詞彙表中。",
+        "include": "納入產生的應用程式",
+        "includeHelper": "被排除的資料表不會產生頁面，並會從導覽中消失。",
+        "shape": "資料表形態（已分類）",
+        "role": "角色",
+        "unclassified": "未分類",
+        "kind": "種類",
+        "hierarchy": "階層",
+        "selfFk": "透過 {column} 自我參照",
+        "polymorphic": "多型配對",
+        "rows": "資料列估計值",
+        "shapeHelper": "每次內省都會重新計算分類；覆寫會疊加在其上，並在重新產生後保留。"
+      },
+      "relations": {
+        "declared": "已宣告的外鍵",
+        "noneDeclared": "沒有已宣告的外鍵涉及此資料表。",
+        "inferred": "推斷的關聯",
+        "noneInferred": "此資料表沒有任何推斷結果。",
+        "confidence": "推斷 · {pct}%",
+        "accepted": "已接受",
+        "suppressed": "已抑制",
+        "accept": "接受",
+        "suppress": "抑制",
+        "overrides": "覆寫關聯（已套用）",
+        "overrideBadge": "覆寫",
+        "add": "新增虛擬關聯",
+        "fromColumn": "來源欄位",
+        "noColumns": "沒有符合的欄位",
+        "fromPlaceholder": "customer_id",
+        "toTable": "目標資料表",
+        "noTables": "沒有符合的資料表",
+        "toColumn": "目標欄位",
+        "cardinality": "基數",
+        "addButton": "新增關聯"
+      },
+      "toast": {
+        "saved": "已儲存結構描述覆寫",
+        "savedDetail": "下方已套用的結構描述已反映你的變更。",
+        "regenerated": "已建立 {created} · 已更新 {updated} · 未變更 {unchanged}",
+        "regeneratedDetail": "你手動編輯過的頁面會被保留——只有 generated_hash 未被更動的頁面才會就地重新產生。",
+        "regenerateFailed": "重新產生失敗"
+      },
+      "title": "結構描述重新對應",
+      "subtitle": "{tables} 個資料表 · 已套用 {applied} 項覆寫",
+      "saveFailed": "儲存失敗：{message}",
+      "loadFailed": "無法載入此連線的結構描述。",
+      "inspector": "檢閱器",
+      "empty": {
+        "title": "選擇資料表或欄位",
+        "description": "在結構描述樹中選取項目，即可重新對應其標籤、型別、關聯或遮罩。"
+      },
+      "tabs": {
+        "details": "詳細資料",
+        "relations": "關聯"
+      },
+      "tree": {
+        "label": "結構描述",
+        "search": "搜尋資料表與欄位",
+        "searchPlaceholder": "搜尋資料表…",
+        "noMatches": "沒有符合搜尋條件的資料表。",
+        "collapse": "收合資料表",
+        "expand": "展開資料表",
+        "unsaved": "未儲存的變更",
+        "excluded": "已排除"
+      },
+      "badge": {
+        "pk": "PK",
+        "fk": "FK",
+        "unique": "UNIQUE",
+        "pii": "PII",
+        "masked": "已遮罩"
+      }
     }
   },
   "onboarding": {

@@ -9,6 +9,7 @@
     "back": "Zurück",
     "loading": "Wird geladen",
     "clearSearch": "Suche löschen",
+    "clear": "Leeren",
     "save": "Speichern"
   },
   "auth": {
@@ -902,6 +903,119 @@
       "failed": "Generierung fehlgeschlagen — versuchen Sie es erneut oder führen Sie zuerst die Introspektion erneut aus.",
       "fileTitle": "Schemadatei geparst — die Generierung benötigt eine Live-Datenbank",
       "fileBody": "Ihr Schema wurde sauber geparst und die Vorschau oben ist echt. Eine laufende App direkt aus einer Schemadatei (mit Platzhalterzeilen) zu generieren ist noch nicht verfügbar — verbinden Sie eine Live-Datenbank, um heute zu generieren."
+    },
+    "remap": {
+      "column": {
+        "nullable": "nullable",
+        "labelOverride": "Anzeigebezeichnung",
+        "labelHelper": "Abgeleitet: {name}",
+        "logicalType": "Logischer Typ",
+        "logicalTypeHelper": "Abgeleitet: {type} (aus {dbType}) — vom Adapter zugeordnet; in v1 nicht überschreibbar.",
+        "semantic": "Semantischer Typ",
+        "unclassified": "Noch nicht klassifiziert.",
+        "semanticHelper": "Klassifizierer: {tag} · {confidence}% Konfidenz · Quelle: {source}",
+        "semanticInferred": "abgeleitet: {tag}",
+        "currency": "Währung",
+        "currencyHelper": "ISO-4217-Code für die Formatierung von Geldbeträgen.",
+        "pii": "Standardmäßig maskieren",
+        "piiHelper": "Maskierte Werte werden geschwärzt dargestellt; das Aufheben der Maskierung erfordert die Berechtigung data.unmask_pii und wird im Audit-Log protokolliert.",
+        "enum": "Enum-Semantik",
+        "enumKind": "Enum-Art",
+        "enumWorkflow": "Workflow",
+        "enumCategory": "Kategorie",
+        "enumLabelFor": "Bezeichnung für {value}",
+        "enumToneFor": "Farbton für {value}",
+        "enumToneAuto": "auto",
+        "enumHelper": "Workflow-Enums steuern Status-Pills und Board-Spalten; Farbtöne ordnen Werte der semantischen Farbtonskala zu."
+      },
+      "diff": {
+        "one": "1 Änderung",
+        "count": "{count} Änderungen",
+        "saved": "Überschreibungen gespeichert.",
+        "revertOne": "{change} verwerfen",
+        "regenerate": "Seiten neu generieren",
+        "revertAll": "Alle verwerfen",
+        "save": "Überschreibungen speichern"
+      },
+      "table": {
+        "iconPicker": "Tabellensymbol",
+        "system": "System",
+        "labelOverride": "Anzeigebezeichnung",
+        "labelHelper": "Abgeleitet: {name}",
+        "icon": "Symbol",
+        "navGroup": "Navigationsgruppe",
+        "navGroupHelper": "Die Platzierung in der Navigation entscheidet der Generator — eine table.navGroup-Überschreibung ist nicht Teil des v1-Vokabulars.",
+        "include": "In die generierte App einbeziehen",
+        "includeHelper": "Ausgeschlossene Tabellen erhalten keine Seiten und verschwinden aus der Navigation.",
+        "shape": "Tabellenform (klassifiziert)",
+        "role": "Rolle",
+        "unclassified": "Nicht klassifiziert",
+        "kind": "Art",
+        "hierarchy": "Hierarchie",
+        "selfFk": "Selbstreferenz über {column}",
+        "polymorphic": "Polymorphe Paare",
+        "rows": "Geschätzte Zeilenzahl",
+        "shapeHelper": "Die Klassifikation wird bei jeder Introspektion neu berechnet; Überschreibungen liegen darüber und überstehen die Neugenerierung."
+      },
+      "relations": {
+        "declared": "Deklarierte Fremdschlüssel",
+        "noneDeclared": "Keine deklarierten Fremdschlüssel berühren diese Tabelle.",
+        "inferred": "Abgeleitete Beziehungen",
+        "noneInferred": "Für diese Tabelle wurde nichts abgeleitet.",
+        "confidence": "abgeleitet · {pct}%",
+        "accepted": "Übernommen",
+        "suppressed": "Unterdrückt",
+        "accept": "Übernehmen",
+        "suppress": "Unterdrücken",
+        "overrides": "Beziehungs-Überschreibungen (angewendet)",
+        "overrideBadge": "Überschreibung",
+        "add": "Virtuelle Beziehung hinzufügen",
+        "fromColumn": "Quellspalte",
+        "noColumns": "Keine passende Spalte",
+        "fromPlaceholder": "customer_id",
+        "toTable": "Zieltabelle",
+        "noTables": "Keine passende Tabelle",
+        "toColumn": "Zielspalte",
+        "cardinality": "Kardinalität",
+        "addButton": "Beziehung hinzufügen"
+      },
+      "toast": {
+        "saved": "Schema-Überschreibungen gespeichert",
+        "savedDetail": "Das angewendete Schema unten spiegelt Ihre Änderungen wider.",
+        "regenerated": "{created} erstellt · {updated} aktualisiert · {unchanged} unverändert",
+        "regeneratedDetail": "Von Hand bearbeitete Seiten bleiben erhalten — nur Seiten mit unangetastetem generated_hash wurden an Ort und Stelle neu generiert.",
+        "regenerateFailed": "Neugenerierung fehlgeschlagen"
+      },
+      "title": "Schema neu zuordnen",
+      "subtitle": "{tables} Tabellen · {applied} Überschreibungen angewendet",
+      "saveFailed": "Speichern fehlgeschlagen: {message}",
+      "loadFailed": "Das Schema für diese Verbindung konnte nicht geladen werden.",
+      "inspector": "Inspektor",
+      "empty": {
+        "title": "Wählen Sie eine Tabelle oder Spalte",
+        "description": "Wählen Sie etwas im Schemabaum aus, um Bezeichnung, Typ, Beziehungen oder Maskierung neu zuzuordnen."
+      },
+      "tabs": {
+        "details": "Details",
+        "relations": "Beziehungen"
+      },
+      "tree": {
+        "label": "Schema",
+        "search": "Tabellen und Spalten durchsuchen",
+        "searchPlaceholder": "Tabellen durchsuchen…",
+        "noMatches": "Keine Tabellen entsprechen Ihrer Suche.",
+        "collapse": "Tabelle einklappen",
+        "expand": "Tabelle ausklappen",
+        "unsaved": "Ungespeicherte Änderung",
+        "excluded": "Ausgeschlossen"
+      },
+      "badge": {
+        "pk": "PK",
+        "fk": "FK",
+        "unique": "UNIQUE",
+        "pii": "PII",
+        "masked": "Maskiert"
+      }
     }
   },
   "onboarding": {

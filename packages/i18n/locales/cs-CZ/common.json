@@ -9,6 +9,7 @@
     "back": "Zpět",
     "loading": "Načítání",
     "clearSearch": "Vymazat hledání",
+    "clear": "Vymazat",
     "save": "Uložit"
   },
   "auth": {
@@ -902,6 +903,119 @@
       "failed": "Generování se nezdařilo — zkuste to znovu, nebo nejprve znovu spusťte introspekci.",
       "fileTitle": "Soubor schématu zpracován — generování vyžaduje živou databázi",
       "fileBody": "Vaše schéma se zpracovalo čistě a náhled výše je skutečný. Generování běžící aplikace přímo ze souboru schématu (se zástupnými řádky) zatím není k dispozici — připojte živou databázi a generujte hned."
+    },
+    "remap": {
+      "column": {
+        "nullable": "může být NULL",
+        "labelOverride": "Zobrazovaný popisek",
+        "labelHelper": "Odvozeno: {name}",
+        "logicalType": "Logický typ",
+        "logicalTypeHelper": "Odvozeno: {type} (z {dbType}) — mapuje adaptér; ve v1 nelze přepsat.",
+        "semantic": "Sémantický typ",
+        "unclassified": "Zatím neklasifikováno.",
+        "semanticHelper": "Klasifikátor: {tag} · spolehlivost {confidence}% · zdroj: {source}",
+        "semanticInferred": "odvozeno: {tag}",
+        "currency": "Měna",
+        "currencyHelper": "Kód ISO 4217 použitý při formátování peněžních částek.",
+        "pii": "Ve výchozím stavu maskovat",
+        "piiHelper": "Maskované hodnoty se zobrazují skryté; odmaskování vyžaduje oprávnění data.unmask_pii a zaznamenává se do auditního logu.",
+        "enum": "Sémantika výčtu",
+        "enumKind": "Druh výčtu",
+        "enumWorkflow": "Pracovní postup",
+        "enumCategory": "Kategorie",
+        "enumLabelFor": "Popisek pro {value}",
+        "enumToneFor": "Tón pro {value}",
+        "enumToneAuto": "automaticky",
+        "enumHelper": "Výčty typu pracovní postup řídí stavové štítky a sloupce kanbanu; tóny mapují hodnoty na škálu sémantických odstínů."
+      },
+      "diff": {
+        "one": "1 změna",
+        "count": "Změny: {count}",
+        "saved": "Úpravy uloženy.",
+        "revertOne": "Vrátit {change} zpět",
+        "regenerate": "Znovu vygenerovat stránky",
+        "revertAll": "Vrátit vše zpět",
+        "save": "Uložit úpravy"
+      },
+      "table": {
+        "iconPicker": "Ikona tabulky",
+        "system": "Systémová",
+        "labelOverride": "Zobrazovaný popisek",
+        "labelHelper": "Odvozeno: {name}",
+        "icon": "Ikona",
+        "navGroup": "Navigační skupina",
+        "navGroupHelper": "Umístění v navigaci určuje generátor — úprava table.navGroup není ve slovníku v1.",
+        "include": "Zahrnout do vygenerované aplikace",
+        "includeHelper": "Vyloučené tabulky nedostanou žádné stránky a zmizí z navigace.",
+        "shape": "Tvar tabulky (klasifikovaný)",
+        "role": "Role",
+        "unclassified": "Neklasifikováno",
+        "kind": "Druh",
+        "hierarchy": "Hierarchie",
+        "selfFk": "Odkaz na sebe přes {column}",
+        "polymorphic": "Polymorfní dvojice",
+        "rows": "Odhad počtu řádků",
+        "shapeHelper": "Klasifikace se přepočítává při každé introspekci; úpravy se vrství navrch a přežijí regeneraci."
+      },
+      "relations": {
+        "declared": "Deklarované cizí klíče",
+        "noneDeclared": "Této tabulky se nedotýkají žádné deklarované cizí klíče.",
+        "inferred": "Odvozené vztahy",
+        "noneInferred": "Pro tuto tabulku nebylo nic odvozeno.",
+        "confidence": "odvozeno · {pct}%",
+        "accepted": "Přijato",
+        "suppressed": "Potlačeno",
+        "accept": "Přijmout",
+        "suppress": "Potlačit",
+        "overrides": "Úpravy vztahů (použité)",
+        "overrideBadge": "úprava",
+        "add": "Přidat virtuální vztah",
+        "fromColumn": "Ze sloupce",
+        "noColumns": "Žádný odpovídající sloupec",
+        "fromPlaceholder": "customer_id",
+        "toTable": "Do tabulky",
+        "noTables": "Žádná odpovídající tabulka",
+        "toColumn": "Do sloupce",
+        "cardinality": "Kardinalita",
+        "addButton": "Přidat vztah"
+      },
+      "toast": {
+        "saved": "Úpravy schématu uloženy",
+        "savedDetail": "Použité schéma níže odráží vaše změny.",
+        "regenerated": "{created} vytvořeno · {updated} aktualizováno · {unchanged} beze změny",
+        "regeneratedDetail": "Ručně upravené stránky zůstávají zachovány — na místě byly znovu vygenerovány pouze stránky s nedotčeným generated_hash.",
+        "regenerateFailed": "Regenerace se nezdařila"
+      },
+      "title": "Přemapování schématu",
+      "subtitle": "{tables} tabulek · použito {applied} úprav",
+      "saveFailed": "Uložení se nezdařilo: {message}",
+      "loadFailed": "Schéma pro toto připojení se nepodařilo načíst.",
+      "inspector": "Inspektor",
+      "empty": {
+        "title": "Vyberte tabulku nebo sloupec",
+        "description": "Vyberte něco ve stromu schématu a přemapujte jeho popisek, typ, vztahy nebo maskování."
+      },
+      "tabs": {
+        "details": "Podrobnosti",
+        "relations": "Vztahy"
+      },
+      "tree": {
+        "label": "Schéma",
+        "search": "Hledat tabulky a sloupce",
+        "searchPlaceholder": "Hledat tabulky…",
+        "noMatches": "Vašemu hledání neodpovídají žádné tabulky.",
+        "collapse": "Sbalit tabulku",
+        "expand": "Rozbalit tabulku",
+        "unsaved": "Neuložená změna",
+        "excluded": "Vyloučeno"
+      },
+      "badge": {
+        "pk": "PK",
+        "fk": "FK",
+        "unique": "UNIQUE",
+        "pii": "PII",
+        "masked": "Maskováno"
+      }
     }
   },
   "onboarding": {

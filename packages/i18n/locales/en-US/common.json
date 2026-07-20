@@ -9,6 +9,7 @@
     "back": "Back",
     "loading": "Loading",
     "clearSearch": "Clear search",
+    "clear": "Clear",
     "save": "Save"
   },
   "auth": {
@@ -902,6 +903,119 @@
       "failed": "Generation failed — retry, or re-run introspection first.",
       "fileTitle": "Schema file parsed — generation needs a live database",
       "fileBody": "Your schema parsed cleanly and the preview above is real. Generating a running app straight from a schema file (with placeholder rows) is not available yet — connect a live database to generate today."
+    },
+    "remap": {
+      "column": {
+        "nullable": "nullable",
+        "labelOverride": "Display label",
+        "labelHelper": "Inferred: {name}",
+        "logicalType": "Logical type",
+        "logicalTypeHelper": "Inferred: {type} (from {dbType}) — mapped by the adapter; not overridable in v1.",
+        "semantic": "Semantic type",
+        "unclassified": "Not classified yet.",
+        "semanticHelper": "Classifier: {tag} · {confidence}% confidence · source: {source}",
+        "semanticInferred": "inferred: {tag}",
+        "currency": "Currency",
+        "currencyHelper": "ISO 4217 code applied to money formatting.",
+        "pii": "Mask by default",
+        "piiHelper": "Masked values render redacted; unmasking requires the data.unmask_pii permission and is audit-logged.",
+        "enum": "Enum semantics",
+        "enumKind": "Enum kind",
+        "enumWorkflow": "Workflow",
+        "enumCategory": "Category",
+        "enumLabelFor": "Label for {value}",
+        "enumToneFor": "Tone for {value}",
+        "enumToneAuto": "auto",
+        "enumHelper": "Workflow enums drive status pills and board columns; tones map values onto the semantic tint scale."
+      },
+      "diff": {
+        "one": "1 change",
+        "count": "{count} changes",
+        "saved": "Overrides saved.",
+        "revertOne": "Revert {change}",
+        "regenerate": "Regenerate pages",
+        "revertAll": "Revert all",
+        "save": "Save overrides"
+      },
+      "table": {
+        "iconPicker": "Table icon",
+        "system": "System",
+        "labelOverride": "Display label",
+        "labelHelper": "Inferred: {name}",
+        "icon": "Icon",
+        "navGroup": "Nav group",
+        "navGroupHelper": "Nav placement is decided by the generator — a table.navGroup override is not in the v1 vocabulary.",
+        "include": "Include in generated app",
+        "includeHelper": "Excluded tables get no pages and disappear from nav.",
+        "shape": "Table shape (classified)",
+        "role": "Role",
+        "unclassified": "Not classified",
+        "kind": "Kind",
+        "hierarchy": "Hierarchy",
+        "selfFk": "Self-reference via {column}",
+        "polymorphic": "Polymorphic pairs",
+        "rows": "Row estimate",
+        "shapeHelper": "Classification is recomputed on every introspection; overrides layer on top and survive regeneration."
+      },
+      "relations": {
+        "declared": "Declared foreign keys",
+        "noneDeclared": "No declared foreign keys touch this table.",
+        "inferred": "Inferred relations",
+        "noneInferred": "Nothing inferred for this table.",
+        "confidence": "inferred · {pct}%",
+        "accepted": "Accepted",
+        "suppressed": "Suppressed",
+        "accept": "Accept",
+        "suppress": "Suppress",
+        "overrides": "Override relations (applied)",
+        "overrideBadge": "override",
+        "add": "Add virtual relation",
+        "fromColumn": "From column",
+        "noColumns": "No matching column",
+        "fromPlaceholder": "customer_id",
+        "toTable": "To table",
+        "noTables": "No matching table",
+        "toColumn": "To column",
+        "cardinality": "Cardinality",
+        "addButton": "Add relation"
+      },
+      "toast": {
+        "saved": "Schema overrides saved",
+        "savedDetail": "The applied schema below reflects your changes.",
+        "regenerated": "{created} created · {updated} updated · {unchanged} unchanged",
+        "regeneratedDetail": "Pages you edited by hand are preserved — only pages with an untouched generated_hash were regenerated in place.",
+        "regenerateFailed": "Regeneration failed"
+      },
+      "title": "Schema remap",
+      "subtitle": "{tables} tables · {applied} overrides applied",
+      "saveFailed": "Save failed: {message}",
+      "loadFailed": "Could not load the schema for this connection.",
+      "inspector": "Inspector",
+      "empty": {
+        "title": "Pick a table or column",
+        "description": "Select something in the schema tree to remap its label, type, relations or masking."
+      },
+      "tabs": {
+        "details": "Details",
+        "relations": "Relations"
+      },
+      "tree": {
+        "label": "Schema",
+        "search": "Search tables and columns",
+        "searchPlaceholder": "Search tables…",
+        "noMatches": "No tables match your search.",
+        "collapse": "Collapse table",
+        "expand": "Expand table",
+        "unsaved": "Unsaved change",
+        "excluded": "Excluded"
+      },
+      "badge": {
+        "pk": "PK",
+        "fk": "FK",
+        "unique": "UNIQUE",
+        "pii": "PII",
+        "masked": "Masked"
+      }
     }
   },
   "onboarding": {
