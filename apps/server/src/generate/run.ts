@@ -163,6 +163,11 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   for (const id of persistence.skippedEdited) {
     warnings.push(`page ${id} was edited after generation — kept as-is (user delta wins, 04 §6.3)`);
   }
+  for (const id of persistence.keptEdited) {
+    warnings.push(
+      `page ${id} is no longer generated but was edited by hand — kept instead of pruned (user delta wins, 04 §6.3)`,
+    );
+  }
 
   // §8.3 step 3 tail: expand `origin: 'llm'` seed rows into real envelopes.
   const llm = await materializeLlmPages({ meta, model, connectionId });

@@ -5,6 +5,7 @@ import {
   connectionsRepo,
   firstRun,
   pagesRepo,
+  snapshotsRepo,
   type DsnCrypto,
   type GeneratedPageInput,
 } from '../src/index.js';
@@ -180,6 +181,84 @@ for (const dialect of TEST_DIALECTS) {
         { at: 4_000 },
       );
       expect(unarmed).toMatchObject({ updated: 1, unchanged: 1, skippedEdited: [] });
+    });
+
+    it('prune keeps human-edited orphans (user delta wins extends to deletion)', async () => {
+      const repo = pagesRepo(t.meta);
+      // Real snapshot rows — generatedFromSnapshotId is FK-constrained.
+      const snapshots = snapshotsRepo(t.meta);
+      const snap1 = (
+        await snapshots.create({ connectionId, source: 'introspection', schema: { v: 1 }, checksum: 'c1' })
+      ).snapshot.id;
+      const snap2 = (
+        await snapshots.create({ connectionId, source: 'introspection', schema: { v: 2 }, checksum: 'c2' })
+      ).snapshot.id;
+      await repo.upsertGenerated(
+        connectionId,
+        [stamped('customers', 'v1'), stamped('legacy', 'v1'), stamped('stale', 'v1')],
+        { at: 1_000, hashEnvelope: testHash, snapshotId: snap1 },
+      );
+      // A human customizes `legacy`; `stale` stays byte-identical to its run.
+      await repo.setLayout('page_legacy', { version: 1, items: [] }, 2_000);
+
+      // Next run: the generator dropped both orphans (tables removed/hidden).
+      const result = await repo.upsertGenerated(connectionId, [stamped('customers', 'v1')], {
+        at: 3_000,
+        hashEnvelope: testHash,
+        snapshotId: snap2,
+      });
+      expect(result).toMatchObject({
+        unchanged: 1,
+        pruned: 1,
+        keptEdited: ['page_legacy'],
+        skippedEdited: [],
+      });
+
+      // The unedited orphan is gone; the edited one survived untouched:
+      // origin still 'generated', still enabled, lineage + document intact.
+      expect(await repo.findBySlug(connectionId, 'stale')).toBeNull();
+      const kept = await repo.findById('page_legacy');
+      expect(kept?.origin).toBe('generated');
+      expect(kept?.isEnabled).toBe(true);
+      expect(kept?.generatedFromSnapshotId).toBe(snap1);
+      expect(kept?.updatedAt).toBe(2_000);
+      const keptConfig = (kept?.config as { config: Record<string, unknown> }).config;
+      expect(keptConfig['marker']).toBe('v1');
+      expect(keptConfig['layout']).toEqual({ version: 1, items: [] });
+    });
+
+    it('prune=false leaves every orphan alone and reports no keptEdited', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(
+        connectionId,
+        [stamped('customers', 'v1'), stamped('legacy', 'v1')],
+        { at: 1_000, hashEnvelope: testHash },
+      );
+      await repo.setLayout('page_legacy', { version: 1, items: [] }, 2_000);
+
+      const result = await repo.upsertGenerated(connectionId, [stamped('customers', 'v1')], {
+        at: 3_000,
+        prune: false,
+        hashEnvelope: testHash,
+      });
+      expect(result).toMatchObject({ unchanged: 1, pruned: 0, keptEdited: [] });
+      expect(await repo.findBySlug(connectionId, 'legacy')).not.toBeNull();
+    });
+
+    it('unarmed prune (no hashEnvelope) keeps the legacy behavior: edited orphans delete too', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(
+        connectionId,
+        [stamped('customers', 'v1'), stamped('legacy', 'v1')],
+        { at: 1_000, hashEnvelope: testHash },
+      );
+      await repo.setLayout('page_legacy', { version: 1, items: [] }, 2_000);
+
+      const result = await repo.upsertGenerated(connectionId, [stamped('customers', 'v1')], {
+        at: 3_000,
+      });
+      expect(result).toMatchObject({ pruned: 1, keptEdited: [] });
+      expect(await repo.findBySlug(connectionId, 'legacy')).toBeNull();
     });
 
     it('setLayout bumps revision — a human edit is a tracked change', async () => {
