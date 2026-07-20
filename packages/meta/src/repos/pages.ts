@@ -8,15 +8,19 @@
  *
  * Generator contract (M4-T08): `upsertGenerated` is idempotent — stable
  * `page_<slug>` ids, unchanged documents are not rewritten, changed ones
- * bump `revision`, rows the generator no longer emits are pruned, and rows
- * whose `origin` is not `generated` (user/manifest/system pages) are never
- * touched or pruned. The M5 regeneration safety net keys on the
- * `config.generatedHash` the engine embeds in each generated envelope
- * (04-widget-registry.md §6.3 note: user delta wins): when the caller supplies
- * the hash function, a stored document whose embedded hash no longer matches
- * (a human edited it — `setLayout` deliberately leaves the hash stale) is
- * skipped, not overwritten, and reported in `skippedEdited` — the full diff
- * proposal UI is 04-T15.
+ * bump `revision`, rows the generator no longer emits are pruned (unless
+ * human-edited — see below), and rows whose `origin` is not `generated`
+ * (user/manifest/system pages) are never touched or pruned. The M5
+ * regeneration safety net keys on the `config.generatedHash` the engine
+ * embeds in each generated envelope (04-widget-registry.md §6.3 note: user
+ * delta wins): when the caller supplies the hash function, a stored document
+ * whose embedded hash no longer matches (a human edited it — `setLayout`
+ * deliberately leaves the hash stale) is skipped, not overwritten, and
+ * reported in `skippedEdited` — the full diff proposal UI is 04-T15. The
+ * same guard extends to deletion: an edited row missing from the new set is
+ * kept, not pruned, and reported in `keptEdited`; only unedited orphans
+ * (byte-identically regenerable) are deleted. Without `hashEnvelope` the
+ * legacy full prune applies.
  */
 
 import type { Selectable } from 'kysely';
@@ -99,8 +103,10 @@ export interface UpsertGeneratedOptions {
    * When present, a changed generated-origin row is re-hashed first: a
    * mismatch with its embedded `config.generatedHash` means a human edited the
    * stored document, so the overwrite is skipped (user delta wins, 04 §6.3)
-   * and the id lands in `skippedEdited`. Omitted ⇒ the pre-M5 overwrite
-   * behavior (unit tests, seeds).
+   * and the id lands in `skippedEdited`. The prune pass applies the same
+   * test: an edited orphan is kept (`keptEdited`) instead of deleted.
+   * Omitted ⇒ the pre-M5 overwrite-and-full-prune behavior (unit tests,
+   * seeds).
    */
   hashEnvelope?: (envelope: Record<string, unknown>) => string;
 }
@@ -114,6 +120,15 @@ export interface UpsertGeneratedResult {
   preserved: string[];
   /** Generated-origin ids whose stored document was human-edited — not overwritten. */
   skippedEdited: string[];
+  /**
+   * Human-edited generated-origin ids the new set no longer contains — kept,
+   * not pruned (user delta wins extends to deletion, 04 §6.3). The row is
+   * untouched: it keeps `origin: 'generated'`, stays enabled, and keeps its
+   * snapshot lineage. Unedited orphans are byte-identically regenerable and
+   * still delete; without `hashEnvelope` this is always empty (legacy full
+   * prune).
+   */
+  keptEdited: string[];
 }
 
 /**
@@ -199,6 +214,7 @@ export function pagesRepo(meta: MetaDb) {
           pruned: 0,
           preserved: [],
           skippedEdited: [],
+          keptEdited: [],
         };
 
         for (const input of pages) {
@@ -283,6 +299,20 @@ export function pagesRepo(meta: MetaDb) {
         if (prune) {
           for (const row of existing) {
             if (row.origin !== 'generated' || ids.has(row.id)) continue;
+            if (
+              opts.hashEnvelope !== undefined &&
+              isEditedEnvelope(readJson(row.config), opts.hashEnvelope)
+            ) {
+              // User delta wins extends to deletion (04 §6.3): the generator
+              // dropped this page (table removed/hidden between runs), but a
+              // human customized the stored document, so pruning would
+              // destroy work that cannot be regenerated. Keep the row exactly
+              // as-is — origin stays 'generated', it stays enabled, and its
+              // snapshot lineage is untouched. Unedited orphans are
+              // byte-identically regenerable and still delete below.
+              result.keptEdited.push(row.id);
+              continue;
+            }
             await trx.deleteFrom('adminium_pages').where('id', '=', row.id).execute();
             result.pruned += 1;
           }

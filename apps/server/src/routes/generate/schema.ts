@@ -30,6 +30,8 @@ export const generateReply = z.object({
     preserved: z.array(z.string()),
     /** Human-edited generated pages left untouched (user delta wins, 04 §6.3). */
     skippedEdited: z.array(z.string()),
+    /** Human-edited pages the generator dropped — kept instead of pruned (user delta wins extends to deletion). */
+    keptEdited: z.array(z.string()),
   }),
   /** `origin: 'llm'` seed rows expanded into envelopes this run (06 §8.3). */
   llmPagesMaterialized: z.number().int().nonnegative(),

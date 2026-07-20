@@ -218,12 +218,19 @@ describe.skipIf(!pgAvailable())('POST /connections/:id/generate (live PG Northwi
     expect(res.statusCode).toBe(200);
     const body = res.json() as {
       introspected: boolean;
-      result: { created: number; updated: number; unchanged: number; pruned: number };
+      result: {
+        created: number;
+        updated: number;
+        unchanged: number;
+        pruned: number;
+        keptEdited: string[];
+      };
     };
     expect(body.introspected).toBe(false); // snapshot reused
     expect(body.result.created).toBe(0);
     expect(body.result.updated).toBe(0);
     expect(body.result.pruned).toBe(0);
+    expect(body.result.keptEdited).toEqual([]);
     expect(body.result.unchanged).toBe(before.length);
     const after = await pagesRepo(t.meta).listForConnection(connectionId);
     expect(after.map((p) => ({ id: p.id, revision: p.revision, updatedAt: p.updatedAt }))).toEqual(

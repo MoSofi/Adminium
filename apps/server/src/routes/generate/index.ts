@@ -69,6 +69,7 @@ export function generateRoutes(deps: GenerateRoutesDeps): FastifyPluginAsyncZod 
               unchanged: run.persistence.unchanged,
               pruned: run.persistence.pruned,
               skippedEdited: run.persistence.skippedEdited.length,
+              keptEdited: run.persistence.keptEdited.length,
             },
           },
         });
