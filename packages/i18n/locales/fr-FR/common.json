@@ -9,6 +9,7 @@
     "back": "Retour",
     "loading": "Chargement",
     "clearSearch": "Effacer la recherche",
+    "clear": "Effacer",
     "save": "Enregistrer"
   },
   "auth": {
@@ -902,6 +903,119 @@
       "failed": "Échec de la génération — réessayez, ou relancez d’abord l’introspection.",
       "fileTitle": "Fichier de schéma analysé — la génération nécessite une base active",
       "fileBody": "Votre schéma a été analysé proprement et l’aperçu ci-dessus est réel. Générer une application fonctionnelle directement depuis un fichier de schéma (avec des lignes fictives) n’est pas encore disponible — connectez une base active pour générer dès aujourd’hui."
+    },
+    "remap": {
+      "column": {
+        "nullable": "nullable",
+        "labelOverride": "Libellé d’affichage",
+        "labelHelper": "Inféré : {name}",
+        "logicalType": "Type logique",
+        "logicalTypeHelper": "Inféré : {type} (depuis {dbType}) — mappé par l’adaptateur ; non remplaçable en v1.",
+        "semantic": "Type sémantique",
+        "unclassified": "Pas encore classifié.",
+        "semanticHelper": "Classificateur : {tag} · confiance {confidence}% · source : {source}",
+        "semanticInferred": "inféré : {tag}",
+        "currency": "Devise",
+        "currencyHelper": "Code ISO 4217 appliqué au formatage monétaire.",
+        "pii": "Masquer par défaut",
+        "piiHelper": "Les valeurs masquées s’affichent caviardées ; le démasquage requiert la permission data.unmask_pii et est consigné dans le journal d’audit.",
+        "enum": "Sémantique de l’énumération",
+        "enumKind": "Nature de l’énumération",
+        "enumWorkflow": "Flux",
+        "enumCategory": "Catégorie",
+        "enumLabelFor": "Libellé pour {value}",
+        "enumToneFor": "Tonalité pour {value}",
+        "enumToneAuto": "auto",
+        "enumHelper": "Les énumérations de flux pilotent les pastilles de statut et les colonnes de tableau ; les tonalités associent les valeurs à l’échelle de teintes sémantiques."
+      },
+      "diff": {
+        "one": "1 modification",
+        "count": "{count} modifications",
+        "saved": "Remplacements enregistrés.",
+        "revertOne": "Annuler {change}",
+        "regenerate": "Régénérer les pages",
+        "revertAll": "Tout annuler",
+        "save": "Enregistrer les remplacements"
+      },
+      "table": {
+        "iconPicker": "Icône de la table",
+        "system": "Système",
+        "labelOverride": "Libellé d’affichage",
+        "labelHelper": "Inféré : {name}",
+        "icon": "Icône",
+        "navGroup": "Groupe de navigation",
+        "navGroupHelper": "Le placement dans la navigation est décidé par le générateur — un remplacement table.navGroup ne fait pas partie du vocabulaire v1.",
+        "include": "Inclure dans l’application générée",
+        "includeHelper": "Les tables exclues n’ont aucune page et disparaissent de la navigation.",
+        "shape": "Forme de la table (classifiée)",
+        "role": "Rôle",
+        "unclassified": "Non classifiée",
+        "kind": "Nature",
+        "hierarchy": "Hiérarchie",
+        "selfFk": "Auto-référence via {column}",
+        "polymorphic": "Paires polymorphes",
+        "rows": "Estimation du nombre de lignes",
+        "shapeHelper": "La classification est recalculée à chaque introspection ; les remplacements se superposent et survivent à la régénération."
+      },
+      "relations": {
+        "declared": "Clés étrangères déclarées",
+        "noneDeclared": "Aucune clé étrangère déclarée ne touche cette table.",
+        "inferred": "Relations inférées",
+        "noneInferred": "Rien d’inféré pour cette table.",
+        "confidence": "inférée · {pct}%",
+        "accepted": "Acceptée",
+        "suppressed": "Écartée",
+        "accept": "Accepter",
+        "suppress": "Écarter",
+        "overrides": "Relations de remplacement (appliquées)",
+        "overrideBadge": "remplacement",
+        "add": "Ajouter une relation virtuelle",
+        "fromColumn": "Colonne source",
+        "noColumns": "Aucune colonne correspondante",
+        "fromPlaceholder": "customer_id",
+        "toTable": "Table cible",
+        "noTables": "Aucune table correspondante",
+        "toColumn": "Colonne cible",
+        "cardinality": "Cardinalité",
+        "addButton": "Ajouter la relation"
+      },
+      "toast": {
+        "saved": "Remplacements de schéma enregistrés",
+        "savedDetail": "Le schéma appliqué ci-dessous reflète vos modifications.",
+        "regenerated": "{created} créées · {updated} mises à jour · {unchanged} inchangées",
+        "regeneratedDetail": "Les pages que vous avez modifiées à la main sont préservées — seules les pages dont le generated_hash est intact ont été régénérées sur place.",
+        "regenerateFailed": "Échec de la régénération"
+      },
+      "title": "Remappage du schéma",
+      "subtitle": "{tables} tables · {applied} remplacements appliqués",
+      "saveFailed": "Échec de l’enregistrement : {message}",
+      "loadFailed": "Impossible de charger le schéma de cette connexion.",
+      "inspector": "Inspecteur",
+      "empty": {
+        "title": "Choisissez une table ou une colonne",
+        "description": "Sélectionnez un élément dans l’arborescence du schéma pour remapper son libellé, son type, ses relations ou son masquage."
+      },
+      "tabs": {
+        "details": "Détails",
+        "relations": "Relations"
+      },
+      "tree": {
+        "label": "Schéma",
+        "search": "Rechercher des tables et des colonnes",
+        "searchPlaceholder": "Rechercher des tables…",
+        "noMatches": "Aucune table ne correspond à votre recherche.",
+        "collapse": "Replier la table",
+        "expand": "Déplier la table",
+        "unsaved": "Modification non enregistrée",
+        "excluded": "Exclue"
+      },
+      "badge": {
+        "pk": "PK",
+        "fk": "FK",
+        "unique": "UNIQUE",
+        "pii": "PII",
+        "masked": "Masquée"
+      }
     }
   },
   "onboarding": {

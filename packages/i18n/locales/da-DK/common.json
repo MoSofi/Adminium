@@ -9,6 +9,7 @@
     "back": "Tilbage",
     "loading": "Indlæser",
     "clearSearch": "Ryd søgning",
+    "clear": "Ryd",
     "save": "Gem"
   },
   "auth": {
@@ -902,6 +903,119 @@
       "failed": "Generering mislykkedes — prøv igen, eller kør introspektionen igen først.",
       "fileTitle": "Skemafil fortolket — generering kræver en live database",
       "fileBody": "Dit skema blev fortolket rent, og forhåndsvisningen ovenfor er ægte. Generering af en kørende app direkte fra en skemafil (med pladsholderrækker) er ikke tilgængelig endnu — forbind en live database for at generere i dag."
+    },
+    "remap": {
+      "column": {
+        "nullable": "nullable",
+        "labelOverride": "Visningsetiket",
+        "labelHelper": "Udledt: {name}",
+        "logicalType": "Logisk type",
+        "logicalTypeHelper": "Udledt: {type} (fra {dbType}) — kortlagt af adapteren; kan ikke tilsidesættes i v1.",
+        "semantic": "Semantisk type",
+        "unclassified": "Endnu ikke klassificeret.",
+        "semanticHelper": "Klassifikator: {tag} · {confidence}% tillid · kilde: {source}",
+        "semanticInferred": "udledt: {tag}",
+        "currency": "Valuta",
+        "currencyHelper": "ISO 4217-kode anvendt på beløbsformatering.",
+        "pii": "Maskér som standard",
+        "piiHelper": "Maskerede værdier vises slørede; afmaskering kræver tilladelsen data.unmask_pii og logges i auditloggen.",
+        "enum": "Enum-semantik",
+        "enumKind": "Enum-art",
+        "enumWorkflow": "Arbejdsgang",
+        "enumCategory": "Kategori",
+        "enumLabelFor": "Etiket for {value}",
+        "enumToneFor": "Tone for {value}",
+        "enumToneAuto": "auto",
+        "enumHelper": "Arbejdsgangs-enums driver statusmærker og tavlekolonner; toner knytter værdierne til den semantiske farvetoneskala."
+      },
+      "diff": {
+        "one": "1 ændring",
+        "count": "{count} ændringer",
+        "saved": "Tilsidesættelser gemt.",
+        "revertOne": "Fortryd {change}",
+        "regenerate": "Regenerér sider",
+        "revertAll": "Fortryd alle",
+        "save": "Gem tilsidesættelser"
+      },
+      "table": {
+        "iconPicker": "Tabelikon",
+        "system": "System",
+        "labelOverride": "Visningsetiket",
+        "labelHelper": "Udledt: {name}",
+        "icon": "Ikon",
+        "navGroup": "Navigationsgruppe",
+        "navGroupHelper": "Navigationsplaceringen bestemmes af generatoren — en table.navGroup-tilsidesættelse er ikke en del af v1-vokabularet.",
+        "include": "Medtag i den genererede app",
+        "includeHelper": "Udeladte tabeller får ingen sider og forsvinder fra navigationen.",
+        "shape": "Tabelform (klassificeret)",
+        "role": "Rolle",
+        "unclassified": "Ikke klassificeret",
+        "kind": "Art",
+        "hierarchy": "Hierarki",
+        "selfFk": "Selvreference via {column}",
+        "polymorphic": "Polymorfe par",
+        "rows": "Rækkeestimat",
+        "shapeHelper": "Klassificeringen genberegnes ved hver introspektion; tilsidesættelser lægges ovenpå og overlever regenerering."
+      },
+      "relations": {
+        "declared": "Deklarerede fremmednøgler",
+        "noneDeclared": "Ingen deklarerede fremmednøgler berører denne tabel.",
+        "inferred": "Udledte relationer",
+        "noneInferred": "Intet udledt for denne tabel.",
+        "confidence": "udledt · {pct}%",
+        "accepted": "Accepteret",
+        "suppressed": "Undertrykt",
+        "accept": "Accepter",
+        "suppress": "Undertryk",
+        "overrides": "Relationer fra tilsidesættelser (anvendt)",
+        "overrideBadge": "tilsidesættelse",
+        "add": "Tilføj virtuel relation",
+        "fromColumn": "Fra kolonne",
+        "noColumns": "Ingen matchende kolonne",
+        "fromPlaceholder": "customer_id",
+        "toTable": "Til tabel",
+        "noTables": "Ingen matchende tabel",
+        "toColumn": "Til kolonne",
+        "cardinality": "Kardinalitet",
+        "addButton": "Tilføj relation"
+      },
+      "toast": {
+        "saved": "Skema-tilsidesættelser gemt",
+        "savedDetail": "Det anvendte skema nedenfor afspejler dine ændringer.",
+        "regenerated": "{created} oprettet · {updated} opdateret · {unchanged} uændret",
+        "regeneratedDetail": "Sider, du har redigeret i hånden, bevares — kun sider med en urørt generated_hash blev regenereret på stedet.",
+        "regenerateFailed": "Regenerering mislykkedes"
+      },
+      "title": "Skema-ommapning",
+      "subtitle": "{tables} tabeller · {applied} tilsidesættelser anvendt",
+      "saveFailed": "Lagring mislykkedes: {message}",
+      "loadFailed": "Kunne ikke indlæse skemaet for denne forbindelse.",
+      "inspector": "Inspektør",
+      "empty": {
+        "title": "Vælg en tabel eller kolonne",
+        "description": "Vælg noget i skematræet for at ommappe dets etiket, type, relationer eller maskering."
+      },
+      "tabs": {
+        "details": "Detaljer",
+        "relations": "Relationer"
+      },
+      "tree": {
+        "label": "Skema",
+        "search": "Søg i tabeller og kolonner",
+        "searchPlaceholder": "Søg i tabeller…",
+        "noMatches": "Ingen tabeller matcher din søgning.",
+        "collapse": "Fold tabel sammen",
+        "expand": "Fold tabel ud",
+        "unsaved": "Ugemt ændring",
+        "excluded": "Udeladt"
+      },
+      "badge": {
+        "pk": "PK",
+        "fk": "FK",
+        "unique": "UNIK",
+        "pii": "PII",
+        "masked": "Maskeret"
+      }
     }
   },
   "onboarding": {
