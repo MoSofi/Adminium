@@ -27,6 +27,17 @@
         "^build"
       ]
     },
+    "@adminium/docs#typecheck": {
+      "dependsOn": [
+        "@adminium/docs#build",
+        "^build"
+      ]
+    },
+    "@adminium/docs#lint": {
+      "dependsOn": [
+        "@adminium/docs#typecheck"
+      ]
+    },
     "lint": {},
     "test": {
       "dependsOn": [
