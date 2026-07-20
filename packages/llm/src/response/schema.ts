@@ -190,9 +190,15 @@ export type DashboardSuggestion = z.infer<typeof DashboardSuggestion>;
  * Prompt-contract version. §4.3 colocates the authoritative constant in
  * prompt/templates/v1.ts (06-T03); it is mirrored here so the response contract
  * and its version negotiation are self-contained and need no cross-subdir
- * import. Both must stay equal to `'adminium.prompt/v1'`.
+ * import. Both must stay equal to `'adminium.prompt/v1.1'`.
+ *
+ * v1 → v1.1: the trigger-taxonomy `page-builder` row was removed from the §5.2
+ * user template (page-builder is `recommendable: false` and absent from
+ * `LLM_ALLOWED_TEMPLATES`; the taxonomy now matches the injected allowed list) —
+ * see prompt/templates/v1.ts. Wording-only; the response contract
+ * (`adminium.llm/v1`) is unchanged.
  */
-export const PROMPT_VERSION = 'adminium.prompt/v1' as const;
+export const PROMPT_VERSION = 'adminium.prompt/v1.1' as const;
 
 export type SupportedSchemaVersion = (typeof SUPPORTED_SCHEMA_VERSIONS)[number];
 

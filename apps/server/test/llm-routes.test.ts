@@ -556,7 +556,7 @@ describe('llm routes — runs', () => {
     const res = await t.app.inject({ method: 'GET', url: `/api/v1/llm/runs/${id}/prompt`, headers: asUser(t.users.admin) });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.promptVersion).toBe('adminium.prompt/v1');
+    expect(body.promptVersion).toBe('adminium.prompt/v1.1');
     expect(body.chunks[0].byo).toContain('=== USER ===');
   });
 

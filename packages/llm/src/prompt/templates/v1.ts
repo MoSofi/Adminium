@@ -2,10 +2,18 @@
  * `PROMPT_V1` — the production schema-enrichment prompt (06-llm-assist.md §5).
  *
  * SHIP VERBATIM. The two exported template strings reproduce §5.1 (system) and
- * §5.2 (user) exactly; `{{DOUBLE_BRACE}}` tokens are replaced by the builder,
- * everything else is literal. Both paths (direct-API and BYO) send the identical
- * text (§1 invariant 1) — the BYO flattening joins them as
- * `=== SYSTEM ===\n…\n\n=== USER ===\n…` (see builder.ts / `flattenByo`).
+ * §5.2 (user); `{{DOUBLE_BRACE}}` tokens are replaced by the builder, everything
+ * else is literal. One deliberate divergence from the spec text (v1.1): §5.2's
+ * trigger taxonomy lists a `page-builder` row, but `page-builder` is a
+ * non-recommendable tool surface (registry `recommendable: false` — no
+ * `composeRequestedArchetype` materialization path) and is therefore absent from
+ * `LLM_ALLOWED_TEMPLATES`; the row is omitted so the taxonomy is exactly the
+ * injected allowed list and the "not listed here" disclaimer names `builder`
+ * among the platform-owned surfaces. The spec table predates that registry
+ * decision and awaits a sync (workplan/ is being revised on a separate track).
+ * Both paths (direct-API and BYO) send the identical text (§1 invariant 1) —
+ * the BYO flattening joins them as `=== SYSTEM ===\n…\n\n=== USER ===\n…`
+ * (see builder.ts / `flattenByo`).
  *
  * A snapshot test (`templates.test.ts`) pins these strings together with
  * {@link PROMPT_VERSION}: any edit to the template text fails the snapshot,
@@ -191,9 +199,9 @@ Produce the following, per the response schema at the end of this message.
 | page-log-viewer    | append-only shape: timestamp + actor + action/level, high row count, few updates |
 | page-files         | file/attachment shape: filename/mime/size/url columns or parent-folder self-FK |
 | page-chat          | conversation + message table pair (thread FK, sender FK, body, timestamp) |
-| page-builder       | document-shaped domain: template/instance pairs with ordered block/line-item children |
-(Templates not listed here — settings, wizard, auth, billing, api, marketing,
-system pages — are platform-owned; never recommend them for user tables.)
+(Templates not listed here — settings, wizard, builder, auth, billing, api,
+marketing, system pages — are platform-owned; never recommend them for user
+tables.)
 
 === ALLOWED PAGE TEMPLATES ===
 {{ALLOWED_PAGE_TEMPLATE_IDS_JSON}}
