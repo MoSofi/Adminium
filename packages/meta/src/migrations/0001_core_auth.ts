@@ -29,7 +29,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_users_email')
-    .ifNotExists()
     .on(metaTable('users'))
     .columns(['email'])
     .unique()
@@ -67,20 +66,17 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_sessions_token_hash')
-    .ifNotExists()
     .on(metaTable('sessions'))
     .columns(['token_hash'])
     .unique()
     .execute();
   await db.schema
     .createIndex('idx_adminium_sessions_user_id')
-    .ifNotExists()
     .on(metaTable('sessions'))
     .columns(['user_id'])
     .execute();
   await db.schema
     .createIndex('idx_adminium_sessions_expires_at')
-    .ifNotExists()
     .on(metaTable('sessions'))
     .columns(['expires_at'])
     .execute();
@@ -100,7 +96,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_password_resets_token_hash')
-    .ifNotExists()
     .on(metaTable('password_resets'))
     .columns(['token_hash'])
     .unique()

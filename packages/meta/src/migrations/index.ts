@@ -2,6 +2,17 @@
  * Ordered, append-only migration list (07-meta-store.md §4). Up-only: a
  * mistake ships as a new compensating migration; an applied migration is never
  * edited (enforced by the runner's checksum drift detection).
+ *
+ * MySQL DDL constraint: `CREATE INDEX IF NOT EXISTS` does not exist on MySQL
+ * (tables: fine; indexes: parse error), so index creation here carries no
+ * `.ifNotExists()` — the ledger's exactly-once guarantee is the idempotency
+ * mechanism, and a rerun after a mid-migration crash failing loudly on a
+ * duplicate index beats silently diverging. DECISION (2026-07-20,
+ * pre-release): stripping those 29 index guards changed 0001–0007's checksums.
+ * Acceptable exactly once — no release exists, a MySQL meta store could never
+ * have migrated at all (this parse error, first caught by CI's first-ever
+ * [mysql] meta leg), and dev stores re-init. After v1.0, checksum-changing
+ * edits are forbidden; ship compensating migrations instead.
  */
 
 import type { Kysely } from 'kysely';

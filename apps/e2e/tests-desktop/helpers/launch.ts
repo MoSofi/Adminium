@@ -237,7 +237,10 @@ export async function triggerMenuItem(app: ElectronApplication, labelIncludes: s
           item.click();
           return true;
         }
-        if (item.submenu !== undefined && walk(item.submenu.items)) return true;
+        // Loose != null: on linux Electron reports null (not undefined) for
+        // some items' submenu — first caught by CI's xvfb leg reaching this
+        // spec at all.
+        if (item.submenu != null && walk(item.submenu.items)) return true;
       }
       return false;
     };

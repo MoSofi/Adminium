@@ -31,14 +31,12 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_jobs_status_run_at')
-    .ifNotExists()
     .on(metaTable('jobs'))
     .columns(['status', 'run_at'])
     .execute();
   // NULLs are exempt from unique on all three dialects (§3.12).
   await db.schema
     .createIndex('uq_adminium_jobs_dedupe_key')
-    .ifNotExists()
     .on(metaTable('jobs'))
     .columns(['dedupe_key'])
     .unique()
@@ -65,19 +63,16 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_audit_log_created_at')
-    .ifNotExists()
     .on(metaTable('audit_log'))
     .columns(['created_at'])
     .execute();
   await db.schema
     .createIndex('idx_adminium_audit_log_actor_created')
-    .ifNotExists()
     .on(metaTable('audit_log'))
     .columns(['actor_id', 'created_at'])
     .execute();
   await db.schema
     .createIndex('idx_adminium_audit_log_category_created')
-    .ifNotExists()
     .on(metaTable('audit_log'))
     .columns(['category', 'created_at'])
     .execute();
@@ -100,7 +95,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_notifications_user_read_created')
-    .ifNotExists()
     .on(metaTable('notifications'))
     .columns(['user_id', 'read_at', 'created_at'])
     .execute();

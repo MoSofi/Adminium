@@ -45,7 +45,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_llm_runs_prompt_hash')
-    .ifNotExists()
     .on(metaTable('llm_runs'))
     .columns(['prompt_hash'])
     .execute();
@@ -88,7 +87,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_automation_runs_auto_started')
-    .ifNotExists()
     .on(metaTable('automation_runs'))
     .columns(['automation_id', 'started_at'])
     .execute();
@@ -115,7 +113,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_scheduled_reports_next')
-    .ifNotExists()
     .on(metaTable('scheduled_reports'))
     .columns(['enabled', 'next_run_at'])
     .execute();
@@ -144,13 +141,11 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_exports_user_created')
-    .ifNotExists()
     .on(metaTable('exports'))
     .columns(['requested_by', 'created_at'])
     .execute();
   await db.schema
     .createIndex('idx_adminium_exports_status_expires')
-    .ifNotExists()
     .on(metaTable('exports'))
     .columns(['status', 'expires_at'])
     .execute();
@@ -200,7 +195,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_email_templates_key_locale')
-    .ifNotExists()
     .on(metaTable('email_templates'))
     .columns(['key', 'locale'])
     .unique()
@@ -240,7 +234,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_webhook_deliveries_hook_created')
-    .ifNotExists()
     .on(metaTable('webhook_deliveries'))
     .columns(['webhook_id', 'created_at'])
     .execute();
@@ -261,7 +254,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_feature_flags_key')
-    .ifNotExists()
     .on(metaTable('feature_flags'))
     .columns(['key'])
     .unique()
@@ -288,7 +280,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_manifests_manifest_key')
-    .ifNotExists()
     .on(metaTable('manifests'))
     .columns(['manifest_key'])
     .unique()
