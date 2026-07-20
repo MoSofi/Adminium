@@ -112,13 +112,28 @@ for (const dialect of TEST_DIALECTS) {
       expect(row?.origin).toBe('user');
     });
 
-    // Stand-in for the engine's hashEnvelope: same contract (canonical value,
-    // embedded config.generatedHash excluded), no crypto — the guard only ever
-    // compares this function's own outputs.
+    // Stand-in for the engine's hashEnvelope: same contract (canonical
+    // SORTED-KEYS value — engine util.ts sortKeysDeep — with the embedded
+    // config.generatedHash excluded), no crypto — the guard only ever compares
+    // this function's own outputs. The sorting is load-bearing: pg `jsonb` and
+    // mysql `json` do not preserve object key order, so an insertion-order
+    // stringify flags every stored row as "edited" on those dialects.
+    const sortKeysDeep = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(sortKeysDeep);
+      if (value !== null && typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        return Object.fromEntries(
+          Object.keys(record)
+            .sort()
+            .map((k) => [k, sortKeysDeep(record[k])]),
+        );
+      }
+      return value;
+    };
     const testHash = (envelope: Record<string, unknown>): string => {
       const clone = JSON.parse(JSON.stringify(envelope)) as { config?: Record<string, unknown> };
       if (clone.config !== undefined) delete clone.config['generatedHash'];
-      return `th:${JSON.stringify(clone)}`;
+      return `th:${JSON.stringify(sortKeysDeep(clone))}`;
     };
     const stamped = (slug: string, marker: string): GeneratedPageInput => {
       const envelope: Record<string, unknown> = {

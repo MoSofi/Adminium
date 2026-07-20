@@ -24,7 +24,14 @@ import type { Selectable } from 'kysely';
 import type { MetaDb } from '../connect.js';
 import { newId } from '../ids.js';
 import type { AdminiumPagesTable } from '../schema/tables.js';
-import { MetaValidationError, packJson, readBool, readJson, writeBool } from './util.js';
+import {
+  MetaValidationError,
+  jsonEquals,
+  packJson,
+  readBool,
+  readJson,
+  writeBool,
+} from './util.js';
 
 export const PAGE_ORIGINS = ['generated', 'user', 'manifest', 'system', 'llm'] as const;
 export type PageOrigin = (typeof PAGE_ORIGINS)[number];
@@ -229,8 +236,11 @@ export function pagesRepo(meta: MetaDb) {
             result.preserved.push(row.id);
             continue;
           }
+          // Structural, not serialized-string, equality: pg jsonb / mysql json
+          // do not preserve key order, so the round-tripped document rarely
+          // re-serializes byte-identical to `packed` (util.ts jsonEquals).
           const unchanged =
-            packJson(readJson(row.config)) === packed &&
+            jsonEquals(readJson(row.config), input.config) &&
             row.slug === input.slug &&
             row.type === input.type &&
             row.title === input.title &&

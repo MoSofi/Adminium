@@ -354,6 +354,118 @@ describe.skipIf(!liveReady)('query engine (Kysely MysqlDialect CRUD)', () => {
       await engine.destroy(); // idempotent
     }
   });
+
+  // The server's create route contract (apps/server routes/data insertRow):
+  // MySQL has no RETURNING, so create is insert-bare + re-select by key. This
+  // pins the driver semantics that contract rests on, against real mysql:8.4.
+  it('create-and-refetch without RETURNING: provided, composite, and auto-increment PKs', async () => {
+    const { Kysely } = await import('kysely');
+    await runSql(
+      `CREATE TABLE e2e_composite (
+         a int NOT NULL,
+         b int NOT NULL,
+         note varchar(20) NOT NULL DEFAULT 'dflt',
+         PRIMARY KEY (a, b)
+       );
+       CREATE TABLE e2e_auto (
+         id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+         name varchar(20) NOT NULL,
+         status varchar(8) NOT NULL DEFAULT 'new'
+       );`,
+      db,
+    );
+    const engine = mod.createQueryEngine({ role: 'data', dsn: dsnFor(db) });
+    try {
+      interface Customer {
+        customer_id: string;
+        company_name: string;
+      }
+      interface Composite {
+        a: number;
+        b: number;
+        note?: string;
+      }
+      interface Auto {
+        id?: number;
+        name: string;
+        status?: string;
+      }
+      const kysely = new Kysely<{ customers: Customer; e2e_composite: Composite; e2e_auto: Auto }>({
+        dialect: engine.dialect as import('kysely').Dialect,
+      });
+
+      // 1. RETURNING is a parse error on MySQL — the exact e2e-c5 500 — and
+      //    the failed statement must insert NOTHING.
+      await expect(
+        kysely
+          .insertInto('customers')
+          .values({ customer_id: 'E2E01', company_name: 'E2E Markets' })
+          .returningAll()
+          .executeTakeFirstOrThrow(),
+      ).rejects.toMatchObject({ code: 'ER_PARSE_ERROR' });
+      const afterFail = await kysely
+        .selectFrom('customers')
+        .selectAll()
+        .where('customer_id', '=', 'E2E01')
+        .executeTakeFirst();
+      expect(afterFail).toBeUndefined();
+
+      // 2. Provided char(5) PK: bare insert reports NO usable insertId (the
+      //    packet says 0 — kysely maps that to undefined), so the refetch
+      //    must key off the PROVIDED PK value.
+      const insertResult = await kysely
+        .insertInto('customers')
+        .values({ customer_id: 'E2E01', company_name: 'E2E Markets' })
+        .executeTakeFirstOrThrow();
+      expect(insertResult.insertId).toBeUndefined();
+      expect(Number(insertResult.numInsertedOrUpdatedRows)).toBe(1);
+      const created = await kysely
+        .selectFrom('customers')
+        .selectAll()
+        .where('customer_id', '=', 'E2E01')
+        .executeTakeFirst();
+      expect(created).toMatchObject({ customer_id: 'E2E01', company_name: 'E2E Markets' });
+
+      // 3. Composite PK: both components provided → refetch by both; the
+      //    stored row carries the column default the payload omitted.
+      const compositeResult = await kysely
+        .insertInto('e2e_composite')
+        .values({ a: 7, b: 9 })
+        .executeTakeFirstOrThrow();
+      expect(compositeResult.insertId).toBeUndefined();
+      const compositeRow = await kysely
+        .selectFrom('e2e_composite')
+        .selectAll()
+        .where('a', '=', 7)
+        .where('b', '=', 9)
+        .executeTakeFirst();
+      expect(compositeRow).toMatchObject({ a: 7, b: 9, note: 'dflt' });
+
+      // 4. Auto-increment PK omitted → insertId addresses the new row.
+      const autoResult = await kysely
+        .insertInto('e2e_auto')
+        .values({ name: 'first' })
+        .executeTakeFirstOrThrow();
+      expect(autoResult.insertId).toBeGreaterThan(0n);
+      const autoRow = await kysely
+        .selectFrom('e2e_auto')
+        .selectAll()
+        .where('id', '=', Number(autoResult.insertId))
+        .executeTakeFirst();
+      expect(autoRow).toMatchObject({ name: 'first', status: 'new' });
+
+      // 5. Explicit NULL for the auto column is mysql's "generate it" —
+      //    insertId must still address the row (the server treats NULL PK
+      //    payload values as not-provided for exactly this reason).
+      const nullResult = await kysely
+        .insertInto('e2e_auto')
+        .values({ id: null as unknown as number, name: 'second' })
+        .executeTakeFirstOrThrow();
+      expect(nullResult.insertId).toBeGreaterThan(autoResult.insertId as bigint);
+    } finally {
+      await engine.destroy();
+    }
+  });
 });
 
 describe.skipIf(!liveReady)('collectTableStats (data role — 06 §4.2 statistics)', () => {
