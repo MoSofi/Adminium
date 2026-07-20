@@ -51,7 +51,6 @@ import type { CalendarEvent, DateRangeValue, UpcomingEvent } from '../../familie
 import { WidgetFrame } from '../../frame/WidgetFrame.js';
 import { WidgetHost, type WidgetDataState } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
-import type { LayoutItem } from '../../grid/layout-schema.js';
 import type { WidgetEvent } from '../../registry/types.js';
 import {
   configString,

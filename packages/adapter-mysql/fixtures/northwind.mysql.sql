@@ -9,6 +9,13 @@
 -- multipleStatements enabled; requires the InnoDB default engine.
 
 
+-- Self-referential FKs (employees.reports_to) make row order load-bearing under
+-- InnoDB, which checks each VALUES row as it lands; postgres checks the whole
+-- multi-row INSERT at end of statement, so the shared row order that loads
+-- clean there trips MySQL. Standard mysqldump practice: disable FK checks for
+-- the duration of the seed. (First caught by the CI mysql leg's first-ever run.)
+SET FOREIGN_KEY_CHECKS = 0;
+
 CREATE TABLE categories (
     category_id smallint NOT NULL,
     category_name varchar(15) NOT NULL,
@@ -415,3 +422,5 @@ INSERT INTO us_states (state_id, state_name, state_abbr, state_region) VALUES
   (20, 'Washington', 'WA', 'west');
 
 
+
+SET FOREIGN_KEY_CHECKS = 1;

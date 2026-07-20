@@ -16,12 +16,10 @@ const meta = {
 };
 export default meta;
 
-const frame = { height: 720 };
-
 /** Invoice Builder: palette rail + paper canvas + doc inspector, demo doc. */
 export const InvoiceFlavor = {
   render: () => (
-    <div style={frame}>
+    <div className="h-[720px]">
       <PageBuilder config={{ docType: 'invoice' }} data={builderDemoData('invoice', 21)} />
     </div>
   ),
@@ -30,7 +28,7 @@ export const InvoiceFlavor = {
 /** Report Builder: the block-kind registry with the [label, icon] swap fixed. */
 export const ReportFlavor = {
   render: () => (
-    <div style={frame}>
+    <div className="h-[720px]">
       <PageBuilder config={{ docType: 'report' }} data={builderDemoData('report', 8)} />
     </div>
   ),
@@ -39,7 +37,7 @@ export const ReportFlavor = {
 /** Survey Builder: question canvas + live summary; Publish shows LIVE counts. */
 export const SurveyFlavor = {
   render: () => (
-    <div style={frame}>
+    <div className="h-[720px]">
       <PageBuilder config={{ docType: 'survey' }} data={builderDemoData('survey', 5)} />
     </div>
   ),
@@ -48,7 +46,7 @@ export const SurveyFlavor = {
 /** Automation Rules: flow canvas, non-removable trigger, run-stat inspector. */
 export const AutomationFlavor = {
   render: () => (
-    <div style={frame}>
+    <div className="h-[720px]">
       <PageBuilder config={{ docType: 'automation' }} data={builderDemoData('automation', 13)} />
     </div>
   ),
@@ -58,7 +56,7 @@ export const AutomationFlavor = {
 function AutosaveDemo() {
   const [status, setStatus] = useState<AutosaveStatus>('idle');
   return (
-    <div style={frame}>
+    <div className="h-[720px]">
       <button
         type="button"
         onClick={() =>

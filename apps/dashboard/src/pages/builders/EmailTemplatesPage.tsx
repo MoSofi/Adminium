@@ -13,7 +13,7 @@
  * — NOT adminium_pages: templates are keyed `(key, locale)` rows in
  * `adminium_email_templates` (07-meta-store.md §3.28).
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Mail } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {

@@ -189,8 +189,6 @@ export function PageDirectory({
     return out;
   }, [rows, filter, filterField, search, titleField, subtitleField]);
 
-  const filtersActive = search.trim() !== '' || filter !== null;
-
   // --- record drawer -----------------------------------------------------------
   const [internalDetailId, setInternalDetailId] = useState<string | null>(null);
   const detailId = detailRecordId !== undefined ? detailRecordId : internalDetailId;

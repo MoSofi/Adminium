@@ -31,7 +31,7 @@ const noop = () => undefined;
 /** Step 1 — nothing done yet, host CTA in the body. */
 export const UploadStep = {
   render: () => (
-    <div style={{ blockSize: 420 }}>
+    <div className="h-[420px]">
       <PageWizard steps={STEPS} activeStepId="upload" footer={<button type="button">Next</button>}>
         <div className="grid h-full place-items-center rounded-lg border border-dashed border-border text-fg-muted">
           Drop a CSV here
@@ -44,7 +44,7 @@ export const UploadStep = {
 /** Step 2 — mid-flow: Upload done, mapping table live. */
 export const MappingStep = {
   render: () => (
-    <div style={{ blockSize: 420 }}>
+    <div className="h-[420px]">
       <PageWizard
         steps={STEPS}
         activeStepId="map"
@@ -65,7 +65,7 @@ export const MappingStep = {
 /** Step 3 with an error override on the run step (a previous run failed). */
 export const ValidationWithFailedRun = {
   render: () => (
-    <div style={{ blockSize: 420 }}>
+    <div className="h-[420px]">
       <PageWizard
         steps={STEPS}
         activeStepId="validate"
@@ -87,7 +87,7 @@ export const ValidationWithFailedRun = {
 /** Step 4 — everything done; review body is host content (KPI numbers). */
 export const ReviewStep = {
   render: () => (
-    <div style={{ blockSize: 420 }}>
+    <div className="h-[420px]">
       <PageWizard steps={STEPS} activeStepId="run" stepStates={{ run: 'done' }} onSelectStep={noop}>
         <div className="text-body-sm text-fg">2,940 imported = 2,612 created + 288 updated + 40 skipped</div>
       </PageWizard>

@@ -45,8 +45,11 @@ export async function completeFirstRunDemo(page: Page, admin: AdminAccount = DEM
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
   await page.getByLabel('Your name').fill(admin.name);
   await page.getByLabel('Email').fill(admin.email);
-  await page.getByLabel('Password', { exact: true }).fill(admin.password);
-  await page.getByLabel('Confirm password').fill(admin.password);
+  // getByRole, not getByLabel: the required marker renders "Password*" as the
+  // label's TEXT (asterisk aria-hidden), and getByLabel matches raw label text
+  // while the ROLE name uses the accname algorithm — which strips aria-hidden.
+  await page.getByRole('textbox', { name: 'Password', exact: true }).fill(admin.password);
+  await page.getByRole('textbox', { name: 'Confirm password' }).fill(admin.password);
   await page.getByRole('button', { name: 'Create account and continue' }).click();
 
   // Step 4 — Generate. create + introspect run first; the BYO enrich step is

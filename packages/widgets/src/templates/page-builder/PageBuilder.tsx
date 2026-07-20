@@ -85,7 +85,6 @@ import {
   docBlockInstancesOf,
   ensureTriggerFirst,
   flowNodesFromValues,
-  isDraftMutation,
   pageBuilderConfigSchema,
   reorderDocByBlockIds,
   starterDocOf,

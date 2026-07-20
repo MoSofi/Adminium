@@ -305,7 +305,7 @@ function MatrixSlot({
     if (start !== undefined && end !== undefined) {
       onParamsChange?.({ 'dateRange.start': start, 'dateRange.end': end });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- window key only
+    // Deps are the visible window key only — same-window rerenders must not refetch.
   }, [days[0], days[days.length - 1]]);
 
   const canEdit = source !== null && model.writable && onEvent !== undefined;

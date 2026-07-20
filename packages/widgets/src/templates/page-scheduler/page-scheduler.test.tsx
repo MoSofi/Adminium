@@ -8,7 +8,7 @@
  * publishes the `dateRange.*` window, and the capacity variant groups rows
  * with the week/month ×4 rescale.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PageScheduler, capacityItemConfigOf, capacityModelOf, matrixItemConfigOf, matrixModelOf } from './PageScheduler.js';

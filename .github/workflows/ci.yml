@@ -97,5 +97,14 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      # dependency-cruiser resolves workspace subpath exports (e.g.
+      # @adminium/engine/config) through each package's dist-backed exports
+      # map. Without built dists those specifiers fall back to the package
+      # root and read as full-barrel imports — 4 false dashboard-no-full-engine
+      # violations on this job's first-ever run. Build first; the graph being
+      # checked is the one consumers actually resolve.
+      - name: Build workspace dists
+        run: pnpm turbo run build
+
       - name: Check dependency graph boundaries
         run: pnpm run check-deps
