@@ -1,9 +1,15 @@
 name: docs
 
-# Publishes apps/docs (Astro Starlight) to GitHub Pages, served at
-# https://docs.adminium.dev (astro.config.mjs `site`). One-time repo setup:
-# Settings → Pages → Source: "GitHub Actions", custom domain docs.adminium.dev
-# (+ a DNS CNAME record pointing docs.adminium.dev at <owner>.github.io).
+# Builds apps/docs (Astro Starlight) on every docs change, and publishes it to
+# GitHub Pages at https://docs.adminium.dev (astro.config.mjs `site`).
+#
+# GitHub Pages requires a PUBLIC repository on the free plan, so the deploy job
+# is gated on repository visibility and arms itself automatically the moment
+# the repo goes public. One-time setup on that day (repo-admin API calls the
+# workflow token is not allowed to make):
+#   gh api -X POST repos/<owner>/<repo>/pages -f build_type=workflow
+#   gh api -X PUT  repos/<owner>/<repo>/pages -f cname=docs.adminium.dev
+# plus a DNS CNAME record: docs.adminium.dev -> <owner>.github.io
 # A CNAME artifact file is unnecessary for Actions-based Pages deploys.
 
 on:
@@ -46,11 +52,6 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Enable GitHub Pages (first run) and read config
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: Install
         run: pnpm install --frozen-lockfile
 
@@ -65,6 +66,9 @@ jobs:
   deploy:
     name: deploy
     needs: build
+    # Pages is unavailable while the repo is private (free plan); the build
+    # above still validates every docs change. Flips on with repo visibility.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
