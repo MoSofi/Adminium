@@ -1323,7 +1323,7 @@ export default {
     "article": {
       "install": {
         "title": "Instalace Adminia",
-        "excerpt": "Spusťte npx adminium nebo docker run a během minuty jste u průvodce prvním spuštěním."
+        "excerpt": "Spusťte ze zdrojového checkoutu nebo přes docker run a během minuty jste u průvodce prvním spuštěním."
       },
       "firstAdmin": {
         "title": "Vytvoření prvního supersprávce",

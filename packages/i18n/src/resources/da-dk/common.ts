@@ -1323,7 +1323,7 @@ export default {
     "article": {
       "install": {
         "title": "Installér Adminium",
-        "excerpt": "Kør npx adminium eller docker run, og nå førstegangsguiden på et minut."
+        "excerpt": "Kør fra et kildekode-checkout eller med docker run, og nå førstegangsguiden på et minut."
       },
       "firstAdmin": {
         "title": "Opret din første superadministrator",

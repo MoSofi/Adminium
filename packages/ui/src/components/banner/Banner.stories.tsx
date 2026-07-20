@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>;
 export const Playground: Story = {
   render: (args) => (
     <Banner {...args} onDismiss={() => {}}>
-      Your trial ends in 3 days — pick a plan to keep your workspace.
+      Nightly backups are paused — re-enable them in Settings to keep restore points.
     </Banner>
   ),
 };
@@ -34,15 +34,15 @@ export const Tones: Story = {
         tone="warn"
         action={
           <Button size="sm" variant="secondary">
-            Update billing
+            Rotate key
           </Button>
         }
         onDismiss={() => {}}
         dismissLabel="Dismiss"
       >
-        Your payment method expires this month.
+        Your API key expires this month.
       </Banner>
-      <Banner tone="danger">Read-only mode: the workspace is suspended for non-payment.</Banner>
+      <Banner tone="danger">Read-only mode: the meta store is unreachable.</Banner>
     </div>
   ),
 };

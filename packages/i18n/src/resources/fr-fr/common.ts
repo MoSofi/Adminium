@@ -1323,7 +1323,7 @@ export default {
     "article": {
       "install": {
         "title": "Installer Adminium",
-        "excerpt": "Lancez npx adminium, ou docker run, et atteignez l’assistant de première exécution en une minute."
+        "excerpt": "Lancez depuis un dépôt source ou via docker run, et atteignez l’assistant de première exécution en une minute."
       },
       "firstAdmin": {
         "title": "Créer votre premier super-administrateur",

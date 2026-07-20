@@ -137,6 +137,38 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(page.getByRole('dialog')).toContainText('Alfreds Futterkiste');
   });
 
+  // M4-T06 (the last v1 feature): the ⌘K palette's async Records group hits
+  // `GET /api/v1/search` (types=record, limit=3) and a selected hit navigates
+  // to the record route. 'cactus' matches one customer's company_name AND the
+  // orders rows shipping to it (ship_name carries the same string), so the
+  // customer hit is pinned by its §2.9 row-context subtitle — which also
+  // proves the context ships end-to-end. PII columns (phone/address/city)
+  // are masked and never match.
+  test('(c7) ⌘K palette record search navigates to the record route', async ({ page }) => {
+    await signIn(page);
+    await page.keyboard.press('ControlOrMeta+k');
+    const palette = page.getByRole('dialog', { name: 'Command palette' });
+    await expect(palette).toBeVisible();
+
+    await palette.getByRole('combobox').fill('cactus');
+    const hit = palette
+      .getByRole('option', { name: /Cactus Comidas para llevar/ })
+      .filter({ hasText: 'contact_name Patricio Simpson' });
+    await expect(hit).toBeVisible();
+    await hit.click();
+
+    await expect(page).toHaveURL(/\/p\/customers\/r\/CACTU/);
+    await expect(page.getByRole('dialog')).toContainText('Cactus Comidas para llevar');
+
+    // The visit lands in the palette's Recent group (09 §5.2 localStorage).
+    await page.keyboard.press('ControlOrMeta+k');
+    await expect(
+      page
+        .getByRole('dialog', { name: 'Command palette' })
+        .getByRole('group', { name: 'Recent' }),
+    ).toBeVisible();
+  });
+
   test('(d) generated dashboard renders KPI cards and charts', async ({ page }) => {
     await signIn(page);
     await navLink(page, /Dashboard/).first().click();

@@ -177,7 +177,7 @@ export const initCommand: Command = {
   usage: 'adminium [init] [--port <n>] [--host <addr>]',
   describe:
     'Walks through connecting a database and generating an admin app, then\n' +
-    'starts the server. This is what `npx adminium` runs with no arguments.',
+    'starts the server. This is what `adminium` runs with no arguments.',
   flags: {
     port: { type: 'string', short: 'p', placeholder: '<n>', describe: 'Port to listen on', defaultDescription: 'PORT or 4600' },
     host: { type: 'string', placeholder: '<addr>', describe: 'Address to bind', defaultDescription: 'HOST or 0.0.0.0' },

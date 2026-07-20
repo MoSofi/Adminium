@@ -67,8 +67,8 @@ models, and five other formats. See
 
 ## Where to go next
 
-- [Quickstart with npx](/getting-started/quickstart/) — the fastest path to a
-  running panel.
+- [Quickstart from source](/getting-started/quickstart/) — run the CLI from a
+  git checkout.
 - [Run with Docker](/getting-started/docker/) — if you would rather not install
   Node.
 - [Connect your first database](/getting-started/first-connection/) — what the

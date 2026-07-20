@@ -43,6 +43,18 @@ Returns JSON with `ok`. **Check the body, not just the status code** — bare
 so a probe there reports healthy even when the meta store is unreachable.
 
 ```
+GET /api/v1/readyz
+```
+
+Readiness, as opposed to `/healthz`'s liveness: can this process serve a real
+request right now? It reports per-dependency verdicts — most importantly
+whether the meta store is reachable — and answers `503` when it is not. Point
+load-balancer and orchestrator readiness gates here, not at `/healthz`. (The
+Docker image's own `HEALTHCHECK` deliberately probes `/api/v1/healthz` instead:
+restarting the container cannot reconnect a dead meta database, so a database
+blip must not become a crash-loop.)
+
+```
 GET /api/v1/system/info
 ```
 

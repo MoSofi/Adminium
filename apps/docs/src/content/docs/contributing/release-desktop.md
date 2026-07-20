@@ -4,7 +4,8 @@ description: Cut a desktop-v* tag, let CI build, sign, and notarize the installe
 ---
 
 The desktop app (`@adminium/desktop`) releases on its own tags, separate from the
-npm package and Docker image. Pushing a `desktop-vX.Y.Z` tag runs
+server's release channels (the Docker image, and the npm package once it is
+published). Pushing a `desktop-vX.Y.Z` tag runs
 `.github/workflows/desktop-release.yml`, which builds on macOS, Windows, and
 Linux, signs and notarizes the macOS artifacts, and uploads everything —
 installers, the auto-update feed files, and a checksums file — to a **draft**

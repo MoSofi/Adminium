@@ -53,7 +53,7 @@ const RAW: unknown = [
     titleKey: 'kb.article.install.title',
     titleFallback: 'Install Adminium',
     excerptKey: 'kb.article.install.excerpt',
-    excerptFallback: 'Run npx adminium, or docker run, and reach the first-run wizard in a minute.',
+    excerptFallback: 'Run from a source checkout or with docker run, and reach the first-run wizard in a minute.',
     docsPath: 'getting-started/quickstart',
   },
   {
@@ -63,7 +63,7 @@ const RAW: unknown = [
     titleFallback: 'Create your first super admin',
     excerptKey: 'kb.article.firstAdmin.excerpt',
     excerptFallback: 'What the first-run wizard asks for, and why it can only run once.',
-    docsPath: 'getting-started/quickstart#2-run-the-wizard',
+    docsPath: 'getting-started/quickstart#3-run-the-wizard',
   },
   {
     id: 'connect-db',

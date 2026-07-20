@@ -203,7 +203,15 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     genReqId: () => `req_${randomBytes(4).toString('hex')}`,
     // An inbound x-request-id is honored only behind a trusted proxy (§1.3).
     requestIdHeader: env.ADMINIUM_TRUST_PROXY ? 'x-request-id' : false,
-    trustProxy: env.ADMINIUM_TRUST_PROXY,
+    // Hop count 1, NEVER a bare `true`: `trustProxy: true` trusts every hop,
+    // so proxy-addr returns the LEFT-most (fully client-supplied)
+    // X-Forwarded-For entry as `request.ip` — an attacker rotating the header
+    // then gets a fresh §6 rate-limit bucket per request and forges the audit
+    // trail's source ip. With `1`, only the immediate peer (Caddy) is trusted
+    // and `request.ip` is the RIGHT-most entry — the one Caddy itself
+    // appended, which no client controls. The documented deployment is a
+    // single reverse proxy (§7 item 5: "behind Caddy/TLS").
+    trustProxy: env.ADMINIUM_TRUST_PROXY ? 1 : false,
     bodyLimit: 1_048_576, // 1 MiB JSON; multipart gets its own limits (§3.10)
   }).withTypeProvider<ZodTypeProvider>();
 
@@ -274,7 +282,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     void reply.status(500).send(errorEnvelope('INTERNAL', message, requestId));
   });
 
-  await app.register(corePlugin, { env });
+  // `staticRoot` rides along so core can hash the served index.html's inline
+  // scripts into the CSP allowance (plugins/core.ts).
+  await app.register(corePlugin, { env, staticRoot: opts.staticRoot });
   await app.register(authPlugin, {
     env,
     metaDb: opts.metaDb ?? null,

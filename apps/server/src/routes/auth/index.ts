@@ -3,8 +3,9 @@
  *
  * Every route runs `requireMeta` (503 META_NOT_CONFIGURED when the server
  * boots without a meta DB); session-bound routes add `requireAuth`. The
- * credential-facing routes carry `config.rateLimitBucket` markers — the
- * rate-limit plugin (§6) keys its buckets off them when it lands.
+ * credential-facing routes carry `config.rateLimitBucket` markers — the §6
+ * rate limiter in `plugins/core.ts` keys its buckets off them (limits live in
+ * its `RATE_BUCKETS` table; an unknown marker fails the boot).
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
@@ -36,15 +37,19 @@ import {
   okReply,
 } from './schema.js';
 
-/** §6 rate-limit bucket markers (5/min login+verify, 3/hour forgot). */
+/**
+ * §6 rate-limit bucket markers (5/min login+verify+reset, 3/hour forgot —
+ * the limits themselves live in `RATE_BUCKETS`, plugins/core.ts).
+ */
 export const RATE_LIMIT_BUCKETS = {
   login: 'auth-login',
   forgot: 'auth-password-forgot',
+  reset: 'auth-password-reset',
 } as const;
 
 declare module 'fastify' {
   interface FastifyContextConfig {
-    /** §6 bucket key the rate-limit plugin will attach to (hook point). */
+    /** §6 bucket key the core plugin's rate limiter attaches to. */
     rateLimitBucket?: string;
   }
 }
@@ -113,6 +118,9 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
     '/auth/password/reset',
     {
       preHandler: [app.requireMeta],
+      // The token CONSUME side: single-use + 30-min TTL (§7 item 7) bounds a
+      // token's lifetime, this bounds how fast one can be guessed within it.
+      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.reset },
       schema: { body: authResetBody, response: { 200: okReply } },
     },
     async (request) => resetPasswordHandler(ctx(), request, request.body),

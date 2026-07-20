@@ -144,9 +144,17 @@ describe('first-run super-admin bootstrap (M10-T04)', () => {
   });
 
   it('an N-way concurrent storm still yields exactly one super admin', async () => {
+    // Each racer from its own address: `/setup/super-admin` sits in the §6
+    // `auth-login` bucket (5/min per ip), and 8 racers from one ip would 429
+    // before the claim race this test exists for even runs.
     const attempts = await Promise.all(
       Array.from({ length: 8 }, (_, i) =>
-        postSetup({ email: `racer${String(i)}@adminium.test`, password: 'a-long-enough-password' }),
+        t.app.inject({
+          method: 'POST',
+          url: '/api/v1/setup/super-admin',
+          payload: { email: `racer${String(i)}@adminium.test`, password: 'a-long-enough-password' },
+          remoteAddress: `10.99.1.${String(i + 1)}`,
+        }),
       ),
     );
     expect(attempts.filter((r) => r.statusCode === 201)).toHaveLength(1);

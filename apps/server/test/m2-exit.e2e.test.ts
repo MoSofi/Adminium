@@ -159,6 +159,19 @@ async function composeServer(opts: { websocket: boolean }): Promise<ComposedServ
   };
 }
 
+/**
+ * Every credential-facing request in this ONE continuous scenario signs in
+ * from its own source address: the §6 `auth-login` bucket (plugins/core.ts)
+ * allows 5/min per ip, and this file makes more sign-ins than that on one
+ * shared server. Distinct addresses keep the scenario about auth mechanics —
+ * bucket enforcement has its own suite (rate-limit.test.ts).
+ */
+let authPeer = 0;
+function nextAuthPeer(): string {
+  authPeer += 1;
+  return `10.99.0.${String(authPeer)}`;
+}
+
 async function loginAs(
   app: AdminiumServer,
   email: string,
@@ -168,6 +181,7 @@ async function loginAs(
     method: 'POST',
     url: '/api/v1/auth/login',
     payload: { email, password },
+    remoteAddress: nextAuthPeer(),
   });
   expect(res.statusCode).toBe(200);
   return sessionCookie(res.headers['set-cookie']);
@@ -467,6 +481,7 @@ describe('M2 exit criteria — one continuous scenario on a single server', () =
       method: 'POST',
       url: '/api/v1/auth/login',
       payload: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
+      remoteAddress: nextAuthPeer(),
     });
     expect(stepUp.statusCode).toBe(202);
     const challenge = (
@@ -479,6 +494,7 @@ describe('M2 exit criteria — one continuous scenario on a single server', () =
       method: 'POST',
       url: '/api/v1/auth/2fa/verify',
       payload: { challengeToken: challenge.challengeToken, code: totpCode(totpSecret) },
+      remoteAddress: nextAuthPeer(),
     });
     expect(verify.statusCode).toBe(200);
     cookies['super'] = sessionCookie(verify.headers['set-cookie']);

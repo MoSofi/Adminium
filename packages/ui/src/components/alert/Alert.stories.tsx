@@ -36,10 +36,10 @@ export const Tones: Story = {
       <Alert
         tone="warn"
         title="Storage almost full"
-        body="You have used 92% of your plan."
+        body="You have used 92% of available disk space."
         action={
           <Button size="sm" variant="secondary">
-            Upgrade plan
+            Free up space
           </Button>
         }
       />

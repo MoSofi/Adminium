@@ -64,8 +64,8 @@ Can the data role write, and does it have DDL?
 
 ### Embedded SQLite (the default)
 
-A file under `ADMINIUM_DATA_DIR`. Zero configuration — it is what makes
-`npx adminium` work with nothing but a secret. Adminium prints a warning on
+A file under `ADMINIUM_DATA_DIR`. Zero configuration — it is what makes a fresh
+`adminium` install work with nothing but a secret. Adminium prints a warning on
 every boot so it can never be your production meta store by accident.
 
 Fine for: a laptop, an evaluation, a demo, the desktop app.

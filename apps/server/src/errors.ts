@@ -136,8 +136,10 @@ export class ConflictError extends AppError {
 }
 
 /**
- * 429 — placeholder until @fastify/rate-limit lands (08-server-api.md §6).
- * `details` carries `{ bucket, limit, resetAt }` when known.
+ * 429 — thrown by the §6 limiter in `plugins/core.ts` when a bucket is
+ * exhausted (08-server-api.md §6); the plugin sets `Retry-After` on the reply
+ * before the global handler serializes this envelope. `details` carries
+ * `{ bucket, limit, resetAt }` when known.
  */
 export class RateLimitedError extends AppError {
   override readonly name = 'RateLimitedError';

@@ -136,7 +136,7 @@ const signUpFooter = (
   <>
     Don&apos;t have an account?{' '}
     <Button variant="link" className="text-body-sm font-bold">
-      Start free trial
+      Sign up
     </Button>
   </>
 );

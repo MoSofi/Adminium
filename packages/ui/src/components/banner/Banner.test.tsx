@@ -18,7 +18,7 @@ describe('Banner', () => {
     const onDismiss = vi.fn();
     render(
       <Banner onDismiss={onDismiss} dismissLabel="Dismiss banner">
-        Trial ends in 3 days.
+        Maintenance starts in 3 days.
       </Banner>,
     );
     await user.click(screen.getByRole('button', { name: 'Dismiss banner' }));
@@ -26,8 +26,8 @@ describe('Banner', () => {
   });
 
   it('hides the close button without onDismiss and renders the action slot', () => {
-    render(<Banner action={<a href="/billing">Update billing</a>}>Card declined.</Banner>);
+    render(<Banner action={<a href="/settings/storage">Free up space</a>}>Disk almost full.</Banner>);
     expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Update billing' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Free up space' })).toBeDefined();
   });
 });

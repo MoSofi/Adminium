@@ -49,6 +49,7 @@ Full responsibilities and the allowed import graph are in `workplan/01-architect
 | `apps/dashboard` | React SPA (Studio + Generated App) |
 | `apps/desktop` | Electron shell |
 | `apps/docs` | Astro Starlight docs site |
+| `apps/e2e` | Playwright end-to-end suites (web + desktop) |
 
 Imports between packages are enforced by dependency-cruiser; a violating import fails `pnpm check-deps` (and CI).
 

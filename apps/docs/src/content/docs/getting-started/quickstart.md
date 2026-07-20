@@ -1,21 +1,42 @@
 ---
-title: Quickstart with npx
-description: Install and run Adminium with one command. Generate a secret, run npx adminium, answer the setup wizard, and get an admin panel on your own schema.
+title: Quickstart from source
+description: Build and run Adminium from a source checkout. Generate a secret, run the setup wizard, and get an admin panel on your own schema.
 sidebar:
   order: 2
 ---
 
-The published `adminium` package bundles the server, the dashboard build, and
-the meta migrations. One `npx adminium` is a complete install — there is nothing
-else to clone, build, or wire together.
+The `adminium` CLI bundles the server, the dashboard build, and the meta
+migrations.
+
+:::note[Not on npm yet]
+Publishing the `adminium` package to npm is a release step that has not
+happened yet, so there is no `npx adminium` today. The two install paths are a
+**source checkout** (this page) and **[Docker](/getting-started/docker/)**.
+:::
 
 ## Requirements
 
-- **Node.js 22 or newer** (`node -v`).
+- **Node.js 22 or newer** (`node -v`) and **pnpm 10** (`corepack enable`).
 - A database you can reach, or a schema file. Neither is required to *start* —
   the wizard will ask.
 
-## 1. Set a secret
+## 1. Get the code
+
+```bash
+git clone https://github.com/adminium/adminium.git
+cd adminium
+pnpm install
+pnpm build
+```
+
+The CLI entry point is `apps/server/dist/cli/index.js`. This page and the
+[CLI reference](/reference/cli/) write `adminium` for brevity — set an alias:
+
+```bash
+alias adminium="node $PWD/apps/server/dist/cli/index.js"
+```
+
+## 2. Set a secret
 
 `ADMINIUM_SECRET` is **required**. It derives the key that encrypts every stored
 DSN and API key at rest, so Adminium refuses to start without it and prints a
@@ -31,10 +52,10 @@ connection string and provider key becomes undecryptable and must be re-entered.
 If you rotate it, do the same. It must be **at least 16 characters**.
 :::
 
-## 2. Run the wizard
+## 3. Run the wizard
 
 ```bash
-npx adminium
+adminium
 ```
 
 Run with no command and Adminium starts the interactive setup wizard. It walks
@@ -67,7 +88,7 @@ useful it could do with unanswerable questions. In CI, containers, and
 [`adminium start`](/reference/cli/#start) instead.
 :::
 
-## 3. Subsequent starts
+## 4. Subsequent starts
 
 Once configured, skip the wizard:
 

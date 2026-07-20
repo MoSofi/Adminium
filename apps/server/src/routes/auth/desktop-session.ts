@@ -109,9 +109,11 @@ export function desktopSessionRoutes(deps: DesktopSessionRoutesDeps): FastifyPlu
         // token is hopeless (32 random bytes, one shot), but an unlimited
         // rejected-request loop still costs CPU and — because gate 2 audits
         // every non-loopback attempt — writes an audit row per try. A limiter
-        // caps both. It is a marker, not an implementation: the §6 plugin keys
-        // its buckets off `config.rateLimitBucket` when it lands, and a route
-        // that forgot to declare one would be the one door it never covers.
+        // caps both. It is a marker, not an implementation: the §6 limiter in
+        // `plugins/core.ts` keys its buckets off `config.rateLimitBucket`, and
+        // a route that forgot to declare one would be the one door it never
+        // covers. Keys are per-ip, so a LAN peer burning this bucket can never
+        // lock the loopback exchange out.
         config: { rateLimitBucket: RATE_LIMIT_BUCKETS.login },
         schema: { body: authDesktopSessionBody, response: { 200: authLoginReply } },
       },

@@ -16,8 +16,8 @@ pg_dump adminium_meta > meta-backup-$(date +%F).sql
 
 # 2. Upgrade.
 docker compose pull && docker compose up -d
-#   or
-npm install -g adminium@latest
+#   or, for a from-source install
+git pull && pnpm install && pnpm build
 
 # 3. Migrations apply on boot. Or apply them yourself first:
 adminium migrate

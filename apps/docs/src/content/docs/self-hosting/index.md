@@ -16,7 +16,7 @@ That is the whole architecture. It fits on one small VPS.
 
 | | |
 |---|---|
-| **Node.js** | 22 or newer (if running from npm) |
+| **Node.js** | 22 or newer (if running from a source checkout) |
 | **Port** | 4600 by default |
 | **Meta store** | PostgreSQL, MySQL/MariaDB, or SQLite |
 | **Source database** | PostgreSQL, MySQL/MariaDB, or SQLite — external, always |
@@ -26,7 +26,7 @@ That is the whole architecture. It fits on one small VPS.
 
 | | Use when |
 |---|---|
-| [`npx adminium`](/getting-started/quickstart/) | A laptop, an evaluation, a machine you already manage with Node |
+| [From source](/getting-started/quickstart/) | A laptop, an evaluation, a machine you already manage with Node |
 | [Docker](/getting-started/docker/) | You would rather not manage a Node install |
 | [Docker Compose](/self-hosting/docker-compose/) | A real deployment, with a meta database |
 

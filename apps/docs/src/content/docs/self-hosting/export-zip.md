@@ -34,7 +34,7 @@ portability — the bundle stands the same instance up anywhere Adminium runs.
 |---|---|
 | `manifest.json` | Format version, the `adminium` version that wrote it, config-envelope version, secrets policy |
 | `README.md` | Says what this is, in its first heading |
-| `package.json` | Pins the `adminium` npm package version — the runtime is *named*, not copied |
+| `package.json` | Pins the `adminium` version that wrote the bundle — the runtime is *named*, not copied |
 | `config/settings.json` | Instance settings |
 | `config/roles.json`, `config/rolePermissions.json` | RBAC |
 | `config/connections.json` | Connection definitions |
@@ -46,8 +46,10 @@ portability — the bundle stands the same instance up anywhere Adminium runs.
 ## What is not in it
 
 - **Source code.** See above.
-- **The Adminium runtime itself.** `package.json` pins the version; `npm install`
-  fetches it. The bundle carries a reference, not a copy.
+- **The Adminium runtime itself.** `package.json` pins the version; install that
+  version separately — [from source or Docker](/getting-started/quickstart/)
+  (npm publish is a release step that has not happened yet). The bundle carries
+  a reference, not a copy.
 - **Your rows.** No table data, ever. This is configuration.
 - **Your secrets** — unless you ask. Default is omitted.
 

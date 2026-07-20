@@ -1323,7 +1323,7 @@ export default {
     "article": {
       "install": {
         "title": "تثبيت Adminium",
-        "excerpt": "شغِّل npx adminium أو docker run، وستصل إلى معالج التشغيل الأول خلال دقيقة."
+        "excerpt": "شغِّل من نسخة المصدر أو عبر docker run، وستصل إلى معالج التشغيل الأول خلال دقيقة."
       },
       "firstAdmin": {
         "title": "إنشاء أول مسؤول أعلى",

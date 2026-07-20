@@ -78,8 +78,8 @@ cannot write cannot host them. The full decision tree:
 In the Studio, the meta question comes late — the Studio is already running, so
 a meta store already exists and the question is about where it should live
 *going forward*. The CLI has no such luxury: nothing can be persisted, not even
-the connection row, until a meta store is open. So `npx adminium` resolves meta
-placement before it asks about your database. The read-only rule still fires at
+the connection row, until a meta store is open. So the `adminium` wizard resolves
+meta placement before it asks about your database. The read-only rule still fires at
 exactly the right moment; only the question's position moves.
 :::
 

@@ -18,6 +18,7 @@ import { useTheme, useThemePrefs } from '@adminium/ui';
 import { invalidateForRealtimeEvent } from '../api/realtime.js';
 import { bootstrapQuery, findNavItemBySlug, flattenNav } from '../app/bootstrap.js';
 import { CommandPaletteHost } from '../app/palette/CommandPaletteHost.js';
+import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
@@ -53,6 +54,28 @@ export function AppShell() {
     if (pathname.startsWith('/account')) return t('nav.account', 'Account');
     return t('nav.home', 'Home');
   }, [pathname, bootstrap.nav]);
+
+  // --- ⌘K Recent tracking (09 §5.2): every page navigation / record open ----
+  // lands in localStorage['adminium-recent:<userId>'] (app/palette/recent.ts),
+  // so the palette's Recent group reflects real visits, not only palette use.
+  useEffect(() => {
+    const record = /^\/p\/([^/]+)\/r\/([^/]+)$/.exec(pathname);
+    const match = record ?? /^\/p\/([^/]+)$/.exec(pathname);
+    if (match === null) return;
+    const slug = decodeURIComponent(match[1] as string);
+    const item = findNavItemBySlug(bootstrap.nav, slug);
+    const pageLabel = item === null ? slug : t(item.labelKey, item.fallback);
+    if (record !== null) {
+      const recordId = decodeURIComponent(record[2] as string);
+      pushRecent(bootstrap.user.id, {
+        type: 'record',
+        label: `${pageLabel} · ${recordId}`,
+        href: pathname,
+      });
+    } else {
+      pushRecent(bootstrap.user.id, { type: 'page', label: pageLabel, href: pathname });
+    }
+  }, [pathname, bootstrap.nav, bootstrap.user.id]);
 
   const signOut = () => {
     logout()
@@ -185,6 +208,9 @@ export function AppShell() {
         onOpenChange={setPaletteOpen}
         bootstrap={bootstrap}
         onNavigate={(slug) => void navigate({ to: '/p/$slug', params: { slug } })}
+        onNavigateRecord={(slug, recordId) =>
+          void navigate({ to: '/p/$slug/r/$recordId', params: { slug, recordId } })
+        }
         onSignOut={signOut}
         onShowShortcuts={() => setShortcutsOpen(true)}
       />

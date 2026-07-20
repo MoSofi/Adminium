@@ -61,9 +61,9 @@ const RAW: unknown = [
     date: '2026-07-16',
     title: 'Self-host & distribution — public beta',
     summary:
-      'Adminium is now fully self-hostable: one npx command or one docker run takes a clean machine to a generated admin app.',
+      'Adminium is now fully self-hostable: a source checkout or one docker run takes a clean machine to a generated admin app.',
     changes: [
-      { tag: 'New', text: 'npx adminium — init wizard plus start, introspect, migrate and export-zip subcommands.' },
+      { tag: 'New', text: 'The adminium CLI — init wizard plus start, introspect, migrate and export-zip subcommands.' },
       { tag: 'New', text: 'Official Docker image (multi-arch, non-root) and a docker-compose.yml with an optional separate meta database.' },
       { tag: 'New', text: 'export-zip bundles your server config for a standalone run, and replays back on import.' },
       { tag: 'New', text: 'First-run wizard creates the super admin; telemetry is opt-in and off by default.' },

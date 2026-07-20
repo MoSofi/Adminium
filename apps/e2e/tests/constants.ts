@@ -8,6 +8,7 @@
 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export type E2eEngine = 'sqlite' | 'postgres' | 'mysql';
 
@@ -30,6 +31,19 @@ export const ADMIN_PASSWORD = 'adminium-e2e-password';
 
 /** Name of the connection the boot script seeds + generates pages for. */
 export const SEED_CONNECTION_NAME = 'northwind';
+
+/**
+ * storageState file the `setup` project (tests/auth.setup.ts) writes and the
+ * `chromium` project preloads into every context. Per engine, because the
+ * legs run on different ports but 127.0.0.1 cookies ignore the port — two
+ * legs sharing one file could hand each other dead sessions. Lives under the
+ * gitignored `.playwright/`.
+ */
+export function storageStatePath(): string {
+  return fileURLToPath(
+    new URL(`../.playwright/auth/state-${ENGINE}.json`, import.meta.url),
+  );
+}
 
 /** postgres/mysql: database (re)created by the boot script on the service. */
 export const E2E_DATABASE = 'adminium_e2e';

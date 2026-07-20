@@ -59,8 +59,8 @@ the full three-connection story.
 
 ### Embedded SQLite — the default
 
-A file under `ADMINIUM_DATA_DIR`. Zero configuration; it is what makes
-`npx adminium` work with nothing but a secret.
+A file under `ADMINIUM_DATA_DIR`. Zero configuration; it is what makes a fresh
+`adminium` install work with nothing but a secret.
 
 It **warns at every boot**. That is deliberate: this fallback must never become
 your production meta store by accident.

@@ -149,6 +149,9 @@ describe('composition root (compose.ts)', () => {
       ['GET', '/api/v1/me/notification-prefs'],
       ['GET', '/api/v1/scheduled-reports'],
       ['GET', '/api/v1/email-templates'],
+      // M4-T06 closes the same way: the ⌘K palette's server half must exist
+      // on the composed server, not only in its own suite's harness.
+      ['GET', '/api/v1/search?q=ab'],
     ] as const;
     for (const [method, url] of routes) {
       const res = await app.inject({ method, url });

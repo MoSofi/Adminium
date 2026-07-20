@@ -138,7 +138,7 @@ export const UsageMeterTones = {
       {host(
         'usage-meter',
         'story-meter-danger',
-        { title: 'API quota', limit: 100, ctaLabel: 'Upgrade plan', ctaHref: '/p/billing' },
+        { title: 'API quota', limit: 100, ctaLabel: 'Free up space', ctaHref: '/settings/storage' },
         { value: 97 },
       )}
     </div>

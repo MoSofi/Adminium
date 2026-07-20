@@ -43,6 +43,8 @@
     "@adminium/schema-import": "workspace:*",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^10.1.0 || ^11.0.0",
+    "@fastify/helmet": "^13.1.0",
+    "@fastify/rate-limit": "^11.1.0",
     "@fastify/static": "^8.2.0",
     "@fastify/websocket": "^11.0.2",
     "argon2": "^0.44.0",

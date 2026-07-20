@@ -51,7 +51,7 @@ function toneOf(severity: string | undefined, map: Record<string, string> | unde
 
 export interface AlertBannerViewProps {
   severity?: string | undefined;
-  /** Bold stat lead rendered before the copy ("92% of plan"). */
+  /** Bold stat lead rendered before the copy ("92% disk used"). */
   lead?: string | undefined;
   message?: string | undefined;
   ctaLabel?: string | undefined;

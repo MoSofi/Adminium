@@ -23,6 +23,7 @@ import {
   ENGINE,
   PORT,
   SEED_CONNECTION_NAME,
+  storageStatePath,
   TEST_MYSQL_URL,
   TEST_POSTGRES_URL,
 } from './tests/constants.js';
@@ -51,7 +52,18 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'off',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // One real UI sign-in per run (tests/auth.setup.ts): the §6 auth-login
+    // bucket allows 5 logins/min/ip in PRODUCTION CODE, and this suite would
+    // otherwise perform ~16 — the 6th would 429 by design. Every test then
+    // reuses the saved session below.
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], storageState: storageStatePath() },
+      dependencies: ['setup'],
+    },
+  ],
   webServer: {
     command: 'node scripts/e2e-server.mjs',
     // /api/v1/healthz answers only once the server listens — and the boot

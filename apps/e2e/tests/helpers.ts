@@ -2,13 +2,27 @@ import { expect, type Page } from '@playwright/test';
 
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './constants.js';
 
-/** Sign in as the seeded super admin and wait for the app shell. */
+/**
+ * Land in the app shell as the seeded super admin.
+ *
+ * The `setup` project (auth.setup.ts) already signed in once and the
+ * `chromium` project preloads that session via storageState, so the normal
+ * path here is just "open / and see the shell" — the production 5/min
+ * `auth-login` bucket (08 §6) is never in play. The UI-login fallback only
+ * runs when the saved session is dead (fresh worker after a crash, expiry),
+ * which stays far under the login budget.
+ */
 export async function signIn(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(ADMIN_EMAIL);
+  await page.goto('/');
+  const shell = page.getByRole('navigation', { name: 'Primary' });
+  const email = page.getByLabel('Email');
+  await expect(shell.or(email).first()).toBeVisible();
+  if (await shell.isVisible()) return;
+
+  await email.fill(ADMIN_EMAIL);
   await page.getByLabel('Password', { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+  await expect(shell).toBeVisible();
 }
 
 /** The sidebar nav link for a generated page (label may grow suffixes). */

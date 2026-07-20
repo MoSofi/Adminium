@@ -11,13 +11,13 @@ describe('Alert', () => {
       <Alert
         tone="warn"
         title="Storage almost full"
-        body="You have used 92% of your plan."
-        action={<a href="/billing">Upgrade plan</a>}
+        body="You have used 92% of available disk space."
+        action={<a href="/settings/storage">Free up space</a>}
       />,
     );
     expect(screen.getByText('Storage almost full')).toBeDefined();
-    expect(screen.getByText('You have used 92% of your plan.')).toBeDefined();
-    expect(screen.getByRole('link', { name: 'Upgrade plan' })).toBeDefined();
+    expect(screen.getByText('You have used 92% of available disk space.')).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Free up space' })).toBeDefined();
   });
 
   it('stamps the tone and defaults to info', () => {

@@ -24,6 +24,7 @@ half-configured and fail later.
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
+| `ADMINIUM_DISABLE_UPDATES` | No | *(unset)* | **Desktop app only.** `1` forces the update mode to `disabled` — see below. |
 
 An empty string is treated as unset, so `FOO= adminium start` behaves like
 `FOO` being absent.
@@ -167,6 +168,18 @@ ADMINIUM_TELEMETRY=off
 
 Together with `ADMINIUM_TELEMETRY=off` and `updates.checkEnabled` left at its
 default, that is a complete no-phone-home configuration.
+
+## `ADMINIUM_DISABLE_UPDATES`
+
+Read by the **desktop app**, not the server: a kill-switch for fleet admins who
+manage machines running the Electron build.
+
+Set to exactly `1`, it forces the desktop update mode to `disabled` regardless
+of what the desktop config says. Disabled means the updater is **never
+initialized** — the update library is not even loaded, and no update-related
+network request is made. Any other value (including `0`) leaves the configured
+mode in effect; only the literal `1` disables, so a typo cannot silently turn
+updates *on* or *off* the wrong way.
 
 ## Flags override the environment
 

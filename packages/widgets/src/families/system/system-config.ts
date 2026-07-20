@@ -158,7 +158,7 @@ export const alertBannerConfigSchema = widgetSharedConfigSchema.extend({
 export type AlertBannerConfig = z.infer<typeof alertBannerConfigSchema>;
 
 const DEMO_ALERTS = [
-  { severity: 'warn', lead: '92% of plan', message: 'You are approaching your monthly row limit.', ctaLabel: 'Upgrade plan', ctaHref: '/settings/billing' },
+  { severity: 'warn', lead: '92% disk used', message: 'The meta-store volume is approaching capacity.', ctaLabel: 'Free up space', ctaHref: '/settings/storage' },
   { severity: 'info', lead: 'Recurring', message: 'This schedule repeats monthly on the 1st.', ctaLabel: 'Edit schedule', ctaHref: '/settings/schedules' },
   { severity: 'danger', lead: 'Deploy freeze', message: 'Releases are paused until the incident is resolved.', ctaLabel: 'View incident', ctaHref: '/status' },
   { severity: 'pos', lead: 'Rebalanced', message: 'Workload was redistributed across 4 teammates.', ctaLabel: 'Review', ctaHref: '/team/workload' },

@@ -10,8 +10,9 @@ The Adminium image is multi-stage, runs as the **non-root** `node` user on
 as PID 1 so `docker stop` reaches Fastify as a real `SIGTERM`.
 
 Nothing about the container changes the application. Its `CMD` is
-`adminium start` — the same CLI command `npx adminium` exposes. One code path,
-two front doors.
+`adminium start` — the same CLI command a
+[source checkout](/getting-started/quickstart/) runs. One code path, two front
+doors.
 
 ## The fastest look
 

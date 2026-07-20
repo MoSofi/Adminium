@@ -11,6 +11,8 @@ export interface CommandItem {
   /** Unique across all groups (used for selection + DOM ids). */
   id: string;
   label: string;
+  /** Muted single-line subtitle under the label (e.g. a record hit's row context). */
+  description?: string | undefined;
   /** Lucide icon element rendered in a small tile. */
   icon?: ReactNode;
   /** Keyboard hint rendered as `Kbd` at the row end (e.g. "G D"). */
@@ -228,13 +230,20 @@ export function CommandPalette({
                         {item.icon === undefined || item.icon === null ? null : (
                           <IconTile size="sm" tone={isActive ? 'accent' : 'neutral'} icon={item.icon} />
                         )}
-                        <span
-                          className={cn(
-                            'min-w-0 flex-1 truncate text-body font-semibold',
-                            isActive ? 'text-accent' : 'text-fg',
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className={cn(
+                              'block truncate text-body font-semibold',
+                              isActive ? 'text-accent' : 'text-fg',
+                            )}
+                          >
+                            {item.label}
+                          </span>
+                          {item.description === undefined ? null : (
+                            <span className="block truncate text-caption text-fg-muted">
+                              {item.description}
+                            </span>
                           )}
-                        >
-                          {item.label}
                         </span>
                         {item.hint === undefined ? null : <Kbd>{item.hint}</Kbd>}
                       </div>

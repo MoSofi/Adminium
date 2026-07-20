@@ -7,8 +7,12 @@ description: Every adminium command and flag — start, migrate, introspect, gen
 adminium [command] [options]
 ```
 
-Run with **no command** to start the interactive setup wizard. That is what
-`npx adminium` does.
+Run with **no command** to start the interactive setup wizard.
+
+The `adminium` package is **not published to npm yet** — publishing is a
+release step. Run the CLI from a [source checkout](/getting-started/quickstart/)
+(`node apps/server/dist/cli/index.js`) or through the
+[Docker image](/getting-started/docker/), whose entrypoint is the same CLI.
 
 CLI subcommands call the same services the Studio's HTTP routes call — one code
 path, two front doors. A run created by `generate-prompt` is the same kind of row
@@ -54,7 +58,7 @@ adminium [init] [--port <n>] [--host <addr>]
 ```
 
 Walks through connecting a database and generating an admin app, then starts the
-server. This is what `npx adminium` runs with no arguments.
+server. This is what `adminium` runs with no arguments.
 
 | Flag | Default | |
 |---|---|---|

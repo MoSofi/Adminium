@@ -1323,7 +1323,7 @@ export default {
     "article": {
       "install": {
         "title": "Adminium installieren",
-        "excerpt": "npx adminium oder docker run ausführen und in einer Minute beim Ersteinrichtungs-Assistenten sein."
+        "excerpt": "Aus einem Quell-Checkout oder per docker run starten und in einer Minute beim Ersteinrichtungs-Assistenten sein."
       },
       "firstAdmin": {
         "title": "Ersten Super-Admin anlegen",

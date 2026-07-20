@@ -5,8 +5,11 @@
 Adminium is an open-source engine (AGPL-3.0) that takes a database connection string — or a schema file —
 introspects the structure and relations, and generates a complete, professional, themable React admin dashboard.
 
-> **Status: pre-alpha.** Milestone M0 (foundation) in progress. See [workplan/](workplan/README.md)
-> for the full execution plan and [workplan/16-milestones.md](workplan/16-milestones.md) for the roadmap.
+> **Status: milestones M0–M11 complete** — foundation, design system, engine and adapters,
+> generated app, Studio, LLM assist, widget registry (176/176 annex ids), i18n, self-host
+> distribution (CLI, Docker, zip export), and the Electron desktop shell. The free v1.0
+> release is M0–M11 plus a hardening pass. See [workplan/](workplan/README.md) for the full
+> execution plan and [workplan/16-milestones.md](workplan/16-milestones.md) for the roadmap.
 
 ## Monorepo
 
@@ -16,6 +19,7 @@ introspects the structure and relations, and generates a complete, professional,
 | `apps/dashboard` | `@adminium/dashboard` | React SPA: Studio + Generated App |
 | `apps/desktop` | `@adminium/desktop` | Electron offline app |
 | `apps/docs` | `@adminium/docs` | docs.adminium.dev |
+| `apps/e2e` | `@adminium/e2e` | Playwright end-to-end suites (web + desktop) |
 | `packages/tokens` | `@adminium/tokens` | Design tokens, palettes, fonts, Tailwind preset |
 | `packages/ui` | `@adminium/ui` | Component library (Tiers 1–3) |
 | `packages/charts` | `@adminium/charts` | Dependency-light SVG charts |

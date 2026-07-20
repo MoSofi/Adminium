@@ -1323,7 +1323,7 @@ export default {
     "article": {
       "install": {
         "title": "安装 Adminium",
-        "excerpt": "运行 npx adminium 或 docker run，一分钟内进入首次运行向导。"
+        "excerpt": "从源码检出运行，或使用 docker run，一分钟内进入首次运行向导。"
       },
       "firstAdmin": {
         "title": "创建第一位超级管理员",

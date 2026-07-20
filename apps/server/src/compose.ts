@@ -76,6 +76,7 @@ import { rolesRoutes } from './routes/roles/index.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
+import { searchRoutes } from './routes/search/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
 import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
@@ -414,6 +415,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(generateRoutes({ manager, meta }));
       await api.register(schemaImportRoutes());
       await api.register(pagesRoutes({ meta }));
+      // ⌘K global search (08 §2.9, M4-T06): pages by title + records via the
+      // crud quick-search path, RBAC/PII-filtered like the data routes.
+      await api.register(searchRoutes({ manager, meta }));
       await api.register(widgetDataRoutes({ manager, meta }));
       await api.register(settingsRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));

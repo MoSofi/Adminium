@@ -410,11 +410,11 @@ describe('AlertBannerWidget', () => {
         config={cfg(alertBannerConfigSchema)}
         instanceId="t"
         onEvent={noop}
-        data={{ row: { severity: 'warn', lead: '92% of plan', message: 'Approaching the row limit.' } }}
+        data={{ row: { severity: 'warn', lead: '92% disk used', message: 'Approaching capacity.' } }}
       />,
     );
-    expect(screen.getByText('92% of plan')).toBeTruthy();
-    expect(screen.getByText('Approaching the row limit.')).toBeTruthy();
+    expect(screen.getByText('92% disk used')).toBeTruthy();
+    expect(screen.getByText('Approaching capacity.')).toBeTruthy();
   });
 
   it('drops a CTA that has nowhere to go', () => {
@@ -436,11 +436,11 @@ describe('AlertBannerWidget', () => {
         config={cfg(alertBannerConfigSchema)}
         instanceId="t"
         onEvent={onEvent}
-        data={{ row: { severity: 'warn', message: 'Over limit', ctaLabel: 'Upgrade', ctaHref: '/billing' } }}
+        data={{ row: { severity: 'warn', message: 'Over capacity', ctaLabel: 'Free up space', ctaHref: '/settings/storage' } }}
       />,
     );
-    fireEvent.click(screen.getByText('Upgrade'));
-    expect(onEvent).toHaveBeenCalledWith({ type: 'drill-through', href: '/billing' });
+    fireEvent.click(screen.getByText('Free up space'));
+    expect(onEvent).toHaveBeenCalledWith({ type: 'drill-through', href: '/settings/storage' });
   });
 
   it('dismisses when dismissible', () => {

@@ -1315,7 +1315,7 @@
     "article": {
       "install": {
         "title": "安裝 Adminium",
-        "excerpt": "執行 npx adminium 或 docker run，一分鐘內進入首次執行精靈。"
+        "excerpt": "從原始碼簽出執行，或使用 docker run，一分鐘內進入首次執行精靈。"
       },
       "firstAdmin": {
         "title": "建立第一位超級管理員",
