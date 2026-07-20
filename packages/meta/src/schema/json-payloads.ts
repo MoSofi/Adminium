@@ -81,12 +81,12 @@ export const SYSTEM_ACTION_KEYS = [
   'connections.manage',
   'schema.remap',
   'llm.run',
-  'automations.manage',
-  'webhooks.manage',
+  'automations.manage', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
+  'webhooks.manage', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   'api-keys.manage',
-  'manifests.manage',
+  'manifests.manage', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   'audit.read',
-  'sql.run',
+  'sql.run', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   // M7 wave 2 — data-io (T5) + scheduled reports (T6). `exports.manage` /
   // `imports.manage` gate seeing/downloading OTHER users' artifacts (lists are
   // mine-only without them); `reports.manage` gates the scheduled-reports
@@ -105,6 +105,42 @@ export const SYSTEM_ACTION_KEYS = [
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);
+
+/**
+ * Reserved keys — deferred features (automations, webhooks, manifest
+ * administration, raw-SQL console; deferred per the v1-free pivot,
+ * workplan/17-deferred-monetization.md) with ZERO enforcement points in v1:
+ * no route or realtime authorizer checks them. They stay in
+ * {@link SYSTEM_ACTION_KEYS} because the grammar is a closed set that stored
+ * grants round-trip through (removing a key would orphan persisted
+ * `adminium_role_permissions` rows and break forward-compat), but no
+ * permissions UI may OFFER them — letting an admin grant a key nothing checks
+ * is misleading security UI. Author grantable lists from
+ * {@link GRANTABLE_SYSTEM_ACTION_KEYS}; move a key out of here in the same
+ * change that lands its first enforcement point.
+ */
+export const RESERVED_SYSTEM_ACTION_KEYS = [
+  'automations.manage',
+  'webhooks.manage',
+  'manifests.manage',
+  'sql.run',
+] as const satisfies readonly SystemActionKey[];
+export type ReservedSystemActionKey = (typeof RESERVED_SYSTEM_ACTION_KEYS)[number];
+
+/**
+ * What a role editor / permissions surface may offer: the closed set minus
+ * {@link RESERVED_SYSTEM_ACTION_KEYS}. Derived, so the two lists cannot
+ * drift. (No dashboard roles page exists yet — apps/dashboard has no
+ * `@adminium/meta` dependency — so when that page or its catalog endpoint
+ * lands, THIS is the list it must be fed, not `SYSTEM_ACTION_KEYS`.)
+ */
+export const GRANTABLE_SYSTEM_ACTION_KEYS: readonly Exclude<
+  SystemActionKey,
+  ReservedSystemActionKey
+>[] = SYSTEM_ACTION_KEYS.filter(
+  (key): key is Exclude<SystemActionKey, ReservedSystemActionKey> =>
+    !(RESERVED_SYSTEM_ACTION_KEYS as readonly string[]).includes(key),
+);
 
 export function permissionActionsSchemaFor(kind: ResourceKind): z.ZodType<PermissionActions> {
   switch (kind) {

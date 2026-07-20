@@ -16,6 +16,12 @@
  * are always concrete. `system:` grants are always concrete and validated
  * against the v1 closed set. Deny-by-default: anything unparseable never
  * matches anything.
+ *
+ * Reserved keys: meta's `RESERVED_SYSTEM_ACTION_KEYS` (automations.manage,
+ * webhooks.manage, manifests.manage, sql.run) are deferred features with no
+ * enforcement point in v1. The grammar here still accepts them — stored
+ * grants must keep round-tripping — but no permissions UI may offer them;
+ * grantable lists come from meta's `GRANTABLE_SYSTEM_ACTION_KEYS`.
  */
 
 import {
