@@ -81,9 +81,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('notifications'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('user_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
+    .addColumn('user_id', c.id, (col) => col.notNull())
     .addColumn('kind', c.str(60), (col) => col.notNull())
     .addColumn('actor_label', c.str(120), (col) => col.notNull().defaultTo('Adminium'))
     .addColumn('title', c.str(200), (col) => col.notNull())
@@ -92,6 +90,9 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('action_url', c.str(500))
     .addColumn('read_at', c.ts)
     .addColumn('created_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_notifications_user_id', ['user_id'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
     .execute();
   await db.schema
     .createIndex('idx_adminium_notifications_user_read_created')
@@ -102,12 +103,13 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   await db.schema
     .createTable(metaTable('notification_prefs'))
     .ifNotExists()
-    .addColumn('user_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
+    .addColumn('user_id', c.id, (col) => col.notNull())
     .addColumn('event_key', c.str(80), (col) => col.notNull())
     .addColumn('channels', c.json, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
     .addPrimaryKeyConstraint('pk_adminium_notification_prefs', ['user_id', 'event_key'])
+    .addForeignKeyConstraint('fk_adminium_notification_prefs_user_id', ['user_id'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
     .execute();
 }

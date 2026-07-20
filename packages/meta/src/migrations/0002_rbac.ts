@@ -31,12 +31,13 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('role_permissions'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('role_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('roles')}.id`).onDelete('cascade'),
-    )
+    .addColumn('role_id', c.id, (col) => col.notNull())
     .addColumn('resource_kind', c.str(10), (col) => col.notNull())
     .addColumn('resource_ref', c.str(255), (col) => col.notNull())
     .addColumn('actions', c.json, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_role_permissions_role_id', ['role_id'], metaTable('roles'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
     .execute();
   await db.schema
     .createIndex('uq_adminium_role_permissions_role_kind_ref')
@@ -48,17 +49,20 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   await db.schema
     .createTable(metaTable('user_roles'))
     .ifNotExists()
-    .addColumn('user_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
-    .addColumn('role_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('roles')}.id`).onDelete('cascade'),
-    )
-    .addColumn('granted_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('user_id', c.id, (col) => col.notNull())
+    .addColumn('role_id', c.id, (col) => col.notNull())
+    .addColumn('granted_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addPrimaryKeyConstraint('pk_adminium_user_roles', ['user_id', 'role_id'])
+    .addForeignKeyConstraint('fk_adminium_user_roles_user_id', ['user_id'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_user_roles_role_id', ['role_id'], metaTable('roles'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_user_roles_granted_by', ['granted_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
 
   await db.schema
@@ -68,16 +72,18 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('name', c.str(80), (col) => col.notNull())
     .addColumn('prefix', c.str(16), (col) => col.notNull())
     .addColumn('token_hash', c.str(64), (col) => col.notNull())
-    .addColumn('role_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('roles')}.id`).onDelete('cascade'),
-    )
-    .addColumn('created_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('role_id', c.id, (col) => col.notNull())
+    .addColumn('created_by', c.id)
     .addColumn('last_used_at', c.ts)
     .addColumn('expires_at', c.ts)
     .addColumn('revoked_at', c.ts)
     .addColumn('created_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_api_keys_role_id', ['role_id'], metaTable('roles'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_api_keys_created_by', ['created_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
   await db.schema
     .createIndex('uq_adminium_api_keys_token_hash')

@@ -102,5 +102,19 @@ for (const dialect of TEST_DIALECTS) {
       expect(await permissions.revoke(role.id, 'system', 'audit.read')).toBe(true);
       expect(await permissions.isAllowed(role.id, 'system', 'audit.read')).toBe(false);
     });
+
+    it('cascades matrix rows and assignments when the role row is deleted (real meta-internal FK)', async () => {
+      const roles = rolesRepo(t.meta);
+      const permissions = permissionsRepo(t.meta);
+      const users = usersRepo(t.meta);
+      const u = await users.create({ email: 'a@b.co', name: 'A' }, T0);
+      const role = await roles.create({ slug: 'editor', name: 'Editor' }, T0);
+      await permissions.grant(role.id, 'page', 'page_home', { view: true, edit: false });
+      await roles.assignToUser(u.id, role.id, null, T0);
+
+      await t.meta.db.deleteFrom('adminium_roles').where('id', '=', role.id).execute();
+      expect(await permissions.listForRole(role.id)).toEqual([]);
+      expect(await roles.rolesForUser(u.id)).toEqual([]);
+    });
   });
 }
