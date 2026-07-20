@@ -134,11 +134,11 @@ async function createDemo(h: Harness): Promise<string> {
   return (res.json() as { data: { connectionId: string } }).data.connectionId;
 }
 
-/** The page set the generator persisted, as `{ type, slug, widgets }`. */
+/** The page set the generator persisted, as `{ type, slug, title, widgets }`. */
 async function generatedPages(
   h: Harness,
   connectionId: string,
-): Promise<{ type: string; slug: string; widgets: string[] }[]> {
+): Promise<{ type: string; slug: string; title: string; widgets: string[] }[]> {
   const res = await h.app.inject({
     method: 'POST',
     url: `/api/v1/connections/${connectionId}/generate`,
@@ -151,6 +151,7 @@ async function generatedPages(
     return {
       type: page.type,
       slug: page.slug,
+      title: page.title,
       widgets: (config?.layout?.items ?? []).map((item) => item.widget),
     };
   });
@@ -403,6 +404,32 @@ describe('the demo database earns its §3.1 page types (acceptance criterion #2)
     for (const slug of ['projects', 'tasks', 'project-phases', 'allocations']) {
       expect(bySlug.get(slug)?.type).toBe('page-crud');
     }
+  }, 60_000);
+
+  it('keeps the desktop E2E nav contract — one page titled exactly "Employees", the CRUD grid', async () => {
+    // apps/e2e/tests-desktop/helpers/flow.ts#openEmployeesGrid clicks the
+    // Primary-nav link named EXACTLY "Employees" and then waits for data-grid
+    // rows (role=rowgroup > row). That walk only works while
+    //   (a) the employees CRUD page keeps that exact title (nav serves the
+    //       stored title — apps/server/src/generate/run.ts), and
+    //   (b) no other page claims it. The demo also generates "Employees
+    //       Dashboard" (Workspace section, listed BEFORE People) and
+    //       "Employees Directory" — which is why the helper cannot use a
+    //       substring match: /Employees/.first() resolves to the dashboard,
+    //       a page with no grid (the CI failure this test pins).
+    t = await harness();
+    const connectionId = await createDemo(t);
+    const pages = await generatedPages(t, connectionId);
+
+    const employeesTitled = pages.filter((page) => page.title === 'Employees');
+    expect(employeesTitled).toHaveLength(1);
+    expect(employeesTitled[0]).toMatchObject({ slug: 'employees', type: 'page-crud' });
+
+    // The ambiguity sources the exact match exists to dodge. If a rename ever
+    // retires these titles, update flow.ts's comment — not just this test.
+    const titles = pages.map((page) => page.title);
+    expect(titles).toContain('Employees Dashboard');
+    expect(titles).toContain('Employees Directory');
   }, 60_000);
 
   it('is deterministic — a re-seeded file generates a byte-identical page set', async () => {

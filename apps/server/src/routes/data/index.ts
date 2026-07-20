@@ -68,23 +68,90 @@ interface DataContext {
   unmasked: boolean;
 }
 
-/** PG SQLSTATE / SQLite message → §1.4 envelope codes for inline form errors (§2.7.2). */
-function mapDbError(error: unknown): never {
+/** PG SQLSTATE / MySQL errno symbol / SQLite message → §1.4 envelope codes for inline form errors (§2.7.2). */
+export function mapDbError(error: unknown): never {
   const dbError = error as { code?: string; detail?: string; constraint?: string; message?: string };
   const message = typeof dbError.message === 'string' ? dbError.message : '';
-  if (dbError.code === '23505' || message.includes('UNIQUE constraint failed')) {
+  if (
+    dbError.code === '23505' ||
+    dbError.code === 'ER_DUP_ENTRY' ||
+    message.includes('UNIQUE constraint failed')
+  ) {
     throw new ConflictError('A record with this value already exists.', 'UNIQUE_VIOLATION', {
       constraint: dbError.constraint ?? null,
       detail: dbError.detail ?? null,
     });
   }
-  if (dbError.code === '23503' || message.includes('FOREIGN KEY constraint failed')) {
+  if (
+    dbError.code === '23503' ||
+    dbError.code === 'ER_NO_REFERENCED_ROW' ||
+    dbError.code === 'ER_NO_REFERENCED_ROW_2' ||
+    dbError.code === 'ER_ROW_IS_REFERENCED' ||
+    dbError.code === 'ER_ROW_IS_REFERENCED_2' ||
+    message.includes('FOREIGN KEY constraint failed')
+  ) {
     throw new ConflictError('The change violates a foreign-key constraint.', 'FK_VIOLATION', {
       constraint: dbError.constraint ?? null,
       detail: dbError.detail ?? null,
     });
   }
   throw error as Error;
+}
+
+/**
+ * INSERT one row and return the STORED row (defaults resolved), per dialect.
+ *
+ * Postgres and SQLite do it in one round trip with `RETURNING *`. MySQL has
+ * no RETURNING — kysely's MysqlQueryCompiler still compiles the clause, so
+ * `.returningAll()` dies with ER_PARSE_ERROR 1064 ("near 'returning *'"),
+ * which 500'd every generated-app create on mysql (e2e c5). Instead, insert
+ * bare and re-select by key (05 §4.2, mirrored by the adapter-mysql live
+ * suite): prefer the CLIENT-PROVIDED PK values whenever the payload carries
+ * them — provided keys cover char/uuid PKs (northwind customers, char(5))
+ * and composite PKs (order_details) where `LAST_INSERT_ID()` is 0 — and fall
+ * back to the driver's `insertId` only for a single missing auto-increment
+ * column. A NULL PK value counts as "not provided": that is mysql's own
+ * "generate it" spelling. If the new row is unaddressable (multi-column
+ * DB-generated key, non-auto default), echo the payload rather than guess.
+ */
+export async function insertRow(
+  db: Kysely<SourceDatabase>,
+  dialect: Dialect,
+  table: ResolvedTable,
+  values: Row,
+): Promise<Row> {
+  if (dialect !== 'mysql') {
+    return (await db
+      .insertInto(table.id)
+      .values(values as never)
+      .returningAll()
+      .executeTakeFirstOrThrow()) as Row;
+  }
+  const result = await db
+    .insertInto(table.id)
+    .values(values as never)
+    .executeTakeFirstOrThrow();
+  const pk: Row = {};
+  const missing: string[] = [];
+  for (const name of table.primaryKey) {
+    const provided = values[name];
+    if (provided === undefined || provided === null) missing.push(name);
+    else pk[name] = provided;
+  }
+  if (missing.length > 0) {
+    // kysely's mysql driver leaves insertId undefined when the packet
+    // reports 0 (i.e. no auto-increment column took part in this insert).
+    const insertId = result.insertId;
+    if (missing.length > 1 || insertId === undefined || insertId <= 0n) {
+      return { ...values };
+    }
+    // Bind as a plain number while it is exactly representable (the driver
+    // returns bigint); past 2^53 fall back to the decimal string — mysql
+    // still resolves the PK lookup over an implicit conversion.
+    pk[missing[0] as string] =
+      insertId <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(insertId) : insertId.toString();
+  }
+  return (await fetchByPk(db, table, pk)) ?? { ...values };
 }
 
 export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
@@ -496,11 +563,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const values = allowlistValues(ctx, request.body.values);
         let inserted: Row;
         try {
-          inserted = (await ctx.db
-            .insertInto(ctx.table.id)
-            .values(values as never)
-            .returningAll()
-            .executeTakeFirstOrThrow()) as Row;
+          inserted = await insertRow(ctx.db, ctx.dialect, ctx.table, values);
         } catch (error) {
           mapDbError(error);
         }

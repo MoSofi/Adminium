@@ -7,7 +7,7 @@
  *
  * | helper   | PostgreSQL   | MySQL/MariaDB | SQLite    |
  * |----------|--------------|---------------|-----------|
- * | id       | char(36)     | char(36)      | char(36)  |
+ * | id       | varchar(36)  | char(36)      | char(36)  |
  * | str(n)   | varchar(n)   | varchar(n)    | text      |
  * | text     | text         | text          | text      |
  * | json     | jsonb        | json          | text      |
@@ -58,7 +58,21 @@ export function columnHelpers(dialect: MetaDialect): ColumnHelpers {
   };
   return {
     dialect,
-    id: sql`char(36)`,
+    // Ids are type-prefixed ULIDs of VARIABLE length (3-4 char prefix + '_' +
+    // 26 ULID chars, e.g. usr_… = 30, view_… = 31). Postgres `char(36)`
+    // (bpchar) blank-pads to 36 on write and hands the padding back on every
+    // read — 'view_…' comes back as 'view_…     ', breaking id round-trips.
+    // MySQL strips CHAR pad spaces at retrieval and SQLite ignores the length
+    // entirely, so only Postgres deviates from the 07-meta-store.md §2.1 table.
+    //
+    // DECISION (2026-07-20, pre-release): this change alters the DDL that the
+    // already-written migrations 0001–0009 emit on postgres, with no
+    // compensating ALTER, and the checksum ledger cannot see it (it hashes
+    // migration sources, not this helper). That is acceptable exactly once:
+    // no Adminium release exists and no deployed pg meta store predates it.
+    // After v1.0 ships, a column-type change like this MUST ship as a new
+    // migration instead — never edit this helper's emitted types again.
+    id: dialect === 'postgres' ? ('varchar(36)' as ColumnDataType) : sql`char(36)`,
     str,
     text: 'text',
     json: dialect === 'postgres' ? 'jsonb' : dialect === 'mysql' ? 'json' : 'text',

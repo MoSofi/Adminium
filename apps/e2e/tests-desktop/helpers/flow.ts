@@ -74,11 +74,20 @@ export async function waitForAppShell(page: Page): Promise<void> {
 
 /** Open the demo Employees data page and assert its grid renders rows (UI read). */
 export async function openEmployeesGrid(page: Page): Promise<void> {
+  // Exact name, because the generated nav holds THREE Employees links —
+  // "Employees Dashboard" (Workspace section, listed first), "Employees" (the
+  // page-crud grid this walk needs) and "Employees Directory" (org chart).
+  // `/Employees/…first()` lands on the dashboard, which renders stat cards and
+  // charts but no grid, so the row wait below would time out.
+  // apps/server/test/desktop-demo.test.ts pins this contract locally: exactly
+  // one generated page is titled "Employees", and it is the page-crud one.
   await page
     .getByRole('navigation', { name: 'Primary' })
-    .getByRole('link', { name: /Employees/ })
-    .first()
+    .getByRole('link', { name: 'Employees', exact: true })
     .click();
+  // Wrong-page guard — without it, landing anywhere grid-less surfaces as an
+  // opaque "no rows" timeout (the exact failure mode the exact match fixes).
+  await expect(page, 'the "Employees" nav link must open the CRUD page').toHaveURL(/\/p\/employees$/);
   await expect(page.getByRole('rowgroup').getByRole('row').first()).toBeVisible({ timeout: 30_000 });
 }
 

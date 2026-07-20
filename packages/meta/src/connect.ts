@@ -34,7 +34,15 @@ export interface MetaDb {
 
 function build(dialect: MetaDialect, kyselyDialect: Dialect): MetaDb {
   return {
-    db: new Kysely<MetaDB>({ dialect: kyselyDialect, plugins: [new CamelCasePlugin()] }),
+    db: new Kysely<MetaDB>({
+      dialect: kyselyDialect,
+      // Case-mapping is for COLUMN names only. Without maintainNestedObjectKeys
+      // the plugin also recursively camelCases plain-object VALUES — which
+      // silently corrupts driver-decoded JSON payloads (pg `jsonb` and mysql2
+      // `json` return parsed objects): a stored {"en_US": …} label came back
+      // {"enUS": …}. SQLite never hit it because its JSON is text.
+      plugins: [new CamelCasePlugin({ maintainNestedObjectKeys: true })],
+    }),
     dialect,
   };
 }

@@ -20,14 +20,53 @@ export function packJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-/** Reads may come back parsed (PG jsonb) or as a string (SQLite text). */
+/**
+ * Reads may come back as serialized text (SQLite `text` columns) or already
+ * decoded by the driver (`pg` parses `jsonb`, `mysql2` parses `json` unless
+ * `jsonStrings: true`). The decoded shape includes bare scalars: a stored
+ * `"violet"` arrives as the JS string `violet`, which is not parseable JSON —
+ * so strings that fail to parse are the driver-decoded value and returned
+ * as-is. (Residual ambiguity: a *stored JSON string* whose content is itself
+ * valid JSON — e.g. the string `"123"` — is indistinguishable from serialized
+ * text once decoded. No meta payload stores such values; SQLite is unaffected
+ * because its text column always carries the serialized form.)
+ */
 export function readJson<T = unknown>(value: unknown): T {
-  return (typeof value === 'string' ? JSON.parse(value) : value) as T;
+  if (typeof value !== 'string') return value as T;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return value as T;
+  }
 }
 
 export function readJsonOrNull<T = unknown>(value: unknown): T | null {
   if (value === null || value === undefined) return null;
   return readJson<T>(value);
+}
+
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.keys(record)
+        .sort()
+        .map((k) => [k, sortKeysDeep(record[k])]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Dialect-stable structural equality for JSON payloads. Comparing serialized
+ * strings is NOT portable: pg `jsonb` and mysql `json` normalize documents
+ * (object key order is not preserved), so a round-tripped value rarely
+ * re-serializes to the text that was written. Canonicalize (deep-sorted keys)
+ * before comparing.
+ */
+export function jsonEquals(a: unknown, b: unknown): boolean {
+  return JSON.stringify(sortKeysDeep(a)) === JSON.stringify(sortKeysDeep(b));
 }
 
 /** PG boolean / MySQL tinyint / SQLite integer → JS boolean. */

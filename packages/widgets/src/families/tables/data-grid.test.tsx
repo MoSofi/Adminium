@@ -39,6 +39,16 @@ describe('DataGrid', () => {
     expect(screen.queryByText('ID')).toBeNull();
   });
 
+  it('exposes body rows inside a rowgroup — the locator contract the E2E grids poll', () => {
+    // Both Playwright suites wait on getByRole('rowgroup').getByRole('row')
+    // for page-crud grids (apps/e2e/tests/helpers.ts, apps/e2e/tests-desktop/
+    // helpers/flow.ts). The header row lives OUTSIDE the rowgroup by design,
+    // so the rowgroup must contain exactly the data rows.
+    render(<DataGrid columns={columns} rows={rows} />);
+    const body = screen.getByRole('rowgroup');
+    expect(within(body).getAllByRole('row')).toHaveLength(rows.length);
+  });
+
   it('client sort: money column sorts NUMERICALLY over string values (mrr fix)', async () => {
     const user = userEvent.setup();
     render(<DataGrid columns={columns} rows={rows} />);
