@@ -111,6 +111,21 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.findById(view.id)).toBeNull();
     });
 
+    it('cascades views when the owning user or parent page row is deleted (real meta-internal FK)', async () => {
+      const repo = viewsRepo(t.meta);
+      const mine = await repo.create({ pageId, userId: ava, name: 'Mine', config: gridConfig('m') });
+      const shared = await repo.create({ pageId, userId: null, name: 'Shared', config: gridConfig('s') });
+
+      // views.user_id FK: the owner's views go, shared (user_id NULL) views stay.
+      await t.meta.db.deleteFrom('adminium_users').where('id', '=', ava).execute();
+      expect(await repo.findById(mine.id)).toBeNull();
+      expect(await repo.findById(shared.id)).not.toBeNull();
+
+      // views.page_id FK: deleting the page takes the remaining views with it.
+      await t.meta.db.deleteFrom('adminium_pages').where('id', '=', pageId).execute();
+      expect(await repo.findById(shared.id)).toBeNull();
+    });
+
     // --- dashboard layout overrides (kind: 'layout') ------------------------
 
     const layoutConfig = (id: string) => ({

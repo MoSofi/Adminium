@@ -37,9 +37,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   await db.schema
     .createTable(metaTable('user_prefs'))
     .ifNotExists()
-    .addColumn('user_id', c.id, (col) =>
-      col.primaryKey().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
+    .addColumn('user_id', c.id, (col) => col.primaryKey())
     .addColumn('theme', c.str(10))
     .addColumn('accent', c.str(10))
     .addColumn('density', c.str(12))
@@ -47,6 +45,9 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('dir', c.str(3))
     .addColumn('ui_state', c.json)
     .addColumn('updated_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_user_prefs_user_id', ['user_id'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
     .execute();
 
   await db.schema
@@ -54,15 +55,16 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
     .addColumn('token_hash', c.str(64), (col) => col.notNull())
-    .addColumn('user_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
+    .addColumn('user_id', c.id, (col) => col.notNull())
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('expires_at', c.ts, (col) => col.notNull())
     .addColumn('last_seen_at', c.ts, (col) => col.notNull())
     .addColumn('ip', c.str(45))
     .addColumn('user_agent', c.str(300))
     .addColumn('revoked_at', c.ts)
+    .addForeignKeyConstraint('fk_adminium_sessions_user_id', ['user_id'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
     .execute();
   await db.schema
     .createIndex('uq_adminium_sessions_token_hash')
@@ -85,14 +87,15 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('password_resets'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('user_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
+    .addColumn('user_id', c.id, (col) => col.notNull())
     .addColumn('kind', c.str(10), (col) => col.notNull())
     .addColumn('token_hash', c.str(64), (col) => col.notNull())
     .addColumn('expires_at', c.ts, (col) => col.notNull())
     .addColumn('used_at', c.ts)
     .addColumn('created_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_password_resets_user_id', ['user_id'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
     .execute();
   await db.schema
     .createIndex('uq_adminium_password_resets_token_hash')
@@ -107,8 +110,9 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('key', c.str(120), (col) => col.primaryKey())
     .addColumn('value', c.json, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
-    .addColumn('updated_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
+    .addColumn('updated_by', c.id)
+    .addForeignKeyConstraint('fk_adminium_settings_updated_by', ['updated_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
     )
     .execute();
 }

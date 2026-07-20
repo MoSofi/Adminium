@@ -11,8 +11,12 @@
  * pre-release): stripping those 29 index guards changed 0001–0007's checksums.
  * Acceptable exactly once — no release exists, a MySQL meta store could never
  * have migrated at all (this parse error, first caught by CI's first-ever
- * [mysql] meta leg), and dev stores re-init. After v1.0, checksum-changing
- * edits are forbidden; ship compensating migrations instead.
+ * [mysql] meta leg), and dev stores re-init. The same 2026-07-20 window also
+ * converted 0001–0006's 47 column-level REFERENCES clauses — which MySQL
+ * parses and silently discards, leaving a MySQL meta store with zero
+ * referential integrity — to named table-level `fk_adminium_*` constraints.
+ * After v1.0, checksum-changing edits are forbidden; ship compensating
+ * migrations instead.
  */
 
 import type { Kysely } from 'kysely';

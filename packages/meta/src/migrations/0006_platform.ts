@@ -16,12 +16,8 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('llm_runs'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('connection_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('connections')}.id`).onDelete('cascade'),
-    )
-    .addColumn('snapshot_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('schema_snapshots')}.id`).onDelete('cascade'),
-    )
+    .addColumn('connection_id', c.id, (col) => col.notNull())
+    .addColumn('snapshot_id', c.id, (col) => col.notNull())
     .addColumn('mode', c.str(8), (col) => col.notNull())
     .addColumn('provider', c.str(20))
     .addColumn('model', c.str(60))
@@ -32,16 +28,32 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('validation_status', c.str(8), (col) => col.notNull().defaultTo('pending'))
     .addColumn('validation_errors', c.json)
     .addColumn('applied_at', c.ts)
-    .addColumn('applied_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('applied_by', c.id)
     .addColumn('tokens_in', c.int)
     .addColumn('tokens_out', c.int)
     .addColumn('duration_ms', c.int)
-    .addColumn('created_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('created_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint(
+      'fk_adminium_llm_runs_connection_id',
+      ['connection_id'],
+      metaTable('connections'),
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_adminium_llm_runs_snapshot_id',
+      ['snapshot_id'],
+      metaTable('schema_snapshots'),
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_llm_runs_applied_by', ['applied_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
+    .addForeignKeyConstraint('fk_adminium_llm_runs_created_by', ['created_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
   await db.schema
     .createIndex('idx_adminium_llm_runs_prompt_hash')
@@ -53,29 +65,33 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('automations'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('connection_id', c.id, (col) =>
-      col.references(`${metaTable('connections')}.id`).onDelete('cascade'),
-    )
+    .addColumn('connection_id', c.id)
     .addColumn('name', c.str(120), (col) => col.notNull())
     .addColumn('description', c.text)
     .addColumn('enabled', c.bool, (col) => col.notNull().defaultTo(c.boolDefault(false)))
     .addColumn('trigger', c.json, (col) => col.notNull())
     .addColumn('graph', c.json, (col) => col.notNull())
     .addColumn('last_run_at', c.ts)
-    .addColumn('created_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('created_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint(
+      'fk_adminium_automations_connection_id',
+      ['connection_id'],
+      metaTable('connections'),
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_automations_created_by', ['created_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
 
   await db.schema
     .createTable(metaTable('automation_runs'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('automation_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('automations')}.id`).onDelete('cascade'),
-    )
+    .addColumn('automation_id', c.id, (col) => col.notNull())
     // Soft ref — job rows are GC'd sooner (§3.23).
     .addColumn('job_id', c.str(36))
     .addColumn('status', c.str(10), (col) => col.notNull())
@@ -84,6 +100,13 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('error', c.text)
     .addColumn('started_at', c.ts, (col) => col.notNull())
     .addColumn('finished_at', c.ts)
+    .addForeignKeyConstraint(
+      'fk_adminium_automation_runs_automation_id',
+      ['automation_id'],
+      metaTable('automations'),
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
     .execute();
   await db.schema
     .createIndex('idx_adminium_automation_runs_auto_started')
@@ -95,9 +118,7 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('scheduled_reports'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('page_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('pages')}.id`).onDelete('cascade'),
-    )
+    .addColumn('page_id', c.id, (col) => col.notNull())
     .addColumn('name', c.str(120), (col) => col.notNull())
     .addColumn('schedule', c.json, (col) => col.notNull())
     .addColumn('recipients', c.json, (col) => col.notNull())
@@ -105,11 +126,19 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('enabled', c.bool, (col) => col.notNull().defaultTo(c.boolDefault(true)))
     .addColumn('last_run_at', c.ts)
     .addColumn('next_run_at', c.ts)
-    .addColumn('created_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('created_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_scheduled_reports_page_id', ['page_id'], metaTable('pages'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_adminium_scheduled_reports_created_by',
+      ['created_by'],
+      metaTable('users'),
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
     .execute();
   await db.schema
     .createIndex('idx_adminium_scheduled_reports_next')
@@ -121,23 +150,30 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('exports'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('connection_id', c.id, (col) =>
-      col.references(`${metaTable('connections')}.id`).onDelete('set null'),
-    )
-    .addColumn('requested_by', c.id, (col) =>
-      col.notNull().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
+    .addColumn('connection_id', c.id)
+    .addColumn('requested_by', c.id, (col) => col.notNull())
     .addColumn('source', c.json, (col) => col.notNull())
     .addColumn('format', c.str(6), (col) => col.notNull())
     .addColumn('status', c.str(12), (col) => col.notNull().defaultTo('processing'))
-    .addColumn('file_id', c.id, (col) =>
-      col.references(`${metaTable('files')}.id`).onDelete('set null'),
-    )
+    .addColumn('file_id', c.id)
     .addColumn('row_count', c.bigint)
     .addColumn('error', c.text)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('completed_at', c.ts)
     .addColumn('expires_at', c.ts)
+    .addForeignKeyConstraint(
+      'fk_adminium_exports_connection_id',
+      ['connection_id'],
+      metaTable('connections'),
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
+    .addForeignKeyConstraint('fk_adminium_exports_requested_by', ['requested_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_exports_file_id', ['file_id'], metaTable('files'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
   await db.schema
     .createIndex('idx_adminium_exports_user_created')
@@ -154,26 +190,38 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .createTable(metaTable('imports'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('connection_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('connections')}.id`).onDelete('cascade'),
-    )
+    .addColumn('connection_id', c.id, (col) => col.notNull())
     .addColumn('table_name', c.str(200), (col) => col.notNull())
-    .addColumn('requested_by', c.id, (col) =>
-      col.notNull().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
-    .addColumn('file_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('files')}.id`).onDelete('cascade'),
-    )
+    .addColumn('requested_by', c.id, (col) => col.notNull())
+    .addColumn('file_id', c.id, (col) => col.notNull())
     .addColumn('mapping', c.json, (col) => col.notNull())
     .addColumn('options', c.json, (col) => col.notNull())
     .addColumn('status', c.str(12), (col) => col.notNull().defaultTo('validating'))
     .addColumn('stats', c.json)
-    .addColumn('error_report_file_id', c.id, (col) =>
-      col.references(`${metaTable('files')}.id`).onDelete('set null'),
-    )
+    .addColumn('error_report_file_id', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('started_at', c.ts)
     .addColumn('finished_at', c.ts)
+    .addForeignKeyConstraint(
+      'fk_adminium_imports_connection_id',
+      ['connection_id'],
+      metaTable('connections'),
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_imports_requested_by', ['requested_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint('fk_adminium_imports_file_id', ['file_id'], metaTable('files'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
+    .addForeignKeyConstraint(
+      'fk_adminium_imports_error_report_file_id',
+      ['error_report_file_id'],
+      metaTable('files'),
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
     .execute();
 
   await db.schema
@@ -187,11 +235,12 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('blocks', c.json, (col) => col.notNull())
     .addColumn('enabled', c.bool, (col) => col.notNull().defaultTo(c.boolDefault(true)))
     .addColumn('is_builtin_copy', c.bool, (col) => col.notNull().defaultTo(c.boolDefault(false)))
-    .addColumn('updated_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('updated_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_email_templates_updated_by', ['updated_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
   await db.schema
     .createIndex('uq_adminium_email_templates_key_locale')
@@ -209,20 +258,19 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('secret_encrypted', c.text, (col) => col.notNull())
     .addColumn('events', c.json, (col) => col.notNull())
     .addColumn('enabled', c.bool, (col) => col.notNull().defaultTo(c.boolDefault(true)))
-    .addColumn('created_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('created_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_webhooks_created_by', ['created_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
 
   await db.schema
     .createTable(metaTable('webhook_deliveries'))
     .ifNotExists()
     .addColumn('id', c.id, (col) => col.primaryKey())
-    .addColumn('webhook_id', c.id, (col) =>
-      col.notNull().references(`${metaTable('webhooks')}.id`).onDelete('cascade'),
-    )
+    .addColumn('webhook_id', c.id, (col) => col.notNull())
     .addColumn('event', c.str(80), (col) => col.notNull())
     .addColumn('payload', c.json, (col) => col.notNull())
     .addColumn('attempt', c.int, (col) => col.notNull().defaultTo(1))
@@ -231,6 +279,13 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('response_ms', c.int)
     .addColumn('error', c.text)
     .addColumn('created_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint(
+      'fk_adminium_webhook_deliveries_webhook_id',
+      ['webhook_id'],
+      metaTable('webhooks'),
+      ['id'],
+      (cb) => cb.onDelete('cascade'),
+    )
     .execute();
   await db.schema
     .createIndex('idx_adminium_webhook_deliveries_hook_created')
@@ -246,11 +301,12 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('name', c.str(120), (col) => col.notNull())
     .addColumn('description', c.text)
     .addColumn('environments', c.json, (col) => col.notNull())
-    .addColumn('created_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('created_by', c.id)
     .addColumn('created_at', c.ts, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_feature_flags_created_by', ['created_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
   await db.schema
     .createIndex('uq_adminium_feature_flags_key')
@@ -268,15 +324,21 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .addColumn('source', c.str(12), (col) => col.notNull())
     .addColumn('manifest', c.json, (col) => col.notNull())
     .addColumn('license_key_encrypted', c.text)
-    .addColumn('connection_id', c.id, (col) =>
-      col.references(`${metaTable('connections')}.id`).onDelete('set null'),
-    )
+    .addColumn('connection_id', c.id)
     .addColumn('status', c.str(10), (col) => col.notNull().defaultTo('installed'))
-    .addColumn('installed_by', c.id, (col) =>
-      col.references(`${metaTable('users')}.id`).onDelete('set null'),
-    )
+    .addColumn('installed_by', c.id)
     .addColumn('installed_at', c.ts, (col) => col.notNull())
     .addColumn('updated_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint(
+      'fk_adminium_manifests_connection_id',
+      ['connection_id'],
+      metaTable('connections'),
+      ['id'],
+      (cb) => cb.onDelete('set null'),
+    )
+    .addForeignKeyConstraint('fk_adminium_manifests_installed_by', ['installed_by'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('set null'),
+    )
     .execute();
   await db.schema
     .createIndex('uq_adminium_manifests_manifest_key')
@@ -288,10 +350,11 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   await db.schema
     .createTable(metaTable('changelog_seen'))
     .ifNotExists()
-    .addColumn('user_id', c.id, (col) =>
-      col.primaryKey().references(`${metaTable('users')}.id`).onDelete('cascade'),
-    )
+    .addColumn('user_id', c.id, (col) => col.primaryKey())
     .addColumn('version', c.str(20), (col) => col.notNull())
     .addColumn('seen_at', c.ts, (col) => col.notNull())
+    .addForeignKeyConstraint('fk_adminium_changelog_seen_user_id', ['user_id'], metaTable('users'), ['id'], (cb) =>
+      cb.onDelete('cascade'),
+    )
     .execute();
 }
