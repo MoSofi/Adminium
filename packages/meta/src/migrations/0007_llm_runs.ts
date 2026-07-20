@@ -66,7 +66,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   // Run history is listed per connection, newest first (§10.1).
   await db.schema
     .createIndex('idx_adminium_llm_runs_conn_created')
-    .ifNotExists()
     .on(table)
     .columns(['connection_id', 'created_at'])
     .execute();

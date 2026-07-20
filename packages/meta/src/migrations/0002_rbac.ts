@@ -22,7 +22,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_roles_slug')
-    .ifNotExists()
     .on(metaTable('roles'))
     .columns(['slug'])
     .unique()
@@ -41,7 +40,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_role_permissions_role_kind_ref')
-    .ifNotExists()
     .on(metaTable('role_permissions'))
     .columns(['role_id', 'resource_kind', 'resource_ref'])
     .unique()
@@ -83,7 +81,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_api_keys_token_hash')
-    .ifNotExists()
     .on(metaTable('api_keys'))
     .columns(['token_hash'])
     .unique()

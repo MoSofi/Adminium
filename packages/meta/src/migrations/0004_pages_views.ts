@@ -39,7 +39,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_pages_conn_slug')
-    .ifNotExists()
     .on(metaTable('pages'))
     .columns(['connection_id', 'slug'])
     .unique()
@@ -63,7 +62,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('uq_adminium_views_page_user_name')
-    .ifNotExists()
     .on(metaTable('views'))
     .columns(['page_id', 'user_id', 'name'])
     .unique()

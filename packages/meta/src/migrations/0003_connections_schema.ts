@@ -30,7 +30,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_files_sha256')
-    .ifNotExists()
     .on(metaTable('files'))
     .columns(['sha256'])
     .execute();
@@ -82,7 +81,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_schema_snapshots_conn_created')
-    .ifNotExists()
     .on(metaTable('schema_snapshots'))
     .columns(['connection_id', 'created_at'])
     .execute();
@@ -110,7 +108,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
     .execute();
   await db.schema
     .createIndex('idx_adminium_schema_overrides_conn_table')
-    .ifNotExists()
     .on(metaTable('schema_overrides'))
     .columns(['connection_id', 'table_name'])
     .execute();
