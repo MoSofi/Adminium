@@ -184,8 +184,19 @@ jobs:
       # at job level as MAC_CSC_LINK so it cannot leak onto the Windows leg. The
       # `env.MAC_CSC_LINK != ''` guard is not "signing is optional on mac" — it
       # keeps a workflow_dispatch validation run (or a fork without the
-      # environment) from dying inside codesign; a real tag build without the
-      # secret still fails, loudly, at notarization.
+      # environment) from dying inside codesign.
+      #
+      # THIS COMMENT USED TO CLAIM that "a real tag build without the secret still
+      # fails, loudly, at notarization." IT DOES NOT, and believing it shipped an
+      # unsigned build to a draft release under a green check on 2026-07-21. When
+      # CSC_LINK is absent electron-builder logs `skipped macOS application code
+      # signing … 0 valid identities found` and carries on; it then does NOT invoke
+      # @electron/notarize at all, because there is no signature to notarize. So
+      # `mac.notarize: true` is silently inert rather than fatal, hardenedRuntime
+      # and the entitlements plist never apply, and the .app ships with Electron's
+      # ad-hoc linker placeholder signature. Nothing in the pipeline noticed.
+      # The "Verify macOS signing + notarization" step below is that missing
+      # backstop — it, not this gate, is what makes an unsigned mac build fail.
       - name: Enable macOS code signing
         if: matrix.platform == 'mac' && env.MAC_CSC_LINK != ''
         shell: bash
@@ -309,6 +320,127 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: pnpm --filter @adminium/desktop run dist --publish never
+
+      # ── Step 3.5: PROVE the macOS artifacts are actually shippable ────────────
+      #
+      # The §11 feed-file tripwire has a signing counterpart, and this is it. Added
+      # 2026-07-21 after an unsigned, un-notarized macOS build sailed into the
+      # desktop-v0.1.0 draft release with every job green (see the correction on
+      # the signing gate above for why nothing failed).
+      #
+      # WHY A SEPARATE STEP rather than trusting electron-builder: signing is
+      # BEST-EFFORT in electron-builder. Every failure mode it has — no cert, wrong
+      # cert, expired cert, notarization credentials absent — degrades to a warning
+      # and a successfully-built-but-unsignable artifact. The only reliable signal
+      # is to interrogate the finished .app with the same tools Gatekeeper uses.
+      #
+      # WHY IT MATTERS MORE THAN THE WINDOWS CASE: Windows shipping unsigned costs a
+      # SmartScreen interstitial the user can click through. macOS shipping unsigned
+      # is fatal — a quarantined ad-hoc-signed bundle is hard-blocked on Apple
+      # silicon ("Adminium is damaged and can't be opened"), and electron-updater
+      # verifies the signature on macOS zip updates, so auto-update breaks for every
+      # install too. There is no click-through.
+      #
+      # STRICTNESS IS REF-DEPENDENT, matching the release job's own gating: on a
+      # real desktop-v* tag any finding is a hard failure, so `needs: build` starves
+      # the release job and no unsigned asset can reach a Release. On a
+      # workflow_dispatch validation run (or a fork with no secrets) the same checks
+      # run and report as ::warning — the point of a dispatch run is to prove the
+      # build compiles, and dying here would make it useless for that.
+      - name: Verify macOS signing + notarization
+        if: matrix.platform == 'mac'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Read the expected identifier from the config rather than hardcoding it,
+          # so this cannot drift from electron-builder.yml — and so the check also
+          # proves electron-builder APPLIED the configured appId, not just that
+          # something got signed.
+          expected_id="$(awk '/^appId:/ {print $2; exit}' apps/desktop/electron-builder.yml)"
+          [ -n "$expected_id" ] || { echo "::error::could not read appId from electron-builder.yml"; exit 1; }
+          echo "Expected bundle identifier: $expected_id"
+
+          case "$GITHUB_REF" in
+            refs/tags/desktop-v*) strict=1 ;;
+            *) strict=0; echo "Not a desktop-v* tag — findings report as warnings" ;;
+          esac
+
+          failed=0
+          fail() {
+            if [ "$strict" -eq 1 ]; then
+              echo "::error::$1"
+              failed=1
+            else
+              echo "::warning::$1"
+            fi
+          }
+
+          shopt -s nullglob
+          # electron-builder stages x64 in dist/mac and arm64 in dist/mac-arm64.
+          apps=( apps/desktop/dist/mac*/*.app )
+          if [ ${#apps[@]} -eq 0 ]; then
+            echo "::error::no packaged .app found under apps/desktop/dist/mac*/ — packaging layout changed?"
+            exit 1
+          fi
+
+          for app in "${apps[@]}"; do
+            echo "──────── $app"
+            desc="$(codesign -dvvv "$app" 2>&1 || true)"
+
+            # The ad-hoc/linker-signed placeholder every unsigned Electron build
+            # carries. This is THE symptom of the 2026-07-21 failure.
+            if grep -qE 'flags=.*adhoc' <<<"$desc"; then
+              fail "$app is AD-HOC signed (Electron's linker placeholder) — Developer ID signing never ran"
+            fi
+            if ! grep -q '^Authority=Developer ID Application' <<<"$desc"; then
+              fail "$app carries no 'Developer ID Application' authority"
+            fi
+            if grep -q '^TeamIdentifier=not set' <<<"$desc"; then
+              fail "$app has no TeamIdentifier"
+            fi
+            # An unsigned bundle reports Identifier=Electron; a correctly signed one
+            # reports the configured appId.
+            actual_id="$(sed -n 's/^Identifier=//p' <<<"$desc" | head -1)"
+            if [ "$actual_id" != "$expected_id" ]; then
+              fail "$app signing identifier is '${actual_id:-<none>}', expected '$expected_id'"
+            fi
+
+            # Seal intact across every nested helper/framework. Catches the
+            # "no resources but signature indicates they must be present" state.
+            if ! out="$(codesign --verify --deep --strict --verbose=2 "$app" 2>&1)"; then
+              fail "$app fails codesign --verify --deep --strict: $out"
+            fi
+
+            # What Gatekeeper itself will decide on the user's machine.
+            if ! out="$(spctl -a -vvv -t exec "$app" 2>&1)"; then
+              fail "$app is REJECTED by Gatekeeper: $out"
+            elif ! grep -q 'source=Notarized Developer ID' <<<"$out"; then
+              fail "$app is accepted but not as Notarized Developer ID: $out"
+            fi
+
+            # Notarization must be stapled, not merely performed — a stapled ticket
+            # is what lets first launch succeed offline.
+            if ! out="$(xcrun stapler validate "$app" 2>&1)"; then
+              fail "$app has no stapled notarization ticket: $out"
+            fi
+          done
+
+          # The dmg is the human download path and is notarized/stapled separately
+          # from the .app inside it, so it needs its own ticket check. (The zip needs
+          # none — it is not a container format staples apply to; its .app was
+          # checked above, and that is what electron-updater consumes.)
+          for dmg in apps/desktop/dist/*.dmg; do
+            if ! out="$(xcrun stapler validate "$dmg" 2>&1)"; then
+              fail "$dmg has no stapled notarization ticket: $out"
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::macOS artifacts are NOT shippable — refusing to upload them"
+            exit 1
+          fi
+          echo "Verified: ${#apps[@]} app bundle(s) signed with Developer ID, notarized, and stapled"
 
       # electron-builder emits its full artifact set (dmg/zip, nsis, AppImage/deb/
       # rpm), the feed files, and .blockmaps into dist/. Ship the whole directory
