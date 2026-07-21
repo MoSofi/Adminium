@@ -124,13 +124,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-name: ${{ env.IMAGE }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-
       # The exit criterion for M10-T02 is "docker run boots to the first-run
       # wizard" — assert it against the built amd64 image rather than trusting a
       # green build. Boots with no meta store configured (embedded SQLite
@@ -221,6 +214,24 @@ jobs:
           ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
         run: docker compose --profile with-meta down -v || true
 
+      # Attest AFTER the smoke tests — never vouch for an image that has not
+      # booted. GitHub's attestation API rejects user-owned PRIVATE repos
+      # ("Feature not available…"), which failed the first v0.1.0 release, so
+      # the step is gated on visibility and arms itself when the repo is
+      # public. Provenance is a supply-chain guarantee, not a formality: when
+      # it can run and fails, the release stops here.
+      - name: Attest build provenance
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Note skipped attestation
+        if: ${{ github.event.repository.private }}
+        run: echo 'Repository is private — build provenance attestation skipped (GitHub does not support it for user-owned private repos).'
+
       # ── Only now is the image allowed to be a release ────────────────────────
       # Digest-addressed, so what gets tagged is byte-identical to what passed
       # above. If any step before this failed, the job stops here and `:latest`
@@ -298,7 +309,10 @@ jobs:
         if: steps.token.outputs.have == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_PROVENANCE: '1'
+          # npm --provenance needs a PUBLIC repo (same GitHub attestation
+          # backend that rejects private repos for the docker job). Publishing
+          # unattested from a private repo beats not publishing at all.
+          NPM_PROVENANCE: ${{ github.event.repository.private && '0' || '1' }}
         run: node scripts/release/publish-npm.mjs
 
       - name: Smoke test the published CLI
