@@ -1,6 +1,6 @@
 {
   "name": "@adminium/server",
-  "version": "0.1.0",
+  "version": "0.1.0-rc.1",
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
@@ -66,7 +66,7 @@
     "zod": "catalog:"
   },
   "//optionalDependencies": [
-    "The META-STORE drivers (07-meta-store.md; 01-architecture.md §4.2).",
+    "The META-STORE drivers (07-meta-store.md; 01-architecture.md \u00a74.2).",
     "src/meta/store.ts opens the meta store with a bare `await import('pg')` /",
     "`import('mysql2')`. They are declared HERE, on the server, and not merely",
     "reached through @adminium/adapter-postgres / -mysql, because a bare",
@@ -74,8 +74,8 @@
     "Dockerfile's `pnpm deploy --filter=@adminium/server --prod` produces an",
     "isolated tree where an adapter's own dependency lands under .pnpm and is",
     "unreachable from /app/dist. Without these the published image can run only",
-    "the embedded SQLite fallback that §3.1 tells people not to use in",
-    "production, while docker-compose.yml documents a postgres meta store — a",
+    "the embedded SQLite fallback that \u00a73.1 tells people not to use in",
+    "production, while docker-compose.yml documents a postgres meta store \u2014 a",
     "crash-loop under `restart: unless-stopped`, with the printed remedy",
     "(`npm install pg`) impossible inside a non-root image.",
     "OPTIONAL, not required: both are pure JS so they always install in",
