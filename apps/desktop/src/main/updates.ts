@@ -36,18 +36,45 @@ import type { UpdateMode } from './config.js';
 // ─── Feed & schedule constants (§11) ─────────────────────────────────────────
 
 /**
- * §11: the feed is the `adminium/adminium` repo's GitHub Releases. Desktop
+ * §11: the feed is the `MoSofi/Adminium` repo's GitHub Releases. Desktop
  * builds are tagged `desktop-vX.Y.Z` (electron-builder.yml `vPrefixedTagName:
  * false`, 11-T13) and only those releases carry `latest*.yml`, so the GitHub
  * provider resolves the newest desktop release and nothing else in the monorepo.
+ *
+ * ─── THIS OWNER/REPO IS A SECURITY BOUNDARY, not a cosmetic label ────────────
+ *
+ * Whatever repository is named here is trusted to hand a shipped install its next
+ * executable. `autoDownload` is false so a user click is required, but the prompt
+ * the user clicks is in-app and looks authentic; and on Windows the downloaded
+ * installer's Authenticode signature is NOT verified, because electron-updater's
+ * NsisUpdater skips verification whenever `publisherName` is absent from
+ * app-update.yml — which it is for as long as v1 Windows builds ship unsigned
+ * (electron-builder.yml `win`). The sha512 in `latest.yml` is no help: it comes
+ * from the same feed. So a wrong owner/repo here is a supply-chain hole, not a
+ * dead link.
+ *
+ * `adminium/adminium` — which this pointed at until 2026-07-21 — is a REAL
+ * GitHub organisation and repository belonging to an unrelated third party. It
+ * is not ours and never was. The real repository is `MoSofi/Adminium`.
+ *
+ * Keep this the ONE definition: {@link RELEASES_URL}, the offline-asset
+ * allowlist, and the updater test all derive from or assert against it, and
+ * apps/desktop/electron-builder.yml + apps/desktop/dev-app-update.yml carry the
+ * same owner/repo (YAML cannot import, so those two are checked by eye — change
+ * all three together or a packaged build's generated `app-update.yml` silently
+ * overrides what this file says).
  */
-export const UPDATE_FEED: UpdaterFeed = { provider: 'github', owner: 'adminium', repo: 'adminium' };
+export const UPDATE_FEED: UpdaterFeed = { provider: 'github', owner: 'MoSofi', repo: 'Adminium' };
 
 /**
  * §2.4 / §14 external-link policy: the human download page, offered when the
  * running package cannot self-replace (deb/rpm, {@link canSelfUpdate}).
+ *
+ * Derived from {@link UPDATE_FEED} rather than spelled out again — the two named
+ * the same third-party repo before, and a hand-written copy is exactly how the
+ * drift happened.
  */
-export const RELEASES_URL = 'https://github.com/adminium/adminium/releases';
+export const RELEASES_URL = `https://github.com/${UPDATE_FEED.owner}/${UPDATE_FEED.repo}/releases`;
 
 /** §11 `notify`: "check on launch (after a 30 s grace)". */
 export const LAUNCH_CHECK_GRACE_MS = 30_000;

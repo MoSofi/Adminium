@@ -10,15 +10,41 @@
 # better-sqlite3 and argon2 are native (.node) addons. The forked utilityProcess
 # runs Electron's bundled Node, whose ABI (NODE_MODULE_VERSION) differs from the
 # local Node every other suite in the repo runs at, so the workspace-shared
-# prebuild cannot be dlopen'd under Electron. §2.1 wants @electron/rebuild — but
-# read apps/desktop/package.json's //native-modules note first: a `postinstall`
-# rebuild here would rewrite the pnpm-SHARED better_sqlite3.node in place and turn
-# every Node-side suite in the repo red. The rebuild therefore belongs ONLY here,
-# where `npmRebuild: true` operates on electron-builder's STAGED, private copy of
-# node_modules against Electron's ABI, paired with `asarUnpack` so the resulting
-# .node files sit on disk (a .node inside an asar cannot be dlopen'd). This is
-# the half of §2.1's sentence the pnpm layout permits, and the half that ships —
-# it is what unblocks the packaged app's meta-store.
+# prebuild cannot be dlopen'd under Electron. §2.1 wants @electron/rebuild, and
+# `npmRebuild: true` below is where it runs — paired with `asarUnpack` so the
+# resulting .node files sit on disk (a .node inside an asar cannot be dlopen'd).
+# That is what unblocks the packaged app's meta-store.
+#
+# WHERE IT RUNS — corrected 2026-07-21. This comment used to claim the rebuild
+# operates on "electron-builder's STAGED, private copy of node_modules". It does
+# not, and no such copy exists at that point. app-builder-lib's
+# `installAppDependencies` calls `installOrRebuild(..., { appDir, ... })` and
+# `rebuild()` forks @electron/rebuild with `buildPath: appDir` — appDir being the
+# package directory being built, i.e. apps/desktop itself. The only staging
+# electron-builder does (`appOutDir`) happens LATER, in doPack. So the rebuild
+# walks apps/desktop/node_modules, whose better-sqlite3 and argon2 entries are
+# pnpm symlinks into the workspace-shared node_modules/.pnpm/… store, and
+# rewrites build/Release/better_sqlite3.node IN PLACE against Electron's ABI.
+#
+# CONSEQUENCE, stated rather than hidden: after any local `pack` or `dist`, the
+# shared addon is Electron-ABI and every Node-side suite in the repo
+# (apps/server, apps/e2e, packages/meta, packages/adapter-sqlite) fails to dlopen
+# it until you restore it:
+#
+#   pnpm rebuild better-sqlite3 argon2      # from the repo root, after pack/dist
+#
+# On CI this is harmless — the runner is thrown away — which is why the release
+# workflow needs no such step. The restore is a LOCAL developer obligation; see
+# apps/desktop/README.md "Packaging locally".
+#
+# This does NOT reopen the postinstall question: apps/desktop/package.json's
+# //native-modules note still rules out a `postinstall` rebuild, because that
+# would corrupt the shared addon on every `pnpm install` for everyone, not just
+# for whoever deliberately ran a packaging command. Isolating the rebuild
+# properly (a `pnpm deploy --filter @adminium/desktop` tree, which is a real
+# non-symlinked node_modules, plus a beforeBuild hook returning false) is the
+# real fix and is deliberately NOT taken here: it rewires the packaging pipeline
+# on a release path that has never once executed end-to-end.
 
 appId: ai.adminium.desktop
 productName: Adminium
@@ -31,9 +57,11 @@ asar: true
 asarUnpack:
   - "**/*.node"
 
-# Rebuild native deps for Electron's ABI in the staged app dir — see the header.
-# This is the ONLY sanctioned home for the @electron/rebuild step; never a
-# postinstall (apps/desktop/package.json //native-modules).
+# Rebuild native deps for Electron's ABI — see the header for WHERE that happens
+# (in apps/desktop/node_modules, i.e. the pnpm-shared addon) and the one-line
+# local restore afterwards. This is the ONLY sanctioned home for the
+# @electron/rebuild step; never a postinstall (apps/desktop/package.json
+# //native-modules).
 npmRebuild: true
 
 # `out/**` is electron-vite's four bundles (main/server/preload/renderer) plus the
@@ -97,10 +125,25 @@ linux:
   maintainer: Adminium <hello@adminium.dev>
   icon: resources/icons/icon.png
 
+# THE UPDATE FEED. electron-builder writes this block verbatim into the packaged
+# app's Contents/Resources/app-update.yml (it does so even under `--publish
+# never`), and it stamps the download URLs into the generated latest*.yml. So
+# whatever repository is named here is what a SHIPPED install polls for its next
+# executable — and on Windows, which ships unsigned for v1, electron-updater does
+# not verify the downloaded installer's signature at all (NsisUpdater skips the
+# check when `publisherName` is absent, and it is absent precisely because the
+# build is unsigned). A wrong owner/repo is therefore a supply-chain hole.
+#
+# `adminium/adminium` — the value here until 2026-07-21 — is a REAL GitHub
+# organisation and repository owned by an unrelated third party. The real
+# repository is MoSofi/Adminium. KEEP THIS IN LOCKSTEP with
+# apps/desktop/src/main/updates.ts (UPDATE_FEED) and apps/desktop/dev-app-update.yml;
+# the generated app-update.yml is what wins in a packaged build, so this file
+# disagreeing with updates.ts means updates.ts loses.
 publish:
   provider: github
-  owner: adminium
-  repo: adminium
+  owner: MoSofi
+  repo: Adminium
   # Desktop tags are `desktop-vX.Y.Z` (§11), NOT `vX.Y.Z` — they interleave with
   # the monorepo's npm/Docker releases. Without this the GitHub provider would
   # look for a `v`-prefixed tag and never find the feed.
