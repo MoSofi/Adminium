@@ -1,5 +1,26 @@
 /* @adminium/tokens — core semantic tokens. Values are canonical; see workplan/02-design-system.md §1.1.
-   The dark palette is hand-tuned, never derived from light values. */
+   The dark NEUTRAL palette in this file is authored independently of the light one, not derived
+   from it: the light/dark OKLCH lightness pairs sum to 1.120-1.223 (--bg 1.120, --surface 1.194,
+   --surface-3 1.223, --fg 1.184, --fg-muted 1.196, --fg-subtle 1.184), so no inversion, offset or other single
+   rule relates the two columns. That sentence covers THIS file only — the dark ACCENT ramp in
+   accents.css IS mechanically derived from the light accents, on purpose, and that file states
+   the recipe and why. Do not carry this claim across to it.
+
+   CONTRAST. Every foreground here clears WCAG 2.1 AA (4.5:1) against the WORST backdrop it is
+   actually painted on — which is not --surface, and not even --surface-3, but a translucent tint
+   composited over --surface-3: --surface-3 is a real background for tertiary text
+   (CalendarLegendFilter's `text-fg-subtle` chip has `hover:bg-surface-3`; CountBadge/DeltaPill/
+   AvatarStack paint `bg-surface-3 text-fg-muted`), and accent/semantic tints sit on top of it.
+   scripts/contrast-check.mjs measures every such pair across both themes, all 8 accents and the
+   exception scopes; do not change a value here without re-running it.
+
+   The two grey steps below moved together on purpose. --fg-subtle had to darken from #9a9aa5
+   (2.471:1 on --surface-3 — the single largest source of contrast failures in the app) far enough
+   to clear 4.5:1 on the tinted backdrops too. Holding --fg-muted still would have collapsed the
+   secondary/tertiary ladder into one grey, so --fg-muted followed it down. The result is a real
+   but narrower ladder — see THE TEXT-LADDER TRADE-OFF at the tokens below for every measured
+   number. AA on a 4-surface ramp with tints on top leaves much less room than the original
+   palette assumed. */
 :root {
   color-scheme: light;
   --bg: #f6f6f8;
@@ -9,22 +30,50 @@
   --border: #ececef;
   --border-strong: #e2e2e8;
   --fg: #191920;
-  --fg-muted: #6b6b76;
-  --fg-subtle: #9a9aa5;
+  /* THE TEXT-LADDER TRADE-OFF — read before "restoring" any separation here.
+     The three text tiers are closer together than they were, and that is the price of AA on this
+     palette, not an oversight. Measured now: muted <-> subtle 1.286:1 in light (was 1.890:1, back
+     when the pair was #6b6b76 / #9a9aa5) and 1.287:1 in dark (was 1.917:1, #9a9aa6 / #6a6a76);
+     fg <-> muted 1.997:1 light, 1.808:1 dark.
+     The rungs bunched because the BOTTOM of the ladder had to come up while the TOP could not
+     come down. --fg-subtle is not sized by plain --surface-3 — it clears that comfortably
+     (6.038:1 light / 6.025:1 dark) — but by the worst backdrop tertiary text is actually painted
+     on: a 12% accent tint OVER --surface-3. With the `black` accent that composites to #d6d6d9 in
+     light and #383840 in dark, where the tokens below measure subtle 4.698:1 / 4.557:1, muted
+     6.042:1 / 5.865:1 and --fg 12.065:1 / 10.602:1. --fg is brand-fixed near-black/near-white, so
+     everything else has to fit underneath it.
+     Pushing --fg-subtle back toward its surface for "more contrast between the greys" therefore
+     REMOVES contrast where it is measured and re-breaks WCAG 1.4.3, almost immediately: light has
+     two 8-bit steps of headroom (#5c5c67 = 4.555:1 passes, #5d5d68 = 4.486:1 fails) and dark has
+     one (#a0a0ac = 4.502:1 passes, #9f9fab = 4.448:1 fails). If the tiers must read further
+     apart, widen from the other end — the fg <-> muted gap above is the only slack left — and
+     re-run scripts/contrast-check.mjs, which measures the tinted backdrops as well as the plain
+     ones. */
+  --fg-muted: #4a4a54;
+  --fg-subtle: #5a5a65;
   --accent-fg: #ffffff;
-  --pos: #12805c;
+  --pos: #0b7d59;
   --pos-soft: #e6f5ee;
-  --warn: #b25e09;
+  --warn: #a95800;
   --warn-soft: #fbf0e2;
-  --danger: #d1293d;
+  --danger: #cf273c;
   --danger-soft: #fdecec;
-  --info: #2563eb;
+  --info: #1c59e0;
   --info-soft: #e7edfd;
   --shadow: 0 1px 2px rgba(20,20,35,.04), 0 1px 3px rgba(20,20,35,.05);
   --shadow-md: 0 4px 14px rgba(20,20,35,.09);
   --shadow-lg: 0 12px 34px rgba(20,20,35,.13);
   --scrim: rgba(10,10,15,.5);
 }
+
+/* Each light semantic tone above is the minimum OKLCH-lightness darkening (hue held to <0.3deg)
+   that puts it at >=4.5:1 on its own -soft partner, which is where it is smallest — StatusPill
+   and Alert set 11.5-13px text in --pos/--warn/--danger/--info on --pos-soft/…-soft. Measured
+   after the move: 4.56 / 4.57 / 4.59 / 5.04:1 (the light -soft partners are opaque, so the
+   backing surface does not change the number).
+   The dark tones are untouched — theirs are translucent, so they DO vary with the surface:
+   5.46-7.16:1 over --surface, 4.51-5.86:1 over --surface-3, the tightest (--danger on
+   --surface-3, 4.51:1) still clearing AA. */
 
 [data-theme="dark"] {
   color-scheme: dark;
@@ -35,8 +84,15 @@
   --border: rgba(255,255,255,.07);
   --border-strong: rgba(255,255,255,.13);
   --fg: #f4f4f6;
-  --fg-muted: #9a9aa6;
-  --fg-subtle: #6a6a76;
+  /* Same trade-off as light, mirrored: 7.754:1 / 6.025:1 on plain --surface-3 but 5.865:1 /
+     4.557:1 on the 12% black-accent tint over it (#383840), which is what sizes them — 1.287:1
+     apart, and --fg-subtle has ONE 8-bit step of headroom left. See THE TEXT-LADDER TRADE-OFF in
+     the light block above before touching either. */
+  --fg-muted: #b7b7c3;
+  --fg-subtle: #a1a1ad;
+  /* Dark --accent is a light hue (see accents.css), so the primary-button label inverts:
+     white on #99a5ff is 2.3:1, #0f0f14 on it is 8.4:1. One value, no per-accent branch. */
+  --accent-fg: #0f0f14;
   --pos: #3ecf8e;
   --pos-soft: rgba(62,207,142,.14);
   --warn: #e0a458;

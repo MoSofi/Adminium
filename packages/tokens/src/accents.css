@@ -1,24 +1,125 @@
 /* @adminium/tokens — accent palettes + derived accent tokens. See workplan/02-design-system.md §1.2/§2.3.
    Everything accent-derived is computed from the single --accent hex; switching data-accent
-   changes exactly one value. Derivation recipes are defined here once, never re-derived in components. */
-:root,
-[data-accent="indigo"] { --accent: #4f46e5; }
-[data-accent="blue"]   { --accent: #2563eb; }
-[data-accent="teal"]   { --accent: #0d9488; }
-[data-accent="violet"] { --accent: #7c3aed; }
-[data-accent="rose"]   { --accent: #e11d48; }
-[data-accent="red"]    { --accent: #e5484d; }
-[data-accent="orange"] { --accent: #ea580c; }
-[data-accent="black"]  { --accent: #111111; }
+   swaps the light/dark pair below, from which the theme resolves that one hex. Derivation
+   recipes are defined here once, never re-derived in components.
 
+   PER-THEME PAIRS. Each accent now declares two canonical hexes — --accent-light and
+   --accent-dark — and the theme selects one into --accent, below. That selection happens here,
+   once: components still read --accent (and --accent-soft/-hover/-border/-selection/-glow) only,
+   and never branch on theme. Before this, the single light-tuned hex was reused unchanged on dark
+   surfaces, where --accent is the focus ring (focus-visible:outline-accent, 113 controls): black
+   measured 1.03:1 and indigo 2.92:1 against --surface #141419 — WCAG 2.4.7 and 1.4.11 failures.
+
+   THE DARK RAMP IS DERIVED FROM THE LIGHT ONE, and that is deliberate — do not re-describe it as
+   hand-tuned. Measured, each chromatic dark hex is exactly: its light sibling's OKLCH hue held
+   fixed (|dh| <= 0.53deg), OKLCH L raised to ~0.75 (the seven land at 0.724-0.754), and chroma
+   pushed to the sRGB gamut edge at that L and hue — six of the seven sit ON the boundary
+   (C / Cmax = 1.000); teal alone is held to 0.82 of it (C 0.104 of a possible 0.128) so a
+   low-chroma light teal does not turn neon in dark.
+   Why a recipe rather than taste: the constraints leave almost nothing to choose. Hue IS the
+   accent's identity and must not move; L is pinned from below by the dark gates listed further
+   down — at gamut-max chroma the minimum L clearing all of them currently measures 0.664 (teal)
+   to 0.702 (rose), and the ramp sits just above that, deliberately not ON it, because that floor
+   moves whenever a tint strength or a surface does (dropping dark --accent-soft from 20% to 12%
+   below lowered it by ~0.045); and with L and hue fixed the only free parameter left is how much
+   chroma sRGB will still hand you. Hand-picking would land in the same place with no way to
+   reproduce or re-derive it. What is gated is the measured contrast, not the provenance:
+   scripts/contrast-check.mjs re-measures every hex on every run.
+   `black` is the one genuinely hand-authored dark value (its hue is not its light sibling's —
+   light black is achromatic; C 0.015 is 18% of the max at its L 0.839). See THE BLACK ACCENT
+   ON DARK below.
+
+   Light hexes moved only where AA forced it: indigo (#4f46e5) and black (#111111) are untouched;
+   blue, teal, violet, rose, red and orange each took the minimum OKLCH-lightness step down that
+   clears the gates (dL from -0.011 for violet to -0.127 for orange), hue held to |dh| <= 0.47deg.
+
+   What every hex here clears (scripts/contrast-check.mjs measures all of it):
+     light  white --accent-fg on --accent >= 4.5:1  (primary-button label; teal/red/orange were
+            3.74/3.91/3.56 and are the reason those three moved)
+            --accent as text on --surface/-2 >= 4.5:1
+            --accent on --accent-soft >= 4.5:1      (active sidebar row, Tag, soft Button) —
+            binding on --surface-3, where the 10% tint darkens the chip most; that pass is what
+            pulls blue/violet down as well, not just the three that failed the button label
+     dark   --accent-fg #0f0f14 on --accent >= 4.5:1
+            --accent on --bg/--surface/-2/-3 >= 4.5:1 — well past the 3:1 non-text floor the
+            focus ring needs, because --accent is also text on those surfaces
+            --accent on --accent-soft >= 4.5:1
+
+   Darkening the light accent, rather than giving teal/red/orange their own --accent-fg, is the
+   deliberate choice: a per-accent --accent-fg would fix only the button label and leave
+   text-accent-on-surface (3.56-3.91:1) and text-accent-on-accent-soft (3.15-3.44:1) failing,
+   and it would put a theme-and-accent conditional back into the token layer. One --accent-fg per
+   theme keeps the contract "components read --accent and --accent-fg, full stop".
+
+   THE BLACK ACCENT ON DARK — the documented override called for in workplan/15-quality.md.
+   `black` is the neutral/monochrome accent: it means "no hue, the strongest neutral this theme
+   can carry", not literally the colour black. In light that resolves to #111111 (18.88:1 on
+   --surface). In dark it cannot: #111111 is 1.03:1 on --surface #141419 — invisible as a focus
+   ring, as a fill and as text. It resolves instead to #c9c9d4, a light cool neutral drawn from
+   the dark neutral family: 11.18:1 on --surface, 9.38:1 on --surface-3, 11.64:1 against
+   --accent-fg — and only 1.49:1 against --fg #f4f4f6, close enough to the text colour that a
+   monochrome accent still reads as monochrome, far enough that an accent fill does not read as
+   plain body text. */
+:root,
+[data-accent="indigo"] { --accent-light: #4f46e5; --accent-dark: #99a5ff; }
+[data-accent="blue"]   { --accent-light: #1c59e0; --accent-dark: #7fabff; }
+[data-accent="teal"]   { --accent-light: #007167; --accent-dark: #49bbae; }
+[data-accent="violet"] { --accent-light: #7936e9; --accent-dark: #b39dff; }
+[data-accent="rose"]   { --accent-light: #c40039; --accent-dark: #ff848c; }
+[data-accent="red"]    { --accent-light: #c0202f; --accent-dark: #ff8582; }
+[data-accent="orange"] { --accent-light: #b03e00; --accent-dark: #ff885b; }
+[data-accent="black"]  { --accent-light: #111111; --accent-dark: #c9c9d4; }
+
+/* THE 12% TINT CEILING. Every translucent accent tint below is capped at 12%, and that number is
+   measured, not chosen: a tint composites over the surface under it, so text painted on the tint
+   loses contrast, and the weakest gated foreground (--fg-subtle) on the deepest grey
+   (--surface-3) is what binds. With the monochrome accent — the extreme in both themes — the
+   worst pair measures 4.557:1 at 12% and 4.444:1 at 13% in dark (4.698 / 4.595 light). So 12% is
+   the last strength at which ANY neutral copy on ANY accent tint on ANY surface still clears
+   WCAG 1.4.3. scripts/contrast-check.mjs gates all of it (group text-on-soft / text-on-tint).
+
+   That is why the previous values are gone:
+     --accent-soft dark was 20% — measured --fg-muted 4.09:1 and --fg-subtle 3.11:1 on
+       --surface-3, both live in the axe sweep (active nav rows, sticky headers, chips).
+     --accent-selection was 22% — an earlier note here claimed it "keeps --fg at >=9.9:1", which
+       is true and beside the point: ::selection paints over WHATEVER text the user drags across,
+       including secondary and tertiary copy, which measured 4.36:1 and 3.33:1.
+     --accent-border was 25% — and the note here asserted it "has no consumer … so no WCAG
+       obligation attaches". The first half is still literally true of the TOKEN (no `bg-`/
+       `border-accent-border` utility and no var(--accent-border) read outside tailwind.css), but
+       the conclusion was wrong twice over: an unconsumed token still has to be safe for its FIRST
+       consumer, and the same 25%-accent-over-surface recipe IS painted under text today through
+       Tailwind's alpha syntax — RankedEntityList's proportional bar is `bg-accent/25` sitting
+       behind `text-fg-subtle` rank numbers (3.26:1 dark / 3.48:1 light; `text-fg` on it is fine
+       at 7.58 / 8.93). Lowering the token to 12% makes `bg-accent-border` safe; the component's
+       own alpha utility is a separate, component-level fix.
+   The 1.4.11 reading is unchanged and still correct: these tints are decorative, component state
+   is drawn with `border-accent` / `outline-accent` (the full accent, >=4.5:1), so no non-text
+   contrast floor attaches to the tints themselves. --accent-glow stays a drop-shadow with no
+   foreground. */
 :root {
+  --accent: var(--accent-light);
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --accent-hover: color-mix(in srgb, var(--accent) 82%, #000);
-  --accent-selection: color-mix(in srgb, var(--accent) 22%, transparent);
-  --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
+  --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-glow: 0 2px 8px color-mix(in srgb, var(--accent) 36%, transparent);
 }
 
+/* Same specificity as :root above, so source order decides — this block must stay last.
+   --accent-hover inverts with the theme: mixing toward #000 is "darker, therefore pressed" only
+   while --accent is dark. On dark it would push an already-dark hover further into the surface
+   (indigo's old dark hover measured 2.22:1 on --surface), so dark mixes toward #fff instead.
+   Every dark hover value stays >=8.96:1 against --accent-fg and >=7.22:1 on --surface-3, and
+   both halves of that are now gated: `accent-hover` measures the button label on the hover fill
+   at 4.5:1, `state-fill` measures the hover fill against the resting surface at the 1.4.11 3:1
+   floor — which is the check that fails closed if anyone mixes the dark accent toward #000 again.
+
+   --accent-soft is 12% here rather than the light ramp's 10% (see THE 12% TINT CEILING above):
+   a tint of a LIGHT hue over a near-black surface reads weaker than the mirror case, so dark
+   takes the whole allowance. It was 20% until the tint ceiling was measured. */
 [data-theme="dark"] {
-  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+  --accent: var(--accent-dark);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, #fff);
 }

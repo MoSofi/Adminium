@@ -42,8 +42,8 @@ const masterSvgPath = resolve(iconsDir, 'icon-master.svg');
 
 // The two colours baked into the master, replaced with the resolved tokens
 // values before rasterizing. Must stay in lockstep with icon-master.svg.
-const MASTER_ACCENT = '#4f46e5'; // [data-accent="indigo"] --accent
-const MASTER_ACCENT_FG = '#ffffff'; // --accent-fg
+const MASTER_ACCENT = '#4f46e5'; // [data-accent="indigo"] --accent-light
+const MASTER_ACCENT_FG = '#ffffff'; // --accent-fg (light; the icon is not themed)
 
 // PNG raster sizes. The superset covers what .icns wants (16→1024, doubling) and
 // what .ico wants (up to 256, plus 24/48). The WxW.png names are the freedesktop
@@ -93,9 +93,13 @@ async function resolveAccent() {
   const accentName = process.env.ADMINIUM_ICON_ACCENT ?? 'indigo';
   const accentsCss = await readFile(resolve(tokensDir, 'accents.css'), 'utf8');
   const tokensCss = await readFile(resolve(tokensDir, 'tokens.css'), 'utf8');
+  // accents.css declares a PER-THEME PAIR per palette (--accent-light / --accent-dark); the
+  // theme picks one into --accent, so there is no bare `--accent:` hex to read any more. An app
+  // icon sits on someone else's desktop, not on our surfaces, so it takes the light hex — the
+  // same half --accent-fg's first (light) declaration in tokens.css pairs with.
   const accent = extractHex(
     accentsCss,
-    new RegExp(`\\[data-accent="${accentName}"\\]\\s*\\{\\s*--accent:\\s*(#[0-9a-fA-F]{3,8})`),
+    new RegExp(`\\[data-accent="${accentName}"\\]\\s*\\{[^}]*?--accent-light:\\s*(#[0-9a-fA-F]{3,8})`),
     `accent "${accentName}"`,
     'packages/tokens/src/accents.css',
   );

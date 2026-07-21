@@ -45,7 +45,8 @@
     "build": "node scripts/copy-fonts.mjs && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "contrast": "node scripts/contrast-check.mjs --strict",
+    "test": "pnpm run contrast && vitest run"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",

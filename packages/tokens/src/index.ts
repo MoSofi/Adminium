@@ -11,19 +11,51 @@ export type ThemePref = (typeof THEMES)[number];
 /** A resolved theme as stamped on `<html data-theme>`. */
 export type ResolvedTheme = Exclude<ThemePref, "system">;
 
-/** Accent axis: the 8 switchable palettes (`data-accent`), name → hex. */
+/**
+ * Accent axis: the 8 switchable palettes (`data-accent`), name → LIGHT-theme hex
+ * (`--accent-light` in accents.css).
+ *
+ * This is ONE HALF of the accent. Each palette also has an `--accent-dark` hex that the dark
+ * theme selects into `--accent`, and it is a different colour, drastically so for `black`
+ * (#111111 light, #c9c9d4 dark). Anything that PAINTS an accent must therefore either read the
+ * CSS variable — which already resolves per theme — or pick from {@link ACCENTS_DARK} when the
+ * resolved theme is dark. Rendering `ACCENTS[a]` unconditionally shows the wrong colour on dark;
+ * that is what the accent-picker swatch used to do.
+ */
 export const ACCENTS = {
   indigo: "#4f46e5",
-  blue: "#2563eb",
-  teal: "#0d9488",
-  violet: "#7c3aed",
-  rose: "#e11d48",
-  red: "#e5484d",
-  orange: "#ea580c",
+  blue: "#1c59e0",
+  teal: "#007167",
+  violet: "#7936e9",
+  rose: "#c40039",
+  red: "#c0202f",
+  orange: "#b03e00",
   black: "#111111",
 } as const;
+
+/**
+ * The dark half (`--accent-dark`). Derived from the light ramp by recipe — see the header of
+ * accents.css, which owns the values; these mirror them for JS that cannot read CSS (chart
+ * canvases, the desktop shell, docs tables).
+ */
+export const ACCENTS_DARK = {
+  indigo: "#99a5ff",
+  blue: "#7fabff",
+  teal: "#49bbae",
+  violet: "#b39dff",
+  rose: "#ff848c",
+  red: "#ff8582",
+  orange: "#ff885b",
+  black: "#c9c9d4",
+} as const;
+
 /** `indigo` is the default. */
 export type Accent = keyof typeof ACCENTS;
+
+/** The accent hex actually painted for a resolved theme. */
+export function accentHex(accent: Accent, theme: ResolvedTheme): string {
+  return theme === "dark" ? ACCENTS_DARK[accent] : ACCENTS[accent];
+}
 
 /** Density axis (`data-density`). */
 export const DENSITIES = ["comfortable", "compact"] as const;
