@@ -32,8 +32,26 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
  * `adminium/adminium` slug is an unrelated third party's repository, and
  * polling it would either 404 or report a stranger's tags as our updates.
  */
-export const UPDATE_FEED_URL = 'https://api.github.com/repos/MoSofi/Adminium/releases/latest';
+/**
+ * The LIST endpoint, not `/releases/latest`. Two tag series share this
+ * repository — `v<semver>` for the server/CLI and `desktop-v<semver>` for the
+ * Electron app — and GitHub's "latest" is simply the most recently published
+ * non-draft, non-prerelease release across ALL of them. Publishing
+ * `desktop-v0.1.0` after `v0.1.0` therefore made `/releases/latest` answer
+ * `desktop-v0.1.0`, whose tag `compareVersions` parses to 0.0.0 (parseInt of
+ * "desktop" is NaN) — so every instance would have reported "up to date"
+ * forever, silently killing the whole feature the moment a desktop release
+ * happened to be the newest. Fetching the list and picking the newest release
+ * whose tag is OUR series is the only correct read.
+ */
+export const UPDATE_FEED_URL = 'https://api.github.com/repos/MoSofi/Adminium/releases?per_page=30';
 export const RELEASES_PAGE_URL = 'https://github.com/MoSofi/Adminium/releases';
+
+/**
+ * Server/CLI release tags: `v1.2.3`, optionally with a prerelease/build
+ * suffix. Deliberately anchored so `desktop-v1.2.3` can never match.
+ */
+export const SERVER_TAG_PATTERN = /^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 /** Don't re-check more than once an hour, however often About is opened. */
 export const UPDATE_CACHE_TTL_MS = 3_600_000;
@@ -103,8 +121,20 @@ export function createUpdateCheckService(deps: UpdateCheckDeps): UpdateCheckServ
       });
       if (!response.ok) return null;
       const body: unknown = await response.json();
-      const tag = (body as { tag_name?: unknown } | null)?.tag_name;
-      return typeof tag === 'string' && tag.length > 0 ? tag : null;
+
+      // The list is newest-first, but pick by VERSION rather than by position:
+      // a patch for an older line can be published after a newer release, and
+      // "most recently published" is not "highest version".
+      const releases = Array.isArray(body) ? body : [body];
+      let best: string | null = null;
+      for (const entry of releases) {
+        const release = entry as { tag_name?: unknown; draft?: unknown; prerelease?: unknown } | null;
+        const tag = release?.tag_name;
+        if (typeof tag !== 'string' || !SERVER_TAG_PATTERN.test(tag)) continue;
+        if (release?.draft === true || release?.prerelease === true) continue;
+        if (best === null || compareVersions(tag, best) > 0) best = tag;
+      }
+      return best;
     } catch {
       return null;
     }
