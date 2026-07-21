@@ -249,20 +249,32 @@ jobs:
       # toolchains link the same libstdc++, so the resulting .node addons stay
       # ABI-compatible with the prebuilt Electron binary.
       #
+      # It has to be clang >= 16, not jammy's stock clang-14: Electron 43's
+      # v8-source-location.h uses std::source_location, and libstdc++ only
+      # exposes that when the compiler provides __builtin_source_location, which
+      # landed in clang 16. clang-14 clears the attribute parse error above and
+      # then dies on "no type named 'source_location' in namespace 'std'".
+      #
       # Staying on ubuntu-22.04 ON PURPOSE: the AppImage/deb link against the
       # build host's glibc, so building on the OLDEST supported image is what
-      # keeps the Linux artifacts installable on older distributions.
-      - name: Build native modules with clang (linux)
+      # keeps the Linux artifacts installable on older distributions. That is
+      # why the compiler comes from apt.llvm.org rather than from a newer runner
+      # image — new toolchain, old glibc.
+      - name: Build native modules with clang 17 (linux)
         if: matrix.platform == 'linux'
         run: |
           set -euo pipefail
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+          echo 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main' \
+            | sudo tee /etc/apt/sources.list.d/llvm-17.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y clang
+          sudo apt-get install -y clang-17
           {
-            echo 'CC=clang'
-            echo 'CXX=clang++'
+            echo 'CC=clang-17'
+            echo 'CXX=clang++-17'
           } >> "$GITHUB_ENV"
-          clang++ --version | head -1
+          clang++-17 --version | head -1
 
       # ── Step 3: package + (mac) sign + notarize ──────────────────────────────
       #
