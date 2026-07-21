@@ -10,8 +10,8 @@ Thanks for contributing. This guide covers the day-to-day mechanics; the design 
 ## Setup
 
 ```sh
-git clone https://github.com/adminium/adminium.git
-cd adminium
+git clone https://github.com/MoSofi/Adminium.git
+cd Adminium
 pnpm install
 pnpm build        # turbo run build across the workspace
 ```

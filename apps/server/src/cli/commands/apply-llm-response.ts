@@ -1,7 +1,7 @@
 /**
  * `adminium apply-llm-response` — 06-llm-assist.md §10.4, verbatim:
  *
- *   npx adminium apply-llm-response --run <runId> --file ./response.json
+ *   adminium apply-llm-response --run <runId> --file ./response.json
  *       [--chunk 2] [--yes-above 0.8] [--dry-run]
  *          → validates, prints the diff table, applies (or previews with --dry-run)
  *

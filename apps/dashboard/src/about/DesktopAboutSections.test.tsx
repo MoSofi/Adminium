@@ -37,8 +37,8 @@ function makeAbout(overrides: Partial<AboutData> = {}): AboutData {
   return {
     version: '0.6.0',
     license: 'AGPL-3.0-only',
-    sourceUrl: 'https://github.com/adminium/adminium',
-    licenseUrl: 'https://github.com/adminium/adminium/blob/main/LICENSE',
+    sourceUrl: 'https://github.com/MoSofi/Adminium',
+    licenseUrl: 'https://github.com/MoSofi/Adminium/blob/main/LICENSE',
     metaEngine: 'sqlite',
     metaMigrationVersion: '0042_add_widgets',
     node: 'v22.14.0',
@@ -231,7 +231,7 @@ describe('AboutPage — desktop §13 sections', () => {
     expect(screen.getByRole('button', { name: /View licence/ })).toBeDefined();
     expect(screen.getByRole('button', { name: /Third-party licences/ })).toBeDefined();
     const source = screen.getByRole('link', { name: /Source code/ });
-    expect(source.getAttribute('href')).toBe('https://github.com/adminium/adminium');
+    expect(source.getAttribute('href')).toBe('https://github.com/MoSofi/Adminium');
   });
 
   it('renders the telemetry toggle and the diagnostics actions', async () => {

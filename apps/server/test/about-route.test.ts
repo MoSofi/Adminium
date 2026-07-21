@@ -49,7 +49,7 @@ describe('GET /api/v1/about (M10-T04)', () => {
     expect(data.version).toBe(APP_VERSION);
     expect(data.license).toBe('AGPL-3.0-only');
     // AGPL §13: the instance links to the corresponding source + full licence.
-    expect(data.sourceUrl).toBe('https://github.com/adminium/adminium');
+    expect(data.sourceUrl).toBe('https://github.com/MoSofi/Adminium');
     expect(data.licenseUrl).toContain('/LICENSE');
     // The harness runs on the SQLite meta store — reported, not hardcoded null.
     expect(data.metaEngine).toBe('sqlite');
@@ -140,7 +140,7 @@ describe('GET /api/v1/about/update-check (M10-T04)', () => {
         status: 'update-available',
         current: '0.5.0',
         latest: '0.6.0',
-        url: 'https://github.com/adminium/adminium/releases',
+        url: 'https://github.com/MoSofi/Adminium/releases',
       },
     });
     expect(calls).toHaveLength(1);

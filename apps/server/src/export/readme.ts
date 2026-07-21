@@ -9,6 +9,8 @@
  * (t('key') has no meaning in a zip read outside the app).
  */
 
+import { NPM_PACKAGE_NAME } from '../version.js';
+
 import type { BundleManifest } from './bundle.js';
 
 function secretsSection(manifest: BundleManifest): string {
@@ -70,7 +72,7 @@ export function renderReadme(manifest: BundleManifest): string {
     'To run it you need the Adminium server — a source checkout (or the Docker',
     'image) of the same project that wrote this bundle. The `package.json`',
     'beside this file records the exact version that produced the bundle',
-    `(\`adminium@${manifest.appVersion}\`); run the same or a newer build. A`,
+    `(\`${NPM_PACKAGE_NAME}@${manifest.appVersion}\`); run the same or a newer build. A`,
     'checkout is the complete install — it contains the server, the dashboard',
     'build, and the meta-store migrations.',
     '',
@@ -78,7 +80,7 @@ export function renderReadme(manifest: BundleManifest): string {
     '',
     '```',
     'manifest.json      versions + counts + the secrets policy for this bundle',
-    'package.json       pins the adminium version that wrote it',
+    'package.json       pins the Adminium version that wrote it',
     'config/            the instance configuration, one JSON file per resource',
     '  settings.json        global settings (secret keys handled per policy below)',
     '  roles.json           roles',
@@ -142,9 +144,14 @@ export function renderReadme(manifest: BundleManifest): string {
 }
 
 /**
- * The bundle's `package.json`. Pins `adminium` exactly: a bundle that replayed
- * into a *different* build than the one it names would defeat the point of the
- * manifest carrying versions at all.
+ * The bundle's `package.json`. Pins the published package exactly: a bundle
+ * that replayed into a *different* build than the one it names would defeat
+ * the point of the manifest carrying versions at all.
+ *
+ * The dependency key MUST come from `NPM_PACKAGE_NAME` and never be the bare
+ * string `adminium`: that unscoped npm name is an unrelated third party's
+ * package, so a hand-written pin would send restorers to install a stranger's
+ * library (and fail outright, since its versions start at 1.0.0).
  */
 export function renderPackageJson(manifest: BundleManifest): string {
   return (
@@ -154,7 +161,7 @@ export function renderPackageJson(manifest: BundleManifest): string {
         private: true,
         description:
           'Adminium configuration bundle — run `adminium import-zip --in <archive>.zip` then `adminium start` from a built source checkout. Configuration only; contains no application source.',
-        dependencies: { adminium: manifest.appVersion },
+        dependencies: { [NPM_PACKAGE_NAME]: manifest.appVersion },
       },
       null,
       2,

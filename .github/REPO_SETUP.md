@@ -1,6 +1,6 @@
 # GitHub repository setup (apply when the remote is created)
 
-Branch protection, labels, and milestones require a live GitHub repository. When `adminium/adminium` is created, apply exactly the following. Everything here is one-time setup; keep this file updated if the required checks change.
+Branch protection, labels, and milestones require a live GitHub repository. For `MoSofi/Adminium`, apply exactly the following. Everything here is one-time setup; keep this file updated if the required checks change.
 
 ## 1. General settings
 
@@ -27,7 +27,7 @@ When later milestones add jobs (`e2e`, `vrt`, `bundle`, `codeql` — see `workpl
 Equivalent CLI:
 
 ```sh
-gh api -X PUT repos/adminium/adminium/branches/main/protection \
+gh api -X PUT repos/MoSofi/Adminium/branches/main/protection \
   -f required_status_checks[strict]=true \
   -f 'required_status_checks[contexts][]=verify' \
   -f 'required_status_checks[contexts][]=dep-graph' \
@@ -62,7 +62,7 @@ done
 Create GitHub milestones `M0 — Foundation` through `M15 — Full audit / v1.0`, titles and scope from `workplan/16-milestones.md` (one GitHub milestone per roadmap milestone; due dates from the current schedule):
 
 ```sh
-gh api repos/adminium/adminium/milestones -f title="M0 — Foundation" -f description="See workplan/16-milestones.md"
+gh api repos/MoSofi/Adminium/milestones -f title="M0 — Foundation" -f description="See workplan/16-milestones.md"
 # ... repeat for M1..M15 with their §-heading titles
 ```
 

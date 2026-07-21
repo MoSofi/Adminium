@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   ALL_MIGRATIONS,
+  META_PACKAGE_VERSION,
   META_TABLE_NAMES,
   MigrationChecksumDriftError,
   UnknownMigrationError,
@@ -53,6 +54,22 @@ for (const dialect of TEST_DIALECTS) {
         expect(rows[i]?.checksum).toBe(migrationChecksum(migration));
         expect(rows[i]?.adminiumVersion).toBe('9.9.9');
         expect(rows[i]?.appliedAt).toBeGreaterThan(0);
+      }
+    });
+
+    it('stamps the real package version when the caller passes none', async () => {
+      // THE BUG THIS PINS. `META_PACKAGE_VERSION` was the literal '0.0.0' and
+      // neither production caller (bootstrap.ts, the `migrate` command) passes
+      // `version`, so the one column that tells support which build touched a
+      // meta store recorded a version that never shipped.
+      expect(META_PACKAGE_VERSION).not.toBe('0.0.0');
+      expect(META_PACKAGE_VERSION).toMatch(/^\d+\.\d+\.\d+/);
+
+      await applyMigrations(t.meta.db, { dialect: t.meta.dialect });
+      const rows = await t.meta.db.selectFrom('adminium_migrations').selectAll().execute();
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        expect(row.adminiumVersion).toBe(META_PACKAGE_VERSION);
       }
     });
 

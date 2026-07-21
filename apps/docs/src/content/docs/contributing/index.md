@@ -4,13 +4,13 @@ description: Monorepo setup, the checks CI runs, and the conventions that are en
 ---
 
 Adminium is AGPL-3.0 and developed in the open at
-[github.com/adminium/adminium](https://github.com/adminium/adminium).
+[github.com/MoSofi/Adminium](https://github.com/MoSofi/Adminium).
 
 ## Setup
 
 ```bash
-git clone https://github.com/adminium/adminium.git
-cd adminium
+git clone https://github.com/MoSofi/Adminium.git
+cd Adminium
 pnpm install
 pnpm build
 ```

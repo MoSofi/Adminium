@@ -8,7 +8,7 @@
  * schema snapshots, overrides, pages/dashboards, views, settings, roles — plus a
  * manifest for version replay on re-import and a README that says all of this in
  * its first heading. Adminium does not emit an app; the bundle names its runtime
- * by pinning the `adminium` npm package (01 §4.1: that one package *is* the
+ * by pinning the `@adminiumjs/adminium` npm package (01 §4.1: that one package *is* the
  * complete install — server + dashboard dist + meta migrations), it does not
  * carry a copy of it.
  *

@@ -8,7 +8,7 @@
  * interprets config at runtime; it never emits an app. The bundle therefore
  * carries the instance's `adminium_*` config content as portable JSON, plus a
  * manifest that pins the versions needed to replay it, plus a README saying
- * exactly this. `package.json` in the bundle pins the `adminium` npm package at
+ * exactly this. `package.json` in the bundle pins the `@adminiumjs/adminium` npm package at
  * the exporting version — per 01 §4.1 that single package *is* the complete
  * install (server + dashboard dist + meta migrations), so pinning it is how the
  * bundle names its runtime without shipping (unshippable, platform-specific,

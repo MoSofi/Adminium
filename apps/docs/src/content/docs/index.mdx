@@ -10,7 +10,7 @@ hero:
       icon: right-arrow
       variant: primary
     - text: View on GitHub
-      link: https://github.com/adminium/adminium
+      link: https://github.com/MoSofi/Adminium
       icon: external
       variant: minimal
 ---
@@ -19,7 +19,7 @@ import { Card, CardGrid, Code } from '@astrojs/starlight/components';
 
 <Code
   code={`export ADMINIUM_SECRET=$(openssl rand -hex 32)
-npx adminium`}
+npx @adminiumjs/adminium`}
   lang="bash"
   title="One command, complete install"
 />
@@ -28,7 +28,7 @@ npx adminium`}
 
 <CardGrid stagger>
   <Card title="Quickstart" icon="rocket">
-    Install with `npx adminium`, answer the setup wizard, and have an admin panel
+    Install with `npx @adminiumjs/adminium`, answer the setup wizard, and have an admin panel
     on your own schema in a few minutes.
 
     [Quickstart with npx →](/getting-started/quickstart/)
@@ -74,8 +74,9 @@ Two things follow from "interprets at runtime", and both matter:
 
 - **Not read-only BI.** Adminium writes. That is the point — it is the internal
   tool your team uses to fix a stuck order, not a dashboard they screenshot.
-- **Not a hosted-only product.** The whole thing is AGPL-3.0 and runs on your
-  machine, your VPS, or your Kubernetes cluster with no phone-home.
+- **Not a hosted service.** The whole thing is free and open source — AGPL-3.0 —
+  and runs on your machine, your VPS, or your Kubernetes cluster with no
+  phone-home.
   [Telemetry is opt-in and off by default](/self-hosting/telemetry/).
 - **Not an LLM wrapper.** Schema classification is heuristic and deterministic.
   The [LLM assist](/guides/llm-assist/) is optional, reviewable, and has a
