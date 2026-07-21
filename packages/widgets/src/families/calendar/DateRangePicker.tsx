@@ -223,15 +223,23 @@ export function DateRangePicker({
                   className={[
                     'grid h-8 place-items-center text-caption tabular-nums transition-colors',
                     'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
-                    cell.inMonth ? 'text-fg' : 'text-fg-subtle',
                     // Endpoints get the solid accent; the span between them gets
                     // the soft fill. The rounding is LOGICAL (`rounded-s`/`-e`),
                     // so the pill's caps stay on the range's true ends in RTL.
+                    //
+                    // The text colour is decided HERE rather than on its own
+                    // line: these classes are joined raw (no tailwind-merge), so
+                    // a separate `text-fg` would survive alongside
+                    // `text-accent-fg`/`text-accent` and stylesheet order, not
+                    // this ternary, would pick the winner — which rendered the
+                    // body colour on the accent fill.
                     endpoint
-                      ? 'bg-accent font-bold text-white'
+                      ? 'bg-accent font-bold text-accent-fg'
                       : inRange || inPreview
                         ? 'bg-accent-soft text-accent'
-                        : 'hover:bg-surface-2',
+                        : cell.inMonth
+                          ? 'text-fg hover:bg-surface-2'
+                          : 'text-fg-subtle hover:bg-surface-2',
                     isStart ? 'rounded-s-md' : '',
                     isEnd ? 'rounded-e-md' : '',
                     !endpoint ? 'rounded-md' : '',

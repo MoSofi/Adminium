@@ -292,10 +292,22 @@ function GanttTaskRow({ task, tone, model, todayPct, formatPercent }: GanttTaskR
             {/*
               Contrast-switching % label (annex §13): above ~55% fill the label
               sits ON the tone-colored fill → invert to the tone's foreground.
+
+              That inverted colour is `text-accent-fg`, the theme's single
+              on-filled-surface token, NOT `text-white`: the fill is
+              TONE_SOLID_BG[tone], which is themed, so a literal white loses the
+              theme flip (white on the dark --pos is 2.00:1 and on the dark
+              --accent 2.29:1, under the 4.5:1 AA floor for this 10px label).
+              text-accent-fg measures >=5.68:1 on every TONE_SOLID_BG value in
+              both themes (worst case: #0f0f14 on the dark --fg-subtle).
+
+              adminium/no-literal-color-on-token-bg cannot flag this pairing —
+              the background arrives through a lookup table in another module,
+              which the rule does not resolve.
             */}
             <span
               className={`absolute inset-y-0 start-1.5 flex items-center text-[10px] font-bold tabular-nums ${
-                task.pct > 55 ? 'text-white' : 'text-fg-muted'
+                task.pct > 55 ? 'text-accent-fg' : 'text-fg-muted'
               }`}
             >
               {task.pct > 0 ? formatPercent(task.pct) : ''}

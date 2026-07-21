@@ -183,7 +183,7 @@ export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps)
     >
       {/* Logo block + version chip */}
       <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
-        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-white">
+        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-accent-fg">
           <Hexagon className="size-[17px]" aria-hidden="true" />
         </span>
         <span className="text-[15px] font-extrabold tracking-[-0.02em] text-fg">Adminium</span>

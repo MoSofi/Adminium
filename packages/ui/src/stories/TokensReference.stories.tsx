@@ -5,11 +5,11 @@
  * `data-theme` light→dark on the root inside one synchronous block — no paint
  * in between — then restores the toolbar value), so the table always shows the
  * real resolved values, accent included. The accent row re-derives
- * `--accent-soft` at runtime per swatch with the canonical 10%/20% color-mix
+ * `--accent-soft` at runtime per swatch with the canonical 10%/12% color-mix
  * recipe (research/design-system.md §1.1).
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ACCENTS, VIZ_PALETTE, type Accent } from '@adminium/tokens';
+import { ACCENTS, VIZ_PALETTE, accentHex, type Accent } from '@adminium/tokens';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
@@ -282,12 +282,18 @@ function TonePairsCard() {
 /**
  * Per-swatch runtime derivation: `--accent` is overridden locally and
  * `--accent-soft` is re-derived from it with the canonical recipe
- * (10% alpha in light, 20% in dark) — the same color-mix the tokens package
+ * (10% alpha in light, 12% in dark — the 12% tint ceiling accents.css measures) — the
+ * same color-mix the tokens package
  * applies globally on `data-accent` switches.
+ *
+ * The hex shown is per-theme: every accent has two (`--accent-light`/`--accent-dark` in
+ * accents.css), and for `black` they are worlds apart (#111111 vs #c9c9d4). Printing the light
+ * hex under a dark swatch would make this reference page contradict the tokens it documents.
  */
-function AccentSwatch({ name, hex }: { name: Accent; hex: string }) {
+function AccentSwatch({ name }: { name: Accent }) {
   const { theme, accent } = useTheme();
-  const softMix = theme === 'dark' ? '20%' : '10%';
+  const hex = accentHex(name, theme === 'dark' ? 'dark' : 'light');
+  const softMix = theme === 'dark' ? '12%' : '10%';
   return (
     <div
       style={{
@@ -319,8 +325,8 @@ function AccentsCard() {
     <Card>
       <Eyebrow>Accent palettes — 8, runtime-derived soft</Eyebrow>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8">
-        {(Object.entries(ACCENTS) as [Accent, string][]).map(([name, hex]) => (
-          <AccentSwatch key={name} name={name} hex={hex} />
+        {(Object.keys(ACCENTS) as Accent[]).map((name) => (
+          <AccentSwatch key={name} name={name} />
         ))}
       </div>
       <p className="mt-4 text-caption text-fg-muted">

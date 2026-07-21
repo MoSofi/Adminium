@@ -52,7 +52,7 @@ export function NotFoundPage({ requestId }: NotFoundPageProps) {
       className="relative flex min-h-dvh w-full flex-col items-center justify-center overflow-hidden bg-bg p-10 text-fg"
     >
       <div className="absolute start-[26px] top-6 flex items-center gap-2.5">
-        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-white">
+        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-accent-fg">
           <Hexagon className="size-[17px]" aria-hidden="true" />
         </span>
         <span className="text-[16px] font-extrabold tracking-[-0.02em]">Adminium</span>

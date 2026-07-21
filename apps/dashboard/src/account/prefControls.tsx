@@ -67,7 +67,17 @@ export function DensityControl(props: {
   );
 }
 
-/** Swatch row (§7.3 "SwatchPicker" comp gap): radiogroup of the 8 palettes. */
+/**
+ * Swatch row (§7.3 "SwatchPicker" comp gap): radiogroup of the 8 palettes.
+ *
+ * Each swatch must preview the accent it OFFERS, in the theme currently on screen — and the two
+ * accent ramps differ (accents.css: `black` is #111111 in light, #c9c9d4 in dark), so painting
+ * the JS constant `ACCENTS[accent]` made the preview lie in dark. It cannot read `--accent`
+ * either: that is the ACTIVE accent, inherited from <html>. Stamping `data-accent` on the button
+ * re-declares `--accent-light`/`--accent-dark` for that one element straight out of accents.css,
+ * and the light/dark background pair below picks the same half the theme picks. No JS copy of
+ * the palette is involved, so the swatch cannot drift from the tokens.
+ */
 export function AccentControl(props: {
   value: Accent;
   onChange: (value: Accent) => void;
@@ -84,12 +94,13 @@ export function AccentControl(props: {
             role="radio"
             aria-checked={selected}
             aria-label={accentLabel(accent)}
+            data-accent={accent}
             onClick={() => props.onChange(accent)}
             className={cn(
-              'size-6 rounded-full border border-border bg-[var(--pref-swatch)] transition-shadow',
+              'size-6 rounded-full border border-border transition-shadow',
+              'bg-[var(--accent-light)] dark:bg-[var(--accent-dark)]',
               selected && 'ring-2 ring-fg ring-offset-2 ring-offset-surface',
             )}
-            style={{ '--pref-swatch': ACCENTS[accent] }}
           />
         );
       })}

@@ -42,7 +42,9 @@ const circleClasses: Record<StepState, string> = {
   active: 'border-2 border-accent bg-surface text-accent',
   loading: 'border border-border-strong bg-surface text-accent',
   done: 'border border-transparent bg-accent text-accent-fg',
-  error: 'border border-transparent bg-danger text-white',
+  // text-accent-fg matches the `done` row above: one inverted foreground per
+  // theme for every solid fill (white on the dark --danger is only 2.78:1).
+  error: 'border border-transparent bg-danger text-accent-fg',
 };
 
 const labelClasses: Record<StepState, string> = {

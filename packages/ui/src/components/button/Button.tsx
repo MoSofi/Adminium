@@ -28,7 +28,10 @@ export const buttonVariants = cva(
         secondary: 'border border-border-strong bg-surface text-fg hover:bg-surface-2',
         ghost: 'text-fg-muted hover:bg-surface-3 hover:text-fg',
         outline: 'border border-border-strong text-fg hover:bg-surface-2',
-        destructive: 'bg-danger text-white hover:brightness-105',
+        // text-accent-fg, not text-white: --accent-fg is the theme's inverted
+        // foreground for every solid fill (5.24:1 on the light --danger,
+        // 6.89:1 on the dark one; white on the dark --danger is 2.78:1).
+        destructive: 'bg-danger text-accent-fg hover:brightness-105',
         destructiveSoft: 'bg-danger-soft text-danger hover:brightness-97',
         soft: 'bg-accent-soft text-accent hover:brightness-97',
         link: 'h-auto p-0 text-accent underline-offset-2 hover:underline',
