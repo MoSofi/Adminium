@@ -49,6 +49,7 @@
     "vitest": "catalog:"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/styles.css"
   ]
 }
