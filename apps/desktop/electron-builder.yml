@@ -46,7 +46,23 @@
 # real fix and is deliberately NOT taken here: it rewires the packaging pipeline
 # on a release path that has never once executed end-to-end.
 
-appId: ai.adminium.desktop
+# THE APPLICATION IDENTITY. This is the macOS CFBundleIdentifier (and the basis
+# of the Windows NSIS uninstall key / AppUserModelID and the Linux desktop-file
+# name), so it is baked into code signing, notarization, and every per-user path
+# and Keychain/registry entry the OS derives from it. It is effectively
+# immutable once installers reach users: changing it later makes the OS treat
+# the new build as a DIFFERENT application — orphaned app data, a second entry
+# in Launchpad/Add-or-Remove-Programs, and an update that installs beside the
+# old app instead of over it.
+#
+# `ai.adminium.desktop` — the value here until 2026-07-21 — was reverse-DNS for
+# adminium.ai, a domain this project DROPPED and does not own (the domain sweep
+# moved everything to adminium.dev). A bundle id under a domain someone else can
+# register is a squatting and impersonation hazard, and it contradicts every
+# other identity string in this package (homepage, author, maintainer). Changed
+# to `dev.adminium.desktop` while the desktop release is still an unpublished
+# draft — the last moment the change costs nothing.
+appId: dev.adminium.desktop
 productName: Adminium
 artifactName: "adminium-${version}-${os}-${arch}.${ext}"
 
