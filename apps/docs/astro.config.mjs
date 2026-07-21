@@ -34,13 +34,13 @@ export default defineConfig({
       // service (§1 principle 3). This is Starlight's default; stated for intent.
       pagefind: true,
       editLink: {
-        baseUrl: 'https://github.com/adminium/adminium/edit/main/apps/docs/',
+        baseUrl: 'https://github.com/MoSofi/Adminium/edit/main/apps/docs/',
       },
       social: [
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/adminium/adminium',
+          href: 'https://github.com/MoSofi/Adminium',
         },
       ],
       plugins: [

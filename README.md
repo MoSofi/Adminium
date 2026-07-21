@@ -13,7 +13,12 @@ introspects the structure and relations, and generates a complete, professional,
 
 ## Monorepo
 
-| Path | Package | Purpose |
+Workspace names below are the in-repo identifiers. On npm the packages publish
+under the `@adminiumjs` scope — the `@adminium` scope and the bare `adminium`
+name both belong to unrelated parties — so the CLI installs as
+`@adminiumjs/adminium` and still provides the `adminium` command.
+
+| Path | Workspace | Purpose |
 |---|---|---|
 | `apps/server` | `@adminium/server` | Fastify API + serves the dashboard |
 | `apps/dashboard` | `@adminium/dashboard` | React SPA: Studio + Generated App |

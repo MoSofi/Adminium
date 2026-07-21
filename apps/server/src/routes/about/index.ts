@@ -26,8 +26,14 @@ import { aboutReply, aboutUpdateCheckReply, type AboutReply, type AboutUpdateChe
 
 /** AGPL-3.0-only — matches every workspace package.json `license` field. */
 export const LICENSE_SPDX = 'AGPL-3.0-only';
-export const SOURCE_URL = 'https://github.com/adminium/adminium';
-export const LICENSE_URL = 'https://github.com/adminium/adminium/blob/main/LICENSE';
+/**
+ * The §13 offer is only satisfied by a link that actually reaches the source,
+ * so this must name the repository that hosts it: github.com/MoSofi/Adminium.
+ * The `adminium/adminium` slug belongs to an unrelated third party — pointing
+ * the offer there would send users to a stranger's empty repo.
+ */
+export const SOURCE_URL = 'https://github.com/MoSofi/Adminium';
+export const LICENSE_URL = 'https://github.com/MoSofi/Adminium/blob/main/LICENSE';
 
 export interface AboutRoutesDeps {
   meta: MetaDb;

@@ -25,9 +25,15 @@
  */
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
-/** The public release feed for the AGPL repo (01-architecture.md §9). */
-export const UPDATE_FEED_URL = 'https://api.github.com/repos/adminium/adminium/releases/latest';
-export const RELEASES_PAGE_URL = 'https://github.com/adminium/adminium/releases';
+/**
+ * The public release feed for the AGPL repo (01-architecture.md §9).
+ *
+ * `MoSofi/Adminium` is where the source and the releases actually live; the
+ * `adminium/adminium` slug is an unrelated third party's repository, and
+ * polling it would either 404 or report a stranger's tags as our updates.
+ */
+export const UPDATE_FEED_URL = 'https://api.github.com/repos/MoSofi/Adminium/releases/latest';
+export const RELEASES_PAGE_URL = 'https://github.com/MoSofi/Adminium/releases';
 
 /** Don't re-check more than once an hour, however often About is opened. */
 export const UPDATE_CACHE_TTL_MS = 3_600_000;

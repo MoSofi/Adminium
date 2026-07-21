@@ -1,7 +1,7 @@
 /**
  * `adminium generate-prompt` — 06-llm-assist.md §10.4, verbatim:
  *
- *   npx adminium generate-prompt --connection <id> [--sections labels,enums,…]
+ *   adminium generate-prompt --connection <id> [--sections labels,enums,…]
  *       [--locales en_US,de_DE] [--sampling] [--out ./prompt.md]
  *          → writes prompt file(s), prints runId + token estimate
  *

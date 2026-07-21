@@ -107,10 +107,10 @@ describe('in-app help links resolve to real docs pages', () => {
     // button that lies about a capability is worse than no button".
     expect(docsRoutes()).not.toContain('releases');
     const links = read('apps/dashboard/src/kb/docsLinks.ts');
-    expect(links).toMatch(/RELEASES_URL = 'https:\/\/github\.com\/adminium\/adminium\/releases'/);
+    expect(links).toMatch(/RELEASES_URL = 'https:\/\/github\.com\/MoSofi\/Adminium\/releases'/);
     // And it is the SAME url the update-available notice points at.
     expect(read('apps/server/src/telemetry/update-check.ts')).toContain(
-      'https://github.com/adminium/adminium/releases',
+      'https://github.com/MoSofi/Adminium/releases',
     );
     const changelog = read('apps/dashboard/src/changelog/ChangelogPage.tsx');
     expect(changelog).toContain('RELEASES_URL');

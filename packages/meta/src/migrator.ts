@@ -15,6 +15,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 import { sql, type Kysely } from 'kysely';
 
@@ -22,8 +23,22 @@ import { columnHelpers, type MetaDialect } from './columns.js';
 import { ALL_MIGRATIONS, type MetaMigration } from './migrations/index.js';
 import type { MetaDB } from './schema/tables.js';
 
-/** Package version recorded in the ledger. */
-export const META_PACKAGE_VERSION = '0.0.0';
+/**
+ * Package version recorded in the ledger, read from package.json at module
+ * load — the same trick `apps/server/src/version.ts` uses, and for the same
+ * reason: the relative hop works from both `src/` (vitest/tsx) and `dist/`
+ * (compiled) because both sit one level below the package root.
+ *
+ * It was a hardcoded `'0.0.0'`, which meant `adminium_migrations.adminium_version`
+ * — the column whose whole job is telling support which build touched a meta
+ * store — recorded a version that never shipped. Neither production caller
+ * passes `version`, so the literal was what every row got.
+ */
+export const META_PACKAGE_VERSION: string = (
+  JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+    version: string;
+  }
+).version;
 
 const LEDGER = 'adminium_migrations';
 

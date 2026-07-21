@@ -8,9 +8,13 @@ sidebar:
 The `adminium` CLI bundles the server, the dashboard build, and the meta
 migrations.
 
-:::note[Not on npm yet]
-Publishing the `adminium` package to npm is a release step that has not
-happened yet, so there is no `npx adminium` today. The two install paths are a
+:::caution[The npm package is `@adminiumjs/adminium`]
+When you install from npm, the spec is the **scoped** one —
+`npx @adminiumjs/adminium` — even though the binary it puts on your `PATH` is
+called `adminium`. The unscoped npm name `adminium` belongs to an unrelated
+project, so `npx adminium` installs someone else's package: never run it.
+
+Until that first release lands on the registry, the two install paths are a
 **source checkout** (this page) and **[Docker](/getting-started/docker/)**.
 :::
 
@@ -23,8 +27,8 @@ happened yet, so there is no `npx adminium` today. The two install paths are a
 ## 1. Get the code
 
 ```bash
-git clone https://github.com/adminium/adminium.git
-cd adminium
+git clone https://github.com/MoSofi/Adminium.git
+cd Adminium
 pnpm install
 pnpm build
 ```

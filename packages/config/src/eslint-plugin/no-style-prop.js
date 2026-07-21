@@ -26,7 +26,7 @@ export default {
     docs: {
       description:
         "Disallow the JSX `style` prop unless every property is a string-literal CSS custom property ('--*')",
-      url: 'https://github.com/adminium/adminium/blob/main/workplan/02-design-system.md#8-eslint-rule-adminiumno-style-prop',
+      url: 'https://github.com/MoSofi/Adminium/blob/main/workplan/02-design-system.md#8-eslint-rule-adminiumno-style-prop',
     },
     schema: [
       {

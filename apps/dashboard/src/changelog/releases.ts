@@ -3,16 +3,20 @@
  *
  * SOURCE CHOICE. The repo versions with changesets (`.changeset/config.json`,
  * `fixed: [["@adminium/*"]]`), which generates a per-package `CHANGELOG.md` at
- * `changeset version` time. At the v0.5 gate none exists yet: every workspace
- * is still `0.0.0` and no release has been cut, so there is nothing to parse.
- * Reading a file that does not exist would mean shipping a page that renders
- * empty on the very release it announces.
- *
- * So this module is the canonical feed for now: hand-authored, checked in, Zod-
+ * `changeset version` time. Those files now exist, but they are per-package and
+ * written for people reading a registry listing ("Updated dependencies"), not a
+ * product changelog — so the feed stays hand-authored and checked in, Zod-
  * validated at import, and shaped so a future `CHANGELOG.md` parser can fill it
  * mechanically (`parseChangelogMarkdown() → Release[]`) without touching the
  * page. It is a data file, not an array inlined in a component — the page never
  * hardcodes copy.
+ *
+ * ONE ENTRY, AND THAT IS CORRECT. The feed must agree with the version the
+ * About screen reports (`apps/server/src/version.ts` → apps/server/package.json).
+ * It previously listed 0.2.0–0.5.0 as shipped releases; none of them were ever
+ * cut — `git tag -l` is `v0.1.0` and nothing else — which made a freshly
+ * installed instance look four releases stale to its own operator. Add an entry
+ * here only when a tag exists for it.
  *
  * It is a `.ts` module rather than `.json` on purpose: this repo deliberately
  * avoids JSON imports (see `packages/i18n/scripts/gen-resources.mjs` — the TS
@@ -57,66 +61,25 @@ export type Release = z.infer<typeof releaseSchema>;
 /** Newest first — the page renders in array order. */
 const RAW: unknown = [
   {
-    version: '0.5.0',
-    date: '2026-07-16',
-    title: 'Self-host & distribution — public beta',
-    summary:
-      'Adminium is now fully self-hostable: a source checkout or one docker run takes a clean machine to a generated admin app.',
-    changes: [
-      { tag: 'New', text: 'The adminium CLI — init wizard plus start, introspect, migrate and export-zip subcommands.' },
-      { tag: 'New', text: 'Official Docker image (multi-arch, non-root) and a docker-compose.yml with an optional separate meta database.' },
-      { tag: 'New', text: 'export-zip bundles your server config for a standalone run, and replays back on import.' },
-      { tag: 'New', text: 'First-run wizard creates the super admin; telemetry is opt-in and off by default.' },
-      { tag: 'New', text: 'In-app Knowledge Base, Changelog and API keys, plus an About screen with version and licence.' },
-      { tag: 'Security', text: 'API keys are stored as a SHA-256 hash — the plaintext is shown once at creation and is never retrievable.' },
-    ],
-  },
-  {
-    version: '0.4.0',
-    date: '2026-06-25',
-    title: 'Widgets, dashboards and the dashboard builder',
-    summary:
-      'The full widget vocabulary landed — 37 charts, boards, calendars, org charts and Gantt — with drag-and-drop dashboards on top.',
-    changes: [
-      { tag: 'New', text: 'Dashboard Builder: drag, drop and resize widgets on a grid; layouts persist per page.' },
-      { tag: 'New', text: 'Kanban boards with swimlanes, a calendar scheduler, org charts and Gantt timelines.' },
-      { tag: 'New', text: 'Realtime bindings keep widget data live without a page refresh.' },
-      { tag: 'Improved', text: 'Charts mirror correctly in right-to-left locales.' },
-      { tag: 'Fixed', text: 'Drawers rendered off-screen on tall pages.' },
-    ],
-  },
-  {
-    version: '0.3.0',
-    date: '2026-06-04',
-    title: 'MySQL, SQLite and schema files',
-    summary: 'Three engines, and a path that needs no live database connection at all.',
-    changes: [
-      { tag: 'New', text: 'Connect MySQL/MariaDB and SQLite alongside PostgreSQL.' },
-      { tag: 'New', text: 'Upload a Prisma schema, a Django models.py, a Rails schema.rb or a .sql dump — no connection required.' },
-      { tag: 'Improved', text: 'Per-engine capability detection degrades gracefully instead of failing.' },
-    ],
-  },
-  {
-    version: '0.2.0',
-    date: '2026-05-14',
-    title: 'AI assist and eight locales',
-    summary: 'Optional AI enrichment for generated apps, and the full internationalization layer.',
-    changes: [
-      { tag: 'New', text: 'AI assist proposes labels, groupings and starter dashboards from your schema — always reviewed before it applies.' },
-      { tag: 'New', text: 'Bring your own LLM: copy the prompt, paste the response, no key required and nothing leaves your machine.' },
-      { tag: 'New', text: '8 locales with full right-to-left support.' },
-      { tag: 'Security', text: 'Schema only — the enrichment prompt never contains your row data.' },
-    ],
-  },
-  {
     version: '0.1.0',
-    date: '2026-04-22',
-    title: 'First generated admin app',
-    summary: 'Point Adminium at a Postgres database and get a working admin panel.',
+    date: '2026-07-21',
+    title: 'First public release',
+    summary:
+      'Point Adminium at a database and get a real admin panel — read-and-write, self-hosted, and open source under AGPL-3.0.',
     changes: [
       { tag: 'New', text: 'Connect a database, introspect the schema and generate a full CRUD admin app.' },
-      { tag: 'New', text: 'Roles and permissions, audit log and API keys.' },
-      { tag: 'Security', text: 'Introspection reads schema metadata only, never your rows.' },
+      { tag: 'New', text: 'PostgreSQL, MySQL/MariaDB and SQLite — or upload a Prisma schema, a Django models.py, a Rails schema.rb or a .sql dump and connect nothing at all.' },
+      { tag: 'New', text: 'Studio: rename, regroup and re-shape the generated app, with every change stored as configuration rather than emitted code.' },
+      { tag: 'New', text: 'The widget vocabulary — charts, Kanban boards with swimlanes, a calendar scheduler, org charts and Gantt timelines — with a drag-and-drop dashboard builder on top.' },
+      { tag: 'New', text: 'Optional AI assist proposes labels, groupings and starter dashboards from your schema, always reviewed before it applies. Bring your own key, or copy the prompt and paste the response so nothing leaves your machine.' },
+      { tag: 'New', text: 'Roles and permissions, audit log, API keys, jobs and notifications.' },
+      { tag: 'New', text: '8 locales with full right-to-left support.' },
+      { tag: 'New', text: 'Self-host your way: the adminium CLI (init wizard plus start, introspect, migrate, export-zip and import-zip), a multi-arch non-root Docker image with docker-compose.yml, or the desktop app.' },
+      { tag: 'New', text: 'In-app Knowledge Base, Changelog and About screen with version, licence and the AGPL source offer.' },
+      { tag: 'Security', text: 'Introspection and the AI prompt read schema metadata only — never your rows.' },
+      { tag: 'Security', text: 'Stored database credentials and provider keys are encrypted at rest with a key derived from ADMINIUM_SECRET.' },
+      { tag: 'Security', text: 'API keys are stored as a SHA-256 hash — the plaintext is shown once at creation and is never retrievable.' },
+      { tag: 'Security', text: 'Telemetry and update checks are both opt-in and off by default; an opted-out instance makes no outbound call.' },
     ],
   },
 ];

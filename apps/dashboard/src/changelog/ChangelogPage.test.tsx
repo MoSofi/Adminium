@@ -155,29 +155,34 @@ describe('ChangelogPage', () => {
     await renderPage('en_US');
     await screen.findByRole('heading', { name: 'Changelog' });
     // US order, month-first — never the comp's hardcoded "Jul 10".
-    expect(screen.getAllByText('Jul 16, 2026').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Jul 21, 2026').length).toBeGreaterThan(0);
   });
 
   it('renders the same ISO date in the de-DE order for a German viewer', async () => {
     await renderPage('de_DE');
     await screen.findByRole('heading', { name: 'Changelog' });
-    // Day-first and dotted — the same `2026-07-16` from the feed, localized.
-    expect(screen.getAllByText('16.07.2026').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Jul 16, 2026')).toBeNull();
+    // Day-first and dotted — the same `2026-07-21` from the feed, localized.
+    expect(screen.getAllByText('21.07.2026').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Jul 21, 2026')).toBeNull();
   });
 
-  it('filters to one tag and hides the releases it empties', async () => {
+  it('filters the rendered feed down to one tag', async () => {
+    // Release-level emptying is asserted against the synthetic feed in the
+    // `filterReleases` block above; the shipped feed is a single 0.1.0 entry
+    // (see releases.ts — no other release was ever tagged), so what this proves
+    // here is that the chip really narrows what the PAGE renders.
     const user = userEvent.setup();
     await renderPage();
     await screen.findByRole('heading', { name: 'Changelog' });
 
-    const before = screen.getAllByTestId('changelog-release').length;
+    const before = screen.getAllByTestId('changelog-change').length;
     await user.click(screen.getByRole('radio', { name: 'Security' }));
 
-    const after = screen.getAllByTestId('changelog-release');
+    const after = screen.getAllByTestId('changelog-change');
     expect(after.length).toBeLessThan(before);
+    expect(after.length).toBeGreaterThan(0);
     // Every surviving change really is a Security change.
-    for (const change of screen.getAllByTestId('changelog-change')) {
+    for (const change of after) {
       expect(change.getAttribute('data-tag')).toBe('Security');
     }
   });

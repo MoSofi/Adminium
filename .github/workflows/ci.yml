@@ -77,6 +77,21 @@ jobs:
       - name: Generate third-party notices
         run: pnpm run generate-notices
 
+      # 11-electron.md §10: the icons are a DELIVERABLE derived by a script, not a
+      # checked-in binary — and their outputs are .gitignored, so nothing else in
+      # CI ever executes that script. It was previously exercised only by
+      # desktop-release.yml's `Generate app icons` step, i.e. only on a
+      # `desktop-v*` tag, i.e. never: the script sat broken (icon-gen v1-era
+      # options against icon-gen v5) and would have failed the FIRST step of all
+      # three OS legs on the first real release. Run it here, on every push, so a
+      # dep bump that shifts icon-gen's option shape or sharp's API is caught by
+      # the cheap gate instead of by a tag. It needs no secrets and no display;
+      # `icons`'s own `loadDesktopDep` also asserts that sharp + icon-gen really
+      # are linked into apps/desktop by a frozen install, which is the other half
+      # of what the release step depends on.
+      - name: Derive desktop icons (release-path smoke)
+        run: pnpm --filter @adminium/desktop run icons
+
   dep-graph:
     name: dep-graph
     runs-on: ubuntu-latest

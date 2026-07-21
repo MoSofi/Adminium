@@ -16,11 +16,11 @@ public.**
 
 ```bash
 # 1. Bump the version (must match the tag you are about to push)
-#    apps/desktop/package.json → "version": "0.5.0"
+#    apps/desktop/package.json → "version": "0.1.0"
 
 # 2. Commit, then tag and push
-git tag desktop-v0.5.0
-git push origin desktop-v0.5.0
+git tag desktop-v0.1.0
+git push origin desktop-v0.1.0
 ```
 
 The workflow refuses to build if the tag and `apps/desktop/package.json`

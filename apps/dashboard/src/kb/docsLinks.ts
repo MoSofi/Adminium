@@ -19,7 +19,7 @@ export function docsUrl(path: string): string {
  * already the canonical one `apps/server/src/telemetry/update-check.ts`
  * (`RELEASES_PAGE_URL`) sends people to when a new version exists.
  */
-export const RELEASES_URL = 'https://github.com/adminium/adminium/releases';
+export const RELEASES_URL = 'https://github.com/MoSofi/Adminium/releases';
 
 /**
  * Where "search the docs" goes.

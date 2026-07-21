@@ -43,6 +43,7 @@ import {
   type BundleManifest,
 } from '../src/export/bundle.js';
 import { importZip, ImportZipError } from '../src/export/import-service.js';
+import { NPM_PACKAGE_NAME } from '../src/version.js';
 import {
   EXPORTED_COLUMNS,
   PlaintextSecretError,
@@ -752,7 +753,11 @@ describe('the bundle is configuration, not source code', () => {
     });
     const entries = await readEntries(result.path);
     const pkg = JSON.parse(strFromU8(entries['adminium-export/package.json'] as Uint8Array));
-    expect(pkg.dependencies).toEqual({ adminium: '0.5.0' });
+    // Scoped, never the bare `adminium`: that unscoped npm name is an
+    // unrelated third party's package, so a bundle pinning it would tell the
+    // restorer to install a stranger's library.
+    expect(pkg.dependencies).toEqual({ [NPM_PACKAGE_NAME]: '0.5.0' });
+    expect(NPM_PACKAGE_NAME).not.toBe('adminium');
   });
 });
 

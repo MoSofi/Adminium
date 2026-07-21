@@ -346,7 +346,7 @@ describe('update-available notice is gated on its own preference (M10-T04)', () 
       status: 'update-available',
       current: '0.5.0',
       latest: '0.6.1',
-      url: 'https://github.com/adminium/adminium/releases',
+      url: 'https://github.com/MoSofi/Adminium/releases',
     });
     expect(calls).toHaveLength(1);
   });

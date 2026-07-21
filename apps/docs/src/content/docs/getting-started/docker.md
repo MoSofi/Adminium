@@ -20,7 +20,7 @@ doors.
 docker run --rm -p 4600:4600 \
   -e ADMINIUM_SECRET=$(openssl rand -hex 32) \
   -v adminium-data:/data \
-  ghcr.io/adminium/adminium:latest
+  ghcr.io/mosofi/adminium:latest
 ```
 
 Open `http://localhost:4600` and create the first super admin.
@@ -36,7 +36,7 @@ volume. For anything you intend to keep, give it a real meta store: see
 Pin a version rather than `latest` for anything real:
 
 ```bash
-docker run --rm -p 4600:4600 ghcr.io/adminium/adminium:0.5.0
+docker run --rm -p 4600:4600 ghcr.io/mosofi/adminium:0.1.0
 ```
 
 ## Compose

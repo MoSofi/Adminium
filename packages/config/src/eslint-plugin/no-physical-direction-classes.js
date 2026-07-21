@@ -54,7 +54,7 @@ export default {
     docs: {
       description:
         'Disallow physical-direction Tailwind utilities (ml/mr/pl/pr/left/right/border-l/border-r/rounded-l/rounded-r/text-left/text-right); use the logical equivalents so surfaces mirror under RTL',
-      url: 'https://github.com/adminium/adminium/blob/main/workplan/10-i18n-theming.md#52-logical-property-only-policy',
+      url: 'https://github.com/MoSofi/Adminium/blob/main/workplan/10-i18n-theming.md#52-logical-property-only-policy',
     },
     schema: [
       {

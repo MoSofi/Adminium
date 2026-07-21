@@ -29,8 +29,8 @@ function makeAbout(overrides: Partial<AboutData> = {}): AboutData {
   return {
     version: '0.5.0',
     license: 'AGPL-3.0-only',
-    sourceUrl: 'https://github.com/adminium/adminium',
-    licenseUrl: 'https://github.com/adminium/adminium/blob/main/LICENSE',
+    sourceUrl: 'https://github.com/MoSofi/Adminium',
+    licenseUrl: 'https://github.com/MoSofi/Adminium/blob/main/LICENSE',
     metaEngine: 'postgres',
     metaMigrationVersion: '0042_add_widgets',
     node: 'v22.14.0',
@@ -109,11 +109,11 @@ describe('AboutPage', () => {
     await screen.findByRole('heading', { name: 'About Adminium' });
 
     const licence = screen.getByRole('link', { name: /Read the licence/ });
-    expect(licence.getAttribute('href')).toBe('https://github.com/adminium/adminium/blob/main/LICENSE');
+    expect(licence.getAttribute('href')).toBe('https://github.com/MoSofi/Adminium/blob/main/LICENSE');
 
     // This link is the compliance artifact, not decoration.
     const source = screen.getByRole('link', { name: /Get the source code/ });
-    expect(source.getAttribute('href')).toBe('https://github.com/adminium/adminium');
+    expect(source.getAttribute('href')).toBe('https://github.com/MoSofi/Adminium');
     expect(source.getAttribute('rel')).toContain('noopener');
   });
 });
@@ -140,14 +140,14 @@ describe('AboutPage — update notice gating', () => {
       status: 'update-available',
       current: '0.5.0',
       latest: '0.6.0',
-      url: 'https://github.com/adminium/adminium/releases',
+      url: 'https://github.com/MoSofi/Adminium/releases',
     });
 
     expect(await screen.findByTestId('about-update-available')).toBeDefined();
     expect(screen.getByText('Adminium 0.6.0 is available')).toBeDefined();
     expect(screen.getByText('You are running 0.5.0.')).toBeDefined();
     expect(screen.getByRole('link', { name: /View release notes/ }).getAttribute('href')).toBe(
-      'https://github.com/adminium/adminium/releases',
+      'https://github.com/MoSofi/Adminium/releases',
     );
     expect(updateCalls).toHaveLength(1);
   });
