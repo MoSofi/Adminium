@@ -124,6 +124,13 @@ linux:
   category: Development
   maintainer: Adminium <hello@adminium.dev>
   icon: resources/icons/icon.png
+  # REQUIRED, not cosmetic. `executableName` defaults to package.json `name`,
+  # which here is the scoped workspace name `@adminium/desktop`; electron-builder
+  # flattens that to `@adminiumdesktop` and then refuses to build the AppImage
+  # ("contains characters that cannot be safely used in file paths"). macOS and
+  # Windows derive their binary from `productName` instead, which is why only the
+  # Linux leg failed. This also fixes the command users actually type.
+  executableName: adminium
 
 # THE UPDATE FEED. electron-builder writes this block verbatim into the packaged
 # app's Contents/Resources/app-update.yml (it does so even under `--publish
