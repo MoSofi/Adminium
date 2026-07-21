@@ -32,13 +32,17 @@ export interface BuiltinRoleDef {
  * generation time, no system actions.
  *
  * Reserved-key footprint: "every system action" includes ALL FOUR
- * `RESERVED_SYSTEM_ACTION_KEYS` (automations/webhooks/manifests/sql.run —
- * no v1 enforcement point), and admin's set includes two of them. These
- * seeded rows are inert no-op grants, but they ARE persisted and read-only
- * surfaces that render stored grants verbatim (e.g. the API-keys scope chips)
- * will show them. That display is permitted by the reservation contract
- * (json-payloads.ts `RESERVED_SYSTEM_ACTION_KEYS`): only grant-EDITING UIs
- * must hide reserved keys, via `GRANTABLE_SYSTEM_ACTION_KEYS`.
+ * `RESERVED_SYSTEM_ACTION_KEYS` (automations/webhooks/manifests/sql.run — no
+ * v1 enforcement point). That is deliberate and super-admin-ONLY: the role is
+ * definitionally full-access (and the RBAC layer short-circuits for
+ * `super-admin` anyway), so its reserved rows are inert declarations of
+ * intent, not capabilities. Every other role seeds enforced keys only —
+ * read-only surfaces render stored grants verbatim (e.g. the API-keys scope
+ * chips), and a reserved key there would advertise a feature that does not
+ * exist. When a deferred feature lands, re-add its key to the role defs in
+ * the same change that moves it out of `RESERVED_SYSTEM_ACTION_KEYS`;
+ * `seedBuiltinRoles` runs at every boot and backfills the missing rows on
+ * existing installs.
  */
 export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
   {
@@ -50,8 +54,8 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
   {
     slug: 'admin',
     name: 'Admin',
-    description: 'Manages connections, schema, automations, and webhooks.',
-    systemActions: ['connections.manage', 'schema.remap', 'llm.run', 'automations.manage', 'webhooks.manage'],
+    description: 'Manages connections, schema, and LLM assist.',
+    systemActions: ['connections.manage', 'schema.remap', 'llm.run'],
   },
   {
     slug: 'editor',
