@@ -463,8 +463,43 @@ jobs:
           set -euo pipefail
           export NPM_CONFIG_PREFIX="$RUNNER_TEMP/npm-global"
           VERSION='${{ steps.version.outputs.version }}'
-          for i in 1 2 3 4 5; do
-            if npm install -g "@adminiumjs/adminium@$VERSION"; then break; fi
-            echo "registry not consistent yet, retry $i"; sleep 15
+
+          # A BRAND-NEW package name takes minutes to become readable across
+          # npm's replicas — the 0.1.0-rc.1 rehearsal published all 14 packages
+          # correctly and then failed here purely because 5×15s of retries ran
+          # out first. Wait on the registry itself (cheap HEAD-ish GETs) before
+          # spending a whole install attempt, and give it a realistic budget.
+          for i in $(seq 1 30); do
+            missing=0
+            for p in tokens charts i18n ui widgets engine adapter-mysql \
+                     adapter-postgres adapter-sqlite llm manifest meta \
+                     schema-import adminium; do
+              code="$(curl -s -o /dev/null -w '%{http_code}' \
+                "https://registry.npmjs.org/@adminiumjs%2F$p/$VERSION")"
+              [ "$code" = "200" ] || { missing=$((missing + 1)); }
+            done
+            [ "$missing" -eq 0 ] && { echo "all 14 packages readable"; break; }
+            if [ "$i" -eq 30 ]; then
+              echo "::error::$missing package(s) still unreadable after 10 minutes"
+              exit 1
+            fi
+            echo "waiting for the registry ($missing not readable yet, attempt $i)"
+            sleep 20
           done
+
+          # --prefer-online: the runner may already have negative-cached these
+          # names from the readiness poll above.
+          npm install -g --prefer-online "@adminiumjs/adminium@$VERSION"
           "$NPM_CONFIG_PREFIX/bin/adminium" --version
+
+          # The install is only meaningful if the aliases resolved and the SPA
+          # actually shipped — a CLI that boots without its dashboard is the
+          # hollow-package failure this pipeline exists to catch.
+          PKG="$NPM_CONFIG_PREFIX/lib/node_modules/@adminiumjs/adminium"
+          test -f "$PKG/dashboard/index.html" || {
+            echo "::error::published CLI has no bundled dashboard"; exit 1; }
+          for dep in engine meta widgets llm; do
+            test -d "$PKG/node_modules/@adminium/$dep" || {
+              echo "::error::alias @adminium/$dep did not resolve"; exit 1; }
+          done
+          echo "dashboard + aliased dependencies verified in the published package"
