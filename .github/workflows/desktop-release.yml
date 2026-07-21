@@ -234,6 +234,30 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "Windows code signing enabled (WIN_CSC_LINK present)"
 
+      # electron-builder's `npmRebuild` compiles better-sqlite3 and argon2 against
+      # Electron's own headers. Those headers are V8's, they require C++20, and
+      # ubuntu-22.04's default g++-11 only partially implements it — the first
+      # real run of this workflow died parsing v8-primitive.h ("expected
+      # identifier before '__attribute__'" on a `V8_DEPRECATED(...) V8_EXPORT`
+      # class head, which GCC 11 mis-parses and clang/MSVC accept, hence mac and
+      # win passing while only linux failed).
+      #
+      # g++-12 rather than a newer runner image ON PURPOSE: the AppImage/deb link
+      # against the build host's glibc, so building on the OLDEST supported image
+      # is what keeps the Linux artifacts installable on older distros. Upgrading
+      # the compiler buys C++20 without narrowing that compatibility window.
+      - name: Use a C++20-capable toolchain (linux)
+        if: matrix.platform == 'linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y g++-12 gcc-12
+          {
+            echo 'CC=gcc-12'
+            echo 'CXX=g++-12'
+          } >> "$GITHUB_ENV"
+          g++-12 --version | head -1
+
       # ── Step 3: package + (mac) sign + notarize ──────────────────────────────
       #
       # The `dist` script (= `electron-builder`) is the ONLY sanctioned call site
