@@ -257,12 +257,17 @@ jobs:
     steps:
       - name: Probe for NPM_TOKEN
         id: token
+        env:
+          # Mapped through env rather than interpolated into the script so a
+          # token containing shell metacharacters can never break the test.
+          TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -n '${{ secrets.NPM_TOKEN }}' ]; then
+          if [ -n "$TOKEN" ]; then
             echo 'have=true' >> "$GITHUB_OUTPUT"
+            echo "NPM_TOKEN present (${#TOKEN} chars)."
           else
             echo 'have=false' >> "$GITHUB_OUTPUT"
-            echo 'NPM_TOKEN secret not set — skipping npm publish.'
+            echo 'NPM_TOKEN secret is unset or EMPTY — skipping npm publish.'
           fi
 
       - name: Checkout
