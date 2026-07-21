@@ -208,17 +208,36 @@ jobs:
       - name: Smoke-test the arm64 half of the staged manifest
         run: |
           set -euo pipefail
-          IMAGE_REF='${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}'
+          IMAGE='${{ steps.version.outputs.image }}'
+          INDEX_DIGEST='${{ steps.build.outputs.digest }}'
+
+          # `docker run --platform linux/arm64 img@<index digest>` fails with
+          # "cannot overwrite digest": the build output is the digest of the
+          # multi-arch INDEX, and once Docker resolves the index to a
+          # per-architecture child it cannot honour the pinned index digest for
+          # the container it is actually running. So resolve the arm64 child
+          # ourselves and run THAT by digest — no --platform needed, and it
+          # proves the exact artifact inside the index we are about to promote.
+          ARM64_DIGEST="$(docker buildx imagetools inspect "$IMAGE@$INDEX_DIGEST" --raw \
+            | jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64" and (.platform.variant // "") != "unknown") | .digest' \
+            | head -n1)"
+          if [ -z "$ARM64_DIGEST" ]; then
+            echo "::error::no linux/arm64 manifest inside $IMAGE@$INDEX_DIGEST"
+            docker buildx imagetools inspect "$IMAGE@$INDEX_DIGEST" --raw
+            exit 1
+          fi
+          echo "arm64 child manifest: $ARM64_DIGEST"
+
           # The image's baked HEALTHCHECK (--start-period=40s --interval=30s
           # --retries=3) declares a container unhealthy ~130s in, and the loop
           # below aborts on the first `unhealthy` — so under QEMU the 240s
           # budget was unreachable and this leg would fail on a HEALTHY image.
           # Widen the probe for the emulated run only; the baked values still
           # govern real deployments.
-          docker run -d --name adminium-smoke-arm64 --platform linux/arm64 \
+          docker run -d --name adminium-smoke-arm64 \
             --health-start-period=180s --health-interval=5s --health-retries=12 \
             -e ADMINIUM_SECRET=smoke-test-secret-not-a-real-one \
-            -p 4601:4600 "$IMAGE_REF"
+            -p 4601:4600 "$IMAGE@$ARM64_DIGEST"
 
           for i in $(seq 1 120); do
             status="$(docker inspect -f '{{.State.Health.Status}}' adminium-smoke-arm64 2>/dev/null || echo starting)"
