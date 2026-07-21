@@ -1,8 +1,14 @@
 {
   "name": "@adminium/server",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "apps/server"
+  },
+  "homepage": "https://adminium.dev",
+  "bugs": "https://github.com/MoSofi/Adminium/issues",
   "type": "module",
   "description": "Fastify server: REST /api/v1, auth, jobs, serves the dashboard build",
   "main": "./dist/index.js",

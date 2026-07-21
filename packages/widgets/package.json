@@ -1,8 +1,14 @@
 {
   "name": "@adminium/widgets",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "packages/widgets"
+  },
+  "homepage": "https://adminium.dev",
+  "bugs": "https://github.com/MoSofi/Adminium/issues",
   "type": "module",
   "description": "Widget registry, page templates, dashboard grid",
   "sideEffects": [
@@ -60,5 +66,8 @@
     "react-dom": "^19.1.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
