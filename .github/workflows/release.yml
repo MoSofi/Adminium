@@ -467,23 +467,30 @@ jobs:
           # A BRAND-NEW package name takes minutes to become readable across
           # npm's replicas — the 0.1.0-rc.1 rehearsal published all 14 packages
           # correctly and then failed here purely because 5×15s of retries ran
-          # out first. Wait on the registry itself (cheap HEAD-ish GETs) before
-          # spending a whole install attempt, and give it a realistic budget.
+          # out first. Wait on the registry before spending an install attempt.
+          #
+          # Poll the PACKUMENT and look for the version inside `.versions`,
+          # NOT the per-version document. They are served by different replicas
+          # and the version doc wins the race: at v0.1.0 every
+          # `/@scope%2Fpkg/0.1.0` returned 200 while `npm install` still failed
+          # ETARGET, because the resolver reads the packument's version map.
+          # Checking what the installer actually reads is the whole point.
           for i in $(seq 1 30); do
             missing=0
             for p in tokens charts i18n ui widgets engine adapter-mysql \
                      adapter-postgres adapter-sqlite llm manifest meta \
                      schema-import adminium; do
-              code="$(curl -s -o /dev/null -w '%{http_code}' \
-                "https://registry.npmjs.org/@adminiumjs%2F$p/$VERSION")"
-              [ "$code" = "200" ] || { missing=$((missing + 1)); }
+              curl -fsS -H 'Cache-Control: no-cache' \
+                "https://registry.npmjs.org/@adminiumjs%2F$p" 2>/dev/null \
+                | jq -e --arg v "$VERSION" '.versions[$v] // empty' >/dev/null 2>&1 \
+                || missing=$((missing + 1))
             done
-            [ "$missing" -eq 0 ] && { echo "all 14 packages readable"; break; }
+            [ "$missing" -eq 0 ] && { echo "all 14 packuments list $VERSION"; break; }
             if [ "$i" -eq 30 ]; then
-              echo "::error::$missing package(s) still unreadable after 10 minutes"
+              echo "::error::$missing packument(s) still missing $VERSION after 10 minutes"
               exit 1
             fi
-            echo "waiting for the registry ($missing not readable yet, attempt $i)"
+            echo "waiting for the registry ($missing packuments lack $VERSION, attempt $i)"
             sleep 20
           done
 
