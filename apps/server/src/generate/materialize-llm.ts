@@ -16,6 +16,13 @@
  * and DISABLES the row — a parked page beats the invalid-config card the
  * client would otherwise render forever. Every later run retries; success
  * re-enables.
+ *
+ * A successful expansion also syncs the ROW's nav projection (title, nav
+ * group, icon back-fill) from the validated envelope: the bootstrap tree and
+ * the client's `/p/$slug` resolver read the row columns, not the document, so
+ * without the sync a materialized llm page would stay invisible and
+ * unreachable. An §8.3 nav-group re-placement still wins — the envelope
+ * follows the row's group when one was stamped.
  */
 
 import { composeRequestedArchetype, hashEnvelope, type DatabaseModel } from '@adminium/engine';
@@ -167,9 +174,17 @@ export async function materializeLlmPages(opts: {
       }
     }
 
+    // Sync the row's nav projection (title/group/icon) from the envelope: the
+    // bootstrap tree and the `/p/$slug` resolver read the ROW columns, so a
+    // seed left with its apply-time `nav_group` (null, or an §8.3 llm group
+    // slug) would materialize into an unreachable page. The envelope already
+    // encodes the §8.3 precedence — a nav-group write on the row wins,
+    // otherwise the archetype's fixed group — so the row simply follows it.
     const icon = (envelope['nav'] as Record<string, unknown>)['icon'];
     await repo.replaceConfig(page.id, parsed.data, {
       icon: typeof icon === 'string' ? icon : null,
+      title: parsed.data.title.fallback,
+      navGroup: parsed.data.nav.group,
       ...(opts.at === undefined ? {} : { at: opts.at }),
     });
     if (!page.isEnabled) {

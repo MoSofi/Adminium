@@ -411,13 +411,17 @@ export function pagesRepo(meta: MetaDb) {
      * a minimal `{source, llmRunId}` config and the regeneration hook expands
      * it into the full validated envelope from the active snapshot. Bumps
      * `revision` + `updatedAt` (configVersion advances → clients re-fetch);
-     * `icon` is back-filled only when the row has none. Returns the reloaded
-     * page, or null if the id does not exist.
+     * `icon` is back-filled only when the row has none. `title`/`navGroup`,
+     * when provided, sync the row's nav projection from the envelope — the
+     * bootstrap tree reads the ROW columns, so without this an expanded llm
+     * page would stay outside the nav (and `/p/$slug` resolves from the nav
+     * tree, leaving the page unreachable). Returns the reloaded page, or null
+     * if the id does not exist.
      */
     async replaceConfig(
       pageId: string,
       config: unknown,
-      opts: { icon?: string | null; at?: number } = {},
+      opts: { icon?: string | null; title?: string; navGroup?: string | null; at?: number } = {},
     ): Promise<Page | null> {
       const page = await this.findById(pageId);
       if (page === null) return null;
@@ -428,6 +432,8 @@ export function pagesRepo(meta: MetaDb) {
         .set({
           config: packJson(config),
           ...(page.icon === null && icon !== null ? { icon } : {}),
+          ...(opts.title === undefined ? {} : { title: opts.title }),
+          ...(opts.navGroup === undefined ? {} : { navGroup: opts.navGroup }),
           revision: page.revision + 1,
           updatedAt: at,
         })

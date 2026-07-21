@@ -285,6 +285,54 @@ describe('createApplyService', () => {
     expect((await pagesRepo(meta).listForConnection(connectionId)).filter((p) => p.origin === 'llm')).toHaveLength(4);
   });
 
+  it('two connections applying the same response get distinct page rows (no id collision)', async () => {
+    // Suggestion-ids are pure coordinate functions (template:public.orders:…),
+    // identical across connections — the page id must be connection-scoped or
+    // the second apply would rewrite the first connection's rows in place.
+    const runA = await seedValidatedRun();
+    await service.applyRun(runA, ALL_IDS, { appliedBy: userId });
+
+    const other = await connectionsRepo(meta, testCrypto).create({
+      name: 'shop-two',
+      engine: 'postgres',
+      introspectDsn: 'postgres://ro@localhost/shop2',
+    });
+    const otherSnap = await snapshotsRepo(meta).create({
+      connectionId: other.id,
+      source: 'introspection',
+      schema: demoSchemaIr,
+      checksum: 'sha-shop-2',
+    });
+    const runB = await llmRunsRepo(meta).create({
+      connectionId: other.id,
+      snapshotId: otherSnap.snapshot.id,
+      mode: 'byo',
+      promptVersion: 'adminium.prompt/v1',
+      promptHash: 'a'.repeat(64),
+      locales: ['en_US', 'de_DE'],
+      status: 'draft',
+    });
+    await llmRunsRepo(meta).recordResponse(runB.id, {
+      status: 'validated',
+      validationStatus: 'valid',
+      responseJson: validDemo,
+      chunksReceived: 1,
+    });
+    await service.applyRun(runB.id, ALL_IDS, { appliedBy: userId });
+
+    const pagesA = (await pagesRepo(meta).listForConnection(connectionId)).filter((p) => p.origin === 'llm');
+    const pagesB = (await pagesRepo(meta).listForConnection(other.id)).filter((p) => p.origin === 'llm');
+    expect(pagesA).toHaveLength(4);
+    expect(pagesB).toHaveLength(4);
+    const idsA = new Set(pagesA.map((p) => p.id));
+    for (const page of pagesB) expect(idsA.has(page.id)).toBe(false);
+    // The first connection's seed rows still carry THEIR run's provenance —
+    // the second apply never rewrote them.
+    for (const page of pagesA) {
+      expect((page.config as { llmRunId: string }).llmRunId).toBe(runA);
+    }
+  });
+
   it('partial acceptance lands partially_applied with the correct review lists', async () => {
     await seedGeneratedPages();
     const runId = await seedValidatedRun();

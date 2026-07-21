@@ -17,17 +17,18 @@
  *
  * Role/label selectors + Playwright auto-waiting only — no arbitrary sleeps.
  *
- * The M7 page-template legs (queue/board/directory as per-item template pages)
- * are intentionally NOT exercised YET. Both renderers and vocabulary are in
- * place: the 14 M7 template RENDERERS are registered
- * (apps/dashboard/src/pages/templates.tsx; template-pages.spec.ts pins them),
- * and `LLM_ALLOWED_TEMPLATES` (derived from `pageTemplateDefinitions` in
- * packages/widgets/src/registry/page-templates.ts) now admits the 10
- * recommendable ids — `page-dashboard` + the 9 data-shaped archetypes,
- * including `page-queue-inbox`/`page-board`/`page-directory`. (`page-crud` is
- * not in the list: it is always generated and keeps its bespoke rejection.)
- * What remains is authoring: `fixtures/northwind-enrichment.json` carries no
- * `pageTemplates` block and the spec body below is unwritten. See `test.fixme`.
+ * The M7 page-template leg (second test) drives the same BYO round-trip with
+ * the golden's `pageTemplates` block: `page-queue-inbox` (orders, composes —
+ * every table emits a data-grid + count-KPI candidate), `page-directory`
+ * (employees, composes — the `reports_to` self-FK earns `org-chart`), and
+ * `page-board` (orders, deliberately CANNOT compose on Northwind: the kanban
+ * candidate needs a status-workflow enum column and the seeded schema declares
+ * none). The board leg pins the honest §8.3 outcome — the accepted suggestion
+ * applies (page row written), the materialization pass parks it (disabled,
+ * warned, retried every regeneration) and it never reaches the nav. The
+ * fixture keeps orders/employees OUT of the accepted navGroups so the two
+ * composable pages keep their archetype's fixed sidebar group (workspace /
+ * people) instead of an §8.3 llm-group stamp the five-group tree cannot show.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -166,24 +167,106 @@ test.describe('LLM enrichment — BYO round-trip (golden e2e)', () => {
     await expect(primaryNav.getByRole('link', { name: 'Order lines' }).first()).toBeVisible();
   });
 
-  // M7 page-template legs (queue/board/directory as per-item template pages).
-  // The vocabulary gate has lifted: all 14 template renderers are registered
-  // (apps/dashboard/src/pages/templates.tsx; the seeded archetype pages are
-  // pinned end-to-end by template-pages.spec.ts), and `LLM_ALLOWED_TEMPLATES`
-  // (packages/widgets/src/registry/page-templates.ts → llm-allowlist.ts) now
-  // admits the 9 M7 archetypes — `page-queue-inbox`/`page-board`/
-  // `page-directory` included — so a golden `pageTemplates` block survives
-  // referential validation. The ONLY remaining work is authoring: give
-  // `fixtures/northwind-enrichment.json` a `pageTemplates` block that
-  // recommends queue/board/directory for matching Northwind tables, and write
-  // this body to drive it through validate → review → accept → apply, then
-  // assert the per-item template pages render.
-  test.fixme(
-    'BYO round-trip applies queue/board/directory template pages (M7)',
-    async () => {
-      // Intentionally empty until the golden fixture gains a pageTemplates
-      // block and this body is authored (the vocabulary already admits the
-      // M7 archetypes).
-    },
-  );
+  // M7 page-template leg: the golden's `pageTemplates` suggestions ride the
+  // same wizard → BYO → validate → review → accept-all → apply round-trip on
+  // a fresh connection, and the applied pages surface end to end — queue and
+  // directory materialize into the bootstrap nav and mount their REAL
+  // renderers over the seeded rows; board (uncomposable on this schema — no
+  // workflow enum) applies but parks: warned on every regeneration, absent
+  // from the nav. Slug-scoped `href` locators, not labels: "Employees
+  // Directory" also names the heuristic archetype page of every Northwind
+  // connection, and slugs repeat across connections.
+  test('(f) BYO round-trip applies queue/board/directory template pages (M7)', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto('/studio/connect');
+    await expect(page.getByRole('heading', { name: 'New connection' })).toBeVisible();
+
+    // Wizard steps 1–5, as in the first leg (a second fresh connection onto
+    // the same seeded Northwind file).
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByLabel('Connection name').fill('northwind-m7-e2e');
+    await page.getByLabel('Connection string').fill(enrichWizardDsn());
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Choose your tables' })).toBeVisible();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await page.getByRole('radio', { name: /Same database/ }).click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+    // BYO path with the same locale set the golden carries.
+    await expect(page.getByRole('heading', { name: 'Enrich with AI' })).toBeVisible();
+    await page.getByRole('radio', { name: /Copy a prompt to my own AI tool/ }).click();
+    await page.locator('#enrich-locale-de_DE').click();
+    await page.getByRole('button', { name: 'Generate prompt' }).click();
+    await expect(page.getByRole('button', { name: 'Copy prompt' })).toBeVisible();
+
+    await page.getByLabel('Paste the JSON response').fill(GOLDEN_RESPONSE);
+    await page.getByRole('button', { name: 'Validate' }).click();
+    await expect(page.getByRole('button', { name: 'Continue to review' })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Continue to review' }).click();
+    await expect(page.getByRole('heading', { name: 'Review AI suggestions' })).toBeVisible({
+      timeout: 30_000,
+    });
+    const runId = new URL(page.url()).pathname.split('/').at(-2);
+    expect(runId, 'run id in the review URL').toBeTruthy();
+
+    // Accept the ≥ 0.8 set — all three template suggestions qualify (0.9/0.85/0.9).
+    await page.getByRole('button', { name: /Accept all/ }).click();
+    const applyButton = page.getByRole('button', { name: /Apply \d+ accepted suggestions/ });
+    await expect(applyButton).toBeEnabled();
+    await applyButton.click();
+    await page.getByRole('button', { name: 'Apply changes' }).click();
+    await expect(page.getByText('This run has been applied')).toBeVisible({ timeout: 30_000 });
+
+    const runRes = await page.request.get(`/api/v1/llm/runs/${runId ?? ''}`);
+    expect(runRes.ok(), `GET run ${String(runId)} → ${runRes.status()}`).toBeTruthy();
+    const run = (await runRes.json()) as { status: string; connectionId: string };
+    expect(['applied', 'partially_applied']).toContain(run.status);
+
+    // Regenerate. The post-apply hook already materialized the composable
+    // seeds; this second run is idempotent for them but re-warns for every
+    // still-parked seed — which is exactly the board's honest state on this
+    // schema (its kanban slot has no candidate without a workflow enum).
+    const genRes = await page.request.post(`/api/v1/connections/${run.connectionId}/generate`);
+    expect(genRes.ok(), `generate → ${genRes.status()}`).toBeTruthy();
+    const gen = (await genRes.json()) as { warnings: string[] };
+    expect(gen.warnings.join('\n')).toMatch(/main-orders-page-board\) not materialized/);
+
+    // The nav shows the two composable template pages under their archetype's
+    // fixed groups (queue → workspace, directory → people) and never the
+    // parked board.
+    await page.goto('/');
+    const primaryNav = page.getByRole('navigation', { name: 'Primary' });
+    await expect(primaryNav).toBeVisible();
+    const queueLink = primaryNav.locator('a[href="/p/main-orders-page-queue-inbox"]').first();
+    const directoryLink = primaryNav.locator('a[href="/p/main-employees-page-directory"]').first();
+    await expect(queueLink).toBeVisible();
+    await expect(queueLink).toHaveText(/Orders Queue/);
+    await expect(directoryLink).toBeVisible();
+    await expect(directoryLink).toHaveText(/Employees Directory/);
+    await expect(primaryNav.locator('a[href="/p/main-orders-page-board"]')).toHaveCount(0);
+
+    // The queue page mounts the REAL page-queue-inbox renderer over the
+    // seeded orders: KPI row + queue list with rows (no status enum → the
+    // grid-flavoured queue, no segmented status filter required).
+    await queueLink.click();
+    await expect(page).toHaveURL(/\/p\/main-orders-page-queue-inbox/);
+    await expect(page.getByText('Unknown page template')).toHaveCount(0);
+    await expect(page.locator('[data-part="page-queue-inbox"]')).toBeVisible();
+    await expect(page.locator('[data-part="queue-kpi-row"]')).toBeVisible();
+    await expect(page.locator('[data-part="queue-rows"] > li').first()).toBeVisible();
+
+    // The directory page mounts page-directory with the org-chart hero (the
+    // employees `reports_to` self-FK), exactly like the seeded archetype page
+    // template-pages.spec.ts pins.
+    await directoryLink.click();
+    await expect(page).toHaveURL(/\/p\/main-employees-page-directory/);
+    await expect(page.getByText('Unknown page template')).toHaveCount(0);
+    await expect(page.locator('[data-part="page-directory"]')).toBeVisible();
+    await expect(page.getByRole('tree')).toBeVisible();
+    await expect(page.getByRole('treeitem').first()).toBeVisible();
+  });
 });

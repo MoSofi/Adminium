@@ -2,7 +2,8 @@
   "schema_version": "adminium.llm/v1",
   "notes": [
     "Seeded-schema golden for the T15 BYO round-trip e2e — the Northwind demo the e2e boot script loads on sqlite/postgres/mysql.",
-    "Referentially clean against the live snapshot: only `main.`-qualified tables/columns, non-surrogate display columns, allowed dashboard widgets, exactly the en_US+de_DE locales; no pageTemplates/enums/relations (unregistered or undeclared in this build)."
+    "Referentially clean against the live snapshot: only `main.`-qualified tables/columns, non-surrogate display columns, allowed dashboard widgets, exactly the en_US+de_DE locales; no enums/relations (undeclared in this build).",
+    "M7 pageTemplates: queue+board (orders), directory (employees). Board cannot compose here (no workflow enum) — the e2e pins its park. Orders/employees sit in NO navGroup on purpose: an §8.3 group stamp would move their template pages out of the fixed five-group sidebar."
   ],
   "tables": [
     {
@@ -16,6 +17,22 @@
       "icon": "shopping-cart",
       "displayColumn": "ship_name",
       "naturalKey": null,
+      "pageTemplates": [
+        {
+          "template": "page-queue-inbox",
+          "rank": 1,
+          "triggers": ["requester FK (customer_id)", "fulfilment date pair (order_date → shipped_date)"],
+          "reason": "Staff work through unshipped orders like an inbox: triage, inspect, fulfil.",
+          "confidence": 0.9
+        },
+        {
+          "template": "page-board",
+          "rank": 2,
+          "triggers": ["fulfilment pipeline (placed → shipped)", "carrier lanes (ship_via)"],
+          "reason": "Order fulfilment reads as a pipeline staff could drag orders across.",
+          "confidence": 0.85
+        }
+      ],
       "columns": [
         { "column": "customer_id", "label": { "en_US": "Customer", "de_DE": "Kunde" }, "pii": null },
         { "column": "employee_id", "label": { "en_US": "Employee", "de_DE": "Mitarbeiter" }, "pii": null },
@@ -214,6 +231,15 @@
       "icon": "id-card",
       "displayColumn": "last_name",
       "naturalKey": null,
+      "pageTemplates": [
+        {
+          "template": "page-directory",
+          "rank": 1,
+          "triggers": ["self-FK reports_to (org hierarchy)", "people-shaped table: names + titles"],
+          "reason": "The reports_to hierarchy makes a browsable org-chart directory of the team.",
+          "confidence": 0.9
+        }
+      ],
       "columns": [
         { "column": "last_name", "label": { "en_US": "Last name", "de_DE": "Nachname" }, "pii": null },
         { "column": "first_name", "label": { "en_US": "First name", "de_DE": "Vorname" }, "pii": null },
@@ -252,7 +278,7 @@
       "label": { "en_US": "Sales", "de_DE": "Vertrieb" },
       "icon": "shopping-cart",
       "order": 0,
-      "tables": ["main.orders", "main.order_details", "main.customers", "main.shippers"],
+      "tables": ["main.order_details", "main.customers", "main.shippers"],
       "confidence": 0.93
     },
     {
@@ -262,14 +288,6 @@
       "order": 1,
       "tables": ["main.products", "main.categories", "main.suppliers"],
       "confidence": 0.92
-    },
-    {
-      "id": "workforce",
-      "label": { "en_US": "Workforce", "de_DE": "Personal" },
-      "icon": "users",
-      "order": 2,
-      "tables": ["main.employees"],
-      "confidence": 0.88
     }
   ],
   "dashboards": [

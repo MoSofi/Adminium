@@ -191,12 +191,19 @@ function slugify(value: string): string {
 }
 
 /**
- * Deterministic `page_<hash>` id (≤ char(36)) from a stable suggestion-id, so a
- * template/dashboard page upserts (never duplicates) across re-applies and
- * newer-run supersessions.
+ * Deterministic `page_<hash>` id (≤ char(36)) from the connection + a stable
+ * suggestion-id, so a template/dashboard page upserts (never duplicates) across
+ * re-applies and newer-run supersessions. The connection scopes the hash:
+ * suggestion-ids are pure coordinate functions (`template:main.orders:page-…`),
+ * so two connections applying the same golden response would otherwise collide
+ * on the page PRIMARY KEY and the second apply would silently rewrite the first
+ * connection's row instead of creating its own.
  */
-function pageIdFor(suggestionId: string): string {
-  const hash = createHash('sha256').update(suggestionId).digest('hex').slice(0, 30);
+function pageIdFor(connectionId: string, suggestionId: string): string {
+  const hash = createHash('sha256')
+    .update(`${connectionId}:${suggestionId}`)
+    .digest('hex')
+    .slice(0, 30);
   return `page_${hash}`;
 }
 
@@ -466,7 +473,7 @@ async function upsertTemplatePage(
   undo: ApplyUndo,
   counts: ApplyCounts,
 ): Promise<void> {
-  const id = pageIdFor(w.suggestionId);
+  const id = pageIdFor(plan.connectionId, w.suggestionId);
   // Qualify the slug with the full `schema.table` (not just `localName`): two
   // same-named tables in different schemas (public.orders + archive.orders) would
   // otherwise collide on UNIQUE(connection_id, slug) and abort the whole apply
@@ -504,7 +511,7 @@ async function upsertDashboardPage(
   undo: ApplyUndo,
   counts: ApplyCounts,
 ): Promise<void> {
-  const id = pageIdFor(w.suggestionId);
+  const id = pageIdFor(plan.connectionId, w.suggestionId);
   const slug = slugify(`dashboard-${w.dashboard}`);
   const title = w.label.en_US ?? titleCase(w.domain);
   // `config.layout` carries the bound widgets (04-widget-registry.md §6.1).

@@ -155,6 +155,23 @@ describe('materializeLlmPages', () => {
       'page-queue-inbox',
     ]);
 
+    // Nav projection sync: the bootstrap tree reads the ROW columns, so a
+    // successful expansion writes the envelope's title/group back to the row.
+    // The §8.3 'sales' re-placement (orders ∈ the accepted sales group) wins
+    // over the archetype's fixed group; the un-stamped dashboard adopts the
+    // envelope default; titles gain the archetype suffix so the new pages stay
+    // distinguishable from their table's page-crud sibling. The parked seed is
+    // NOT synced — it keeps its apply-time projection until it can compose.
+    const queue = after.find((p) => p.type === 'page-queue-inbox');
+    expect(queue?.navGroup).toBe('sales');
+    expect(queue?.title).toBe('Orders Queue');
+    const board = after.find((p) => p.type === 'page-board');
+    expect(board?.navGroup).toBe('sales');
+    expect(board?.title).toBe('Orders Board');
+    expect(dashboard?.navGroup).toBe('workspace');
+    expect(parked?.navGroup).toBe('sales');
+    expect(parked?.title).toBe('Customers');
+
     // Second pass: materialized rows carry the envelope `v` — untouched; the
     // parked seed is retried (and re-warned), still without a config write.
     const again = await materializeLlmPages({ meta, model, connectionId });
