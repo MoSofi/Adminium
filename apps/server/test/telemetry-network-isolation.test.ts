@@ -351,6 +351,60 @@ describe('update-available notice is gated on its own preference (M10-T04)', () 
     expect(calls).toHaveLength(1);
   });
 
+  /**
+   * Regression for a bug that shipped: this repo publishes TWO tag series —
+   * `v<semver>` (server/CLI) and `desktop-v<semver>` (Electron) — and the
+   * check used to read `/releases/latest`, which is whichever release was
+   * published most recently across BOTH. Publishing desktop-v0.1.0 after
+   * v0.1.0 made the feed answer `desktop-v0.1.0`; `compareVersions` parses
+   * that to 0.0.0 (parseInt("desktop") is NaN), so every instance silently
+   * reported "up to date" forever.
+   */
+  const listFeed = (releases: Array<Record<string, unknown>>) => {
+    const calls: string[] = [];
+    const fetchImpl = (async (url: unknown) => {
+      calls.push(String(url));
+      return new Response(JSON.stringify(releases), { status: 200 });
+    }) as unknown as typeof globalThis.fetch;
+    return { calls, fetchImpl };
+  };
+
+  it('ignores desktop-v* tags even when they are newer than every server release', async () => {
+    await settingsRepo(meta).set('updates.checkEnabled', true);
+    const { calls, fetchImpl } = listFeed([
+      { tag_name: 'desktop-v9.9.9' }, // newest overall — must not be read as ours
+      { tag_name: 'v0.5.0' },
+    ]);
+    const result = await createUpdateCheckService({ meta, version: VERSION, fetchImpl }).check();
+
+    expect(result, 'a desktop release must never masquerade as a server update').toEqual({
+      status: 'current',
+      current: '0.5.0',
+    });
+    expect(calls[0], 'must query the release LIST, not /releases/latest').not.toContain(
+      '/releases/latest',
+    );
+  });
+
+  it('picks the highest server version, not the most recently published entry', async () => {
+    await settingsRepo(meta).set('updates.checkEnabled', true);
+    const { fetchImpl } = listFeed([
+      { tag_name: 'desktop-v3.0.0' },
+      { tag_name: 'v0.5.1' }, // published later, but a patch on an older line
+      { tag_name: 'v0.6.1' },
+      { tag_name: 'v0.7.0', prerelease: true }, // not a stable release
+      { tag_name: 'v0.8.0', draft: true }, // never announced
+    ]);
+    const result = await createUpdateCheckService({ meta, version: VERSION, fetchImpl }).check();
+
+    expect(result).toEqual({
+      status: 'update-available',
+      current: '0.5.0',
+      latest: '0.6.1',
+      url: 'https://github.com/MoSofi/Adminium/releases',
+    });
+  });
+
   it('reports current when the feed matches, and carries no instance id outbound', async () => {
     await settingsRepo(meta).set('updates.checkEnabled', true);
     const bodies: unknown[] = [];
