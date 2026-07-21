@@ -92,6 +92,44 @@ jobs:
       - name: Derive desktop icons (release-path smoke)
         run: pnpm --filter @adminium/desktop run icons
 
+  a11y:
+    name: a11y
+    runs-on: ubuntu-latest
+    # Storybook build + ~1100 axe runs; slower than `verify`, hence its own job
+    # so it neither blocks nor is blocked by the main gate.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @adminium/ui exec playwright install --with-deps chromium
+
+      # WHY THIS JOB EXISTS. The axe sweep has existed since M0-M4 and nothing
+      # ever ran it. It went red as the M7 widget families landed and stayed red,
+      # unnoticed, until 554 critical/serious violations had accumulated — a gate
+      # that runs nowhere is not a gate. It now RATCHETS against the committed
+      # packages/ui/a11y-baseline.json: the count may fall, never rise. That
+      # fails the build on the first NEW violation, which is the property that
+      # was missing, without demanding the whole backlog be cleared first.
+      #
+      # Lower the baseline with `pnpm --filter @adminium/ui a11y --update-baseline`
+      # whenever you fix violations; the file is committed so it shows up in review.
+      - name: Axe sweep (ratchet)
+        run: pnpm --filter @adminium/ui a11y
+
   dep-graph:
     name: dep-graph
     runs-on: ubuntu-latest
