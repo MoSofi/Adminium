@@ -10,11 +10,15 @@
 #   * the updater test fixtures, which point a fake feed here rather than at the
 #     network.
 #
-# It names the SAME adminium/adminium GitHub Releases feed the shipped app uses,
+# It names the SAME MoSofi/Adminium GitHub Releases feed the shipped app uses,
 # under the `desktop-v*` tag discipline, so a manual dev check resolves a real
 # `latest*.yml` rather than 404ing. `main/updates.ts` also calls `setFeedURL`
 # with this provider explicitly, so this file is the fallback, not the source of
 # truth — but electron-updater still requires it to exist in dev.
+#
+# NOT `adminium/adminium`: that org+repo exists and belongs to an unrelated third
+# party. Keep in lockstep with updates.ts UPDATE_FEED and electron-builder.yml
+# `publish`.
 provider: github
-owner: adminium
-repo: adminium
+owner: MoSofi
+repo: Adminium

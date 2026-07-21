@@ -57,6 +57,33 @@ resolution surface, not our import graph (which `.dependency-cruiser.cjs`
 in `package.json` before touching that list; a missing entry there fails
 **silently at runtime**.
 
+## Packaging locally
+
+Three steps, in order (the release workflow drives the same sequence — see the
+`//packaging` note in `package.json`):
+
+```sh
+pnpm turbo run build --filter=@adminium/desktop   # 1. out/**, notices, offline gate
+pnpm --filter @adminium/desktop icons             # 2. derive resources/icons/*
+pnpm --filter @adminium/desktop pack              # 3. --dir smoke (or `dist` for installers)
+pnpm rebuild better-sqlite3 argon2                # 4. ← REQUIRED, see below
+```
+
+**Step 4 is not optional.** `electron-builder.yml` sets `npmRebuild: true`, and
+electron-builder runs `@electron/rebuild` with `buildPath` = *this package
+directory* — not, as its comment used to claim, a private staged copy. Under
+pnpm, `apps/desktop/node_modules/better-sqlite3` is a symlink into the
+workspace-shared store, so the rebuild recompiles the **one** copy that
+`apps/server`, `apps/e2e`, `packages/meta` and `packages/adapter-sqlite` all
+share, against Electron's ABI (`NODE_MODULE_VERSION` 148) instead of the local
+Node's (127). Skip step 4 and the next `pnpm test` at the repo root fails with
+`ERR_DLOPEN_FAILED` in packages you did not touch.
+
+CI needs no equivalent step: each runner is discarded after the build. Isolating
+the rebuild for real — packaging out of a `pnpm deploy --filter
+@adminium/desktop` tree, which produces a genuinely private `node_modules` — is
+the known follow-up.
+
 ## Testing
 
 `pnpm --filter @adminium/desktop test`. A real Electron app cannot be launched

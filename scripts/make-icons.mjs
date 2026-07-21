@@ -48,6 +48,14 @@ const MASTER_ACCENT_FG = '#ffffff'; // --accent-fg
 // PNG raster sizes. The superset covers what .icns wants (16→1024, doubling) and
 // what .ico wants (up to 256, plus 24/48). The WxW.png names are the freedesktop
 // hicolor convention electron-builder's linux icon collector understands.
+//
+// This list is a CONTRACT with icon-gen: when a PNG directory is the input,
+// icon-gen unions the REQUIRED_IMAGE_SIZES of every enabled output format and
+// `statSync`s `<staging>/<size>.png` for each — a missing one throws ENOENT, it
+// does not degrade. icns wants [16,32,64,128,256,512,1024]; ico wants
+// [16,24,32,48,64,128,256]; their union is exactly this array. (favicon would
+// additionally want 57/72/96/120/144/152/195/228, which is why the call below
+// must NOT enable it — see the comment there.)
 const PNG_SIZES = [16, 24, 32, 48, 64, 128, 256, 512, 1024];
 const HICOLOR_SIZES = [16, 32, 64, 128, 256, 512, 1024];
 
@@ -140,9 +148,19 @@ async function main() {
     // icon-gen's output-naming options — those keys have shifted across major
     // versions, and a wrong key would silently leave the default-named file the
     // yml can't find. Output lands in the staging dir (cleaned in `finally`).
+    //
+    // THE OPTIONS SHAPE IS VERSION-SENSITIVE — icon-gen v5's ICONOptions is
+    // `{ ico?, icns?, favicon?, report }`. The pre-v2 `{ type, modes }` spelling
+    // is not merely ignored: unrecognised keys leave all three format flags
+    // unset, which trips icon-gen's "output all by default" branch and silently
+    // ENABLES favicon, whose required sizes (57/72/96/…/228) this script does not
+    // rasterize — so the run dies on `statSync('<staging>/57.png')`. Naming
+    // `icns` and `ico` explicitly, and omitting `favicon`, is what pins the
+    // required-size set to a subset of PNG_SIZES above. Empty objects mean
+    // "default name, all required sizes".
     const produced = await iconGen(stagingDir, stagingDir, {
-      type: 'png',
-      modes: ['icns', 'ico'],
+      icns: {},
+      ico: {},
       report: false,
     });
     const icns = produced.find((p) => p.toLowerCase().endsWith('.icns'));

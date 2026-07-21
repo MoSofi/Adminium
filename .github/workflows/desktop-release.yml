@@ -75,7 +75,16 @@ jobs:
     # resolves workflow/job env, never that same step's `env:`. Empty today (no
     # Windows cert is owned); adding the secret to the desktop-release environment
     # flips the gate on with no edit to this file (decision 1).
+    #
+    # MAC_CSC_LINK is here for symmetry and for the same `if:`-visibility reason.
+    # Note the deliberate rename: the macOS Developer ID cert is carried by
+    # `secrets.CSC_LINK`, but it must NOT be exported under that name at job or
+    # workflow scope, because electron-builder reads bare CSC_LINK on EVERY
+    # platform — the Windows leg would then sign (or try to) with the macOS cert.
+    # Both certs reach electron-builder only through the per-platform gate steps
+    # below, which are mutually exclusive on `matrix.platform`.
     env:
+      MAC_CSC_LINK: ${{ secrets.CSC_LINK }}
       WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
     steps:
       - name: Checkout
@@ -130,6 +139,28 @@ jobs:
       - name: Generate app icons
         run: pnpm --filter @adminium/desktop run icons
 
+      # ── The CSC_* contract, stated once for both gates below ─────────────────
+      #
+      # electron-builder reads ONE pair of variables for code-signing material —
+      # CSC_LINK / CSC_KEY_PASSWORD — on every platform. The two gates below are
+      # the ONLY writers of that pair, they are mutually exclusive on
+      # `matrix.platform`, and they write through $GITHUB_ENV so the values become
+      # job-scoped for the Package step.
+      #
+      # WHY $GITHUB_ENV AND NOT A STEP-LEVEL `env:` ON THE PACKAGE STEP: Actions
+      # resolves env most-specific-wins (step > job > workflow), and a $GITHUB_ENV
+      # write lands at JOB scope. So a step-level `CSC_LINK: ${{ secrets.CSC_LINK }}`
+      # on Package would SHADOW whatever a gate wrote — which is exactly the bug
+      # this file shipped with: the Windows gate logged "signing enabled" while
+      # electron-builder received the macOS secret (or an empty string). The
+      # Package step therefore declares NO CSC_* env at all. Do not add one back.
+      #
+      # WHY THE `<<DELIM` HEREDOC FORM: both secrets are base64 blobs, and `base64`
+      # / `openssl base64` wrap output at 64 or 76 columns by default. A multi-line
+      # value written as `NAME=value` corrupts the $GITHUB_ENV file (Actions then
+      # errors, or worse, truncates the cert). The delimiter form is the only
+      # multi-line-safe spelling.
+      #
       # ── macOS: Developer ID signing + notarization (§10, decision 1) ─────────
       #
       # @electron/notarize (invoked by electron-builder when mac.notarize is true)
@@ -148,6 +179,30 @@ jobs:
           printf '%s' "$APPLE_API_KEY_B64" | base64 --decode > "$key_path"
           echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
 
+      # macOS signing is ON (a Developer ID Application cert IS owned, decision 1):
+      # this gate hands electron-builder the cert from `secrets.CSC_LINK`, exported
+      # at job level as MAC_CSC_LINK so it cannot leak onto the Windows leg. The
+      # `env.MAC_CSC_LINK != ''` guard is not "signing is optional on mac" — it
+      # keeps a workflow_dispatch validation run (or a fork without the
+      # environment) from dying inside codesign; a real tag build without the
+      # secret still fails, loudly, at notarization.
+      - name: Enable macOS code signing
+        if: matrix.platform == 'mac' && env.MAC_CSC_LINK != ''
+        shell: bash
+        env:
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          {
+            echo "CSC_LINK<<__ADMINIUM_CSC_EOF__"
+            printf '%s\n' "$MAC_CSC_LINK"
+            echo "__ADMINIUM_CSC_EOF__"
+            echo "CSC_KEY_PASSWORD<<__ADMINIUM_CSC_EOF__"
+            printf '%s\n' "$MAC_CSC_KEY_PASSWORD"
+            echo "__ADMINIUM_CSC_EOF__"
+          } >> "$GITHUB_ENV"
+          echo "macOS code signing enabled (CSC_LINK present)"
+
       # ── Windows: signing DISABLED for v1, structurally present (decision 1) ───
       #
       # No Windows Authenticode certificate is owned. This step maps the (absent)
@@ -157,8 +212,11 @@ jobs:
       # Turning signing on later is a SECRETS change (add WIN_CSC_LINK +
       # WIN_CSC_KEY_PASSWORD to the desktop-release environment) — no edit to this
       # file, no re-decision of the signing method: whichever cert is chosen
-      # populates the same CSC_* inputs. The consequence of shipping unsigned
-      # (SmartScreen interstitial) is documented in the release-desktop docs page.
+      # populates the same CSC_* inputs. That claim is only true because the
+      # Package step no longer re-declares CSC_* at step scope (see the contract
+      # note above); it was false while it did. The consequence of shipping
+      # unsigned (SmartScreen interstitial) is documented in the release-desktop
+      # docs page.
       - name: Enable Windows code signing
         if: matrix.platform == 'win' && env.WIN_CSC_LINK != ''
         shell: bash
@@ -167,8 +225,12 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "CSC_LINK=$WIN_CSC_LINK"
-            echo "CSC_KEY_PASSWORD=$WIN_CSC_KEY_PASSWORD"
+            echo "CSC_LINK<<__ADMINIUM_CSC_EOF__"
+            printf '%s\n' "$WIN_CSC_LINK"
+            echo "__ADMINIUM_CSC_EOF__"
+            echo "CSC_KEY_PASSWORD<<__ADMINIUM_CSC_EOF__"
+            printf '%s\n' "$WIN_CSC_KEY_PASSWORD"
+            echo "__ADMINIUM_CSC_EOF__"
           } >> "$GITHUB_ENV"
           echo "Windows code signing enabled (WIN_CSC_LINK present)"
 
@@ -190,15 +252,18 @@ jobs:
       # below owns the upload so the draft state and the desktop-v* tag stay under
       # our control instead of electron-builder's tag-naming assumptions.
       #
-      # macOS env are the §10 secrets: CSC_LINK/CSC_KEY_PASSWORD is the Developer
-      # ID Application cert; APPLE_API_KEY(_ID/_ISSUER) drive notarytool (the .p8
-      # path was staged above). On Windows CSC_* is set only if the signing guard
-      # above ran; on Linux there is no signing at all.
+      # NO CSC_* HERE, ON PURPOSE — see the contract note above the gate steps. A
+      # step-level `env:` outranks the job-scoped values the gates write through
+      # $GITHUB_ENV, so re-declaring CSC_LINK/CSC_KEY_PASSWORD here would silently
+      # disarm both gates (that was the shipped bug). CSC_* arrives from whichever
+      # platform gate ran; on Linux neither ran and there is no signing at all.
+      # APPLE_API_KEY_ID/_ISSUER are safe at step scope: they are macOS-only
+      # inputs that electron-builder ignores elsewhere, and nothing else writes
+      # them (APPLE_API_KEY itself is the staged .p8 PATH, written to $GITHUB_ENV
+      # by the step above — likewise not repeated here).
       - name: Package (electron-builder)
         shell: bash
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: pnpm --filter @adminium/desktop run dist --publish never
@@ -307,9 +372,19 @@ jobs:
       # point — the release editor writes the real notes, which updates.ts renders
       # in-app (§11), and MUST flag any migration-bearing version (07-meta-store.md
       # forward-only policy: there is no downgrade path).
+      #
+      # GH_REPO IS LOAD-BEARING. This job deliberately has no `actions/checkout` —
+      # its only input is the downloaded artifacts — and the gh CLI resolves its
+      # target repository from the git remote of the working directory. It does
+      # NOT fall back to Actions' own GITHUB_REPOSITORY. In an empty, non-git
+      # workspace every `gh release` call aborts with "failed to run git: fatal:
+      # not a git repository", so without GH_REPO the draft is never created and
+      # the whole three-OS matrix is wasted at the last step. Adding GH_REPO is
+      # cheaper than adding a checkout for a job that needs no source.
       - name: Create or update draft Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
@@ -317,13 +392,29 @@ jobs:
           version="${tag#desktop-v}"
           title="Adminium Desktop $version"
           notes=$'Draft — review before publishing.\n\nWindows installers are **unsigned** for v1: SmartScreen will warn on download (More info → Run anyway). Verify downloads against `SHA256SUMS.txt`.\n\n- [ ] Replace this body with real release notes.\n- [ ] Flag any meta-store migration (no downgrade path).\n- [ ] `spctl -a -vv` the macOS app on a clean machine before publishing.'
-          if gh release view "$tag" >/dev/null 2>&1; then
+
+          # Probe for an existing draft (a re-push of the same tag refreshes it).
+          # `gh release view` exits non-zero for BOTH "this release does not exist
+          # yet" and "gh could not talk to the repository at all" — auth failure,
+          # unresolvable repo, API outage. The original `>/dev/null 2>&1` conflated
+          # the two and turned every infrastructure failure into a `create`
+          # attempt. So keep stderr, branch on the message, and re-raise anything
+          # that is not a plain not-found.
+          set +e
+          view_err="$(gh release view "$tag" 2>&1 >/dev/null)"
+          view_status=$?
+          set -e
+          if [ "$view_status" -eq 0 ]; then
             echo "Release $tag exists — refreshing assets"
             gh release upload "$tag" release/* --clobber
-          else
+          elif printf '%s' "$view_err" | grep -qi 'release not found'; then
+            echo "No release for $tag yet — creating the draft"
             gh release create "$tag" release/* \
               --draft \
               --title "$title" \
               --notes "$notes"
+          else
+            echo "::error::gh release view $tag failed (exit $view_status): $view_err"
+            exit 1
           fi
           echo "Draft release ready: $tag (a human must press Publish)"

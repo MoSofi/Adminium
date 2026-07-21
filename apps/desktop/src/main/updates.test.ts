@@ -259,7 +259,12 @@ describe('the updater is configured per §11', () => {
     expect(fake.updater.allowPrerelease).toBe(false);
     expect(fake.updater.allowDowngrade).toBe(false);
     expect(fake.setFeedURL).toHaveBeenCalledWith(UPDATE_FEED);
-    expect(UPDATE_FEED).toEqual({ provider: 'github', owner: 'adminium', repo: 'adminium' });
+    // Pinned to the REAL repository. `adminium/adminium` is an unrelated third
+    // party's org+repo, and whatever is named here is trusted to serve a shipped
+    // install its next installer (unsigned on Windows ⇒ no signature check), so
+    // this assertion is a supply-chain guard, not a spelling test.
+    expect(UPDATE_FEED).toEqual({ provider: 'github', owner: 'MoSofi', repo: 'Adminium' });
+    expect(RELEASES_URL).toBe('https://github.com/MoSofi/Adminium/releases');
   });
 });
 
