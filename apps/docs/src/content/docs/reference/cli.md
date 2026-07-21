@@ -14,7 +14,7 @@ the only correct install spec (`npx @adminiumjs/adminium`); the binary it
 installs is `adminium`. The unscoped npm name `adminium` is an unrelated
 third-party package, so never run `npx adminium`.
 
-Until that release lands on the registry, run the CLI from a
+You can also run the CLI from a
 [source checkout](/getting-started/quickstart/)
 (`node apps/server/dist/cli/index.js`) or through the
 [Docker image](/getting-started/docker/), whose entrypoint is the same CLI.

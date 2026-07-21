@@ -510,3 +510,46 @@ jobs:
               echo "::error::alias @adminium/$dep did not resolve"; exit 1; }
           done
           echo "dashboard + aliased dependencies verified in the published package"
+
+  github-release:
+    name: github release
+    needs: [docker, npm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only for real tag pushes: a workflow_dispatch rebuild must not mint a
+    # Release for a version that was already announced.
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # --generate-notes diffs against the previous tag
+
+      # WHY THIS JOB EXISTS. `apps/server/src/telemetry/update-check.ts` polls
+      # /releases/latest, and the in-app Changelog's "all releases" link points
+      # at the Releases page. With no Release published, the opt-in update check
+      # 404s forever and the link opens an empty page — the feature silently
+      # never works. v0.1.0 shipped to npm and ghcr with no Release at all.
+      - name: Publish the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="$GITHUB_REF_NAME"
+          VERSION="${TAG#v}"
+          case "$VERSION" in *-*) PRERELEASE=--prerelease ;; *) PRERELEASE= ;; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — leaving it alone."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --title "$VERSION" \
+            --generate-notes \
+            --verify-tag \
+            $PRERELEASE \
+            --notes-start-tag "$(git tag -l 'v*' --sort=-v:refname | grep -v "^$TAG$" | head -1 || true)" \
+            || gh release create "$TAG" --title "$VERSION" --generate-notes --verify-tag $PRERELEASE
+          echo "Published Release $TAG"

@@ -14,8 +14,10 @@ When you install from npm, the spec is the **scoped** one —
 called `adminium`. The unscoped npm name `adminium` belongs to an unrelated
 project, so `npx adminium` installs someone else's package: never run it.
 
-Until that first release lands on the registry, the two install paths are a
-**source checkout** (this page) and **[Docker](/getting-started/docker/)**.
+`@adminiumjs/adminium` is on the registry as of 0.1.0, so `npx
+@adminiumjs/adminium` is the fastest way to start. This page covers running
+from a **source checkout** instead — useful for contributing or for pinning to
+an unreleased commit. **[Docker](/getting-started/docker/)** is the third path.
 :::
 
 ## Requirements
