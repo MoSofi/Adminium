@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   BUILTIN_ROLES,
   FirstUserExistsError,
+  GRANTABLE_SYSTEM_ACTION_KEYS,
   SYSTEM_ACTION_KEYS,
   createFirstSuperAdmin,
   firstRun,
@@ -63,7 +64,7 @@ for (const dialect of TEST_DIALECTS) {
 
       const adminGrants = await permissions.listForRole(admin!.id);
       expect(adminGrants.map((g) => g.resourceRef).sort()).toEqual(
-        ['connections.manage', 'schema.remap', 'llm.run', 'automations.manage', 'webhooks.manage'].sort(),
+        ['connections.manage', 'schema.remap', 'llm.run'].sort(),
       );
       // Role/user management defaults off for non-super-admins.
       expect(await permissions.isAllowed(admin!.id, 'system', 'roles.manage')).toBe(false);
@@ -88,6 +89,14 @@ for (const dialect of TEST_DIALECTS) {
 
     it('seed definitions match the frozen built-in set', () => {
       expect(BUILTIN_ROLES.map((r) => r.slug)).toEqual(['super-admin', 'admin', 'editor', 'viewer']);
+      // Reserved (unenforced) keys may seed onto super-admin only; on any
+      // other role they would surface on read-only grant displays as scope
+      // chips for features that do not exist.
+      for (const role of BUILTIN_ROLES.filter((r) => r.slug !== 'super-admin')) {
+        for (const key of role.systemActions) {
+          expect(GRANTABLE_SYSTEM_ACTION_KEYS, `${role.slug} seeds reserved key ${key}`).toContain(key);
+        }
+      }
     });
 
     it('createFirstSuperAdmin works once, then is guarded', async () => {
