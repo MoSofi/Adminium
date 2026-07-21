@@ -241,3 +241,69 @@ jobs:
           else
             echo ":latest not moved (prerelease or workflow_dispatch)"
           fi
+
+  npm:
+    name: npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Publishes the 14 public packages under the scope-mapped identity
+    # (scripts/release/publish-npm.mjs — @adminiumjs/* until the @adminium
+    # scope dispute settles; flip NPM_SCOPE to republish). The secrets context
+    # is unavailable in job-level `if`, so a probe step gates each real step:
+    # without an NPM_TOKEN secret the job logs and exits green.
+    permissions:
+      contents: read
+      id-token: write # npm --provenance attestation
+    steps:
+      - name: Probe for NPM_TOKEN
+        id: token
+        run: |
+          if [ -n '${{ secrets.NPM_TOKEN }}' ]; then
+            echo 'have=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'have=false' >> "$GITHUB_OUTPUT"
+            echo 'NPM_TOKEN secret not set — skipping npm publish.'
+          fi
+
+      - name: Checkout
+        if: steps.token.outputs.have == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        if: steps.token.outputs.have == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        if: steps.token.outputs.have == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        if: steps.token.outputs.have == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        if: steps.token.outputs.have == 'true'
+        run: pnpm turbo build
+
+      - name: Publish
+        if: steps.token.outputs.have == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_PROVENANCE: '1'
+        run: node scripts/release/publish-npm.mjs
+
+      - name: Smoke test the published CLI
+        if: steps.token.outputs.have == 'true'
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$RUNNER_TEMP/npm-global"
+          VERSION="$(node -p "require('./apps/server/package.json').version")"
+          for i in 1 2 3 4 5; do
+            if npm install -g "@adminiumjs/adminium@$VERSION"; then break; fi
+            echo "registry not consistent yet, retry $i"; sleep 15
+          done
+          "$NPM_CONFIG_PREFIX/bin/adminium" --version
