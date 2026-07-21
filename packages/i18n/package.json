@@ -1,8 +1,14 @@
 {
   "name": "@adminium/i18n",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "packages/i18n"
+  },
+  "homepage": "https://adminium.dev",
+  "bugs": "https://github.com/MoSofi/Adminium/issues",
   "type": "module",
   "description": "8 locale bundles, ICU messages, RTL utils, Intl formatters",
   "main": "./dist/index.js",
@@ -55,5 +61,9 @@
     "react-dom": "^19.1.0",
     "typescript": "catalog:",
     "vitest": "catalog:"
-  }
+  },
+  "files": [
+    "dist",
+    "locales"
+  ]
 }

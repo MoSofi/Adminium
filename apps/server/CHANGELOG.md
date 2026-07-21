@@ -1,0 +1,18 @@
+# @adminium/server
+
+## 0.1.0
+
+### Minor Changes
+
+- First public release: the Adminium CLI/server and its library packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @adminium/adapter-mysql@0.1.0
+  - @adminium/adapter-postgres@0.1.0
+  - @adminium/adapter-sqlite@0.1.0
+  - @adminium/engine@0.1.0
+  - @adminium/llm@0.1.0
+  - @adminium/meta@0.1.0
+  - @adminium/schema-import@0.1.0

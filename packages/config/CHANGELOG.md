@@ -1,0 +1,3 @@
+# @adminium/config
+
+## 0.1.0

@@ -1,8 +1,14 @@
 {
   "name": "@adminium/schema-import",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "packages/schema-import"
+  },
+  "homepage": "https://adminium.dev",
+  "bugs": "https://github.com/MoSofi/Adminium/issues",
   "type": "module",
   "description": "Schema-file parsers (SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails, Django, JSON IR)",
   "main": "./dist/index.js",
@@ -28,5 +34,8 @@
     "typescript": "catalog:",
     "eslint": "catalog:",
     "vitest": "catalog:"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

@@ -1,8 +1,14 @@
 {
   "name": "@adminium/tokens",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "packages/tokens"
+  },
+  "homepage": "https://adminium.dev",
+  "bugs": "https://github.com/MoSofi/Adminium/issues",
   "type": "module",
   "description": "Design tokens: CSS custom properties, accent palettes, density axis, viz palette, fonts, motion, Tailwind v4 theme mapping",
   "main": "./dist/index.js",
