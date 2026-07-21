@@ -64,4 +64,23 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Deliberately `.ts` AS WELL as `.tsx`: the class strings this rule guards
+    // live as often in plain-TS recipe modules (@adminium/ui lib/tones.ts's
+    // toneSolidClasses, per-component Record<Tone, string> maps) as they do in
+    // JSX. Restricting it to .tsx would have missed the canonical tone map.
+    files: ['**/*.ts', '**/*.tsx'],
+    plugins: { adminium },
+    rules: {
+      // A literal colour (`text-white`) on a themed background (`bg-accent`)
+      // pins one half of a token pair while the other half keeps flipping with
+      // data-theme. This is invisible to the token-pair contrast gate
+      // (packages/tokens/scripts/contrast-check.mjs measures token vs. token),
+      // and it is how white-on-accent fell from 6.29:1 to 2.29:1 in five
+      // components when the dark accent was re-tuned. Use the paired foreground
+      // token (text-accent-fg on solid tones, text-<tone> on -soft, text-fg* on
+      // surfaces) per 02-design-system.md §3.2 and @adminium/ui lib/tones.ts.
+      'adminium/no-literal-color-on-token-bg': 'error',
+    },
+  },
 );
