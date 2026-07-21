@@ -25,7 +25,12 @@ name: adminium
 
 services:
   adminium:
-    image: ghcr.io/adminium/adminium:${ADMINIUM_VERSION:-latest}
+    # The published image. `ghcr.io/mosofi/adminium` is what .github/workflows/
+    # release.yml actually pushes to (ghcr.io/<owner>/<repo>, lowercased); it is
+    # the default rather than a hardcoded value so CI can point this same file
+    # at a staged, not-yet-released build (ADMINIUM_IMAGE) instead of keeping a
+    # second copy of the service definition that nobody runs.
+    image: ${ADMINIUM_IMAGE:-ghcr.io/mosofi/adminium}:${ADMINIUM_VERSION:-latest}
     restart: unless-stopped
     ports:
       - '4600:4600'

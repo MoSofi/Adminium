@@ -21,7 +21,14 @@ concurrency:
 
 env:
   TURBO_TELEMETRY_DISABLED: '1'
-  IMAGE: ghcr.io/${{ github.repository }}
+  # NO `IMAGE:` here on purpose. `github.repository` preserves the owner's case
+  # (`MoSofi/Adminium`) and OCI repository names must be lowercase, so a
+  # workflow-level constant would hand `ghcr.io/MoSofi/Adminium` to every step
+  # that interpolates it — docker/metadata-action lowercases internally and
+  # would hide the problem, while `docker run`, `imagetools create` and the
+  # attestation subject would all fail on "repository name must be lowercase".
+  # The reference is resolved ONCE, lowercased, as steps.version.outputs.image.
+  #
   # The tag the image is published under BEFORE it has been smoke-tested. Never
   # referenced by docker-compose.yml or the docs; run-scoped so two releases
   # cannot collide on it.
@@ -45,10 +52,19 @@ jobs:
       # A tag push carries the version in the ref; workflow_dispatch takes it as
       # an input. Everything downstream reads steps.version.outputs.version, so
       # the two triggers converge here rather than in each tag expression.
-      - name: Resolve version
+      #
+      # This step also resolves the image reference — lowercased, once — for the
+      # same reason: every consumer below (metadata-action, the smoke tests, the
+      # compose stack, the attestation subject, both promote calls) must name
+      # the exact same repository, and `github.repository` is not a legal OCI
+      # path on its own.
+      - name: Resolve version and image reference
         id: version
         run: |
           set -euo pipefail
+          image="ghcr.io/$(printf '%s' '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Image reference: $image"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version='${{ inputs.version }}'
             latest=false
@@ -83,7 +99,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: ${{ steps.version.outputs.image }}
           # NO tags here. See the next step: the release tags are applied only
           # after the smoke test passes.
           tags: |
@@ -125,15 +141,16 @@ jobs:
           cache-to: type=gha,mode=max
 
       # The exit criterion for M10-T02 is "docker run boots to the first-run
-      # wizard" — assert it against the built amd64 image rather than trusting a
-      # green build. Boots with no meta store configured (embedded SQLite
-      # fallback), which is exactly the clean-machine first-run path.
+      # wizard" — assert it against the built image rather than trusting a green
+      # build. Boots with no meta store configured (embedded SQLite fallback),
+      # which is exactly the clean-machine first-run path. This leg is amd64
+      # (the runner's native architecture); arm64 gets its own leg below.
       #
       # This runs against the DIGEST, before any release tag points at it.
       - name: Smoke-test the staged image
         run: |
           set -euo pipefail
-          IMAGE_REF='${{ env.IMAGE }}@${{ steps.build.outputs.digest }}'
+          IMAGE_REF='${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}'
           docker run -d --name adminium-smoke \
             -e ADMINIUM_SECRET=smoke-test-secret-not-a-real-one \
             -p 4600:4600 "$IMAGE_REF"
@@ -173,14 +190,81 @@ jobs:
         if: always()
         run: docker rm -f adminium-smoke || true
 
+      # ── The OTHER half of the manifest ───────────────────────────────────────
+      #
+      # The build above ships linux/amd64 AND linux/arm64, and the Dockerfile
+      # compiles better-sqlite3 and argon2 from source per target platform — so
+      # arm64 is a genuinely different artifact, not a repack. Every smoke test
+      # in this repo runs on an x86 runner without `--platform`, which means
+      # Docker always resolved the amd64 manifest and the arm64 image was
+      # promoted onto `:latest` having never been booted once. Apple Silicon and
+      # Graviton self-hosters would have been the ones to find out.
+      #
+      # QEMU is already installed for the build, so this costs a boot, not a
+      # toolchain. Emulated startup is several times slower than native, hence
+      # the longer wait. The assertions are deliberately narrow: if the native
+      # modules failed to load for this architecture the process dies before it
+      # ever listens, so "healthy + healthz + arch is arm64" is the whole proof.
+      - name: Smoke-test the arm64 half of the staged manifest
+        run: |
+          set -euo pipefail
+          IMAGE_REF='${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}'
+          # The image's baked HEALTHCHECK (--start-period=40s --interval=30s
+          # --retries=3) declares a container unhealthy ~130s in, and the loop
+          # below aborts on the first `unhealthy` — so under QEMU the 240s
+          # budget was unreachable and this leg would fail on a HEALTHY image.
+          # Widen the probe for the emulated run only; the baked values still
+          # govern real deployments.
+          docker run -d --name adminium-smoke-arm64 --platform linux/arm64 \
+            --health-start-period=180s --health-interval=5s --health-retries=12 \
+            -e ADMINIUM_SECRET=smoke-test-secret-not-a-real-one \
+            -p 4601:4600 "$IMAGE_REF"
+
+          for i in $(seq 1 120); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' adminium-smoke-arm64 2>/dev/null || echo starting)"
+            [ "$status" = "healthy" ] && break
+            if [ "$status" = "unhealthy" ] || [ "$i" -eq 120 ]; then
+              echo "::error::arm64 container did not become healthy (status=$status)"
+              docker logs adminium-smoke-arm64
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # It really is the arm64 image that just booted, not the amd64 one
+          # silently selected from the index.
+          arch="$(docker exec adminium-smoke-arm64 node -p 'process.arch')"
+          if [ "$arch" != "arm64" ]; then
+            echo "::error::expected an arm64 container, got process.arch=$arch"
+            exit 1
+          fi
+
+          curl -fsS http://127.0.0.1:4601/api/v1/healthz | grep -q '"ok":true'
+          curl -fsS http://127.0.0.1:4601/ | grep -qi '<!doctype html'
+          echo "arm64 smoke test passed: native modules loaded, API up, SPA served"
+
+      - name: Container logs, arm64 (on failure)
+        if: failure()
+        run: docker logs adminium-smoke-arm64 || true
+
+      - name: Clean up the arm64 smoke container
+        if: always()
+        run: docker rm -f adminium-smoke-arm64 || true
+
       # §4.2's production shape: a SEPARATE Postgres meta store. Never exercised
       # by CI before — every smoke test set only ADMINIUM_SECRET, i.e. the
       # embedded SQLite fallback §3.1 tells self-hosters not to rely on. So the
       # one meta store the docs tell people to use was the one nobody proved
       # boots, and a missing `pg` in the image would have shipped behind two
       # green smoke tests.
+      #
+      # ADMINIUM_IMAGE is what makes this test the compose file the docs ship,
+      # rather than a copy of it: docker-compose.yml defaults the repository to
+      # the published image and lets CI override it, so the staged digest is
+      # exercised through the exact service definition self-hosters run.
       - name: Smoke-test the staged image against a Postgres meta store
         env:
+          ADMINIUM_IMAGE: ${{ steps.version.outputs.image }}
           ADMINIUM_VERSION: ${{ env.STAGING_TAG }}
           ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
           ADMINIUM_META_URL: postgres://adminium:adminium@meta-db:5432/adminium
@@ -204,13 +288,25 @@ jobs:
           curl -fsS http://127.0.0.1:4600/api/v1/setup/state | grep -q '"required":true'
           echo "with-meta smoke test passed: postgres meta store, migrated, wizard reachable"
 
+      # ADMINIUM_SECRET is required here too: compose interpolates the whole
+      # file before dispatching ANY subcommand, and docker-compose.yml declares
+      # the secret with `:?`, so `compose logs` without it aborts on the
+      # interpolation error and prints no container logs at all — precisely when
+      # they are needed. Same reason ADMINIUM_IMAGE is set: without it compose
+      # would resolve a different service image than the one that just failed.
       - name: Compose logs (on failure)
         if: failure()
+        env:
+          ADMINIUM_IMAGE: ${{ steps.version.outputs.image }}
+          ADMINIUM_VERSION: ${{ env.STAGING_TAG }}
+          ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
         run: docker compose --profile with-meta logs || true
 
       - name: Clean up the compose stack
         if: always()
         env:
+          ADMINIUM_IMAGE: ${{ steps.version.outputs.image }}
+          ADMINIUM_VERSION: ${{ env.STAGING_TAG }}
           ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
         run: docker compose --profile with-meta down -v || true
 
@@ -224,7 +320,7 @@ jobs:
         if: ${{ !github.event.repository.private }}
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ${{ env.IMAGE }}
+          subject-name: ${{ steps.version.outputs.image }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
@@ -240,14 +336,15 @@ jobs:
         run: |
           set -euo pipefail
           DIGEST='${{ steps.build.outputs.digest }}'
+          IMAGE='${{ steps.version.outputs.image }}'
           docker buildx imagetools create \
-            --tag '${{ env.IMAGE }}:${{ steps.version.outputs.version }}' \
-            "${{ env.IMAGE }}@${DIGEST}"
+            --tag "${IMAGE}:${{ steps.version.outputs.version }}" \
+            "${IMAGE}@${DIGEST}"
           echo "tagged :${{ steps.version.outputs.version }} → ${DIGEST}"
           if [ '${{ steps.version.outputs.latest }}' = 'true' ]; then
             docker buildx imagetools create \
-              --tag '${{ env.IMAGE }}:latest' \
-              "${{ env.IMAGE }}@${DIGEST}"
+              --tag "${IMAGE}:latest" \
+              "${IMAGE}@${DIGEST}"
             echo "moved :latest → ${DIGEST}"
           else
             echo ":latest not moved (prerelease or workflow_dispatch)"
@@ -262,6 +359,14 @@ jobs:
     # scope dispute settles; flip NPM_SCOPE to republish). The secrets context
     # is unavailable in job-level `if`, so a probe step gates each real step:
     # without an NPM_TOKEN secret the job logs and exits green.
+    #
+    # TAG PUSHES ONLY. workflow_dispatch exists to rebuild an IMAGE for a
+    # version that already shipped; it checks out the default branch and its
+    # `version` input is read by the docker job alone. Left ungated, a manual
+    # image rebuild would publish whatever versions main's package.json files
+    # happen to carry — unreleased changesets bumps included — as an
+    # irreversible npm publish nobody asked for.
+    if: github.event_name == 'push'
     permissions:
       contents: read
       id-token: write # npm --provenance attestation
@@ -297,6 +402,24 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
+      # The manifests on disk are what actually gets published — publish-npm.mjs
+      # reads each package's own `version` and never looks at the ref. If the
+      # tag and the manifests disagree, the registry gets a version nobody
+      # tagged and npm has no undo. Assert they match before anything is pushed.
+      - name: Assert the manifest version matches the tag
+        id: version
+        if: steps.token.outputs.have == 'true'
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./apps/server/package.json').version")"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME implies version '$tag_version' but apps/server/package.json is '$pkg_version' — refusing to publish"
+            exit 1
+          fi
+          echo "version=$pkg_version" >> "$GITHUB_OUTPUT"
+          echo "Publishing $pkg_version (matches $GITHUB_REF_NAME)"
+
       - name: Install
         if: steps.token.outputs.have == 'true'
         run: pnpm install --frozen-lockfile
@@ -320,7 +443,7 @@ jobs:
         run: |
           set -euo pipefail
           export NPM_CONFIG_PREFIX="$RUNNER_TEMP/npm-global"
-          VERSION="$(node -p "require('./apps/server/package.json').version")"
+          VERSION='${{ steps.version.outputs.version }}'
           for i in 1 2 3 4 5; do
             if npm install -g "@adminiumjs/adminium@$VERSION"; then break; fi
             echo "registry not consistent yet, retry $i"; sleep 15
