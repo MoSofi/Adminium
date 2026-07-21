@@ -5,6 +5,13 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Electron offline desktop app: @adminium/server in a utilityProcess + the dashboard build on loopback",
+  "homepage": "https://adminium.dev",
+  "author": "Adminium <hello@adminium.dev>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "apps/desktop"
+  },
   "main": "out/main/index.js",
   "//exports": [
     "ONE public entry point, and it ships no code (11-electron.md \u00a74): 'Typed",
