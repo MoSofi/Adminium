@@ -95,9 +95,15 @@ describe('docker-compose.yml — 01-architecture.md §4.2', () => {
     expect(Object.keys(compose.services).sort()).toEqual(['adminium', 'meta-db']);
   });
 
-  it('runs the ghcr image on 4600:4600', () => {
+  it('runs the ghcr image the release workflow actually publishes, on 4600:4600', () => {
+    // THE BUG THIS PINS. The image was hardcoded to `ghcr.io/adminium/adminium`
+    // — a namespace this repo never pushes to (release.yml publishes to
+    // ghcr.io/<owner>/<repo>, lowercased) and one owned by an unrelated third
+    // party. Every documented `docker compose up` pulled from a stranger, and
+    // CI's own with-meta smoke test pulled a tag that could not exist, so the
+    // promote step never ran and no release tag was ever created.
     const svc = compose.services.adminium!;
-    expect(svc.image).toMatch(/^ghcr\.io\/adminium\/adminium:/);
+    expect(svc.image).toBe('${ADMINIUM_IMAGE:-ghcr.io/mosofi/adminium}:${ADMINIUM_VERSION:-latest}');
     expect(svc.ports).toEqual(['4600:4600']);
   });
 
@@ -348,6 +354,70 @@ describe('the release workflow cannot publish an untested image', () => {
         '"dialect":"postgres"',
       );
     }
+  });
+
+  it('names the image once, lowercased, and never interpolates github.repository raw', () => {
+    // THE BUG THIS PINS. `IMAGE: ghcr.io/${{ github.repository }}` expands to
+    // `ghcr.io/MoSofi/Adminium`; OCI repository names must be lowercase. Only
+    // docker/metadata-action tolerated it (it lowercases internally) — the
+    // smoke test, the attestation subject and both `imagetools create` calls
+    // interpolated it raw and would have died on "repository name must be
+    // lowercase", so the release published nothing but a staging tag.
+    expect(release, 'no workflow-level IMAGE constant').not.toMatch(/^\s*IMAGE:/m);
+    expect(release, 'no raw env.IMAGE consumer').not.toContain('env.IMAGE');
+    expect(release, 'the reference is lowercased once').toMatch(
+      /image="ghcr\.io\/\$\(printf '%s' '\$\{\{ github\.repository \}\}' \| tr '\[:upper:\]' '\[:lower:\]'\)"/,
+    );
+    // Every consumer reads that one output.
+    for (const consumer of [
+      'images: ${{ steps.version.outputs.image }}', // metadata-action
+      "IMAGE_REF='${{ steps.version.outputs.image }}@", // both docker run legs
+      'ADMINIUM_IMAGE: ${{ steps.version.outputs.image }}', // the compose stack
+      'subject-name: ${{ steps.version.outputs.image }}', // the attestation
+      "IMAGE='${{ steps.version.outputs.image }}'", // the promote step
+    ]) {
+      expect(release, `must consume the resolved reference: ${consumer}`).toContain(consumer);
+    }
+  });
+
+  it('boots the arm64 half of the manifest before promoting it', () => {
+    // THE BUG THIS PINS. The build ships amd64 + arm64 and the Dockerfile
+    // compiles better-sqlite3/argon2 per target, but every smoke test ran on an
+    // x86 runner with no --platform, so Docker always picked amd64. `:latest`
+    // moved onto an arm64 image nobody had ever started — the exact "promote
+    // only what passed" guarantee this job is built around, half unmet.
+    const armAt = release.indexOf('Smoke-test the arm64 half');
+    expect(armAt, 'an arm64 smoke leg must exist').toBeGreaterThan(-1);
+    expect(armAt).toBeLessThan(release.indexOf('Promote the tested digest'));
+    const armBlock = release.slice(armAt, release.indexOf('Smoke-test the staged image against'));
+    expect(armBlock, 'must pin the platform').toContain('--platform linux/arm64');
+    expect(armBlock, 'must run the same digest').toContain('steps.build.outputs.digest');
+    expect(armBlock, 'must prove the arch it actually got').toContain("node -p 'process.arch'");
+  });
+
+  it('keeps compose failure diagnostics readable and the npm publish tag-gated', () => {
+    // THE BUG THIS PINS (1). docker-compose.yml declares ADMINIUM_SECRET with
+    // `:?`, and compose interpolates the whole file before dispatching ANY
+    // subcommand — so `compose logs` without the secret aborts on the
+    // interpolation error and prints nothing, exactly when the with-meta smoke
+    // test has just failed.
+    const logsAt = release.indexOf('Compose logs (on failure)');
+    expect(logsAt).toBeGreaterThan(-1);
+    const logsBlock = release.slice(logsAt, release.indexOf('Clean up the compose stack'));
+    expect(logsBlock, 'the logs step must interpolate the compose file').toContain(
+      'ADMINIUM_SECRET:',
+    );
+
+    // (2) The npm half is irreversible and derives its version from the
+    // manifests on disk. On workflow_dispatch (a manual IMAGE rebuild, default
+    // branch) that meant publishing whatever unreleased versions main carried.
+    const npmAt = release.indexOf('  npm:');
+    expect(release.slice(npmAt), 'npm publishes on tag pushes only').toContain(
+      "if: github.event_name == 'push'",
+    );
+    expect(release.slice(npmAt), 'and asserts the tag matches the manifests').toContain(
+      'Assert the manifest version matches the tag',
+    );
   });
 });
 

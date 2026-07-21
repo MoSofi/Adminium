@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# The Adminium image (01-architecture.md §4.2) — `ghcr.io/adminium/adminium`.
+# The Adminium image (01-architecture.md §4.2) — `ghcr.io/mosofi/adminium`.
 #
 # Multi-stage (build → node:22-slim runtime), non-root, `dumb-init` as PID 1,
 # multi-arch (linux/amd64 + linux/arm64 via buildx). It runs the SAME CLI the

@@ -202,12 +202,15 @@ jobs:
         env:
           ADMINIUM_SECRET: smoke-test-secret-not-a-real-one
           ADMINIUM_META_URL: postgres://adminium:adminium@meta-db:5432/adminium
-          ADMINIUM_VERSION: ci-local
+          # docker-compose.yml defaults to the PUBLISHED image; override both
+          # halves of the reference so the profile runs the image this job just
+          # built (adminium:ci, loaded locally) instead of pulling a release.
+          # This replaces the old `docker tag … ghcr.io/…:ci-local` shim — the
+          # compose file is now the single source of truth for the reference.
+          ADMINIUM_IMAGE: adminium
+          ADMINIUM_VERSION: ci
         run: |
           set -euo pipefail
-          # docker-compose.yml names the published image; point that tag at the
-          # image this job just built rather than pulling a released one.
-          docker tag adminium:ci ghcr.io/adminium/adminium:ci-local
           docker compose --profile with-meta up -d --wait --wait-timeout 180
 
           # It must have USED Postgres. Without this the fallback would keep the
