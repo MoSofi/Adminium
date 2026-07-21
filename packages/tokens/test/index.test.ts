@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   ACCENTS,
+  ACCENTS_DARK,
+  accentHex,
   DEFAULT_PREFS,
   DENSITIES,
   DIRS,
@@ -40,21 +42,33 @@ describe('axis constants', () => {
 });
 
 describe('CSS files agree with the JS constants', () => {
-  it('every accent palette exists in accents.css with its hex', () => {
+  it('every accent palette exists in accents.css with its light hex and a dark sibling', () => {
     const accents = css('accents.css');
     for (const [name, hex] of Object.entries(ACCENTS)) {
       expect(accents, `accent ${name}`).toContain(`[data-accent="${name}"]`);
-      expect(accents, `accent ${name} hex`).toContain(hex);
+      expect(accents, `accent ${name} hex`).toContain(`--accent-light: ${hex}`);
     }
+    // Each accent carries a per-theme pair, and the theme — not any component — picks one.
+    expect(accents.match(/--accent-dark:/g)).toHaveLength(Object.keys(ACCENTS).length);
+    expect(accents).toContain('--accent: var(--accent-light)');
+    expect(accents).toContain('--accent: var(--accent-dark)');
+    // The JS mirror of the dark half must not drift from the CSS: anything that paints an
+    // accent outside CSS (swatches, charts, docs) reads it, and `black` differs wildly.
+    for (const [name, hex] of Object.entries(ACCENTS_DARK)) {
+      expect(accents, `accent ${name} dark hex`).toContain(`--accent-dark: ${hex}`);
+    }
+    expect(Object.keys(ACCENTS_DARK)).toEqual(Object.keys(ACCENTS));
+    expect(accentHex('black', 'light')).toBe('#111111');
+    expect(accentHex('black', 'dark')).toBe('#c9c9d4');
   });
 
-  it('tokens.css carries the hand-tuned dark palette (never derived)', () => {
+  it('tokens.css carries the independently authored dark NEUTRAL palette', () => {
     const tokens = css('tokens.css');
     expect(tokens).toContain('[data-theme="dark"]');
     // spot values from research/design-system.md §1.1
     expect(tokens).toContain('--bg: #f6f6f8'); // light
     expect(tokens).toContain('--bg: #0a0a0d'); // dark
-    expect(tokens).toContain('--pos: #12805c'); // light success
+    expect(tokens).toContain('--pos: #0b7d59'); // light success (AA-tuned on --pos-soft)
     expect(tokens).toContain('--pos: #3ecf8e'); // dark success
     expect(tokens).toMatch(/color-scheme:\s*light/);
     expect(tokens).toMatch(/color-scheme:\s*dark/);

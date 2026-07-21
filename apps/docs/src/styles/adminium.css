@@ -8,7 +8,10 @@
  *
  * Token hexes are NEVER forked here: every value below is a var() reference into
  * @adminium/tokens (imported ahead of this file in astro.config.mjs). The dark
- * palette is the hand-tuned one from 02-design-system.md §1.1, not auto-derived.
+ * neutral palette it points at is the independently authored one from
+ * 02-design-system.md §1.1; the dark ACCENT it points at is derived from the
+ * light accent by recipe (see the header of accents.css). Either way this file
+ * only references them — it never restates a hex.
  *
  * Starlight's theme toggle writes data-theme="light|dark" on <html>; the tokens
  * package keys its dark block off the same attribute, so the two stay in sync

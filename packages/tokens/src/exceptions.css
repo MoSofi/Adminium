@@ -1,7 +1,23 @@
 /* @adminium/tokens — canonical theming exceptions. See workplan/02-design-system.md §6.
    Two deliberate breaks from the active theme, implemented as scope classes that re-declare
    the full token set on a subtree (token cascade does the rest — children need no changes).
-   These scopes copy canonical hand-tuned values; they do not derive them. */
+   These scopes copy canonical hand-tuned values; they do not derive them.
+
+   They now also pin the ACCENT side of the theme, because accents.css resolves --accent per
+   theme (--accent-light / --accent-dark). A dark code block inside a light page would otherwise
+   inherit the light accent onto a #0f0f14 surface — where the black accent measures 1.03:1 — and
+   vice versa. Re-declaring --accent/--accent-fg/--accent-hover here keeps the exception scopes
+   self-consistent without teaching any component about the theme.
+
+   EVERY accent-derived token has to be re-declared for that to hold, not just --accent itself.
+   A custom property's var() is substituted on the element that DECLARES it, so an --accent-soft
+   left to accents.css would arrive here already resolved against the ROOT's accent — the light
+   accent inside a dark code block. --accent-selection and --accent-border were missing for
+   exactly that reason and are pinned below.
+
+   scripts/contrast-check.mjs replays both scopes as real subtrees (each root theme x each accent
+   x each scope) and gates every pair, so the copied values below cannot drift from tokens.css
+   without turning CI red. */
 
 /* Code/terminal surfaces are ALWAYS dark, both themes:
    CodeBlock, Terminal, JsonViewer, LogBox, connection-string previews */
@@ -14,9 +30,14 @@
   --border: rgba(255,255,255,.07);
   --border-strong: rgba(255,255,255,.13);
   --fg: #f4f4f6;
-  --fg-muted: #9a9aa6;
-  --fg-subtle: #6a6a76;
-  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+  --fg-muted: #b7b7c3;
+  --fg-subtle: #a1a1ad;
+  --accent: var(--accent-dark);
+  --accent-fg: #0f0f14;
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, #fff);
+  --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
   --pos: #3ecf8e;
   --pos-soft: rgba(62,207,142,.14);
   --warn: #e0a458;
@@ -28,12 +49,18 @@
   --shadow: 0 1px 2px rgba(0,0,0,.4);
   --shadow-md: 0 6px 20px rgba(0,0,0,.5);
   --shadow-lg: 0 16px 40px rgba(0,0,0,.6);
-  /* JSON syntax tokens (fixed, never themed) */
+  /* JSON syntax tokens (fixed, never themed). These are TEXT on the surfaces above, so the gate
+     measures them like any other foreground. --code-gray (punctuation, nulls, comments) was
+     #7d7d8a: 4.71:1 on --surface but 4.27:1 on --surface-2 and 3.79:1 on --surface-3, which
+     JsonViewer's alternating rows and LogBox's inset panels both use. Raised by the minimum
+     OKLCH lightness step that clears AA on the deepest of them (hue held, drift 0.01deg):
+     4.52 / 5.09 / 5.62 : 1. It stays well below --fg-subtle #a1a1ad, so punctuation still reads
+     dimmer than tertiary prose. The other four already cleared 7.5:1+. */
   --code-blue: #7cc5ff;
   --code-green: #8fe388;
   --code-orange: #e6b673;
   --code-purple: #c8a6ff;
-  --code-gray: #7d7d8a;
+  --code-gray: #8a8a98;
 }
 
 /* Email previews and QR tiles are ALWAYS light, both themes
@@ -47,16 +74,21 @@
   --border: #ececef;
   --border-strong: #e2e2e8;
   --fg: #191920;
-  --fg-muted: #6b6b76;
-  --fg-subtle: #9a9aa5;
+  --fg-muted: #4a4a54;
+  --fg-subtle: #5a5a65;
+  --accent: var(--accent-light);
+  --accent-fg: #ffffff;
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
-  --pos: #12805c;
+  --accent-hover: color-mix(in srgb, var(--accent) 82%, #000);
+  --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
+  --pos: #0b7d59;
   --pos-soft: #e6f5ee;
-  --warn: #b25e09;
+  --warn: #a95800;
   --warn-soft: #fbf0e2;
-  --danger: #d1293d;
+  --danger: #cf273c;
   --danger-soft: #fdecec;
-  --info: #2563eb;
+  --info: #1c59e0;
   --info-soft: #e7edfd;
   --shadow: 0 1px 2px rgba(20,20,35,.04), 0 1px 3px rgba(20,20,35,.05);
   --shadow-md: 0 4px 14px rgba(20,20,35,.09);
