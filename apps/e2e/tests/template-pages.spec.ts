@@ -30,7 +30,16 @@ test.describe('archetype template pages on the seeded Northwind connection', () 
     page,
   }) => {
     await signIn(page);
-    await navLink(page, /Employees Directory/).first().click();
+    // Slug-scoped, not label-scoped: the T15 M7 leg (llm-enrichment.spec.ts)
+    // applies an LLM `page-directory` for employees whose nav label is also
+    // "Employees Directory" and whose rank-derived order sorts it first in the
+    // People group — the label's `.first()` would land on the llm page. This
+    // spec pins the seeded GENERATED archetype page, addressed by its slug.
+    await page
+      .getByRole('navigation', { name: 'Primary' })
+      .locator('a[href="/p/employees-directory"]')
+      .first()
+      .click();
     await expect(page).toHaveURL(/\/p\/employees-directory/);
 
     // The real renderer, not the unknown-template card (09 §3.1).
