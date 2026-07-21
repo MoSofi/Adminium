@@ -207,8 +207,17 @@ export function CalendarMonth({
                   <span
                     className={[
                       'grid size-5 shrink-0 place-items-center self-start rounded-full text-caption tabular-nums',
-                      cell.inMonth ? 'text-fg' : 'text-fg-subtle',
-                      isToday ? 'bg-accent font-bold text-white' : '',
+                      // One text colour, chosen once: these classes are joined
+                      // raw (no tailwind-merge), so emitting `text-fg` AND
+                      // `text-accent-fg` would leave both in the class list and
+                      // let stylesheet order — not this ternary — pick the
+                      // winner. On the accent fill that silently rendered
+                      // near-black-on-accent instead of the paired foreground.
+                      isToday
+                        ? 'bg-accent font-bold text-accent-fg'
+                        : cell.inMonth
+                          ? 'text-fg'
+                          : 'text-fg-subtle',
                     ].join(' ')}
                   >
                     {fmtDayNumber(tag, cell.day)}

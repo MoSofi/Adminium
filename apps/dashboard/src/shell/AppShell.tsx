@@ -176,7 +176,7 @@ export function AppShell() {
       {offline ? (
         <div
           role="status"
-          className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 bg-warn px-3 py-2 text-[12.5px] font-bold text-white animate-[nb-slide_.3s_ease]"
+          className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 bg-warn px-3 py-2 text-[12.5px] font-bold text-accent-fg animate-[nb-slide_.3s_ease]"
         >
           <WifiOff className="size-[15px]" aria-hidden="true" />
           {t('states.offlineBanner', "You're offline — trying to reconnect…")}

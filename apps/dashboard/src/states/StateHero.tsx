@@ -46,7 +46,7 @@ export function StateHero({ spec, onPrimary, onSecondary, requestId, fullPage = 
       {spec.banner === undefined ? null : (
         <div
           role="status"
-          className="fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-2 bg-warn px-3 py-2.5 text-[12.5px] font-bold text-white"
+          className="fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-2 bg-warn px-3 py-2.5 text-[12.5px] font-bold text-accent-fg"
         >
           <Icon className="size-[15px]" aria-hidden="true" />
           {spec.banner}
@@ -109,7 +109,7 @@ export function StateHero({ spec, onPrimary, onSecondary, requestId, fullPage = 
         )}
 
         <div className="mt-9 flex items-center gap-2 opacity-60">
-          <span className="flex size-[22px] items-center justify-center rounded-[7px] bg-accent text-white">
+          <span className="flex size-[22px] items-center justify-center rounded-[7px] bg-accent text-accent-fg">
             <Database className="size-3" aria-hidden="true" />
           </span>
           <span className="text-[12px] font-bold">Adminium</span>

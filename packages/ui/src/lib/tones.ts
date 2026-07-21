@@ -24,14 +24,27 @@ export const toneSoftClasses: Record<Tone, string> = {
   info: 'bg-info-soft text-info',
 };
 
-/** Tone → solid background + on-tone foreground utility pairs. */
+/**
+ * Tone → solid background + on-tone foreground utility pairs.
+ *
+ * Every filled tone takes `text-accent-fg`, not `text-white`. `--accent-fg` is
+ * the theme's single inverted foreground (#ffffff light, #0f0f14 dark — see the
+ * "One --accent-fg per theme" note in tokens/src/accents.css), so it is the
+ * on-filled-surface colour for ALL solid fills, not just the accent one.
+ * Hardcoding white here failed the dark theme outright: white measures 2.00:1
+ * on --pos #3ecf8e, 2.18:1 on --warn #e0a458, 2.78:1 on --danger #ff6b6b and
+ * 2.41:1 on --info #6ea8ff, against a WCAG 2.1 AA floor of 4.5:1.
+ * `text-accent-fg` measures 5.13-5.91:1 light and 6.89-9.58:1 dark on the same
+ * four fills, and stays correct inside the `.adm-always-dark` /
+ * `.adm-always-light` exception scopes, which re-declare both sides together.
+ */
 export const toneSolidClasses: Record<Tone, string> = {
   neutral: 'bg-surface-3 text-fg',
   accent: 'bg-accent text-accent-fg',
-  pos: 'bg-pos text-white',
-  warn: 'bg-warn text-white',
-  danger: 'bg-danger text-white',
-  info: 'bg-info text-white',
+  pos: 'bg-pos text-accent-fg',
+  warn: 'bg-warn text-accent-fg',
+  danger: 'bg-danger text-accent-fg',
+  info: 'bg-info text-accent-fg',
 };
 
 /**
