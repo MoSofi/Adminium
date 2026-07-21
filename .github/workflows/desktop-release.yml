@@ -235,28 +235,34 @@ jobs:
           echo "Windows code signing enabled (WIN_CSC_LINK present)"
 
       # electron-builder's `npmRebuild` compiles better-sqlite3 and argon2 against
-      # Electron's own headers. Those headers are V8's, they require C++20, and
-      # ubuntu-22.04's default g++-11 only partially implements it — the first
-      # real run of this workflow died parsing v8-primitive.h ("expected
-      # identifier before '__attribute__'" on a `V8_DEPRECATED(...) V8_EXPORT`
-      # class head, which GCC 11 mis-parses and clang/MSVC accept, hence mac and
-      # win passing while only linux failed).
+      # Electron's V8 headers, and GCC cannot parse them. v8-primitive.h declares
+      #     class V8_DEPRECATED("…") V8_EXPORT Value { public:
+      # which expands to a C++11 attribute followed by a GNU one:
+      #     class [[deprecated("…")]] __attribute__((visibility("default"))) Value
+      # GCC rejects `__attribute__` in that position ("expected identifier before
+      # '__attribute__'"); clang and MSVC accept it. That is the whole reason the
+      # first run of this workflow passed on mac and win and failed only on linux
+      # — and it is NOT a C++ standard-level problem: g++-12 reproduces it
+      # identically, so bumping the GCC version does not help.
       #
-      # g++-12 rather than a newer runner image ON PURPOSE: the AppImage/deb link
-      # against the build host's glibc, so building on the OLDEST supported image
-      # is what keeps the Linux artifacts installable on older distros. Upgrading
-      # the compiler buys C++20 without narrowing that compatibility window.
-      - name: Use a C++20-capable toolchain (linux)
+      # Build with clang, which is what Electron itself is built with. Both
+      # toolchains link the same libstdc++, so the resulting .node addons stay
+      # ABI-compatible with the prebuilt Electron binary.
+      #
+      # Staying on ubuntu-22.04 ON PURPOSE: the AppImage/deb link against the
+      # build host's glibc, so building on the OLDEST supported image is what
+      # keeps the Linux artifacts installable on older distributions.
+      - name: Build native modules with clang (linux)
         if: matrix.platform == 'linux'
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y g++-12 gcc-12
+          sudo apt-get install -y clang
           {
-            echo 'CC=gcc-12'
-            echo 'CXX=g++-12'
+            echo 'CC=clang'
+            echo 'CXX=clang++'
           } >> "$GITHUB_ENV"
-          g++-12 --version | head -1
+          clang++ --version | head -1
 
       # ── Step 3: package + (mac) sign + notarize ──────────────────────────────
       #
