@@ -22,3 +22,4 @@ coverage/
 # `astro check`/`astro build`; committing it produces churn on every build.
 /apps/docs/.astro/
 .claude/scheduled_tasks.lock
+scripts/release/out/
