@@ -12,9 +12,9 @@ network request.
 your terminal or a file, and stops. Nothing is transmitted. There is no provider
 to configure and none is recorded.
 
-**BYO runs are never metered.** On Adminium Cloud, AI credits count only
-Adminium-managed keys. A BYO run costs nothing because nothing happened on our
-side.
+**Your keys and your data stay yours.** Whatever model you paste into is a
+relationship between you and that model. Adminium never sees an API key, a
+request, or a response in transit — only the reply you choose to paste back.
 :::
 
 This is the path for air-gapped networks, for policies that forbid schema
