@@ -35,8 +35,41 @@ env:
   STAGING_TAG: staging-${{ github.run_id }}
 
 jobs:
+  # v1.0 gate (RELEASE-GATE.md): a v1+ tag may not publish while the checklist
+  # has unchecked items. v0.x tags pass through untouched, so this job is a
+  # no-op for the current release line — but every publish job needs it, which
+  # is what makes the gate a gate.
+  release-gate:
+    name: release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enforce RELEASE-GATE.md for v1+ tags
+        env:
+          VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+        run: |
+          major="${VERSION#v}"
+          major="${major%%.*}"
+          case "$major" in
+            ''|*[!0-9]*)
+              echo "Unparseable version '$VERSION' — enforcing the gate to be safe." ;;
+            0)
+              echo "v0.x release — RELEASE-GATE.md not enforced."; exit 0 ;;
+          esac
+          unchecked="$(grep -n -- '- \[ \]' RELEASE-GATE.md || true)"
+          if [ -n "$unchecked" ]; then
+            echo "RELEASE-GATE.md still has unchecked items — a v1+ tag cannot publish:"
+            echo "$unchecked"
+            exit 1
+          fi
+          echo "RELEASE-GATE.md is fully checked."
+
   docker:
     name: docker
+    needs: release-gate
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -371,6 +404,7 @@ jobs:
 
   npm:
     name: npm
+    needs: release-gate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Publishes the 14 public packages under the scope-mapped identity
