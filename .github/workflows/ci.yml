@@ -41,6 +41,11 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
+          # The psql harnesses mint throwaway roles and reconnect as them with
+          # no password — written for trust-auth local dev. Under the image's
+          # default scram auth, libpq falls back to the ambient PGPASSWORD and
+          # role logins fail. Trust is fine for an ephemeral CI service.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
