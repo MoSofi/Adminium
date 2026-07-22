@@ -31,6 +31,23 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      # M15-T05: the postgres-gated suites (server crud.test.ts + the
+      # adapter-postgres and meta live legs) probe psql on 127.0.0.1:5432 —
+      # without this service they skipped green in ci and only e2e.yml
+      # exercised postgres.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +77,11 @@ jobs:
         run: pnpm turbo run lint typecheck build test
         env:
           TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306
+          TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          # The psql-driven harnesses (apps/server + adapter-postgres) shell out
+          # to `psql -h 127.0.0.1` and authenticate from the ambient PG env.
+          PGUSER: postgres
+          PGPASSWORD: postgres
 
       # 11-electron.md §7: the desktop build must work with the network cable
       # unplugged, forever. `desktop#build` already chains this (see that
