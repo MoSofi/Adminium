@@ -45,7 +45,9 @@
       ],
       "env": [
         "TEST_*",
-        "ADMINIUM_TEST_*"
+        "ADMINIUM_TEST_*",
+        "PGUSER",
+        "PGPASSWORD"
       ]
     },
     "e2e": {
