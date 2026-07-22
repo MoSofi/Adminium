@@ -1,5 +1,5 @@
 /**
- * Responsive SVG viewport shared by every chart (workplan/04-widget-registry.md
+ * Responsive SVG viewport shared by every chart (04-widget-registry.md
  * §7.2): ResizeObserver-driven width, fixed pixel height, padding model,
  * direction context, mount-animation flag, a11y contract (role="img" +
  * aria-label from `labels`, optional visually-hidden table fallback), and the

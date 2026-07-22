@@ -10,7 +10,7 @@
  * `LLM_ALLOWED_TEMPLATES`; the row is omitted so the taxonomy is exactly the
  * injected allowed list and the "not listed here" disclaimer names `builder`
  * among the platform-owned surfaces. The spec table predates that registry
- * decision and awaits a sync (workplan/ is being revised on a separate track).
+ * decision and awaits a sync (the internal plan is revised on a separate track).
  * Both paths (direct-API and BYO) send the identical text (§1 invariant 1) —
  * the BYO flattening joins them as `=== SYSTEM ===\n…\n\n=== USER ===\n…`
  * (see builder.ts / `flattenByo`).

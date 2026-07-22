@@ -1,5 +1,5 @@
 /**
- * Theming axis types for ThemeProvider (workplan/02-design-system.md §4.1).
+ * Theming axis types for ThemeProvider (02-design-system.md §4.1).
  * Axis value unions come from `@adminium/tokens` so the DOM attributes,
  * Storybook toolbar and provider can never drift apart; the locale union and
  * the pref/resolved shapes live here because they are UI-runtime concerns.

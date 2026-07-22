@@ -1,7 +1,7 @@
 /**
  * Pure Sankey flow geometry (research/widget-registry.md §2 `chart-sankey`):
  * layered node rects + cubic-bezier ribbon paths weighted by flow. DOM-free and
- * deterministic (workplan/04 §7.1) so the same ribbon path strings render in
+ * deterministic (04 §7.1) so the same ribbon path strings render in
  * Node and the browser (acceptance #10).
  *
  * RTL policy (04 §7.4, explicit): Sankey renders as an LTR island — the flow

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * v0.1 exit script (workplan/16-milestones.md §3.1 — "under 2 minutes, zero
+ * v0.1 exit script (16-milestones.md §3.1 — "under 2 minutes, zero
  * manual config"):
  *
  *   cd apps/server && node scripts/demo-v01.mjs [--no-wait] [--port 4600]

@@ -1,6 +1,6 @@
 /**
  * ThemeProvider — runtime for the four theming axes (theme/accent/density/locale→dir),
- * per workplan/02-design-system.md §4 and 03-component-library.md §3.6.
+ * per 02-design-system.md §4 and 03-component-library.md §3.6.
  *
  * Responsibilities:
  * 1. Resolve effective prefs per-axis (§4.2): baseline ← localStorage pre-paint

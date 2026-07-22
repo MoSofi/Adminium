@@ -109,7 +109,7 @@ export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);
 /**
  * Reserved keys — deferred features (automations, webhooks, manifest
  * administration, raw-SQL console; deferred per the v1-free pivot,
- * workplan/17-deferred-monetization.md) with ZERO enforcement points in v1:
+ * 17-deferred-monetization.md) with ZERO enforcement points in v1:
  * no route or realtime authorizer checks them. They stay in
  * {@link SYSTEM_ACTION_KEYS} because the grammar is a closed set that stored
  * grants round-trip through (removing a key would orphan persisted

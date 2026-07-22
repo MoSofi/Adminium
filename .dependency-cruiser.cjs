@@ -1,6 +1,6 @@
 /**
  * dependency-cruiser rules enforcing the import matrix of
- * workplan/01-architecture.md §2.3 (task 01-T03 / M0-T03).
+ * 01-architecture.md §2.3 (task 01-T03 / M0-T03).
  *
  * Layering: tokens → (i18n, charts, ui) → widgets → apps,
  * and engine → (adapters, schema-import, llm, manifest, meta-consumers) → server.

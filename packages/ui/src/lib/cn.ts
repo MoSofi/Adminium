@@ -1,6 +1,6 @@
 /**
  * `cn()` — the single class-composition utility for `@adminium/ui`
- * (workplan/03-component-library.md §2, §3.1).
+ * (03-component-library.md §2, §3.1).
  *
  * clsx handles conditional/array inputs; tailwind-merge resolves conflicting
  * Tailwind utilities so the consumer `className` (always passed last by
@@ -50,7 +50,7 @@ export type CssVarMap = Record<`--${string}`, string | number | null | undefined
 
 /**
  * `cssVars()` — typed builder for CSS-custom-property bags
- * (workplan/03-component-library.md §3.4).
+ * (03-component-library.md §3.4).
  *
  * The JSX `style` prop is banned (`adminium/no-style-prop`); its single
  * sanctioned escape hatch is an INLINE object literal whose every key is a

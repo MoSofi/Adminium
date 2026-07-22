@@ -75,7 +75,7 @@
  * the choice between text-fg / text-fg-muted / text-fg-subtle is a design call
  * (02-design-system.md §7 "Porting comps").
  *
- * Spec: workplan/02-design-system.md §1.1 (token pairs), §3.2 (utility
+ * Spec: 02-design-system.md §1.1 (token pairs), §3.2 (utility
  * conventions), §8 (the shared-config lint surface).
  */
 
@@ -209,7 +209,7 @@ export default {
     docs: {
       description:
         'Disallow literal color utilities (text-white/text-black/text-<palette>-<n>/text-[#hex]) alongside a token-driven background utility (bg-accent, bg-pos, bg-surface, …); use the paired foreground token so the pair stays readable when the theme flips',
-      url: 'https://github.com/MoSofi/Adminium/blob/main/workplan/02-design-system.md#32-utility-conventions',
+      url: 'https://github.com/MoSofi/Adminium/blob/main/packages/config/src/eslint-plugin/no-literal-color-on-token-bg.js',
     },
     schema: [
       {

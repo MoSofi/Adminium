@@ -2,7 +2,7 @@
  * @adminium/tokens — JS-side constants for the four theming axes plus the pre-hydration
  * script. CSS custom properties live in the sibling .css files; these exports exist so
  * ThemeProvider, Storybook toolbars, charts and the desktop shell never hard-code axis
- * values. See workplan/02-design-system.md §2.5.
+ * values. See 02-design-system.md §2.5.
  */
 
 /** Theme axis. `system` resolves via `matchMedia("(prefers-color-scheme: dark)")`. */

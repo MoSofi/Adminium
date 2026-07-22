@@ -1,5 +1,5 @@
 /**
- * Canonical locale registry (workplan/10-i18n-theming.md §2.1) — the single
+ * Canonical locale registry (10-i18n-theming.md §2.1) — the single
  * source of truth for the 8 BRIEF locales. Canonical ids use the underscore
  * form (`en_US`); BCP-47 tags are derived for everything `Intl`- and
  * i18next-facing. `dir` is derived from the locale, never independently

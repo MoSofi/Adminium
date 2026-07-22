@@ -24,7 +24,7 @@
  * No autofix: picking the right logical utility is a judgment call
  * (semantic mirror vs. truly-physical) per §5.1 "Judgment calls".
  *
- * Spec: workplan/10-i18n-theming.md §5.2; 02-design-system.md §3.2, §8.
+ * Spec: 10-i18n-theming.md §5.2; 02-design-system.md §3.2, §8.
  */
 
 /** After stripping variants + a leading `-`, does the token name a physical utility? */
@@ -54,7 +54,7 @@ export default {
     docs: {
       description:
         'Disallow physical-direction Tailwind utilities (ml/mr/pl/pr/left/right/border-l/border-r/rounded-l/rounded-r/text-left/text-right); use the logical equivalents so surfaces mirror under RTL',
-      url: 'https://github.com/MoSofi/Adminium/blob/main/workplan/10-i18n-theming.md#52-logical-property-only-policy',
+      url: 'https://github.com/MoSofi/Adminium/blob/main/packages/config/src/eslint-plugin/no-physical-direction-classes.js',
     },
     schema: [
       {

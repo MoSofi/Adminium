@@ -1,6 +1,6 @@
 /**
  * @adminium/i18n — 8-locale registry, i18next+ICU runtime factory, Intl
- * formatter layer, RTL utils (workplan/10-i18n-theming.md). Framework-free;
+ * formatter layer, RTL utils (10-i18n-theming.md). Framework-free;
  * React bindings live in the `@adminium/i18n/react` entry.
  */
 export const PACKAGE_NAME = '@adminium/i18n';

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { DataShape } from '../page-config/index.js';
 
 /**
- * Widget registry core types — workplan/04-widget-registry.md §2.1, verbatim.
+ * Widget registry core types — 04-widget-registry.md §2.1, verbatim.
  * A widget is one React component + one Zod config schema + one data-contract
  * declaration + default grid sizing, registered exactly once in a typed map.
  * Visual variants are config, never new registry ids.

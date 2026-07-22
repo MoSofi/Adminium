@@ -1,6 +1,6 @@
 /**
  * Shared heat-intensity helpers for the matrix/calendar/geo charts (Track E).
- * Pure and DOM-free (workplan/04-widget-registry.md §7.1) so scheduled-report
+ * Pure and DOM-free (04-widget-registry.md §7.1) so scheduled-report
  * workers reuse them. Sequential intensity maps onto the accent alpha ramp
  * `--viz-ramp-1..6` (research/design-system.md §1.3 / tokens viz.css); zero maps
  * to the neutral `--surface-2` empty cell. No hex literals — colors are var()

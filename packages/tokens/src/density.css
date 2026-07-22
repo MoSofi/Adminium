@@ -1,4 +1,4 @@
-/* @adminium/tokens — density axis (data-density). See workplan/02-design-system.md §1.8.
+/* @adminium/tokens — density axis (data-density). See 02-design-system.md §1.8.
    Two canonical densities; the comps' third "power" density is deliberately dropped. */
 :root,
 [data-density="comfortable"] {

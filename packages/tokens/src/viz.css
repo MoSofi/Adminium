@@ -1,4 +1,4 @@
-/* @adminium/tokens — data-viz palette. See workplan/02-design-system.md §1.3.
+/* @adminium/tokens — data-viz palette. See 02-design-system.md §1.3.
    Fixed 8-color categorical palette (order canonical; series i gets --viz-((i mod 8)+1)),
    sequential accent ramp for heatmaps/choropleth intensity, and chart area/ribbon fill.
    @adminium/charts consumes only these vars — no hex literals in chart code. */

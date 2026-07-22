@@ -1,5 +1,5 @@
 /**
- * Pre-hydration script — flash prevention. See workplan/02-design-system.md §4.3.
+ * Pre-hydration script — flash prevention. See 02-design-system.md §4.3.
  *
  * Inlined (as a string) as the FIRST <script> in <head> of apps/dashboard/index.html,
  * the Electron renderer HTML and Storybook's preview-head.html, before any stylesheet

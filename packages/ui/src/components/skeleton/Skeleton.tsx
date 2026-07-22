@@ -7,7 +7,7 @@ import { cn } from '../../lib/cn.js';
 /**
  * Shimmer placeholder using the tokens `.nb-skel` sweep (surface-3 ↔
  * surface-2, 1.4s; static under reduced motion). `aria-hidden` — the loading
- * *container* carries `aria-busy` (workplan/03-component-library.md §5.1).
+ * *container* carries `aria-busy` (03-component-library.md §5.1).
  */
 export const skeletonVariants = cva('nb-skel block', {
   variants: {

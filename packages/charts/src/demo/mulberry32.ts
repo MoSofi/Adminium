@@ -1,5 +1,5 @@
 /**
- * Deterministic seeded PRNG + hash per workplan/04-widget-registry.md §7.7:
+ * Deterministic seeded PRNG + hash per 04-widget-registry.md §7.7:
  * seed = FNV-1a hash of the widget instance id → previews are stable across
  * reloads and screenshot tests are reproducible.
  */

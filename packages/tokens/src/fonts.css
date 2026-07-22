@@ -1,4 +1,4 @@
-/* @adminium/tokens — @font-face + per-locale family stacks. See workplan/02-design-system.md §2.4.
+/* @adminium/tokens — @font-face + per-locale family stacks. See 02-design-system.md §2.4.
    Font binaries are unmodified upstream builds vendored from @fontsource packages into ./fonts/
    by scripts/copy-fonts.mjs (never subset locally — "Plex" is an OFL Reserved Font Name).
    CJK is not self-hosted; zh_CN/zh_TW use system fallback stacks (v1 policy). */

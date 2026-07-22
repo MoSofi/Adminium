@@ -1,6 +1,6 @@
 /**
  * Checked-in extraction of the widget-registry ANNEX catalog
- * (`workplan/research/widget-registry.md` §1–§13) — the source of truth the
+ * (the internal widget-registry annex, §1–§13) — the source of truth the
  * registry-parity gate (04-widget-registry.md acceptance #1, 04-T17) diffs the
  * live registry against. 176 ids across the 13 families; ids are transcribed
  * verbatim from the annex `### \`id\`` headings (and the §13 document-block

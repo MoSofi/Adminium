@@ -1,6 +1,6 @@
 /**
  * M8-T06 — preference-resolution end-to-end contract, provider half
- * (workplan/10-i18n-theming.md §7.1/§7.5, 02-design-system.md §4).
+ * (10-i18n-theming.md §7.1/§7.5, 02-design-system.md §4).
  *
  * Drives the full chain the app boots through, at the ThemeProvider boundary:
  * localStorage pre-paint cache (stamped by `preHydrationScript` before React)

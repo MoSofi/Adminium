@@ -1,5 +1,5 @@
 /**
- * Non-React theme subscription (workplan/02-design-system.md §4.1) — for
+ * Non-React theme subscription (02-design-system.md §4.1) — for
  * Leaflet tile swaps, chart re-tints, Electron `nativeTheme` mirroring.
  * ThemeProvider emits AFTER the DOM attributes are committed (§4 behavior 5).
  */

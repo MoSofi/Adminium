@@ -8,8 +8,7 @@ introspects the structure and relations, and generates a complete, professional,
 > **Status: milestones M0–M11 complete** — foundation, design system, engine and adapters,
 > generated app, Studio, LLM assist, widget registry (176/176 annex ids), i18n, self-host
 > distribution (CLI, Docker, zip export), and the Electron desktop shell. The free v1.0
-> release is M0–M11 plus a hardening pass. See [workplan/](workplan/README.md) for the full
-> execution plan and [workplan/16-milestones.md](workplan/16-milestones.md) for the roadmap.
+> release is M0–M11 plus a hardening pass.
 
 ## Monorepo
 
@@ -45,4 +44,4 @@ pnpm install
 pnpm build && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-Design comps live in [designs/](designs/) — they are the design system source of truth.
+The design system's in-repo source of truth is `packages/tokens` + `packages/ui`; browse it through the `@adminium/ui` Storybook.

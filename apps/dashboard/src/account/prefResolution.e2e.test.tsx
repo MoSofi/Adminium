@@ -1,6 +1,6 @@
 /**
  * M8-T06 — preference-resolution end-to-end contract, app half
- * (workplan/10-i18n-theming.md §7, 02-design-system.md §4).
+ * (10-i18n-theming.md §7, 02-design-system.md §4).
  *
  * Drives the WHOLE chain through the real router: preHydrationScript stamps
  * the pre-paint frame from the localStorage cache → GET /api/v1/bootstrap

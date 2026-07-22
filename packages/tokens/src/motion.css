@@ -1,4 +1,4 @@
-/* @adminium/tokens — motion vocabulary. See workplan/02-design-system.md §5.
+/* @adminium/tokens — motion vocabulary. See 02-design-system.md §5.
    Keyframe names keep the comps' nb- prefix for 1:1 traceability when porting.
    Conventions: micro-transitions .1–.16s ease; entrances use cubic-bezier(.2,.7,.3,1). */
 

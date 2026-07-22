@@ -14,8 +14,8 @@ runs under the package's vitest project (`pnpm --filter @adminium/widgets test`)
 | `chunk-budget.test.ts` | #3/#8 | charts depends on d3 only; widgets declares no heavy Wave-2/3 map/board deps; no Wave-1 family source imports them; every component is a `React.lazy` ref (one chunk/family); the default page-dashboard pulls only Wave-1 families. |
 | `qa-widgets.stories.tsx` | #4/#9 | Storybook story per family rendering every widget × four states, tagged `vrt` for the light/dark × LTR/RTL screenshot matrix, with a per-story axe (addon-a11y) pass. |
 
-Source of truth: `annex-catalog.ts` (verbatim ids from
-`workplan/research/widget-registry.md` §1–§13). Harness coverage set:
+Source of truth: `annex-catalog.ts` (verbatim ids from the internal
+widget-registry annex, §1–§13). Harness coverage set:
 `delivered.ts` (aggregates the per-track definition arrays directly, so it
 exercises every delivered widget regardless of GREEN-LOOP registry wiring).
 
