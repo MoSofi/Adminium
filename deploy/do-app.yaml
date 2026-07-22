@@ -1,0 +1,40 @@
+# DigitalOcean App Platform — Adminium as a container with a MANAGED Postgres as
+# the meta store. App Platform containers have no persistent local disk, so the
+# embedded SQLite store would be wiped on every deploy (workplan 17 §7.3); the
+# managed database's connection string is bound to ADMINIUM_META_URL natively via
+# ${adminium-meta.DATABASE_URL}. Note DATABASE_URL (the optional source-connection
+# seed) is deliberately NOT set, so the meta database is never also imported as a
+# source connection.
+#
+# App Platform declares the listening port with `http_port` and sets PORT to
+# match; Adminium honors PORT. ADMINIUM_SECRET must be set as an encrypted
+# app-level secret before the first deploy and kept stable (changing it makes
+# every stored secret undecryptable).
+#
+# DRAFT: authored against the published image; not yet validated by a live App
+# Platform deploy (workplan 17-T17 / owner step).
+spec:
+  name: adminium
+  services:
+    - name: adminium
+      image:
+        registry_type: GHCR
+        registry: mosofi
+        repository: adminium
+        tag: latest
+      http_port: 4600
+      instance_size_slug: basic-xxs
+      instance_count: 1
+      health_check:
+        http_path: /api/v1/readyz
+      envs:
+        - key: ADMINIUM_SECRET
+          scope: RUN_TIME
+          type: SECRET
+        - key: ADMINIUM_META_URL
+          scope: RUN_TIME
+          value: ${adminium-meta.DATABASE_URL}
+  databases:
+    - name: adminium-meta
+      engine: PG
+      production: false

@@ -1,0 +1,39 @@
+# Fly.io — Adminium on a persistent volume holding the embedded SQLite meta
+# store, files, and backups. Fly routes to `internal_port`; Adminium defaults to
+# 4600, so no PORT juggling is needed.
+#
+# ADMINIUM_SECRET is NOT in this file on purpose — secrets never belong in a
+# committed manifest. Set it once, before the first deploy, and never change it
+# (changing it makes every stored DSN and API key undecryptable):
+#
+#   fly volumes create adminium_data --size 1
+#   fly secrets set ADMINIUM_SECRET=$(openssl rand -hex 32)
+#   fly deploy
+#
+# DRAFT: authored against the published image; not yet validated by a live Fly
+# deploy (workplan 17-T17 / owner step).
+app = "adminium"
+primary_region = "iad"
+
+[build]
+  image = "ghcr.io/mosofi/adminium:latest"
+
+[env]
+  ADMINIUM_DATA_DIR = "/data"
+
+[[mounts]]
+  source = "adminium_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 4600
+  force_https = true
+  auto_stop_machines = false
+  min_machines_running = 1
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "40s"
+  method = "get"
+  path = "/api/v1/readyz"
