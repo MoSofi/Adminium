@@ -133,7 +133,10 @@ export function createNorthwindDb(): TestPg {
     psql(MAINTENANCE_DB, `DROP DATABASE IF EXISTS ${database} WITH (FORCE)`);
     throw error;
   }
-  const user = process.env.USER ?? 'postgres';
+  // PGUSER first: locally the superuser is usually the OS user, but in CI the
+  // OS user (`runner`) has no role — psql already honours PGUSER, and the DSN
+  // handed to the driver must name the same principal.
+  const user = process.env.PGUSER ?? process.env.USER ?? 'postgres';
   return {
     database,
     dsn: `postgres://${user}@${PG_HOST}:${PG_PORT}/${database}`,
