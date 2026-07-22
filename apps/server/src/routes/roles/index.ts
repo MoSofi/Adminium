@@ -15,7 +15,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { permissionsRepo, rolesRepo, usersRepo, type Role } from '@adminium/meta';
 
-import { ConflictError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import {
   PERMISSIONS,
   grantsFromMatrixRows,
@@ -286,6 +286,20 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
         request.apiKeyPrincipal === null
           ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
           : null;
+      // Minting a new Super Admin is a super-admin-only power. `roles:manage`
+      // is a grantable key a custom role can hold, so without this a
+      // roles:manage holder could assign the Super Admin role to themselves and
+      // escalate to allow-all. Mirrors the asymmetry the DELETE/PUT handlers
+      // already encode. Only a session user who *holds* Super Admin qualifies —
+      // an API-key principal never mints a Super Admin.
+      if (role.slug === SUPER_ADMIN_SLUG) {
+        const actorIsSuperAdmin =
+          actingUserId !== null &&
+          (await roles.rolesForUser(actingUserId)).some((r) => r.slug === SUPER_ADMIN_SLUG);
+        if (!actorIsSuperAdmin) {
+          throw new ForbiddenError('Only a Super Admin can grant the Super Admin role.');
+        }
+      }
       await roles.assignToUser(user.id, role.id, actingUserId, app.rbac.now());
       const roleIds = (await roles.rolesForUser(user.id)).map((r) => r.id);
       await app.rbac.audit(request, {

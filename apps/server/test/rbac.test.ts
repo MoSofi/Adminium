@@ -290,3 +290,37 @@ describe('roles routes', () => {
     expect(res.statusCode).toBe(403);
   });
 });
+
+describe('super-admin assignment guard (security review 2026-07-23)', () => {
+  it('a roles:manage holder that is not super-admin cannot grant the Super Admin role', async () => {
+    const { permissionsRepo, rolesRepo } = await import('@adminium/meta');
+    // Give the admin role roles:manage — a supported delegation — but it is
+    // NOT super-admin.
+    await permissionsRepo(ctx.meta).grant(ctx.roles.admin.id, 'system', 'roles.manage', {
+      allowed: true,
+    });
+
+    const res = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${ctx.users.admin.id}/roles`,
+      headers: asUser(ctx.users.admin),
+      payload: { roleId: ctx.roles.superAdmin.id },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('FORBIDDEN');
+
+    // The escalation did not happen — the admin never gained super-admin.
+    const held = (await rolesRepo(ctx.meta).rolesForUser(ctx.users.admin.id)).map((r) => r.slug);
+    expect(held).not.toContain('super-admin');
+  });
+
+  it('a super-admin can still grant the Super Admin role', async () => {
+    const res = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${ctx.users.editor.id}/roles`,
+      headers: asUser(ctx.users.superAdmin),
+      payload: { roleId: ctx.roles.superAdmin.id },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+});
