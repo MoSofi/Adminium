@@ -7,7 +7,7 @@
   "description": "React SPA: Studio + Generated App (app shell, router, system states \u2014 09-generated-app.md)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/check-entry-budget.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",

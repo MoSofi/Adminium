@@ -1,0 +1,5 @@
+{
+  "entryJsGzBytes": 680000,
+  "targetGzBytes": 358400,
+  "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight (+~2.5% minifier headroom) and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md."
+}
