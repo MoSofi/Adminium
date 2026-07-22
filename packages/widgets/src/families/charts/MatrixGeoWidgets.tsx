@@ -18,6 +18,7 @@ import {
   HeatCalendarChart,
   HeatMonthChart,
   SankeyChart,
+  hasUsTilegramTiles,
 } from '@adminium/charts';
 import { getFormatters, weekInfo } from '@adminium/i18n';
 import { z } from 'zod';
@@ -267,6 +268,14 @@ export function ChartChoroplethGridWidget({ config, data }: WidgetProps<ChartCho
   const metric = config.metric ?? Object.keys(geo.points[0]?.values ?? {})[0] ?? 'value';
   const format = (value: number): string => formatMetricValue(value, config.valueFormat, opts);
 
+  // Cross-listed as `map-choropleth-grid` (geo), which degrades identically: the
+  // `us-tilegram` layout plots only known USPS tiles, so a non-US region-coded
+  // payload would place ZERO tiles under a live legend. Fall back to the
+  // code-agnostic `grid` when the tilegram would be empty. (One visual, two ids —
+  // the two must not drift.)
+  const effectiveLayout =
+    config.layout === 'us-tilegram' && !hasUsTilegramTiles(geo.points) ? 'grid' : config.layout;
+
   const ranked =
     config.topN > 0
       ? [...geo.points]
@@ -282,7 +291,7 @@ export function ChartChoroplethGridWidget({ config, data }: WidgetProps<ChartCho
           points={geo.points}
           metric={metric}
           labels={{ label: config.title ?? 'Regional breakdown' }}
-          layout={config.layout}
+          layout={effectiveLayout}
           columns={config.columns}
           levels={config.levels}
           format={format}

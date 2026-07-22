@@ -457,6 +457,58 @@ describe('map-choropleth-grid', () => {
     ]);
   });
 
+  /**
+   * The empty-tilegram trap. `us-tilegram` (the default layout) plots only the
+   * USPS tiles it knows, so a payload of non-US country codes places ZERO tiles
+   * and — because the legend renders unconditionally — leaves just the low→high
+   * swatches: a legend for a map that is not on the page. The widget must degrade
+   * to the code-agnostic `grid` layout so the data stays visible as tiles.
+   */
+  it('falls back to the grid layout so non-US region codes still tile, never a bare legend', () => {
+    // Codes chosen to NOT collide with USPS: `DE` would be Delaware, `LA`
+    // Louisiana — the ISO-country/USPS-state overlap the tilegram can't tell apart.
+    const worldPoints = [
+      { code: 'FR', name: 'France', values: { sales: 300 } },
+      { code: 'JP', name: 'Japan', values: { sales: 220 } },
+      { code: 'BR', name: 'Brazil', values: { sales: 140 } },
+    ];
+    const { container } = render(<MapChoroplethGrid points={worldPoints} metric="sales" />);
+    // On `us-tilegram` this is 0; the `grid` fallback tiles every point.
+    expect(container.querySelectorAll('[data-region-tile]')).toHaveLength(3);
+  });
+
+  /**
+   * The DEFAULT desktop case, not an edge case: 11-electron.md §7 resolves every
+   * `map-*` id to this widget offline, so a page whose data is coordinate points
+   * (name + values, NO region code — the `map-bubble` shape) now renders here. The
+   * tilegram can place none of them; the grid fallback tiles them all.
+   */
+  it('tiles a code-less payload — the offline map-bubble fallback (lat/lng data, no codes)', () => {
+    const cityPoints = [
+      { name: 'Tokyo', values: { users: 900 } },
+      { name: 'London', values: { users: 500 } },
+      { name: 'Lagos', values: { users: 200 } },
+    ];
+    const { container } = render(<MapChoroplethGrid points={cityPoints} metric="users" />);
+    expect(container.querySelectorAll('[data-region-tile]')).toHaveLength(3);
+  });
+
+  /**
+   * The degrade is data-driven, not a blanket override: as soon as ONE code lands
+   * on a known tile the tilegram is kept (the geographic island), and the foreign
+   * codes are dropped as before. Only an all-non-US payload falls back.
+   */
+  it('keeps the us-tilegram when any code is a known US tile (mixed payload)', () => {
+    const mixed = [
+      { code: 'CA', name: 'California', values: { sales: 400 } },
+      { code: 'JP', name: 'Japan', values: { sales: 300 } },
+    ];
+    const { container } = render(<MapChoroplethGrid points={mixed} metric="sales" />);
+    // The island plots the state it knows and silently drops the country code.
+    expect(container.querySelector('[data-region-tile="CA"]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-region-tile]')).toHaveLength(1);
+  });
+
   it('uses no physical-direction utility anywhere in the tree (10 §5.2)', () => {
     const { container } = render(<MapChoroplethGrid points={REGION_POINTS} metric="sales" />);
     expect(allClassNames(container).filter((name) => PHYSICAL.test(name))).toEqual([]);

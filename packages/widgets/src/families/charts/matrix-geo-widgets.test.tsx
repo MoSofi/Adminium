@@ -182,6 +182,31 @@ describe('config → chart wrappers', () => {
     expect(container.querySelector('[data-region-ranking]')?.querySelectorAll('li')).toHaveLength(5);
   });
 
+  /**
+   * The empty-tilegram trap, shared with the cross-listed `map-choropleth-grid`.
+   * `us-tilegram` (the default) plots only known USPS tiles, so a non-US
+   * region-coded payload would place ZERO tiles under a live legend. The widget
+   * degrades to the code-agnostic `grid` so the data stays visible. (Codes chosen
+   * to avoid the ISO-country/USPS overlap: `DE` is Delaware, `LA` Louisiana.)
+   */
+  it('choropleth falls back to grid on a non-US payload (never a bare legend)', () => {
+    const { container } = render(
+      <ChartChoroplethGridWidget
+        config={chartChoroplethGridConfigSchema.parse({ metric: 'sales' })}
+        data={{
+          points: [
+            { code: 'FR', name: 'France', values: { sales: 300 } },
+            { code: 'JP', name: 'Japan', values: { sales: 220 } },
+            { code: 'BR', name: 'Brazil', values: { sales: 140 } },
+          ],
+        }}
+        instanceId="c4b"
+        onEvent={noop}
+      />,
+    );
+    expect(container.querySelectorAll('rect[data-region-tile]')).toHaveLength(3);
+  });
+
   it('sankey renders ribbons and an optional summary pill', () => {
     const { container } = render(
       <ChartSankeyWidget
