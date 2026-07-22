@@ -1,17 +1,66 @@
 name: codeql
 
-# Stub. CodeQL (js/ts) + `pnpm audit` gate per workplan/01-architecture.md §11.
-# Enable via GitHub code-scanning setup once the repository exists on GitHub
-# (see .github/REPO_SETUP.md); then replace this stub with the real analyze
-# jobs on pull_request + a weekly schedule.
+# CodeQL (js/ts) static analysis + a `pnpm audit` advisory gate.
+# Direct pushes to main are the normal flow here, so the analyze job runs on
+# push as well as PR; the weekly schedule catches newly published advisories
+# and query-pack updates against an unchanged tree.
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '30 5 * * 1'
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  placeholder:
-    name: placeholder
+  analyze:
+    name: analyze
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
-      - name: Explain stub
-        run: echo "codeql.yml is a stub. Enable CodeQL code scanning when the GitHub repo is created, then implement the analyze + pnpm audit jobs here."
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
+
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Advisory gate on production dependencies only. `pnpm audit` resolves
+      # from the lockfile, so no install is needed; dev-only advisories are
+      # tracked by Dependabot instead of failing the gate.
+      - name: Audit production dependencies (high+)
+        run: pnpm audit --prod --audit-level high
