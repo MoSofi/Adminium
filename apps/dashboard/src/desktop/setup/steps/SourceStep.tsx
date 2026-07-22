@@ -8,9 +8,9 @@
  * (`openFile` for card 2) are the exception, because the preload bridge is not
  * the server and has no session to lack.
  *
- * Visual language: the source cards from `designs/Connect Database.dc.html`
+ * Visual language: the source cards from `Connect Database.dc.html`
  * (its three input modes become our four sources) and the option cards from
- * `designs/Onboarding.dc.html`. The comp's "Auto-generate placeholder entries"
+ * `Onboarding.dc.html`. The comp's "Auto-generate placeholder entries"
  * toggle and its copy are kept verbatim in intent — it is the one control in
  * that comp that writes rows, and the wizard is where it belongs.
  */
@@ -201,7 +201,7 @@ export function SourceStep({
                   <MonoText className="text-body-sm text-fg-muted">{schemaFileName}</MonoText>
                 )}
 
-                {/* `designs/Connect Database.dc.html`, verbatim in intent. It is
+                {/* `Connect Database.dc.html`, verbatim in intent. It is
                     offered ONLY on this sub-path because it is the only one where
                     the comp's premise holds: you imported a schema, so there are
                     tables and no rows. A blank database has nothing to seed, and

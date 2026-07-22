@@ -1,5 +1,5 @@
 /**
- * Scheduled Reports (M7 reports track; comp: designs/Scheduled Reports
+ * Scheduled Reports (M7 reports track; comp: Scheduled Reports
  * .dc.html): the recurring-report manager — list rows through
  * `scheduled-jobs-list` (the §11.2 master-list consistency choice) with a
  * live enable toggle, plus a create/edit modal over the §3.24 schedule

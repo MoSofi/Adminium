@@ -54,7 +54,7 @@ export interface TwoFactorFormProps
 }
 
 /**
- * TwoFactorForm — the 2FA step-up challenge per designs/Auth &
+ * TwoFactorForm — the 2FA step-up challenge per Auth &
  * Onboarding.dc.html: invisible-input OTP over 6 cells, with a toggle to a
  * recovery-code input. Controlled composition: zero fetching.
  *

@@ -15,7 +15,7 @@
  *
  * DESKTOP ONLY. Without the preload bridge there is no `config.json` to write, so
  * the route renders the 404 state rather than a toggle that cannot do anything —
- * `designs/Empty States.dc.html`'s "never hide, always explain" is about features
+ * `Empty States.dc.html`'s "never hide, always explain" is about features
  * a user could have; a browser tab cannot have this one.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

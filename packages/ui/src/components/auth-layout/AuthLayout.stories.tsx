@@ -13,7 +13,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Brand logo block per designs/Login.dc.html. */
+/** Brand logo block per Login.dc.html. */
 function BrandLogo() {
   return (
     <span className="flex items-center gap-2.5">

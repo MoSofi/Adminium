@@ -2,7 +2,7 @@
  * Shared harness for the connections + CRUD suites (not collected — no
  * .test suffix).
  *
- * Everything is probe-gated per the workplan rule (CI without a local
+ * Everything is probe-gated per the standing rule (CI without a local
  * PostgreSQL stays green): suites call `describe.skipIf(!pgAvailable())`.
  * Test databases are named `adminium_test_srv_<rand>`, created through the
  * `postgres` maintenance DB with the `psql` CLI, seeded with the adapter

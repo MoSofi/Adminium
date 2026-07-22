@@ -46,7 +46,7 @@ export interface ForgotPasswordFormProps
    * ("Enabled only when SMTP is configured in settings; otherwise buttons
    * disabled"). Distinct from `loading`, which means "wait"; this means "not
    * from here". Pair it with {@link ForgotPasswordFormProps.notice} — a disabled
-   * button with no explanation is the exact thing `designs/Empty States.dc.html`
+   * button with no explanation is the exact thing `Empty States.dc.html`
    * forbids.
    */
   disabled?: boolean | undefined;
@@ -64,7 +64,7 @@ const looksLikeEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.
 
 /**
  * ForgotPasswordForm — request-a-reset-link screen per
- * designs/Login.dc.html (FORGOT state). Controlled composition: zero
+ * Login.dc.html (FORGOT state). Controlled composition: zero
  * fetching. On success the host swaps in `ForgotSentState`.
  *
  * Endpoint contract (apps/server/src/routes/auth):
@@ -172,7 +172,7 @@ export interface ForgotSentStateProps
 }
 
 /**
- * ForgotSentState — the SENT confirmation from designs/Login.dc.html,
+ * ForgotSentState — the SENT confirmation from Login.dc.html,
  * reusing `SuccessState` (pos mail-check tile + heading + copy + Done) with a
  * resend link line. Re-submitting hits the same
  * `POST /api/v1/auth/password/forgot` endpoint (3/hour rate bucket).

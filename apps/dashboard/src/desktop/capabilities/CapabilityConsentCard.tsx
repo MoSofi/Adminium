@@ -1,6 +1,6 @@
 /**
  * The capability consent surface (11-electron.md §12) — the OAuth-scope pattern
- * from `designs/Integrations.dc.html`, as a modal.
+ * from `Integrations.dc.html`, as a modal.
  *
  * §12: installing a manifest that declares capabilities shows a consent step
  * ("THIS WILL ALLOW <app> TO… Print to receipt printers"). This is that step,

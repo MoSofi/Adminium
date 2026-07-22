@@ -1,7 +1,7 @@
 /**
  * Zod schemas for the audit resource (08-server-api.md §2.14). The API
  * returns structured rows — the verb + bold-resource sentence anatomy is a
- * client concern (`designs/Audit Log.dc.html`).
+ * client concern (`Audit Log.dc.html`).
  */
 import { z } from 'zod';
 import { actorKindSchema, auditCategorySchema } from '@adminium/meta';

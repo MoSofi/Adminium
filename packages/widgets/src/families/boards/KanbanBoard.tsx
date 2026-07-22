@@ -46,7 +46,7 @@ export type { KanbanBoardConfig };
  * Escape-cancel model that mirrors correctly under `dir="rtl"`. Binds to a flat
  * `record-list` grouped by the status field.
  *
- * Ports designs/Project Board.dc.html, Kanban Roadmap.dc.html — closing the
+ * Ports Project Board.dc.html, Kanban Roadmap.dc.html — closing the
  * "modal not wired to grid" gap (research/ia-mapping.md §5): a committed move
  * updates the board state in place rather than only firing a detached modal.
  */

@@ -1,5 +1,5 @@
 /**
- * Live introspection tests, gated on a local Postgres probe (the workplan
+ * Live introspection tests, gated on a local Postgres probe (the standing
  * rule: CI without PG stays green). These suites drive the FULL introspection
  * pipeline through the psql-backed executor, so they run even before the
  * `pg` driver is installed; `adapter.live.test.ts` re-verifies the same

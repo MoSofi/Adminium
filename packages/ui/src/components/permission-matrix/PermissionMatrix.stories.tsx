@@ -13,7 +13,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Roles per designs/Roles Permissions.dc.html — Owner is hard-locked. */
+/** Roles per Roles Permissions.dc.html — Owner is hard-locked. */
 const roles = [
   { id: 'role-owner', name: 'Owner', locked: true },
   { id: 'role-admin', name: 'Admin' },

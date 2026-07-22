@@ -1,7 +1,7 @@
 /**
  * Test harness for the Postgres adapter suites.
  *
- * Everything is probe-gated (the workplan rule: CI without a local Postgres
+ * Everything is probe-gated (the standing rule: CI without a local Postgres
  * stays green until service containers land). Two independent probes:
  *
  * - `psqlAvailable` — a `psql` client can reach 127.0.0.1:5432. Enables the
@@ -10,8 +10,8 @@
  * - `pgDriverAvailable` — the `pg` package is importable (it is a declared
  *   dependency, but suites must not explode before `pnpm install` ran).
  *
- * Test databases are named `adminium_test_adapter_<rand>` per the workplan
- * grant and always dropped in afterAll.
+ * Test databases are named `adminium_test_adapter_<rand>` and always
+ * dropped in afterAll.
  */
 import { execFile, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';

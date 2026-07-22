@@ -1,5 +1,5 @@
 /**
- * Empty-states gallery — the exemplar port of designs/Empty States.dc.html
+ * Empty-states gallery — the exemplar port of Empty States.dc.html
  * (M1-T05). All six designed states compose the `EmptyState` component (and
  * its presets) and demonstrate the anatomy rule verbatim: every empty view
  * shares "an icon, a headline, a line of guidance, and a primary action".

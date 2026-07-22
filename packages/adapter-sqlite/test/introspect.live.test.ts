@@ -1,5 +1,5 @@
 /**
- * Live introspection tests, gated on the better-sqlite3 driver (the workplan
+ * Live introspection tests, gated on the better-sqlite3 driver (the standing
  * rule: suites skip cleanly pre-install). The headline assertions: loading
  * `fixtures/northwind.sqlite.sql` into a temp file and introspecting yields
  * the golden shape — the same 14 tables/FKs as the postgres reference

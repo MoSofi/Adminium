@@ -3,8 +3,8 @@ import type { ComponentPropsWithRef, ReactNode } from 'react';
 import { cn } from '../../lib/cn.js';
 
 /**
- * The brand-panel accent gradient from designs/Login.dc.html /
- * designs/Auth & Onboarding.dc.html: `linear-gradient(155deg, accent,
+ * The brand-panel accent gradient from Login.dc.html /
+ * Auth & Onboarding.dc.html: `linear-gradient(155deg, accent,
  * color-mix(accent 62%, black))`. A static class over token vars, so it
  * follows every accent palette at runtime.
  */
@@ -14,7 +14,7 @@ const brandGradientClass =
 export interface AuthLayoutProps extends Omit<ComponentPropsWithRef<'div'>, 'style'> {
   /**
    * `split` (default) renders the 44% brand panel + form side per
-   * designs/Login.dc.html; `single` renders only the centered 380px form
+   * Login.dc.html; `single` renders only the centered 380px form
    * column (narrow contexts: modals, Electron sign-in, mobile web).
    */
   variant?: 'split' | 'single' | undefined;
@@ -40,7 +40,7 @@ export interface AuthLayoutProps extends Omit<ComponentPropsWithRef<'div'>, 'sty
 
 /**
  * AuthLayout — Tier-5 auth shell (research/design-system.md §3 Tier 5,
- * designs/Login.dc.html + designs/Auth & Onboarding.dc.html): split
+ * Login.dc.html + Auth & Onboarding.dc.html): split
  * brand panel with the accent gradient, logo block, testimonial + trust-badge
  * slots, and a 380px form column. The brand panel is purely decorative
  * marketing surface: it is `aria-hidden`, collapses away below `lg`, and the
@@ -144,7 +144,7 @@ export interface AuthTestimonialProps
 
 /**
  * AuthTestimonial — the translucent testimonial card that lives on the
- * AuthLayout brand panel (designs/Login.dc.html): white/10 card, quote,
+ * AuthLayout brand panel (Login.dc.html): white/10 card, quote,
  * attribution line. Colors are fixed white alphas because the card always
  * sits on the accent gradient.
  */

@@ -33,7 +33,7 @@ const sanitize = (raw: string, length: number): string => raw.replace(/\D/g, '')
 
 /**
  * OtpInput — 6-cell one-time-code input rendered over a single invisible
- * `<input autocomplete="one-time-code">` (designs/Auth & Onboarding pattern):
+ * `<input autocomplete="one-time-code">` (Auth & Onboarding pattern):
  * typing auto-advances, paste fills all cells, Backspace clears backwards —
  * all native single-input behaviors; the cells are a purely visual projection
  * with the caret cell highlighted.

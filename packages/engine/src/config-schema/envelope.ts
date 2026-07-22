@@ -72,7 +72,7 @@ export const pageEnvelopeSchema = envelopeShape.superRefine((doc, ctx) => {
 });
 
 export type PageEnvelope = z.infer<typeof pageEnvelopeSchema>;
-/** Canonical alias used across the workplan documents. */
+/** Canonical alias used across the specs. */
 export type PageConfig = PageEnvelope;
 
 /**

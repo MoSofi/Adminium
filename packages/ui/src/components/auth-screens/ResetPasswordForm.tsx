@@ -55,7 +55,7 @@ export interface ResetPasswordFormProps
 }
 
 /**
- * ResetPasswordForm — set-a-new-password screen per designs/Login.dc.html
+ * ResetPasswordForm — set-a-new-password screen per Login.dc.html
  * (RESET state): password + segmented strength meter + confirm field with
  * mismatch validation. Controlled composition: zero fetching.
  *

@@ -1,6 +1,6 @@
 /**
  * `/studio/settings` — the Studio settings hub (M5-T05, 09 §8.1), ported from
- * `designs/Settings.dc.html` + `designs/Workspace Settings.dc.html` per the
+ * `Settings.dc.html` + `Workspace Settings.dc.html` per the
  * §5 checklist: workspace identity (what `adminium_settings` supports and the
  * app actually reads today — registry key `branding.appName`), the
  * review-then-confirm save modal (09 §7.10: changed fields as key/value

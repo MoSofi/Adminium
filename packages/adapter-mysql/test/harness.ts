@@ -1,7 +1,7 @@
 /**
  * Test harness for the MySQL adapter live suites.
  *
- * Everything is env-gated (the workplan rule: no local MySQL on dev
+ * Everything is env-gated (the standing rule: no local MySQL on dev
  * machines): set TEST_MYSQL_URL to a superuser-ish DSN, e.g.
  * `mysql://root:root@127.0.0.1:3306` — CI provides it from a `mysql:8.4`
  * service container; without it the live suites skip cleanly. Test databases

@@ -8,7 +8,7 @@ import { IconTile } from '../icon-tile/IconTile.js';
 export type EmptyStatePreset = 'no-data' | 'all-caught-up' | 'no-matches' | 'nothing-scheduled';
 
 /**
- * Preset → default icon + tile tone (designs/Empty States anatomy). Text is
+ * Preset → default icon + tile tone (Empty States anatomy). Text is
  * always supplied via props — presets carry icons + spacing only.
  */
 const presetDefaults: Record<EmptyStatePreset, { icon: ReactNode; tone: Tone }> = {

@@ -2,7 +2,7 @@
  * `GET /api/v1/system/info` — the deployment's capability flags, and the §8.2
  * gating matrix built on them (11-electron.md §8.1, §8.2).
  *
- * THE RULE THIS FILE EXISTS TO ENFORCE, from `designs/Empty States.dc.html` and
+ * THE RULE THIS FILE EXISTS TO ENFORCE, from `Empty States.dc.html` and
  * quoted in §8.2: **never hide, always explain** — icon + headline + one line of
  * guidance + (when possible) an action. So the helpers below never answer a bare
  * boolean for a feature the user can see. They return a {@link FeatureGate}: is

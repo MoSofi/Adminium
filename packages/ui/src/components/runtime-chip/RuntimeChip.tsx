@@ -34,7 +34,7 @@ interface StateStyle {
  * the vocabulary is that a chip cannot invent a colour.
  *
  * ICONS: `hard-drive` for `local` is specified. The rest follow
- * `designs/System States.dc.html`, whose "Database unreachable" state is a
+ * `System States.dc.html`, whose "Database unreachable" state is a
  * `database` glyph, and whose disconnected idiom is a slashed/broken plug —
  * hence `Unplug` for the warn state, so the two remote states differ by more
  * than colour at 11px. (They also differ by label, which is what keeps this

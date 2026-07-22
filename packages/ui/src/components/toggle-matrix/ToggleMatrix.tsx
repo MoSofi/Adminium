@@ -63,7 +63,7 @@ const cellKey = (rowId: string, columnId: string): string => `${rowId}\x00${colu
 
 /**
  * ToggleMatrix — generic row-entities × column-capabilities grid with
- * tri-state cells per designs/Roles Permissions.dc.html. Column and row
+ * tri-state cells per Roles Permissions.dc.html. Column and row
  * headers are sticky (logical `start`, so RTL mirrors), group labels render
  * as uppercase `Eyebrow` rows, and the cells form a roving-tabindex ARIA
  * grid: arrow keys move cell focus (direction-aware), Home/End jump within

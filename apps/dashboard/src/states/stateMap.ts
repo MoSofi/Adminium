@@ -1,6 +1,6 @@
 /**
  * The 12 system states (09-generated-app.md §6.1). Eleven variants carry the
- * copy verbatim from designs/System States.dc.html; `suspended` is the new
+ * copy verbatim from System States.dc.html; `suspended` is the new
  * cloud-dunning state specced in §6.1 (ia-mapping §2D gap).
  */
 import {

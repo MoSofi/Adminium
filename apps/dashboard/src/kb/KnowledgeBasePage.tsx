@@ -1,6 +1,6 @@
 /**
  * `/help` — the in-app Knowledge Base (M10-T06; ports
- * `designs/Knowledge Base.dc.html`), annex §14 archetype `page-kb-docs`:
+ * `Knowledge Base.dc.html`), annex §14 archetype `page-kb-docs`:
  * hero search + `card-gallery(categories)` + article list + `empty-state`.
  *
  * PORT NOTES (16-milestones §5 checklist).

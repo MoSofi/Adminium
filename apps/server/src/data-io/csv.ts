@@ -1,6 +1,6 @@
 /**
  * Hand-rolled RFC 4180 CSV (M7-T07) — no dependency exists in this repo and
- * none is added (the workplan's "hand-roll" instruction).
+ * none is added (the spec's "hand-roll" instruction).
  *
  * SERIALIZER decisions (unit-tested in data-io-csv.test.ts):
  * - Fields are quoted only when they contain a comma, a double quote, CR or

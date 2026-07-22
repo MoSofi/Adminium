@@ -1,6 +1,6 @@
 /**
  * `/studio` — the connections manager hub (M5-T05, 09 §8.1, ported from
- * `designs/Data Connections.dc.html` per the §5 checklist): stat tiles over
+ * `Data Connections.dc.html` per the §5 checklist): stat tiles over
  * the fleet, one health card per connection (engine badge, status pill driven
  * by the persisted test-connection results, last-introspected relative time,
  * included-table + generated-page counts) and the manage actions — test,

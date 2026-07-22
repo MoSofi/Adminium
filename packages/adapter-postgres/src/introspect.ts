@@ -53,7 +53,7 @@ export const POSTGRES_CAPABILITIES: AdapterCapabilities = {
 };
 
 /**
- * Session probe. Read-only detection per the M3 workplan: recovery mode
+ * Session probe. Read-only detection per the M3 spec: recovery mode
  * (`pg_is_in_recovery()`), the session default
  * (`default_transaction_read_only`), or the role lacking CREATE on the
  * database (`has_database_privilege`).

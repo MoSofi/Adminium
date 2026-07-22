@@ -7,7 +7,7 @@
  * send, so it is the one surface that row governs today. Without a configured
  * relay the server has nowhere to post the token — the reset mail is not
  * delayed, it does not exist — and "Check your email" would be a lie told to
- * someone locked out of their account, who would then wait for it. `designs/Empty
+ * someone locked out of their account, who would then wait for it. `Empty
  * States.dc.html`'s rule is the fix: never hide, always explain.
  *
  * The explanation is deliberately NOT §8.2's "Configure SMTP to send email" +

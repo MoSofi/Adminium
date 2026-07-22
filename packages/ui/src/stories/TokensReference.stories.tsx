@@ -1,6 +1,6 @@
 /**
  * Living design-tokens reference — the exemplar port of the UI Kit "Design
- * tokens" section (designs/Adminium UI Kit.dc.html, M1-T05). Semantic color
+ * tokens" section (Adminium UI Kit.dc.html, M1-T05). Semantic color
  * values are read live via getComputedStyle for BOTH themes (the effect stamps
  * `data-theme` light→dark on the root inside one synchronous block — no paint
  * in between — then restores the toolbar value), so the table always shows the
