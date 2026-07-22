@@ -62,7 +62,7 @@ export function registerImportRunHandler(registry: JobRegistry, deps: ImportRunD
   registry.registerJobHandler(IMPORT_RUN_KIND, importRunPayloadSchema, async (payload, ctx) => {
     await executeImportRun(payload, ctx, deps, now);
     return { importId: payload.importId };
-  });
+  }, { internal: true });
 }
 
 interface RowIssue {
