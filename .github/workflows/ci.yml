@@ -117,6 +117,15 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter @adminium/ui exec playwright install --with-deps chromium
 
+      # Storybook's Vite resolves the workspace packages it imports
+      # (@adminium/tokens, @adminium/widgets, …) from their built `dist`, which a
+      # fresh checkout does not have — so `build-storybook` fails with "Failed to
+      # resolve entry for package @adminium/tokens" without this. `verify` gets
+      # away without an explicit build only because its combined turbo task
+      # builds as a dependency; this job runs the sweep alone.
+      - name: Build workspace dists
+        run: pnpm turbo run build
+
       # WHY THIS JOB EXISTS. The axe sweep has existed since M0-M4 and nothing
       # ever ran it. It went red as the M7 widget families landed and stayed red,
       # unnoticed, until 554 critical/serious violations had accumulated — a gate
