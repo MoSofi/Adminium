@@ -11,6 +11,10 @@ coverage/
 # Unanchored `data/` also matched `apps/server/src/routes/data/` — the CRUD
 # route source — and silently kept it out of version control.
 /data/
+# Local-only example databases + their generator toolkit. Schema + seed SQL
+# for demo projects (imported into Adminium / Neon / Supabase / PlanetScale) —
+# scratch material, never part of the shipped product.
+/sample-databases/
 # The dashboard build copied into the published package at prepack
 # (apps/server/scripts/bundle-dashboard.mjs) — generated, never committed.
 /apps/server/dashboard/
@@ -23,3 +27,8 @@ coverage/
 /apps/docs/.astro/
 .claude/scheduled_tasks.lock
 scripts/release/out/
+# Business/design working material — kept locally for reference but never
+# committed (and scrubbed from git history). The product workplan and the
+# design comps are internal-only, not part of the shipped source.
+/workplan/
+/designs/
