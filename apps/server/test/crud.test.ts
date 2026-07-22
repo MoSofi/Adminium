@@ -78,6 +78,20 @@ describe.skipIf(!AVAILABLE)('records CRUD (live PG, Northwind)', () => {
     expect(body.page.total).toBe(expected);
   });
 
+  it('count=estimated on a below-threshold table equals the exact count', async () => {
+    // Northwind is far below STATS_EXACT_COUNT_THRESHOLD, so the estimated
+    // path must refuse the reltuples figure and fall back to exact — through
+    // the real route with the real postgres dialect.
+    const expected = Number(psql(pg.database, 'SELECT count(*) FROM products').trim());
+    const res = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/data/${connId}/public.products?count=estimated`,
+      headers: asUser(t.users.viewer),
+    });
+    expect(res.statusCode).toBe(200);
+    expect((res.json() as { page: { total: number } }).page.total).toBe(expected);
+  });
+
   it('quick search (q=) matches text columns case-insensitively via ILIKE', async () => {
     const name = psql(pg.database, 'SELECT product_name FROM products LIMIT 1').trim();
     const needle = name.slice(1, Math.min(5, name.length)).toLowerCase();

@@ -5,9 +5,9 @@
  * opaque keyset cursors (mutually exclusive with `offset`).
  */
 
-import type { Kysely, SelectQueryBuilder } from 'kysely';
+import { sql, type Kysely, type SelectQueryBuilder } from 'kysely';
 
-import type { Dialect } from '@adminium/engine';
+import { STATS_EXACT_COUNT_THRESHOLD, type Dialect } from '@adminium/engine';
 
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -94,6 +94,54 @@ function decodeCursor(cursor: string, expectedKeys: number): unknown[] {
 }
 
 type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
+
+/**
+ * Statistics-backed row-count estimate for `count=estimated`, mirroring the
+ * adapters' collectTableStats policy (05 §10): the catalog figure is used only
+ * when it clears STATS_EXACT_COUNT_THRESHOLD — below that, exact COUNT(*) is
+ * cheap and estimates are embarrassingly wrong; null / negative (never
+ * analyzed) also refuses. SQLite keeps no catalog statistics without ANALYZE,
+ * so it always refuses. Table identifiers travel as bind parameters, never
+ * spliced into SQL. Returns null when the caller should run the exact count;
+ * a failed probe degrades the same way rather than failing the list.
+ */
+export async function estimatedTotal(
+  db: Kysely<SourceDatabase>,
+  table: Pick<ResolvedTable, 'schema' | 'name'>,
+  dialect: Dialect,
+  threshold: number = STATS_EXACT_COUNT_THRESHOLD,
+): Promise<number | null> {
+  try {
+    let raw: unknown;
+    if (dialect === 'postgres') {
+      const result = await sql<{ estimate: unknown }>`
+        SELECT c.reltuples::float8 AS estimate
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = ${table.schema} AND c.relname = ${table.name}
+        LIMIT 1`.execute(db);
+      raw = result.rows[0]?.estimate;
+    } else if (dialect === 'mysql') {
+      // For MySQL the introspected "schema" is the database name; an empty one
+      // (single-database DSNs) resolves to the connection's current database.
+      const result = await sql<{ estimate: unknown }>`
+        SELECT TABLE_ROWS AS estimate
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = COALESCE(NULLIF(${table.schema}, ''), DATABASE())
+          AND TABLE_NAME = ${table.name}
+        LIMIT 1`.execute(db);
+      raw = result.rows[0]?.estimate;
+    } else {
+      return null;
+    }
+    if (raw === null || raw === undefined) return null;
+    const estimate = Number(raw);
+    if (!Number.isFinite(estimate) || estimate < threshold) return null;
+    return Math.round(estimate);
+  } catch {
+    return null;
+  }
+}
 
 export interface RunListOptions {
   db: Kysely<SourceDatabase>;
@@ -182,11 +230,20 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   const rows = (await qb.limit(limit).offset(offset).execute()) as Row[];
   let total: number | null = null;
   if (params.count !== 'none') {
-    // `estimated` falls back to exact until adapter statistics land (05 §10).
-    const countRow = await applyFilters(db.selectFrom(table.id) as unknown as Qb)
-      .select((eb) => eb.fn.countAll().as('total'))
-      .executeTakeFirst();
-    total = Number((countRow as { total?: unknown } | undefined)?.total ?? 0);
+    // `estimated` consults catalog statistics only for unfiltered lists —
+    // table-level statistics cannot see filters or quick search — and only
+    // above the shared threshold; every refusal falls through to the exact
+    // count this endpoint always ran.
+    const unfiltered = filter === null && (params.q === undefined || params.q.length === 0);
+    if (params.count === 'estimated' && unfiltered) {
+      total = await estimatedTotal(db, table, dialect);
+    }
+    if (total === null) {
+      const countRow = await applyFilters(db.selectFrom(table.id) as unknown as Qb)
+        .select((eb) => eb.fn.countAll().as('total'))
+        .executeTakeFirst();
+      total = Number((countRow as { total?: unknown } | undefined)?.total ?? 0);
+    }
   }
   return { data: maskRows(rows, table, canReadPii), page: { limit, offset, total } };
 }
