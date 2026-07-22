@@ -24,8 +24,10 @@ not deleting it.
 - [x] `pnpm audit --prod --audit-level high` gates CI; production advisories
       fixed (fast-uri, @fastify/static)
 - [x] Dependabot opens weekly grouped updates (npm, actions, docker)
-- [ ] Formal security review pass: authn/authz, injection fuzzing,
-      secrets-at-rest, PII masking end-to-end
+- [x] Formal security review pass: 10-dimension adversarial review
+      (authn/session, RBAC, injection, PII masking, secrets, headers, SSRF,
+      upload/IO, validation, realtime/jobs); 5 confirmed findings all fixed
+      with regression tests (2026-07-23)
 - [ ] Decision recorded on `system:schema:remap` being able to disable PII
       masking (unmask escalation)
 - [ ] External pentest booked, or explicitly waived with rationale
@@ -53,9 +55,9 @@ not deleting it.
 - [x] Data-plane e2e matrix: sqlite / postgres / mysql, in CI on every push
 - [x] Postgres-gated live suites run in the CI verify job (service container)
 - [x] Desktop (Electron) e2e runs in CI
-- [ ] MySQL-as-meta-store leg boots a real server in CI (today MySQL is
-      exercised as a data engine and in meta unit suites, but no booted-server
-      topology cell)
+- [x] MySQL-as-meta-store leg boots a real server in CI: the composed server
+      runs against pg and mysql meta stores with authenticated meta-backed
+      traffic (`apps/server/test/meta-store-boot.test.ts`)
 
 ## Release engineering
 
