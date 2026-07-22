@@ -1,4 +1,4 @@
-import { ChoroplethGridChart } from '@adminium/charts';
+import { ChoroplethGridChart, hasUsTilegramTiles } from '@adminium/charts';
 import { EmptyState } from '@adminium/ui';
 
 import { geoPointsOf, localeOf, metricKeysOf } from './geo-lib.js';
@@ -82,6 +82,16 @@ export function MapChoroplethGrid({
     );
   }
 
+  // `us-tilegram` plots only the USPS tiles it knows (a geographic island), so a
+  // payload of non-US region codes — or of coordinate-only points with no `code`
+  // at all, which is the DEFAULT desktop case now that 11-electron.md §7 resolves
+  // every `map-*` id to this widget — would place ZERO tiles and render only the
+  // low→high legend: a legend for a map that isn't there. Degrade to the
+  // code-agnostic `grid` layout (same component, laid out in reading order) so the
+  // data stays a map. Only when the tilegram would be EMPTY: a real or mixed US
+  // payload keeps the island and plots the states it recognises.
+  const effectiveLayout = layout === 'us-tilegram' && !hasUsTilegramTiles(points) ? 'grid' : layout;
+
   const ranked =
     topN > 0
       ? [...points]
@@ -101,7 +111,7 @@ export function MapChoroplethGrid({
           points={points}
           metric={metric}
           labels={{ label: label ?? 'Regional breakdown' }}
-          layout={layout}
+          layout={effectiveLayout}
           columns={columns}
           levels={levels}
           format={format}
