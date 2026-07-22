@@ -124,6 +124,7 @@ export interface IntrospectJobRegistry {
       payload: T,
       ctx: { progress(pct: number, info?: { step?: string; message?: string }): void },
     ) => Promise<unknown>,
+    opts?: { internal?: boolean },
   ): void;
   has(kind: string): boolean;
 }
