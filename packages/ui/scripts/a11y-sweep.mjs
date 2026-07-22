@@ -111,8 +111,8 @@ async function worker() {
     // reported.
     let results = null;
     let lastErr = null;
-    for (let attempt = 0; attempt < 3 && results === null; attempt += 1) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 250 * attempt));
+    for (let attempt = 0; attempt < 4 && results === null; attempt += 1) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 500 * attempt));
       try {
         results = await runJob(job);
       } catch (err) {
