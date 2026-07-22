@@ -73,6 +73,15 @@ const preview: Preview = {
     layout: 'padded',
     backgrounds: { disable: true },
     controls: { expanded: true },
+    // addon-a11y runs axe-core automatically in the preview iframe on every
+    // story render. scripts/a11y-sweep.mjs navigates to that same iframe and
+    // runs axe itself (the authoritative ratchet gate), so the two collide on
+    // one document — axe throws "Axe is already running" intermittently,
+    // whichever story's addon run overlaps the sweep's. `manual: true` stops the
+    // addon auto-running; the panel still checks on demand, and the sweep owns
+    // the real gate. This is the deterministic fix the per-page/retry
+    // mitigations in the sweep could only paper over.
+    a11y: { manual: true },
   },
 };
 
