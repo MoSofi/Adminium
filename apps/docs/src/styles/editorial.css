@@ -259,10 +259,18 @@ body:has(.docs-hero) .content-panel:has(> .sl-container > h1#_top) {
   display: none;
 }
 
+/* Hold the whole editorial home to one left-aligned reading column. Splash runs
+   the prose and code block full-width (left edge 160) while the hero and list
+   sat in a narrower *centred* 44rem block (left edge 348) — so their left edges
+   didn't line up. Capping .sl-markdown-content instead lets every home block
+   share the same left edge and measure. */
+body:has(.docs-hero) .sl-markdown-content {
+  max-width: 48rem;
+  margin-inline: 0;
+}
+
 .docs-hero,
 .docs-start {
-  max-width: 44rem;
-  margin-inline: auto;
   text-align: start;
 }
 
