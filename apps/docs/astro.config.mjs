@@ -29,7 +29,33 @@ export default defineConfig({
         '@adminium/tokens/accents.css',
         '@adminium/tokens/fonts.css',
         './src/styles/adminium.css',
+        // The "Editorial" (Claude Design "Docs 1c") re-theme — warm cream palette,
+        // self-hosted Newsreader serif headings, warm code frames. LAST so its
+        // docs-only token overrides win over the product palette above.
+        './src/styles/editorial.css',
       ],
+      // Docs 1c renders code as a dark, warm-toned panel even on the light page.
+      // A single dark syntax theme is used in both page modes and its background
+      // is overridden to the warm near-black that editorial.css uses elsewhere.
+      expressiveCode: {
+        themes: ['github-dark'],
+        useStarlightDarkModeSwitch: false,
+        styleOverrides: {
+          borderRadius: '0.75rem',
+          borderColor: 'rgba(255,255,255,0.08)',
+          codeFontFamily: "'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace",
+          codeBackground: '#1a1814',
+          frames: {
+            editorTabBarBackground: '#211d17',
+            editorActiveTabBackground: '#1a1814',
+            editorActiveTabIndicatorTopColor: '#4f46e5',
+            editorTabBarBorderBottomColor: 'rgba(255,255,255,0.08)',
+            terminalBackground: '#1a1814',
+            terminalTitlebarBackground: '#211d17',
+            terminalTitlebarBorderBottomColor: 'rgba(255,255,255,0.08)',
+          },
+        },
+      },
       // Pagefind: static, bundled, offline. No Algolia, no external search
       // service (§1 principle 3). This is Starlight's default; stated for intent.
       pagefind: true,
