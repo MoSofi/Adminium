@@ -19,7 +19,13 @@ import {
 } from '@adminium/llm';
 import type { SettingsRepo } from '@adminium/meta';
 
+import { guardOutboundUrl } from '../../connections/dsn.js';
 import type { LlmConfigPutBody, LlmConfigReply } from './schema.js';
+
+/** Loopback blocking mirrors the DSN guard: on only in production. */
+function outboundGuardOpts() {
+  return { blockLoopback: process.env.NODE_ENV === 'production' };
+}
 
 /** How many trailing characters of the key the safe reply exposes (§3.2). */
 const KEY_LAST_N = 4;
@@ -98,7 +104,14 @@ export async function writeLlmConfig(
   const opts = { updatedBy: ctx.updatedBy, at: ctx.at };
   await settings.set('llm.provider', body.provider, opts);
   if (body.model !== undefined) await settings.set('llm.model', body.model, opts);
-  if (body.baseUrl !== undefined) await settings.set('llm.baseUrl', body.baseUrl, opts);
+  if (body.baseUrl !== undefined) {
+    // SSRF: reject a metadata/loopback baseUrl at write time so a bad value is
+    // never stored (openai-compatible accepts an arbitrary baseUrl).
+    if (body.baseUrl !== null && body.baseUrl.length > 0) {
+      guardOutboundUrl(body.baseUrl, outboundGuardOpts());
+    }
+    await settings.set('llm.baseUrl', body.baseUrl, opts);
+  }
   if (body.maxOutputTokens !== undefined) {
     await settings.set('llm.maxOutputTokens', body.maxOutputTokens, opts);
   }
@@ -136,7 +149,12 @@ export async function resolveProviderClient(
     maxOutputTokens: maxOut ?? DEFAULT_MAX_OUTPUT_TOKENS,
   };
   if (apiKey !== null) config.apiKey = apiKey;
-  if (baseUrl !== null) config.baseUrl = baseUrl;
+  if (baseUrl !== null) {
+    // SSRF: re-check at resolve time so an already-stored bad value (e.g. from
+    // before this guard, or a direct settings write) cannot be dialed.
+    guardOutboundUrl(baseUrl, outboundGuardOpts());
+    config.baseUrl = baseUrl;
+  }
 
   return { client: createClient(config), provider, model: model ?? '', baseUrl };
 }

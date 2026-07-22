@@ -77,22 +77,54 @@ export interface DsnGuardOptions {
 }
 
 /**
- * §7 item 2 guard, run before any dial. Cloud-metadata (169.254.0.0/16) is
- * always blocked; loopback per {@link DsnGuardOptions}. Throws 422.
+ * Shared outbound-host SSRF guard (§7 item 2). Cloud-metadata endpoints
+ * (169.254.0.0/16, metadata.google.internal, the AWS IPv6 IMDS fd00:ec2::254)
+ * are ALWAYS blocked — that is the credential-theft target; loopback is blocked
+ * only per {@link DsnGuardOptions}. Used for both source DSNs and any
+ * user-configurable outbound URL (e.g. the LLM provider baseUrl). Throws 422.
+ */
+export function assertOutboundHostAllowed(host: string, opts: DsnGuardOptions = {}): void {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+  const octets = ipv4Octets(h);
+  const isMetadata =
+    (octets !== null && octets[0] === 169 && octets[1] === 254) ||
+    h === 'metadata.google.internal' ||
+    h === 'fd00:ec2::254';
+  if (isMetadata) {
+    throw new ValidationFailedError('Host resolves to a blocked address range.', { host: h });
+  }
+  const loopback = h === 'localhost' || h === '::1' || (octets !== null && octets[0] === 127);
+  if (loopback && opts.blockLoopback === true) {
+    throw new ValidationFailedError('Loopback hosts are not allowed in production.', { host: h });
+  }
+}
+
+/**
+ * SSRF guard for a user-configurable outbound http(s) URL — the LLM provider
+ * baseUrl (openai-compatible accepts an arbitrary one). Rejects non-http(s)
+ * schemes and applies {@link assertOutboundHostAllowed}. Throws 422.
+ */
+export function guardOutboundUrl(rawUrl: string, opts: DsnGuardOptions = {}): void {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new ValidationFailedError('Invalid URL.', { url: rawUrl });
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new ValidationFailedError('Only http and https URLs are allowed.', { protocol: url.protocol });
+  }
+  assertOutboundHostAllowed(url.hostname, opts);
+}
+
+/**
+ * §7 item 2 guard, run before any dial. Cloud-metadata is always blocked;
+ * loopback per {@link DsnGuardOptions}. Throws 422.
  */
 export function guardDsn(dsn: string, opts: DsnGuardOptions = {}): ParsedDsn {
   const parsed = parseDsn(dsn);
   if (parsed.scheme === 'sqlite') return parsed;
-  const host = parsed.host?.toLowerCase() ?? '';
-  const octets = ipv4Octets(host);
-  if ((octets !== null && octets[0] === 169 && octets[1] === 254) || host === 'metadata.google.internal') {
-    throw new ValidationFailedError('DSN host resolves to a blocked address range.', { host });
-  }
-  const loopback =
-    host === 'localhost' || host === '::1' || host === '[::1]' || (octets !== null && octets[0] === 127);
-  if (loopback && opts.blockLoopback === true) {
-    throw new ValidationFailedError('Loopback DSN hosts are not allowed in production.', { host });
-  }
+  assertOutboundHostAllowed(parsed.host ?? '', opts);
   return parsed;
 }
 

@@ -307,6 +307,18 @@ describe('llm routes — config (§3.2, acceptance #10)', () => {
     expect(body).not.toHaveProperty('apiKey');
   });
 
+  it('PUT rejects a cloud-metadata baseUrl (SSRF guard, security review 2026-07-23)', async () => {
+    const res = await t.app.inject({
+      method: 'PUT',
+      url: '/api/v1/llm/config',
+      headers: asUser(t.users.admin),
+      payload: { provider: 'openai-compatible', model: 'x', baseUrl: 'http://169.254.169.254' },
+    });
+    expect(res.statusCode).toBe(422);
+    // The bad value was never stored.
+    expect(await settingsRepo(t.meta).get('llm.baseUrl')).toBeNull();
+  });
+
   it('PUT encrypts the key at rest; GET returns apiKeySet + last-4 only, never the key', async () => {
     const secretKey = 'sk-ant-SUPERSECRET1234';
     const put = await t.app.inject({

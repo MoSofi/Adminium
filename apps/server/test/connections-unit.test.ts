@@ -10,6 +10,7 @@ import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter'
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import {
   guardDsn,
+  guardOutboundUrl,
   maskDsn,
   MetaPlacementError,
   parseDsn,
@@ -55,6 +56,38 @@ describe('guardDsn', () => {
     expect(() => guardDsn('postgres://u@127.0.0.1/db')).not.toThrow();
     expect(() => guardDsn('postgres://u@localhost/db', { blockLoopback: true })).toThrow('Loopback');
     expect(() => guardDsn('postgres://u@127.9.9.9/db', { blockLoopback: true })).toThrow('Loopback');
+  });
+});
+
+describe('guardOutboundUrl (LLM baseUrl SSRF guard, security review 2026-07-23)', () => {
+  it('always blocks cloud-metadata endpoints', () => {
+    expect(() => guardOutboundUrl('http://169.254.169.254')).toThrow('blocked address');
+    expect(() => guardOutboundUrl('http://169.254.169.254/latest/meta-data/')).toThrow('blocked address');
+    expect(() => guardOutboundUrl('https://metadata.google.internal/computeMetadata/v1/')).toThrow(
+      'blocked address',
+    );
+    expect(() => guardOutboundUrl('http://[fd00:ec2::254]/latest/')).toThrow('blocked address');
+  });
+
+  it('blocks loopback only when asked to (production)', () => {
+    // Dev: Ollama on localhost is legitimate.
+    expect(() => guardOutboundUrl('http://localhost:11434')).not.toThrow();
+    expect(() => guardOutboundUrl('http://127.0.0.1:11434')).not.toThrow();
+    expect(() => guardOutboundUrl('http://localhost:11434', { blockLoopback: true })).toThrow('Loopback');
+    expect(() => guardOutboundUrl('http://[::1]:11434', { blockLoopback: true })).toThrow('Loopback');
+  });
+
+  it('rejects non-http(s) schemes and malformed URLs', () => {
+    expect(() => guardOutboundUrl('file:///etc/passwd')).toThrow('http and https');
+    expect(() => guardOutboundUrl('gopher://internal/')).toThrow('http and https');
+    expect(() => guardOutboundUrl('not a url')).toThrow('Invalid URL');
+  });
+
+  it('allows a normal remote provider URL', () => {
+    expect(() => guardOutboundUrl('https://api.openai.com/v1')).not.toThrow();
+    expect(() =>
+      guardOutboundUrl('https://api.openai.com/v1', { blockLoopback: true }),
+    ).not.toThrow();
   });
 });
 
