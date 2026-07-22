@@ -87,6 +87,29 @@ describe('POST /auth/login → GET /auth/session → POST /auth/logout', () => {
     expect(failed.some((entry) => entry.actorId === fixture?.admin.id)).toBe(true);
   });
 
+  it('spends comparable argon2 work for an unknown email (no timing enumeration)', async () => {
+    // Security review 2026-07-23: before the decoy-hash path, a non-existent
+    // account skipped verifyPassword and returned in ~1 ms while a real account
+    // paid the full argon2 cost — a latency oracle for enumerating valid
+    // emails. Both paths now run argon2, so their timings are comparable. A
+    // ratio (not an absolute floor) keeps this robust across machine speeds.
+    fixture = await buildAuthApp();
+    // Warm the module-level decoy hash so neither measurement includes it.
+    await login(fixture.app, 'warm@example.com', 'x');
+
+    const t0 = performance.now();
+    await login(fixture.app, ADMIN_EMAIL, 'not-the-password'); // real account, argon2 runs
+    const realMs = performance.now() - t0;
+
+    const t1 = performance.now();
+    await login(fixture.app, 'nobody@example.com', 'whatever-password'); // unknown, decoy argon2
+    const unknownMs = performance.now() - t1;
+
+    // The unknown path must not be an order of magnitude faster (it was ~2% of
+    // the real path before the fix); comparable now that both hash.
+    expect(unknownMs).toBeGreaterThan(realMs * 0.25);
+  });
+
   it('logout revokes the session, clears the cookie, and audits', async () => {
     fixture = await buildAuthApp();
     const { cookie } = await login(fixture.app);
