@@ -27,7 +27,10 @@ describe('SYSTEM_STATES map', () => {
   it('adds the new suspended state per §6.1 (402, data-preserved copy)', () => {
     expect(SYSTEM_STATES.suspended.code).toBe('402');
     expect(SYSTEM_STATES.suspended.body).toContain('data is preserved');
-    expect(SYSTEM_STATES.suspended.secondary).toBe('Contact owner');
+    expect(SYSTEM_STATES.suspended.primary?.label).toBe('Contact owner');
+    // Free-launch pivot (workplan/17-deferred-monetization.md): suspension is an
+    // administrative state, never a billing state — no payment language anywhere.
+    expect(JSON.stringify(SYSTEM_STATES.suspended)).not.toMatch(/billing|payment|past due/i);
   });
 });
 

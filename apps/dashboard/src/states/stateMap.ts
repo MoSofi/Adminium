@@ -7,7 +7,6 @@ import {
   Activity,
   ArrowLeft,
   Compass,
-  CreditCard,
   Database,
   Eye,
   Gauge,
@@ -22,7 +21,6 @@ import {
   ServerCrash,
   UserPlus,
   WifiOff,
-  Zap,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -105,8 +103,8 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     icon: Gauge,
     tone: 'warn',
     title: 'Rate limit reached',
-    body: "You've hit your query limit for this plan. Upgrade for higher limits, or try again in a few minutes.",
-    primary: { label: 'Upgrade plan', icon: Zap },
+    body: 'Too many requests in a short time. Wait a few minutes and try again.',
+    primary: { label: 'Try again', icon: RefreshCw },
     secondary: 'Go back',
   },
   offline: {
@@ -156,11 +154,11 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
   suspended: {
     id: 'suspended',
     code: '402',
-    icon: CreditCard,
+    icon: Lock,
     tone: 'warn',
     title: 'This workspace is suspended',
-    body: 'Billing for this workspace is past due. Your data is preserved — the workspace owner can update payment details to restore access.',
-    primary: { label: 'Update payment', icon: CreditCard },
-    secondary: 'Contact owner',
+    body: 'This workspace has been suspended by an administrator. Your data is preserved — contact the workspace owner to restore access.',
+    primary: { label: 'Contact owner', icon: Mail },
+    secondary: 'Go back',
   },
 };

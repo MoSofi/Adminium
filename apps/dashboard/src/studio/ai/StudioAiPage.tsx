@@ -638,7 +638,7 @@ function ByoPanel({ highlighted = false }: { highlighted?: boolean }): ReactNode
           <ul className="mt-1 flex list-none flex-col gap-1 p-0 text-caption text-fg-muted">
             <li>{t('studio.settingsAi.byo.guarantee1', 'The prompt carries only your schema and aggregate stats — never row data by default.')}</li>
             <li>{t('studio.settingsAi.byo.guarantee2', 'No credentials, instance URL, or identifiers are embedded.')}</li>
-            <li>{t('studio.settingsAi.byo.guarantee3', 'BYO runs make zero network calls and are never metered.')}</li>
+            <li>{t('studio.settingsAi.byo.guarantee3', 'BYO runs make zero network calls.')}</li>
           </ul>
         </div>
         <div className="flex flex-wrap items-center gap-2">
