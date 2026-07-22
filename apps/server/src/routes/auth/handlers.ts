@@ -4,6 +4,8 @@
  * forgot/reset. Every mutation writes an `auth` audit entry; login failures
  * are uniform INVALID_CREDENTIALS regardless of which check failed.
  */
+import { randomBytes } from 'node:crypto';
+
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import {
   passwordResetsRepo,
@@ -59,6 +61,18 @@ function invalidCredentials(message = 'Invalid email or password.'): AppError {
   return new AppError(401, 'INVALID_CREDENTIALS', message);
 }
 
+/**
+ * A valid argon2id hash of a random string, computed once. login always runs a
+ * full verify against SOMETHING so the argon2 cost (~tens of ms) is spent on
+ * every attempt — a missing/suspended/SSO-only account no longer returns before
+ * the KDF and so cannot be distinguished by response latency (user enumeration).
+ */
+let decoyHashPromise: Promise<string> | undefined;
+function decoyPasswordHash(): Promise<string> {
+  decoyHashPromise ??= hashPassword(randomBytes(32).toString('hex'));
+  return decoyHashPromise;
+}
+
 export function toUserView(user: User): AuthUserView {
   return {
     id: user.id,
@@ -99,11 +113,13 @@ export async function loginHandler(
   const now = Date.now();
   const users = usersRepo(ctx.meta);
   const user = await users.findByEmail(body.email);
-  const passwordOk =
-    user !== null &&
-    user.status === 'active' &&
-    user.passwordHash !== null &&
-    (await verifyPassword(user.passwordHash, body.password));
+  // Spend the argon2 cost on EVERY path (real hash for an active user, a decoy
+  // otherwise) so login latency cannot enumerate accounts. The `&&` chain still
+  // decides the outcome; only the timing is equalized.
+  const eligible = user !== null && user.status === 'active' && user.passwordHash !== null;
+  const candidateHash = eligible ? (user.passwordHash as string) : await decoyPasswordHash();
+  const passwordVerified = await verifyPassword(candidateHash, body.password);
+  const passwordOk = eligible && passwordVerified;
 
   if (!passwordOk) {
     await auditAuth(ctx.meta, request, {
