@@ -622,6 +622,10 @@ importers:
         version: 3.2.7(@types/debug@4.1.13)(@types/node@24.13.3)(happy-dom@18.0.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(yaml@2.9.0)
 
   packages/manifest:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@adminium/config':
         specifier: workspace:*
