@@ -197,6 +197,23 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   for (const key of sortKeys) qb = qb.orderBy(dynamic.ref(key.column), key.dir);
 
   const cursorMode = params.cursor !== undefined;
+  // Keyset cursors carry the sort tuple — including the primary-key tiebreaker
+  // parseOrder() always appends — encoded in the cursor and read from the RAW,
+  // pre-mask row. A PK can itself be a masked PII column (a natural key like an
+  // email), and the PK tiebreaker bypasses readableColumn()'s masked-column
+  // 403 that the explicit order/select/filter paths enforce. So a caller who
+  // cannot read PII could recover a masked column's plaintext by decoding the
+  // cursor. Refuse keyset mode whenever any sort-key column is masked for this
+  // caller; offset pagination (which emits no cursor) remains available.
+  if (cursorMode && !canReadPii) {
+    const masked = sortKeys.find((key) => table.columns.get(key.column)?.masked === true);
+    if (masked !== undefined) {
+      throw new ValidationFailedError(
+        'Keyset pagination is unavailable because a sort or key column is masked for your role; use offset pagination.',
+        { column: masked.column },
+      );
+    }
+  }
   if (cursorMode && (params.cursor as string).length > 0) {
     if (table.primaryKey.length === 0) {
       throw new ValidationFailedError('Keyset pagination needs a primary key; use offset.', {
