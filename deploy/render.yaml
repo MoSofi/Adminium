@@ -1,0 +1,29 @@
+# Render Blueprint — Adminium as a Docker web service with a persistent disk for
+# the embedded SQLite meta store. Render injects PORT and Adminium honors it
+# (apps/server/src/config/env.ts). `generateValue: true` mints ADMINIUM_SECRET
+# once and keeps it stable across deploys — the one property the meta store's
+# encryption depends on.
+#
+# To deploy: create a Blueprint from the repo, or use the Deploy-to-Render button
+# in the top-level README. For an external Postgres/MySQL meta store instead of
+# the disk, drop the `disk:` block and set ADMINIUM_META_URL.
+#
+# DRAFT: authored against the published image; not yet validated by a live
+# Render deploy (workplan 17-T17 / owner step).
+services:
+  - type: web
+    name: adminium
+    runtime: image
+    image:
+      url: ghcr.io/mosofi/adminium:latest
+    plan: starter
+    healthCheckPath: /api/v1/readyz
+    envVars:
+      - key: ADMINIUM_SECRET
+        generateValue: true
+      - key: ADMINIUM_DATA_DIR
+        value: /data
+    disk:
+      name: adminium-data
+      mountPath: /data
+      sizeGB: 1

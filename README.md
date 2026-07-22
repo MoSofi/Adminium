@@ -10,6 +10,51 @@ introspects the structure and relations, and generates a complete, professional,
 > distribution (CLI, Docker, zip export), and the Electron desktop shell. The free v1.0
 > release is M0–M11 plus a hardening pass.
 
+## Run it
+
+`ADMINIUM_SECRET` is required and must stay **stable** across restarts — it derives
+the encryption key for every stored DSN and API key. Generate it once with
+`openssl rand -hex 32`.
+
+**Docker Compose** — the reference deployment:
+
+```sh
+ADMINIUM_SECRET=$(openssl rand -hex 32) docker compose up
+# → http://localhost:4600 → first-run wizard
+```
+
+**npm** (Node 22+):
+
+```sh
+npm install -g @adminiumjs/adminium
+export ADMINIUM_SECRET=$(openssl rand -hex 32)
+adminium start   # → http://localhost:4600
+```
+
+Full guides — self-hosting, meta store, LLM assist — at
+[docs.adminium.dev](https://docs.adminium.dev).
+
+### Deploy to a managed host
+
+Adminium is a long-running server with a durable meta store, so it runs on any host
+that gives it a process plus a disk (or a managed database). Ready-made configs live
+in [`deploy/`](deploy/):
+
+| Host | Meta store | Config |
+|------|-----------|--------|
+| Docker / Compose · any VPS | SQLite volume, or external Postgres/MySQL | [`docker-compose.yml`](docker-compose.yml) |
+| Render | SQLite on a disk | [`deploy/render.yaml`](deploy/render.yaml) |
+| Fly.io | SQLite on a volume | [`deploy/fly.toml`](deploy/fly.toml) |
+| DigitalOcean App Platform | managed Postgres | [`deploy/do-app.yaml`](deploy/do-app.yaml) |
+| Railway · Elestio · PikaPods | managed | see [`deploy/README.md`](deploy/README.md) |
+
+**Netlify and Vercel are not supported for the server** — they run
+functions/serverless, not a long-lived process with a durable meta store. "Host
+anywhere" is delivered by Docker, not by a button that fails on boot.
+
+_Some managed hosts run a revenue-share or affiliate program; Adminium may earn a
+commission from them, and the price you pay is unchanged._
+
 ## Monorepo
 
 Workspace names below are the in-repo identifiers. On npm the packages publish
