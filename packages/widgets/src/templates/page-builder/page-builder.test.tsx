@@ -15,8 +15,8 @@
  *  - invalid configs render the alert card, never a crash;
  *  - the email flavor keeps the always-light paper scope.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { PageBuilder } from './PageBuilder.js';
 import {
@@ -33,6 +33,18 @@ import {
   surveySummaryOf,
   type DocRecord,
 } from './builder-config.js';
+
+/**
+ * This file's interaction tests wait for the `document-canvas` widget, which
+ * WidgetHost resolves asynchronously (the lazy component barrel). The 1000ms
+ * `waitFor` default is enough on a dev machine but has flaked past it on a
+ * loaded CI runner. Raise the async-util timeout for THIS FILE ONLY — a global
+ * bump breaks the media suite's deliberately-bounded `findByTestId` waits — and
+ * restore it so nothing leaks if a worker reuses the process. 8s sits under the
+ * widgets `testTimeout` (vitest.config.ts) so the test budget is never the cap.
+ */
+beforeAll(() => configure({ asyncUtilTimeout: 8000 }));
+afterAll(() => configure({ asyncUtilTimeout: 1000 }));
 
 // ── the Report Builder kindMeta fix (M7-T06; 15-quality comp-defect list) ────
 
