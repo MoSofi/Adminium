@@ -64,19 +64,22 @@ const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { 
 
 /** @type {Array<{ story: string, theme: string, impact: string, id: string, help: string, nodes: string[] }>} */
 const violations = [];
-/** Stories that failed to render twice — harness failures, never baselined. */
+/** Stories that never rendered cleanly across all attempts — harness failures, never baselined. */
 const harnessErrors = [];
 let done = 0;
 
 /**
- * One axe pass. A FRESH PAGE per job on purpose: axe-core keeps its
- * "already running" flag on the document, and reusing a page across stories
- * let a slow teardown from the previous story collide with the next
- * injection — which surfaced as `sweep-error: Axe is already running` on 28
- * of 1094 runs at A11Y_CONCURRENCY=8, purely as a function of machine load.
- * Those phantom errors were counted as `critical`, so the headline number
- * moved with CPU speed. A per-job page costs a few seconds over the sweep and
- * makes the count deterministic, which a ratchet requires.
+ * One axe pass on a fresh page.
+ *
+ * The `Axe is already running` errors that plagued this sweep came from
+ * @storybook/addon-a11y, which runs axe-core automatically in the SAME preview
+ * iframe on every render — two axe runs on one document. The real fix is
+ * `parameters.a11y.manual: true` in .storybook/preview.tsx, which stops the
+ * addon auto-running so the sweep owns the only axe run. With that in place a
+ * concurrency-8 sweep is clean; the per-job page and the retry below are cheap
+ * belt-and-suspenders, not the cure. (Earlier notes here blamed CPU contention
+ * — that was a wrong hypothesis; disabling the addon fixed it deterministically
+ * where lowering concurrency only reduced the odds.)
  */
 async function runJob(job) {
   const { story, theme } = job;
@@ -101,14 +104,11 @@ async function runJob(job) {
 async function worker() {
   for (let job = jobs.shift(); job; job = jobs.shift()) {
     const { story, theme } = job;
-    // Retries on a fresh page, with backoff. Even one page per job does not
-    // fully serialise axe: @axe-core/playwright injects into every frame, and
-    // under load an injection can still land while a previous evaluate is in
-    // flight ("Axe is already running"). A per-job page took that from 28
-    // occurrences to 1, and the one that remained PASSED when re-run alone —
-    // it is contention, not a broken story. Three spaced attempts absorb it
-    // while a genuinely unrenderable story still fails all three and is
-    // reported.
+    // Backstop retries on a fresh page. With the addon-a11y auto-run disabled
+    // (see runJob) the "already running" collision is gone, so these now only
+    // guard against an unrelated transient (a slow chunk, a one-off nav hiccup);
+    // a genuinely unrenderable story still fails every attempt and is reported
+    // as a harness error rather than silently entering the baseline.
     let results = null;
     let lastErr = null;
     for (let attempt = 0; attempt < 4 && results === null; attempt += 1) {
@@ -162,7 +162,7 @@ printGroup('ADVISORY violations (moderate/minor — not blocking)', advisory);
 printGroup('BLOCKING violations (critical/serious)', blocking);
 
 if (harnessErrors.length > 0) {
-  console.log(`\nHARNESS ERRORS (${harnessErrors.length}) — stories that failed to render twice:`);
+  console.log(`\nHARNESS ERRORS (${harnessErrors.length}) — stories that never rendered cleanly:`);
   for (const e of harnessErrors) console.log(`  ${e.story} (${e.theme}) — ${e.help}`);
 }
 
@@ -220,7 +220,7 @@ if (process.argv.includes('--update-baseline')) {
 
 if (harnessErrors.length > 0) {
   console.error(
-    `\n[a11y] FAIL — ${harnessErrors.length} stories failed to render three times. ` +
+    `\n[a11y] FAIL — ${harnessErrors.length} stories never rendered cleanly across every retry. ` +
       `These are harness/story failures, not axe findings, and never enter the baseline.`,
   );
   process.exit(1);

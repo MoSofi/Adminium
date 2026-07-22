@@ -96,10 +96,8 @@ jobs:
     name: a11y
     runs-on: ubuntu-latest
     # Storybook build + ~1100 axe runs; slower than `verify`, hence its own job
-    # so it neither blocks nor is blocked by the main gate. 45min because the
-    # sweep runs at A11Y_CONCURRENCY=2 (see the sweep step) — deterministic but
-    # ~2× the wall-clock of the default.
-    timeout-minutes: 45
+    # so it neither blocks nor is blocked by the main gate.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -139,14 +137,6 @@ jobs:
       # Lower the baseline with `pnpm --filter @adminium/ui a11y --update-baseline`
       # whenever you fix violations; the file is committed so it shows up in review.
       - name: Axe sweep (ratchet)
-        # A11Y_CONCURRENCY=2 matches the runner's core count. axe-core serialises
-        # per execution context, and at concurrency 4 on a 2-core box the CPU
-        # contention let a page's axe.run() still be finishing when the next
-        # started ("Axe is already running") — even the per-job retry could not
-        # always clear it. Two parallel pages remove the contention; the sweep is
-        # only ~30s slower and its determinism is what the ratchet depends on.
-        env:
-          A11Y_CONCURRENCY: '2'
         run: pnpm --filter @adminium/ui a11y
 
   dep-graph:
