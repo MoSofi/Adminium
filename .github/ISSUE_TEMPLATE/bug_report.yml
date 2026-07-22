@@ -48,7 +48,6 @@ body:
         - Self-host (npx / node)
         - Docker
         - Desktop (Electron)
-        - Cloud (adminium.app)
         - Development checkout
     validations:
       required: true
