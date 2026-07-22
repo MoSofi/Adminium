@@ -4,7 +4,7 @@
  * The bug this locks down is a lie, not a crash: with no SMTP relay the server
  * mints a reset token and has nowhere to post it, so the old screen told a
  * locked-out user "Check your email" and left them waiting for mail that does
- * not exist. `designs/Empty States.dc.html`: never hide, always explain.
+ * not exist. `Empty States.dc.html`: never hide, always explain.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';

@@ -38,7 +38,7 @@ export type AdapterErrorCode = (typeof ADAPTER_ERROR_CODES)[number];
 /**
  * The only error type adapter methods may reject with. The Studio wizard and
  * the `diagnostics-readout` widget map `code` to remediation copy (e.g. the
- * allowlist-IP hint per designs/System States).
+ * allowlist-IP hint per System States).
  */
 export class AdapterError extends Error {
   readonly code: AdapterErrorCode;

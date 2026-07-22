@@ -4,7 +4,7 @@
  * (crud pages with sane columns + one dashboard with 4 KPIs, line, donut) →
  * bootstrap nav populated → idempotent re-run.
  *
- * Probe-gated per the workplan rule: CI without a local PostgreSQL stays
+ * Probe-gated per the standing rule: CI without a local PostgreSQL stays
  * green (`describe.skipIf(!pgAvailable())`).
  *
  * Builds its own app (instead of buildDataTestApp) because the generate

@@ -69,7 +69,7 @@ export interface SignInFormProps
 const looksLikeEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 /**
- * SignInForm — email + password screen per designs/Login.dc.html. Controlled
+ * SignInForm — email + password screen per Login.dc.html. Controlled
  * composition: zero fetching; the host app owns the request and feeds back
  * `error`/`loading`.
  *

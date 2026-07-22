@@ -105,7 +105,7 @@ describe('accelerators (§14 rule 2)', () => {
     // §14: "⌘K is deliberately NOT a native accelerator." A native accelerator
     // WINS — it fires in the main process and the keystroke never reaches the
     // page — so a collision does not double-fire, it silently deletes an in-app
-    // shortcut (`designs/Shortcuts Panel.dc.html`).
+    // shortcut (`Shortcuts Panel.dc.html`).
     const claimed = collectAccelerators(template({ platform, isDev: true }));
     for (const reserved of RESERVED_SPA_ACCELERATORS) {
       expect(claimed).not.toContain(reserved);

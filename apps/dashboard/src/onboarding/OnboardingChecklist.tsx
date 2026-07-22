@@ -1,6 +1,6 @@
 /**
  * /welcome — the first-run workspace-onboarding surface (M5-T06; ports
- * designs/Onboarding.dc.html + designs/Workspace Onboarding.dc.html). Keepers:
+ * Onboarding.dc.html + Workspace Onboarding.dc.html). Keepers:
  * the REACTIVE checklist (each step's ✓ comes from real workspace state, server
  * -derived) and the progress ring. Personalized welcome + per-task minute
  * estimates are the sample-domain microcopy keepers (research/ia-mapping.md §4).

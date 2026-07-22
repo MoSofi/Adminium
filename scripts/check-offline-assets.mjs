@@ -75,7 +75,7 @@ const DEFAULT_ROOTS = [
  *
  * `.map` is excluded on purpose, and it is the one exclusion worth arguing: a
  * sourcemap embeds the ORIGINAL sources, comments and all, so scanning them would
- * flag every workplan URL this repo cites in a header — including the ones in this
+ * flag every URL this repo cites in a header — including the ones in this
  * file's own dependency chain. Devtools fetch a sourcemap only when a human opens
  * them, and nothing in it is ever evaluated. Fonts, images and other binaries are
  * excluded for the same reason: they are the assets, not the loaders of assets.

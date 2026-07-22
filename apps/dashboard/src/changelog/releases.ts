@@ -33,7 +33,7 @@
 import { z } from 'zod';
 
 /**
- * The comp's tag taxonomy (`designs/Changelog.dc.html`), preserved verbatim —
+ * The comp's tag taxonomy (`Changelog.dc.html`), preserved verbatim —
  * `ia-mapping.md` §4 lists it as a keeper: "tag taxonomy New/Improved/Fixed/
  * Security w/ empty-release hiding".
  */

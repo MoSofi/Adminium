@@ -32,7 +32,7 @@ export type { ConversationInboxConfig };
  *
  * The selected row is marked by a `border-s-2` accent rail + accent-soft tint —
  * a LOGICAL inline-start border, so it moves to the right edge under `dir="rtl"`
- * (10 §5.2). Ports designs/Chat.dc.html (conversation list pane).
+ * (10 §5.2). Ports Chat.dc.html (conversation list pane).
  */
 
 export interface ConversationRow {

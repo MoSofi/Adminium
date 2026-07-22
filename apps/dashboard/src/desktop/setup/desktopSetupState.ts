@@ -117,7 +117,7 @@ export interface DesktopSetupState {
   /** Card 1 — "Create a new local database". */
   localName: string;
   localSchema: LocalSchemaChoice;
-  /** `designs/Connect Database.dc.html`'s "Auto-generate placeholder entries". */
+  /** `Connect Database.dc.html`'s "Auto-generate placeholder entries". */
   placeholderRows: boolean;
 
   /** Card 2 — "Open an existing SQLite file". An absolute path from the bridge. */

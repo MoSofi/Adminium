@@ -44,7 +44,7 @@ import type { WizardState } from '../wizardState.js';
  * The air-gapped case is called out separately from the unconfigured case
  * because the advice differs completely: "configure a provider first" is a fix
  * for the second and a wild goose chase for the first, where no key will ever
- * help (11-electron.md §8.2's LLM row, `designs/Empty States.dc.html`'s
+ * help (11-electron.md §8.2's LLM row, `Empty States.dc.html`'s
  * never-hide-always-explain).
  */
 function providerDescription(input: { providerAvailable: boolean; networkAllowed: boolean }): string {

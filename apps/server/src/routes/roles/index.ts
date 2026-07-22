@@ -4,7 +4,7 @@
  * - `GET /roles` (list + member counts), `POST /roles` (custom roles, with
  *   optional clone), `PATCH /roles/:id`, `DELETE /roles/:id?reassignTo=`
  * - `GET|PUT /roles/:id/permissions` — full-matrix replace in §5.1 grant
- *   strings; the super-admin column is hard-locked (`designs/Roles
+ *   strings; the super-admin column is hard-locked (`Roles
  *   Permissions.dc.html`)
  * - `POST /users/:id/roles`, `DELETE /users/:id/roles/:roleId` — assign /
  *   unassign with the last-super-admin guard
@@ -243,7 +243,7 @@ export const rolesRoutes: FastifyPluginAsyncZod = async (app) => {
     async (request) => {
       const role = await mustFindRole(request.params.id);
       if (role.slug === SUPER_ADMIN_SLUG) {
-        // Hard-locked column per designs/Roles Permissions.dc.html / 07 §3.8.
+        // Hard-locked column per Roles Permissions.dc.html / 07 §3.8.
         throw new ConflictError('The Super Admin permission column is locked.', 'CONFLICT', {
           slug: role.slug,
         });

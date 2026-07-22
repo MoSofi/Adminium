@@ -85,7 +85,7 @@ const slug = (value: string): string =>
     .replace(/^-+|-+$/g, '');
 
 /**
- * PermissionMatrix — the RBAC preset over `ToggleMatrix` per designs/Roles
+ * PermissionMatrix — the RBAC preset over `ToggleMatrix` per Roles
  * Permissions.dc.html: roles as columns (locked roles render the
  * hard-locked Owner column), permission rows grouped by category under
  * uppercase `Eyebrow` labels, diff-aware accent dots against a baseline, and

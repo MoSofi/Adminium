@@ -40,7 +40,7 @@ export interface CreateLocalDatabaseInput {
   name: string;
   /** Absent ⇒ a blank database; present ⇒ §6's "From a schema file". */
   schemaFile?: { content: string; format?: string | undefined; fileName?: string | undefined };
-  /** `designs/Connect Database.dc.html`'s "Auto-generate placeholder entries". */
+  /** `Connect Database.dc.html`'s "Auto-generate placeholder entries". */
   placeholderRows: boolean;
 }
 

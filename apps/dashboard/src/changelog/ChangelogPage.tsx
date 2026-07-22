@@ -1,6 +1,6 @@
 /**
  * `/changelog` — product updates & releases (M10-T06; ports
- * `designs/Changelog.dc.html`).
+ * `Changelog.dc.html`).
  *
  * PORT NOTES (16-milestones §5 checklist).
  *
@@ -46,7 +46,7 @@ import {
   type FilteredRelease,
 } from './releases.js';
 
-/** The comp's `tagMeta` tone mapping, preserved (`designs/Changelog.dc.html`). */
+/** The comp's `tagMeta` tone mapping, preserved (`Changelog.dc.html`). */
 const TAG_TONE: Record<ChangeTag, Tone> = {
   New: 'pos',
   Improved: 'accent',

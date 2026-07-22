@@ -41,7 +41,7 @@ export type { ChatThreadConfig };
  * There is not one physical `ml-/mr-/left-/right-/rounded-br-` utility in here.
  *
  * Binds to an ordered `record-list` of messages whose author/body/sentAt/
- * attachments columns are named in config. Ports designs/Chat.dc.html (thread).
+ * attachments columns are named in config. Ports Chat.dc.html (thread).
  */
 
 export interface ChatThreadProps {

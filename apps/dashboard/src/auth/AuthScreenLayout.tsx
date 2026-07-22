@@ -1,6 +1,6 @@
 /**
  * Shared AuthLayout composition for every `/login`-group screen: brand panel
- * copy per designs/Login.dc.html, theme-toggle corner, and the ui screen as
+ * copy per Login.dc.html, theme-toggle corner, and the ui screen as
  * the 380px form column.
  */
 import { Hexagon, Moon, Sun } from 'lucide-react';

@@ -1,5 +1,5 @@
 /**
- * ⌘K command palette (09-generated-app.md §5.2, designs/Command
+ * ⌘K command palette (09-generated-app.md §5.2, Command
  * Palette.dc.html): ui CommandPalette shell + useCommandK, fixed group order —
  * Actions (theme toggle, shortcuts panel, sign out), Navigate (nav-tree
  * entries with their G-chord hints), Recent (mixed-entity localStorage list,

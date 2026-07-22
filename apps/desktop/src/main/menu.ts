@@ -32,7 +32,7 @@
  *     whether or not a menu item claims them.
  *  2. Native accelerators stay confined to these items so they cannot collide
  *     with the SPA's keyboard vocabulary (⌘K, G-chords, J/K, ⌘E —
- *     `designs/Shortcuts Panel.dc.html`), which the dashboard owns and this
+ *     `Shortcuts Panel.dc.html`), which the dashboard owns and this
  *     shell must not touch. A native accelerator WINS: it fires in the main
  *     process and the keystroke never reaches the page, so a collision does not
  *     merely double-fire, it silently deletes an in-app shortcut. ⌘K is
@@ -169,7 +169,7 @@ export interface BuildAppMenuOptions {
 }
 
 /**
- * Accelerators the SPA owns (`designs/Shortcuts Panel.dc.html`) and the native
+ * Accelerators the SPA owns (`Shortcuts Panel.dc.html`) and the native
  * menu must never claim. Asserted against {@link appMenuTemplate} in the tests —
  * see rule 2 in the module header for why a collision is silent and total.
  */

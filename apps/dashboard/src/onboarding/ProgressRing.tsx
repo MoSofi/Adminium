@@ -1,5 +1,5 @@
 /**
- * Onboarding progress ring (M5-T06 keeper from designs/Workspace
+ * Onboarding progress ring (M5-T06 keeper from Workspace
  * Onboarding.dc.html). A bespoke SVG data-viz — like the chart widgets it uses
  * token colors via `stroke="var(--…)"` and drives the arc with a numeric SVG
  * `stroke-dashoffset` (never the banned `style` prop / raw hex). The centre

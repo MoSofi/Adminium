@@ -45,7 +45,7 @@ export type { KanbanSwimlaneGridConfig };
  * back on rejection). Keyboard: arrow-left/right change column, arrow-up/down
  * change lane, all logical under RTL.
  *
- * Ports designs/Kanban Swimlanes.dc.html — closing the modal→grid wiring gap
+ * Ports Kanban Swimlanes.dc.html — closing the modal→grid wiring gap
  * (research/ia-mapping.md §5): a move mutates the grid in place.
  */
 

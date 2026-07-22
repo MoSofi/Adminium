@@ -1,5 +1,5 @@
 /**
- * `/api-keys` — API keys & tokens (M10-T06; ports `designs/API Keys.dc.html`).
+ * `/api-keys` — API keys & tokens (M10-T06; ports `API Keys.dc.html`).
  *
  * THE ONE-TIME SECRET is the page's whole reason for existing. The server hands
  * back a plaintext key exactly once, at creation, and stores only a SHA-256 hash

@@ -1,7 +1,7 @@
 /**
  * Zod schemas for the api-keys resource (08-server-api.md §2.16). The full
  * secret appears exactly once — in `apiKeyCreateReply.key` ("Copy it now —
- * you won't be able to see it again.", `designs/API Keys.dc.html`). List and
+ * you won't be able to see it again.", `API Keys.dc.html`). List and
  * detail replies never carry secret material (CI grep guard §7 item 6).
  */
 import { z } from 'zod';

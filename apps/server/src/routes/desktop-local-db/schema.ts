@@ -30,7 +30,7 @@ export const desktopLocalDbBody = z.object({
     })
     .optional(),
   /**
-   * `designs/Connect Database.dc.html`'s "Auto-generate placeholder entries".
+   * `Connect Database.dc.html`'s "Auto-generate placeholder entries".
    *
    * Defaults OFF. The comp shows it ON, but the comp is showing the state AFTER
    * the user imported a schema with no rows — and this body is also how a *Blank*

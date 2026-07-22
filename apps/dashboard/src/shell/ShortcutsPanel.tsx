@@ -1,5 +1,5 @@
 /**
- * Shortcuts panel (09-generated-app.md §5.3, designs/Shortcuts Panel.dc.html):
+ * Shortcuts panel (09-generated-app.md §5.3, Shortcuts Panel.dc.html):
  * a Modal rendering the LIVE registration set from the shortcut manager —
  * never a hardcoded list — as a two-column grid of groups with Kbd clusters
  * ("then" separators for chords) and the "Press ? anytime" footer. Keycaps

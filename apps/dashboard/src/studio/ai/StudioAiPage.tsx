@@ -3,8 +3,8 @@
  * an Admin configures the direct-API provider used to enrich a schema, reads the
  * BYO (copy-paste) round-trip guarantee, and reviews past enrichment runs.
  *
- * Seed patterns (§10): `designs/API Keys.dc.html` (write-only key entry → masked
- * `sk-…last4` + Replace) and `designs/Integrations.dc.html` (provider connect
+ * Seed patterns (§10): `API Keys.dc.html` (write-only key entry → masked
+ * `sk-…last4` + Replace) and `Integrations.dc.html` (provider connect
  * cards). RBAC is enforced one level up by `StudioGuard` (Admin + Super-Admin) and
  * again by every `/api/v1/llm/*` route — Editors/Viewers never reach this surface
  * and see no AI navigation (acceptance #13).
@@ -271,7 +271,7 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
         </p>
       </div>
 
-      {/* Never hide, always explain (`designs/Empty States.dc.html`): an
+      {/* Never hide, always explain (`Empty States.dc.html`): an
           air-gapped install keeps the whole form visible and readable, and says
           why saving a key here would buy nothing. The copy-paste round-trip
           below is the path that works, and still does. */}

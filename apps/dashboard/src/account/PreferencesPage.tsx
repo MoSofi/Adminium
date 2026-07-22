@@ -1,6 +1,6 @@
 /**
  * /account/preferences — the per-user Preferences page
- * (designs/Profile Settings.dc.html Preferences tab, upgraded per
+ * (Profile Settings.dc.html Preferences tab, upgraded per
  * 10-i18n-theming.md §7.4): the four axes with inheritance affordances.
  *
  * - An axis with a `NULL` override shows the *effective* (workspace default)
