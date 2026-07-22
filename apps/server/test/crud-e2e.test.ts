@@ -239,6 +239,26 @@ describe('CRUD API end-to-end (fake adapter)', () => {
     expect(filtered.body.page?.total).toBe(3);
   });
 
+  it('serves count=estimated as the exact fallback when statistics refuse', async () => {
+    // sqlite has no catalog statistics, and the filtered variant can never use
+    // table-level statistics — both must degrade to the exact count, not 500.
+    const estimated = await list(`/api/v1/data/${connId}/main.products?count=estimated`);
+    expect(estimated.status).toBe(200);
+    expect(estimated.body.page?.total).toBe(5);
+
+    const where = encodeURIComponent(
+      JSON.stringify({ and: [{ column: 'unit_price', op: 'gte', value: 18 }] }),
+    );
+    const filtered = await list(
+      `/api/v1/data/${connId}/main.products?count=estimated&where=${where}`,
+    );
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.page?.total).toBe(4);
+
+    const none = await list(`/api/v1/data/${connId}/main.products?count=none`);
+    expect(none.body.page?.total).toBeNull();
+  });
+
   it('paginates by keyset cursor, consistent with the sort and disjoint across pages', async () => {
     const page1 = await list(
       `/api/v1/data/${connId}/main.products?order=unit_price.desc&limit=2&cursor=`,
