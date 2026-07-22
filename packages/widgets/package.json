@@ -51,7 +51,7 @@
     "@tanstack/react-table": "^8.21.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.525.0",
-    "react": "^19.1.0",
+    "react": "^19.2.8",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -63,7 +63,7 @@
     "@types/react-dom": "^19.1.6",
     "eslint": "catalog:",
     "happy-dom": "^18.0.1",
-    "react-dom": "^19.1.0",
+    "react-dom": "^19.2.8",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

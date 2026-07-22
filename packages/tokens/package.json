@@ -50,12 +50,12 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "@fontsource-variable/jetbrains-mono": "^5.2.5",
-    "@fontsource-variable/manrope": "^5.2.5",
-    "@fontsource/ibm-plex-sans-arabic": "^5.2.5",
-    "@tailwindcss/cli": "^4.1.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+    "@tailwindcss/cli": "^4.3.3",
     "eslint": "catalog:",
-    "tailwindcss": "^4.1.0",
+    "tailwindcss": "^4.3.3",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
