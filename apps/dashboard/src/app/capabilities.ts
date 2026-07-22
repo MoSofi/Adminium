@@ -287,10 +287,10 @@ export function llmAffordances(
  *
  * This predicate covers the one surface that is NOT absent: `/state/$stateId`
  * addresses every system state by id (`states/stateMap.ts`), including
- * `suspended` — a 402 "billing past due" screen with an "Update payment" button.
- * That state can only ever be produced by a Cloud instance, so on self-host and
- * desktop it is a billing page a user can navigate to in a product that has no
- * billing. The `/state/$stateId` route (`app/router.tsx`) asks this before
+ * `suspended` — the 402 workspace-suspended screen. That state can only ever be
+ * produced by a managed/hosted instance (deferred — 17-deferred-monetization.md),
+ * so on self-host and desktop it is a screen a user can navigate to in a product
+ * that can never produce it. The `/state/$stateId` route (`app/router.tsx`) asks this before
  * rendering — not `StatePage` itself, which also serves the legitimate inline
  * states (`StudioGuard`'s forbidden, and the error boundaries') that have
  * nothing to do with billing.
