@@ -19,7 +19,7 @@ export interface ModalFlow<T> {
 
 /**
  * useModalFlow — state machine for the canonical two-phase (form → success)
- * modal (workplan/03-component-library.md §7.1, research/ia-mapping.md §5.3).
+ * modal (03-component-library.md §7.1, research/ia-mapping.md §5.3).
  */
 export function useModalFlow<T>(): ModalFlow<T> {
   const [state, setState] = useState<{ phase: ModalPhase; payload: T | null }>({
@@ -63,7 +63,7 @@ function resolve<T>(value: ReactNode | ((payload: T) => ReactNode), payload: T):
  * preserving focus; harvested inputs echo into the success copy; Done and
  * Esc/backdrop close, and `flow.reset()` runs after the exit animation so the
  * success phase never flashes back to the form while closing
- * (workplan/03-component-library.md §7.1).
+ * (03-component-library.md §7.1).
  */
 export function TwoPhaseModal<T>({
   flow,

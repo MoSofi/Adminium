@@ -1,6 +1,6 @@
 /**
  * lib/tones.ts — the canonical home of the semantic tone vocabulary and the
- * status→tone registry (workplan/03-component-library.md §3.3, §7.6).
+ * status→tone registry (03-component-library.md §3.3, §7.6).
  *
  * The SINGLE source of truth: components/icon-tile, components/badge and
  * components/status-pill re-export from here (their wave-1 local copies are
@@ -61,7 +61,7 @@ export const toneMixBorderClasses: Record<Tone, string> = {
 };
 
 /**
- * Sticky translucent bar recipe (workplan/03-component-library.md §7.5) —
+ * Sticky translucent bar recipe (03-component-library.md §7.5) —
  * used by `Topbar`, `WizardLayout` footer and sticky table headers. Exported
  * from here so the color-mix recipe lives in exactly one place.
  */
@@ -69,7 +69,7 @@ export const glassBar =
   'sticky top-0 z-40 border-b border-border bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] backdrop-blur-[8px]';
 
 /**
- * Default status→tone registry (workplan/03-component-library.md §7.6).
+ * Default status→tone registry (03-component-library.md §7.6).
  * Extended at runtime via `registerStatusTones` (widgets/manifests register
  * domain statuses); tints always derive from the tone — never hardcoded per
  * feature (the "Ticket Queue hardcoded priority tint" defect fix).

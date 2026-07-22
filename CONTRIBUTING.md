@@ -1,6 +1,6 @@
 # Contributing to Adminium
 
-Thanks for contributing. This guide covers the day-to-day mechanics; the design and architecture decisions live in `workplan/` and are authoritative — read the governing doc for the area you touch before writing code.
+Thanks for contributing. This guide covers the day-to-day mechanics; the design and architecture decisions are recorded in the header comments of the modules they govern — read the headers in the area you touch before writing code.
 
 ## Prerequisites
 
@@ -29,7 +29,7 @@ Everyday scripts (all fan out through Turborepo and are cached):
 
 ## Package map
 
-Full responsibilities and the allowed import graph are in `workplan/01-architecture.md` §2. Summary:
+The allowed import graph is enforced by `.dependency-cruiser.cjs`, where each boundary rule carries its rationale in a comment. Summary:
 
 | Workspace | Purpose |
 |---|---|
@@ -70,7 +70,7 @@ The single escape hatch is an inline object whose keys are **all** string-litera
 />
 ```
 
-See `workplan/02-design-system.md` §8 for the full rule specification.
+The full rule specification lives in the rule's header comment: `packages/config/src/eslint-plugin/no-style-prop.js`.
 
 ## Adding a package
 
@@ -79,7 +79,7 @@ See `workplan/02-design-system.md` §8 for the full rule specification.
 3. `eslint.config.js` imports the shared flat config from `@adminium/config/eslint`.
 4. Add `build` / `lint` / `typecheck` / `test` scripts so Turborepo picks the package up.
 5. Register the package's allowed imports in `.dependency-cruiser.cjs` — the boundary check fails otherwise.
-6. Confirm its layer in the dependency graph (`workplan/01-architecture.md` §2.3) before adding workspace dependencies.
+6. Confirm its layer in the dependency graph (the layering comment atop `.dependency-cruiser.cjs`) before adding workspace dependencies.
 
 ## Tests
 
@@ -101,7 +101,7 @@ Docs-only or CI-only PRs may skip the changeset; say so in the PR description.
 
 ## Porting a designed page ("comp")
 
-Never copy comp markup verbatim (comps use inline styles, which are banned). Follow the standing 7-step porting checklist in `workplan/16-milestones.md` §5 — i18n extraction, token mapping, composition from `@adminium/ui` + registry widgets, known-defect fixes, theme × direction screenshots, and an e2e happy path. A page is "ported" only when all seven steps are green in CI.
+Never copy comp markup verbatim (comps use inline styles, which are banned). Follow the standing 7-step porting checklist — i18n extraction, token mapping, composition from `@adminium/ui` + registry widgets, known-defect fixes, theme × direction screenshots, and an e2e happy path. A page is "ported" only when all seven steps are green in CI.
 
 ## CI & branch protection
 

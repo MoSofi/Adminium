@@ -2,7 +2,7 @@
  * Pure cohort-retention matrix geometry (research/widget-registry.md §2
  * `chart-cohort-matrix`): cohort rows × period columns, accent alpha by value,
  * triangular nulls transparent, label text flips to the on-accent color past a
- * threshold (~55%). DOM-free and deterministic (workplan/04 §7.1) so the same
+ * threshold (~55%). DOM-free and deterministic (04 §7.1) so the same
  * SVG path/positions render in Node and the browser (acceptance #10).
  *
  * RTL policy (04 §7.4): the period columns are a horizontal categorical scale,

@@ -2,7 +2,7 @@
  * Pure single-month heat-grid geometry (research/widget-registry.md §2
  * `chart-heat-month`): a 7-column month calendar with day numbers and up to 5
  * intensity levels + a day-of-week header. DOM-free and deterministic
- * (workplan/04 §7.1) — UTC-only date math.
+ * (04 §7.1) — UTC-only date math.
  *
  * RTL policy (04 §7.4): the day-of-week columns are a horizontal categorical
  * scale and mirror under `rtl`; the week rows never move.

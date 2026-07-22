@@ -1,4 +1,4 @@
-/* @adminium/tokens — Tailwind v4 theme mapping. See workplan/02-design-system.md §3.1.
+/* @adminium/tokens — Tailwind v4 theme mapping. See 02-design-system.md §3.1.
    Import order in each app's entry CSS:
      @import "tailwindcss";
      @import "@adminium/tokens/index.css";

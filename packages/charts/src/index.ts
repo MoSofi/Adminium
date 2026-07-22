@@ -1,5 +1,5 @@
 /**
- * @adminium/charts — bespoke SVG chart layer (workplan/04-widget-registry.md §7).
+ * @adminium/charts — bespoke SVG chart layer (04-widget-registry.md §7).
  * No chart library: d3-scale + d3-shape math only; colors strictly via CSS
  * custom properties from @adminium/tokens (viz.css). Consumers import
  * '@adminium/charts/styles.css' once for the structural/motion classes.

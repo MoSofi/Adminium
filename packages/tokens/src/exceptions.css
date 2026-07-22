@@ -1,4 +1,4 @@
-/* @adminium/tokens — canonical theming exceptions. See workplan/02-design-system.md §6.
+/* @adminium/tokens — canonical theming exceptions. See 02-design-system.md §6.
    Two deliberate breaks from the active theme, implemented as scope classes that re-declare
    the full token set on a subtree (token cascade does the rest — children need no changes).
    These scopes copy canonical hand-tuned values; they do not derive them.

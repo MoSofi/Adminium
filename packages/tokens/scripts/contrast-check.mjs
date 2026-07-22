@@ -3,8 +3,8 @@
  * @adminium/tokens — WCAG 2.1 contrast gate.
  *
  * Implements the audit promised twice in the workplan:
- *   - workplan/02-design-system.md task 02-T15 — `packages/tokens/scripts/contrast-check.mjs`
- *   - workplan/15-quality.md §7.4        — the 8-accent x 2-theme "contrast matrix"
+ *   - 02-design-system.md task 02-T15 — `packages/tokens/scripts/contrast-check.mjs`
+ *   - 15-quality.md §7.4        — the 8-accent x 2-theme "contrast matrix"
  * Those two specs describe ONE audit under two names; this file is that audit, placed at the
  * 02-T15 path because it must sit next to (and parse) the token CSS it validates and be wired
  * into this package's own `test` script. §7.4's pair table is implemented in full here.

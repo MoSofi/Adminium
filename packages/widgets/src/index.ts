@@ -1,6 +1,6 @@
 /**
  * @adminium/widgets — Widget registry, WidgetFrame/WidgetHost, page templates,
- * dashboard grid (workplan/04-widget-registry.md).
+ * dashboard grid (04-widget-registry.md).
  *
  * NOTE: the pure-Zod page-config leaf (data shapes, query descriptor, layout
  * schema) is NOT re-exported here — import it from

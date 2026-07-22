@@ -1,5 +1,5 @@
 /**
- * Mount-animation gate (workplan/04-widget-registry.md §7.5 and
+ * Mount-animation gate (04-widget-registry.md §7.5 and
  * research/design-system.md §4.3): elements render in their "from" state,
  * then flip to the final state after a double requestAnimationFrame so the
  * browser commits the initial frame and CSS transitions run.

@@ -7,7 +7,7 @@ import { cn } from '../../lib/cn.js';
 import { Spinner } from '../spinner/Spinner.js';
 
 /**
- * Button CVA map per workplan/03-component-library.md §3.1 and
+ * Button CVA map per 03-component-library.md §3.1 and
  * research/design-system.md §3 Tier 1. `size` is declared before `variant` so
  * the `link` variant's `h-auto p-0` wins the tailwind-merge conflict.
  */

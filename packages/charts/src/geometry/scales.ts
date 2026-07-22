@@ -1,5 +1,5 @@
 /**
- * Scale constructors encoding the RTL policy (workplan/04-widget-registry.md
+ * Scale constructors encoding the RTL policy (04-widget-registry.md
  * §7.4 as corrected by 10-i18n-theming.md §5.5):
  *   - horizontal CATEGORICAL scales mirror in RTL (range flipped);
  *   - TIME axes NEVER mirror — oldest left, newest right, inside RTL pages.

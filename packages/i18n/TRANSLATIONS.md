@@ -1,7 +1,7 @@
 # Translation workflow — `@adminium/i18n`
 
 How UI strings flow through the repo, and how to change or add them without
-breaking the parity gate. Full policy: `workplan/10-i18n-theming.md` (§2–§3).
+breaking the parity gate. Full policy: `10-i18n-theming.md` (§2–§3).
 
 ## Where strings live
 

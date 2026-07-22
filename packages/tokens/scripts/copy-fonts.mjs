@@ -7,7 +7,7 @@
  * - Graceful: if node_modules isn't installed yet, warns and exits 0 so the build
  *   pipeline can proceed (fonts are committed, so a missing copy is non-fatal).
  * - Never subsets or re-encodes: "Plex" is an OFL Reserved Font Name; modified builds
- *   would require renaming the font. See workplan/02-design-system.md §2.4.
+ *   would require renaming the font. See 02-design-system.md §2.4.
  */
 import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";

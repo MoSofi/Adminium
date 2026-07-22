@@ -1,5 +1,5 @@
 /**
- * M2 exit criteria, end-to-end (workplan/16-milestones.md — "M2 — Server
+ * M2 exit criteria, end-to-end (16-milestones.md — "M2 — Server
  * core", Exit criteria) against ONE composed server instance on a fresh
  * in-memory SQLite meta store:
  *

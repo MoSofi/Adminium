@@ -14,4 +14,4 @@ and applies to the copies in `src/fonts/`. The fonts are unmodified upstream bui
 permits bundling and redistribution with attribution and prohibits selling the fonts standalone.
 
 CJK locales (`zh_CN`/`zh_TW`) intentionally use system font stacks (see `src/fonts.css`) and vendor
-no CJK fonts — see workplan/02-design-system.md §2.4 and workplan/11-electron.md Open decisions.
+no CJK fonts — see 02-design-system.md §2.4 and 11-electron.md Open decisions.

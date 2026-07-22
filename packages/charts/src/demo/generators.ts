@@ -1,5 +1,5 @@
 /**
- * Deterministic demo-data generators (workplan/04-widget-registry.md §7.7).
+ * Deterministic demo-data generators (04-widget-registry.md §7.7).
  * Same seed → identical payload, across processes and reloads: the time base
  * is a fixed epoch, never `Date.now()`. Plausible ranges + weekday
  * seasonality for timeseries.

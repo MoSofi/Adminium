@@ -3,7 +3,7 @@
  * §11 task 01-T10): drives the BUILT server serving the BUILT dashboard,
  * seeded with the Northwind demo data by `scripts/e2e-server.mjs`.
  *
- * Engine selection (workplan/15-quality.md env-gate conventions):
+ * Engine selection (15-quality.md env-gate conventions):
  *   - default            → sqlite  (file DB, zero external services)
  *   - E2E_ENGINE=postgres → needs TEST_POSTGRES_URL (e.g. postgres://postgres:postgres@127.0.0.1:5432/postgres)
  *   - E2E_ENGINE=mysql    → needs TEST_MYSQL_URL    (e.g. mysql://root:root@127.0.0.1:3306 — same var as the

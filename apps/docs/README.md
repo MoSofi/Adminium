@@ -2,7 +2,7 @@
 
 [docs.adminium.dev](https://docs.adminium.dev) — Astro 5 + Starlight.
 
-Plan: `workplan/14-docs-site.md`. Milestone: M10 (M10-T05).
+Plan: `14-docs-site.md`. Milestone: M10 (M10-T05).
 
 ## Commands
 

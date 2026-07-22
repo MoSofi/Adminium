@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Before filing, check the roadmap in `workplan/16-milestones.md` — the feature may already be scheduled for an upcoming milestone.
+        Before filing, search existing issues and discussions — the feature may already be planned or in progress.
   - type: textarea
     id: problem
     attributes:

@@ -16,7 +16,7 @@
  * out of scope — this is a JSX-only rule. `style` keys in plain (non-JSX)
  * objects are untouched.
  *
- * Spec: workplan/02-design-system.md §7–§8.
+ * Spec: 02-design-system.md §7–§8.
  */
 
 /** @type {import('eslint').Rule.RuleModule} */
@@ -26,7 +26,7 @@ export default {
     docs: {
       description:
         "Disallow the JSX `style` prop unless every property is a string-literal CSS custom property ('--*')",
-      url: 'https://github.com/MoSofi/Adminium/blob/main/workplan/02-design-system.md#8-eslint-rule-adminiumno-style-prop',
+      url: 'https://github.com/MoSofi/Adminium/blob/main/packages/config/src/eslint-plugin/no-style-prop.js',
     },
     schema: [
       {

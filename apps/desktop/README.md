@@ -3,7 +3,7 @@
 The Electron shell: `@adminium/server` in a `utilityProcess`, the
 `@adminium/dashboard` build served over loopback, fully offline.
 
-Spec: **workplan/11-electron.md** (§2 topology + boot, §3 this layout, §4 preload
+Spec: **11-electron.md** (§2 topology + boot, §3 this layout, §4 preload
 bridge, §5 session, §7 offline, §14 menus). Architecture: 01-architecture.md §4.4.
 
 Zero business logic lives here (§1 principle 1). Anything feature-shaped belongs

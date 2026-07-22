@@ -1,4 +1,4 @@
-/* @adminium/tokens — accent palettes + derived accent tokens. See workplan/02-design-system.md §1.2/§2.3.
+/* @adminium/tokens — accent palettes + derived accent tokens. See 02-design-system.md §1.2/§2.3.
    Everything accent-derived is computed from the single --accent hex; switching data-accent
    swaps the light/dark pair below, from which the theme resolves that one hex. Derivation
    recipes are defined here once, never re-derived in components.
@@ -51,7 +51,7 @@
    and it would put a theme-and-accent conditional back into the token layer. One --accent-fg per
    theme keeps the contract "components read --accent and --accent-fg, full stop".
 
-   THE BLACK ACCENT ON DARK — the documented override called for in workplan/15-quality.md.
+   THE BLACK ACCENT ON DARK — the documented override called for in 15-quality.md.
    `black` is the neutral/monochrome accent: it means "no hue, the strongest neutral this theme
    can carry", not literally the colour black. In light that resolves to #111111 (18.88:1 on
    --surface). In dark it cannot: #111111 is 1.03:1 on --surface #141419 — invisible as a focus

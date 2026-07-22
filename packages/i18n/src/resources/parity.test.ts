@@ -10,7 +10,7 @@
  *    other-only — plus the mandatory `other`.
  * 4. zh_CN and zh_TW are genuinely distinct bundles (Simplified vs
  *    Traditional + regional vocabulary), per the M8 risk note in
- *    workplan/16-milestones.md.
+ *    16-milestones.md.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

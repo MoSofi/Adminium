@@ -22,7 +22,7 @@ Settings → Branches → Add rule (or a repository ruleset) for `main`:
 - Do not allow force pushes or deletions.
 - Include administrators.
 
-When later milestones add jobs (`e2e`, `vrt`, `bundle`, `codeql` — see `workplan/15-quality.md` §11), add them to the required-check list in the same PR that makes them real.
+When later milestones add jobs (`e2e`, `vrt`, `bundle`, `codeql`), add them to the required-check list in the same PR that makes them real.
 
 Equivalent CLI:
 
@@ -39,7 +39,7 @@ gh api -X PUT repos/MoSofi/Adminium/branches/main/protection \
 
 ## 3. Code scanning
 
-Enable CodeQL default setup (Settings → Code security → Code scanning), then replace the stub `.github/workflows/codeql.yml` with the real analyze + `pnpm audit` jobs (PR + weekly schedule per `workplan/01-architecture.md` §11).
+Enable CodeQL default setup (Settings → Code security → Code scanning), then replace the stub `.github/workflows/codeql.yml` with the real analyze + `pnpm audit` jobs (PR + weekly schedule).
 
 ## 4. Labels
 
@@ -53,16 +53,16 @@ Delete the GitHub defaults that overlap, then create:
 
 ```sh
 for i in $(seq 0 15); do
-  gh label create "M$i" --color bfd4f2 --description "Milestone M$i (workplan/16-milestones.md)"
+  gh label create "M$i" --color bfd4f2 --description "Roadmap milestone M$i"
 done
 ```
 
 ## 5. Milestones
 
-Create GitHub milestones `M0 — Foundation` through `M15 — Full audit / v1.0`, titles and scope from `workplan/16-milestones.md` (one GitHub milestone per roadmap milestone; due dates from the current schedule):
+Create GitHub milestones `M0 — Foundation` through `M15 — Full audit / v1.0`, titles and scope from the internal roadmap (one GitHub milestone per roadmap milestone; due dates from the current schedule):
 
 ```sh
-gh api repos/MoSofi/Adminium/milestones -f title="M0 — Foundation" -f description="See workplan/16-milestones.md"
+gh api repos/MoSofi/Adminium/milestones -f title="M0 — Foundation" -f description="Roadmap milestone M0"
 # ... repeat for M1..M15 with their §-heading titles
 ```
 
