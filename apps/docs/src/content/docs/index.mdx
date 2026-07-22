@@ -2,20 +2,26 @@
 title: Adminium
 description: Point Adminium at a database and get a real admin panel — read-and-write, self-hosted, open source.
 template: splash
-hero:
-  tagline: Point it at a database. Get a real admin panel — one you can write to, not just look at.
-  actions:
-    - text: Quickstart
-      link: /getting-started/quickstart/
-      icon: right-arrow
-      variant: primary
-    - text: View on GitHub
-      link: https://github.com/MoSofi/Adminium
-      icon: external
-      variant: minimal
 ---
 
-import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+
+{/* Editorial home — Claude Design "Docs 1c". The custom hero + numbered
+    "Start here" list are styled in src/styles/editorial.css (.docs-hero /
+    .docs-start). No frontmatter `hero:` so the serif h1 below is the only title. */}
+
+<div class="docs-hero">
+  <p class="docs-hero-eyebrow">The Adminium Handbook</p>
+  <h1 class="docs-hero-title">Point it at a database. Get a real admin panel.</h1>
+  <p class="docs-hero-lead">
+    One you can write to, not just look at. Adminium reads your schema — never
+    your rows — and interprets it at runtime.
+  </p>
+  <div class="docs-hero-actions">
+    <a class="docs-hero-cta" href="/getting-started/quickstart/">Quickstart</a>
+    <a class="docs-hero-ghost" href="https://github.com/MoSofi/Adminium">GitHub</a>
+  </div>
+</div>
 
 <Code
   code={`export ADMINIUM_SECRET=$(openssl rand -hex 32)
@@ -24,35 +30,41 @@ npx @adminiumjs/adminium`}
   title="One command, complete install"
 />
 
-## Start here
+<div class="docs-start">
+  <p class="docs-start-label">Start here</p>
 
-<CardGrid stagger>
-  <Card title="Quickstart" icon="rocket">
-    Install with `npx @adminiumjs/adminium`, answer the setup wizard, and have an admin panel
-    on your own schema in a few minutes.
+  <a class="docs-start-row" href="/getting-started/quickstart/">
+    <span class="docs-start-num">01</span>
+    <span class="docs-start-main">
+      <span class="docs-start-title">Quickstart with npx</span>
+      <span class="docs-start-desc">Install, answer the setup wizard, and have an admin panel on your own schema in a few minutes.</span>
+    </span>
+  </a>
 
-    [Quickstart with npx →](/getting-started/quickstart/)
-  </Card>
+  <a class="docs-start-row" href="/getting-started/docker/">
+    <span class="docs-start-num">02</span>
+    <span class="docs-start-main">
+      <span class="docs-start-title">Run with Docker</span>
+      <span class="docs-start-desc">A single container, or Compose with a managed Postgres meta store.</span>
+    </span>
+  </a>
 
-  <Card title="Run with Docker" icon="seti:docker">
-    A single container, or Compose with a managed Postgres meta store.
+  <a class="docs-start-row" href="/getting-started/first-connection/">
+    <span class="docs-start-num">03</span>
+    <span class="docs-start-main">
+      <span class="docs-start-title">Connect your first database</span>
+      <span class="docs-start-desc">PostgreSQL, MySQL/MariaDB and SQLite — or import a schema file and connect nothing at all.</span>
+    </span>
+  </a>
 
-    [Run with Docker →](/getting-started/docker/)
-  </Card>
-
-  <Card title="Connect a database" icon="setting">
-    PostgreSQL, MySQL/MariaDB, and SQLite — or import a schema file and connect
-    nothing at all.
-
-    [Connect your first database →](/getting-started/first-connection/)
-  </Card>
-
-  <Card title="Self-host it properly" icon="approve-check">
-    Meta-store placement, reverse proxies, secrets, upgrades, and telemetry.
-
-    [Self-hosting overview →](/self-hosting/)
-  </Card>
-</CardGrid>
+  <a class="docs-start-row" href="/self-hosting/">
+    <span class="docs-start-num">04</span>
+    <span class="docs-start-main">
+      <span class="docs-start-title">Self-host it properly</span>
+      <span class="docs-start-desc">Meta-store placement, reverse proxies, secrets, upgrades and telemetry.</span>
+    </span>
+  </a>
+</div>
 
 ## What Adminium is
 

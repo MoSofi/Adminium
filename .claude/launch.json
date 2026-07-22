@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@adminium/docs", "exec", "astro", "dev", "--port", "4356"],
+      "port": 4356
+    }
+  ]
+}

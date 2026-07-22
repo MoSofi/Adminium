@@ -1,0 +1,399 @@
+/**
+ * docs.adminium.dev — the "Editorial" re-theme (Claude Design "Docs 1c").
+ *
+ * This layers a warm, paper-toned editorial identity on top of the Starlight →
+ * @adminium/tokens remap in ./adminium.css. It is DOCS-ONLY on purpose: the
+ * shared @adminium/tokens palette (dashboard, desktop app) is untouched, so this
+ * file overrides the semantic token *values* locally rather than forking the
+ * package. adminium.css already maps every --sl-color-* onto these tokens via
+ * var(), and custom-property substitution is late-bound, so redefining --bg,
+ * --surface, --fg … here re-tints the whole Starlight chrome with almost no
+ * surface area. Loaded LAST in astro.config.mjs's customCss so these win.
+ *
+ * Three moves define the look:
+ *   1. a warm cream neutral ramp (light) + a coordinated warm-dark ramp,
+ *   2. Newsreader (self-hosted serif) for display headings + blockquotes,
+ *   3. dark, warm-toned code frames (see expressiveCode in astro.config.mjs).
+ *
+ * Fonts are self-hosted woff2 (no CDN, no Google Fonts — the docs' offline
+ * guarantee). Newsreader is vendored under ../fonts/newsreader/ (OFL-1.1; the
+ * license ships beside the binaries). It lives here rather than in
+ * @adminium/tokens because no other surface uses it and tokens' font set is
+ * fixed at three families by test.
+ */
+
+/* Newsreader Variable — display serif, weight axis 200–800, normal + italic.
+   Latin + latin-ext so accented Latin (de/fr/cs/da headings) stays in-face. */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('../fonts/newsreader/newsreader-latin-wght-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('../fonts/newsreader/newsreader-latin-ext-wght-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('../fonts/newsreader/newsreader-latin-wght-italic.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('../fonts/newsreader/newsreader-latin-ext-wght-italic.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* The display serif. Georgia is the closest ubiquitous fallback while the
+     woff2 loads (font-display: swap). */
+  --docs-serif: 'Newsreader', Georgia, 'Times New Roman', 'Iowan Old Style', serif;
+
+  /* Warm code frame — dark on a light page, the way Docs 1c reads. Consumed by
+     Expressive Code via styleOverrides in astro.config.mjs; mirrored here for the
+     rare hand-rolled <pre>. */
+  --docs-code-bg: #1a1814;
+  --docs-code-fg: #efece4;
+
+  /* ---- Warm cream neutral ramp (light) — Docs 1c ----
+     These are the same semantic tokens ./adminium.css feeds into Starlight, so
+     re-tinting them here re-tints nav, sidebar, hairlines, surfaces and inline
+     code together. */
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --surface-2: #f4f2ec;
+  --surface-3: #ece9e1;
+  --border: #e7e3d9;
+  --border-strong: #dcd7ca;
+  --fg: #1c1a17;
+  --fg-muted: #5b564d;
+  --fg-subtle: #8f887b;
+
+  /* Accent stays product indigo (accents.css); only the tint moves to Docs 1c's
+     cool-lavender wash used behind the active nav row and note callouts. */
+  --accent-soft: #eef0ff;
+}
+
+/* ---- Coordinated warm-dark ramp (dark) ----
+   Docs 1c has no dark variant, so this is authored to keep the family together:
+   warm-tinted near-blacks + a warm off-white, echoing the code frame's #1a1814.
+   Serif headings and editorial spacing below are mode-independent and carry over. */
+:root[data-theme='dark'] {
+  --bg: #14110b;
+  --surface: #1c1813;
+  --surface-2: #221d16;
+  --surface-3: #2a241b;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --fg: #f4f1ea;
+  --fg-muted: #b8b1a2;
+  --fg-subtle: #938c7d;
+  --docs-code-bg: #17140e;
+}
+
+/* ============================================================
+   Typography — Newsreader display headings, Manrope everywhere else
+   ============================================================ */
+
+/* Page title (Starlight renders it as h1#_top) and content h1/h2 go serif.
+   h3+ stay Manrope-bold: the sans/serif split is the hierarchy, per Docs 1c. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+h1#_top,
+.content-panel h1 {
+  font-family: var(--docs-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.sl-markdown-content h1,
+h1#_top,
+.content-panel h1 {
+  font-size: clamp(2.15rem, 1.7rem + 1.9vw, 2.9rem);
+  line-height: 1.05;
+  margin-bottom: 0.6em;
+}
+
+.sl-markdown-content h2 {
+  font-size: clamp(1.55rem, 1.35rem + 0.9vw, 1.85rem);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  /* A hairline under section heads — the editorial "rule". */
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+.sl-markdown-content h3 {
+  font-family: var(--sl-font); /* Manrope */
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* Roomier measure for long-form prose — Docs 1c runs body leading near 1.8. */
+.sl-markdown-content {
+  --sl-line-height: 1.8;
+  font-size: var(--sl-text-body);
+}
+.sl-markdown-content p,
+.sl-markdown-content li {
+  line-height: 1.8;
+}
+
+/* Blockquote → Docs 1c's italic serif pull-quote with an accent rule. */
+.sl-markdown-content blockquote {
+  font-family: var(--docs-serif);
+  font-style: italic;
+  font-size: 1.2em;
+  line-height: 1.6;
+  color: var(--fg-muted);
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: 1.1em;
+}
+.sl-markdown-content blockquote :is(p, strong) {
+  font-weight: 500;
+}
+
+/* ============================================================
+   Code — warm dark frames + inline chips on the warm surface
+   ============================================================ */
+
+/* Inline code already resolves to the warm --surface-3 via adminium.css; nudge
+   the border warm and keep it on the mono face (adminium.css handles the face). */
+.sl-markdown-content :not(pre) > code {
+  border: 1px solid var(--border);
+}
+
+/* Fenced blocks are Expressive Code (theme + warm bg set in astro.config.mjs).
+   This is only the outer breathing room + a soft warm shadow so the dark frame
+   sits on the cream page like a card, matching Docs 1c. */
+.sl-markdown-content .expressive-code {
+  --ec-frm-frameBoxShdCssVal: 0 20px 40px -26px rgba(40, 32, 20, 0.45);
+  margin-block: 1.5rem;
+}
+
+/* Code renders in JetBrains Mono (the product mono face, self-hosted via
+   @adminium/tokens) — Docs 1c's code type. EC sets --ec-codeFontFml but the
+   <pre> still computes the system stack, so pin it here. The light base colour
+   keeps any untokenised text legible on the dark frame (EC colours tokens
+   per-span, so its highlighting is unaffected). */
+.sl-markdown-content .expressive-code pre,
+.sl-markdown-content .expressive-code pre code {
+  font-family: var(--sl-font-mono);
+}
+.sl-markdown-content .expressive-code pre {
+  color: var(--docs-code-fg);
+}
+
+/* ============================================================
+   Callouts — warm the note/aside so it belongs on the cream page
+   ============================================================ */
+.sl-markdown-content .starlight-aside {
+  border-radius: 0.75rem;
+}
+.sl-markdown-content .starlight-aside--note {
+  /* Docs 1c's accent-tinted "Note" card. */
+  background-color: var(--accent-soft);
+  border-color: #d9dcff;
+  --sl-color-asides-text-accent: var(--accent);
+}
+:root[data-theme='dark'] .sl-markdown-content .starlight-aside--note {
+  background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* ============================================================
+   Chrome polish
+   ============================================================ */
+
+/* Left-nav current item → Docs 1c's soft-lavender wash + indigo label, in place
+   of Starlight's solid-accent fill. Scoped to ul.top-level so the "On this page"
+   TOC (which already reads as accent text) is untouched. Specificity (0,2,2)
+   intentionally clears Starlight's own current-link rule. */
+ul.top-level a[aria-current='page'] {
+  background-color: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Warm hairline the site header sits behind, and let the cream bg read through
+   the top nav the way Docs 1c's translucent header does. */
+.sl-markdown-content table :is(th, td) {
+  border-color: var(--border);
+}
+.sl-markdown-content table thead th {
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+/* The primary hero action keeps the product's accent glow (from adminium.css);
+   nothing to change here — noted so the two files read as one theme. */
+
+/* ============================================================
+   Home (splash) — Docs 1c editorial hero + numbered "Start here" list.
+   These classes exist only on src/content/docs/index.mdx, so they are styled
+   globally here rather than scoped. The splash template drops the sidebar/TOC;
+   we hold the content to a reading column and left-align it (editorial, not
+   centered).
+   ============================================================ */
+/* Splash still renders the frontmatter title as an h1#_top (in its own
+   .content-panel) even with no `hero:` block. On the editorial home the real
+   title is .docs-hero-title, so hide that stray panel — scoped via :has to the
+   home (it's the only page with .docs-hero) and to the panel that actually holds
+   #_top (never the hero's panel). */
+body:has(.docs-hero) .content-panel:has(> .sl-container > h1#_top) {
+  display: none;
+}
+
+.docs-hero,
+.docs-start {
+  max-width: 44rem;
+  margin-inline: auto;
+  text-align: start;
+}
+
+.docs-hero {
+  margin-block: 1rem 2.75rem;
+}
+.docs-hero-eyebrow {
+  margin: 0 0 1rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.docs-hero-title {
+  font-family: var(--docs-serif);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 1.9rem + 2.4vw, 3.5rem);
+  line-height: 1.03;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.1rem;
+}
+.docs-hero-lead {
+  margin: 0 0 1.6rem;
+  max-width: 38rem;
+  font-size: 1.18rem;
+  line-height: 1.65;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+.docs-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.docs-hero-cta,
+.docs-hero-ghost {
+  display: inline-flex;
+  align-items: center;
+  height: 2.8rem;
+  padding-inline: 1.2rem;
+  border-radius: 0.7rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.docs-hero-cta {
+  background: var(--accent);
+  color: var(--accent-fg);
+  box-shadow: var(--accent-glow);
+}
+.docs-hero-cta:hover {
+  background: var(--accent-hover, var(--accent));
+  color: var(--accent-fg);
+}
+.docs-hero-ghost {
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  background: var(--surface);
+}
+.docs-hero-ghost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Numbered "Start here" rows — big serif numeral, title + description, a → that
+   slides on hover. The whole row is the link. */
+.docs-start {
+  margin-block: 2.5rem;
+}
+.docs-start-label {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.docs-start-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1.4rem;
+  padding: 1.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  border-radius: 0.5rem;
+  transition: background 0.14s ease;
+}
+.docs-start-row:hover {
+  background: var(--surface-2);
+  color: inherit;
+}
+.docs-start-num {
+  flex: none;
+  width: 2.9rem;
+  font-family: var(--docs-serif);
+  font-weight: 500;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: var(--accent);
+}
+.docs-start-main {
+  flex: 1;
+  min-width: 0;
+}
+.docs-start-title {
+  display: block;
+  font-weight: 800;
+  font-size: 1.2rem;
+  margin-bottom: 0.25rem;
+}
+.docs-start-desc {
+  display: block;
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  max-width: 36rem;
+}
+.docs-start-row::after {
+  content: '→';
+  align-self: center;
+  flex: none;
+  font-size: 1.1rem;
+  color: var(--fg-subtle);
+  transition: transform 0.16s ease, color 0.16s ease;
+}
+.docs-start-row:hover::after {
+  color: var(--accent);
+  transform: translateX(3px);
+}
