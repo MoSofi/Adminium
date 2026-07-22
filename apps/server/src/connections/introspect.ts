@@ -144,5 +144,5 @@ export function registerIntrospectJob(
     });
     ctx.progress(100, { step: 'done', message: 'Ready' });
     return { snapshotId: result.snapshot.id, noop: result.noop, proposedMasks: result.proposedMasks };
-  });
+  }, { internal: true });
 }

@@ -145,6 +145,17 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
             known: registry.kinds(),
           });
         }
+        // Internal kinds (export-run, import-run, report-run, llm-run,
+        // introspect) are enqueued only by their dedicated routes, which derive
+        // security-sensitive payload fields — e.g. export-run's `unmasked` PII
+        // flag — from the caller's authority. Enqueuing them here would let a
+        // `jobs:manage` holder hand-craft that payload and bypass the finer
+        // RBAC on those routes.
+        if (entry.internal) {
+          throw new ForbiddenError(
+            `Job kind "${body.kind}" cannot be enqueued directly; use its dedicated endpoint.`,
+          );
+        }
         // Stamp the owner (client-supplied userId is overridden — owners are
         // never spoofable), then check the payload against the handler's
         // schema now — a payload that can never run should fail at enqueue.

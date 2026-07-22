@@ -42,8 +42,22 @@ export interface RegisteredJobHandler {
   kind: string;
   schema: ZodType<unknown>;
   handler: JobHandler<never>;
+  /**
+   * Internal kinds are enqueued only by their dedicated route via `enqueue()`,
+   * never by the generic `POST /jobs` endpoint. Their payloads carry security
+   * decisions (e.g. export-run's `unmasked`) that the dedicated route derives
+   * from the caller's authority; letting a `jobs:manage` holder hand-craft that
+   * payload through `POST /jobs` would bypass the finer-grained RBAC and the
+   * PII-capability capture on those routes.
+   */
+  internal: boolean;
   /** Run the handler with an already-`schema`-parsed payload. */
   run(parsedPayload: unknown, ctx: JobHandlerContext): Promise<unknown>;
+}
+
+export interface RegisterJobHandlerOptions {
+  /** Mark a kind enqueueable only internally — refused by `POST /jobs`. */
+  internal?: boolean;
 }
 
 /** Creates an isolated registry (one per server; fresh per test). */
@@ -52,7 +66,12 @@ export function createJobRegistry() {
 
   return {
     /** Register `handler` for `kind`; duplicate kinds are a programmer error. */
-    registerJobHandler<T>(kind: string, schema: ZodType<T>, handler: JobHandler<T>): void {
+    registerJobHandler<T>(
+      kind: string,
+      schema: ZodType<T>,
+      handler: JobHandler<T>,
+      opts: RegisterJobHandlerOptions = {},
+    ): void {
       if (kind.length === 0 || kind.length > 60) {
         throw new Error(`job kind must be 1–60 chars, got "${kind}"`);
       }
@@ -63,6 +82,7 @@ export function createJobRegistry() {
         kind,
         schema,
         handler: handler as JobHandler<never>,
+        internal: opts.internal ?? false,
         run: async (parsedPayload, ctx) => await handler(parsedPayload as T, ctx),
       });
     },

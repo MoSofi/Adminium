@@ -4,6 +4,7 @@
  * progress reads (owner or system:jobs:read), keyset list, cooperative cancel.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 
@@ -307,5 +308,32 @@ describe('real RBAC path (closed-set regression)', () => {
     });
     expect(denied.statusCode).toBe(403);
     await realApp.close();
+  });
+});
+
+describe('POST /jobs — internal-kind guard (security review 2026-07-23)', () => {
+  it('refuses to enqueue a kind marked internal, even with jobs:manage', async () => {
+    // Internal kinds (export-run, import-run, report-run, llm-run, introspect)
+    // carry security-sensitive payloads their dedicated routes derive from the
+    // caller's authority; POST /jobs must not let a jobs:manage holder hand
+    // one in. A stand-in internal kind proves the guard without the real deps.
+    ctx.registry.registerJobHandler(
+      'test-internal-kind',
+      z.object({ userId: z.string().optional() }).passthrough(),
+      async () => undefined,
+      { internal: true },
+    );
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/jobs',
+      headers: auth.as(OWNER), // holds system:jobs:manage
+      payload: { kind: 'test-internal-kind', payload: {} },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('still enqueues a non-internal kind for the same caller', async () => {
+    const data = await enqueueViaApi();
+    expect(data.jobId).toBeTruthy();
   });
 });

@@ -72,9 +72,12 @@ const envelopeSourceSchema = z.object({
 
 export function registerReportRunHandler(registry: JobRegistry, deps: ReportRunDeps): void {
   const now = deps.now ?? Date.now;
-  registry.registerJobHandler(REPORT_RUN_KIND, reportRunPayloadSchema, async (payload, ctx) => {
-    return executeReportRun(payload, ctx, deps, now);
-  });
+  registry.registerJobHandler(
+    REPORT_RUN_KIND,
+    reportRunPayloadSchema,
+    async (payload, ctx) => executeReportRun(payload, ctx, deps, now),
+    { internal: true },
+  );
 }
 
 async function executeReportRun(

@@ -63,7 +63,9 @@ export function registerExportRunHandler(registry: JobRegistry, deps: ExportRunD
   registry.registerJobHandler(EXPORT_RUN_KIND, exportRunPayloadSchema, async (payload, ctx) => {
     await executeExportRun(payload, ctx, deps, now);
     return { exportId: payload.exportId };
-  });
+    // internal: the `unmasked` PII decision is captured from the caller's
+    // authority on POST /exports, never from a POST /jobs payload.
+  }, { internal: true });
 }
 
 async function executeExportRun(

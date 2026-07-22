@@ -85,7 +85,7 @@ export function registerLlmRunHandler(registry: JobRegistry, deps: LlmRunHandler
   registry.registerJobHandler(LLM_RUN_KIND, llmRunPayloadSchema, async (payload, ctx) => {
     await executeLlmRun(payload, ctx, { runService, resolve: deps.resolve, now });
     return { runId: payload.runId };
-  });
+  }, { internal: true });
 }
 
 interface ExecuteDeps {
