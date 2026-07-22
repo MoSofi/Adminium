@@ -20,7 +20,6 @@ as a silent overwrite.
 | How | Adminium calls the provider with your key | You copy a prompt, paste the response back |
 | Network | Adminium → provider | **None. Zero.** |
 | Providers | Anthropic, OpenAI, Ollama | Anything you can paste into |
-| Metered on Adminium Cloud | Yes, with Adminium-managed keys | **Never** |
 | Available offline | No | Yes |
 
 Both paths produce the **same run**, validated by the same schema, reviewed
