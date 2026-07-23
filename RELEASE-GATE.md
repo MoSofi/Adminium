@@ -56,7 +56,16 @@ not deleting it.
 
 - [x] 8 locale bundles with parity tests; RTL audit and numeral policy done
 - [ ] Final locale/RTL audit pass over v1 surfaces
-- [ ] Translated-but-unwired widget-chrome keys (~500) wired or removed
+- [ ] Translated-but-unwired widget-chrome keys wired or removed. **Audited
+      2026-07-23:** of 605 `ui.widgets.*` keys, 141 ARE wired (each widget
+      definition's `descriptionKey`, resolved by WidgetHost); **464 are
+      genuinely dead** (empty-state titles/bodies, a11y announcements, and
+      labels the components currently render from hardcoded defaults, e.g.
+      `defaultBoardAnnouncements`). DECISION NEEDED: wire the 464 into their
+      components (proper widget i18n, large multi-family effort) or remove them
+      (behavior-preserving — runtime already uses the hardcoded English — but
+      forecloses easy widget localization). Removal is scriptable + guarded by
+      the locale parity test.
 
 ## Topology
 
