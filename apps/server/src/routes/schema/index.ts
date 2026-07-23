@@ -25,7 +25,7 @@ import {
   type SchemaSnapshot,
 } from '@adminium/meta';
 
-import { NotFoundError, ValidationFailedError } from '../../errors.js';
+import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import {
@@ -247,6 +247,27 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
               toColumn: item.value.toColumn,
             });
           }
+        }
+      }
+
+      // Unmask escalation guard (security decision 2026-07-23): `schema:remap`
+      // is a grantable key a non-super-admin admin can hold. Turning PII masking
+      // ON (a `column.pii` op with masked:true) is always allowed — it only
+      // increases privacy. Turning it OFF exposes real PII to every reader, so
+      // it requires Super Admin (which still lets a Super Admin correct a
+      // classifier false-positive, while a delegated remapper cannot silently
+      // unmask).
+      // Only an EXPLICIT masked:false override can unmask a PII column: omitting
+      // an override from this full replace reverts the column to the
+      // classifier's default (still masked for genuinely-PII columns), so the
+      // explicit-false check is the complete guard.
+      const unmasking = body.overrides.some(
+        (item) => item.op === 'column.pii' && item.value['masked'] === false,
+      );
+      if (unmasking) {
+        const set = await app.rbac.resolve(request);
+        if (!set.superAdmin) {
+          throw new ForbiddenError('Turning PII masking off requires Super Admin.');
         }
       }
 
