@@ -11,6 +11,8 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { rolesRepo, usersRepo } from '@adminium/meta';
+
 import { ENC_TOKEN_PREFIX } from '../src/config/secrets.js';
 import { providerFromModule } from '../src/connections/register-adapters.js';
 import {
@@ -260,6 +262,58 @@ describe.skipIf(!AVAILABLE)('connections manager (live PG)', () => {
     )!;
     expect(rawCustomers.label).toBeUndefined();
     expect((raw.json() as { appliedOverrides: number }).appliedOverrides).toBe(0);
+  });
+
+  it('unmasking PII via remap requires super-admin (security review 2026-07-23)', async () => {
+    // Fresh connection so mutating masks does not leak into sibling tests.
+    const connId = await createConnectionViaApi(t, pg.dsn, 'remap-unmask-guard');
+    await introspectViaApi(t, connId); // phone auto-proposed masked:true
+
+    const unmask = {
+      overrides: [
+        { op: 'column.pii', tableName: 'public.customers', columnName: 'phone', value: { masked: false } },
+      ],
+    };
+
+    // admin holds schema:remap but is NOT super-admin → refused.
+    const denied = await t.app.inject({
+      method: 'PUT',
+      url: `/api/v1/connections/${connId}/overrides`,
+      headers: asUser(t.users.admin),
+      payload: unmask,
+    });
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json().error.code).toBe('FORBIDDEN');
+
+    // Turning masking ON stays allowed for the same admin (privacy-increasing).
+    const on = await t.app.inject({
+      method: 'PUT',
+      url: `/api/v1/connections/${connId}/overrides`,
+      headers: asUser(t.users.admin),
+      payload: {
+        overrides: [
+          { op: 'column.pii', tableName: 'public.customers', columnName: 'phone', value: { masked: true, kind: 'phone' } },
+        ],
+      },
+    });
+    expect(on.statusCode).toBe(200);
+
+    // A super-admin MAY unmask (correct a classifier false-positive).
+    const su = await usersRepo(t.meta).create({
+      email: 'root@adminium.test',
+      name: 'Root',
+      passwordHash: 'x',
+      status: 'active',
+    });
+    const superRole = await rolesRepo(t.meta).findBySlug('super-admin');
+    await rolesRepo(t.meta).assignToUser(su.id, superRole!.id);
+    const allowed = await t.app.inject({
+      method: 'PUT',
+      url: `/api/v1/connections/${connId}/overrides`,
+      headers: asUser(su),
+      payload: unmask,
+    });
+    expect(allowed.statusCode).toBe(200);
   });
 
   it('diffs the latest snapshot against the previous after schema drift', async () => {

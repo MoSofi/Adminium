@@ -30,8 +30,11 @@ not deleting it.
       (authn/session, RBAC, injection, PII masking, secrets, headers, SSRF,
       upload/IO, validation, realtime/jobs); 5 confirmed findings all fixed
       with regression tests (2026-07-23)
-- [ ] Decision recorded on `system:schema:remap` being able to disable PII
-      masking (unmask escalation)
+- [x] `system:schema:remap` unmask escalation closed (decision 2026-07-23):
+      turning PII masking ON stays open to remap holders; an explicit
+      `column.pii masked:false` (the only op that unmasks a classified column)
+      requires Super Admin (`apps/server/src/routes/schema/index.ts`, tested in
+      `connections.test.ts`)
 - [x] External pentest — **WAIVED for v1.0** (owner decision 2026-07-23). v1
       is a free, self-hosted, source-available admin tool with no hosted
       multi-tenant surface; the in-repo 10-dimension adversarial review stands
