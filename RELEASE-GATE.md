@@ -13,7 +13,9 @@ not deleting it.
 ## Performance
 
 - [ ] Dashboard entry chunk meets its budget (350 KB gz target; ~648 KB today)
-- [ ] Bundle-size gate runs in CI so the entry chunk cannot regress silently
+- [x] Bundle-size gate runs in CI so the entry chunk cannot regress silently
+      (`apps/dashboard/scripts/check-entry-budget.mjs` runs at the end of the
+      dashboard build, which the CI verify job executes)
 - [x] `count=estimated` is backed by catalog statistics with an exact fallback,
       never a blind exact `COUNT(*)` (`apps/server/src/crud/list.ts`,
       proven live in `apps/server/test/crud-estimated-count.test.ts`)
@@ -30,7 +32,10 @@ not deleting it.
       with regression tests (2026-07-23)
 - [ ] Decision recorded on `system:schema:remap` being able to disable PII
       masking (unmask escalation)
-- [ ] External pentest booked, or explicitly waived with rationale
+- [x] External pentest — **WAIVED for v1.0** (owner decision 2026-07-23). v1
+      is a free, self-hosted, source-available admin tool with no hosted
+      multi-tenant surface; the in-repo 10-dimension adversarial review stands
+      in for v1. Revisit before any hosted/Cloud GA (un-deferral).
 
 ## Accessibility
 
@@ -68,8 +73,11 @@ not deleting it.
       (`meta-upgrade-from-released.test.ts`)
 - [x] Server update check reads only `v*` releases (other tag series, drafts,
       and prereleases excluded), selects by highest version
-- [ ] macOS desktop artifacts signed + notarized in CI (Apple secrets), or the
-      unsigned state is re-waived explicitly for v1
+- [x] macOS signing — **WAIVED for v1.0, ship unsigned** (owner decision
+      2026-07-23). Both desktop platforms ship unsigned for v1 (Windows already
+      is); users see a Gatekeeper/SmartScreen prompt. The signing + notarization
+      steps and the verify gate remain in desktop-release.yml, so enabling them
+      later is a secrets change, not a code change.
 - [ ] A `v1.0.0-rc.*` rehearsal ran the full npm + ghcr + Releases pipeline
       green before the final tag
 - [x] This gate is enforced by CI on `v1+` tags
