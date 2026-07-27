@@ -49,6 +49,8 @@ export interface Connection {
   lastTestedAt: number | null;
   lastLatencyMs: number | null;
   lastError: string | null;
+  /** Remediation copy for {@link lastError}, from the adapter (05 §3). */
+  lastErrorHint: string | null;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
@@ -85,12 +87,15 @@ export interface UpdateConnectionInput {
   settings?: ConnectionSettings;
   status?: string;
   lastError?: string | null;
+  lastErrorHint?: string | null;
 }
 
 export interface ConnectionTestOutcome {
   ok: boolean;
   latencyMs?: number | null;
   error?: string | null;
+  /** The failure's remediation hint, when the adapter supplied one. */
+  errorHint?: string | null;
   /** Probe result — a read-only data role flips the app read-only (§3.13). */
   readOnly?: boolean;
 }
@@ -111,6 +116,7 @@ function decode(row: Selectable<AdminiumConnectionsTable>): Connection {
     lastTestedAt: row.lastTestedAt,
     lastLatencyMs: row.lastLatencyMs,
     lastError: row.lastError,
+    lastErrorHint: row.lastErrorHint,
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -185,6 +191,7 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
         lastTestedAt: null,
         lastLatencyMs: null,
         lastError: null,
+        lastErrorHint: null,
         createdBy: input.createdBy ?? null,
         createdAt: at,
         updatedAt: at,
@@ -226,6 +233,7 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
       if (patch.dataDsn !== undefined) set.dataDsnEncrypted = encryptOrNull(patch.dataDsn);
       if (patch.readOnly !== undefined) set.readOnly = writeBool(meta, patch.readOnly);
       if (patch.lastError !== undefined) set.lastError = patch.lastError;
+      if (patch.lastErrorHint !== undefined) set.lastErrorHint = patch.lastErrorHint;
       if (patch.ssl !== undefined) {
         if (patch.ssl === null) {
           set.ssl = null;
@@ -261,6 +269,9 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
         lastTestedAt: at,
         lastLatencyMs: outcome.latencyMs ?? null,
         lastError: outcome.ok ? null : (outcome.error ?? 'connection test failed'),
+        // Cleared on success alongside lastError — a stale hint next to a
+        // healthy connection reads as an unresolved problem.
+        lastErrorHint: outcome.ok ? null : (outcome.errorHint ?? null),
         status: outcome.ok ? 'connected' : 'error',
         updatedAt: at,
       };

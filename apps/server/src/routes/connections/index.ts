@@ -101,6 +101,10 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         lastTestedAt: connection.lastTestedAt,
         lastLatencyMs: connection.lastLatencyMs,
         lastError: secretMismatch === null ? connection.lastError : secretMismatch.message,
+        // The stored hint explains the stored `lastError`. Once the mismatch
+        // message replaces that, the hint describes a failure the card is no
+        // longer reporting, so it goes with it.
+        lastErrorHint: secretMismatch === null ? connection.lastErrorHint : null,
         snapshot:
           latest === null
             ? null
@@ -167,6 +171,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           ok: summary.ok,
           latencyMs: summary.latencyMs,
           error: summary.error?.message ?? null,
+          errorHint: summary.error?.hint ?? null,
           readOnly: summary.readOnly,
         });
         await app.rbac.audit(request, {
@@ -283,6 +288,7 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
           ok: summary.ok,
           latencyMs: summary.latencyMs,
           error: summary.error?.message ?? null,
+          errorHint: summary.error?.hint ?? null,
           readOnly: summary.readOnly,
         });
         return testReply(summary);

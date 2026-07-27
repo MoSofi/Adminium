@@ -209,6 +209,8 @@ export interface AdminiumConnectionsTable {
   lastTestedAt: Ts | null;
   lastLatencyMs: number | null;
   lastError: string | null;
+  /** Adapter remediation hint for {@link lastError} (05 §3) — never a secret. */
+  lastErrorHint: string | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
