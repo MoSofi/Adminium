@@ -503,6 +503,39 @@ describe('full walk: test → include → meta → generate (read-only source)',
     expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
     expect(continueButton()).toHaveProperty('disabled', true);
   });
+
+  it('prefers the adapter hint over the per-code copy (pooled endpoint)', async () => {
+    // A transaction-pooling DSN fails with UNSUPPORTED, whose per-code copy is
+    // the generic "verify the DSN" line — useless here. The adapter ships the
+    // actual fix in `hint`, so that is what the wizard must render.
+    scriptFetch({
+      'POST /api/v1/connections/test': () =>
+        jsonResponse(200, {
+          ok: false,
+          latencyMs: 4,
+          serverVersion: null,
+          readOnly: false,
+          privileges: null,
+          error: {
+            code: 'UNSUPPORTED',
+            message:
+              'postgres query failed: unsupported startup parameter in options: statement_timeout.',
+            hint: 'this looks like a transaction-pooling (PgBouncer) endpoint — on Neon drop `-pooler` from the host',
+          },
+        }),
+    });
+    renderWizard();
+    await userEvent.click(continueButton());
+    await userEvent.type(screen.getByLabelText(/Connection name/), 'Neon');
+    await userEvent.type(
+      screen.getByPlaceholderText('postgres://user:password@host:5432/database'),
+      'postgres://ava@ep-x-123456-pooler.us-east-1.aws.neon.tech:5432/prod',
+    );
+    await userEvent.click(continueButton());
+
+    expect(await screen.findByText(/drop `-pooler` from the host/)).toBeDefined();
+    expect(screen.queryByText(/verify the DSN and retry/)).toBeNull();
+  });
 });
 
 /**
