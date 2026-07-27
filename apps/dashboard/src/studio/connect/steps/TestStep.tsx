@@ -64,9 +64,16 @@ export function TestStep({
     ]);
   };
 
-  const fail = (message: string, code: string | null) => {
+  /**
+   * A server-supplied `hint` wins over the per-code copy: the adapter knows
+   * things the code cannot carry (e.g. "that host is a transaction pooler —
+   * drop `-pooler`"), and `hintForErrorCode` would flatten it to the generic
+   * "verify the DSN" line.
+   */
+  const fail = (message: string, code: string | null, hint?: string | null) => {
     push('error', message);
-    setErrorHint(code === null ? null : hintForErrorCode(code));
+    const fromCode = code === null ? null : hintForErrorCode(code);
+    setErrorHint(hint !== undefined && hint !== null && hint.length > 0 ? hint : fromCode);
     onStatus('error');
   };
 
@@ -172,6 +179,7 @@ export function TestStep({
         fail(
           probe.error?.message ?? t('studio.test.log.connectFailed', 'Connection failed.'),
           probe.error?.code ?? 'UNKNOWN',
+          probe.error?.hint,
         );
         return;
       }
