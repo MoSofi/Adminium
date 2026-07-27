@@ -20,6 +20,28 @@ password (`@`, `/`, `:`).
 In the wizard you can paste a full DSN or fill host / port / user / password /
 database and let Adminium compose it.
 
+### Use the direct endpoint, not the transaction pooler
+
+Adminium sets `statement_timeout` (and, on the introspection connection,
+`lock_timeout` and `idle_in_transaction_session_timeout`) in the startup packet,
+so a query can never pin a connection or hold a lock on your database.
+Transaction-pooling PgBouncer endpoints reject startup parameters outright:
+
+```
+08P01: unsupported startup parameter in options: statement_timeout
+```
+
+Managed providers usually show you the **pooled** string first, so this is easy
+to hit. Reach for the direct one:
+
+| Provider | Pooled (rejected) | Use instead |
+|---|---|---|
+| Neon | host ends in `-pooler`, e.g. `ep-x-123456-pooler.us-east-1.aws.neon.tech` | the same host without `-pooler` — `ep-x-123456.us-east-1.aws.neon.tech`. In the Neon console this is the "Direct connection" string. |
+| Supabase | the transaction pooler on port `6543` | the direct connection on port `5432` (or the session pooler, which does accept startup parameters). |
+
+Adminium's own pooling already caps concurrent connections per source
+(5 for introspection, 10 for data), so you are not giving up connection reuse.
+
 ## A read-only role
 
 Start here. You will see exactly what Adminium makes of your schema with no
@@ -118,6 +140,10 @@ before authentication. Add a `pg_hba.conf` line for Adminium's source IP, or, on
 a managed provider, add it to the trusted-sources list.
 
 **`SSL connection required`** — add `?sslmode=require`.
+
+**`unsupported startup parameter in options: statement_timeout`** — you are on a
+transaction-pooling endpoint. Switch to the direct connection string:
+[Use the direct endpoint, not the transaction pooler](#use-the-direct-endpoint-not-the-transaction-pooler).
 
 **Connections to `localhost` are refused** — Adminium blocks loopback DSNs by
 default, so a hosted instance cannot be talked into probing its own host. The
