@@ -50,6 +50,7 @@ function makeConnection(overrides: Partial<ConnectionDto> = {}): ConnectionDto {
     lastTestedAt: null,
     lastLatencyMs: 42,
     lastError: null,
+    lastErrorHint: null,
     snapshot: null,
     tableCount: 14,
     pageCount: 9,

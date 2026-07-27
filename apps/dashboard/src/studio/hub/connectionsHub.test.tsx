@@ -41,6 +41,7 @@ function makeConnection(overrides: Partial<ConnectionDto> = {}): ConnectionDto {
     lastTestedAt: Date.now() - 60_000,
     lastLatencyMs: 42,
     lastError: null,
+    lastErrorHint: null,
     snapshot: { id: 'snap_1', createdAt: Date.now() - 2 * DAY, checksum: 'abc' },
     tableCount: 14,
     pageCount: 9,
@@ -137,6 +138,26 @@ describe('ConnectionsHub', () => {
     // Stat tiles aggregate the fleet.
     expect(screen.getByText('1 of 2 connections healthy')).toBeTruthy();
     expect(screen.getByText('Generated pages')).toBeTruthy();
+  });
+
+  it('shows the persisted remediation hint under the driver message', async () => {
+    // The hint survives a reload: without it the card would show only the bare
+    // SQLSTATE, which is exactly the dead end a pooled DSN used to hit.
+    installFetch(() => [
+      makeConnection({
+        id: 'conn_3',
+        name: 'Neon',
+        status: 'error',
+        lastError: '08P01: unsupported startup parameter in options: statement_timeout',
+        lastErrorHint: 'use the direct/unpooled connection string — on Neon drop `-pooler` from the host',
+      }),
+    ]);
+    renderHub();
+
+    const card = within(await screen.findByTestId('connection-card-conn_3'));
+    const alert = card.getByRole('alert').textContent ?? '';
+    expect(alert).toContain('unsupported startup parameter');
+    expect(alert).toContain('drop `-pooler` from the host');
   });
 
   it('empty state offers the connect CTA; header button always does', async () => {

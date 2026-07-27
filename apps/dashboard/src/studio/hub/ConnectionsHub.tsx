@@ -173,7 +173,16 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
           : {
               variant: 'error',
               title: t('studio.hub.test.failed', 'Connection test failed'),
-              ...(result.error === null ? {} : { description: result.error.message }),
+              // The hint is the actionable half (e.g. "use the unpooled host"),
+              // so append it rather than showing the driver message alone.
+              ...(result.error === null
+                ? {}
+                : {
+                    description:
+                      result.error.hint === null
+                        ? result.error.message
+                        : `${result.error.message} — ${result.error.hint}`,
+                  }),
             },
       );
     },
@@ -264,9 +273,13 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
       </div>
 
       {connection.status === 'error' && connection.lastError !== null ? (
-        <p role="alert" className="text-caption text-danger">
-          {connection.lastError}
-        </p>
+        <div role="alert" className="flex flex-col gap-1">
+          <p className="text-caption text-danger">{connection.lastError}</p>
+          {/* The driver message says what broke; the hint says what to do. */}
+          {connection.lastErrorHint === null ? null : (
+            <p className="text-caption text-fg-subtle">{connection.lastErrorHint}</p>
+          )}
+        </div>
       ) : null}
 
       <div className="flex items-start gap-5 border-t border-border pt-3">

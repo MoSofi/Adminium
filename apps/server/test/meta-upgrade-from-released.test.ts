@@ -45,6 +45,11 @@ function migrateOnDist(dbPath: string): ChildReport {
   const require = createRequire(import.meta.url);
   const metaEntry = require.resolve('@adminium/meta');
   const sqliteEntry = require.resolve('better-sqlite3');
+  // The store is opened through the package's OWN factory, not a hand-rolled
+  // Kysely: `createSqliteMetaDb` installs the CamelCasePlugin that maps the
+  // ledger's `appliedAt` onto its `applied_at` column (connect.ts §2.2). A raw
+  // instance reads the ledger fine but throws on the INSERT — which stayed
+  // invisible while every migration in the fixture was already applied.
   const script = `
     const BetterSqlite3 = (await import(${JSON.stringify(sqliteEntry)})).default;
     const meta = await import(${JSON.stringify(metaEntry)});
@@ -111,6 +116,7 @@ describe('meta store upgrade from released 0.1.0', () => {
     for (const name of report.firstApplied) {
       expect(name > RELEASED_TAIL, `${name} shipped in 0.1.0 and must not re-apply`).toBe(true);
     }
+    expect(report.firstApplied).toContain('0013_connection_last_error_hint');
     expect(report.secondApplied).toEqual([]);
   });
 });

@@ -46,6 +46,8 @@ export interface ConnectionDto {
   lastTestedAt: number | null;
   lastLatencyMs: number | null;
   lastError: string | null;
+  /** Remediation copy for `lastError`, from the adapter (05 §3). */
+  lastErrorHint: string | null;
   snapshot: { id: string; createdAt: number; checksum: string } | null;
   /** Included tables (allowlist, else last snapshot); null before introspection. */
   tableCount: number | null;

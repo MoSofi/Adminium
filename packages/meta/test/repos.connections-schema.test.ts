@@ -100,16 +100,23 @@ for (const dialect of TEST_DIALECTS) {
         expect(updated?.status).toBe('connected');
         expect(updated?.updatedAt).toBe(3_000);
 
-        await repo.recordTestResult(b.id, { ok: false, latencyMs: 12, error: 'boom' }, 4_000);
+        await repo.recordTestResult(
+          b.id,
+          { ok: false, latencyMs: 12, error: 'boom', errorHint: 'try the unpooled host' },
+          4_000,
+        );
         const failed = await repo.findById(b.id);
         expect(failed?.status).toBe('error');
         expect(failed?.lastError).toBe('boom');
+        expect(failed?.lastErrorHint).toBe('try the unpooled host');
         expect(failed?.lastTestedAt).toBe(4_000);
 
         await repo.recordTestResult(b.id, { ok: true, latencyMs: 8, readOnly: true }, 5_000);
         const healthy = await repo.findById(b.id);
         expect(healthy?.status).toBe('connected');
         expect(healthy?.lastError).toBeNull();
+        // Success clears the hint too — a stale one reads as an open problem.
+        expect(healthy?.lastErrorHint).toBeNull();
         expect(healthy?.readOnly).toBe(true);
 
         expect(await repo.delete(a.id)).toBe(true);

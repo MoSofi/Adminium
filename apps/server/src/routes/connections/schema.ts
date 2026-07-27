@@ -79,6 +79,8 @@ export const connectionDto = z.object({
   lastTestedAt: z.number().nullable(),
   lastLatencyMs: z.number().nullable(),
   lastError: z.string().nullable(),
+  /** Remediation copy for `lastError`, from the adapter (05 §3). */
+  lastErrorHint: z.string().nullable(),
   /** Health-card snapshot age (§2.4). */
   snapshot: z
     .object({ id: z.string(), createdAt: z.number(), checksum: z.string() })
