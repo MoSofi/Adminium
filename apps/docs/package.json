@@ -14,8 +14,8 @@
     "test": "echo '@adminium/docs: the build is the gate (link validator + frontmatter schema); see astro.config.mjs'"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.41.3",
-    "astro": "^7.1.0",
+    "@astrojs/starlight": "^0.41.4",
+    "astro": "^7.1.3",
     "starlight-links-validator": "^0.25.2"
   },
   "devDependencies": {
