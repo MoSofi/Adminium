@@ -25,7 +25,8 @@ export default {
     "showPassword": "显示密码",
     "hidePassword": "隐藏密码",
     "reveal": "显示",
-    "hide": "隐藏"
+    "hide": "隐藏",
+    "clearSearch": "Clear search"
   },
   "state": {
     "loading": "加载中…",
@@ -67,7 +68,9 @@ export default {
         "description": "常用指标卡：一个主要聚合值，可选趋势徽标和迷你迷你图。"
       },
       "usageMeter": {
-        "description": "配额用量与上限的对比；超过所设阈值后，进度条会依次变为橙色和红色。"
+        "description": "配额用量与上限的对比；超过所设阈值后，进度条会依次变为橙色和红色。",
+        "usageLabel": "Usage",
+        "ofLabel": "of"
       },
       "statTileCompact": {
         "description": "纤薄的指标磁贴，含微型标签、趋势标记和 6 条迷你图——适合 4 至 6 个一行的密集布局。"
@@ -83,13 +86,17 @@ export default {
         "description": "用于分数或百分比的环形仪表，按数值所处区间着色。"
       },
       "gaugeArc": {
-        "description": "带定性区间和指针的速度表弧线；也可呈现仪表网格。"
+        "description": "带定性区间和指针的速度表弧线；也可呈现仪表网格。",
+        "emptyTitle": "No gauges to show",
+        "emptyBody": "Services appear here as gauges once there is a reading for them."
       },
       "periodComparison": {
         "description": "本期与上期以两条进度条对比，下方给出计算出的差值。",
         "higherLabel": "更高",
         "lowerLabel": "更低",
-        "flatLabel": "持平"
+        "flatLabel": "持平",
+        "periodALabel": "This period",
+        "periodBLabel": "Last period"
       },
       "microKpiSubtitle": {
         "description": "由模板生成的单行页眉统计，随实时状态重新计算。"
@@ -105,54 +112,250 @@ export default {
       "boxplot": {
         "description": "按类别汇总数值列分布的箱线图——最小值、四分位数、中位数和最大值。",
         "emptyTitle": "没有可绘制的分布",
-        "emptyBody": "没有符合筛选条件的行可用于箱线图。"
+        "emptyBody": "没有符合筛选条件的行可用于箱线图。",
+        "chartLabel": "Box plot"
       },
       "violin": {
         "description": "镜像密度曲线，比较数值列在各组之间的分布。",
         "emptyTitle": "没有可绘制的分布",
-        "emptyBody": "没有符合筛选条件的行可用于密度曲线。"
+        "emptyBody": "没有符合筛选条件的行可用于密度曲线。",
+        "chartLabel": "Violin plot"
       },
       "ridgeline": {
         "description": "重叠的密度山脊图，比较数值列在有序分组间的分布。",
         "emptyTitle": "没有可绘制的山脊",
-        "emptyBody": "没有符合筛选条件的行可用于密度曲线。"
+        "emptyBody": "没有符合筛选条件的行可用于密度曲线。",
+        "chartLabel": "Ridgeline"
       },
       "scatterBubble": {
         "description": "将两个数值列绘制为散点，可选气泡大小和趋势线。",
         "emptyTitle": "没有可绘制的散点",
-        "emptyBody": "没有符合筛选条件的行匹配所选列。"
+        "emptyBody": "没有符合筛选条件的行匹配所选列。",
+        "chartLabel": "Scatter plot"
       },
       "hexbin": {
         "description": "两个数值列的六边形密度图，按每格落入的行数着色。",
         "emptyTitle": "没有可绘制的密度",
-        "emptyBody": "没有符合筛选条件的行可供分箱。"
+        "emptyBody": "没有符合筛选条件的行可供分箱。",
+        "chartLabel": "Density hexbin"
       },
       "correlationMatrix": {
         "description": "所选数值列之间的皮尔逊相关性，从强正相关到强负相关。",
         "emptyTitle": "没有可计算的相关性",
-        "emptyBody": "请至少选择两个具有匹配行的数值列。"
+        "emptyBody": "请至少选择两个具有匹配行的数值列。",
+        "chartLabel": "Correlation matrix"
       },
       "parallelCoordinates": {
         "description": "将每条记录绘制为跨多个归一化数值轴的折线，按类别着色。",
         "emptyTitle": "没有可绘制的记录",
-        "emptyBody": "没有符合筛选条件的行覆盖所选各轴。"
+        "emptyBody": "没有符合筛选条件的行覆盖所选各轴。",
+        "chartLabel": "Parallel coordinates"
+      },
+      "unexpectedShape": "Unexpected data shape.",
+      "lineArea": {
+        "chartLabel": "Line chart",
+        "description": "A metric over time as a line with a soft area fill, with an optional dashed prior-period comparison."
+      },
+      "bar": {
+        "chartLabel": "Bar chart",
+        "description": "Categorical or time-bucketed values as vertical bars, with an optional highlight on the largest or current bar."
+      },
+      "donut": {
+        "chartLabel": "Donut chart",
+        "otherLabel": "Other",
+        "description": "Category shares as donut slices with a legend and centre total, folding small slices into an Other bucket."
+      },
+      "bullet": {
+        "chartLabel": "Bullet chart",
+        "description": "Progress toward a goal as a measure bar over qualitative bands, with a target tick per row.",
+        "emptyTitle": "No goals to track",
+        "emptyBody": "Add measures with targets to compare against."
+      },
+      "rankingBars": {
+        "chartLabel": "Ranking",
+        "description": "A top-N ranking as horizontal bars — the leader at full strength, the rest dimmed — with values alongside.",
+        "emptyTitle": "Nothing to rank",
+        "emptyBody": "No records matched this breakdown yet."
+      },
+      "pareto": {
+        "chartLabel": "Pareto chart",
+        "description": "Sorted category bars under a cumulative-percent line, with an optional 80% cutline.",
+        "emptyTitle": "No categories to chart",
+        "emptyBody": "No grouped counts were returned for this range."
+      },
+      "waterfall": {
+        "chartLabel": "Waterfall chart",
+        "description": "A floating-bar bridge from a start total through positive and negative steps to a net total.",
+        "emptyTitle": "No movement to bridge",
+        "emptyBody": "No start, change, or total steps were found."
+      },
+      "marimekko": {
+        "chartLabel": "Marimekko chart",
+        "description": "A two-level mix as variable-width stacked columns — width for the outer share, segments for the inner split.",
+        "emptyTitle": "No mix to break down",
+        "emptyBody": "No two-level breakdown was returned for this range."
+      },
+      "stackedBar100": {
+        "chartLabel": "100% stacked bar",
+        "description": "One 100% bar split into proportional segments with a legend, comparing shares of a whole.",
+        "emptyTitle": "No shares to split",
+        "emptyBody": "No parts were returned for this breakdown."
+      },
+      "slope": {
+        "chartLabel": "Slope chart",
+        "description": "Two periods joined by one line per record, coloured by whether the value rose or fell.",
+        "emptyTitle": "No period shift to show",
+        "emptyBody": "No before/after values were returned to compare."
+      },
+      "multiline": {
+        "chartLabel": "Multi-line chart",
+        "description": "Several series as overlaid lines with end labels, comparing trends over the same time span.",
+        "emptyTitle": "No series to plot",
+        "emptyBody": "No time series matched the filters for this range."
+      },
+      "stream": {
+        "chartLabel": "Stream chart",
+        "description": "Stacked bands flowing around a centre line, showing how a total's composition shifts over time.",
+        "emptyTitle": "No flow to chart",
+        "emptyBody": "No stacked series were returned for this range."
+      },
+      "forecast": {
+        "chartLabel": "Forecast chart",
+        "nowLabel": "Now",
+        "forecastLabel": "Forecast",
+        "actualLabel": "Actual",
+        "description": "A history line extended by a dashed projection inside a widening confidence band, split at a now divider.",
+        "emptyTitle": "No history to project",
+        "emptyBody": "No past points were returned to forecast from."
+      },
+      "anomaly": {
+        "chartLabel": "Anomaly chart",
+        "description": "A value line over its expected range, flagging points that fall outside it with halo dots.",
+        "emptyTitle": "No signal to scan",
+        "emptyBody": "No points were returned to check for anomalies."
+      },
+      "candlestick": {
+        "chartLabel": "Candlestick chart",
+        "livePillLabel": "Live",
+        "description": "Open-high-low-close candles coloured by direction, with a dashed last-price line and an optional live pill.",
+        "emptyTitle": "No candles to chart",
+        "emptyBody": "No open-high-low-close rows matched this range."
+      },
+      "bump": {
+        "chartLabel": "Bump chart",
+        "description": "Rank-over-time lines showing how competitors trade places between periods.",
+        "emptyTitle": "No ranks to trace",
+        "emptyBody": "No period-over-period rankings were returned."
+      },
+      "timelineLanes": {
+        "chartLabel": "Timeline lanes",
+        "laneLabel": "Events",
+        "description": "Dated events as pills on horizontal swimlanes sharing one time axis.",
+        "emptyTitle": "No events to place",
+        "emptyBody": "No events matched the filters for this range."
+      },
+      "treemap": {
+        "chartLabel": "Treemap",
+        "otherLabel": "Other",
+        "description": "A part-to-whole breakdown as squarified tiles sized by value, folding small slices into an Other tile.",
+        "emptyTitle": "No slices to tile",
+        "emptyBody": "No categories were returned for this breakdown."
+      },
+      "sunburst": {
+        "chartLabel": "Sunburst",
+        "description": "A two-level hierarchy as nested rings — parents inside, their children outside — with a parent legend.",
+        "emptyTitle": "No rings to draw",
+        "emptyBody": "No grouped categories were returned to nest."
+      },
+      "funnel": {
+        "chartLabel": "Funnel",
+        "description": "Ordered shrinking stages with per-step continuation rates and an overall-conversion footer.",
+        "emptyTitle": "No stages to funnel",
+        "emptyBody": "No step counts were returned for this range."
+      },
+      "radialBar": {
+        "chartLabel": "Radial bar",
+        "description": "Up to four percentages as concentric progress rings with a dot legend.",
+        "emptyTitle": "No rings to fill",
+        "emptyBody": "No categories matched this breakdown yet."
+      },
+      "radar": {
+        "chartLabel": "Radar",
+        "description": "Several named axes on a polygon with one filled shape per series, against an optional target overlay.",
+        "emptyTitle": "No axes to compare",
+        "emptyBody": "No matrix of series and axes was returned."
+      },
+      "chord": {
+        "chartLabel": "Chord",
+        "description": "Pairwise flows as ribbons between nodes on a ring, with ribbon opacity weighted by volume.",
+        "emptyTitle": "No flows to link",
+        "emptyBody": "No connections between groups were returned."
+      },
+      "wordcloud": {
+        "chartLabel": "Word cloud",
+        "description": "Terms sized by frequency and flowed into rows, for a glanceable view of what dominates.",
+        "emptyTitle": "No terms to cloud",
+        "emptyBody": "No weighted terms matched the filters."
+      },
+      "cohortMatrix": {
+        "chartLabel": "Cohort retention",
+        "description": "Cohort rows against period columns, each cell shaded by retention or revenue."
+      },
+      "heatmapCalendar": {
+        "chartLabel": "Activity calendar",
+        "legendLessLabel": "Less",
+        "legendMoreLabel": "More",
+        "description": "A year of daily activity as a week-by-day grid shaded by intensity."
+      },
+      "heatMonth": {
+        "chartLabel": "Monthly activity",
+        "description": "One calendar month as a day grid shaded by each day's value."
+      },
+      "choroplethGrid": {
+        "chartLabel": "Regional breakdown",
+        "legendLowLabel": "Low",
+        "legendHighLabel": "High",
+        "description": "Regional values as a tinted US tilegram or compact grid, with an optional top-N ranking list."
+      },
+      "sankey": {
+        "chartLabel": "Flow",
+        "description": "Layered source-to-target flows as ribbons whose thickness encodes volume."
+      },
+      "sparkline": {
+        "description": "An inline micro-trend of recent values — no axes or labels — for KPI cards, table cells and list rows."
       }
     },
     "feeds": {
       "activityFeed": {
         "description": "按时间倒序显示工作区中谁做了什么的动态信息流。",
         "emptyTitle": "暂无近期动态",
-        "emptyBody": "工作区中的操作将显示在这里。"
+        "emptyBody": "工作区中的操作将显示在这里。",
+        "viewAllLabel": "View all"
       },
       "notificationFeed": {
         "description": "带未读状态、筛选和内联操作的分组通知。",
         "emptyTitle": "暂无通知",
-        "emptyBody": "新通知将显示在这里。"
+        "emptyBody": "新通知将显示在这里。",
+        "allLabel": "All",
+        "unreadLabel": "Unread",
+        "mentionsLabel": "Mentions",
+        "filterLabel": "Notification filter",
+        "markAllReadLabel": "Mark all read",
+        "todayLabel": "Today",
+        "yesterdayLabel": "Yesterday",
+        "earlierLabel": "Earlier",
+        "dismissLabel": "Dismiss",
+        "emptyUnreadTitle": "You're all caught up",
+        "emptyMentionsTitle": "No mentions"
       },
       "realtimeFeed": {
         "description": "实时事件流，新条目到达时会置于顶部。",
         "emptyTitle": "正在等待事件",
-        "emptyBody": "实时事件将随发生实时显示。"
+        "emptyBody": "实时事件将随发生实时显示。",
+        "liveLabel": "Live",
+        "pausedLabel": "Paused",
+        "pauseLabel": "Pause",
+        "resumeLabel": "Resume"
       },
       "timelineVertical": {
         "description": "事件、发布、故障或执行步骤的垂直时间线。",
@@ -181,22 +384,41 @@ export default {
       "calendarMonth": {
         "description": "按月显示已排期事件的网格，含每日标签和月份导航。",
         "emptyTitle": "暂无排期",
-        "emptyBody": "已排期的事件将显示在此日历中。"
+        "emptyBody": "已排期的事件将显示在此日历中。",
+        "previousLabel": "Previous month",
+        "nextLabel": "Next month",
+        "overflowLabel": "+{count} more"
       },
       "dayAgenda": {
         "description": "所选日期的事件按时间排序的日程。",
         "emptyTitle": "暂无排期",
-        "emptyBody": "所选日期的事件将显示在此处。"
+        "emptyBody": "所选日期的事件将显示在此处。",
+        "countLabel": "{count, plural, other {{n} events}}"
       },
       "scheduleMatrix": {
         "description": "按资源和日期排列的班次网格，含每日覆盖情况和图例。",
         "emptyTitle": "暂无排班",
-        "emptyBody": "已分配的班次将显示在此排班表中。"
+        "emptyBody": "已分配的班次将显示在此排班表中。",
+        "resourceLabel": "Resource",
+        "coverageLabel": "Coverage",
+        "hoursLabel": "{hours}h"
       },
       "capacityBoard": {
         "description": "按成员显示利用率条，含项目细分和负载状态。",
         "emptyTitle": "暂无工作量数据",
-        "emptyBody": "有分配后，成员的利用率将显示在此处。"
+        "emptyBody": "有分配后，成员的利用率将显示在此处。",
+        "status": {
+          "overloaded": "Overloaded",
+          "balanced": "Balanced",
+          "available": "Available"
+        },
+        "utilizationLabel": "{name}: {util}%",
+        "assignmentLabel": "{project} · {hours}h",
+        "periodLabel": "h · {period}",
+        "period": {
+          "week": "week",
+          "month": "month"
+        }
       },
       "calendarLegendFilter": {
         "description": "带计数的事件类别；切换即可筛选旁边的日历。",
@@ -236,12 +458,28 @@ export default {
       "masterList": {
         "description": "可选择的记录列表，用于驱动详情面板。",
         "emptyTitle": "暂无条目",
-        "emptyBody": "条目存在后将显示在这里。"
+        "emptyBody": "条目存在后将显示在这里。",
+        "allLabel": "All",
+        "toggleLabel": "Toggle {title}",
+        "progressLabel": "{title} progress"
       },
       "logTable": {
         "description": "带搜索、错误筛选和行操作的追加式事件日志。",
         "emptyTitle": "暂无日志条目",
-        "emptyBody": "事件将随发生记录在这里。"
+        "emptyBody": "事件将随发生记录在这里。",
+        "liveLabel": "Live",
+        "placeholder": "Search logs…",
+        "filterLabel": "Log filter",
+        "allLabel": "All",
+        "errorsLabel": "Errors",
+        "noMatchesLabel": "No matching entries",
+        "todayLabel": "Today",
+        "yesterdayLabel": "Yesterday",
+        "action": {
+          "retry": "retry",
+          "download": "download",
+          "inspect": "inspect"
+        }
       },
       "cardGallery": {
         "description": "带状态和快捷操作的自适应实体卡片库。",
@@ -251,17 +489,23 @@ export default {
       "groupedSummaryTable": {
         "description": "带汇总列、可展开明细和合计的分组行。",
         "emptyTitle": "暂无汇总数据",
-        "emptyBody": "有数据后分组合计将显示在这里。"
+        "emptyBody": "有数据后分组合计将显示在这里。",
+        "groupLabel": "Group",
+        "totalsLabel": "Total"
       },
       "schemaTree": {
         "description": "带类型和键徽章的架构、表和列浏览器。",
         "emptyTitle": "尚未读取架构",
-        "emptyBody": "连接数据库即可在此浏览其架构。"
+        "emptyBody": "连接数据库即可在此浏览其架构。",
+        "treeLabel": "Schema",
+        "viewLabel": "view"
       },
       "toggleMatrix": {
         "description": "用于角色、策略或渠道的布尔开关交互网格。",
         "emptyTitle": "尚未配置矩阵",
-        "emptyBody": "配置后行和列将显示在这里。"
+        "emptyBody": "配置后行和列将显示在这里。",
+        "matrixLabel": "Permissions matrix",
+        "rowHeaderLabel": "Permission"
       },
       "sparklineTable": {
         "description": "指标行，包含迷你走势图、当前值和可区分好坏方向的变化标签。",
@@ -294,6 +538,40 @@ export default {
         "emptyTitle": "尚未发现内容",
         "emptyBody": "发现数据表和变量后，将以标签形式显示在这里。",
         "moreLabel": "还有 {n} 个"
+      },
+      "dataGrid": {
+        "selectAllLabel": "Select all rows",
+        "selectRowLabel": "Select row",
+        "sortByLabel": "Sort by {column}",
+        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells."
+      },
+      "paginationFooter": {
+        "emptyLabel": "0 rows",
+        "ofLabel": "of",
+        "pageSizeLabel": "Rows",
+        "a11y": {
+          "pageSize": "Rows per page"
+        },
+        "prevLabel": "Previous page",
+        "nextLabel": "Next page",
+        "description": "A footer with the visible row range, prev/next paging, and a page-size select."
+      },
+      "bulkActionToolbar": {
+        "selectedLabel": "selected",
+        "clearLabel": "Clear selection",
+        "toolbarLabel": "Bulk actions",
+        "description": "A selection-aware toolbar showing the selected count and bulk actions."
+      },
+      "miniTable": {
+        "viewAllLabel": "View all",
+        "description": "A compact dashboard row list with mapped columns and a view-all link."
+      },
+      "revealLabel": "Reveal value",
+      "hideLabel": "Hide value",
+      "trueLabel": "true",
+      "falseLabel": "false",
+      "detailKeyValue": {
+        "description": "A record's fields as label/value rows with type-aware values."
       }
     },
     "boards": {
@@ -347,7 +625,8 @@ export default {
         "composerPlaceholder": "输入消息…",
         "sendLabel": "发送",
         "attachLabel": "添加附件",
-        "typingLabel": "正在输入…"
+        "typingLabel": "正在输入…",
+        "composerLabel": "Message"
       },
       "aiChatPanel": {
         "description": "用于询问数据库结构和数据的助手面板。",
@@ -358,7 +637,9 @@ export default {
         "pendingLabel": "思考中…",
         "configureTitle": "尚未配置 AI 提供方",
         "configureBody": "添加 Anthropic 或 OpenAI 密钥，或将 Adminium 指向你自己的接口地址，即可询问数据库结构。",
-        "configureCtaLabel": "配置提供方"
+        "configureCtaLabel": "配置提供方",
+        "assistantLabel": "Assistant",
+        "composerLabel": "Ask a question"
       },
       "typingIndicator": {
         "description": "头像加斜体“正在输入…”行，绑定到每个会话的实时布尔值。",
@@ -395,7 +676,8 @@ export default {
         "emptyTitle": "没有区域",
         "emptyBody": "包含区域代码和数值的行会在这里显示为着色方块。",
         "legendLowLabel": "低",
-        "legendHighLabel": "高"
+        "legendHighLabel": "高",
+        "chartLabel": "Regional breakdown"
       }
     },
     "domain": {
@@ -423,7 +705,9 @@ export default {
         "blockListLabel": "文档区块",
         "billedToLabel": "开票给",
         "issuedLabel": "开具日期",
-        "dueLabel": "到期日"
+        "dueLabel": "到期日",
+        "noDocumentTitle": "No document yet",
+        "noDocumentBody": "Pick a starter template or add a block to begin."
       },
       "blockTotalsSummary": {
         "description": "文档合计：小计、折扣、税费和应付总额，均根据明细行重新计算。",
@@ -451,12 +735,14 @@ export default {
       "blockBarChart": {
         "description": "采用文档强调色的迷你柱状图，尺寸适配文档区块。",
         "emptyTitle": "暂无绘图数据",
-        "emptyBody": "报告包含数据系列后，柱形将显示在此处。"
+        "emptyBody": "报告包含数据系列后，柱形将显示在此处。",
+        "a11yLabel": "Bar chart"
       },
       "blockLineChart": {
         "description": "迷你折线图，可选填充区域，尺寸适配文档区块。",
         "emptyTitle": "暂无绘图数据",
-        "emptyBody": "报告包含数据系列后，折线将显示在此处。"
+        "emptyBody": "报告包含数据系列后，折线将显示在此处。",
+        "a11yLabel": "Line chart"
       },
       "blockTwoColTable": {
         "description": "两列表格，首行为样式化表头，右列使用等宽字体。",
@@ -514,7 +800,8 @@ export default {
         "emptyBody": "文档指定签署人后，签名栏将显示在此处。",
         "namePlaceholder": "姓名",
         "titlePlaceholder": "职务",
-        "dateLabel": "日期"
+        "dateLabel": "日期",
+        "nameInputLabel": "Signature name"
       },
       "blockTermsCheckbox": {
         "description": "条款勾选框，标签可编辑。",
@@ -559,77 +846,159 @@ export default {
       "starterTemplatePicker": {
         "description": "预设模板网格，附带生成的缩略图；选中后即可创建完整文档。",
         "emptyTitle": "暂无模板",
-        "emptyBody": "请在配置中定义模板，或绑定模板表。"
+        "emptyBody": "请在配置中定义模板，或绑定模板表。",
+        "blankLabel": "Blank",
+        "kicker": {
+          "invoice": "Invoice",
+          "report": "Report",
+          "email": "Email"
+        }
       },
       "sloMonitorCard": {
         "description": "按服务显示的 SLA 卡片，包含状态、相对目标的可用率、每日在线状态条、错误预算和 p95 延迟。",
         "emptyTitle": "暂无监控",
-        "emptyBody": "请绑定含状态列和可用率列的监控表。"
+        "emptyBody": "请绑定含状态列和可用率列的监控表。",
+        "targetLabel": "Target",
+        "budgetLabel": "Error budget",
+        "latencyLabel": "p95 latency",
+        "status": {
+          "operational": "Operational",
+          "degraded": "Degraded",
+          "down": "Down",
+          "unknown": "Unknown"
+        }
       },
       "uptimeSegmentBar": {
         "description": "状态页风格的每日状态条，按当日状态着色，可在 30 天和 90 天之间切换。",
         "emptyTitle": "暂无在线记录",
-        "emptyBody": "每日状态数据将在此显示为在线状态条。"
+        "emptyBody": "每日状态数据将在此显示为在线状态条。",
+        "daysAgoLabel": "{days} days ago",
+        "todayLabel": "Today",
+        "uptimeLabel": "uptime",
+        "period30Label": "30d",
+        "period90Label": "90d",
+        "status": {
+          "operational": "Operational",
+          "degraded": "Degraded",
+          "down": "Down",
+          "unknown": "No data"
+        }
       },
       "experimentVariantCompare": {
         "description": "按变体显示的转化条，含相对对照组的提升幅度和显著性指示器。",
         "emptyTitle": "暂无变体",
-        "emptyBody": "请绑定含转化数据的实验变体表。"
+        "emptyBody": "请绑定含转化数据的实验变体表。",
+        "controlLabel": "CONTROL",
+        "winnerLabel": "WINNER",
+        "significanceLabel": "Confidence",
+        "verdictSignificantLabel": "Statistically significant — safe to call.",
+        "verdictInconclusiveLabel": "Not yet significant — keep the test running.",
+        "countsLabel": "{users} participants · {conversions} conversions"
       },
       "creditCardTile": {
         "description": "已保存的支付方式，以品牌卡片形式显示掩码卡号、持卡人和有效期。",
         "emptyTitle": "暂无支付方式",
-        "emptyBody": "添加银行卡后即可在此查看。"
+        "emptyBody": "添加银行卡后即可在此查看。",
+        "defaultLabel": "Default",
+        "setDefaultLabel": "Set default",
+        "manageLabel": "Manage",
+        "addLabel": "Add payment method",
+        "expiresLabel": "Expires"
       },
       "planPricingCards": {
         "description": "套餐档位，含按月/按年切换、功能清单和重点推荐套餐。",
         "emptyTitle": "暂无套餐",
-        "emptyBody": "请绑定含名称和月度价格的套餐表。"
+        "emptyBody": "请绑定含名称和月度价格的套餐表。",
+        "monthlyLabel": "Monthly",
+        "annualLabel": "Annual",
+        "popularLabel": "POPULAR",
+        "perMonthLabel": "/ month",
+        "billedAnnuallyLabel": "Billed {total} yearly",
+        "currentLabel": "Current plan",
+        "ctaLabel": "Choose plan"
       },
       "apiKeysPanel": {
         "description": "API 密钥列表，含环境标记、掩码值、权限范围、最近使用时间，以及复制、轮换和吊销操作。",
         "emptyTitle": "暂无 API 密钥",
-        "emptyBody": "创建密钥后即可开始调用 API。"
+        "emptyBody": "创建密钥后即可开始调用 API。",
+        "revealedTitle": "Key created",
+        "revealedBody": "Copy it now — it is never shown again.",
+        "copyLabel": "Copy",
+        "copiedLabel": "Copied",
+        "revealLabel": "Reveal key",
+        "hideLabel": "Hide key",
+        "rollLabel": "Roll key",
+        "revokeLabel": "Revoke key",
+        "neverUsedLabel": "Never used",
+        "lastUsedLabel": "Last used {since}"
       },
       "apiPlayground": {
         "description": "请求编辑器，含参数和响应面板。仅用于构造请求，绝不会真正发送。",
         "emptyTitle": "未选择接口",
-        "emptyBody": "请选择一个接口以构造针对它的请求。"
+        "emptyBody": "请选择一个接口以构造针对它的请求。",
+        "sendLabel": "Send",
+        "requestLabel": "Request",
+        "responseLabel": "Response",
+        "paramsLabel": "Parameters",
+        "responsePlaceholder": "Send the request to see the response."
       },
       "codeSnippetBlock": {
         "description": "可复制的代码片段，含语言标记和可选的分语言标签页。",
         "emptyTitle": "暂无代码片段",
-        "emptyBody": "请绑定代码列，或在配置中设置静态代码片段。"
+        "emptyBody": "请绑定代码列，或在配置中设置静态代码片段。",
+        "copyLabel": "Copy",
+        "copiedLabel": "Copied"
       },
       "webhookEndpointsList": {
         "description": "Webhook 接口列表，含事件、目标网址、最近触发时间和启用开关。",
         "emptyTitle": "暂无接口",
-        "emptyBody": "添加 Webhook 接口以接收数据表事件。"
+        "emptyBody": "添加 Webhook 接口以接收数据表事件。",
+        "neverFiredLabel": "Never fired",
+        "lastFiredLabel": "Last fired {since}"
       },
       "resourceApiCard": {
         "description": "数据表生成的 API 接口：行数、安全标记、方法标签和请求量。",
         "emptyTitle": "暂无资源",
-        "emptyBody": "请绑定数据表以显示其生成的 API 接口。"
+        "emptyBody": "请绑定数据表以显示其生成的 API 接口。",
+        "rlsLabel": "RLS",
+        "publicLabel": "Public",
+        "rowsLabel": "rows",
+        "perDayLabel": "{count}/day"
       },
       "liveTimer": {
         "description": "任务用的启停秒表；停止后会自动记录一条工时。",
         "emptyTitle": "暂无计时器",
-        "emptyBody": "请绑定含任务和时长列的工时记录行。"
+        "emptyBody": "请绑定含任务和时长列的工时记录行。",
+        "startLabel": "Start",
+        "stopLabel": "Stop",
+        "taskPlaceholder": "Untitled task"
       },
       "syncStatusCard": {
         "description": "连接标识、延迟、已同步行数和同步计划，并提供立即同步操作。",
         "emptyTitle": "暂无连接",
-        "emptyBody": "请绑定连接行以显示其同步状态。"
+        "emptyBody": "请绑定连接行以显示其同步状态。",
+        "connectedLabel": "Connected",
+        "disconnectedLabel": "Disconnected",
+        "rowsSyncedLabel": "Rows synced",
+        "tablesLabel": "Tables",
+        "lastSyncLabel": "Last sync",
+        "nextSyncLabel": "Next sync",
+        "syncingLabel": "Syncing…",
+        "syncActionLabel": "Sync now"
       },
       "ipAllowlistCard": {
         "description": "需要在防火墙中放行的固定出口 IP 地址，每项均带复制按钮。",
         "emptyTitle": "暂无出口 IP",
-        "emptyBody": "连接开通后，出口地址将在此显示。"
+        "emptyBody": "连接开通后，出口地址将在此显示。",
+        "copyLabel": "Copy",
+        "copiedLabel": "Copied"
       },
       "onboardingChecklist": {
         "description": "配置步骤，含预计用时和操作按钮，上方为实时重算的进度环和进度条。",
         "emptyTitle": "暂无待办事项",
-        "emptyBody": "请在配置中添加引导步骤，或绑定步骤表。"
+        "emptyBody": "请在配置中添加引导步骤，或绑定步骤表。",
+        "progressLabel": "{done} of {total} done",
+        "celebrateTitle": "All done"
       },
       "testimonialCard": {
         "description": "客户评价，含头像和署名。",
@@ -672,7 +1041,8 @@ export default {
       "imageBoard": {
         "description": "带标题的图片位灵感板网格，适用于含图片 URL 的表。",
         "emptyTitle": "暂无图片",
-        "emptyBody": "参考图片将显示在此板上。"
+        "emptyBody": "参考图片将显示在此板上。",
+        "placeholder": "Drop reference"
       },
       "linkList": {
         "description": "带标题和网址的参考链接，在新标签页中打开。",
@@ -712,13 +1082,17 @@ export default {
         "done": "完成",
         "successTitle": "记录已创建",
         "successBody": "记录已保存。",
-        "required": "此字段为必填项。"
+        "required": "此字段为必填项。",
+        "titleLabel": "Create record",
+        "closeLabel": "Close"
       },
       "drawerForm": {
         "description": "用于字段较多记录的侧边抽屉创建或编辑表单。",
         "trigger": "新建",
         "submit": "保存",
-        "cancel": "取消"
+        "cancel": "取消",
+        "titleLabel": "New record",
+        "closeLabel": "Close"
       },
       "stepper": {
         "description": "显示多步流程进展的步骤指示器。",
@@ -768,7 +1142,23 @@ export default {
         "operator": "运算符",
         "value": "值",
         "valuePlaceholder": "值…",
-        "emptyBody": "尚无条件——添加一个来定义此分群。"
+        "emptyBody": "尚无条件——添加一个来定义此分群。",
+        "op": {
+          "eq": "is",
+          "neq": "is not",
+          "gt": "is greater than",
+          "gte": "is at least",
+          "lt": "is less than",
+          "lte": "is at most",
+          "contains": "contains",
+          "not-contains": "does not contain",
+          "starts-with": "starts with",
+          "in": "is one of",
+          "before": "is before",
+          "after": "is after",
+          "is-null": "is empty",
+          "is-not-null": "is not empty"
+        }
       },
       "flowBuilder": {
         "description": "由触发器、条件和动作步骤组成的纵向工作流画布。",
@@ -833,14 +1223,27 @@ export default {
         "required": "必填",
         "questionPlaceholder": "输入题目…",
         "emptyTitle": "尚无题目",
-        "emptyBody": "选择一种题型，开始搭建您的问卷。"
+        "emptyBody": "选择一种题型，开始搭建您的问卷。",
+        "questionLabel": "Question",
+        "dropdownPlaceholder": "Choose…",
+        "kind": {
+          "single-choice": "Single choice",
+          "multi-choice": "Multiple choice",
+          "dropdown": "Dropdown",
+          "short-text": "Short text",
+          "long-text": "Long text",
+          "rating": "Star rating",
+          "nps": "NPS 0–10",
+          "date": "Date"
+        }
       },
       "inlineEditableField": {
         "description": "文档或画布中可点击编辑的值。",
         "edit": "编辑",
         "save": "保存",
         "cancel": "取消",
-        "empty": "空"
+        "empty": "空",
+        "valueLabel": "Value"
       },
       "passwordStrengthMeter": {
         "description": "显示密码强度的四段式指示器。",
@@ -865,7 +1268,7 @@ export default {
         "navigate": "导航",
         "select": "打开",
         "close": "关闭",
-        "emptyTitle": "无结果",
+        "emptyTitle": "No results for \"{query}\"",
         "emptyBody": "开始输入以搜索。",
         "groupActions": "操作",
         "groupNavigate": "导航",
@@ -881,7 +1284,9 @@ export default {
         "all": "全部",
         "summary": "“{query}”的 {count} 条结果",
         "emptyTitle": "无结果",
-        "emptyBody": "请尝试其他搜索词。"
+        "emptyBody": "请尝试其他搜索词。",
+        "searchLabel": "Search",
+        "facetRailLabel": "Filter by type"
       },
       "breadcrumb": {
         "description": "当前记录或文件夹的层级路径。",
@@ -900,11 +1305,23 @@ export default {
         "description": "键盘快捷键速查表。",
         "footerHint": "随时按 ?",
         "then": "然后",
-        "emptyTitle": "未注册任何快捷键。"
+        "emptyTitle": "未注册任何快捷键。",
+        "generalGroupLabel": "General",
+        "navigationGroupLabel": "Navigation",
+        "recordsGroupLabel": "Records",
+        "openCommandPaletteLabel": "Open command palette",
+        "searchLabel": "Search",
+        "showShortcutsLabel": "Show shortcuts",
+        "goToDashboardLabel": "Go to dashboard",
+        "goToOrdersLabel": "Go to orders",
+        "newRecordLabel": "New record",
+        "saveLabel": "Save",
+        "undoLabel": "Undo"
       },
       "avatarStack": {
         "description": "带“+N”溢出和可选在线状态的重叠头像。",
-        "online": "{count} 人在线"
+        "online": "{count} 人在线",
+        "a11yLabel": "People"
       }
     },
     "system": {
@@ -977,6 +1394,12 @@ export default {
         "tls": "TLS",
         "auth": "认证",
         "latency": "延迟"
+      },
+      "widgetMissing": {
+        "description": "The fallback card shown when a stored page references a widget that is not installed.",
+        "title": "Widget unavailable",
+        "bodyLead": "No widget is registered as",
+        "bodyTail": "It may belong to a newer version or an uninstalled extension."
       }
     }
   },
@@ -989,6 +1412,351 @@ export default {
       "resized": "{title} 已调整为 {w} 列 × {h} 行。",
       "committed": "{title} 已放置在第 {col} 列，第 {row} 行。",
       "reverted": "{title} 已返回原始位置。"
+    },
+    "draggableRole": "draggable widget"
+  },
+  "templates": {
+    "crud": {
+      "newRow": "New row",
+      "exportAction": "Export",
+      "searchPlaceholder": "Search {table}…",
+      "removeFilter": "Remove {column} filter",
+      "queryFailed": "Query failed",
+      "loadingRows": "Loading rows",
+      "noMatchesTitle": "No matching rows",
+      "emptyTitle": "{count, plural, other {No {entity}s yet}}",
+      "createTitle": "Add {entity}",
+      "createSubtitle": "Creates one row in {table}.",
+      "createSubmit": "Add {entity}",
+      "createSuccessTitle": "{name} added",
+      "createSuccessBody": "You can undo this from the toast.",
+      "editTitle": "Edit {entity}",
+      "saveSubmit": "Save changes",
+      "deleteTitle": "Delete {entity}",
+      "deletePreflight": "Checking references…",
+      "deleteNoReferences": "This row has no inbound references.",
+      "deleteConsequencesIntro": "Deleting this row also affects:",
+      "referenceRows": "{count, plural, other {{n} rows}}",
+      "confirmPrompt": "Type {value} to confirm",
+      "bulkDeleteTitle": "{count, plural, other {Delete {n} rows}}",
+      "bulkDeleteBody": "Referential consequences apply to every selected row.",
+      "bulkDeleteConfirm": "Delete rows",
+      "uniqueHelper": "Must be unique in {table}.",
+      "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}",
+      "toast": {
+        "created": "{entity} created.",
+        "createFailed": "Create failed.",
+        "saved": "Changes saved.",
+        "updateFailed": "Update failed.",
+        "deleted": "{name} deleted.",
+        "deleteFailed": "Delete failed.",
+        "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
+        "bulkDeleteFailed": "Bulk delete failed.",
+        "undone": "Change undone.",
+        "undoFailed": "Undo failed."
+      },
+      "detail": {
+        "fields": "Fields",
+        "inboundReferences": "inbound references",
+        "relatedCount": "{count, plural, other {{n} related records in {table}}}",
+        "loadError": "Failed to load the record."
+      }
+    },
+    "queue": {
+      "allSegment": "All",
+      "daysUnit": "{count, plural, other {{count} days}}",
+      "approvedToast": "{count} approved.",
+      "rejectedToast": "{count} rejected.",
+      "undoneToast": "Decision undone.",
+      "undoFailedToast": "Could not undo this decision.",
+      "failedToast": "Decision failed.",
+      "invalidConfig": "This queue’s stored configuration is invalid. Regenerate the page to restore it.",
+      "queueLabel": "Queue",
+      "statusFilterLabel": "Status filter",
+      "errorTitle": "This queue failed to load",
+      "loading": "Loading queue",
+      "emptyTitle": "Nothing in the queue",
+      "emptyBody": "New requests appear here as they arrive.",
+      "caughtUpTitle": "You're all caught up",
+      "caughtUpBody": "No requests in this tab right now.",
+      "selectItem": "Select {title}",
+      "selectPrompt": "Select a request",
+      "selectBody": "Choose an item to review its details.",
+      "rejectTitle": "Reject requests",
+      "rejectCount": "Selected · {count}",
+      "rejectPlaceholder": "Add a note for the requester…",
+      "rejectReasonLabel": "Rejection reason",
+      "rejectNote": "The requester will be notified with your note."
+    },
+    "dashboard": {
+      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout."
+    },
+    "builder": {
+      "publish": "Publish",
+      "paletteTitle": "Blocks",
+      "inspectorTitle": "Inspector",
+      "startFromTemplate": "Start from a template",
+      "untitledDoc": "Untitled document",
+      "invalidConfig": "This builder page’s stored config is invalid. Regenerate the page or reset it.",
+      "starterPicker": {
+        "subtitle": "Selection replaces the current draft."
+      },
+      "inspector": {
+        "titleLabel": "Title",
+        "numberLabel": "Number",
+        "currencyLabel": "Currency",
+        "taxRateLabel": "Tax rate %",
+        "modulesLabel": "Modules"
+      },
+      "summary": {
+        "questions": "Questions",
+        "estLength": "Est. length",
+        "estMinutes": "~{minutes} min",
+        "steps": "Steps",
+        "triggers": "Triggers",
+        "conditions": "Conditions",
+        "actions": "Actions",
+        "triggerLocked": "The trigger step can’t be removed."
+      },
+      "publishModal": {
+        "confirmTitle": "Publish survey?",
+        "confirmSubtitle": "Review before it goes live.",
+        "confirmCta": "Publish survey",
+        "publishedTitle": "Survey published",
+        "publishedSubtitle": "Your survey is live and collecting responses right now."
+      },
+      "blocks": {
+        "block-totals-summary": "Totals summary",
+        "block-line-items": "Line items",
+        "block-kpi-row": "KPI row",
+        "block-bar-chart": "Bar chart",
+        "block-line-chart": "Line chart",
+        "block-two-col-table": "Two-column table",
+        "block-tax-breakdown": "Tax breakdown",
+        "block-multi-currency": "Multi-currency",
+        "block-payment-history": "Payment history",
+        "block-discount-codes": "Discount codes",
+        "block-loyalty-banner": "Loyalty points",
+        "block-recurring-banner": "Recurring",
+        "block-qr-pay": "Payment QR",
+        "block-delivery-stepper": "Delivery timeline",
+        "block-signature": "Signature",
+        "block-terms-checkbox": "Terms",
+        "block-approval": "Approval",
+        "block-attachments": "Attachments",
+        "block-late-fees": "Late fees",
+        "block-image-placeholder": "Image",
+        "block-contact": "Contact",
+        "block-highlight-box": "Highlight box"
+      },
+      "starters": {
+        "titles": {
+          "st-standard": "Standard invoice",
+          "st-recurring": "Recurring subscription",
+          "st-deposit": "Deposit request",
+          "st-credit-note": "Credit note",
+          "st-late-reminder": "Late-payment reminder",
+          "st-quote": "Quote / estimate",
+          "st-proforma": "Pro forma",
+          "st-receipt": "Payment receipt",
+          "st-retainer": "Retainer",
+          "st-usage": "Usage-based invoice",
+          "st-milestone": "Project milestone",
+          "st-donation": "Donation receipt (Tax ID)",
+          "st-monthly": "Monthly summary",
+          "st-quarterly": "Quarterly review",
+          "st-usage-report": "Usage breakdown",
+          "st-exec": "Executive one-pager",
+          "st-welcome": "Welcome email",
+          "st-receipt-email": "Invoice receipt",
+          "st-digest": "Weekly digest",
+          "st-dunning": "Payment reminder"
+        },
+        "categories": {
+          "billing": "Billing",
+          "sales": "Sales",
+          "nonProfit": "Non-profit",
+          "reports": "Reports",
+          "lifecycle": "Lifecycle",
+          "transactional": "Transactional",
+          "marketing": "Marketing"
+        }
+      }
+    },
+    "common": {
+      "clearFilters": "Clear filters",
+      "noMatchesBody": "Try a different search or remove a filter.",
+      "detailLabel": "Detail",
+      "loadingRecord": "Loading record"
+    },
+    "directory": {
+      "invalidConfig": "This directory’s stored configuration is invalid. Regenerate the page to restore it.",
+      "searchPlaceholder": "Search people…",
+      "memberCount": "{count, plural, other {{n} people}}",
+      "errorTitle": "This directory failed to load",
+      "loading": "Loading people",
+      "emptyTitle": "No people yet",
+      "emptyBody": "People appear here as rows land in the table.",
+      "noMatchesTitle": "No matching people",
+      "detailTitle": "Person"
+    },
+    "masterDetail": {
+      "invalidConfig": "This page’s stored configuration is invalid. Regenerate the page to restore it.",
+      "railTitle": "Records",
+      "errorTitle": "This list failed to load",
+      "loading": "Loading records",
+      "emptyBody": "Records appear here as rows land in the table.",
+      "noMatchesTitle": "No matching records",
+      "noMatchesBody": "Try removing a filter.",
+      "selectPrompt": "Select a record",
+      "selectBody": "Choose an item from the list to see its details."
+    },
+    "chat": {
+      "invalidLayout": "This chat page’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "noInboxTitle": "No inbox on this page",
+      "noInboxBody": "Regenerate the page.",
+      "conversationsFailed": "The conversation query failed",
+      "messagesFailed": "The messages query failed",
+      "loadingConversations": "Loading conversations",
+      "loadingMessages": "Loading messages",
+      "selectTitle": "Select a conversation",
+      "selectBody": "Pick a conversation from the inbox to read its messages."
+    },
+    "files": {
+      "allFiles": "All files",
+      "recent": "Recent",
+      "starred": "Starred",
+      "invalidLayout": "This files page’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "missingSlotTitle": "No file browser on this page",
+      "missingSlotBody": "The stored layout has no browser slot. Regenerate the page.",
+      "loadFailed": "The file query failed",
+      "loading": "Loading files",
+      "uploadsUnavailable": "Uploads are not available on this page yet.",
+      "previewTitle": "File",
+      "kindLabel": "Kind",
+      "linkLabel": "Link"
+    },
+    "logViewer": {
+      "invalidLayout": "This log page’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "levelFilterLabel": "Log level filter",
+      "timeFilterLabel": "Time window filter",
+      "window": {
+        "1h": "1h",
+        "24h": "24h",
+        "7d": "7d"
+      },
+      "heldCount": "+{count}",
+      "missingSlotTitle": "No log widget on this page",
+      "missingSlotBody": "The stored layout has no log slot. Regenerate the page.",
+      "loadFailed": "The log query failed",
+      "loading": "Loading log entries",
+      "traceTitle": "Trace",
+      "latestTitle": "Latest activity",
+      "backToLatest": "Back to latest",
+      "eventFallback": "Event"
+    },
+    "calendar": {
+      "eventCount": "{count, plural, other {{n} events}}",
+      "composePlaceholder": "Event title…",
+      "addEvent": "Add event",
+      "dateRange": "Date range",
+      "agendaTitle": "Agenda",
+      "categoriesTitle": "Categories",
+      "upcomingTitle": "Upcoming",
+      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout."
+    },
+    "scheduler": {
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
+      "week": "Week",
+      "month": "Month",
+      "invalidLayout": "This schedule’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "shiftCount": "{count, plural, other {{n} shifts}}",
+      "addShift": "Add shift"
+    },
+    "settings": {
+      "title": "Notification settings",
+      "subtitle": "Choose what you're notified about and how",
+      "matrixLabel": "Notify me about",
+      "rowHeader": "Event",
+      "saved": "Saved",
+      "unavailableTag": "Not available yet",
+      "loading": "Loading preferences",
+      "errorTitle": "These settings failed to load",
+      "emptyTitle": "Nothing to configure yet",
+      "emptyBody": "Notification events appear here as producers ship."
+    },
+    "pageCrud": {
+      "description": "The canonical table page: searchable data grid, create/edit forms, safe deletes with reference checks, and undoable changes."
+    },
+    "pageDashboard": {
+      "description": "A widget dashboard over your data: KPI cards, charts, and lists on an editable grid."
+    },
+    "pageBoard": {
+      "description": "A kanban board grouped by a status field — drag cards between columns to update records."
+    },
+    "pageCalendar": {
+      "description": "A month calendar with agenda, category filters, and quick event capture from a date field."
+    },
+    "pageScheduler": {
+      "description": "A week-by-resource shift matrix with capacity tracking and coverage totals."
+    },
+    "pageDirectory": {
+      "description": "A people directory with search, group filters, and a profile drawer."
+    },
+    "pageMasterDetail": {
+      "description": "A list-beside-detail layout: pick a record on the left, work with it on the right."
+    },
+    "pageQueueInbox": {
+      "description": "A review queue with approve/reject decisions, bulk actions, and undo."
+    },
+    "pageLogViewer": {
+      "description": "A live-tailing log table with level and time filters and a trace side panel."
+    },
+    "pageFiles": {
+      "description": "A file browser with smart folders, uploads, and a preview drawer."
+    },
+    "pageChat": {
+      "description": "A conversation inbox beside a message thread, bound to your messages tables."
+    },
+    "pageBuilder": {
+      "description": "A drag-and-drop document builder with block palette, inspector, and publish flow."
+    },
+    "pageWizard": {
+      "description": "A multi-step guided flow that walks users through a structured process."
+    },
+    "pageSettings": {
+      "description": "A notification-preferences matrix with per-channel toggles and autosave."
+    }
+  },
+  "frame": {
+    "noResult": "No result for widget",
+    "emptyTitle": "No data for range",
+    "loadError": "Something went wrong loading this widget.",
+    "renderError": "This widget failed to render.",
+    "refreshing": "Refreshing",
+    "infoLabel": "Widget info",
+    "menuLabel": "Widget menu"
+  },
+  "charts": {
+    "livePillLabel": "Live",
+    "forecast": {
+      "nowLabel": "Now",
+      "forecastLabel": "Forecast",
+      "actualLabel": "Actual"
+    },
+    "otherLabel": "Other",
+    "heat": {
+      "lessLabel": "Less",
+      "moreLabel": "More"
+    },
+    "choropleth": {
+      "lowLabel": "Low",
+      "highLabel": "High"
+    },
+    "funnel": {
+      "stepConversion": "{pct}% continue",
+      "overallConversion": "{pct}% overall"
     }
   }
 } as const;
