@@ -7,7 +7,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createI18n, switchLocale, type I18nInstance } from './create-i18n.js';
-import { I18nProvider, useFmt, useLocale, useRtl, useT } from './react.js';
+import { I18nProvider, useFmt, useLocale, useMaybeT, useRtl, useT } from './react.js';
 
 function Probe() {
   const t = useT();
@@ -59,5 +59,37 @@ describe('I18nProvider bindings', () => {
     expect(screen.getByTestId('title').textContent).toBe('Konto');
     expect(screen.getByTestId('locale').textContent).toBe('de_DE');
     expect(screen.getByTestId('number').textContent).toBe('1.234,5');
+  });
+});
+
+function MaybeProbe() {
+  const t = useMaybeT();
+  return (
+    <div>
+      <p data-testid="maybe-title">{t('account.title', 'fallback-title')}</p>
+      <p data-testid="maybe-icu">{t('no.such.key', '{count, plural, one {# card} other {# cards}}', { count: 2 })}</p>
+      <p data-testid="maybe-arg">{t('no.such.key', 'Moved {title}.', { title: 'Invoice' })}</p>
+    </div>
+  );
+}
+
+describe('useMaybeT', () => {
+  afterEach(cleanup);
+
+  it('binds to the provider when present', async () => {
+    const i18n = await createI18n({ locale: 'en_US', loadBundle: async () => null });
+    render(
+      <I18nProvider i18n={i18n}>
+        <MaybeProbe />
+      </I18nProvider>,
+    );
+    expect(screen.getByTestId('maybe-title').textContent).toBe('Account');
+  });
+
+  it('ICU-formats the English fallback outside a provider instead of throwing', () => {
+    render(<MaybeProbe />);
+    expect(screen.getByTestId('maybe-title').textContent).toBe('fallback-title');
+    expect(screen.getByTestId('maybe-icu').textContent).toBe('2 cards');
+    expect(screen.getByTestId('maybe-arg').textContent).toBe('Moved Invoice.');
   });
 });
