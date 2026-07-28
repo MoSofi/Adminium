@@ -6,6 +6,7 @@
  * so a report worker rasterizes the identical layout (04 §7.1/§7.6).
  */
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { mirrorTiles, treemapTiles } from '../geometry/treemap.js';
 import type { TreemapInput } from '../geometry/treemap.js';
@@ -35,7 +36,7 @@ export function Treemap({
   labels,
   height = 260,
   maxTiles,
-  otherLabel = 'Other',
+  otherLabel,
   labelMinWidth = 48,
   labelMinHeight = 26,
   format = formatCompact,
@@ -43,6 +44,9 @@ export function Treemap({
   a11yFallback,
   className,
 }: TreemapChartProps) {
+  const t = useMaybeT();
+  // Threaded into the geometry's trailing "Other" tile label (shared primitive key).
+  const resolvedOtherLabel = otherLabel ?? t('ui:charts.otherLabel', 'Other');
   return (
     <ChartSurface
       labels={labels}
@@ -58,7 +62,7 @@ export function Treemap({
           width: innerWidth,
           height: innerHeight,
           ...(maxTiles !== undefined ? { maxTiles } : {}),
-          otherLabel,
+          otherLabel: resolvedOtherLabel,
         });
         const tiles = rtl ? mirrorTiles(laidOut, innerWidth) : laidOut;
 

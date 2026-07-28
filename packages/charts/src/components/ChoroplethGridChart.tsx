@@ -7,6 +7,7 @@
  * mirrors columns in RTL (04 §7.4).
  */
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { choroplethLayout } from '../geometry/choropleth.js';
 import type { ChoroplethLayoutKind, RegionPoint } from '../geometry/choropleth.js';
@@ -40,7 +41,7 @@ export function ChoroplethGridChart({
   columns = 6,
   levels = 5,
   cellSize = 34,
-  legendLabels = { low: 'Low', high: 'High' },
+  legendLabels,
   format = String,
   dir,
   a11yFallback,
@@ -48,6 +49,11 @@ export function ChoroplethGridChart({
 }: ChoroplethGridChartProps) {
   const resolvedDir = useChartDir(dir);
   const mounted = useMountAnimation();
+  const t = useMaybeT();
+  const resolvedLegendLabels = legendLabels ?? {
+    low: t('ui:charts.choropleth.lowLabel', 'Low'),
+    high: t('ui:charts.choropleth.highLabel', 'High'),
+  };
   const rtl = resolvedDir === 'rtl';
 
   const geo = choroplethLayout(points, { metric, layout, columns, levels, cellSize, rtl });
@@ -104,7 +110,7 @@ export function ChoroplethGridChart({
         {/* Low → High legend. */}
         <g transform={`translate(0, ${geo.height + 8})`}>
           <text className="adm-chart-axis-label" x={0} y={11} textAnchor="start">
-            {legendLabels.low}
+            {resolvedLegendLabels.low}
           </text>
           {Array.from({ length: levels }, (_, level) => (
             <rect
@@ -118,7 +124,7 @@ export function ChoroplethGridChart({
             />
           ))}
           <text className="adm-chart-axis-label" x={30 + levels * 16 + 4} y={11} textAnchor="start">
-            {legendLabels.high}
+            {resolvedLegendLabels.high}
           </text>
         </g>
       </svg>

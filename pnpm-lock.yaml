@@ -474,6 +474,9 @@ importers:
 
   packages/charts:
     dependencies:
+      '@adminium/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@adminium/tokens':
         specifier: workspace:*
         version: link:../tokens

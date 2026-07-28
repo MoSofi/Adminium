@@ -5,6 +5,7 @@
  * footer legend follows reading direction. Colors from the viz palette only.
  */
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { confidenceBandPath } from '../geometry/forecast.js';
 import { linePath } from '../geometry/lineArea.js';
@@ -52,14 +53,18 @@ export function ForecastChart({
   labels,
   height = 260,
   showAxis = true,
-  nowLabel = 'Now',
-  forecastLabel = 'Forecast',
-  actualLabel = 'Actual',
+  nowLabel,
+  forecastLabel,
+  actualLabel,
   formatY = formatCompact,
   dir,
   a11yFallback,
   className,
 }: ForecastChartProps) {
+  const t = useMaybeT();
+  const resolvedNowLabel = nowLabel ?? t('ui:charts.forecast.nowLabel', 'Now');
+  const resolvedForecastLabel = forecastLabel ?? t('ui:charts.forecast.forecastLabel', 'Forecast');
+  const resolvedActualLabel = actualLabel ?? t('ui:charts.forecast.actualLabel', 'Actual');
   return (
     <ChartSurface
       labels={labels}
@@ -142,7 +147,7 @@ export function ForecastChart({
               fill="var(--fg-subtle)"
               data-now-label=""
             >
-              {nowLabel}
+              {resolvedNowLabel}
             </text>
 
             {forecastLine !== null && (
@@ -186,7 +191,7 @@ export function ForecastChart({
                 fontWeight={600}
                 fill="var(--fg-muted)"
               >
-                {actualLabel}
+                {resolvedActualLabel}
               </text>
               <line
                 x1={rtl ? legendStart - 96 : legendStart + 96}
@@ -205,7 +210,7 @@ export function ForecastChart({
                 fontWeight={600}
                 fill="var(--fg-muted)"
               >
-                {forecastLabel}
+                {resolvedForecastLabel}
               </text>
             </g>
           </g>
