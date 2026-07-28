@@ -10,7 +10,7 @@
  * Locale is pinned via `config.format` overrides so number formatting is
  * assertable regardless of the runner's environment.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AutoInsights, autoInsightsConfigSchema, insightsOf, visibleWindow } from './AutoInsights.js';
@@ -1163,5 +1163,48 @@ describe('auto-insights — render', () => {
       />,
     );
     expect(screen.queryByText('Apply')).toBeNull();
+  });
+});
+
+// ── chrome localization ────────────────────────────────────────────────────
+
+describe('kpi chrome localization (ui:widgets.kpi.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { widgets: { kpi: { autoInsights: { refreshLabel: 'Aktualisieren' } } } }
+          : null,
+    });
+    // Two rows with count 1 so the Refresh control (the localized chrome) shows.
+    const rows = [
+      { id: 'a', title: 'MRR up 12.4%', score: 90 },
+      { id: 'b', title: 'p95 latency up', score: 80 },
+    ];
+    render(
+      <I18nProvider i18n={i18n}>
+        <AutoInsights
+          config={cfg(autoInsightsConfigSchema, { count: 1 })}
+          data={{ rows, total: rows.length }}
+          instanceId="l10n-1"
+          onEvent={noop}
+        />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Aktualisieren')).toBeTruthy();
+
+    cleanup();
+    render(
+      <AutoInsights
+        config={cfg(autoInsightsConfigSchema, { count: 1 })}
+        data={{ rows, total: rows.length }}
+        instanceId="l10n-2"
+        onEvent={noop}
+      />,
+    );
+    expect(screen.getByText('Refresh')).toBeTruthy();
   });
 });

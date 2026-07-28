@@ -11,6 +11,7 @@
  */
 
 import { Button, MonoText, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { stateHeroIcon, systemIcon } from './system-icons.js';
 import { oneOf, recordRowOf, stringField } from './system-lib.js';
@@ -34,8 +35,9 @@ const TONE_TILE: Record<SystemTone, string> = {
 
 /**
  * Built-in copy per view id. Config `stateMap` overrides any field; these are
- * developer fallbacks in English (widgets are locale-agnostic — 04 §2), and the
- * dashboard passes translated copy through `stateMap`.
+ * developer fallbacks in English. The widget path localizes them through
+ * `useStateHeroEntry` (`ui:widgets.system.stateHero.*`), and the dashboard may
+ * still pass translated copy through `stateMap` — overrides always win.
  */
 const DEFAULT_STATE_MAP: Record<StateHeroViewId, Required<Pick<StateHeroEntryConfig, 'tone'>> & Omit<StateHeroEntryConfig, 'tone'>> = {
   '404': {
@@ -81,13 +83,10 @@ const DEFAULT_STATE_MAP: Record<StateHeroViewId, Required<Pick<StateHeroEntryCon
   },
 };
 
-/** Merge the built-in entry for `view` with any config override. */
-export function resolveStateHeroEntry(
-  view: StateHeroViewId,
-  stateMap: Partial<Record<StateHeroViewId, StateHeroEntryConfig>> | undefined,
+function mergeStateHeroEntry(
+  base: StateHeroEntryConfig,
+  override: StateHeroEntryConfig | undefined,
 ): StateHeroEntryConfig {
-  const base = DEFAULT_STATE_MAP[view];
-  const override = stateMap?.[view];
   if (override === undefined) return base;
   // Only defined override fields win — a partial entry keeps the built-in rest.
   const merged: Record<string, unknown> = { ...base };
@@ -95,6 +94,60 @@ export function resolveStateHeroEntry(
     if (value !== undefined) merged[key] = value;
   }
   return merged as StateHeroEntryConfig;
+}
+
+/** Merge the built-in entry for `view` with any config override. */
+export function resolveStateHeroEntry(
+  view: StateHeroViewId,
+  stateMap: Partial<Record<StateHeroViewId, StateHeroEntryConfig>> | undefined,
+): StateHeroEntryConfig {
+  return mergeStateHeroEntry(DEFAULT_STATE_MAP[view], stateMap?.[view]);
+}
+
+/**
+ * `resolveStateHeroEntry` with localized built-in copy: under an `I18nProvider`
+ * the default title/body/CTA resolve through `ui:widgets.system.stateHero.*`;
+ * outside one they are exactly the `DEFAULT_STATE_MAP` English. Config
+ * `stateMap` overrides still win field-by-field either way (the plain
+ * `resolveStateHeroEntry` stays exported for non-hook callers).
+ */
+export function useStateHeroEntry(
+  view: StateHeroViewId,
+  stateMap: Partial<Record<StateHeroViewId, StateHeroEntryConfig>> | undefined,
+): StateHeroEntryConfig {
+  const t = useMaybeT();
+  const copy: Record<StateHeroViewId, Partial<Pick<StateHeroEntryConfig, 'title' | 'body' | 'primaryLabel'>>> = {
+    '404': {
+      title: t('ui:widgets.system.stateHero.notFoundTitle', 'This page took a wrong turn'),
+      body: t('ui:widgets.system.stateHero.notFoundBody', 'The page you are looking for was moved, renamed, or never existed.'),
+      primaryLabel: t('ui:widgets.system.stateHero.backToDashboard', 'Back to dashboard'),
+    },
+    '500': {
+      title: t('ui:widgets.system.stateHero.serverErrorTitle', 'Something broke on our side'),
+      body: t('ui:widgets.system.stateHero.serverErrorBody', 'The error was logged and the team notified. Trying again often works.'),
+      primaryLabel: t('ui:widgets.system.stateHero.tryAgain', 'Try again'),
+    },
+    offline: {
+      title: t('ui:widgets.system.stateHero.offlineTitle', 'You are offline'),
+      body: t('ui:widgets.system.stateHero.offlineBody', 'Check your connection — the dashboard reconnects automatically.'),
+      primaryLabel: t('ui:widgets.system.stateHero.retry', 'Retry'),
+    },
+    forbidden: {
+      title: t('ui:widgets.system.stateHero.forbiddenTitle', 'You do not have access'),
+      body: t('ui:widgets.system.stateHero.forbiddenBody', 'Ask a workspace admin to grant you permission for this page.'),
+      primaryLabel: t('ui:widgets.system.stateHero.backToDashboard', 'Back to dashboard'),
+    },
+    maintenance: {
+      title: t('ui:widgets.system.stateHero.maintenanceTitle', 'Down for maintenance'),
+      body: t('ui:widgets.system.stateHero.maintenanceBody', 'We are making things better. This usually takes a few minutes.'),
+    },
+    'conn-error': {
+      title: t('ui:widgets.system.stateHero.connErrorTitle', 'Cannot reach the database'),
+      body: t('ui:widgets.system.stateHero.connErrorBody', 'The connection was refused or timed out. Check the connection settings.'),
+      primaryLabel: t('ui:widgets.system.stateHero.testConnection', 'Test connection'),
+    },
+  };
+  return mergeStateHeroEntry({ ...DEFAULT_STATE_MAP[view], ...copy[view] }, stateMap?.[view]);
 }
 
 export interface StateHeroViewProps {
@@ -210,11 +263,12 @@ export function StateHeroWidget({ config, data, onEvent }: WidgetProps<StateHero
   // `conn-error`); config.view is the default and the story/demo path.
   const bound = row === null ? undefined : stringField(row, config.viewField);
   const view = oneOf(bound, STATE_HERO_VIEWS, config.view);
+  const entry = useStateHeroEntry(view, config.stateMap);
 
   return (
     <StateHeroView
       view={view}
-      entry={resolveStateHeroEntry(view, config.stateMap)}
+      entry={entry}
       ornament={config.ornament}
       quickLinks={config.quickLinks}
       requestId={config.requestId}

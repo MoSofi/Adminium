@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Button, EmptyState, Spinner, StatusPill } from '@adminium/ui';
 import { useCallback, useMemo, useState } from 'react';
 import type { KeyboardEvent } from 'react';
@@ -149,6 +150,7 @@ export function PageMasterDetail({
   now,
   testId,
 }: PageMasterDetailProps) {
+  const t = useMaybeT();
   const body: TemplateBody = useMemo(() => parseTemplateBody(config), [config]);
   const dataStates = useDashboardData(body.layout, adapter, params);
   const stateFor = useCallback(
@@ -272,13 +274,17 @@ export function PageMasterDetail({
   if (!body.valid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-master-detail-invalid">
-        This page&rsquo;s stored configuration is invalid. Regenerate the page to restore it.
+        {t(
+          'ui:templates.masterDetail.invalidConfig',
+          'This page’s stored configuration is invalid. Regenerate the page to restore it.',
+        )}
       </p>
     );
   }
 
   const domainDetail = detailItem !== undefined && detailItem.widget !== 'detail-key-value';
-  const masterTitle = configString(masterItem?.config ?? {}, 'title') ?? 'Records';
+  const masterTitle =
+    configString(masterItem?.config ?? {}, 'title') ?? t('ui:templates.masterDetail.railTitle', 'Records');
   const selectedStatus =
     selectedRow === undefined || fields.statusField === undefined
       ? undefined
@@ -294,7 +300,11 @@ export function PageMasterDetail({
     >
       {/* Filter chip bar with live facet counts (§7.3). */}
       {facets.length > 0 && (
-        <div role="group" aria-label="Filter" className="flex min-h-10 flex-wrap items-center gap-1.5 pb-3">
+        <div
+          role="group"
+          aria-label={t('ui:widgets.forms.filterChipBar.a11yLabel', 'Filter')}
+          className="flex min-h-10 flex-wrap items-center gap-1.5 pb-3"
+        >
           {[null, ...facets.map(([value]) => value)].map((value) => {
             const count = value === null ? rows.length : (facets.find(([v]) => v === value)?.[1] ?? 0);
             return (
@@ -305,7 +315,9 @@ export function PageMasterDetail({
                 onClick={() => setFilter(value)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-caption font-semibold text-fg-muted data-[active=true]:border-accent data-[active=true]:bg-accent-soft data-[active=true]:text-accent hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
               >
-                {value === null ? (labels?.allFilter ?? 'All') : humanizeName(value)}
+                {value === null
+                  ? (labels?.allFilter ?? t('ui:widgets.forms.filterChipBar.all', 'All'))
+                  : humanizeName(value)}
                 <span className="font-mono tabular-nums text-fg-subtle">{count}</span>
               </button>
             );
@@ -331,37 +343,37 @@ export function PageMasterDetail({
             <EmptyState
               compact
               tone="danger"
-              title={labels?.errorTitle ?? 'This list failed to load'}
+              title={labels?.errorTitle ?? t('ui:templates.masterDetail.errorTitle', 'This list failed to load')}
               body={masterState.error instanceof Error ? masterState.error.message : undefined}
               actions={
                 masterState.refetch === undefined ? undefined : (
                   <Button size="sm" variant="secondary" onClick={masterState.refetch}>
-                    {labels?.retry ?? 'Retry'}
+                    {labels?.retry ?? t('ui:action.retry', 'Retry')}
                   </Button>
                 )
               }
             />
           ) : masterState.status === 'loading' ? (
             <div className="flex flex-1 items-center justify-center py-12">
-              <Spinner label={labels?.loading ?? 'Loading records'} />
+              <Spinner label={labels?.loading ?? t('ui:templates.masterDetail.loading', 'Loading records')} />
             </div>
           ) : rows.length === 0 ? (
             <EmptyState
               compact
               preset="no-data"
-              title={labels?.emptyTitle ?? 'Nothing here yet'}
-              body={labels?.emptyBody ?? 'Records appear here as rows land in the table.'}
+              title={labels?.emptyTitle ?? t('ui:state.empty', 'Nothing here yet')}
+              body={labels?.emptyBody ?? t('ui:templates.masterDetail.emptyBody', 'Records appear here as rows land in the table.')}
             />
           ) : visibleRows.length === 0 ? (
             // Filtered empty — distinct from first-use (M7-T04 / ia-mapping §5).
             <EmptyState
               compact
               preset="no-matches"
-              title={labels?.noMatchesTitle ?? 'No matching records'}
-              body={labels?.noMatchesBody ?? 'Try removing a filter.'}
+              title={labels?.noMatchesTitle ?? t('ui:templates.masterDetail.noMatchesTitle', 'No matching records')}
+              body={labels?.noMatchesBody ?? t('ui:templates.masterDetail.noMatchesBody', 'Try removing a filter.')}
               actions={
                 <Button size="sm" variant="secondary" onClick={() => setFilter(null)}>
-                  {labels?.clearFilters ?? 'Clear filters'}
+                  {labels?.clearFilters ?? t('ui:templates.common.clearFilters', 'Clear filters')}
                 </Button>
               }
             />
@@ -439,7 +451,10 @@ export function PageMasterDetail({
         </section>
 
         {/* Detail pane (sticky — the rail scrolls independently). */}
-        <section aria-label="Detail" className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <section
+          aria-label={t('ui:templates.common.detailLabel', 'Detail')}
+          className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto"
+        >
           {domainDetail ? (
             <div className="min-h-80">
               <WidgetHost
@@ -455,8 +470,8 @@ export function PageMasterDetail({
               <EmptyState
                 compact
                 preset="no-data"
-                title={labels?.selectPrompt ?? 'Select a record'}
-                body={labels?.emptyBody ?? 'Choose an item from the list to see its details.'}
+                title={labels?.selectPrompt ?? t('ui:templates.masterDetail.selectPrompt', 'Select a record')}
+                body={labels?.emptyBody ?? t('ui:templates.masterDetail.selectBody', 'Choose an item from the list to see its details.')}
               />
             </div>
           ) : (

@@ -59,10 +59,10 @@ describe('config schemas', () => {
       expect(typeof parsed.emptyState?.bodyKey).toBe('string');
     }
     expect(chartMultilineConfigSchema.parse({}).emptyState?.titleKey).toBe(
-      'widgets.charts.multiline.empty.title',
+      'widgets.charts.multiline.emptyTitle',
     );
     expect(chartTimelineLanesConfigSchema.parse({}).emptyState?.titleKey).toBe(
-      'widgets.charts.timelineLanes.empty.title',
+      'widgets.charts.timelineLanes.emptyTitle',
     );
   });
 

@@ -1,4 +1,5 @@
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, EmptyState, MonoText } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { useMemo } from 'react';
@@ -78,6 +79,7 @@ export function ScheduleMatrix({
   emptyBody,
   testId,
 }: ScheduleMatrixProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const fmt = getFormatters(tag);
   const { rows: resources, shiftTypes, assignments } = data;
@@ -123,8 +125,8 @@ export function ScheduleMatrix({
       <EmptyState
         compact
         preset="nothing-scheduled"
-        title={emptyTitle ?? 'No shifts scheduled'}
-        body={emptyBody ?? 'Assigned shifts will appear on this schedule.'}
+        title={emptyTitle ?? t('ui:widgets.calendar.scheduleMatrix.emptyTitle', 'No shifts scheduled')}
+        body={emptyBody ?? t('ui:widgets.calendar.scheduleMatrix.emptyBody', 'Assigned shifts will appear on this schedule.')}
       />
     );
   }
@@ -140,7 +142,9 @@ export function ScheduleMatrix({
           className="sticky top-0 z-[1] grid items-end gap-1 border-b border-border bg-surface-2 px-2 py-2 grid-cols-[var(--adm-cols)]"
           style={{ '--adm-cols': gridCols }}
         >
-          <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">Resource</span>
+          <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
+            {t('ui:widgets.calendar.scheduleMatrix.resourceLabel', 'Resource')}
+          </span>
           {days.map((day) => {
             const label = fmtColumnDay(tag, parseIsoDay(day));
             return (
@@ -164,7 +168,12 @@ export function ScheduleMatrix({
               <div className="min-w-0">
                 <p className="truncate text-caption font-semibold text-fg">{resource.name}</p>
                 <p className="truncate text-[10px] text-fg-subtle">
-                  {resource.role} · <MonoText className="tabular-nums">{fmt.number(hoursByResource.get(resource.id) ?? 0)}h</MonoText>
+                  {resource.role} ·{' '}
+                  <MonoText className="tabular-nums">
+                    {t('ui:widgets.calendar.scheduleMatrix.hoursLabel', '{hours}h', {
+                      hours: fmt.number(hoursByResource.get(resource.id) ?? 0),
+                    })}
+                  </MonoText>
                 </p>
               </div>
             </div>
@@ -200,7 +209,9 @@ export function ScheduleMatrix({
             className="grid items-center gap-1 border-t border-border bg-surface-2/40 px-2 py-2 grid-cols-[var(--adm-cols)]"
             style={{ '--adm-cols': gridCols }}
           >
-            <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">Coverage</span>
+            <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
+              {t('ui:widgets.calendar.scheduleMatrix.coverageLabel', 'Coverage')}
+            </span>
             {days.map((day) => {
               const count = coverageByDay.get(day) ?? 0;
               const pct = Math.min(100, Math.round((count / target) * 100));

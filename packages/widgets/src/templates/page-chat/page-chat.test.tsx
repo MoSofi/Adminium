@@ -6,7 +6,7 @@
  * optimistic echo on send (rolled back on a rejected insert), honors a
  * host-fed messagesState, and degrades on loading/error/invalid layouts.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -190,5 +190,35 @@ describe('PageChat', () => {
 
     rerender(<PageChat layout={{ version: 99, items: 'nope' }} now={NOW} />);
     expect(screen.getByTestId('page-chat-invalid')).toBeDefined();
+  });
+});
+
+describe('page-chat chrome localization (ui:templates.chat.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { templates: { chat: { selectTitle: 'Unterhaltung auswählen' } } }
+          : null,
+    });
+    // Zero conversations → nothing auto-selects → the thread pane prompts.
+    const empty = {
+      inbox: { status: 'success' as const, data: { rows: [], total: 0 } },
+      thread: { status: 'success' as const, data: { rows: [], total: 0 } },
+      attachments: { status: 'success' as const, data: { rows: [] } },
+    };
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageChat layout={demoChatLayout} now={NOW} states={empty} />
+      </I18nProvider>,
+    );
+    expect(await screen.findByText('Unterhaltung auswählen')).toBeTruthy();
+
+    cleanup();
+    render(<PageChat layout={demoChatLayout} now={NOW} states={empty} />);
+    expect(await screen.findByText('Select a conversation')).toBeTruthy();
   });
 });

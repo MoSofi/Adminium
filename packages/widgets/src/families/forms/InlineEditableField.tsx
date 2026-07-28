@@ -17,6 +17,7 @@
  */
 
 import { Input, Select, Textarea, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { inlineEditableFieldConfigSchema, inlineEditableFieldDemoData } from './forms-config.js';
@@ -49,6 +50,7 @@ function displayValue(value: string, config: InlineEditableFieldConfig): string 
 }
 
 export function InlineEditableFieldWidget({ config, data, instanceId, onEvent }: WidgetProps<InlineEditableFieldConfig>) {
+  const t = useMaybeT();
   const bound = boundValueOf(data, config);
   /** The last COMMITTED value — what Escape restores and what dirty compares to. */
   const [committed, setCommitted] = useState(bound);
@@ -127,7 +129,7 @@ export function InlineEditableFieldWidget({ config, data, instanceId, onEvent }:
           type="button"
           data-part="inline-display"
           data-empty={empty}
-          aria-label={config.editLabel ?? config.label ?? config.title ?? 'Edit'}
+          aria-label={config.editLabel ?? config.label ?? config.title ?? t('ui:widgets.forms.inlineEditableField.edit', 'Edit')}
           onClick={() => setEditing(true)}
           className={cn(
             'w-full truncate rounded-md px-1.5 py-0.5 text-start text-body-sm transition-colors duration-150',
@@ -137,7 +139,7 @@ export function InlineEditableFieldWidget({ config, data, instanceId, onEvent }:
         >
           {/* An empty value would be a zero-width click target — the placeholder
               copy is what keeps the field reachable at all. */}
-          {empty ? (config.emptyValueLabel ?? 'Empty') : text}
+          {empty ? (config.emptyValueLabel ?? t('ui:widgets.forms.inlineEditableField.empty', 'Empty')) : text}
         </button>
       </div>
     );
@@ -146,7 +148,7 @@ export function InlineEditableFieldWidget({ config, data, instanceId, onEvent }:
   const shared = {
     id: controlId,
     autoFocus: true,
-    'aria-label': config.label ?? config.title ?? 'Value',
+    'aria-label': config.label ?? config.title ?? t('ui:widgets.forms.inlineEditableField.valueLabel', 'Value'),
     'data-part': 'inline-input',
     onBlur: commit,
     onKeyDown,

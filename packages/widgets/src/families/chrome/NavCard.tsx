@@ -9,6 +9,7 @@
  */
 
 import { EmptyState, IconTile, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ArrowRight } from 'lucide-react';
 import type { MouseEvent } from 'react';
 
@@ -74,13 +75,14 @@ export interface NavCardViewProps {
 }
 
 export function NavCardView({ items, columns = 3, emptyTitle, emptyBody, onNavigate, testId }: NavCardViewProps) {
+  const t = useMaybeT();
   if (items.length === 0) {
     return (
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'Nothing to show'}
-        body={emptyBody ?? 'Hub links appear here once pages are generated.'}
+        title={emptyTitle ?? t('ui:widgets.chrome.navCard.emptyTitle', 'Nothing to show')}
+        body={emptyBody ?? t('ui:widgets.chrome.navCard.emptyBody', 'Hub links appear here once pages are generated.')}
       />
     );
   }

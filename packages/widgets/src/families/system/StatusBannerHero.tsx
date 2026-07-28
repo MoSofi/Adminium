@@ -10,6 +10,7 @@
  */
 
 import { MonoText, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 
 import { numberField, oneOf, recordRowsOf, stringField, worstServiceState } from './system-lib.js';
@@ -34,18 +35,29 @@ const STATE_GLYPH: Record<ServiceState, string> = {
   down: 'text-danger',
 };
 
-/** Developer fallbacks (English); the dashboard passes translated copy via config. */
-const DEFAULT_TITLES: Record<ServiceState, string> = {
-  up: 'All systems operational',
-  degraded: 'Degraded performance',
-  down: 'Major outage',
-};
-
-const DEFAULT_BODIES: Record<ServiceState, string> = {
-  up: 'Every monitored service is responding normally.',
-  degraded: 'Some services are slower than usual. We are investigating.',
-  down: 'One or more services are unavailable. We are on it.',
-};
+/**
+ * Localized per-state default copy: `ui:widgets.system.statusBannerHero.*`
+ * under an `I18nProvider`, the same English fallbacks outside one. Config
+ * `titles`/`bodies` overrides win per state either way.
+ */
+function useStatusBannerHeroCopy(): {
+  titles: Record<ServiceState, string>;
+  bodies: Record<ServiceState, string>;
+} {
+  const t = useMaybeT();
+  return {
+    titles: {
+      up: t('ui:widgets.system.statusBannerHero.upTitle', 'All systems operational'),
+      degraded: t('ui:widgets.system.statusBannerHero.degradedTitle', 'Degraded performance'),
+      down: t('ui:widgets.system.statusBannerHero.downTitle', 'Major outage'),
+    },
+    bodies: {
+      up: t('ui:widgets.system.statusBannerHero.upBody', 'Every monitored service is responding normally.'),
+      degraded: t('ui:widgets.system.statusBannerHero.degradedBody', 'Some services are slower than usual. We are investigating.'),
+      down: t('ui:widgets.system.statusBannerHero.downBody', 'One or more services are unavailable. We are on it.'),
+    },
+  };
+}
 
 export interface HeroStat {
   key: string;
@@ -69,6 +81,7 @@ function StateGlyph({ state }: { state: ServiceState }) {
 }
 
 export function StatusBannerHeroView({ state, stats, title, body, testId }: StatusBannerHeroViewProps) {
+  const copy = useStatusBannerHeroCopy();
   const shown = (stats ?? []).filter((stat) => stat.value !== undefined);
 
   return (
@@ -86,8 +99,8 @@ export function StatusBannerHeroView({ state, stats, title, body, testId }: Stat
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-body font-bold text-fg">{title ?? DEFAULT_TITLES[state]}</p>
-          <p className="truncate text-caption text-fg-muted">{body ?? DEFAULT_BODIES[state]}</p>
+          <p className="truncate text-body font-bold text-fg">{title ?? copy.titles[state]}</p>
+          <p className="truncate text-caption text-fg-muted">{body ?? copy.bodies[state]}</p>
         </div>
 
         {shown.length > 0 && (

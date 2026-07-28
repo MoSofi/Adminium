@@ -11,6 +11,7 @@
  */
 
 import { Button, IconButton, Alert } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -74,6 +75,7 @@ export function AlertBannerView({
   testId,
 }: AlertBannerViewProps) {
   const [dismissed, setDismissed] = useState(false);
+  const t = useMaybeT();
   if (dismissed) return null;
 
   const tone = toneOf(severity, severityMap);
@@ -108,7 +110,7 @@ export function AlertBannerView({
       {dismissible && (
         <IconButton
           size="sm"
-          label={dismissLabel ?? 'Dismiss'}
+          label={dismissLabel ?? t('ui:widgets.system.alertBanner.dismiss', 'Dismiss')}
           data-part="alert-dismiss"
           onClick={() => setDismissed(true)}
           className="absolute end-6 top-2"

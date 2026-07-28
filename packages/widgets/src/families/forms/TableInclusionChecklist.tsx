@@ -14,6 +14,7 @@
  */
 
 import { Badge, Checkbox, EmptyState, MonoText, Tag, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -110,14 +111,19 @@ export function TableInclusionChecklist({
   piiDetection = true,
   maxHeight,
   countTemplate,
-  piiLabel = 'PII',
-  highVolumeLabel = 'high volume',
+  piiLabel,
+  highVolumeLabel,
   a11yLabel,
   emptyContent,
   locale,
   className,
   'data-testid': testId,
 }: TableInclusionChecklistProps) {
+  const t = useMaybeT();
+  // Signature defaults moved into the body so the English falls back through
+  // t(); an explicit caller label still wins.
+  const resolvedPiiLabel = piiLabel ?? t('ui:widgets.forms.tableInclusionChecklist.pii', 'PII');
+  const resolvedHighVolumeLabel = highVolumeLabel ?? t('ui:widgets.forms.tableInclusionChecklist.highVolume', 'high volume');
   // Join/system tables are never listed (annex §10). Filtering HERE, not at the
   // call site, keeps the rule with the data: a caller that forgot would silently
   // offer to build dashboards on a join table.
@@ -167,11 +173,11 @@ export function TableInclusionChecklist({
               {piiDetection && table.piiColumns > 0 && (
                 <Badge tone="warn" data-part="pii-badge">
                   <ShieldAlert aria-hidden="true" className="size-3" />
-                  {`${piiLabel} · ${table.piiColumns}`}
+                  {`${resolvedPiiLabel} · ${table.piiColumns}`}
                 </Badge>
               )}
               {table.tag !== undefined && <Tag data-part="table-tag">{table.tag}</Tag>}
-              {table.highVolume && <Badge tone="neutral" data-part="high-volume-badge">{highVolumeLabel}</Badge>}
+              {table.highVolume && <Badge tone="neutral" data-part="high-volume-badge">{resolvedHighVolumeLabel}</Badge>}
               {renderRowMeta !== undefined ? (
                 renderRowMeta(table)
               ) : (
@@ -201,6 +207,7 @@ export function TableInclusionChecklist({
  * state it does not own.
  */
 export function TableInclusionChecklistWidget({ config, data, onEvent }: WidgetProps<TableInclusionChecklistConfig>) {
+  const t = useMaybeT();
   const tables = inclusionTablesOf(data, config);
   const [selected, setSelected] = useState<Set<string>>(() => initialInclusion(data, config, tables));
   const target = bindingTargetOf(config.binding);
@@ -210,8 +217,8 @@ export function TableInclusionChecklistWidget({ config, data, onEvent }: WidgetP
       <EmptyState
         compact
         preset="no-data"
-        title={config.emptyTitle ?? 'No tables found'}
-        body={config.emptyBody ?? 'Connect a database and its tables will appear here.'}
+        title={config.emptyTitle ?? t('ui:widgets.forms.tableInclusionChecklist.emptyTitle', 'No tables found')}
+        body={config.emptyBody ?? t('ui:widgets.forms.tableInclusionChecklist.emptyBody', 'Connect a database and its tables will appear here.')}
       />
     );
   }
@@ -240,9 +247,9 @@ export function TableInclusionChecklistWidget({ config, data, onEvent }: WidgetP
         piiDetection={config.piiDetection}
         maxHeight={config.maxHeight}
         countTemplate="{included}/{total}"
-        piiLabel={config.piiLabel ?? 'PII'}
-        highVolumeLabel={config.highVolumeLabel ?? 'high volume'}
-        a11yLabel={config.a11yLabel ?? config.title ?? 'Tables to include'}
+        {...(config.piiLabel === undefined ? {} : { piiLabel: config.piiLabel })}
+        {...(config.highVolumeLabel === undefined ? {} : { highVolumeLabel: config.highVolumeLabel })}
+        a11yLabel={config.a11yLabel ?? config.title ?? t('ui:widgets.forms.tableInclusionChecklist.a11yLabel', 'Tables to include')}
         locale={config.format?.locale}
         data-testid={config.testId}
       />

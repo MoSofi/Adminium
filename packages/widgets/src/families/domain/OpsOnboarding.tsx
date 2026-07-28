@@ -1,4 +1,5 @@
 import { Badge, Button, ProgressBar, Tag } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Check, FilePlus2 } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -100,7 +101,12 @@ export function StarterTemplatePickerView({
   onSelect,
   testId,
 }: StarterTemplatePickerViewProps) {
-  const kicker = docType === undefined ? undefined : DOC_KICKER[docType];
+  const t = useMaybeT();
+  const rawKicker = docType === undefined ? undefined : DOC_KICKER[docType];
+  const kicker =
+    docType === undefined || rawKicker === undefined
+      ? undefined
+      : t(`ui:widgets.domain.starterTemplatePicker.kicker.${docType}`, rawKicker);
 
   return (
     <ul
@@ -126,7 +132,7 @@ export function StarterTemplatePickerView({
             {starter.blank ? (
               <span className="flex flex-1 flex-col items-center justify-center gap-1.5 py-2">
                 <FilePlus2 aria-hidden="true" className="size-5" />
-                <span className="text-caption font-semibold">{blankLabel ?? 'Blank'}</span>
+                <span className="text-caption font-semibold">{blankLabel ?? t('ui:widgets.domain.starterTemplatePicker.blankLabel', 'Blank')}</span>
               </span>
             ) : (
               <>
@@ -158,6 +164,7 @@ export function StarterTemplatePickerView({
 }
 
 export function StarterTemplatePickerWidget({ config, data, onEvent }: WidgetProps<StarterTemplatePickerConfig>) {
+  const t = useMaybeT();
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
 
   const starters = useMemo((): StarterDef[] => {
@@ -201,8 +208,8 @@ export function StarterTemplatePickerWidget({ config, data, onEvent }: WidgetPro
   if (!hasStarters) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No starters'}
-        body={config.emptyBody ?? 'Add starter definitions in config or bind a starters table.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.starterTemplatePicker.emptyTitle', 'No starters')}
+        body={config.emptyBody ?? t('ui:widgets.domain.starterTemplatePicker.emptyBody', 'Add starter definitions in config or bind a starters table.')}
       />
     );
   }
@@ -304,14 +311,18 @@ export function OnboardingChecklistView({
   onAction,
   testId,
 }: OnboardingChecklistViewProps) {
+  const t = useMaybeT();
   const done = tasks.filter((task) => task.done).length;
   const total = tasks.length;
   const pct = total === 0 ? 0 : (done / total) * 100;
   const complete = total > 0 && done === total;
-  const progress = interpolate(progressLabel ?? '{done} of {total} done', {
-    done: done.toString(),
-    total: total.toString(),
-  });
+  const progress =
+    progressLabel !== undefined
+      ? interpolate(progressLabel, { done: done.toString(), total: total.toString() })
+      : t('ui:widgets.domain.onboardingChecklist.progressLabel', '{done} of {total} done', {
+          done: done.toString(),
+          total: total.toString(),
+        });
 
   return (
     <div
@@ -330,7 +341,7 @@ export function OnboardingChecklistView({
         <div className="flex items-center gap-2.5 rounded-lg bg-pos-soft p-3" data-part="checklist-celebrate">
           <Check aria-hidden="true" className="size-5 shrink-0 text-pos" />
           <div className="min-w-0">
-            <p className="text-body-sm font-bold text-pos">{celebrateTitle ?? 'All done'}</p>
+            <p className="text-body-sm font-bold text-pos">{celebrateTitle ?? t('ui:widgets.domain.onboardingChecklist.celebrateTitle', 'All done')}</p>
             {celebrateBody === undefined ? null : <p className="text-caption text-fg-muted">{celebrateBody}</p>}
           </div>
         </div>
@@ -414,6 +425,7 @@ export function OnboardingChecklistView({
 }
 
 export function OnboardingChecklistWidget({ config, data, onEvent }: WidgetProps<OnboardingChecklistConfig>) {
+  const t = useMaybeT();
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
 
   const tasks = useMemo((): OnboardingTask[] => {
@@ -448,8 +460,8 @@ export function OnboardingChecklistWidget({ config, data, onEvent }: WidgetProps
   if (tasks.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'Nothing to set up'}
-        body={config.emptyBody ?? 'Add onboarding steps in config or bind a steps table.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.onboardingChecklist.emptyTitle', 'Nothing to set up')}
+        body={config.emptyBody ?? t('ui:widgets.domain.onboardingChecklist.emptyBody', 'Add onboarding steps in config or bind a steps table.')}
       />
     );
   }

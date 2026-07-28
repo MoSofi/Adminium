@@ -22,6 +22,7 @@
  * one just accepts clicks.
  */
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, MonoText } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { Plus } from 'lucide-react';
@@ -105,6 +106,7 @@ export function ShiftMatrix({
   onAdd,
   testId,
 }: ShiftMatrixProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const fmt = getFormatters(tag);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
@@ -208,7 +210,7 @@ export function ShiftMatrix({
           style={{ '--adm-cols': gridCols }}
         >
           <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {labels?.resource ?? 'Resource'}
+            {labels?.resource ?? t('ui:widgets.calendar.scheduleMatrix.resourceLabel', 'Resource')}
           </span>
           {days.map((day) => {
             const label = fmtColumnDay(tag, parseIsoDay(day));
@@ -234,10 +236,14 @@ export function ShiftMatrix({
                 <p className="truncate text-caption font-semibold text-fg">{resource.label}</p>
                 <p className="truncate text-[10px] text-fg-subtle">
                   {resource.role !== undefined ? `${resource.role} · ` : ''}
-                  {(labels?.shiftCount ?? '{n} shifts').replace(
-                    '{n}',
-                    fmt.number(countByResource.get(resource.id) ?? 0),
-                  )}
+                  {/* An explicit label keeps the documented `{n}`-replace contract; the
+                      default is an ICU plural (`count` selects, `n` is pre-formatted). */}
+                  {labels?.shiftCount !== undefined
+                    ? labels.shiftCount.replace('{n}', fmt.number(countByResource.get(resource.id) ?? 0))
+                    : t('ui:templates.scheduler.shiftCount', '{count, plural, one {{n} shift} other {{n} shifts}}', {
+                        count: countByResource.get(resource.id) ?? 0,
+                        n: fmt.number(countByResource.get(resource.id) ?? 0),
+                      })}
                 </p>
               </div>
             </div>
@@ -283,7 +289,7 @@ export function ShiftMatrix({
                     <button
                       type="button"
                       data-part="shift-add"
-                      aria-label={`${labels?.addShift ?? 'Add shift'}: ${resource.label}, ${day}`}
+                      aria-label={`${labels?.addShift ?? t('ui:templates.scheduler.addShift', 'Add shift')}: ${resource.label}, ${day}`}
                       onClick={() => void onAdd(resource.id, day, (firstType as ShiftTypeDef).id)}
                       className="flex min-h-4 items-center justify-center rounded-sm text-fg-subtle opacity-0 transition-opacity hover:bg-surface-2 hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent group-hover:opacity-100 [&:hover]:opacity-100 [[role=row]:hover_&]:opacity-100"
                     >
@@ -303,7 +309,7 @@ export function ShiftMatrix({
             style={{ '--adm-cols': gridCols }}
           >
             <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-              {labels?.coverage ?? 'Coverage'}
+              {labels?.coverage ?? t('ui:widgets.calendar.scheduleMatrix.coverageLabel', 'Coverage')}
             </span>
             {days.map((day) => {
               const count = coverageByDay.get(day) ?? 0;

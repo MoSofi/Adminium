@@ -17,6 +17,7 @@
  */
 
 import { Badge, EmptyState, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import type { MouseEvent } from 'react';
 
 import { chromeIcon } from './chrome-icons.js';
@@ -107,13 +108,14 @@ export function SidebarNavView({
   onNavigate,
   testId,
 }: SidebarNavViewProps) {
+  const t = useMaybeT();
   if (groups.length === 0) {
     return (
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No navigation yet'}
-        body={emptyBody ?? 'Included tables appear here once a connection is generated.'}
+        title={emptyTitle ?? t('ui:widgets.chrome.sidebarNav.emptyTitle', 'No navigation yet')}
+        body={emptyBody ?? t('ui:widgets.chrome.sidebarNav.emptyBody', 'Included tables appear here once a connection is generated.')}
       />
     );
   }
@@ -131,7 +133,7 @@ export function SidebarNavView({
     <nav
       data-widget="sidebar-nav"
       data-testid={testId}
-      aria-label={a11yLabel ?? 'Main'}
+      aria-label={a11yLabel ?? t('ui:widgets.chrome.sidebarNav.a11yLabel', 'Main')}
       className="h-full overflow-y-auto px-2 pb-4"
     >
       {groups.map((group) => (

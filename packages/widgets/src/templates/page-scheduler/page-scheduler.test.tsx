@@ -242,3 +242,27 @@ describe('PageScheduler — capacity board (Team Workload)', () => {
     expect(screen.getAllByText('Available').length).toBeGreaterThan(0);
   });
 });
+
+describe('page-scheduler chrome localization (ui:templates.scheduler.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui' ? { templates: { scheduler: { previousWeek: 'Vorherige Woche' } } } : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageScheduler config={schedulerPage()} states={{ 'sched-1': recordList(ROWS) }} referenceDate={TODAY} />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole('button', { name: 'Vorherige Woche' })).toBeDefined();
+
+    cleanup();
+    render(
+      <PageScheduler config={schedulerPage()} states={{ 'sched-1': recordList(ROWS) }} referenceDate={TODAY} />,
+    );
+    expect(screen.getByRole('button', { name: 'Previous week' })).toBeDefined();
+  });
+});

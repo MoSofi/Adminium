@@ -1,4 +1,5 @@
 import { EmptyState, IconTile } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Pause, Play, Radio } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -68,6 +69,7 @@ export function RealtimeFeed({
   locale,
   testId,
 }: RealtimeFeedProps) {
+  const t = useMaybeT();
   const [displayed, setDisplayed] = useState<StreamEvent[]>(() => items.slice(0, maxRows));
   const [buffer, setBuffer] = useState<StreamEvent[]>([]);
   const [paused, setPaused] = useState(false);
@@ -114,6 +116,7 @@ export function RealtimeFeed({
   const clock = now ?? Date.now();
   const buckets = pulseCompanion ? pulseBuckets(displayed, clock) : [];
   const maxBucket = Math.max(1, ...buckets);
+  const resumeLabel = labels?.resume ?? t('ui:widgets.feeds.realtimeFeed.resumeLabel', 'Resume');
 
   return (
     <div data-widget="realtime-feed" data-testid={testId} data-paused={paused} className="flex h-full flex-col">
@@ -123,7 +126,9 @@ export function RealtimeFeed({
             className={`size-3.5 ${paused ? 'text-fg-subtle' : 'text-pos motion-safe:animate-pulse'}`}
             aria-hidden="true"
           />
-          {paused ? (labels?.paused ?? 'Paused') : (labels?.live ?? 'Live')}
+          {paused
+            ? (labels?.paused ?? t('ui:widgets.feeds.realtimeFeed.pausedLabel', 'Paused'))
+            : (labels?.live ?? t('ui:widgets.feeds.realtimeFeed.liveLabel', 'Live'))}
         </span>
         {pulseCompanion && (
           <div className="ms-1 flex items-end gap-px" aria-hidden="true">
@@ -146,9 +151,9 @@ export function RealtimeFeed({
             {paused ? <Play className="size-3.5" aria-hidden="true" /> : <Pause className="size-3.5" aria-hidden="true" />}
             {paused
               ? buffer.length > 0
-                ? `${labels?.resume ?? 'Resume'} · ${String(buffer.length)}`
-                : (labels?.resume ?? 'Resume')
-              : (labels?.pause ?? 'Pause')}
+                ? `${resumeLabel} · ${String(buffer.length)}`
+                : resumeLabel
+              : (labels?.pause ?? t('ui:widgets.feeds.realtimeFeed.pauseLabel', 'Pause'))}
           </button>
         )}
       </div>
@@ -159,8 +164,8 @@ export function RealtimeFeed({
             <EmptyState
               compact
               preset="nothing-scheduled"
-              title={labels?.emptyTitle ?? 'Waiting for events'}
-              body={labels?.emptyBody ?? 'Live events will stream in as they happen.'}
+              title={labels?.emptyTitle ?? t('ui:widgets.feeds.realtimeFeed.emptyTitle', 'Waiting for events')}
+              body={labels?.emptyBody ?? t('ui:widgets.feeds.realtimeFeed.emptyBody', 'Live events will stream in as they happen.')}
             />
           ) : (
             <ul className="divide-y divide-border/50">

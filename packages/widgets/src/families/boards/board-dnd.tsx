@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import type { BoardCardData } from './board-lib.js';
 
@@ -68,6 +69,25 @@ export const defaultBoardAnnouncements: BoardAnnouncements = {
   returned: (title) => `${title} returned to its original position.`,
   failed: (title) => `Could not move ${title}; it was returned to its original position.`,
 };
+
+/**
+ * The localized announcement set: `ui:widgets.boards.a11y.*` when rendered
+ * under an `I18nProvider`, the English `defaultBoardAnnouncements` text
+ * otherwise. Host/config `overrides` win key-by-key either way.
+ */
+export function useBoardAnnouncements(overrides?: Partial<BoardAnnouncements>): BoardAnnouncements {
+  const t = useMaybeT();
+  return {
+    grabbed: (title) =>
+      t('ui:widgets.boards.a11y.grabbed', 'Grabbed {title}. Use the arrow keys to move, Enter to drop, Escape to cancel.', { title }),
+    over: (title, cell) => t('ui:widgets.boards.a11y.over', '{title} is over {cell}.', { title, cell }),
+    moved: (title, cell) => t('ui:widgets.boards.a11y.moved', 'Moved {title} to {cell}.', { title, cell }),
+    returned: (title) => t('ui:widgets.boards.a11y.returned', '{title} returned to its original position.', { title }),
+    failed: (title) =>
+      t('ui:widgets.boards.a11y.failed', 'Could not move {title}; it was returned to its original position.', { title }),
+    ...overrides,
+  };
+}
 
 /**
  * Build localized announcement functions from host-provided TEMPLATE strings

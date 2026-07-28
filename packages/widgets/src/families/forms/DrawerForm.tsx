@@ -13,6 +13,7 @@
  */
 
 import { Button, Drawer, DrawerBody, DrawerFooter, DrawerHeader } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { FormFields } from './FormFields.js';
@@ -25,6 +26,7 @@ export { drawerFormConfigSchema, drawerFormDemoData };
 export type { DrawerFormConfig };
 
 export function DrawerFormWidget({ config, data, instanceId, onEvent }: WidgetProps<DrawerFormConfig>) {
+  const t = useMaybeT();
   const fields = resolveFields(config.fields, data);
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState<Record<string, unknown>>(() => initialValues(fields, data));
@@ -62,14 +64,14 @@ export function DrawerFormWidget({ config, data, instanceId, onEvent }: WidgetPr
   return (
     <div className="flex h-full items-center px-4 pb-4" data-widget="drawer-form" data-testid={config.testId}>
       <Button size="sm" data-part="drawer-trigger" onClick={() => setOpen(true)}>
-        {config.triggerLabel ?? config.title ?? 'New'}
+        {config.triggerLabel ?? config.title ?? t('ui:widgets.forms.drawerForm.trigger', 'New')}
       </Button>
 
       <Drawer open={open} onOpenChange={setOpen} size={config.width}>
         <DrawerHeader
-          title={config.title ?? 'New record'}
+          title={config.title ?? t('ui:widgets.forms.drawerForm.titleLabel', 'New record')}
           {...(config.subtitleText === undefined ? {} : { subtitle: config.subtitleText })}
-          closeLabel={config.cancelLabel ?? 'Close'}
+          closeLabel={config.cancelLabel ?? t('ui:widgets.forms.drawerForm.closeLabel', 'Close')}
         />
         <DrawerBody>
           <FormFields
@@ -85,10 +87,10 @@ export function DrawerFormWidget({ config, data, instanceId, onEvent }: WidgetPr
         </DrawerBody>
         <DrawerFooter>
           <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-            {config.cancelLabel ?? 'Cancel'}
+            {config.cancelLabel ?? t('ui:widgets.forms.drawerForm.cancel', 'Cancel')}
           </Button>
           <Button size="sm" data-part="drawer-submit" disabled={submitting} onClick={() => void submit()}>
-            {config.submitLabel ?? 'Save'}
+            {config.submitLabel ?? t('ui:widgets.forms.drawerForm.submit', 'Save')}
           </Button>
         </DrawerFooter>
       </Drawer>

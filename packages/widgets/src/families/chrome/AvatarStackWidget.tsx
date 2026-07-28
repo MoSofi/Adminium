@@ -11,6 +11,7 @@
  */
 
 import { Avatar, AvatarStack } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { booleanField, recordRowsOf, stringField } from './chrome-lib.js';
 import { avatarStackConfigSchema, avatarStackDemoData } from './chrome-config.js';
@@ -52,6 +53,7 @@ export function peopleOf(data: unknown, config: AvatarStackConfig): Person[] {
 }
 
 export function AvatarStackWidget({ config, data }: WidgetProps<AvatarStackConfig>) {
+  const t = useMaybeT();
   const people = peopleOf(data, config);
   if (people.length === 0) return null;
 
@@ -63,7 +65,7 @@ export function AvatarStackWidget({ config, data }: WidgetProps<AvatarStackConfi
       data-testid={config.testId}
       className="flex h-full flex-col justify-center gap-1 px-4 pb-4"
     >
-      <AvatarStack max={config.max} size={config.size} label={config.title ?? 'People'}>
+      <AvatarStack max={config.max} size={config.size} label={config.title ?? t('ui:widgets.chrome.avatarStack.a11yLabel', 'People')}>
         {people.map((person) => (
           <Avatar
             key={person.key}
@@ -78,7 +80,9 @@ export function AvatarStackWidget({ config, data }: WidgetProps<AvatarStackConfi
       </AvatarStack>
       {config.presence && (
         <p data-part="presence-caption" className="text-caption text-fg-subtle">
-          {(config.onlineLabel ?? '{count} online').replace('{count}', String(onlineCount))}
+          {config.onlineLabel !== undefined
+            ? config.onlineLabel.replace('{count}', String(onlineCount))
+            : t('ui:widgets.chrome.avatarStack.online', '{count} online', { count: onlineCount })}
         </p>
       )}
     </div>

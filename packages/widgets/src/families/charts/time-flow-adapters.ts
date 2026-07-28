@@ -185,8 +185,15 @@ export interface LaneInputs {
  * Narrow a `calendar-events` envelope: `category` → lane, `date` → normalized
  * position over the event span, `tone` preserved. Lanes come from config or the
  * distinct categories in first-seen order. Null when there are no dated events.
+ * `fallbackLane` names the lane for uncategorized events (the widget wrapper
+ * passes the localized `ui:widgets.charts.timelineLanes.laneLabel` text).
  */
-export function toLaneInputs(data: unknown, cfgLanes?: readonly string[], axisBuckets = 4): LaneInputs | null {
+export function toLaneInputs(
+  data: unknown,
+  cfgLanes?: readonly string[],
+  axisBuckets = 4,
+  fallbackLane = 'Events',
+): LaneInputs | null {
   const r = rec(data);
   if (r === null || !Array.isArray(r.events)) return null;
 
@@ -196,7 +203,7 @@ export function toLaneInputs(data: unknown, cfgLanes?: readonly string[], axisBu
     const date = toDate(e?.date);
     if (date === undefined) continue;
     parsed.push({
-      lane: str(e?.category) ?? 'Events',
+      lane: str(e?.category) ?? fallbackLane,
       ms: date.getTime(),
       label: str(e?.title) ?? '',
       tone: str(e?.tone),

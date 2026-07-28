@@ -1,4 +1,5 @@
 import { Badge, Button, MonoText, SegmentedControl } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Check } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -75,6 +76,7 @@ export function PlanPricingCardsView({
   onSelect,
   testId,
 }: PlanPricingCardsViewProps) {
+  const t = useMaybeT();
   // Period is component state seeded from config — the reader's toggle must
   // survive re-renders (a stored config pins the START, not the state).
   const [active, setActive] = useState<string>(period);
@@ -94,8 +96,8 @@ export function PlanPricingCardsView({
           onValueChange={setActive}
           data-testid="pricing-period-toggle"
           options={[
-            { value: 'monthly', label: monthlyLabel ?? 'Monthly' },
-            { value: 'annual', label: annualLabel ?? 'Annual' },
+            { value: 'monthly', label: monthlyLabel ?? t('ui:widgets.domain.planPricingCards.monthlyLabel', 'Monthly') },
+            { value: 'annual', label: annualLabel ?? t('ui:widgets.domain.planPricingCards.annualLabel', 'Annual') },
           ]}
         />
       </div>
@@ -120,7 +122,7 @@ export function PlanPricingCardsView({
             >
               {plan.promoted ? (
                 <Badge tone="accent" data-part="plan-popular" className="absolute -top-2 start-4">
-                  {popularLabel ?? 'POPULAR'}
+                  {popularLabel ?? t('ui:widgets.domain.planPricingCards.popularLabel', 'POPULAR')}
                 </Badge>
               ) : null}
 
@@ -135,16 +137,20 @@ export function PlanPricingCardsView({
                 <MonoText className="text-h1 font-black tabular-nums text-fg" data-part="plan-price">
                   {formatMoney(monthly, currency, locale)}
                 </MonoText>
-                <span className="ms-1 text-caption text-fg-subtle">{perMonthLabel ?? '/ month'}</span>
+                <span className="ms-1 text-caption text-fg-subtle">{perMonthLabel ?? t('ui:widgets.domain.planPricingCards.perMonthLabel', '/ month')}</span>
                 {/*
                   The note only makes sense under the annual toggle AND for a
                   paid tier: "Billed $0.00 yearly" on the Free card is noise.
                 */}
                 {annual && plan.monthly > 0 ? (
                   <p className="text-caption text-fg-subtle" data-part="plan-billing-note">
-                    {interpolate(billedAnnuallyLabel ?? 'Billed {total} yearly', {
-                      total: formatMoney(annualTotal(plan.monthly, annualDiscount), currency, locale),
-                    })}
+                    {billedAnnuallyLabel !== undefined
+                      ? interpolate(billedAnnuallyLabel, {
+                          total: formatMoney(annualTotal(plan.monthly, annualDiscount), currency, locale),
+                        })
+                      : t('ui:widgets.domain.planPricingCards.billedAnnuallyLabel', 'Billed {total} yearly', {
+                          total: formatMoney(annualTotal(plan.monthly, annualDiscount), currency, locale),
+                        })}
                   </p>
                 ) : null}
               </div>
@@ -168,7 +174,9 @@ export function PlanPricingCardsView({
                   onSelect?.(plan.id);
                 }}
               >
-                {plan.current ? (currentLabel ?? 'Current plan') : (ctaLabel ?? 'Choose plan')}
+                {plan.current
+                  ? (currentLabel ?? t('ui:widgets.domain.planPricingCards.currentLabel', 'Current plan'))
+                  : (ctaLabel ?? t('ui:widgets.domain.planPricingCards.ctaLabel', 'Choose plan'))}
               </Button>
             </div>
           );
@@ -202,13 +210,14 @@ function plansOf(config: PlanPricingCardsConfig, data: unknown): PricingPlan[] {
 }
 
 export function PlanPricingCardsWidget({ config, data, onEvent }: WidgetProps<PlanPricingCardsConfig>) {
+  const t = useMaybeT();
   const plans = useMemo(() => plansOf(config, data), [config, data]);
 
   if (plans.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No plans'}
-        body={config.emptyBody ?? 'Bind a plans table with a name and a monthly price.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.planPricingCards.emptyTitle', 'No plans')}
+        body={config.emptyBody ?? t('ui:widgets.domain.planPricingCards.emptyBody', 'Bind a plans table with a name and a monthly price.')}
       />
     );
   }

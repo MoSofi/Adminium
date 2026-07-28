@@ -19,6 +19,7 @@ import {
   useToastQueue,
 } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -180,6 +181,7 @@ export function PageCrud({
 }: PageCrudProps) {
   const entity = entityName ?? entityFromTable(source.table);
   const queue = useToastQueue();
+  const t = useMaybeT();
 
   // --- query state -----------------------------------------------------------
   const [search, setSearch] = useState(initialSearch);
@@ -241,7 +243,7 @@ export function PageCrud({
           rows: [],
           nextCursor: null,
           loading: false,
-          error: reason instanceof Error ? reason.message : 'Query failed',
+          error: reason instanceof Error ? reason.message : t('ui:templates.crud.queryFailed', 'Query failed'),
         });
       });
     return () => {
@@ -314,18 +316,18 @@ export function PageCrud({
           ? {}
           : {
               action: {
-                label: labels?.undo ?? 'Undo',
+                label: labels?.undo ?? t('ui:action.undo', 'Undo'),
                 onAction: () => {
                   api
                     .undo(undoToken)
                     .then(() => {
-                      queue.push({ variant: 'info', title: 'Change undone.' });
+                      queue.push({ variant: 'info', title: t('ui:templates.crud.toast.undone', 'Change undone.') });
                       refetch();
                     })
                     .catch((reason: unknown) => {
                       queue.push({
                         variant: 'error',
-                        title: reason instanceof Error ? reason.message : 'Undo failed.',
+                        title: reason instanceof Error ? reason.message : t('ui:templates.crud.toast.undoFailed', 'Undo failed.'),
                       });
                     });
                 },
@@ -333,7 +335,7 @@ export function PageCrud({
             }),
       });
     },
-    [queue, api, refetch, labels?.undo],
+    [queue, api, refetch, labels?.undo, t],
   );
 
   const fieldErrorsOf = (reason: unknown): Record<string, string> | null => {
@@ -349,7 +351,12 @@ export function PageCrud({
       .create(values)
       .then((result) => {
         createFlow.toSuccess(result.data ?? values);
-        pushUndoToast(`${entity[0]?.toUpperCase() ?? ''}${entity.slice(1)} created.`, result.undoToken);
+        pushUndoToast(
+          t('ui:templates.crud.toast.created', '{entity} created.', {
+            entity: `${entity[0]?.toUpperCase() ?? ''}${entity.slice(1)}`,
+          }),
+          result.undoToken,
+        );
         refetch();
       })
       .catch((reason: unknown) => {
@@ -358,7 +365,10 @@ export function PageCrud({
           setCreateErrors(fieldErrors);
           return;
         }
-        queue.push({ variant: 'error', title: reason instanceof Error ? reason.message : 'Create failed.' });
+        queue.push({
+          variant: 'error',
+          title: reason instanceof Error ? reason.message : t('ui:templates.crud.toast.createFailed', 'Create failed.'),
+        });
       });
   };
 
@@ -370,7 +380,7 @@ export function PageCrud({
       .update(recordId, values)
       .then((result) => {
         setEditRecord(null);
-        pushUndoToast('Changes saved.', result.undoToken);
+        pushUndoToast(t('ui:templates.crud.toast.saved', 'Changes saved.'), result.undoToken);
         refetch();
       })
       .catch((reason: unknown) => {
@@ -379,7 +389,10 @@ export function PageCrud({
           setEditErrors(fieldErrors);
           return;
         }
-        queue.push({ variant: 'error', title: reason instanceof Error ? reason.message : 'Update failed.' });
+        queue.push({
+          variant: 'error',
+          title: reason instanceof Error ? reason.message : t('ui:templates.crud.toast.updateFailed', 'Update failed.'),
+        });
       });
   };
 
@@ -410,28 +423,44 @@ export function PageCrud({
       const result = await api.remove(recordId, { confirm: true });
       setDeleteTarget(null);
       if (detailId === recordId) setDetailId(null);
-      pushUndoToast(`${displayValueOf(columns, deleteTarget.record)} deleted.`, isDeletePreview(result) ? null : result.undoToken);
+      pushUndoToast(
+        t('ui:templates.crud.toast.deleted', '{name} deleted.', { name: displayValueOf(columns, deleteTarget.record) }),
+        isDeletePreview(result) ? null : result.undoToken,
+      );
       refetch();
     } catch (reason) {
-      queue.push({ variant: 'error', title: reason instanceof Error ? reason.message : 'Delete failed.' });
+      queue.push({
+        variant: 'error',
+        title: reason instanceof Error ? reason.message : t('ui:templates.crud.toast.deleteFailed', 'Delete failed.'),
+      });
     }
   };
 
   const confirmBulkDelete = async () => {
     if (bulkDeleteIds === null) return;
     try {
+      // `count` drives the ICU plural; `n` is the pre-stringified count so the
+      // digits render exactly as before (no locale regrouping).
+      const bulkDeletedTitle = (count: number) =>
+        t('ui:templates.crud.toast.bulkDeleted', '{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}', {
+          count,
+          n: String(count),
+        });
       if (api.bulk !== undefined) {
         const result = await api.bulk('delete', [...bulkDeleteIds]);
-        pushUndoToast(`${String(result.results.filter((r) => r.ok).length)} rows deleted.`, result.undoToken);
+        pushUndoToast(bulkDeletedTitle(result.results.filter((r) => r.ok).length), result.undoToken);
       } else {
         for (const id of bulkDeleteIds) await api.remove(id, { confirm: true });
-        pushUndoToast(`${String(bulkDeleteIds.length)} rows deleted.`, null);
+        pushUndoToast(bulkDeletedTitle(bulkDeleteIds.length), null);
       }
       setBulkDeleteIds(null);
       setSelected(new Set());
       refetch();
     } catch (reason) {
-      queue.push({ variant: 'error', title: reason instanceof Error ? reason.message : 'Bulk delete failed.' });
+      queue.push({
+        variant: 'error',
+        title: reason instanceof Error ? reason.message : t('ui:templates.crud.toast.bulkDeleteFailed', 'Bulk delete failed.'),
+      });
     }
   };
 
@@ -441,6 +470,21 @@ export function PageCrud({
   const rangeEnd = cursorStack.length * pageSize + list.rows.length;
   const numberFormat = useMemo(() => getFormatters(locale ?? 'en-US'), [locale]);
 
+  // 'Type {value} to confirm' is rich text (the value renders in MonoText):
+  // format with a sentinel arg, then splice the styled node in at the seam.
+  const confirmPromptFor = (value: string): ReactNode => {
+    const [before = '', after = ''] = t('ui:templates.crud.confirmPrompt', 'Type {value} to confirm', {
+      value: '\u0000',
+    }).split('\u0000');
+    return (
+      <>
+        {before}
+        <MonoText>{value}</MonoText>
+        {after}
+      </>
+    );
+  };
+
   return (
     <div data-part="page-crud" data-testid={testId} className="flex h-full min-h-0 flex-col">
       {/* Toolbar — morphs to the bulk bar while rows are selected (09 §7.1). */}
@@ -449,8 +493,10 @@ export function PageCrud({
           <BulkActionToolbar
             selectedIds={selectedIds}
             actions={[
-              { key: 'export', label: labels?.exportAction ?? 'Export' },
-              ...(canDelete ? [{ key: 'delete', label: labels?.deleteAction ?? 'Delete', danger: true }] : []),
+              { key: 'export', label: labels?.exportAction ?? t('ui:templates.crud.exportAction', 'Export') },
+              ...(canDelete
+                ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true }]
+                : []),
             ]}
             onAction={(key, ids) => {
               if (key === 'delete') setBulkDeleteIds(ids);
@@ -463,10 +509,13 @@ export function PageCrud({
             <SearchInput
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={labels?.searchPlaceholder ?? `Search ${source.table}…`}
+              placeholder={
+                labels?.searchPlaceholder ??
+                t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: source.table })
+              }
               className="w-72"
               onClear={() => setSearch('')}
-              clearLabel="Clear search"
+              clearLabel={t('ui:action.clearSearch', 'Clear search')}
             />
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
               {filters.map((filter, index) => (
@@ -480,13 +529,13 @@ export function PageCrud({
                     setCursor('');
                     setCursorStack([]);
                   }}
-                  removeLabel={`Remove ${filter.column} filter`}
+                  removeLabel={t('ui:templates.crud.removeFilter', 'Remove {column} filter', { column: filter.column })}
                 />
               ))}
             </div>
             {canCreate && (
               <Button iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-                {labels?.newRow ?? 'New row'}
+                {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
               </Button>
             )}
           </>
@@ -498,30 +547,39 @@ export function PageCrud({
         {list.error !== null ? (
           <EmptyState
             tone="danger"
-            title="Query failed"
+            title={t('ui:templates.crud.queryFailed', 'Query failed')}
             body={list.error}
             actions={
               <Button size="sm" variant="secondary" onClick={refetch}>
-                Retry
+                {t('ui:action.retry', 'Retry')}
               </Button>
             }
           />
         ) : list.loading && list.rows.length === 0 ? (
           <div className="flex flex-1 items-center justify-center py-16">
-            <Spinner label="Loading rows" />
+            <Spinner label={t('ui:templates.crud.loadingRows', 'Loading rows')} />
           </div>
         ) : list.rows.length === 0 ? (
           q !== '' || filters.length > 0 ? (
-            <EmptyState preset="no-matches" title="No matching rows" body="Try a different search or remove a filter." />
+            <EmptyState
+              preset="no-matches"
+              title={t('ui:templates.crud.noMatchesTitle', 'No matching rows')}
+              body={t('ui:templates.common.noMatchesBody', 'Try a different search or remove a filter.')}
+            />
           ) : (
             <EmptyState
               preset="no-data"
-              title={`No ${entity}s yet`}
+              // `count` is the row total behind this state (always 0 here) so
+              // locales get the ICU plural machinery on the entity noun.
+              title={t('ui:templates.crud.emptyTitle', '{count, plural, one {No {entity} yet} other {No {entity}s yet}}', {
+                count: 0,
+                entity,
+              })}
               {...(canCreate
                 ? {
                     actions: (
                       <Button size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-                        {labels?.newRow ?? 'New row'}
+                        {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
                       </Button>
                     ),
                   }
@@ -583,14 +641,16 @@ export function PageCrud({
           setCreateOpen(open);
           if (!open) setCreateErrors({});
         }}
-        successTitle={(payload) => `${displayValueOf(columns, payload)} added`}
-        successBody={() => 'You can undo this from the toast.'}
-        doneLabel="Done"
+        successTitle={(payload) =>
+          t('ui:templates.crud.createSuccessTitle', '{name} added', { name: displayValueOf(columns, payload) })
+        }
+        successBody={() => t('ui:templates.crud.createSuccessBody', 'You can undo this from the toast.')}
+        doneLabel={t('ui:widgets.forms.modalWizard.done', 'Done')}
       >
         <ModalHeader
-          title={labels?.createTitle ?? `Add ${entity}`}
-          subtitle={`Creates one row in ${source.table}.`}
-          closeLabel={labels?.close ?? 'Close'}
+          title={labels?.createTitle ?? t('ui:templates.crud.createTitle', 'Add {entity}', { entity })}
+          subtitle={t('ui:templates.crud.createSubtitle', 'Creates one row in {table}.', { table: source.table })}
+          closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
         />
         <ModalBody>
           <RecordForm
@@ -602,15 +662,22 @@ export function PageCrud({
             onSubmit={handleCreate}
             uniqueHelper={() =>
               total === null
-                ? `Must be unique in ${source.table}.`
-                : `Checked against ${numberFormat.number(total)} rows.`
+                ? t('ui:templates.crud.uniqueHelper', 'Must be unique in {table}.', { table: source.table })
+                : // `count` drives the ICU plural; `n` keeps the pre-formatted digits.
+                  t(
+                    'ui:templates.crud.uniqueHelperCounted',
+                    '{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}',
+                    { count: total, n: numberFormat.number(total) },
+                  )
             }
             footer={
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
-                  Cancel
+                  {t('ui:action.cancel', 'Cancel')}
                 </Button>
-                <Button type="submit">{labels?.createSubmit ?? `Add ${entity}`}</Button>
+                <Button type="submit">
+                  {labels?.createSubmit ?? t('ui:templates.crud.createSubmit', 'Add {entity}', { entity })}
+                </Button>
               </div>
             }
           />
@@ -619,7 +686,7 @@ export function PageCrud({
 
       {/* Detail panel — `/p/$slug/r/$recordId` (09 §7.1). */}
       <Drawer open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)} size="md">
-        <DrawerHeader title={entity} closeLabel={labels?.close ?? 'Close'} />
+        <DrawerHeader title={entity} closeLabel={labels?.close ?? t('ui:action.close', 'Close')} />
         <DrawerBody>
           {detailId !== null && (
             <RecordDetail
@@ -637,8 +704,8 @@ export function PageCrud({
       {/* Edit — generated form over the record. */}
       <Drawer open={editRecord !== null} onOpenChange={(open) => !open && setEditRecord(null)} size="md">
         <DrawerHeader
-          title={labels?.editTitle ?? `Edit ${entity}`}
-          closeLabel={labels?.close ?? 'Close'}
+          title={labels?.editTitle ?? t('ui:templates.crud.editTitle', 'Edit {entity}', { entity })}
+          closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
         />
         <DrawerBody>
           {editRecord !== null && (
@@ -653,9 +720,9 @@ export function PageCrud({
               footer={
                 <div className="flex justify-end gap-2 pt-1">
                   <Button type="button" variant="ghost" onClick={() => setEditRecord(null)}>
-                    Cancel
+                    {t('ui:action.cancel', 'Cancel')}
                   </Button>
-                  <Button type="submit">Save changes</Button>
+                  <Button type="submit">{t('ui:templates.crud.saveSubmit', 'Save changes')}</Button>
                 </div>
               }
             />
@@ -667,19 +734,22 @@ export function PageCrud({
       <ConfirmModal
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title={`Delete ${entity}`}
+        title={t('ui:templates.crud.deleteTitle', 'Delete {entity}', { entity })}
         body={
           deleteTarget === null ? null : !deleteTarget.loaded ? (
-            'Checking references…'
+            t('ui:templates.crud.deletePreflight', 'Checking references…')
           ) : deleteTarget.references.length === 0 ? (
-            'This row has no inbound references.'
+            t('ui:templates.crud.deleteNoReferences', 'This row has no inbound references.')
           ) : (
             <div className="flex flex-col gap-2">
-              <span>Deleting this row also affects:</span>
+              <span>{t('ui:templates.crud.deleteConsequencesIntro', 'Deleting this row also affects:')}</span>
               <KeyValueList data-part="delete-consequences">
                 {deleteTarget.references.map((reference) => (
                   <KeyValueRow key={reference.relationId} label={`${reference.table}.${reference.column}`} mono>
-                    {`${String(reference.count)} ${reference.count === 1 ? 'row' : 'rows'}`}
+                    {t('ui:templates.crud.referenceRows', '{count, plural, one {{n} row} other {{n} rows}}', {
+                      count: reference.count,
+                      n: String(reference.count),
+                    })}
                   </KeyValueRow>
                 ))}
               </KeyValueList>
@@ -687,16 +757,10 @@ export function PageCrud({
           )
         }
         confirmWord={deleteTarget === null ? '' : displayValueOf(columns, deleteTarget.record)}
-        promptLabel={
-          deleteTarget === null ? '' : (
-            <>
-              Type <MonoText>{displayValueOf(columns, deleteTarget.record)}</MonoText> to confirm
-            </>
-          )
-        }
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        closeLabel={labels?.close ?? 'Close'}
+        promptLabel={deleteTarget === null ? '' : confirmPromptFor(displayValueOf(columns, deleteTarget.record))}
+        confirmLabel={t('ui:action.delete', 'Delete')}
+        cancelLabel={t('ui:action.cancel', 'Cancel')}
+        closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
         onConfirm={confirmDelete}
       />
 
@@ -704,24 +768,27 @@ export function PageCrud({
       <ConfirmModal
         open={bulkDeleteIds !== null}
         onOpenChange={(open) => !open && setBulkDeleteIds(null)}
-        title={`Delete ${String(bulkDeleteIds?.length ?? 0)} rows`}
-        body="Referential consequences apply to every selected row."
+        title={t('ui:templates.crud.bulkDeleteTitle', '{count, plural, one {Delete {n} row} other {Delete {n} rows}}', {
+          count: bulkDeleteIds?.length ?? 0,
+          n: String(bulkDeleteIds?.length ?? 0),
+        })}
+        body={t('ui:templates.crud.bulkDeleteBody', 'Referential consequences apply to every selected row.')}
         confirmWord={String(bulkDeleteIds?.length ?? 0)}
-        promptLabel={
-          <>
-            Type <MonoText>{String(bulkDeleteIds?.length ?? 0)}</MonoText> to confirm
-          </>
-        }
-        confirmLabel="Delete rows"
-        cancelLabel="Cancel"
-        closeLabel={labels?.close ?? 'Close'}
+        promptLabel={confirmPromptFor(String(bulkDeleteIds?.length ?? 0))}
+        confirmLabel={t('ui:templates.crud.bulkDeleteConfirm', 'Delete rows')}
+        cancelLabel={t('ui:action.cancel', 'Cancel')}
+        closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
         onConfirm={confirmBulkDelete}
       />
 
       {/* aria-live keeps the stack out of Radix's modal hideOthers sweep
           (aria-hidden pkg preserves live regions) — undo toasts fired while
           the create/confirm modal is still open stay reachable. */}
-      <ToastStack {...queue.stackProps} aria-live="polite" dismissLabel={labels?.dismiss ?? 'Dismiss'} />
+      <ToastStack
+        {...queue.stackProps}
+        aria-live="polite"
+        dismissLabel={labels?.dismiss ?? t('ui:widgets.feeds.toastStack.dismissLabel', 'Dismiss')}
+      />
     </div>
   );
 }

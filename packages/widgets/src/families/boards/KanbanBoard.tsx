@@ -14,13 +14,15 @@ import { useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import { BoardCard } from './BoardCard.js';
+import { useMaybeT } from '@adminium/i18n/react';
+
 import {
   BoardLiveRegion,
   DraggableCard,
   DroppableCell,
   announcementsFromTemplates,
-  defaultBoardAnnouncements,
   silentDndAnnouncements,
+  useBoardAnnouncements,
   useBoardMoves,
   useLiveRegion,
 } from './board-dnd.js';
@@ -96,9 +98,10 @@ export function KanbanBoard({
   onAdd,
   testId,
 }: KanbanBoardProps) {
+  const t = useMaybeT();
   const [activeId, setActiveId] = useState<string | null>(null);
   const { message, announce } = useLiveRegion();
-  const announcements: BoardAnnouncements = { ...defaultBoardAnnouncements, ...labels?.announcements };
+  const announcements: BoardAnnouncements = useBoardAnnouncements(labels?.announcements);
 
   const columnById = new Map(columns.map((column) => [column.id, column]));
   const labelOf = (columnId: string): string => columnById.get(columnId)?.label ?? columnId;
@@ -119,8 +122,8 @@ export function KanbanBoard({
     return (
       <EmptyState
         preset="no-data"
-        title={labels?.emptyTitle ?? 'No board columns'}
-        body={labels?.emptyBody ?? 'Add a status field to group cards into columns.'}
+        title={labels?.emptyTitle ?? t('ui:widgets.boards.kanbanBoard.emptyTitle', 'No board columns')}
+        body={labels?.emptyBody ?? t('ui:widgets.boards.kanbanBoard.emptyBody', 'Add a status field to group cards into columns.')}
       />
     );
   }
@@ -202,7 +205,7 @@ export function KanbanBoard({
                       type="button"
                       data-part="column-add"
                       onClick={() => onAdd?.(column.id)}
-                      aria-label={labels?.addLabel ?? 'Add card'}
+                      aria-label={labels?.addLabel ?? t('ui:widgets.boards.addCard', 'Add card')}
                       className="ms-auto flex size-6 items-center justify-center rounded-md text-fg-muted hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
                     >
                       <Plus className="size-4" aria-hidden="true" />

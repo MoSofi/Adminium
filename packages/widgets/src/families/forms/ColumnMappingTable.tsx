@@ -13,6 +13,7 @@
  */
 
 import { MonoText, Select, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { DEFAULT_MAPPING_TARGETS, columnMappingTableConfigSchema, columnMappingTableDemoData } from './forms-config.js';
@@ -62,9 +63,12 @@ export function mappingRowsOf(data: unknown, config: ColumnMappingTableConfig): 
 }
 
 export function ColumnMappingTableWidget({ config, data, onEvent }: WidgetProps<ColumnMappingTableConfig>) {
+  const t = useMaybeT();
   const targets = config.targets ?? DEFAULT_MAPPING_TARGETS;
   const [rows, setRows] = useState<MappingRow[]>(() => mappingRowsOf(data, config));
   const target = bindingTargetOf(config.binding);
+  // Used by the column header AND each row picker's aria-label — resolve once.
+  const targetHeader = config.targetHeader ?? t('ui:widgets.forms.columnMappingTable.targetHeader', 'Target field');
 
   const setTarget = (index: number, next: string) => {
     const updated = rows.map((row, i) => (i === index ? { ...row, target: next } : row));
@@ -97,13 +101,13 @@ export function ColumnMappingTableWidget({ config, data, onEvent }: WidgetProps<
           className="grid grid-cols-[minmax(6rem,1fr)_minmax(6rem,1fr)_minmax(8rem,1fr)] gap-2 border-b border-border pb-1.5"
         >
           <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {config.sourceHeader ?? 'Source column'}
+            {config.sourceHeader ?? t('ui:widgets.forms.columnMappingTable.sourceHeader', 'Source column')}
           </span>
           <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {config.sampleHeader ?? 'Sample'}
+            {config.sampleHeader ?? t('ui:widgets.forms.columnMappingTable.sampleHeader', 'Sample')}
           </span>
           <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {config.targetHeader ?? 'Target field'}
+            {targetHeader}
           </span>
         </div>
 
@@ -124,7 +128,7 @@ export function ColumnMappingTableWidget({ config, data, onEvent }: WidgetProps<
             </MonoText>
             <span role="cell" className="min-w-0">
               <Select
-                aria-label={`${config.targetHeader ?? 'Target field'} — ${row.column}`}
+                aria-label={`${targetHeader} — ${row.column}`}
                 data-part="mapping-target"
                 value={row.target}
                 onChange={(event) => setTarget(index, event.currentTarget.value)}
@@ -136,7 +140,9 @@ export function ColumnMappingTableWidget({ config, data, onEvent }: WidgetProps<
                     {entry.label ?? entry.key}
                   </option>
                 ))}
-                <option value={SKIP_TARGET}>{config.skipLabel ?? "Don't import"}</option>
+                <option value={SKIP_TARGET}>
+                  {config.skipLabel ?? t('ui:widgets.forms.columnMappingTable.skip', "Don't import")}
+                </option>
               </Select>
             </span>
           </div>

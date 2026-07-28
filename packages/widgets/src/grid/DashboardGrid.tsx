@@ -44,7 +44,7 @@ import {
   GridItemEditProvider,
   GridLiveRegion,
   GridResizeHandle,
-  defaultGridEditLabels,
+  useGridEditLabels,
   useGridLiveRegion,
 } from './grid-edit.js';
 import type { GridEditLabels, GridEditLabelsInput, GridItemEditControls } from './grid-edit.js';
@@ -188,11 +188,7 @@ function EditableGrid({
   dir,
   labels,
 }: EditableGridProps) {
-  const mergedLabels: GridEditLabels = {
-    dragHandle: labels?.dragHandle ?? defaultGridEditLabels.dragHandle,
-    resizeHandle: labels?.resizeHandle ?? defaultGridEditLabels.resizeHandle,
-    announce: { ...defaultGridEditLabels.announce, ...labels?.announce },
-  };
+  const mergedLabels: GridEditLabels = useGridEditLabels(labels);
 
   const { message, announce } = useGridLiveRegion();
   const surfaceRef = useRef<HTMLDivElement | null>(null);

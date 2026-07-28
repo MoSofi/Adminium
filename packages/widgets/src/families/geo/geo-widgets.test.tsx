@@ -597,3 +597,29 @@ describe('geo demoData determinism', () => {
     expect(mapBubbleConfigSchema.safeParse({ initialCenter: [45, -120] }).success).toBe(true);
   });
 });
+
+// ── chrome localization ─────────────────────────────────────────────────────
+
+describe('geo chrome localization (ui:widgets.geo.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { widgets: { geo: { mapBubble: { emptyTitle: 'Keine Orte', emptyBody: 'Koordinaten wählen.' } } } }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <MapBubble points={[]} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Keine Orte')).toBeTruthy();
+
+    cleanup();
+    render(<MapBubble points={[]} />);
+    expect(screen.getByText('No locations')).toBeTruthy();
+  });
+});

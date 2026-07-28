@@ -15,7 +15,7 @@
  *  - invalid configs render the alert card, never a crash;
  *  - the email flavor keeps the always-light paper scope.
  */
-import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { PageBuilder } from './PageBuilder.js';
@@ -378,5 +378,41 @@ describe('PageBuilder (config + flavors edge cases)', () => {
     // question-builder ships its own palette rail — the template omits ITS
     // block palette exactly like the manifest slot's `fallback: 'omit'`.
     expect(container.querySelector('[data-part="builder-palette"]')).toBeNull();
+  });
+});
+
+describe('builder chrome localization (ui:templates.builder.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              templates: {
+                builder: {
+                  paletteTitle: 'Bausteine',
+                  // One dynamic-prefix leaf proves the render-boundary lookup
+                  // over the English BLOCK_KIND_META const.
+                  blocks: { 'block-line-items': 'Positionen' },
+                },
+              },
+            }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageBuilder config={{ docType: 'invoice' }} data={{ row: builderDemoDoc('invoice', 3) }} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Bausteine')).toBeTruthy();
+    // Palette row + inspector module row both resolve the bundle label.
+    expect(screen.getAllByText('Positionen').length).toBeGreaterThanOrEqual(2);
+
+    cleanup();
+    render(<PageBuilder config={{ docType: 'invoice' }} data={{ row: builderDemoDoc('invoice', 3) }} />);
+    expect(screen.getByText('Blocks')).toBeTruthy();
+    expect(screen.getAllByText('Line items').length).toBeGreaterThanOrEqual(2);
   });
 });

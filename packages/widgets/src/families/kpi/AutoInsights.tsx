@@ -20,6 +20,7 @@
 import { IconTile, MonoText, Tag } from '@adminium/ui';
 import { RotateCw } from 'lucide-react';
 import { Sparkline } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { insightIcon } from './kpi-icons.js';
@@ -193,6 +194,7 @@ const GRID_COLUMNS: Record<number, string> = {
 };
 
 export function AutoInsights({ config, data, onEvent }: WidgetProps<AutoInsightsConfig>) {
+  const t = useMaybeT();
   const [offset, setOffset] = useState(0);
   const insights = insightsOf(data, config);
   const visible = visibleWindow(insights, offset, config.count);
@@ -224,7 +226,7 @@ export function AutoInsights({ config, data, onEvent }: WidgetProps<AutoInsights
             className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-caption font-bold text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <RotateCw className="size-3" aria-hidden="true" />
-            {config.refreshLabel ?? 'Refresh'}
+            {config.refreshLabel ?? t('ui:widgets.kpi.autoInsights.refreshLabel', 'Refresh')}
           </button>
         </div>
       ) : null}

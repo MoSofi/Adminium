@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -207,5 +207,49 @@ describe('PageCrud template (09 §7.1)', () => {
     expect(await screen.findByText('Query failed')).toBeDefined();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Initech')).toBeDefined();
+  });
+});
+
+describe('page-crud localization (ui:templates.crud.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              templates: {
+                crud: {
+                  newRow: 'Neue Zeile',
+                  // ICU args must flow through the provider path too.
+                  emptyTitle: '{count, plural, other {Noch keine {entity}}}',
+                },
+              },
+            }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageCrud
+          api={makeApi([])}
+          columns={columns}
+          source={{ connectionId: 'conn_1', table: 'public.customers' }}
+        />
+      </I18nProvider>,
+    );
+    expect(await screen.findByText('Noch keine customer')).toBeDefined();
+    expect(screen.getAllByRole('button', { name: 'Neue Zeile' }).length).toBeGreaterThan(0);
+
+    cleanup();
+    render(
+      <PageCrud
+        api={makeApi([])}
+        columns={columns}
+        source={{ connectionId: 'conn_1', table: 'public.customers' }}
+      />,
+    );
+    expect(await screen.findByText('No customers yet')).toBeDefined();
+    expect(screen.getAllByRole('button', { name: 'New row' }).length).toBeGreaterThan(0);
   });
 });

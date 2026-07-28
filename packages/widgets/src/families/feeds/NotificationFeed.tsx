@@ -1,5 +1,6 @@
 import { Badge, Button, EmptyState, IconButton } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { CheckCheck, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -77,6 +78,7 @@ export function NotificationFeed({
   onAction,
   testId,
 }: NotificationFeedProps) {
+  const t = useMaybeT();
   const clock = now ?? Date.now();
   const [tab, setTab] = useState<Tab>('all');
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set());
@@ -103,15 +105,15 @@ export function NotificationFeed({
   })).filter((group) => group.items.length > 0);
 
   const bucketLabel: Record<Bucket, string> = {
-    today: labels?.today ?? 'Today',
-    yesterday: labels?.yesterday ?? 'Yesterday',
-    earlier: labels?.earlier ?? 'Earlier',
+    today: labels?.today ?? t('ui:widgets.feeds.notificationFeed.todayLabel', 'Today'),
+    yesterday: labels?.yesterday ?? t('ui:widgets.feeds.notificationFeed.yesterdayLabel', 'Yesterday'),
+    earlier: labels?.earlier ?? t('ui:widgets.feeds.notificationFeed.earlierLabel', 'Earlier'),
   };
 
   const tabDefs: { id: Tab; label: string; count?: number }[] = [
-    { id: 'all', label: labels?.all ?? 'All' },
-    { id: 'unread', label: labels?.unread ?? 'Unread', count: unreadCount },
-    { id: 'mentions', label: labels?.mentions ?? 'Mentions' },
+    { id: 'all', label: labels?.all ?? t('ui:widgets.feeds.notificationFeed.allLabel', 'All') },
+    { id: 'unread', label: labels?.unread ?? t('ui:widgets.feeds.notificationFeed.unreadLabel', 'Unread'), count: unreadCount },
+    { id: 'mentions', label: labels?.mentions ?? t('ui:widgets.feeds.notificationFeed.mentionsLabel', 'Mentions') },
   ];
 
   const markAll = () => {
@@ -128,7 +130,7 @@ export function NotificationFeed({
       {(tabs || markAllRead) && (
         <div className="flex items-center gap-2 border-b border-border px-3 py-2">
           {tabs && (
-            <div role="tablist" aria-label="Notification filter" className="flex items-center gap-1">
+            <div role="tablist" aria-label={t('ui:widgets.feeds.notificationFeed.filterLabel', 'Notification filter')} className="flex items-center gap-1">
               {tabDefs.map((def) => (
                 <button
                   key={def.id}
@@ -158,7 +160,7 @@ export function NotificationFeed({
               disabled={unreadCount === 0}
               onClick={markAll}
             >
-              {labels?.markAllRead ?? 'Mark all read'}
+              {labels?.markAllRead ?? t('ui:widgets.feeds.notificationFeed.markAllReadLabel', 'Mark all read')}
             </Button>
           )}
         </div>
@@ -171,12 +173,12 @@ export function NotificationFeed({
             preset={tab === 'all' ? 'no-data' : 'all-caught-up'}
             title={
               tab === 'unread'
-                ? (labels?.emptyUnreadTitle ?? "You're all caught up")
+                ? (labels?.emptyUnreadTitle ?? t('ui:widgets.feeds.notificationFeed.emptyUnreadTitle', "You're all caught up"))
                 : tab === 'mentions'
-                  ? (labels?.emptyMentionsTitle ?? 'No mentions')
-                  : (labels?.emptyAllTitle ?? 'No notifications')
+                  ? (labels?.emptyMentionsTitle ?? t('ui:widgets.feeds.notificationFeed.emptyMentionsTitle', 'No mentions'))
+                  : (labels?.emptyAllTitle ?? t('ui:widgets.feeds.notificationFeed.emptyTitle', 'No notifications'))
             }
-            body={tab === 'all' ? (labels?.emptyAllBody ?? 'New notifications will appear here.') : undefined}
+            body={tab === 'all' ? (labels?.emptyAllBody ?? t('ui:widgets.feeds.notificationFeed.emptyBody', 'New notifications will appear here.')) : undefined}
           />
         ) : (
           buckets.map((group) => (
@@ -236,7 +238,7 @@ export function NotificationFeed({
                       </div>
                       <IconButton
                         size="sm"
-                        label={labels?.dismiss ?? 'Dismiss'}
+                        label={labels?.dismiss ?? t('ui:widgets.feeds.notificationFeed.dismissLabel', 'Dismiss')}
                         className="opacity-0 transition-opacity group-hover/notif:opacity-100 focus-visible:opacity-100"
                         onClick={() => dismiss(item.id)}
                       >

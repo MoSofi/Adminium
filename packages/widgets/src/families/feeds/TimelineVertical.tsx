@@ -1,5 +1,6 @@
 import { Badge, EmptyState, IconTile, MonoText, Tag } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { feedIcon } from './feed-icons.js';
 import { DEMO_EPOCH, RelativeTime, feedRowsOf, toneOf } from './feed-lib.js';
@@ -48,13 +49,14 @@ export function TimelineVertical({
   emptyBody,
   testId,
 }: TimelineVerticalProps) {
+  const t = useMaybeT();
   if (entries.length === 0) {
     return (
       <EmptyState
         compact
         preset="nothing-scheduled"
-        title={emptyTitle ?? 'Nothing here yet'}
-        body={emptyBody ?? 'Events will appear on this timeline as they happen.'}
+        title={emptyTitle ?? t('ui:widgets.feeds.timelineVertical.emptyTitle', 'Nothing here yet')}
+        body={emptyBody ?? t('ui:widgets.feeds.timelineVertical.emptyBody', 'Events will appear on this timeline as they happen.')}
       />
     );
   }

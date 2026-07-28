@@ -1,4 +1,5 @@
 import { MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Mail, Phone, User } from 'lucide-react';
 
 import { BlockEmpty } from './BlockShell.js';
@@ -28,9 +29,10 @@ export {
 // ── block-contact ───────────────────────────────────────────────────────────
 
 export function BlockContactWidget({ config, data }: WidgetProps<BlockContactConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockContact>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No contact'} body={config.emptyBody ?? 'Contact details appear once this document names a recipient.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockContact.emptyTitle', 'No contact')} body={config.emptyBody ?? t('ui:widgets.domain.blockContact.emptyBody', 'Contact details appear once this document names a recipient.')} />;
   }
 
   const rows: readonly { key: string; icon: typeof User; value: string | undefined; mono: boolean }[] = [
@@ -63,9 +65,10 @@ export function BlockContactWidget({ config, data }: WidgetProps<BlockContactCon
 // ── block-highlight-box ─────────────────────────────────────────────────────
 
 export function BlockHighlightBoxWidget({ config, data }: WidgetProps<BlockHighlightBoxConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockHighlight>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'Nothing highlighted'} body={config.emptyBody ?? 'A highlighted figure appears once this block is bound.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockHighlightBox.emptyTitle', 'Nothing highlighted')} body={config.emptyBody ?? t('ui:widgets.domain.blockHighlightBox.emptyBody', 'A highlighted figure appears once this block is bound.')} />;
   }
 
   return (

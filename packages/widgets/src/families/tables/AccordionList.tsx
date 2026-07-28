@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, MonoText, Tag } from '@adminium/ui';
 import { ChevronDown, Minus, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -48,6 +49,7 @@ export function AccordionList({
   emptyBody,
   testId,
 }: AccordionListProps) {
+  const t = useMaybeT();
   const known = new Set(rows.map((row) => row.id));
   const [open, setOpen] = useState<ReadonlySet<string>>(() => {
     const initial = (defaultOpen ?? []).filter((id) => known.has(id));
@@ -64,8 +66,8 @@ export function AccordionList({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'Nothing to expand'}
-        body={emptyBody ?? 'Entries will appear here once there are any.'}
+        title={emptyTitle ?? t('ui:widgets.tables.accordionList.emptyTitle', 'Nothing to expand')}
+        body={emptyBody ?? t('ui:widgets.tables.accordionList.emptyBody', 'Entries will appear here once there are any.')}
       />
     );
   }

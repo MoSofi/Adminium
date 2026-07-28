@@ -1,5 +1,6 @@
 import { Avatar, EmptyState } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -95,6 +96,7 @@ export function OrgChart({
   reportsLabel,
   testId,
 }: OrgChartProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const { roots } = useMemo(() => orgRootsOf(data, fields), [data, fields]);
 
@@ -112,8 +114,8 @@ export function OrgChart({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No reporting structure'}
-        body={emptyBody ?? 'The org chart appears once people rows reference a manager.'}
+        title={emptyTitle ?? t('ui:widgets.domain.orgChart.emptyTitle', 'No reporting structure')}
+        body={emptyBody ?? t('ui:widgets.domain.orgChart.emptyBody', 'The org chart appears once people rows reference a manager.')}
       />
     );
   }
@@ -131,7 +133,7 @@ export function OrgChart({
     <div data-widget="org-chart" data-testid={testId} className="h-full overflow-auto p-4">
       <div
         role="tree"
-        aria-label="Organization chart"
+        aria-label={t('ui:widgets.domain.orgChart.a11yLabel', 'Organization chart')}
         className="relative mx-auto h-[var(--org-canvas-h)] w-[var(--org-canvas-w)]"
         style={{ '--org-canvas-w': `${layout.width}px`, '--org-canvas-h': `${layout.height}px` }}
       >
@@ -188,6 +190,7 @@ interface OrgCardProps {
 }
 
 function OrgCard({ entry, tone, locale, collapsible, reportsLabel, onToggle }: OrgCardProps) {
+  const t = useMaybeT();
   const { node } = entry;
   const isRoot = entry.depth === 0;
   const dept = node.meta?.dept;
@@ -248,7 +251,13 @@ function OrgCard({ entry, tone, locale, collapsible, reportsLabel, onToggle }: O
           ) : (
             <ChevronUp className="size-3" aria-hidden="true" />
           )}
-          {formatReports(reportsLabel, entry.childCount)}
+          {reportsLabel !== undefined
+            ? formatReports(reportsLabel, entry.childCount)
+            : // `count` is pre-stringified: config templates substitute verbatim
+              // (`formatReports`), so the localized default must too.
+              t('ui:widgets.domain.orgChart.reportsLabel', 'Reports · {count}', {
+                count: String(entry.childCount),
+              })}
         </button>
       )}
     </div>

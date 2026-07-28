@@ -14,6 +14,7 @@ import {
 } from '@adminium/ui';
 import { AlertTriangle, EllipsisVertical, Info, RotateCcw } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary.js';
@@ -69,14 +70,34 @@ export interface WidgetFrameProps {
   children?: ReactNode;
 }
 
+/**
+ * Config `emptyState.titleKey`/`bodyKey` values are i18n key PATHS
+ * (`widgets.<family>.<widget>.emptyTitle`); legacy/host configs may carry plain
+ * copy in the same slots. Key-shaped values resolve through the bundle;
+ * anything else renders verbatim, exactly as before the translator existed.
+ */
+const EMPTY_STATE_KEY_RE = /^widgets\.[A-Za-z0-9_.]+$/;
+
+/** Last-resort English for a bundle-less key path: 'widgets.charts.bullet.emptyTitle' → 'Empty title'. */
+function humanizeKeyLeaf(key: string): string {
+  const leaf = key.slice(key.lastIndexOf('.') + 1);
+  const words = leaf
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .trim();
+  return words === '' ? key : words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function ErrorBody({ message, onRetry }: { message: ReactNode; onRetry?: (() => void) | undefined }) {
+  const t = useMaybeT();
   return (
     <div role="alert" className="flex flex-col items-center gap-3 px-4 py-8 text-center compact:py-6">
       <IconTile tone="danger" size="lg" icon={<AlertTriangle />} />
       <p className="max-w-[320px] text-body-sm text-fg-muted">{message}</p>
       {onRetry === undefined ? null : (
         <Button size="sm" variant="secondary" iconLeft={<RotateCcw />} onClick={onRetry}>
-          Retry
+          {t('ui:action.retry', 'Retry')}
         </Button>
       )}
     </div>
@@ -99,9 +120,17 @@ export function WidgetFrame({
   testId,
   children,
 }: WidgetFrameProps) {
+  const t = useMaybeT();
   const grip = typeof dragGrip === 'function' ? dragGrip() : dragGrip;
   const hasHeader =
     title !== undefined || info !== undefined || menu !== undefined || grip !== undefined;
+
+  // Empty-state translator: key-shaped config copy resolves via the bundle
+  // (humanized-leaf English when the key has no entry); plain copy passes through.
+  const localizeEmpty = (value: ReactNode): ReactNode =>
+    typeof value === 'string' && EMPTY_STATE_KEY_RE.test(value)
+      ? t(`ui:${value}`, humanizeKeyLeaf(value))
+      : value;
 
   const body = (() => {
     switch (state) {
@@ -113,19 +142,24 @@ export function WidgetFrame({
             compact
             preset="no-data"
             {...(empty?.icon !== undefined ? { icon: empty.icon } : {})}
-            title={empty?.title ?? 'No data for range'}
-            {...(empty?.body !== undefined ? { body: empty.body } : {})}
+            title={localizeEmpty(empty?.title) ?? t('ui:frame.emptyTitle', 'No data for range')}
+            {...(empty?.body !== undefined ? { body: localizeEmpty(empty.body) } : {})}
           />
         );
       case 'error':
-        return <ErrorBody message={errorMessage ?? 'Something went wrong loading this widget.'} onRetry={onRetry} />;
+        return (
+          <ErrorBody
+            message={errorMessage ?? t('ui:frame.loadError', 'Something went wrong loading this widget.')}
+            onRetry={onRetry}
+          />
+        );
       case 'loaded':
         return (
           <WidgetErrorBoundary
             onError={onRenderError === undefined ? undefined : (error) => onRenderError(error)}
             fallback={(error, reset) => (
               <ErrorBody
-                message={errorMessage ?? error.message ?? 'This widget failed to render.'}
+                message={errorMessage ?? error.message ?? t('ui:frame.renderError', 'This widget failed to render.')}
                 onRetry={() => {
                   reset();
                   onRetry?.();
@@ -145,11 +179,11 @@ export function WidgetFrame({
         <header className="flex min-h-10 items-center gap-1.5 px-4 pt-3 compact:px-3 compact:pt-2">
           {grip}
           <h3 className="min-w-0 flex-1 truncate text-body-sm font-semibold text-fg">{title}</h3>
-          {refetching && <Spinner size="sm" label="Refreshing" className="text-fg-muted" />}
+          {refetching && <Spinner size="sm" label={t('ui:frame.refreshing', 'Refreshing')} className="text-fg-muted" />}
           {info !== undefined && (
             <Popover>
               <PopoverTrigger asChild>
-                <IconButton size="sm" label="Widget info">
+                <IconButton size="sm" label={t('ui:frame.infoLabel', 'Widget info')}>
                   <Info size={14} />
                 </IconButton>
               </PopoverTrigger>
@@ -161,7 +195,7 @@ export function WidgetFrame({
           {menu !== undefined && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <IconButton size="sm" label="Widget menu">
+                <IconButton size="sm" label={t('ui:frame.menuLabel', 'Widget menu')}>
                   <EllipsisVertical size={14} />
                 </IconButton>
               </DropdownMenuTrigger>

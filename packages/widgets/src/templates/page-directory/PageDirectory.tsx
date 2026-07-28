@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import {
   Button,
   Drawer,
@@ -136,6 +137,7 @@ export function PageDirectory({
   labels,
   testId,
 }: PageDirectoryProps) {
+  const t = useMaybeT();
   const body: TemplateBody = useMemo(() => parseTemplateBody(config), [config]);
   const dataStates = useDashboardData(body.layout, adapter, params);
   const stateFor = useCallback(
@@ -233,10 +235,27 @@ export function PageDirectory({
   if (!body.valid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-directory-invalid">
-        This directory&rsquo;s stored configuration is invalid. Regenerate the page to restore it.
+        {t(
+          'ui:templates.directory.invalidConfig',
+          'This directory’s stored configuration is invalid. Regenerate the page to restore it.',
+        )}
       </p>
     );
   }
+
+  const memberTotal = isOrgChart ? rows.length : visibleRows.length;
+  // `count` drives the ICU plural; `n` passes the digits through
+  // pre-stringified so ICU never regroups them (DayAgenda convention). A
+  // labels.memberCount override keeps the documented plain "{count}"
+  // substitution — widget labels carry no ICU.
+  const memberCountText =
+    labels?.memberCount !== undefined
+      ? interpolateCount(labels.memberCount, memberTotal)
+      : t('ui:templates.directory.memberCount', '{count, plural, one {{n} person} other {{n} people}}', {
+          count: memberTotal,
+          n: String(memberTotal),
+        });
+  const detailTitle = labels?.detailTitle ?? t('ui:templates.directory.detailTitle', 'Person');
 
   return (
     <div data-part="page-directory" data-testid={testId} className="flex h-full min-h-0 flex-col">
@@ -259,14 +278,18 @@ export function PageDirectory({
           <SearchInput
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder={labels?.searchPlaceholder ?? 'Search people…'}
+            placeholder={labels?.searchPlaceholder ?? t('ui:templates.directory.searchPlaceholder', 'Search people…')}
             className="w-72"
             onClear={() => setSearch('')}
-            clearLabel="Clear search"
+            clearLabel={t('ui:action.clearSearch', 'Clear search')}
           />
         )}
         {filterValues.length > 0 && (
-          <div role="group" aria-label="Filter" className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <div
+            role="group"
+            aria-label={t('ui:widgets.forms.filterChipBar.a11yLabel', 'Filter')}
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
+          >
             {[null, ...filterValues].map((value) => (
               <button
                 key={value ?? '__all__'}
@@ -275,14 +298,16 @@ export function PageDirectory({
                 onClick={() => setFilter(value)}
                 className="rounded-full border border-border px-2.5 py-0.5 text-caption font-semibold text-fg-muted data-[active=true]:border-accent data-[active=true]:bg-accent-soft data-[active=true]:text-accent hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
               >
-                {value === null ? (labels?.allFilter ?? 'All') : humanizeName(value)}
+                {value === null
+                  ? (labels?.allFilter ?? t('ui:widgets.forms.filterChipBar.all', 'All'))
+                  : humanizeName(value)}
               </button>
             ))}
           </div>
         )}
         {directoryState.status === 'success' && (
           <span className="ms-auto font-mono text-caption tabular-nums text-fg-subtle" data-part="directory-count">
-            {interpolateCount(labels?.memberCount, isOrgChart ? rows.length : visibleRows.length)}
+            {memberCountText}
           </span>
         )}
       </div>
@@ -292,25 +317,25 @@ export function PageDirectory({
         {directoryState.status === 'error' ? (
           <EmptyState
             tone="danger"
-            title={labels?.errorTitle ?? 'This directory failed to load'}
+            title={labels?.errorTitle ?? t('ui:templates.directory.errorTitle', 'This directory failed to load')}
             body={directoryState.error instanceof Error ? directoryState.error.message : undefined}
             actions={
               directoryState.refetch === undefined ? undefined : (
                 <Button size="sm" variant="secondary" onClick={directoryState.refetch}>
-                  {labels?.retry ?? 'Retry'}
+                  {labels?.retry ?? t('ui:action.retry', 'Retry')}
                 </Button>
               )
             }
           />
         ) : directoryState.status === 'loading' ? (
           <div className="flex flex-1 items-center justify-center py-16">
-            <Spinner label={labels?.loading ?? 'Loading people'} />
+            <Spinner label={labels?.loading ?? t('ui:templates.directory.loading', 'Loading people')} />
           </div>
         ) : rows.length === 0 ? (
           <EmptyState
             preset="no-data"
-            title={labels?.emptyTitle ?? 'No people yet'}
-            body={labels?.emptyBody ?? 'People appear here as rows land in the table.'}
+            title={labels?.emptyTitle ?? t('ui:templates.directory.emptyTitle', 'No people yet')}
+            body={labels?.emptyBody ?? t('ui:templates.directory.emptyBody', 'People appear here as rows land in the table.')}
           />
         ) : isOrgChart ? (
           <OrgChart
@@ -333,8 +358,8 @@ export function PageDirectory({
           // Filtered empty state — MUST be distinct from first-use (09 §6.2).
           <EmptyState
             preset="no-matches"
-            title={labels?.noMatchesTitle ?? 'No matching people'}
-            body={labels?.noMatchesBody ?? 'Try a different search or remove a filter.'}
+            title={labels?.noMatchesTitle ?? t('ui:templates.directory.noMatchesTitle', 'No matching people')}
+            body={labels?.noMatchesBody ?? t('ui:templates.common.noMatchesBody', 'Try a different search or remove a filter.')}
             actions={
               <Button
                 size="sm"
@@ -344,7 +369,7 @@ export function PageDirectory({
                   setFilter(null);
                 }}
               >
-                {labels?.clearFilters ?? 'Clear filters'}
+                {labels?.clearFilters ?? t('ui:templates.common.clearFilters', 'Clear filters')}
               </Button>
             }
           />
@@ -363,17 +388,13 @@ export function PageDirectory({
       {/* Person drawer — detail-key-value over the selected row (§7.7). */}
       <Drawer open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)} size="md">
         <DrawerHeader
-          title={
-            detailRow === undefined
-              ? (labels?.detailTitle ?? 'Person')
-              : (cellText(detailRow[titleField]) ?? (labels?.detailTitle ?? 'Person'))
-          }
-          closeLabel={labels?.close ?? 'Close'}
+          title={detailRow === undefined ? detailTitle : (cellText(detailRow[titleField]) ?? detailTitle)}
+          closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
         />
         <DrawerBody>
           {detailRow === undefined ? (
             <div className="flex items-center justify-center py-10">
-              <Spinner label={labels?.loading ?? 'Loading record'} />
+              <Spinner label={labels?.loading ?? t('ui:templates.common.loadingRecord', 'Loading record')} />
             </div>
           ) : (
             <DetailKeyValue columns={detailSpecs} record={detailRow} testId="page-directory-detail" />

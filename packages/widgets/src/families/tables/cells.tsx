@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, Badge, MonoText, StatusPill, type Tone } from '@adminium/ui';
 import { Check, Eye, EyeOff, X } from 'lucide-react';
 import { useState } from 'react';
@@ -50,6 +51,7 @@ function MaskedCell({
   revealable: boolean;
   context: CellContext;
 }) {
+  const t = useMaybeT();
   const [revealed, setRevealed] = useState(false);
   if (!revealable) {
     return (
@@ -65,7 +67,11 @@ function MaskedCell({
       </MonoText>
       <button
         type="button"
-        aria-label={revealed ? (context.hideLabel ?? 'Hide value') : (context.revealLabel ?? 'Reveal value')}
+        aria-label={
+          revealed
+            ? (context.hideLabel ?? t('ui:widgets.tables.hideLabel', 'Hide value'))
+            : (context.revealLabel ?? t('ui:widgets.tables.revealLabel', 'Reveal value'))
+        }
         aria-pressed={revealed}
         onClick={(event) => {
           event.stopPropagation();
@@ -138,6 +144,7 @@ export function CellValue({
   row: GridRow;
   context?: CellContext | undefined;
 }): ReactNode {
+  const t = useMaybeT();
   const value = row[column.name];
   const maskedByServer = maskedColumnsOf(row).includes(column.name);
 
@@ -169,9 +176,9 @@ export function CellValue({
 
   if (column.logicalType === 'boolean') {
     return value === true ? (
-      <Check data-part="cell-bool-true" className="size-4 text-pos" aria-label="true" role="img" />
+      <Check data-part="cell-bool-true" className="size-4 text-pos" aria-label={t('ui:widgets.tables.trueLabel', 'true')} role="img" />
     ) : (
-      <X data-part="cell-bool-false" className="size-4 text-fg-subtle" aria-label="false" role="img" />
+      <X data-part="cell-bool-false" className="size-4 text-fg-subtle" aria-label={t('ui:widgets.tables.falseLabel', 'false')} role="img" />
     );
   }
 

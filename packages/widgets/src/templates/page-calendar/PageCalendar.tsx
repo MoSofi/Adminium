@@ -26,6 +26,7 @@
  *   the host binding re-windows the widget-data query, and filters the
  *   rendered panes client-side.
  */
+import { useMaybeT } from '@adminium/i18n/react';
 import { Button, Popover, PopoverContent, PopoverTrigger } from '@adminium/ui';
 import { CalendarRange } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -69,8 +70,6 @@ const CALENDAR_WIDGET_ID = 'calendar-month';
 const AGENDA_WIDGET_ID = 'day-agenda';
 const LEGEND_WIDGET_ID = 'calendar-legend-filter';
 const UPCOMING_WIDGET_ID = 'upcoming-events-list';
-
-const UNCATEGORIZED = 'Uncategorized';
 
 export interface PageCalendarLabels {
   dateRange?: string | undefined;
@@ -183,6 +182,7 @@ function AgendaPane({
   onCompose: ((title: string) => void) | undefined;
   labels: PageCalendarLabels | undefined;
 }) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const dayEvents = events.filter((event) => event.date === day).sort((a, b) => minutesOf(a) - minutesOf(b));
   return (
@@ -190,13 +190,17 @@ function AgendaPane({
       <div className="flex items-baseline justify-between border-b border-border/60 px-3 py-2">
         <h3 className="text-body-sm font-bold text-fg">{fmtDayLabel(tag, parseIsoDay(day))}</h3>
         <span className="text-caption font-semibold text-fg-subtle">
-          {dayEvents.length} {dayEvents.length === 1 ? 'event' : 'events'}
+          {/* `count` drives the ICU plural; `n` is pre-stringified so the digits render exactly as before. */}
+          {t('ui:templates.calendar.eventCount', '{count, plural, one {{n} event} other {{n} events}}', {
+            count: dayEvents.length,
+            n: String(dayEvents.length),
+          })}
         </span>
       </div>
       <div className="flex-1 space-y-1.5 overflow-auto p-3">
         {dayEvents.length === 0 && (
           <p className="px-1 py-2 text-body-sm text-fg-muted" data-part="agenda-empty">
-            {labels?.agendaEmptyTitle ?? 'Nothing scheduled'}
+            {labels?.agendaEmptyTitle ?? t('ui:widgets.calendar.dayAgenda.emptyTitle', 'Nothing scheduled')}
           </p>
         )}
         {dayEvents.map((event, index) => {
@@ -231,10 +235,10 @@ function AgendaPane({
           <div className="pt-1.5">
             <InlineComposeCard
               keepOpen={false}
-              placeholder={labels?.composePlaceholder ?? 'Event title…'}
-              addLabel={labels?.composeAdd ?? 'Add'}
-              cancelLabel={labels?.composeCancel ?? 'Cancel'}
-              openLabel={labels?.composeOpen ?? 'Add event'}
+              placeholder={labels?.composePlaceholder ?? t('ui:templates.calendar.composePlaceholder', 'Event title…')}
+              addLabel={labels?.composeAdd ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add')}
+              cancelLabel={labels?.composeCancel ?? t('ui:action.cancel', 'Cancel')}
+              openLabel={labels?.composeOpen ?? t('ui:templates.calendar.addEvent', 'Add event')}
               testId="agenda-compose"
               onAdd={onCompose}
             />
@@ -256,9 +260,15 @@ export function PageCalendar({
   className,
   testId,
 }: PageCalendarProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
   const resolvedStates = useTemplateStates(parsed.layout, states);
   const today = referenceDate ?? todayIso();
+
+  // The uncategorized bucket NAME is also the legend-filter identity: the same
+  // resolved string must feed `aggregateCategories` and the hidden-set check,
+  // or toggling the bucket would stop filtering under a non-English locale.
+  const uncategorized = t('ui:widgets.calendar.calendarLegendFilter.uncategorizedLabel', 'Uncategorized');
 
   const calendarItem = parsed.layout.items.find((item) => item.widget === CALENDAR_WIDGET_ID);
   const calendarRaw = calendarItem === undefined ? {} : itemConfigOf(calendarItem);
@@ -277,11 +287,11 @@ export function PageCalendar({
   const visibleEvents = useMemo(() => {
     const hiddenSet = new Set(hidden);
     return allEvents.filter((event) => {
-      if (hiddenSet.has(event.category ?? UNCATEGORIZED)) return false;
+      if (hiddenSet.has(event.category ?? uncategorized)) return false;
       if (range.start !== null && range.end !== null) return isInRange(event.date, range.start, range.end);
       return true;
     });
-  }, [allEvents, hidden, range]);
+  }, [allEvents, hidden, range, uncategorized]);
 
   const openRecordFrom = (instanceId: string) => (event: UpcomingEvent) => {
     if (source === null || onEvent === undefined || event.id === undefined) return;
@@ -314,7 +324,10 @@ export function PageCalendar({
   if (parsed.invalid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-calendar-invalid">
-        This calendar&rsquo;s stored layout is invalid. Regenerate the page or reset its layout.
+        {t(
+          'ui:templates.calendar.invalidLayout',
+          'This calendar’s stored layout is invalid. Regenerate the page or reset its layout.',
+        )}
       </p>
     );
   }
@@ -330,7 +343,7 @@ export function PageCalendar({
               <Button variant="secondary" size="sm" iconLeft={<CalendarRange />} data-part="calendar-range-trigger">
                 {range.start !== null && range.end !== null
                   ? `${range.start} → ${range.end}`
-                  : labels?.dateRange ?? 'Date range'}
+                  : labels?.dateRange ?? t('ui:templates.calendar.dateRange', 'Date range')}
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-80 p-0">
@@ -377,7 +390,7 @@ export function PageCalendar({
             return (
               <WidgetFrame
                 state="loaded"
-                title={configString(itemConfigOf(item), 'title') ?? 'Agenda'}
+                title={configString(itemConfigOf(item), 'title') ?? t('ui:templates.calendar.agendaTitle', 'Agenda')}
                 skeleton="list"
                 testId={`agenda-slot-${item.i}`}
               >
@@ -398,12 +411,12 @@ export function PageCalendar({
             return (
               <WidgetFrame
                 state="loaded"
-                title={configString(itemConfigOf(item), 'title') ?? 'Categories'}
+                title={configString(itemConfigOf(item), 'title') ?? t('ui:templates.calendar.categoriesTitle', 'Categories')}
                 skeleton="list"
                 testId={`legend-slot-${item.i}`}
               >
                 <CalendarLegendFilter
-                  categories={aggregateCategories(allEvents, cfg.categoryColorMap, UNCATEGORIZED)}
+                  categories={aggregateCategories(allEvents, cfg.categoryColorMap, uncategorized)}
                   {...(locale === undefined ? {} : { locale })}
                   onChange={setHidden}
                 />
@@ -414,7 +427,7 @@ export function PageCalendar({
             return (
               <WidgetFrame
                 state="loaded"
-                title={configString(itemConfigOf(item), 'title') ?? 'Upcoming'}
+                title={configString(itemConfigOf(item), 'title') ?? t('ui:templates.calendar.upcomingTitle', 'Upcoming')}
                 skeleton="list"
                 testId={`upcoming-slot-${item.i}`}
               >

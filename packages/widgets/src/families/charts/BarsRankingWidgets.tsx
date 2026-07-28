@@ -5,6 +5,7 @@
  * (ChartSurface renders them as the SVG aria-label). Components render only the
  * loaded state — WidgetFrame owns skeleton/empty/error (04 §4).
  */
+import { useMaybeT } from '@adminium/i18n/react';
 import {
   BulletChart,
   MarimekkoChart,
@@ -35,7 +36,8 @@ import type {
 } from './bars-ranking-config.js';
 
 function BadShape() {
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+  const t = useMaybeT();
+  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 const wrap = 'px-4 pb-4 compact:px-3 compact:pb-3';
@@ -43,6 +45,7 @@ const wrap = 'px-4 pb-4 compact:px-3 compact:pb-3';
 // --- chart-bullet ------------------------------------------------------------
 
 export function ChartBulletWidget({ config, data }: WidgetProps<ChartBulletConfig>) {
+  const t = useMaybeT();
   const rows = asBulletRows(data);
   if (rows === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -50,7 +53,7 @@ export function ChartBulletWidget({ config, data }: WidgetProps<ChartBulletConfi
     <div className={wrap} data-widget="chart-bullet">
       <BulletChart
         data={rows}
-        labels={{ label: config.title ?? 'Bullet chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.bullet.chartLabel', 'Bullet chart') }}
         height={config.height}
         formatValue={(value) => formatMetricValue(value, config.metricFormat, opts)}
       />
@@ -61,6 +64,7 @@ export function ChartBulletWidget({ config, data }: WidgetProps<ChartBulletConfi
 // --- chart-ranking-bars ------------------------------------------------------
 
 export function ChartRankingBarsWidget({ config, data }: WidgetProps<ChartRankingBarsConfig>) {
+  const t = useMaybeT();
   const categorical = asCategorical(data);
   if (categorical === null || categorical.items.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -68,7 +72,7 @@ export function ChartRankingBarsWidget({ config, data }: WidgetProps<ChartRankin
     <div className={wrap} data-widget="chart-ranking-bars">
       <RankingBars
         data={categorical.items.map((item) => ({ label: item.label, value: item.value }))}
-        labels={{ label: config.title ?? 'Ranking' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.rankingBars.chartLabel', 'Ranking') }}
         max={config.n}
         formatValue={(value) => formatMetricValue(value, config.metricFormat, opts)}
       />
@@ -79,6 +83,7 @@ export function ChartRankingBarsWidget({ config, data }: WidgetProps<ChartRankin
 // --- chart-pareto ------------------------------------------------------------
 
 export function ChartParetoWidget({ config, data }: WidgetProps<ChartParetoConfig>) {
+  const t = useMaybeT();
   const categorical = asCategorical(data);
   if (categorical === null || categorical.items.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -86,7 +91,7 @@ export function ChartParetoWidget({ config, data }: WidgetProps<ChartParetoConfi
     <div className={wrap} data-widget="chart-pareto">
       <ParetoChart
         data={categorical.items.map((item) => ({ label: item.label, value: item.value }))}
-        labels={{ label: config.title ?? 'Pareto chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.pareto.chartLabel', 'Pareto chart') }}
         cutline={config.cutline}
         smooth={config.smooth}
         showAxis={config.axis}
@@ -100,6 +105,7 @@ export function ChartParetoWidget({ config, data }: WidgetProps<ChartParetoConfi
 // --- chart-waterfall ---------------------------------------------------------
 
 export function ChartWaterfallWidget({ config, data }: WidgetProps<ChartWaterfallConfig>) {
+  const t = useMaybeT();
   const steps = asWaterfallSteps(data);
   if (steps === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -107,7 +113,7 @@ export function ChartWaterfallWidget({ config, data }: WidgetProps<ChartWaterfal
     <div className={wrap} data-widget="chart-waterfall">
       <WaterfallChart
         data={steps}
-        labels={{ label: config.title ?? 'Waterfall chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.waterfall.chartLabel', 'Waterfall chart') }}
         showAxis={config.axis}
         height={config.height}
         formatValue={(value) => formatMetricValue(value, config.metricFormat, opts)}
@@ -119,6 +125,7 @@ export function ChartWaterfallWidget({ config, data }: WidgetProps<ChartWaterfal
 // --- chart-marimekko ---------------------------------------------------------
 
 export function ChartMarimekkoWidget({ config, data }: WidgetProps<ChartMarimekkoConfig>) {
+  const t = useMaybeT();
   const matrix = asMatrix(data);
   if (matrix === null) return <BadShape />;
   return (
@@ -127,7 +134,7 @@ export function ChartMarimekkoWidget({ config, data }: WidgetProps<ChartMarimekk
         rowKeys={matrix.rowKeys}
         colKeys={matrix.colKeys}
         cells={matrix.cells}
-        labels={{ label: config.title ?? 'Marimekko chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.marimekko.chartLabel', 'Marimekko chart') }}
         labelThreshold={config.labelThreshold}
         height={config.height}
       />
@@ -138,6 +145,7 @@ export function ChartMarimekkoWidget({ config, data }: WidgetProps<ChartMarimekk
 // --- chart-stacked-bar-100 ---------------------------------------------------
 
 export function ChartStackedBar100Widget({ config, data }: WidgetProps<ChartStackedBar100Config>) {
+  const t = useMaybeT();
   const categorical = asCategorical(data);
   if (categorical === null || categorical.items.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -145,7 +153,7 @@ export function ChartStackedBar100Widget({ config, data }: WidgetProps<ChartStac
     <div className={wrap} data-widget="chart-stacked-bar-100">
       <StackedBar100
         data={categorical.items.map((item) => ({ key: item.key, label: item.label, value: item.value }))}
-        labels={{ label: config.title ?? '100% stacked bar' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.stackedBar100.chartLabel', '100% stacked bar') }}
         showLegend={config.showLegend}
         legendColumns={config.legendColumns}
         gapPx={config.gapPx}
@@ -161,6 +169,7 @@ export function ChartStackedBar100Widget({ config, data }: WidgetProps<ChartStac
 // --- chart-slope -------------------------------------------------------------
 
 export function ChartSlopeWidget({ config, data }: WidgetProps<ChartSlopeConfig>) {
+  const t = useMaybeT();
   const records = asSlopeRecords(data);
   if (records === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -168,7 +177,7 @@ export function ChartSlopeWidget({ config, data }: WidgetProps<ChartSlopeConfig>
     <div className={wrap} data-widget="chart-slope">
       <SlopeChart
         data={records}
-        labels={{ label: config.title ?? 'Slope chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.slope.chartLabel', 'Slope chart') }}
         height={config.height}
         {...(config.periodLabels !== undefined ? { periodLabels: config.periodLabels } : {})}
         formatValue={(value) => formatMetricValue(value, config.metricFormat, opts)}

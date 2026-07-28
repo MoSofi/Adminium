@@ -1,4 +1,5 @@
 import { EmptyState, IconTile } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ImageIcon, Plus } from 'lucide-react';
 import { useState } from 'react';
 
@@ -72,6 +73,7 @@ export function ImageBoard({
   onOpen,
   testId,
 }: ImageBoardProps) {
+  const t = useMaybeT();
   // Slots whose image failed to load fall back to the placeholder.
   const [broken, setBroken] = useState<readonly string[]>([]);
 
@@ -80,8 +82,8 @@ export function ImageBoard({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No images yet'}
-        body={emptyBody ?? 'Reference images will appear on this board.'}
+        title={emptyTitle ?? t('ui:widgets.media.imageBoard.emptyTitle', 'No images yet')}
+        body={emptyBody ?? t('ui:widgets.media.imageBoard.emptyBody', 'Reference images will appear on this board.')}
       />
     );
   }
@@ -98,7 +100,7 @@ export function ImageBoard({
                 {src === undefined ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-fg-subtle">
                     <ImageIcon aria-hidden="true" className="size-6" />
-                    <span className="text-caption font-semibold">{image.placeholder ?? 'Drop reference'}</span>
+                    <span className="text-caption font-semibold">{image.placeholder ?? t('ui:widgets.media.imageBoard.placeholder', 'Drop reference')}</span>
                   </div>
                 ) : (
                   <button
@@ -119,7 +121,7 @@ export function ImageBoard({
               {editableCaptions ? (
                 <input
                   data-part="image-caption"
-                  aria-label={captionLabel ?? 'Caption'}
+                  aria-label={captionLabel ?? t('ui:widgets.media.caption', 'Caption')}
                   defaultValue={image.caption ?? ''}
                   onBlur={(event) => onCaptionChange?.(image, event.currentTarget.value)}
                   className={
@@ -150,7 +152,7 @@ export function ImageBoard({
               }
             >
               <IconTile size="md" tone="accent" icon={<Plus />} />
-              <span className="text-caption font-bold">{addLabel ?? 'Add image'}</span>
+              <span className="text-caption font-bold">{addLabel ?? t('ui:widgets.media.addImage', 'Add image')}</span>
             </button>
           </li>
         )}

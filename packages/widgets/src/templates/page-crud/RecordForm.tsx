@@ -11,6 +11,7 @@ import {
   Textarea,
 } from '@adminium/ui';
 import type { ComboboxOption } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
@@ -75,6 +76,7 @@ function FkField({
   lookup: NonNullable<CrudApi['lookup']>;
   onChange: (next: unknown) => void;
 }) {
+  const t = useMaybeT();
   const fk = column.fk as NonNullable<GridColumnSpec['fk']>;
   const [options, setOptions] = useState<CrudLookupOption[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,8 +102,8 @@ function FkField({
       options={comboboxOptions}
       value={value === null || value === undefined ? null : String(value)}
       onValueChange={(next) => onChange(next)}
-      emptyText="No matches"
-      placeholder={`Search ${fk.table}…`}
+      emptyText={t('ui:combobox.noMatches', 'No matches')}
+      placeholder={t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: fk.table })}
       // Debounced server-side search on the display column (09 §7.1) —
       // Combobox filters locally as well, so this only widens the option set.
       filter={(option, query) => {
@@ -126,6 +128,7 @@ export function RecordForm({
   uniqueHelper,
   footer,
 }: RecordFormProps) {
+  const t = useMaybeT();
   const fields = useMemo(() => formColumns(columns), [columns]);
   const [values, setValues] = useState<CrudRow>(() => ({ ...(initialValues ?? {}) }));
 
@@ -210,7 +213,7 @@ export function RecordForm({
                 value={stringValue(value)}
                 onChange={(event) => setField(column.name, event.target.value === '' ? null : event.target.value)}
               >
-                <option value="">{column.nullable ? '—' : 'Select…'}</option>
+                <option value="">{column.nullable ? '—' : t('ui:combobox.placeholder', 'Select…')}</option>
                 {(column.enumValues ?? []).map((member) => (
                   <option key={member} value={member}>
                     {member}

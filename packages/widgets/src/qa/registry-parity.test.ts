@@ -129,43 +129,11 @@ describe('registry parity — live green-loop wiring (acceptance #1)', () => {
  * only shrink — writing the missing message makes that test fail until the id is
  * removed from here, and no new widget may join it.
  */
-const DANGLING_DESCRIPTION_IDS: readonly string[] = [
-  'bulk-action-toolbar',
-  'chart-anomaly',
-  'chart-bar',
-  'chart-bullet',
-  'chart-bump',
-  'chart-candlestick',
-  'chart-choropleth-grid',
-  'chart-chord',
-  'chart-cohort-matrix',
-  'chart-donut',
-  'chart-forecast',
-  'chart-funnel',
-  'chart-heat-month',
-  'chart-heatmap-calendar',
-  'chart-line-area',
-  'chart-marimekko',
-  'chart-multiline',
-  'chart-pareto',
-  'chart-radar',
-  'chart-radial-bar',
-  'chart-ranking-bars',
-  'chart-sankey',
-  'chart-slope',
-  'chart-sparkline',
-  'chart-stacked-bar-100',
-  'chart-stream',
-  'chart-sunburst',
-  'chart-timeline-lanes',
-  'chart-treemap',
-  'chart-waterfall',
-  'chart-wordcloud',
-  'data-grid',
-  'detail-key-value',
-  'mini-table',
-  'pagination-footer',
-];
+// Emptied 2026-07-28: the wire-everything pass authored all 35 missing
+// descriptions (charts + tables M4 slice) into ui.json, and the
+// widget-i18n-coverage gate now fails on any ref without a bundle entry, so a
+// new dangling key can no longer land silently.
+const DANGLING_DESCRIPTION_IDS: readonly string[] = [];
 
 /** The en-US `ui` message a dotted key names, or `undefined` when it dangles. */
 function enUsMessage(key: string): string | undefined {

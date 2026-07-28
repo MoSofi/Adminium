@@ -1,4 +1,5 @@
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Badge, EmptyState, MonoText } from '@adminium/ui';
 import { useMemo } from 'react';
 
@@ -94,6 +95,7 @@ export function DayAgenda({
   emptyBody,
   testId,
 }: DayAgendaProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const anchor = date ?? (events.length > 0 ? events[0]?.date : undefined) ?? ANCHOR_TODAY;
   const firstJs = firstJsWeekday(tag, firstDayOfWeek);
@@ -122,13 +124,18 @@ export function DayAgenda({
       <EmptyState
         compact
         preset="nothing-scheduled"
-        title={emptyTitle ?? 'Nothing scheduled'}
-        body={emptyBody ?? 'Events for the selected day will appear here.'}
+        title={emptyTitle ?? t('ui:widgets.calendar.dayAgenda.emptyTitle', 'Nothing scheduled')}
+        body={emptyBody ?? t('ui:widgets.calendar.dayAgenda.emptyBody', 'Events for the selected day will appear here.')}
       />
     );
   }
 
-  const countLabel = `${getFormatters(tag).number(total)} ${total === 1 ? 'event' : 'events'}`;
+  // `count` drives the ICU plural; `n` is the pre-formatted number so the
+  // widget-locale digits (`getFormatters(tag)`) render exactly as before.
+  const countLabel = t('ui:widgets.calendar.dayAgenda.countLabel', '{count, plural, one {{n} event} other {{n} events}}', {
+    count: total,
+    n: getFormatters(tag).number(total),
+  });
 
   return (
     <div data-widget="day-agenda" data-testid={testId} className="flex h-full flex-col">

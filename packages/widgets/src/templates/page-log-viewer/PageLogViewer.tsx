@@ -1,4 +1,5 @@
 import { Button, EmptyState, Spinner } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useMemo, useState } from 'react';
 
 import {
@@ -130,6 +131,7 @@ export function PageLogViewer({
   className,
   testId,
 }: PageLogViewerProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => {
     const result = pageLayoutSchema.safeParse(layout);
     if (result.success) return { layout: result.data, invalid: false };
@@ -189,7 +191,10 @@ export function PageLogViewer({
   if (parsed.invalid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-log-viewer-invalid">
-        This log page&rsquo;s stored layout is invalid. Regenerate the page or reset its layout.
+        {t(
+          'ui:templates.logViewer.invalidLayout',
+          'This log page’s stored layout is invalid. Regenerate the page or reset its layout.',
+        )}
       </p>
     );
   }
@@ -215,11 +220,15 @@ export function PageLogViewer({
 
       {/* Toolbar — level + time filters, live tail controls (09 §7.8). */}
       <div data-part="log-toolbar" className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex items-center rounded-md bg-surface-2 p-0.5" role="group" aria-label="Log level filter">
+        <div
+          className="inline-flex items-center rounded-md bg-surface-2 p-0.5"
+          role="group"
+          aria-label={t('ui:templates.logViewer.levelFilterLabel', 'Log level filter')}
+        >
           {(
             [
-              { key: 'all' as const, label: labels?.all ?? 'All' },
-              { key: 'errors' as const, label: labels?.errors ?? 'Errors' },
+              { key: 'all' as const, label: labels?.all ?? t('ui:widgets.forms.filterChipBar.all', 'All') },
+              { key: 'errors' as const, label: labels?.errors ?? t('ui:widgets.tables.logTable.errorsLabel', 'Errors') },
             ]
           ).map((option) => (
             <button
@@ -236,7 +245,11 @@ export function PageLogViewer({
           ))}
         </div>
 
-        <div className="inline-flex items-center rounded-md bg-surface-2 p-0.5" role="group" aria-label="Time window filter">
+        <div
+          className="inline-flex items-center rounded-md bg-surface-2 p-0.5"
+          role="group"
+          aria-label={t('ui:templates.logViewer.timeFilterLabel', 'Time window filter')}
+        >
           {LOG_TIME_WINDOWS.map((option) => (
             <button
               key={option.key}
@@ -247,7 +260,9 @@ export function PageLogViewer({
               onClick={() => setWindow(option.key)}
               className="rounded px-2.5 py-1 font-mono text-caption font-semibold text-fg-muted data-[active=true]:bg-surface data-[active=true]:text-fg data-[active=true]:shadow-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             >
-              {option.key === 'all' ? (labels?.all ?? 'All') : option.key}
+              {option.key === 'all'
+                ? (labels?.all ?? t('ui:widgets.forms.filterChipBar.all', 'All'))
+                : t(`ui:templates.logViewer.window.${option.key}`, option.key)}
             </button>
           ))}
         </div>
@@ -255,7 +270,7 @@ export function PageLogViewer({
         <div className="ms-auto flex items-center gap-2">
           {live && stream.paused && stream.unread > 0 && (
             <span data-part="held-count" className="font-mono text-caption text-fg-subtle">
-              +{String(stream.unread)}
+              {t('ui:templates.logViewer.heldCount', '+{count}', { count: String(stream.unread) })}
             </span>
           )}
           {live && (
@@ -270,7 +285,9 @@ export function PageLogViewer({
                 stream.setPaused(!stream.paused);
               }}
             >
-              {stream.paused ? (labels?.resume ?? 'Resume') : (labels?.pause ?? 'Pause')}
+              {stream.paused
+                ? (labels?.resume ?? t('ui:widgets.feeds.realtimeFeed.resumeLabel', 'Resume'))
+                : (labels?.pause ?? t('ui:widgets.feeds.realtimeFeed.pauseLabel', 'Pause'))}
             </Button>
           )}
         </div>
@@ -281,25 +298,25 @@ export function PageLogViewer({
         {log === null ? (
           <EmptyState
             preset="no-data"
-            title={labels?.emptyTitle ?? 'No log widget on this page'}
-            body="The stored layout has no log slot. Regenerate the page."
+            title={labels?.emptyTitle ?? t('ui:templates.logViewer.missingSlotTitle', 'No log widget on this page')}
+            body={t('ui:templates.logViewer.missingSlotBody', 'The stored layout has no log slot. Regenerate the page.')}
           />
         ) : logState?.status === 'error' ? (
           <EmptyState
             tone="danger"
-            title={labels?.loadFailed ?? 'The log query failed'}
+            title={labels?.loadFailed ?? t('ui:templates.logViewer.loadFailed', 'The log query failed')}
             body={logState.error instanceof Error ? logState.error.message : undefined}
             actions={
               logState.refetch === undefined ? undefined : (
                 <Button size="sm" variant="secondary" onClick={logState.refetch}>
-                  {labels?.retry ?? 'Retry'}
+                  {labels?.retry ?? t('ui:action.retry', 'Retry')}
                 </Button>
               )
             }
           />
         ) : logState?.status === 'loading' ? (
           <div className="flex flex-1 items-center justify-center py-16">
-            <Spinner label="Loading log entries" />
+            <Spinner label={t('ui:templates.logViewer.loading', 'Loading log entries')} />
           </div>
         ) : (
           <LogTable
@@ -310,8 +327,8 @@ export function PageLogViewer({
             now={clock}
             {...(locale === undefined ? {} : { locale })}
             labels={{
-              live: labels?.live ?? 'Live',
-              emptyTitle: labels?.emptyTitle ?? 'No log entries',
+              live: labels?.live ?? t('ui:widgets.tables.logTable.liveLabel', 'Live'),
+              emptyTitle: labels?.emptyTitle ?? t('ui:widgets.tables.logTable.emptyTitle', 'No log entries'),
               ...(labels?.emptyBody === undefined ? {} : { emptyBody: labels.emptyBody }),
             }}
             rowAction="inspect"
@@ -329,19 +346,25 @@ export function PageLogViewer({
           <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2.5">
             <h3 className="min-w-0 flex-1 truncate text-body-sm font-bold text-fg">
               {selected !== null
-                ? `${labels?.traceTitle ?? 'Trace'} · ${String(selected.resource ?? selected.action ?? selected.id)}`
-                : (labels?.latestTitle ?? 'Latest activity')}
+                ? `${labels?.traceTitle ?? t('ui:templates.logViewer.traceTitle', 'Trace')} · ${String(selected.resource ?? selected.action ?? selected.id)}`
+                : (labels?.latestTitle ?? t('ui:templates.logViewer.latestTitle', 'Latest activity'))}
             </h3>
             {selected !== null && (
               <Button size="sm" variant="ghost" data-part="trace-clear" onClick={() => setSelected(null)}>
-                {labels?.clearSelection ?? 'Back to latest'}
+                {labels?.clearSelection ?? t('ui:templates.logViewer.backToLatest', 'Back to latest')}
               </Button>
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-auto">
             {selected !== null ? (
               <TimelineVertical
-                entries={traceEntriesOf(selected, mappedRows, fieldMap)}
+                entries={traceEntriesOf(
+                  selected,
+                  mappedRows,
+                  fieldMap,
+                  undefined,
+                  t('ui:templates.logViewer.eventFallback', 'Event'),
+                )}
                 variant="trace"
                 now={clock}
                 {...(locale === undefined ? {} : { locale })}

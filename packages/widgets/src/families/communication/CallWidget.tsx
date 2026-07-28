@@ -1,4 +1,5 @@
 import { Avatar, Button, EmptyState } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 
 import { callKindOf, callStateOf, localeOf, recordRowOf, sourceOf, stringField } from './chat-lib.js';
@@ -72,6 +73,7 @@ export function CallWidget({
   locale: localeProp,
   testId,
 }: CallWidgetProps) {
+  const t = useMaybeT();
   // `format.locale` is a free-string in the shared config, so '' / 'x-1' are
   // schema-valid and would throw out of Avatar's `toLocaleUpperCase`.
   const locale = localeOf(localeProp);
@@ -81,8 +83,8 @@ export function CallWidget({
       <EmptyState
         compact
         preset="all-caught-up"
-        title={emptyTitle ?? 'No active call'}
-        body={emptyBody ?? 'An incoming call will appear here.'}
+        title={emptyTitle ?? t('ui:widgets.communication.callWidget.emptyTitle', 'No active call')}
+        body={emptyBody ?? t('ui:widgets.communication.callWidget.emptyBody', 'An incoming call will appear here.')}
       />
     );
   }
@@ -90,6 +92,19 @@ export function CallWidget({
   const ringing = RINGS[state];
   const ended = state === 'ended';
   const KindIcon = kind === 'video' ? Video : Phone;
+
+  // The per-state default renders the RAW state value, verbatim what shipped —
+  // the bundle's polished labels ("Ringing…") only differ under an
+  // I18nProvider, and the config's per-state labels still override key-by-key
+  // (reported for bundle alignment rather than changing rendered English here).
+  const stateText =
+    stateLabel ??
+    {
+      ringing: t('ui:widgets.communication.callWidget.ringingLabel', 'Ringing…'),
+      connecting: t('ui:widgets.communication.callWidget.connectingLabel', 'Connecting…'),
+      active: t('ui:widgets.communication.callWidget.activeLabel', 'In call'),
+      ended: t('ui:widgets.communication.callWidget.endedLabel', 'Call ended'),
+    }[state];
 
   return (
     <div
@@ -116,10 +131,13 @@ export function CallWidget({
         <p className="text-body font-bold text-fg">{peer}</p>
         <p data-part="call-kind" className="flex items-center gap-1.5 text-caption font-medium text-fg-muted">
           <KindIcon aria-hidden="true" className="size-3.5" />
-          {kindLabel ?? (kind === 'video' ? 'Video call' : 'Voice call')}
+          {kindLabel ??
+            (kind === 'video'
+              ? t('ui:widgets.communication.callWidget.videoLabel', 'Video call')
+              : t('ui:widgets.communication.callWidget.voiceLabel', 'Voice call'))}
         </p>
         <p data-part="call-state" className="text-caption text-fg-subtle">
-          {stateLabel ?? state}
+          {stateText}
         </p>
       </div>
 
@@ -127,11 +145,13 @@ export function CallWidget({
         <div className="flex items-center gap-3">
           {state === 'ringing' && (
             <Button size="sm" variant="primary" iconLeft={<Phone />} onClick={onAccept}>
-              {acceptLabel ?? 'Accept'}
+              {acceptLabel ?? t('ui:widgets.communication.callWidget.acceptLabel', 'Accept')}
             </Button>
           )}
           <Button size="sm" variant="destructive" iconLeft={<PhoneOff />} onClick={onDecline}>
-            {state === 'active' ? (endLabel ?? 'End call') : (declineLabel ?? 'Decline')}
+            {state === 'active'
+              ? (endLabel ?? t('ui:widgets.communication.callWidget.endLabel', 'End call'))
+              : (declineLabel ?? t('ui:widgets.communication.callWidget.declineLabel', 'Decline'))}
           </Button>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, MonoText, ProgressBar } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { ChevronRight } from 'lucide-react';
@@ -63,11 +64,14 @@ export function GroupedSummaryTable({
   locale,
   testId,
 }: GroupedSummaryTableProps) {
+  const t = useMaybeT();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const { data: groups, columns, totals } = data;
 
   if (groups.length === 0 || columns.length === 0) {
-    return <EmptyState compact preset="no-data" title={emptyTitle ?? 'No summary data'} />;
+    return (
+      <EmptyState compact preset="no-data" title={emptyTitle ?? t('ui:widgets.tables.groupedSummaryTable.emptyTitle', 'No summary data')} />
+    );
   }
 
   const gridCols = `minmax(8rem,1.4fr) repeat(${columns.length}, minmax(5rem,1fr))`;
@@ -92,7 +96,7 @@ export function GroupedSummaryTable({
           className="sticky top-0 z-[1] grid items-center gap-x-4 border-b border-border bg-surface-2 px-3 py-2 text-caption font-bold uppercase tracking-wide text-fg-subtle grid-cols-[var(--adm-cols)]"
           style={{ '--adm-cols': gridCols }}
         >
-          <span>{groupLabel ?? 'Group'}</span>
+          <span>{groupLabel ?? t('ui:widgets.tables.groupedSummaryTable.groupLabel', 'Group')}</span>
           {columns.map((column) => (
             <span key={column.key} className="justify-self-end text-end">{column.label}</span>
           ))}
@@ -173,7 +177,7 @@ export function GroupedSummaryTable({
             className="grid items-center gap-x-4 border-t-2 border-border px-3 py-2.5 font-semibold grid-cols-[var(--adm-cols)]"
             style={{ '--adm-cols': gridCols }}
           >
-            <span className="text-fg">{totalsLabel ?? 'Total'}</span>
+            <span className="text-fg">{totalsLabel ?? t('ui:widgets.tables.groupedSummaryTable.totalsLabel', 'Total')}</span>
             {columns.map((column) => (
               <MonoText key={column.key} className="justify-self-end text-body-sm tabular-nums text-fg">
                 {formatCell(totals[column.key], { ...column, format: column.format === 'progress' ? 'percent' : column.format }, locale)}

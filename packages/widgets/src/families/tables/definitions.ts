@@ -16,7 +16,7 @@ import type { WidgetDefinition } from '../../registry/types.js';
  * pagination-footer, bulk-action-toolbar, detail-key-value, mini-table;
  * grouped-summary-table and the rest land by M7).
  *
- * Metadata only — component code lives in `widgets.tsx` (one lazy chunk for
+ * Metadata only — component code lives in `./widgets.tsx` (one lazy chunk for
  * the family, 04 §2.3). Annex grid heights are rows; `sizing` uses 40px
  * half-row units, so rows × 2 (04 §6.1).
  */

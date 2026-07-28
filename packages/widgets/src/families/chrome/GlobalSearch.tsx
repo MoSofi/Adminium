@@ -11,6 +11,7 @@
  */
 
 import { Badge, EmptyState, IconTile, Popover, PopoverContent, PopoverTrigger, SearchInput, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
 
@@ -130,6 +131,7 @@ export function GlobalSearchView({
   onNavigate,
   testId,
 }: GlobalSearchViewProps) {
+  const t = useMaybeT();
   const [query, setQuery] = useState('');
   const [type, setType] = useState<string | null>(null);
 
@@ -183,28 +185,33 @@ export function GlobalSearchView({
     <EmptyState
       compact
       preset="no-matches"
-      title={emptyTitle ?? 'No results'}
-      body={emptyBody ?? 'Try a different search term.'}
+      title={emptyTitle ?? t('ui:widgets.chrome.globalSearch.emptyTitle', 'No results')}
+      body={emptyBody ?? t('ui:widgets.chrome.globalSearch.emptyBody', 'Try a different search term.')}
     />
   );
 
   // ── Full-page variant: facet rail + summary + result cards ───────────────
   if (variant === 'page') {
     const types = entityTypes ?? [...counts.keys()];
-    const summary = (summaryTemplate ?? '{count} results for "{query}"')
-      .replace('{count}', String(filtered.length))
-      .replace('{query}', query);
+    const summary =
+      summaryTemplate !== undefined
+        ? summaryTemplate.replace('{count}', String(filtered.length)).replace('{query}', query)
+        : t('ui:widgets.chrome.globalSearch.summary', '{count} results for "{query}"', { count: filtered.length, query });
 
     return (
       <div data-widget="global-search" data-variant="page" data-testid={testId} className="flex h-full flex-col gap-3 px-4 pb-4">
         <SearchInput
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={placeholder ?? 'Search everything…'}
-          aria-label={placeholder ?? 'Search'}
+          placeholder={placeholder ?? t('ui:widgets.chrome.globalSearch.placeholder', 'Search everything…')}
+          aria-label={placeholder ?? t('ui:widgets.chrome.globalSearch.searchLabel', 'Search')}
         />
         <div className="flex min-h-0 flex-1 gap-4">
-          <nav data-part="facet-rail" aria-label={allLabel ?? 'Filter by type'} className="w-40 shrink-0 overflow-y-auto">
+          <nav
+            data-part="facet-rail"
+            aria-label={allLabel ?? t('ui:widgets.chrome.globalSearch.facetRailLabel', 'Filter by type')}
+            className="w-40 shrink-0 overflow-y-auto"
+          >
             <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
               <li>
                 <button
@@ -218,7 +225,7 @@ export function GlobalSearchView({
                     type === null ? 'bg-accent-soft font-bold text-accent' : 'text-fg-muted hover:bg-surface-2',
                   )}
                 >
-                  <span>{allLabel ?? 'All'}</span>
+                  <span>{allLabel ?? t('ui:widgets.chrome.globalSearch.all', 'All')}</span>
                   <span className="text-caption">{[...counts.values()].reduce((a, b) => a + b, 0)}</span>
                 </button>
               </li>
@@ -263,8 +270,8 @@ export function GlobalSearchView({
             <SearchInput
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={placeholder ?? 'Search everything…'}
-              aria-label={placeholder ?? 'Search'}
+              placeholder={placeholder ?? t('ui:widgets.chrome.globalSearch.placeholder', 'Search everything…')}
+              aria-label={placeholder ?? t('ui:widgets.chrome.globalSearch.searchLabel', 'Search')}
             />
           </div>
         </PopoverTrigger>

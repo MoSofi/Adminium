@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, ToggleMatrix } from '@adminium/ui';
 import type { ToggleMatrixCellState, ToggleMatrixColumn, ToggleMatrixGroup } from '@adminium/ui';
 import { useMemo, useState } from 'react';
@@ -45,6 +46,7 @@ export function ToggleMatrixGrid({
   onToggle,
   testId,
 }: ToggleMatrixGridProps) {
+  const t = useMaybeT();
   const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(new Map());
 
   const groups = useMemo<ToggleMatrixGroup[]>(() => {
@@ -71,7 +73,7 @@ export function ToggleMatrixGrid({
   );
 
   if (data.rows.length === 0 || data.columns.length === 0) {
-    return <EmptyState compact preset="no-data" title={emptyTitle ?? 'No matrix configured'} />;
+    return <EmptyState compact preset="no-data" title={emptyTitle ?? t('ui:widgets.tables.toggleMatrix.emptyTitle', 'No matrix configured')} />;
   }
 
   const baseState = (rowId: string, colId: string): boolean => data.cells[rowId]?.[colId] === true;
@@ -91,8 +93,8 @@ export function ToggleMatrixGrid({
   return (
     <div data-widget="toggle-matrix" data-testid={testId} className="h-full overflow-auto p-2">
       <ToggleMatrix
-        label={matrixLabel ?? 'Permissions matrix'}
-        rowHeader={rowHeader ?? 'Permission'}
+        label={matrixLabel ?? t('ui:widgets.tables.toggleMatrix.matrixLabel', 'Permissions matrix')}
+        rowHeader={rowHeader ?? t('ui:widgets.tables.toggleMatrix.rowHeaderLabel', 'Permission')}
         columns={columns}
         groups={groups}
         getCellState={getCellState}

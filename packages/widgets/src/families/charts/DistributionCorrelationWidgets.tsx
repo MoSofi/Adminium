@@ -4,7 +4,10 @@
  * (`chart-boxplot`, `chart-violin`, `chart-ridgeline`, `chart-scatter-bubble`,
  * `chart-hexbin`, `chart-correlation-matrix`, `chart-parallel-coordinates`).
  * Components render only the loaded state; accessible names come from
- * config.title (the primitive renders it as the SVG aria-label).
+ * config.title (the primitive renders it as the SVG aria-label). Chrome text
+ * (aria-label defaults, the per-widget nothing-to-plot copy) resolves through
+ * `useMaybeT` — `ui:widgets.charts.*` under an I18nProvider, the identical
+ * English fallback outside one.
  */
 import {
   BoxPlotChart,
@@ -16,6 +19,8 @@ import {
   ViolinChart,
 } from '@adminium/charts';
 import type { ParallelAxisInput, ParallelRecordInput, ScatterPointInput } from '@adminium/charts';
+import { EmptyState } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import type { WidgetProps } from '../../registry/types.js';
 import {
@@ -36,19 +41,39 @@ import type {
 } from './distributionShapes.js';
 
 function BadShape() {
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+  const t = useMaybeT();
+  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
+}
+
+/**
+ * Per-widget "nothing to plot" state (bundle `widgets.charts.<id>.emptyTitle`/
+ * `emptyBody`), rendered when the §3 envelope narrows fine but yields nothing
+ * plottable (WidgetFrame's per-shape predicate cannot see these sub-cases). A
+ * config `emptyState` override keeps winning over the localized default.
+ */
+function ChartEmptyState({ title, body }: { title: string; body: string }) {
+  return <EmptyState compact preset="no-data" title={title} body={body} />;
 }
 
 // --- chart-boxplot -----------------------------------------------------------
 
 export function ChartBoxplotWidget({ config, data }: WidgetProps<ChartBoxplotConfig>) {
+  const t = useMaybeT();
   const distribution = asDistribution(data);
-  if (distribution === null || distribution.groups.length === 0) return <BadShape />;
+  if (distribution === null) return <BadShape />;
+  if (distribution.groups.length === 0) {
+    return (
+      <ChartEmptyState
+        title={config.emptyState?.titleKey ?? t('ui:widgets.charts.boxplot.emptyTitle', 'No distribution to plot')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.charts.boxplot.emptyBody', 'No rows matched the filters to summarise as box plots.')}
+      />
+    );
+  }
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-boxplot">
       <BoxPlotChart
         groups={distribution.groups}
-        labels={{ label: config.title ?? 'Box plot' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.boxplot.chartLabel', 'Box plot') }}
         showAxis={config.showAxis}
         showCategoryLabels={config.showCategoryLabels}
         height={config.height}
@@ -60,17 +85,25 @@ export function ChartBoxplotWidget({ config, data }: WidgetProps<ChartBoxplotCon
 // --- chart-violin ------------------------------------------------------------
 
 export function ChartViolinWidget({ config, data }: WidgetProps<ChartViolinConfig>) {
+  const t = useMaybeT();
   const distribution = asDistribution(data);
   if (distribution === null) return <BadShape />;
   const groups = distribution.groups
     .filter((g) => g.density !== undefined && g.density.length > 0)
     .map((g) => ({ label: g.label, min: g.min, max: g.max, med: g.med, density: g.density ?? [] }));
-  if (groups.length === 0) return <BadShape />;
+  if (groups.length === 0) {
+    return (
+      <ChartEmptyState
+        title={config.emptyState?.titleKey ?? t('ui:widgets.charts.violin.emptyTitle', 'No distribution to plot')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.charts.violin.emptyBody', 'No rows matched the filters to build density profiles.')}
+      />
+    );
+  }
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-violin">
       <ViolinChart
         groups={groups}
-        labels={{ label: config.title ?? 'Violin plot' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.violin.chartLabel', 'Violin plot') }}
         showAxis={config.showAxis}
         showCategoryLabels={config.showCategoryLabels}
         height={config.height}
@@ -82,17 +115,25 @@ export function ChartViolinWidget({ config, data }: WidgetProps<ChartViolinConfi
 // --- chart-ridgeline ---------------------------------------------------------
 
 export function ChartRidgelineWidget({ config, data }: WidgetProps<ChartRidgelineConfig>) {
+  const t = useMaybeT();
   const distribution = asDistribution(data);
   if (distribution === null) return <BadShape />;
   const groups = distribution.groups
     .filter((g) => g.density !== undefined && g.density.length > 0)
     .map((g) => ({ label: g.label, density: g.density ?? [] }));
-  if (groups.length === 0) return <BadShape />;
+  if (groups.length === 0) {
+    return (
+      <ChartEmptyState
+        title={config.emptyState?.titleKey ?? t('ui:widgets.charts.ridgeline.emptyTitle', 'No ridges to plot')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.charts.ridgeline.emptyBody', 'No rows matched the filters to build density profiles.')}
+      />
+    );
+  }
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-ridgeline">
       <RidgelineChart
         groups={groups}
-        labels={{ label: config.title ?? 'Ridgeline' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.ridgeline.chartLabel', 'Ridgeline') }}
         overlap={config.overlap}
         showLabels={config.showLabels}
         height={config.height}
@@ -124,15 +165,23 @@ export function scatterPointsOf(
 }
 
 export function ChartScatterBubbleWidget({ config, data }: WidgetProps<ChartScatterBubbleConfig>) {
+  const t = useMaybeT();
   const list = asRecordList(data);
   if (list === null) return <BadShape />;
   const points = scatterPointsOf(list.rows, config);
-  if (points.length === 0) return <BadShape />;
+  if (points.length === 0) {
+    return (
+      <ChartEmptyState
+        title={config.emptyState?.titleKey ?? t('ui:widgets.charts.scatterBubble.emptyTitle', 'No points to plot')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.charts.scatterBubble.emptyBody', 'No rows matched the filters for the selected columns.')}
+      />
+    );
+  }
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-scatter-bubble">
       <ScatterBubbleChart
         points={points}
-        labels={{ label: config.title ?? 'Scatter plot' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.scatterBubble.chartLabel', 'Scatter plot') }}
         trendLine={config.trendLine}
         showAxis={config.axisLabels}
         height={config.height}
@@ -144,13 +193,22 @@ export function ChartScatterBubbleWidget({ config, data }: WidgetProps<ChartScat
 // --- chart-hexbin ------------------------------------------------------------
 
 export function ChartHexbinWidget({ config, data }: WidgetProps<ChartHexbinConfig>) {
+  const t = useMaybeT();
   const matrix = asMatrix(data);
-  if (matrix === null || matrix.cells.length === 0) return <BadShape />;
+  if (matrix === null) return <BadShape />;
+  if (matrix.cells.length === 0) {
+    return (
+      <ChartEmptyState
+        title={config.emptyState?.titleKey ?? t('ui:widgets.charts.hexbin.emptyTitle', 'No density to plot')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.charts.hexbin.emptyBody', 'No rows matched the filters to bin.')}
+      />
+    );
+  }
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-hexbin">
       <HexbinChart
         cells={matrix.cells}
-        labels={{ label: config.title ?? 'Density hexbin' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.hexbin.chartLabel', 'Density hexbin') }}
         minAlpha={config.minAlpha}
         height={config.height}
       />
@@ -161,14 +219,23 @@ export function ChartHexbinWidget({ config, data }: WidgetProps<ChartHexbinConfi
 // --- chart-correlation-matrix ------------------------------------------------
 
 export function ChartCorrelationMatrixWidget({ config, data }: WidgetProps<ChartCorrelationMatrixConfig>) {
+  const t = useMaybeT();
   const matrix = asMatrix(data);
-  if (matrix === null || matrix.cells.length === 0 || matrix.colKeys.length === 0) return <BadShape />;
+  if (matrix === null) return <BadShape />;
+  if (matrix.cells.length === 0 || matrix.colKeys.length === 0) {
+    return (
+      <ChartEmptyState
+        title={config.emptyState?.titleKey ?? t('ui:widgets.charts.correlationMatrix.emptyTitle', 'Nothing to correlate')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.charts.correlationMatrix.emptyBody', 'Select at least two numeric columns with matching rows.')}
+      />
+    );
+  }
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-correlation-matrix">
       <CorrelationMatrixChart
         cells={matrix.cells}
         columns={matrix.colKeys}
-        labels={{ label: config.title ?? 'Correlation matrix' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.correlationMatrix.chartLabel', 'Correlation matrix') }}
         showLabels={config.showLabels}
         strongThreshold={config.strongThreshold}
         height={config.height}
@@ -215,16 +282,24 @@ export function parallelInputsOf(
 }
 
 export function ChartParallelCoordinatesWidget({ config, data }: WidgetProps<ChartParallelCoordinatesConfig>) {
+  const t = useMaybeT();
   const list = asRecordList(data);
   if (list === null) return <BadShape />;
   const inputs = parallelInputsOf(list.rows, config);
-  if (inputs === null || inputs.records.length === 0) return <BadShape />;
+  if (inputs === null || inputs.records.length === 0) {
+    return (
+      <ChartEmptyState
+        title={config.emptyState?.titleKey ?? t('ui:widgets.charts.parallelCoordinates.emptyTitle', 'No records to plot')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.charts.parallelCoordinates.emptyBody', 'No rows matched the filters across the selected axes.')}
+      />
+    );
+  }
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-parallel-coordinates">
       <ParallelCoordinatesChart
         axes={inputs.axes}
         records={inputs.records}
-        labels={{ label: config.title ?? 'Parallel coordinates' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.parallelCoordinates.chartLabel', 'Parallel coordinates') }}
         showAxisLabels={config.showAxisLabels}
         height={config.height}
       />

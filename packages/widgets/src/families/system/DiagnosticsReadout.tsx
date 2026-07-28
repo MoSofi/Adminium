@@ -9,6 +9,7 @@
  */
 
 import { KeyValueRow, MonoText, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { formatStamp, numberField, recordRowOf, stringField } from './system-lib.js';
 import type { SystemTone } from './system-lib.js';
@@ -54,6 +55,25 @@ function toneOf(value: string | undefined, tones: Record<string, string> | undef
   return mapped !== undefined && mapped in TONE_TEXT ? (mapped as SystemTone) : 'neutral';
 }
 
+/**
+ * `DEFAULT_DIAGNOSTIC_CHECKS` with localized labels: `ui:widgets.system.
+ * diagnosticsReadout.*` under an `I18nProvider`, the same English fallbacks
+ * outside one. Config-supplied `checks` are never remapped — an explicit label
+ * arrives already translated and always wins.
+ */
+function useDefaultDiagnosticChecks(): readonly DiagnosticCheck[] {
+  const t = useMaybeT();
+  const labels: Record<string, string> = {
+    host: t('ui:widgets.system.diagnosticsReadout.host', 'Host'),
+    dns: t('ui:widgets.system.diagnosticsReadout.dns', 'DNS'),
+    tcp: t('ui:widgets.system.diagnosticsReadout.tcp', 'TCP'),
+    tls: t('ui:widgets.system.diagnosticsReadout.tls', 'TLS'),
+    auth: t('ui:widgets.system.diagnosticsReadout.auth', 'Auth'),
+    latency: t('ui:widgets.system.diagnosticsReadout.latency', 'Latency'),
+  };
+  return DEFAULT_DIAGNOSTIC_CHECKS.map((check) => ({ ...check, label: labels[check.key] ?? check.label }));
+}
+
 export function DiagnosticsReadoutView({
   checks,
   values,
@@ -62,6 +82,7 @@ export function DiagnosticsReadoutView({
   locale,
   testId,
 }: DiagnosticsReadoutViewProps) {
+  const t = useMaybeT();
   const stamp = formatStamp(checkedAt, locale);
   // Only render checks the payload actually answered — a readout that lists
   // every configured probe as blank reads as "broken", not "not run".
@@ -96,7 +117,7 @@ export function DiagnosticsReadoutView({
       </div>
       {stamp !== undefined && (
         <p className="text-caption text-fg-subtle">
-          {checkedAtLabel ?? 'Last checked'} <MonoText>{stamp}</MonoText>
+          {checkedAtLabel ?? t('ui:widgets.system.diagnosticsReadout.checkedAt', 'Last checked')} <MonoText>{stamp}</MonoText>
         </p>
       )}
     </div>
@@ -104,8 +125,9 @@ export function DiagnosticsReadoutView({
 }
 
 export function DiagnosticsReadoutWidget({ config, data }: WidgetProps<DiagnosticsReadoutConfig>) {
+  const defaultChecks = useDefaultDiagnosticChecks();
   const row = recordRowOf(data);
-  const checks = config.checks ?? DEFAULT_DIAGNOSTIC_CHECKS;
+  const checks = config.checks ?? defaultChecks;
 
   const values: Record<string, string | undefined> = {};
   if (row !== null) {

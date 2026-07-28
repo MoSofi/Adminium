@@ -1,5 +1,6 @@
 import { MonoText, SegmentedControl, Tooltip, TooltipProvider } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useMemo, useState } from 'react';
 
 import { uptimeSegmentBarConfigSchema, uptimeSegmentBarDemoData } from './domain-ops-config.js';
@@ -82,6 +83,7 @@ export function UptimeSegmentBarView({
   uptimeLabel,
   testId,
 }: UptimeSegmentBarViewProps) {
+  const t = useMaybeT();
   // The toggle is COMPONENT state seeded from config: a stored config pins where
   // the strip starts, not where it stays (a widget that reset the user's toggle
   // on every re-render would be unusable).
@@ -105,8 +107,8 @@ export function UptimeSegmentBarView({
               onValueChange={setWindow}
               data-testid="uptime-period-toggle"
               options={[
-                { value: '30', label: '30d' },
-                { value: '90', label: '90d' },
+                { value: '30', label: t('ui:widgets.domain.uptimeSegmentBar.period30Label', '30d') },
+                { value: '90', label: t('ui:widgets.domain.uptimeSegmentBar.period90Label', '90d') },
               ]}
             />
           </div>
@@ -120,7 +122,7 @@ export function UptimeSegmentBarView({
         <div aria-hidden="true" data-testid="uptime-strip" className="flex h-9 items-stretch gap-[2px]">
           {visible.map((day) => {
             const tone = dayTone(day.state, stateColors);
-            const label = `${formatDay(day.ms, locale) ?? ''} — ${STATUS_FALLBACK[day.state]}`;
+            const label = `${formatDay(day.ms, locale) ?? ''} — ${t(`ui:widgets.domain.uptimeSegmentBar.status.${day.state}`, STATUS_FALLBACK[day.state])}`;
             return (
               <Tooltip key={day.ms} content={label}>
                 <span
@@ -135,12 +137,16 @@ export function UptimeSegmentBarView({
 
         <div className="flex items-center justify-between gap-2 text-caption text-fg-subtle">
           <span data-part="uptime-axis-start">
-            {interpolate(daysAgoLabel ?? '{days} days ago', { days: size })}
+            {daysAgoLabel !== undefined
+              ? interpolate(daysAgoLabel, { days: size })
+              : // `days` is pre-stringified so ICU substitutes verbatim, exactly
+                // like the config path's `interpolate`.
+                t('ui:widgets.domain.uptimeSegmentBar.daysAgoLabel', '{days} days ago', { days: String(size) })}
           </span>
           <MonoText className="font-bold text-fg" data-part="uptime-pct">
-            {formatPct(pct, locale, 2)} {uptimeLabel ?? 'uptime'}
+            {formatPct(pct, locale, 2)} {uptimeLabel ?? t('ui:widgets.domain.uptimeSegmentBar.uptimeLabel', 'uptime')}
           </MonoText>
-          <span data-part="uptime-axis-end">{todayLabel ?? 'Today'}</span>
+          <span data-part="uptime-axis-end">{todayLabel ?? t('ui:widgets.domain.uptimeSegmentBar.todayLabel', 'Today')}</span>
         </div>
       </div>
     </TooltipProvider>
@@ -165,13 +171,14 @@ function daysOf(config: UptimeSegmentBarConfig, data: unknown): UptimeDay[] {
 }
 
 export function UptimeSegmentBarWidget({ config, data }: WidgetProps<UptimeSegmentBarConfig>) {
+  const t = useMaybeT();
   const days = useMemo(() => daysOf(config, data), [config, data]);
 
   if (days.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No uptime history'}
-        body={config.emptyBody ?? 'Daily status rows appear here as an uptime strip.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.uptimeSegmentBar.emptyTitle', 'No uptime history')}
+        body={config.emptyBody ?? t('ui:widgets.domain.uptimeSegmentBar.emptyBody', 'Daily status rows appear here as an uptime strip.')}
       />
     );
   }

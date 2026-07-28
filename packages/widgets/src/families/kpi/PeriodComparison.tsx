@@ -14,6 +14,7 @@
  */
 
 import { MonoText, ProgressBar } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { computeDelta, formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asMetricDelta } from '../../lib/shapes.js';
@@ -51,6 +52,7 @@ function Bar({
 }
 
 export function PeriodComparison({ config, data }: WidgetProps<PeriodComparisonConfig>) {
+  const t = useMaybeT();
   const metric = asMetricDelta(data);
   if (metric === null) {
     return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
@@ -66,10 +68,10 @@ export function PeriodComparison({ config, data }: WidgetProps<PeriodComparisonC
   const pct = computeDelta(metric, 'pct', config.metricFormat, opts);
   const direction =
     delta === null || delta.trend === 'flat'
-      ? (config.flatLabel ?? 'flat')
+      ? (config.flatLabel ?? t('ui:widgets.kpi.periodComparison.flatLabel', 'flat'))
       : delta.trend === 'up'
-        ? (config.higherLabel ?? 'higher')
-        : (config.lowerLabel ?? 'lower');
+        ? (config.higherLabel ?? t('ui:widgets.kpi.periodComparison.higherLabel', 'higher'))
+        : (config.lowerLabel ?? t('ui:widgets.kpi.periodComparison.lowerLabel', 'lower'));
   // Tone follows "is this good", not "is this up" — invertDeltaGood flips it
   // for costs / error rates / churn, exactly as the delta pill does.
   const good = delta === null || delta.trend === 'flat' ? null : config.invertDeltaGood ? delta.trend === 'down' : delta.trend === 'up';
@@ -82,14 +84,14 @@ export function PeriodComparison({ config, data }: WidgetProps<PeriodComparisonC
       data-trend={delta?.trend ?? 'flat'}
     >
       <Bar
-        label={config.periodALabel ?? 'This period'}
+        label={config.periodALabel ?? t('ui:widgets.kpi.periodComparison.periodALabel', 'This period')}
         text={formatMetricValue(current, config.metricFormat, opts)}
         value={Math.abs(current)}
         max={max}
         tone="accent"
       />
       <Bar
-        label={config.periodBLabel ?? 'Last period'}
+        label={config.periodBLabel ?? t('ui:widgets.kpi.periodComparison.periodBLabel', 'Last period')}
         text={formatMetricValue(prior, config.metricFormat, opts)}
         value={Math.abs(prior)}
         max={max}

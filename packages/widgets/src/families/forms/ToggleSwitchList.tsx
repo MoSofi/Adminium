@@ -14,6 +14,7 @@
  */
 
 import { Button, EmptyState, IconTile, Switch, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { formIcon } from './forms-icons.js';
@@ -27,6 +28,7 @@ export { toggleSwitchListConfigSchema, toggleSwitchListDemoData, DEFAULT_TOGGLE_
 export type { ToggleSwitchListConfig };
 
 export function ToggleSwitchListWidget({ config, data, instanceId, onEvent }: WidgetProps<ToggleSwitchListConfig>) {
+  const t = useMaybeT();
   const bound = booleanEntriesOf(data);
   const rows = config.rows ?? DEFAULT_TOGGLE_ROWS;
   const [entries, setEntries] = useState<Record<string, boolean>>(bound);
@@ -44,8 +46,8 @@ export function ToggleSwitchListWidget({ config, data, instanceId, onEvent }: Wi
       <EmptyState
         compact
         preset="no-data"
-        title={config.emptyTitle ?? 'No settings'}
-        body={config.emptyBody ?? 'Settings appear here once they are configured.'}
+        title={config.emptyTitle ?? t('ui:widgets.forms.toggleSwitchList.emptyTitle', 'No settings')}
+        body={config.emptyBody ?? t('ui:widgets.forms.toggleSwitchList.emptyBody', 'Settings appear here once they are configured.')}
       />
     );
   }
@@ -123,9 +125,11 @@ export function ToggleSwitchListWidget({ config, data, instanceId, onEvent }: Wi
 
       {config.persistMode === 'save-bar' && dirty && (
         <div data-part="save-bar" className="flex items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2">
-          <span className="text-caption text-fg-muted">{config.dirtyLabel ?? 'You have unsaved changes'}</span>
+          <span className="text-caption text-fg-muted">
+            {config.dirtyLabel ?? t('ui:widgets.forms.toggleSwitchList.dirty', 'You have unsaved changes')}
+          </span>
           <Button size="sm" data-part="save-button" onClick={() => void commit(entries)}>
-            {config.saveLabel ?? 'Save'}
+            {config.saveLabel ?? t('ui:widgets.forms.toggleSwitchList.save', 'Save')}
           </Button>
         </div>
       )}

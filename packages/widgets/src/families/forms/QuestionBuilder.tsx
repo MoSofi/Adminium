@@ -18,6 +18,7 @@
  */
 
 import { EmptyState, IconTile, Input, MonoText, Switch, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ChevronDown, ChevronUp, Plus, Star, X } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -76,6 +77,7 @@ export function questionsOf(data: unknown, config: QuestionBuilderConfig): Surve
 }
 
 export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<QuestionBuilderConfig>) {
+  const t = useMaybeT();
   const [questions, setQuestions] = useState<SurveyQuestion[]>(() => questionsOf(data, config));
   const target = bindingTargetOf(config.binding);
   const kinds = config.kinds ?? QUESTION_KINDS;
@@ -121,7 +123,8 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
     commit(questions.map((question, i) => (i === index ? { ...question, ...partial } : question)));
 
   const atCapacity = questions.length >= config.maxQuestions;
-  const kindLabel = (kind: QuestionKind) => config.kindLabels?.[kind] ?? DEFAULT_QUESTION_KIND_LABELS[kind] ?? kind;
+  const kindLabel = (kind: QuestionKind) =>
+    config.kindLabels?.[kind] ?? t(`ui:widgets.forms.questionBuilder.kind.${kind}`, DEFAULT_QUESTION_KIND_LABELS[kind] ?? kind);
 
   return (
     <div
@@ -133,7 +136,7 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
           a narrow grid cell rather than squeezing both into unusable columns. */}
       <div data-part="question-palette" className="hidden w-40 shrink-0 flex-col gap-1 overflow-auto sm:flex">
         <p className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-          {config.paletteTitle ?? 'Add a question'}
+          {config.paletteTitle ?? t('ui:widgets.forms.questionBuilder.paletteTitle', 'Add a question')}
         </p>
         {kinds.map((kind) => (
           <button
@@ -161,8 +164,8 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
           <EmptyState
             compact
             preset="no-data"
-            title={config.emptyTitle ?? 'No questions yet'}
-            body={config.emptyBody ?? 'Pick a question type to start building your survey.'}
+            title={config.emptyTitle ?? t('ui:widgets.forms.questionBuilder.emptyTitle', 'No questions yet')}
+            body={config.emptyBody ?? t('ui:widgets.forms.questionBuilder.emptyBody', 'Pick a question type to start building your survey.')}
           />
         ) : (
           questions.map((question, index) => (
@@ -179,7 +182,7 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
                 <MonoText className="shrink-0 text-caption text-fg-subtle">{kindLabel(question.kind)}</MonoText>
                 <div className="ms-auto flex items-center gap-0.5">
                   <RailButton
-                    label={`${config.moveUpLabel ?? 'Move up'} — ${index + 1}`}
+                    label={`${config.moveUpLabel ?? t('ui:widgets.forms.questionBuilder.moveUp', 'Move up')} — ${index + 1}`}
                     part="question-up"
                     disabled={index === 0}
                     onClick={() => commit(moveItem(questions, index, index - 1))}
@@ -187,7 +190,7 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
                     <ChevronUp aria-hidden="true" className="size-4" />
                   </RailButton>
                   <RailButton
-                    label={`${config.moveDownLabel ?? 'Move down'} — ${index + 1}`}
+                    label={`${config.moveDownLabel ?? t('ui:widgets.forms.questionBuilder.moveDown', 'Move down')} — ${index + 1}`}
                     part="question-down"
                     disabled={index === questions.length - 1}
                     onClick={() => commit(moveItem(questions, index, index + 1))}
@@ -195,7 +198,7 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
                     <ChevronDown aria-hidden="true" className="size-4" />
                   </RailButton>
                   <RailButton
-                    label={`${config.removeLabel ?? 'Remove question'} — ${index + 1}`}
+                    label={`${config.removeLabel ?? t('ui:widgets.forms.questionBuilder.remove', 'Remove question')} — ${index + 1}`}
                     part="question-remove"
                     onClick={() => commit(questions.filter((_, i) => i !== index))}
                   >
@@ -205,17 +208,19 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
               </div>
 
               <Input
-                aria-label={`${config.questionPlaceholder ?? 'Question'} ${index + 1}`}
+                aria-label={`${config.questionPlaceholder ?? t('ui:widgets.forms.questionBuilder.questionLabel', 'Question')} ${index + 1}`}
                 data-part="question-text"
                 value={question.q}
-                placeholder={config.questionPlaceholder ?? 'Ask a question…'}
+                placeholder={config.questionPlaceholder ?? t('ui:widgets.forms.questionBuilder.questionPlaceholder', 'Ask a question…')}
                 onChange={(event) => patch(index, { q: event.currentTarget.value })}
               />
 
               <AnswerPreview kind={question.kind} opts={question.opts} />
 
               <label className="flex cursor-pointer items-center gap-2 self-end">
-                <span className="text-caption text-fg-muted">{config.requiredLabel ?? 'Required'}</span>
+                <span className="text-caption text-fg-muted">
+                  {config.requiredLabel ?? t('ui:widgets.forms.questionBuilder.required', 'Required')}
+                </span>
                 <Switch
                   data-part="question-required"
                   checked={question.required}
@@ -244,7 +249,7 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
           )}
         >
           <Plus aria-hidden="true" className="size-3.5" />
-          {config.addLabel ?? 'Add question'}
+          {config.addLabel ?? t('ui:widgets.forms.questionBuilder.add', 'Add question')}
         </button>
       </div>
     </div>
@@ -288,6 +293,7 @@ function RailButton({
  * working radio group here would invite the author to "answer" their own draft.
  */
 function AnswerPreview({ kind, opts }: { kind: QuestionKind; opts: readonly string[] }) {
+  const t = useMaybeT();
   if (kind === 'single-choice' || kind === 'multi-choice') {
     return (
       <ul aria-hidden="true" data-part="answer-preview" data-kind={kind} className="m-0 flex list-none flex-col gap-1 p-0">
@@ -313,7 +319,7 @@ function AnswerPreview({ kind, opts }: { kind: QuestionKind; opts: readonly stri
         data-kind={kind}
         className="flex h-8 items-center justify-between rounded-md border border-border-strong bg-surface px-2 text-caption text-fg-subtle"
       >
-        {opts[0] ?? 'Choose…'}
+        {opts[0] ?? t('ui:widgets.forms.questionBuilder.dropdownPlaceholder', 'Choose…')}
         <ChevronDown className="size-3.5" />
       </div>
     );

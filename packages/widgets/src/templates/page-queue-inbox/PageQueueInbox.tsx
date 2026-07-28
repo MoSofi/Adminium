@@ -14,6 +14,7 @@ import {
   useToastQueue,
 } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { WidgetHost } from '../../frame/WidgetHost.js';
@@ -208,6 +209,7 @@ export function PageQueueInbox({
   const isFeed = queueItem?.widget === 'notification-feed';
 
   const queue = useToastQueue();
+  const t = useMaybeT();
   const formatters = useMemo(() => getFormatters(locale ?? 'en-US'), [locale]);
 
   // --- optimistic overlay (undo-first bulk decisions, §4.1) --------------------
@@ -267,10 +269,10 @@ export function PageQueueInbox({
       if (value !== undefined) counts.set(value, (counts.get(value) ?? 0) + 1);
     }
     return [
-      { value: '__all__', label: labels?.allSegment ?? 'All', count: rows.length },
+      { value: '__all__', label: labels?.allSegment ?? t('ui:templates.queue.allSegment', 'All'), count: rows.length },
       ...[...counts.entries()].map(([value, count]) => ({ value, label: humanizeName(value), count })),
     ];
-  }, [rows, fields.statusField, labels?.allSegment]);
+  }, [rows, fields.statusField, labels?.allSegment, t]);
 
   const visibleRows = useMemo(
     () =>
@@ -315,16 +317,23 @@ export function PageQueueInbox({
       }
       const duration = fields.durationField === undefined ? undefined : row[fields.durationField];
       if (typeof duration === 'number' && Number.isFinite(duration)) {
-        return interpolate(labels?.daysUnit ?? '{count} days', duration);
+        // Override templates keep the simple {count} substitution; the default
+        // is an ICU plural whose branches use a bare {count} so the digits stay
+        // exactly `String(duration)` (never locale-grouped).
+        return labels?.daysUnit !== undefined
+          ? interpolate(labels.daysUnit, duration)
+          : t('ui:templates.queue.daysUnit', '{count, plural, one {{count} day} other {{count} days}}', {
+              count: duration,
+            });
       }
       return '—';
     },
-    [fields.amountField, fields.durationField, formatters, currency, labels?.daysUnit],
+    [fields.amountField, fields.durationField, formatters, currency, labels?.daysUnit, t],
   );
 
   // --- undo-first decisions ------------------------------------------------------
   const applyDecision = useCallback(
-    (ids: readonly string[], values: Record<string, unknown>, toastTemplate: string) => {
+    (ids: readonly string[], values: Record<string, unknown>, toastTitle: string) => {
       // Capture the EXACT set (bulk keeper, 09 §4.1) before anything async.
       const exactIds = [...ids];
       const priorPatches = patches;
@@ -339,19 +348,22 @@ export function PageQueueInbox({
       const finish = (undoToken: string | null) => {
         queue.push({
           variant: 'success',
-          title: interpolate(toastTemplate, exactIds.length),
+          title: toastTitle,
           ...(undoToken === null || api === undefined
             ? {}
             : {
                 action: {
-                  label: labels?.undo ?? 'Undo',
+                  label: labels?.undo ?? t('ui:action.undo', 'Undo'),
                   onAction: () => {
                     api
                       .undo(undoToken)
                       .then(() => {
                         rollback();
                         queueState.refetch?.();
-                        queue.push({ variant: 'info', title: labels?.undoneToast ?? 'Decision undone.' });
+                        queue.push({
+                          variant: 'info',
+                          title: labels?.undoneToast ?? t('ui:templates.queue.undoneToast', 'Decision undone.'),
+                        });
                       })
                       .catch((reason: unknown) => {
                         queue.push({
@@ -359,7 +371,8 @@ export function PageQueueInbox({
                           title:
                             reason instanceof Error
                               ? reason.message
-                              : (labels?.undoFailedToast ?? 'Could not undo this decision.'),
+                              : (labels?.undoFailedToast ??
+                                t('ui:templates.queue.undoFailedToast', 'Could not undo this decision.')),
                         });
                       });
                   },
@@ -379,19 +392,28 @@ export function PageQueueInbox({
           rollback();
           queue.push({
             variant: 'error',
-            title: reason instanceof Error ? reason.message : (labels?.failedToast ?? 'Decision failed.'),
+            title:
+              reason instanceof Error
+                ? reason.message
+                : (labels?.failedToast ?? t('ui:templates.queue.failedToast', 'Decision failed.')),
           });
         });
     },
-    [api, patches, queue, queueState, labels],
+    [api, patches, queue, queueState, labels, t],
   );
 
   const approve = useCallback(
     (ids: readonly string[]) => {
       if (fields.statusField === undefined) return;
-      applyDecision(ids, { [fields.statusField]: decisions.approve }, labels?.approvedToast ?? '{count} approved.');
+      applyDecision(
+        ids,
+        { [fields.statusField]: decisions.approve },
+        labels?.approvedToast !== undefined
+          ? interpolate(labels.approvedToast, ids.length)
+          : t('ui:templates.queue.approvedToast', '{count} approved.', { count: ids.length }),
+      );
     },
-    [fields.statusField, decisions.approve, applyDecision, labels?.approvedToast],
+    [fields.statusField, decisions.approve, applyDecision, labels?.approvedToast, t],
   );
 
   // --- reject-with-reason modal ---------------------------------------------------
@@ -401,10 +423,16 @@ export function PageQueueInbox({
     if (rejectIds === null || fields.statusField === undefined) return;
     const values: Record<string, unknown> = { [fields.statusField]: decisions.reject };
     if (fields.reasonField !== undefined && reason.trim() !== '') values[fields.reasonField] = reason.trim();
-    applyDecision(rejectIds, values, labels?.rejectedToast ?? '{count} rejected.');
+    applyDecision(
+      rejectIds,
+      values,
+      labels?.rejectedToast !== undefined
+        ? interpolate(labels.rejectedToast, rejectIds.length)
+        : t('ui:templates.queue.rejectedToast', '{count} rejected.', { count: rejectIds.length }),
+    );
     setRejectIds(null);
     setReason('');
-  }, [rejectIds, fields.statusField, fields.reasonField, decisions.reject, reason, applyDecision, labels?.rejectedToast]);
+  }, [rejectIds, fields.statusField, fields.reasonField, decisions.reject, reason, applyDecision, labels?.rejectedToast, t]);
 
   const detailSpecs = useMemo(() => {
     if (focusedRow === undefined) return [];
@@ -416,7 +444,10 @@ export function PageQueueInbox({
   if (!body.valid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-queue-inbox-invalid">
-        This queue&rsquo;s stored configuration is invalid. Regenerate the page to restore it.
+        {t(
+          'ui:templates.queue.invalidConfig',
+          'This queue’s stored configuration is invalid. Regenerate the page to restore it.',
+        )}
       </p>
     );
   }
@@ -456,15 +487,31 @@ export function PageQueueInbox({
       ) : (
         <div className="flex min-h-0 flex-1 gap-4">
           {/* Queue list. */}
-          <section aria-label="Queue" className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
+          <section
+            aria-label={t('ui:templates.queue.queueLabel', 'Queue')}
+            className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface"
+          >
             <div className="flex min-h-12 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
               {checkedIds.length > 0 ? (
                 <BulkActionToolbar
                   selectedIds={checkedIds}
                   actions={[
                     // Stored per-type accept labels (§7.4) beat the generic catalog copy.
-                    { key: 'approve', label: configString(queueConfig, 'approveLabel') ?? labels?.approve ?? 'Approve' },
-                    { key: 'reject', label: configString(queueConfig, 'rejectLabel') ?? labels?.reject ?? 'Reject', danger: true },
+                    {
+                      key: 'approve',
+                      label:
+                        configString(queueConfig, 'approveLabel') ??
+                        labels?.approve ??
+                        t('ui:widgets.domain.blockApproval.approveLabel', 'Approve'),
+                    },
+                    {
+                      key: 'reject',
+                      label:
+                        configString(queueConfig, 'rejectLabel') ??
+                        labels?.reject ??
+                        t('ui:widgets.domain.blockApproval.rejectLabel', 'Reject'),
+                      danger: true,
+                    },
                   ]}
                   onAction={(key, ids) => {
                     if (key === 'approve') approve(ids);
@@ -475,7 +522,7 @@ export function PageQueueInbox({
               ) : (
                 fields.statusField !== undefined && (
                   <SegmentedControl
-                    aria-label="Status filter"
+                    aria-label={t('ui:templates.queue.statusFilterLabel', 'Status filter')}
                     options={segmentOptions}
                     value={segment}
                     onValueChange={(value) => {
@@ -490,32 +537,32 @@ export function PageQueueInbox({
             {queueState.status === 'error' ? (
               <EmptyState
                 tone="danger"
-                title={labels?.errorTitle ?? 'This queue failed to load'}
+                title={labels?.errorTitle ?? t('ui:templates.queue.errorTitle', 'This queue failed to load')}
                 body={queueState.error instanceof Error ? queueState.error.message : undefined}
                 actions={
                   queueState.refetch === undefined ? undefined : (
                     <Button size="sm" variant="secondary" onClick={queueState.refetch}>
-                      {labels?.retry ?? 'Retry'}
+                      {labels?.retry ?? t('ui:action.retry', 'Retry')}
                     </Button>
                   )
                 }
               />
             ) : queueState.status === 'loading' ? (
               <div className="flex flex-1 items-center justify-center py-16">
-                <Spinner label={labels?.loading ?? 'Loading queue'} />
+                <Spinner label={labels?.loading ?? t('ui:templates.queue.loading', 'Loading queue')} />
               </div>
             ) : rows.length === 0 ? (
               <EmptyState
                 preset="no-data"
-                title={labels?.emptyTitle ?? 'Nothing in the queue'}
-                body={labels?.emptyBody ?? 'New requests appear here as they arrive.'}
+                title={labels?.emptyTitle ?? t('ui:templates.queue.emptyTitle', 'Nothing in the queue')}
+                body={labels?.emptyBody ?? t('ui:templates.queue.emptyBody', 'New requests appear here as they arrive.')}
               />
             ) : visibleRows.length === 0 ? (
               /* A drained tab is a win — all-caught-up, distinct from first-use. */
               <EmptyState
                 preset="all-caught-up"
-                title={labels?.caughtUpTitle ?? "You're all caught up"}
-                body={labels?.caughtUpBody ?? 'No requests in this tab right now.'}
+                title={labels?.caughtUpTitle ?? t('ui:templates.queue.caughtUpTitle', "You're all caught up")}
+                body={labels?.caughtUpBody ?? t('ui:templates.queue.caughtUpBody', 'No requests in this tab right now.')}
               />
             ) : (
               <>
@@ -537,7 +584,7 @@ export function PageQueueInbox({
                         >
                           <Checkbox
                             checked={isChecked}
-                            aria-label={`Select ${title}`}
+                            aria-label={t('ui:templates.queue.selectItem', 'Select {title}', { title })}
                             onCheckedChange={(next) => {
                               setChecked((current) => {
                                 const nextSet = new Set(current);
@@ -601,14 +648,17 @@ export function PageQueueInbox({
 
           {/* Detail side pane (manifest `detail`, optional). */}
           {detailItem !== undefined && (
-            <aside aria-label="Detail" className="hidden w-1/3 min-w-64 max-w-96 shrink-0 overflow-y-auto lg:block">
+            <aside
+              aria-label={t('ui:templates.common.detailLabel', 'Detail')}
+              className="hidden w-1/3 min-w-64 max-w-96 shrink-0 overflow-y-auto lg:block"
+            >
               {focusedRow === undefined ? (
                 <div className="flex h-full flex-col justify-center rounded-lg border border-border bg-surface">
                   <EmptyState
                     compact
                     preset="no-data"
-                    title={labels?.selectPrompt ?? 'Select a request'}
-                    body={labels?.emptyBody ?? 'Choose an item to review its details.'}
+                    title={labels?.selectPrompt ?? t('ui:templates.queue.selectPrompt', 'Select a request')}
+                    body={labels?.emptyBody ?? t('ui:templates.queue.selectBody', 'Choose an item to review its details.')}
                   />
                 </div>
               ) : (
@@ -629,35 +679,46 @@ export function PageQueueInbox({
       {/* Reject with reason — "the requester will be notified" (§7.4). */}
       <Modal open={rejectIds !== null} onOpenChange={(open) => !open && setRejectIds(null)} size="sm">
         <ModalHeader
-          title={labels?.rejectTitle ?? 'Reject requests'}
-          // Non-inflecting count form — widgets carry no ICU plural runtime.
-          subtitle={interpolate(labels?.rejectCount ?? 'Selected · {count}', rejectIds?.length ?? 0)}
-          closeLabel={labels?.close ?? 'Close'}
+          title={labels?.rejectTitle ?? t('ui:templates.queue.rejectTitle', 'Reject requests')}
+          // Non-inflecting count form by design; override templates keep the
+          // simple {count} substitution.
+          subtitle={
+            labels?.rejectCount !== undefined
+              ? interpolate(labels.rejectCount, rejectIds?.length ?? 0)
+              : t('ui:templates.queue.rejectCount', 'Selected · {count}', { count: rejectIds?.length ?? 0 })
+          }
+          closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
         />
         <ModalBody className="flex flex-col gap-2">
           <Textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder={labels?.rejectPlaceholder ?? 'Add a note for the requester…'}
+            placeholder={
+              labels?.rejectPlaceholder ?? t('ui:templates.queue.rejectPlaceholder', 'Add a note for the requester…')
+            }
             rows={3}
-            aria-label="Rejection reason"
+            aria-label={t('ui:templates.queue.rejectReasonLabel', 'Rejection reason')}
           />
           <p className="text-caption text-fg-muted">
-            {labels?.rejectNote ?? 'The requester will be notified with your note.'}
+            {labels?.rejectNote ?? t('ui:templates.queue.rejectNote', 'The requester will be notified with your note.')}
           </p>
         </ModalBody>
         <ModalFooter>
           <Button variant="ghost" onClick={() => setRejectIds(null)}>
-            {labels?.cancel ?? 'Cancel'}
+            {labels?.cancel ?? t('ui:action.cancel', 'Cancel')}
           </Button>
           <Button variant="destructive" onClick={confirmReject}>
-            {labels?.rejectConfirm ?? 'Reject'}
+            {labels?.rejectConfirm ?? t('ui:widgets.domain.blockApproval.rejectLabel', 'Reject')}
           </Button>
         </ModalFooter>
       </Modal>
 
       {/* aria-live keeps undo toasts reachable while the modal is open. */}
-      <ToastStack {...queue.stackProps} aria-live="polite" dismissLabel={labels?.dismiss ?? 'Dismiss'} />
+      <ToastStack
+        {...queue.stackProps}
+        aria-live="polite"
+        dismissLabel={labels?.dismiss ?? t('ui:widgets.feeds.toastStack.dismissLabel', 'Dismiss')}
+      />
     </div>
   );
 }

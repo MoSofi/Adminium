@@ -190,3 +190,46 @@ describe('DashboardGrid RTL keyboard semantics', () => {
     expect(handle.className).not.toMatch(/right-/);
   });
 });
+
+describe('grid edit-chrome localization (ui:grid.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              grid: {
+                dragHandle: '{title} verschieben',
+                draggableRole: 'verschiebbares Widget',
+                a11y: { grabbed: '{title} gegriffen.' },
+              },
+            }
+          : null,
+    });
+    const layout: PageLayout = { version: 1, items: [item('a', 0, 0, 4, 2, 'Alpha')] };
+    const provided = render(
+      <I18nProvider i18n={i18n}>
+        <DashboardGrid layout={layout} renderItem={renderItem} editMode onLayoutChange={() => {}} />
+      </I18nProvider>,
+    );
+    const el = within(provided.container).getByRole('button', { name: 'Alpha verschieben' });
+    expect(el.getAttribute('aria-roledescription')).toBe('verschiebbares Widget');
+    fireEvent.keyDown(el, { key: 'Enter' });
+    expect(provided.container.querySelector('[data-grid-liveregion]')!.textContent).toBe('Alpha gegriffen.');
+    provided.unmount();
+
+    // Bare render keeps today's English defaults, and explicit overrides still win.
+    const bare = render(
+      <DashboardGrid
+        layout={layout}
+        renderItem={renderItem}
+        editMode
+        labels={{ resizeHandle: (title) => `Stretch ${title}` }}
+      />,
+    );
+    expect(within(bare.container).getByRole('button', { name: 'Drag to move Alpha' })).toBeTruthy();
+    expect(within(bare.container).getByRole('button', { name: 'Stretch Alpha' })).toBeTruthy();
+  });
+});

@@ -40,6 +40,7 @@ import {
   cn,
   type AutosaveStatus,
 } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import {
   AlarmClock,
   Award,
@@ -76,6 +77,7 @@ import {
   BUILDER_DRAFT_BINDING,
   BUILDER_STARTERS,
   DOC_TYPE_PALETTE,
+  STARTER_CATEGORY_KEYS,
   addBlockToDoc,
   builderDemoDoc,
   builderDemoData,
@@ -184,6 +186,7 @@ export function PageBuilder({
   className,
   testId,
 }: PageBuilderProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => pageBuilderConfigSchema.safeParse(config ?? {}), [config]);
   // Hooks before any early return — the invalid card renders below.
   const docType: BuilderDocType = parsed.success ? parsed.data.docType : 'invoice';
@@ -259,7 +262,10 @@ export function PageBuilder({
   if (!parsed.success) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-builder-invalid">
-        This builder page&rsquo;s stored config is invalid. Regenerate the page or reset it.
+        {t(
+          'ui:templates.builder.invalidConfig',
+          'This builder page’s stored config is invalid. Regenerate the page or reset it.',
+        )}
       </p>
     );
   }
@@ -306,11 +312,26 @@ export function PageBuilder({
   };
 
   const applyStarter = (starterId: string | null): void => {
-    const seeded = starterDocOf(starterId, canvasDocType);
+    const seeded = starterDocOf(
+      starterId,
+      canvasDocType,
+      t('ui:templates.builder.untitledDoc', 'Untitled document'),
+    );
     setStarterOpen(false);
     setRevision((current) => current + 1);
     commitDoc(seeded);
   };
+
+  // Chrome labels: explicit `labels` props keep winning; `t()` only replaces
+  // the hardcoded defaults. Block/starter copy stays English in the exported
+  // consts (builder-config.ts) and localizes here, at the render boundary.
+  const paletteTitle = labels?.paletteTitle ?? t('ui:templates.builder.paletteTitle', 'Blocks');
+  const inspectorTitle = labels?.inspectorTitle ?? t('ui:templates.builder.inspectorTitle', 'Inspector');
+  const startFromTemplateLabel =
+    labels?.startFromTemplate ?? t('ui:templates.builder.startFromTemplate', 'Start from a template');
+  const closeLabel = labels?.close ?? t('ui:action.close', 'Close');
+  const blockLabelOf = (block: BlockId): string =>
+    t(`ui:templates.builder.blocks.${block}`, BLOCK_KIND_META[block].label);
 
   const palette = DOC_TYPE_PALETTE[canvasDocType];
   const activeBlocks = new Set(
@@ -326,10 +347,10 @@ export function PageBuilder({
         <AutosaveIndicator
           data-part="builder-autosave"
           status={autosave}
-          savingLabel={labels?.saving ?? 'Saving…'}
-          savedLabel={labels?.saved ?? 'All changes saved'}
-          dirtyLabel={labels?.dirty ?? 'Unsaved changes'}
-          errorLabel={labels?.saveError ?? 'Couldn’t save'}
+          savingLabel={labels?.saving ?? t('ui:widgets.system.autosaveIndicator.saving', 'Saving…')}
+          savedLabel={labels?.saved ?? t('ui:widgets.system.autosaveIndicator.saved', 'All changes saved')}
+          dirtyLabel={labels?.dirty ?? t('ui:widgets.system.autosaveIndicator.dirty', 'Unsaved changes')}
+          errorLabel={labels?.saveError ?? t('ui:widgets.system.autosaveIndicator.error', "Couldn't save")}
         />
         {autosave === 'saved' && savedAt !== undefined && (
           <MonoText data-part="builder-saved-at" className="text-caption text-fg-subtle">
@@ -345,7 +366,7 @@ export function PageBuilder({
               data-part="builder-publish"
               onClick={() => setPublishStep('summary')}
             >
-              {labels?.publish ?? 'Publish'}
+              {labels?.publish ?? t('ui:templates.builder.publish', 'Publish')}
             </Button>
           )}
         </div>
@@ -354,9 +375,9 @@ export function PageBuilder({
       <div className="flex min-h-0 flex-1 gap-3">
         {/* Palette — document flavors only (question/flow builders ship their own). */}
         {isDocument && (
-          <aside data-part="builder-palette" aria-label={labels?.paletteTitle ?? 'Blocks'} className={cn(PANE_CLASS, 'hidden w-52 md:flex')}>
+          <aside data-part="builder-palette" aria-label={paletteTitle} className={cn(PANE_CLASS, 'hidden w-52 md:flex')}>
             <p className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-              {labels?.paletteTitle ?? 'Blocks'}
+              {paletteTitle}
             </p>
             <button
               type="button"
@@ -370,7 +391,7 @@ export function PageBuilder({
               )}
             >
               <Sparkles className="size-3.5" aria-hidden="true" />
-              {labels?.startFromTemplate ?? 'Start from a template'}
+              {startFromTemplateLabel}
             </button>
             {palette.map((block) => {
               const meta = BLOCK_KIND_META[block];
@@ -390,7 +411,7 @@ export function PageBuilder({
                   <span className="text-fg-muted">
                     <BlockIcon slug={meta.icon} />
                   </span>
-                  <span className="min-w-0 truncate text-caption font-semibold text-fg">{meta.label}</span>
+                  <span className="min-w-0 truncate text-caption font-semibold text-fg">{blockLabelOf(block)}</span>
                 </button>
               );
             })}
@@ -410,15 +431,15 @@ export function PageBuilder({
         </div>
 
         {/* Inspector — per-flavor context pane. */}
-        <aside data-part="builder-inspector" aria-label={labels?.inspectorTitle ?? 'Inspector'} className={cn(PANE_CLASS, 'hidden w-64 lg:flex')}>
+        <aside data-part="builder-inspector" aria-label={inspectorTitle} className={cn(PANE_CLASS, 'hidden w-64 lg:flex')}>
           <p className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {labels?.inspectorTitle ?? 'Inspector'}
+            {inspectorTitle}
           </p>
 
           {isDocument && (
             <>
               <label className="flex flex-col gap-1">
-                <span className="text-caption text-fg-muted">Title</span>
+                <span className="text-caption text-fg-muted">{t('ui:templates.builder.inspector.titleLabel', 'Title')}</span>
                 <Input
                   data-part="inspector-title"
                   value={doc.title ?? ''}
@@ -426,7 +447,7 @@ export function PageBuilder({
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-caption text-fg-muted">Number</span>
+                <span className="text-caption text-fg-muted">{t('ui:templates.builder.inspector.numberLabel', 'Number')}</span>
                 <Input
                   data-part="inspector-number"
                   value={doc.number ?? ''}
@@ -436,7 +457,7 @@ export function PageBuilder({
               {canvasDocType === 'invoice' && (
                 <>
                   <label className="flex flex-col gap-1">
-                    <span className="text-caption text-fg-muted">Currency</span>
+                    <span className="text-caption text-fg-muted">{t('ui:templates.builder.inspector.currencyLabel', 'Currency')}</span>
                     <Input
                       data-part="inspector-currency"
                       value={doc.currency ?? 'USD'}
@@ -444,7 +465,7 @@ export function PageBuilder({
                     />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-caption text-fg-muted">Tax rate %</span>
+                    <span className="text-caption text-fg-muted">{t('ui:templates.builder.inspector.taxRateLabel', 'Tax rate %')}</span>
                     <Input
                       data-part="inspector-tax"
                       type="number"
@@ -459,7 +480,9 @@ export function PageBuilder({
                   </label>
                 </>
               )}
-              <p className="mt-2 text-caption font-bold uppercase tracking-wide text-fg-subtle">Modules</p>
+              <p className="mt-2 text-caption font-bold uppercase tracking-wide text-fg-subtle">
+                {t('ui:templates.builder.inspector.modulesLabel', 'Modules')}
+              </p>
               {palette.map((block) => {
                 const meta = BLOCK_KIND_META[block];
                 return (
@@ -467,7 +490,7 @@ export function PageBuilder({
                     <span className="text-fg-muted">
                       <BlockIcon slug={meta.icon} />
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-caption text-fg">{meta.label}</span>
+                    <span className="min-w-0 flex-1 truncate text-caption text-fg">{blockLabelOf(block)}</span>
                     <Switch
                       data-part="inspector-module"
                       data-block={block}
@@ -483,7 +506,7 @@ export function PageBuilder({
           {docType === 'survey' && (
             <dl data-part="survey-summary" className="flex flex-col gap-1.5 text-body-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-fg-muted">Questions</dt>
+                <dt className="text-fg-muted">{t('ui:templates.builder.summary.questions', 'Questions')}</dt>
                 <dd>
                   <MonoText data-part="summary-questions" className="font-bold text-fg">
                     {summary.questions}
@@ -491,7 +514,7 @@ export function PageBuilder({
                 </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-fg-muted">Required</dt>
+                <dt className="text-fg-muted">{t('ui:widgets.forms.questionBuilder.required', 'Required')}</dt>
                 <dd>
                   <MonoText data-part="summary-required" className="font-bold text-fg">
                     {summary.required}
@@ -499,10 +522,12 @@ export function PageBuilder({
                 </dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-fg-muted">Est. length</dt>
+                <dt className="text-fg-muted">{t('ui:templates.builder.summary.estLength', 'Est. length')}</dt>
                 <dd>
                   <MonoText data-part="summary-est" className="font-bold text-fg">
-                    {`~${String(summary.estMinutes)} min`}
+                    {t('ui:templates.builder.summary.estMinutes', '~{minutes} min', {
+                      minutes: String(summary.estMinutes),
+                    })}
                   </MonoText>
                 </dd>
               </div>
@@ -512,7 +537,7 @@ export function PageBuilder({
           {docType === 'automation' && (
             <dl data-part="flow-summary" className="flex flex-col gap-1.5 text-body-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-fg-muted">Steps</dt>
+                <dt className="text-fg-muted">{t('ui:templates.builder.summary.steps', 'Steps')}</dt>
                 <dd>
                   <MonoText data-part="summary-steps" className="font-bold text-fg">
                     {flowNodes.length}
@@ -529,7 +554,11 @@ export function PageBuilder({
                     ) : (
                       <FileText className="size-3.5" aria-hidden="true" />
                     )}
-                    {kind === 'trigger' ? 'Triggers' : kind === 'condition' ? 'Conditions' : 'Actions'}
+                    {kind === 'trigger'
+                      ? t('ui:templates.builder.summary.triggers', 'Triggers')
+                      : kind === 'condition'
+                        ? t('ui:templates.builder.summary.conditions', 'Conditions')
+                        : t('ui:templates.builder.summary.actions', 'Actions')}
                   </dt>
                   <dd>
                     <MonoText data-part={`summary-${kind}`} className="font-bold text-fg">
@@ -538,7 +567,9 @@ export function PageBuilder({
                   </dd>
                 </div>
               ))}
-              <p className="mt-1 text-caption text-fg-subtle">The trigger step can&rsquo;t be removed.</p>
+              <p className="mt-1 text-caption text-fg-subtle">
+                {t('ui:templates.builder.summary.triggerLocked', 'The trigger step can’t be removed.')}
+              </p>
             </dl>
           )}
         </aside>
@@ -547,9 +578,9 @@ export function PageBuilder({
       {/* Starter picker — `chrome.overlays: ['starter-template-picker']`. */}
       <Modal open={starterOpen} onOpenChange={setStarterOpen} size="lg">
         <ModalHeader
-          title={labels?.startFromTemplate ?? 'Start from a template'}
-          subtitle="Selection replaces the current draft."
-          closeLabel={labels?.close ?? 'Close'}
+          title={startFromTemplateLabel}
+          subtitle={t('ui:templates.builder.starterPicker.subtitle', 'Selection replaces the current draft.')}
+          closeLabel={closeLabel}
         />
         <ModalBody>
           <div data-part="builder-starter-picker" className="min-h-64">
@@ -561,8 +592,13 @@ export function PageBuilder({
                 binding: BUILDER_DRAFT_BINDING,
                 defs: BUILDER_STARTERS[canvasDocType].map((starter) => ({
                   id: starter.id,
-                  title: starter.title,
-                  category: starter.category,
+                  // Card copy is studio chrome (the SEEDED doc keeps the
+                  // English starter titles — that's content, not chrome).
+                  title: t(`ui:templates.builder.starters.titles.${starter.id}`, starter.title),
+                  category: t(
+                    `ui:templates.builder.starters.categories.${STARTER_CATEGORY_KEYS[starter.category] ?? starter.category}`,
+                    starter.category,
+                  ),
                 })),
               }}
               data={{ status: 'success', data: { rows: [], total: 0 } }}
@@ -582,28 +618,31 @@ export function PageBuilder({
           <>
             <ModalHeader
               tone="pos"
-              title="Survey published"
-              subtitle="Your survey is live and collecting responses right now."
-              closeLabel={labels?.close ?? 'Close'}
+              title={t('ui:templates.builder.publishModal.publishedTitle', 'Survey published')}
+              subtitle={t(
+                'ui:templates.builder.publishModal.publishedSubtitle',
+                'Your survey is live and collecting responses right now.',
+              )}
+              closeLabel={closeLabel}
             />
             <ModalBody />
             <ModalFooter>
               <Button size="sm" onClick={() => setPublishStep('closed')}>
-                Done
+                {t('ui:widgets.forms.modalWizard.done', 'Done')}
               </Button>
             </ModalFooter>
           </>
         ) : (
           <>
             <ModalHeader
-              title="Publish survey?"
-              subtitle="Review before it goes live."
-              closeLabel={labels?.close ?? 'Close'}
+              title={t('ui:templates.builder.publishModal.confirmTitle', 'Publish survey?')}
+              subtitle={t('ui:templates.builder.publishModal.confirmSubtitle', 'Review before it goes live.')}
+              closeLabel={closeLabel}
             />
             <ModalBody>
               <dl data-part="publish-summary" className="flex flex-col divide-y divide-border rounded-lg border border-border">
                 <div className="flex items-center justify-between px-3 py-2.5 text-body-sm">
-                  <dt className="text-fg-muted">Questions</dt>
+                  <dt className="text-fg-muted">{t('ui:templates.builder.summary.questions', 'Questions')}</dt>
                   <dd>
                     <MonoText data-part="publish-questions" className="font-bold text-fg">
                       {summary.questions}
@@ -611,7 +650,7 @@ export function PageBuilder({
                   </dd>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2.5 text-body-sm">
-                  <dt className="text-fg-muted">Required</dt>
+                  <dt className="text-fg-muted">{t('ui:widgets.forms.questionBuilder.required', 'Required')}</dt>
                   <dd>
                     <MonoText data-part="publish-required" className="font-bold text-fg">
                       {summary.required}
@@ -619,10 +658,12 @@ export function PageBuilder({
                   </dd>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2.5 text-body-sm">
-                  <dt className="text-fg-muted">Est. length</dt>
+                  <dt className="text-fg-muted">{t('ui:templates.builder.summary.estLength', 'Est. length')}</dt>
                   <dd>
                     <MonoText data-part="publish-est" className="font-bold text-fg">
-                      {`~${String(summary.estMinutes)} min`}
+                      {t('ui:templates.builder.summary.estMinutes', '~{minutes} min', {
+                        minutes: String(summary.estMinutes),
+                      })}
                     </MonoText>
                   </dd>
                 </div>
@@ -630,7 +671,7 @@ export function PageBuilder({
             </ModalBody>
             <ModalFooter>
               <Button variant="ghost" size="sm" onClick={() => setPublishStep('closed')}>
-                Cancel
+                {t('ui:action.cancel', 'Cancel')}
               </Button>
               <Button
                 size="sm"
@@ -638,7 +679,7 @@ export function PageBuilder({
                 iconLeft={<Send aria-hidden="true" />}
                 onClick={() => setPublishStep('done')}
               >
-                {labels?.publish ?? 'Publish survey'}
+                {labels?.publish ?? t('ui:templates.builder.publishModal.confirmCta', 'Publish survey')}
               </Button>
             </ModalFooter>
           </>

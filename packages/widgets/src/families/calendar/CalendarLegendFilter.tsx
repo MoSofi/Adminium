@@ -1,4 +1,5 @@
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Checkbox, EmptyState, MonoText } from '@adminium/ui';
 import { useState } from 'react';
 
@@ -57,6 +58,7 @@ export function CalendarLegendFilter({
   onChange,
   testId,
 }: CalendarLegendFilterProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set(defaultHidden ?? []));
 
@@ -65,8 +67,8 @@ export function CalendarLegendFilter({
       <EmptyState
         compact
         preset="nothing-scheduled"
-        title={emptyTitle ?? 'No categories yet'}
-        body={emptyBody ?? 'Event categories will appear here once events exist.'}
+        title={emptyTitle ?? t('ui:widgets.calendar.calendarLegendFilter.emptyTitle', 'No categories yet')}
+        body={emptyBody ?? t('ui:widgets.calendar.calendarLegendFilter.emptyBody', 'Event categories will appear here once events exist.')}
       />
     );
   }
@@ -148,21 +150,31 @@ export function CalendarLegendFilter({
   );
 }
 
-/** Aggregate a `calendar-events` payload into legend categories (annex §5). */
-export function legendCategoriesOf(data: unknown, config: CalendarLegendFilterConfig): LegendCategory[] {
+/**
+ * Aggregate a `calendar-events` payload into legend categories (annex §5).
+ * `uncategorizedLabel` is the localized bucket-name DEFAULT the widget resolves
+ * through `t()`; the config's explicit `uncategorizedLabel` still wins, and bare
+ * callers (tests/stories) keep the English default.
+ */
+export function legendCategoriesOf(
+  data: unknown,
+  config: CalendarLegendFilterConfig,
+  uncategorizedLabel?: string,
+): LegendCategory[] {
   const events: CalendarEvent[] = eventsOf(data);
   return aggregateCategories(
     events,
     config.categoryColorMap,
-    config.uncategorizedLabel ?? 'Uncategorized',
+    config.uncategorizedLabel ?? uncategorizedLabel ?? 'Uncategorized',
   );
 }
 
 export function CalendarLegendFilterWidget({ config, data, onEvent }: WidgetProps<CalendarLegendFilterConfig>) {
+  const t = useMaybeT();
   const target = config.linkTarget;
   return (
     <CalendarLegendFilter
-      categories={legendCategoriesOf(data, config)}
+      categories={legendCategoriesOf(data, config, t('ui:widgets.calendar.calendarLegendFilter.uncategorizedLabel', 'Uncategorized'))}
       toggleable={config.toggleable}
       variant={config.variant}
       defaultHidden={config.defaultHidden}

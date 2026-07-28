@@ -26,6 +26,7 @@
 
 import { EmptyState, MonoText } from '@adminium/ui';
 import { useMountAnimation } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asCategorical, asSingleMetric } from '../../lib/shapes.js';
@@ -208,6 +209,7 @@ const GRID_COLUMNS: Record<number, string> = {
 };
 
 export function GaugeArc({ config, data }: WidgetProps<GaugeArcConfig>) {
+  const t = useMaybeT();
   const mounted = useMountAnimation();
   const opts = formatOptionsOf(config);
 
@@ -225,8 +227,11 @@ export function GaugeArc({ config, data }: WidgetProps<GaugeArcConfig>) {
         <EmptyState
           compact
           preset="no-data"
-          title={config.emptyTitle ?? 'No gauges to show'}
-          body={config.emptyBody ?? 'Services appear here as gauges once there is a reading for them.'}
+          title={config.emptyTitle ?? t('ui:widgets.kpi.gaugeArc.emptyTitle', 'No gauges to show')}
+          body={
+            config.emptyBody ??
+            t('ui:widgets.kpi.gaugeArc.emptyBody', 'Services appear here as gauges once there is a reading for them.')
+          }
         />
       );
     }

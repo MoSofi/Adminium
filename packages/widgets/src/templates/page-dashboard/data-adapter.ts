@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fnv1a } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { widgetRegistry } from '../../registry/index.js';
 import { queryDescriptorSchema, type PageLayout, type QueryDescriptor } from '../../page-config/index.js';
@@ -79,6 +80,12 @@ export function useDashboardData(
   // map with a list of world cities under it. See `useResolvedWidgetId`.
   const runtimeEnv = useWidgetRuntimeEnv();
 
+  // Latest-t ref: the batch effect keys on `run`, so a locale switch must
+  // re-label FUTURE errors without refiring the whole query batch.
+  const t = useMaybeT();
+  const tRef = useRef(t);
+  tRef.current = t;
+
   const demoStates = useMemo<DashboardDataStates>(() => {
     const boundIds = new Set(bound.map((request) => request.instanceId));
     const states: DashboardDataStates = {};
@@ -104,7 +111,10 @@ export function useDashboardData(
           for (const request of requests) {
             next[request.instanceId] =
               results[request.instanceId] ??
-              ({ status: 'error', error: new Error('No result for widget') } satisfies WidgetDataState);
+              ({
+                status: 'error',
+                error: new Error(tRef.current('ui:frame.noResult', 'No result for widget')),
+              } satisfies WidgetDataState);
           }
           return next;
         });

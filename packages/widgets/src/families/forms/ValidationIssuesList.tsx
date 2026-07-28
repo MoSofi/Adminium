@@ -9,6 +9,7 @@
  */
 
 import { Badge, EmptyState, IconTile } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { severityIcon } from './forms-icons.js';
 import { DEFAULT_SEVERITY_TONE, formatCount, numberField, oneOf, recordRowsOf, stringField } from './forms-lib.js';
@@ -68,6 +69,7 @@ function toneOf(severity: IssueSeverity, map: Record<string, FormTone> | undefin
 }
 
 export function ValidationIssuesListWidget({ config, data }: WidgetProps<ValidationIssuesListConfig>) {
+  const t = useMaybeT();
   const issues = issuesOf(data, config);
   const locale = config.format?.locale;
 
@@ -76,8 +78,8 @@ export function ValidationIssuesListWidget({ config, data }: WidgetProps<Validat
       <EmptyState
         compact
         preset="all-caught-up"
-        title={config.emptyTitle ?? 'No issues found'}
-        body={config.emptyBody ?? 'Everything checks out — you are good to import.'}
+        title={config.emptyTitle ?? t('ui:widgets.forms.validationIssuesList.emptyTitle', 'No issues found')}
+        body={config.emptyBody ?? t('ui:widgets.forms.validationIssuesList.emptyBody', 'Everything checks out — you are good to import.')}
       />
     );
   }

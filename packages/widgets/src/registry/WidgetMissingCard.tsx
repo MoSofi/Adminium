@@ -1,4 +1,5 @@
 import { EmptyState, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { PackageX } from 'lucide-react';
 
 import type { WidgetProps } from './types.js';
@@ -19,6 +20,7 @@ export interface WidgetMissingConfig {
  * never crash a dashboard — this system-family card names the missing id.
  */
 export function WidgetMissingCard({ config }: WidgetProps<WidgetMissingConfig>) {
+  const t = useMaybeT();
   const missingId = typeof config.missingId === 'string' ? config.missingId : 'unknown';
   return (
     <EmptyState
@@ -26,11 +28,15 @@ export function WidgetMissingCard({ config }: WidgetProps<WidgetMissingConfig>) 
       preset="no-data"
       icon={<PackageX />}
       tone="warn"
-      title="Widget unavailable"
+      title={t('ui:widgets.system.widgetMissing.title', 'Widget unavailable')}
       body={
+        // Lead/tail pair around the mono-styled id — the two keys read as one
+        // sentence and must be translated together.
         <>
-          No widget is registered as <MonoText>{missingId}</MonoText>. It may belong to a newer
-          version or an uninstalled extension.
+          {t('ui:widgets.system.widgetMissing.bodyLead', 'No widget is registered as')}{' '}
+          <MonoText>{missingId}</MonoText>
+          {'. '}
+          {t('ui:widgets.system.widgetMissing.bodyTail', 'It may belong to a newer version or an uninstalled extension.')}
         </>
       }
       data-widget-missing={missingId}

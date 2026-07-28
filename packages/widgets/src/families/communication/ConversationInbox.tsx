@@ -1,4 +1,5 @@
 import { Avatar, CountBadge, EmptyState, SearchInput } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -83,6 +84,7 @@ export function ConversationInbox({
   locale: localeProp,
   testId,
 }: ConversationInboxProps) {
+  const t = useMaybeT();
   // `format.locale` is a free-string in the shared config, so '' / 'x-1' are
   // schema-valid and would throw out of every Intl call (and out of
   // toLocaleLowerCase below). Normalize once, at the boundary.
@@ -110,8 +112,11 @@ export function ConversationInbox({
       <EmptyState
         compact
         preset="all-caught-up"
-        title={emptyTitle ?? 'No conversations'}
-        body={emptyBody ?? 'Conversations will appear here as messages arrive.'}
+        title={emptyTitle ?? t('ui:widgets.communication.conversationInbox.emptyTitle', 'No conversations')}
+        body={
+          emptyBody ??
+          t('ui:widgets.communication.conversationInbox.emptyBody', 'Conversations will appear here as messages arrive.')
+        }
       />
     );
   }
@@ -122,17 +127,25 @@ export function ConversationInbox({
     onSelect?.(id);
   };
 
+  // One resolved value for both the input's accessible name and the clear
+  // affordance, exactly the pairing the hardcoded default expressed.
+  const resolvedSearchLabel =
+    searchLabel ?? t('ui:widgets.communication.conversationInbox.searchLabel', 'Search conversations');
+
   return (
     <div data-widget="conversation-inbox" data-testid={testId} className="flex h-full flex-col">
       {searchable && (
         <div className="border-b border-border/60 p-3">
           <SearchInput
-            aria-label={searchLabel ?? 'Search conversations'}
-            placeholder={searchPlaceholder ?? 'Search conversations…'}
+            aria-label={resolvedSearchLabel}
+            placeholder={
+              searchPlaceholder ??
+              t('ui:widgets.communication.conversationInbox.searchPlaceholder', 'Search conversations…')
+            }
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
             onClear={() => setQuery('')}
-            clearLabel={searchLabel ?? 'Search conversations'}
+            clearLabel={resolvedSearchLabel}
           />
         </div>
       )}
@@ -140,7 +153,7 @@ export function ConversationInbox({
         <EmptyState
           compact
           preset="no-matches"
-          title={noMatchesTitle ?? 'No conversations match'}
+          title={noMatchesTitle ?? t('ui:widgets.communication.conversationInbox.noMatchesTitle', 'No conversations match')}
           body={emptyBody ?? undefined}
         />
       ) : (

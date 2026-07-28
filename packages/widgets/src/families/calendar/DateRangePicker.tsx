@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { MonoText } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -79,19 +80,33 @@ export function nextRange(current: DateRangeValue, key: string, maxRange?: numbe
 
 export function DateRangePicker({
   value,
-  presets = DEFAULT_RANGE_PRESETS,
+  presets,
   showPresets = true,
   showSummary = true,
   maxRange,
   firstDayOfWeek,
   referenceDate,
   locale,
-  previousLabel = 'Previous month',
-  nextLabel = 'Next month',
+  previousLabel,
+  nextLabel,
   summaryLabel,
   onChange,
   testId,
 }: DateRangePickerProps) {
+  const t = useMaybeT();
+  const resolvedPreviousLabel = previousLabel ?? t('ui:widgets.calendar.dateRangePicker.previousLabel', 'Previous month');
+  const resolvedNextLabel = nextLabel ?? t('ui:widgets.calendar.dateRangePicker.nextLabel', 'Next month');
+  // Explicit `presets` (host-translated, annex contract) win untouched; the
+  // built-in defaults localize per id under `…dateRangePicker.presets.*`.
+  const resolvedPresets = useMemo(
+    () =>
+      presets ??
+      DEFAULT_RANGE_PRESETS.map((preset) => ({
+        ...preset,
+        label: t(`ui:widgets.calendar.dateRangePicker.presets.${preset.id}`, preset.label),
+      })),
+    [presets, t],
+  );
   const tag = resolveLocale(locale);
   const reference = referenceDate ?? isoDayKey(new Date());
   const [range, setRange] = useState<DateRangeValue>(value ?? { start: null, end: null });
@@ -120,15 +135,21 @@ export function DateRangePicker({
 
   // The hover preview only exists while a range is half-open (annex).
   const previewEnd = range.start !== null && range.end === null ? hover : null;
-  const activePreset = presets.find((preset) => {
+  const activePreset = resolvedPresets.find((preset) => {
     if (range.start === null || range.end === null) return false;
     const resolved = resolvePreset(preset, reference);
     return resolved.start === range.start && resolved.end === range.end;
   });
 
+  // A host-supplied `summaryLabel` keeps the documented `{n}`-template contract;
+  // the default routes through the bundle with `n` as an ICU argument.
   const summary =
     range.start !== null && range.end !== null
-      ? (summaryLabel ?? '{n} days selected').replace('{n}', String(daysBetween(range.start, range.end)))
+      ? summaryLabel !== undefined
+        ? summaryLabel.replace('{n}', String(daysBetween(range.start, range.end)))
+        : t('ui:widgets.calendar.dateRangePicker.summaryLabel', '{n} days selected', {
+            n: daysBetween(range.start, range.end),
+          })
       : undefined;
 
   return (
@@ -138,7 +159,7 @@ export function DateRangePicker({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            aria-label={previousLabel}
+            aria-label={resolvedPreviousLabel}
             data-part="range-prev"
             onClick={() => step(-1)}
             className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
@@ -149,7 +170,7 @@ export function DateRangePicker({
           </button>
           <button
             type="button"
-            aria-label={nextLabel}
+            aria-label={resolvedNextLabel}
             data-part="range-next"
             onClick={() => step(1)}
             className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
@@ -159,9 +180,9 @@ export function DateRangePicker({
         </div>
       </div>
 
-      {showPresets && presets.length > 0 && (
+      {showPresets && resolvedPresets.length > 0 && (
         <div data-part="range-presets" className="flex flex-wrap gap-1">
-          {presets.map((preset) => {
+          {resolvedPresets.map((preset) => {
             const on = activePreset?.id === preset.id;
             return (
               <button

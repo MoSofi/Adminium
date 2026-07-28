@@ -23,6 +23,7 @@
  */
 
 import { ToastStack as UiToastStack } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import type { ToastEntry } from './feeds-types.js';
@@ -91,6 +92,7 @@ const POSITION_CLASSES: Record<ToastStackConfig['position'], string> = {
 };
 
 export function ToastStackWidget({ config, data, onEvent }: WidgetProps<ToastStackConfig>) {
+  const t = useMaybeT();
   const incoming = toastsOf(data);
   // Dismissal is local: a toast is ephemeral UI state, not a mutation, so it
   // must not round-trip through the host.
@@ -110,7 +112,7 @@ export function ToastStackWidget({ config, data, onEvent }: WidgetProps<ToastSta
         toast.undoToken === undefined
           ? undefined
           : {
-              label: config.undoLabel ?? 'Undo',
+              label: config.undoLabel ?? t('ui:widgets.feeds.toastStack.undoLabel', 'Undo'),
               onAction: () => {
                 // Intent only — the host's CRUD layer runs the reversal with
                 // audit. `table` is absent on an unbound/demo toast, and a
@@ -138,7 +140,7 @@ export function ToastStackWidget({ config, data, onEvent }: WidgetProps<ToastSta
       data-position={config.position}
       toasts={items}
       onDismissToast={(id) => setDismissed((current) => new Set(current).add(id))}
-      dismissLabel={config.dismissLabel ?? 'Dismiss'}
+      dismissLabel={config.dismissLabel ?? t('ui:widgets.feeds.toastStack.dismissLabel', 'Dismiss')}
       {...(config.regionLabel === undefined ? {} : { label: config.regionLabel })}
       className={POSITION_CLASSES[config.position]}
     />

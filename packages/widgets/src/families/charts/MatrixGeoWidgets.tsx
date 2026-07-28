@@ -21,6 +21,7 @@ import {
   hasUsTilegramTiles,
 } from '@adminium/charts';
 import { getFormatters, weekInfo } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { z } from 'zod';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
@@ -29,7 +30,8 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 function BadShape() {
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+  const t = useMaybeT();
+  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 type Rec = Record<string, unknown>;
@@ -136,6 +138,7 @@ export const chartCohortMatrixConfigSchema = widgetSharedConfigSchema.extend({
 export type ChartCohortMatrixConfig = z.infer<typeof chartCohortMatrixConfigSchema>;
 
 export function ChartCohortMatrixWidget({ config, data }: WidgetProps<ChartCohortMatrixConfig>) {
+  const t = useMaybeT();
   const matrix = asMatrix(data);
   if (matrix === null || matrix.rowKeys.length === 0 || matrix.colKeys.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -151,7 +154,7 @@ export function ChartCohortMatrixWidget({ config, data }: WidgetProps<ChartCohor
         rowKeys={matrix.rowKeys}
         colKeys={matrix.colKeys}
         cells={matrix.cells}
-        labels={{ label: config.title ?? 'Cohort retention' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.cohortMatrix.chartLabel', 'Cohort retention') }}
         cellSize={config.cellSize}
         flipThreshold={config.flipThreshold}
         maxValue={maxValue}
@@ -179,6 +182,7 @@ function startWeekdayOf(config: { firstDayOfWeek?: number | undefined; format?: 
 }
 
 export function ChartHeatmapCalendarWidget({ config, data }: WidgetProps<ChartHeatmapCalendarConfig>) {
+  const t = useMaybeT();
   const series = asTimeseries(data);
   if (series === null || series.points.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -187,7 +191,11 @@ export function ChartHeatmapCalendarWidget({ config, data }: WidgetProps<ChartHe
     <div className="overflow-x-auto px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-heatmap-calendar">
       <HeatCalendarChart
         points={series.points}
-        labels={{ label: config.title ?? 'Activity calendar' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.heatmapCalendar.chartLabel', 'Activity calendar') }}
+        legendLabels={{
+          less: t('ui:widgets.charts.heatmapCalendar.legendLessLabel', 'Less'),
+          more: t('ui:widgets.charts.heatmapCalendar.legendMoreLabel', 'More'),
+        }}
         weeks={config.weeks}
         levels={config.levels}
         startWeekday={startWeekdayOf(config)}
@@ -215,6 +223,7 @@ export const chartHeatMonthConfigSchema = widgetSharedConfigSchema.extend({
 export type ChartHeatMonthConfig = z.infer<typeof chartHeatMonthConfigSchema>;
 
 export function ChartHeatMonthWidget({ config, data }: WidgetProps<ChartHeatMonthConfig>) {
+  const t = useMaybeT();
   const series = asTimeseries(data);
   if (series === null || series.points.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -237,7 +246,7 @@ export function ChartHeatMonthWidget({ config, data }: WidgetProps<ChartHeatMont
         year={year}
         month={month}
         points={series.points}
-        labels={{ label: config.title ?? 'Monthly activity' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.heatMonth.chartLabel', 'Monthly activity') }}
         levels={config.levels}
         startWeekday={startWeekdayOf(config)}
         cellSize={config.cellSize}
@@ -262,6 +271,7 @@ export const chartChoroplethGridConfigSchema = widgetSharedConfigSchema.extend({
 export type ChartChoroplethGridConfig = z.infer<typeof chartChoroplethGridConfigSchema>;
 
 export function ChartChoroplethGridWidget({ config, data }: WidgetProps<ChartChoroplethGridConfig>) {
+  const t = useMaybeT();
   const geo = asGeoPoints(data);
   if (geo === null || geo.points.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -290,7 +300,11 @@ export function ChartChoroplethGridWidget({ config, data }: WidgetProps<ChartCho
         <ChoroplethGridChart
           points={geo.points}
           metric={metric}
-          labels={{ label: config.title ?? 'Regional breakdown' }}
+          labels={{ label: config.title ?? t('ui:widgets.charts.choroplethGrid.chartLabel', 'Regional breakdown') }}
+          legendLabels={{
+            low: t('ui:widgets.charts.choroplethGrid.legendLowLabel', 'Low'),
+            high: t('ui:widgets.charts.choroplethGrid.legendHighLabel', 'High'),
+          }}
           layout={effectiveLayout}
           columns={config.columns}
           levels={config.levels}
@@ -326,6 +340,7 @@ export const chartSankeyConfigSchema = widgetSharedConfigSchema.extend({
 export type ChartSankeyConfig = z.infer<typeof chartSankeyConfigSchema>;
 
 export function ChartSankeyWidget({ config, data }: WidgetProps<ChartSankeyConfig>) {
+  const t = useMaybeT();
   const flows = asFlows(data);
   if (flows === null || flows.nodes.length === 0 || flows.links.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -341,7 +356,7 @@ export function ChartSankeyWidget({ config, data }: WidgetProps<ChartSankeyConfi
       <SankeyChart
         nodes={flows.nodes}
         links={flows.links}
-        labels={{ label: config.title ?? 'Flow' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.sankey.chartLabel', 'Flow') }}
         height={config.height}
         nodeWidth={config.nodeWidth}
         showLabels={config.showLabels}

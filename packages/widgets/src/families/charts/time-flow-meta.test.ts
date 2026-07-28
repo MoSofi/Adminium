@@ -42,8 +42,8 @@ describe('time-flow config schemas', () => {
   for (const { name, schema } of cases) {
     it(`${name}: parses {} to defaults with per-widget empty copy`, () => {
       const parsed = schema.parse({});
-      expect(parsed.emptyState?.titleKey).toBe(`widgets.charts.${name}.empty.title`);
-      expect(parsed.emptyState?.bodyKey).toBe(`widgets.charts.${name}.empty.body`);
+      expect(parsed.emptyState?.titleKey).toBe(`widgets.charts.${name}.emptyTitle`);
+      expect(parsed.emptyState?.bodyKey).toBe(`widgets.charts.${name}.emptyBody`);
       // Shared config still threads through.
       const withTitle = schema.parse({ title: 'X', tone: 'pos' });
       expect(withTitle.title).toBe('X');

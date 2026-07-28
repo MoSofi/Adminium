@@ -103,7 +103,7 @@ describe('WidgetHost', () => {
     expect(screen.getByText('No data for range')).toBeDefined();
   });
 
-  it('empty copy honors config.emptyState override', () => {
+  it('empty copy honors config.emptyState override (key paths resolve, never render raw)', () => {
     render(
       <WidgetHost
         widgetId="test-stat-card"
@@ -113,7 +113,23 @@ describe('WidgetHost', () => {
         registry={registry}
       />,
     );
-    expect(screen.getByText('widgets.empty.allCaughtUp')).toBeDefined();
+    // Key-shaped copy goes through the frame's empty-state translator; outside
+    // a provider that yields the humanized leaf, never the raw key path.
+    expect(screen.getByText('All caught up')).toBeDefined();
+    expect(screen.queryByText('widgets.empty.allCaughtUp')).toBeNull();
+  });
+
+  it('empty copy honors a plain-text config.emptyState override verbatim', () => {
+    render(
+      <WidgetHost
+        widgetId="test-stat-card"
+        instanceId="inst-6b"
+        config={{ emptyState: { titleKey: 'Queue drained' } }}
+        data={{ status: 'success', data: null }}
+        registry={registry}
+      />,
+    );
+    expect(screen.getByText('Queue drained')).toBeDefined();
   });
 
   it('unknown widget id renders the widget-missing card naming the id (04 §2.2)', async () => {
@@ -170,5 +186,49 @@ describe('WidgetHost', () => {
     );
     expect(await screen.findByTestId('test-widget')).toBeDefined();
     expect(screen.getByRole('status', { name: 'Refreshing' })).toBeDefined();
+  });
+});
+
+describe('info popover descriptionKey resolution', () => {
+  const loadedData: WidgetDataState = { status: 'success', data: { value: 7 }, refetch: () => {} };
+
+  it('never renders the raw key: dangling keys fall back to the humanized widget id', async () => {
+    render(
+      <WidgetHost
+        registry={registry}
+        widgetId="test-stat-card"
+        instanceId="w1"
+        config={{}}
+        data={loadedData}
+        onEvent={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Widget info' }));
+    expect(screen.queryByText('widgets.test.statCard.description')).toBeNull();
+    expect(screen.getByText('Test stat card')).toBeTruthy();
+  });
+
+  it('resolves the descriptionKey from the bundle under an I18nProvider', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui' ? { widgets: { test: { statCard: { description: 'Die Testkarte.' } } } } : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <WidgetHost
+          registry={registry}
+          widgetId="test-stat-card"
+          instanceId="w2"
+          config={{}}
+          data={loadedData}
+          onEvent={() => {}}
+        />
+      </I18nProvider>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Widget info' }));
+    expect(screen.getByText('Die Testkarte.')).toBeTruthy();
   });
 });

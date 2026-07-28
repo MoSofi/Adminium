@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, MonoText } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 
@@ -73,6 +74,7 @@ export function RankedEntityList({
   onSelect,
   testId,
 }: RankedEntityListProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const ranked = rankRows(rows, n);
 
@@ -81,8 +83,8 @@ export function RankedEntityList({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'Nothing ranked yet'}
-        body={emptyBody ?? 'Top entities will appear here once there is data to rank.'}
+        title={emptyTitle ?? t('ui:widgets.tables.rankedEntityList.emptyTitle', 'Nothing ranked yet')}
+        body={emptyBody ?? t('ui:widgets.tables.rankedEntityList.emptyBody', 'Top entities will appear here once there is data to rank.')}
       />
     );
   }

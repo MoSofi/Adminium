@@ -6,7 +6,7 @@
  * unavailable-channel explanation (togglable, explained, never hidden), and
  * the manifest passing the §10 schema.
  */
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -158,5 +158,27 @@ describe('PageSettings', () => {
 
     rerender(<PageSettings channels={CHANNELS} events={[]} />);
     expect(screen.getByText('Nothing to configure yet')).toBeTruthy();
+  });
+});
+
+describe('page-settings chrome localization (ui:templates.settings.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui' ? { templates: { settings: { title: 'Benachrichtigungseinstellungen' } } } : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageSettings channels={CHANNELS} events={EVENTS} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Benachrichtigungseinstellungen')).toBeTruthy();
+
+    cleanup();
+    render(<PageSettings channels={CHANNELS} events={EVENTS} />);
+    expect(screen.getByText('Notification settings')).toBeTruthy();
   });
 });

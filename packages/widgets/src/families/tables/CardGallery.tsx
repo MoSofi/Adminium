@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, Button, EmptyState, IconTile, StatusPill } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { FileText, LayoutGrid } from 'lucide-react';
@@ -72,13 +73,14 @@ export function CardGallery({
   onAction,
   testId,
 }: CardGalleryProps) {
+  const t = useMaybeT();
   if (cards.length === 0) {
     return (
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'Nothing to show'}
-        body={emptyBody ?? 'Items will appear here as cards.'}
+        title={emptyTitle ?? t('ui:widgets.tables.cardGallery.emptyTitle', 'Nothing to show')}
+        body={emptyBody ?? t('ui:widgets.tables.cardGallery.emptyBody', 'Items will appear here as cards.')}
       />
     );
   }

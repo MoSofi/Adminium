@@ -10,6 +10,7 @@
  */
 
 import { Stepper } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { oneOf, recordRowsOf, stringField } from './forms-lib.js';
 import type { StepState } from './forms-lib.js';
@@ -61,6 +62,7 @@ export function stepsOf(data: unknown, config: StepperConfig): StepDef[] {
 }
 
 export function StepperWidget({ config, data, onEvent }: WidgetProps<StepperConfig>) {
+  const t = useMaybeT();
   const steps = stepsOf(data, config);
   if (steps.length === 0) return null;
 
@@ -73,7 +75,7 @@ export function StepperWidget({ config, data, onEvent }: WidgetProps<StepperConf
     <div className="flex h-full items-center px-4 pb-4" data-widget="stepper" data-testid={config.testId}>
       <Stepper
         className="w-full"
-        label={config.a11yLabel ?? config.title ?? 'Progress'}
+        label={config.a11yLabel ?? config.title ?? t('ui:widgets.forms.stepper.a11yLabel', 'Progress')}
         orientation={config.orientation}
         activeIndex={activeIndex}
         steps={steps.map((step) => ({

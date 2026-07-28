@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Button, EmptyState, Spinner } from '@adminium/ui';
 import { useMemo, useRef, useState } from 'react';
 
@@ -127,6 +128,7 @@ export function PageChat({
   className,
   testId,
 }: PageChatProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => {
     const result = pageLayoutSchema.safeParse(layout);
     if (result.success) return { layout: result.data, invalid: false };
@@ -231,7 +233,10 @@ export function PageChat({
   if (parsed.invalid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-chat-invalid">
-        This chat page&rsquo;s stored layout is invalid. Regenerate the page or reset its layout.
+        {t(
+          'ui:templates.chat.invalidLayout',
+          'This chat page’s stored layout is invalid. Regenerate the page or reset its layout.',
+        )}
       </p>
     );
   }
@@ -241,24 +246,29 @@ export function PageChat({
       {/* Inbox rail — the manifest's required slot. */}
       <div data-part="chat-inbox" className="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-surface">
         {inbox === null ? (
-          <EmptyState compact preset="no-data" title="No inbox on this page" body="Regenerate the page." />
+          <EmptyState
+            compact
+            preset="no-data"
+            title={t('ui:templates.chat.noInboxTitle', 'No inbox on this page')}
+            body={t('ui:templates.chat.noInboxBody', 'Regenerate the page.')}
+          />
         ) : inboxState?.status === 'error' ? (
           <EmptyState
             compact
             tone="danger"
-            title={labels?.loadFailed ?? 'The conversation query failed'}
+            title={labels?.loadFailed ?? t('ui:templates.chat.conversationsFailed', 'The conversation query failed')}
             body={inboxState.error instanceof Error ? inboxState.error.message : undefined}
             actions={
               inboxState.refetch === undefined ? undefined : (
                 <Button size="sm" variant="secondary" onClick={inboxState.refetch}>
-                  {labels?.retry ?? 'Retry'}
+                  {labels?.retry ?? t('ui:action.retry', 'Retry')}
                 </Button>
               )
             }
           />
         ) : inboxState?.status === 'loading' ? (
           <div className="flex flex-1 items-center justify-center py-16">
-            <Spinner label="Loading conversations" />
+            <Spinner label={t('ui:templates.chat.loadingConversations', 'Loading conversations')} />
           </div>
         ) : (
           <ConversationInbox
@@ -286,25 +296,25 @@ export function PageChat({
         ) : selected === null ? (
           <EmptyState
             preset="no-data"
-            title={labels?.selectTitle ?? 'Select a conversation'}
-            body={labels?.selectBody ?? 'Pick a conversation from the inbox to read its messages.'}
+            title={labels?.selectTitle ?? t('ui:templates.chat.selectTitle', 'Select a conversation')}
+            body={labels?.selectBody ?? t('ui:templates.chat.selectBody', 'Pick a conversation from the inbox to read its messages.')}
           />
         ) : activeMessagesState?.status === 'error' ? (
           <EmptyState
             tone="danger"
-            title={labels?.loadFailed ?? 'The messages query failed'}
+            title={labels?.loadFailed ?? t('ui:templates.chat.messagesFailed', 'The messages query failed')}
             body={activeMessagesState.error instanceof Error ? activeMessagesState.error.message : undefined}
             actions={
               activeMessagesState.refetch === undefined ? undefined : (
                 <Button size="sm" variant="secondary" onClick={activeMessagesState.refetch}>
-                  {labels?.retry ?? 'Retry'}
+                  {labels?.retry ?? t('ui:action.retry', 'Retry')}
                 </Button>
               )
             }
           />
         ) : activeMessagesState?.status === 'loading' ? (
           <div className="flex flex-1 items-center justify-center py-16">
-            <Spinner label="Loading messages" />
+            <Spinner label={t('ui:templates.chat.loadingMessages', 'Loading messages')} />
           </div>
         ) : (
           <ChatThread

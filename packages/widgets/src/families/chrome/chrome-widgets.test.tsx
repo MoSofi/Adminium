@@ -630,3 +630,35 @@ describe('malformed payloads never throw into the error boundary', () => {
     });
   }
 });
+
+// ── chrome localization ────────────────────────────────────────────────────
+
+describe('chrome family chrome localization (ui:widgets.chrome.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              widgets: {
+                chrome: {
+                  sidebarNav: { emptyTitle: 'Noch keine Navigation', emptyBody: 'Tabellen erscheinen hier.' },
+                },
+              },
+            }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <SidebarNavWidget config={cfg(sidebarNavConfigSchema)} instanceId="t" onEvent={noop} data={{ rows: [], total: 0 }} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Noch keine Navigation')).toBeTruthy();
+
+    cleanup();
+    render(<SidebarNavWidget config={cfg(sidebarNavConfigSchema)} instanceId="t" onEvent={noop} data={{ rows: [], total: 0 }} />);
+    expect(screen.getByText('No navigation yet')).toBeTruthy();
+  });
+});

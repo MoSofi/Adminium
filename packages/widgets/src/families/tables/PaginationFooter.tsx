@@ -1,4 +1,5 @@
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { IconButton, MonoText, Select } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -57,13 +58,16 @@ export function PaginationFooter({
   labels,
   testId,
 }: PaginationFooterProps) {
+  const t = useMaybeT();
   // Mono range counts render in data context (latn digits, aligned in ar_EG).
   const fmt = getFormatters(locale ?? 'en-US');
   const empty = rangeEnd === 0;
   const rangeText = empty
-    ? (labels?.empty ?? '0 rows')
+    ? (labels?.empty ?? t('ui:widgets.tables.paginationFooter.emptyLabel', '0 rows'))
     : `${fmt.number(rangeStart)}–${fmt.number(rangeEnd)}${
-        total === null || total === undefined ? '' : ` ${labels?.of ?? 'of'} ${fmt.number(total)}`
+        total === null || total === undefined
+          ? ''
+          : ` ${labels?.of ?? t('ui:widgets.tables.paginationFooter.ofLabel', 'of')} ${fmt.number(total)}`
       }`;
 
   return (
@@ -77,9 +81,9 @@ export function PaginationFooter({
       </MonoText>
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-1.5 text-caption text-fg-muted">
-          {labels?.pageSize ?? 'Rows'}
+          {labels?.pageSize ?? t('ui:widgets.tables.paginationFooter.pageSizeLabel', 'Rows')}
           <Select
-            aria-label={labels?.pageSize ?? 'Rows per page'}
+            aria-label={labels?.pageSize ?? t('ui:widgets.tables.paginationFooter.a11y.pageSize', 'Rows per page')}
             value={String(pageSize)}
             disabled={disabled}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -95,7 +99,7 @@ export function PaginationFooter({
         <div className="flex items-center gap-1">
           <IconButton
             size="sm"
-            label={labels?.prev ?? 'Previous page'}
+            label={labels?.prev ?? t('ui:widgets.tables.paginationFooter.prevLabel', 'Previous page')}
             disabled={disabled || !hasPrev}
             onClick={onPrev}
           >
@@ -103,7 +107,7 @@ export function PaginationFooter({
           </IconButton>
           <IconButton
             size="sm"
-            label={labels?.next ?? 'Next page'}
+            label={labels?.next ?? t('ui:widgets.tables.paginationFooter.nextLabel', 'Next page')}
             disabled={disabled || !hasNext}
             onClick={onNext}
           >

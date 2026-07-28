@@ -1,5 +1,6 @@
 import { Badge, IconTile, MonoText, ProgressBar } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Activity } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -78,8 +79,10 @@ export function SloMonitorCardView({
   latencyLabel,
   testId,
 }: SloMonitorCardViewProps) {
+  const t = useMaybeT();
   const statusTone: Tone = UPTIME_TONE[monitor.status];
   const budget = budgetTone(monitor.budget, budgetThresholds);
+  const resolvedBudgetLabel = budgetLabel ?? t('ui:widgets.domain.sloMonitorCard.budgetLabel', 'Error budget');
   // Trailing window: the LAST `windowDays` entries, so a payload carrying 90
   // days still renders the annex's 30-bar strip without the caller pre-slicing.
   const history = monitor.history.slice(-Math.max(1, windowDays));
@@ -105,7 +108,7 @@ export function SloMonitorCardView({
           )}
         </div>
         <Badge tone={statusTone} dot data-part="slo-status">
-          {STATUS_FALLBACK[monitor.status]}
+          {t(`ui:widgets.domain.sloMonitorCard.status.${monitor.status}`, STATUS_FALLBACK[monitor.status])}
         </Badge>
       </div>
 
@@ -117,7 +120,7 @@ export function SloMonitorCardView({
           {formatPct(monitor.current, locale, 2)}
         </MonoText>
         <span className="text-caption text-fg-subtle">
-          {targetLabel ?? 'Target'} <MonoText>{formatPct(monitor.target, locale, 2)}</MonoText>
+          {targetLabel ?? t('ui:widgets.domain.sloMonitorCard.targetLabel', 'Target')} <MonoText>{formatPct(monitor.target, locale, 2)}</MonoText>
         </span>
       </div>
 
@@ -144,7 +147,7 @@ export function SloMonitorCardView({
 
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between text-caption">
-          <span className="text-fg-subtle">{budgetLabel ?? 'Error budget'}</span>
+          <span className="text-fg-subtle">{resolvedBudgetLabel}</span>
           <MonoText className={`font-bold ${OPS_TONE_TEXT[budget]}`} data-part="slo-budget">
             {formatPct(monitor.budget, locale)}
           </MonoText>
@@ -154,13 +157,13 @@ export function SloMonitorCardView({
           tone={budget}
           size="sm"
           animated={false}
-          label={budgetLabel ?? 'Error budget'}
+          label={resolvedBudgetLabel}
         />
       </div>
 
       {monitor.p95 === undefined ? null : (
         <p className="text-caption text-fg-subtle">
-          {latencyLabel ?? 'p95 latency'} <MonoText className="font-semibold text-fg">{formatMs(monitor.p95, locale)}</MonoText>
+          {latencyLabel ?? t('ui:widgets.domain.sloMonitorCard.latencyLabel', 'p95 latency')} <MonoText className="font-semibold text-fg">{formatMs(monitor.p95, locale)}</MonoText>
         </p>
       )}
     </div>
@@ -188,13 +191,14 @@ function monitorOf(config: SloMonitorCardConfig, data: unknown): SloMonitor | nu
 }
 
 export function SloMonitorCardWidget({ config, data }: WidgetProps<SloMonitorCardConfig>) {
+  const t = useMaybeT();
   const monitor = useMemo(() => monitorOf(config, data), [config, data]);
 
   if (monitor === null) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No monitor'}
-        body={config.emptyBody ?? 'Bind a monitors table with a status and an availability column.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.sloMonitorCard.emptyTitle', 'No monitor')}
+        body={config.emptyBody ?? t('ui:widgets.domain.sloMonitorCard.emptyBody', 'Bind a monitors table with a status and an availability column.')}
       />
     );
   }

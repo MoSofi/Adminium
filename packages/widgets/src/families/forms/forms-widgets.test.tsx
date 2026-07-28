@@ -824,3 +824,47 @@ describe('malformed payloads never throw into the error boundary', () => {
     });
   }
 });
+
+// ── chrome localization ────────────────────────────────────────────────────
+
+describe('forms chrome localization (ui:widgets.forms.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              widgets: {
+                forms: {
+                  validationIssuesList: { emptyTitle: 'Keine Probleme gefunden', emptyBody: 'Alles in Ordnung.' },
+                },
+              },
+            }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <ValidationIssuesListWidget
+          config={cfg(validationIssuesListConfigSchema)}
+          instanceId="loc1"
+          onEvent={noop}
+          data={{ rows: [], total: 0 }}
+        />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Keine Probleme gefunden')).toBeTruthy();
+
+    cleanup();
+    render(
+      <ValidationIssuesListWidget
+        config={cfg(validationIssuesListConfigSchema)}
+        instanceId="loc2"
+        onEvent={noop}
+        data={{ rows: [], total: 0 }}
+      />,
+    );
+    expect(screen.getByText('No issues found')).toBeTruthy();
+  });
+});

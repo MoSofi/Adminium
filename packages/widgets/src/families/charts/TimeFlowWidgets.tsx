@@ -10,6 +10,7 @@
  * throwing into the error boundary. RTL mirroring is read from
  * ChartDirectionContext by the primitives, so no `dir` prop is threaded here.
  */
+import { useMaybeT } from '@adminium/i18n/react';
 import {
   AnomalyChart,
   BumpChart,
@@ -41,7 +42,8 @@ import type {
 } from './time-flow-config.js';
 
 function BadShape() {
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+  const t = useMaybeT();
+  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 const wrap = 'px-4 pb-4 compact:px-3 compact:pb-3';
@@ -49,13 +51,14 @@ const wrap = 'px-4 pb-4 compact:px-3 compact:pb-3';
 // --- chart-multiline ---------------------------------------------------------
 
 export function ChartMultilineWidget({ config, data }: WidgetProps<ChartMultilineConfig>) {
+  const t = useMaybeT();
   const series = toTimeSeriesGroup(data);
   if (series === null) return <BadShape />;
   return (
     <div className={wrap} data-widget="chart-multiline">
       <MultiLineChart
         series={series}
-        labels={{ label: config.title ?? 'Multi-line chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.multiline.chartLabel', 'Multi-line chart') }}
         height={config.height}
         smooth={config.smooth}
         showAxis={config.axis}
@@ -68,13 +71,14 @@ export function ChartMultilineWidget({ config, data }: WidgetProps<ChartMultilin
 // --- chart-stream ------------------------------------------------------------
 
 export function ChartStreamWidget({ config, data }: WidgetProps<ChartStreamConfig>) {
+  const t = useMaybeT();
   const series = toTimeSeriesGroup(data);
   if (series === null) return <BadShape />;
   return (
     <div className={wrap} data-widget="chart-stream">
       <StreamChart
         series={series}
-        labels={{ label: config.title ?? 'Stream chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.stream.chartLabel', 'Stream chart') }}
         height={config.height}
         smooth={config.curve === 'smooth'}
         showLegend={config.legend}
@@ -86,6 +90,7 @@ export function ChartStreamWidget({ config, data }: WidgetProps<ChartStreamConfi
 // --- chart-forecast ----------------------------------------------------------
 
 export function ChartForecastWidget({ config, data }: WidgetProps<ChartForecastConfig>) {
+  const t = useMaybeT();
   const inputs = toForecastInputs(data);
   if (inputs === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -95,7 +100,10 @@ export function ChartForecastWidget({ config, data }: WidgetProps<ChartForecastC
         history={inputs.history}
         forecast={inputs.forecast}
         band={inputs.band}
-        labels={{ label: config.title ?? 'Forecast chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.forecast.chartLabel', 'Forecast chart') }}
+        nowLabel={t('ui:widgets.charts.forecast.nowLabel', 'Now')}
+        forecastLabel={t('ui:widgets.charts.forecast.forecastLabel', 'Forecast')}
+        actualLabel={t('ui:widgets.charts.forecast.actualLabel', 'Actual')}
         height={config.height}
         showAxis={config.axis}
         formatY={(value) => formatMetricValue(value, 'compact', opts)}
@@ -107,6 +115,7 @@ export function ChartForecastWidget({ config, data }: WidgetProps<ChartForecastC
 // --- chart-anomaly -----------------------------------------------------------
 
 export function ChartAnomalyWidget({ config, data }: WidgetProps<ChartAnomalyConfig>) {
+  const t = useMaybeT();
   const points = toAnomalyPoints(data);
   if (points === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -114,7 +123,7 @@ export function ChartAnomalyWidget({ config, data }: WidgetProps<ChartAnomalyCon
     <div className={wrap} data-widget="chart-anomaly">
       <AnomalyChart
         points={points}
-        labels={{ label: config.title ?? 'Anomaly chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.anomaly.chartLabel', 'Anomaly chart') }}
         height={config.height}
         sensitivity={config.sensitivity}
         window={config.window}
@@ -128,6 +137,7 @@ export function ChartAnomalyWidget({ config, data }: WidgetProps<ChartAnomalyCon
 // --- chart-candlestick -------------------------------------------------------
 
 export function ChartCandlestickWidget({ config, data }: WidgetProps<ChartCandlestickConfig>) {
+  const t = useMaybeT();
   const candles = toCandles(data, config.candleCount);
   if (candles === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -135,10 +145,11 @@ export function ChartCandlestickWidget({ config, data }: WidgetProps<ChartCandle
     <div className={wrap} data-widget="chart-candlestick">
       <CandlestickChart
         candles={candles}
-        labels={{ label: config.title ?? 'Candlestick chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.candlestick.chartLabel', 'Candlestick chart') }}
         height={config.height}
         showAxis={config.axis}
         livePill={config.livePill}
+        livePillLabel={t('ui:widgets.charts.candlestick.livePillLabel', 'Live')}
         formatPrice={(value) => formatMetricValue(value, config.priceFormat, opts)}
       />
     </div>
@@ -148,13 +159,14 @@ export function ChartCandlestickWidget({ config, data }: WidgetProps<ChartCandle
 // --- chart-bump --------------------------------------------------------------
 
 export function ChartBumpWidget({ config, data }: WidgetProps<ChartBumpConfig>) {
+  const t = useMaybeT();
   const inputs = toBumpInputs(data, config.periods, config.maxRank);
   if (inputs === null) return <BadShape />;
   return (
     <div className={wrap} data-widget="chart-bump">
       <BumpChart
         series={inputs.series}
-        labels={{ label: config.title ?? 'Bump chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.bump.chartLabel', 'Bump chart') }}
         periods={inputs.periods}
         maxRank={inputs.maxRank}
         periodLabels={inputs.periodLabels}
@@ -168,14 +180,15 @@ export function ChartBumpWidget({ config, data }: WidgetProps<ChartBumpConfig>) 
 // --- chart-timeline-lanes ----------------------------------------------------
 
 export function ChartTimelineLanesWidget({ config, data }: WidgetProps<ChartTimelineLanesConfig>) {
-  const inputs = toLaneInputs(data, config.lanes, config.axisBuckets);
+  const t = useMaybeT();
+  const inputs = toLaneInputs(data, config.lanes, config.axisBuckets, t('ui:widgets.charts.timelineLanes.laneLabel', 'Events'));
   if (inputs === null) return <BadShape />;
   return (
     <div className={wrap} data-widget="chart-timeline-lanes">
       <TimelineLanesChart
         lanes={inputs.lanes}
         events={inputs.events}
-        labels={{ label: config.title ?? 'Timeline lanes' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.timelineLanes.chartLabel', 'Timeline lanes') }}
         axisLabels={inputs.axisLabels}
         height={config.height}
       />

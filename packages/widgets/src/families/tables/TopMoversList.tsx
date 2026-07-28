@@ -1,4 +1,5 @@
 import { Sparkline } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 import { DeltaPill, EmptyState, IconTile, MonoText } from '@adminium/ui';
 import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 
@@ -63,6 +64,7 @@ export function TopMoversList({
   onSelect,
   testId,
 }: TopMoversListProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const ranked = [...rows].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, Math.max(1, n));
 
@@ -71,8 +73,8 @@ export function TopMoversList({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No movers'}
-        body={emptyBody ?? 'Metrics that changed the most will appear here.'}
+        title={emptyTitle ?? t('ui:widgets.tables.topMoversList.emptyTitle', 'No movers')}
+        body={emptyBody ?? t('ui:widgets.tables.topMoversList.emptyBody', 'Metrics that changed the most will appear here.')}
       />
     );
   }

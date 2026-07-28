@@ -15,6 +15,7 @@
  * the family's rich shapes (`ScheduleMatrixData`/`CapacityBoardData`) and are
  * used as-is. KPI-row items and everything else render through WidgetHost.
  */
+import { useMaybeT } from '@adminium/i18n/react';
 import { Button, SegmentedControl } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -275,6 +276,7 @@ function MatrixSlot({
   locale: string | undefined;
   labels: PageSchedulerLabels | undefined;
 }) {
+  const t = useMaybeT();
   const raw = itemConfigOf(item);
   const cfg = useMemo(() => matrixItemConfigOf(raw), [raw]);
   const source = planningSourceOf(raw);
@@ -332,7 +334,7 @@ function MatrixSlot({
           <Button
             variant="ghost"
             size="sm"
-            aria-label={labels?.previousWeek ?? 'Previous week'}
+            aria-label={labels?.previousWeek ?? t('ui:templates.scheduler.previousWeek', 'Previous week')}
             data-part="week-prev"
             onClick={() => setWeekOffset((offset) => offset - 1)}
           >
@@ -341,7 +343,7 @@ function MatrixSlot({
           <Button
             variant="ghost"
             size="sm"
-            aria-label={labels?.nextWeek ?? 'Next week'}
+            aria-label={labels?.nextWeek ?? t('ui:templates.scheduler.nextWeek', 'Next week')}
             data-part="week-next"
             onClick={() => setWeekOffset((offset) => offset + 1)}
           >
@@ -413,6 +415,7 @@ function CapacitySlot({
   locale: string | undefined;
   labels: PageSchedulerLabels | undefined;
 }) {
+  const t = useMaybeT();
   const raw = itemConfigOf(item);
   const cfg = useMemo(() => capacityItemConfigOf(raw), [raw]);
   const model = useMemo(() => capacityModelOf(state.data, cfg), [state.data, cfg]);
@@ -434,8 +437,8 @@ function CapacitySlot({
           <SegmentedControl
             data-part="capacity-period"
             options={[
-              { value: 'week', label: labels?.week ?? 'Week' },
-              { value: 'month', label: labels?.month ?? 'Month' },
+              { value: 'week', label: labels?.week ?? t('ui:templates.scheduler.week', 'Week') },
+              { value: 'month', label: labels?.month ?? t('ui:templates.scheduler.month', 'Month') },
             ]}
             value={period}
             onValueChange={(value) => setPeriod(value === 'month' ? 'month' : 'week')}
@@ -468,6 +471,7 @@ export function PageScheduler({
   className,
   testId,
 }: PageSchedulerProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => parseTemplateConfig(config), [config]);
   const resolvedStates = useTemplateStates(parsed.layout, states);
   const today = referenceDate ?? todayIso();
@@ -475,7 +479,10 @@ export function PageScheduler({
   if (parsed.invalid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-scheduler-invalid">
-        This schedule&rsquo;s stored layout is invalid. Regenerate the page or reset its layout.
+        {t(
+          'ui:templates.scheduler.invalidLayout',
+          'This schedule’s stored layout is invalid. Regenerate the page or reset its layout.',
+        )}
       </p>
     );
   }

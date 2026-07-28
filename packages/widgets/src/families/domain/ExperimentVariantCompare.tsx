@@ -1,4 +1,5 @@
 import { Badge, MonoText, ProgressBar } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useMemo } from 'react';
 
 import { experimentVariantCompareConfigSchema, experimentVariantCompareDemoData } from './domain-ops-config.js';
@@ -70,6 +71,7 @@ export function ExperimentVariantCompareView({
   countsLabel,
   testId,
 }: ExperimentVariantCompareViewProps) {
+  const t = useMaybeT();
   const maxConv = useMemo(
     () => variants.reduce((max, variant) => Math.max(max, variant.conv), 0),
     [variants],
@@ -87,6 +89,8 @@ export function ExperimentVariantCompareView({
 
   const meterTone = confidence === undefined ? 'neutral' : confidenceTone(confidence, confThresholds);
   const significant = confidence !== undefined && confidence >= high;
+  const resolvedSignificanceLabel =
+    significanceLabel ?? t('ui:widgets.domain.experimentVariantCompare.significanceLabel', 'Confidence');
 
   return (
     <div
@@ -106,12 +110,12 @@ export function ExperimentVariantCompareView({
                 <span className="truncate text-body-sm font-semibold text-fg">{variant.name}</span>
                 {variant.control ? (
                   <Badge tone="neutral" data-part="variant-control">
-                    {controlLabel ?? 'CONTROL'}
+                    {controlLabel ?? t('ui:widgets.domain.experimentVariantCompare.controlLabel', 'CONTROL')}
                   </Badge>
                 ) : null}
                 {winnerId === variant.id ? (
                   <Badge tone="pos" data-part="variant-winner">
-                    {winnerLabel ?? 'WINNER'}
+                    {winnerLabel ?? t('ui:widgets.domain.experimentVariantCompare.winnerLabel', 'WINNER')}
                   </Badge>
                 ) : null}
                 <span className="ms-auto flex items-center gap-2">
@@ -139,10 +143,19 @@ export function ExperimentVariantCompareView({
                 />
               </div>
               <p className="text-caption text-fg-subtle">
-                {interpolate(countsLabel ?? '{users} participants · {conversions} conversions', {
-                  users: formatCount(variant.users, locale),
-                  conversions: formatCount(variant.conversions, locale),
-                })}
+                {countsLabel !== undefined
+                  ? interpolate(countsLabel, {
+                      users: formatCount(variant.users, locale),
+                      conversions: formatCount(variant.conversions, locale),
+                    })
+                  : t(
+                      'ui:widgets.domain.experimentVariantCompare.countsLabel',
+                      '{users} participants · {conversions} conversions',
+                      {
+                        users: formatCount(variant.users, locale),
+                        conversions: formatCount(variant.conversions, locale),
+                      },
+                    )}
               </p>
             </div>
           );
@@ -152,7 +165,7 @@ export function ExperimentVariantCompareView({
       {!showSignificance || confidence === undefined ? null : (
         <div data-testid="significance-meter" className="mt-auto flex flex-col gap-1 border-t border-border pt-3">
           <div className="flex items-center justify-between text-caption">
-            <span className="text-fg-subtle">{significanceLabel ?? 'Confidence'}</span>
+            <span className="text-fg-subtle">{resolvedSignificanceLabel}</span>
             <MonoText className={`font-bold ${OPS_TONE_TEXT[meterTone]}`} data-part="significance-value">
               {formatPct(confidence, locale, 1)}
             </MonoText>
@@ -162,12 +175,14 @@ export function ExperimentVariantCompareView({
             tone={meterTone}
             size="sm"
             animated={false}
-            label={significanceLabel ?? 'Confidence'}
+            label={resolvedSignificanceLabel}
           />
           <p className="text-caption text-fg-subtle" data-part="significance-verdict">
             {significant
-              ? (verdictSignificantLabel ?? 'Statistically significant — safe to call.')
-              : (verdictInconclusiveLabel ?? 'Not yet significant — keep the test running.')}
+              ? (verdictSignificantLabel ??
+                t('ui:widgets.domain.experimentVariantCompare.verdictSignificantLabel', 'Statistically significant — safe to call.'))
+              : (verdictInconclusiveLabel ??
+                t('ui:widgets.domain.experimentVariantCompare.verdictInconclusiveLabel', 'Not yet significant — keep the test running.'))}
           </p>
         </div>
       )}
@@ -211,14 +226,15 @@ function confidenceOf(config: ExperimentVariantCompareConfig, data: unknown, row
 }
 
 export function ExperimentVariantCompareWidget({ config, data }: WidgetProps<ExperimentVariantCompareConfig>) {
+  const t = useMaybeT();
   const variants = useMemo(() => variantsOf(config, data), [config, data]);
   const confidence = useMemo(() => confidenceOf(config, data, opsRowsOf(data)), [config, data]);
 
   if (variants.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No variants'}
-        body={config.emptyBody ?? 'Bind an experiment variants table with conversion numbers.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.experimentVariantCompare.emptyTitle', 'No variants')}
+        body={config.emptyBody ?? t('ui:widgets.domain.experimentVariantCompare.emptyBody', 'Bind an experiment variants table with conversion numbers.')}
       />
     );
   }

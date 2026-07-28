@@ -14,6 +14,7 @@
 
 import { DeltaPill, MonoText, ProgressBar } from '@adminium/ui';
 import { Sparkline, prefersReducedMotion } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useEffect, useRef, useState } from 'react';
 
 import { computeDelta, formatMetricValue, formatOptionsOf } from '../../lib/format.js';
@@ -73,6 +74,7 @@ function goalOf(data: unknown, configGoal: number | undefined): number | undefin
 }
 
 export function MetricHero({ config, data }: WidgetProps<MetricHeroConfig>) {
+  const t = useMaybeT();
   const metric = asMetricDelta(data);
   const goal = goalOf(data, config.goalValue);
   // Hooks must run before any early return (rules-of-hooks); a malformed
@@ -93,7 +95,7 @@ export function MetricHero({ config, data }: WidgetProps<MetricHeroConfig>) {
   const goalText =
     goal === undefined
       ? null
-      : `${config.goalLabel ?? 'Goal'} · ${formatMetricValue(goal, config.metricFormat, opts)}, ${formatMetricValue(
+      : `${config.goalLabel ?? t('ui:widgets.kpi.metricHero.goalLabel', 'Goal')} · ${formatMetricValue(goal, config.metricFormat, opts)}, ${formatMetricValue(
           (goalPct as number) / 100,
           'percent',
           opts,

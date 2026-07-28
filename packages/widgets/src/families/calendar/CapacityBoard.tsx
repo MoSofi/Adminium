@@ -1,4 +1,5 @@
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, EmptyState, MonoText, StatusPill } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { useMemo } from 'react';
@@ -46,6 +47,7 @@ const STATUS_TONE: Record<LoadStatus, Tone> = {
   balanced: 'pos',
   available: 'info',
 };
+/** English defaults; rendered through the per-status capacityBoard bundle keys. */
 const STATUS_LABEL: Record<LoadStatus, string> = {
   overloaded: 'Overloaded',
   balanced: 'Balanced',
@@ -69,6 +71,7 @@ export function CapacityBoard({
   emptyBody,
   testId,
 }: CapacityBoardProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const fmt = getFormatters(tag);
   const members = data.rows;
@@ -89,8 +92,8 @@ export function CapacityBoard({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No workload data'}
-        body={emptyBody ?? 'Member utilization will appear here once assignments exist.'}
+        title={emptyTitle ?? t('ui:widgets.calendar.capacityBoard.emptyTitle', 'No workload data')}
+        body={emptyBody ?? t('ui:widgets.calendar.capacityBoard.emptyBody', 'Member utilization will appear here once assignments exist.')}
       />
     );
   }
@@ -112,16 +115,26 @@ export function CapacityBoard({
                 </div>
                 <MonoText className="tabular-nums text-caption font-semibold text-fg">{fmt.percent(util / 100)}</MonoText>
                 <StatusPill status={status} tone={STATUS_TONE[status]}>
-                  {STATUS_LABEL[status]}
+                  {t(`ui:widgets.calendar.capacityBoard.status.${status}`, STATUS_LABEL[status])}
                 </StatusPill>
               </div>
-              <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3" role="img" aria-label={`${member.name}: ${util}%`}>
+              <div
+                className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3"
+                role="img"
+                aria-label={t('ui:widgets.calendar.capacityBoard.utilizationLabel', '{name}: {util}%', {
+                  name: member.name,
+                  util,
+                })}
+              >
                 {member.assignments.map((assignment, i) => {
                   const pct = Math.max(0, (assignment.hours / cap) * 100);
                   return (
                     <span
                       key={i}
-                      title={`${assignment.project} · ${fmt.number(assignment.hours)}h`}
+                      title={t('ui:widgets.calendar.capacityBoard.assignmentLabel', '{project} · {hours}h', {
+                        project: assignment.project,
+                        hours: fmt.number(assignment.hours),
+                      })}
                       className={`h-full w-[var(--seg)] ${TONE_SOLID_BG[projectTone(assignment)]}`}
                       style={{ '--seg': `${pct}%` }}
                     />
@@ -129,7 +142,10 @@ export function CapacityBoard({
                 })}
               </div>
               <p className="mt-1 text-caption text-fg-subtle">
-                <MonoText className="tabular-nums">{fmt.number(totalHours)}</MonoText> / <MonoText className="tabular-nums">{fmt.number(cap)}</MonoText>h · {period}
+                <MonoText className="tabular-nums">{fmt.number(totalHours)}</MonoText> / <MonoText className="tabular-nums">{fmt.number(cap)}</MonoText>
+                {t('ui:widgets.calendar.capacityBoard.periodLabel', 'h · {period}', {
+                  period: t(`ui:widgets.calendar.capacityBoard.period.${period}`, period),
+                })}
               </p>
             </li>
           );

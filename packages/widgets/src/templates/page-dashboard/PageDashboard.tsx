@@ -13,6 +13,7 @@
  */
 
 import { useMemo } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { WidgetHost } from '../../frame/WidgetHost.js';
 import { DashboardGrid } from '../../grid/DashboardGrid.js';
@@ -41,6 +42,7 @@ export interface PageDashboardProps {
 const EMPTY_LAYOUT: PageLayout = { version: 1, items: [] };
 
 export function PageDashboard({ layout, adapter, params, onEvent, states, className }: PageDashboardProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => {
     const result = pageLayoutSchema.safeParse(layout);
     if (result.success) return { layout: result.data, invalid: false };
@@ -52,7 +54,10 @@ export function PageDashboard({ layout, adapter, params, onEvent, states, classN
   if (parsed.invalid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-dashboard-invalid">
-        This dashboard&rsquo;s stored layout is invalid. Regenerate the page or reset its layout.
+        {t(
+          'ui:templates.dashboard.invalidLayout',
+          'This dashboard’s stored layout is invalid. Regenerate the page or reset its layout.',
+        )}
       </p>
     );
   }

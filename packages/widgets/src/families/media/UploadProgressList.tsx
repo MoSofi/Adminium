@@ -1,5 +1,6 @@
 import { EmptyState, IconButton, IconTile, MonoText, ProgressBar } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Download, RotateCcw, X } from 'lucide-react';
 
 import { fileIconFor } from './media-icons.js';
@@ -93,6 +94,13 @@ export function UploadProgressList({
   onDownload,
   testId,
 }: UploadProgressListProps) {
+  const t = useMaybeT();
+  const resolvedDoneLabel = doneLabel ?? t('ui:widgets.media.done', 'Done');
+  const resolvedFailedLabel = failedLabel ?? t('ui:widgets.media.failed', 'Failed');
+  const resolvedQueuedLabel = queuedLabel ?? t('ui:widgets.media.queued', 'Queued');
+  const resolvedRetryLabel = retryLabel ?? t('ui:widgets.media.retry', 'Retry');
+  const resolvedDownloadLabel = downloadLabel ?? t('ui:widgets.media.download', 'Download');
+  const resolvedCancelLabel = cancelLabel ?? t('ui:widgets.media.cancel', 'Cancel');
   const tag = resolveLocale(locale);
   const fmt = getFormatters(tag);
 
@@ -101,8 +109,8 @@ export function UploadProgressList({
       <EmptyState
         compact
         preset="all-caught-up"
-        title={emptyTitle ?? 'No uploads in progress'}
-        body={emptyBody ?? 'Files you upload will show their progress here.'}
+        title={emptyTitle ?? t('ui:widgets.media.uploadProgressList.emptyTitle', 'No uploads in progress')}
+        body={emptyBody ?? t('ui:widgets.media.uploadProgressList.emptyBody', 'Files you upload will show their progress here.')}
       />
     );
   }
@@ -113,11 +121,11 @@ export function UploadProgressList({
         const kind = kindOf(job.type, job.mime, job.name);
         const statusText =
           job.status === 'done'
-            ? (doneLabel ?? 'Done')
+            ? resolvedDoneLabel
             : job.status === 'failed'
-              ? (failedLabel ?? 'Failed')
+              ? resolvedFailedLabel
               : job.status === 'queued'
-                ? (queuedLabel ?? 'Queued')
+                ? resolvedQueuedLabel
                 : fmt.percent(job.pct / 100);
         return (
           <li
@@ -144,17 +152,17 @@ export function UploadProgressList({
             </div>
             <MonoText className={`shrink-0 text-caption font-semibold ${STATUS_TEXT[job.status]}`}>{statusText}</MonoText>
             {retryable && job.status === 'failed' && (
-              <IconButton size="sm" label={retryLabel ?? 'Retry'} onClick={() => onRetry?.(job)} data-part="upload-retry">
+              <IconButton size="sm" label={resolvedRetryLabel} onClick={() => onRetry?.(job)} data-part="upload-retry">
                 <RotateCcw className="size-3.5" />
               </IconButton>
             )}
             {downloadable && job.status === 'done' && (
-              <IconButton size="sm" label={downloadLabel ?? 'Download'} onClick={() => onDownload?.(job)} data-part="upload-download">
+              <IconButton size="sm" label={resolvedDownloadLabel} onClick={() => onDownload?.(job)} data-part="upload-download">
                 <Download className="size-3.5" />
               </IconButton>
             )}
             {cancellable && (job.status === 'uploading' || job.status === 'queued') && (
-              <IconButton size="sm" label={cancelLabel ?? 'Cancel'} onClick={() => onCancel?.(job)} data-part="upload-cancel">
+              <IconButton size="sm" label={resolvedCancelLabel} onClick={() => onCancel?.(job)} data-part="upload-cancel">
                 <X className="size-3.5" />
               </IconButton>
             )}

@@ -6,7 +6,7 @@
  * isolates per-item failures, and survives invalid layouts + unknown
  * widget ids (widget-missing fallback, never a crash).
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PageDashboard } from './PageDashboard.js';
@@ -156,5 +156,51 @@ describe('PageDashboard', () => {
       expect(screen.getByText('1,234')).toBeDefined();
     });
     expect(container.querySelector('[data-grid-item="kpi-b"] [data-state="skeleton"]')).not.toBeNull();
+  });
+});
+
+describe('dashboard chrome localization (ui:templates.dashboard.* / ui:frame.noResult)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              templates: { dashboard: { invalidLayout: 'Das gespeicherte Layout dieses Dashboards ist ungültig.' } },
+              frame: { noResult: 'Kein Ergebnis für dieses Widget' },
+            }
+          : null,
+    });
+    // A batch reply missing every requested instance → the data-adapter's
+    // frame.noResult error surfaces through the widget frame.
+    const emptyAdapter: DashboardDataAdapter = { queryBatch: async () => ({}) };
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageDashboard layout={{ version: 99, items: 'nope' }} />
+        <PageDashboard layout={boundLayout} adapter={emptyAdapter} />
+      </I18nProvider>,
+    );
+    expect(screen.getByTestId('page-dashboard-invalid').textContent).toBe(
+      'Das gespeicherte Layout dieses Dashboards ist ungültig.',
+    );
+    await waitFor(() => {
+      expect(screen.getAllByText('Kein Ergebnis für dieses Widget').length).toBeGreaterThan(0);
+    });
+
+    cleanup();
+    render(
+      <>
+        <PageDashboard layout={{ version: 99, items: 'nope' }} />
+        <PageDashboard layout={boundLayout} adapter={emptyAdapter} />
+      </>,
+    );
+    expect(screen.getByTestId('page-dashboard-invalid').textContent).toBe(
+      'This dashboard’s stored layout is invalid. Regenerate the page or reset its layout.',
+    );
+    await waitFor(() => {
+      expect(screen.getAllByText('No result for widget').length).toBeGreaterThan(0);
+    });
   });
 });

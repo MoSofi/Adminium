@@ -624,3 +624,41 @@ describe('malformed payloads never throw into the error boundary', () => {
     });
   }
 });
+
+// ── chrome localization ────────────────────────────────────────────────────
+
+describe('system chrome localization (ui:widgets.system.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { widgets: { system: { connectionStatus: { idle: 'Nicht verbunden' } } } }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <ConnectionStatusWidget
+          config={cfg(connectionStatusConfigSchema)}
+          instanceId="t"
+          onEvent={noop}
+          data={{ row: { state: 'idle' } }}
+        />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Nicht verbunden')).toBeTruthy();
+
+    cleanup();
+    render(
+      <ConnectionStatusWidget
+        config={cfg(connectionStatusConfigSchema)}
+        instanceId="t"
+        onEvent={noop}
+        data={{ row: { state: 'idle' } }}
+      />,
+    );
+    expect(screen.getByText('Not connected')).toBeTruthy();
+  });
+});

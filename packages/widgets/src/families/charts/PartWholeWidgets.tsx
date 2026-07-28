@@ -7,6 +7,7 @@
  * ChartDirectionContext the dashboard bridges from the i18n `dir` (04 §7.4).
  */
 import { Chord, Funnel, Radar, RadialBar, Sunburst, Treemap, WordCloud } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import type { WidgetProps } from '../../registry/types.js';
@@ -30,12 +31,14 @@ import type {
 } from './part-whole-config.js';
 
 function BadShape() {
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+  const t = useMaybeT();
+  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 // --- chart-treemap -----------------------------------------------------------
 
 export function ChartTreemapWidget({ config, data }: WidgetProps<ChartTreemapConfig>) {
+  const t = useMaybeT();
   const inputs = treemapInputsOf(data);
   if (inputs === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -43,7 +46,8 @@ export function ChartTreemapWidget({ config, data }: WidgetProps<ChartTreemapCon
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-treemap">
       <Treemap
         data={inputs}
-        labels={{ label: config.title ?? 'Treemap' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.treemap.chartLabel', 'Treemap') }}
+        otherLabel={t('ui:widgets.charts.treemap.otherLabel', 'Other')}
         maxTiles={config.maxTiles}
         height={config.height}
         format={(value: number) => formatMetricValue(value, config.metricFormat, opts)}
@@ -55,13 +59,14 @@ export function ChartTreemapWidget({ config, data }: WidgetProps<ChartTreemapCon
 // --- chart-sunburst ----------------------------------------------------------
 
 export function ChartSunburstWidget({ config, data }: WidgetProps<ChartSunburstConfig>) {
+  const t = useMaybeT();
   const inputs = sunburstInputsOf(data);
   if (inputs === null) return <BadShape />;
   return (
     <div className="flex justify-center px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-sunburst">
       <Sunburst
         data={inputs}
-        labels={{ label: config.title ?? 'Sunburst' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.sunburst.chartLabel', 'Sunburst') }}
         size={config.size}
         showLegend={config.showLegend}
       />
@@ -72,6 +77,7 @@ export function ChartSunburstWidget({ config, data }: WidgetProps<ChartSunburstC
 // --- chart-funnel ------------------------------------------------------------
 
 export function ChartFunnelWidget({ config, data }: WidgetProps<ChartFunnelConfig>) {
+  const t = useMaybeT();
   const inputs = funnelInputsOf(data);
   if (inputs === null) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -79,7 +85,7 @@ export function ChartFunnelWidget({ config, data }: WidgetProps<ChartFunnelConfi
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-funnel">
       <Funnel
         data={inputs}
-        labels={{ label: config.title ?? 'Funnel' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.funnel.chartLabel', 'Funnel') }}
         variant={config.variant}
         showStepConversion={config.showStepConversion}
         overallFooter={config.overallFooter}
@@ -93,13 +99,14 @@ export function ChartFunnelWidget({ config, data }: WidgetProps<ChartFunnelConfi
 // --- chart-radial-bar --------------------------------------------------------
 
 export function ChartRadialBarWidget({ config, data }: WidgetProps<ChartRadialBarConfig>) {
+  const t = useMaybeT();
   const inputs = radialBarInputsOf(data, config.maxRings);
   if (inputs === null) return <BadShape />;
   return (
     <div className="flex justify-center px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-radial-bar">
       <RadialBar
         data={inputs}
-        labels={{ label: config.title ?? 'Radial bar' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.radialBar.chartLabel', 'Radial bar') }}
         size={config.size}
         showLegend={config.showLegend}
       />
@@ -110,6 +117,7 @@ export function ChartRadialBarWidget({ config, data }: WidgetProps<ChartRadialBa
 // --- chart-radar -------------------------------------------------------------
 
 export function ChartRadarWidget({ config, data }: WidgetProps<ChartRadarConfig>) {
+  const t = useMaybeT();
   const inputs = radarInputsOf(data);
   if (inputs === null || inputs.axes.length === 0) return <BadShape />;
   return (
@@ -117,7 +125,7 @@ export function ChartRadarWidget({ config, data }: WidgetProps<ChartRadarConfig>
       <Radar
         axes={inputs.axes}
         series={inputs.series}
-        labels={{ label: config.title ?? 'Radar' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.radar.chartLabel', 'Radar') }}
         size={config.size}
         levels={config.levels}
         showLegend={config.showLegend}
@@ -129,6 +137,7 @@ export function ChartRadarWidget({ config, data }: WidgetProps<ChartRadarConfig>
 // --- chart-chord -------------------------------------------------------------
 
 export function ChartChordWidget({ config, data }: WidgetProps<ChartChordConfig>) {
+  const t = useMaybeT();
   const inputs = chordInputsOf(data, config.nodeLimit);
   if (inputs === null) return <BadShape />;
   return (
@@ -136,7 +145,7 @@ export function ChartChordWidget({ config, data }: WidgetProps<ChartChordConfig>
       <Chord
         nodes={inputs.nodes}
         links={inputs.links}
-        labels={{ label: config.title ?? 'Chord' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.chord.chartLabel', 'Chord') }}
         size={config.size}
         showLegend={config.showLegend}
       />
@@ -147,13 +156,14 @@ export function ChartChordWidget({ config, data }: WidgetProps<ChartChordConfig>
 // --- chart-wordcloud ---------------------------------------------------------
 
 export function ChartWordcloudWidget({ config, data }: WidgetProps<ChartWordcloudConfig>) {
+  const t = useMaybeT();
   const inputs = wordcloudInputsOf(data, config.maxTerms);
   if (inputs === null) return <BadShape />;
   return (
     <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-wordcloud">
       <WordCloud
         data={inputs}
-        labels={{ label: config.title ?? 'Word cloud' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.wordcloud.chartLabel', 'Word cloud') }}
         height={config.height}
         maxTerms={config.maxTerms}
         minFontSize={config.minFontSize}

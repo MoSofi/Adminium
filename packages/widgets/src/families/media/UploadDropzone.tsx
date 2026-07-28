@@ -1,4 +1,5 @@
 import { IconTile } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { CloudUpload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { DragEvent } from 'react';
@@ -60,6 +61,10 @@ export function UploadDropzone({
   onReject,
   testId,
 }: UploadDropzoneProps) {
+  const t = useMaybeT();
+  const resolvedDropTitle = dropTitle ?? t('ui:widgets.media.uploadDropzone.dropTitle', 'Drop files to upload');
+  const resolvedBrowsePrefix = browsePrefix ?? t('ui:widgets.media.uploadDropzone.browsePrefix', 'or');
+  const resolvedBrowseLabel = browseLabel ?? t('ui:widgets.media.uploadDropzone.browseLabel', 'browse');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
   const tag = resolveLocale(locale);
@@ -107,9 +112,9 @@ export function UploadDropzone({
         }
       >
         <IconTile size="xl" tone="accent" icon={<CloudUpload />} className="mb-2" />
-        <span className="text-body-sm font-bold text-fg">{dropTitle ?? 'Drop files to upload'}</span>
+        <span className="text-body-sm font-bold text-fg">{resolvedDropTitle}</span>
         <span className="text-caption text-fg-muted">
-          {browsePrefix ?? 'or'} <span className="font-bold text-accent">{browseLabel ?? 'browse'}</span>
+          {resolvedBrowsePrefix} <span className="font-bold text-accent">{resolvedBrowseLabel}</span>
         </span>
         {(hint !== undefined || sizeHint !== undefined) && (
           <span className="mt-2 text-caption text-fg-subtle" data-part="dropzone-hint">

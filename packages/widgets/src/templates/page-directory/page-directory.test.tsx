@@ -6,7 +6,7 @@
  * opens the record drawer + emits `record-open`, the org-chart variant mounts
  * the cycle-safe tree, and loading/error/invalid states never crash.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -77,7 +77,8 @@ describe('PageDirectory', () => {
     await user.type(screen.getByPlaceholderText('Search people…'), 'morgan');
     expect(screen.queryByText('Ava Reyes')).toBeNull();
     expect(screen.getByText('Morgan Lee')).toBeDefined();
-    expect(screen.getByText('1 people')).toBeDefined();
+    // ICU plural (wave-2 i18n): the singular no longer renders "1 people".
+    expect(screen.getByText('1 person')).toBeDefined();
 
     await user.clear(screen.getByPlaceholderText('Search people…'));
     await user.click(screen.getByRole('button', { name: 'Engineering' }));
@@ -181,5 +182,36 @@ describe('PageDirectory', () => {
   it('invalid stored config renders the alert notice, never a crash', () => {
     render(<PageDirectory config={{ layout: { version: 99, items: 'nope' } }} />);
     expect(screen.getByTestId('page-directory-invalid')).toBeDefined();
+  });
+});
+
+describe('page-directory chrome localization (ui:templates.directory.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              templates: {
+                directory: { emptyTitle: 'Noch keine Personen', searchPlaceholder: 'Personen suchen…' },
+              },
+            }
+          : null,
+    });
+    const empty = { directory: { status: 'success' as const, data: [] } };
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageDirectory config={galleryConfig()} states={empty} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Noch keine Personen')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Personen suchen…')).toBeTruthy();
+
+    cleanup();
+    render(<PageDirectory config={galleryConfig()} states={empty} />);
+    expect(screen.getByText('No people yet')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Search people…')).toBeTruthy();
   });
 });
