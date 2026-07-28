@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, MonoText, Tag } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 
@@ -59,6 +60,7 @@ export function ChipCloud({
   onSelect,
   testId,
 }: ChipCloudProps) {
+  const t = useMaybeT();
   void resolveLocale(locale); // normalize at the boundary (see tables-tail-lib)
   const slice = chips.slice(0, limit);
   const overflow = chips.length - slice.length;
@@ -69,8 +71,8 @@ export function ChipCloud({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'Nothing discovered yet'}
-        body={emptyBody ?? 'Tables and variables will appear here as chips once they are found.'}
+        title={emptyTitle ?? t('ui:widgets.tables.chipCloud.emptyTitle', 'Nothing discovered yet')}
+        body={emptyBody ?? t('ui:widgets.tables.chipCloud.emptyBody', 'Tables and variables will appear here as chips once they are found.')}
       />
     );
   }
@@ -116,7 +118,11 @@ export function ChipCloud({
       })}
       {overflow > 0 && (
         <MonoText data-part="cloud-overflow" className="self-center px-1.5 text-caption text-fg-subtle">
-          {(moreLabel ?? '+{n} more').replace('{n}', String(overflow))}
+          {moreLabel !== undefined
+            ? moreLabel.replace('{n}', String(overflow))
+            : // `n` rides as a pre-stringified arg so the mono chip count keeps
+              // today's bare digits (ICU number args would add grouping).
+              t('ui:widgets.tables.chipCloud.moreLabel', '+{n} more', { n: String(overflow) })}
         </MonoText>
       )}
     </div>

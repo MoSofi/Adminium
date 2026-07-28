@@ -18,6 +18,7 @@
  */
 
 import { IconTile, Popover, PopoverClose, PopoverContent, PopoverTrigger, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -81,6 +82,7 @@ export function flowStatsOf(data: unknown): { runs: number; successRate: number 
 }
 
 export function FlowBuilderWidget({ config, data, onEvent }: WidgetProps<FlowBuilderConfig>) {
+  const t = useMaybeT();
   const [nodes, setNodes] = useState<FlowNode[]>(() => flowNodesOf(data, config));
   const [paletteOpen, setPaletteOpen] = useState(false);
   const stats = flowStatsOf(data);
@@ -135,15 +137,21 @@ export function FlowBuilderWidget({ config, data, onEvent }: WidgetProps<FlowBui
     >
       {stats !== null && (
         <p data-part="flow-stats" className="text-caption text-fg-muted">
-          {(config.statsTemplate ?? '{runs} runs · {rate}% success')
-            .replace('{runs}', String(stats.runs))
-            .replace('{rate}', String(stats.successRate))}
+          {/* A configured template keeps today's `{…}` substitution; the DEFAULT
+              goes through t() with pre-stringified args so the numbers render
+              digit-identical in either path. */}
+          {config.statsTemplate !== undefined
+            ? config.statsTemplate.replace('{runs}', String(stats.runs)).replace('{rate}', String(stats.successRate))
+            : t('ui:widgets.forms.flowBuilder.stats', '{runs} runs · {rate}% success', {
+                runs: String(stats.runs),
+                rate: String(stats.successRate),
+              })}
         </p>
       )}
 
       {nodes.length === 0 && (
         <p data-part="flow-empty" className="text-body-sm text-fg-muted">
-          {config.emptyBody ?? 'No steps yet — add a trigger to start this workflow.'}
+          {config.emptyBody ?? t('ui:widgets.forms.flowBuilder.emptyBody', 'No steps yet — add a trigger to start this workflow.')}
         </p>
       )}
 
@@ -166,7 +174,7 @@ export function FlowBuilderWidget({ config, data, onEvent }: WidgetProps<FlowBui
                 <button
                   type="button"
                   data-part="flow-remove"
-                  aria-label={`${config.removeLabel ?? 'Remove step'} — ${node.title}`}
+                  aria-label={`${config.removeLabel ?? t('ui:widgets.forms.flowBuilder.remove', 'Remove step')} — ${node.title}`}
                   onClick={() => commit(nodes.filter((_, i) => i !== index))}
                   className={
                     'rounded-md p-1 text-fg-subtle transition-colors duration-150 hover:bg-surface-3 hover:text-fg ' +
@@ -197,12 +205,12 @@ export function FlowBuilderWidget({ config, data, onEvent }: WidgetProps<FlowBui
             )}
           >
             <Plus aria-hidden="true" className="size-3.5" />
-            {config.addLabel ?? 'Add step'}
+            {config.addLabel ?? t('ui:widgets.forms.flowBuilder.add', 'Add step')}
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" data-part="palette" className="w-[min(24rem,90vw)]">
           <p className="mb-2 text-caption font-bold uppercase tracking-wide text-fg-subtle">
-            {config.paletteTitle ?? 'Add a step'}
+            {config.paletteTitle ?? t('ui:widgets.forms.flowBuilder.paletteTitle', 'Add a step')}
           </p>
           <div className="grid grid-cols-2 gap-1.5">
             {palette.map((entry) => {

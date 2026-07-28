@@ -2,6 +2,7 @@ import type { DraggableSyntheticListeners, Modifier } from '@dnd-kit/core';
 import { GripVertical } from 'lucide-react';
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import type { CellStep } from './layout-edit.js';
 
@@ -63,6 +64,50 @@ export interface GridEditLabelsInput {
   announce?: Partial<GridAnnouncements> | undefined;
 }
 
+/**
+ * The localized label + announcement set: `ui:grid.*` when rendered under an
+ * `I18nProvider`, the English defaults otherwise (mirrors the boards family's
+ * `useBoardAnnouncements`). Host `overrides` win key-by-key either way. Grid
+ * coordinates are stringified before ICU so digits stay byte-identical.
+ */
+export function useGridEditLabels(overrides?: GridEditLabelsInput): GridEditLabels {
+  const t = useMaybeT();
+  return {
+    dragHandle:
+      overrides?.dragHandle ?? ((title) => t('ui:grid.dragHandle', 'Drag to move {title}', { title })),
+    resizeHandle:
+      overrides?.resizeHandle ?? ((title) => t('ui:grid.resizeHandle', 'Resize {title}', { title })),
+    announce: {
+      grabbed: (title) =>
+        t(
+          'ui:grid.a11y.grabbed',
+          'Grabbed {title}. Use the arrow keys to move, hold Shift to resize, Enter to save, Escape to cancel.',
+          { title },
+        ),
+      moved: (title, col, row) =>
+        t('ui:grid.a11y.moved', '{title} moved to column {col}, row {row}.', {
+          title,
+          col: String(col),
+          row: String(row),
+        }),
+      resized: (title, w, h) =>
+        t('ui:grid.a11y.resized', '{title} resized to {w} columns by {h} rows.', {
+          title,
+          w: String(w),
+          h: String(h),
+        }),
+      committed: (title, col, row) =>
+        t('ui:grid.a11y.committed', '{title} placed at column {col}, row {row}.', {
+          title,
+          col: String(col),
+          row: String(row),
+        }),
+      reverted: (title) => t('ui:grid.a11y.reverted', '{title} returned to its original position.', { title }),
+      ...overrides?.announce,
+    },
+  };
+}
+
 /** Per-item controls the grid publishes so the out-of-tree grip can bind them. */
 export interface GridItemEditControls {
   itemId: string;
@@ -104,6 +149,7 @@ const GRIP_CLASS =
  */
 export function GridDragHandle({ className }: { className?: string | undefined }) {
   const controls = useGridItemEdit();
+  const t = useMaybeT();
   if (controls === null) return null;
   return (
     <button
@@ -111,7 +157,7 @@ export function GridDragHandle({ className }: { className?: string | undefined }
       data-grid-drag-handle={controls.itemId}
       aria-label={controls.labels.dragHandle(controls.title)}
       aria-pressed={controls.grabbed}
-      aria-roledescription="draggable widget"
+      aria-roledescription={t('ui:grid.draggableRole', 'draggable widget')}
       className={GRIP_CLASS + (className === undefined ? '' : ` ${className}`)}
       ref={controls.setDragActivator}
       {...controls.dragListeners}

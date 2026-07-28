@@ -14,6 +14,8 @@
  */
 
 import { Kbd } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
+import { useMemo } from 'react';
 
 import { DEFAULT_SHORTCUT_GROUPS, shortcutsPanelConfigSchema, shortcutsPanelDemoData } from './chrome-config.js';
 import type { ShortcutsPanelConfig } from './chrome-config.js';
@@ -41,6 +43,37 @@ export interface ShortcutGroup {
   entries: readonly ShortcutEntry[];
 }
 
+/**
+ * The localized built-in cheat sheet: bundle strings under an `I18nProvider`,
+ * the English `DEFAULT_SHORTCUT_GROUPS` copy otherwise (chord keys and
+ * structure always come from the const — only the visible labels localize).
+ * Host-supplied config `groups` bypass this entirely.
+ */
+export function useDefaultShortcutGroups(): ShortcutGroup[] {
+  const t = useMaybeT();
+  return useMemo(() => {
+    const groupLabels: Record<string, string> = {
+      General: t('ui:widgets.chrome.shortcutsPanel.generalGroupLabel', 'General'),
+      Navigation: t('ui:widgets.chrome.shortcutsPanel.navigationGroupLabel', 'Navigation'),
+      Records: t('ui:widgets.chrome.shortcutsPanel.recordsGroupLabel', 'Records'),
+    };
+    const entryLabels: Record<string, string> = {
+      'Open command palette': t('ui:widgets.chrome.shortcutsPanel.openCommandPaletteLabel', 'Open command palette'),
+      'Search': t('ui:widgets.chrome.shortcutsPanel.searchLabel', 'Search'),
+      'Show shortcuts': t('ui:widgets.chrome.shortcutsPanel.showShortcutsLabel', 'Show shortcuts'),
+      'Go to dashboard': t('ui:widgets.chrome.shortcutsPanel.goToDashboardLabel', 'Go to dashboard'),
+      'Go to orders': t('ui:widgets.chrome.shortcutsPanel.goToOrdersLabel', 'Go to orders'),
+      'New record': t('ui:widgets.chrome.shortcutsPanel.newRecordLabel', 'New record'),
+      'Save': t('ui:widgets.chrome.shortcutsPanel.saveLabel', 'Save'),
+      'Undo': t('ui:widgets.chrome.shortcutsPanel.undoLabel', 'Undo'),
+    };
+    return DEFAULT_SHORTCUT_GROUPS.map((group) => ({
+      group: groupLabels[group.group] ?? group.group,
+      entries: group.entries.map((entry) => ({ ...entry, label: entryLabels[entry.label] ?? entry.label })),
+    }));
+  }, [t]);
+}
+
 export interface ShortcutsPanelViewProps {
   groups: readonly ShortcutGroup[];
   modKey?: string | undefined;
@@ -56,8 +89,13 @@ export function ShortcutsPanelView({
   emptyTitle,
   testId,
 }: ShortcutsPanelViewProps) {
+  const t = useMaybeT();
   if (groups.length === 0) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">{emptyTitle ?? 'No shortcuts registered.'}</p>;
+    return (
+      <p className="px-4 pb-4 text-body-sm text-fg-muted">
+        {emptyTitle ?? t('ui:widgets.chrome.shortcutsPanel.emptyTitle', 'No shortcuts registered.')}
+      </p>
+    );
   }
 
   return (
@@ -76,7 +114,9 @@ export function ShortcutsPanelView({
                       // so the index is part of the identity here.
                       <span key={`${key}-${index}`} className="flex items-center gap-1">
                         {index > 0 && entry.isSequence === true && (
-                          <span className="text-caption text-fg-subtle">then</span>
+                          <span className="text-caption text-fg-subtle">
+                            {t('ui:widgets.chrome.shortcutsPanel.then', 'then')}
+                          </span>
                         )}
                         <Kbd>{displayKey(key, modKey)}</Kbd>
                       </span>
@@ -94,9 +134,10 @@ export function ShortcutsPanelView({
 }
 
 export function ShortcutsPanelWidget({ config }: WidgetProps<ShortcutsPanelConfig>) {
+  const defaultGroups = useDefaultShortcutGroups();
   return (
     <ShortcutsPanelView
-      groups={config.groups ?? DEFAULT_SHORTCUT_GROUPS}
+      groups={config.groups ?? defaultGroups}
       modKey={config.modKey}
       footerHint={config.footerHint}
       emptyTitle={config.emptyTitle}

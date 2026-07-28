@@ -13,19 +13,19 @@ import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 /**
  * Per-widget empty-state copy default (04 §4 — per-widget empty copy). The
  * default is a fully-resolved object because `ZodDefault` returns the default
- * verbatim without re-parsing nested field defaults.
+ * verbatim without re-parsing nested field defaults. Values are `ui` bundle
+ * key paths, resolved by WidgetFrame's empty-state translator; static
+ * full-key literals on purpose — the i18n coverage guard only counts
+ * statically visible `widgets.*` refs.
  */
-function emptyStateFor(name: string) {
+function emptyStateField(titleKey: string, bodyKey: string) {
   return z
     .object({
       icon: z.string().optional(),
       titleKey: z.string().optional(),
       bodyKey: z.string().optional(),
     })
-    .default({
-      titleKey: `widgets.charts.${name}.empty.title`,
-      bodyKey: `widgets.charts.${name}.empty.body`,
-    });
+    .default({ titleKey, bodyKey });
 }
 
 const heightField = z.number().int().min(80).max(600);
@@ -37,7 +37,7 @@ export const chartMultilineConfigSchema = widgetSharedConfigSchema.extend({
   axis: z.boolean().default(true),
   smooth: z.boolean().default(false),
   height: heightField.default(240),
-  emptyState: emptyStateFor('multiline'),
+  emptyState: emptyStateField('widgets.charts.multiline.emptyTitle', 'widgets.charts.multiline.emptyBody'),
 });
 export type ChartMultilineConfig = z.infer<typeof chartMultilineConfigSchema>;
 
@@ -47,7 +47,7 @@ export const chartStreamConfigSchema = widgetSharedConfigSchema.extend({
   curve: z.enum(['smooth', 'linear']).default('smooth'),
   legend: z.boolean().default(true),
   height: heightField.default(260),
-  emptyState: emptyStateFor('stream'),
+  emptyState: emptyStateField('widgets.charts.stream.emptyTitle', 'widgets.charts.stream.emptyBody'),
 });
 export type ChartStreamConfig = z.infer<typeof chartStreamConfigSchema>;
 
@@ -61,7 +61,7 @@ export const chartForecastConfigSchema = widgetSharedConfigSchema.extend({
   method: z.enum(['provided', 'linear']).default('provided'),
   axis: z.boolean().default(true),
   height: heightField.default(260),
-  emptyState: emptyStateFor('forecast'),
+  emptyState: emptyStateField('widgets.charts.forecast.emptyTitle', 'widgets.charts.forecast.emptyBody'),
 });
 export type ChartForecastConfig = z.infer<typeof chartForecastConfigSchema>;
 
@@ -73,7 +73,7 @@ export const chartAnomalyConfigSchema = widgetSharedConfigSchema.extend({
   window: z.number().int().min(3).max(60).default(7),
   axis: z.boolean().default(true),
   height: heightField.default(220),
-  emptyState: emptyStateFor('anomaly'),
+  emptyState: emptyStateField('widgets.charts.anomaly.emptyTitle', 'widgets.charts.anomaly.emptyBody'),
 });
 export type ChartAnomalyConfig = z.infer<typeof chartAnomalyConfigSchema>;
 
@@ -86,7 +86,7 @@ export const chartCandlestickConfigSchema = widgetSharedConfigSchema.extend({
   axis: z.boolean().default(true),
   priceFormat: z.enum(['plain', 'compact', 'currency']).default('compact'),
   height: heightField.default(260),
-  emptyState: emptyStateFor('candlestick'),
+  emptyState: emptyStateField('widgets.charts.candlestick.emptyTitle', 'widgets.charts.candlestick.emptyBody'),
 });
 export type ChartCandlestickConfig = z.infer<typeof chartCandlestickConfigSchema>;
 
@@ -98,7 +98,7 @@ export const chartBumpConfigSchema = widgetSharedConfigSchema.extend({
   maxRank: z.number().int().min(1).max(60).optional(),
   endLabels: z.boolean().default(true),
   height: heightField.default(240),
-  emptyState: emptyStateFor('bump'),
+  emptyState: emptyStateField('widgets.charts.bump.emptyTitle', 'widgets.charts.bump.emptyBody'),
 });
 export type ChartBumpConfig = z.infer<typeof chartBumpConfigSchema>;
 
@@ -109,6 +109,6 @@ export const chartTimelineLanesConfigSchema = widgetSharedConfigSchema.extend({
   /** Number of time-axis tick captions (annex §2 `axisBuckets`). */
   axisBuckets: z.number().int().min(0).max(12).default(4),
   height: heightField.default(200),
-  emptyState: emptyStateFor('timelineLanes'),
+  emptyState: emptyStateField('widgets.charts.timelineLanes.emptyTitle', 'widgets.charts.timelineLanes.emptyBody'),
 });
 export type ChartTimelineLanesConfig = z.infer<typeof chartTimelineLanesConfigSchema>;

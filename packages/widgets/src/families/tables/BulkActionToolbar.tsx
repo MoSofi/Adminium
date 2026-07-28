@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { BulkActionBar, BulkActionButton } from '@adminium/ui';
 import type { ReactNode } from 'react';
 
@@ -47,15 +48,16 @@ export function BulkActionToolbar({
   labels,
   testId,
 }: BulkActionToolbarProps) {
+  const t = useMaybeT();
   if (selectedIds.length === 0) return null;
   return (
     <BulkActionBar
       data-testid={testId}
       count={selectedIds.length}
-      countLabel={labels?.selected ?? 'selected'}
+      countLabel={labels?.selected ?? t('ui:widgets.tables.bulkActionToolbar.selectedLabel', 'selected')}
       onClear={onClear}
-      clearLabel={labels?.clear ?? 'Clear selection'}
-      label={labels?.toolbar ?? 'Bulk actions'}
+      clearLabel={labels?.clear ?? t('ui:widgets.tables.bulkActionToolbar.clearLabel', 'Clear selection')}
+      label={labels?.toolbar ?? t('ui:widgets.tables.bulkActionToolbar.toolbarLabel', 'Bulk actions')}
       floating={floating}
     >
       {actions.map((action) => (

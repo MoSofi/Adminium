@@ -1,4 +1,5 @@
 import { Badge, Button, IconTile, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Database, Play, RefreshCw, Square } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -97,10 +98,12 @@ export function SyncStatusCardView({
   onSync,
   testId,
 }: SyncStatusCardViewProps) {
+  const t = useMaybeT();
   const syncing = status.phase === 'syncing';
   const tone = status.connected ? (status.phase === 'failed' ? 'danger' : 'pos') : 'danger';
   const last = formatStamp(status.lastSync, locale);
   const next = formatStamp(status.nextSync, locale);
+  const resolvedConnected = connectedLabel ?? t('ui:widgets.domain.syncStatusCard.connectedLabel', 'Connected');
 
   return (
     <div
@@ -125,9 +128,9 @@ export function SyncStatusCardView({
           */}
           {status.connected
             ? status.latencyMs === undefined
-              ? (connectedLabel ?? 'Connected')
-              : `${connectedLabel ?? 'Connected'} · ${formatMs(status.latencyMs, locale)}`
-            : (disconnectedLabel ?? 'Disconnected')}
+              ? resolvedConnected
+              : `${resolvedConnected} · ${formatMs(status.latencyMs, locale)}`
+            : (disconnectedLabel ?? t('ui:widgets.domain.syncStatusCard.disconnectedLabel', 'Disconnected'))}
         </Badge>
       </div>
 
@@ -135,25 +138,25 @@ export function SyncStatusCardView({
         <MonoText data-part="sync-rows" className="text-h2 font-bold tabular-nums text-fg">
           {formatCompact(status.rowsSynced, locale)}
         </MonoText>
-        <p className="text-caption text-fg-subtle">{rowsSyncedLabel ?? 'Rows synced'}</p>
+        <p className="text-caption text-fg-subtle">{rowsSyncedLabel ?? t('ui:widgets.domain.syncStatusCard.rowsSyncedLabel', 'Rows synced')}</p>
       </div>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-caption">
         <div>
-          <dt className="text-fg-subtle">{tablesLabel ?? 'Tables'}</dt>
+          <dt className="text-fg-subtle">{tablesLabel ?? t('ui:widgets.domain.syncStatusCard.tablesLabel', 'Tables')}</dt>
           <dd>
             <MonoText className="font-semibold text-fg">{formatCount(status.tables, locale)}</MonoText>
           </dd>
         </div>
         {last === undefined ? null : (
           <div className="min-w-0">
-            <dt className="text-fg-subtle">{lastSyncLabel ?? 'Last sync'}</dt>
+            <dt className="text-fg-subtle">{lastSyncLabel ?? t('ui:widgets.domain.syncStatusCard.lastSyncLabel', 'Last sync')}</dt>
             <dd className="truncate text-fg">{last}</dd>
           </div>
         )}
         {next === undefined ? null : (
           <div className="min-w-0">
-            <dt className="text-fg-subtle">{nextSyncLabel ?? 'Next sync'}</dt>
+            <dt className="text-fg-subtle">{nextSyncLabel ?? t('ui:widgets.domain.syncStatusCard.nextSyncLabel', 'Next sync')}</dt>
             <dd className="truncate text-fg">{next}</dd>
           </div>
         )}
@@ -169,7 +172,9 @@ export function SyncStatusCardView({
           iconLeft={<RefreshCw className={`size-3.5 ${syncing ? 'animate-spin' : ''}`} />}
           onClick={onSync}
         >
-          {syncing ? (syncingLabel ?? 'Syncing…') : (syncAction ?? 'Sync now')}
+          {syncing
+            ? (syncingLabel ?? t('ui:widgets.domain.syncStatusCard.syncingLabel', 'Syncing…'))
+            : (syncAction ?? t('ui:widgets.domain.syncStatusCard.syncActionLabel', 'Sync now'))}
         </Button>
       )}
     </div>
@@ -197,14 +202,15 @@ function syncStatusOf(config: SyncStatusCardConfig, data: unknown): SyncStatus |
 }
 
 export function SyncStatusCardWidget({ config, data, onEvent }: WidgetProps<SyncStatusCardConfig>) {
+  const t = useMaybeT();
   const status = useMemo(() => syncStatusOf(config, data), [config, data]);
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
 
   if (status === null) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No connection'}
-        body={config.emptyBody ?? 'Bind a connection row to show its sync status.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.syncStatusCard.emptyTitle', 'No connection')}
+        body={config.emptyBody ?? t('ui:widgets.domain.syncStatusCard.emptyBody', 'Bind a connection row to show its sync status.')}
       />
     );
   }
@@ -278,6 +284,7 @@ export function LiveTimerView({
   onStop,
   testId,
 }: LiveTimerViewProps) {
+  const t = useMaybeT();
   const seconds = timerSeconds(timer, now);
   /*
     The annex's "running state restyles card (accent→danger, play→square)".
@@ -295,7 +302,9 @@ export function LiveTimerView({
     >
       <div className="min-w-0 flex-1">
         <p className="truncate text-body-sm font-semibold text-fg" data-part="timer-task">
-          {timer.taskName === '' ? (taskPlaceholder ?? 'Untitled task') : timer.taskName}
+          {timer.taskName === ''
+            ? (taskPlaceholder ?? t('ui:widgets.domain.liveTimer.taskPlaceholder', 'Untitled task'))
+            : timer.taskName}
         </p>
         {timer.project === undefined ? null : (
           <Badge tone="neutral" className="mt-0.5" data-part="timer-project">
@@ -329,7 +338,7 @@ export function LiveTimerView({
                 iconLeft={<Square className="size-3.5" />}
                 onClick={() => onStop(Math.floor(seconds))}
               >
-                {stopLabel ?? 'Stop'}
+                {stopLabel ?? t('ui:widgets.domain.liveTimer.stopLabel', 'Stop')}
               </Button>
             )
         : onStart === undefined
@@ -342,7 +351,7 @@ export function LiveTimerView({
                 iconLeft={<Play className="size-3.5" />}
                 onClick={onStart}
               >
-                {startLabel ?? 'Start'}
+                {startLabel ?? t('ui:widgets.domain.liveTimer.startLabel', 'Start')}
               </Button>
             )}
     </div>
@@ -390,6 +399,7 @@ function useTimerNow(pinned: number | undefined, running: boolean, fallback: num
 }
 
 export function LiveTimerWidget({ config, data, onEvent }: WidgetProps<LiveTimerConfig>) {
+  const t = useMaybeT();
   const timer = useMemo(() => timerOf(config, data), [config, data]);
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
   const now = useTimerNow(config.format?.referenceTime, timer?.running ?? false, OPS_DEMO_NOW_MS);
@@ -397,8 +407,8 @@ export function LiveTimerWidget({ config, data, onEvent }: WidgetProps<LiveTimer
   if (timer === null) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No timer'}
-        body={config.emptyBody ?? 'Bind a time-entry row with a task and a duration column.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.liveTimer.emptyTitle', 'No timer')}
+        body={config.emptyBody ?? t('ui:widgets.domain.liveTimer.emptyBody', 'Bind a time-entry row with a task and a duration column.')}
       />
     );
   }

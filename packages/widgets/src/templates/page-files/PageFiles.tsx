@@ -1,4 +1,5 @@
 import { Button, Drawer, DrawerBody, DrawerHeader, EmptyState, IconTile, KeyValueList, KeyValueRow, MonoText, Spinner } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useMemo, useState } from 'react';
 
 import { hasStarredColumn, resolveFileBrowserConfig } from './file-mapping.js';
@@ -142,6 +143,7 @@ export function PageFiles({
   className,
   testId,
 }: PageFilesProps) {
+  const t = useMaybeT();
   const parsed = useMemo(() => {
     const result = pageLayoutSchema.safeParse(layout);
     if (result.success) return { layout: result.data, invalid: false };
@@ -175,11 +177,13 @@ export function PageFiles({
       return browserConfig.smartFolders;
     }
     return [
-      { key: 'all', label: labels?.allFiles ?? 'All files', filter: 'all' },
-      { key: 'recent', label: labels?.recent ?? 'Recent', filter: 'recent' },
-      ...(starrable ? [{ key: 'starred', label: labels?.starred ?? 'Starred', filter: 'starred' as const }] : []),
+      { key: 'all', label: labels?.allFiles ?? t('ui:templates.files.allFiles', 'All files'), filter: 'all' },
+      { key: 'recent', label: labels?.recent ?? t('ui:templates.files.recent', 'Recent'), filter: 'recent' },
+      ...(starrable
+        ? [{ key: 'starred', label: labels?.starred ?? t('ui:templates.files.starred', 'Starred'), filter: 'starred' as const }]
+        : []),
     ];
-  }, [browserConfig.smartFolders, starrable, labels?.allFiles, labels?.recent, labels?.starred]);
+  }, [browserConfig.smartFolders, starrable, labels?.allFiles, labels?.recent, labels?.starred, t]);
 
   // --- preview drawer (route-controllable, the page-crud detail idiom) --------
   const [internalPreviewId, setInternalPreviewId] = useState<string | null>(null);
@@ -196,7 +200,10 @@ export function PageFiles({
   if (parsed.invalid) {
     return (
       <p role="alert" className="p-6 text-body-sm text-fg-muted" data-testid="page-files-invalid">
-        This files page&rsquo;s stored layout is invalid. Regenerate the page or reset its layout.
+        {t(
+          'ui:templates.files.invalidLayout',
+          'This files page’s stored layout is invalid. Regenerate the page or reset its layout.',
+        )}
       </p>
     );
   }
@@ -222,25 +229,25 @@ export function PageFiles({
           {browser === null ? (
             <EmptyState
               preset="no-data"
-              title={labels?.emptyTitle ?? 'No file browser on this page'}
-              body="The stored layout has no browser slot. Regenerate the page."
+              title={labels?.emptyTitle ?? t('ui:templates.files.missingSlotTitle', 'No file browser on this page')}
+              body={t('ui:templates.files.missingSlotBody', 'The stored layout has no browser slot. Regenerate the page.')}
             />
           ) : browserState?.status === 'error' ? (
             <EmptyState
               tone="danger"
-              title={labels?.loadFailed ?? 'The file query failed'}
+              title={labels?.loadFailed ?? t('ui:templates.files.loadFailed', 'The file query failed')}
               body={browserState.error instanceof Error ? browserState.error.message : undefined}
               actions={
                 browserState.refetch === undefined ? undefined : (
                   <Button size="sm" variant="secondary" onClick={browserState.refetch}>
-                    {labels?.retry ?? 'Retry'}
+                    {labels?.retry ?? t('ui:action.retry', 'Retry')}
                   </Button>
                 )
               }
             />
           ) : browserState?.status === 'loading' ? (
             <div className="flex flex-1 items-center justify-center py-16">
-              <Spinner label="Loading files" />
+              <Spinner label={t('ui:templates.files.loading', 'Loading files')} />
             </div>
           ) : (
             <FileBrowser
@@ -296,7 +303,8 @@ export function PageFiles({
             {...(locale === undefined ? {} : { locale })}
             hint={
               onUpload === undefined
-                ? (labels?.uploadsUnavailable ?? 'Uploads are not available on this page yet.')
+                ? (labels?.uploadsUnavailable ??
+                  t('ui:templates.files.uploadsUnavailable', 'Uploads are not available on this page yet.'))
                 : undefined
             }
             onFiles={(files) => onUpload?.(files)}
@@ -318,7 +326,10 @@ export function PageFiles({
 
       {/* Preview drawer — browse/list/preview surface over the CRUD row. */}
       <Drawer open={previewNode !== null} onOpenChange={(open) => !open && setPreviewId(null)} size="md">
-        <DrawerHeader title={previewNode?.name ?? (labels?.previewTitle ?? 'File')} closeLabel={labels?.close ?? 'Close'} />
+        <DrawerHeader
+          title={previewNode?.name ?? labels?.previewTitle ?? t('ui:templates.files.previewTitle', 'File')}
+          closeLabel={labels?.close ?? t('ui:action.close', 'Close')}
+        />
         <DrawerBody>
           {previewNode !== null && (
             <FilePreview node={previewNode} locale={locale} labels={labels} />
@@ -338,6 +349,7 @@ function FilePreview({
   locale?: string | undefined;
   labels?: PageFilesLabels | undefined;
 }) {
+  const t = useMaybeT();
   return (
     <div data-part="file-preview" className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
@@ -348,15 +360,15 @@ function FilePreview({
         </div>
       </div>
       <KeyValueList>
-        <KeyValueRow label={labels?.kind ?? 'Kind'}>{node.kind}</KeyValueRow>
-        <KeyValueRow label={labels?.size ?? 'Size'} mono>
+        <KeyValueRow label={labels?.kind ?? t('ui:templates.files.kindLabel', 'Kind')}>{node.kind}</KeyValueRow>
+        <KeyValueRow label={labels?.size ?? t('ui:widgets.media.sizeHeader', 'Size')} mono>
           {node.kind === 'folder' ? '—' : (formatSize(node.size, locale) ?? '—')}
         </KeyValueRow>
-        <KeyValueRow label={labels?.modified ?? 'Modified'} mono>
+        <KeyValueRow label={labels?.modified ?? t('ui:widgets.media.modifiedHeader', 'Modified')} mono>
           {node.modified === undefined ? '—' : formatModifiedFull(node.modified, locale)}
         </KeyValueRow>
         {node.url !== undefined && (
-          <KeyValueRow label={labels?.link ?? 'Link'} mono>
+          <KeyValueRow label={labels?.link ?? t('ui:templates.files.linkLabel', 'Link')} mono>
             <a
               href={node.url}
               target="_blank"

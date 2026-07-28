@@ -7,7 +7,7 @@
  * stream events into the tail (pause holds them), and degrades on
  * loading/error/invalid layouts — never a crash.
  */
-import { render, screen, waitFor, within, act } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within, act } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -203,5 +203,33 @@ describe('PageLogViewer', () => {
 
     rerender(<PageLogViewer layout={{ version: 99, items: 'nope' }} now={NOW} />);
     expect(screen.getByTestId('page-log-viewer-invalid')).toBeDefined();
+  });
+});
+
+describe('page-log-viewer chrome localization (ui:templates.logViewer.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { templates: { logViewer: { latestTitle: 'Neueste Aktivität' } } }
+          : null,
+    });
+    const traceHeading = (root: HTMLElement): string | undefined =>
+      root.querySelector('[data-part="trace-panel"] h3')?.textContent ?? undefined;
+
+    const { container } = render(
+      <I18nProvider i18n={i18n}>
+        <PageLogViewer layout={demoLogViewerLayout} now={NOW} states={statesFor(ROWS)} />
+      </I18nProvider>,
+    );
+    // (The trace slot's demo-layout widget title stays English — demo content is exempt.)
+    expect(traceHeading(container)).toBe('Neueste Aktivität');
+
+    cleanup();
+    const bare = render(<PageLogViewer layout={demoLogViewerLayout} now={NOW} states={statesFor(ROWS)} />);
+    expect(traceHeading(bare.container)).toBe('Latest activity');
   });
 });

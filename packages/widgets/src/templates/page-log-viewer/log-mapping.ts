@@ -181,12 +181,17 @@ export function filterLogRows(
 /** Trace snippet cap — keeps the mono `<pre>` a snippet, not a dump. */
 export const TRACE_SNIPPET_MAX = 280;
 
-/** Entries related to a selection: same resource when mapped, else itself. */
+/**
+ * Entries related to a selection: same resource when mapped, else itself.
+ * `fallbackTitle` names entries whose row carries neither action nor resource —
+ * the render site passes its localized 'Event' (this module stays pure/hookless).
+ */
 export function traceEntriesOf(
   selected: MappedLogRow,
   rows: readonly MappedLogRow[],
   map: LogFieldMap,
   cap = 12,
+  fallbackTitle = 'Event',
 ): TimelineEntry[] {
   const related =
     map.resource !== undefined && selected.resource !== undefined
@@ -197,7 +202,7 @@ export function traceEntriesOf(
     .slice(-cap);
 
   return ordered.map((row) => {
-    const title = [row.action, row.resource].filter((part) => part !== undefined).join(' ') || 'Event';
+    const title = [row.action, row.resource].filter((part) => part !== undefined).join(' ') || fallbackTitle;
     const meta = [row.actor, row.category, row.status].filter((part) => part !== undefined).join(' · ');
     const snippet = JSON.stringify(row.raw);
     return {

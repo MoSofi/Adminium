@@ -389,3 +389,27 @@ describe('four WidgetFrame states through WidgetHost', () => {
     });
   }
 });
+
+describe('board chrome localization (ui:widgets.boards.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { widgets: { boards: { kanbanBoard: { emptyTitle: 'Keine Spalten', emptyBody: 'Statusfeld wählen.' } } } }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <KanbanBoard cards={[]} columns={[]} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Keine Spalten')).toBeTruthy();
+
+    cleanup();
+    render(<KanbanBoard cards={[]} columns={[]} />);
+    expect(screen.getByText('No board columns')).toBeTruthy();
+  });
+});

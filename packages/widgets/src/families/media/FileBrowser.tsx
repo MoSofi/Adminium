@@ -1,4 +1,5 @@
 import { Breadcrumbs, Checkbox, EmptyState, IconButton, IconTile, MonoText, SegmentedControl } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { LayoutGrid, List, Star } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -103,6 +104,15 @@ export function FileBrowser({
   onSelectionChange,
   testId,
 }: FileBrowserProps) {
+  const t = useMaybeT();
+  const resolvedRootLabel = rootLabel ?? t('ui:widgets.media.root', 'Files');
+  const resolvedBreadcrumbLabel = breadcrumbLabel ?? t('ui:widgets.media.breadcrumb', 'Breadcrumb');
+  const resolvedGridViewLabel = gridViewLabel ?? t('ui:widgets.media.gridView', 'Grid view');
+  const resolvedListViewLabel = listViewLabel ?? t('ui:widgets.media.listView', 'List view');
+  const resolvedNameHeader = nameHeader ?? t('ui:widgets.media.nameHeader', 'Name');
+  const resolvedSizeHeader = sizeHeader ?? t('ui:widgets.media.sizeHeader', 'Size');
+  const resolvedModifiedHeader = modifiedHeader ?? t('ui:widgets.media.modifiedHeader', 'Modified');
+  const resolvedItemsLabel = itemsLabel ?? t('ui:widgets.media.items', 'items');
   const tag = resolveLocale(locale);
   const [localFolder, setLocalFolder] = useState<string>(ROOT_ID);
   const [view, setView] = useState<'grid' | 'list'>(views === 'both' ? defaultView : views);
@@ -148,7 +158,7 @@ export function FileBrowser({
   };
 
   const crumbs = [
-    { label: rootLabel ?? 'Files', onClick: () => navigate(ROOT_ID) },
+    { label: resolvedRootLabel, onClick: () => navigate(ROOT_ID) },
     ...trail.map((node) => ({ label: node.name, onClick: () => navigate(node.id) })),
   ];
 
@@ -156,14 +166,14 @@ export function FileBrowser({
     <div data-widget="file-browser" data-testid={testId} className="flex h-full min-h-0 flex-col">
       {/* Chrome: breadcrumb trail + the grid/list toggle. */}
       <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
-        <Breadcrumbs items={crumbs} label={breadcrumbLabel ?? 'Breadcrumb'} className="flex-1" />
+        <Breadcrumbs items={crumbs} label={resolvedBreadcrumbLabel} className="flex-1" />
         {views === 'both' && (
           <SegmentedControl
             value={effectiveView}
             onValueChange={(next) => setView(next === 'list' ? 'list' : 'grid')}
             options={[
-              { value: 'grid', ariaLabel: gridViewLabel ?? 'Grid view', icon: <LayoutGrid className="size-4" /> },
-              { value: 'list', ariaLabel: listViewLabel ?? 'List view', icon: <List className="size-4" /> },
+              { value: 'grid', ariaLabel: resolvedGridViewLabel, icon: <LayoutGrid className="size-4" /> },
+              { value: 'list', ariaLabel: resolvedListViewLabel, icon: <List className="size-4" /> },
             ]}
           />
         )}
@@ -171,7 +181,7 @@ export function FileBrowser({
 
       <div className="flex min-h-0 flex-1">
         {smartFolders !== undefined && smartFolders.length > 0 && (
-          <nav className="w-48 shrink-0 space-y-0.5 overflow-auto border-e border-border p-2" aria-label={rootLabel ?? 'Files'}>
+          <nav className="w-48 shrink-0 space-y-0.5 overflow-auto border-e border-border p-2" aria-label={resolvedRootLabel}>
             {smartFolders.map((entry) => {
               const active = entry.key === smartKey;
               const count = flatFilter(nodes, entry.filter, collator, entry.folderId).length;
@@ -202,8 +212,8 @@ export function FileBrowser({
             <EmptyState
               compact
               preset="no-data"
-              title={emptyTitle ?? 'This folder is empty'}
-              body={emptyBody ?? 'Upload files or create a folder to get started.'}
+              title={emptyTitle ?? t('ui:widgets.media.fileBrowser.emptyTitle', 'This folder is empty')}
+              body={emptyBody ?? t('ui:widgets.media.fileBrowser.emptyBody', 'Upload files or create a folder to get started.')}
             />
           ) : effectiveView === 'grid' ? (
             <ul className="grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-3.5 p-4">
@@ -226,7 +236,7 @@ export function FileBrowser({
                       icon={fileIconFor(node.kind, undefined, node.name, typeIconMap)}
                     />
                     <span className="mt-3 truncate text-body-sm font-bold text-fg">{node.name}</span>
-                    <span className="mt-0.5 truncate text-caption text-fg-subtle">{metaLine(node, nodes, tag, itemsLabel)}</span>
+                    <span className="mt-0.5 truncate text-caption text-fg-subtle">{metaLine(node, nodes, tag, resolvedItemsLabel)}</span>
                   </button>
                   {starrable && <StarToggle node={node} label={starLabel} onToggle={onToggleStar} className="absolute end-3 top-3" />}
                   {selectable && (
@@ -246,9 +256,9 @@ export function FileBrowser({
               <thead>
                 <tr className="border-b border-border text-caption font-bold uppercase tracking-wide text-fg-subtle">
                   {selectable && <th scope="col" className="w-10 px-4 py-2.5" />}
-                  <th scope="col" className="px-4 py-2.5 text-start">{nameHeader ?? 'Name'}</th>
-                  <th scope="col" className="w-28 px-4 py-2.5 text-start">{sizeHeader ?? 'Size'}</th>
-                  <th scope="col" className="w-32 px-4 py-2.5 text-start">{modifiedHeader ?? 'Modified'}</th>
+                  <th scope="col" className="px-4 py-2.5 text-start">{resolvedNameHeader}</th>
+                  <th scope="col" className="w-28 px-4 py-2.5 text-start">{resolvedSizeHeader}</th>
+                  <th scope="col" className="w-32 px-4 py-2.5 text-start">{resolvedModifiedHeader}</th>
                   {starrable && <th scope="col" className="w-12 px-4 py-2.5" />}
                 </tr>
               </thead>
@@ -326,13 +336,14 @@ function StarToggle({
   onToggle?: ((node: FileNode, next: boolean) => void) | undefined;
   className?: string | undefined;
 }) {
+  const t = useMaybeT();
   return (
     <IconButton
       size="sm"
       data-part="star-toggle"
       data-starred={node.starred ? '' : undefined}
       aria-pressed={node.starred}
-      label={label ?? 'Star'}
+      label={label ?? t('ui:widgets.media.star', 'Star')}
       onClick={() => onToggle?.(node, !node.starred)}
       className={`${node.starred ? 'text-warn' : 'text-fg-subtle'} ${className ?? ''}`}
     >
@@ -353,10 +364,10 @@ function metaLine(
   node: FileNode,
   nodes: readonly FileNode[],
   locale: string,
-  itemsLabel?: string | undefined,
+  itemsLabel: string,
 ): string {
   if (node.kind === 'folder') {
-    return `${formatCount(node.count ?? descendantCount(nodes, node.id), locale)} ${itemsLabel ?? 'items'}`;
+    return `${formatCount(node.count ?? descendantCount(nodes, node.id), locale)} ${itemsLabel}`;
   }
   return [formatSize(node.size, locale), formatModified(node.modified, locale)].filter((part) => part !== undefined).join(' · ');
 }

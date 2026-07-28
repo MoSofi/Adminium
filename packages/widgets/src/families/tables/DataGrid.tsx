@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Checkbox } from '@adminium/ui';
 import {
   createColumnHelper,
@@ -84,6 +85,7 @@ export function DataGrid({
   labels,
   testId,
 }: DataGridProps) {
+  const t = useMaybeT();
   const manualSorting = onSortChange !== undefined;
   const visibleSpecs = useMemo(() => columns.filter((column) => !column.hidden), [columns]);
   const getRowId = useMemo(() => rowId ?? ((row: GridRow) => rowIdOf(columns, row)), [rowId, columns]);
@@ -160,7 +162,7 @@ export function DataGrid({
           {selectable && (
             <div role="columnheader" className="flex w-10 shrink-0 items-center justify-center py-2">
               <Checkbox
-                aria-label={labels?.selectAll ?? 'Select all rows'}
+                aria-label={labels?.selectAll ?? t('ui:widgets.tables.dataGrid.selectAllLabel', 'Select all rows')}
                 checked={allSelected ? true : someSelected ? 'indeterminate' : false}
                 onCheckedChange={(checked) => {
                   const next = new Set<string>();
@@ -191,7 +193,11 @@ export function DataGrid({
                   <button
                     type="button"
                     onClick={header.column.getToggleSortingHandler()}
-                    aria-label={`${labels?.sortBy ?? 'Sort by'} ${spec.label}`}
+                    aria-label={
+                      labels?.sortBy !== undefined
+                        ? `${labels.sortBy} ${spec.label}`
+                        : t('ui:widgets.tables.dataGrid.sortByLabel', 'Sort by {column}', { column: spec.label })
+                    }
                     className="group inline-flex min-w-0 items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     {headerText}
@@ -242,7 +248,7 @@ export function DataGrid({
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Checkbox
-                    aria-label={labels?.selectRow ?? 'Select row'}
+                    aria-label={labels?.selectRow ?? t('ui:widgets.tables.dataGrid.selectRowLabel', 'Select row')}
                     checked={isSelected}
                     onCheckedChange={() => row.toggleSelected()}
                   />

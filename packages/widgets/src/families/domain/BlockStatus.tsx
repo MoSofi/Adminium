@@ -1,4 +1,5 @@
 import { Badge, Button, Checkbox, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Award, RefreshCw } from 'lucide-react';
 
 import { BlockCallout, BlockEmpty, fillTemplate } from './BlockShell.js';
@@ -75,29 +76,33 @@ export {
 // ── block-loyalty-banner ────────────────────────────────────────────────────
 
 export function BlockLoyaltyBannerWidget({ config, data }: WidgetProps<BlockLoyaltyBannerConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockLoyalty>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No loyalty balance'} body={config.emptyBody ?? 'Loyalty points appear once this customer is enrolled.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockLoyaltyBanner.emptyTitle', 'No loyalty balance')} body={config.emptyBody ?? t('ui:widgets.domain.blockLoyaltyBanner.emptyBody', 'Loyalty points appear once this customer is enrolled.')} />;
   }
 
   const locale = config.format?.locale;
   const balance = typeof payload.balance === 'number' ? payload.balance : 0;
   const earned = typeof payload.earned === 'number' ? payload.earned : 0;
   const tier = payload.tier ?? '';
+  // Pre-formatted string values: the config path (`fillTemplate`) and the
+  // localized default (`t`, ICU) substitute identically.
+  const balanceValues = { balance: formatBlockNumber(balance, locale), tier };
+  const earnedValues = { earned: formatBlockNumber(earned, locale) };
 
   return (
     <BlockCallout block="block-loyalty-banner" tone="accent" testId={config.testId} icon={<Award className="size-4" />}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-fg">
-          {fillTemplate(config.balanceLabel ?? '{balance} pts · {tier}', {
-            balance: formatBlockNumber(balance, locale),
-            tier,
-          })}
+          {config.balanceLabel !== undefined
+            ? fillTemplate(config.balanceLabel, balanceValues)
+            : t('ui:widgets.domain.blockLoyaltyBanner.balanceLabel', '{balance} pts · {tier}', balanceValues)}
         </span>
         <MonoText className="text-pos">
-          {fillTemplate(config.earnedLabel ?? '+{earned} earned', {
-            earned: formatBlockNumber(earned, locale),
-          })}
+          {config.earnedLabel !== undefined
+            ? fillTemplate(config.earnedLabel, earnedValues)
+            : t('ui:widgets.domain.blockLoyaltyBanner.earnedLabel', '+{earned} earned', earnedValues)}
         </MonoText>
       </div>
     </BlockCallout>
@@ -107,21 +112,26 @@ export function BlockLoyaltyBannerWidget({ config, data }: WidgetProps<BlockLoya
 // ── block-recurring-banner ──────────────────────────────────────────────────
 
 export function BlockRecurringBannerWidget({ config, data }: WidgetProps<BlockRecurringBannerConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockRecurring>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'Not recurring'} body={config.emptyBody ?? 'Recurrence details appear once a schedule is set.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockRecurringBanner.emptyTitle', 'Not recurring')} body={config.emptyBody ?? t('ui:widgets.domain.blockRecurringBanner.emptyBody', 'Recurrence details appear once a schedule is set.')} />;
   }
 
   const locale = config.format?.locale;
-  const template = config.template ?? 'Recurring — {freq} · Next on {next} · {count} cycles';
+  // Pre-formatted string values: the config path (`fillTemplate`) and the
+  // localized default (`t`, ICU) substitute identically.
+  const values = {
+    freq: payload.freq ?? '',
+    next: formatBlockDate(payload.next, locale),
+    count: formatBlockNumber(typeof payload.count === 'number' ? payload.count : 0, locale),
+  };
 
   return (
     <BlockCallout block="block-recurring-banner" tone="info" testId={config.testId} icon={<RefreshCw className="size-4" />}>
-      {fillTemplate(template, {
-        freq: payload.freq ?? '',
-        next: formatBlockDate(payload.next, locale),
-        count: formatBlockNumber(typeof payload.count === 'number' ? payload.count : 0, locale),
-      })}
+      {config.template !== undefined
+        ? fillTemplate(config.template, values)
+        : t('ui:widgets.domain.blockRecurringBanner.template', 'Recurring — {freq} · Next on {next} · {count} cycles', values)}
     </BlockCallout>
   );
 }
@@ -131,6 +141,7 @@ export function BlockRecurringBannerWidget({ config, data }: WidgetProps<BlockRe
 const STEP_STATES: ReadonlySet<string> = new Set(['done', 'current', 'todo']);
 
 export function BlockDeliveryStepperWidget({ config, data }: WidgetProps<BlockDeliveryStepperConfig>) {
+  const t = useMaybeT();
   const steps: BlockStep[] = rowsOf(data).map((row, index) => {
     const raw = stringField(row, config.stateField);
     return {
@@ -141,7 +152,7 @@ export function BlockDeliveryStepperWidget({ config, data }: WidgetProps<BlockDe
   });
 
   if (steps.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No delivery steps'} body={config.emptyBody ?? 'Fulfilment progress will appear here.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockDeliveryStepper.emptyTitle', 'No delivery steps')} body={config.emptyBody ?? t('ui:widgets.domain.blockDeliveryStepper.emptyBody', 'Fulfilment progress will appear here.')} />;
   }
 
   return (
@@ -189,9 +200,10 @@ export function BlockDeliveryStepperWidget({ config, data }: WidgetProps<BlockDe
 // ── block-signature ─────────────────────────────────────────────────────────
 
 export function BlockSignatureWidget({ config, data }: WidgetProps<BlockSignatureConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockSignature>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No signature'} body={config.emptyBody ?? 'A signature line appears once this document requires one.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockSignature.emptyTitle', 'No signature')} body={config.emptyBody ?? t('ui:widgets.domain.blockSignature.emptyBody', 'A signature line appears once this document requires one.')} />;
   }
 
   const locale = config.format?.locale;
@@ -206,8 +218,8 @@ export function BlockSignatureWidget({ config, data }: WidgetProps<BlockSignatur
           {config.editable ? (
             <input
               defaultValue={name}
-              aria-label={config.namePlaceholder ?? 'Signature name'}
-              placeholder={config.namePlaceholder ?? 'Name'}
+              aria-label={config.namePlaceholder ?? t('ui:widgets.domain.blockSignature.nameInputLabel', 'Signature name')}
+              placeholder={config.namePlaceholder ?? t('ui:widgets.domain.blockSignature.namePlaceholder', 'Name')}
               className="w-full bg-transparent text-section text-fg outline-none placeholder:text-fg-subtle"
             />
           ) : (
@@ -221,7 +233,7 @@ export function BlockSignatureWidget({ config, data }: WidgetProps<BlockSignatur
           <div className="border-b border-border-strong pb-1">
             <MonoText className="text-body-sm text-fg">{formatBlockDate(payload.sigDate, locale)}</MonoText>
           </div>
-          <p className="mt-1 text-caption text-fg-subtle">{config.dateLabel ?? 'Date'}</p>
+          <p className="mt-1 text-caption text-fg-subtle">{config.dateLabel ?? t('ui:widgets.domain.blockSignature.dateLabel', 'Date')}</p>
         </div>
       )}
     </div>
@@ -236,8 +248,9 @@ export function BlockSignatureWidget({ config, data }: WidgetProps<BlockSignatur
  * and an absent payload just means "unchecked, default label".
  */
 export function BlockTermsCheckboxWidget({ config, data, onEvent }: WidgetProps<BlockTermsCheckboxConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockTerms>(data);
-  const label = payload?.label ?? config.defaultLabel ?? 'I accept the terms';
+  const label = payload?.label ?? config.defaultLabel ?? t('ui:widgets.domain.blockTermsCheckbox.defaultLabel', 'I accept the terms');
   const checked = payload?.checked === true;
   const source = blockBindingSourceOf(config.binding);
 
@@ -271,19 +284,20 @@ const APPROVAL_TONE: Record<BlockApproval['status'], 'warn' | 'pos' | 'danger'> 
 };
 
 export function BlockApprovalWidget({ config, data, onEvent }: WidgetProps<BlockApprovalConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockApproval>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No approver'} body={config.emptyBody ?? 'The approval chain appears once a reviewer is assigned.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockApproval.emptyTitle', 'No approver')} body={config.emptyBody ?? t('ui:widgets.domain.blockApproval.emptyBody', 'The approval chain appears once a reviewer is assigned.')} />;
   }
 
   const status: BlockApproval['status'] =
     payload.status === 'approved' || payload.status === 'rejected' ? payload.status : 'pending';
   const statusLabel =
     status === 'approved'
-      ? (config.approvedLabel ?? 'Approved')
+      ? (config.approvedLabel ?? t('ui:widgets.domain.blockApproval.approvedLabel', 'Approved'))
       : status === 'rejected'
-        ? (config.rejectedLabel ?? 'Rejected')
-        : (config.pendingLabel ?? 'Pending');
+        ? (config.rejectedLabel ?? t('ui:widgets.domain.blockApproval.rejectedLabel', 'Rejected'))
+        : (config.pendingLabel ?? t('ui:widgets.domain.blockApproval.pendingLabel', 'Pending'));
   const source = blockBindingSourceOf(config.binding);
 
   const decide = (next: 'approved' | 'rejected'): void => {
@@ -314,10 +328,10 @@ export function BlockApprovalWidget({ config, data, onEvent }: WidgetProps<Block
       {config.actionable && status === 'pending' && (
         <div className="flex shrink-0 gap-1.5">
           <Button size="sm" variant="secondary" onClick={() => decide('approved')}>
-            {config.approveLabel ?? 'Approve'}
+            {config.approveLabel ?? t('ui:widgets.domain.blockApproval.approveLabel', 'Approve')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => decide('rejected')}>
-            {config.rejectLabel ?? 'Reject'}
+            {config.rejectLabel ?? t('ui:widgets.domain.blockApproval.rejectLabel', 'Reject')}
           </Button>
         </div>
       )}

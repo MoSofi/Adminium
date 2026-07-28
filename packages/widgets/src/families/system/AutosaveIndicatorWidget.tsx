@@ -11,6 +11,7 @@
  */
 
 import { AutosaveIndicator, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { booleanField, formatStamp, numberField, recordRowOf } from './system-lib.js';
 import type { AutosaveStatus } from './system-lib.js';
@@ -63,16 +64,17 @@ export function AutosaveIndicatorView({
   errorLabel,
   testId,
 }: AutosaveIndicatorViewProps) {
+  const t = useMaybeT();
   const stamp = showStamp && status === 'saved' ? formatStamp(savedAt, locale) : undefined;
 
   return (
     <div className="flex h-full items-center gap-2 px-4 pb-4" data-widget="autosave-indicator" data-testid={testId}>
       <AutosaveIndicator
         status={status}
-        dirtyLabel={dirtyLabel ?? 'Unsaved changes'}
-        savingLabel={savingLabel ?? 'Saving…'}
-        savedLabel={savedLabel ?? 'All changes saved'}
-        errorLabel={errorLabel ?? "Couldn't save"}
+        dirtyLabel={dirtyLabel ?? t('ui:widgets.system.autosaveIndicator.dirty', 'Unsaved changes')}
+        savingLabel={savingLabel ?? t('ui:widgets.system.autosaveIndicator.saving', 'Saving…')}
+        savedLabel={savedLabel ?? t('ui:widgets.system.autosaveIndicator.saved', 'All changes saved')}
+        errorLabel={errorLabel ?? t('ui:widgets.system.autosaveIndicator.error', "Couldn't save")}
       />
       {stamp !== undefined && <MonoText className="text-caption text-fg-subtle">{stamp}</MonoText>}
     </div>

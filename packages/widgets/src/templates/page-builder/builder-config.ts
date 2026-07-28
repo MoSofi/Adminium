@@ -394,6 +394,23 @@ export interface BuilderStarterDef {
 }
 
 /**
+ * Starter `category` display value → i18n leaf under
+ * `templates.builder.starters.categories.*`. The starter defs below keep their
+ * English values (API compat — hosts and goldens read them verbatim); the
+ * RENDERER resolves the localized card copy at the render boundary via this
+ * map, mirroring `useDefaultShortcutGroups` (ShortcutsPanel.tsx).
+ */
+export const STARTER_CATEGORY_KEYS: Readonly<Record<string, string>> = {
+  Billing: 'billing',
+  Sales: 'sales',
+  'Non-profit': 'nonProfit',
+  Reports: 'reports',
+  Lifecycle: 'lifecycle',
+  Transactional: 'transactional',
+  Marketing: 'marketing',
+};
+
+/**
  * The 12 domain-true invoice starters (09 §7.11 — "12 domain-true invoice
  * starters", incl. the ia-mapping call-outs: pro forma, credit note, donation
  * receipt with Tax ID), plus report/email starter sets for those flavors.
@@ -438,12 +455,19 @@ function hashId(value: string): number {
 /**
  * Seed a full doc from a starter (the picker's "selection seeds a full doc").
  * `null` — the blank ghost card — seeds the base doc for the surface with no
- * line items. Deterministic in the starter id, per 04 §7.7.
+ * line items. Deterministic in the starter id, per 04 §7.7. `untitledTitle`
+ * lets the RENDERER pass the localized blank-doc title
+ * (`templates.builder.untitledDoc`) without this pure module touching i18n;
+ * the default keeps today's English for every existing caller.
  */
-export function starterDocOf(starterId: string | null, docType: DocType): DocRecord {
+export function starterDocOf(
+  starterId: string | null,
+  docType: DocType,
+  untitledTitle: string = 'Untitled document',
+): DocRecord {
   const base = builderDemoDoc(docType, starterId === null ? 7 : hashId(starterId));
   if (starterId === null) {
-    return { ...base, title: 'Untitled document', number: undefined, items: [] };
+    return { ...base, title: untitledTitle, number: undefined, items: [] };
   }
   const def = BUILDER_STARTERS[docType].find((starter) => starter.id === starterId);
   const title = def?.title ?? base.title;

@@ -1,4 +1,5 @@
 import { Badge, Button, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { CreditCard, Plus } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -94,8 +95,10 @@ export function CreditCardTileView({
   onManage,
   testId,
 }: CreditCardTileViewProps) {
+  const t = useMaybeT();
   const pan = maskPan(method.last4, method.brand);
   const brandName = brandNameOf(method.brand, brandMeta);
+  const resolvedDefaultLabel = defaultLabel ?? t('ui:widgets.domain.creditCardTile.defaultLabel', 'Default');
 
   if (variant === 'ghost') {
     return (
@@ -107,7 +110,7 @@ export function CreditCardTileView({
           className="flex h-full min-h-24 w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border-strong text-fg-muted transition-colors hover:border-accent hover:text-accent"
         >
           <Plus className="size-5" aria-hidden="true" />
-          <span className="text-body-sm font-semibold">{addLabel ?? 'Add payment method'}</span>
+          <span className="text-body-sm font-semibold">{addLabel ?? t('ui:widgets.domain.creditCardTile.addLabel', 'Add payment method')}</span>
         </button>
       </div>
     );
@@ -139,12 +142,12 @@ export function CreditCardTileView({
         </div>
         {method.isDefault ? (
           <Badge tone="accent" data-part="card-default">
-            {defaultLabel ?? 'Default'}
+            {resolvedDefaultLabel}
           </Badge>
         ) : null}
         {onManage === undefined ? null : (
           <Button variant="ghost" size="sm" onClick={onManage} data-part="card-manage">
-            {manageLabel ?? 'Manage'}
+            {manageLabel ?? t('ui:widgets.domain.creditCardTile.manageLabel', 'Manage')}
           </Button>
         )}
       </div>
@@ -177,13 +180,13 @@ export function CreditCardTileView({
             )}
             {method.exp === undefined ? null : (
               <p className="text-caption opacity-75">
-                {expiresLabel ?? 'Expires'} <MonoText data-part="card-exp">{method.exp}</MonoText>
+                {expiresLabel ?? t('ui:widgets.domain.creditCardTile.expiresLabel', 'Expires')} <MonoText data-part="card-exp">{method.exp}</MonoText>
               </p>
             )}
           </div>
           {method.isDefault ? (
             <Badge tone="neutral" data-part="card-default" className="bg-white/25 text-white">
-              {defaultLabel ?? 'Default'}
+              {resolvedDefaultLabel}
             </Badge>
           ) : onSetDefault === undefined ? null : (
             // Revealed on hover/focus per the annex, but never hidden from the
@@ -195,7 +198,7 @@ export function CreditCardTileView({
               data-part="card-set-default"
               className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
             >
-              {setDefaultLabel ?? 'Set default'}
+              {setDefaultLabel ?? t('ui:widgets.domain.creditCardTile.setDefaultLabel', 'Set default')}
             </button>
           )}
         </div>
@@ -218,6 +221,7 @@ function methodOf(config: CreditCardTileConfig, data: unknown): PaymentMethod | 
 }
 
 export function CreditCardTileWidget({ config, data, onEvent }: WidgetProps<CreditCardTileConfig>) {
+  const t = useMaybeT();
   const method = useMemo(() => methodOf(config, data), [config, data]);
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
 
@@ -226,8 +230,8 @@ export function CreditCardTileWidget({ config, data, onEvent }: WidgetProps<Cred
   if (method === null && config.variant !== 'ghost') {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No payment method'}
-        body={config.emptyBody ?? 'Add a card to see it here.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.creditCardTile.emptyTitle', 'No payment method')}
+        body={config.emptyBody ?? t('ui:widgets.domain.creditCardTile.emptyBody', 'Add a card to see it here.')}
       />
     );
   }

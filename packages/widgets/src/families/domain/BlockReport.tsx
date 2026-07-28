@@ -1,5 +1,6 @@
 import { sparkBars, sparkLine } from '@adminium/charts';
 import { MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Paperclip } from 'lucide-react';
 
 import { BlockEmpty } from './BlockShell.js';
@@ -87,6 +88,7 @@ function formatKpiValue(kpi: BlockKpi, locale: string | undefined, currency: str
 }
 
 export function BlockKpiRowWidget({ config, data }: WidgetProps<BlockKpiRowConfig>) {
+  const t = useMaybeT();
   const kpis: BlockKpi[] = rowsOf(data)
     .slice(0, config.maxTiles)
     .map((row, index) => ({
@@ -98,7 +100,7 @@ export function BlockKpiRowWidget({ config, data }: WidgetProps<BlockKpiRowConfi
     }));
 
   if (kpis.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No metrics'} body={config.emptyBody ?? 'Report metrics will appear here once the document is bound.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockKpiRow.emptyTitle', 'No metrics')} body={config.emptyBody ?? t('ui:widgets.domain.blockKpiRow.emptyBody', 'Report metrics will appear here once the document is bound.')} />;
   }
 
   const locale = config.format?.locale;
@@ -147,9 +149,10 @@ function ChartAxis({ labels }: { labels: readonly string[] }) {
 }
 
 export function BlockBarChartWidget({ config, data }: WidgetProps<BlockBarChartConfig>) {
+  const t = useMaybeT();
   const items = categoricalItemsOf(data).slice(0, config.maxPoints);
   if (items.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No chart data'} body={config.emptyBody ?? 'A mini bar chart appears once this block is bound to a series.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockBarChart.emptyTitle', 'No chart data')} body={config.emptyBody ?? t('ui:widgets.domain.blockBarChart.emptyBody', 'A mini bar chart appears once this block is bound to a series.')} />;
   }
 
   const bars = sparkBars(items.map((item) => item.value), CHART_W, CHART_H, 3);
@@ -162,7 +165,7 @@ export function BlockBarChartWidget({ config, data }: WidgetProps<BlockBarChartC
         className="h-16 w-full"
         preserveAspectRatio="none"
         role="img"
-        aria-label={config.title ?? 'Bar chart'}
+        aria-label={config.title ?? t('ui:widgets.domain.blockBarChart.a11yLabel', 'Bar chart')}
       >
         {bars.map((bar, index) => (
           <rect
@@ -192,9 +195,10 @@ export function BlockBarChartWidget({ config, data }: WidgetProps<BlockBarChartC
 }
 
 export function BlockLineChartWidget({ config, data }: WidgetProps<BlockLineChartConfig>) {
+  const t = useMaybeT();
   const items = categoricalItemsOf(data).slice(0, config.maxPoints);
   if (items.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No chart data'} body={config.emptyBody ?? 'A mini line chart appears once this block is bound to a series.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockLineChart.emptyTitle', 'No chart data')} body={config.emptyBody ?? t('ui:widgets.domain.blockLineChart.emptyBody', 'A mini line chart appears once this block is bound to a series.')} />;
   }
 
   const layout = sparkLine(items.map((item) => item.value), CHART_W, CHART_H, 3);
@@ -209,7 +213,7 @@ export function BlockLineChartWidget({ config, data }: WidgetProps<BlockLineChar
         className="h-16 w-full"
         preserveAspectRatio="none"
         role="img"
-        aria-label={config.title ?? 'Line chart'}
+        aria-label={config.title ?? t('ui:widgets.domain.blockLineChart.a11yLabel', 'Line chart')}
       >
         {config.area && areaPoints !== '' && (
           <polygon data-part="line-area" points={areaPoints} fill="currentColor" opacity={0.14} />
@@ -243,9 +247,10 @@ export function BlockLineChartWidget({ config, data }: WidgetProps<BlockLineChar
 // ── block-two-col-table ─────────────────────────────────────────────────────
 
 export function BlockTwoColTableWidget({ config, data }: WidgetProps<BlockTwoColTableConfig>) {
+  const t = useMaybeT();
   const rows = twoColRowsOf(data);
   if (rows.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No rows'} body={config.emptyBody ?? 'Two-column rows will appear here.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockTwoColTable.emptyTitle', 'No rows')} body={config.emptyBody ?? t('ui:widgets.domain.blockTwoColTable.emptyBody', 'Two-column rows will appear here.')} />;
   }
 
   // annex: "first row styled header" — but only when `headerRow` says so, in
@@ -280,6 +285,7 @@ export function BlockTwoColTableWidget({ config, data }: WidgetProps<BlockTwoCol
 // ── block-attachments ───────────────────────────────────────────────────────
 
 export function BlockAttachmentsWidget({ config, data }: WidgetProps<BlockAttachmentsConfig>) {
+  const t = useMaybeT();
   const files: BlockAttachment[] = rowsOf(data)
     .slice(0, config.maxRows)
     .map((row, index) => ({
@@ -289,7 +295,7 @@ export function BlockAttachmentsWidget({ config, data }: WidgetProps<BlockAttach
     }));
 
   if (files.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No attachments'} body={config.emptyBody ?? 'Files attached to this document will appear here.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockAttachments.emptyTitle', 'No attachments')} body={config.emptyBody ?? t('ui:widgets.domain.blockAttachments.emptyBody', 'Files attached to this document will appear here.')} />;
   }
 
   const locale = config.format?.locale;
@@ -318,9 +324,10 @@ const RATIO_CLASS: Record<BlockImagePlaceholderConfig['ratio'], string> = {
 };
 
 export function BlockImagePlaceholderWidget({ config, data }: WidgetProps<BlockImagePlaceholderConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockImagePlaceholder>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No image slot'} body={config.emptyBody ?? 'An image placeholder appears once this block is bound.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockImagePlaceholder.emptyTitle', 'No image slot')} body={config.emptyBody ?? t('ui:widgets.domain.blockImagePlaceholder.emptyBody', 'An image placeholder appears once this block is bound.')} />;
   }
 
   const caption = stringField({ text: payload.text }, 'text') ?? '';

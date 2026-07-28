@@ -26,6 +26,7 @@ import {
   TwoPhaseModal,
   useModalFlow,
 } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { FormFields } from './FormFields.js';
@@ -38,6 +39,7 @@ export { modalWizardConfigSchema, modalWizardDemoData };
 export type { ModalWizardConfig };
 
 export function ModalWizardWidget({ config, data, instanceId, onEvent }: WidgetProps<ModalWizardConfig>) {
+  const t = useMaybeT();
   const fields = resolveFields(config.fields, data);
   const flow = useModalFlow<Record<string, unknown>>();
   const [open, setOpen] = useState(false);
@@ -83,7 +85,7 @@ export function ModalWizardWidget({ config, data, instanceId, onEvent }: WidgetP
   return (
     <div className="flex h-full items-center px-4 pb-4" data-widget="modal-wizard" data-testid={config.testId}>
       <Button size="sm" data-part="wizard-trigger" onClick={() => setOpen(true)}>
-        {config.triggerLabel ?? config.title ?? 'Create'}
+        {config.triggerLabel ?? config.title ?? t('ui:widgets.forms.modalWizard.trigger', 'Create')}
       </Button>
 
       <TwoPhaseModal
@@ -91,14 +93,14 @@ export function ModalWizardWidget({ config, data, instanceId, onEvent }: WidgetP
         open={open}
         onOpenChange={setOpen}
         size={config.size}
-        successTitle={config.successTitle ?? 'Created'}
-        successBody={config.successBody ?? 'The record was saved.'}
-        doneLabel={config.doneLabel ?? 'Done'}
+        successTitle={config.successTitle ?? t('ui:widgets.forms.modalWizard.successTitle', 'Created')}
+        successBody={config.successBody ?? t('ui:widgets.forms.modalWizard.successBody', 'The record was saved.')}
+        doneLabel={config.doneLabel ?? t('ui:widgets.forms.modalWizard.done', 'Done')}
       >
         <ModalHeader
-          title={config.title ?? 'Create record'}
+          title={config.title ?? t('ui:widgets.forms.modalWizard.titleLabel', 'Create record')}
           {...(config.subtitleText === undefined ? {} : { subtitle: config.subtitleText })}
-          closeLabel={config.cancelLabel ?? 'Close'}
+          closeLabel={config.cancelLabel ?? t('ui:widgets.forms.modalWizard.closeLabel', 'Close')}
         />
         <ModalBody>
           <FormFields
@@ -116,10 +118,10 @@ export function ModalWizardWidget({ config, data, instanceId, onEvent }: WidgetP
         </ModalBody>
         <ModalFooter>
           <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-            {config.cancelLabel ?? 'Cancel'}
+            {config.cancelLabel ?? t('ui:widgets.forms.modalWizard.cancel', 'Cancel')}
           </Button>
           <Button size="sm" data-part="wizard-submit" disabled={submitting} onClick={() => void submit()}>
-            {config.submitLabel ?? 'Create'}
+            {config.submitLabel ?? t('ui:widgets.forms.modalWizard.submit', 'Create')}
           </Button>
         </ModalFooter>
       </TwoPhaseModal>

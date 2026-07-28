@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, AvatarStack, EmptyState, IconTile, MonoText, Switch, Tag } from '@adminium/ui';
 import { CalendarClock } from 'lucide-react';
 
@@ -46,15 +47,18 @@ export function ScheduledJobsList({
   toggleable = true,
   showRecipients = true,
   locale,
-  nextRunLabel = 'Next run',
+  nextRunLabel,
   toggleLabel,
-  recipientsLabel = 'Recipients',
+  recipientsLabel,
   emptyTitle,
   emptyBody,
   onToggle,
   onSelect,
   testId,
 }: ScheduledJobsListProps) {
+  const t = useMaybeT();
+  const resolvedNextRunLabel = nextRunLabel ?? t('ui:widgets.calendar.scheduledJobsList.nextRunLabel', 'Next run');
+  const resolvedRecipientsLabel = recipientsLabel ?? t('ui:widgets.calendar.scheduledJobsList.recipientsLabel', 'Recipients');
   const tag = resolveLocale(locale);
 
   if (jobs.length === 0) {
@@ -62,8 +66,8 @@ export function ScheduledJobsList({
       <EmptyState
         compact
         preset="nothing-scheduled"
-        title={emptyTitle ?? 'No scheduled jobs'}
-        body={emptyBody ?? 'Recurring reports and exports will appear here once scheduled.'}
+        title={emptyTitle ?? t('ui:widgets.calendar.scheduledJobsList.emptyTitle', 'No scheduled jobs')}
+        body={emptyBody ?? t('ui:widgets.calendar.scheduledJobsList.emptyBody', 'Recurring reports and exports will appear here once scheduled.')}
       />
     );
   }
@@ -118,7 +122,7 @@ export function ScheduledJobsList({
             </div>
 
             {showRecipients && recipients.length > 0 && (
-              <AvatarStack max={3} size="xs" label={recipientsLabel} className="shrink-0">
+              <AvatarStack max={3} size="xs" label={resolvedRecipientsLabel} className="shrink-0">
                 {recipients.map((name) => (
                   <Avatar key={name} size="xs" name={name} locale={tag} />
                 ))}
@@ -126,11 +130,14 @@ export function ScheduledJobsList({
             )}
 
             <div data-part="job-next" className="hidden w-40 shrink-0 flex-col text-end sm:flex">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-fg-subtle">{nextRunLabel}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-fg-subtle">{resolvedNextRunLabel}</span>
               <MonoText className="truncate text-caption text-fg">{next === '' ? '—' : next}</MonoText>
             </div>
 
             {toggleable && (
+              // The aria default is the job's NAME (each switch stays uniquely
+              // announced), so the scheduledJobsList toggleLabel bundle key is
+              // a config-layer suggestion, not a wired bundle default.
               <Switch
                 data-part="job-toggle"
                 checked={enabled}

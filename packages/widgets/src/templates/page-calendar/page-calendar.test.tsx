@@ -206,3 +206,27 @@ describe('PageCalendar', () => {
     });
   });
 });
+
+describe('page-calendar chrome localization (ui:templates.calendar.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui' ? { templates: { calendar: { addEvent: 'Termin hinzufügen' } } } : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageCalendar config={calendarPage()} states={{ 'cal-1': recordList(ROWS) }} referenceDate={TODAY} />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole('button', { name: 'Termin hinzufügen' })).toBeDefined();
+
+    cleanup();
+    render(
+      <PageCalendar config={calendarPage()} states={{ 'cal-1': recordList(ROWS) }} referenceDate={TODAY} />,
+    );
+    expect(screen.getByRole('button', { name: 'Add event' })).toBeDefined();
+  });
+});

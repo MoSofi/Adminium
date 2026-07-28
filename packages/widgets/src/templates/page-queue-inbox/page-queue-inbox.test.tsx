@@ -10,7 +10,7 @@
  * notification-feed flavor mounts through WidgetHost, and bad configs never
  * crash.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -340,6 +340,47 @@ describe('PageQueueInbox', () => {
 
     rerender(<PageQueueInbox config={{ layout: 'nope' }} />);
     expect(screen.getByTestId('page-queue-inbox-invalid')).toBeDefined();
+  });
+});
+
+describe('queue chrome localization (ui:templates.queue.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              templates: {
+                queue: { selectItem: '{title} auswählen' },
+                common: { detailLabel: 'Details' },
+              },
+              widgets: { domain: { blockApproval: { approveLabel: 'Genehmigen' } } },
+            }
+          : null,
+    });
+    const user = userEvent.setup();
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageQueueInbox config={config()} now={NOW} states={loaded} />
+      </I18nProvider>,
+    );
+    // Proposed template key with an ICU {title} arg, from the stubbed bundle.
+    const checkbox = screen.getByRole('checkbox', { name: 'Team offsite budget auswählen' });
+    // The shared detail-pane label (templates.common.detailLabel).
+    expect(document.querySelector('aside[aria-label="Details"]')).not.toBeNull();
+    // A key absent from the stub falls back to the English literal.
+    expect(screen.getByRole('radiogroup', { name: 'Status filter' })).toBeDefined();
+    // The REUSED widgets.domain.blockApproval.approveLabel resolves too.
+    await user.click(checkbox);
+    expect(screen.getByRole('button', { name: 'Genehmigen' })).toBeDefined();
+
+    cleanup();
+    render(<PageQueueInbox config={config()} now={NOW} states={loaded} />);
+    expect(screen.getByRole('checkbox', { name: 'Select Team offsite budget' })).toBeDefined();
+    expect(document.querySelector('section[aria-label="Queue"]')).not.toBeNull();
+    expect(document.querySelector('aside[aria-label="Detail"]')).not.toBeNull();
   });
 });
 

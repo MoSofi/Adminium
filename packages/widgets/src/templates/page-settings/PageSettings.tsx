@@ -17,6 +17,7 @@
  * silently disabled column would hide the product truth; a hidden column
  * would lose the stored intent. Both are wrong; this is the third way.
  */
+import { useMaybeT } from '@adminium/i18n/react';
 import {
   Button,
   EmptyState,
@@ -75,20 +76,33 @@ export interface PageSettingsLabels {
   emptyBody: string;
 }
 
-const DEFAULT_LABELS: PageSettingsLabels = {
-  title: 'Notification settings',
-  subtitle: "Choose what you're notified about and how",
-  matrixLabel: 'Notify me about',
-  rowHeader: 'Event',
-  saving: 'Saving…',
-  saved: 'Saved',
-  unavailableTag: 'Not available yet',
-  loading: 'Loading preferences',
-  errorTitle: 'These settings failed to load',
-  retry: 'Retry',
-  emptyTitle: 'Nothing to configure yet',
-  emptyBody: 'Notification events appear here as producers ship.',
-};
+/**
+ * The localized default labels (the chrome ShortcutsPanel pattern): bundle
+ * strings under an `I18nProvider`, this English copy otherwise. Explicit
+ * `labels` overrides keep winning key-by-key. `saved` is deliberately NOT
+ * `widgets.system.autosaveIndicator.saved` — that key reads "All changes
+ * saved" while this indicator reads "Saved".
+ */
+export function usePageSettingsLabels(): PageSettingsLabels {
+  const t = useMaybeT();
+  return useMemo(
+    () => ({
+      title: t('ui:templates.settings.title', 'Notification settings'),
+      subtitle: t('ui:templates.settings.subtitle', "Choose what you're notified about and how"),
+      matrixLabel: t('ui:templates.settings.matrixLabel', 'Notify me about'),
+      rowHeader: t('ui:templates.settings.rowHeader', 'Event'),
+      saving: t('ui:widgets.system.autosaveIndicator.saving', 'Saving…'),
+      saved: t('ui:templates.settings.saved', 'Saved'),
+      unavailableTag: t('ui:templates.settings.unavailableTag', 'Not available yet'),
+      loading: t('ui:templates.settings.loading', 'Loading preferences'),
+      errorTitle: t('ui:templates.settings.errorTitle', 'These settings failed to load'),
+      retry: t('ui:action.retry', 'Retry'),
+      emptyTitle: t('ui:templates.settings.emptyTitle', 'Nothing to configure yet'),
+      emptyBody: t('ui:templates.settings.emptyBody', 'Notification events appear here as producers ship.'),
+    }),
+    [t],
+  );
+}
 
 export interface PageSettingsProps {
   /** Envelope body (`page.config`) — reserved for stored chrome; unused keys ignored. */
@@ -122,7 +136,8 @@ export function PageSettings({
   testId,
 }: PageSettingsProps) {
   void config;
-  const labels = { ...DEFAULT_LABELS, ...labelOverrides };
+  const defaultLabels = usePageSettingsLabels();
+  const labels = { ...defaultLabels, ...labelOverrides };
 
   const columns = useMemo<ToggleMatrixColumn[]>(
     () =>

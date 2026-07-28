@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, MonoText } from '@adminium/ui';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -106,6 +107,7 @@ export function CalendarMonth({
   emptyBody,
   testId,
 }: CalendarMonthProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const base = useMemo(() => inferMonth(events, year, month), [events, year, month]);
   const [view, setView] = useState(base);
@@ -125,13 +127,16 @@ export function CalendarMonth({
 
   const title = fmtMonthTitle(tag, new Date(Date.UTC(view.year, view.month, 1)));
 
+  // NB the empty state only renders when the host CONFIGURES an `emptyTitle`
+  // (an unconfigured empty month still shows the grid), so the title has no
+  // wired bundle default — its emptyTitle key is a config-layer suggestion.
   if (events.length === 0 && emptyTitle !== undefined) {
     return (
       <EmptyState
         compact
         preset="nothing-scheduled"
         title={emptyTitle}
-        body={emptyBody ?? 'Scheduled events will appear on this calendar.'}
+        body={emptyBody ?? t('ui:widgets.calendar.calendarMonth.emptyBody', 'Scheduled events will appear on this calendar.')}
       />
     );
   }
@@ -143,7 +148,7 @@ export function CalendarMonth({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            aria-label="Previous month"
+            aria-label={t('ui:widgets.calendar.calendarMonth.previousLabel', 'Previous month')}
             data-part="calendar-prev"
             onClick={() => step(-1)}
             className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
@@ -152,7 +157,7 @@ export function CalendarMonth({
           </button>
           <button
             type="button"
-            aria-label="Next month"
+            aria-label={t('ui:widgets.calendar.calendarMonth.nextLabel', 'Next month')}
             data-part="calendar-next"
             onClick={() => step(1)}
             className="grid size-7 place-items-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
@@ -241,7 +246,9 @@ export function CalendarMonth({
                     })}
                     {overflow > 0 && (
                       <span className="ps-1 text-[10px] font-semibold text-fg-subtle">
-                        +{fmtDayNumber(tag, overflow)} more
+                        {t('ui:widgets.calendar.calendarMonth.overflowLabel', '+{count} more', {
+                          count: fmtDayNumber(tag, overflow),
+                        })}
                       </span>
                     )}
                   </div>

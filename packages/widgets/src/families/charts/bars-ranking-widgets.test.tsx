@@ -82,16 +82,79 @@ describe('the four WidgetFrame states', () => {
     expect(container.querySelector('[data-skeleton-variant="chart"]')).not.toBeNull();
   });
 
-  it('empty renders the per-widget empty copy', () => {
-    const { container } = host('chart-bullet', {}, { status: 'success', data: { rows: [], columns: [], total: 0 } });
+  it('empty renders the per-widget empty copy (default keys resolve through the frame translator)', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'en_US',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              widgets: {
+                charts: {
+                  bullet: { emptyTitle: 'No goals to track', emptyBody: 'Add measures with targets to compare against.' },
+                },
+              },
+            }
+          : null,
+    });
+    const { container } = render(
+      <I18nProvider i18n={i18n}>
+        <WidgetHost
+          widgetId="chart-bullet"
+          instanceId="i-chart-bullet"
+          config={{}}
+          data={{ status: 'success', data: { rows: [], columns: [], total: 0 } }}
+          registry={registry}
+        />
+      </I18nProvider>,
+    );
     expect(container.textContent).toContain('No goals to track');
+    // The raw key path must never leak into the DOM (the pre-translator defect).
+    expect(container.textContent).not.toContain('widgets.charts.bullet.emptyTitle');
   });
 
-  it('empty differs per widget (ranking vs slope)', () => {
-    const ranking = host('chart-ranking-bars', {}, { status: 'success', data: { items: [], total: 0 } });
+  it('empty differs per widget (ranking vs slope keys)', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'en_US',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              widgets: {
+                charts: {
+                  rankingBars: { emptyTitle: 'Nothing to rank' },
+                  slope: { emptyTitle: 'No period shift to show' },
+                },
+              },
+            }
+          : null,
+    });
+    const ranking = render(
+      <I18nProvider i18n={i18n}>
+        <WidgetHost
+          widgetId="chart-ranking-bars"
+          instanceId="i-chart-ranking-bars"
+          config={{}}
+          data={{ status: 'success', data: { items: [], total: 0 } }}
+          registry={registry}
+        />
+      </I18nProvider>,
+    );
     expect(ranking.container.textContent).toContain('Nothing to rank');
     cleanup();
-    const slope = host('chart-slope', {}, { status: 'success', data: { rows: [], columns: [], total: 0 } });
+    const slope = render(
+      <I18nProvider i18n={i18n}>
+        <WidgetHost
+          widgetId="chart-slope"
+          instanceId="i-chart-slope"
+          config={{}}
+          data={{ status: 'success', data: { rows: [], columns: [], total: 0 } }}
+          registry={registry}
+        />
+      </I18nProvider>,
+    );
     expect(slope.container.textContent).toContain('No period shift to show');
   });
 

@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { isEmptyData } from '../registry/data-empty.js';
 import { logConfigWarnings, validateConfigAgainst, widgetRegistry } from '../registry/index.js';
@@ -126,10 +127,18 @@ export function WidgetHost({
           ? 'empty'
           : 'loaded';
 
+  const t = useMaybeT();
   const cfg = parsed.config;
   const emptyOverride = cfg.emptyState as
     | { icon?: string; titleKey?: string; bodyKey?: string }
     | undefined;
+
+  // The definition's descriptionKey is an i18n key, not display text — resolve
+  // it here (humanized widget id as the dangling-key fallback) so the info
+  // popover never shows a raw `widgets.…` string. An explicit `info` override
+  // is host-authored content and passes through untouched.
+  const humanizedId = definition.id.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  const resolvedInfo = info ?? t(`ui:${definition.descriptionKey}`, humanizedId);
 
   const Component = definition.component;
   const frameless = definition.placement === 'page';
@@ -138,7 +147,7 @@ export function WidgetHost({
     <WidgetFrame
       state={state}
       title={typeof cfg.title === 'string' ? cfg.title : undefined}
-      info={info ?? definition.descriptionKey}
+      info={resolvedInfo}
       menu={menu}
       dragGrip={dragGrip}
       skeleton={definition.skeleton}

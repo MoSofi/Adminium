@@ -13,6 +13,7 @@
  */
 
 import { Tabs, TabsList, TabsTrigger } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { chromeIcon } from './chrome-icons.js';
 import { isSafeHref, numberField, recordRowsOf, stringField } from './chrome-lib.js';
@@ -51,6 +52,7 @@ export function tabsOf(data: unknown, config: TabBarConfig): TabDef[] {
 }
 
 export function TabBarWidget({ config, data, onEvent }: WidgetProps<TabBarConfig>) {
+  const t = useMaybeT();
   const tabs = tabsOf(data, config);
   if (tabs.length === 0) return null;
 
@@ -72,7 +74,7 @@ export function TabBarWidget({ config, data, onEvent }: WidgetProps<TabBarConfig
         }}
         className="w-full"
       >
-        <TabsList aria-label={config.a11yLabel ?? 'Tabs'}>
+        <TabsList aria-label={config.a11yLabel ?? t('ui:widgets.chrome.tabBar.a11yLabel', 'Tabs')}>
           {tabs.map((tab) => {
             const icon = chromeIcon(tab.icon);
             return (

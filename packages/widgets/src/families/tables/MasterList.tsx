@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, ProgressBar, StatusPill, Switch } from '@adminium/ui';
 import { useState } from 'react';
 
@@ -56,6 +57,7 @@ export function MasterList({
   onToggle,
   testId,
 }: MasterListProps) {
+  const t = useMaybeT();
   const [activeFilter, setActiveFilter] = useState<string>('__all__');
   const [localSelected, setLocalSelected] = useState<string | undefined>(selectedId);
   const selected = selectedId ?? localSelected;
@@ -82,14 +84,14 @@ export function MasterList({
               onClick={() => setActiveFilter(value)}
               className="rounded-full border border-border px-2.5 py-0.5 text-caption font-semibold text-fg-muted data-[active=true]:border-accent data-[active=true]:bg-accent-soft data-[active=true]:text-accent hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             >
-              {value === '__all__' ? (allLabel ?? 'All') : value}
+              {value === '__all__' ? (allLabel ?? t('ui:widgets.tables.masterList.allLabel', 'All')) : value}
             </button>
           ))}
         </div>
       )}
       {filtered.length === 0 ? (
         <div className="flex flex-1 items-center justify-center px-4 py-8 text-center text-body-sm text-fg-muted">
-          {emptyTitle ?? 'No items match this filter'}
+          {emptyTitle ?? t('ui:widgets.tables.masterList.emptyTitle', 'No items match this filter')}
         </div>
       ) : (
         <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto">
@@ -141,7 +143,12 @@ export function MasterList({
                     {subtitle !== undefined && <p className="truncate text-caption text-fg-muted">{subtitle}</p>}
                     {progress !== undefined && Number.isFinite(progress) && (
                       <div className="mt-1.5 flex items-center gap-2">
-                        <ProgressBar value={progress} size="sm" className="max-w-40" label={`${title} progress`} />
+                        <ProgressBar
+                          value={progress}
+                          size="sm"
+                          className="max-w-40"
+                          label={t('ui:widgets.tables.masterList.progressLabel', '{title} progress', { title })}
+                        />
                         <span className="font-mono text-caption tabular-nums text-fg-subtle">{Math.round(progress)}%</span>
                       </div>
                     )}
@@ -154,7 +161,7 @@ export function MasterList({
                   {toggleOn !== undefined && (
                     <Switch
                       checked={toggleOn}
-                      aria-label={`Toggle ${title}`}
+                      aria-label={t('ui:widgets.tables.masterList.toggleLabel', 'Toggle {title}', { title })}
                       onClick={(event) => event.stopPropagation()}
                       onCheckedChange={(next) => onToggle?.(id, next, row)}
                     />

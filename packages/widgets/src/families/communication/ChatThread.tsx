@@ -1,4 +1,5 @@
 import { Avatar, EmptyState, Input, Tag } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Paperclip, Send } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
@@ -91,6 +92,7 @@ export function ChatThread({
   dir,
   testId,
 }: ChatThreadProps) {
+  const t = useMaybeT();
   // `format.locale` is a free-string in the shared config, so '' / 'x-1' are
   // schema-valid and would throw out of every Intl call. Normalize at the edge.
   const locale = localeOf(localeProp);
@@ -129,8 +131,11 @@ export function ChatThread({
           <EmptyState
             compact
             preset="no-data"
-            title={emptyTitle ?? 'No messages yet'}
-            body={emptyBody ?? 'Messages in this conversation will appear here.'}
+            title={emptyTitle ?? t('ui:widgets.communication.chatThread.emptyTitle', 'No messages yet')}
+            body={
+              emptyBody ??
+              t('ui:widgets.communication.chatThread.emptyBody', 'Messages in this conversation will appear here.')
+            }
           />
         </div>
       ) : (
@@ -163,7 +168,7 @@ export function ChatThread({
             typing={typingIndicator}
             typists={peerName === undefined ? [] : [peerName]}
             locale={locale}
-            {...(typingLabel === undefined ? {} : { label: typingLabel })}
+            label={typingLabel ?? t('ui:widgets.communication.chatThread.typingLabel', 'typing…')}
           />
         </div>
       )}
@@ -178,7 +183,7 @@ export function ChatThread({
             <button
               type="button"
               data-part="attach-button"
-              aria-label={attachLabel ?? 'Add attachment'}
+              aria-label={attachLabel ?? t('ui:widgets.communication.chatThread.attachLabel', 'Add attachment')}
               onClick={onAttach}
               className="grid size-8 shrink-0 place-items-center rounded-md text-fg-subtle hover:bg-surface-2 hover:text-fg-muted focus-visible:outline-2 focus-visible:outline-accent"
             >
@@ -186,15 +191,17 @@ export function ChatThread({
             </button>
           )}
           <Input
-            aria-label={composerPlaceholder ?? 'Message'}
-            placeholder={composerPlaceholder ?? 'Write a message…'}
+            // The accessible name's default ('Message') is deliberately NOT the
+            // placeholder's — key proposed as chatThread.composerLabel.
+            aria-label={composerPlaceholder ?? t('ui:widgets.communication.chatThread.composerLabel', 'Message')}
+            placeholder={composerPlaceholder ?? t('ui:widgets.communication.chatThread.composerPlaceholder', 'Write a message…')}
             value={draft}
             onChange={(event) => setDraft(event.currentTarget.value)}
           />
           <button
             type="submit"
             data-part="send-button"
-            aria-label={sendLabel ?? 'Send'}
+            aria-label={sendLabel ?? t('ui:widgets.communication.chatThread.sendLabel', 'Send')}
             disabled={draft.trim() === ''}
             className="grid size-9 shrink-0 place-items-center rounded-md bg-accent text-accent-fg hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40"
           >

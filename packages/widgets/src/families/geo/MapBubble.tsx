@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, SegmentedControl, subscribeTheme } from '@adminium/ui';
 import { MapPin } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -116,6 +117,7 @@ export function MapBubble({
   locale: localeProp,
   testId,
 }: MapBubbleProps) {
+  const t = useMaybeT();
   const locale = localeOf(localeProp);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const leafletRef = useRef<LeafletModule | null>(null);
@@ -271,8 +273,8 @@ export function MapBubble({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No locations'}
-        body={emptyBody ?? 'Rows with latitude and longitude values appear here as map markers.'}
+        title={emptyTitle ?? t('ui:widgets.geo.mapBubble.emptyTitle', 'No locations')}
+        body={emptyBody ?? t('ui:widgets.geo.mapBubble.emptyBody', 'Rows with latitude and longitude values appear here as map markers.')}
       />
     );
   }
@@ -295,7 +297,7 @@ export function MapBubble({
       {keys.length > 1 && (
         <SegmentedControl
           data-part="metric-tabs"
-          aria-label={regionsLabel ?? 'Metric'}
+          aria-label={regionsLabel ?? t('ui:widgets.geo.mapBubble.metricLabel', 'Metric')}
           options={keys.map((key) => ({ value: key, label: metricLabels?.[key] ?? key }))}
           value={activeMetric}
           onValueChange={setMetric}
@@ -312,7 +314,8 @@ export function MapBubble({
               data-part="map-unavailable"
               className="absolute inset-0 flex items-center justify-center bg-surface-2 p-4 text-center text-caption text-fg-muted"
             >
-              {mapUnavailableLabel ?? 'The map could not be loaded. The ranked list below shows the same data.'}
+              {mapUnavailableLabel ??
+                t('ui:widgets.geo.mapBubble.mapUnavailableLabel', 'The map could not be loaded. The ranked list below shows the same data.')}
             </p>
           )}
         </div>
@@ -321,7 +324,11 @@ export function MapBubble({
             the map's accessible equivalent: an SVG of circles is unreadable to a
             screen reader, so the same ranking is real, focusable text. */}
         {ranked.length > 0 && (
-          <ol data-part="geo-ranking" aria-label={regionsLabel ?? 'Top regions'} className="min-w-40 flex-1 space-y-1.5">
+          <ol
+            data-part="geo-ranking"
+            aria-label={regionsLabel ?? t('ui:widgets.geo.mapBubble.regionsLabel', 'Top regions')}
+            className="min-w-40 flex-1 space-y-1.5"
+          >
             {ranked.map(({ point, value }, index) => (
               <li key={point.name}>
                 <button

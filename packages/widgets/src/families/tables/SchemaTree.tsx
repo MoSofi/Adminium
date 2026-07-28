@@ -1,4 +1,5 @@
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, Tag } from '@adminium/ui';
 import { ChevronRight, Columns3, Database, Eye, Table2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -58,6 +59,7 @@ export function SchemaTree({
   onSelect,
   testId,
 }: SchemaTreeProps) {
+  const t = useMaybeT();
   const initialOpen = useMemo(() => {
     const set = new Set<string>();
     collectOpen(roots, 0, expandDepth, set);
@@ -68,7 +70,7 @@ export function SchemaTree({
   const numbers = getFormatters(locale ?? 'en-US');
 
   if (roots.length === 0) {
-    return <EmptyState compact preset="no-data" title={emptyTitle ?? 'No schema introspected'} />;
+    return <EmptyState compact preset="no-data" title={emptyTitle ?? t('ui:widgets.tables.schemaTree.emptyTitle', 'No schema introspected')} />;
   }
 
   const toggle = (id: string) =>
@@ -113,7 +115,7 @@ export function SchemaTree({
           {node.pk === true && <Tag tone="accent" mono>PK</Tag>}
           {node.fk === true && <Tag tone="info" mono>FK</Tag>}
           {node.unique === true && <Tag tone="neutral" mono>UQ</Tag>}
-          {node.kind === 'view' && <Tag tone="info">view</Tag>}
+          {node.kind === 'view' && <Tag tone="info">{t('ui:widgets.tables.schemaTree.viewLabel', 'view')}</Tag>}
           {showTypes && node.pgType !== undefined && <Tag tone="neutral" mono className="ms-auto">{node.pgType}</Tag>}
           {node.rowCount !== undefined && (
             <span className="ms-auto font-mono text-caption tabular-nums text-fg-subtle">{numbers.number(node.rowCount)}</span>
@@ -127,7 +129,13 @@ export function SchemaTree({
   };
 
   return (
-    <ul role="tree" aria-label="Schema" data-widget="schema-tree" data-testid={testId} className="h-full overflow-auto px-1.5 py-1.5">
+    <ul
+      role="tree"
+      aria-label={t('ui:widgets.tables.schemaTree.treeLabel', 'Schema')}
+      data-widget="schema-tree"
+      data-testid={testId}
+      className="h-full overflow-auto px-1.5 py-1.5"
+    >
       {roots.map((node) => renderNode(node, 0))}
     </ul>
   );

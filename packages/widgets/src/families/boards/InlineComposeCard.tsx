@@ -1,4 +1,5 @@
 import { Button } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 
@@ -40,16 +41,21 @@ export interface InlineComposeCardProps {
 }
 
 export function InlineComposeCard({
-  placeholder = 'Card title…',
-  addLabel = 'Add',
-  cancelLabel = 'Cancel',
-  openLabel = 'Add card',
+  placeholder,
+  addLabel,
+  cancelLabel,
+  openLabel,
   defaultOpen = false,
   keepOpen = true,
   onAdd,
   onCancel,
   testId,
 }: InlineComposeCardProps) {
+  const t = useMaybeT();
+  const resolvedPlaceholder = placeholder ?? t('ui:widgets.boards.inlineComposeCard.placeholder', 'Card title…');
+  const resolvedAddLabel = addLabel ?? t('ui:widgets.boards.inlineComposeCard.addLabel', 'Add');
+  const resolvedCancelLabel = cancelLabel ?? t('ui:widgets.boards.inlineComposeCard.cancelLabel', 'Cancel');
+  const resolvedOpenLabel = openLabel ?? t('ui:widgets.boards.inlineComposeCard.openLabel', 'Add card');
   const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +88,7 @@ export function InlineComposeCard({
         className="flex w-full items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-body-sm text-fg-muted hover:border-accent hover:bg-accent-soft hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <Plus aria-hidden="true" className="size-4" />
-        {openLabel}
+        {resolvedOpenLabel}
       </button>
     );
   }
@@ -99,8 +105,8 @@ export function InlineComposeCard({
         type="text"
         autoFocus
         value={draft}
-        aria-label={placeholder}
-        placeholder={placeholder}
+        aria-label={resolvedPlaceholder}
+        placeholder={resolvedPlaceholder}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           // Enter commits, Escape cancels (annex). Both stop propagating: this
@@ -120,10 +126,10 @@ export function InlineComposeCard({
       />
       <div className="flex items-center gap-1.5">
         <Button size="sm" variant="primary" data-part="compose-add" disabled={draft.trim() === ''} onClick={commit}>
-          {addLabel}
+          {resolvedAddLabel}
         </Button>
         <Button size="sm" variant="ghost" data-part="compose-cancel" onClick={close}>
-          {cancelLabel}
+          {resolvedCancelLabel}
         </Button>
       </div>
     </div>

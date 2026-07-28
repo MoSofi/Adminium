@@ -1,4 +1,5 @@
 import { EmptyState, IconButton, IconTile, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Download, Trash2 } from 'lucide-react';
 
 import { fileIconFor } from './media-icons.js';
@@ -69,6 +70,9 @@ export function AttachmentList({
   onDelete,
   testId,
 }: AttachmentListProps) {
+  const t = useMaybeT();
+  const resolvedDownloadLabel = downloadLabel ?? t('ui:widgets.media.download', 'Download');
+  const resolvedDeleteLabel = deleteLabel ?? t('ui:widgets.media.delete', 'Delete');
   const tag = resolveLocale(locale);
   const slice = items.slice(0, limit);
 
@@ -77,8 +81,8 @@ export function AttachmentList({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No attachments'}
-        body={emptyBody ?? 'Files attached to this record will appear here.'}
+        title={emptyTitle ?? t('ui:widgets.media.attachmentList.emptyTitle', 'No attachments')}
+        body={emptyBody ?? t('ui:widgets.media.attachmentList.emptyBody', 'Files attached to this record will appear here.')}
       />
     );
   }
@@ -109,7 +113,7 @@ export function AttachmentList({
               <IconButton
                 size="sm"
                 data-part="attachment-download"
-                label={downloadLabel ?? 'Download'}
+                label={resolvedDownloadLabel}
                 onClick={() => onDownload?.(item)}
                 className="opacity-0 transition-opacity duration-100 group-hover:opacity-100 focus-visible:opacity-100"
               >
@@ -120,7 +124,7 @@ export function AttachmentList({
               <IconButton
                 size="sm"
                 data-part="attachment-delete"
-                label={deleteLabel ?? 'Delete'}
+                label={resolvedDeleteLabel}
                 onClick={() => onDelete?.(item)}
                 className="opacity-0 transition-opacity duration-100 hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
               >

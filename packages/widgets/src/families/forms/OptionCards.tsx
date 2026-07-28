@@ -11,6 +11,7 @@
  */
 
 import { IconTile, RadioCard, RadioGroup } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { formIcon } from './forms-icons.js';
 import { bindingTargetOf } from './forms-state.js';
@@ -59,6 +60,7 @@ const COLUMN_CLASSES: Record<number, string> = {
 };
 
 export function OptionCardsWidget({ config, data, onEvent }: WidgetProps<OptionCardsConfig>) {
+  const t = useMaybeT();
   const options = optionsOf(data, config);
   const [value, setValue] = useState<string>(config.value ?? '');
   const target = bindingTargetOf(config.binding);
@@ -68,7 +70,7 @@ export function OptionCardsWidget({ config, data, onEvent }: WidgetProps<OptionC
   return (
     <div className="h-full overflow-auto px-4 pb-4" data-widget="option-cards" data-testid={config.testId}>
       <RadioGroup
-        aria-label={config.a11yLabel ?? config.title ?? 'Choose an option'}
+        aria-label={config.a11yLabel ?? config.title ?? t('ui:widgets.forms.optionCards.a11yLabel', 'Choose an option')}
         value={value}
         onValueChange={(next) => {
           setValue(next);

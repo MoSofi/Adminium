@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { MonoText, Tag } from '@adminium/ui';
 import { Check } from 'lucide-react';
 
@@ -104,11 +105,14 @@ export function ComparisonMatrix({
   groups,
   promotedColumn,
   promotedLabel,
-  includedLabel = 'Included',
-  notIncludedLabel = 'Not included',
+  includedLabel,
+  notIncludedLabel,
   locale,
   testId,
 }: ComparisonMatrixProps) {
+  const t = useMaybeT();
+  const resolvedIncludedLabel = includedLabel ?? t('ui:widgets.tables.comparisonMatrix.includedLabel', 'Included');
+  const resolvedNotIncludedLabel = notIncludedLabel ?? t('ui:widgets.tables.comparisonMatrix.notIncludedLabel', 'Not included');
   void resolveLocale(locale); // normalize at the boundary (see tables-tail-lib)
   const bands = bandsOf(rows, groups);
   // A feature label column + one column per compared plan.
@@ -192,8 +196,8 @@ export function ComparisonMatrix({
                     >
                       <Cell
                         value={row.cells[column.id]}
-                        includedLabel={includedLabel}
-                        notIncludedLabel={notIncludedLabel}
+                        includedLabel={resolvedIncludedLabel}
+                        notIncludedLabel={resolvedNotIncludedLabel}
                       />
                     </span>
                   );

@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { ArrowRight } from 'lucide-react';
 
 import { CellValue, cellAlignClass } from './cells.js';
@@ -39,6 +40,7 @@ export function MiniTable({
   limit = 6,
   testId,
 }: MiniTableProps) {
+  const t = useMaybeT();
   const visible = columns.filter((column) => !column.hidden).slice(0, 3);
   const slice = rows.slice(0, limit);
   return (
@@ -78,7 +80,7 @@ export function MiniTable({
           onClick={() => onEvent?.({ type: 'drill-through', href: viewAllHref })}
           className="flex items-center gap-1 px-4 py-2.5 text-caption font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
-          {viewAllLabel ?? 'View all'}
+          {viewAllLabel ?? t('ui:widgets.tables.miniTable.viewAllLabel', 'View all')}
           <ArrowRight className="size-3 rtl:-scale-x-100" aria-hidden="true" />
         </button>
       )}

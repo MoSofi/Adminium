@@ -17,6 +17,7 @@
  */
 
 import { FormField, InputGroup, Tag, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Database } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -38,18 +39,6 @@ import type { WidgetProps } from '../../registry/types.js';
 
 export { connectionStringFieldConfigSchema, connectionStringFieldDemoData };
 export type { ConnectionStringFieldConfig };
-
-/**
- * English developer fallbacks for the two validation codes. Deliberately
- * GENERIC about which schemes are expected: the accepted set is `protocols`, so
- * naming Postgres and MySQL here would be wrong for a field configured for
- * Mongo. A caller that knows its own protocol list (the wizard does) passes
- * precise copy through `errorText`.
- */
-const DEFAULT_DSN_ERROR: Record<DsnValidationCode, string> = {
-  'invalid-scheme': 'Unrecognized connection-string scheme.',
-  incomplete: 'Add a host and database to the connection string.',
-};
 
 /** Status-line tone → text colour. Tokens only — never a raw hex (04 §7.1). */
 const STATUS_TONE_CLASS: Record<FormTone, string> = {
@@ -118,6 +107,7 @@ export function ConnectionStringField({
   className,
   'data-testid': testId,
 }: ConnectionStringFieldProps) {
+  const t = useMaybeT();
   const detected = engineForDsn(value, protocols);
   const code = dsnValidationCode(value, protocols);
   const host = dsnHost(value);
@@ -125,7 +115,16 @@ export function ConnectionStringField({
   // `mysql://`, a Postgres example placeholder is no longer the useful one.
   const exampleEngine: DsnEngine = detected ?? placeholderEngine ?? 'postgres';
   const chips = showQuickFill ? providerChipsFor(exampleEngine, protocols) : [];
-  const error = code === null ? undefined : (errorText?.[code] ?? DEFAULT_DSN_ERROR[code]);
+  // Default copy for the two validation codes. Deliberately GENERIC about which
+  // schemes are expected: the accepted set is `protocols`, so naming Postgres
+  // and MySQL here would be wrong for a field configured for Mongo. A caller
+  // that knows its own protocol list (the wizard does) passes precise copy
+  // through `errorText`.
+  const defaultError = (validation: DsnValidationCode): string =>
+    validation === 'invalid-scheme'
+      ? t('ui:widgets.forms.connectionStringField.invalidScheme', 'Unrecognized connection-string scheme.')
+      : t('ui:widgets.forms.connectionStringField.incomplete', 'Add a host and database to the connection string.');
+  const error = code === null ? undefined : (errorText?.[code] ?? defaultError(code));
 
   return (
     <div
@@ -220,6 +219,7 @@ export function ConnectionStringField({
  * connection test can use.
  */
 export function ConnectionStringFieldWidget({ config, data, onEvent }: WidgetProps<ConnectionStringFieldConfig>) {
+  const t = useMaybeT();
   const values = formValuesOf(data);
   const initial = typeof values['dsn'] === 'string' ? values['dsn'] : '';
   const [dsn, setDsn] = useState(initial);
@@ -248,7 +248,7 @@ export function ConnectionStringFieldWidget({ config, data, onEvent }: WidgetPro
         }}
         protocols={config.protocols ?? DSN_ENGINES}
         placeholderEngine={config.placeholderEngine}
-        label={config.label ?? config.title ?? 'Connection string'}
+        label={config.label ?? config.title ?? t('ui:widgets.forms.connectionStringField.label', 'Connection string')}
         required={config.required}
         helper={config.helpText}
         errorText={errorText}

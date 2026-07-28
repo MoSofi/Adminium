@@ -1,4 +1,5 @@
 import { Badge, IconButton, MonoText, Switch, Tag } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -122,6 +123,7 @@ export function CodeSnippetBlockView({
   copiedLabel,
   testId,
 }: CodeSnippetBlockViewProps) {
+  const t = useMaybeT();
   const { copied, copy } = useCopy(1400);
   const tabs = languages ?? [];
 
@@ -164,7 +166,11 @@ export function CodeSnippetBlockView({
             variant="ghost"
             className="ms-auto"
             data-part="snippet-copy"
-            label={copied ? (copiedLabel ?? 'Copied') : (copyLabel ?? 'Copy')}
+            label={
+              copied
+                ? (copiedLabel ?? t('ui:widgets.domain.codeSnippetBlock.copiedLabel', 'Copied'))
+                : (copyLabel ?? t('ui:widgets.domain.codeSnippetBlock.copyLabel', 'Copy'))
+            }
             onClick={() => copy(code)}
           >
             {copied ? <Check className="size-3.5 text-pos" /> : <Copy className="size-3.5" />}
@@ -193,6 +199,7 @@ export function CodeSnippetBlockView({
 }
 
 export function CodeSnippetBlockWidget({ config, data }: WidgetProps<CodeSnippetBlockConfig>) {
+  const t = useMaybeT();
   const row = useMemo(() => opsRowOf(data), [data]);
   /*
     Language tabs come from `languages`, else from the `templates` map's keys —
@@ -227,8 +234,8 @@ export function CodeSnippetBlockWidget({ config, data }: WidgetProps<CodeSnippet
   if (code === '') {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No snippet'}
-        body={config.emptyBody ?? 'Bind a code column or set a static snippet in config.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.codeSnippetBlock.emptyTitle', 'No snippet')}
+        body={config.emptyBody ?? t('ui:widgets.domain.codeSnippetBlock.emptyBody', 'Bind a code column or set a static snippet in config.')}
       />
     );
   }
@@ -270,6 +277,7 @@ export function WebhookEndpointsListView({
   onToggle,
   testId,
 }: WebhookEndpointsListViewProps) {
+  const t = useMaybeT();
   return (
     <ul
       data-widget="webhook-endpoints-list"
@@ -300,8 +308,10 @@ export function WebhookEndpointsListView({
               </MonoText>
               <span className="text-caption text-fg-subtle" data-part="webhook-last-fired">
                 {since === undefined
-                  ? (neverFiredLabel ?? 'Never fired')
-                  : interpolate(lastFiredLabel ?? 'Last fired {since}', { since })}
+                  ? (neverFiredLabel ?? t('ui:widgets.domain.webhookEndpointsList.neverFiredLabel', 'Never fired'))
+                  : lastFiredLabel !== undefined
+                    ? interpolate(lastFiredLabel, { since })
+                    : t('ui:widgets.domain.webhookEndpointsList.lastFiredLabel', 'Last fired {since}', { since })}
               </span>
             </div>
             <Switch
@@ -332,6 +342,7 @@ function hooksOf(config: WebhookEndpointsListConfig, data: unknown): WebhookEndp
 }
 
 export function WebhookEndpointsListWidget({ config, data, onEvent }: WidgetProps<WebhookEndpointsListConfig>) {
+  const t = useMaybeT();
   const hooks = useMemo(() => hooksOf(config, data), [config, data]);
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
   // Captured ONCE — never a per-render `Date.now()`, which would make the
@@ -342,8 +353,8 @@ export function WebhookEndpointsListWidget({ config, data, onEvent }: WidgetProp
   if (hooks.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No endpoints'}
-        body={config.emptyBody ?? 'Add a webhook endpoint to receive table events.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.webhookEndpointsList.emptyTitle', 'No endpoints')}
+        body={config.emptyBody ?? t('ui:widgets.domain.webhookEndpointsList.emptyBody', 'Add a webhook endpoint to receive table events.')}
       />
     );
   }
@@ -395,6 +406,7 @@ export function ResourceApiCardView({
   perDayLabel,
   testId,
 }: ResourceApiCardViewProps) {
+  const t = useMaybeT();
   // Peak-relative bar heights. A flat-zero series would divide by zero, so the
   // denominator floors at 1 and the strip renders flat rather than NaN-tall.
   const peak = Math.max(1, ...resource.requests);
@@ -415,7 +427,9 @@ export function ResourceApiCardView({
           make the riskier of the two states the quieter one.
         */}
         <Badge tone={resource.rls ? 'pos' : 'warn'} data-part="resource-rls">
-          {resource.rls ? (rlsLabel ?? 'RLS') : (publicLabel ?? 'Public')}
+          {resource.rls
+            ? (rlsLabel ?? t('ui:widgets.domain.resourceApiCard.rlsLabel', 'RLS'))
+            : (publicLabel ?? t('ui:widgets.domain.resourceApiCard.publicLabel', 'Public'))}
         </Badge>
       </div>
 
@@ -432,7 +446,7 @@ export function ResourceApiCardView({
 
       <p className="text-caption text-fg-subtle">
         <MonoText className="font-semibold text-fg">{formatCompact(resource.rowCount, locale)}</MonoText>{' '}
-        {rowsLabel ?? 'rows'}
+        {rowsLabel ?? t('ui:widgets.domain.resourceApiCard.rowsLabel', 'rows')}
       </p>
 
       {/*
@@ -453,7 +467,11 @@ export function ResourceApiCardView({
       </div>
 
       <p className="mt-auto text-caption text-fg-subtle" data-part="resource-per-day">
-        {interpolate(perDayLabel ?? '{count}/day', { count: formatCount(resource.perDay, locale) })}
+        {perDayLabel !== undefined
+          ? interpolate(perDayLabel, { count: formatCount(resource.perDay, locale) })
+          : t('ui:widgets.domain.resourceApiCard.perDayLabel', '{count}/day', {
+              count: formatCount(resource.perDay, locale),
+            })}
       </p>
     </div>
   );
@@ -477,13 +495,14 @@ function resourceOf(config: ResourceApiCardConfig, data: unknown): ResourceApi |
 }
 
 export function ResourceApiCardWidget({ config, data }: WidgetProps<ResourceApiCardConfig>) {
+  const t = useMaybeT();
   const resource = useMemo(() => resourceOf(config, data), [config, data]);
 
   if (resource === null) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No resource'}
-        body={config.emptyBody ?? 'Bind a table to show its generated API surface.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.resourceApiCard.emptyTitle', 'No resource')}
+        body={config.emptyBody ?? t('ui:widgets.domain.resourceApiCard.emptyBody', 'Bind a table to show its generated API surface.')}
       />
     );
   }

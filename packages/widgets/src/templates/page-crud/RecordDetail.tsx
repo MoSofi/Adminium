@@ -1,4 +1,5 @@
 import { Badge, Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -36,6 +37,7 @@ function RelatedTab({
   /** This record's PK — the reference rows point at it. */
   pkValue: unknown;
 }) {
+  const t = useMaybeT();
   const [rows, setRows] = useState<CrudRow[] | null>(null);
   const listRelated = api.listRelated?.bind(api);
   useEffect(() => {
@@ -52,7 +54,12 @@ function RelatedTab({
   if (listRelated === undefined || rows === null) {
     return (
       <p className="px-1 py-3 text-body-sm text-fg-muted">
-        {reference.count} related {reference.count === 1 ? 'record' : 'records'} in {reference.table}
+        {/* `count` drives the ICU plural; `n` keeps the digits byte-identical. */}
+        {t(
+          'ui:templates.crud.detail.relatedCount',
+          '{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}',
+          { count: reference.count, n: String(reference.count), table: reference.table },
+        )}
       </p>
     );
   }
@@ -89,6 +96,7 @@ export function RecordDetail({
   onDelete,
   labels,
 }: RecordDetailProps) {
+  const t = useMaybeT();
   const [result, setResult] = useState<CrudGetResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,7 +110,11 @@ export function RecordDetail({
         if (alive) setResult(loaded);
       })
       .catch((reason: unknown) => {
-        if (alive) setError(reason instanceof Error ? reason.message : 'Failed to load the record.');
+        if (alive) {
+          setError(
+            reason instanceof Error ? reason.message : t('ui:templates.crud.detail.loadError', 'Failed to load the record.'),
+          );
+        }
       });
     return () => {
       alive = false;
@@ -119,7 +131,7 @@ export function RecordDetail({
   if (result === null) {
     return (
       <div className="flex items-center justify-center py-10">
-        <Spinner label="Loading record" />
+        <Spinner label={t('ui:templates.common.loadingRecord', 'Loading record')} />
       </div>
     );
   }
@@ -136,12 +148,12 @@ export function RecordDetail({
         <div className="flex shrink-0 items-center gap-1.5">
           {onEdit !== undefined && (
             <Button size="sm" variant="secondary" iconLeft={<Pencil />} onClick={() => onEdit(record)}>
-              {labels?.edit ?? 'Edit'}
+              {labels?.edit ?? t('ui:action.edit', 'Edit')}
             </Button>
           )}
           {onDelete !== undefined && (
             <Button size="sm" variant="destructive" iconLeft={<Trash2 />} onClick={() => onDelete(record)}>
-              {labels?.delete ?? 'Delete'}
+              {labels?.delete ?? t('ui:action.delete', 'Delete')}
             </Button>
           )}
         </div>
@@ -152,7 +164,7 @@ export function RecordDetail({
       ) : (
         <Tabs defaultValue="__fields">
           <TabsList>
-            <TabsTrigger value="__fields">{labels?.fields ?? 'Fields'}</TabsTrigger>
+            <TabsTrigger value="__fields">{labels?.fields ?? t('ui:templates.crud.detail.fields', 'Fields')}</TabsTrigger>
             {references.map((reference) => (
               <TabsTrigger key={reference.relationId} value={reference.relationId} count={reference.count}>
                 {reference.table.split('.').pop()}
@@ -172,7 +184,8 @@ export function RecordDetail({
 
       {references.length > 0 && (
         <p className="text-caption text-fg-muted">
-          <Badge tone="info">{references.reduce((sum, r) => sum + r.count, 0)}</Badge> inbound references
+          <Badge tone="info">{references.reduce((sum, r) => sum + r.count, 0)}</Badge>{' '}
+          {t('ui:templates.crud.detail.inboundReferences', 'inbound references')}
         </p>
       )}
     </div>

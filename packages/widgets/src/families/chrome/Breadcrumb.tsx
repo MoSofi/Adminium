@@ -8,6 +8,7 @@
  */
 
 import { Breadcrumbs } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { collapseTrail } from './chrome-lib.js';
 import { breadcrumbConfigSchema, breadcrumbDemoData } from './chrome-config.js';
@@ -42,6 +43,7 @@ export function crumbsOf(data: unknown, config: BreadcrumbConfig): Crumb[] {
 }
 
 export function BreadcrumbWidget({ config, data, onEvent }: WidgetProps<BreadcrumbConfig>) {
+  const t = useMaybeT();
   const crumbs = crumbsOf(data, config);
   const shown = collapseTrail(crumbs, config.maxDepth);
 
@@ -50,7 +52,7 @@ export function BreadcrumbWidget({ config, data, onEvent }: WidgetProps<Breadcru
   return (
     <div className="flex h-full items-center px-4 pb-4" data-widget="breadcrumb" data-testid={config.testId}>
       <Breadcrumbs
-        label={config.a11yLabel ?? 'Breadcrumb'}
+        label={config.a11yLabel ?? t('ui:widgets.chrome.breadcrumb.a11yLabel', 'Breadcrumb')}
         items={shown.map((crumb) =>
           crumb === null
             ? // The collapsed middle: a non-interactive ellipsis, never a link.

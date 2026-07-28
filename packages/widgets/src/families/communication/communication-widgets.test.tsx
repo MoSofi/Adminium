@@ -1088,3 +1088,44 @@ describe('communication widgets render four states through WidgetHost', () => {
     });
   }
 });
+
+// ── chrome localization (the boards-family pattern) ─────────────────────────
+
+describe('communication chrome localization (ui:widgets.communication.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              widgets: {
+                communication: {
+                  chatThread: { emptyTitle: 'Noch keine Nachrichten', emptyBody: 'Nachrichten erscheinen hier.' },
+                  callWidget: { ringingLabel: 'Klingelt …' },
+                },
+              },
+            }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <ChatThread messages={[]} now={CHAT_DEMO_EPOCH} />
+        <CallWidget peer="Morgan Lee" kind="voice" state="ringing" />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Noch keine Nachrichten')).toBeTruthy();
+    // The per-state default routes through the per-state callWidget label keys.
+    expect(screen.getByText('Klingelt …')).toBeTruthy();
+
+    cleanup();
+    render(<ChatThread messages={[]} now={CHAT_DEMO_EPOCH} />);
+    expect(screen.getByText('No messages yet')).toBeTruthy();
+    cleanup();
+    // Outside a provider the fallback is the polished English label (adopted
+    // from the bundle 2026-07-28; the raw state value no longer renders).
+    render(<CallWidget peer="Morgan Lee" kind="voice" state="ringing" />);
+    expect(screen.getByText('Ringing…')).toBeTruthy();
+  });
+});

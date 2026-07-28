@@ -15,6 +15,7 @@
  */
 
 import { ChipInput, FormField, OtpInput, PasswordStrength, SegmentedControl, defaultPasswordScore } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { DEFAULT_SEGMENTS } from './forms-config.js';
@@ -52,6 +53,7 @@ export type { ChipInputConfig, OtpInputConfig, PasswordStrengthMeterConfig, Segm
 // ── otp-input ───────────────────────────────────────────────────────────────
 
 export function OtpInputWidget({ config, data, onEvent }: WidgetProps<OtpInputConfig>) {
+  const t = useMaybeT();
   const values = formValuesOf(data);
   const initial = typeof values['code'] === 'string' ? values['code'] : '';
   const [code, setCode] = useState(initial);
@@ -63,7 +65,7 @@ export function OtpInputWidget({ config, data, onEvent }: WidgetProps<OtpInputCo
         length={config.length}
         value={code}
         onChange={setCode}
-        label={config.label ?? config.title ?? 'One-time code'}
+        label={config.label ?? config.title ?? t('ui:widgets.forms.otpInput.label', 'One-time code')}
         onComplete={(complete) => {
           // Only a COMPLETE code is worth reporting — an intent per keystroke
           // would have the host verifying partial codes.
@@ -96,6 +98,7 @@ const CHIP_VALIDATORS: Record<string, (chip: string) => boolean> = {
 };
 
 export function ChipInputWidget({ config, data, onEvent }: WidgetProps<ChipInputConfig>) {
+  const t = useMaybeT();
   const values = formValuesOf(data);
   const initial = Array.isArray(values['chips']) ? (values['chips'] as unknown[]).filter((c): c is string => typeof c === 'string') : [];
   const [chips, setChips] = useState<string[]>(initial);
@@ -116,7 +119,7 @@ export function ChipInputWidget({ config, data, onEvent }: WidgetProps<ChipInput
         });
       }}
       validate={CHIP_VALIDATORS[config.validator] ?? CHIP_VALIDATORS['none']}
-      removeLabel={(chip) => `${config.removeLabel ?? 'Remove'} ${chip}`}
+      removeLabel={(chip) => `${config.removeLabel ?? t('ui:widgets.forms.chipInput.remove', 'Remove')} ${chip}`}
       placeholder={config.placeholder ?? ''}
       inputClassName={config.mono ? 'font-mono' : undefined}
     />
@@ -138,6 +141,7 @@ export function ChipInputWidget({ config, data, onEvent }: WidgetProps<ChipInput
 // ── segmented-control ───────────────────────────────────────────────────────
 
 export function SegmentedControlWidget({ config, data, onEvent }: WidgetProps<SegmentedControlConfig>) {
+  const t = useMaybeT();
   const values = formValuesOf(data);
   const options = config.options ?? DEFAULT_SEGMENTS;
   const fallback = config.value ?? (typeof values['value'] === 'string' ? (values['value'] as string) : options[0]?.key);
@@ -154,7 +158,7 @@ export function SegmentedControlWidget({ config, data, onEvent }: WidgetProps<Se
       data-testid={config.testId}
     >
       <SegmentedControl
-        aria-label={config.a11yLabel ?? config.title ?? 'Select an option'}
+        aria-label={config.a11yLabel ?? config.title ?? t('ui:widgets.forms.segmentedControl.a11yLabel', 'Select an option')}
         value={value}
         onValueChange={(next) => {
           setValue(next);
@@ -190,9 +194,15 @@ export function SegmentedControlWidget({ config, data, onEvent }: WidgetProps<Se
  * pure projection of a value the host's form owns.
  */
 export function PasswordStrengthMeterWidget({ config, data }: WidgetProps<PasswordStrengthMeterConfig>) {
+  const t = useMaybeT();
   const values = formValuesOf(data);
   const password = typeof values['password'] === 'string' ? values['password'] : '';
-  const labels = config.labels ?? ['Weak', 'Fair', 'Good', 'Strong'];
+  const labels = config.labels ?? [
+    t('ui:widgets.forms.passwordStrengthMeter.weak', 'Weak'),
+    t('ui:widgets.forms.passwordStrengthMeter.fair', 'Fair'),
+    t('ui:widgets.forms.passwordStrengthMeter.good', 'Good'),
+    t('ui:widgets.forms.passwordStrengthMeter.strong', 'Strong'),
+  ];
 
   return (
     <div
@@ -203,7 +213,7 @@ export function PasswordStrengthMeterWidget({ config, data }: WidgetProps<Passwo
     >
       <PasswordStrength
         value={password}
-        label={config.label ?? config.title ?? 'Password strength'}
+        label={config.label ?? config.title ?? t('ui:widgets.forms.passwordStrengthMeter.label', 'Password strength')}
         labels={labels as [string, string, string, string]}
       />
     </div>

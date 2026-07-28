@@ -15,15 +15,17 @@ import { asCategorical } from '../../lib/shapes.js';
 import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 import { asFlows, asMatrix, asTwoLevelTree } from './part-whole-shapes.js';
 
-/** Per-widget empty-state copy (forward-referenced i18n keys, resolved by the dashboard). */
-function emptyStateDefault(key: string) {
+/** Per-widget empty-state copy default — `ui` bundle key paths resolved by
+ * WidgetFrame's empty-state translator. Static full-key literals on purpose:
+ * the i18n coverage guard only counts statically visible `widgets.*` refs. */
+function emptyStateField(titleKey: string, bodyKey: string) {
   return z
     .object({
       icon: z.string().optional(),
       titleKey: z.string().optional(),
       bodyKey: z.string().optional(),
     })
-    .default({ titleKey: `widgets.charts.${key}.empty.title`, bodyKey: `widgets.charts.${key}.empty.body` });
+    .default({ titleKey, bodyKey });
 }
 
 const metricFormat = z.enum(['plain', 'compact', 'currency', 'percent', 'duration']);
@@ -35,7 +37,7 @@ export const chartTreemapConfigSchema = widgetSharedConfigSchema.extend({
   maxTiles: z.number().int().min(2).max(24).default(12),
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(120).max(600).default(260),
-  emptyState: emptyStateDefault('treemap'),
+  emptyState: emptyStateField('widgets.charts.treemap.emptyTitle', 'widgets.charts.treemap.emptyBody'),
 });
 export type ChartTreemapConfig = z.infer<typeof chartTreemapConfigSchema>;
 
@@ -50,7 +52,7 @@ export function treemapInputsOf(data: unknown): { label: string; value: number }
 export const chartSunburstConfigSchema = widgetSharedConfigSchema.extend({
   size: z.number().int().min(120).max(400).default(220),
   showLegend: z.boolean().default(true),
-  emptyState: emptyStateDefault('sunburst'),
+  emptyState: emptyStateField('widgets.charts.sunburst.emptyTitle', 'widgets.charts.sunburst.emptyBody'),
 });
 export type ChartSunburstConfig = z.infer<typeof chartSunburstConfigSchema>;
 
@@ -66,7 +68,7 @@ export const chartFunnelConfigSchema = widgetSharedConfigSchema.extend({
   overallFooter: z.boolean().default(true),
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(120).max(600).default(240),
-  emptyState: emptyStateDefault('funnel'),
+  emptyState: emptyStateField('widgets.charts.funnel.emptyTitle', 'widgets.charts.funnel.emptyBody'),
 });
 export type ChartFunnelConfig = z.infer<typeof chartFunnelConfigSchema>;
 
@@ -83,7 +85,7 @@ export const chartRadialBarConfigSchema = widgetSharedConfigSchema.extend({
   /** Rings rendered (annex: ≤4). Extra categories are dropped. */
   maxRings: z.number().int().min(1).max(6).default(4),
   showLegend: z.boolean().default(true),
-  emptyState: emptyStateDefault('radialBar'),
+  emptyState: emptyStateField('widgets.charts.radialBar.emptyTitle', 'widgets.charts.radialBar.emptyBody'),
 });
 export type ChartRadialBarConfig = z.infer<typeof chartRadialBarConfigSchema>;
 
@@ -99,7 +101,7 @@ export const chartRadarConfigSchema = widgetSharedConfigSchema.extend({
   size: z.number().int().min(120).max(360).default(200),
   levels: z.number().int().min(3).max(6).default(4),
   showLegend: z.boolean().default(true),
-  emptyState: emptyStateDefault('radar'),
+  emptyState: emptyStateField('widgets.charts.radar.emptyTitle', 'widgets.charts.radar.emptyBody'),
 });
 export type ChartRadarConfig = z.infer<typeof chartRadarConfigSchema>;
 
@@ -122,7 +124,7 @@ export const chartChordConfigSchema = widgetSharedConfigSchema.extend({
   /** Cap on nodes shown around the ring (annex `nodeLimit`). */
   nodeLimit: z.number().int().min(2).max(12).default(8),
   showLegend: z.boolean().default(true),
-  emptyState: emptyStateDefault('chord'),
+  emptyState: emptyStateField('widgets.charts.chord.emptyTitle', 'widgets.charts.chord.emptyBody'),
 });
 export type ChartChordConfig = z.infer<typeof chartChordConfigSchema>;
 
@@ -145,7 +147,7 @@ export const chartWordcloudConfigSchema = widgetSharedConfigSchema.extend({
   minFontSize: z.number().int().min(8).max(40).default(13),
   maxFontSize: z.number().int().min(16).max(72).default(40),
   height: z.number().int().min(120).max(500).default(200),
-  emptyState: emptyStateDefault('wordcloud'),
+  emptyState: emptyStateField('widgets.charts.wordcloud.emptyTitle', 'widgets.charts.wordcloud.emptyBody'),
 });
 export type ChartWordcloudConfig = z.infer<typeof chartWordcloudConfigSchema>;
 

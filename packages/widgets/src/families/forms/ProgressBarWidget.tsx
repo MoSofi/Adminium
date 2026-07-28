@@ -10,6 +10,7 @@
  */
 
 import { MonoText, ProgressBar } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { clampPct, uiToneOf } from './forms-lib.js';
 import { progressBarConfigSchema, progressBarDemoData } from './forms-config.js';
@@ -21,11 +22,12 @@ export { progressBarConfigSchema, progressBarDemoData };
 export type { ProgressBarConfig };
 
 export function ProgressBarWidget({ config, data }: WidgetProps<ProgressBarConfig>) {
+  const t = useMaybeT();
   const metric = asSingleMetric(data);
   // A malformed payload renders 0%, never a NaN-width bar (04 §3 leniency).
   const value = clampPct(metric?.value);
   const complete = value >= 100;
-  const label = config.label ?? config.title ?? 'Progress';
+  const label = config.label ?? config.title ?? t('ui:widgets.forms.progressBar.label', 'Progress');
 
   return (
     <div

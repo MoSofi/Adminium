@@ -7,7 +7,7 @@
  * four WidgetFrame states through WidgetHost. Clocks are pinned so relative
  * timestamps are stable.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ActivityFeed, ActivityFeedWidget, activityFeedConfigSchema, activityFeedDemoData } from './ActivityFeed.js';
@@ -489,5 +489,35 @@ describe('feeds definitions + four WidgetFrame states', () => {
       expect(screen.getByText(`No ${def.id} yet`)).toBeDefined();
       unmount();
     }
+  });
+});
+
+describe('feed chrome localization (ui:widgets.feeds.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              widgets: {
+                feeds: {
+                  realtimeFeed: { emptyTitle: 'Warten auf Ereignisse', emptyBody: 'Live-Ereignisse folgen.' },
+                },
+              },
+            }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <RealtimeFeed items={[]} now={NOW} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Warten auf Ereignisse')).toBeDefined();
+
+    cleanup();
+    render(<RealtimeFeed items={[]} now={NOW} />);
+    expect(screen.getByText('Waiting for events')).toBeDefined();
   });
 });

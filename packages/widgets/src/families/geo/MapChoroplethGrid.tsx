@@ -1,4 +1,5 @@
 import { ChoroplethGridChart, hasUsTilegramTiles } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState } from '@adminium/ui';
 
 import { geoPointsOf, localeOf, metricKeysOf } from './geo-lib.js';
@@ -69,6 +70,7 @@ export function MapChoroplethGrid({
   locale: localeProp,
   testId,
 }: MapChoroplethGridProps) {
+  const t = useMaybeT();
   const locale = localeOf(localeProp);
 
   if (points.length === 0) {
@@ -76,8 +78,8 @@ export function MapChoroplethGrid({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No regions'}
-        body={emptyBody ?? 'Rows with a region code and a numeric value appear here as tinted tiles.'}
+        title={emptyTitle ?? t('ui:widgets.geo.mapChoroplethGrid.emptyTitle', 'No regions')}
+        body={emptyBody ?? t('ui:widgets.geo.mapChoroplethGrid.emptyBody', 'Rows with a region code and a numeric value appear here as tinted tiles.')}
       />
     );
   }
@@ -110,12 +112,20 @@ export function MapChoroplethGrid({
         <ChoroplethGridChart
           points={points}
           metric={metric}
-          labels={{ label: label ?? 'Regional breakdown' }}
+          labels={{ label: label ?? t('ui:widgets.geo.mapChoroplethGrid.chartLabel', 'Regional breakdown') }}
           layout={effectiveLayout}
           columns={columns}
           levels={levels}
           format={format}
-          {...(legendLabels === undefined ? {} : { legendLabels })}
+          legendLabels={
+            // The chart's own internal defaults are these same English words —
+            // resolving them here (config/props still win) just makes them
+            // reachable by the i18n bundle without changing what renders.
+            legendLabels ?? {
+              low: t('ui:widgets.geo.mapChoroplethGrid.legendLowLabel', 'Low'),
+              high: t('ui:widgets.geo.mapChoroplethGrid.legendHighLabel', 'High'),
+            }
+          }
         />
       </div>
       {/* The annex's "optional Top-5 ranked bars companion", and the tilegram's
@@ -137,6 +147,7 @@ export function MapChoroplethGrid({
 }
 
 export function MapChoroplethGridWidget({ config, data }: WidgetProps<MapChoroplethGridConfig>) {
+  const t = useMaybeT();
   const points = geoPointsOf(data, {
     nameField: config.nameField,
     codeField: config.codeField,
@@ -162,8 +173,13 @@ export function MapChoroplethGridWidget({ config, data }: WidgetProps<MapChoropl
       format={format}
       {...(config.title === undefined ? {} : { label: config.title })}
       {...(config.legendLowLabel === undefined && config.legendHighLabel === undefined
-        ? {}
-        : { legendLabels: { low: config.legendLowLabel ?? 'Low', high: config.legendHighLabel ?? 'High' } })}
+        ? {} // neither configured → the component resolves the localized defaults
+        : {
+            legendLabels: {
+              low: config.legendLowLabel ?? t('ui:widgets.geo.mapChoroplethGrid.legendLowLabel', 'Low'),
+              high: config.legendHighLabel ?? t('ui:widgets.geo.mapChoroplethGrid.legendHighLabel', 'High'),
+            },
+          })}
       {...(config.emptyTitle === undefined ? {} : { emptyTitle: config.emptyTitle })}
       {...(config.emptyBody === undefined ? {} : { emptyBody: config.emptyBody })}
       {...(config.format?.locale === undefined ? {} : { locale: config.format.locale })}

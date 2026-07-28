@@ -1,4 +1,5 @@
 import { latnDataTag } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, Badge, IconButton, MonoText, StatusPill } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { Download, RotateCcw, Search, SearchX } from 'lucide-react';
@@ -42,8 +43,14 @@ export function isErrorRow(row: LogRow): boolean {
   return s === 'error' || s === 'failed' || s === 'failure' || s === 'denied';
 }
 
-/** "Today 14:32" / "Yesterday 09:10" / "Jul 12 08:00" — mono log prefix. */
-export function smartTimestamp(iso: string, now: number, locale?: string): string {
+/** "Today 14:32" / "Yesterday 09:10" / "Jul 12 08:00" — mono log prefix.
+ *  `labels` localizes the Today/Yesterday prefixes (English defaults). */
+export function smartTimestamp(
+  iso: string,
+  now: number,
+  locale?: string,
+  labels?: { today?: string | undefined; yesterday?: string | undefined },
+): string {
   const time = new Date(iso).getTime();
   if (Number.isNaN(time)) return iso;
   const startOfDay = (ms: number): number => {
@@ -55,8 +62,8 @@ export function smartTimestamp(iso: string, now: number, locale?: string): strin
   // coalesces an empty/invalid locale, which raw `?? 'en-US'` misses ('' throws).
   const tag = latnDataTag(locale ?? 'en-US');
   const hhmm = new Intl.DateTimeFormat(tag, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(time);
-  if (diff <= 0) return `Today ${hhmm}`;
-  if (diff === 1) return `Yesterday ${hhmm}`;
+  if (diff <= 0) return `${labels?.today ?? 'Today'} ${hhmm}`;
+  if (diff === 1) return `${labels?.yesterday ?? 'Yesterday'} ${hhmm}`;
   const md = new Intl.DateTimeFormat(tag, { month: 'short', day: '2-digit', timeZone: 'UTC' }).format(time);
   return `${md} ${hhmm}`;
 }
@@ -88,9 +95,14 @@ export function LogTable({
   onRowAction,
   testId,
 }: LogTableProps) {
+  const t = useMaybeT();
   const clock = now ?? Date.now();
   const [query, setQuery] = useState('');
   const [errorsOnly, setErrorsOnly] = useState(false);
+  const timeLabels = {
+    today: t('ui:widgets.tables.logTable.todayLabel', 'Today'),
+    yesterday: t('ui:widgets.tables.logTable.yesterdayLabel', 'Yesterday'),
+  };
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -112,7 +124,7 @@ export function LogTable({
           {liveTail && (
             <span className="inline-flex items-center gap-1.5 text-caption font-bold uppercase tracking-wide text-pos">
               <span aria-hidden="true" className="size-2 rounded-full bg-pos motion-safe:animate-pulse" />
-              {labels?.live ?? 'Live'}
+              {labels?.live ?? t('ui:widgets.tables.logTable.liveLabel', 'Live')}
             </span>
           )}
           {search && (
@@ -122,16 +134,20 @@ export function LogTable({
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={labels?.searchPlaceholder ?? 'Search logs…'}
+                placeholder={labels?.searchPlaceholder ?? t('ui:widgets.tables.logTable.placeholder', 'Search logs…')}
                 className="h-8 w-full rounded-md border border-border bg-surface ps-8 pe-2 text-body-sm text-fg placeholder:text-fg-subtle focus-visible:border-accent focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent"
               />
             </label>
           )}
           {filters && (
-            <div className="inline-flex shrink-0 items-center rounded-md bg-surface-2 p-0.5" role="group" aria-label="Log filter">
+            <div
+              className="inline-flex shrink-0 items-center rounded-md bg-surface-2 p-0.5"
+              role="group"
+              aria-label={t('ui:widgets.tables.logTable.filterLabel', 'Log filter')}
+            >
               {[
-                { key: false, label: labels?.all ?? 'All' },
-                { key: true, label: labels?.errors ?? 'Errors' },
+                { key: false, label: labels?.all ?? t('ui:widgets.tables.logTable.allLabel', 'All') },
+                { key: true, label: labels?.errors ?? t('ui:widgets.tables.logTable.errorsLabel', 'Errors') },
               ].map((option) => (
                 <button
                   key={String(option.key)}
@@ -153,7 +169,9 @@ export function LogTable({
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-8 text-center">
             <SearchX aria-hidden="true" className="size-6 text-fg-subtle" />
             <p className="text-body-sm font-semibold text-fg">
-              {rows.length === 0 ? (labels?.emptyTitle ?? 'No log entries') : (labels?.noMatches ?? 'No matching entries')}
+              {rows.length === 0
+                ? (labels?.emptyTitle ?? t('ui:widgets.tables.logTable.emptyTitle', 'No log entries'))
+                : (labels?.noMatches ?? t('ui:widgets.tables.logTable.noMatchesLabel', 'No matching entries'))}
             </p>
             {rows.length === 0 && labels?.emptyBody !== undefined && (
               <p className="max-w-xs text-caption text-fg-muted">{labels.emptyBody}</p>
@@ -168,7 +186,7 @@ export function LogTable({
                 className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1 px-3 py-2 data-[first=true]:bg-pos/[0.05] hover:bg-surface-2/50 sm:grid-cols-[9.5rem_auto_1fr_auto_auto]"
               >
                 <MonoText className="col-start-1 whitespace-nowrap text-caption text-fg-subtle" title={formatAbsoluteTime(row.ts, locale)}>
-                  {smartTimestamp(row.ts, clock, locale)}
+                  {smartTimestamp(row.ts, clock, locale, timeLabels)}
                 </MonoText>
                 <span className="hidden items-center gap-1.5 sm:flex">
                   {row.actor !== undefined && <Avatar name={row.actor} size="xs" />}
@@ -193,7 +211,7 @@ export function LogTable({
                 {rowAction !== 'none' && (
                   <IconButton
                     size="sm"
-                    label={labels?.[rowAction] ?? rowAction}
+                    label={labels?.[rowAction] ?? t(`ui:widgets.tables.logTable.action.${rowAction}`, rowAction)}
                     className="justify-self-end"
                     onClick={() => onRowAction?.(rowAction, row)}
                   >

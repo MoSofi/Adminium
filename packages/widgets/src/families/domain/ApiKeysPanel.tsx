@@ -1,4 +1,5 @@
 import { Badge, Banner, Button, IconButton, MonoText, Tag } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Copy, Eye, EyeOff, RefreshCw, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -93,8 +94,11 @@ export function ApiKeysPanelView({
   onRevoke,
   testId,
 }: ApiKeysPanelViewProps) {
+  const t = useMaybeT();
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
   const [copied, setCopied] = useState<string | null>(null);
+  const resolvedCopyLabel = copyLabel ?? t('ui:widgets.domain.apiKeysPanel.copyLabel', 'Copy');
+  const resolvedCopiedLabel = copiedLabel ?? t('ui:widgets.domain.apiKeysPanel.copiedLabel', 'Copied');
 
   const toggleReveal = (id: string): void => {
     setRevealed((current) => {
@@ -125,8 +129,8 @@ export function ApiKeysPanelView({
     >
       {revealedSecret === undefined ? null : (
         <Banner tone="pos" data-testid="api-key-revealed">
-          <p className="text-body-sm font-semibold">{revealedTitle ?? 'Key created'}</p>
-          <p className="text-caption">{revealedBody ?? 'Copy it now — it is never shown again.'}</p>
+          <p className="text-body-sm font-semibold">{revealedTitle ?? t('ui:widgets.domain.apiKeysPanel.revealedTitle', 'Key created')}</p>
+          <p className="text-caption">{revealedBody ?? t('ui:widgets.domain.apiKeysPanel.revealedBody', 'Copy it now — it is never shown again.')}</p>
           <div className="mt-1.5 flex items-center gap-2">
             <MonoText className="min-w-0 flex-1 truncate rounded-md bg-surface px-2 py-1 text-caption">
               {revealedSecret}
@@ -137,7 +141,7 @@ export function ApiKeysPanelView({
               iconLeft={<Copy className="size-3.5" />}
               onClick={() => copy('__new__', revealedSecret)}
             >
-              {copied === '__new__' ? (copiedLabel ?? 'Copied') : (copyLabel ?? 'Copy')}
+              {copied === '__new__' ? resolvedCopiedLabel : resolvedCopyLabel}
             </Button>
           </div>
         </Banner>
@@ -168,7 +172,11 @@ export function ApiKeysPanelView({
                   <IconButton
                     size="sm"
                     variant="ghost"
-                    label={isRevealed ? (hideLabel ?? 'Hide key') : (revealLabel ?? 'Reveal key')}
+                    label={
+                      isRevealed
+                        ? (hideLabel ?? t('ui:widgets.domain.apiKeysPanel.hideLabel', 'Hide key'))
+                        : (revealLabel ?? t('ui:widgets.domain.apiKeysPanel.revealLabel', 'Reveal key'))
+                    }
                     data-part="api-key-reveal"
                     onClick={() => toggleReveal(key.id)}
                   >
@@ -178,7 +186,7 @@ export function ApiKeysPanelView({
                 <IconButton
                   size="sm"
                   variant="ghost"
-                  label={copied === key.id ? (copiedLabel ?? 'Copied') : (copyLabel ?? 'Copy')}
+                  label={copied === key.id ? resolvedCopiedLabel : resolvedCopyLabel}
                   data-part="api-key-copy"
                   onClick={() => copy(key.id, value)}
                 >
@@ -188,7 +196,7 @@ export function ApiKeysPanelView({
                   <IconButton
                     size="sm"
                     variant="ghost"
-                    label={rollLabel ?? 'Roll key'}
+                    label={rollLabel ?? t('ui:widgets.domain.apiKeysPanel.rollLabel', 'Roll key')}
                     data-part="api-key-roll"
                     onClick={() => onRoll(key)}
                   >
@@ -203,7 +211,7 @@ export function ApiKeysPanelView({
                   <IconButton
                     size="sm"
                     variant="ghost"
-                    label={revokeLabel ?? 'Revoke key'}
+                    label={revokeLabel ?? t('ui:widgets.domain.apiKeysPanel.revokeLabel', 'Revoke key')}
                     data-part="api-key-revoke"
                     onClick={() => onRevoke(key)}
                   >
@@ -229,8 +237,10 @@ export function ApiKeysPanelView({
               ))}
               <span className="ms-auto text-caption text-fg-subtle" data-part="api-key-last-used">
                 {since === undefined
-                  ? (neverUsedLabel ?? 'Never used')
-                  : interpolate(lastUsedLabel ?? 'Last used {since}', { since })}
+                  ? (neverUsedLabel ?? t('ui:widgets.domain.apiKeysPanel.neverUsedLabel', 'Never used'))
+                  : lastUsedLabel !== undefined
+                    ? interpolate(lastUsedLabel, { since })
+                    : t('ui:widgets.domain.apiKeysPanel.lastUsedLabel', 'Last used {since}', { since })}
               </span>
             </div>
           </div>
@@ -259,6 +269,7 @@ function keysOf(config: ApiKeysPanelConfig, data: unknown): ApiKeyRecord[] {
 }
 
 export function ApiKeysPanelWidget({ config, data, onEvent }: WidgetProps<ApiKeysPanelConfig>) {
+  const t = useMaybeT();
   const keys = useMemo(() => keysOf(config, data), [config, data]);
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
   // Captured ONCE on mount, never per render — see the header note. The demo
@@ -269,8 +280,8 @@ export function ApiKeysPanelWidget({ config, data, onEvent }: WidgetProps<ApiKey
   if (keys.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No API keys'}
-        body={config.emptyBody ?? 'Create a key to start calling the API.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.apiKeysPanel.emptyTitle', 'No API keys')}
+        body={config.emptyBody ?? t('ui:widgets.domain.apiKeysPanel.emptyBody', 'Create a key to start calling the API.')}
       />
     );
   }

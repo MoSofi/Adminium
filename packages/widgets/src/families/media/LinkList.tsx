@@ -1,4 +1,5 @@
 import { Button, EmptyState, IconButton, IconTile, Input, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ArrowUpRight, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -72,6 +73,14 @@ export function LinkList({
   onDelete,
   testId,
 }: LinkListProps) {
+  const t = useMaybeT();
+  const resolvedAddLabel = addLabel ?? t('ui:widgets.media.addLink', 'Add link');
+  const resolvedTitlePlaceholder = titlePlaceholder ?? t('ui:widgets.media.linkTitlePlaceholder', 'Title');
+  const resolvedUrlPlaceholder = urlPlaceholder ?? t('ui:widgets.media.linkUrlPlaceholder', 'https://…');
+  const resolvedSubmitLabel = submitLabel ?? t('ui:widgets.media.add', 'Add');
+  const resolvedDeleteLabel = deleteLabel ?? t('ui:widgets.media.remove', 'Remove');
+  const resolvedEmptyTitle = emptyTitle ?? t('ui:widgets.media.linkList.emptyTitle', 'No links yet');
+  const resolvedEmptyBody = emptyBody ?? t('ui:widgets.media.linkList.emptyBody', 'Reference links will appear here.');
   const [composing, setComposing] = useState(false);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
@@ -91,8 +100,8 @@ export function LinkList({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No links yet'}
-        body={emptyBody ?? 'Reference links will appear here.'}
+        title={resolvedEmptyTitle}
+        body={resolvedEmptyBody}
       />
     );
   }
@@ -106,8 +115,8 @@ export function LinkList({
               <Input
                 autoFocus
                 value={title}
-                aria-label={titlePlaceholder ?? 'Title'}
-                placeholder={titlePlaceholder ?? 'Title'}
+                aria-label={resolvedTitlePlaceholder}
+                placeholder={resolvedTitlePlaceholder}
                 onChange={(event) => setTitle(event.currentTarget.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') submit();
@@ -117,8 +126,8 @@ export function LinkList({
               />
               <Input
                 value={url}
-                aria-label={urlPlaceholder ?? 'https://…'}
-                placeholder={urlPlaceholder ?? 'https://…'}
+                aria-label={resolvedUrlPlaceholder}
+                placeholder={resolvedUrlPlaceholder}
                 onChange={(event) => setUrl(event.currentTarget.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') submit();
@@ -127,12 +136,12 @@ export function LinkList({
                 className="flex-[1.3] font-mono"
               />
               <Button size="sm" onClick={submit} data-part="link-submit">
-                {submitLabel ?? 'Add'}
+                {resolvedSubmitLabel}
               </Button>
             </div>
           ) : (
             <Button size="sm" variant="ghost" iconLeft={<Plus />} onClick={() => setComposing(true)} data-part="link-add">
-              {addLabel ?? 'Add link'}
+              {resolvedAddLabel}
             </Button>
           )}
         </div>
@@ -142,8 +151,8 @@ export function LinkList({
         <EmptyState
           compact
           preset="no-data"
-          title={emptyTitle ?? 'No links yet'}
-          body={emptyBody ?? 'Reference links will appear here.'}
+          title={resolvedEmptyTitle}
+          body={resolvedEmptyBody}
         />
       ) : (
         <ul className="flex-1 space-y-0.5 overflow-auto p-2">
@@ -185,7 +194,7 @@ export function LinkList({
                   <IconButton
                     size="sm"
                     data-part="link-delete"
-                    label={deleteLabel ?? 'Remove'}
+                    label={resolvedDeleteLabel}
                     onClick={() => onDelete?.(link)}
                     className="opacity-0 transition-opacity duration-100 hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
                   >

@@ -13,13 +13,15 @@ import { useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
 import { BoardCard } from './BoardCard.js';
+import { useMaybeT } from '@adminium/i18n/react';
+
 import {
   BoardLiveRegion,
   DraggableCard,
   DroppableCell,
   announcementsFromTemplates,
-  defaultBoardAnnouncements,
   silentDndAnnouncements,
+  useBoardAnnouncements,
   useBoardMoves,
   useLiveRegion,
 } from './board-dnd.js';
@@ -109,10 +111,13 @@ export function KanbanSwimlaneGrid({
   onCardOpen,
   testId,
 }: KanbanSwimlaneGridProps) {
+  const t = useMaybeT();
   const [activeId, setActiveId] = useState<string | null>(null);
   const { message, announce } = useLiveRegion();
-  const announcements: BoardAnnouncements = { ...defaultBoardAnnouncements, ...labels?.announcements };
-  const summary = labels?.laneSummary ?? ((points: number, count: number) => `Σ${points} pts · ${count}`);
+  const announcements: BoardAnnouncements = useBoardAnnouncements(labels?.announcements);
+  const summary =
+    labels?.laneSummary ??
+    ((points: number, count: number) => t('ui:widgets.boards.laneSummary', 'Σ{points} pts · {count}', { points, count }));
 
   const columnById = new Map(columns.map((column) => [column.id, column]));
   const laneById = new Map(lanes.map((lane) => [lane.id, lane]));
@@ -143,8 +148,11 @@ export function KanbanSwimlaneGrid({
     return (
       <EmptyState
         preset="no-data"
-        title={labels?.emptyTitle ?? 'No swimlanes to show'}
-        body={labels?.emptyBody ?? 'Group records by a lane field and a status field to build the grid.'}
+        title={labels?.emptyTitle ?? t('ui:widgets.boards.kanbanSwimlaneGrid.emptyTitle', 'No swimlanes to show')}
+        body={
+          labels?.emptyBody ??
+          t('ui:widgets.boards.kanbanSwimlaneGrid.emptyBody', 'Group records by a lane field and a status field to build the grid.')
+        }
       />
     );
   }

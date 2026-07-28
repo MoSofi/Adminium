@@ -1,4 +1,5 @@
 import { Avatar, AvatarStack } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { isTypingIn, localeOf, typingEntriesOf } from './chat-lib.js';
 import type { TypingIndicatorConfig } from './communication-config.js';
@@ -71,6 +72,7 @@ export function TypingIndicator({
   locale: localeProp,
   testId,
 }: TypingIndicatorProps) {
+  const t = useMaybeT();
   // `format.locale` is a free-string in the shared config, so '' / 'x-1' are
   // schema-valid and would throw out of Avatar's `toLocaleUpperCase`. Normalize
   // once, at the boundary (the family convention).
@@ -95,7 +97,9 @@ export function TypingIndicator({
               ))}
             </AvatarStack>
           )}
-          <span className="text-caption italic text-fg-subtle">{label ?? 'typing…'}</span>
+          <span className="text-caption italic text-fg-subtle">
+            {label ?? t('ui:widgets.communication.typingIndicator.label', 'typing…')}
+          </span>
           <TypingDots />
         </span>
       )}

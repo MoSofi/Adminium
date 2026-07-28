@@ -16,6 +16,7 @@
  */
 
 import { DateInput, FormField, Input, Select, Switch, Tag, Textarea } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import type { ReactElement } from 'react';
 
 import type { FormFieldConfig } from './forms-config.js';
@@ -89,7 +90,11 @@ function control(field: FormFieldConfig, value: unknown, onChange: (value: unkno
 }
 
 export function FormFields({ fields, values, onChange, invalid, requiredHint, idPrefix }: FormFieldsProps) {
+  const t = useMaybeT();
   const invalidSet = new Set(invalid ?? []);
+  // Shared by `modal-wizard` and `drawer-form` — the bundle carries ONE key for
+  // the shared required-field message, under the modal-wizard's namespace.
+  const resolvedRequiredHint = requiredHint ?? t('ui:widgets.forms.modalWizard.required', 'This field is required.');
 
   return (
     <div data-part="form-fields" className="flex flex-col gap-3.5">
@@ -106,7 +111,7 @@ export function FormFields({ fields, values, onChange, invalid, requiredHint, id
             required={field.required}
             // `error` and `helper` are the same caption slot — `error` wins and
             // also flips `aria-invalid` on the control.
-            {...(isInvalid ? { error: requiredHint ?? 'This field is required.' } : {})}
+            {...(isInvalid ? { error: resolvedRequiredHint } : {})}
             {...(!isInvalid && field.helpText !== undefined ? { helper: field.helpText } : {})}
             // The unit annotates the label (annex §10 "number input with unit").
             {...(field.unit === undefined ? {} : { tag: <Tag mono>{field.unit}</Tag> })}

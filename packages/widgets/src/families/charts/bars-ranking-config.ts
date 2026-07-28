@@ -10,9 +10,11 @@ import { z } from 'zod';
 
 import { widgetSharedConfigSchema } from '../../registry/shared-config.js';
 
-/** Per-widget empty-state copy default (04 §4). Values are i18n keys the
- * dashboard resolves; passed through raw by WidgetHost, so readable English
- * doubles as the fallback until the catalog entries land. */
+/** Per-widget empty-state copy default (04 §4). Values are `ui` bundle key
+ * paths — WidgetFrame's empty-state translator resolves key-shaped values via
+ * `t('ui:'+key)` and renders non-key copy verbatim, so host overrides with
+ * plain text keep working. Static full-key literals on purpose: the i18n
+ * coverage guard only counts statically visible `widgets.*` refs. */
 function emptyStateField(titleKey: string, bodyKey: string) {
   return z
     .object({
@@ -28,7 +30,7 @@ const metricFormat = z.enum(['plain', 'compact', 'currency', 'percent', 'duratio
 export const chartBulletConfigSchema = widgetSharedConfigSchema.extend({
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(80).max(600).default(200),
-  emptyState: emptyStateField('No goals to track', 'Add measures with targets to compare against.'),
+  emptyState: emptyStateField('widgets.charts.bullet.emptyTitle', 'widgets.charts.bullet.emptyBody'),
 });
 export type ChartBulletConfig = z.infer<typeof chartBulletConfigSchema>;
 
@@ -37,7 +39,7 @@ export const chartRankingBarsConfigSchema = widgetSharedConfigSchema.extend({
   n: z.number().int().min(1).max(50).default(6),
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(80).max(600).default(220),
-  emptyState: emptyStateField('Nothing to rank', 'No records matched this breakdown yet.'),
+  emptyState: emptyStateField('widgets.charts.rankingBars.emptyTitle', 'widgets.charts.rankingBars.emptyBody'),
 });
 export type ChartRankingBarsConfig = z.infer<typeof chartRankingBarsConfigSchema>;
 
@@ -48,7 +50,7 @@ export const chartParetoConfigSchema = widgetSharedConfigSchema.extend({
   axis: z.boolean().default(true),
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(80).max(600).default(240),
-  emptyState: emptyStateField('No categories to chart', 'No grouped counts were returned for this range.'),
+  emptyState: emptyStateField('widgets.charts.pareto.emptyTitle', 'widgets.charts.pareto.emptyBody'),
 });
 export type ChartParetoConfig = z.infer<typeof chartParetoConfigSchema>;
 
@@ -56,7 +58,7 @@ export const chartWaterfallConfigSchema = widgetSharedConfigSchema.extend({
   axis: z.boolean().default(true),
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(80).max(600).default(260),
-  emptyState: emptyStateField('No movement to bridge', 'No start, change, or total steps were found.'),
+  emptyState: emptyStateField('widgets.charts.waterfall.emptyTitle', 'widgets.charts.waterfall.emptyBody'),
 });
 export type ChartWaterfallConfig = z.infer<typeof chartWaterfallConfigSchema>;
 
@@ -64,7 +66,7 @@ export const chartMarimekkoConfigSchema = widgetSharedConfigSchema.extend({
   /** Minimum segment height (px) to show its in-cell label (annex `labelThreshold`). */
   labelThreshold: z.number().int().min(0).max(120).default(18),
   height: z.number().int().min(80).max(600).default(260),
-  emptyState: emptyStateField('No mix to break down', 'No two-level breakdown was returned for this range.'),
+  emptyState: emptyStateField('widgets.charts.marimekko.emptyTitle', 'widgets.charts.marimekko.emptyBody'),
 });
 export type ChartMarimekkoConfig = z.infer<typeof chartMarimekkoConfigSchema>;
 
@@ -74,7 +76,7 @@ export const chartStackedBar100ConfigSchema = widgetSharedConfigSchema.extend({
   gapPx: z.number().int().min(0).max(12).default(2),
   showLegend: z.boolean().default(true),
   metricFormat: metricFormat.default('compact'),
-  emptyState: emptyStateField('No shares to split', 'No parts were returned for this breakdown.'),
+  emptyState: emptyStateField('widgets.charts.stackedBar100.emptyTitle', 'widgets.charts.stackedBar100.emptyBody'),
 });
 export type ChartStackedBar100Config = z.infer<typeof chartStackedBar100ConfigSchema>;
 
@@ -83,6 +85,6 @@ export const chartSlopeConfigSchema = widgetSharedConfigSchema.extend({
   periodLabels: z.tuple([z.string(), z.string()]).optional(),
   metricFormat: metricFormat.default('compact'),
   height: z.number().int().min(80).max(600).default(260),
-  emptyState: emptyStateField('No period shift to show', 'No before/after values were returned to compare.'),
+  emptyState: emptyStateField('widgets.charts.slope.emptyTitle', 'widgets.charts.slope.emptyBody'),
 });
 export type ChartSlopeConfig = z.infer<typeof chartSlopeConfigSchema>;

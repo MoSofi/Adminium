@@ -1,5 +1,6 @@
 import { Sparkline } from '@adminium/charts';
 import type { SparklineTone } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 import { DeltaPill, EmptyState, MonoText } from '@adminium/ui';
 
 import { sparklineTableConfigSchema, sparklineTableDemoData } from './tables-tail-config.js';
@@ -65,6 +66,7 @@ export function SparklineTable({
   emptyBody,
   testId,
 }: SparklineTableProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const slice = rows.slice(0, limit);
 
@@ -73,8 +75,8 @@ export function SparklineTable({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'No metrics to show'}
-        body={emptyBody ?? 'Metrics will appear here once there is data to summarize.'}
+        title={emptyTitle ?? t('ui:widgets.tables.sparklineTable.emptyTitle', 'No metrics to show')}
+        body={emptyBody ?? t('ui:widgets.tables.sparklineTable.emptyBody', 'Metrics will appear here once there is data to summarize.')}
       />
     );
   }

@@ -1,5 +1,6 @@
 import { Avatar, EmptyState, MonoText, ProgressBar, Tag } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { GripVertical } from 'lucide-react';
 
 import { boardCardConfigSchema, boardCardDemoData } from './boards-config.js';
@@ -50,6 +51,8 @@ export function BoardCard({
   pointsUnit,
   showGrip = true,
 }: BoardCardProps) {
+  const t = useMaybeT();
+  const grip = gripLabel ?? t('ui:widgets.boards.grip', 'Drag to move card');
   const initials = ownerInitials(card.owner, locale);
   const hasPct = typeof card.pct === 'number';
   return (
@@ -73,7 +76,7 @@ export function BoardCard({
           <span
             aria-hidden="true"
             data-part="board-card-grip"
-            title={gripLabel}
+            title={grip}
             className={
               (card.points === undefined ? 'ms-auto ' : '') +
               'shrink-0 cursor-grab text-fg-subtle'
@@ -154,14 +157,15 @@ export function boardCardOf(data: unknown, config: BoardCardConfig): BoardCardDa
 }
 
 export function BoardCardWidget({ config, data, onEvent }: WidgetProps<BoardCardConfig>) {
+  const t = useMaybeT();
   const card = boardCardOf(data, config);
   if (card === null) {
     return (
       <EmptyState
         compact
         preset="no-data"
-        title={config.emptyState?.titleKey ?? 'No card'}
-        body={config.emptyState?.bodyKey ?? 'This card has no record bound to it yet.'}
+        title={config.emptyState?.titleKey ?? t('ui:widgets.boards.boardCard.emptyTitle', 'No card')}
+        body={config.emptyState?.bodyKey ?? t('ui:widgets.boards.boardCard.emptyBody', 'This card has no record bound to it yet.')}
       />
     );
   }

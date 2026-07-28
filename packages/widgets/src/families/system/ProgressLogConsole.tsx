@@ -18,6 +18,7 @@
  */
 
 import { EmptyState, MonoText, ProgressBar, Spinner, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Check, CircleAlert, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
@@ -123,6 +124,7 @@ export function ProgressLogConsoleView({
   emptyBody,
   testId,
 }: ProgressLogConsoleViewProps) {
+  const t = useMaybeT();
   const endRef = useRef<HTMLDivElement | null>(null);
   const lineCount = lines.length;
 
@@ -139,8 +141,8 @@ export function ProgressLogConsoleView({
       <EmptyState
         compact
         preset="nothing-scheduled"
-        title={emptyTitle ?? 'Nothing to report yet'}
-        body={emptyBody ?? 'Log lines appear here once the task starts.'}
+        title={emptyTitle ?? t('ui:widgets.system.progressLogConsole.emptyTitle', 'Nothing to report yet')}
+        body={emptyBody ?? t('ui:widgets.system.progressLogConsole.emptyBody', 'Log lines appear here once the task starts.')}
       />
     );
   }
@@ -158,7 +160,7 @@ export function ProgressLogConsoleView({
         // A streaming log is a log landmark, announced politely: assertive would
         // interrupt a screen-reader user on every appended line.
         role="log"
-        aria-label={a11yLabel ?? 'Progress log'}
+        aria-label={a11yLabel ?? t('ui:widgets.system.progressLogConsole.a11yLabel', 'Progress log')}
         aria-live="polite"
         className={cn(
           'min-h-0 flex-1 overflow-y-auto rounded-lg border border-border p-3.5 font-mono text-caption leading-6',
@@ -187,7 +189,7 @@ export function ProgressLogConsoleView({
             max={100}
             tone={value >= 100 ? 'pos' : 'accent'}
             size="sm"
-            label={progressLabel ?? 'Progress'}
+            label={progressLabel ?? t('ui:widgets.system.progressLogConsole.progressLabel', 'Progress')}
             className="flex-1"
           />
           <MonoText data-part="log-pct" className="shrink-0 text-caption font-semibold text-fg-muted">

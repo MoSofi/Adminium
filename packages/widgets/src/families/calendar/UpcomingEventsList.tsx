@@ -1,3 +1,4 @@
+import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, EmptyState, MonoText, StatusPill, Tag } from '@adminium/ui';
 
 import { upcomingEventsListConfigSchema, upcomingEventsListDemoData } from './calendar-config.js';
@@ -65,6 +66,7 @@ export function UpcomingEventsList({
   onSelect,
   testId,
 }: UpcomingEventsListProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const cutoff = fromDate ?? isoDayKey(new Date());
   const upcoming = upcomingFrom(events, cutoff, n);
@@ -74,8 +76,8 @@ export function UpcomingEventsList({
       <EmptyState
         compact
         preset="nothing-scheduled"
-        title={emptyTitle ?? 'Nothing upcoming'}
-        body={emptyBody ?? 'Scheduled events will appear here as they are planned.'}
+        title={emptyTitle ?? t('ui:widgets.calendar.upcomingEventsList.emptyTitle', 'Nothing upcoming')}
+        body={emptyBody ?? t('ui:widgets.calendar.upcomingEventsList.emptyBody', 'Scheduled events will appear here as they are planned.')}
       />
     );
   }

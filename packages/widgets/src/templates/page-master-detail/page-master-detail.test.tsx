@@ -8,7 +8,7 @@
  * state is distinct from first-use, the gantt domain card mounts through
  * WidgetHost with bridged `*Column` keys, and bad configs never crash.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -218,6 +218,40 @@ describe('PageMasterDetail', () => {
 
     rerender(<PageMasterDetail config={{ layout: 42 }} />);
     expect(screen.getByTestId('page-master-detail-invalid')).toBeDefined();
+  });
+});
+
+describe('page-master-detail chrome localization (ui:templates.masterDetail.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              templates: {
+                masterDetail: {
+                  emptyBody: 'Datensätze erscheinen hier, sobald Zeilen eintreffen.',
+                  selectPrompt: 'Datensatz auswählen',
+                },
+              },
+            }
+          : null,
+    });
+    const empty = { master: { status: 'success' as const, data: [] } };
+    render(
+      <I18nProvider i18n={i18n}>
+        <PageMasterDetail config={config()} states={empty} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Datensätze erscheinen hier, sobald Zeilen eintreffen.')).toBeTruthy();
+    expect(screen.getByText('Datensatz auswählen')).toBeTruthy();
+
+    cleanup();
+    render(<PageMasterDetail config={config()} states={empty} />);
+    expect(screen.getByText('Records appear here as rows land in the table.')).toBeTruthy();
+    expect(screen.getByText('Select a record')).toBeTruthy();
   });
 });
 

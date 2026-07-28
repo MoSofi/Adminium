@@ -12,6 +12,7 @@
 
 import { Button, MonoText, Spinner } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
@@ -60,6 +61,7 @@ export function LoadOlderPaginator({
   labels,
   testId,
 }: LoadOlderPaginatorProps) {
+  const t = useMaybeT();
   // Annex §4: "relabels/disappears on exhaustion".
   if (!hasMore && hideWhenExhausted) return null;
 
@@ -68,7 +70,7 @@ export function LoadOlderPaginator({
   const countText =
     total === null || total === undefined
       ? fmt.number(loaded)
-      : `${fmt.number(loaded)} ${labels?.of ?? 'of'} ${fmt.number(total)}`;
+      : `${fmt.number(loaded)} ${labels?.of ?? t('ui:widgets.feeds.loadOlderPaginator.ofLabel', 'of')} ${fmt.number(total)}`;
 
   return (
     <div
@@ -90,10 +92,10 @@ export function LoadOlderPaginator({
         iconLeft={loading ? <Spinner size="sm" /> : <ChevronDown />}
       >
         {loading
-          ? (labels?.loading ?? 'Loading…')
+          ? (labels?.loading ?? t('ui:widgets.feeds.loadOlderPaginator.loadingLabel', 'Loading…'))
           : hasMore
-            ? (labels?.load ?? 'Load older')
-            : (labels?.exhausted ?? 'Nothing older')}
+            ? (labels?.load ?? t('ui:widgets.feeds.loadOlderPaginator.label', 'Load older'))
+            : (labels?.exhausted ?? t('ui:widgets.feeds.loadOlderPaginator.exhaustedLabel', 'Nothing older'))}
       </Button>
     </div>
   );

@@ -1,4 +1,5 @@
 import { EmptyState, IconTile } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ArrowRight } from 'lucide-react';
 
 import { feedIcon } from './feed-icons.js';
@@ -48,14 +49,15 @@ export function ActivityFeed({
   onViewAll,
   testId,
 }: ActivityFeedProps) {
+  const t = useMaybeT();
   const slice = items.slice(0, limit);
   if (slice.length === 0) {
     return (
       <EmptyState
         compact
         preset="all-caught-up"
-        title={emptyTitle ?? 'No recent activity'}
-        body={emptyBody ?? 'Actions across your workspace will show up here.'}
+        title={emptyTitle ?? t('ui:widgets.feeds.activityFeed.emptyTitle', 'No recent activity')}
+        body={emptyBody ?? t('ui:widgets.feeds.activityFeed.emptyBody', 'Actions across your workspace will show up here.')}
       />
     );
   }
@@ -83,7 +85,7 @@ export function ActivityFeed({
           onClick={onViewAll}
           className="flex items-center gap-1 border-t border-border/60 px-4 py-2.5 text-caption font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
-          {viewAllLabel ?? 'View all'}
+          {viewAllLabel ?? t('ui:widgets.feeds.activityFeed.viewAllLabel', 'View all')}
           <ArrowRight className="size-3 rtl:-scale-x-100" aria-hidden="true" />
         </button>
       )}

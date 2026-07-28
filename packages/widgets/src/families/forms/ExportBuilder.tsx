@@ -13,6 +13,7 @@
  */
 
 import { Button, DateInput, FormField, MonoText, ProgressBar, SegmentedControl, Select, Switch } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Download } from 'lucide-react';
 import { useState } from 'react';
 
@@ -55,6 +56,7 @@ export function exportStateOf(data: unknown, config: ExportBuilderConfig): Expor
 }
 
 export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<ExportBuilderConfig>) {
+  const t = useMaybeT();
   const values = formValuesOf(data);
   const formats = config.formats ?? EXPORT_FORMATS;
   const [state, setState] = useState<ExportState>(() => exportStateOf(data, config));
@@ -65,6 +67,9 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
   const phase = exportPhaseOf(payloadPhase, submitted);
   const progress = clampPct(numberField(values, 'progress'));
   const href = stringField(values, 'downloadHref') ?? config.href;
+  // Each is rendered in two slots (visible label + accessible name) — resolve once.
+  const formatLabel = config.formatLabel ?? t('ui:widgets.forms.exportBuilder.format', 'Format');
+  const runningLabel = config.runningLabel ?? t('ui:widgets.forms.exportBuilder.running', 'Preparing your export…');
 
   const patch = (partial: Partial<ExportState>) => setState((current) => ({ ...current, ...partial }));
 
@@ -94,9 +99,9 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
       data-testid={config.testId}
       className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
     >
-      <FormField label={config.formatLabel ?? 'Format'}>
+      <FormField label={formatLabel}>
         <SegmentedControl
-          aria-label={config.formatLabel ?? 'Format'}
+          aria-label={formatLabel}
           data-part="export-format"
           value={state.format}
           onValueChange={(next) => patch({ format: oneOf(next, EXPORT_FORMATS, state.format) })}
@@ -105,20 +110,20 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
       </FormField>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <FormField label={config.fromLabel ?? 'From'}>
+        <FormField label={config.fromLabel ?? t('ui:widgets.forms.exportBuilder.from', 'From')}>
           <DateInput
             data-part="export-from"
             value={state.from}
             onChange={(event) => patch({ from: event.currentTarget.value })}
           />
         </FormField>
-        <FormField label={config.toLabel ?? 'To'}>
+        <FormField label={config.toLabel ?? t('ui:widgets.forms.exportBuilder.to', 'To')}>
           <DateInput data-part="export-to" value={state.to} onChange={(event) => patch({ to: event.currentTarget.value })} />
         </FormField>
       </div>
 
       {config.groupBy !== undefined && config.groupBy.length > 0 && (
-        <FormField label={config.groupByLabel ?? 'Group by'}>
+        <FormField label={config.groupByLabel ?? t('ui:widgets.forms.exportBuilder.groupBy', 'Group by')}>
           <Select
             data-part="export-group-by"
             value={state.groupBy}
@@ -136,7 +141,9 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
 
       {config.includeChartsOption && (
         <label className="flex cursor-pointer items-center justify-between gap-3">
-          <span className="text-body-sm text-fg">{config.includeChartsLabel ?? 'Include charts'}</span>
+          <span className="text-body-sm text-fg">
+            {config.includeChartsLabel ?? t('ui:widgets.forms.exportBuilder.includeCharts', 'Include charts')}
+          </span>
           <Switch
             data-part="export-include-charts"
             checked={state.includeCharts}
@@ -147,7 +154,9 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
 
       {config.emailOption && (
         <label className="flex cursor-pointer items-center justify-between gap-3">
-          <span className="text-body-sm text-fg">{config.emailLabel ?? 'Email me the export'}</span>
+          <span className="text-body-sm text-fg">
+            {config.emailLabel ?? t('ui:widgets.forms.exportBuilder.email', 'Email me the export')}
+          </span>
           <Switch data-part="export-email" checked={state.email} onCheckedChange={(next) => patch({ email: next })} />
         </label>
       )}
@@ -155,25 +164,25 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
       {phase === 'running' && (
         <div data-part="export-progress" className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-caption text-fg-muted">{config.runningLabel ?? 'Preparing your export…'}</span>
+            <span className="text-caption text-fg-muted">{runningLabel}</span>
             <MonoText className="text-caption tabular-nums text-fg-muted">{`${progress}%`}</MonoText>
           </div>
           {/* `label` is ProgressBar's ACCESSIBLE name, not visible copy — the
               caption above is what a sighted user reads. */}
-          <ProgressBar value={progress} label={config.runningLabel ?? 'Preparing your export…'} />
+          <ProgressBar value={progress} label={runningLabel} />
         </div>
       )}
 
       {phase === 'failed' && (
         <p data-part="export-failed" className="text-caption font-semibold text-danger">
-          {config.failedLabel ?? 'The export failed. Try again.'}
+          {config.failedLabel ?? t('ui:widgets.forms.exportBuilder.failed', 'The export failed. Try again.')}
         </p>
       )}
 
       <div className="mt-auto flex items-center justify-end gap-2">
         {phase === 'done' && (
           <span data-part="export-done" className="me-auto text-caption font-semibold text-pos">
-            {config.doneLabel ?? 'Export ready'}
+            {config.doneLabel ?? t('ui:widgets.forms.exportBuilder.done', 'Export ready')}
           </span>
         )}
         {phase === 'done' && href !== undefined ? (
@@ -181,11 +190,11 @@ export function ExportBuilderWidget({ config, data, onEvent }: WidgetProps<Expor
           // signed URL (04 §2.1). A Download button with no href would be a
           // control that does nothing, so it only renders once there IS one.
           <Button data-part="export-download" iconLeft={<Download />} onClick={() => onEvent({ type: 'drill-through', href })}>
-            {config.downloadLabel ?? 'Download'}
+            {config.downloadLabel ?? t('ui:widgets.forms.exportBuilder.download', 'Download')}
           </Button>
         ) : (
           <Button data-part="export-submit" loading={phase === 'running'} disabled={phase === 'running'} onClick={submit}>
-            {config.submitLabel ?? 'Export'}
+            {config.submitLabel ?? t('ui:widgets.forms.exportBuilder.submit', 'Export')}
           </Button>
         )}
       </div>

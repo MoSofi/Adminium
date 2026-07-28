@@ -50,8 +50,8 @@ describe('config schemas', () => {
       expect(typeof parsed.emptyState?.titleKey).toBe('string');
       expect(typeof parsed.emptyState?.bodyKey).toBe('string');
     }
-    expect(chartBulletConfigSchema.parse({}).emptyState?.titleKey).toBe('No goals to track');
-    expect(chartRankingBarsConfigSchema.parse({}).emptyState?.titleKey).toBe('Nothing to rank');
+    expect(chartBulletConfigSchema.parse({}).emptyState?.titleKey).toBe('widgets.charts.bullet.emptyTitle');
+    expect(chartRankingBarsConfigSchema.parse({}).emptyState?.titleKey).toBe('widgets.charts.rankingBars.emptyTitle');
   });
 
   it('applies field defaults (pareto cutline, ranking n)', () => {

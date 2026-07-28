@@ -17,6 +17,7 @@
  */
 
 import { CommandPalette, useCommandK } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { chromeIcon } from './chrome-icons.js';
@@ -49,6 +50,27 @@ const DEFAULT_GROUP_LABELS: Record<CommandGroupKey, string> = {
   people: 'People',
   records: 'Records',
 };
+
+/**
+ * The localized group headings: bundle strings under an `I18nProvider`, the
+ * English `DEFAULT_GROUP_LABELS` otherwise. Config `groupLabels` still win
+ * key-by-key at the call site.
+ */
+function useCommandGroupLabels(): Record<CommandGroupKey, string> {
+  const t = useMaybeT();
+  return useMemo(
+    () => ({
+      actions: t('ui:widgets.chrome.commandPalette.groupActions', DEFAULT_GROUP_LABELS.actions),
+      navigate: t('ui:widgets.chrome.commandPalette.groupNavigate', DEFAULT_GROUP_LABELS.navigate),
+      recent: t('ui:widgets.chrome.commandPalette.groupRecent', DEFAULT_GROUP_LABELS.recent),
+      pages: t('ui:widgets.chrome.commandPalette.groupPages', DEFAULT_GROUP_LABELS.pages),
+      metrics: t('ui:widgets.chrome.commandPalette.groupMetrics', DEFAULT_GROUP_LABELS.metrics),
+      people: t('ui:widgets.chrome.commandPalette.groupPeople', DEFAULT_GROUP_LABELS.people),
+      records: t('ui:widgets.chrome.commandPalette.groupRecords', DEFAULT_GROUP_LABELS.records),
+    }),
+    [t],
+  );
+}
 
 /** Project the §3 `record-list` index payload onto palette entries. */
 export function commandEntriesOf(data: unknown, config: CommandPaletteConfig): CommandEntry[] {
@@ -103,6 +125,8 @@ export function groupEntries(
 }
 
 export function CommandPaletteWidget({ config, data, onEvent }: WidgetProps<CommandPaletteConfig>) {
+  const t = useMaybeT();
+  const groupLabelDefaults = useCommandGroupLabels();
   const [open, setOpen] = useState(false);
   // The hook re-registers on every identity change, so the toggle is memoized
   // to keep one listener for the widget's lifetime.
@@ -116,7 +140,7 @@ export function CommandPaletteWidget({ config, data, onEvent }: WidgetProps<Comm
     const order = config.groupOrder ?? DEFAULT_COMMAND_GROUP_ORDER;
     return groupEntries(entries, order, config.maxPerGroup).map((group) => ({
       id: group.key,
-      label: config.groupLabels?.[group.key] ?? DEFAULT_GROUP_LABELS[group.key],
+      label: config.groupLabels?.[group.key] ?? groupLabelDefaults[group.key],
       items: group.entries.map((entry) => ({
         id: entry.id,
         label: entry.label,
@@ -127,7 +151,7 @@ export function CommandPaletteWidget({ config, data, onEvent }: WidgetProps<Comm
         ...(entry.sub === undefined ? {} : { keywords: [entry.sub] }),
       })),
     }));
-  }, [entries, config.groupOrder, config.groupLabels, config.maxPerGroup]);
+  }, [entries, config.groupOrder, config.groupLabels, config.maxPerGroup, groupLabelDefaults]);
 
   return (
     <div data-widget="command-palette" data-testid={config.testId}>
@@ -140,15 +164,15 @@ export function CommandPaletteWidget({ config, data, onEvent }: WidgetProps<Comm
           if (href !== undefined) onEvent({ type: 'drill-through', href });
         }}
         labels={{
-          dialog: config.title ?? 'Command palette',
-          placeholder: config.placeholder ?? 'Search actions, pages and records…',
-          navigate: config.navigateHint ?? 'Navigate',
-          open: config.selectHint ?? 'Open',
-          close: config.closeHint ?? 'Close',
+          dialog: config.title ?? t('ui:widgets.chrome.commandPalette.title', 'Command palette'),
+          placeholder: config.placeholder ?? t('ui:widgets.chrome.commandPalette.placeholder', 'Search actions, pages and records…'),
+          navigate: config.navigateHint ?? t('ui:widgets.chrome.commandPalette.navigate', 'Navigate'),
+          open: config.selectHint ?? t('ui:widgets.chrome.commandPalette.select', 'Open'),
+          close: config.closeHint ?? t('ui:widgets.chrome.commandPalette.close', 'Close'),
           empty: (query) =>
             query === ''
-              ? (config.emptyBody ?? 'Start typing to search.')
-              : (config.emptyTitle ?? `No results for "${query}"`),
+              ? (config.emptyBody ?? t('ui:widgets.chrome.commandPalette.emptyBody', 'Start typing to search.'))
+              : (config.emptyTitle ?? t('ui:widgets.chrome.commandPalette.emptyTitle', 'No results for "{query}"', { query })),
         }}
       />
     </div>

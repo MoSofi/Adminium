@@ -18,6 +18,7 @@
  */
 
 import { ChoiceChips, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { useState } from 'react';
 
 import { facetCountsOf, formatCount, recordRowsOf } from './forms-lib.js';
@@ -71,14 +72,19 @@ export function facetsOf(data: unknown, config: FilterChipBarConfig): { facets: 
 }
 
 export function FilterChipBarWidget({ config, data, onEvent }: WidgetProps<FilterChipBarConfig>) {
+  const t = useMaybeT();
   const { facets, total } = facetsOf(data, config);
   const [selected, setSelected] = useState<string | null>(config.value ?? null);
 
   const locale = config.format?.locale;
   const shown = selected === null ? total : (facets.find((facet) => facet.key === selected)?.count ?? 0);
-  const meta = (config.metaTemplate ?? '{shown} of {total}')
-    .replace('{shown}', String(shown))
-    .replace('{total}', String(total));
+  // A configured template keeps today's `{…}` substitution; the DEFAULT goes
+  // through t() with pre-stringified args so the counts render digit-identical
+  // in either path (ICU number formatting would add locale grouping).
+  const meta =
+    config.metaTemplate !== undefined
+      ? config.metaTemplate.replace('{shown}', String(shown)).replace('{total}', String(total))
+      : t('ui:widgets.forms.filterChipBar.meta', '{shown} of {total}', { shown: String(shown), total: String(total) });
 
   const select = (key: string | null) => {
     // `ALL_KEY` is the sentinel for "no facet" — ChoiceChips' single mode can
@@ -110,11 +116,11 @@ export function FilterChipBarWidget({ config, data, onEvent }: WidgetProps<Filte
     >
       <ChoiceChips
         data-part="facet-chips"
-        aria-label={config.a11yLabel ?? config.title ?? 'Filter'}
+        aria-label={config.a11yLabel ?? config.title ?? t('ui:widgets.forms.filterChipBar.a11yLabel', 'Filter')}
         value={selected ?? ALL_KEY}
         onValueChange={select}
         options={[
-          { value: ALL_KEY, label: label(config.allLabel ?? 'All', total) },
+          { value: ALL_KEY, label: label(config.allLabel ?? t('ui:widgets.forms.filterChipBar.all', 'All'), total) },
           ...facets.map((facet) => ({ value: facet.key, label: label(facet.label, facet.count) })),
         ]}
       />

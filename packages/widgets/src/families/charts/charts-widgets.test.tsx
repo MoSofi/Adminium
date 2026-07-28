@@ -5,8 +5,11 @@
  * (timeseries vs categorical bar inputs), tone mapping, and deterministic
  * demo payloads matching the declared data contracts.
  */
-import { render } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+
+import { ChartBoxplotWidget } from './DistributionCorrelationWidgets.js';
+import { chartBoxplotConfigSchema } from './distributionShapes.js';
 
 import {
   ChartBarWidget,
@@ -197,5 +200,37 @@ describe('charts definitions', () => {
     const donut = categoricalDemoData(4);
     expect(donut).toEqual(categoricalDemoData(4));
     expect(donut.total).toBe(donut.items.reduce((sum, item) => sum + item.value, 0));
+  });
+});
+
+describe('chart chrome localization (ui:widgets.charts.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? {
+              widgets: {
+                charts: {
+                  boxplot: { emptyTitle: 'Keine Verteilung', emptyBody: 'Keine Zeilen für Boxplots.' },
+                },
+              },
+            }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <ChartBoxplotWidget config={chartBoxplotConfigSchema.parse({})} data={{ groups: [] }} instanceId="l10n-1" onEvent={noop} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Keine Verteilung')).toBeTruthy();
+
+    cleanup();
+    render(
+      <ChartBoxplotWidget config={chartBoxplotConfigSchema.parse({})} data={{ groups: [] }} instanceId="l10n-2" onEvent={noop} />,
+    );
+    expect(screen.getByText('No distribution to plot')).toBeTruthy();
   });
 });

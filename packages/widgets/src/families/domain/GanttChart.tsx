@@ -1,4 +1,5 @@
 import { getFormatters, latnDataTag } from '@adminium/i18n';
+import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, MonoText } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { useMemo } from 'react';
@@ -111,9 +112,14 @@ export function GanttChart({
   emptyBody,
   testId,
 }: GanttChartProps) {
+  const t = useMaybeT();
   const tag = resolveLocale(locale);
   const fmt = getFormatters(tag);
   const rows = useMemo(() => ganttRowsOf(data), [data]);
+
+  // Resolved here (not in domain-lib, which is hook-free): the config value
+  // still wins; `t()` only localizes the hardcoded default.
+  const resolvedUngroupedLabel = ungroupedLabel ?? t('ui:widgets.domain.ganttChart.ungroupedLabel', 'Tasks');
 
   const model: GanttModel = useMemo(
     () =>
@@ -121,9 +127,9 @@ export function GanttChart({
         totalDays,
         ...(todayLine ? { todayMs: todayMs ?? Date.now() } : {}),
         ...(phaseColors === undefined ? {} : { phaseColors }),
-        ...(ungroupedLabel === undefined ? {} : { ungroupedLabel }),
+        ungroupedLabel: resolvedUngroupedLabel,
       }),
-    [rows, fields, totalDays, todayLine, todayMs, phaseColors, ungroupedLabel],
+    [rows, fields, totalDays, todayLine, todayMs, phaseColors, resolvedUngroupedLabel],
   );
 
   const ticks = useMemo(
@@ -136,8 +142,8 @@ export function GanttChart({
       <EmptyState
         compact
         preset="no-data"
-        title={emptyTitle ?? 'Nothing scheduled'}
-        body={emptyBody ?? 'Tasks appear here once they have start and end dates.'}
+        title={emptyTitle ?? t('ui:widgets.domain.ganttChart.emptyTitle', 'Nothing scheduled')}
+        body={emptyBody ?? t('ui:widgets.domain.ganttChart.emptyBody', 'Tasks appear here once they have start and end dates.')}
       />
     );
   }

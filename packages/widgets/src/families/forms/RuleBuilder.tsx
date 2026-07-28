@@ -15,6 +15,7 @@
  */
 
 import { DateInput, IconButton, Input, Select, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -88,6 +89,7 @@ export function matchModeOf(data: unknown, config: RuleBuilderConfig): RuleMatch
 }
 
 export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBuilderConfig>) {
+  const t = useMaybeT();
   const catalog = config.fieldCatalog ?? DEFAULT_RULE_FIELDS;
   const [conditions, setConditions] = useState<RuleCondition[]>(() => conditionsOf(data, config));
   const [match, setMatch] = useState<RuleMatchMode>(() => matchModeOf(data, config));
@@ -149,7 +151,10 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
     emit(conditions, next);
   };
 
-  const matchLabel = match === 'all' ? (config.allLabel ?? 'ALL') : (config.anyLabel ?? 'ANY');
+  const matchLabel =
+    match === 'all'
+      ? (config.allLabel ?? t('ui:widgets.forms.ruleBuilder.all', 'ALL'))
+      : (config.anyLabel ?? t('ui:widgets.forms.ruleBuilder.any', 'ANY'));
 
   return (
     <div
@@ -160,7 +165,7 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
     >
       {conditions.length === 0 && (
         <p className="text-body-sm text-fg-muted" data-part="rule-empty">
-          {config.emptyBody ?? 'No conditions yet — add one to define this segment.'}
+          {config.emptyBody ?? t('ui:widgets.forms.ruleBuilder.emptyBody', 'No conditions yet — add one to define this segment.')}
         </p>
       )}
 
@@ -193,7 +198,7 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
               className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2 px-2.5 py-2"
             >
               <Select
-                aria-label={config.fieldLabel ?? 'Field'}
+                aria-label={config.fieldLabel ?? t('ui:widgets.forms.ruleBuilder.field', 'Field')}
                 data-part="condition-field"
                 mono
                 value={condition.field}
@@ -210,7 +215,7 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
               </Select>
 
               <Select
-                aria-label={config.operatorLabel ?? 'Operator'}
+                aria-label={config.operatorLabel ?? t('ui:widgets.forms.ruleBuilder.operator', 'Operator')}
                 data-part="condition-operator"
                 value={condition.op}
                 onChange={(event) => patch(index, { op: oneOf(event.currentTarget.value, RULE_OPERATORS, 'eq') })}
@@ -218,7 +223,8 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
               >
                 {operators.map((operator) => (
                   <option key={operator} value={operator}>
-                    {config.operatorLabels?.[operator] ?? DEFAULT_OPERATOR_LABELS[operator] ?? operator}
+                    {config.operatorLabels?.[operator] ??
+                      t(`ui:widgets.forms.ruleBuilder.op.${operator}`, DEFAULT_OPERATOR_LABELS[operator] ?? operator)}
                   </option>
                 ))}
               </Select>
@@ -228,14 +234,14 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
                   type={type}
                   def={def}
                   value={condition.value}
-                  label={config.valueLabel ?? 'Value'}
+                  label={config.valueLabel ?? t('ui:widgets.forms.ruleBuilder.value', 'Value')}
                   placeholder={config.valuePlaceholder ?? ''}
                   onChange={(next) => patch(index, { value: next })}
                 />
               )}
 
               <IconButton
-                label={`${config.removeLabel ?? 'Remove condition'} — ${condition.field}`}
+                label={`${config.removeLabel ?? t('ui:widgets.forms.ruleBuilder.remove', 'Remove condition')} — ${condition.field}`}
                 data-part="condition-remove"
                 variant="ghost"
                 size="sm"
@@ -262,7 +268,7 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
         )}
       >
         <Plus aria-hidden="true" className="size-3.5" />
-        {config.addLabel ?? 'Add condition'}
+        {config.addLabel ?? t('ui:widgets.forms.ruleBuilder.add', 'Add condition')}
       </button>
     </div>
   );

@@ -9,6 +9,7 @@
  */
 
 import { Button, MonoText, Spinner, cn } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { CheckCircle2, Plug, XCircle } from 'lucide-react';
 
 import { bindingSourceOf, oneOf, recordRowOf, stringField } from './system-lib.js';
@@ -27,13 +28,20 @@ const STATE_SHELL: Record<ConnectionState, string> = {
   failed: 'bg-danger-soft text-danger',
 };
 
-/** Developer fallbacks (English) — the dashboard passes translated copy via `messages`. */
-const DEFAULT_MESSAGES: Record<ConnectionState, string> = {
-  idle: 'Not connected',
-  connecting: 'Connecting…',
-  connected: 'Connected',
-  failed: "Couldn't connect",
-};
+/**
+ * Localized per-state headline defaults: `ui:widgets.system.connectionStatus.*`
+ * under an `I18nProvider`, the same English fallbacks outside one. Config
+ * `messages` overrides win per state either way.
+ */
+function useConnectionStatusMessages(): Record<ConnectionState, string> {
+  const t = useMaybeT();
+  return {
+    idle: t('ui:widgets.system.connectionStatus.idle', 'Not connected'),
+    connecting: t('ui:widgets.system.connectionStatus.connecting', 'Connecting…'),
+    connected: t('ui:widgets.system.connectionStatus.connected', 'Connected'),
+    failed: t('ui:widgets.system.connectionStatus.failed', "Couldn't connect"),
+  };
+}
 
 export interface ConnectionStatusViewProps {
   state: ConnectionState;
@@ -56,7 +64,9 @@ export function ConnectionStatusView({
   onTest,
   testId,
 }: ConnectionStatusViewProps) {
-  const headline = messages?.[state] ?? DEFAULT_MESSAGES[state];
+  const t = useMaybeT();
+  const defaultMessages = useConnectionStatusMessages();
+  const headline = messages?.[state] ?? defaultMessages[state];
 
   return (
     <div className="px-4 pb-4">
@@ -105,7 +115,7 @@ export function ConnectionStatusView({
             disabled={state === 'connecting'}
             onClick={onTest}
           >
-            {testLabel ?? 'Test'}
+            {testLabel ?? t('ui:widgets.system.connectionStatus.test', 'Test')}
           </Button>
         )}
       </div>

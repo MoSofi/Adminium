@@ -1,5 +1,6 @@
 import { Avatar, Badge, IconButton, MonoText, Switch, Tag } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Check, Copy, Quote } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -138,14 +139,15 @@ function policiesOf(config: PolicyListConfig, data: unknown): RlsPolicy[] {
 }
 
 export function PolicyListWidget({ config, data, onEvent }: WidgetProps<PolicyListConfig>) {
+  const t = useMaybeT();
   const policies = useMemo(() => policiesOf(config, data), [config, data]);
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
 
   if (policies.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No policies'}
-        body={config.emptyBody ?? 'This table has no row-level security policies yet.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.policyList.emptyTitle', 'No policies')}
+        body={config.emptyBody ?? t('ui:widgets.domain.policyList.emptyBody', 'This table has no row-level security policies yet.')}
       />
     );
   }
@@ -196,6 +198,7 @@ export function IpAllowlistCardView({
   copiedLabel,
   testId,
 }: IpAllowlistCardViewProps) {
+  const t = useMaybeT();
   const [copied, setCopied] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -245,7 +248,11 @@ export function IpAllowlistCardView({
             variant="ghost"
             className="shrink-0"
             data-part="allowlist-copy"
-            label={copied === entry.ip ? (copiedLabel ?? 'Copied') : (copyLabel ?? 'Copy')}
+            label={
+              copied === entry.ip
+                ? (copiedLabel ?? t('ui:widgets.domain.ipAllowlistCard.copiedLabel', 'Copied'))
+                : (copyLabel ?? t('ui:widgets.domain.ipAllowlistCard.copyLabel', 'Copy'))
+            }
             onClick={() => copy(entry.ip)}
           >
             {copied === entry.ip ? <Check className="size-3.5 text-pos" /> : <Copy className="size-3.5" />}
@@ -257,6 +264,7 @@ export function IpAllowlistCardView({
 }
 
 export function IpAllowlistCardWidget({ config, data }: WidgetProps<IpAllowlistCardConfig>) {
+  const t = useMaybeT();
   const entries = useMemo(
     () =>
       opsRowsOf(data)
@@ -273,8 +281,8 @@ export function IpAllowlistCardWidget({ config, data }: WidgetProps<IpAllowlistC
   if (entries.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No egress IPs'}
-        body={config.emptyBody ?? 'Egress addresses appear here once the connection is provisioned.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.ipAllowlistCard.emptyTitle', 'No egress IPs')}
+        body={config.emptyBody ?? t('ui:widgets.domain.ipAllowlistCard.emptyBody', 'Egress addresses appear here once the connection is provisioned.')}
       />
     );
   }
@@ -327,6 +335,7 @@ export function TrustBadgesView({ badges, testId }: TrustBadgesViewProps) {
 }
 
 export function TrustBadgesWidget({ config, data }: WidgetProps<TrustBadgesConfig>) {
+  const t = useMaybeT();
   /*
     Host-supplied `badges` render INSTEAD of the bound rows (the schema's
     contract) — a marketing page states its own claims in config rather than
@@ -344,8 +353,8 @@ export function TrustBadgesWidget({ config, data }: WidgetProps<TrustBadgesConfi
   if (badges.length === 0) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No badges'}
-        body={config.emptyBody ?? 'Add compliance claims in config or bind a badges table.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.trustBadges.emptyTitle', 'No badges')}
+        body={config.emptyBody ?? t('ui:widgets.domain.trustBadges.emptyBody', 'Add compliance claims in config or bind a badges table.')}
       />
     );
   }
@@ -407,6 +416,7 @@ export function TestimonialCardView({ testimonial, locale, testId }: Testimonial
 }
 
 export function TestimonialCardWidget({ config, data }: WidgetProps<TestimonialCardConfig>) {
+  const t = useMaybeT();
   const testimonial = useMemo((): Testimonial | null => {
     const row = opsRowOf(data);
     if (row === null) return null;
@@ -426,8 +436,8 @@ export function TestimonialCardWidget({ config, data }: WidgetProps<TestimonialC
   if (testimonial === null) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No testimonial'}
-        body={config.emptyBody ?? 'Bind a quote row to show a customer testimonial.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.testimonialCard.emptyTitle', 'No testimonial')}
+        body={config.emptyBody ?? t('ui:widgets.domain.testimonialCard.emptyBody', 'Bind a quote row to show a customer testimonial.')}
       />
     );
   }

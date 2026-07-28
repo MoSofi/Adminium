@@ -5,7 +5,7 @@
  * and toggle-matrix, plus deterministic demoData and the four WidgetFrame
  * states through WidgetHost.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { CardGallery, cardGalleryDemoData } from './CardGallery.js';
@@ -247,5 +247,29 @@ describe('Track F table definitions + four WidgetFrame states', () => {
       expect(screen.getByText(`Empty ${def.id}`)).toBeDefined();
       u3();
     }
+  });
+});
+
+describe('tables chrome localization (ui:widgets.tables.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { widgets: { tables: { cardGallery: { emptyTitle: 'Nichts anzuzeigen', emptyBody: 'Einträge erscheinen hier als Karten.' } } } }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <CardGallery cards={[]} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Nichts anzuzeigen')).toBeTruthy();
+
+    cleanup();
+    render(<CardGallery cards={[]} />);
+    expect(screen.getByText('Nothing to show')).toBeTruthy();
   });
 });

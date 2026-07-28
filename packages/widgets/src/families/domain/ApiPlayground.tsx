@@ -1,4 +1,5 @@
 import { Badge, Button, Input, MonoText, Tag } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { Play } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -95,12 +96,14 @@ export function ApiPlaygroundView({
   onSend,
   testId,
 }: ApiPlaygroundViewProps) {
+  const t = useMaybeT();
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(endpoint.params.map((param) => [param.key, param.value])),
   );
   const [sent, setSent] = useState(false);
 
   const statusTone = endpoint.status >= 500 ? 'danger' : endpoint.status >= 400 ? 'warn' : 'pos';
+  const resolvedResponseLabel = responseLabel ?? t('ui:widgets.domain.apiPlayground.responseLabel', 'Response');
 
   return (
     <div
@@ -109,7 +112,7 @@ export function ApiPlaygroundView({
       data-paradigm={paradigm}
       className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
     >
-      <section className="flex flex-col gap-2" aria-label={requestLabel ?? 'Request'}>
+      <section className="flex flex-col gap-2" aria-label={requestLabel ?? t('ui:widgets.domain.apiPlayground.requestLabel', 'Request')}>
         <div className="flex items-center gap-2">
           <Tag mono tone={METHOD_TONE[endpoint.method]} data-part="playground-method">
             {endpoint.method}
@@ -127,13 +130,13 @@ export function ApiPlaygroundView({
               onSend?.(values);
             }}
           >
-            {sendLabel ?? 'Send'}
+            {sendLabel ?? t('ui:widgets.domain.apiPlayground.sendLabel', 'Send')}
           </Button>
         </div>
 
         {endpoint.params.length === 0 ? null : (
           <div className="flex flex-col gap-1.5">
-            <p className="text-caption font-semibold text-fg-subtle">{paramsLabel ?? 'Parameters'}</p>
+            <p className="text-caption font-semibold text-fg-subtle">{paramsLabel ?? t('ui:widgets.domain.apiPlayground.paramsLabel', 'Parameters')}</p>
             {endpoint.params.map((param) => (
               <label key={param.key} className="flex items-center gap-2" data-part="playground-param">
                 <MonoText className="w-28 shrink-0 truncate text-caption text-fg-muted">{param.key}</MonoText>
@@ -151,9 +154,9 @@ export function ApiPlaygroundView({
         )}
       </section>
 
-      <section className="flex min-h-0 flex-1 flex-col gap-1.5" aria-label={responseLabel ?? 'Response'}>
+      <section className="flex min-h-0 flex-1 flex-col gap-1.5" aria-label={resolvedResponseLabel}>
         <div className="flex items-center gap-2">
-          <p className="text-caption font-semibold text-fg-subtle">{responseLabel ?? 'Response'}</p>
+          <p className="text-caption font-semibold text-fg-subtle">{resolvedResponseLabel}</p>
           {!sent ? null : (
             <>
               <Badge tone={statusTone} dot data-part="playground-status">
@@ -176,7 +179,7 @@ export function ApiPlaygroundView({
             </MonoText>
           ) : (
             <p className="text-caption text-bg/60">
-              {responsePlaceholder ?? 'Send the request to see the response.'}
+              {responsePlaceholder ?? t('ui:widgets.domain.apiPlayground.responsePlaceholder', 'Send the request to see the response.')}
             </p>
           )}
         </div>
@@ -209,14 +212,15 @@ function endpointOf(config: ApiPlaygroundConfig, data: unknown): PlaygroundEndpo
 }
 
 export function ApiPlaygroundWidget({ config, data, onEvent }: WidgetProps<ApiPlaygroundConfig>) {
+  const t = useMaybeT();
   const endpoint = useMemo(() => endpointOf(config, data), [config, data]);
   const source = useMemo(() => opsBindingSourceOf(config.binding), [config.binding]);
 
   if (endpoint === null) {
     return (
       <OpsEmpty
-        title={config.emptyTitle ?? 'No endpoint selected'}
-        body={config.emptyBody ?? 'Pick an endpoint to compose a request against it.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.apiPlayground.emptyTitle', 'No endpoint selected')}
+        body={config.emptyBody ?? t('ui:widgets.domain.apiPlayground.emptyBody', 'Pick an endpoint to compose a request against it.')}
       />
     );
   }

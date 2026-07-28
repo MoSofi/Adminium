@@ -1,4 +1,5 @@
 import { Button, EmptyState, IconTile, Input, Spinner } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { KeyRound, Send, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
@@ -91,6 +92,7 @@ export function AiChatPanel({
   dir,
   testId,
 }: AiChatPanelProps) {
+  const t = useMaybeT();
   // `format.locale` is a free-string in the shared config, so '' / 'x-1' are
   // schema-valid and would throw out of every Intl call. Normalize at the edge.
   const locale = localeOf(localeProp);
@@ -122,7 +124,10 @@ export function AiChatPanel({
       <div className="flex items-center gap-2.5 border-b border-border/60 px-4 py-3">
         <IconTile size="sm" tone="accent" icon={<Sparkles />} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-body-sm font-bold text-fg">{assistantName ?? 'Assistant'}</div>
+          <div className="truncate text-body-sm font-bold text-fg">
+            {/* Header title default — key proposed as aiChatPanel.assistantLabel. */}
+            {assistantName ?? t('ui:widgets.communication.aiChatPanel.assistantLabel', 'Assistant')}
+          </div>
           {providerLabel !== undefined && (
             <div className="truncate font-mono text-caption text-fg-subtle">{providerLabel}</div>
           )}
@@ -137,15 +142,18 @@ export function AiChatPanel({
             compact
             icon={<KeyRound />}
             tone="warn"
-            title={configureTitle ?? 'No AI provider configured'}
+            title={configureTitle ?? t('ui:widgets.communication.aiChatPanel.configureTitle', 'No AI provider configured')}
             body={
               configureBody ??
-              'Add an Anthropic or OpenAI key — or point Adminium at your own endpoint — to ask questions about your schema.'
+              t(
+                'ui:widgets.communication.aiChatPanel.configureBody',
+                'Add an Anthropic or OpenAI key — or point Adminium at your own endpoint — to ask questions about your schema.',
+              )
             }
             actions={
               onConfigure === undefined ? undefined : (
                 <Button variant="primary" size="sm" onClick={onConfigure}>
-                  {configureCtaLabel ?? 'Configure a provider'}
+                  {configureCtaLabel ?? t('ui:widgets.communication.aiChatPanel.configureCtaLabel', 'Configure a provider')}
                 </Button>
               )
             }
@@ -159,8 +167,14 @@ export function AiChatPanel({
                 compact
                 icon={<Sparkles />}
                 tone="accent"
-                title={emptyTitle ?? 'Ask about your data'}
-                body={emptyBody ?? 'Ask a question about your schema, tables, or metrics to get started.'}
+                title={emptyTitle ?? t('ui:widgets.communication.aiChatPanel.emptyTitle', 'Ask about your data')}
+                body={
+                  emptyBody ??
+                  t(
+                    'ui:widgets.communication.aiChatPanel.emptyBody',
+                    'Ask a question about your schema, tables, or metrics to get started.',
+                  )
+                }
               />
             </div>
           ) : (
@@ -171,7 +185,9 @@ export function AiChatPanel({
               {pending && (
                 <div data-part="ai-pending" className="flex items-center gap-2 py-1">
                   <Spinner size="sm" />
-                  <span className="text-caption italic text-fg-subtle">{pendingLabel ?? 'Thinking…'}</span>
+                  <span className="text-caption italic text-fg-subtle">
+                    {pendingLabel ?? t('ui:widgets.communication.aiChatPanel.pendingLabel', 'Thinking…')}
+                  </span>
                 </div>
               )}
             </div>
@@ -197,8 +213,11 @@ export function AiChatPanel({
 
           <form data-part="composer" onSubmit={submit} className="flex items-center gap-2 border-t border-border/60 p-3">
             <Input
-              aria-label={composerPlaceholder ?? 'Ask a question'}
-              placeholder={composerPlaceholder ?? 'Ask a question…'}
+              // The accessible name's default ('Ask a question', no ellipsis) is
+              // deliberately NOT the placeholder's — key proposed as
+              // aiChatPanel.composerLabel.
+              aria-label={composerPlaceholder ?? t('ui:widgets.communication.aiChatPanel.composerLabel', 'Ask a question')}
+              placeholder={composerPlaceholder ?? t('ui:widgets.communication.aiChatPanel.composerPlaceholder', 'Ask a question…')}
               value={draft}
               disabled={pending}
               onChange={(event) => setDraft(event.currentTarget.value)}
@@ -206,7 +225,7 @@ export function AiChatPanel({
             <button
               type="submit"
               data-part="send-button"
-              aria-label={sendLabel ?? 'Send'}
+              aria-label={sendLabel ?? t('ui:widgets.communication.aiChatPanel.sendLabel', 'Send')}
               disabled={pending || draft.trim() === ''}
               className="grid size-9 shrink-0 place-items-center rounded-md bg-accent text-accent-fg hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40"
             >

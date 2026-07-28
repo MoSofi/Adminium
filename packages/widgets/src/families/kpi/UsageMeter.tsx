@@ -6,6 +6,7 @@
  */
 
 import { MonoText, ProgressBar } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asSingleMetric } from '../../lib/shapes.js';
@@ -19,6 +20,7 @@ export { usageMeterConfigSchema, usageMeterDemoData } from './kpi-config.js';
 export type { UsageMeterConfig } from './kpi-config.js';
 
 export function UsageMeter({ config, data, onEvent }: WidgetProps<UsageMeterConfig>) {
+  const t = useMaybeT();
   const metric = asSingleMetric(data);
   if (metric === null) {
     return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
@@ -32,7 +34,10 @@ export function UsageMeter({ config, data, onEvent }: WidgetProps<UsageMeterConf
   const unit = config.unit ?? metric.unit;
   const usedText = formatMetricValue(used, 'compact', opts);
   const limitText = formatMetricValue(limit, 'compact', opts);
-  const label = config.title ?? 'Usage';
+  const label = config.title ?? t('ui:widgets.kpi.usageMeter.usageLabel', 'Usage');
+  // The "used of limit" connector, shared by the visible line and the bar's
+  // accessible label so the two never drift apart.
+  const ofText = t('ui:widgets.kpi.usageMeter.ofLabel', 'of');
 
   return (
     <div
@@ -43,7 +48,7 @@ export function UsageMeter({ config, data, onEvent }: WidgetProps<UsageMeterConf
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-body-sm text-fg-muted">{label}</span>
         <MonoText className="shrink-0 text-body-sm font-semibold text-fg">
-          {usedText} <span className="font-normal text-fg-muted">of</span> {limitText}
+          {usedText} <span className="font-normal text-fg-muted">{ofText}</span> {limitText}
           {unit === undefined ? '' : ` ${unit}`}
         </MonoText>
       </div>
@@ -52,7 +57,7 @@ export function UsageMeter({ config, data, onEvent }: WidgetProps<UsageMeterConf
         max={limit}
         tone={tone}
         size={config.compact ? 'sm' : 'md'}
-        label={`${label}: ${usedText} of ${limitText}${unit === undefined ? '' : ` ${unit}`}`}
+        label={`${label}: ${usedText} ${ofText} ${limitText}${unit === undefined ? '' : ` ${unit}`}`}
       />
       {config.ctaLabel !== undefined && config.ctaHref !== undefined && !config.compact && (
         <button

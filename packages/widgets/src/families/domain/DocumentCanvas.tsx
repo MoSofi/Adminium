@@ -1,4 +1,5 @@
 import { IconButton, MonoText } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentType, ReactElement } from 'react';
@@ -181,6 +182,7 @@ const ACCENT_RING: Record<NonNullable<DocumentCanvasConfig['brand']>['accent'], 
 };
 
 function DocHeader({ doc, config, locale }: { doc: DocRecord; config: DocumentCanvasConfig; locale: string | undefined }) {
+  const t = useMaybeT();
   const logo = config.brand?.logo;
   return (
     <header data-part="doc-header" className="mb-6 border-b border-border pb-5">
@@ -199,7 +201,7 @@ function DocHeader({ doc, config, locale }: { doc: DocRecord; config: DocumentCa
         <dl className="text-body-sm text-end">
           {doc.issuedAt !== undefined && (
             <div className="flex justify-between gap-4">
-              <dt className="text-fg-subtle">{config.issuedLabel ?? 'Issued'}</dt>
+              <dt className="text-fg-subtle">{config.issuedLabel ?? t('ui:widgets.domain.documentCanvas.issuedLabel', 'Issued')}</dt>
               <dd>
                 <MonoText className="text-fg">{formatBlockDate(doc.issuedAt, locale)}</MonoText>
               </dd>
@@ -207,7 +209,7 @@ function DocHeader({ doc, config, locale }: { doc: DocRecord; config: DocumentCa
           )}
           {doc.dueAt !== undefined && (
             <div className="flex justify-between gap-4">
-              <dt className="text-fg-subtle">{config.dueLabel ?? 'Due'}</dt>
+              <dt className="text-fg-subtle">{config.dueLabel ?? t('ui:widgets.domain.documentCanvas.dueLabel', 'Due')}</dt>
               <dd>
                 <MonoText className="text-fg">{formatBlockDate(doc.dueAt, locale)}</MonoText>
               </dd>
@@ -220,7 +222,7 @@ function DocHeader({ doc, config, locale }: { doc: DocRecord; config: DocumentCa
           Array.isArray(lines) && lines.length > 0 ? (
             <address key={index === 0 ? 'from' : 'to'} data-part={index === 0 ? 'doc-from' : 'doc-to'} className="not-italic">
               {index === 1 && (
-                <p className="mb-0.5 text-micro uppercase text-fg-subtle">{config.billedToLabel ?? 'Billed to'}</p>
+                <p className="mb-0.5 text-micro uppercase text-fg-subtle">{config.billedToLabel ?? t('ui:widgets.domain.documentCanvas.billedToLabel', 'Billed to')}</p>
               )}
               {lines.map((line) => (
                 <p key={line} className="text-body-sm text-fg-muted">
@@ -236,6 +238,7 @@ function DocHeader({ doc, config, locale }: { doc: DocRecord; config: DocumentCa
 }
 
 export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: WidgetProps<DocumentCanvasConfig>) {
+  const t = useMaybeT();
   const doc = rowOf<DocRecord>(data);
   const docType = docTypeOf(doc?.docType, config.docType);
   const resolved = blockOrderOf(doc, {
@@ -252,8 +255,8 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
   if (doc === null) {
     return (
       <BlockEmpty
-        title={config.emptyTitle ?? 'No document yet'}
-        body={config.emptyBody ?? 'Pick a starter template or add a block to begin.'}
+        title={config.emptyTitle ?? t('ui:widgets.domain.documentCanvas.noDocumentTitle', 'No document yet')}
+        body={config.emptyBody ?? t('ui:widgets.domain.documentCanvas.noDocumentBody', 'Pick a starter template or add a block to begin.')}
       />
     );
   }
@@ -311,11 +314,11 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
 
       {blocks.length === 0 ? (
         <BlockEmpty
-          title={config.emptyTitle ?? 'No blocks yet'}
-          body={config.emptyBody ?? 'Add a block from the palette to build this document.'}
+          title={config.emptyTitle ?? t('ui:widgets.domain.documentCanvas.emptyTitle', 'No blocks yet')}
+          body={config.emptyBody ?? t('ui:widgets.domain.documentCanvas.emptyBody', 'Add a block from the palette to build this document.')}
         />
       ) : (
-        <ol data-part="block-list" aria-label={config.blockListLabel ?? 'Document blocks'} className="space-y-4">
+        <ol data-part="block-list" aria-label={config.blockListLabel ?? t('ui:widgets.domain.documentCanvas.blockListLabel', 'Document blocks')} className="space-y-4">
           {blocks.map((instance, index) => {
             const Block = BLOCK_COMPONENTS[instance.block as BlockId];
             if (Block === undefined) return null; // unknown id: never resolve arbitrarily
@@ -378,7 +381,7 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
                     <IconButton
                       size="sm"
                       data-part="block-move-up"
-                      label={config.moveUpLabel ?? 'Move block up'}
+                      label={config.moveUpLabel ?? t('ui:widgets.domain.documentCanvas.moveUpLabel', 'Move block up')}
                       disabled={index === 0}
                       onClick={() => reorder(index, -1)}
                     >
@@ -387,7 +390,7 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
                     <IconButton
                       size="sm"
                       data-part="block-move-down"
-                      label={config.moveDownLabel ?? 'Move block down'}
+                      label={config.moveDownLabel ?? t('ui:widgets.domain.documentCanvas.moveDownLabel', 'Move block down')}
                       disabled={index === blocks.length - 1}
                       onClick={() => reorder(index, 1)}
                     >
@@ -396,7 +399,7 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
                     <IconButton
                       size="sm"
                       data-part="block-remove"
-                      label={config.removeBlockLabel ?? 'Remove block'}
+                      label={config.removeBlockLabel ?? t('ui:widgets.domain.documentCanvas.removeBlockLabel', 'Remove block')}
                       onClick={() => remove(index)}
                       className="hover:text-danger"
                     >

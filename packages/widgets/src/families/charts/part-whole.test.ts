@@ -95,13 +95,13 @@ describe('config schemas + per-widget empty copy', () => {
       chartWordcloudConfigSchema.parse({}).emptyState?.titleKey,
     ];
     expect(titles).toEqual([
-      'widgets.charts.treemap.empty.title',
-      'widgets.charts.sunburst.empty.title',
-      'widgets.charts.funnel.empty.title',
-      'widgets.charts.radialBar.empty.title',
-      'widgets.charts.radar.empty.title',
-      'widgets.charts.chord.empty.title',
-      'widgets.charts.wordcloud.empty.title',
+      'widgets.charts.treemap.emptyTitle',
+      'widgets.charts.sunburst.emptyTitle',
+      'widgets.charts.funnel.emptyTitle',
+      'widgets.charts.radialBar.emptyTitle',
+      'widgets.charts.radar.emptyTitle',
+      'widgets.charts.chord.emptyTitle',
+      'widgets.charts.wordcloud.emptyTitle',
     ]);
     expect(new Set(titles).size).toBe(7); // all distinct
   });

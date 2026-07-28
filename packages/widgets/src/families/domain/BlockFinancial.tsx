@@ -1,4 +1,5 @@
 import { MonoText, StatusPill } from '@adminium/ui';
+import { useMaybeT } from '@adminium/i18n/react';
 import { AlertTriangle } from 'lucide-react';
 import type { ReactElement } from 'react';
 
@@ -97,14 +98,21 @@ export {
 // ── block-line-items ────────────────────────────────────────────────────────
 
 export function BlockLineItemsWidget({ config, data, onEvent }: WidgetProps<BlockLineItemsConfig>) {
+  const t = useMaybeT();
   const items = lineItemsOf(data, config);
   const source = blockBindingSourceOf(config.binding);
   const locale = config.format?.locale;
   const currency = config.format?.currency;
 
   if (items.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No line items'} body={config.emptyBody ?? 'Add a line item to build this document.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockLineItems.emptyTitle', 'No line items')} body={config.emptyBody ?? t('ui:widgets.domain.blockLineItems.emptyBody', 'Add a line item to build this document.')} />;
   }
+
+  // Resolved once: the column headers double as the per-cell input aria-labels.
+  const descHeader = config.descHeader ?? t('ui:widgets.domain.blockLineItems.descHeader', 'Description');
+  const qtyHeader = config.qtyHeader ?? t('ui:widgets.domain.blockLineItems.qtyHeader', 'Qty');
+  const rateHeader = config.rateHeader ?? t('ui:widgets.domain.blockLineItems.rateHeader', 'Rate');
+  const amountHeader = config.amountHeader ?? t('ui:widgets.domain.blockLineItems.amountHeader', 'Amount');
 
   const emit = (id: string, field: string, raw: string): void => {
     if (source === null) return; // unbound: nothing to write to
@@ -132,11 +140,11 @@ export function BlockLineItemsWidget({ config, data, onEvent }: WidgetProps<Bloc
     <table data-widget="block-line-items" data-testid={config.testId} className="w-full text-body-sm">
       <thead>
         <tr className="border-b border-border text-micro uppercase text-fg-subtle">
-          <th scope="col" className="py-2 text-start font-bold">{config.descHeader ?? 'Description'}</th>
-          <th scope="col" className="w-16 py-2 text-end font-bold">{config.qtyHeader ?? 'Qty'}</th>
-          <th scope="col" className="w-24 py-2 text-end font-bold">{config.rateHeader ?? 'Rate'}</th>
+          <th scope="col" className="py-2 text-start font-bold">{descHeader}</th>
+          <th scope="col" className="w-16 py-2 text-end font-bold">{qtyHeader}</th>
+          <th scope="col" className="w-24 py-2 text-end font-bold">{rateHeader}</th>
           {config.showAmountColumn && (
-            <th scope="col" className="w-28 py-2 text-end font-bold">{config.amountHeader ?? 'Amount'}</th>
+            <th scope="col" className="w-28 py-2 text-end font-bold">{amountHeader}</th>
           )}
         </tr>
       </thead>
@@ -150,7 +158,7 @@ export function BlockLineItemsWidget({ config, data, onEvent }: WidgetProps<Bloc
                   type="number"
                   min={0}
                   defaultValue={item.qty}
-                  aria-label={`${config.qtyHeader ?? 'Qty'} — ${item.desc}`}
+                  aria-label={`${qtyHeader} — ${item.desc}`}
                   onChange={(event) => emit(item.id, config.qtyField, event.target.value)}
                   className="w-full rounded-sm bg-transparent px-1 py-0.5 text-end font-mono tabular-nums text-body-sm text-fg hover:bg-surface-2 focus-visible:bg-surface-2"
                 />
@@ -165,7 +173,7 @@ export function BlockLineItemsWidget({ config, data, onEvent }: WidgetProps<Bloc
                   min={0}
                   step={0.01}
                   defaultValue={item.rate}
-                  aria-label={`${config.rateHeader ?? 'Rate'} — ${item.desc}`}
+                  aria-label={`${rateHeader} — ${item.desc}`}
                   onChange={(event) => emit(item.id, config.rateField, event.target.value)}
                   className="w-full rounded-sm bg-transparent px-1 py-0.5 text-end font-mono tabular-nums text-body-sm text-fg hover:bg-surface-2 focus-visible:bg-surface-2"
                 />
@@ -190,9 +198,10 @@ export function BlockLineItemsWidget({ config, data, onEvent }: WidgetProps<Bloc
 // ── block-totals-summary ────────────────────────────────────────────────────
 
 export function BlockTotalsSummaryWidget({ config, data }: WidgetProps<BlockTotalsSummaryConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<Record<string, unknown>>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No totals'} body={config.emptyBody ?? 'Totals appear once the document has line items.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockTotalsSummary.emptyTitle', 'No totals')} body={config.emptyBody ?? t('ui:widgets.domain.blockTotalsSummary.emptyBody', 'Totals appear once the document has line items.')} />;
   }
 
   // The doc's items/rates live under CONFIG-NAMED keys (04 §5) — hardcoding
@@ -211,18 +220,18 @@ export function BlockTotalsSummaryWidget({ config, data }: WidgetProps<BlockTota
 
   return (
     <div data-widget="block-totals-summary" data-testid={config.testId} className="w-full">
-      <MoneyRow label={config.subtotalLabel ?? 'Subtotal'} value={money(totals.subtotal)} />
+      <MoneyRow label={config.subtotalLabel ?? t('ui:widgets.domain.blockTotalsSummary.subtotalLabel', 'Subtotal')} value={money(totals.subtotal)} />
       {/* The annex's "Discount (green negative)" — a credit reads `pos`. */}
       {(totals.discount > 0 || !config.hideZeroDiscount) && (
         <MoneyRow
           testId="block-totals-discount"
-          label={config.discountLabel ?? 'Discount'}
+          label={config.discountLabel ?? t('ui:widgets.domain.blockTotalsSummary.discountLabel', 'Discount')}
           value={`−${money(totals.discount)}`}
           tone="pos"
         />
       )}
-      <MoneyRow label={config.taxLabel ?? 'Tax'} value={money(totals.tax)} />
-      <MoneyRow label={config.totalLabel ?? 'Total due'} value={money(totals.total)} tone="accent" emphasis />
+      <MoneyRow label={config.taxLabel ?? t('ui:widgets.domain.blockTotalsSummary.taxLabel', 'Tax')} value={money(totals.tax)} />
+      <MoneyRow label={config.totalLabel ?? t('ui:widgets.domain.blockTotalsSummary.totalLabel', 'Total due')} value={money(totals.total)} tone="accent" emphasis />
     </div>
   );
 }
@@ -230,6 +239,7 @@ export function BlockTotalsSummaryWidget({ config, data }: WidgetProps<BlockTota
 // ── block-tax-breakdown ─────────────────────────────────────────────────────
 
 export function BlockTaxBreakdownWidget({ config, data }: WidgetProps<BlockTaxBreakdownConfig>) {
+  const t = useMaybeT();
   const lines: BlockTaxLine[] = rowsOf(data).map((row, index) => ({
     id: stringField(row, config.idField) ?? `tax-${index}`,
     label: stringField(row, config.labelField) ?? '',
@@ -238,7 +248,7 @@ export function BlockTaxBreakdownWidget({ config, data }: WidgetProps<BlockTaxBr
   }));
 
   if (lines.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No tax lines'} body={config.emptyBody ?? 'Tax lines appear once a rate applies to this document.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockTaxBreakdown.emptyTitle', 'No tax lines')} body={config.emptyBody ?? t('ui:widgets.domain.blockTaxBreakdown.emptyBody', 'Tax lines appear once a rate applies to this document.')} />;
   }
 
   const locale = config.format?.locale;
@@ -270,10 +280,11 @@ export function BlockTaxBreakdownWidget({ config, data }: WidgetProps<BlockTaxBr
 // ── block-multi-currency ────────────────────────────────────────────────────
 
 export function BlockMultiCurrencyWidget({ config, data }: WidgetProps<BlockMultiCurrencyConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockMultiCurrency>(data);
   const fx = Array.isArray(payload?.fx) ? payload.fx : [];
   if (payload === null || fx.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No conversions'} body={config.emptyBody ?? 'Currency conversions appear once exchange rates are available.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockMultiCurrency.emptyTitle', 'No conversions')} body={config.emptyBody ?? t('ui:widgets.domain.blockMultiCurrency.emptyBody', 'Currency conversions appear once exchange rates are available.')} />;
   }
 
   const locale = config.format?.locale;
@@ -301,6 +312,7 @@ export function BlockMultiCurrencyWidget({ config, data }: WidgetProps<BlockMult
 // ── block-payment-history ───────────────────────────────────────────────────
 
 export function BlockPaymentHistoryWidget({ config, data }: WidgetProps<BlockPaymentHistoryConfig>) {
+  const t = useMaybeT();
   const rows: BlockPayment[] = rowsOf(data)
     .slice(0, config.maxRows)
     .map((row, index) => ({
@@ -313,7 +325,7 @@ export function BlockPaymentHistoryWidget({ config, data }: WidgetProps<BlockPay
     }));
 
   if (rows.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No payments yet'} body={config.emptyBody ?? 'Payments against this document will appear here.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockPaymentHistory.emptyTitle', 'No payments yet')} body={config.emptyBody ?? t('ui:widgets.domain.blockPaymentHistory.emptyBody', 'Payments against this document will appear here.')} />;
   }
 
   const locale = config.format?.locale;
@@ -337,6 +349,7 @@ export function BlockPaymentHistoryWidget({ config, data }: WidgetProps<BlockPay
 // ── block-discount-codes ────────────────────────────────────────────────────
 
 export function BlockDiscountCodesWidget({ config, data }: WidgetProps<BlockDiscountCodesConfig>) {
+  const t = useMaybeT();
   const rows: BlockDiscountCode[] = rowsOf(data).map((row, index) => ({
     id: stringField(row, config.idField) ?? `disc-${index}`,
     code: stringField(row, config.codeField) ?? '',
@@ -345,7 +358,7 @@ export function BlockDiscountCodesWidget({ config, data }: WidgetProps<BlockDisc
   }));
 
   if (rows.length === 0) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No discount codes'} body={config.emptyBody ?? 'Applied discount codes will appear here.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockDiscountCodes.emptyTitle', 'No discount codes')} body={config.emptyBody ?? t('ui:widgets.domain.blockDiscountCodes.emptyBody', 'Applied discount codes will appear here.')} />;
   }
 
   const locale = config.format?.locale;
@@ -369,24 +382,29 @@ export function BlockDiscountCodesWidget({ config, data }: WidgetProps<BlockDisc
 // ── block-late-fees ─────────────────────────────────────────────────────────
 
 export function BlockLateFeesWidget({ config, data }: WidgetProps<BlockLateFeesConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockLateFees>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No late fee'} body={config.emptyBody ?? 'Late-fee terms appear once they are set on this document.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockLateFees.emptyTitle', 'No late fee')} body={config.emptyBody ?? t('ui:widgets.domain.blockLateFees.emptyBody', 'Late-fee terms appear once they are set on this document.')} />;
   }
 
   const locale = config.format?.locale;
   const rate = typeof payload.rate === 'number' ? payload.rate : 0;
   const days = typeof payload.days === 'number' ? payload.days : 0;
   // ONE translated template with placeholders — never concatenated fragments,
-  // so translators keep control of word order (and RTL stays correct).
-  const template = config.template ?? 'A {rate} late fee applies after {days} days.';
+  // so translators keep control of word order (and RTL stays correct). Values
+  // are pre-formatted strings so the config path (`fillTemplate`) and the
+  // localized default (`t`, ICU) substitute identically.
+  const values = {
+    rate: formatBlockRate(rate, locale),
+    days: String(days),
+  };
 
   return (
     <BlockCallout block="block-late-fees" tone="warn" testId={config.testId} icon={<AlertTriangle className="size-4" />}>
-      {fillTemplate(template, {
-        rate: formatBlockRate(rate, locale),
-        days: String(days),
-      })}
+      {config.template !== undefined
+        ? fillTemplate(config.template, values)
+        : t('ui:widgets.domain.blockLateFees.template', 'A {rate} late fee applies after {days} days.', values)}
     </BlockCallout>
   );
 }
@@ -445,9 +463,10 @@ function QrPlaceholder({ modules, seed }: { modules: number; seed: number }) {
 }
 
 export function BlockQrPayWidget({ config, data }: WidgetProps<BlockQrPayConfig>) {
+  const t = useMaybeT();
   const payload = rowOf<BlockQrPay>(data);
   if (payload === null) {
-    return <BlockEmpty title={config.emptyTitle ?? 'No payment link'} body={config.emptyBody ?? 'A scannable payment code appears once an amount is due.'} />;
+    return <BlockEmpty title={config.emptyTitle ?? t('ui:widgets.domain.blockQrPay.emptyTitle', 'No payment link')} body={config.emptyBody ?? t('ui:widgets.domain.blockQrPay.emptyBody', 'A scannable payment code appears once an amount is due.')} />;
   }
 
   const locale = config.format?.locale;
@@ -463,7 +482,7 @@ export function BlockQrPayWidget({ config, data }: WidgetProps<BlockQrPayConfig>
       <QrPlaceholder modules={config.modules} seed={config.qrSeed} />
       <div className="min-w-0 flex-1">
         <p className="text-body-sm text-fg-muted">{payload.caption}</p>
-        <p className="mt-1 text-caption text-fg-subtle">{config.amountLabel ?? 'Amount due'}</p>
+        <p className="mt-1 text-caption text-fg-subtle">{config.amountLabel ?? t('ui:widgets.domain.blockQrPay.amountLabel', 'Amount due')}</p>
         <MonoText className="text-title font-bold text-accent">
           {formatBlockMoney(total, { locale, currency })}
         </MonoText>

@@ -7,6 +7,7 @@
 
 import { BarChart, DonutChart, LineAreaChart, Sparkline, formatShortDate } from '@adminium/charts';
 import type { BarSeries, LineAreaPoint, SparklineTone } from '@adminium/charts';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { formatMetricValue, formatOptionsOf } from '../../lib/format.js';
 import { asCategorical, asTimeseries, timeseriesValues } from '../../lib/shapes.js';
@@ -35,7 +36,8 @@ export type {
 } from './charts-config.js';
 
 function BadShape() {
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+  const t = useMaybeT();
+  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 function toXY(points: { t: string; v: number }[]): LineAreaPoint[] {
@@ -45,6 +47,7 @@ function toXY(points: { t: string; v: number }[]): LineAreaPoint[] {
 // --- chart-line-area ---------------------------------------------------------
 
 export function ChartLineAreaWidget({ config, data }: WidgetProps<ChartLineAreaConfig>) {
+  const t = useMaybeT();
   const series = asTimeseries(data);
   if (series === null || series.points.length === 0) return <BadShape />;
   const comparison =
@@ -54,7 +57,7 @@ export function ChartLineAreaWidget({ config, data }: WidgetProps<ChartLineAreaC
       <LineAreaChart
         data={toXY(series.points)}
         {...(comparison !== undefined ? { comparison } : {})}
-        labels={{ label: config.title ?? 'Line chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.lineArea.chartLabel', 'Line chart') }}
         smooth={config.smooth}
         showAxis={config.axis}
         height={config.height}
@@ -88,6 +91,7 @@ export function barInputsOf(
 }
 
 export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
+  const t = useMaybeT();
   const inputs = barInputsOf(data, config.title ?? 'Value');
   if (inputs === null) return <BadShape />;
   return (
@@ -95,7 +99,7 @@ export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
       <BarChart
         categories={inputs.categories}
         series={inputs.series}
-        labels={{ label: config.title ?? 'Bar chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.bar.chartLabel', 'Bar chart') }}
         highlight={config.highlight}
         showAxis={config.axis}
         showCategoryLabels={config.labels}
@@ -109,6 +113,7 @@ export function ChartBarWidget({ config, data }: WidgetProps<ChartBarConfig>) {
 // --- chart-donut ---------------------------------------------------------------
 
 export function ChartDonutWidget({ config, data }: WidgetProps<ChartDonutConfig>) {
+  const t = useMaybeT();
   const categorical = asCategorical(data);
   if (categorical === null || categorical.items.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
@@ -116,7 +121,8 @@ export function ChartDonutWidget({ config, data }: WidgetProps<ChartDonutConfig>
     <div className="flex justify-center px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-donut">
       <DonutChart
         data={categorical.items.map((item) => ({ label: item.label, value: item.value }))}
-        labels={{ label: config.title ?? 'Donut chart' }}
+        labels={{ label: config.title ?? t('ui:widgets.charts.donut.chartLabel', 'Donut chart') }}
+        otherLabel={t('ui:widgets.charts.donut.otherLabel', 'Other')}
         maxSlices={config.maxSlices}
         showLegend={config.showLegend}
         size={config.size}

@@ -6,13 +6,13 @@
  *
  * WHY THIS EXISTS: `registry/index.ts` statically imports `definitions.ts`, so
  * anything the definitions module imports lands in the registry's EAGER graph.
- * While these schemas lived in `widgets.tsx`, the definitions had to reach into
+ * While these schemas lived in `./widgets.tsx`, the definitions had to reach into
  * that component module to name them, pulling every `tables` widget and its
  * @adminium/ui deps into the eager chunk and leaving the sibling
  * `lazy(() => import('./widgets.js'))` refs buying nothing (04 §2.3,
  * acceptance #3; enforced by `qa/chunk-budget.test.ts`).
  *
- * `widgets.tsx` re-exports these symbols so existing import points stay stable.
+ * `./widgets.tsx` re-exports these symbols so existing import points stay stable.
  */
 import { z } from 'zod';
 

@@ -685,3 +685,27 @@ describe('demoData (04 §7.7)', () => {
     expect(model.groups.map((g) => g.key)).toEqual(['Discovery', 'Design', 'Build', 'Launch']);
   });
 });
+
+describe('domain chrome localization (ui:widgets.domain.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) =>
+        ns === 'ui'
+          ? { widgets: { domain: { orgChart: { emptyTitle: 'Keine Berichtsstruktur', emptyBody: 'Manager-Spalte wählen.' } } } }
+          : null,
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <OrgChart data={{ rows: [], total: 0 }} fields={ORG_FIELDS} />
+      </I18nProvider>,
+    );
+    expect(screen.getByText('Keine Berichtsstruktur')).toBeTruthy();
+
+    cleanup();
+    render(<OrgChart data={{ rows: [], total: 0 }} fields={ORG_FIELDS} />);
+    expect(screen.getByText('No reporting structure')).toBeTruthy();
+  });
+});
