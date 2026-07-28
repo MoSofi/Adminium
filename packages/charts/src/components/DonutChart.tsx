@@ -5,6 +5,7 @@
  * center layout mirror via flex + logical properties (10-i18n-theming.md §5.5).
  */
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { donutArcs } from '../geometry/donut.js';
 import type { DonutSliceInput } from '../geometry/donut.js';
@@ -38,7 +39,7 @@ export function DonutChart({
   data,
   labels,
   maxSlices = 5,
-  otherLabel = 'Other',
+  otherLabel,
   centerLabel,
   centerValue,
   size = 160,
@@ -51,12 +52,14 @@ export function DonutChart({
 }: DonutChartProps) {
   const resolvedDir = useChartDir(dir);
   const mounted = useMountAnimation();
+  const t = useMaybeT();
 
   const arcs = donutArcs(data, {
     outerRadius: size / 2,
     thickness,
     maxSlices,
-    otherLabel,
+    // Threaded into the geometry's "other" bucket label (shared primitive key).
+    otherLabel: otherLabel ?? t('ui:charts.otherLabel', 'Other'),
   });
   const total = data.reduce((sum, s) => sum + Math.max(0, s.value), 0);
   const shownCenterValue = centerValue ?? format(total);

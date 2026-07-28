@@ -6,6 +6,7 @@
  * Colors from the pos/danger tokens and neutrals only.
  */
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { layoutCandles } from '../geometry/candles.js';
 import type { Candle } from '../geometry/candles.js';
@@ -34,12 +35,14 @@ export function CandlestickChart({
   height = 260,
   showAxis = true,
   livePill = false,
-  livePillLabel = 'Live',
+  livePillLabel,
   formatPrice = formatCompact,
   dir,
   a11yFallback,
   className,
 }: CandlestickChartProps) {
+  const t = useMaybeT();
+  const resolvedLivePillLabel = livePillLabel ?? t('ui:charts.livePillLabel', 'Live');
   return (
     <ChartSurface
       labels={labels}
@@ -122,7 +125,7 @@ export function CandlestickChart({
                 <rect x={0} y={0} width={44} height={16} rx={8} fill="var(--pos-soft)" />
                 <circle cx={11} cy={8} r={3} fill="var(--pos)" />
                 <text x={19} y={11} fontSize={9} fontWeight={700} fill="var(--pos)">
-                  {livePillLabel}
+                  {resolvedLivePillLabel}
                 </text>
               </g>
             )}

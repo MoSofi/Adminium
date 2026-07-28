@@ -8,6 +8,7 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { demoCategorical, demoDonut, demoSparkline, demoTimeseries } from '../demo/generators.js';
+import { formatShortDate } from '../utils/format.js';
 import { BarChart } from './BarChart.js';
 import { ChartSurface } from './ChartSurface.js';
 import { DonutChart } from './DonutChart.js';
@@ -196,6 +197,36 @@ describe('DonutChart', () => {
     const other = container.querySelector('path[data-other]');
     expect(other?.getAttribute('data-slice')).toBe('Other');
     expect(other?.getAttribute('fill')).toBe('var(--fg-subtle)');
+  });
+});
+
+describe('chart-primitive label localization (ui:charts.*)', () => {
+  it('resolves bundle strings inside I18nProvider and falls back to English outside', async () => {
+    const { createI18n } = await import('@adminium/i18n');
+    const { I18nProvider } = await import('@adminium/i18n/react');
+    const i18n = await createI18n({
+      locale: 'de_DE',
+      loadBundle: async (_tag, ns) => (ns === 'ui' ? { charts: { otherLabel: 'Sonstige' } } : null),
+    });
+    const data = Array.from({ length: 8 }, (_, i) => ({ label: `S${i}`, value: 10 + i }));
+    const provided = render(
+      <I18nProvider i18n={i18n}>
+        <DonutChart data={data} labels={{ label: 'x' }} maxSlices={5} />
+      </I18nProvider>,
+    );
+    // The translated default threads through the geometry's bucket label.
+    expect(provided.container.querySelector('path[data-other]')?.getAttribute('data-slice')).toBe('Sonstige');
+
+    cleanup();
+    const bare = render(<DonutChart data={data} labels={{ label: 'x' }} maxSlices={5} />);
+    expect(bare.container.querySelector('path[data-other]')?.getAttribute('data-slice')).toBe('Other');
+  });
+
+  it('formatShortDate stays byte-identical for en-US and localizes via the locale param', () => {
+    const date = new Date(Date.UTC(2026, 2, 4));
+    expect(formatShortDate(date)).toBe('Mar 4');
+    expect(formatShortDate(date, 'en-US')).toBe('Mar 4');
+    expect(formatShortDate(date, 'de-DE')).not.toBe('Mar 4');
   });
 });
 

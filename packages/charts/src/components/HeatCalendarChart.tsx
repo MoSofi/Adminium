@@ -7,6 +7,8 @@
  * `data-export-node` raster marker. Week columns run right→left in RTL (04 §7.4).
  */
 import type { ReactNode } from 'react';
+import { tagForLocale } from '@adminium/i18n';
+import { useMaybeI18n, useMaybeT } from '@adminium/i18n/react';
 
 import { heatCalendarLayout } from '../geometry/heatCalendar.js';
 import type { HeatPoint } from '../geometry/heatCalendar.js';
@@ -14,11 +16,8 @@ import { rampColorVar } from '../geometry/heat.js';
 import { useChartDir } from '../hooks/useRtl.js';
 import type { ChartDir } from '../hooks/useRtl.js';
 import { useMountAnimation } from '../hooks/useMountAnimation.js';
+import { shortMonthNames, shortWeekdayNames } from '../utils/format.js';
 import type { ChartLabels } from './ChartSurface.js';
-
-/** Sun..Sat short weekday labels — English defaults, overridable per locale. */
-const DEFAULT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-const DEFAULT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 export interface HeatCalendarChartProps {
   points: readonly HeatPoint[];
@@ -50,9 +49,9 @@ export function HeatCalendarChart({
   startWeekday = 0,
   levels = 5,
   cellSize = 12,
-  weekdayLabels = DEFAULT_WEEKDAYS,
-  monthLabels = DEFAULT_MONTHS,
-  legendLabels = { less: 'Less', more: 'More' },
+  weekdayLabels,
+  monthLabels,
+  legendLabels,
   format = String,
   formatDate,
   dir,
@@ -62,6 +61,17 @@ export function HeatCalendarChart({
   const resolvedDir = useChartDir(dir);
   const mounted = useMountAnimation();
   const rtl = resolvedDir === 'rtl';
+  const t = useMaybeT();
+  // Date names are Intl-derived, never bundle keys: the active provider locale
+  // when present, en-US otherwise (byte-identical to the old hardcoded arrays).
+  const i18nContext = useMaybeI18n();
+  const localeTag = i18nContext === null ? 'en-US' : tagForLocale(i18nContext.locale);
+  const resolvedWeekdayLabels = weekdayLabels ?? shortWeekdayNames(localeTag);
+  const resolvedMonthLabels = monthLabels ?? shortMonthNames(localeTag);
+  const resolvedLegendLabels = legendLabels ?? {
+    less: t('ui:charts.heat.lessLabel', 'Less'),
+    more: t('ui:charts.heat.moreLabel', 'More'),
+  };
 
   const gap = 3;
   const layout = heatCalendarLayout(points, { weeks, startWeekday, cellSize, gap, levels, rtl });
@@ -80,7 +90,7 @@ export function HeatCalendarChart({
     if (cell === undefined) continue;
     const month = cell.date.getUTCMonth();
     if (month !== prevMonth) {
-      monthMarks.push({ x: cell.x, label: monthLabels[month] ?? '' });
+      monthMarks.push({ x: cell.x, label: resolvedMonthLabels[month] ?? '' });
       prevMonth = month;
     }
   }
@@ -112,7 +122,7 @@ export function HeatCalendarChart({
               y={monthHeader + row * (cellSize + gap) + cellSize}
               textAnchor={rtl ? 'start' : 'end'}
             >
-              {weekdayLabels[weekday] ?? ''}
+              {resolvedWeekdayLabels[weekday] ?? ''}
             </text>
           ) : null,
         )}
@@ -146,7 +156,7 @@ export function HeatCalendarChart({
         {/* Less → More legend. */}
         <g transform={`translate(${gridX}, ${monthHeader + layout.height + 8})`}>
           <text className="adm-chart-axis-label" x={0} y={9} textAnchor="start">
-            {legendLabels.less}
+            {resolvedLegendLabels.less}
           </text>
           {Array.from({ length: levels }, (_, level) => (
             <rect
@@ -165,7 +175,7 @@ export function HeatCalendarChart({
             y={9}
             textAnchor="start"
           >
-            {legendLabels.more}
+            {resolvedLegendLabels.more}
           </text>
         </g>
       </svg>

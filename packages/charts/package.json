@@ -30,6 +30,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adminium/i18n": "workspace:*",
     "@adminium/tokens": "workspace:*",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",

@@ -6,6 +6,7 @@
  * accent-alpha ramp keeps in-bar labels readable in both themes. Tokens only.
  */
 import type { ReactNode } from 'react';
+import { useMaybeT } from '@adminium/i18n/react';
 
 import { funnelLayout } from '../geometry/funnel.js';
 import type { FunnelStageInput } from '../geometry/funnel.js';
@@ -22,6 +23,10 @@ export interface FunnelChartProps {
   showStepConversion?: boolean;
   /** Show the overall first→last conversion footer. */
   overallFooter?: boolean;
+  /** Caption for a step row's retention; `pct` is already rounded (default "{pct}% continue"). */
+  stepConversionLabel?: (pct: number) => string;
+  /** Caption for the overall-conversion footer; `pct` is already rounded (default "{pct}% overall"). */
+  overallConversionLabel?: (pct: number) => string;
   height?: number;
   format?: (value: number) => string;
   dir?: ChartDir;
@@ -35,12 +40,21 @@ export function Funnel({
   variant = 'stepped',
   showStepConversion = true,
   overallFooter = true,
+  stepConversionLabel,
+  overallConversionLabel,
   height = 240,
   format = formatCompact,
   dir,
   a11yFallback,
   className,
 }: FunnelChartProps) {
+  const t = useMaybeT();
+  // Percentages arrive pre-rounded and pass through pre-stringified so ICU
+  // never reformats the digits.
+  const resolvedStepConversionLabel =
+    stepConversionLabel ?? ((pct: number) => t('ui:charts.funnel.stepConversion', '{pct}% continue', { pct: String(pct) }));
+  const resolvedOverallConversionLabel =
+    overallConversionLabel ?? ((pct: number) => t('ui:charts.funnel.overallConversion', '{pct}% overall', { pct: String(pct) }));
   return (
     <ChartSurface
       labels={labels}
@@ -102,7 +116,7 @@ export function Funnel({
                       dominantBaseline="middle"
                       data-step-conversion=""
                     >
-                      {`${Math.round(stage.stepPct)}% continue`}
+                      {resolvedStepConversionLabel(Math.round(stage.stepPct))}
                     </text>
                   )}
                 </g>
@@ -116,7 +130,7 @@ export function Funnel({
                 textAnchor="middle"
                 data-overall-conversion=""
               >
-                {`${Math.round(overallConversion)}% overall`}
+                {resolvedOverallConversionLabel(Math.round(overallConversion))}
               </text>
             )}
           </g>
