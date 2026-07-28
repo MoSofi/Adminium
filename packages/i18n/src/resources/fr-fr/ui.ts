@@ -25,7 +25,8 @@ export default {
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
     "reveal": "Révéler",
-    "hide": "Masquer"
+    "hide": "Masquer",
+    "clearSearch": "Clear search"
   },
   "state": {
     "loading": "Chargement…",
@@ -67,7 +68,9 @@ export default {
         "description": "La carte de mesure de référence : un agrégat principal avec pastille de tendance et mini-sparkline en option."
       },
       "usageMeter": {
-        "description": "Consommation du quota par rapport à une limite ; la barre passe à l'orange puis au rouge au-delà de vos seuils."
+        "description": "Consommation du quota par rapport à une limite ; la barre passe à l'orange puis au rouge au-delà de vos seuils.",
+        "usageLabel": "Usage",
+        "ofLabel": "of"
       },
       "statTileCompact": {
         "description": "Une tuile de mesure fine avec micro-libellé, puce de tendance et spark à 6 barres — pour des rangées denses de 4 à 6."
@@ -83,13 +86,17 @@ export default {
         "description": "Une jauge annulaire pour un score ou un pourcentage, teintée selon la plage où tombe la valeur."
       },
       "gaugeArc": {
-        "description": "Un arc de compteur avec plages qualitatives et aiguille ; affiche aussi une grille de jauges."
+        "description": "Un arc de compteur avec plages qualitatives et aiguille ; affiche aussi une grille de jauges.",
+        "emptyTitle": "No gauges to show",
+        "emptyBody": "Services appear here as gauges once there is a reading for them."
       },
       "periodComparison": {
         "description": "Cette période face à la précédente en deux barres, avec l'écart calculé en dessous.",
         "higherLabel": "de plus",
         "lowerLabel": "de moins",
-        "flatLabel": "stable"
+        "flatLabel": "stable",
+        "periodALabel": "This period",
+        "periodBLabel": "Last period"
       },
       "microKpiSubtitle": {
         "description": "Une statistique d'en-tête sur une ligne, construite à partir d'un modèle et recalculée en direct."
@@ -105,54 +112,250 @@ export default {
       "boxplot": {
         "description": "Résumé en boîte à moustaches de la dispersion d'une colonne numérique par catégorie — min, quartiles, médiane et max.",
         "emptyTitle": "Aucune distribution à tracer",
-        "emptyBody": "Aucune ligne ne correspond aux filtres pour les boîtes à moustaches."
+        "emptyBody": "Aucune ligne ne correspond aux filtres pour les boîtes à moustaches.",
+        "chartLabel": "Box plot"
       },
       "violin": {
         "description": "Courbes de densité en miroir comparant la distribution d'une colonne numérique entre les groupes.",
         "emptyTitle": "Aucune distribution à tracer",
-        "emptyBody": "Aucune ligne ne correspond aux filtres pour les profils de densité."
+        "emptyBody": "Aucune ligne ne correspond aux filtres pour les profils de densité.",
+        "chartLabel": "Violin plot"
       },
       "ridgeline": {
         "description": "Crêtes de densité superposées comparant une colonne numérique entre groupes ordonnés.",
         "emptyTitle": "Aucune crête à tracer",
-        "emptyBody": "Aucune ligne ne correspond aux filtres pour les profils de densité."
+        "emptyBody": "Aucune ligne ne correspond aux filtres pour les profils de densité.",
+        "chartLabel": "Ridgeline"
       },
       "scatterBubble": {
         "description": "Deux colonnes numériques en points, avec une taille de bulle et une ligne de tendance en option.",
         "emptyTitle": "Aucun point à tracer",
-        "emptyBody": "Aucune ligne ne correspond aux filtres pour les colonnes choisies."
+        "emptyBody": "Aucune ligne ne correspond aux filtres pour les colonnes choisies.",
+        "chartLabel": "Scatter plot"
       },
       "hexbin": {
         "description": "Densité hexagonale de deux colonnes numériques, teintée selon le nombre de lignes par tuile.",
         "emptyTitle": "Aucune densité à tracer",
-        "emptyBody": "Aucune ligne ne correspond aux filtres à regrouper."
+        "emptyBody": "Aucune ligne ne correspond aux filtres à regrouper.",
+        "chartLabel": "Density hexbin"
       },
       "correlationMatrix": {
         "description": "Corrélation de Pearson entre colonnes numériques choisies, du fortement positif au fortement négatif.",
         "emptyTitle": "Rien à corréler",
-        "emptyBody": "Choisissez au moins deux colonnes numériques avec des lignes correspondantes."
+        "emptyBody": "Choisissez au moins deux colonnes numériques avec des lignes correspondantes.",
+        "chartLabel": "Correlation matrix"
       },
       "parallelCoordinates": {
         "description": "Chaque enregistrement en ligne sur plusieurs axes numériques normalisés, coloré par catégorie.",
         "emptyTitle": "Aucun enregistrement à tracer",
-        "emptyBody": "Aucune ligne ne correspond aux filtres sur les axes choisis."
+        "emptyBody": "Aucune ligne ne correspond aux filtres sur les axes choisis.",
+        "chartLabel": "Parallel coordinates"
+      },
+      "unexpectedShape": "Unexpected data shape.",
+      "lineArea": {
+        "chartLabel": "Line chart",
+        "description": "A metric over time as a line with a soft area fill, with an optional dashed prior-period comparison."
+      },
+      "bar": {
+        "chartLabel": "Bar chart",
+        "description": "Categorical or time-bucketed values as vertical bars, with an optional highlight on the largest or current bar."
+      },
+      "donut": {
+        "chartLabel": "Donut chart",
+        "otherLabel": "Other",
+        "description": "Category shares as donut slices with a legend and centre total, folding small slices into an Other bucket."
+      },
+      "bullet": {
+        "chartLabel": "Bullet chart",
+        "description": "Progress toward a goal as a measure bar over qualitative bands, with a target tick per row.",
+        "emptyTitle": "No goals to track",
+        "emptyBody": "Add measures with targets to compare against."
+      },
+      "rankingBars": {
+        "chartLabel": "Ranking",
+        "description": "A top-N ranking as horizontal bars — the leader at full strength, the rest dimmed — with values alongside.",
+        "emptyTitle": "Nothing to rank",
+        "emptyBody": "No records matched this breakdown yet."
+      },
+      "pareto": {
+        "chartLabel": "Pareto chart",
+        "description": "Sorted category bars under a cumulative-percent line, with an optional 80% cutline.",
+        "emptyTitle": "No categories to chart",
+        "emptyBody": "No grouped counts were returned for this range."
+      },
+      "waterfall": {
+        "chartLabel": "Waterfall chart",
+        "description": "A floating-bar bridge from a start total through positive and negative steps to a net total.",
+        "emptyTitle": "No movement to bridge",
+        "emptyBody": "No start, change, or total steps were found."
+      },
+      "marimekko": {
+        "chartLabel": "Marimekko chart",
+        "description": "A two-level mix as variable-width stacked columns — width for the outer share, segments for the inner split.",
+        "emptyTitle": "No mix to break down",
+        "emptyBody": "No two-level breakdown was returned for this range."
+      },
+      "stackedBar100": {
+        "chartLabel": "100% stacked bar",
+        "description": "One 100% bar split into proportional segments with a legend, comparing shares of a whole.",
+        "emptyTitle": "No shares to split",
+        "emptyBody": "No parts were returned for this breakdown."
+      },
+      "slope": {
+        "chartLabel": "Slope chart",
+        "description": "Two periods joined by one line per record, coloured by whether the value rose or fell.",
+        "emptyTitle": "No period shift to show",
+        "emptyBody": "No before/after values were returned to compare."
+      },
+      "multiline": {
+        "chartLabel": "Multi-line chart",
+        "description": "Several series as overlaid lines with end labels, comparing trends over the same time span.",
+        "emptyTitle": "No series to plot",
+        "emptyBody": "No time series matched the filters for this range."
+      },
+      "stream": {
+        "chartLabel": "Stream chart",
+        "description": "Stacked bands flowing around a centre line, showing how a total's composition shifts over time.",
+        "emptyTitle": "No flow to chart",
+        "emptyBody": "No stacked series were returned for this range."
+      },
+      "forecast": {
+        "chartLabel": "Forecast chart",
+        "nowLabel": "Now",
+        "forecastLabel": "Forecast",
+        "actualLabel": "Actual",
+        "description": "A history line extended by a dashed projection inside a widening confidence band, split at a now divider.",
+        "emptyTitle": "No history to project",
+        "emptyBody": "No past points were returned to forecast from."
+      },
+      "anomaly": {
+        "chartLabel": "Anomaly chart",
+        "description": "A value line over its expected range, flagging points that fall outside it with halo dots.",
+        "emptyTitle": "No signal to scan",
+        "emptyBody": "No points were returned to check for anomalies."
+      },
+      "candlestick": {
+        "chartLabel": "Candlestick chart",
+        "livePillLabel": "Live",
+        "description": "Open-high-low-close candles coloured by direction, with a dashed last-price line and an optional live pill.",
+        "emptyTitle": "No candles to chart",
+        "emptyBody": "No open-high-low-close rows matched this range."
+      },
+      "bump": {
+        "chartLabel": "Bump chart",
+        "description": "Rank-over-time lines showing how competitors trade places between periods.",
+        "emptyTitle": "No ranks to trace",
+        "emptyBody": "No period-over-period rankings were returned."
+      },
+      "timelineLanes": {
+        "chartLabel": "Timeline lanes",
+        "laneLabel": "Events",
+        "description": "Dated events as pills on horizontal swimlanes sharing one time axis.",
+        "emptyTitle": "No events to place",
+        "emptyBody": "No events matched the filters for this range."
+      },
+      "treemap": {
+        "chartLabel": "Treemap",
+        "otherLabel": "Other",
+        "description": "A part-to-whole breakdown as squarified tiles sized by value, folding small slices into an Other tile.",
+        "emptyTitle": "No slices to tile",
+        "emptyBody": "No categories were returned for this breakdown."
+      },
+      "sunburst": {
+        "chartLabel": "Sunburst",
+        "description": "A two-level hierarchy as nested rings — parents inside, their children outside — with a parent legend.",
+        "emptyTitle": "No rings to draw",
+        "emptyBody": "No grouped categories were returned to nest."
+      },
+      "funnel": {
+        "chartLabel": "Funnel",
+        "description": "Ordered shrinking stages with per-step continuation rates and an overall-conversion footer.",
+        "emptyTitle": "No stages to funnel",
+        "emptyBody": "No step counts were returned for this range."
+      },
+      "radialBar": {
+        "chartLabel": "Radial bar",
+        "description": "Up to four percentages as concentric progress rings with a dot legend.",
+        "emptyTitle": "No rings to fill",
+        "emptyBody": "No categories matched this breakdown yet."
+      },
+      "radar": {
+        "chartLabel": "Radar",
+        "description": "Several named axes on a polygon with one filled shape per series, against an optional target overlay.",
+        "emptyTitle": "No axes to compare",
+        "emptyBody": "No matrix of series and axes was returned."
+      },
+      "chord": {
+        "chartLabel": "Chord",
+        "description": "Pairwise flows as ribbons between nodes on a ring, with ribbon opacity weighted by volume.",
+        "emptyTitle": "No flows to link",
+        "emptyBody": "No connections between groups were returned."
+      },
+      "wordcloud": {
+        "chartLabel": "Word cloud",
+        "description": "Terms sized by frequency and flowed into rows, for a glanceable view of what dominates.",
+        "emptyTitle": "No terms to cloud",
+        "emptyBody": "No weighted terms matched the filters."
+      },
+      "cohortMatrix": {
+        "chartLabel": "Cohort retention",
+        "description": "Cohort rows against period columns, each cell shaded by retention or revenue."
+      },
+      "heatmapCalendar": {
+        "chartLabel": "Activity calendar",
+        "legendLessLabel": "Less",
+        "legendMoreLabel": "More",
+        "description": "A year of daily activity as a week-by-day grid shaded by intensity."
+      },
+      "heatMonth": {
+        "chartLabel": "Monthly activity",
+        "description": "One calendar month as a day grid shaded by each day's value."
+      },
+      "choroplethGrid": {
+        "chartLabel": "Regional breakdown",
+        "legendLowLabel": "Low",
+        "legendHighLabel": "High",
+        "description": "Regional values as a tinted US tilegram or compact grid, with an optional top-N ranking list."
+      },
+      "sankey": {
+        "chartLabel": "Flow",
+        "description": "Layered source-to-target flows as ribbons whose thickness encodes volume."
+      },
+      "sparkline": {
+        "description": "An inline micro-trend of recent values — no axes or labels — for KPI cards, table cells and list rows."
       }
     },
     "feeds": {
       "activityFeed": {
         "description": "Un fil continu de qui a fait quoi dans votre espace de travail, du plus récent au plus ancien.",
         "emptyTitle": "Aucune activité récente",
-        "emptyBody": "Les actions de votre espace de travail apparaîtront ici."
+        "emptyBody": "Les actions de votre espace de travail apparaîtront ici.",
+        "viewAllLabel": "View all"
       },
       "notificationFeed": {
         "description": "Notifications groupées avec état non lu, filtres et actions intégrées.",
         "emptyTitle": "Aucune notification",
-        "emptyBody": "Les nouvelles notifications apparaîtront ici."
+        "emptyBody": "Les nouvelles notifications apparaîtront ici.",
+        "allLabel": "All",
+        "unreadLabel": "Unread",
+        "mentionsLabel": "Mentions",
+        "filterLabel": "Notification filter",
+        "markAllReadLabel": "Mark all read",
+        "todayLabel": "Today",
+        "yesterdayLabel": "Yesterday",
+        "earlierLabel": "Earlier",
+        "dismissLabel": "Dismiss",
+        "emptyUnreadTitle": "You're all caught up",
+        "emptyMentionsTitle": "No mentions"
       },
       "realtimeFeed": {
         "description": "Un flux d’événements en direct qui ajoute les nouveaux éléments en tête.",
         "emptyTitle": "En attente d’événements",
-        "emptyBody": "Les événements en direct s’afficheront au fur et à mesure."
+        "emptyBody": "Les événements en direct s’afficheront au fur et à mesure.",
+        "liveLabel": "Live",
+        "pausedLabel": "Paused",
+        "pauseLabel": "Pause",
+        "resumeLabel": "Resume"
       },
       "timelineVertical": {
         "description": "Une chronologie verticale d’événements, de versions, d’incidents ou d’étapes d’exécution.",
@@ -181,22 +384,41 @@ export default {
       "calendarMonth": {
         "description": "Une grille mensuelle des événements planifiés avec des puces par jour et la navigation entre les mois.",
         "emptyTitle": "Rien de planifié",
-        "emptyBody": "Les événements planifiés apparaîtront dans ce calendrier."
+        "emptyBody": "Les événements planifiés apparaîtront dans ce calendrier.",
+        "previousLabel": "Previous month",
+        "nextLabel": "Next month",
+        "overflowLabel": "+{count} more"
       },
       "dayAgenda": {
         "description": "Les événements du jour sélectionné sous forme d'agenda chronologique.",
         "emptyTitle": "Rien de planifié",
-        "emptyBody": "Les événements du jour sélectionné apparaîtront ici."
+        "emptyBody": "Les événements du jour sélectionné apparaîtront ici.",
+        "countLabel": "{count, plural, one {{n} event} other {{n} events}}"
       },
       "scheduleMatrix": {
         "description": "Une grille de postes par ressource et par jour avec la couverture quotidienne et une légende.",
         "emptyTitle": "Aucun poste planifié",
-        "emptyBody": "Les postes attribués apparaîtront dans ce planning."
+        "emptyBody": "Les postes attribués apparaîtront dans ce planning.",
+        "resourceLabel": "Resource",
+        "coverageLabel": "Coverage",
+        "hoursLabel": "{hours}h"
       },
       "capacityBoard": {
         "description": "Des barres d'utilisation par membre avec une répartition par projet et un statut de charge.",
         "emptyTitle": "Aucune donnée de charge",
-        "emptyBody": "L'utilisation des membres apparaîtra ici une fois les affectations créées."
+        "emptyBody": "L'utilisation des membres apparaîtra ici une fois les affectations créées.",
+        "status": {
+          "overloaded": "Overloaded",
+          "balanced": "Balanced",
+          "available": "Available"
+        },
+        "utilizationLabel": "{name}: {util}%",
+        "assignmentLabel": "{project} · {hours}h",
+        "periodLabel": "h · {period}",
+        "period": {
+          "week": "week",
+          "month": "month"
+        }
       },
       "calendarLegendFilter": {
         "description": "Catégories d'événements avec compteur ; cocher filtre le calendrier voisin.",
@@ -236,12 +458,28 @@ export default {
       "masterList": {
         "description": "Une liste sélectionnable d’enregistrements qui pilote un volet de détail.",
         "emptyTitle": "Aucun élément",
-        "emptyBody": "Les éléments apparaîtront ici une fois créés."
+        "emptyBody": "Les éléments apparaîtront ici une fois créés.",
+        "allLabel": "All",
+        "toggleLabel": "Toggle {title}",
+        "progressLabel": "{title} progress"
       },
       "logTable": {
         "description": "Un journal d’événements avec recherche, filtre d’erreurs et actions par ligne.",
         "emptyTitle": "Aucune entrée de journal",
-        "emptyBody": "Les événements seront enregistrés ici au fur et à mesure."
+        "emptyBody": "Les événements seront enregistrés ici au fur et à mesure.",
+        "liveLabel": "Live",
+        "placeholder": "Search logs…",
+        "filterLabel": "Log filter",
+        "allLabel": "All",
+        "errorsLabel": "Errors",
+        "noMatchesLabel": "No matching entries",
+        "todayLabel": "Today",
+        "yesterdayLabel": "Yesterday",
+        "action": {
+          "retry": "retry",
+          "download": "download",
+          "inspect": "inspect"
+        }
       },
       "cardGallery": {
         "description": "Une galerie responsive de cartes d’entités avec statut et actions rapides.",
@@ -251,17 +489,23 @@ export default {
       "groupedSummaryTable": {
         "description": "Lignes groupées avec colonnes d’agrégats, détails dépliables et totaux.",
         "emptyTitle": "Aucune donnée de synthèse",
-        "emptyBody": "Les totaux groupés apparaîtront ici dès qu’il y aura des données."
+        "emptyBody": "Les totaux groupés apparaîtront ici dès qu’il y aura des données.",
+        "groupLabel": "Group",
+        "totalsLabel": "Total"
       },
       "schemaTree": {
         "description": "Un explorateur de schémas, tables et colonnes avec badges de type et de clé.",
         "emptyTitle": "Aucun schéma analysé",
-        "emptyBody": "Connectez une base de données pour explorer son schéma ici."
+        "emptyBody": "Connectez une base de données pour explorer son schéma ici.",
+        "treeLabel": "Schema",
+        "viewLabel": "view"
       },
       "toggleMatrix": {
         "description": "Une grille interactive de bascules booléennes pour rôles, règles ou canaux.",
         "emptyTitle": "Aucune matrice configurée",
-        "emptyBody": "Les lignes et colonnes apparaîtront ici une fois configurées."
+        "emptyBody": "Les lignes et colonnes apparaîtront ici une fois configurées.",
+        "matrixLabel": "Permissions matrix",
+        "rowHeaderLabel": "Permission"
       },
       "sparklineTable": {
         "description": "Lignes de métriques avec micro-courbe, valeur actuelle et pastille d'évolution positive ou négative.",
@@ -294,6 +538,40 @@ export default {
         "emptyTitle": "Rien de détecté",
         "emptyBody": "Les tables et variables apparaîtront ici sous forme de puces une fois détectées.",
         "moreLabel": "+{n} de plus"
+      },
+      "dataGrid": {
+        "selectAllLabel": "Select all rows",
+        "selectRowLabel": "Select row",
+        "sortByLabel": "Sort by {column}",
+        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells."
+      },
+      "paginationFooter": {
+        "emptyLabel": "0 rows",
+        "ofLabel": "of",
+        "pageSizeLabel": "Rows",
+        "a11y": {
+          "pageSize": "Rows per page"
+        },
+        "prevLabel": "Previous page",
+        "nextLabel": "Next page",
+        "description": "A footer with the visible row range, prev/next paging, and a page-size select."
+      },
+      "bulkActionToolbar": {
+        "selectedLabel": "selected",
+        "clearLabel": "Clear selection",
+        "toolbarLabel": "Bulk actions",
+        "description": "A selection-aware toolbar showing the selected count and bulk actions."
+      },
+      "miniTable": {
+        "viewAllLabel": "View all",
+        "description": "A compact dashboard row list with mapped columns and a view-all link."
+      },
+      "revealLabel": "Reveal value",
+      "hideLabel": "Hide value",
+      "trueLabel": "true",
+      "falseLabel": "false",
+      "detailKeyValue": {
+        "description": "A record's fields as label/value rows with type-aware values."
       }
     },
     "boards": {
@@ -347,7 +625,8 @@ export default {
         "composerPlaceholder": "Écrire un message…",
         "sendLabel": "Envoyer",
         "attachLabel": "Ajouter une pièce jointe",
-        "typingLabel": "en train d'écrire…"
+        "typingLabel": "en train d'écrire…",
+        "composerLabel": "Message"
       },
       "aiChatPanel": {
         "description": "Un panneau d'assistant pour poser des questions sur votre schéma et vos données.",
@@ -358,7 +637,9 @@ export default {
         "pendingLabel": "Réflexion…",
         "configureTitle": "Aucun fournisseur d'IA configuré",
         "configureBody": "Ajoutez une clé Anthropic ou OpenAI — ou pointez Adminium vers votre propre point de terminaison — pour poser des questions sur votre schéma.",
-        "configureCtaLabel": "Configurer un fournisseur"
+        "configureCtaLabel": "Configurer un fournisseur",
+        "assistantLabel": "Assistant",
+        "composerLabel": "Ask a question"
       },
       "typingIndicator": {
         "description": "Un avatar et une ligne en italique « en train d’écrire… », liée à un booléen actif par conversation.",
@@ -395,7 +676,8 @@ export default {
         "emptyTitle": "Aucune région",
         "emptyBody": "Les lignes comportant un code de région et une valeur numérique apparaissent ici sous forme de tuiles teintées.",
         "legendLowLabel": "Faible",
-        "legendHighLabel": "Élevé"
+        "legendHighLabel": "Élevé",
+        "chartLabel": "Regional breakdown"
       }
     },
     "domain": {
@@ -423,7 +705,9 @@ export default {
         "blockListLabel": "Blocs du document",
         "billedToLabel": "Facturé à",
         "issuedLabel": "Émis le",
-        "dueLabel": "Échéance"
+        "dueLabel": "Échéance",
+        "noDocumentTitle": "No document yet",
+        "noDocumentBody": "Pick a starter template or add a block to begin."
       },
       "blockTotalsSummary": {
         "description": "Les totaux du document — sous-total, remise, taxe et total dû, recalculés à partir des lignes.",
@@ -451,12 +735,14 @@ export default {
       "blockBarChart": {
         "description": "Un mini-graphique à barres dans la couleur du document, dimensionné pour un bloc.",
         "emptyTitle": "Aucune donnée à représenter",
-        "emptyBody": "Les barres apparaissent dès que le rapport contient une série."
+        "emptyBody": "Les barres apparaissent dès que le rapport contient une série.",
+        "a11yLabel": "Bar chart"
       },
       "blockLineChart": {
         "description": "Un mini-graphique en courbe avec aire remplie facultative, dimensionné pour un bloc.",
         "emptyTitle": "Aucune donnée à représenter",
-        "emptyBody": "La courbe apparaît dès que le rapport contient une série."
+        "emptyBody": "La courbe apparaît dès que le rapport contient une série.",
+        "a11yLabel": "Line chart"
       },
       "blockTwoColTable": {
         "description": "Un tableau à deux colonnes avec une ligne d'en-tête stylisée et une colonne de valeurs en chasse fixe.",
@@ -514,7 +800,8 @@ export default {
         "emptyBody": "Les lignes de signature apparaissent dès que le document désigne un signataire.",
         "namePlaceholder": "Nom complet",
         "titlePlaceholder": "Fonction",
-        "dateLabel": "Date"
+        "dateLabel": "Date",
+        "nameInputLabel": "Signature name"
       },
       "blockTermsCheckbox": {
         "description": "Une case pour les conditions, avec libellé modifiable.",
@@ -559,77 +846,159 @@ export default {
       "starterTemplatePicker": {
         "description": "Une grille de modèles prédéfinis avec vignettes générées ; en choisir un initialise un document complet.",
         "emptyTitle": "Aucun modèle",
-        "emptyBody": "Définissez des modèles dans la configuration ou liez une table de modèles."
+        "emptyBody": "Définissez des modèles dans la configuration ou liez une table de modèles.",
+        "blankLabel": "Blank",
+        "kicker": {
+          "invoice": "Invoice",
+          "report": "Report",
+          "email": "Email"
+        }
       },
       "sloMonitorCard": {
         "description": "Carte SLA par service avec statut, disponibilité par rapport à la cible, bande de disponibilité quotidienne, budget d'erreur et latence p95.",
         "emptyTitle": "Aucun moniteur",
-        "emptyBody": "Liez une table de moniteurs avec une colonne de statut et de disponibilité."
+        "emptyBody": "Liez une table de moniteurs avec une colonne de statut et de disponibilité.",
+        "targetLabel": "Target",
+        "budgetLabel": "Error budget",
+        "latencyLabel": "p95 latency",
+        "status": {
+          "operational": "Operational",
+          "degraded": "Degraded",
+          "down": "Down",
+          "unknown": "Unknown"
+        }
       },
       "uptimeSegmentBar": {
         "description": "Bandes journalières de type page de statut, colorées selon le statut du jour, avec bascule 30/90 jours.",
         "emptyTitle": "Aucun historique de disponibilité",
-        "emptyBody": "Les lignes de statut quotidien apparaissent ici sous forme de bande."
+        "emptyBody": "Les lignes de statut quotidien apparaissent ici sous forme de bande.",
+        "daysAgoLabel": "{days} days ago",
+        "todayLabel": "Today",
+        "uptimeLabel": "uptime",
+        "period30Label": "30d",
+        "period90Label": "90d",
+        "status": {
+          "operational": "Operational",
+          "degraded": "Degraded",
+          "down": "Down",
+          "unknown": "No data"
+        }
       },
       "experimentVariantCompare": {
         "description": "Barres de conversion par variante avec le gain face au témoin et un indicateur de significativité.",
         "emptyTitle": "Aucune variante",
-        "emptyBody": "Liez une table de variantes d'expérience avec des chiffres de conversion."
+        "emptyBody": "Liez une table de variantes d'expérience avec des chiffres de conversion.",
+        "controlLabel": "CONTROL",
+        "winnerLabel": "WINNER",
+        "significanceLabel": "Confidence",
+        "verdictSignificantLabel": "Statistically significant — safe to call.",
+        "verdictInconclusiveLabel": "Not yet significant — keep the test running.",
+        "countsLabel": "{users} participants · {conversions} conversions"
       },
       "creditCardTile": {
         "description": "Un moyen de paiement enregistré sous forme de carte de marque avec numéro masqué, titulaire et expiration.",
         "emptyTitle": "Aucun moyen de paiement",
-        "emptyBody": "Ajoutez une carte pour la voir ici."
+        "emptyBody": "Ajoutez une carte pour la voir ici.",
+        "defaultLabel": "Default",
+        "setDefaultLabel": "Set default",
+        "manageLabel": "Manage",
+        "addLabel": "Add payment method",
+        "expiresLabel": "Expires"
       },
       "planPricingCards": {
         "description": "Paliers tarifaires avec bascule mensuel/annuel, listes de fonctionnalités et une offre mise en avant.",
         "emptyTitle": "Aucune offre",
-        "emptyBody": "Liez une table d'offres avec un nom et un prix mensuel."
+        "emptyBody": "Liez une table d'offres avec un nom et un prix mensuel.",
+        "monthlyLabel": "Monthly",
+        "annualLabel": "Annual",
+        "popularLabel": "POPULAR",
+        "perMonthLabel": "/ month",
+        "billedAnnuallyLabel": "Billed {total} yearly",
+        "currentLabel": "Current plan",
+        "ctaLabel": "Choose plan"
       },
       "apiKeysPanel": {
         "description": "Clés d'API avec badges d'environnement, valeurs masquées, portées, dernière utilisation et actions de copie, de renouvellement et de révocation.",
         "emptyTitle": "Aucune clé d'API",
-        "emptyBody": "Créez une clé pour commencer à appeler l'API."
+        "emptyBody": "Créez une clé pour commencer à appeler l'API.",
+        "revealedTitle": "Key created",
+        "revealedBody": "Copy it now — it is never shown again.",
+        "copyLabel": "Copy",
+        "copiedLabel": "Copied",
+        "revealLabel": "Reveal key",
+        "hideLabel": "Hide key",
+        "rollLabel": "Roll key",
+        "revokeLabel": "Revoke key",
+        "neverUsedLabel": "Never used",
+        "lastUsedLabel": "Last used {since}"
       },
       "apiPlayground": {
         "description": "Un compositeur de requête avec paramètres et volet de réponse. Il compose seulement et n'envoie jamais de vraie requête.",
         "emptyTitle": "Aucun point de terminaison sélectionné",
-        "emptyBody": "Choisissez un point de terminaison pour composer une requête."
+        "emptyBody": "Choisissez un point de terminaison pour composer une requête.",
+        "sendLabel": "Send",
+        "requestLabel": "Request",
+        "responseLabel": "Response",
+        "paramsLabel": "Parameters",
+        "responsePlaceholder": "Send the request to see the response."
       },
       "codeSnippetBlock": {
         "description": "Un extrait de code copiable avec une puce de langage et des onglets optionnels par langage.",
         "emptyTitle": "Aucun extrait",
-        "emptyBody": "Liez une colonne de code ou définissez un extrait statique dans la configuration."
+        "emptyBody": "Liez une colonne de code ou définissez un extrait statique dans la configuration.",
+        "copyLabel": "Copy",
+        "copiedLabel": "Copied"
       },
       "webhookEndpointsList": {
         "description": "Points de terminaison webhook avec leur événement, URL cible, dernier déclenchement et interrupteur d'activation.",
         "emptyTitle": "Aucun point de terminaison",
-        "emptyBody": "Ajoutez un point de terminaison webhook pour recevoir les événements de table."
+        "emptyBody": "Ajoutez un point de terminaison webhook pour recevoir les événements de table.",
+        "neverFiredLabel": "Never fired",
+        "lastFiredLabel": "Last fired {since}"
       },
       "resourceApiCard": {
         "description": "La surface d'API générée d'une table : nombre de lignes, badge de sécurité, puces de méthode et volume de requêtes.",
         "emptyTitle": "Aucune ressource",
-        "emptyBody": "Liez une table pour afficher sa surface d'API générée."
+        "emptyBody": "Liez une table pour afficher sa surface d'API générée.",
+        "rlsLabel": "RLS",
+        "publicLabel": "Public",
+        "rowsLabel": "rows",
+        "perDayLabel": "{count}/day"
       },
       "liveTimer": {
         "description": "Un chronomètre démarrer/arrêter pour une tâche ; l'arrêter enregistre une entrée de temps.",
         "emptyTitle": "Aucun chronomètre",
-        "emptyBody": "Liez une ligne d'entrée de temps avec une tâche et une colonne de durée."
+        "emptyBody": "Liez une ligne d'entrée de temps avec une tâche et une colonne de durée.",
+        "startLabel": "Start",
+        "stopLabel": "Stop",
+        "taskPlaceholder": "Untitled task"
       },
       "syncStatusCard": {
         "description": "Identité de la connexion, latence, lignes synchronisées et planning de synchronisation, avec une action de synchronisation immédiate.",
         "emptyTitle": "Aucune connexion",
-        "emptyBody": "Liez une ligne de connexion pour afficher son état de synchronisation."
+        "emptyBody": "Liez une ligne de connexion pour afficher son état de synchronisation.",
+        "connectedLabel": "Connected",
+        "disconnectedLabel": "Disconnected",
+        "rowsSyncedLabel": "Rows synced",
+        "tablesLabel": "Tables",
+        "lastSyncLabel": "Last sync",
+        "nextSyncLabel": "Next sync",
+        "syncingLabel": "Syncing…",
+        "syncActionLabel": "Sync now"
       },
       "ipAllowlistCard": {
         "description": "Adresses IP de sortie fixes à autoriser dans un pare-feu, chacune avec un bouton de copie.",
         "emptyTitle": "Aucune IP de sortie",
-        "emptyBody": "Les adresses de sortie apparaissent ici une fois la connexion provisionnée."
+        "emptyBody": "Les adresses de sortie apparaissent ici une fois la connexion provisionnée.",
+        "copyLabel": "Copy",
+        "copiedLabel": "Copied"
       },
       "onboardingChecklist": {
         "description": "Étapes de configuration avec estimations de durée et actions, au-dessus d'un anneau et d'une barre de progression recalculés en direct.",
         "emptyTitle": "Rien à configurer",
-        "emptyBody": "Ajoutez des étapes d'intégration dans la configuration ou liez une table d'étapes."
+        "emptyBody": "Ajoutez des étapes d'intégration dans la configuration ou liez une table d'étapes.",
+        "progressLabel": "{done} of {total} done",
+        "celebrateTitle": "All done"
       },
       "testimonialCard": {
         "description": "Une citation client avec avatar et attribution.",
@@ -672,7 +1041,8 @@ export default {
       "imageBoard": {
         "description": "Une grille de moodboard avec emplacements d'images et légendes, pour les tables contenant des URL d'images.",
         "emptyTitle": "Aucune image pour l'instant",
-        "emptyBody": "Les images de référence apparaîtront sur ce tableau."
+        "emptyBody": "Les images de référence apparaîtront sur ce tableau.",
+        "placeholder": "Drop reference"
       },
       "linkList": {
         "description": "Liens de référence avec titres et URL, ouverts dans un nouvel onglet.",
@@ -712,13 +1082,17 @@ export default {
         "done": "Terminé",
         "successTitle": "Enregistrement créé",
         "successBody": "L’enregistrement a été sauvegardé.",
-        "required": "Ce champ est obligatoire."
+        "required": "Ce champ est obligatoire.",
+        "titleLabel": "Create record",
+        "closeLabel": "Close"
       },
       "drawerForm": {
         "description": "Un panneau latéral de création ou d’édition pour les enregistrements à nombreux champs.",
         "trigger": "Nouveau",
         "submit": "Enregistrer",
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "titleLabel": "New record",
+        "closeLabel": "Close"
       },
       "stepper": {
         "description": "Un indicateur d’étapes montrant l’avancement d’un parcours en plusieurs étapes.",
@@ -768,7 +1142,23 @@ export default {
         "operator": "Opérateur",
         "value": "Valeur",
         "valuePlaceholder": "Valeur…",
-        "emptyBody": "Aucune condition — ajoutez-en une pour définir ce segment."
+        "emptyBody": "Aucune condition — ajoutez-en une pour définir ce segment.",
+        "op": {
+          "eq": "is",
+          "neq": "is not",
+          "gt": "is greater than",
+          "gte": "is at least",
+          "lt": "is less than",
+          "lte": "is at most",
+          "contains": "contains",
+          "not-contains": "does not contain",
+          "starts-with": "starts with",
+          "in": "is one of",
+          "before": "is before",
+          "after": "is after",
+          "is-null": "is empty",
+          "is-not-null": "is not empty"
+        }
       },
       "flowBuilder": {
         "description": "Un canevas vertical de workflow : étapes déclencheur, condition et action.",
@@ -833,14 +1223,27 @@ export default {
         "required": "Obligatoire",
         "questionPlaceholder": "Posez une question…",
         "emptyTitle": "Aucune question",
-        "emptyBody": "Choisissez un type de question pour commencer votre sondage."
+        "emptyBody": "Choisissez un type de question pour commencer votre sondage.",
+        "questionLabel": "Question",
+        "dropdownPlaceholder": "Choose…",
+        "kind": {
+          "single-choice": "Single choice",
+          "multi-choice": "Multiple choice",
+          "dropdown": "Dropdown",
+          "short-text": "Short text",
+          "long-text": "Long text",
+          "rating": "Star rating",
+          "nps": "NPS 0–10",
+          "date": "Date"
+        }
       },
       "inlineEditableField": {
         "description": "Une valeur modifiable d’un clic dans un document ou un canevas.",
         "edit": "Modifier",
         "save": "Enregistrer",
         "cancel": "Annuler",
-        "empty": "Vide"
+        "empty": "Vide",
+        "valueLabel": "Value"
       },
       "passwordStrengthMeter": {
         "description": "Un indicateur en quatre segments de la robustesse du mot de passe.",
@@ -865,7 +1268,7 @@ export default {
         "navigate": "Naviguer",
         "select": "Ouvrir",
         "close": "Fermer",
-        "emptyTitle": "Aucun résultat",
+        "emptyTitle": "No results for \"{query}\"",
         "emptyBody": "Commencez à taper pour rechercher.",
         "groupActions": "Actions",
         "groupNavigate": "Naviguer",
@@ -881,7 +1284,9 @@ export default {
         "all": "Tout",
         "summary": "{count} résultats pour « {query} »",
         "emptyTitle": "Aucun résultat",
-        "emptyBody": "Essayez un autre terme de recherche."
+        "emptyBody": "Essayez un autre terme de recherche.",
+        "searchLabel": "Search",
+        "facetRailLabel": "Filter by type"
       },
       "breadcrumb": {
         "description": "Le fil d’Ariane de l’enregistrement ou du dossier courant.",
@@ -900,11 +1305,23 @@ export default {
         "description": "L’aide-mémoire des raccourcis clavier.",
         "footerHint": "Appuyez sur ? à tout moment",
         "then": "puis",
-        "emptyTitle": "Aucun raccourci enregistré."
+        "emptyTitle": "Aucun raccourci enregistré.",
+        "generalGroupLabel": "General",
+        "navigationGroupLabel": "Navigation",
+        "recordsGroupLabel": "Records",
+        "openCommandPaletteLabel": "Open command palette",
+        "searchLabel": "Search",
+        "showShortcutsLabel": "Show shortcuts",
+        "goToDashboardLabel": "Go to dashboard",
+        "goToOrdersLabel": "Go to orders",
+        "newRecordLabel": "New record",
+        "saveLabel": "Save",
+        "undoLabel": "Undo"
       },
       "avatarStack": {
         "description": "Des avatars superposés avec débordement « +N » et présence optionnelle.",
-        "online": "{count} en ligne"
+        "online": "{count} en ligne",
+        "a11yLabel": "People"
       }
     },
     "system": {
@@ -977,6 +1394,12 @@ export default {
         "tls": "TLS",
         "auth": "Authentification",
         "latency": "Latence"
+      },
+      "widgetMissing": {
+        "description": "The fallback card shown when a stored page references a widget that is not installed.",
+        "title": "Widget unavailable",
+        "bodyLead": "No widget is registered as",
+        "bodyTail": "It may belong to a newer version or an uninstalled extension."
       }
     }
   },
@@ -989,6 +1412,351 @@ export default {
       "resized": "{title} redimensionné à {w} colonnes sur {h} lignes.",
       "committed": "{title} placé à la colonne {col}, ligne {row}.",
       "reverted": "{title} remis à sa position initiale."
+    },
+    "draggableRole": "draggable widget"
+  },
+  "templates": {
+    "crud": {
+      "newRow": "New row",
+      "exportAction": "Export",
+      "searchPlaceholder": "Search {table}…",
+      "removeFilter": "Remove {column} filter",
+      "queryFailed": "Query failed",
+      "loadingRows": "Loading rows",
+      "noMatchesTitle": "No matching rows",
+      "emptyTitle": "{count, plural, one {No {entity} yet} other {No {entity}s yet}}",
+      "createTitle": "Add {entity}",
+      "createSubtitle": "Creates one row in {table}.",
+      "createSubmit": "Add {entity}",
+      "createSuccessTitle": "{name} added",
+      "createSuccessBody": "You can undo this from the toast.",
+      "editTitle": "Edit {entity}",
+      "saveSubmit": "Save changes",
+      "deleteTitle": "Delete {entity}",
+      "deletePreflight": "Checking references…",
+      "deleteNoReferences": "This row has no inbound references.",
+      "deleteConsequencesIntro": "Deleting this row also affects:",
+      "referenceRows": "{count, plural, one {{n} row} other {{n} rows}}",
+      "confirmPrompt": "Type {value} to confirm",
+      "bulkDeleteTitle": "{count, plural, one {Delete {n} row} other {Delete {n} rows}}",
+      "bulkDeleteBody": "Referential consequences apply to every selected row.",
+      "bulkDeleteConfirm": "Delete rows",
+      "uniqueHelper": "Must be unique in {table}.",
+      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}",
+      "toast": {
+        "created": "{entity} created.",
+        "createFailed": "Create failed.",
+        "saved": "Changes saved.",
+        "updateFailed": "Update failed.",
+        "deleted": "{name} deleted.",
+        "deleteFailed": "Delete failed.",
+        "bulkDeleted": "{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}",
+        "bulkDeleteFailed": "Bulk delete failed.",
+        "undone": "Change undone.",
+        "undoFailed": "Undo failed."
+      },
+      "detail": {
+        "fields": "Fields",
+        "inboundReferences": "inbound references",
+        "relatedCount": "{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}",
+        "loadError": "Failed to load the record."
+      }
+    },
+    "queue": {
+      "allSegment": "All",
+      "daysUnit": "{count, plural, one {{count} day} other {{count} days}}",
+      "approvedToast": "{count} approved.",
+      "rejectedToast": "{count} rejected.",
+      "undoneToast": "Decision undone.",
+      "undoFailedToast": "Could not undo this decision.",
+      "failedToast": "Decision failed.",
+      "invalidConfig": "This queue’s stored configuration is invalid. Regenerate the page to restore it.",
+      "queueLabel": "Queue",
+      "statusFilterLabel": "Status filter",
+      "errorTitle": "This queue failed to load",
+      "loading": "Loading queue",
+      "emptyTitle": "Nothing in the queue",
+      "emptyBody": "New requests appear here as they arrive.",
+      "caughtUpTitle": "You're all caught up",
+      "caughtUpBody": "No requests in this tab right now.",
+      "selectItem": "Select {title}",
+      "selectPrompt": "Select a request",
+      "selectBody": "Choose an item to review its details.",
+      "rejectTitle": "Reject requests",
+      "rejectCount": "Selected · {count}",
+      "rejectPlaceholder": "Add a note for the requester…",
+      "rejectReasonLabel": "Rejection reason",
+      "rejectNote": "The requester will be notified with your note."
+    },
+    "dashboard": {
+      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout."
+    },
+    "builder": {
+      "publish": "Publish",
+      "paletteTitle": "Blocks",
+      "inspectorTitle": "Inspector",
+      "startFromTemplate": "Start from a template",
+      "untitledDoc": "Untitled document",
+      "invalidConfig": "This builder page’s stored config is invalid. Regenerate the page or reset it.",
+      "starterPicker": {
+        "subtitle": "Selection replaces the current draft."
+      },
+      "inspector": {
+        "titleLabel": "Title",
+        "numberLabel": "Number",
+        "currencyLabel": "Currency",
+        "taxRateLabel": "Tax rate %",
+        "modulesLabel": "Modules"
+      },
+      "summary": {
+        "questions": "Questions",
+        "estLength": "Est. length",
+        "estMinutes": "~{minutes} min",
+        "steps": "Steps",
+        "triggers": "Triggers",
+        "conditions": "Conditions",
+        "actions": "Actions",
+        "triggerLocked": "The trigger step can’t be removed."
+      },
+      "publishModal": {
+        "confirmTitle": "Publish survey?",
+        "confirmSubtitle": "Review before it goes live.",
+        "confirmCta": "Publish survey",
+        "publishedTitle": "Survey published",
+        "publishedSubtitle": "Your survey is live and collecting responses right now."
+      },
+      "blocks": {
+        "block-totals-summary": "Totals summary",
+        "block-line-items": "Line items",
+        "block-kpi-row": "KPI row",
+        "block-bar-chart": "Bar chart",
+        "block-line-chart": "Line chart",
+        "block-two-col-table": "Two-column table",
+        "block-tax-breakdown": "Tax breakdown",
+        "block-multi-currency": "Multi-currency",
+        "block-payment-history": "Payment history",
+        "block-discount-codes": "Discount codes",
+        "block-loyalty-banner": "Loyalty points",
+        "block-recurring-banner": "Recurring",
+        "block-qr-pay": "Payment QR",
+        "block-delivery-stepper": "Delivery timeline",
+        "block-signature": "Signature",
+        "block-terms-checkbox": "Terms",
+        "block-approval": "Approval",
+        "block-attachments": "Attachments",
+        "block-late-fees": "Late fees",
+        "block-image-placeholder": "Image",
+        "block-contact": "Contact",
+        "block-highlight-box": "Highlight box"
+      },
+      "starters": {
+        "titles": {
+          "st-standard": "Standard invoice",
+          "st-recurring": "Recurring subscription",
+          "st-deposit": "Deposit request",
+          "st-credit-note": "Credit note",
+          "st-late-reminder": "Late-payment reminder",
+          "st-quote": "Quote / estimate",
+          "st-proforma": "Pro forma",
+          "st-receipt": "Payment receipt",
+          "st-retainer": "Retainer",
+          "st-usage": "Usage-based invoice",
+          "st-milestone": "Project milestone",
+          "st-donation": "Donation receipt (Tax ID)",
+          "st-monthly": "Monthly summary",
+          "st-quarterly": "Quarterly review",
+          "st-usage-report": "Usage breakdown",
+          "st-exec": "Executive one-pager",
+          "st-welcome": "Welcome email",
+          "st-receipt-email": "Invoice receipt",
+          "st-digest": "Weekly digest",
+          "st-dunning": "Payment reminder"
+        },
+        "categories": {
+          "billing": "Billing",
+          "sales": "Sales",
+          "nonProfit": "Non-profit",
+          "reports": "Reports",
+          "lifecycle": "Lifecycle",
+          "transactional": "Transactional",
+          "marketing": "Marketing"
+        }
+      }
+    },
+    "common": {
+      "clearFilters": "Clear filters",
+      "noMatchesBody": "Try a different search or remove a filter.",
+      "detailLabel": "Detail",
+      "loadingRecord": "Loading record"
+    },
+    "directory": {
+      "invalidConfig": "This directory’s stored configuration is invalid. Regenerate the page to restore it.",
+      "searchPlaceholder": "Search people…",
+      "memberCount": "{count, plural, one {{n} person} other {{n} people}}",
+      "errorTitle": "This directory failed to load",
+      "loading": "Loading people",
+      "emptyTitle": "No people yet",
+      "emptyBody": "People appear here as rows land in the table.",
+      "noMatchesTitle": "No matching people",
+      "detailTitle": "Person"
+    },
+    "masterDetail": {
+      "invalidConfig": "This page’s stored configuration is invalid. Regenerate the page to restore it.",
+      "railTitle": "Records",
+      "errorTitle": "This list failed to load",
+      "loading": "Loading records",
+      "emptyBody": "Records appear here as rows land in the table.",
+      "noMatchesTitle": "No matching records",
+      "noMatchesBody": "Try removing a filter.",
+      "selectPrompt": "Select a record",
+      "selectBody": "Choose an item from the list to see its details."
+    },
+    "chat": {
+      "invalidLayout": "This chat page’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "noInboxTitle": "No inbox on this page",
+      "noInboxBody": "Regenerate the page.",
+      "conversationsFailed": "The conversation query failed",
+      "messagesFailed": "The messages query failed",
+      "loadingConversations": "Loading conversations",
+      "loadingMessages": "Loading messages",
+      "selectTitle": "Select a conversation",
+      "selectBody": "Pick a conversation from the inbox to read its messages."
+    },
+    "files": {
+      "allFiles": "All files",
+      "recent": "Recent",
+      "starred": "Starred",
+      "invalidLayout": "This files page’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "missingSlotTitle": "No file browser on this page",
+      "missingSlotBody": "The stored layout has no browser slot. Regenerate the page.",
+      "loadFailed": "The file query failed",
+      "loading": "Loading files",
+      "uploadsUnavailable": "Uploads are not available on this page yet.",
+      "previewTitle": "File",
+      "kindLabel": "Kind",
+      "linkLabel": "Link"
+    },
+    "logViewer": {
+      "invalidLayout": "This log page’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "levelFilterLabel": "Log level filter",
+      "timeFilterLabel": "Time window filter",
+      "window": {
+        "1h": "1h",
+        "24h": "24h",
+        "7d": "7d"
+      },
+      "heldCount": "+{count}",
+      "missingSlotTitle": "No log widget on this page",
+      "missingSlotBody": "The stored layout has no log slot. Regenerate the page.",
+      "loadFailed": "The log query failed",
+      "loading": "Loading log entries",
+      "traceTitle": "Trace",
+      "latestTitle": "Latest activity",
+      "backToLatest": "Back to latest",
+      "eventFallback": "Event"
+    },
+    "calendar": {
+      "eventCount": "{count, plural, one {{n} event} other {{n} events}}",
+      "composePlaceholder": "Event title…",
+      "addEvent": "Add event",
+      "dateRange": "Date range",
+      "agendaTitle": "Agenda",
+      "categoriesTitle": "Categories",
+      "upcomingTitle": "Upcoming",
+      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout."
+    },
+    "scheduler": {
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
+      "week": "Week",
+      "month": "Month",
+      "invalidLayout": "This schedule’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "shiftCount": "{count, plural, one {{n} shift} other {{n} shifts}}",
+      "addShift": "Add shift"
+    },
+    "settings": {
+      "title": "Notification settings",
+      "subtitle": "Choose what you're notified about and how",
+      "matrixLabel": "Notify me about",
+      "rowHeader": "Event",
+      "saved": "Saved",
+      "unavailableTag": "Not available yet",
+      "loading": "Loading preferences",
+      "errorTitle": "These settings failed to load",
+      "emptyTitle": "Nothing to configure yet",
+      "emptyBody": "Notification events appear here as producers ship."
+    },
+    "pageCrud": {
+      "description": "The canonical table page: searchable data grid, create/edit forms, safe deletes with reference checks, and undoable changes."
+    },
+    "pageDashboard": {
+      "description": "A widget dashboard over your data: KPI cards, charts, and lists on an editable grid."
+    },
+    "pageBoard": {
+      "description": "A kanban board grouped by a status field — drag cards between columns to update records."
+    },
+    "pageCalendar": {
+      "description": "A month calendar with agenda, category filters, and quick event capture from a date field."
+    },
+    "pageScheduler": {
+      "description": "A week-by-resource shift matrix with capacity tracking and coverage totals."
+    },
+    "pageDirectory": {
+      "description": "A people directory with search, group filters, and a profile drawer."
+    },
+    "pageMasterDetail": {
+      "description": "A list-beside-detail layout: pick a record on the left, work with it on the right."
+    },
+    "pageQueueInbox": {
+      "description": "A review queue with approve/reject decisions, bulk actions, and undo."
+    },
+    "pageLogViewer": {
+      "description": "A live-tailing log table with level and time filters and a trace side panel."
+    },
+    "pageFiles": {
+      "description": "A file browser with smart folders, uploads, and a preview drawer."
+    },
+    "pageChat": {
+      "description": "A conversation inbox beside a message thread, bound to your messages tables."
+    },
+    "pageBuilder": {
+      "description": "A drag-and-drop document builder with block palette, inspector, and publish flow."
+    },
+    "pageWizard": {
+      "description": "A multi-step guided flow that walks users through a structured process."
+    },
+    "pageSettings": {
+      "description": "A notification-preferences matrix with per-channel toggles and autosave."
+    }
+  },
+  "frame": {
+    "noResult": "No result for widget",
+    "emptyTitle": "No data for range",
+    "loadError": "Something went wrong loading this widget.",
+    "renderError": "This widget failed to render.",
+    "refreshing": "Refreshing",
+    "infoLabel": "Widget info",
+    "menuLabel": "Widget menu"
+  },
+  "charts": {
+    "livePillLabel": "Live",
+    "forecast": {
+      "nowLabel": "Now",
+      "forecastLabel": "Forecast",
+      "actualLabel": "Actual"
+    },
+    "otherLabel": "Other",
+    "heat": {
+      "lessLabel": "Less",
+      "moreLabel": "More"
+    },
+    "choropleth": {
+      "lowLabel": "Low",
+      "highLabel": "High"
+    },
+    "funnel": {
+      "stepConversion": "{pct}% continue",
+      "overallConversion": "{pct}% overall"
     }
   }
 } as const;
