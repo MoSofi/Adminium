@@ -55,17 +55,25 @@ not deleting it.
 ## i18n / RTL
 
 - [x] 8 locale bundles with parity tests; RTL audit and numeral policy done
-- [ ] Final locale/RTL audit pass over v1 surfaces
-- [ ] Translated-but-unwired widget-chrome keys wired or removed. **Audited
-      2026-07-23:** of 605 `ui.widgets.*` keys, 141 ARE wired (each widget
-      definition's `descriptionKey`, resolved by WidgetHost); **464 are
-      genuinely dead** (empty-state titles/bodies, a11y announcements, and
-      labels the components currently render from hardcoded defaults, e.g.
-      `defaultBoardAnnouncements`). DECISION NEEDED: wire the 464 into their
-      components (proper widget i18n, large multi-family effort) or remove them
-      (behavior-preserving — runtime already uses the hardcoded English — but
-      forecloses easy widget localization). Removal is scriptable + guarded by
-      the locale parity test.
+- [ ] Final locale/RTL audit pass over v1 surfaces — **scheduled after the
+      2026-08-03 translation pass** (all chrome is wired; ~520 new keys carry
+      English placeholders in the 7 non-en locales until then; worklist in the
+      owner's planning docs)
+- [x] Translated-but-unwired widget-chrome keys wired or removed — **RESOLVED
+      2026-07-28: WIRED (owner decision: full localization).** All 605
+      `ui.widgets.*` keys plus every hardcoded chrome string in widget
+      families, page templates, WidgetFrame/WidgetHost, grid edit chrome, and
+      chart primitives now resolve through `useMaybeT` (bundle under
+      `I18nProvider`, ICU-formatted English fallback outside). ~520 new keys
+      authored across `widgets.*`/`templates.*`/`frame.*`/`charts.*` in all 8
+      locales; date names derive from Intl, not keys. Enforced by
+      `packages/widgets/src/qa/widget-i18n-coverage.test.ts` (0 dead keys, 0
+      dangling refs across the four owned namespaces, comment/id-shape aware)
+      and per-family provider-vs-bare localization tests. The
+      registry-parity quarantine of 35 dangling descriptions is emptied, and
+      WidgetHost resolves `descriptionKey` through the translator (raw-key
+      leak in the info popover fixed; browser-verified in de-DE against the
+      seeded e2e app).
 
 ## Topology
 
