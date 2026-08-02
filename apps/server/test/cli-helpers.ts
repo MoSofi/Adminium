@@ -21,19 +21,33 @@ export interface FakeIo extends CliIo {
   stderr(): string;
   /** Questions asked, in order — lets a wizard test assert the step sequence. */
   questions(): string[];
+  /** Every choice list `select` was offered, in order. */
+  menus(): { title: string; labels: string[] }[];
 }
 
 export interface FakeIoOptions {
   /** Answers handed to `ask`/`confirm`, in order. Exhausted → '' / the default. */
   answers?: string[];
+  /**
+   * Answers handed to `select`, in order — either a 0-based index or the exact
+   * label to pick. Labels are preferred in tests: an index silently keeps
+   * passing when a menu gains a row, a label fails loudly, which is the whole
+   * point of asserting the wizard's shape.
+   */
+  selections?: (number | string)[];
   interactive?: boolean;
+  /** Drives `supportsTui`; defaults to `interactive`. */
+  tui?: boolean;
 }
 
 export function fakeIo(opts: FakeIoOptions = {}): FakeIo {
   let out = '';
   let err = '';
   const asked: string[] = [];
+  const offered: { title: string; labels: string[] }[] = [];
   const answers = [...(opts.answers ?? [])];
+  const selections = [...(opts.selections ?? [])];
+  const interactive = opts.interactive ?? true;
 
   return {
     out(line = '') {
@@ -44,8 +58,17 @@ export function fakeIo(opts: FakeIoOptions = {}): FakeIo {
     },
     async ask(question, askOpts = {}) {
       asked.push(question);
-      const next = answers.shift();
-      return Promise.resolve(next === undefined || next === '' ? (askOpts.default ?? '') : next);
+      for (;;) {
+        const next = answers.shift();
+        const value = next === undefined || next === '' ? (askOpts.default ?? '') : next;
+        // The real `ask` re-prompts until `validate` passes, so the fake must
+        // too — otherwise a test scripting a bad-then-good pair would get the
+        // bad one back and the validation would never be exercised.
+        const problem = askOpts.validate?.(value) ?? null;
+        if (problem === null) return Promise.resolve(value);
+        err += `${problem}\n`;
+        if (answers.length === 0) return Promise.resolve(value);
+      }
     },
     async confirm(question, defaultYes = true) {
       asked.push(question);
@@ -53,13 +76,30 @@ export function fakeIo(opts: FakeIoOptions = {}): FakeIo {
       if (next === undefined || next === '') return Promise.resolve(defaultYes);
       return Promise.resolve(next.toLowerCase() === 'y' || next.toLowerCase() === 'yes');
     },
-    isInteractive: opts.interactive ?? true,
+    async select(title, choices, selectOpts = {}) {
+      const labels = choices.map((choice) => choice.label);
+      asked.push(title);
+      offered.push({ title, labels });
+      const next = selections.shift();
+      if (next === undefined) return Promise.resolve(selectOpts.defaultIndex ?? 0);
+      if (typeof next === 'number') return Promise.resolve(next);
+      const index = labels.findIndex((label) => label === next);
+      if (index === -1) {
+        throw new Error(
+          `fakeIo.select: no choice labelled ${JSON.stringify(next)} in ${JSON.stringify(title)} — offered ${JSON.stringify(labels)}`,
+        );
+      }
+      return Promise.resolve(index);
+    },
+    isInteractive: interactive,
+    supportsTui: opts.tui ?? interactive,
     async close() {
       return Promise.resolve();
     },
     stdout: () => out,
     stderr: () => err,
     questions: () => [...asked],
+    menus: () => offered.map((menu) => ({ ...menu, labels: [...menu.labels] })),
   };
 }
 
@@ -107,6 +147,10 @@ export interface FakeDepsOptions {
   cwd?: string;
   exportZip?: CliDeps['exportZip'];
   importZip?: CliDeps['importZip'];
+  /** Whether the fake browser launch reports success. */
+  browserOpens?: boolean;
+  /** What the fake `startServer` reports as the bridge pairing code. */
+  bridgePairingCode?: string | null;
 }
 
 /** {@link CliDeps} whose `openRuntime`/`startServer` never touch the world. */
@@ -120,6 +164,7 @@ export function fakeDeps(opts: FakeDepsOptions = {}): CliDeps & {
   const runtime = opts.runtime ?? fakeRuntime();
   const started: StartedServer = {
     url: 'http://localhost:4600',
+    bridgePairingCode: opts.bridgePairingCode ?? null,
     app: {} as StartedServer['app'],
     close: vi.fn(async () => Promise.resolve()),
   };
@@ -130,12 +175,14 @@ export function fakeDeps(opts: FakeDepsOptions = {}): CliDeps & {
     startServer: vi.fn(async () => Promise.resolve(started)),
     exportZip: vi.fn(opts.exportZip ?? (async () => Promise.reject(new Error('not stubbed')))),
     importZip: vi.fn(opts.importZip ?? (async () => Promise.reject(new Error('not stubbed')))),
+    openBrowser: vi.fn(async () => Promise.resolve(opts.browserOpens ?? true)),
     runtime,
   } as unknown as CliDeps & {
     openRuntime: ReturnType<typeof vi.fn>;
     startServer: ReturnType<typeof vi.fn>;
     exportZip: ReturnType<typeof vi.fn>;
     importZip: ReturnType<typeof vi.fn>;
+    openBrowser: ReturnType<typeof vi.fn>;
     runtime: CliRuntime;
   };
 }
