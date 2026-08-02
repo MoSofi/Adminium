@@ -49,8 +49,13 @@ Required. It derives the AES-256-GCM key for every stored DSN and API key, the
 session HMAC key, and the CSRF key.
 
 ```bash
-export ADMINIUM_SECRET=$(openssl rand -hex 32)
+export ADMINIUM_SECRET=${ADMINIUM_SECRET:-$(openssl rand -hex 32)}
 ```
+
+The `${VAR:-…}` form matters: a bare `$(openssl rand -hex 32)` mints a *new*
+secret every time the line runs, so re-running this block in the same shell
+would silently orphan the setup you already had. Copy the generated value
+somewhere durable before you close the terminal.
 
 Lose it and every stored connection string and provider key becomes
 undecryptable — they must be re-entered. Rotate it and the same thing happens.
