@@ -836,6 +836,10 @@ export default {
       "progress": "設定進度",
       "persistFailed": "無法儲存你的資料表選擇——請重試。",
       "persistFailedTitle": "儲存失敗",
+      "bridgeAppliedTitle": "已收到連線字串",
+      "bridgeAppliedBody": "由你的瀏覽器從 adminium.dev 直接交給本機——它從未被上傳到任何伺服器。請在下方核對後繼續。",
+      "bridgeFailedTitle": "無法使用這次交接",
+      "bridgeFailedBody": "它已被使用或已過期。請改為在下方貼上你的連線字串。",
       "step": {
         "source": "來源",
         "test": "分析",

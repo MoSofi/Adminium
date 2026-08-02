@@ -828,6 +828,10 @@
       "progress": "Setup progress",
       "persistFailed": "Could not save your table selection — retry.",
       "persistFailedTitle": "Save failed",
+      "bridgeAppliedTitle": "Connection string received",
+      "bridgeAppliedBody": "Handed over from adminium.dev by your browser — it went straight to this machine and was never uploaded. Check it below, then continue.",
+      "bridgeFailedTitle": "That hand-off could not be used",
+      "bridgeFailedBody": "It has already been used or has expired. Paste your connection string below instead.",
       "step": {
         "source": "Source",
         "test": "Analyze",

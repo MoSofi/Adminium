@@ -828,6 +828,10 @@
       "progress": "设置进度",
       "persistFailed": "无法保存你的表选择——请重试。",
       "persistFailedTitle": "保存失败",
+      "bridgeAppliedTitle": "已收到连接字符串",
+      "bridgeAppliedBody": "由你的浏览器从 adminium.dev 直接交给本机——它从未被上传到任何服务器。请在下方核对后继续。",
+      "bridgeFailedTitle": "无法使用这次交接",
+      "bridgeFailedBody": "它已被使用或已过期。请改为在下方粘贴你的连接字符串。",
       "step": {
         "source": "来源",
         "test": "分析",

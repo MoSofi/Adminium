@@ -13,6 +13,7 @@ import { Alert, Button, Stepper, type Step } from '@adminium/ui';
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
 import { studioApi, type SchemaTable } from '../api.js';
+import { redeemBridgeSeed } from './bridgeSeed.js';
 import { wizardCapabilitySource } from './capabilityNotes.js';
 import { EnrichStep } from './steps/EnrichStep.js';
 import { GenerateStep } from './steps/GenerateStep.js';
@@ -26,6 +27,7 @@ import {
   WIZARD_STEP_IDS,
   loadWizardState,
   saveWizardState,
+  engineForDsn,
   sameDbDisabledReason,
   sourceStepValid,
   wizardStepLabel,
@@ -38,22 +40,73 @@ export interface ConnectWizardProps {
   onOpenApp: () => void;
   /** Navigate to the LLM run review screen after an AI enrichment run (router injects). */
   onOpenReview?: ((runId: string) => void) | undefined;
+  /**
+   * A one-time local-bridge ticket, when the user arrived from adminium.dev
+   * after pasting a connection string there (`./bridgeSeed.ts`). Redeemed once,
+   * on mount, to PREFILL the source step — never to skip it.
+   */
+  bridgeTicket?: string | null | undefined;
   /** Storytelling stagger; tests pass 0. */
   lineDelayMs?: number | undefined;
   pollIntervalMs?: number | undefined;
 }
 
-export function ConnectWizard({ onOpenApp, onOpenReview, lineDelayMs, pollIntervalMs }: ConnectWizardProps) {
+export function ConnectWizard({
+  onOpenApp,
+  onOpenReview,
+  bridgeTicket,
+  lineDelayMs,
+  pollIntervalMs,
+}: ConnectWizardProps) {
   const [state, setState] = useState<WizardState>(() => loadWizardState());
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
   /** Parsed schema-file tables — memory only (the model is too big for sessionStorage). */
   const [fileTables, setFileTables] = useState<SchemaTable[] | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   const [persisting, setPersisting] = useState(false);
+  /** Non-null once a bridge hand-off has been applied — renders the banner. */
+  const [bridgeNotice, setBridgeNotice] = useState<'applied' | 'failed' | null>(null);
 
   useEffect(() => {
     saveWizardState(state);
   }, [state]);
+
+  /**
+   * Redeem the hand-off exactly once.
+   *
+   * Lands on `source` rather than further in: the point of the bridge is that
+   * the string never left the user's machine, and the way that is made visible
+   * is showing them the value in the field before anything connects. A ticket
+   * that has expired or been used is a notice, not an error screen — the wizard
+   * behind it is perfectly usable by hand.
+   */
+  useEffect(() => {
+    if (bridgeTicket === null || bridgeTicket === undefined || bridgeTicket === '') return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const seed = await redeemBridgeSeed(bridgeTicket);
+        if (cancelled) return;
+        setState((current) => ({
+          ...current,
+          step: 'source',
+          mode: 'dsn',
+          dsn: seed.dsn,
+          engine: seed.engine ?? engineForDsn(seed.dsn) ?? current.engine,
+        }));
+        setBridgeNotice('applied');
+      } catch {
+        // One `catch` around the whole thing, not a rejection handler on the
+        // redeem: a throw from the state update would otherwise escape as an
+        // unhandled rejection and leave the user staring at a wizard that
+        // silently ignored the hand-off they just performed.
+        if (!cancelled) setBridgeNotice('failed');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bridgeTicket]);
 
   const patch = (partial: Partial<WizardState>) => setState((current) => ({ ...current, ...partial }));
 
@@ -149,6 +202,29 @@ export function ConnectWizard({ onOpenApp, onOpenReview, lineDelayMs, pollInterv
       </header>
 
       <main className="flex-1">
+        {bridgeNotice !== null ? (
+          <div className="mb-4">
+            {bridgeNotice === 'applied' ? (
+              <Alert
+                tone="info"
+                title={t('studio.wizard.bridgeAppliedTitle', 'Connection string received')}
+                body={t(
+                  'studio.wizard.bridgeAppliedBody',
+                  'Handed over from adminium.dev by your browser — it went straight to this machine and was never uploaded. Check it below, then continue.',
+                )}
+              />
+            ) : (
+              <Alert
+                tone="warn"
+                title={t('studio.wizard.bridgeFailedTitle', 'That hand-off could not be used')}
+                body={t(
+                  'studio.wizard.bridgeFailedBody',
+                  'It has already been used or has expired. Paste your connection string below instead.',
+                )}
+              />
+            )}
+          </div>
+        ) : null}
         {state.step === 'intent' ? (
           <IntentStep value={state.intent} onChange={(intent) => patch({ intent })} />
         ) : null}

@@ -14,6 +14,7 @@ import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@adminium/i18n/react';
 
 import { exchangeBootToken } from './desktop/bootToken.js';
+import { captureBridgeTicket } from './studio/connect/bridgeSeed.js';
 import { initDashboardI18n } from './i18n/setup.js';
 import { createQueryClient } from './app/query.js';
 import { createAppRouter } from './app/router.js';
@@ -26,6 +27,12 @@ async function start(): Promise<void> {
   // before the app route's bootstrap query decides login-vs-dashboard. A no-op
   // on every non-desktop boot — see `desktop/bootToken.ts`.
   await exchangeBootToken();
+
+  // Same placement, same two reasons (see `studio/connect/bridgeSeed.ts`): the
+  // ticket has to leave `window.location` before the router can copy it or a
+  // `Referer` can carry it, and on a fresh install the first route to render is
+  // `/setup`, not the `/studio/connect` the site redirected to.
+  captureBridgeTicket();
 
   const i18n = await initDashboardI18n();
 

@@ -13,6 +13,8 @@
  * re-validates everything (`auth.passwordMinLength`) and is the authority.
  */
 import { useRouter } from '@tanstack/react-router';
+
+import { hasPendingBridgeTicket } from '../studio/connect/bridgeSeed.js';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Alert, Button, FormField, Input, PasswordStrength, Stepper } from '@adminium/ui';
 
@@ -107,7 +109,11 @@ export function FirstRunWizard({ passwordMinLength }: FirstRunWizardProps): Reac
       .then(() => {
         // A fresh session: drop every cached query before entering the app.
         router.options.context.queryClient.clear();
-        router.history.push('/');
+        // A hand-off from adminium.dev is what sent this person here in the
+        // first place (`studio/connect/bridgeSeed.ts`) — the account was only
+        // ever in the way. Land them on the wizard that consumes it rather than
+        // on an empty home screen with a connection string stranded in storage.
+        router.history.push(hasPendingBridgeTicket() ? '/studio/connect' : '/');
       })
       .catch((cause: unknown) => {
         setSubmitting(false);
