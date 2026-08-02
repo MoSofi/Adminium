@@ -536,6 +536,12 @@ describe('adminium init', () => {
     // Reached init (its TTY guard), rather than the unknown-command path.
     expect(io.stderr()).toContain('setup wizard');
   });
+
+  it('rejects --browser and --terminal together', async () => {
+    const io = fakeIo();
+    await expect(runCli(['--browser', '--terminal'], { io, deps: fakeDeps({ env: ENV }) })).resolves.toBe(1);
+    expect(io.stderr()).toContain('opposite things');
+  });
 });
 
 // ── writing a file the CLI reads back ────────────────────────────────────────

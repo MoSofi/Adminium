@@ -51,6 +51,8 @@ export interface EnvOverrides {
   dataDir?: string | undefined;
   metaUrl?: string | undefined;
   logLevel?: string | undefined;
+  /** CSV of origins allowed to hand this instance a DSN — `init --bridge`. */
+  bridgeOrigins?: string | undefined;
 }
 
 /**
@@ -70,6 +72,9 @@ export function loadCliEnv(
     ...(overrides.dataDir === undefined ? {} : { ADMINIUM_DATA_DIR: overrides.dataDir }),
     ...(overrides.metaUrl === undefined ? {} : { ADMINIUM_META_URL: overrides.metaUrl }),
     ...(overrides.logLevel === undefined ? {} : { ADMINIUM_LOG_LEVEL: overrides.logLevel }),
+    ...(overrides.bridgeOrigins === undefined
+      ? {}
+      : { ADMINIUM_BRIDGE_ORIGINS: overrides.bridgeOrigins }),
   };
 
   const result = envSchema.safeParse(merged);
@@ -195,6 +200,13 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
 export interface StartedServer {
   /** The URL to open — what `start` and the wizard print. */
   url: string;
+  /**
+   * The local bridge's one-time pairing code, or null when the bridge is off.
+   * Surfaced here because the CLI is the ONLY thing that may render it: it is
+   * the consent token for a cross-origin hand-off, and the person who needs it
+   * is the one looking at this terminal.
+   */
+  bridgePairingCode: string | null;
   app: AdminiumServer;
   close(): Promise<void>;
 }
@@ -222,7 +234,7 @@ export function displayUrl(host: string, port: number): string {
 export const startServer: StartServer = async (runtime) => {
   const { env } = runtime;
   const staticRoot = resolveStaticRoot();
-  const { app } = await composeServer({
+  const { app, bridgePairingCode } = await composeServer({
     env,
     metaStore: runtime.metaStore,
     manager: runtime.manager,
@@ -235,6 +247,7 @@ export const startServer: StartServer = async (runtime) => {
   await app.listen({ port: env.PORT, host: env.HOST });
   return {
     url: displayUrl(env.HOST, env.PORT),
+    bridgePairingCode,
     app,
     async close() {
       await app.close();
@@ -255,7 +268,54 @@ export interface CliDeps {
   exportZip: ExportZip;
   /** M10-T03's restore path — the same service a Studio upload route would call. */
   importZip: ImportZip;
+  /** Launches the setup wizard's browser mode. Resolves false when it could not. */
+  openBrowser: OpenBrowser;
 }
+
+/** Injected so the wizard tests never shell out. */
+export type OpenBrowser = (url: string) => Promise<boolean>;
+
+/** Per-platform "open this URL in the default browser" command. */
+function browserCommand(platform: NodeJS.Platform): { command: string; args: string[] } {
+  if (platform === 'darwin') return { command: 'open', args: [] };
+  if (platform === 'win32') {
+    // `start` is a cmd builtin, and its first quoted operand is taken as the
+    // window TITLE — hence the empty one, or a URL in quotes never opens.
+    return { command: 'cmd', args: ['/c', 'start', ''] };
+  }
+  return { command: 'xdg-open', args: [] };
+}
+
+/**
+ * Open `url` in the default browser, best-effort.
+ *
+ * Never throws and never blocks: a headless box, a locked-down desktop or a
+ * missing `xdg-open` is an ordinary outcome, not a setup failure — the caller
+ * prints the URL either way. The child is detached and `unref`ed so a browser
+ * that outlives this process cannot hold the terminal open.
+ */
+export const openBrowser: OpenBrowser = async (url) => {
+  // Only ever called with a URL this process just bound, but the check is cheap
+  // and keeps a future caller from turning this into a shell-injection sink.
+  if (!/^https?:\/\//.test(url)) return false;
+  try {
+    const { spawn } = await import('node:child_process');
+    const { command, args } = browserCommand(process.platform);
+    const child = spawn(command, [...args, url], { stdio: 'ignore', detached: true });
+    return await new Promise<boolean>((resolve) => {
+      child.on('error', () => {
+        resolve(false);
+      });
+      // No 'spawn' event within a tick of the error window means it launched.
+      child.on('spawn', () => {
+        child.unref();
+        resolve(true);
+      });
+    });
+  } catch {
+    return false;
+  }
+};
 
 export function defaultCliDeps(): CliDeps {
   return {
@@ -265,5 +325,6 @@ export function defaultCliDeps(): CliDeps {
     startServer,
     exportZip: defaultExportZip,
     importZip: defaultImportZip,
+    openBrowser,
   };
 }

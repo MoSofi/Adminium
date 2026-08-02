@@ -105,6 +105,16 @@ export const startCommand: Command = {
     const server = await deps.startServer(runtime);
     io.out(`Adminium is running at ${server.url}`);
 
+    // The local bridge's consent token (`routes/bridge`). Printed HERE as well
+    // as in the wizard because the published Docker image's CMD is `start`, not
+    // `init` — a container started with ADMINIUM_BRIDGE_ORIGINS set would
+    // otherwise have a pairing code nothing on earth could tell you.
+    if (server.bridgePairingCode !== null) {
+      io.out('');
+      io.out(`Pairing code: ${server.bridgePairingCode}`);
+      io.out('Enter it on the site to hand this instance a connection string.');
+    }
+
     // The process now lives until a signal; `start` never "finishes". The exit
     // code is only reached in tests, where startServer is a fake.
     return EXIT_OK;
