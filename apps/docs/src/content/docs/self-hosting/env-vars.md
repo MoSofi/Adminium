@@ -24,6 +24,7 @@ half-configured and fail later.
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
+| `ADMINIUM_BRIDGE_ORIGINS` | No | *(off)* | CSV of exact origins allowed to hand this instance a connection string. **No wildcard.** |
 | `ADMINIUM_DISABLE_UPDATES` | No | *(unset)* | **Desktop app only.** `1` forces the update mode to `disabled` — see below. |
 
 An empty string is treated as unset, so `FOO= adminium start` behaves like
@@ -124,6 +125,40 @@ ADMINIUM_CORS_ORIGINS='https://admin.acme.io,https://ops.acme.io'
 Exact origins, comma-separated. **`*` is rejected** — responses are
 credentialed (they carry cookies), and a wildcard origin with credentials is
 either a browser error or a vulnerability, depending on the browser.
+
+## `ADMINIUM_BRIDGE_ORIGINS`
+
+Off by default, and unrelated to `ADMINIUM_CORS_ORIGINS` above.
+
+A web page cannot open a TCP connection to PostgreSQL, so when you paste a
+connection string on [adminium.dev/generate](https://adminium.dev/generate/)
+that page has nowhere to send it. This setting lets your browser hand the string
+to an Adminium running on your own machine instead. It goes browser →
+`localhost`; adminium.dev is a static site with no server to receive it.
+
+`adminium --bridge` sets this for you, to `https://adminium.dev` and nothing
+else. Set the variable directly only if you run your own copy of that page:
+
+```bash
+ADMINIUM_BRIDGE_ORIGINS='https://adminium.dev'
+```
+
+Unset, the bridge routes are **not registered at all** — there is no endpoint to
+probe, rather than one that refuses. When it is set, three gates apply:
+
+1. **Origin.** Only the listed origins may call it, and the JSON content type
+   forces a preflight, so a page that is not on the list cannot deliver a
+   request at all. `*` is rejected.
+2. **Pairing code.** The instance prints an 8-character code at startup and the
+   hand-off requires it. It is regenerated on every restart and never written to
+   disk or the logs — the terminal is the only place it appears.
+3. **Session.** The route that gives the connection string *back* is
+   same-origin, cookie-authenticated and `connections:manage`-gated. A guessed
+   ticket is worthless without an admin session.
+
+The bridge never connects to anything. It parks a string for a few minutes and
+the Studio wizard uses it to **pre-fill the connect form**, which you still
+review and submit yourself.
 
 ## `ADMINIUM_TELEMETRY`
 

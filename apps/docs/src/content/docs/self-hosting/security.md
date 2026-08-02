@@ -17,6 +17,8 @@ often write — your production data. Treat it as production infrastructure.
 - [ ] Roles are assigned per person; nobody is a super admin by default
 - [ ] 2FA on for anyone who can write
 - [ ] `ADMINIUM_CORS_ORIGINS` unset (unless you genuinely split the deployment)
+- [ ] `ADMINIUM_BRIDGE_ORIGINS` unset on a server — it exists for a laptop being
+      set up from adminium.dev, and a production instance has no such moment
 - [ ] Audit log reviewed periodically
 
 ## `ADMINIUM_SECRET`

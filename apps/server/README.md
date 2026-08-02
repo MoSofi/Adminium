@@ -63,6 +63,7 @@ Everything is environment-driven, validated once at boot.
 | `ADMINIUM_LOG_LEVEL` | `trace`…`fatal` (default `info`) |
 | `ADMINIUM_TRUST_PROXY` | Enable behind a TLS-terminating proxy |
 | `ADMINIUM_CORS_ORIGINS` | Comma-separated allowed origins |
+| `ADMINIUM_BRIDGE_ORIGINS` | Origins allowed to hand this instance a connection string (`--bridge`) |
 | `ADMINIUM_NETWORK_FEATURES` | `off` on air-gapped installs — the UI stops offering webhooks/OAuth |
 | `ADMINIUM_TELEMETRY` | `off` by default |
 
