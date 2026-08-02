@@ -35,6 +35,7 @@ import { buildServer, type AdminiumServer } from './app.js';
 import type { Env } from './config/env.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
+import { createBridgeStore, createPairingCode } from './bridge/store.js';
 import { registerIntrospectJob } from './connections/introspect.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { UndoStore } from './crud/undo.js';
@@ -61,6 +62,7 @@ import { desktopDemoRoutes } from './routes/desktop-demo/index.js';
 import { desktopLanRoutes } from './routes/desktop-lan/index.js';
 import { desktopLocalDbRoutes } from './routes/desktop-local-db/index.js';
 import { desktopCapabilityRoutes } from './routes/desktop-capabilities/index.js';
+import { bridgeRoutes } from './routes/bridge/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { emailTemplatesRoutes } from './routes/email-templates/index.js';
@@ -176,6 +178,16 @@ export interface ComposedServer {
    * door, so whether it exists is a fact a caller reads rather than re-derives.
    */
   desktopCapabilitiesEnabled: boolean;
+  /**
+   * The one-time pairing code `routes/bridge` requires, or null when the bridge
+   * was not registered (`ADMINIUM_BRIDGE_ORIGINS` unset).
+   *
+   * Reported rather than logged: the code is the user's consent token for a
+   * cross-origin hand-off, so exactly one thing should ever render it — the CLI
+   * line that tells the person at the keyboard what to type. Putting it through
+   * the logger would scatter it into log files and log shippers.
+   */
+  bridgePairingCode: string | null;
 }
 
 /**
@@ -360,6 +372,22 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    */
   const desktopCapabilities = env.ADMINIUM_RUNTIME === 'desktop';
 
+  /**
+   * The local bridge (`routes/bridge`), which lets adminium.dev hand this
+   * instance a connection string instead of dead-ending at "copy this command".
+   *
+   * OFF unless `ADMINIUM_BRIDGE_ORIGINS` names the origins allowed to do it —
+   * `adminium --bridge` is the only thing that sets it. Absent, the routes are
+   * never registered, so there is no door to probe rather than a door that
+   * refuses. The pairing code is minted here, once per boot: a code that
+   * survived a restart would be a long-lived shared secret sitting in a file,
+   * which is precisely what a consent token must not be.
+   */
+  const bridge =
+    env.ADMINIUM_BRIDGE_ORIGINS === undefined
+      ? null
+      : { origins: env.ADMINIUM_BRIDGE_ORIGINS, pairingCode: createPairingCode(), store: createBridgeStore() };
+
   await app.register(
     async (api) => {
       if (desktopSession !== null) {
@@ -399,6 +427,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Also after `rbacPlugin`: all three verbs guard on `system:settings:manage`.
       if (desktopCapabilities) {
         await api.register(desktopCapabilityRoutes({ meta }));
+      }
+      if (bridge !== null) {
+        await api.register(
+          bridgeRoutes({
+            origins: bridge.origins,
+            pairingCode: bridge.pairingCode,
+            store: bridge.store,
+            version: APP_VERSION,
+          }),
+        );
       }
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
@@ -502,5 +540,6 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     desktopDemoEnabled: desktopDemo !== null,
     desktopBackupEnabled: desktopBackup,
     desktopCapabilitiesEnabled: desktopCapabilities,
+    bridgePairingCode: bridge?.pairingCode ?? null,
   };
 }
