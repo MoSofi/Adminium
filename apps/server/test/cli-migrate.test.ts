@@ -187,6 +187,55 @@ describe('resolveMetaUrl — the §7.2 precedence', () => {
     expect(resolved).toMatchObject({ url: 'mysql://u@env/db', source: 'env' });
   });
 
+  it('a changed ADMINIUM_SECRET names the file and both ways out', async () => {
+    // The most likely second-run failure there is: `openssl rand -hex 32`
+    // yields a new value every time, so anyone re-running the quickstart in a
+    // fresh terminal lands here. The raw crypto error ("decryption failed —
+    // token was tampered with or the key is wrong") named neither the file nor
+    // the variable, which made a self-inflicted, one-command-fixable situation
+    // look like corruption.
+    await writeBootstrap(dir, {
+      v: 1,
+      metaUrl: metaUrlCryptoFromSecret(TEST_SECRET).encrypt('postgres://u@bootstrap/db'),
+      createdAt: new Date().toISOString(),
+      instanceId: 'inst_1',
+    });
+
+    const failure = await resolveMetaUrl({ dataDir: dir, secret: 'a-completely-different-secret' })
+      .then(() => null)
+      .catch((error: unknown) => error as Error);
+
+    expect(failure).not.toBeNull();
+    expect(failure?.name).toBe('MetaSecretMismatchError');
+    const message = failure?.message ?? '';
+    expect(message).toContain(join(dir, 'adminium.json')); // which file
+    expect(message).toContain('ADMINIUM_SECRET'); // which knob
+    expect(message).toContain('openssl rand -hex 32'); // why it happened
+    expect(message).toContain('set ADMINIUM_SECRET back'); // way out 1
+    expect(message).toContain('delete'); // way out 2
+    expect(message).toContain('your database'); // what is NOT lost
+    // The unactionable original must not be what reaches the user.
+    expect(message).not.toContain('token was tampered with');
+  });
+
+  it('restoring the original secret resolves the same DSN again', async () => {
+    // Proves the first remedy the message offers actually works.
+    const url = 'postgres://u@bootstrap/db';
+    await writeBootstrap(dir, {
+      v: 1,
+      metaUrl: metaUrlCryptoFromSecret(TEST_SECRET).encrypt(url),
+      createdAt: new Date().toISOString(),
+      instanceId: 'inst_1',
+    });
+    await expect(resolveMetaUrl({ dataDir: dir, secret: 'wrong-secret-entirely' })).rejects.toThrow(
+      /different ADMINIUM_SECRET/,
+    );
+    await expect(resolveMetaUrl({ dataDir: dir, secret: TEST_SECRET })).resolves.toMatchObject({
+      url,
+      source: 'bootstrap',
+    });
+  });
+
   it('3. falls back to embedded SQLite under the data dir (§3.1 OD-1)', async () => {
     const resolved = await resolveMetaUrl({ dataDir: dir, secret: TEST_SECRET });
     expect(resolved.engine).toBe('sqlite');
