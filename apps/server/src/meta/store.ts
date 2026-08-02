@@ -31,7 +31,7 @@ import {
   type MetaDb,
 } from '@adminium/meta';
 
-import { readBootstrap } from '../config/bootstrap.js';
+import { bootstrapPath, readBootstrap } from '../config/bootstrap.js';
 import { decryptSecret, deriveKey, encryptSecret } from '../config/secrets.js';
 
 /**
@@ -70,6 +70,49 @@ export interface ResolvedMetaUrl {
 
 export class MetaUrlError extends Error {
   override readonly name = 'MetaUrlError';
+}
+
+/**
+ * `<dataDir>/adminium.json` exists but its `metaUrl` will not decrypt under the
+ * current `ADMINIUM_SECRET` (§7.2).
+ *
+ * WHY THIS DESERVES ITS OWN ERROR. The underlying failure is a
+ * `SecretIntegrityError` reading "decryption failed — token was tampered with
+ * or the key is wrong", which is true and completely unactionable: it names no
+ * file, no variable, and no way out. It is also the single most likely thing to
+ * go wrong on a second run, because the documented way to obtain a secret —
+ * `export ADMINIUM_SECRET=$(openssl rand -hex 32)` — produces a DIFFERENT value
+ * every time it is evaluated. Anyone who opens a new terminal and re-runs the
+ * quickstart lands here, having done exactly what they were told.
+ *
+ * The message is written to be complete on its own rather than relying on a CLI
+ * hint, because the same failure surfaces from `adminium start`, `migrate`, and
+ * the Docker image's CMD — where the only thing anyone sees is a log line.
+ */
+export class MetaSecretMismatchError extends Error {
+  override readonly name = 'MetaSecretMismatchError';
+  constructor(
+    readonly bootstrapFile: string,
+    cause?: unknown,
+  ) {
+    super(
+      `Could not read ${bootstrapFile} — it was encrypted with a different ADMINIUM_SECRET.\n` +
+        '\n' +
+        'That file remembers where Adminium keeps its own data. It is encrypted with the\n' +
+        'ADMINIUM_SECRET that was set the first time you ran setup, and the current one\n' +
+        'does not match. Note that `openssl rand -hex 32` produces a new value every time\n' +
+        'you run it — re-running the quickstart in a fresh terminal is the usual cause.\n' +
+        '\n' +
+        'Either:\n' +
+        `  • set ADMINIUM_SECRET back to the value used before, or\n` +
+        `  • delete ${bootstrapFile} and set up again.\n` +
+        '\n' +
+        'Deleting it only makes Adminium forget where its own store lives — your database\n' +
+        'is untouched. If that store was PostgreSQL or MySQL, point ADMINIUM_META_URL at\n' +
+        'the same DSN afterwards so the existing users and pages are picked back up.',
+      cause === undefined ? undefined : { cause },
+    );
+  }
 }
 
 export class MetaDriverMissingError extends Error {
@@ -137,7 +180,15 @@ export async function resolveMetaUrl(opts: ResolveMetaUrlOptions): Promise<Resol
 
   const bootstrap = await readBootstrap(opts.dataDir);
   if (bootstrap?.metaUrl !== undefined) {
-    const url = metaUrlCryptoFromSecret(opts.secret).decrypt(bootstrap.metaUrl);
+    let url: string;
+    try {
+      url = metaUrlCryptoFromSecret(opts.secret).decrypt(bootstrap.metaUrl);
+    } catch (error) {
+      // The only realistic cause is a changed ADMINIUM_SECRET, and the raw
+      // crypto error names neither the file nor the variable — see
+      // MetaSecretMismatchError.
+      throw new MetaSecretMismatchError(bootstrapPath(opts.dataDir), error);
+    }
     return { url, engine: metaEngineFromUrl(url), source: 'bootstrap' };
   }
 
