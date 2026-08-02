@@ -244,6 +244,28 @@ describe('FirstRunWizard', () => {
     });
   });
 
+  it('lands on the connect wizard instead when a bridge hand-off is waiting', async () => {
+    // The path a fresh install takes when someone pastes a connection string on
+    // adminium.dev: the site redirects to `/studio/connect?bridge=…`, the app
+    // bounces to `/setup` because no account exists yet, and the ticket waits in
+    // sessionStorage. Landing on `/` afterwards would strand it — the account
+    // was never the thing they came to do.
+    window.sessionStorage.setItem('adminium-bridge-ticket', 'tkt_123');
+    try {
+      const user = userEvent.setup();
+      const { router } = await renderAt('/setup', { required: true });
+      await screen.findByRole('heading', { name: 'Set up Adminium' });
+      await fillAccount(user);
+      await user.click(await screen.findByRole('button', { name: 'Create admin account' }));
+
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe('/studio/connect');
+      });
+    } finally {
+      window.sessionStorage.clear();
+    }
+  });
+
   it('sends consent: true only after the operator flips the switches', async () => {
     const user = userEvent.setup();
     const { setupCalls } = await renderAt('/setup', { required: true });

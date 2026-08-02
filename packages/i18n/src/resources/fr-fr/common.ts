@@ -836,6 +836,10 @@ export default {
       "progress": "Progression de la configuration",
       "persistFailed": "Impossible d’enregistrer votre sélection de tables — réessayez.",
       "persistFailedTitle": "Échec de l’enregistrement",
+      "bridgeAppliedTitle": "Chaîne de connexion reçue",
+      "bridgeAppliedBody": "Transmise depuis adminium.dev par votre navigateur — elle est allée directement à cette machine et n’a jamais été téléversée. Vérifiez-la ci-dessous, puis continuez.",
+      "bridgeFailedTitle": "Ce transfert n’a pas pu être utilisé",
+      "bridgeFailedBody": "Il a déjà été utilisé ou a expiré. Collez plutôt votre chaîne de connexion ci-dessous.",
       "step": {
         "source": "Source",
         "test": "Analyser",

@@ -828,6 +828,10 @@
       "progress": "Průběh nastavení",
       "persistFailed": "Výběr tabulek se nepodařilo uložit — zkuste to znovu.",
       "persistFailedTitle": "Uložení se nezdařilo",
+      "bridgeAppliedTitle": "Připojovací řetězec přijat",
+      "bridgeAppliedBody": "Předán z adminium.dev vaším prohlížečem — putoval přímo do tohoto počítače a nikdy nebyl nahrán na server. Zkontrolujte jej níže a pokračujte.",
+      "bridgeFailedTitle": "Toto předání se nepodařilo použít",
+      "bridgeFailedBody": "Už bylo použito nebo vypršelo. Vložte svůj připojovací řetězec níže ručně.",
       "step": {
         "source": "Zdroj",
         "test": "Analyzovat",

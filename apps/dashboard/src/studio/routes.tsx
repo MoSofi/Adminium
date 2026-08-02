@@ -13,13 +13,14 @@
  *
  * All Studio surfaces are wrapped in `StudioGuard` (role ≥ Admin).
  */
-import { Suspense, lazy, type ComponentType } from 'react';
+import { Suspense, lazy, useState, type ComponentType } from 'react';
 import { createRoute, useNavigate, type AnyRoute } from '@tanstack/react-router';
 import { Alert, Spinner } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { StudioGuard } from './StudioGuard.js';
 import { ConnectWizard } from './connect/ConnectWizard.js';
+import { takeBridgeTicket } from './connect/bridgeSeed.js';
 import { ConnectionsHub } from './hub/ConnectionsHub.js';
 import { StudioSettingsPage } from './settings/StudioSettingsPage.js';
 import { StudioAiPage } from './ai/StudioAiPage.js';
@@ -102,9 +103,14 @@ function CenteredSpinner() {
 
 function ConnectRouteComponent() {
   const navigate = useNavigate();
+  // Read (and strip from history) once, in a state initialiser rather than an
+  // effect: an effect would run after the first paint, so a fast re-render or a
+  // StrictMode double-invoke could read a ticket the wizard had already spent.
+  const [bridgeTicket] = useState(takeBridgeTicket);
   return (
     <StudioGuard>
       <ConnectWizard
+        bridgeTicket={bridgeTicket}
         onOpenApp={() => void navigate({ to: '/' })}
         onOpenReview={(runId) => void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })}
       />

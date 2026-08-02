@@ -836,6 +836,10 @@ export default {
       "progress": "Einrichtungsfortschritt",
       "persistFailed": "Ihre Tabellenauswahl konnte nicht gespeichert werden — versuchen Sie es erneut.",
       "persistFailedTitle": "Speichern fehlgeschlagen",
+      "bridgeAppliedTitle": "Verbindungszeichenfolge empfangen",
+      "bridgeAppliedBody": "Von adminium.dev durch Ihren Browser übergeben — sie ging direkt an diesen Rechner und wurde nie hochgeladen. Prüfen Sie sie unten und fahren Sie fort.",
+      "bridgeFailedTitle": "Diese Übergabe konnte nicht verwendet werden",
+      "bridgeFailedBody": "Sie wurde bereits verwendet oder ist abgelaufen. Fügen Sie Ihre Verbindungszeichenfolge stattdessen unten ein.",
       "step": {
         "source": "Quelle",
         "test": "Analysieren",

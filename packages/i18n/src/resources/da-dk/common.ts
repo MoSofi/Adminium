@@ -836,6 +836,10 @@ export default {
       "progress": "Opsætningsforløb",
       "persistFailed": "Dit tabelvalg kunne ikke gemmes — prøv igen.",
       "persistFailedTitle": "Kunne ikke gemme",
+      "bridgeAppliedTitle": "Forbindelsesstreng modtaget",
+      "bridgeAppliedBody": "Overdraget fra adminium.dev af din browser — den gik direkte til denne maskine og blev aldrig uploadet. Tjek den nedenfor, og fortsæt.",
+      "bridgeFailedTitle": "Denne overdragelse kunne ikke bruges",
+      "bridgeFailedBody": "Den er allerede brugt eller udløbet. Indsæt i stedet din forbindelsesstreng nedenfor.",
       "step": {
         "source": "Kilde",
         "test": "Analysér",
