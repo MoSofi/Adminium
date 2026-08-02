@@ -11,6 +11,12 @@ coverage/
 # Unanchored `data/` also matched `apps/server/src/routes/data/` — the CRUD
 # route source — and silently kept it out of version control.
 /data/
+# The same directory when the server is run from its own package, which is what
+# every self-host doc and every local smoke test actually does. Anchored for the
+# reason above. It holds `adminium.json` — the AES-256-GCM-encrypted meta DSN
+# (07 §7.2) — and `meta.db`, so this is about not committing a credential, not
+# just tidiness.
+/apps/server/data/
 # Local-only example databases + their generator toolkit. Schema + seed SQL
 # for demo projects (imported into Adminium / Neon / Supabase / PlanetScale) —
 # scratch material, never part of the shipped product.
