@@ -27,7 +27,7 @@ ADMINIUM_SECRET=$(openssl rand -hex 32) docker compose up
 
 ```sh
 npm install -g @adminiumjs/adminium
-export ADMINIUM_SECRET=$(openssl rand -hex 32)
+export ADMINIUM_SECRET=${ADMINIUM_SECRET:-$(openssl rand -hex 32)}  # save this value
 adminium start   # → http://localhost:4600
 ```
 
