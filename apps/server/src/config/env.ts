@@ -208,6 +208,54 @@ export const envSchema = z.object({
         return origins;
       }),
   ),
+  /**
+   * Exact origins allowed to hand a connection string to this instance
+   * (`routes/bridge`). Unset ⇒ the bridge routes are not registered at all,
+   * which is the default: `adminium --bridge` is the only thing that sets it.
+   *
+   * Wildcard is refused for a sharper reason than the CORS list above: this
+   * resource accepts a credential-bearing string from a cross-origin page, so
+   * "any site may hand my admin panel a database" is never a coherent setting.
+   */
+  ADMINIUM_BRIDGE_ORIGINS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const origins = value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter((origin) => origin.length > 0);
+        if (origins.length === 0) return undefined;
+        for (const origin of origins) {
+          if (origin === '*') {
+            ctx.addIssue({
+              code: 'custom',
+              message: 'wildcard origin is not allowed for the local bridge',
+            });
+            return z.NEVER;
+          }
+          // An exact origin, i.e. scheme + host + optional port and nothing
+          // else. A value carrying a path would silently never match the
+          // browser's `Origin` header, which fails as "pairing is broken".
+          try {
+            if (new URL(origin).origin !== origin) {
+              ctx.addIssue({
+                code: 'custom',
+                message: `"${origin}" must be an exact origin, e.g. https://adminium.dev`,
+              });
+              return z.NEVER;
+            }
+          } catch {
+            ctx.addIssue({ code: 'custom', message: `"${origin}" is not a valid origin` });
+            return z.NEVER;
+          }
+        }
+        return origins;
+      }),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -230,6 +278,8 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_TRUST_PROXY: `one of ${BOOLEANISH.join(', ')} (default off; enable behind Caddy/TLS)`,
   ADMINIUM_CORS_ORIGINS:
     'CSV of exact origins for split deployments, e.g. https://admin.acme.io — no wildcard',
+  ADMINIUM_BRIDGE_ORIGINS:
+    'CSV of exact origins allowed to hand this instance a connection string, e.g. https://adminium.dev — unset disables the bridge entirely',
 };
 
 export class EnvValidationError extends Error {
