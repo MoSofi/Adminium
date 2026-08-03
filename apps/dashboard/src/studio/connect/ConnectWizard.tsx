@@ -269,10 +269,22 @@ export function ConnectWizard({
         ) : null}
       </main>
 
-      <footer className="sticky bottom-0 -mx-6 mt-auto flex items-center justify-between border-t border-border bg-surface px-6 py-3.5">
-        <Button variant="ghost" onClick={back} disabled={stepIndex === 0}>
-          {t('studio.wizard.back', 'Back')}
-        </Button>
+      {/*
+        Back is OMITTED on the first step rather than rendered disabled. A dead
+        greyed control is the first thing the eye lands on in an otherwise empty
+        bar, and it communicates nothing that the absence of the button doesn't
+        — there is visibly no step to go back to.
+      */}
+      <footer
+        className={`sticky bottom-0 -mx-6 mt-auto flex items-center border-t border-border bg-surface px-6 py-3.5 ${
+          stepIndex === 0 ? 'justify-end' : 'justify-between'
+        }`}
+      >
+        {stepIndex === 0 ? null : (
+          <Button variant="ghost" onClick={back}>
+            {t('studio.wizard.back', 'Back')}
+          </Button>
+        )}
         {state.step !== 'generate' ? (
           <Button onClick={advance} disabled={!continueEnabled} loading={persisting}>
             {t('studio.wizard.continue', 'Continue')}

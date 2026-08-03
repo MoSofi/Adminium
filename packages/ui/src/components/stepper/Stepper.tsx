@@ -30,6 +30,23 @@ export interface StepperProps extends ComponentPropsWithRef<'ol'> {
   label?: string | undefined;
 }
 
+/**
+ * Above this many horizontal steps, only the step you are ON keeps a visible
+ * label. Seven labels never fit the 760px column the connect wizard renders in,
+ * and the previous answer — let every label truncate — degraded all of them at
+ * once into "Int… So… An… Ta… M… En…".
+ *
+ * The threshold is on the STEP COUNT, not a viewport breakpoint, because the
+ * constraint is the container's width and `md:` cannot see that: the wizard is
+ * 760px wide on a 2560px monitor.
+ */
+const COMPACT_STEP_COUNT = 5;
+
+/** Is this step's label collapsed to screen-reader-only? */
+function labelCollapsed(compact: boolean, state: StepState): boolean {
+  return compact && state !== 'active' && state !== 'loading';
+}
+
 function deriveState(step: Step, index: number, activeIndex: number): StepState {
   if (step.state !== undefined) return step.state;
   if (index < activeIndex) return 'done';
@@ -95,6 +112,7 @@ export function Stepper({
   ...props
 }: StepperProps) {
   const vertical = orientation === 'vertical';
+  const compact = !vertical && steps.length > COMPACT_STEP_COUNT;
   return (
     <ol
       aria-label={label}
@@ -111,8 +129,25 @@ export function Stepper({
         const content = (
           <>
             <StepCircle state={state} index={index} />
-            <span className={cn('min-w-0', vertical ? 'pt-1' : undefined)}>
-              <span className={cn('block truncate text-body-sm transition-colors duration-150', labelClasses[state])}>
+            <span className={cn(vertical ? 'min-w-0 pt-1' : undefined)}>
+              <span
+                className={cn(
+                  // `sr-only`, never `hidden`: a collapsed label is a layout
+                  // decision, not a content one — the step names must stay in
+                  // the accessibility tree for the <ol> to still describe the
+                  // flow. Sighted users get them back via the `title` below.
+                  labelCollapsed(compact, state)
+                    ? 'sr-only'
+                    : cn(
+                        'block text-body-sm transition-colors duration-150',
+                        // Labels must NOT shrink. Every non-last <li> is
+                        // `flex-1`, so with `min-w-0 truncate` the label was
+                        // what gave way, rendering "Int… So… An…".
+                        vertical ? 'truncate' : 'whitespace-nowrap',
+                        labelClasses[state],
+                      ),
+                )}
+              >
                 {step.label}
               </span>
               {vertical && step.description !== undefined && step.description !== null ? (
@@ -127,8 +162,12 @@ export function Stepper({
             key={step.id}
             aria-current={state === 'active' ? 'step' : undefined}
             data-state={state}
+            data-compact={compact ? '' : undefined}
+            {...(labelCollapsed(compact, state) && typeof step.label === 'string'
+              ? { title: step.label }
+              : {})}
             className={cn(
-              vertical ? 'relative flex gap-3 pb-6 last:pb-0' : 'flex min-w-0 items-center',
+              vertical ? 'relative flex gap-3 pb-6 last:pb-0' : 'flex items-center',
               !vertical && !isLast ? 'flex-1' : undefined,
             )}
           >
@@ -148,14 +187,14 @@ export function Stepper({
                 type="button"
                 onClick={() => onStepClick(index)}
                 className={cn(
-                  'flex min-w-0 items-center gap-2.5 rounded-md text-start',
+                  'flex items-center gap-2.5 rounded-md text-start',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 )}
               >
                 {content}
               </button>
             ) : (
-              <span className={cn('flex min-w-0 gap-2.5', vertical ? undefined : 'items-center')}>{content}</span>
+              <span className={cn('flex gap-2.5', vertical ? 'min-w-0' : 'items-center')}>{content}</span>
             )}
             {/* horizontal connector */}
             {!vertical && !isLast ? (

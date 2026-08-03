@@ -73,3 +73,45 @@ export const VerticalTimeline: Story = {
     </Card>
   ),
 };
+
+/**
+ * The real connect wizard: 7 steps in the 760px column it actually renders in
+ * (`apps/dashboard/src/studio/connect/ConnectWizard.tsx`). The 4-step story
+ * above never showed the failure — at seven, every label used to truncate to
+ * "Int… So… An…". Past COMPACT_STEP_COUNT only the active step is labelled;
+ * the rest keep their names for screen readers and on hover.
+ */
+const CONNECT_STEPS: Step[] = [
+  { id: 'intent', label: 'Intent' },
+  { id: 'source', label: 'Source' },
+  { id: 'test', label: 'Analyze' },
+  { id: 'tables', label: 'Tables' },
+  { id: 'meta', label: 'Meta storage' },
+  { id: 'enrich', label: 'Enrich' },
+  { id: 'generate', label: 'Generate' },
+];
+
+function ConnectWizardStepper() {
+  const [active, setActive] = useState(0);
+  return (
+    <div className="w-[760px] p-6">
+      <Stepper label="Setup progress" steps={CONNECT_STEPS} activeIndex={active} onStepClick={setActive} />
+      <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
+        {active === 0 ? null : (
+          <Button variant="ghost" onClick={() => setActive((a) => a - 1)}>
+            Back
+          </Button>
+        )}
+        <Button
+          className="ms-auto"
+          disabled={active === CONNECT_STEPS.length - 1}
+          onClick={() => setActive((a) => a + 1)}
+        >
+          Continue
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export const SevenStepWizard: Story = { render: () => <ConnectWizardStepper /> };
