@@ -53,6 +53,49 @@ const INTROSPECT_POOL_MAX = 5;
 const DATA_POOL_MAX = 10;
 const DEFAULT_STATEMENT_TIMEOUT_MS = 15_000;
 
+/**
+ * A connection pooler refusing the startup `options` packet.
+ *
+ * Neon (the pooled `…-pooler.…neon.tech` host its dashboard hands you by
+ * default) answers `unsupported startup parameter in options: statement_timeout`;
+ * pgbouncer in transaction mode says `unsupported startup parameter: options`.
+ * Matching the shared prefix covers both without pinning either vendor's exact
+ * wording, and the check is deliberately on the MESSAGE — the SQLSTATE varies
+ * between poolers, and Neon reports this as a plain connection failure.
+ */
+const POOLER_REJECTS_STARTUP_OPTIONS = /unsupported startup parameter/i;
+
+/** Does `error` (or anything it wraps) carry the pooler's refusal? */
+export function isPoolerStartupRejection(error: unknown): boolean {
+  for (let current: unknown = error, depth = 0; current !== null && current !== undefined && depth < 5; depth += 1) {
+    const message = (current as { message?: unknown }).message;
+    if (typeof message === 'string' && POOLER_REJECTS_STARTUP_OPTIONS.test(message)) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+/**
+ * The 05 §4.1 session settings, in both shapes: the startup-packet form (zero
+ * round trips, preferred) and the `SET LOCAL` prelude used when a pooler
+ * refuses it. They are built together so the two can never drift into
+ * enforcing different limits.
+ */
+export function buildSessionSettings(
+  statementTimeoutMs: number,
+  introspect: boolean,
+): { startupOptions: string; prelude: string } {
+  const pairs: [string, string][] = [['statement_timeout', String(statementTimeoutMs)]];
+  if (introspect) {
+    pairs.push(['lock_timeout', '2s'], ['idle_in_transaction_session_timeout', '10s']);
+  }
+  return {
+    startupOptions: pairs.map(([k, v]) => `-c ${k}=${v}`).join(' '),
+    // Quoted values: `2s` is not a valid bare token for SET, unlike in `-c`.
+    prelude: pairs.map(([k, v]) => `SET LOCAL ${k} = '${v}';`).join(' '),
+  };
+}
+
 export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
   implements DatabaseAdapter<Role>
 {
@@ -62,6 +105,12 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
 
   #pool: pg.Pool | null = null;
   #closed = false;
+  /** Rebuild inputs for the pooler fallback — see {@link PostgresAdapter.connect}. */
+  #poolConfig: { connectionString: string; max: number } | null = null;
+  /** The `-c …` string sent in the startup packet, or null once we stop trying. */
+  #startupOptions: string | null = null;
+  /** `SET LOCAL` prelude used instead of startup options on a pooled connection. */
+  #sessionPrelude = '';
 
   constructor(role: Role) {
     this.role = role;
@@ -94,22 +143,38 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
     // `options` overrides any `options=` in the user DSN (rare), and
     // transaction-pooling pgbouncer rejects startup options (the previous
     // per-connection SET was equally broken there).
-    const sessionOptions =
-      `-c statement_timeout=${statementTimeoutMs}` +
-      (this.role === 'introspect'
-        ? ' -c lock_timeout=2s -c idle_in_transaction_session_timeout=10s'
-        : '');
-    const pool = new pg.Pool({
+    //
+    // …EXCEPT ON A CONNECTION POOLER, which refuses the startup packet outright
+    // (see POOLER_REJECTS_STARTUP_OPTIONS). That is not an edge case: it is the
+    // connection string Neon shows first, so this path failing meant Adminium
+    // could not read a Neon database at all. `#query` therefore falls back on
+    // the first rejection — rebuilding the pool without `options` and moving the
+    // same settings into a `SET LOCAL` prelude (see {@link buildSessionSettings}).
+    const settings = buildSessionSettings(statementTimeoutMs, this.role === 'introspect');
+    this.#poolConfig = {
       connectionString: config.dsn,
       max: config.poolMax ?? (this.role === 'introspect' ? INTROSPECT_POOL_MAX : DATA_POOL_MAX),
-      options: sessionOptions,
+    };
+    this.#startupOptions = settings.startupOptions;
+    this.#sessionPrelude = settings.prelude;
+    this.#pool = this.#buildPool();
+    this.#closed = false;
+  }
+
+  /** Open a pool, with the startup options only while {@link #startupOptions} stands. */
+  #buildPool(): pg.Pool {
+    if (this.#poolConfig === null) {
+      throw new AdapterError('UNKNOWN', 'adapter is not connected — call connect() first');
+    }
+    const pool = new pg.Pool({
+      ...this.#poolConfig,
+      ...(this.#startupOptions === null ? {} : { options: this.#startupOptions }),
     });
     // Surface idle-client failures as pool-level noise, not process crashes.
     pool.on('error', () => {
       /* mapped when the next query fails */
     });
-    this.#pool = pool;
-    this.#closed = false;
+    return pool;
   }
 
   #requirePool(): pg.Pool {
@@ -120,13 +185,47 @@ export class PostgresAdapter<Role extends ConnectionRole = ConnectionRole>
   }
 
   async #query(sql: string): Promise<CatalogRow[]> {
-    const pool = this.#requirePool();
     try {
-      const result = await pool.query(sql);
-      return result.rows as CatalogRow[];
+      return await this.#run(sql);
     } catch (error) {
+      // One-time downgrade: the server refused the startup packet, so this is a
+      // pooler. Rebuild without `options` and carry the same settings per query
+      // instead. Retried once, and only while #startupOptions is still set, so
+      // a genuinely broken connection cannot loop.
+      if (this.#startupOptions !== null && isPoolerStartupRejection(error)) {
+        const stale = this.#pool;
+        this.#startupOptions = null;
+        this.#pool = this.#buildPool();
+        // Best-effort: the stale pool never completed a connection.
+        await stale?.end().catch(() => undefined);
+        try {
+          return await this.#run(sql);
+        } catch (retryError) {
+          throw toAdapterError(retryError, 'postgres query failed');
+        }
+      }
       throw toAdapterError(error, 'postgres query failed');
     }
+  }
+
+  /**
+   * Run one statement, prefixed with the `SET LOCAL` prelude when the startup
+   * packet was refused.
+   *
+   * `SET LOCAL` is correct precisely BECAUSE the prelude and the statement go
+   * out as one simple-query message: Postgres wraps a multi-statement simple
+   * query in an implicit transaction, so the setting is scoped to this batch
+   * and cannot leak onto a backend that a transaction-pooling proxy hands to
+   * somebody else. A bare `SET` would leak; a separate round trip would race
+   * the pool's hand-off, which is what the startup packet avoided originally.
+   */
+  async #run(sql: string): Promise<CatalogRow[]> {
+    const pool = this.#requirePool();
+    const usePrelude = this.#startupOptions === null && this.#sessionPrelude !== '';
+    const result = await pool.query(usePrelude ? `${this.#sessionPrelude} ${sql}` : sql);
+    // A multi-statement query yields one Result per statement; ours is the last.
+    const rows = Array.isArray(result) ? (result.at(-1)?.rows ?? []) : result.rows;
+    return rows as CatalogRow[];
   }
 
   async #probe(): Promise<ProbeResult> {
