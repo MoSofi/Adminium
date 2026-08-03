@@ -8,7 +8,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -209,6 +209,11 @@ describe('resolveMetaUrl — the §7.2 precedence', () => {
     expect(failure?.name).toBe('MetaSecretMismatchError');
     const message = failure?.message ?? '';
     expect(message).toContain(join(dir, 'adminium.json')); // which file
+    // ABSOLUTE. ADMINIUM_DATA_DIR defaults to a relative `./data`, so a bare
+    // `join` produced "delete data/adminium.json" — a remedy that silently
+    // depends on which directory you are standing in.
+    expect(message).toContain(`delete ${join(dir, 'adminium.json')}`);
+    expect(isAbsolute(join(dir, 'adminium.json'))).toBe(true);
     expect(message).toContain('ADMINIUM_SECRET'); // which knob
     expect(message).toContain('openssl rand -hex 32'); // why it happened
     expect(message).toContain('set ADMINIUM_SECRET back'); // way out 1
