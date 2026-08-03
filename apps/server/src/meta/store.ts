@@ -187,7 +187,13 @@ export async function resolveMetaUrl(opts: ResolveMetaUrlOptions): Promise<Resol
       // The only realistic cause is a changed ADMINIUM_SECRET, and the raw
       // crypto error names neither the file nor the variable — see
       // MetaSecretMismatchError.
-      throw new MetaSecretMismatchError(bootstrapPath(opts.dataDir), error);
+      // ABSOLUTE, not `bootstrapPath(opts.dataDir)` as-is: ADMINIUM_DATA_DIR
+      // defaults to the relative `./data`, so the message used to end with
+      // "delete data/adminium.json" — a path that only resolves if you are
+      // standing in the directory you happened to launch from. The remedy has
+      // to be copy-pasteable from anywhere, including a Docker log read on
+      // another machine.
+      throw new MetaSecretMismatchError(resolve(bootstrapPath(opts.dataDir)), error);
     }
     return { url, engine: metaEngineFromUrl(url), source: 'bootstrap' };
   }
