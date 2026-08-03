@@ -21,12 +21,12 @@
     "@adminium/engine": "workspace:*",
     "@adminium/meta": "workspace:*",
     "@adminium/server": "workspace:*",
-    "@playwright/test": "^1.54.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "22.15.3",
     "better-sqlite3": "^12.2.0",
-    "electron": "^43.1.1",
+    "electron": "^43.2.0",
     "eslint": "catalog:",
-    "mysql2": "^3.15.3",
+    "mysql2": "^3.23.2",
     "pg": "^8.16.3",
     "typescript": "catalog:"
   }
