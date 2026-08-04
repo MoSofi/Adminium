@@ -17,12 +17,10 @@
     "typecheck": "echo 'no ts sources'",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@eslint/js": "9.39.0",
-    "typescript-eslint": "8.44.0"
-  },
   "devDependencies": {
+    "@eslint/js": "9.39.0",
     "eslint": "catalog:",
+    "typescript-eslint": "8.44.0",
     "vitest": "catalog:"
   },
   "peerDependencies": {

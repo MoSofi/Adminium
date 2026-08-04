@@ -525,17 +525,16 @@ importers:
         version: 3.2.7(@types/debug@4.1.13)(@types/node@24.13.3)(happy-dom@18.0.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(yaml@2.9.0)
 
   packages/config:
-    dependencies:
+    devDependencies:
       '@eslint/js':
         specifier: 9.39.0
         version: 9.39.0
-      typescript-eslint:
-        specifier: 8.44.0
-        version: 8.44.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-    devDependencies:
       eslint:
         specifier: 'catalog:'
         version: 9.39.5(jiti@2.7.0)
+      typescript-eslint:
+        specifier: 8.44.0
+        version: 8.44.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
       vitest:
         specifier: 'catalog:'
         version: 3.2.7(@types/debug@4.1.13)(@types/node@24.13.3)(happy-dom@18.0.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(yaml@2.9.0)
