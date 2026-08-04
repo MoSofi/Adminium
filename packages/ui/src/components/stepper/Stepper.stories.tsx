@@ -41,7 +41,7 @@ export const Horizontal: Story = { render: () => <WizardDemo /> };
 export const States: Story = {
   tags: ['vrt'],
   render: () => (
-    <Card className="w-[640px] p-5">
+    <Card className="w-[760px] p-5">
       <Stepper
         steps={[
           { id: 'a', label: 'Connected', state: 'done' },
@@ -94,7 +94,7 @@ const CONNECT_STEPS: Step[] = [
 function ConnectWizardStepper() {
   const [active, setActive] = useState(0);
   return (
-    <div className="w-[760px] p-6">
+    <div className="w-[760px] bg-bg p-6">
       <Stepper label="Setup progress" steps={CONNECT_STEPS} activeIndex={active} onStepClick={setActive} />
       <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
         {active === 0 ? null : (
