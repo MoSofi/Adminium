@@ -55,6 +55,45 @@ anywhere" is delivered by Docker, not by a button that fails on boot.
 _Some managed hosts run a revenue-share or affiliate program; Adminium may earn a
 commission from them, and the price you pay is unchanged._
 
+## Example apps
+
+Thirteen complete, production-shaped frontends that run on a database Adminium
+generated. Each one is a separate public repo, ships with its own `db/schema.sql`,
+a `manifest.json` Adminium reads to scaffold the tables, and a `docker-compose.yml`
+that stands up Postgres, the generated dashboard and the app together. Every one
+runs offline as a static build with a bundled demo dataset, so the live links
+below need no backend.
+
+Browse them at **[adminium.dev/marketplace](https://adminium.dev/marketplace)**.
+
+| App | For | Source | Live demo |
+|---|---|---|---|
+| Ecommerce Storefront | Commerce | [ecommerce-storefront](https://github.com/Adminiumjs/ecommerce-storefront) | [demo](https://adminium.dev/demo/ecommerce-storefront/) |
+| Point of Sale | Retail & restaurant counters | [point-of-sale](https://github.com/Adminiumjs/point-of-sale) | [demo](https://adminium.dev/demo/point-of-sale/) |
+| Booking Scheduler | Studios & appointments | [booking-scheduler](https://github.com/Adminiumjs/booking-scheduler) | [demo](https://adminium.dev/demo/booking-scheduler/) |
+| Support Desk | Ticketing & SLAs | [support-desk](https://github.com/Adminiumjs/support-desk) | [demo](https://adminium.dev/demo/support-desk/) |
+| Learning Platform | Courses & enrolment | [learning-platform](https://github.com/Adminiumjs/learning-platform) | [demo](https://adminium.dev/demo/learning-platform/) |
+| Sales CRM | Pipelines & deals | [sales-crm](https://github.com/Adminiumjs/sales-crm) | [demo](https://adminium.dev/demo/sales-crm/) |
+| People Ops | HR & onboarding | [people-ops](https://github.com/Adminiumjs/people-ops) | [demo](https://adminium.dev/demo/people-ops/) |
+| Client Portal | Agencies & studios | [client-portal](https://github.com/Adminiumjs/client-portal) | [demo](https://adminium.dev/demo/client-portal/) |
+| Online Ordering | Restaurants | [online-ordering](https://github.com/Adminiumjs/online-ordering) | [demo](https://adminium.dev/demo/online-ordering/) |
+| Event Ticketing | Events & door lists | [event-ticketing](https://github.com/Adminiumjs/event-ticketing) | [demo](https://adminium.dev/demo/event-ticketing/) |
+| Clinic Desk | Clinics & health | [clinic-desk](https://github.com/Adminiumjs/clinic-desk) | [demo](https://adminium.dev/demo/clinic-desk/) |
+| Factory Ops | Manufacturing | [factory-ops](https://github.com/Adminiumjs/factory-ops) | [demo](https://adminium.dev/demo/factory-ops/) |
+| Hotel Reservations | Hotels | [hotel-reservations](https://github.com/Adminiumjs/hotel-reservations) | [demo](https://adminium.dev/demo/hotel-reservations/) |
+
+All thirteen are AGPL-3.0, carry their own `vitest` suites asserting their rules
+against the shipped seed, and ship the same
+eight locales as Adminium itself — including Arabic, so each one has a full RTL
+layout rather than a mirrored afterthought.
+
+They exist to be taken apart. Each reads its data through a one-file `DataSource`
+seam (`src/data/source.ts`), so pointing an app at a live Adminium deployment
+instead of its bundled seed is a single implementation, with no change to any
+screen. The split they all demonstrate is the product argument: **the app is the
+daily workflow, and the dashboard Adminium generates from the same schema is the
+records, history and reporting behind it.**
+
 ## Monorepo
 
 Workspace names below are the in-repo identifiers. On npm the packages publish
