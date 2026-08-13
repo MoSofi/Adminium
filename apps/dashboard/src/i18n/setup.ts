@@ -25,7 +25,7 @@ import { subscribeTheme } from '@adminium/ui';
 
 import { pushDesktopMenuLabels } from '../desktop/menuLabels.js';
 import { cachedOverrides } from './overrideCache.js';
-import { setI18nInstance } from './t.js';
+import { getI18nInstance, setI18nInstance } from './t.js';
 
 /** The locale the pre-hydration script painted with (localStorage cache). */
 function cachedLocale(): LocaleId {
@@ -97,13 +97,25 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
   pushDesktopMenuLabels();
 
   // ThemeProvider owns the locale axis; follow its resolution live (§7.4).
+  //
+  // Resolve the instance through `getI18nInstance()` on every tick rather than
+  // closing over `i18n`: the override layer REPLACES the instance rather than
+  // patching it (`refreshOverrides`/`resyncOverrides` both `setI18nInstance`),
+  // and `refreshOverrides` runs on every boot a few lines below. A captured
+  // reference therefore goes stale before the user can touch the locale picker,
+  // and the switch then lands on an orphaned instance: its bundles load and its
+  // language changes, but `t()` — which reads the CURRENT instance — keeps
+  // resolving the old language, so the app turns RTL while every string stays
+  // English. That is precisely the split rtl-locale.spec.ts catches.
   subscribeTheme((resolved) => {
-    if (tagForLocale(resolved.locale) === i18n.language) return;
+    const current = getI18nInstance();
+    if (current === null) return;
+    if (tagForLocale(resolved.locale) === current.language) return;
     // Rebuild the native menu once the new locale's strings have actually loaded
     // (`switchLocale` awaits the bundle), never before — pushing mid-switch would
     // carry the OUTGOING locale (§7.4's "no half-translated frame" applies to the
     // menu bar too).
-    void switchLocale(i18n, resolved.locale).then(() => {
+    void switchLocale(current, resolved.locale).then(() => {
       pushDesktopMenuLabels();
     });
   });
