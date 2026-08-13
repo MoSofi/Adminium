@@ -220,7 +220,7 @@
     "icon-gen": "^5.0.0",
     "sharp": "^0.35.3",
     "typescript": "catalog:",
-    "vite": "^7.0.5",
+    "vite": "^8.2.1",
     "vitest": "catalog:"
   }
 }
