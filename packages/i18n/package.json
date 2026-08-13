@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "i18next": "^25.3.2",
-    "intl-messageformat": "^10.7.16"
+    "intl-messageformat": "^11.2.13"
   },
   "peerDependencies": {
     "react": "^19.1.0"
