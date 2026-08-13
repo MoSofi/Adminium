@@ -409,9 +409,23 @@ jobs:
     timeout-minutes: 30
     # Publishes the 14 public packages under the scope-mapped identity
     # (scripts/release/publish-npm.mjs — @adminiumjs/* until the @adminium
-    # scope dispute settles; flip NPM_SCOPE to republish). The secrets context
-    # is unavailable in job-level `if`, so a probe step gates each real step:
-    # without an NPM_TOKEN secret the job logs and exits green.
+    # scope dispute settles; flip NPM_SCOPE to republish).
+    #
+    # AUTH IS TRUSTED PUBLISHING (OIDC), NOT A TOKEN. npm exchanges the Actions
+    # OIDC token for a short-lived credential, so there is no NPM_TOKEN secret
+    # to expire, leak, or create at the wrong type — which is every way this
+    # job has failed so far: v0.1.1 died on E404 (a revoked token) and the
+    # first v0.1.2 attempt on EOTP (a classic "Publish" token, which demands an
+    # interactive 2FA code no CI run can supply).
+    #
+    # Each of the 14 packages must name this repository AND this workflow's
+    # FILENAME (release.yml) as a trusted publisher in its npmjs.com settings.
+    # Renaming this file breaks all 14 publishes until each is repointed.
+    #
+    # There is deliberately no "skip if unconfigured" branch. The probe step
+    # this replaces exited GREEN when NPM_TOKEN was missing, so a release that
+    # published nothing looked identical to one that succeeded. A release job
+    # that cannot publish must go red.
     #
     # TAG PUSHES ONLY. workflow_dispatch exists to rebuild an IMAGE for a
     # version that already shipped; it checks out the default branch and its
@@ -422,38 +436,36 @@ jobs:
     if: github.event_name == 'push'
     permissions:
       contents: read
-      id-token: write # npm --provenance attestation
+      # The OIDC token npm exchanges for its publish credential. Without it npm
+      # silently falls back to token auth and fails needing credentials that no
+      # longer exist.
+      id-token: write
     steps:
-      - name: Probe for NPM_TOKEN
-        id: token
-        env:
-          # Mapped through env rather than interpolated into the script so a
-          # token containing shell metacharacters can never break the test.
-          TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "$TOKEN" ]; then
-            echo 'have=true' >> "$GITHUB_OUTPUT"
-            echo "NPM_TOKEN present (${#TOKEN} chars)."
-          else
-            echo 'have=false' >> "$GITHUB_OUTPUT"
-            echo 'NPM_TOKEN secret is unset or EMPTY — skipping npm publish.'
-          fi
-
       - name: Checkout
-        if: steps.token.outputs.have == 'true'
         uses: actions/checkout@v4
 
       - name: Set up pnpm
-        if: steps.token.outputs.have == 'true'
         uses: pnpm/action-setup@v4
 
       - name: Set up Node 22
-        if: steps.token.outputs.have == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >= 11.5.1 (and Node >= 22.14, which the
+      # line above already satisfies). Node 22 bundles npm 10.9.x, which has no
+      # OIDC support at all — it ignores the token above, falls back to reading
+      # an auth token that is no longer set, and fails. This step is what makes
+      # the whole job work; it is not housekeeping.
+      #
+      # Ranged rather than @latest so a future npm major cannot change publish
+      # behaviour underneath a release without a deliberate bump here.
+      - name: Upgrade npm for trusted publishing
+        run: |
+          npm install -g 'npm@^11.5.1'
+          npm --version
 
       # The manifests on disk are what actually gets published — publish-npm.mjs
       # reads each package's own `version` and never looks at the ref. If the
@@ -461,7 +473,6 @@ jobs:
       # tagged and npm has no undo. Assert they match before anything is pushed.
       - name: Assert the manifest version matches the tag
         id: version
-        if: steps.token.outputs.have == 'true'
         run: |
           set -euo pipefail
           tag_version="${GITHUB_REF_NAME#v}"
@@ -474,25 +485,20 @@ jobs:
           echo "Publishing $pkg_version (matches $GITHUB_REF_NAME)"
 
       - name: Install
-        if: steps.token.outputs.have == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        if: steps.token.outputs.have == 'true'
         run: pnpm turbo build
 
+      # No NODE_AUTH_TOKEN and no NPM_PROVENANCE. Both are now handled by
+      # trusted publishing: npm authenticates via the OIDC token, and it
+      # generates and publishes provenance automatically on that path, so
+      # passing --provenance explicitly would be redundant. publish-npm.mjs
+      # keeps honouring NPM_PROVENANCE for anyone publishing by hand.
       - name: Publish
-        if: steps.token.outputs.have == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # npm --provenance needs a PUBLIC repo (same GitHub attestation
-          # backend that rejects private repos for the docker job). Publishing
-          # unattested from a private repo beats not publishing at all.
-          NPM_PROVENANCE: ${{ github.event.repository.private && '0' || '1' }}
         run: node scripts/release/publish-npm.mjs
 
       - name: Smoke test the published CLI
-        if: steps.token.outputs.have == 'true'
         run: |
           set -euo pipefail
           export NPM_CONFIG_PREFIX="$RUNNER_TEMP/npm-global"
