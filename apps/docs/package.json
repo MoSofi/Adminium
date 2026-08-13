@@ -13,16 +13,14 @@
     "typecheck": "astro check --minimumSeverity error",
     "test": "echo '@adminium/docs: the build is the gate (link validator + frontmatter schema); see astro.config.mjs'"
   },
-  "dependencies": {
-    "@astrojs/starlight": "^0.41.3",
-    "astro": "^7.1.0",
-    "starlight-links-validator": "^0.25.2"
-  },
   "devDependencies": {
     "@adminium/config": "workspace:*",
     "@adminium/tokens": "workspace:*",
     "@astrojs/check": "^0.9.9",
+    "@astrojs/starlight": "^0.41.3",
     "@fontsource-variable/newsreader": "^5.3.0",
+    "astro": "^7.1.0",
+    "starlight-links-validator": "^0.25.2",
     "typescript": "catalog:"
   }
 }
