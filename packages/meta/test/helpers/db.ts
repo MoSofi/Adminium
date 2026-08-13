@@ -29,6 +29,7 @@ import {
   createPostgresMetaDb,
   createSqliteMetaDb,
   initMetaDb,
+  postgresInt8AsNumber,
 } from '../../src/index.js';
 
 const require = createRequire(import.meta.url);
@@ -99,9 +100,6 @@ const postgresDialect: TestDialect = {
   async make() {
     const base = process.env.TEST_POSTGRES_URL as string;
     const { default: pg } = await import('pg');
-    // ts columns are int8: parse to JS number (values < 2^53).
-    pg.types.setTypeParser(20, (v: string) => Number(v));
-
     const database = testDatabaseName();
     const admin = new pg.Client({ connectionString: postgresAdminUrl(base) });
     await admin.connect();
@@ -109,7 +107,17 @@ const postgresDialect: TestDialect = {
     await admin.end();
 
     const meta = createPostgresMetaDb({
-      pool: new pg.Pool({ connectionString: urlWithDatabase(base, database), max: 4 }),
+      // Per-pool, via the shared helper — not the process-global
+      // `pg.types.setTypeParser(20, …)` this used to call. That global made
+      // int8 parse correctly for everything in the process, which is precisely
+      // how the product shipped a Postgres meta store whose every timestamp
+      // came back as a string: the harnesses configured the driver and the
+      // product never did.
+      pool: new pg.Pool({
+        connectionString: urlWithDatabase(base, database),
+        max: 4,
+        types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>),
+      }),
     });
     return {
       meta,
