@@ -23,3 +23,6 @@ export * from './notifications.js';
 export * from './notification-prefs.js';
 export * from './scheduled-reports.js';
 export * from './email-templates.js';
+export * from './i18n-version.js';
+export * from './locales.js';
+export * from './translations.js';

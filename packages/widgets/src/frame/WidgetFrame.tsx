@@ -129,7 +129,12 @@ export function WidgetFrame({
   // (humanized-leaf English when the key has no entry); plain copy passes through.
   const localizeEmpty = (value: ReactNode): ReactNode =>
     typeof value === 'string' && EMPTY_STATE_KEY_RE.test(value)
-      ? t(`ui:${value}`, humanizeKeyLeaf(value))
+      ? // i18n-dynamic-key: the key IS the runtime value — a host/tenant-authored
+        // `emptyState.titleKey` naming any widget's empty-state leaf. The frame is
+        // generic over every widget in the registry, so the set is not enumerable
+        // here; `ui:` only selects the namespace, and `humanizeKeyLeaf` keeps a
+        // dangling key from surfacing as a raw dotted string.
+        t(`ui:${value}`, humanizeKeyLeaf(value))
       : value;
 
   const body = (() => {

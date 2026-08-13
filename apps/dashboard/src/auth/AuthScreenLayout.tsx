@@ -17,7 +17,11 @@ export function ThemeToggleButton() {
     <IconButton
       variant="bordered"
       size="lg"
-      label={t('theme.toggle', dark ? 'Switch to light theme' : 'Switch to dark theme')}
+      label={
+          dark
+            ? t('theme.toLight', 'Switch to light theme')
+            : t('theme.toDark', 'Switch to dark theme')
+        }
       onClick={() => setPref('theme', dark ? 'light' : 'dark')}
     >
       {dark ? <Sun /> : <Moon />}

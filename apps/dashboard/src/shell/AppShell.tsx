@@ -22,10 +22,12 @@ import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
 import { logout } from '../auth/authApi.js';
+import { resyncOverrides } from '../i18n/setup.js';
 import { t } from '../i18n/t.js';
 import { DesktopUpdateToaster } from '../desktop/updates.js';
 import { OnboardingEntry } from '../onboarding/OnboardingEntry.js';
 import { AppToastProvider } from '../pages/toasts.js';
+import { hasStudioAccess } from '../studio/StudioGuard.js';
 import { ShortcutsPanel } from './ShortcutsPanel.js';
 import { useShortcut, useShortcutManager } from './ShortcutsProvider.js';
 import { SidebarNav } from './SidebarNav.js';
@@ -94,20 +96,40 @@ export function AppShell() {
       // config-changed → bootstrap + page invalidation; table/widget-data
       // publications → data-list + widget-data invalidation; notifications:*
       // → the ['notifications'] prefix (src/api/realtime.ts).
-      onEvent: (event) => invalidateForRealtimeEvent(queryClient, event),
-      onStatusChange: (connected) => setOffline(!connected),
+      onEvent: (event) => {
+        invalidateForRealtimeEvent(queryClient, event);
+        // A translation edit changes no query — it changes what every key
+        // resolves to — so it needs its own reaction (23 §4.4).
+        if (event.type === 'i18n.changed') void resyncOverrides(bootstrap.prefs.locale);
+      },
+      onStatusChange: (connected) => {
+        setOffline(!connected);
+        // The at-least-once floor (23 §4.4): the hub is in-process with no
+        // cross-node fan-out, and a socket that dropped during the backoff
+        // window silently missed every event published in it. Comparing the
+        // version on reconnect is what stops a tab serving stale strings
+        // forever.
+        if (connected) void resyncOverrides(bootstrap.prefs.locale);
+      },
     });
     client.start();
     const onOnline = () => setOffline(false);
     const onOffline = () => setOffline(true);
+    // Same floor for a tab that was simply in the background while an admin
+    // edited copy — `visibilitychange` is the cheapest honest trigger.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void resyncOverrides(bootstrap.prefs.locale);
+    };
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       client.stop();
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [queryClient, bootstrap.user.id]);
+  }, [queryClient, bootstrap.user.id, bootstrap.prefs.locale]);
 
   // --- global shortcut registrations (§5.3) --------------------------------
   useShortcut({
@@ -153,22 +175,41 @@ export function AppShell() {
     handler: () => setSidebarOpen((open) => !open),
   });
 
-  // Data-driven G-chords: first ≤8 nav items with unique letters (§5.3).
+  // Data-driven G-chords: first ≤8 nav items with unique letters (§5.3), plus
+  // the static `G S` → Studio chord (09 §8: "via G then S"). Registered here
+  // rather than via `useShortcut` so both stay gated on role — a viewer never
+  // sees a Studio entry in the shortcuts panel it would only 403 on — and so
+  // `s` is reserved from the nav letters in the same pass.
+  const studioAccess = hasStudioAccess(bootstrap.roles);
   useEffect(() => {
-    const targets = gChordTargets(flattenNav(bootstrap.nav));
+    const targets = gChordTargets(flattenNav(bootstrap.nav), studioAccess ? ['s'] : []);
     const unregister = targets.map(({ item, letter }) =>
       manager.register({
         id: `go-${item.slug}`,
         group: 'Navigation',
+        /* i18n-dynamic-key: `item.slug` is a tenant page slug the Engine derives from the
+           customer's own database tables, so the value set does not exist at build time and
+           cannot be enumerated into a map — no `shortcuts.go.*` key can ship for it. */
         label: t(`shortcuts.go.${item.slug}`, `Go to ${item.fallback}`),
         keys: ['G', 'then', letter.toUpperCase()],
         handler: () => void navigate({ to: '/p/$slug', params: { slug: item.slug } }),
       }),
     );
+    if (studioAccess) {
+      unregister.push(
+        manager.register({
+          id: 'go-studio',
+          group: 'Navigation',
+          label: t('shortcuts.studio', 'Go to Studio'),
+          keys: ['G', 'then', 'S'],
+          handler: () => void navigate({ to: '/studio' }),
+        }),
+      );
+    }
     return () => {
       for (const fn of unregister) fn();
     };
-  }, [manager, bootstrap.nav, navigate]);
+  }, [manager, bootstrap.nav, navigate, studioAccess]);
 
   return (
     <AppToastProvider>
@@ -179,7 +220,7 @@ export function AppShell() {
           className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-2 bg-warn px-3 py-2 text-[12.5px] font-bold text-accent-fg animate-[nb-slide_.3s_ease]"
         >
           <WifiOff className="size-[15px]" aria-hidden="true" />
-          {t('states.offlineBanner', "You're offline — trying to reconnect…")}
+          {t('states.offline.banner', "You're offline — trying to reconnect…")}
         </div>
       ) : null}
 
@@ -196,6 +237,8 @@ export function AppShell() {
           onOpenPalette={() => setPaletteOpen(true)}
           onSignOut={signOut}
           onOpenAccount={() => void navigate({ to: '/account' })}
+          onOpenStudio={() => void navigate({ to: '/studio' })}
+          onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
         />
         <OnboardingEntry bootstrap={bootstrap} />
         <main className="min-h-0 flex-1">

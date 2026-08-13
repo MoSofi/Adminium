@@ -13,7 +13,17 @@ import { normalizeName } from './names.js';
 /** §7.2 name triggers that are independent of the §7.1 primary tag. */
 const ADDRESS_RE = /(^|_)(address|street|city|zip|postal_code|postcode)(_|$)/;
 const DOB_RE = /(^|_)(birth(date|day)?|dob|date_of_birth)(_|$)/;
-const GOV_ID_RE = /(ssn|social_security|tax_id|vat(_number)?|passport|national_id|driver_licen[cs]e)/;
+/**
+ * Anchored for the same reason as PAYMENT_ID_RE below — and this one was
+ * shipping the bug that comment describes. Unanchored, `vat` matches as a
+ * substring of ordinary words: `avatar_url` is "a-VAT-ar", so every avatar
+ * column in every generated app was flagged as a government ID and masked by
+ * default. `private`, `reservation`, `activation`, `observation`, `elevation`,
+ * `conservation` and `derivative` all contain it too. Token boundaries make
+ * `vat_number` redundant — bare `vat` already covers `vat_number`/`vat_id`.
+ */
+const GOV_ID_RE =
+  /(^|_)(ssn|social_security|tax_id|vat|passport|national_id|driver_licen[cs]e)(_|$)/;
 /**
  * §7.2 lists this unanchored, but short tokens (`pan`, `bic`) then match as
  * substrings of ordinary words — `company_name` contains "pan". We anchor

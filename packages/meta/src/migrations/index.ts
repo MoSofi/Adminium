@@ -32,6 +32,8 @@ import { up as up0007 } from './0007_llm_runs.js';
 import { up as up0008 } from './0008_llm_overrides.js';
 import { up as up0009 } from './0009_views_kind.js';
 import { up as up0010 } from './0010_llm_prompt_version_width.js';
+import { up as up0011 } from './0011_i18n_runtime.js';
+import { up as up0012 } from './0012_locale_width.js';
 
 export interface MetaMigration {
   /** Basename, e.g. `0001_core_auth` — the ledger PK. */
@@ -50,4 +52,6 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0008_llm_overrides', up: up0008 },
   { name: '0009_views_kind', up: up0009 },
   { name: '0010_llm_prompt_version_width', up: up0010 },
+  { name: '0011_i18n_runtime', up: up0011 },
+  { name: '0012_locale_width', up: up0012 },
 ];

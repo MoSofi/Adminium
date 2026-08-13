@@ -527,6 +527,52 @@ export interface AdminiumEmailTemplatesTable {
   updatedAt: Ts;
 }
 
+/**
+ * 23 §3.1 — runtime locale registry. SPARSE: a built-in locale has a row only
+ * when an admin deviates from the compiled defaults, and on such a row only
+ * `enabled`/`sortOrder` are writable (the rest are read from the compiled
+ * registry). Custom locales carry the full record.
+ */
+export interface AdminiumLocalesTable {
+  id: Id;
+  locale: string;
+  isBuiltin: BoolColumn;
+  enabled: BoolColumn;
+  sortOrder: number;
+  english: string | null;
+  native: string | null;
+  /** 'ltr' | 'rtl' — custom locales only. */
+  dir: string | null;
+  /** latin | arabic | cjk — custom locales only. */
+  fontHint: string | null;
+  /** Real BCP-47 tag a custom locale borrows Intl behaviour from (23 §5.6). */
+  intlTag: string | null;
+  pluralCategories: JsonColumn | null;
+  updatedBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/**
+ * 23 §3.2 — sparse UI-string override overlay; unique
+ * (scope, locale, namespace, key). No row = built-in; row with text =
+ * override; row with '' = deliberately blank (23 §3.3).
+ */
+export interface AdminiumTranslationsTable {
+  id: Id;
+  /** Reserved for a possible per-app string set; always 'workspace' in v1. */
+  scope: string;
+  locale: string;
+  namespace: string;
+  key: string;
+  value: string;
+  /** en-US source this override was authored against (staleness badge). */
+  sourceText: string | null;
+  updatedBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
 /** §3.29 */
 export interface AdminiumWebhooksTable {
   id: Id;
@@ -626,6 +672,8 @@ export interface MetaDB {
   adminium_feature_flags: AdminiumFeatureFlagsTable;
   adminium_manifests: AdminiumManifestsTable;
   adminium_changelog_seen: AdminiumChangelogSeenTable;
+  adminium_locales: AdminiumLocalesTable;
+  adminium_translations: AdminiumTranslationsTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -662,4 +710,6 @@ export const META_TABLE_NAMES = [
   'adminium_feature_flags',
   'adminium_manifests',
   'adminium_changelog_seen',
+  'adminium_locales',
+  'adminium_translations',
 ] as const satisfies readonly (keyof MetaDB)[];

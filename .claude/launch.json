@@ -2,10 +2,270 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "e2e-app",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "E2E_PORT=4620",
+        "pnpm",
+        "--filter",
+        "@adminium/e2e",
+        "e2e:server"
+      ],
+      "port": 4620
+    },
+    {
       "name": "docs",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@adminium/docs", "exec", "astro", "dev", "--port", "4356"],
+      "runtimeArgs": [
+        "--filter",
+        "@adminium/docs",
+        "exec",
+        "astro",
+        "dev",
+        "--port",
+        "4356"
+      ],
       "port": 4356
+    },
+    {
+      "name": "website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "/Users/msofi/Work/projects/adminium-website",
+        "exec",
+        "astro",
+        "dev",
+        "--port",
+        "4321"
+      ],
+      "port": 4321
+    },
+    {
+      "name": "booking-scheduler",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/booking-scheduler",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5199"
+      ],
+      "port": 5199
+    },
+    {
+      "name": "support-desk",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/support-desk",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5200"
+      ],
+      "port": 5200
+    },
+    {
+      "name": "learning-platform",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/learning-platform",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5201"
+      ],
+      "port": 5201
+    },
+    {
+      "name": "designs",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4519",
+        "-d",
+        "/Users/msofi/Work/projects/adminium/designs",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 4519
+    },
+    {
+      "name": "point-of-sale",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/point-of-sale",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5202"
+      ],
+      "port": 5202
+    },
+    {
+      "name": "sales-crm",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/sales-crm",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5203"
+      ],
+      "port": 5203
+    },
+    {
+      "name": "ui-storybook",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@adminium/ui",
+        "exec",
+        "storybook",
+        "dev",
+        "-p",
+        "6007",
+        "--no-open",
+        "--quiet"
+      ],
+      "port": 6007
+    },
+    {
+      "name": "people-ops",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/people-ops",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5204"
+      ],
+      "port": 5204
+    },
+    {
+      "name": "client-portal",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/client-portal",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5205"
+      ],
+      "port": 5205
+    },
+    {
+      "name": "event-ticketing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/event-ticketing",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5206"
+      ],
+      "port": 5206
+    },
+    {
+      "name": "clinic-desk",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/clinic-desk",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5207"
+      ],
+      "port": 5207
+    },
+    {
+      "name": "online-ordering",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/online-ordering",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5208"
+      ],
+      "port": 5208
+    },
+    {
+      "name": "factory-ops",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/factory-ops",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5209"
+      ],
+      "port": 5209
+    },
+    {
+      "name": "hotel-reservations",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/hotel-reservations",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5210"
+      ],
+      "port": 5210
+    },
+    {
+      "name": "print-shop",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/print-shop",
+        "vite",
+        "/Users/msofi/Work/projects/print-shop",
+        "--port",
+        "5219",
+        "--strictPort"
+      ],
+      "port": 5219
+    },
+    {
+      "name": "maker-shop",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/msofi/Work/projects/maker-shop",
+        "vite",
+        "/Users/msofi/Work/projects/maker-shop",
+        "--port",
+        "5220",
+        "--strictPort"
+      ],
+      "port": 5220
     }
   ]
 }

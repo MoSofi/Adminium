@@ -104,6 +104,21 @@ export const SETTINGS_REGISTRY = {
   'appearance.accent': def<z.infer<typeof accentSchema>>(accentSchema, 'indigo', 'Default accent color', P),
   'appearance.density': def<z.infer<typeof densitySchema>>(densitySchema, 'comfortable', 'Default layout density', P),
   'locale.default': def<z.infer<typeof localeSchema>>(localeSchema, 'en_US', 'Default locale', P),
+  /**
+   * Monotonic stamp over the runtime-translation tables (23 §3.4). Every
+   * mutation bumps it inside its own transaction, and clients key their
+   * bundle cache / ETag on it.
+   *
+   * NOT `MAX(updated_at)` over the rows: reset-to-built-in is a hard DELETE,
+   * so the most common admin operation is invisible to a max-timestamp — the
+   * cache would go stale exactly when an admin undoes a bad edit.
+   *
+   * NOT portable. This is instance state, not authored configuration: a
+   * counter from another install means nothing here, and carrying it would
+   * let an imported bundle push a target instance's clients into believing
+   * they already hold the newest strings.
+   */
+  'i18n.version': def(z.number().int().min(0), 0, 'Runtime-translation version stamp'),
   'branding.appName': def(z.string().min(1).max(60), 'Adminium', 'Application display name', P),
   'branding.logoFileId': def<string | null>(z.string().nullable(), null, 'Logo file id', P),
   'branding.faviconFileId': def<string | null>(z.string().nullable(), null, 'Favicon file id', P),

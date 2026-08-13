@@ -54,6 +54,25 @@ function resolveLocalized(map: unknown, locale: string): string | null {
 }
 
 /**
+ * Resolve a USER-authored label, which may be either shape
+ * (23-runtime-translations.md §8).
+ *
+ * Until now a user rename was a bare string, so an operator who renamed
+ * "Records" to "Patients" got one language forever — while `llm.label` rows
+ * were already locale maps. That asymmetry is most of what "translations for
+ * the micro-SaaS" means in practice, because data labels are the first thing
+ * an operator changes.
+ *
+ * Both shapes are accepted permanently, not transitionally: a bare string is
+ * the correct storage for a single-language workspace, and every existing row
+ * is one. `''` keeps its established meaning of an explicit clear.
+ */
+function resolveUserLabel(value: unknown, locale: string): string | null {
+  if (typeof value === 'string') return value.length > 0 ? value : null;
+  return resolveLocalized(value, locale);
+}
+
+/**
  * Effective table-label map (`tableName` → label) from active override rows.
  * Provenance user > llm > heuristic (06 §8.3): a user `table.label` row beats
  * an accepted `llm.label` bundle for the same table REGARDLESS of created_at
@@ -80,8 +99,8 @@ export function activeTableLabels(
       // may exist). '' acts as an explicit clear so §3.15 later-row-wins holds
       // verbatim without ever emitting a label the engine's min(1) forbids.
       userLabeled.add(row.tableName);
-      const label = row.value.label;
-      if (typeof label === 'string' && label.length > 0) {
+      const label = resolveUserLabel(row.value.label, defaultLocale);
+      if (label !== null) {
         labels.set(row.tableName, label);
       } else {
         labels.delete(row.tableName);
@@ -128,11 +147,13 @@ export function applyOverrides(
       case 'table.label': {
         if (table === undefined) break;
         // Empty label = explicit clear (legacy rows only — the write path
-        // rejects ''); mirrors activeTableLabels so both paths agree.
-        const label = value.label;
-        if (typeof label === 'string' && label.length > 0) table.label = label;
+        // rejects ''); mirrors activeTableLabels so both paths agree. A
+        // locale map resolves for the viewer's locale (23 §8).
+        const label = resolveUserLabel(value.label, locale);
+        if (label !== null) table.label = label;
         else delete table.label;
-        if (typeof value.labelPlural === 'string') table.labelPlural = value.labelPlural;
+        const plural = resolveUserLabel(value.labelPlural, locale);
+        if (plural !== null) table.labelPlural = plural;
         if (typeof value.icon === 'string') table.icon = value.icon;
         break;
       }
@@ -147,10 +168,11 @@ export function applyOverrides(
       case 'column.label': {
         const column = columnOf(table, row.columnName);
         if (column === undefined) break;
-        // Same '' = explicit clear normalization as table.label; the row still
-        // locks the column against llm bundles via userLabeledColumns.
-        const label = value.label;
-        if (typeof label === 'string' && label.length > 0) column.label = label;
+        // Same '' = explicit clear normalization as table.label, and the same
+        // both-shapes resolution; the row still locks the column against llm
+        // bundles via userLabeledColumns.
+        const label = resolveUserLabel(value.label, locale);
+        if (label !== null) column.label = label;
         else delete column.label;
         break;
       }

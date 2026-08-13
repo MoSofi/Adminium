@@ -33,10 +33,13 @@
     },
     "forgot": {
       "title": "Obnovení hesla",
+      "subtitle": "Zadejte svůj e-mail a pošleme vám odkaz pro obnovení.",
       "email": "E-mail",
       "emailInvalid": "Zadejte platnou e-mailovou adresu.",
       "submit": "Odeslat odkaz pro obnovení",
       "sentTitle": "Zkontrolujte svůj e-mail",
+      "sentBody": "Odkaz pro obnovení jsme odeslali na {email}. Jeho platnost vyprší za 15 minut.",
+      "resendHint": "Nepřišel vám e-mail?",
       "resend": "Odeslat znovu",
       "back": "Zpět na přihlášení",
       "done": "Zpět na přihlášení",
@@ -57,6 +60,7 @@
       "good": "Dobré",
       "strong": "Silné",
       "tooShort": "Použijte alespoň 8 znaků.",
+      "mismatch": "Hesla se neshodují.",
       "submit": "Obnovit heslo",
       "failed": "Obnovení se nezdařilo. Zkuste to znovu."
     },
@@ -105,6 +109,7 @@
     "userMenu": "Nabídka účtu",
     "profile": "Profil",
     "preferences": "Předvolby",
+    "studio": "Studio",
     "signOut": "Odhlásit se"
   },
   "palette": {
@@ -119,7 +124,11 @@
     "themeLight": "Přepnout na světlý motiv",
     "footerNavigate": "navigace",
     "footerOpen": "vybrat",
-    "footerClose": "zavřít"
+    "footerClose": "zavřít",
+    "recent": "Nedávné",
+    "searching": "Hledání záznamů…",
+    "records": "Záznamy",
+    "empty": "Žádné výsledky pro „{query}“"
   },
   "shortcuts": {
     "title": "Klávesové zkratky",
@@ -130,6 +139,7 @@
     "panel": "Zobrazit panel zkratek",
     "search": "Přejít na hledání",
     "sidebar": "Přepnout postranní panel",
+    "studio": "Přejít do Studia",
     "theme": "Přepnout světlý / tmavý režim",
     "then": "pak",
     "footerPre": "Stiskněte",
@@ -137,7 +147,86 @@
   },
   "states": {
     "checked": "zkontrolováno před 8 s",
-    "diagnostics": "Diagnostika"
+    "diagnostics": "Diagnostika",
+    "reference": {
+      "label": "Reference",
+      "copy": "Kopírovat referenci",
+      "copied": "Zkopírováno",
+      "hint": "Uveďte ji při hlášení problému — protokol vašeho serveru obsahuje stejné ID."
+    },
+    "notFound": {
+      "title": "Stránka nenalezena",
+      "body": "Tuto stránku se nám nepodařilo najít. Mohla být přesunuta, nebo je odkaz poškozený.",
+      "primary": "Zpět na přehled",
+      "secondary": "Kontaktovat podporu"
+    },
+    "forbidden": {
+      "title": "Nemáte přístup",
+      "body": "Tento přehled je omezený. Požádejte správce pracovního prostoru, aby vám přístup udělil.",
+      "primary": "Požádat o přístup",
+      "secondary": "Zpět"
+    },
+    "error": {
+      "title": "Něco se pokazilo",
+      "body": "Při zpracování tohoto požadavku došlo v Adminiu k neočekávané chybě. Podrobnosti najdete v protokolu serveru.",
+      "primary": "Zkusit znovu"
+    },
+    "dbUnreachable": {
+      "title": "Databáze je nedostupná",
+      "body": "K databázi prod-db se nepodařilo připojit. Jakmile se připojení obnoví, vaše přehledy budou fungovat dál.",
+      "primary": "Zkusit připojení znovu",
+      "secondary": "Upravit připojení",
+      "diag": {
+        "status": "vypršel časový limit (10s)",
+        "hint": "povolte 52.9.14.2 a zkuste znovu"
+      }
+    },
+    "maintenance": {
+      "title": "Plánovaná údržba",
+      "body": "Adminium prochází údržbou a brzy bude zpět. Děkujeme za trpělivost.",
+      "primary": "Zobrazit stav"
+    },
+    "rateLimited": {
+      "title": "Dosažen limit požadavků",
+      "body": "Příliš mnoho požadavků v krátkém čase. Počkejte pár minut a zkuste to znovu.",
+      "primary": "Zkusit znovu",
+      "secondary": "Zpět"
+    },
+    "offline": {
+      "title": "Jste offline",
+      "body": "Zkontrolujte připojení k internetu. Až budete zpět online, Adminium se připojí automaticky.",
+      "primary": "Zkusit hned znovu",
+      "banner": "Jste offline — zkoušíme se znovu připojit…"
+    },
+    "expiredLink": {
+      "title": "Platnost tohoto odkazu vypršela",
+      "body": "Přihlašovací odkazy platí 10 minut. Pro pokračování si nechte poslat nový.",
+      "primary": "Poslat nový odkaz",
+      "secondary": "Zpět na přihlášení"
+    },
+    "expiredSession": {
+      "title": "Platnost vaší relace vypršela",
+      "body": "Z bezpečnostních důvodů jsme vás po delší nečinnosti odhlásili. Přihlaste se a pokračujte tam, kde jste skončili.",
+      "primary": "Přihlásit se znovu"
+    },
+    "emptyNoSources": {
+      "title": "Zatím žádné zdroje dat",
+      "body": "Připojte databázi PostgreSQL a Adminium vygeneruje váš první administrační přehled.",
+      "primary": "Připojit databázi",
+      "secondary": "Importovat ukázková data"
+    },
+    "readOnly": {
+      "title": "Režim jen pro čtení",
+      "body": "V tomto pracovním prostoru máte roli Viewer. Přehledy si můžete procházet, ale úpravy a destruktivní akce jsou vypnuté.",
+      "primary": "Požádat o práva k úpravám",
+      "secondary": "Rozumím"
+    },
+    "suspended": {
+      "title": "Tento pracovní prostor je pozastavený",
+      "body": "Tento pracovní prostor pozastavil správce. Vaše data zůstávají zachována — o obnovení přístupu požádejte vlastníka prostoru.",
+      "primary": "Kontaktovat vlastníka",
+      "secondary": "Zpět"
+    }
   },
   "notFound": {
     "title": "Tato stránka se ztratila",
@@ -146,7 +235,8 @@
     "matches": "Odpovídající stránky",
     "popular": "Oblíbené cíle",
     "goBack": "Zpět",
-    "backToDashboard": "Zpět na přehled"
+    "backToDashboard": "Zpět na přehled",
+    "noMatches": "Dotazu „{query}“ neodpovídají žádné stránky"
   },
   "page": {
     "invalid": {
@@ -197,7 +287,8 @@
     },
     "locale": {
       "label": "Jazyk",
-      "directionNote": "Směr textu: zprava doleva (nastaveno automaticky podle jazyka)"
+      "directionNote": "Směr textu: zprava doleva (nastaveno automaticky podle jazyka)",
+      "communityDraft": "Tento překlad je komunitní návrh — zatím jej nezkontroloval rodilý mluvčí."
     }
   },
   "account": {
@@ -1019,7 +1110,8 @@
         "unique": "UNIQUE",
         "pii": "PII",
         "masked": "Maskováno"
-      }
+      },
+      "unavailableTitle": "Editor přemapování schématu není k dispozici"
     }
   },
   "onboarding": {
@@ -1954,5 +2046,9 @@
       "reportFailed": "Naplánovaná sestava selhala",
       "backupCompleted": "Záloha dokončena"
     }
+  },
+  "theme": {
+    "toLight": "Přepnout na světlý motiv",
+    "toDark": "Přepnout na tmavý motiv"
   }
 }

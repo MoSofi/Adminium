@@ -10,7 +10,7 @@
  * default; `ui:`/`studio:`/`generated:`/`errors:` prefixes address the other
  * bundles (§2.4/§2.5). ICU args ride the third parameter.
  */
-import type { I18nInstance } from '@adminium/i18n';
+import { formatFallback, type I18nInstance } from '@adminium/i18n';
 
 export type { I18nInstance };
 
@@ -26,6 +26,12 @@ export function getI18nInstance(): I18nInstance | null {
 }
 
 export function t(key: string, fallback: string, args?: Record<string, unknown>): string {
-  if (instance === null) return fallback;
+  // Before init (and in unit tests that never boot i18n) the fallback is what
+  // renders — but it must still be INTERPOLATED, or a message like
+  // `'{count} changes'` reaches the screen with its braces intact. Returning
+  // the raw fallback was survivable only while 48 call sites hand-substituted
+  // their tokens afterwards; once those became real ICU args (23-T06) this is
+  // the path that has to do the work. Same implementation as `useMaybeT`.
+  if (instance === null) return formatFallback(fallback, args);
   return instance.t(key, { defaultValue: fallback, ...args });
 }

@@ -26,6 +26,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adminium/add-on-contracts": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

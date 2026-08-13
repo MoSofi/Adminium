@@ -135,6 +135,15 @@ describe('G-chords', () => {
     const many = Array.from({ length: 12 }, (_, i) => ({ fallback: `${String.fromCodePoint(97 + i)}Page` }));
     expect(gChordTargets(many)).toHaveLength(8);
   });
+
+  it('never hands a reserved letter to a nav item', () => {
+    // `Cases` claims `s` unreserved (see above) — the Studio chord must win it,
+    // pushing Cases to its next distinct letter rather than shadowing `G S`.
+    const items = [{ fallback: 'Customers' }, { fallback: 'Calendar' }, { fallback: 'Cases' }];
+    expect(gChordTargets(items, ['s']).map((target) => target.letter)).toEqual(['c', 'a', 'e']);
+    // Unreserved (viewer, no Studio access) the letter stays available.
+    expect(gChordTargets(items).map((target) => target.letter)).toEqual(['c', 'a', 's']);
+  });
 });
 
 describe('panel listing', () => {

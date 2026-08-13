@@ -68,7 +68,12 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       return latest;
     }
 
-    async function schemaPayload(connectionId: string, snapshot: SchemaSnapshot, raw: boolean) {
+    async function schemaPayload(
+      connectionId: string,
+      snapshot: SchemaSnapshot,
+      raw: boolean,
+      locale?: string | undefined,
+    ) {
       if (raw) {
         return {
           connectionId,
@@ -87,7 +92,9 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         checksum: snapshot.checksum,
         createdAt: snapshot.createdAt,
         source: snapshot.source,
-        model: applyOverrides(snapshot.schema as DatabaseModel, active),
+        model: applyOverrides(snapshot.schema as DatabaseModel, active, {
+          ...(locale === undefined ? {} : { defaultLocale: locale }),
+        }),
         appliedOverrides: active.length,
       };
     }
@@ -100,7 +107,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request) => {
         const snapshot = await mustLatest(request.params.id);
-        return schemaPayload(request.params.id, snapshot, request.query.raw === true);
+        return schemaPayload(request.params.id, snapshot, request.query.raw === true, request.query.locale);
       },
     );
 
@@ -139,7 +146,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
         if (snapshot === null || snapshot.connectionId !== request.params.id) {
           throw new NotFoundError('Snapshot not found.', { snapshotId: request.params.snapshotId });
         }
-        return schemaPayload(request.params.id, snapshot, request.query.raw === true);
+        return schemaPayload(request.params.id, snapshot, request.query.raw === true, request.query.locale);
       },
     );
 

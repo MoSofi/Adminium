@@ -97,6 +97,22 @@ jobs:
       - name: Check offline assets
         run: pnpm run check-offline-assets
 
+      # 10-i18n-theming.md §3.5 / 23-runtime-translations.md §10. This gate has
+      # existed as a package script since M8 and was never wired into CI, so
+      # translation drift — a bundle whose en-US source moved under it — could
+      # land unnoticed. It matters more now: once an admin can override a
+      # string at runtime, the build-time gates are the ONLY place several of
+      # these guarantees can still be checked at all.
+      #
+      # `check` regenerates src/review-status.ts as a side effect, so the
+      # working tree is verified clean afterwards: a diff means someone
+      # changed a bundle without regenerating, which is exactly the drift the
+      # gate exists to catch.
+      - name: Check translation drift
+        run: |
+          pnpm run i18n-check
+          git diff --exit-code -- packages/i18n/src/review-status.ts
+
       # 11-electron.md §13: the desktop build must ship a licence notice for every
       # bundled dependency. `desktop#build` chains this too, but a turbo CACHE HIT
       # skips the whole task — so, like the offline gate above, re-run it here

@@ -41,6 +41,19 @@ const GROUP_LABELS: Record<NavGroupKey, string> = {
   account: 'Account',
 };
 
+/**
+ * Group key → literal bundle key (10-i18n-theming.md §2.5). The five §2A groups
+ * are fixed (`NAV_GROUP_KEYS`), so `satisfies` makes a sixth group a compile
+ * error here rather than a raw `nav.group.<new>` heading in the rail.
+ */
+const GROUP_LABEL_KEY = {
+  workspace: 'nav.group.workspace',
+  library: 'nav.group.library',
+  planning: 'nav.group.planning',
+  people: 'nav.group.people',
+  account: 'nav.group.account',
+} as const satisfies Record<NavGroupKey, string>;
+
 export interface SidebarNavProps {
   bootstrap: BootstrapData;
   onSignOut: () => void;
@@ -203,7 +216,7 @@ export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps)
             {nav.groups.map((group) => (
               <div key={group.key} className="mb-3">
                 <div className="px-2 pb-1 pt-2 text-micro uppercase text-fg-subtle">
-                  {t(`nav.group.${group.key}`, GROUP_LABELS[group.key])}
+                  {t(GROUP_LABEL_KEY[group.key], GROUP_LABELS[group.key])}
                 </div>
                 {multiConnection ? (
                   sectionNavItems(group.items).map((section) => (
@@ -235,7 +248,7 @@ export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps)
               return (
                 <div key={entry.group} className="mb-3" data-part="nav-platform-group">
                   <div className="px-2 pb-1 pt-2 text-micro uppercase text-fg-subtle">
-                    {t(`nav.group.${entry.group}`, GROUP_LABELS[entry.group])}
+                    {t(GROUP_LABEL_KEY[entry.group], GROUP_LABELS[entry.group])}
                   </div>
                   <PlatformLinkList links={links} />
                 </div>

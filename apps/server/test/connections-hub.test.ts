@@ -221,3 +221,93 @@ describe('connections hub list counts', () => {
     expect(res.statusCode).toBe(403);
   });
 });
+
+/**
+ * A connection created under one ADMINIUM_SECRET and read back under another.
+ * Before the fix the whole list 500'd on the undecryptable row, so the one
+ * screen that could have explained the failure was the one screen you could
+ * not open — while the row itself still claimed `status: 'connected'`.
+ */
+describe('connection whose DSN was encrypted under a different ADMINIUM_SECRET', () => {
+  let t: Harness;
+
+  beforeEach(async () => {
+    t = await buildHarness();
+  });
+
+  afterEach(async () => {
+    await t.app.close();
+    await t.meta.db.destroy();
+  });
+
+  /** A second app over the SAME meta store, holding a different secret. */
+  async function appWithOtherSecret(): Promise<AdminiumServer> {
+    const manager = new ConnectionManager({
+      meta: t.meta,
+      crypto: dsnCryptoFromSecret(`${TEST_SECRET}-rotated-and-definitely-different`),
+    });
+    const users = usersRepo(t.meta);
+    const app = await buildServer({ env: makeEnv(), logger: false });
+    app.addHook('onRequest', async (request) => {
+      const id = request.headers['x-test-user-id'];
+      if (typeof id !== 'string') return;
+      const user = await users.findById(id);
+      if (user === null) return;
+      (request as unknown as { user: { id: string; name: string; email: string } }).user = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      };
+    });
+    await app.register(rbacPlugin, { meta: t.meta });
+    await app.register(
+      async (api) => {
+        await api.register(connectionsRoutes({ manager, meta: t.meta }));
+      },
+      { prefix: '/api/v1' },
+    );
+    await app.ready();
+    return app;
+  }
+
+  it('lists the connection as errored instead of 500ing, and names ADMINIUM_SECRET', async () => {
+    const created = await t.manager.connections.create({
+      name: 'Prod PG',
+      engine: 'postgres',
+      introspectDsn: 'postgres://ro@db.internal:5432/prod',
+      dataDsn: 'postgres://rw@db.internal:5432/prod',
+    });
+    // The stored row is healthy — that is exactly what makes the lie possible.
+    await t.manager.connections.recordTestResult(created.id, {
+      ok: true,
+      latencyMs: 4,
+      error: null,
+      readOnly: false,
+    });
+    expect((await t.manager.connections.findById(created.id))?.status).toBe('connected');
+
+    const other = await appWithOtherSecret();
+    try {
+      const res = await other.inject({
+        method: 'GET',
+        url: '/api/v1/connections',
+        headers: asUser(t.superAdmin),
+      });
+
+      expect(res.statusCode).toBe(200);
+      const row = (
+        res.json().connections as Array<{
+          id: string;
+          status: string;
+          lastError: string | null;
+          dsnMasked: string | null;
+        }>
+      ).find((c) => c.id === created.id);
+      expect(row?.status).toBe('error');
+      expect(row?.dsnMasked).toBeNull();
+      expect(row?.lastError).toContain('ADMINIUM_SECRET');
+    } finally {
+      await other.close();
+    }
+  });
+});

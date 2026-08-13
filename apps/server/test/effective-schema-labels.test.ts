@@ -165,3 +165,53 @@ describe('activeTableLabels (the generation overlay source)', () => {
     expect(activeTableLabels(rows).size).toBe(0);
   });
 });
+
+/**
+ * 23-runtime-translations.md §8 — the micro-SaaS half of the ask.
+ *
+ * A user-authored rename used to be a bare string, so an operator who renamed
+ * "Records" to "Patients" got that in one language forever, while `llm.label`
+ * rows were already locale maps. Both shapes are now accepted: a bare string
+ * stays correct for a single-language workspace (and is what every existing
+ * row holds), a map resolves for the viewer.
+ */
+describe('user labels are localizable (23 §8)', () => {
+  const BILINGUAL = { label: { en_US: 'Patients', de_DE: 'Patienten' } };
+
+  it('resolves a user table label for the viewer locale', () => {
+    const overrides = [row('table.label', BILINGUAL)];
+    expect(applyOverrides(MODEL, overrides).tables[0]?.label).toBe('Patients');
+    expect(
+      applyOverrides(MODEL, overrides, { defaultLocale: 'de_DE' }).tables[0]?.label,
+    ).toBe('Patienten');
+  });
+
+  it('falls back to en_US for a locale the operator has not authored', () => {
+    const overrides = [row('table.label', BILINGUAL)];
+    expect(
+      applyOverrides(MODEL, overrides, { defaultLocale: 'zh_CN' }).tables[0]?.label,
+    ).toBe('Patients');
+  });
+
+  it('still accepts the bare-string shape every existing row uses', () => {
+    const overrides = [row('table.label', { label: 'Line items' })];
+    expect(applyOverrides(MODEL, overrides).tables[0]?.label).toBe('Line items');
+    expect(
+      applyOverrides(MODEL, overrides, { defaultLocale: 'de_DE' }).tables[0]?.label,
+    ).toBe('Line items');
+  });
+
+  it('localizes column labels the same way', () => {
+    const overrides = [
+      row('column.label', { label: { en_US: 'Unit price', de_DE: 'Stückpreis' } }, { column: 'unit_price' }),
+    ];
+    const de = applyOverrides(MODEL, overrides, { defaultLocale: 'de_DE' });
+    expect(de.tables[0]?.columns.find((c) => c.name === 'unit_price')?.label).toBe('Stückpreis');
+  });
+
+  it('feeds the generation overlay from the same resolution', () => {
+    expect(activeTableLabels([row('table.label', BILINGUAL)], 'de_DE').get('main.order_details')).toBe(
+      'Patienten',
+    );
+  });
+});

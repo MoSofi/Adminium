@@ -5,17 +5,32 @@
  * plus hooks bound to the active locale. The `t()` call signature matches the
  * dashboard's key+fallback convention.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { ReactNode } from 'react';
-import { IntlMessageFormat } from 'intl-messageformat';
 
 import type { I18nInstance } from './create-i18n.js';
+import { formatFallback } from './fallback.js';
 import { getFormatters, type Formatters } from './format/index.js';
 import { isRtlLocale, localeFromTag, tagForLocale, type LocaleId } from './locales.js';
+import { getI18nRevision, subscribeI18nRevision } from './revision.js';
 
 export interface I18nContextValue {
   i18n: I18nInstance;
   locale: LocaleId;
+  /**
+   * Bumps whenever resolved text changes without the language changing —
+   * i.e. when runtime overrides are applied (23 §4.4). Hooks depend on it so
+   * memoized consumers re-render on an admin's edit, not only on a switch.
+   */
+  revision: number;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -39,7 +54,12 @@ export function I18nProvider({ i18n, children }: I18nProviderProps): ReactNode {
     };
   }, [i18n]);
 
-  const value = useMemo<I18nContextValue>(() => ({ i18n, locale }), [i18n, locale]);
+  const revision = useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
+
+  const value = useMemo<I18nContextValue>(
+    () => ({ i18n, locale, revision }),
+    [i18n, locale, revision],
+  );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
@@ -66,13 +86,14 @@ export function useRtl(): boolean {
 
 /** Translator bound to the provider instance: `t(key, fallback, args?)`. */
 export function useT(): (key: string, fallback: string, args?: Record<string, unknown>) => string {
-  const { i18n, locale } = useI18nContext('useT()');
+  const { i18n, locale, revision } = useI18nContext('useT()');
   return useCallback(
     (key: string, fallback: string, args?: Record<string, unknown>) =>
       i18n.t(key, { defaultValue: fallback, ...args }),
-    // `locale` is a dependency on purpose: a language switch re-binds the
-    // callback so memoized consumers re-render with fresh strings.
-    [i18n, locale],
+    // `locale` and `revision` are dependencies on purpose: a language switch
+    // OR a runtime-override change re-binds the callback, so memoized
+    // consumers re-render with fresh strings either way (23 §4.4).
+    [i18n, locale, revision],
   );
 }
 
@@ -81,22 +102,8 @@ export function useMaybeI18n(): I18nContextValue | null {
   return useContext(I18nContext);
 }
 
-// Fallback-path message cache for `useMaybeT` (mirrors IcuFormat.parse's).
-const fallbackMessageCache = new Map<string, IntlMessageFormat>();
-
-function formatFallback(fallback: string, args?: Record<string, unknown>): string {
-  if (args === undefined || !fallback.includes('{')) return fallback;
-  try {
-    let message = fallbackMessageCache.get(fallback);
-    if (message === undefined) {
-      message = new IntlMessageFormat(fallback, 'en-US', undefined, { ignoreTag: true });
-      fallbackMessageCache.set(fallback, message);
-    }
-    return String(message.format(args as Record<string, string | number>));
-  } catch {
-    return fallback;
-  }
-}
+// Shared with the dashboard's module-level `t()` so the two no-instance
+// paths cannot drift (see fallback.ts).
 
 /**
  * `useT` for packages whose components must also render OUTSIDE an
@@ -109,11 +116,14 @@ export function useMaybeT(): (key: string, fallback: string, args?: Record<strin
   const context = useContext(I18nContext);
   const i18n = context?.i18n;
   const locale = context?.locale;
+  // Outside a provider there is no context revision to depend on, so subscribe
+  // directly — a widget rendered in an embed still has to pick up an edit.
+  const revision = useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
   return useCallback(
     (key: string, fallback: string, args?: Record<string, unknown>) =>
       i18n === undefined ? formatFallback(fallback, args) : i18n.t(key, { defaultValue: fallback, ...args }),
-    // `locale` re-binds on language switch, same as `useT`.
-    [i18n, locale],
+    // `locale`/`revision` re-bind on a switch or an override change, as in `useT`.
+    [i18n, locale, revision],
   );
 }
 

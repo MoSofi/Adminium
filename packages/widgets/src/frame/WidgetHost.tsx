@@ -138,6 +138,11 @@ export function WidgetHost({
   // popover never shows a raw `widgets.…` string. An explicit `info` override
   // is host-authored content and passes through untouched.
   const humanizedId = definition.id.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  // The key IS the runtime value here: every registry definition declares its
+  // own `descriptionKey`, host-registered widgets included, so this generic
+  // host cannot enumerate the set. `ui:` only selects the namespace, and the
+  // humanized widget id is the dangling-key fallback.
+  // i18n-dynamic-key: per-definition descriptionKey from an open registry.
   const resolvedInfo = info ?? t(`ui:${definition.descriptionKey}`, humanizedId);
 
   const Component = definition.component;

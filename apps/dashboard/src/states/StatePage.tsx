@@ -42,7 +42,11 @@ export function StatePage({ stateId, requestId, fullPage = true, onRetry }: Stat
     // Studio connect wizard lands in M5 (09-T11) — home is the honest target.
     'empty-no-sources': () => void navigate({ to: '/' }),
     'read-only': () => void navigate({ to: '/' }),
-    suspended: () => undefined, // cloud customer-portal deep link (12-cloud-platform.md)
+    // `suspended` has no primary action: its "Contact owner" target is the
+    // cloud customer-portal deep link (12-cloud-platform.md), which v1 does not
+    // ship. It used to be wired to `() => undefined`, which rendered a button
+    // that ate the click — the dead-CTA bug wearing a handler. Absent from this
+    // map, StateHero omits the button and the body copy carries the instruction.
   };
 
   const secondaryActions: Partial<Record<SystemStateId, () => void>> = {

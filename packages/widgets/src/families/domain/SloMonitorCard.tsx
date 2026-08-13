@@ -69,6 +69,17 @@ const STATUS_FALLBACK: Record<UptimeState, string> = {
   unknown: 'Unknown',
 };
 
+/**
+ * Literal bundle key per state — indexed, never assembled, so the extractor
+ * sees all four and a new `UptimeState` fails the build (10 §2.5).
+ */
+const STATUS_KEY = {
+  operational: 'ui:widgets.domain.sloMonitorCard.status.operational',
+  degraded: 'ui:widgets.domain.sloMonitorCard.status.degraded',
+  down: 'ui:widgets.domain.sloMonitorCard.status.down',
+  unknown: 'ui:widgets.domain.sloMonitorCard.status.unknown',
+} as const satisfies Record<UptimeState, string>;
+
 export function SloMonitorCardView({
   monitor,
   budgetThresholds,
@@ -108,7 +119,7 @@ export function SloMonitorCardView({
           )}
         </div>
         <Badge tone={statusTone} dot data-part="slo-status">
-          {t(`ui:widgets.domain.sloMonitorCard.status.${monitor.status}`, STATUS_FALLBACK[monitor.status])}
+          {t(STATUS_KEY[monitor.status], STATUS_FALLBACK[monitor.status])}
         </Badge>
       </div>
 

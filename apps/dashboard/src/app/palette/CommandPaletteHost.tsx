@@ -267,7 +267,7 @@ export function CommandPaletteHost({
         navigate: t('palette.footerNavigate', 'navigate'),
         open: t('palette.footerOpen', 'select'),
         close: t('palette.footerClose', 'close'),
-        empty: (query) => t('palette.empty', `No results for "${query}"`),
+        empty: (query) => t('palette.empty', `No results for "${query}"`, { query }),
       }}
       footerExtra={
         bootstrap.llm.enabled ? (

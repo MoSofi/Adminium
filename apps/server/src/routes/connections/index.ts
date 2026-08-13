@@ -14,6 +14,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { pagesRepo, snapshotsRepo, type Connection, type MetaDb } from '@adminium/meta';
 
 import { ConflictError, ValidationFailedError } from '../../errors.js';
+import { DsnSecretMismatchError } from '../../connections/crypto.js';
 import { maskDsn } from '../../connections/dsn.js';
 import {
   INTROSPECT_JOB_KIND,
@@ -71,7 +72,20 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       connection: Connection,
       pageCounts?: Readonly<Record<string, number>>,
     ): Promise<ConnectionDto> {
-      const dsns = await manager.connections.getDsns(connection.id);
+      // A DSN encrypted under a different ADMINIUM_SECRET must not take the
+      // whole list down with it. Before this catch, one unreadable connection
+      // 500'd `GET /connections` — so the Studio page that exists to show you
+      // that something is wrong was the one page you could not open. The row
+      // reports the truth instead: unreadable DSN, status `error`, and the
+      // explanation in `lastError` where the UI already renders it.
+      let dsns: Awaited<ReturnType<typeof manager.connections.getDsns>> = null;
+      let secretMismatch: DsnSecretMismatchError | null = null;
+      try {
+        dsns = await manager.connections.getDsns(connection.id);
+      } catch (error) {
+        if (!(error instanceof DsnSecretMismatchError)) throw error;
+        secretMismatch = error;
+      }
       const latest = await snapshots.latest(connection.id);
       const counts = pageCounts ?? (await pages.countGeneratedByConnection());
       return {
@@ -81,10 +95,12 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         sourceKind: connection.sourceKind,
         dsnMasked: maskDsn(dsns?.dataDsn ?? dsns?.introspectDsn ?? null),
         readOnly: connection.readOnly,
-        status: connection.status,
+        // The stored row still says whatever it said when it last worked
+        // (`connected`), which is a lie the moment the secret changes.
+        status: secretMismatch === null ? connection.status : 'error',
         lastTestedAt: connection.lastTestedAt,
         lastLatencyMs: connection.lastLatencyMs,
-        lastError: connection.lastError,
+        lastError: secretMismatch === null ? connection.lastError : secretMismatch.message,
         snapshot:
           latest === null
             ? null

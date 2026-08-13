@@ -14,7 +14,7 @@
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { Building2, Globe2, Sparkles, TriangleAlert } from 'lucide-react';
+import { Building2, Globe2, Languages, Sparkles, TriangleAlert } from 'lucide-react';
 import {
   Alert,
   Button,
@@ -234,11 +234,12 @@ function DangerZone(): ReactNode {
 export interface StudioSettingsPageProps {
   /** Router-injected: opens `/settings/defaults` (10 §7.3 surface). */
   onOpenGlobalDefaults: () => void;
+  onOpenTranslations: () => void;
   /** Router-injected: opens `/studio/settings/ai` (06 §10.1, Admin+). */
   onOpenAiSettings: () => void;
 }
 
-export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenAiSettings }: StudioSettingsPageProps): ReactNode {
+export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenTranslations, onOpenAiSettings }: StudioSettingsPageProps): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
 
@@ -308,6 +309,31 @@ export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenAiSettings }: S
             </div>
             <Button variant="secondary" size="sm" onClick={onOpenGlobalDefaults}>
               {t('studio.settingsHub.defaultsCard.cta', 'Open global defaults')}
+            </Button>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      {/* 23-runtime-translations.md §7. Same super-admin gate and the same
+          reason: the page renders the 403 state for anyone else, so hiding
+          the cross-link keeps plain admins out of a dead end. */}
+      {isSuperAdmin ? (
+        <Card>
+          <CardHeader className="flex items-center gap-3">
+            <IconTile tone="accent" size="md" icon={<Languages />} />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-section text-fg">
+                {t('studio.settingsHub.translationsCard.heading', 'Languages & translations')}
+              </h3>
+              <p className="text-caption text-fg-subtle">
+                {t(
+                  'studio.settingsHub.translationsCard.body',
+                  'Reword anything in Adminium, choose which languages people can pick, and add your own.',
+                )}
+              </p>
+            </div>
+            <Button variant="secondary" size="sm" onClick={onOpenTranslations}>
+              {t('studio.settingsHub.translationsCard.cta', 'Open translations')}
             </Button>
           </CardHeader>
         </Card>

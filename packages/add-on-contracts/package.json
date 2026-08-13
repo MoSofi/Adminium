@@ -1,0 +1,52 @@
+{
+  "name": "@adminium/add-on-contracts",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "packages/add-on-contracts"
+  },
+  "homepage": "https://adminium.dev",
+  "bugs": "https://github.com/MoSofi/Adminium/issues",
+  "type": "module",
+  "description": "Add-on slot + provider-contract registries, types and conformance suites",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "vitest": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@adminium/config": "workspace:*",
+    "typescript": "catalog:",
+    "eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "files": [
+    "dist"
+  ]
+}

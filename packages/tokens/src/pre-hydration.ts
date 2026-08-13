@@ -21,4 +21,7 @@ export const preHydrationScript =
   'var r=s.getItem("adminium-dir");' +
   'if(r==="rtl")d.setAttribute("dir","rtl");' +
   'var l=s.getItem("adminium-locale");' +
-  'if(l)d.setAttribute("lang",l.replace("_","-"))}catch(e){}})();';
+  // split/join, not replace: `replace("_","-")` swaps only the FIRST
+  // underscore, so a three-subtag id like `zh_Hant_TW` would stamp the invalid
+  // tag `zh-Hant_TW` (23 §5.5).
+  'if(l)d.setAttribute("lang",l.split("_").join("-"))}catch(e){}})();';

@@ -7,7 +7,8 @@
  *   `['?']`, `['⌘','⇧','L']`. `⌘` binds (and renders) as `Ctrl` on non-mac
  *   platforms — the mapping is centralized here.
  * - G-chords are data-driven (`gChordTargets`): the first ≤8 nav items whose
- *   labels yield unique first letters (collision → next distinct letter).
+ *   labels yield unique first letters (collision → next distinct letter), less
+ *   any letter reserved by a static chord such as `G S` → Studio.
  *   Chord window 1200 ms with a pending indicator callback ("G…").
  * - Typing-context suppression (comp keeper): inside
  *   `input/textarea/select/[contenteditable]` or during IME composition only
@@ -229,11 +230,17 @@ export function createShortcutManager(
 /**
  * Data-driven G-chord targets (§5.3): first ≤8 items whose labels yield
  * unique first letters; on collision the item takes its next distinct letter.
+ *
+ * `reserved` pre-claims letters owned by static chords (e.g. `s` for Studio,
+ * 09 §8) so a tenant page whose label happens to start with one cannot shadow
+ * them — the caller passes it only when that static chord is actually
+ * registered, leaving the letter available to nav items otherwise.
  */
 export function gChordTargets<T extends { fallback: string }>(
   items: readonly T[],
+  reserved: readonly string[] = [],
 ): Array<{ item: T; letter: string }> {
-  const taken = new Set<string>();
+  const taken = new Set<string>(reserved);
   const targets: Array<{ item: T; letter: string }> = [];
   for (const item of items) {
     if (targets.length >= 8) break;

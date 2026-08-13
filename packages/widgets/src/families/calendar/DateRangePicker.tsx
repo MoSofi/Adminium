@@ -21,6 +21,7 @@ import {
   weekdayHeaders,
 } from './calendar-lib.js';
 import type { DateRangePickerConfig } from './calendar-config.js';
+import type { DefaultRangePresetId } from './calendar-lib.js';
 import type { DateRangePreset, DateRangeValue } from './calendar-types.js';
 import type { WidgetProps } from '../../registry/types.js';
 
@@ -63,6 +64,20 @@ export interface DateRangePickerProps {
   testId?: string | undefined;
 }
 
+/**
+ * Literal bundle key per built-in preset id. Indexed rather than assembled so
+ * every key is visible to the extractor and a new default preset is a compile
+ * error instead of a raw dotted string in the picker (10 §2.5).
+ */
+const PRESET_KEY = {
+  '7d': 'ui:widgets.calendar.dateRangePicker.presets.7d',
+  '30d': 'ui:widgets.calendar.dateRangePicker.presets.30d',
+  '90d': 'ui:widgets.calendar.dateRangePicker.presets.90d',
+  mtd: 'ui:widgets.calendar.dateRangePicker.presets.mtd',
+  qtd: 'ui:widgets.calendar.dateRangePicker.presets.qtd',
+  ytd: 'ui:widgets.calendar.dateRangePicker.presets.ytd',
+} as const satisfies Record<DefaultRangePresetId, string>;
+
 /** Next range after clicking `key` — the annex's start/end endpoint dance. */
 export function nextRange(current: DateRangeValue, key: string, maxRange?: number): DateRangeValue {
   // Open a new range: nothing picked yet, or the previous one is closed.
@@ -103,7 +118,7 @@ export function DateRangePicker({
       presets ??
       DEFAULT_RANGE_PRESETS.map((preset) => ({
         ...preset,
-        label: t(`ui:widgets.calendar.dateRangePicker.presets.${preset.id}`, preset.label),
+        label: t(PRESET_KEY[preset.id], preset.label),
       })),
     [presets, t],
   );

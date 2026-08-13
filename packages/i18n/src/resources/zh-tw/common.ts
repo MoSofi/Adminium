@@ -50,7 +50,10 @@ export default {
       "done": "返回登入",
       "rateLimited": "要求次數過多——請稍後再試。",
       "failed": "發生錯誤。請再試一次。",
-      "smtpUnconfigured": "此 Adminium 未設定郵件伺服器，無法寄送重設連結。請請管理員為你重設密碼。"
+      "smtpUnconfigured": "此 Adminium 未設定郵件伺服器，無法寄送重設連結。請請管理員為你重設密碼。",
+      "subtitle": "輸入你的電子郵件，我們就會寄送重設連結給你。",
+      "sentBody": "我們已將重設連結寄至 {email}，連結將於 15 分鐘後失效。",
+      "resendHint": "沒有收到嗎？"
     },
     "reset": {
       "title": "設定新密碼",
@@ -66,7 +69,8 @@ export default {
       "strong": "強",
       "tooShort": "請至少使用 8 個字元。",
       "submit": "重設密碼",
-      "failed": "重設失敗。請再試一次。"
+      "failed": "重設失敗。請再試一次。",
+      "mismatch": "兩次輸入的密碼不一致。"
     },
     "otp": {
       "title": "兩步驟驗證",
@@ -113,6 +117,7 @@ export default {
     "userMenu": "帳戶選單",
     "profile": "個人資料",
     "preferences": "偏好設定",
+    "studio": "Studio",
     "signOut": "登出"
   },
   "palette": {
@@ -127,7 +132,11 @@ export default {
     "themeLight": "切換至淺色主題",
     "footerNavigate": "導覽",
     "footerOpen": "選取",
-    "footerClose": "關閉"
+    "footerClose": "關閉",
+    "recent": "最近使用",
+    "searching": "正在搜尋記錄…",
+    "records": "記錄",
+    "empty": "找不到「{query}」的結果"
   },
   "shortcuts": {
     "title": "鍵盤快速鍵",
@@ -138,6 +147,7 @@ export default {
     "panel": "顯示快速鍵面板",
     "search": "聚焦搜尋欄",
     "sidebar": "切換側邊欄",
+    "studio": "前往 Studio",
     "theme": "切換淺色 / 深色",
     "then": "接著",
     "footerPre": "隨時按下",
@@ -145,7 +155,86 @@ export default {
   },
   "states": {
     "checked": "8 秒前檢查過",
-    "diagnostics": "診斷"
+    "diagnostics": "診斷",
+    "reference": {
+      "label": "參考編號",
+      "copy": "複製參考編號",
+      "copied": "已複製",
+      "hint": "回報問題時請附上它——伺服器日誌中記錄了相同的 ID。"
+    },
+    "notFound": {
+      "title": "找不到頁面",
+      "body": "我們找不到該頁面。它可能已被移動，或是連結失效了。",
+      "primary": "回到儀表板",
+      "secondary": "聯絡支援團隊"
+    },
+    "forbidden": {
+      "title": "你沒有存取權限",
+      "body": "這個儀表板受到限制。請向工作區管理員申請存取權限。",
+      "primary": "申請存取權限",
+      "secondary": "返回上頁"
+    },
+    "error": {
+      "title": "發生錯誤",
+      "body": "Adminium 處理這個請求時發生非預期的錯誤。詳細資訊記錄在伺服器日誌中。",
+      "primary": "再試一次"
+    },
+    "dbUnreachable": {
+      "title": "無法連線到資料庫",
+      "body": "我們無法連線到 prod-db。連線恢復後，你的儀表板就會繼續運作。",
+      "primary": "重新連線",
+      "secondary": "編輯連線",
+      "diag": {
+        "status": "連線逾時（10s）",
+        "hint": "將 52.9.14.2 加入允許清單後重試"
+      }
+    },
+    "maintenance": {
+      "title": "排定維護",
+      "body": "Adminium 正在進行維護，很快就會恢復。感謝你的耐心等候。",
+      "primary": "查看服務狀態"
+    },
+    "rateLimited": {
+      "title": "已達速率上限",
+      "body": "短時間內的要求次數過多。請稍候幾分鐘後再試一次。",
+      "primary": "再試一次",
+      "secondary": "返回上頁"
+    },
+    "offline": {
+      "title": "你目前離線",
+      "body": "請檢查你的網路連線。恢復連線後，Adminium 會自動重新連上。",
+      "primary": "立即重試",
+      "banner": "目前離線——正在嘗試重新連線…"
+    },
+    "expiredLink": {
+      "title": "此連結已過期",
+      "body": "快速登入連結會在 10 分鐘後失效。請重新索取一個新連結以繼續。",
+      "primary": "寄送新連結",
+      "secondary": "返回登入"
+    },
+    "expiredSession": {
+      "title": "你的工作階段已過期",
+      "body": "為了你的帳戶安全，閒置一段時間後你已被登出。請重新登入，接續先前的進度。",
+      "primary": "重新登入"
+    },
+    "emptyNoSources": {
+      "title": "尚無資料來源",
+      "body": "連接一個 PostgreSQL 資料庫，Adminium 就會產生你的第一個管理儀表板。",
+      "primary": "連接資料庫",
+      "secondary": "匯入範例資料"
+    },
+    "readOnly": {
+      "title": "唯讀模式",
+      "body": "你在這個工作區擁有 Viewer 權限。你可以瀏覽儀表板，但編輯與危險操作已停用。",
+      "primary": "申請編輯權限",
+      "secondary": "我知道了"
+    },
+    "suspended": {
+      "title": "這個工作區已停權",
+      "body": "這個工作區已被管理員停權。你的資料仍完整保留——請聯絡工作區擁有者以恢復存取權限。",
+      "primary": "聯絡擁有者",
+      "secondary": "返回上頁"
+    }
   },
   "notFound": {
     "title": "找不到這個頁面",
@@ -154,7 +243,8 @@ export default {
     "matches": "符合的頁面",
     "popular": "熱門目的地",
     "goBack": "返回上頁",
-    "backToDashboard": "回到儀表板"
+    "backToDashboard": "回到儀表板",
+    "noMatches": "沒有符合「{query}」的頁面"
   },
   "page": {
     "invalid": {
@@ -205,7 +295,8 @@ export default {
     },
     "locale": {
       "label": "語言",
-      "directionNote": "文字方向：由右至左（依語言自動設定）"
+      "directionNote": "文字方向：由右至左（依語言自動設定）",
+      "communityDraft": "此翻譯為社群草稿，尚未經過母語者審校。"
     }
   },
   "account": {
@@ -1027,7 +1118,8 @@ export default {
         "unique": "UNIQUE",
         "pii": "PII",
         "masked": "已遮罩"
-      }
+      },
+      "unavailableTitle": "結構描述重新對應編輯器無法使用"
     }
   },
   "onboarding": {
@@ -1962,5 +2054,9 @@ export default {
       "reportFailed": "排程報表失敗",
       "backupCompleted": "備份完成"
     }
+  },
+  "theme": {
+    "toLight": "切換至淺色主題",
+    "toDark": "切換至深色主題"
   }
 } as const;

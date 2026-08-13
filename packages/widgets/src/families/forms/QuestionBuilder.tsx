@@ -49,6 +49,23 @@ export interface SurveyQuestion {
 
 type Rec = Record<string, unknown>;
 
+/**
+ * Literal bundle key per question kind. Indexed rather than assembled so the
+ * extractor sees all 8 and a 9th `QUESTION_KINDS` member is a compile error
+ * instead of a raw `widgets.forms.questionBuilder.kind.…` in the palette
+ * (10 §2.5).
+ */
+const KIND_KEY = {
+  'single-choice': 'ui:widgets.forms.questionBuilder.kind.single-choice',
+  'multi-choice': 'ui:widgets.forms.questionBuilder.kind.multi-choice',
+  dropdown: 'ui:widgets.forms.questionBuilder.kind.dropdown',
+  'short-text': 'ui:widgets.forms.questionBuilder.kind.short-text',
+  'long-text': 'ui:widgets.forms.questionBuilder.kind.long-text',
+  rating: 'ui:widgets.forms.questionBuilder.kind.rating',
+  nps: 'ui:widgets.forms.questionBuilder.kind.nps',
+  date: 'ui:widgets.forms.questionBuilder.kind.date',
+} as const satisfies Record<QuestionKind, string>;
+
 /** Project the §3 `form-state` payload onto survey questions. */
 export function questionsOf(data: unknown, config: QuestionBuilderConfig): SurveyQuestion[] {
   const values = formValuesOf(data);
@@ -124,7 +141,7 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
 
   const atCapacity = questions.length >= config.maxQuestions;
   const kindLabel = (kind: QuestionKind) =>
-    config.kindLabels?.[kind] ?? t(`ui:widgets.forms.questionBuilder.kind.${kind}`, DEFAULT_QUESTION_KIND_LABELS[kind] ?? kind);
+    config.kindLabels?.[kind] ?? t(KIND_KEY[kind], DEFAULT_QUESTION_KIND_LABELS[kind] ?? kind);
 
   return (
     <div

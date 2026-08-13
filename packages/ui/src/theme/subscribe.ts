@@ -17,7 +17,23 @@ export function subscribeTheme(listener: ThemeListener): () => void {
   };
 }
 
-/** @internal Called by ThemeProvider after stamping `<html>`. Not part of the public API. */
+/**
+ * @internal Called by ThemeProvider after stamping `<html>`. Not part of the
+ * public API.
+ *
+ * Each listener is isolated (23 §4.4). This runs inside ThemeProvider's
+ * `useLayoutEffect`, so an unguarded throw from ONE subscriber does not just
+ * lose that subscriber — it skips every listener after it (the i18n language
+ * bridge, the chart-direction bridge, the Electron `nativeTheme` mirror) and
+ * errors the React commit. That is a white screen. A subscriber must not be
+ * able to abort the theme commit, so failures are reported and swallowed.
+ */
 export function emitTheme(theme: ResolvedTheme): void {
-  for (const listener of [...listeners]) listener(theme);
+  for (const listener of [...listeners]) {
+    try {
+      listener(theme);
+    } catch (error) {
+      console.error('[theme] subscriber threw; continuing with the remaining listeners', error);
+    }
+  }
 }

@@ -42,7 +42,7 @@ export interface EnrichByoPanelProps {
 function tokenLabel(tokenEstimate: number): string {
   const tag = getI18nInstance()?.language ?? 'en-US';
   const formatted = getFormatters(tag).number(tokenEstimate);
-  return t('studio.enrich.byo.tokenChip', '≈ {tokens} tokens').replace('{tokens}', formatted);
+  return t('studio.enrich.byo.tokenChip', '≈ {tokens} tokens', { tokens: formatted });
 }
 
 export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview }: EnrichByoPanelProps) {
@@ -103,9 +103,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
     if (chunk === undefined) return null;
     const state = ui[index] ?? EMPTY_CHUNK;
     const viewerLabel = chunked
-      ? t('studio.enrich.byo.promptLabelN', 'Enrichment prompt {index} of {total}')
-          .replace('{index}', String(chunk.index))
-          .replace('{total}', String(chunk.total))
+      ? t('studio.enrich.byo.promptLabelN', 'Enrichment prompt {index} of {total}', { index: String(chunk.index), total: String(chunk.total) })
       : t('studio.enrich.byo.promptLabel', 'Enrichment prompt');
 
     return (
@@ -167,8 +165,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
             <span className="flex items-center gap-1.5 text-body-sm font-semibold text-pos">
               <CheckCircle2 aria-hidden="true" className="size-4" />
               {chunked
-                ? t('studio.enrich.byo.chunkValid', 'Chunk {index} validated')
-                    .replace('{index}', String(chunk.index))
+                ? t('studio.enrich.byo.chunkValid', 'Chunk {index} validated', { index: String(chunk.index) })
                 : t('studio.enrich.byo.valid', 'Response validated')}
             </span>
           ) : null}
@@ -180,8 +177,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
 
         {state.status === 'valid' && state.warnings.length > 0 ? (
           <p className="text-caption text-fg-muted">
-            {t('studio.enrich.byo.droppedItems', '{count} suggestions were dropped during validation — review shows the rest.')
-              .replace('{count}', String(state.warnings.length))}
+            {t('studio.enrich.byo.droppedItems', '{count} suggestions were dropped during validation — review shows the rest.', { count: String(state.warnings.length) })}
           </p>
         ) : null}
       </div>
@@ -198,7 +194,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
                 {ui[index]?.status === 'valid' ? (
                   <CheckCircle2 aria-hidden="true" className="me-1.5 size-3.5 text-pos" />
                 ) : null}
-                {t('studio.enrich.byo.chunkTab', 'Prompt {index}').replace('{index}', String(chunk.index))}
+                {t('studio.enrich.byo.chunkTab', 'Prompt {index}', { index: String(chunk.index) })}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -219,8 +215,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
             <div className="flex flex-col gap-0.5">
               <p className="text-body-sm font-semibold text-fg">
                 {chunked
-                  ? t('studio.enrich.byo.mergedTitle', 'All {count} chunks validated and merged')
-                      .replace('{count}', String(chunks.length))
+                  ? t('studio.enrich.byo.mergedTitle', 'All {count} chunks validated and merged', { count: String(chunks.length) })
                   : t('studio.enrich.byo.mergedTitleSingle', 'Response validated')}
               </p>
               <p className="text-caption text-fg-muted">

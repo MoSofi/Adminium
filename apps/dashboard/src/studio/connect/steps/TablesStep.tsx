@@ -144,10 +144,7 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
         {hiddenCount > 0 ? (
           <p className="flex items-center gap-1.5 text-caption text-fg-subtle">
             <EyeOff aria-hidden="true" className="size-3.5" />
-            {t('studio.tables.joinHidden', '{count} join/system tables are pre-hidden — they still power many-to-many relations.').replace(
-              '{count}',
-              String(hiddenCount),
-            )}
+            {t('studio.tables.joinHidden', '{count} join/system tables are pre-hidden — they still power many-to-many relations.', { count: String(hiddenCount), })}
           </p>
         ) : null}
       </div>

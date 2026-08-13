@@ -6,7 +6,8 @@
  * Global Defaults page (/settings/defaults).
  */
 import type { ReactNode } from 'react';
-import { LOCALES, dirForLocale, type LocaleId } from '@adminium/i18n/registry';
+import { availableLocales, dirForLocale, localeEntry, type LocaleId } from '@adminium/i18n/registry';
+import { isReviewed } from '@adminium/i18n';
 import { ACCENTS, type Accent, type Density, type ThemePref } from '@adminium/tokens';
 import { SegmentedControl, Select, cn } from '@adminium/ui';
 
@@ -28,13 +29,45 @@ export function densityLabel(value: Density): string {
     : t('prefs.density.comfortable', 'Comfortable');
 }
 
+/**
+ * Accent → literal bundle key (10-i18n-theming.md §2.5). `satisfies` — not a
+ * type annotation — so a ninth palette in `ACCENTS` is a compile error here
+ * rather than a swatch whose aria-label renders as `prefs.accent.<new>`.
+ */
+const ACCENT_LABEL_KEY = {
+  indigo: 'prefs.accent.indigo',
+  blue: 'prefs.accent.blue',
+  teal: 'prefs.accent.teal',
+  violet: 'prefs.accent.violet',
+  rose: 'prefs.accent.rose',
+  red: 'prefs.accent.red',
+  orange: 'prefs.accent.orange',
+  black: 'prefs.accent.black',
+} as const satisfies Record<Accent, string>;
+
 export function accentLabel(value: Accent): string {
-  return t(`prefs.accent.${value}`, value.charAt(0).toUpperCase() + value.slice(1));
+  return t(ACCENT_LABEL_KEY[value], value.charAt(0).toUpperCase() + value.slice(1));
 }
 
 export function localeLabel(value: LocaleId): string {
-  const entry = LOCALES.find((l) => l.id === value);
-  return entry?.native ?? value;
+  return localeEntry(value).native;
+}
+
+/**
+ * The locales a picker may offer (23 §3.1).
+ *
+ * `availableLocales()` is the runtime registry — compiled defaults merged
+ * under the admin's `adminium_locales` rows — filtered to `enabled`. The
+ * currently-selected locale is always included even when it has been
+ * disabled: dropping it would silently reassign the user on their next save,
+ * and an admin disabling a language should not rewrite anyone's preference
+ * behind their back.
+ */
+function pickerLocales(selected: LocaleId): readonly { id: string; native: string; english: string }[] {
+  const list = availableLocales();
+  if (list.some((l) => l.id === selected)) return list;
+  const { id, native, english } = localeEntry(selected);
+  return [...list, { id, native, english }];
 }
 
 export function ThemeControl(props: {
@@ -120,12 +153,20 @@ export function LocaleControl(props: {
         value={props.value}
         onChange={(event) => props.onChange(event.target.value as LocaleId)}
       >
-        {LOCALES.map((locale) => (
+        {pickerLocales(props.value).map((locale) => (
           <option key={locale.id} value={locale.id}>
             {locale.id === 'en_US' ? locale.native : `${locale.native} — ${locale.english}`}
           </option>
         ))}
       </Select>
+      {isReviewed(props.value) ? null : (
+        <p className="mt-1 text-body-sm text-fg-muted">
+          {t(
+            'prefs.locale.communityDraft',
+            'This translation is a community draft — it has not been reviewed by a native speaker yet.',
+          )}
+        </p>
+      )}
       {dirForLocale(props.value) === 'rtl' ? (
         <p className="mt-1 text-body-sm text-fg-muted">
           {t('prefs.locale.directionNote', 'Text direction: right to left (set automatically by the language)')}

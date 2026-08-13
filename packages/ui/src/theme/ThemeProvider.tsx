@@ -42,6 +42,7 @@ import {
   type ThemePref,
   type Accent,
   type Density,
+  type Dir,
 } from '@adminium/tokens';
 
 import {
@@ -53,7 +54,6 @@ import {
 import { emitTheme } from './subscribe.js';
 import {
   BASELINE_PREFS,
-  LOCALES,
   dirForLocale,
   langForLocale,
   type Locale,
@@ -77,6 +77,14 @@ export interface ThemeProviderProps {
   userPrefs?: Partial<ThemePrefs>;
   /** Persistence hook for `setPref` (M8 wires `PATCH /api/v1/me/prefs` here). */
   onPrefChange?: ThemePrefChangeHandler;
+  /**
+   * Direction resolver for locales this package cannot know about
+   * (23 §5.4). The app injects one backed by `@adminium/i18n`'s runtime
+   * registry; return `null` to defer to the compiled table and the cached
+   * axis. Absent in Storybook and in tests, where only the eight compiled
+   * locales exist.
+   */
+  resolveDir?: (locale: Locale) => Dir | null;
   children: ReactNode;
 }
 
@@ -95,14 +103,40 @@ function readStorageCache(): Partial<ThemePrefs> {
     if (density !== null && (DENSITIES as readonly string[]).includes(density)) {
       cache.density = density as Density;
     }
+    // SHAPE check, not membership (23 §5.2): a cached preference may name an
+    // admin-created locale this build does not compile in, and dropping it
+    // would strand that user on en-US on every cold load.
     const locale = window.localStorage.getItem(STORAGE_KEYS.locale);
-    if (locale !== null && (LOCALES as readonly string[]).includes(locale)) {
+    if (locale !== null && LOCALE_ID_SHAPE.test(locale)) {
       cache.locale = locale as Locale;
     }
   } catch {
     // Private mode / storage disabled: baseline render.
   }
   return cache;
+}
+
+/** Mirrors `LOCALE_ID_RE` in `@adminium/i18n` (this package cannot import it). */
+const LOCALE_ID_SHAPE = /^[a-z]{2,3}(_[A-Za-z0-9]{2,8}){0,2}$/;
+
+/**
+ * The `dir` the last resolved paint cached — an INDEPENDENT axis, not
+ * re-derived from the locale (23 §5.4).
+ *
+ * Without this, a custom RTL locale paints `rtl` from the pre-hydration
+ * script and snaps to `ltr` at hydration on every signed-out screen: this
+ * provider is the sole writer of the attribute, it recomputes direction on
+ * every commit, and on pre-auth surfaces there is no `userPrefs` and no
+ * locale registry to compute it from.
+ */
+function readCachedDir(): Dir | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const dir = window.localStorage.getItem(STORAGE_KEYS.dir);
+    return dir === 'rtl' || dir === 'ltr' ? dir : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function systemPrefersDark(): boolean {
@@ -138,10 +172,11 @@ function reconcileSessionPrefs(
 }
 
 export function ThemeProvider(props: ThemeProviderProps): ReactNode {
-  const { globalDefaults, userPrefs, onPrefChange, children } = props;
+  const { globalDefaults, userPrefs, onPrefChange, resolveDir, children } = props;
 
   // Read once per mount — the cache is a boot-time fallback, not a live source.
   const [storageCache] = useState<Partial<ThemePrefs>>(readStorageCache);
+  const [cachedDir] = useState<Dir | undefined>(readCachedDir);
   // Axes changed via setPref during this session (optimistic layer, wins over props).
   const [sessionPrefs, setSessionPrefs] = useState<Partial<ThemePrefs>>({});
   const [prefersDark, setPrefersDark] = useState<boolean>(systemPrefersDark);
@@ -195,9 +230,9 @@ export function ThemeProvider(props: ThemeProviderProps): ReactNode {
       accent: prefs.accent,
       density: prefs.density,
       locale: prefs.locale,
-      dir: dirForLocale(prefs.locale),
+      dir: dirForLocale(prefs.locale, { resolve: resolveDir, cached: cachedDir }),
     }),
-    [prefs, prefersDark],
+    [prefs, prefersDark, resolveDir, cachedDir],
   );
 
   // Stamp <html>, write the cache back, then notify listeners (§4 behaviors 1/3/5).

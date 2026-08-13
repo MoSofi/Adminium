@@ -65,6 +65,41 @@ export default tseslint.config(
     },
   },
   {
+    // i18n key hygiene (10-i18n-theming.md §2.5). Everywhere, including plain
+    // .ts: keys are assembled in config and data modules as often as in JSX.
+    // Fabricated keys cannot be verified against the 8 bundles, are invisible
+    // to the extractor and to the review-status tracker, and render as a raw
+    // dotted string to the user when they miss. Validity of a non-fabricated
+    // key is the type checker's job — see the rule docblock.
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['**/*.test.ts', '**/*.test.tsx', '**/*.stories.tsx'],
+    plugins: { adminium },
+    rules: {
+      'adminium/no-dynamic-i18n-key': 'error',
+      // Same scope, same reason class (23-runtime-translations.md §4.6):
+      // substituting a token into a translator's RESULT works only because
+      // the call passes no ICU args and `format()` throws, and it breaks
+      // outright once an admin can edit the message at runtime.
+      'adminium/no-t-result-replace': 'error',
+    },
+  },
+  {
+    // Hardcoded UI copy renders English in all 8 locales (10-i18n-theming.md
+    // §2.7). Scoped to the surfaces that OWN copy: @adminium/ui is deliberately
+    // absent because every string there arrives as a prop by contract
+    // (03-component-library.md §1), and tests/stories author throwaway text.
+    files: [
+      'apps/dashboard/src/**/*.tsx',
+      'packages/widgets/src/**/*.tsx',
+      'apps/desktop/src/**/*.tsx',
+    ],
+    ignores: ['**/*.test.tsx', '**/*.stories.tsx'],
+    plugins: { adminium },
+    rules: {
+      'adminium/no-literal-strings': 'error',
+    },
+  },
+  {
     // Deliberately `.ts` AS WELL as `.tsx`: the class strings this rule guards
     // live as often in plain-TS recipe modules (@adminium/ui lib/tones.ts's
     // toneSolidClasses, per-component Record<Tone, string> maps) as they do in

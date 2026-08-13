@@ -93,6 +93,7 @@ import {
   surveySummaryOf,
   type BlockId,
   type BuilderDocType,
+  type BuilderStarterId,
   type DocRecord,
   type DocType,
 } from './builder-config.js';
@@ -164,6 +165,60 @@ const BLOCK_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   'life-buoy': LifeBuoy,
   'square-dashed': SquareDashed,
 };
+
+/**
+ * Literal bundle key per block / per starter. Indexed rather than assembled at
+ * the render site so every key is visible to the extractor and to the
+ * bundle-parity tests, and a 23rd block (or a 21st starter) is a compile error
+ * instead of a raw dotted string in the palette (10 §2.5).
+ */
+const BLOCK_LABEL_KEY = {
+  'block-totals-summary': 'ui:templates.builder.blocks.block-totals-summary',
+  'block-line-items': 'ui:templates.builder.blocks.block-line-items',
+  'block-kpi-row': 'ui:templates.builder.blocks.block-kpi-row',
+  'block-bar-chart': 'ui:templates.builder.blocks.block-bar-chart',
+  'block-line-chart': 'ui:templates.builder.blocks.block-line-chart',
+  'block-two-col-table': 'ui:templates.builder.blocks.block-two-col-table',
+  'block-tax-breakdown': 'ui:templates.builder.blocks.block-tax-breakdown',
+  'block-multi-currency': 'ui:templates.builder.blocks.block-multi-currency',
+  'block-payment-history': 'ui:templates.builder.blocks.block-payment-history',
+  'block-discount-codes': 'ui:templates.builder.blocks.block-discount-codes',
+  'block-loyalty-banner': 'ui:templates.builder.blocks.block-loyalty-banner',
+  'block-recurring-banner': 'ui:templates.builder.blocks.block-recurring-banner',
+  'block-qr-pay': 'ui:templates.builder.blocks.block-qr-pay',
+  'block-delivery-stepper': 'ui:templates.builder.blocks.block-delivery-stepper',
+  'block-signature': 'ui:templates.builder.blocks.block-signature',
+  'block-terms-checkbox': 'ui:templates.builder.blocks.block-terms-checkbox',
+  'block-approval': 'ui:templates.builder.blocks.block-approval',
+  'block-attachments': 'ui:templates.builder.blocks.block-attachments',
+  'block-late-fees': 'ui:templates.builder.blocks.block-late-fees',
+  'block-image-placeholder': 'ui:templates.builder.blocks.block-image-placeholder',
+  'block-contact': 'ui:templates.builder.blocks.block-contact',
+  'block-highlight-box': 'ui:templates.builder.blocks.block-highlight-box',
+} as const satisfies Record<BlockId, string>;
+
+const STARTER_TITLE_KEY = {
+  'st-standard': 'ui:templates.builder.starters.titles.st-standard',
+  'st-recurring': 'ui:templates.builder.starters.titles.st-recurring',
+  'st-deposit': 'ui:templates.builder.starters.titles.st-deposit',
+  'st-credit-note': 'ui:templates.builder.starters.titles.st-credit-note',
+  'st-late-reminder': 'ui:templates.builder.starters.titles.st-late-reminder',
+  'st-quote': 'ui:templates.builder.starters.titles.st-quote',
+  'st-proforma': 'ui:templates.builder.starters.titles.st-proforma',
+  'st-receipt': 'ui:templates.builder.starters.titles.st-receipt',
+  'st-retainer': 'ui:templates.builder.starters.titles.st-retainer',
+  'st-usage': 'ui:templates.builder.starters.titles.st-usage',
+  'st-milestone': 'ui:templates.builder.starters.titles.st-milestone',
+  'st-donation': 'ui:templates.builder.starters.titles.st-donation',
+  'st-monthly': 'ui:templates.builder.starters.titles.st-monthly',
+  'st-quarterly': 'ui:templates.builder.starters.titles.st-quarterly',
+  'st-usage-report': 'ui:templates.builder.starters.titles.st-usage-report',
+  'st-exec': 'ui:templates.builder.starters.titles.st-exec',
+  'st-welcome': 'ui:templates.builder.starters.titles.st-welcome',
+  'st-receipt-email': 'ui:templates.builder.starters.titles.st-receipt-email',
+  'st-digest': 'ui:templates.builder.starters.titles.st-digest',
+  'st-dunning': 'ui:templates.builder.starters.titles.st-dunning',
+} as const satisfies Record<BuilderStarterId, string>;
 
 function BlockIcon({ slug }: { slug: string }) {
   const Icon = BLOCK_ICONS[slug] ?? SquareDashed;
@@ -330,8 +385,7 @@ export function PageBuilder({
   const startFromTemplateLabel =
     labels?.startFromTemplate ?? t('ui:templates.builder.startFromTemplate', 'Start from a template');
   const closeLabel = labels?.close ?? t('ui:action.close', 'Close');
-  const blockLabelOf = (block: BlockId): string =>
-    t(`ui:templates.builder.blocks.${block}`, BLOCK_KIND_META[block].label);
+  const blockLabelOf = (block: BlockId): string => t(BLOCK_LABEL_KEY[block], BLOCK_KIND_META[block].label);
 
   const palette = DOC_TYPE_PALETTE[canvasDocType];
   const activeBlocks = new Set(
@@ -594,11 +648,8 @@ export function PageBuilder({
                   id: starter.id,
                   // Card copy is studio chrome (the SEEDED doc keeps the
                   // English starter titles — that's content, not chrome).
-                  title: t(`ui:templates.builder.starters.titles.${starter.id}`, starter.title),
-                  category: t(
-                    `ui:templates.builder.starters.categories.${STARTER_CATEGORY_KEYS[starter.category] ?? starter.category}`,
-                    starter.category,
-                  ),
+                  title: t(STARTER_TITLE_KEY[starter.id], starter.title),
+                  category: t(STARTER_CATEGORY_KEYS[starter.category], starter.category),
                 })),
               }}
               data={{ status: 'success', data: { rows: [], total: 0 } }}

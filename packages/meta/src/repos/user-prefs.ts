@@ -60,8 +60,19 @@ export const SYSTEM_PREF_DEFAULTS = {
   locale: 'en_US',
 } as const;
 
-export function dirForLocale(locale: string): 'ltr' | 'rtl' {
-  return locale === 'ar_EG' ? 'rtl' : 'ltr';
+/** The compiled RTL locales — the only ones knowable without a DB read. */
+const BUILTIN_RTL: ReadonlySet<string> = new Set(['ar_EG']);
+
+/**
+ * Direction for a locale (23 §5.4). A bare `locale === 'ar_EG'` test cannot
+ * answer for an admin-created RTL locale, so callers that may see one pass
+ * the `dir` from its `adminium_locales` row. Built-ins always win, which is
+ * the same field lock the registry enforces: a row can never make `ar_EG`
+ * render `ltr`.
+ */
+export function dirForLocale(locale: string, customDir?: 'ltr' | 'rtl' | null): 'ltr' | 'rtl' {
+  if (BUILTIN_RTL.has(locale)) return 'rtl';
+  return customDir ?? 'ltr';
 }
 
 export function userPrefsRepo(meta: MetaDb) {
@@ -176,10 +187,24 @@ export function userPrefsRepo(meta: MetaDb) {
       const accent = pick('accent');
       const density = pick('density');
       const locale = pick('locale');
+      // A custom locale's direction lives in its registry row; built-ins never
+      // read it (the field lock in 23 §3.1), so this is skipped for them.
+      const customDir = BUILTIN_RTL.has(locale.value)
+        ? null
+        : ((
+            await db
+              .selectFrom('adminium_locales')
+              .select(['dir'])
+              .where('locale', '=', locale.value)
+              .executeTakeFirst()
+          )?.dir ?? null);
       const dir =
         user?.dir !== null && user?.dir !== undefined
           ? { value: user.dir, source: 'user' as PrefSource }
-          : { value: dirForLocale(locale.value), source: locale.source };
+          : {
+              value: dirForLocale(locale.value, customDir === 'rtl' ? 'rtl' : 'ltr'),
+              source: locale.source,
+            };
 
       return {
         theme: theme.value,
