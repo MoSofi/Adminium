@@ -407,7 +407,7 @@ jobs:
     needs: release-gate
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Publishes the 14 public packages under the scope-mapped identity
+    # Publishes every public package under the scope-mapped identity
     # (scripts/release/publish-npm.mjs — @adminiumjs/* until the @adminium
     # scope dispute settles; flip NPM_SCOPE to republish).
     #
@@ -418,9 +418,26 @@ jobs:
     # first v0.1.2 attempt on EOTP (a classic "Publish" token, which demands an
     # interactive 2FA code no CI run can supply).
     #
-    # Each of the 14 packages must name this repository AND this workflow's
+    # EVERY published package must name this repository AND this workflow's
     # FILENAME (release.yml) as a trusted publisher in its npmjs.com settings.
-    # Renaming this file breaks all 14 publishes until each is repointed.
+    # Renaming this file breaks every publish until each is repointed.
+    #
+    # A NEW package cannot be published by this job on its first release. npm
+    # can only configure a trusted publisher on a package that already exists,
+    # and there is no scope-level inheritance — so a name that has never been
+    # published has nowhere to hold the config. The OIDC exchange 404s, npm
+    # falls back to conventional auth, finds none, and the run dies at the
+    # upload with ENEEDAUTH or a misleading E404. Because publish-npm.mjs
+    # uploads in topological order with no rollback, that abort can land after
+    # earlier packages are already immutable on the registry.
+    #
+    # So: a brand-new package must be published ONCE by hand before its first
+    # tagged release — from the tarball `publish-npm.mjs --dry-run` validates,
+    # never a bare `npm publish` from the package directory, which would ship
+    # unresolved `catalog:`/`workspace:` ranges — and then registered with
+    # `npm trust github <pkg> --file release.yml`. Subsequent releases go
+    # through OIDC like every other package, and the script's alreadyPublished()
+    # check makes the bootstrapped version a no-op SKIP on the tagged run.
     #
     # There is deliberately no "skip if unconfigured" branch. The probe step
     # this replaces exited GREEN when NPM_TOKEN was missing, so a release that
@@ -504,8 +521,41 @@ jobs:
           export NPM_CONFIG_PREFIX="$RUNNER_TEMP/npm-global"
           VERSION='${{ steps.version.outputs.version }}'
 
+          # DERIVED, not maintained. This roster used to be a literal list of
+          # fourteen names, and it drifted the moment a fifteenth package
+          # existed: `@adminium/add-on-contracts` shipped as part of 0.2.0 and
+          # was absent here, so the one genuinely NEW name in that release —
+          # precisely the case the wait below exists for — was the only one
+          # nobody waited on. Worse, the loop can only count what it lists, so
+          # the gap could never raise `missing`: it printed success over an
+          # unverified package. Deriving the list from the workspace with the
+          # same rule publish-npm.mjs uses (non-private `@adminium/*` under
+          # packages/ and apps/, with server -> adminium) means the next new
+          # package cannot fall out of this gate.
+          PKGS="$(node -e '
+            const { readdirSync, readFileSync, existsSync } = require("fs");
+            const { join } = require("path");
+            const out = [];
+            for (const group of ["packages", "apps"]) {
+              for (const e of readdirSync(group, { withFileTypes: true })) {
+                if (!e.isDirectory()) continue;
+                const m = join(group, e.name, "package.json");
+                if (!existsSync(m)) continue;
+                const p = JSON.parse(readFileSync(m, "utf8"));
+                if (p.private === true) continue;
+                if (!p.name || !p.name.startsWith("@adminium/")) continue;
+                const short = p.name.slice("@adminium/".length);
+                out.push(short === "server" ? "adminium" : short);
+              }
+            }
+            if (!out.length) { console.error("no publishable workspaces found"); process.exit(1); }
+            console.log(out.join(" "));
+          ')"
+          COUNT="$(printf '%s' "$PKGS" | wc -w | tr -d ' ')"
+          echo "waiting on $COUNT packuments: $PKGS"
+
           # A BRAND-NEW package name takes minutes to become readable across
-          # npm's replicas — the 0.1.0-rc.1 rehearsal published all 14 packages
+          # npm's replicas — the 0.1.0-rc.1 rehearsal published every package
           # correctly and then failed here purely because 5×15s of retries ran
           # out first. Wait on the registry before spending an install attempt.
           #
@@ -517,15 +567,13 @@ jobs:
           # Checking what the installer actually reads is the whole point.
           for i in $(seq 1 30); do
             missing=0
-            for p in tokens charts i18n ui widgets engine adapter-mysql \
-                     adapter-postgres adapter-sqlite llm manifest meta \
-                     schema-import adminium; do
+            for p in $PKGS; do
               curl -fsS -H 'Cache-Control: no-cache' \
                 "https://registry.npmjs.org/@adminiumjs%2F$p" 2>/dev/null \
                 | jq -e --arg v "$VERSION" '.versions[$v] // empty' >/dev/null 2>&1 \
                 || missing=$((missing + 1))
             done
-            [ "$missing" -eq 0 ] && { echo "all 14 packuments list $VERSION"; break; }
+            [ "$missing" -eq 0 ] && { echo "all $COUNT packuments list $VERSION"; break; }
             if [ "$i" -eq 30 ]; then
               echo "::error::$missing packument(s) still missing $VERSION after 10 minutes"
               exit 1
@@ -550,6 +598,35 @@ jobs:
               echo "::error::alias @adminium/$dep did not resolve"; exit 1; }
           done
           echo "dashboard + aliased dependencies verified in the published package"
+
+          # The CLI's dependency closure does NOT include @adminium/manifest
+          # (it pulls engine, i18n, llm, meta, schema-import and the adapters),
+          # so the check above can never exercise manifest's own alias — and
+          # manifest is the only consumer of @adminium/add-on-contracts. That
+          # left the newest package in the release, and the newest alias edge,
+          # verified by nothing at all. Install manifest on its own and prove
+          # the edge resolves the way a consumer would meet it.
+          MANIFEST_DIR="$RUNNER_TEMP/manifest-probe"
+          rm -rf "$MANIFEST_DIR" && mkdir -p "$MANIFEST_DIR"
+          ( cd "$MANIFEST_DIR" \
+            && npm init -y >/dev/null 2>&1 \
+            && npm install --prefer-online "@adminiumjs/manifest@$VERSION" >/dev/null )
+          test -d "$MANIFEST_DIR/node_modules/@adminium/add-on-contracts" || {
+            echo "::error::alias @adminium/add-on-contracts did not resolve under @adminiumjs/manifest"
+            exit 1; }
+          # Dynamic import, not createRequire: @adminiumjs/manifest is ESM-only
+          # ("type": "module", a single ./dist/index.js export), so require()
+          # would depend on Node 22.12+'s require(esm) support resolving the
+          # way we hope. `addOnManifestSchema` is the symbol manifest gained
+          # FROM add-on-contracts, so importing it proves the alias edge is
+          # loadable at runtime, not merely present on disk.
+          ( cd "$MANIFEST_DIR" && node --input-type=module -e "
+              const m = await import('@adminiumjs/manifest');
+              if (typeof m.addOnManifestSchema === 'undefined') {
+                throw new Error('@adminiumjs/manifest loaded but addOnManifestSchema is missing');
+              }
+              console.log('manifest resolves and imports its add-on-contracts edge');
+            " )
 
   github-release:
     name: github release
