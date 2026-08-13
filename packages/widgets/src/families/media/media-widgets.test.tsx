@@ -970,7 +970,14 @@ describe('media — four WidgetFrame states through WidgetHost (acceptance #4)',
         />,
       );
       // The lazy chunk resolves on a microtask; no error boundary must trip.
-      await screen.findByTestId(`widget-${definition.id}-ok`).catch(() => undefined);
+      // A DELIBERATELY BOUNDED wait: for a widget whose testid never appears
+      // this is expected to expire, and the assertion below is the real check.
+      // It carries its own timeout so the suite-wide `asyncUtilTimeout` can be
+      // raised for the genuine waits (src/test/setup.ts) without stretching
+      // this one — keeping it at the 1000ms this always ran with.
+      await screen
+        .findByTestId(`widget-${definition.id}-ok`, {}, { timeout: 1_000 })
+        .catch(() => undefined);
       expect(screen.queryByRole('alert')).toBeNull();
     });
   }
