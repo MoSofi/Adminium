@@ -122,6 +122,12 @@ export interface ApplyCounts {
   pages: number;
   /** Page rows re-placed into a nav group. */
   navGroupUpdates: number;
+  /**
+   * Accepted template suggestions that wrote no page because the generator
+   * already emits one for that `(table, template)` pair — the recommendation
+   * is satisfied by the existing page rather than duplicated beside it.
+   */
+  templatePagesAlreadyCovered: number;
 }
 
 export interface ApplyResult {
@@ -158,7 +164,9 @@ export interface ApplyServiceDeps {
    * pages reflect the new overrides. Injected (not hard-wired) so the executor
    * stays testable without a live source connection; the route layer supplies the
    * `runGeneration`-backed implementation. Generated pages are regenerated;
-   * `origin: 'llm'` pages this apply created are preserved (never pruned).
+   * `origin: 'llm'` pages this apply created are preserved (never pruned), and
+   * a generated page whose `(table, template)` pair one of them already covers
+   * is dropped from that run rather than re-created beside it (`generate/run.ts`).
    */
   regenerate?: (ctx: RegenerateContext) => Promise<void> | void;
   /** Clock override — tests. */
@@ -329,7 +337,12 @@ export function createApplyService(deps: ApplyServiceDeps) {
         insertedPageIds: [],
         updatedPages: [],
       };
-      const counts: ApplyCounts = { overrides: 0, pages: 0, navGroupUpdates: 0 };
+      const counts: ApplyCounts = {
+        overrides: 0,
+        pages: 0,
+        navGroupUpdates: 0,
+        templatePagesAlreadyCovered: 0,
+      };
 
       // 1) Overrides — labels, keys, enum semantics, relations, PII, micro-copy.
       for (const w of plan.writes) {
@@ -469,6 +482,35 @@ function pageSourceTable(config: unknown): string | null {
   return typeof table === 'string' ? table : null;
 }
 
+/**
+ * True when a page of this connection already covers `(table, template)` under
+ * a DIFFERENT id — i.e. the generator's own archetype page for the same table.
+ *
+ * The deterministic {@link pageIdFor} key dedupes llm pages against each other
+ * only: the generator keys its pages on `page_<scope>_<table-slug>-<suffix>`
+ * (`orders-board`), so an accepted `page-board` for `public.orders` used to
+ * insert `public-orders-page-board` right beside it — same template, same bound
+ * table, two rows, two nav groups. The bound table lives in the config JSON, so
+ * the match is made in JS rather than SQL. A page counts whatever its state: a
+ * parked seed (06 §8.3 materialization) is retried by every later run, so
+ * skipping it here would only defer the duplicate.
+ */
+async function pageCoversCoordinate(
+  tmeta: MetaDb,
+  connectionId: string,
+  table: string,
+  template: string,
+  excludeId: string,
+): Promise<boolean> {
+  const rows = await tmeta.db
+    .selectFrom('adminium_pages')
+    .select(['id', 'config'])
+    .where('connectionId', '=', connectionId)
+    .where('type', '=', template)
+    .execute();
+  return rows.some((row) => row.id !== excludeId && pageSourceTable(readJson(row.config)) === table);
+}
+
 async function upsertTemplatePage(
   tmeta: MetaDb,
   plan: ApplyPlan,
@@ -479,6 +521,19 @@ async function upsertTemplatePage(
   counts: ApplyCounts,
 ): Promise<void> {
   const id = pageIdFor(plan.connectionId, w.suggestionId);
+  // One page per (table, template). When the heuristic generator already emits
+  // this archetype for this table, the accepted suggestion is ALREADY satisfied
+  // — writing an llm row too would leave the app with two of the same page. The
+  // existing page wins: it keeps the readable slug, any layout edits made on it,
+  // and it still lands in this run's nav group (the `nav-group` write below
+  // stamps every page bound to a member table, whatever its origin). The mirror
+  // rule lives in `generate/run.ts`, which drops a generated page whose pair an
+  // `origin: 'llm'` page already covers — together they hold in both orders,
+  // whether the apply or the first generation ran first.
+  if (await pageCoversCoordinate(tmeta, plan.connectionId, w.table, w.template, id)) {
+    counts.templatePagesAlreadyCovered += 1;
+    return;
+  }
   // Qualify the slug with the full `schema.table` (not just `localName`): two
   // same-named tables in different schemas (public.orders + archive.orders) would
   // otherwise collide on UNIQUE(connection_id, slug) and abort the whole apply
@@ -618,7 +673,16 @@ async function upsertPageRow(tmeta: MetaDb, input: PageRowInput): Promise<void> 
   input.counts.pages += 1;
 }
 
-/** Stamp `nav_group` + `nav_order` onto every persisted page of each member table (§8.3 `group`). */
+/**
+ * Stamp `nav_group` + `nav_order` onto every persisted page of each member table (§8.3 `group`).
+ *
+ * Only until the next generation run: `upsertGenerated` rewrites a generated
+ * row's nav columns from its regenerated envelope, which carries the heuristic
+ * 09 §2.2 group. Making the accepted placement durable instead is NOT a fix on
+ * its own — `buildNavTree` (routes/bootstrap) renders only the five fixed
+ * groups and drops every other row, so a page that keeps its domain group
+ * disappears from the sidebar. See the note in `generate/run.ts`.
+ */
 async function applyNavGroup(
   tmeta: MetaDb,
   connectionId: string,

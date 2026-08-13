@@ -211,7 +211,14 @@ describe('createApplyService', () => {
     for (const t of llmPages.filter((p) => p.type === 'page-board' || p.type === 'page-queue-inbox')) {
       expect(t.navGroup).toBe('sales');
     }
-    expect(result.counts).toEqual({ overrides: 27, pages: 4, navGroupUpdates: 6 });
+    // No template suggestion collides with a generated page here — the seeded
+    // rows are page-crud, the accepted templates are board/directory/queue.
+    expect(result.counts).toEqual({
+      overrides: 27,
+      pages: 4,
+      navGroupUpdates: 6,
+      templatePagesAlreadyCovered: 0,
+    });
   });
 
   it('a source:user override survives applying a new run (provenance, #11)', async () => {
