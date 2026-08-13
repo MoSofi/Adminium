@@ -158,8 +158,22 @@ export async function refreshOverrides(locale: LocaleId): Promise<void> {
   }
 }
 
-/** Re-check the server's version and rebuild only when it moved (23 §4.4). */
-export async function resyncOverrides(locale: LocaleId): Promise<void> {
+/**
+ * Re-check the server's version and rebuild only when it moved (23 §4.4).
+ *
+ * The locale is resolved from the LIVE instance rather than accepted from the
+ * caller. The shell's only handle on it is `bootstrap.prefs.locale` — the value
+ * the bootstrap query last returned, which is not necessarily the locale the
+ * user is currently reading. Rebuilding at the wrong one refetches another
+ * locale's overrides and installs them under the active language, so an admin's
+ * customisations silently disappear until something reloads them. Taking the
+ * locale from the instance that `t()` actually reads removes the whole class:
+ * there is no second source of truth left to disagree with.
+ */
+export async function resyncOverrides(): Promise<void> {
+  const current = getI18nInstance();
+  if (current === null) return;
+  const locale = localeFromTag(current.language);
   const { resyncIfStale } = await import('./overrides.js');
   const snapshot = await resyncIfStale(locale);
   if (snapshot === null) return;

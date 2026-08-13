@@ -100,7 +100,7 @@ export function AppShell() {
         invalidateForRealtimeEvent(queryClient, event);
         // A translation edit changes no query — it changes what every key
         // resolves to — so it needs its own reaction (23 §4.4).
-        if (event.type === 'i18n.changed') void resyncOverrides(bootstrap.prefs.locale);
+        if (event.type === 'i18n.changed') void resyncOverrides();
       },
       onStatusChange: (connected) => {
         setOffline(!connected);
@@ -109,7 +109,7 @@ export function AppShell() {
         // window silently missed every event published in it. Comparing the
         // version on reconnect is what stops a tab serving stale strings
         // forever.
-        if (connected) void resyncOverrides(bootstrap.prefs.locale);
+        if (connected) void resyncOverrides();
       },
     });
     client.start();
@@ -118,7 +118,7 @@ export function AppShell() {
     // Same floor for a tab that was simply in the background while an admin
     // edited copy — `visibilitychange` is the cheapest honest trigger.
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void resyncOverrides(bootstrap.prefs.locale);
+      if (document.visibilityState === 'visible') void resyncOverrides();
     };
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
@@ -129,7 +129,11 @@ export function AppShell() {
       window.removeEventListener('offline', onOffline);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [queryClient, bootstrap.user.id, bootstrap.prefs.locale]);
+    // No locale dep: `resyncOverrides` reads the live instance itself, so this
+    // effect no longer closes over one. Keeping it here would also tear the
+    // socket down and reconnect it on every locale switch, which the switch has
+    // no reason to do.
+  }, [queryClient, bootstrap.user.id]);
 
   // --- global shortcut registrations (§5.3) --------------------------------
   useShortcut({
