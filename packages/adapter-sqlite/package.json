@@ -28,7 +28,7 @@
   "dependencies": {
     "@adminium/engine": "workspace:*",
     "better-sqlite3": "^13.0.3",
-    "kysely": "^0.28.2"
+    "kysely": "^0.29.5"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
