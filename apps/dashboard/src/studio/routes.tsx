@@ -141,6 +141,7 @@ function SettingsRouteComponent() {
       <Suspense fallback={<CenteredSpinner />}>
         <StudioSettingsPage
           onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })}
+          onOpenTranslations={() => void navigate({ to: '/settings/translations' })}
           onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
         />
       </Suspense>

@@ -267,3 +267,46 @@ describe.skipIf(!psqlAvailable)('read-only detection (capability probe SQL)', ()
     expect(probe.databaseName).toBe(db);
   });
 });
+
+describe.skipIf(!psqlAvailable)('reserved schemas (adminium_demo)', () => {
+  let db = '';
+
+  beforeAll(async () => {
+    db = await createTestDatabase(false);
+    // Mirrors what the example apps' db/demo-toolkit.sql installs: a ledger of
+    // which rows came from their seed, in a schema of ours rather than theirs.
+    await psql(
+      `CREATE TABLE public.orders (id serial PRIMARY KEY, total numeric(10,2) NOT NULL);
+       CREATE SCHEMA adminium_demo;
+       CREATE TABLE adminium_demo.seeded_rows (
+         schema_name text NOT NULL, table_name text NOT NULL, pk text[] NOT NULL,
+         PRIMARY KEY (schema_name, table_name, pk)
+       );`,
+      { db },
+    );
+  }, 60_000);
+
+  afterAll(async () => {
+    if (db !== '') await dropTestDatabase(db);
+  });
+
+  it('is left out of an unscoped introspection, so it never becomes an admin page', async () => {
+    const model = await introspectPostgres(
+      psqlExecutor(db),
+      { connectionId: db, databaseName: db },
+      {},
+    );
+    expect(model.schemas).not.toContain('adminium_demo');
+    expect(model.tables.map((t) => t.schema)).not.toContain('adminium_demo');
+    expect(model.tables.map((t) => t.name)).toContain('orders');
+  });
+
+  it('is still returned when asked for by name', async () => {
+    const model = await introspectPostgres(
+      psqlExecutor(db),
+      { connectionId: db, databaseName: db },
+      { schemas: ['adminium_demo'] },
+    );
+    expect(model.tables.map((t) => t.name)).toEqual(['seeded_rows']);
+  });
+});

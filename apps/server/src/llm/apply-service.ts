@@ -211,6 +211,11 @@ function pageIdFor(connectionId: string, suggestionId: string): string {
  * Map an existing `origin: 'user'` override to the §8.1 suggestion-id it locks,
  * so the diff can mark that suggestion `user-locked` (provenance user > llm).
  * Ops with no LLM-refinement counterpart (exclude/hidden/semanticType) return null.
+ *
+ * Only `user` rows lock. `auto` rows — the introspector's proposed PII masks —
+ * deliberately do not: they are the engine's guess, and letting them lock would
+ * make a misclassification permanent (see `proposePiiMasks` in
+ * connections/introspect.ts).
  */
 function userLockedSuggestionId(o: SchemaOverride): string | null {
   const col = o.columnName;

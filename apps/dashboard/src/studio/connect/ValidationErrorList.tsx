@@ -59,7 +59,7 @@ export function ValidationErrorList({ errors, warnings }: ValidationErrorListPro
     <div className="flex flex-col gap-2 rounded-lg border border-danger bg-danger-soft p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-body-sm font-semibold text-fg">
-          {t('studio.enrich.byo.errorsTitle', 'Validation found {count} issues').replace('{count}', String(rows.length))}
+          {t('studio.enrich.byo.errorsTitle', 'Validation found {count} issues', { count: String(rows.length) })}
         </p>
       </div>
       <ul className="flex flex-col">

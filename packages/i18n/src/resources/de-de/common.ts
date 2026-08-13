@@ -50,7 +50,10 @@ export default {
       "done": "Zurück zur Anmeldung",
       "rateLimited": "Zu viele Anfragen — versuchen Sie es später erneut.",
       "failed": "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
-      "smtpUnconfigured": "Für dieses Adminium ist kein E-Mail-Server konfiguriert, daher kann kein Link zum Zurücksetzen gesendet werden. Bitten Sie eine Administratorin oder einen Administrator, Ihr Passwort zurückzusetzen."
+      "smtpUnconfigured": "Für dieses Adminium ist kein E-Mail-Server konfiguriert, daher kann kein Link zum Zurücksetzen gesendet werden. Bitten Sie eine Administratorin oder einen Administrator, Ihr Passwort zurückzusetzen.",
+      "subtitle": "Geben Sie Ihre E-Mail-Adresse ein, und wir senden Ihnen einen Link zum Zurücksetzen.",
+      "sentBody": "Wir haben einen Link zum Zurücksetzen an {email} gesendet. Er ist 15 Minuten lang gültig.",
+      "resendHint": "Nicht erhalten?"
     },
     "reset": {
       "title": "Neues Passwort festlegen",
@@ -66,7 +69,8 @@ export default {
       "strong": "Stark",
       "tooShort": "Verwenden Sie mindestens 8 Zeichen.",
       "submit": "Passwort zurücksetzen",
-      "failed": "Zurücksetzen fehlgeschlagen. Versuchen Sie es erneut."
+      "failed": "Zurücksetzen fehlgeschlagen. Versuchen Sie es erneut.",
+      "mismatch": "Die Passwörter stimmen nicht überein."
     },
     "otp": {
       "title": "Zwei-Faktor-Authentifizierung",
@@ -113,6 +117,7 @@ export default {
     "userMenu": "Kontomenü",
     "profile": "Profil",
     "preferences": "Einstellungen",
+    "studio": "Studio",
     "signOut": "Abmelden"
   },
   "palette": {
@@ -127,7 +132,11 @@ export default {
     "themeLight": "Zum hellen Design wechseln",
     "footerNavigate": "navigieren",
     "footerOpen": "auswählen",
-    "footerClose": "schließen"
+    "footerClose": "schließen",
+    "recent": "Zuletzt verwendet",
+    "searching": "Datensätze werden durchsucht…",
+    "records": "Datensätze",
+    "empty": "Keine Ergebnisse für „{query}“"
   },
   "shortcuts": {
     "title": "Tastaturkürzel",
@@ -138,6 +147,7 @@ export default {
     "panel": "Kürzel-Übersicht anzeigen",
     "search": "Suche fokussieren",
     "sidebar": "Seitenleiste umschalten",
+    "studio": "Zu Studio wechseln",
     "theme": "Hell / Dunkel umschalten",
     "then": "dann",
     "footerPre": "Drücken Sie",
@@ -145,7 +155,86 @@ export default {
   },
   "states": {
     "checked": "vor 8 s geprüft",
-    "diagnostics": "Diagnose"
+    "diagnostics": "Diagnose",
+    "reference": {
+      "label": "Referenz",
+      "copy": "Referenz kopieren",
+      "copied": "Kopiert",
+      "hint": "Geben Sie sie an, wenn Sie das Problem melden — Ihr Server-Log enthält dieselbe ID."
+    },
+    "notFound": {
+      "title": "Seite nicht gefunden",
+      "body": "Wir konnten diese Seite nicht finden. Möglicherweise wurde sie verschoben oder der Link ist ungültig.",
+      "primary": "Zurück zum Dashboard",
+      "secondary": "Support kontaktieren"
+    },
+    "forbidden": {
+      "title": "Sie haben keinen Zugriff",
+      "body": "Dieses Dashboard ist eingeschränkt. Bitten Sie eine Administratorin oder einen Administrator des Workspace, Ihnen Zugriff zu gewähren.",
+      "primary": "Zugriff anfordern",
+      "secondary": "Zurück"
+    },
+    "error": {
+      "title": "Etwas ist schiefgelaufen",
+      "body": "Adminium ist bei der Verarbeitung dieser Anfrage auf einen unerwarteten Fehler gestoßen. Die Details stehen im Server-Log.",
+      "primary": "Erneut versuchen"
+    },
+    "dbUnreachable": {
+      "title": "Datenbank nicht erreichbar",
+      "body": "Wir konnten keine Verbindung zu prod-db herstellen. Ihre Dashboards laufen weiter, sobald die Verbindung wiederhergestellt ist.",
+      "primary": "Verbindung erneut versuchen",
+      "secondary": "Verbindung bearbeiten",
+      "diag": {
+        "status": "keine Verbindung (Timeout 10s)",
+        "hint": "52.9.14.2 freigeben, dann erneut versuchen"
+      }
+    },
+    "maintenance": {
+      "title": "Geplante Wartung",
+      "body": "Adminium wird gerade gewartet und ist in Kürze wieder da. Danke für Ihre Geduld.",
+      "primary": "Status ansehen"
+    },
+    "rateLimited": {
+      "title": "Anfragelimit erreicht",
+      "body": "Zu viele Anfragen in kurzer Zeit. Warten Sie ein paar Minuten und versuchen Sie es erneut.",
+      "primary": "Erneut versuchen",
+      "secondary": "Zurück"
+    },
+    "offline": {
+      "title": "Sie sind offline",
+      "body": "Prüfen Sie Ihre Internetverbindung. Adminium verbindet sich automatisch wieder, sobald Sie online sind.",
+      "primary": "Jetzt erneut versuchen",
+      "banner": "Sie sind offline — Wiederverbindung läuft…"
+    },
+    "expiredLink": {
+      "title": "Dieser Link ist abgelaufen",
+      "body": "Magic-Links zur Anmeldung laufen nach 10 Minuten ab. Fordern Sie einen neuen an, um fortzufahren.",
+      "primary": "Neuen Link senden",
+      "secondary": "Zurück zur Anmeldung"
+    },
+    "expiredSession": {
+      "title": "Ihre Sitzung ist abgelaufen",
+      "body": "Zu Ihrer Sicherheit wurden Sie nach einer Zeit ohne Aktivität abgemeldet. Melden Sie sich an, um dort weiterzumachen, wo Sie aufgehört haben.",
+      "primary": "Erneut anmelden"
+    },
+    "emptyNoSources": {
+      "title": "Noch keine Datenquellen",
+      "body": "Verbinden Sie eine PostgreSQL-Datenbank und Adminium generiert Ihr erstes Admin-Dashboard.",
+      "primary": "Datenbank verbinden",
+      "secondary": "Beispieldaten importieren"
+    },
+    "readOnly": {
+      "title": "Nur-Lese-Modus",
+      "body": "Sie haben Viewer-Zugriff auf diesen Workspace. Sie können Dashboards erkunden, Bearbeiten und löschende Aktionen sind jedoch deaktiviert.",
+      "primary": "Bearbeitungszugriff anfordern",
+      "secondary": "Verstanden"
+    },
+    "suspended": {
+      "title": "Dieser Workspace ist gesperrt",
+      "body": "Dieser Workspace wurde von einer Administratorin oder einem Administrator gesperrt. Ihre Daten bleiben erhalten — wenden Sie sich an die Inhaberin oder den Inhaber des Workspace, um den Zugriff wiederherzustellen.",
+      "primary": "Inhaber kontaktieren",
+      "secondary": "Zurück"
+    }
   },
   "notFound": {
     "title": "Diese Seite ist verschwunden",
@@ -154,7 +243,8 @@ export default {
     "matches": "Passende Seiten",
     "popular": "Beliebte Ziele",
     "goBack": "Zurück",
-    "backToDashboard": "Zurück zum Dashboard"
+    "backToDashboard": "Zurück zum Dashboard",
+    "noMatches": "Keine Seiten entsprechen „{query}“"
   },
   "page": {
     "invalid": {
@@ -205,7 +295,8 @@ export default {
     },
     "locale": {
       "label": "Sprache",
-      "directionNote": "Textrichtung: rechts nach links (wird automatisch durch die Sprache festgelegt)"
+      "directionNote": "Textrichtung: rechts nach links (wird automatisch durch die Sprache festgelegt)",
+      "communityDraft": "Diese Übersetzung ist ein Community-Entwurf — sie wurde noch nicht von einem Muttersprachler geprüft."
     }
   },
   "account": {
@@ -715,7 +806,7 @@ export default {
         "header": {
           "title": "KI-Vorschläge prüfen",
           "model": "Modell",
-          "snapshot": "Snapshot",
+          "snapshot": "Schnappschuss",
           "byo": "BYO",
           "pathDirect": "Direkte API",
           "pathByo": "Kopieren & Einfügen",
@@ -918,7 +1009,7 @@ export default {
     },
     "remap": {
       "column": {
-        "nullable": "nullable",
+        "nullable": "NULL erlaubt",
         "labelOverride": "Anzeigebezeichnung",
         "labelHelper": "Abgeleitet: {name}",
         "logicalType": "Logischer Typ",
@@ -937,7 +1028,7 @@ export default {
         "enumCategory": "Kategorie",
         "enumLabelFor": "Bezeichnung für {value}",
         "enumToneFor": "Farbton für {value}",
-        "enumToneAuto": "auto",
+        "enumToneAuto": "automatisch",
         "enumHelper": "Workflow-Enums steuern Status-Pills und Board-Spalten; Farbtöne ordnen Werte der semantischen Farbtonskala zu."
       },
       "diff": {
@@ -1027,7 +1118,8 @@ export default {
         "unique": "UNIQUE",
         "pii": "PII",
         "masked": "Maskiert"
-      }
+      },
+      "unavailableTitle": "Editor zum Neuzuordnen des Schemas nicht verfügbar"
     }
   },
   "onboarding": {
@@ -1150,7 +1242,7 @@ export default {
       "duplicated": "{name} dupliziert."
     },
     "families": {
-      "kpi": "KPIs",
+      "kpi": "Kennzahlen",
       "charts": "Diagramme",
       "tables": "Tabellen",
       "feeds": "Feeds",
@@ -1962,5 +2054,9 @@ export default {
       "reportFailed": "Geplanter Bericht fehlgeschlagen",
       "backupCompleted": "Sicherung abgeschlossen"
     }
+  },
+  "theme": {
+    "toLight": "Zum hellen Design wechseln",
+    "toDark": "Zum dunklen Design wechseln"
   }
 } as const;

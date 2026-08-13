@@ -8,6 +8,7 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
+import { Suspense, lazy, useSyncExternalStore } from 'react';
 import {
   Outlet,
   createRootRouteWithContext,
@@ -16,6 +17,7 @@ import {
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { allLocales, getI18nRevision, subscribeI18nRevision } from '@adminium/i18n';
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
@@ -68,6 +70,16 @@ function toThemePrefs(prefs: ResolvedPrefs): Partial<ThemePrefs> {
   return { theme: prefs.theme, accent: prefs.accent, density: prefs.density, locale: prefs.locale };
 }
 
+/**
+ * Direction for a locale `@adminium/ui` cannot know about (23 §5.4). That
+ * package has no dependency on `@adminium/i18n`, so the app injects the
+ * lookup; `null` defers to the compiled table and the cached `dir` axis.
+ */
+function resolveLocaleDir(locale: string): 'ltr' | 'rtl' | null {
+  const entry = allLocales().find((l) => l.id === locale);
+  return entry?.dir ?? null;
+}
+
 function RootComponent() {
   // Cache subscription only — pre-auth surfaces render from the localStorage
   // pre-paint baseline; once bootstrap lands, server-resolved axes win
@@ -75,8 +87,16 @@ function RootComponent() {
   const boot = useQuery({ ...bootstrapQuery(), enabled: false });
   const authed = boot.data !== undefined;
 
+  // Re-render the route tree when runtime overrides change (23 §4.4). This is
+  // a RE-RENDER, never a keyed remount: keying this subtree would remount
+  // ThemeProvider — the owner of the locale axis and of the optimistic
+  // `setPref` layer — which silently reverts a locale the user just chose and
+  // destroys the Translations editor's own unsaved buffer on every save.
+  useSyncExternalStore(subscribeI18nRevision, getI18nRevision, getI18nRevision);
+
   return (
     <ThemeProvider
+      resolveDir={resolveLocaleDir}
       {...(boot.data === undefined ? {} : { userPrefs: toThemePrefs(boot.data.prefs) })}
       onPrefChange={(key, value) => {
         // Persist per-user axes once signed in (09 §5.1 ThemeProvider wiring).
@@ -389,6 +409,37 @@ const settingsDefaultsRoute = createRoute({
   component: GlobalDefaultsPage,
 });
 
+/**
+ * Languages & translations (23-runtime-translations.md §7). No client role
+ * guard here — the component renders the 403 state for non-super-admins and
+ * the server enforces `system:settings:manage` on every write regardless.
+ */
+const settingsTranslationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/translations',
+  component: TranslationsRouteComponent,
+});
+
+/**
+ * LAZY, deliberately. The editor pulls the whole key-browser UI for a surface
+ * a handful of super-admins open occasionally — statically importing it pushed
+ * the entry chunk past `check-entry-budget`'s ratchet, and the right answer to
+ * that gate is the one it prints: lazy-load the addition rather than raise the
+ * baseline (the v1.0 target is 350 KiB gz and the entry is already ~664).
+ */
+const TranslationsPageLazy = lazy(async () => {
+  const mod = await import('../settings/TranslationsPage.js');
+  return { default: mod.TranslationsPage };
+});
+
+function TranslationsRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <TranslationsPageLazy />
+    </Suspense>
+  );
+}
+
 const accountSplatRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account/$',
@@ -474,6 +525,7 @@ const routeTree = rootRoute.addChildren([
     accountSplatRoute,
     aboutRoute,
     settingsDefaultsRoute,
+    settingsTranslationsRoute,
     settingsDesktopRoute,
     knowledgeBaseRoute,
     changelogRoute,

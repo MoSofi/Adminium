@@ -52,6 +52,8 @@ export const ID_PREFIXES = {
   whd: 'adminium_webhook_deliveries',
   flag: 'adminium_feature_flags',
   mft: 'adminium_manifests',
+  loc: 'adminium_locales',
+  trn: 'adminium_translations',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

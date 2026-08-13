@@ -240,7 +240,7 @@ function LoadedEmailEditor({
         <Button
           variant="ghost"
           size="sm"
-          iconLeft={<ArrowLeft className="size-4" aria-hidden="true" />}
+          iconLeft={<ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />}
           onClick={onBack}
           data-testid="email-editor-back"
         >

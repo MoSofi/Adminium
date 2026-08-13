@@ -113,7 +113,7 @@ export function NotFoundPage({ requestId }: NotFoundPageProps) {
           <div className="flex flex-wrap justify-center gap-2">
             {q !== '' && matches.length === 0 ? (
               <span className="text-body-sm text-fg-subtle">
-                {t('notFound.noMatches', `No pages match "${query.trim()}"`)}
+                {t('notFound.noMatches', `No pages match "${query.trim()}"`, { query: query.trim() })}
               </span>
             ) : q !== '' ? (
               matches.map((item) => <NavChip key={item.pageId} item={item} onSelect={goTo} />)

@@ -45,6 +45,29 @@ export interface RuleCondition {
 
 type Rec = Record<string, unknown>;
 
+/**
+ * Literal bundle key per operator. Indexed rather than assembled so all 14 are
+ * visible to the extractor and a new `RULE_OPERATORS` member is a compile error
+ * rather than a raw `widgets.forms.ruleBuilder.op.…` inside the operator
+ * dropdown (10 §2.5).
+ */
+const OP_KEY = {
+  eq: 'ui:widgets.forms.ruleBuilder.op.eq',
+  neq: 'ui:widgets.forms.ruleBuilder.op.neq',
+  gt: 'ui:widgets.forms.ruleBuilder.op.gt',
+  gte: 'ui:widgets.forms.ruleBuilder.op.gte',
+  lt: 'ui:widgets.forms.ruleBuilder.op.lt',
+  lte: 'ui:widgets.forms.ruleBuilder.op.lte',
+  contains: 'ui:widgets.forms.ruleBuilder.op.contains',
+  'not-contains': 'ui:widgets.forms.ruleBuilder.op.not-contains',
+  'starts-with': 'ui:widgets.forms.ruleBuilder.op.starts-with',
+  in: 'ui:widgets.forms.ruleBuilder.op.in',
+  before: 'ui:widgets.forms.ruleBuilder.op.before',
+  after: 'ui:widgets.forms.ruleBuilder.op.after',
+  'is-null': 'ui:widgets.forms.ruleBuilder.op.is-null',
+  'is-not-null': 'ui:widgets.forms.ruleBuilder.op.is-not-null',
+} as const satisfies Record<RuleOperator, string>;
+
 /** The field def for a condition, or `null` when the catalog has no such column. */
 function fieldDefOf(catalog: readonly RuleFieldConfig[], name: string): RuleFieldConfig | null {
   return catalog.find((field) => field.name === name) ?? null;
@@ -224,7 +247,7 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
                 {operators.map((operator) => (
                   <option key={operator} value={operator}>
                     {config.operatorLabels?.[operator] ??
-                      t(`ui:widgets.forms.ruleBuilder.op.${operator}`, DEFAULT_OPERATOR_LABELS[operator] ?? operator)}
+                      t(OP_KEY[operator], DEFAULT_OPERATOR_LABELS[operator] ?? operator)}
                   </option>
                 ))}
               </Select>

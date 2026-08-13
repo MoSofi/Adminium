@@ -38,6 +38,15 @@ export interface RunIntrospectionOptions {
  * Auto-propose `column.pii { masked: true }` overrides for columns the
  * classifier flagged `maskedByDefault`, skipping any (table, column) that
  * already has a `column.pii` row (user decisions are never overwritten).
+ *
+ * These rows carry `origin: 'auto'`, NOT the repo default of `'user'`. They are
+ * the engine's guess, and the guess is sometimes wrong — writing them as `user`
+ * made `userLockedSuggestionId` (llm/apply-service.ts) treat every one of them
+ * as a deliberate human decision, so an LLM enrichment could never correct a
+ * misclassification. Every `pii` suggestion in a response was silently dropped
+ * as `user-locked` while the bad mask stayed. `auto` keeps the mask applied
+ * (the read path in effective-schema.ts ignores origin) but leaves it open to
+ * being superseded by an accepted LLM row, which sorts later and wins.
  */
 async function proposePiiMasks(meta: MetaDb, connectionId: string, model: DatabaseModel): Promise<number> {
   const overrides = overridesRepo(meta);
@@ -54,6 +63,7 @@ async function proposePiiMasks(meta: MetaDb, connectionId: string, model: Databa
       await overrides.create({
         connectionId,
         op: 'column.pii',
+        origin: 'auto',
         tableName: table.id,
         columnName: column.name,
         value: {

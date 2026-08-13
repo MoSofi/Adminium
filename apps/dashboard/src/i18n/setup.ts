@@ -9,7 +9,9 @@
  * itself stamps `dir`/`lang` on <html>.
  */
 import {
+  bumpI18nRevision,
   createI18n,
+  createI18nWithOverrides,
   isLocaleId,
   loadLocaleBundle,
   localeFromTag,
@@ -22,6 +24,7 @@ import { STORAGE_KEYS } from '@adminium/tokens';
 import { subscribeTheme } from '@adminium/ui';
 
 import { pushDesktopMenuLabels } from '../desktop/menuLabels.js';
+import { cachedOverrides } from './overrideCache.js';
 import { setI18nInstance } from './t.js';
 
 /** The locale the pre-hydration script painted with (localStorage cache). */
@@ -45,8 +48,15 @@ const INIT_TIMEOUT_MS = 2_000;
 export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Promise<I18nInstance> {
   const locale = options.locale ?? cachedLocale();
 
-  const ready = createI18n({
+  // WARM boot: overrides from the versioned localStorage cache are available
+  // synchronously, so the first paint already carries the admin's copy. COLD
+  // boot: `null`, and the paint carries compiled text until the post-boot
+  // resync swaps it — the acknowledged amendment to 10 §7.5 (23 §4.7).
+  const warmOverrides = cachedOverrides(locale);
+
+  const ready = createI18nWithOverrides({
     locale,
+    ...(warmOverrides === null ? {} : { overrides: warmOverrides }),
     // All 7 non-English locales load through @adminium/i18n's lazy loader:
     // literal dynamic imports inside the package, so Vite splits one chunk
     // per locale/namespace pair and an en_US user downloads no other
@@ -98,5 +108,54 @@ export async function initDashboardI18n(options: { locale?: LocaleId } = {}): Pr
     });
   });
 
+  // Post-boot: reconcile against the server WITHOUT blocking the first paint
+  // (23 §4.7). On a cold boot this is what turns compiled text into the
+  // admin's copy; on a warm one it is a cheap no-op when the version matches.
+  void refreshOverrides(locale);
+
   return i18n;
+}
+
+/**
+ * Fetch overrides for `locale` and rebuild the active instance with them.
+ *
+ * Rebuilding rather than patching is not a style choice: i18next's
+ * `addResourceBundle` cannot remove a key (its `deepExtend` only writes keys
+ * present in the source), so a store-mutation design cannot express "reset to
+ * built-in" — the most common admin operation — and `removeResourceBundle`
+ * would splice the namespace out of the instance entirely (23 §4.2).
+ */
+export async function refreshOverrides(locale: LocaleId): Promise<void> {
+  try {
+    // DYNAMIC import: everything network-facing in the override layer is
+    // post-boot, so keeping it out of the entry chunk is free (23 §4.7 and
+    // ./overrideCache.ts).
+    const { loadOverrides } = await import('./overrides.js');
+    const { overrides } = await loadOverrides(locale);
+    const next = await createI18nWithOverrides({
+      locale,
+      loadBundle: loadLocaleBundle,
+      overrides,
+    });
+    setI18nInstance(next);
+    bumpI18nRevision();
+    pushDesktopMenuLabels();
+  } catch {
+    // Signed out, offline, or the route is unavailable on this build. The
+    // compiled text is a correct render — just not a customised one.
+  }
+}
+
+/** Re-check the server's version and rebuild only when it moved (23 §4.4). */
+export async function resyncOverrides(locale: LocaleId): Promise<void> {
+  const { resyncIfStale } = await import('./overrides.js');
+  const snapshot = await resyncIfStale(locale);
+  if (snapshot === null) return;
+  const next = await createI18nWithOverrides({
+    locale,
+    loadBundle: loadLocaleBundle,
+    overrides: snapshot.overrides,
+  });
+  setI18nInstance(next);
+  bumpI18nRevision();
 }

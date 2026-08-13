@@ -6,7 +6,7 @@
  * label is `Intl`-formatted so ar_EG renders Arabic-Indic numerals.
  */
 
-import { getFormatters } from '@adminium/i18n';
+import { getFormatters, tagForLocale } from '@adminium/i18n';
 import { useMemo } from 'react';
 
 export interface ProgressRingProps {
@@ -32,7 +32,7 @@ export function ProgressRing({ done, total, locale, size = 116, ariaLabel }: Pro
   const center = size / 2;
 
   const percentLabel = useMemo(() => {
-    const tag = (locale ?? 'en_US').replace('_', '-');
+    const tag = tagForLocale(locale ?? 'en_US');
     // Standalone sans-serif figure (not a mono/tabular cell) → prose context,
     // so ar_EG renders Arabic-Indic numerals (§4.2), via the i18n format layer.
     return getFormatters(tag).percent(fraction, { ctx: 'prose' });

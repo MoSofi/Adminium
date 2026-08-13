@@ -72,6 +72,17 @@ const STATUS_FALLBACK: Record<UptimeState, string> = {
   unknown: 'No data',
 };
 
+/**
+ * Literal bundle key per state — indexed, never assembled, so the extractor
+ * sees all four and a new `UptimeState` fails the build (10 §2.5).
+ */
+const STATUS_KEY = {
+  operational: 'ui:widgets.domain.uptimeSegmentBar.status.operational',
+  degraded: 'ui:widgets.domain.uptimeSegmentBar.status.degraded',
+  down: 'ui:widgets.domain.uptimeSegmentBar.status.down',
+  unknown: 'ui:widgets.domain.uptimeSegmentBar.status.unknown',
+} as const satisfies Record<UptimeState, string>;
+
 export function UptimeSegmentBarView({
   days,
   period = '90',
@@ -122,7 +133,7 @@ export function UptimeSegmentBarView({
         <div aria-hidden="true" data-testid="uptime-strip" className="flex h-9 items-stretch gap-[2px]">
           {visible.map((day) => {
             const tone = dayTone(day.state, stateColors);
-            const label = `${formatDay(day.ms, locale) ?? ''} — ${t(`ui:widgets.domain.uptimeSegmentBar.status.${day.state}`, STATUS_FALLBACK[day.state])}`;
+            const label = `${formatDay(day.ms, locale) ?? ''} — ${t(STATUS_KEY[day.state], STATUS_FALLBACK[day.state])}`;
             return (
               <Tooltip key={day.ms} content={label}>
                 <span

@@ -24,8 +24,27 @@ export const recordRefSchema = z.object({
 });
 export type RecordRef = z.infer<typeof recordRefSchema>;
 
+/** The eight COMPILED locales. Still a closed set — see `builtinLocaleSchema`. */
 export const LOCALES = ['en_US', 'de_DE', 'ar_EG', 'zh_CN', 'zh_TW', 'cs_CZ', 'da_DK', 'fr_FR'] as const;
-export const localeSchema = z.enum(LOCALES);
+export const builtinLocaleSchema = z.enum(LOCALES);
+export type BuiltinLocale = z.infer<typeof builtinLocaleSchema>;
+
+/** Canonical locale-id shape — mirrors `LOCALE_ID_RE` in `@adminium/i18n`. */
+export const LOCALE_ID_RE = /^[a-z]{2,3}(_[A-Za-z0-9]{2,8}){0,2}$/;
+
+/**
+ * A locale id (23-runtime-translations.md §5.3). SHAPE only: once admins can
+ * create locales, a stored id is not drawn from a closed set and an enum here
+ * would reject every custom locale at the persistence boundary.
+ *
+ * Widening this removes the only existence check that used to be free, so
+ * EXISTENCE is now a contextual check the callers must make — and they must
+ * make it on the config-bundle IMPORT path too, not only on the routes:
+ * `settings['locale.default']` is `portable: true`, so a bundle exported from
+ * an instance with a custom locale would otherwise set every user's effective
+ * locale to an id that has no row and no bundle on the target instance.
+ */
+export const localeSchema = z.string().min(2).max(35).regex(LOCALE_ID_RE);
 export type Locale = z.infer<typeof localeSchema>;
 
 export const themeSchema = z.enum(['light', 'dark', 'system']);
@@ -267,7 +286,18 @@ export const overridePatchSchema = z.discriminatedUnion('op', [
 export type OverridePatch = z.infer<typeof overridePatchSchema>;
 export type OverrideOp = OverridePatch['op'];
 
-export const overrideOriginSchema = z.enum(['user', 'llm']);
+/**
+ * Provenance of an override row. 06 §8.3 orders it user > llm > heuristic, but
+ * only the first two were ever representable — so the introspector's
+ * auto-proposed PII masks were stored as `user`, and the LLM apply's
+ * user-lock ("a user edit is never superseded") then made every machine guess
+ * permanently uncorrectable. `auto` is that third tier: a proposal the engine
+ * made, which an LLM apply may supersede and a user edit still outranks.
+ *
+ * Stored in a `varchar(6)` column (0003), which is why this is `auto` and not
+ * the spec's longer word.
+ */
+export const overrideOriginSchema = z.enum(['user', 'llm', 'auto']);
 export const overrideStatusSchema = z.enum(['active', 'disabled']);
 
 // --- pages (§3.16/§3.17) -----------------------------------------------------------

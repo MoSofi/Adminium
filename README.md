@@ -58,11 +58,15 @@ commission from them, and the price you pay is unchanged._
 ## Example apps
 
 Thirteen complete, production-shaped frontends that run on a database Adminium
-generated. Each one is a separate public repo, ships with its own `db/schema.sql`,
-a `manifest.json` Adminium reads to scaffold the tables, and a `docker-compose.yml`
-that stands up Postgres, the generated dashboard and the app together. Every one
-runs offline as a static build with a bundled demo dataset, so the live links
-below need no backend.
+generated. Each one is a separate public repo, ships with its own `db/schema.sql`
+and `db/seed.sql`, a `manifest.json` Adminium reads to scaffold the tables, and a
+`docker-compose.yml` that stands up Postgres, the generated dashboard and the app
+together. `docker compose up` brings the whole thing up on realistic data with
+nothing to configure; `DEMO_DATA=0` starts empty on the same schema instead, and
+`npm run demo:wipe` takes the demo rows back out whenever you are ready for your
+own — the schema, and anything you added yourself, stay. Every one also runs
+offline as a static build with a bundled demo dataset, so the live links below
+need no backend.
 
 Browse them at **[adminium.dev/marketplace](https://adminium.dev/marketplace)**.
 

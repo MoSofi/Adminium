@@ -44,6 +44,27 @@ E2E_ENGINE=mysql TEST_MYSQL_URL=mysql://root:root@127.0.0.1:3306 \
   pnpm --filter @adminium/e2e e2e
 ```
 
+## RTL / locale leg
+
+`tests/rtl-locale.spec.ts` boots the real app in `ar_EG` — the one thing the
+unit tests cannot do. `ThemeProvider.test.tsx` proves the provider *would* stamp
+`dir`, and `parity.test.ts` proves the bundles *have* Arabic, but neither renders
+a page, so a physical `left-0` or a never-rendered translation stays invisible to
+both.
+
+It asserts three independent things, because they fail independently:
+
+1. `<html lang="ar-EG" dir="rtl">`, and that switching back to `en_US` flips it —
+   direction is derived from the locale, never set on its own (02 §4.2).
+2. Real Arabic glyphs reach the DOM. `dir="rtl"` over English text is trivial to
+   produce and proves nothing about the bundles.
+3. Fixed-LTR islands (10 §5.6) did **not** mirror. This is the failure nobody
+   looks for, because a wrongly-mirrored connection string makes the page look
+   *more* RTL, not broken.
+
+It restores `en_US` in `afterEach`: the suite runs serially against one seeded
+account, so a mid-spec failure must not leave it in Arabic for the next file.
+
 ## Debugging
 
 - `pnpm --filter @adminium/e2e e2e -- --ui` — Playwright UI mode.

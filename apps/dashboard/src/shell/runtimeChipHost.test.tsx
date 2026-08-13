@@ -78,6 +78,8 @@ function renderTopbar() {
               onOpenPalette={() => {}}
               onSignOut={() => {}}
               onOpenAccount={() => {}}
+              onOpenStudio={() => {}}
+              onOpenStudioSettings={() => {}}
             />
           </ShortcutsProvider>
         </TooltipProvider>

@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import type { WidgetDefinition } from '@adminium/widgets';
+import type { WidgetDefinition, WidgetFamily } from '@adminium/widgets';
 import { Drawer, DrawerBody, DrawerHeader, SearchInput } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -32,8 +32,30 @@ export function widgetDisplayName(definition: WidgetDefinition): string {
   return t(widgetNameKey(definition.descriptionKey), humanize(definition.id));
 }
 
+/**
+ * Widget family → literal bundle key (10-i18n-theming.md §2.5). The family axis
+ * is closed (`WIDGET_FAMILIES`), so `satisfies` turns a new family into a
+ * compile error here instead of a raw `builder.families.<new>` heading in the
+ * palette.
+ */
+const FAMILY_LABEL_KEY = {
+  kpi: 'builder.families.kpi',
+  charts: 'builder.families.charts',
+  tables: 'builder.families.tables',
+  feeds: 'builder.families.feeds',
+  calendar: 'builder.families.calendar',
+  boards: 'builder.families.boards',
+  geo: 'builder.families.geo',
+  media: 'builder.families.media',
+  communication: 'builder.families.communication',
+  forms: 'builder.families.forms',
+  chrome: 'builder.families.chrome',
+  system: 'builder.families.system',
+  domain: 'builder.families.domain',
+} as const satisfies Record<WidgetFamily, string>;
+
 export function familyLabel(family: PaletteGroup['family']): string {
-  return t(`builder.families.${family}`, humanize(family));
+  return t(FAMILY_LABEL_KEY[family], humanize(family));
 }
 
 export function WidgetPalette({ open, onClose, onInsert, registry }: WidgetPaletteProps) {

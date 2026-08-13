@@ -387,28 +387,69 @@ export function ensureTriggerFirst(
 
 // ── starters (annex: `starter-template-picker` seeds docs) ───────────────────
 
+/**
+ * The built-in starter ids, listed as a union so the renderer can index a map
+ * of LITERAL bundle keys by them: a new starter is then a compile error in
+ * `STARTER_TITLE_KEY` rather than a raw `templates.builder.starters.titles.…`
+ * on the card (10 §2.5).
+ */
+export type BuilderStarterId =
+  | 'st-standard'
+  | 'st-recurring'
+  | 'st-deposit'
+  | 'st-credit-note'
+  | 'st-late-reminder'
+  | 'st-quote'
+  | 'st-proforma'
+  | 'st-receipt'
+  | 'st-retainer'
+  | 'st-usage'
+  | 'st-milestone'
+  | 'st-donation'
+  | 'st-monthly'
+  | 'st-quarterly'
+  | 'st-usage-report'
+  | 'st-exec'
+  | 'st-welcome'
+  | 'st-receipt-email'
+  | 'st-digest'
+  | 'st-dunning';
+
+/** The English category display values the starter cards group by. */
+export type BuilderStarterCategory =
+  | 'Billing'
+  | 'Sales'
+  | 'Non-profit'
+  | 'Reports'
+  | 'Lifecycle'
+  | 'Transactional'
+  | 'Marketing';
+
 export interface BuilderStarterDef {
-  id: string;
+  id: BuilderStarterId;
   title: string;
-  category: string;
+  category: BuilderStarterCategory;
 }
 
 /**
- * Starter `category` display value → i18n leaf under
+ * Starter `category` display value → its LITERAL bundle key under
  * `templates.builder.starters.categories.*`. The starter defs below keep their
  * English values (API compat — hosts and goldens read them verbatim); the
- * RENDERER resolves the localized card copy at the render boundary via this
- * map, mirroring `useDefaultShortcutGroups` (ShortcutsPanel.tsx).
+ * RENDERER resolves the localized card copy at the render boundary by indexing
+ * this map, mirroring `useDefaultShortcutGroups` (ShortcutsPanel.tsx). Keeping
+ * whole keys here (rather than leaves the renderer concatenates) is what makes
+ * them visible to the extractor and to the bundle-parity tests (10 §2.5); the
+ * `satisfies` clause makes a new category a compile error.
  */
-export const STARTER_CATEGORY_KEYS: Readonly<Record<string, string>> = {
-  Billing: 'billing',
-  Sales: 'sales',
-  'Non-profit': 'nonProfit',
-  Reports: 'reports',
-  Lifecycle: 'lifecycle',
-  Transactional: 'transactional',
-  Marketing: 'marketing',
-};
+export const STARTER_CATEGORY_KEYS = {
+  Billing: 'ui:templates.builder.starters.categories.billing',
+  Sales: 'ui:templates.builder.starters.categories.sales',
+  'Non-profit': 'ui:templates.builder.starters.categories.nonProfit',
+  Reports: 'ui:templates.builder.starters.categories.reports',
+  Lifecycle: 'ui:templates.builder.starters.categories.lifecycle',
+  Transactional: 'ui:templates.builder.starters.categories.transactional',
+  Marketing: 'ui:templates.builder.starters.categories.marketing',
+} as const satisfies Record<BuilderStarterCategory, string>;
 
 /**
  * The 12 domain-true invoice starters (09 §7.11 — "12 domain-true invoice

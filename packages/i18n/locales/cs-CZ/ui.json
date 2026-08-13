@@ -18,7 +18,7 @@
     "hidePassword": "Skrýt heslo",
     "reveal": "Odkrýt",
     "hide": "Skrýt",
-    "clearSearch": "Clear search"
+    "clearSearch": "Vymazat hledání"
   },
   "state": {
     "loading": "Načítání…",
@@ -61,8 +61,8 @@
       },
       "usageMeter": {
         "description": "Spotřeba kvóty vůči limitu; po překročení vašich prahů se pruh zbarví oranžově a poté červeně.",
-        "usageLabel": "Usage",
-        "ofLabel": "of"
+        "usageLabel": "Spotřeba",
+        "ofLabel": "z"
       },
       "statTileCompact": {
         "description": "Úzká dlaždice metriky s mikropopiskem, čipem trendu a šestipruhovým sparkem — pro husté řady po 4 až 6."
@@ -79,16 +79,16 @@
       },
       "gaugeArc": {
         "description": "Oblouk tachometru s kvalitativními pásmy a ručičkou; vykreslí i mřížku ukazatelů.",
-        "emptyTitle": "No gauges to show",
-        "emptyBody": "Services appear here as gauges once there is a reading for them."
+        "emptyTitle": "Žádné ukazatele k zobrazení",
+        "emptyBody": "Služby se zde zobrazí jako ukazatele, jakmile pro ně bude naměřená hodnota."
       },
       "periodComparison": {
         "description": "Toto období proti minulému jako dva pruhy, s rozdílem spočítaným pod nimi.",
         "higherLabel": "více",
         "lowerLabel": "méně",
         "flatLabel": "beze změny",
-        "periodALabel": "This period",
-        "periodBLabel": "Last period"
+        "periodALabel": "Toto období",
+        "periodBLabel": "Minulé období"
       },
       "microKpiSubtitle": {
         "description": "Jednořádková statistika v záhlaví sestavená ze šablony a přepočítávaná ze živého stavu."
@@ -105,216 +105,216 @@
         "description": "Krabicový graf rozpětí číselného sloupce podle kategorie – minimum, kvartily, medián a maximum.",
         "emptyTitle": "Není co vykreslit",
         "emptyBody": "Filtrům neodpovídají žádné řádky pro krabicové grafy.",
-        "chartLabel": "Box plot"
+        "chartLabel": "Krabicový graf"
       },
       "violin": {
         "description": "Zrcadlené křivky hustoty porovnávající rozdělení číselného sloupce mezi skupinami.",
         "emptyTitle": "Není co vykreslit",
         "emptyBody": "Filtrům neodpovídají žádné řádky pro profily hustoty.",
-        "chartLabel": "Violin plot"
+        "chartLabel": "Houslový graf"
       },
       "ridgeline": {
         "description": "Překrývající se hřebeny hustoty porovnávající číselný sloupec napříč seřazenými skupinami.",
         "emptyTitle": "Není co vykreslit",
         "emptyBody": "Filtrům neodpovídají žádné řádky pro profily hustoty.",
-        "chartLabel": "Ridgeline"
+        "chartLabel": "Hřebenový graf"
       },
       "scatterBubble": {
         "description": "Dva číselné sloupce jako body, s volitelnou velikostí bublin a trendovou čarou.",
         "emptyTitle": "Žádné body k vykreslení",
         "emptyBody": "Filtrům neodpovídají žádné řádky pro zvolené sloupce.",
-        "chartLabel": "Scatter plot"
+        "chartLabel": "Bodový graf"
       },
       "hexbin": {
         "description": "Šestiúhelníková hustota dvou číselných sloupců, obarvená podle počtu řádků v dlaždici.",
         "emptyTitle": "Žádná hustota k vykreslení",
         "emptyBody": "Filtrům neodpovídají žádné řádky k seskupení.",
-        "chartLabel": "Density hexbin"
+        "chartLabel": "Šestiúhelníková hustota"
       },
       "correlationMatrix": {
         "description": "Pearsonova korelace mezi zvolenými číselnými sloupci, od silně kladné po silně zápornou.",
         "emptyTitle": "Není co korelovat",
         "emptyBody": "Vyberte alespoň dva číselné sloupce s odpovídajícími řádky.",
-        "chartLabel": "Correlation matrix"
+        "chartLabel": "Korelační matice"
       },
       "parallelCoordinates": {
         "description": "Každý záznam jako čára přes několik normalizovaných číselných os, obarvená podle kategorie.",
         "emptyTitle": "Žádné záznamy k vykreslení",
         "emptyBody": "Filtrům neodpovídají žádné řádky napříč zvolenými osami.",
-        "chartLabel": "Parallel coordinates"
+        "chartLabel": "Paralelní souřadnice"
       },
-      "unexpectedShape": "Unexpected data shape.",
+      "unexpectedShape": "Neočekávaný tvar dat.",
       "lineArea": {
-        "chartLabel": "Line chart",
-        "description": "A metric over time as a line with a soft area fill, with an optional dashed prior-period comparison."
+        "chartLabel": "Spojnicový graf",
+        "description": "Metrika v čase jako čára s jemnou výplní plochy a volitelným čárkovaným srovnáním s předchozím obdobím."
       },
       "bar": {
-        "chartLabel": "Bar chart",
-        "description": "Categorical or time-bucketed values as vertical bars, with an optional highlight on the largest or current bar."
+        "chartLabel": "Sloupcový graf",
+        "description": "Kategoriální nebo časově seskupené hodnoty jako svislé sloupce, s volitelným zvýrazněním největšího nebo aktuálního sloupce."
       },
       "donut": {
-        "chartLabel": "Donut chart",
-        "otherLabel": "Other",
-        "description": "Category shares as donut slices with a legend and centre total, folding small slices into an Other bucket."
+        "chartLabel": "Prstencový graf",
+        "otherLabel": "Ostatní",
+        "description": "Podíly kategorií jako výseče prstence s legendou a součtem uprostřed; malé výseče se slučují do položky Ostatní."
       },
       "bullet": {
-        "chartLabel": "Bullet chart",
-        "description": "Progress toward a goal as a measure bar over qualitative bands, with a target tick per row.",
-        "emptyTitle": "No goals to track",
-        "emptyBody": "Add measures with targets to compare against."
+        "chartLabel": "Bullet graf",
+        "description": "Postup k cíli jako pruh měřené hodnoty nad kvalitativními pásmy, se značkou cíle na každém řádku.",
+        "emptyTitle": "Žádné cíle ke sledování",
+        "emptyBody": "Přidejte měřené hodnoty s cíli, se kterými je lze porovnat."
       },
       "rankingBars": {
-        "chartLabel": "Ranking",
-        "description": "A top-N ranking as horizontal bars — the leader at full strength, the rest dimmed — with values alongside.",
-        "emptyTitle": "Nothing to rank",
-        "emptyBody": "No records matched this breakdown yet."
+        "chartLabel": "Žebříček",
+        "description": "Žebříček nejlepších jako vodorovné pruhy — vedoucí položka v plné sytosti, ostatní ztlumené — s hodnotami po straně.",
+        "emptyTitle": "Není co řadit",
+        "emptyBody": "Tomuto rozpadu zatím neodpovídají žádné záznamy."
       },
       "pareto": {
-        "chartLabel": "Pareto chart",
-        "description": "Sorted category bars under a cumulative-percent line, with an optional 80% cutline.",
-        "emptyTitle": "No categories to chart",
-        "emptyBody": "No grouped counts were returned for this range."
+        "chartLabel": "Paretův graf",
+        "description": "Seřazené sloupce kategorií pod čarou kumulativních procent, s volitelnou hranicí 80 %.",
+        "emptyTitle": "Žádné kategorie k vykreslení",
+        "emptyBody": "Pro tento rozsah nebyly vráceny žádné seskupené počty."
       },
       "waterfall": {
-        "chartLabel": "Waterfall chart",
-        "description": "A floating-bar bridge from a start total through positive and negative steps to a net total.",
-        "emptyTitle": "No movement to bridge",
-        "emptyBody": "No start, change, or total steps were found."
+        "chartLabel": "Vodopádový graf",
+        "description": "Most z plovoucích sloupců od počátečního součtu přes kladné a záporné kroky až k výslednému součtu.",
+        "emptyTitle": "Žádný pohyb k překlenutí",
+        "emptyBody": "Nebyly nalezeny žádné kroky začátku, změny ani součtu."
       },
       "marimekko": {
-        "chartLabel": "Marimekko chart",
-        "description": "A two-level mix as variable-width stacked columns — width for the outer share, segments for the inner split.",
-        "emptyTitle": "No mix to break down",
-        "emptyBody": "No two-level breakdown was returned for this range."
+        "chartLabel": "Graf Marimekko",
+        "description": "Dvouúrovňová skladba jako skládané sloupce proměnné šířky — šířka určuje vnější podíl, segmenty vnitřní rozdělení.",
+        "emptyTitle": "Žádná skladba k rozpadu",
+        "emptyBody": "Pro tento rozsah nebyl vrácen žádný dvouúrovňový rozpad."
       },
       "stackedBar100": {
-        "chartLabel": "100% stacked bar",
-        "description": "One 100% bar split into proportional segments with a legend, comparing shares of a whole.",
-        "emptyTitle": "No shares to split",
-        "emptyBody": "No parts were returned for this breakdown."
+        "chartLabel": "100% skládaný pruh",
+        "description": "Jeden 100% pruh rozdělený na poměrné segmenty s legendou, porovnávající podíly na celku.",
+        "emptyTitle": "Žádné podíly k rozdělení",
+        "emptyBody": "Pro tento rozpad nebyly vráceny žádné části."
       },
       "slope": {
-        "chartLabel": "Slope chart",
-        "description": "Two periods joined by one line per record, coloured by whether the value rose or fell.",
-        "emptyTitle": "No period shift to show",
-        "emptyBody": "No before/after values were returned to compare."
+        "chartLabel": "Graf sklonu",
+        "description": "Dvě období spojená jednou čarou na záznam, obarvenou podle toho, zda hodnota vzrostla, nebo klesla.",
+        "emptyTitle": "Žádný posun mezi obdobími",
+        "emptyBody": "Nebyly vráceny žádné hodnoty před a po k porovnání."
       },
       "multiline": {
-        "chartLabel": "Multi-line chart",
-        "description": "Several series as overlaid lines with end labels, comparing trends over the same time span.",
-        "emptyTitle": "No series to plot",
-        "emptyBody": "No time series matched the filters for this range."
+        "chartLabel": "Vícenásobný spojnicový graf",
+        "description": "Několik řad jako překryté čáry s popisky na konci, porovnávající trendy ve stejném časovém úseku.",
+        "emptyTitle": "Žádné řady k vykreslení",
+        "emptyBody": "Filtrům pro tento rozsah neodpovídají žádné časové řady."
       },
       "stream": {
-        "chartLabel": "Stream chart",
-        "description": "Stacked bands flowing around a centre line, showing how a total's composition shifts over time.",
-        "emptyTitle": "No flow to chart",
-        "emptyBody": "No stacked series were returned for this range."
+        "chartLabel": "Proudový graf",
+        "description": "Skládané pásy proudící kolem středové osy, které ukazují, jak se v čase mění složení celku.",
+        "emptyTitle": "Žádný tok k vykreslení",
+        "emptyBody": "Pro tento rozsah nebyly vráceny žádné skládané řady."
       },
       "forecast": {
-        "chartLabel": "Forecast chart",
-        "nowLabel": "Now",
-        "forecastLabel": "Forecast",
-        "actualLabel": "Actual",
-        "description": "A history line extended by a dashed projection inside a widening confidence band, split at a now divider.",
-        "emptyTitle": "No history to project",
-        "emptyBody": "No past points were returned to forecast from."
+        "chartLabel": "Graf předpovědi",
+        "nowLabel": "Nyní",
+        "forecastLabel": "Předpověď",
+        "actualLabel": "Skutečnost",
+        "description": "Historická čára prodloužená čárkovanou projekcí uvnitř rozšiřujícího se pásu spolehlivosti, rozdělená předělem v přítomnosti.",
+        "emptyTitle": "Žádná historie k projekci",
+        "emptyBody": "Nebyly vráceny žádné minulé body, ze kterých by šlo předpovídat."
       },
       "anomaly": {
-        "chartLabel": "Anomaly chart",
-        "description": "A value line over its expected range, flagging points that fall outside it with halo dots.",
-        "emptyTitle": "No signal to scan",
-        "emptyBody": "No points were returned to check for anomalies."
+        "chartLabel": "Graf anomálií",
+        "description": "Čára hodnot nad svým očekávaným rozpětím, která body ležící mimo něj označuje zvýrazněnými tečkami.",
+        "emptyTitle": "Žádný signál k prohledání",
+        "emptyBody": "Nebyly vráceny žádné body ke kontrole na anomálie."
       },
       "candlestick": {
-        "chartLabel": "Candlestick chart",
-        "livePillLabel": "Live",
-        "description": "Open-high-low-close candles coloured by direction, with a dashed last-price line and an optional live pill.",
-        "emptyTitle": "No candles to chart",
-        "emptyBody": "No open-high-low-close rows matched this range."
+        "chartLabel": "Svíčkový graf",
+        "livePillLabel": "Živě",
+        "description": "Svíčky otevření–maximum–minimum–zavření obarvené podle směru, s čárkovanou čarou poslední ceny a volitelnou plaketou Živě.",
+        "emptyTitle": "Žádné svíčky k vykreslení",
+        "emptyBody": "Tomuto rozsahu neodpovídají žádné řádky s otevřením, maximem, minimem a zavřením."
       },
       "bump": {
-        "chartLabel": "Bump chart",
-        "description": "Rank-over-time lines showing how competitors trade places between periods.",
-        "emptyTitle": "No ranks to trace",
-        "emptyBody": "No period-over-period rankings were returned."
+        "chartLabel": "Graf změn pořadí",
+        "description": "Čáry pořadí v čase ukazující, jak si konkurenti mezi obdobími vyměňují místa.",
+        "emptyTitle": "Žádné pořadí ke sledování",
+        "emptyBody": "Nebyla vrácena žádná pořadí po jednotlivých obdobích."
       },
       "timelineLanes": {
-        "chartLabel": "Timeline lanes",
-        "laneLabel": "Events",
-        "description": "Dated events as pills on horizontal swimlanes sharing one time axis.",
-        "emptyTitle": "No events to place",
-        "emptyBody": "No events matched the filters for this range."
+        "chartLabel": "Dráhy časové osy",
+        "laneLabel": "Události",
+        "description": "Datované události jako plakety ve vodorovných drahách sdílejících jednu časovou osu.",
+        "emptyTitle": "Žádné události k umístění",
+        "emptyBody": "Filtrům pro tento rozsah neodpovídají žádné události."
       },
       "treemap": {
-        "chartLabel": "Treemap",
-        "otherLabel": "Other",
-        "description": "A part-to-whole breakdown as squarified tiles sized by value, folding small slices into an Other tile.",
-        "emptyTitle": "No slices to tile",
-        "emptyBody": "No categories were returned for this breakdown."
+        "chartLabel": "Stromová mapa",
+        "otherLabel": "Ostatní",
+        "description": "Rozpad částí k celku jako dlaždice zarovnané do čtverců, jejichž velikost určuje hodnota; malé podíly se slučují do dlaždice Ostatní.",
+        "emptyTitle": "Žádné podíly k vykreslení",
+        "emptyBody": "Pro tento rozpad nebyly vráceny žádné kategorie."
       },
       "sunburst": {
-        "chartLabel": "Sunburst",
-        "description": "A two-level hierarchy as nested rings — parents inside, their children outside — with a parent legend.",
-        "emptyTitle": "No rings to draw",
-        "emptyBody": "No grouped categories were returned to nest."
+        "chartLabel": "Vnořené prstence",
+        "description": "Dvouúrovňová hierarchie jako vnořené prstence — nadřazené uvnitř, jejich potomci vně — s legendou nadřazených položek.",
+        "emptyTitle": "Žádné prstence k vykreslení",
+        "emptyBody": "Nebyly vráceny žádné seskupené kategorie k vnoření."
       },
       "funnel": {
-        "chartLabel": "Funnel",
-        "description": "Ordered shrinking stages with per-step continuation rates and an overall-conversion footer.",
-        "emptyTitle": "No stages to funnel",
-        "emptyBody": "No step counts were returned for this range."
+        "chartLabel": "Trychtýř",
+        "description": "Seřazené zužující se fáze s mírou postupu u každého kroku a celkovou konverzí v patičce.",
+        "emptyTitle": "Žádné fáze trychtýře",
+        "emptyBody": "Pro tento rozsah nebyly vráceny žádné počty kroků."
       },
       "radialBar": {
-        "chartLabel": "Radial bar",
-        "description": "Up to four percentages as concentric progress rings with a dot legend.",
-        "emptyTitle": "No rings to fill",
-        "emptyBody": "No categories matched this breakdown yet."
+        "chartLabel": "Radiální pruhy",
+        "description": "Až čtyři procentní hodnoty jako soustředné prstence postupu s tečkovou legendou.",
+        "emptyTitle": "Žádné prstence k naplnění",
+        "emptyBody": "Tomuto rozpadu zatím neodpovídají žádné kategorie."
       },
       "radar": {
-        "chartLabel": "Radar",
-        "description": "Several named axes on a polygon with one filled shape per series, against an optional target overlay.",
-        "emptyTitle": "No axes to compare",
-        "emptyBody": "No matrix of series and axes was returned."
+        "chartLabel": "Radarový graf",
+        "description": "Několik pojmenovaných os na mnohoúhelníku s jedním vyplněným tvarem na řadu, proti volitelné vrstvě s cílem.",
+        "emptyTitle": "Žádné osy k porovnání",
+        "emptyBody": "Nebyla vrácena žádná matice řad a os."
       },
       "chord": {
-        "chartLabel": "Chord",
-        "description": "Pairwise flows as ribbons between nodes on a ring, with ribbon opacity weighted by volume.",
-        "emptyTitle": "No flows to link",
-        "emptyBody": "No connections between groups were returned."
+        "chartLabel": "Chordový diagram",
+        "description": "Vzájemné toky jako stuhy mezi uzly na prstenci, jejichž průhlednost je vážena objemem.",
+        "emptyTitle": "Žádné toky k propojení",
+        "emptyBody": "Nebyla vrácena žádná spojení mezi skupinami."
       },
       "wordcloud": {
-        "chartLabel": "Word cloud",
-        "description": "Terms sized by frequency and flowed into rows, for a glanceable view of what dominates.",
-        "emptyTitle": "No terms to cloud",
-        "emptyBody": "No weighted terms matched the filters."
+        "chartLabel": "Mrak slov",
+        "description": "Výrazy s velikostí podle četnosti, zalomené do řádků, pro rychlý přehled o tom, co převažuje.",
+        "emptyTitle": "Žádné výrazy do mraku",
+        "emptyBody": "Filtrům neodpovídají žádné vážené výrazy."
       },
       "cohortMatrix": {
-        "chartLabel": "Cohort retention",
-        "description": "Cohort rows against period columns, each cell shaded by retention or revenue."
+        "chartLabel": "Retence kohort",
+        "description": "Řádky kohort proti sloupcům období; každá buňka je odstíněna podle retence nebo tržeb."
       },
       "heatmapCalendar": {
-        "chartLabel": "Activity calendar",
-        "legendLessLabel": "Less",
-        "legendMoreLabel": "More",
-        "description": "A year of daily activity as a week-by-day grid shaded by intensity."
+        "chartLabel": "Kalendář aktivity",
+        "legendLessLabel": "Méně",
+        "legendMoreLabel": "Více",
+        "description": "Rok denní aktivity jako mřížka týdnů a dnů odstíněná podle intenzity."
       },
       "heatMonth": {
-        "chartLabel": "Monthly activity",
-        "description": "One calendar month as a day grid shaded by each day's value."
+        "chartLabel": "Měsíční aktivita",
+        "description": "Jeden kalendářní měsíc jako mřížka dnů odstíněná podle hodnoty každého dne."
       },
       "choroplethGrid": {
-        "chartLabel": "Regional breakdown",
-        "legendLowLabel": "Low",
-        "legendHighLabel": "High",
-        "description": "Regional values as a tinted US tilegram or compact grid, with an optional top-N ranking list."
+        "chartLabel": "Rozpad podle regionů",
+        "legendLowLabel": "Nízká",
+        "legendHighLabel": "Vysoká",
+        "description": "Regionální hodnoty jako obarvený dlaždicový kartogram USA nebo úsporná mřížka, s volitelným žebříčkem nejvýznamnějších regionů."
       },
       "sankey": {
-        "chartLabel": "Flow",
-        "description": "Layered source-to-target flows as ribbons whose thickness encodes volume."
+        "chartLabel": "Tok",
+        "description": "Vrstvené toky od zdroje k cíli jako stuhy, jejichž tloušťka vyjadřuje objem."
       },
       "sparkline": {
-        "description": "An inline micro-trend of recent values — no axes or labels — for KPI cards, table cells and list rows."
+        "description": "Vložený mikrotrend posledních hodnot — bez os a popisků — pro karty ukazatelů, buňky tabulek a řádky seznamů."
       }
     },
     "feeds": {
@@ -322,32 +322,32 @@
         "description": "Průběžný kanál toho, kdo co ve vašem pracovním prostoru udělal, od nejnovějšího.",
         "emptyTitle": "Žádná nedávná aktivita",
         "emptyBody": "Akce ve vašem pracovním prostoru se zobrazí zde.",
-        "viewAllLabel": "View all"
+        "viewAllLabel": "Zobrazit vše"
       },
       "notificationFeed": {
         "description": "Seskupená oznámení se stavem nepřečteno, filtry a akcemi v řádku.",
         "emptyTitle": "Žádná oznámení",
         "emptyBody": "Nová oznámení se zobrazí zde.",
-        "allLabel": "All",
-        "unreadLabel": "Unread",
-        "mentionsLabel": "Mentions",
-        "filterLabel": "Notification filter",
-        "markAllReadLabel": "Mark all read",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
-        "earlierLabel": "Earlier",
-        "dismissLabel": "Dismiss",
-        "emptyUnreadTitle": "You're all caught up",
-        "emptyMentionsTitle": "No mentions"
+        "allLabel": "Vše",
+        "unreadLabel": "Nepřečtené",
+        "mentionsLabel": "Zmínky",
+        "filterLabel": "Filtr oznámení",
+        "markAllReadLabel": "Označit vše jako přečtené",
+        "todayLabel": "Dnes",
+        "yesterdayLabel": "Včera",
+        "earlierLabel": "Dříve",
+        "dismissLabel": "Zavřít",
+        "emptyUnreadTitle": "Máte vše přečtené",
+        "emptyMentionsTitle": "Žádné zmínky"
       },
       "realtimeFeed": {
         "description": "Živý proud událostí, který nové položky přidává na začátek.",
         "emptyTitle": "Čekání na události",
         "emptyBody": "Živé události se zobrazí, jakmile nastanou.",
-        "liveLabel": "Live",
-        "pausedLabel": "Paused",
-        "pauseLabel": "Pause",
-        "resumeLabel": "Resume"
+        "liveLabel": "Živě",
+        "pausedLabel": "Pozastaveno",
+        "pauseLabel": "Pozastavit",
+        "resumeLabel": "Pokračovat"
       },
       "timelineVertical": {
         "description": "Svislá časová osa událostí, vydání, incidentů nebo kroků běhu.",
@@ -377,39 +377,39 @@
         "description": "Měsíční mřížka naplánovaných událostí se štítky u dnů a navigací mezi měsíci.",
         "emptyTitle": "Nic naplánováno",
         "emptyBody": "Naplánované události se zobrazí v tomto kalendáři.",
-        "previousLabel": "Previous month",
-        "nextLabel": "Next month",
-        "overflowLabel": "+{count} more"
+        "previousLabel": "Předchozí měsíc",
+        "nextLabel": "Další měsíc",
+        "overflowLabel": "+{count} dalších"
       },
       "dayAgenda": {
         "description": "Události vybraného dne jako časově seřazená agenda.",
         "emptyTitle": "Nic naplánováno",
         "emptyBody": "Události pro vybraný den se zobrazí zde.",
-        "countLabel": "{count, plural, one {{n} event} other {{n} events}}"
+        "countLabel": "{count, plural, one {{n} událost} few {{n} události} many {{n} události} other {{n} událostí}}"
       },
       "scheduleMatrix": {
         "description": "Mřížka směn podle zdroje a dne s denním pokrytím a legendou.",
         "emptyTitle": "Žádné naplánované směny",
         "emptyBody": "Přiřazené směny se zobrazí v tomto rozvrhu.",
-        "resourceLabel": "Resource",
-        "coverageLabel": "Coverage",
-        "hoursLabel": "{hours}h"
+        "resourceLabel": "Zdroj",
+        "coverageLabel": "Pokrytí",
+        "hoursLabel": "{hours} h"
       },
       "capacityBoard": {
         "description": "Pruhy vytížení podle člena s rozpisem projektů a stavem zátěže.",
         "emptyTitle": "Žádná data o vytížení",
         "emptyBody": "Vytížení členů se zobrazí, jakmile budou existovat přiřazení.",
         "status": {
-          "overloaded": "Overloaded",
-          "balanced": "Balanced",
-          "available": "Available"
+          "overloaded": "Přetíženo",
+          "balanced": "Vyrovnáno",
+          "available": "K dispozici"
         },
-        "utilizationLabel": "{name}: {util}%",
-        "assignmentLabel": "{project} · {hours}h",
+        "utilizationLabel": "{name}: {util} %",
+        "assignmentLabel": "{project} · {hours} h",
         "periodLabel": "h · {period}",
         "period": {
-          "week": "week",
-          "month": "month"
+          "week": "týden",
+          "month": "měsíc"
         }
       },
       "calendarLegendFilter": {
@@ -451,26 +451,26 @@
         "description": "Vybíratelný seznam záznamů, který řídí podokno s detailem.",
         "emptyTitle": "Žádné položky",
         "emptyBody": "Položky se zde zobrazí, jakmile budou existovat.",
-        "allLabel": "All",
-        "toggleLabel": "Toggle {title}",
-        "progressLabel": "{title} progress"
+        "allLabel": "Vše",
+        "toggleLabel": "Přepnout {title}",
+        "progressLabel": "Průběh: {title}"
       },
       "logTable": {
         "description": "Protokol událostí s vyhledáváním, filtrem chyb a akcemi na řádku.",
         "emptyTitle": "Žádné záznamy protokolu",
         "emptyBody": "Události se zde zaznamenají, jakmile nastanou.",
-        "liveLabel": "Live",
-        "placeholder": "Search logs…",
-        "filterLabel": "Log filter",
-        "allLabel": "All",
-        "errorsLabel": "Errors",
-        "noMatchesLabel": "No matching entries",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
+        "liveLabel": "Živě",
+        "placeholder": "Hledat v protokolech…",
+        "filterLabel": "Filtr protokolu",
+        "allLabel": "Vše",
+        "errorsLabel": "Chyby",
+        "noMatchesLabel": "Žádné odpovídající záznamy",
+        "todayLabel": "Dnes",
+        "yesterdayLabel": "Včera",
         "action": {
-          "retry": "retry",
-          "download": "download",
-          "inspect": "inspect"
+          "retry": "zkusit znovu",
+          "download": "stáhnout",
+          "inspect": "prozkoumat"
         }
       },
       "cardGallery": {
@@ -482,22 +482,22 @@
         "description": "Seskupené řádky s agregačními sloupci, rozbalitelnými detaily a součty.",
         "emptyTitle": "Žádná souhrnná data",
         "emptyBody": "Seskupené součty se zde zobrazí, jakmile budou data.",
-        "groupLabel": "Group",
-        "totalsLabel": "Total"
+        "groupLabel": "Skupina",
+        "totalsLabel": "Celkem"
       },
       "schemaTree": {
         "description": "Průzkumník schémat, tabulek a sloupců se štítky typů a klíčů.",
         "emptyTitle": "Žádné načtené schéma",
         "emptyBody": "Připojte databázi a prozkoumejte její schéma zde.",
-        "treeLabel": "Schema",
-        "viewLabel": "view"
+        "treeLabel": "Schéma",
+        "viewLabel": "pohled"
       },
       "toggleMatrix": {
         "description": "Interaktivní mřížka logických přepínačů pro role, zásady nebo kanály.",
         "emptyTitle": "Žádná matice nenakonfigurována",
         "emptyBody": "Řádky a sloupce se zde zobrazí po konfiguraci.",
-        "matrixLabel": "Permissions matrix",
-        "rowHeaderLabel": "Permission"
+        "matrixLabel": "Matice oprávnění",
+        "rowHeaderLabel": "Oprávnění"
       },
       "sparklineTable": {
         "description": "Řádky metrik s mikrografem, aktuální hodnotou a odznakem změny, který rozlišuje dobrý a špatný směr.",
@@ -532,38 +532,38 @@
         "moreLabel": "+{n} dalších"
       },
       "dataGrid": {
-        "selectAllLabel": "Select all rows",
-        "selectRowLabel": "Select row",
-        "sortByLabel": "Sort by {column}",
-        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells."
+        "selectAllLabel": "Vybrat všechny řádky",
+        "selectRowLabel": "Vybrat řádek",
+        "sortByLabel": "Seřadit podle {column}",
+        "description": "Základní mřížka CRUD s řaditelnými sloupci, výběrem řádků a buňkami podle typu."
       },
       "paginationFooter": {
-        "emptyLabel": "0 rows",
-        "ofLabel": "of",
-        "pageSizeLabel": "Rows",
+        "emptyLabel": "0 řádků",
+        "ofLabel": "z",
+        "pageSizeLabel": "Řádků",
         "a11y": {
-          "pageSize": "Rows per page"
+          "pageSize": "Řádků na stránku"
         },
-        "prevLabel": "Previous page",
-        "nextLabel": "Next page",
-        "description": "A footer with the visible row range, prev/next paging, and a page-size select."
+        "prevLabel": "Předchozí stránka",
+        "nextLabel": "Další stránka",
+        "description": "Patička s rozsahem zobrazených řádků, stránkováním vpřed a vzad a volbou počtu řádků na stránku."
       },
       "bulkActionToolbar": {
-        "selectedLabel": "selected",
-        "clearLabel": "Clear selection",
-        "toolbarLabel": "Bulk actions",
-        "description": "A selection-aware toolbar showing the selected count and bulk actions."
+        "selectedLabel": "vybráno",
+        "clearLabel": "Zrušit výběr",
+        "toolbarLabel": "Hromadné akce",
+        "description": "Lišta reagující na výběr, která ukazuje počet vybraných položek a hromadné akce."
       },
       "miniTable": {
-        "viewAllLabel": "View all",
-        "description": "A compact dashboard row list with mapped columns and a view-all link."
+        "viewAllLabel": "Zobrazit vše",
+        "description": "Úsporný seznam řádků pro nástěnku s namapovanými sloupci a odkazem na zobrazení všeho."
       },
-      "revealLabel": "Reveal value",
-      "hideLabel": "Hide value",
-      "trueLabel": "true",
-      "falseLabel": "false",
+      "revealLabel": "Odkrýt hodnotu",
+      "hideLabel": "Skrýt hodnotu",
+      "trueLabel": "ano",
+      "falseLabel": "ne",
       "detailKeyValue": {
-        "description": "A record's fields as label/value rows with type-aware values."
+        "description": "Pole záznamu jako řádky popisek/hodnota s hodnotami podle typu."
       }
     },
     "boards": {
@@ -618,7 +618,7 @@
         "sendLabel": "Odeslat",
         "attachLabel": "Přidat přílohu",
         "typingLabel": "píše…",
-        "composerLabel": "Message"
+        "composerLabel": "Zpráva"
       },
       "aiChatPanel": {
         "description": "Panel asistenta pro dotazy na vaše schéma a data.",
@@ -630,8 +630,8 @@
         "configureTitle": "Není nastaven žádný poskytovatel AI",
         "configureBody": "Přidejte klíč Anthropic nebo OpenAI — nebo nasměrujte Adminium na vlastní endpoint — a ptejte se na své schéma.",
         "configureCtaLabel": "Nastavit poskytovatele",
-        "assistantLabel": "Assistant",
-        "composerLabel": "Ask a question"
+        "assistantLabel": "Asistent",
+        "composerLabel": "Položte otázku"
       },
       "typingIndicator": {
         "description": "Avatar a kurzívní řádek „píše…“ navázaný na živou booleovskou hodnotu u každé konverzace.",
@@ -669,7 +669,7 @@
         "emptyBody": "Řádky s kódem regionu a číselnou hodnotou se zde zobrazí jako obarvené dlaždice.",
         "legendLowLabel": "Nízká",
         "legendHighLabel": "Vysoká",
-        "chartLabel": "Regional breakdown"
+        "chartLabel": "Rozpad podle regionů"
       }
     },
     "domain": {
@@ -698,8 +698,8 @@
         "billedToLabel": "Fakturováno pro",
         "issuedLabel": "Vystaveno",
         "dueLabel": "Splatnost",
-        "noDocumentTitle": "No document yet",
-        "noDocumentBody": "Pick a starter template or add a block to begin."
+        "noDocumentTitle": "Zatím žádný dokument",
+        "noDocumentBody": "Začněte výběrem výchozí šablony nebo přidáním bloku."
       },
       "blockTotalsSummary": {
         "description": "Součty dokumentu — mezisoučet, sleva, daň a celková částka, přepočítané z položek.",
@@ -728,13 +728,13 @@
         "description": "Malý sloupcový graf v barvě dokumentu, uzpůsobený bloku dokumentu.",
         "emptyTitle": "Žádná data pro graf",
         "emptyBody": "Sloupce se zobrazí, jakmile bude zpráva obsahovat řadu dat.",
-        "a11yLabel": "Bar chart"
+        "a11yLabel": "Sloupcový graf"
       },
       "blockLineChart": {
         "description": "Malý spojnicový graf s volitelnou výplní plochy, uzpůsobený bloku dokumentu.",
         "emptyTitle": "Žádná data pro graf",
         "emptyBody": "Spojnice se zobrazí, jakmile bude zpráva obsahovat řadu dat.",
-        "a11yLabel": "Line chart"
+        "a11yLabel": "Spojnicový graf"
       },
       "blockTwoColTable": {
         "description": "Dvousloupcová tabulka se stylovaným záhlavím a sloupcem hodnot v neproporcionálním písmu.",
@@ -793,7 +793,7 @@
         "namePlaceholder": "Celé jméno",
         "titlePlaceholder": "Funkce",
         "dateLabel": "Datum",
-        "nameInputLabel": "Signature name"
+        "nameInputLabel": "Jméno podepisujícího"
       },
       "blockTermsCheckbox": {
         "description": "Přepínač souhlasu s podmínkami s upravitelným popiskem.",
@@ -839,158 +839,158 @@
         "description": "Mřížka předdefinovaných šablon s generovanými náhledy; výběr založí celý dokument.",
         "emptyTitle": "Žádné šablony",
         "emptyBody": "Definujte šablony v konfiguraci nebo připojte tabulku šablon.",
-        "blankLabel": "Blank",
+        "blankLabel": "Prázdný",
         "kicker": {
-          "invoice": "Invoice",
-          "report": "Report",
-          "email": "Email"
+          "invoice": "Faktura",
+          "report": "Zpráva",
+          "email": "E-mail"
         }
       },
       "sloMonitorCard": {
         "description": "Karta SLA pro každou službu se stavem, dostupností vůči cíli, denním pruhem dostupnosti, chybovým rozpočtem a latencí p95.",
         "emptyTitle": "Žádný monitor",
         "emptyBody": "Připojte tabulku monitorů se sloupcem stavu a dostupnosti.",
-        "targetLabel": "Target",
-        "budgetLabel": "Error budget",
-        "latencyLabel": "p95 latency",
+        "targetLabel": "Cíl",
+        "budgetLabel": "Chybový rozpočet",
+        "latencyLabel": "Latence p95",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "Unknown"
+          "operational": "V provozu",
+          "degraded": "Omezený provoz",
+          "down": "Mimo provoz",
+          "unknown": "Neznámý stav"
         }
       },
       "uptimeSegmentBar": {
         "description": "Denní pruhy ve stylu stavové stránky, obarvené podle denního stavu, s přepínačem 30/90 dní.",
         "emptyTitle": "Žádná historie dostupnosti",
         "emptyBody": "Řádky s denním stavem se zde zobrazí jako pruh dostupnosti.",
-        "daysAgoLabel": "{days} days ago",
-        "todayLabel": "Today",
-        "uptimeLabel": "uptime",
-        "period30Label": "30d",
-        "period90Label": "90d",
+        "daysAgoLabel": "před {days} dny",
+        "todayLabel": "Dnes",
+        "uptimeLabel": "dostupnost",
+        "period30Label": "30 d",
+        "period90Label": "90 d",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "No data"
+          "operational": "V provozu",
+          "degraded": "Omezený provoz",
+          "down": "Mimo provoz",
+          "unknown": "Žádná data"
         }
       },
       "experimentVariantCompare": {
         "description": "Konverzní pruhy pro každou variantu s nárůstem oproti kontrolní skupině a ukazatelem významnosti.",
         "emptyTitle": "Žádné varianty",
         "emptyBody": "Připojte tabulku variant experimentu s konverzními čísly.",
-        "controlLabel": "CONTROL",
-        "winnerLabel": "WINNER",
-        "significanceLabel": "Confidence",
-        "verdictSignificantLabel": "Statistically significant — safe to call.",
-        "verdictInconclusiveLabel": "Not yet significant — keep the test running.",
-        "countsLabel": "{users} participants · {conversions} conversions"
+        "controlLabel": "KONTROLA",
+        "winnerLabel": "VÍTĚZ",
+        "significanceLabel": "Spolehlivost",
+        "verdictSignificantLabel": "Statisticky významné — výsledek lze vyhlásit.",
+        "verdictInconclusiveLabel": "Zatím není významné — nechte test běžet dál.",
+        "countsLabel": "{users} účastníků · {conversions} konverzí"
       },
       "creditCardTile": {
         "description": "Uložený platební prostředek jako značková karta s maskovaným číslem, držitelem a platností.",
         "emptyTitle": "Žádný platební prostředek",
         "emptyBody": "Přidejte kartu, aby se zde zobrazila.",
-        "defaultLabel": "Default",
-        "setDefaultLabel": "Set default",
-        "manageLabel": "Manage",
-        "addLabel": "Add payment method",
-        "expiresLabel": "Expires"
+        "defaultLabel": "Výchozí",
+        "setDefaultLabel": "Nastavit jako výchozí",
+        "manageLabel": "Spravovat",
+        "addLabel": "Přidat platební prostředek",
+        "expiresLabel": "Platnost do"
       },
       "planPricingCards": {
         "description": "Cenové úrovně s přepínačem měsíčně/ročně, seznamy funkcí a zvýrazněným tarifem.",
         "emptyTitle": "Žádné tarify",
         "emptyBody": "Připojte tabulku tarifů s názvem a měsíční cenou.",
-        "monthlyLabel": "Monthly",
-        "annualLabel": "Annual",
-        "popularLabel": "POPULAR",
-        "perMonthLabel": "/ month",
-        "billedAnnuallyLabel": "Billed {total} yearly",
-        "currentLabel": "Current plan",
-        "ctaLabel": "Choose plan"
+        "monthlyLabel": "Měsíčně",
+        "annualLabel": "Ročně",
+        "popularLabel": "OBLÍBENÉ",
+        "perMonthLabel": "/ měsíc",
+        "billedAnnuallyLabel": "Účtováno {total} ročně",
+        "currentLabel": "Současný tarif",
+        "ctaLabel": "Vybrat tarif"
       },
       "apiKeysPanel": {
         "description": "Klíče API s odznaky prostředí, maskovanými hodnotami, oprávněními, posledním použitím a akcemi kopírovat, obnovit a zrušit.",
         "emptyTitle": "Žádné klíče API",
         "emptyBody": "Vytvořte klíč a začněte volat API.",
-        "revealedTitle": "Key created",
-        "revealedBody": "Copy it now — it is never shown again.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied",
-        "revealLabel": "Reveal key",
-        "hideLabel": "Hide key",
-        "rollLabel": "Roll key",
-        "revokeLabel": "Revoke key",
-        "neverUsedLabel": "Never used",
-        "lastUsedLabel": "Last used {since}"
+        "revealedTitle": "Klíč vytvořen",
+        "revealedBody": "Zkopírujte si jej hned — už se nikdy nezobrazí.",
+        "copyLabel": "Kopírovat",
+        "copiedLabel": "Zkopírováno",
+        "revealLabel": "Odkrýt klíč",
+        "hideLabel": "Skrýt klíč",
+        "rollLabel": "Obnovit klíč",
+        "revokeLabel": "Zrušit klíč",
+        "neverUsedLabel": "Nikdy nepoužito",
+        "lastUsedLabel": "Naposledy použito {since}"
       },
       "apiPlayground": {
         "description": "Editor požadavků s parametry a panelem odpovědi. Požadavek pouze sestavuje a nikdy jej doopravdy neodesílá.",
         "emptyTitle": "Nevybrán žádný endpoint",
         "emptyBody": "Vyberte endpoint a sestavte proti němu požadavek.",
-        "sendLabel": "Send",
-        "requestLabel": "Request",
-        "responseLabel": "Response",
-        "paramsLabel": "Parameters",
-        "responsePlaceholder": "Send the request to see the response."
+        "sendLabel": "Odeslat",
+        "requestLabel": "Požadavek",
+        "responseLabel": "Odpověď",
+        "paramsLabel": "Parametry",
+        "responsePlaceholder": "Odešlete požadavek a zobrazí se odpověď."
       },
       "codeSnippetBlock": {
         "description": "Kopírovatelná ukázka kódu s odznakem jazyka a volitelnými záložkami pro jednotlivé jazyky.",
         "emptyTitle": "Žádná ukázka",
         "emptyBody": "Připojte sloupec s kódem nebo nastavte statickou ukázku v konfiguraci.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "Kopírovat",
+        "copiedLabel": "Zkopírováno"
       },
       "webhookEndpointsList": {
         "description": "Webhookové endpointy s událostí, cílovou adresou URL, časem posledního spuštění a přepínačem aktivace.",
         "emptyTitle": "Žádné endpointy",
         "emptyBody": "Přidejte webhookový endpoint pro příjem událostí tabulky.",
-        "neverFiredLabel": "Never fired",
-        "lastFiredLabel": "Last fired {since}"
+        "neverFiredLabel": "Nikdy nespuštěno",
+        "lastFiredLabel": "Naposledy spuštěno {since}"
       },
       "resourceApiCard": {
         "description": "Generované API rozhraní tabulky: počet řádků, bezpečnostní odznak, odznaky metod a objem požadavků.",
         "emptyTitle": "Žádný zdroj",
         "emptyBody": "Připojte tabulku a zobrazte její generované API rozhraní.",
         "rlsLabel": "RLS",
-        "publicLabel": "Public",
-        "rowsLabel": "rows",
-        "perDayLabel": "{count}/day"
+        "publicLabel": "Veřejné",
+        "rowsLabel": "řádků",
+        "perDayLabel": "{count}/den"
       },
       "liveTimer": {
         "description": "Stopky se spuštěním a zastavením pro úkol; zastavení zaznamená časový záznam.",
         "emptyTitle": "Žádné stopky",
         "emptyBody": "Připojte řádek časového záznamu s úkolem a sloupcem trvání.",
-        "startLabel": "Start",
-        "stopLabel": "Stop",
-        "taskPlaceholder": "Untitled task"
+        "startLabel": "Spustit",
+        "stopLabel": "Zastavit",
+        "taskPlaceholder": "Nepojmenovaný úkol"
       },
       "syncStatusCard": {
         "description": "Identita připojení, latence, synchronizované řádky a plán synchronizace s akcí okamžité synchronizace.",
         "emptyTitle": "Žádné připojení",
         "emptyBody": "Připojte řádek připojení a zobrazte jeho stav synchronizace.",
-        "connectedLabel": "Connected",
-        "disconnectedLabel": "Disconnected",
-        "rowsSyncedLabel": "Rows synced",
-        "tablesLabel": "Tables",
-        "lastSyncLabel": "Last sync",
-        "nextSyncLabel": "Next sync",
-        "syncingLabel": "Syncing…",
-        "syncActionLabel": "Sync now"
+        "connectedLabel": "Připojeno",
+        "disconnectedLabel": "Odpojeno",
+        "rowsSyncedLabel": "Synchronizované řádky",
+        "tablesLabel": "Tabulky",
+        "lastSyncLabel": "Poslední synchronizace",
+        "nextSyncLabel": "Další synchronizace",
+        "syncingLabel": "Synchronizace…",
+        "syncActionLabel": "Synchronizovat nyní"
       },
       "ipAllowlistCard": {
         "description": "Pevné odchozí IP adresy k povolení na firewallu, každá s tlačítkem kopírování.",
         "emptyTitle": "Žádné odchozí IP",
         "emptyBody": "Odchozí adresy se zde zobrazí, jakmile bude připojení připraveno.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "Kopírovat",
+        "copiedLabel": "Zkopírováno"
       },
       "onboardingChecklist": {
         "description": "Kroky nastavení s odhadem času a akcemi nad průběžně přepočítávaným prstencem a pruhem postupu.",
         "emptyTitle": "Není co nastavovat",
         "emptyBody": "Přidejte kroky onboardingu do konfigurace nebo připojte tabulku kroků.",
-        "progressLabel": "{done} of {total} done",
-        "celebrateTitle": "All done"
+        "progressLabel": "Hotovo {done} z {total}",
+        "celebrateTitle": "Vše hotovo"
       },
       "testimonialCard": {
         "description": "Citace zákazníka s avatarem a uvedením zdroje.",
@@ -1034,7 +1034,7 @@
         "description": "Mřížka moodboardu s místy pro obrázky a popisky, pro tabulky s URL obrázků.",
         "emptyTitle": "Zatím žádné obrázky",
         "emptyBody": "Referenční obrázky se zobrazí na této nástěnce.",
-        "placeholder": "Drop reference"
+        "placeholder": "Přetáhněte referenci"
       },
       "linkList": {
         "description": "Referenční odkazy s názvy a adresami URL, otevírané na nové kartě.",
@@ -1075,16 +1075,16 @@
         "successTitle": "Záznam vytvořen",
         "successBody": "Záznam byl uložen.",
         "required": "Toto pole je povinné.",
-        "titleLabel": "Create record",
-        "closeLabel": "Close"
+        "titleLabel": "Vytvořit záznam",
+        "closeLabel": "Zavřít"
       },
       "drawerForm": {
         "description": "Boční panel pro vytvoření či úpravu záznamů s větším počtem polí.",
         "trigger": "Nový",
         "submit": "Uložit",
         "cancel": "Zrušit",
-        "titleLabel": "New record",
-        "closeLabel": "Close"
+        "titleLabel": "Nový záznam",
+        "closeLabel": "Zavřít"
       },
       "stepper": {
         "description": "Ukazatel kroků zobrazující postup vícekrokového procesu.",
@@ -1136,20 +1136,20 @@
         "valuePlaceholder": "Hodnota…",
         "emptyBody": "Zatím žádné podmínky — přidejte jednu a definujte tento segment.",
         "op": {
-          "eq": "is",
-          "neq": "is not",
-          "gt": "is greater than",
-          "gte": "is at least",
-          "lt": "is less than",
-          "lte": "is at most",
-          "contains": "contains",
-          "not-contains": "does not contain",
-          "starts-with": "starts with",
-          "in": "is one of",
-          "before": "is before",
-          "after": "is after",
-          "is-null": "is empty",
-          "is-not-null": "is not empty"
+          "eq": "je",
+          "neq": "není",
+          "gt": "je větší než",
+          "gte": "je alespoň",
+          "lt": "je menší než",
+          "lte": "je nejvýše",
+          "contains": "obsahuje",
+          "not-contains": "neobsahuje",
+          "starts-with": "začíná na",
+          "in": "je jedním z",
+          "before": "je před",
+          "after": "je po",
+          "is-null": "je prázdné",
+          "is-not-null": "není prázdné"
         }
       },
       "flowBuilder": {
@@ -1165,7 +1165,7 @@
         "label": "Připojovací řetězec",
         "helper": "postgres://uzivatel:heslo@host:5432/databaze — mysql:// a sqlite: fungují také.",
         "quickFill": "Rychlé vyplnění:",
-        "host": "Host: {host}",
+        "host": "Hostitel: {host}",
         "invalidScheme": "Nerozpoznané schéma připojovacího řetězce.",
         "incomplete": "Doplňte do připojovacího řetězce host a databázi."
       },
@@ -1216,17 +1216,17 @@
         "questionPlaceholder": "Položte otázku…",
         "emptyTitle": "Zatím žádné otázky",
         "emptyBody": "Vyberte typ otázky a začněte sestavovat dotazník.",
-        "questionLabel": "Question",
-        "dropdownPlaceholder": "Choose…",
+        "questionLabel": "Otázka",
+        "dropdownPlaceholder": "Vyberte…",
         "kind": {
-          "single-choice": "Single choice",
-          "multi-choice": "Multiple choice",
-          "dropdown": "Dropdown",
-          "short-text": "Short text",
-          "long-text": "Long text",
-          "rating": "Star rating",
+          "single-choice": "Jedna možnost",
+          "multi-choice": "Více možností",
+          "dropdown": "Rozbalovací seznam",
+          "short-text": "Krátký text",
+          "long-text": "Dlouhý text",
+          "rating": "Hodnocení hvězdičkami",
           "nps": "NPS 0–10",
-          "date": "Date"
+          "date": "Datum"
         }
       },
       "inlineEditableField": {
@@ -1235,7 +1235,7 @@
         "save": "Uložit",
         "cancel": "Zrušit",
         "empty": "Prázdné",
-        "valueLabel": "Value"
+        "valueLabel": "Hodnota"
       },
       "passwordStrengthMeter": {
         "description": "Čtyřsegmentový ukazatel síly hesla.",
@@ -1260,7 +1260,7 @@
         "navigate": "Navigovat",
         "select": "Otevřít",
         "close": "Zavřít",
-        "emptyTitle": "No results for \"{query}\"",
+        "emptyTitle": "Žádné výsledky pro „{query}“",
         "emptyBody": "Začněte psát pro vyhledávání.",
         "groupActions": "Akce",
         "groupNavigate": "Navigovat",
@@ -1277,8 +1277,8 @@
         "summary": "{count} výsledků pro „{query}“",
         "emptyTitle": "Žádné výsledky",
         "emptyBody": "Zkuste jiný výraz.",
-        "searchLabel": "Search",
-        "facetRailLabel": "Filter by type"
+        "searchLabel": "Hledat",
+        "facetRailLabel": "Filtrovat podle typu"
       },
       "breadcrumb": {
         "description": "Cesta k aktuálnímu záznamu nebo složce.",
@@ -1298,22 +1298,22 @@
         "footerHint": "Kdykoli stiskněte ?",
         "then": "poté",
         "emptyTitle": "Nejsou registrovány žádné zkratky.",
-        "generalGroupLabel": "General",
-        "navigationGroupLabel": "Navigation",
-        "recordsGroupLabel": "Records",
-        "openCommandPaletteLabel": "Open command palette",
-        "searchLabel": "Search",
-        "showShortcutsLabel": "Show shortcuts",
-        "goToDashboardLabel": "Go to dashboard",
-        "goToOrdersLabel": "Go to orders",
-        "newRecordLabel": "New record",
-        "saveLabel": "Save",
-        "undoLabel": "Undo"
+        "generalGroupLabel": "Obecné",
+        "navigationGroupLabel": "Navigace",
+        "recordsGroupLabel": "Záznamy",
+        "openCommandPaletteLabel": "Otevřít paletu příkazů",
+        "searchLabel": "Hledat",
+        "showShortcutsLabel": "Zobrazit zkratky",
+        "goToDashboardLabel": "Přejít na nástěnku",
+        "goToOrdersLabel": "Přejít na objednávky",
+        "newRecordLabel": "Nový záznam",
+        "saveLabel": "Uložit",
+        "undoLabel": "Vrátit zpět"
       },
       "avatarStack": {
         "description": "Překrývající se avatary s přetečením „+N“ a volitelnou přítomností.",
         "online": "{count} online",
-        "a11yLabel": "People"
+        "a11yLabel": "Lidé"
       }
     },
     "system": {
@@ -1388,10 +1388,10 @@
         "latency": "Latence"
       },
       "widgetMissing": {
-        "description": "The fallback card shown when a stored page references a widget that is not installed.",
-        "title": "Widget unavailable",
-        "bodyLead": "No widget is registered as",
-        "bodyTail": "It may belong to a newer version or an uninstalled extension."
+        "description": "Náhradní karta, která se zobrazí, když uložená stránka odkazuje na widget, jenž není nainstalován.",
+        "title": "Widget není k dispozici",
+        "bodyLead": "Není registrován žádný widget s identifikátorem",
+        "bodyTail": "Může patřit k novější verzi nebo k odinstalovanému rozšíření."
       }
     }
   },
@@ -1405,350 +1405,350 @@
       "committed": "{title} umístěno do sloupce {col}, řádku {row}.",
       "reverted": "{title} vráceno na původní pozici."
     },
-    "draggableRole": "draggable widget"
+    "draggableRole": "přetažitelný widget"
   },
   "templates": {
     "crud": {
-      "newRow": "New row",
-      "exportAction": "Export",
-      "searchPlaceholder": "Search {table}…",
-      "removeFilter": "Remove {column} filter",
-      "queryFailed": "Query failed",
-      "loadingRows": "Loading rows",
-      "noMatchesTitle": "No matching rows",
-      "emptyTitle": "{count, plural, one {No {entity} yet} other {No {entity}s yet}}",
-      "createTitle": "Add {entity}",
-      "createSubtitle": "Creates one row in {table}.",
-      "createSubmit": "Add {entity}",
-      "createSuccessTitle": "{name} added",
-      "createSuccessBody": "You can undo this from the toast.",
-      "editTitle": "Edit {entity}",
-      "saveSubmit": "Save changes",
-      "deleteTitle": "Delete {entity}",
-      "deletePreflight": "Checking references…",
-      "deleteNoReferences": "This row has no inbound references.",
-      "deleteConsequencesIntro": "Deleting this row also affects:",
-      "referenceRows": "{count, plural, one {{n} row} other {{n} rows}}",
-      "confirmPrompt": "Type {value} to confirm",
-      "bulkDeleteTitle": "{count, plural, one {Delete {n} row} other {Delete {n} rows}}",
-      "bulkDeleteBody": "Referential consequences apply to every selected row.",
-      "bulkDeleteConfirm": "Delete rows",
-      "uniqueHelper": "Must be unique in {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}",
+      "newRow": "Nový řádek",
+      "exportAction": "Exportovat",
+      "searchPlaceholder": "Hledat v {table}…",
+      "removeFilter": "Odebrat filtr {column}",
+      "queryFailed": "Dotaz selhal",
+      "loadingRows": "Načítání řádků",
+      "noMatchesTitle": "Žádné odpovídající řádky",
+      "emptyTitle": "{count, plural, one {Zatím žádný záznam ({entity})} few {Zatím žádné záznamy ({entity})} many {Zatím žádné záznamy ({entity})} other {Zatím žádné záznamy ({entity})}}",
+      "createTitle": "Přidat {entity}",
+      "createSubtitle": "Vytvoří jeden řádek v {table}.",
+      "createSubmit": "Přidat {entity}",
+      "createSuccessTitle": "{name} přidáno",
+      "createSuccessBody": "Tuto změnu můžete vrátit zpět z oznámení.",
+      "editTitle": "Upravit {entity}",
+      "saveSubmit": "Uložit změny",
+      "deleteTitle": "Smazat {entity}",
+      "deletePreflight": "Kontrola odkazů…",
+      "deleteNoReferences": "Na tento řádek nic neodkazuje.",
+      "deleteConsequencesIntro": "Smazání tohoto řádku ovlivní také:",
+      "referenceRows": "{count, plural, one {{n} řádek} few {{n} řádky} many {{n} řádku} other {{n} řádků}}",
+      "confirmPrompt": "Potvrďte zadáním {value}",
+      "bulkDeleteTitle": "{count, plural, one {Smazat {n} řádek} few {Smazat {n} řádky} many {Smazat {n} řádku} other {Smazat {n} řádků}}",
+      "bulkDeleteBody": "Důsledky pro odkazy platí pro každý vybraný řádek.",
+      "bulkDeleteConfirm": "Smazat řádky",
+      "uniqueHelper": "Musí být jedinečné v {table}.",
+      "uniqueHelperCounted": "{count, plural, one {Ověřeno proti {n} řádku.} few {Ověřeno proti {n} řádkům.} many {Ověřeno proti {n} řádku.} other {Ověřeno proti {n} řádkům.}}",
       "toast": {
-        "created": "{entity} created.",
-        "createFailed": "Create failed.",
-        "saved": "Changes saved.",
-        "updateFailed": "Update failed.",
-        "deleted": "{name} deleted.",
-        "deleteFailed": "Delete failed.",
-        "bulkDeleted": "{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}",
-        "bulkDeleteFailed": "Bulk delete failed.",
-        "undone": "Change undone.",
-        "undoFailed": "Undo failed."
+        "created": "{entity} vytvořeno.",
+        "createFailed": "Vytvoření se nezdařilo.",
+        "saved": "Změny uloženy.",
+        "updateFailed": "Aktualizace se nezdařila.",
+        "deleted": "{name} smazáno.",
+        "deleteFailed": "Smazání se nezdařilo.",
+        "bulkDeleted": "{count, plural, one {Smazán {n} řádek.} few {Smazány {n} řádky.} many {Smazáno {n} řádku.} other {Smazáno {n} řádků.}}",
+        "bulkDeleteFailed": "Hromadné smazání se nezdařilo.",
+        "undone": "Změna vrácena zpět.",
+        "undoFailed": "Vrácení zpět se nezdařilo."
       },
       "detail": {
-        "fields": "Fields",
-        "inboundReferences": "inbound references",
-        "relatedCount": "{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}",
-        "loadError": "Failed to load the record."
+        "fields": "Pole",
+        "inboundReferences": "příchozí odkazy",
+        "relatedCount": "{count, plural, one {{n} související záznam v {table}} few {{n} související záznamy v {table}} many {{n} souvisejícího záznamu v {table}} other {{n} souvisejících záznamů v {table}}}",
+        "loadError": "Záznam se nepodařilo načíst."
       }
     },
     "queue": {
-      "allSegment": "All",
-      "daysUnit": "{count, plural, one {{count} day} other {{count} days}}",
-      "approvedToast": "{count} approved.",
-      "rejectedToast": "{count} rejected.",
-      "undoneToast": "Decision undone.",
-      "undoFailedToast": "Could not undo this decision.",
-      "failedToast": "Decision failed.",
-      "invalidConfig": "This queue’s stored configuration is invalid. Regenerate the page to restore it.",
-      "queueLabel": "Queue",
-      "statusFilterLabel": "Status filter",
-      "errorTitle": "This queue failed to load",
-      "loading": "Loading queue",
-      "emptyTitle": "Nothing in the queue",
-      "emptyBody": "New requests appear here as they arrive.",
-      "caughtUpTitle": "You're all caught up",
-      "caughtUpBody": "No requests in this tab right now.",
-      "selectItem": "Select {title}",
-      "selectPrompt": "Select a request",
-      "selectBody": "Choose an item to review its details.",
-      "rejectTitle": "Reject requests",
-      "rejectCount": "Selected · {count}",
-      "rejectPlaceholder": "Add a note for the requester…",
-      "rejectReasonLabel": "Rejection reason",
-      "rejectNote": "The requester will be notified with your note."
+      "allSegment": "Vše",
+      "daysUnit": "{count, plural, one {{count} den} few {{count} dny} many {{count} dne} other {{count} dní}}",
+      "approvedToast": "{count} schváleno.",
+      "rejectedToast": "{count} zamítnuto.",
+      "undoneToast": "Rozhodnutí vráceno zpět.",
+      "undoFailedToast": "Toto rozhodnutí se nepodařilo vrátit zpět.",
+      "failedToast": "Rozhodnutí se nezdařilo.",
+      "invalidConfig": "Uložená konfigurace této fronty je neplatná. Obnovte ji opětovným vygenerováním stránky.",
+      "queueLabel": "Fronta",
+      "statusFilterLabel": "Filtr stavu",
+      "errorTitle": "Tuto frontu se nepodařilo načíst",
+      "loading": "Načítání fronty",
+      "emptyTitle": "Ve frontě nic není",
+      "emptyBody": "Nové požadavky se zde zobrazí, jakmile dorazí.",
+      "caughtUpTitle": "Máte vše vyřízeno",
+      "caughtUpBody": "Na této záložce teď nejsou žádné požadavky.",
+      "selectItem": "Vybrat {title}",
+      "selectPrompt": "Vyberte požadavek",
+      "selectBody": "Vyberte položku a zkontrolujte její podrobnosti.",
+      "rejectTitle": "Zamítnout požadavky",
+      "rejectCount": "Vybráno · {count}",
+      "rejectPlaceholder": "Přidejte poznámku pro žadatele…",
+      "rejectReasonLabel": "Důvod zamítnutí",
+      "rejectNote": "Žadatel obdrží oznámení s vaší poznámkou."
     },
     "dashboard": {
-      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout."
+      "invalidLayout": "Uložené rozvržení této nástěnky je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení."
     },
     "builder": {
-      "publish": "Publish",
-      "paletteTitle": "Blocks",
-      "inspectorTitle": "Inspector",
-      "startFromTemplate": "Start from a template",
-      "untitledDoc": "Untitled document",
-      "invalidConfig": "This builder page’s stored config is invalid. Regenerate the page or reset it.",
+      "publish": "Publikovat",
+      "paletteTitle": "Bloky",
+      "inspectorTitle": "Inspektor",
+      "startFromTemplate": "Začít ze šablony",
+      "untitledDoc": "Dokument bez názvu",
+      "invalidConfig": "Uložená konfigurace této stránky editoru je neplatná. Znovu vygenerujte stránku nebo ji obnovte.",
       "starterPicker": {
-        "subtitle": "Selection replaces the current draft."
+        "subtitle": "Výběr nahradí aktuální koncept."
       },
       "inspector": {
-        "titleLabel": "Title",
-        "numberLabel": "Number",
-        "currencyLabel": "Currency",
-        "taxRateLabel": "Tax rate %",
-        "modulesLabel": "Modules"
+        "titleLabel": "Název",
+        "numberLabel": "Číslo",
+        "currencyLabel": "Měna",
+        "taxRateLabel": "Sazba daně %",
+        "modulesLabel": "Moduly"
       },
       "summary": {
-        "questions": "Questions",
-        "estLength": "Est. length",
+        "questions": "Otázky",
+        "estLength": "Odhad délky",
         "estMinutes": "~{minutes} min",
-        "steps": "Steps",
-        "triggers": "Triggers",
-        "conditions": "Conditions",
-        "actions": "Actions",
-        "triggerLocked": "The trigger step can’t be removed."
+        "steps": "Kroky",
+        "triggers": "Spouštěče",
+        "conditions": "Podmínky",
+        "actions": "Akce",
+        "triggerLocked": "Krok se spouštěčem nelze odebrat."
       },
       "publishModal": {
-        "confirmTitle": "Publish survey?",
-        "confirmSubtitle": "Review before it goes live.",
-        "confirmCta": "Publish survey",
-        "publishedTitle": "Survey published",
-        "publishedSubtitle": "Your survey is live and collecting responses right now."
+        "confirmTitle": "Publikovat dotazník?",
+        "confirmSubtitle": "Před spuštěním vše zkontrolujte.",
+        "confirmCta": "Publikovat dotazník",
+        "publishedTitle": "Dotazník publikován",
+        "publishedSubtitle": "Váš dotazník běží a právě sbírá odpovědi."
       },
       "blocks": {
-        "block-totals-summary": "Totals summary",
-        "block-line-items": "Line items",
-        "block-kpi-row": "KPI row",
-        "block-bar-chart": "Bar chart",
-        "block-line-chart": "Line chart",
-        "block-two-col-table": "Two-column table",
-        "block-tax-breakdown": "Tax breakdown",
-        "block-multi-currency": "Multi-currency",
-        "block-payment-history": "Payment history",
-        "block-discount-codes": "Discount codes",
-        "block-loyalty-banner": "Loyalty points",
-        "block-recurring-banner": "Recurring",
-        "block-qr-pay": "Payment QR",
-        "block-delivery-stepper": "Delivery timeline",
-        "block-signature": "Signature",
-        "block-terms-checkbox": "Terms",
-        "block-approval": "Approval",
-        "block-attachments": "Attachments",
-        "block-late-fees": "Late fees",
-        "block-image-placeholder": "Image",
-        "block-contact": "Contact",
-        "block-highlight-box": "Highlight box"
+        "block-totals-summary": "Souhrn součtů",
+        "block-line-items": "Položky",
+        "block-kpi-row": "Řada ukazatelů",
+        "block-bar-chart": "Sloupcový graf",
+        "block-line-chart": "Spojnicový graf",
+        "block-two-col-table": "Dvousloupcová tabulka",
+        "block-tax-breakdown": "Rozpis daně",
+        "block-multi-currency": "Více měn",
+        "block-payment-history": "Historie plateb",
+        "block-discount-codes": "Slevové kódy",
+        "block-loyalty-banner": "Věrnostní body",
+        "block-recurring-banner": "Opakování",
+        "block-qr-pay": "Platební QR",
+        "block-delivery-stepper": "Průběh doručení",
+        "block-signature": "Podpis",
+        "block-terms-checkbox": "Podmínky",
+        "block-approval": "Schválení",
+        "block-attachments": "Přílohy",
+        "block-late-fees": "Penále z prodlení",
+        "block-image-placeholder": "Obrázek",
+        "block-contact": "Kontakt",
+        "block-highlight-box": "Zvýrazněný rámeček"
       },
       "starters": {
         "titles": {
-          "st-standard": "Standard invoice",
-          "st-recurring": "Recurring subscription",
-          "st-deposit": "Deposit request",
-          "st-credit-note": "Credit note",
-          "st-late-reminder": "Late-payment reminder",
-          "st-quote": "Quote / estimate",
-          "st-proforma": "Pro forma",
-          "st-receipt": "Payment receipt",
-          "st-retainer": "Retainer",
-          "st-usage": "Usage-based invoice",
-          "st-milestone": "Project milestone",
-          "st-donation": "Donation receipt (Tax ID)",
-          "st-monthly": "Monthly summary",
-          "st-quarterly": "Quarterly review",
-          "st-usage-report": "Usage breakdown",
-          "st-exec": "Executive one-pager",
-          "st-welcome": "Welcome email",
-          "st-receipt-email": "Invoice receipt",
-          "st-digest": "Weekly digest",
-          "st-dunning": "Payment reminder"
+          "st-standard": "Standardní faktura",
+          "st-recurring": "Opakované předplatné",
+          "st-deposit": "Výzva k záloze",
+          "st-credit-note": "Dobropis",
+          "st-late-reminder": "Upomínka po splatnosti",
+          "st-quote": "Nabídka / odhad ceny",
+          "st-proforma": "Zálohová faktura",
+          "st-receipt": "Doklad o platbě",
+          "st-retainer": "Paušál",
+          "st-usage": "Faktura podle spotřeby",
+          "st-milestone": "Milník projektu",
+          "st-donation": "Potvrzení o daru (DIČ)",
+          "st-monthly": "Měsíční souhrn",
+          "st-quarterly": "Čtvrtletní přehled",
+          "st-usage-report": "Rozpis spotřeby",
+          "st-exec": "Manažerské shrnutí na jednu stranu",
+          "st-welcome": "Uvítací e-mail",
+          "st-receipt-email": "Potvrzení o úhradě faktury",
+          "st-digest": "Týdenní přehled",
+          "st-dunning": "Upomínka k platbě"
         },
         "categories": {
-          "billing": "Billing",
-          "sales": "Sales",
-          "nonProfit": "Non-profit",
-          "reports": "Reports",
-          "lifecycle": "Lifecycle",
-          "transactional": "Transactional",
+          "billing": "Fakturace",
+          "sales": "Prodej",
+          "nonProfit": "Neziskový sektor",
+          "reports": "Sestavy",
+          "lifecycle": "Životní cyklus",
+          "transactional": "Transakční",
           "marketing": "Marketing"
         }
       }
     },
     "common": {
-      "clearFilters": "Clear filters",
-      "noMatchesBody": "Try a different search or remove a filter.",
+      "clearFilters": "Vymazat filtry",
+      "noMatchesBody": "Zkuste jiný výraz nebo odeberte filtr.",
       "detailLabel": "Detail",
-      "loadingRecord": "Loading record"
+      "loadingRecord": "Načítání záznamu"
     },
     "directory": {
-      "invalidConfig": "This directory’s stored configuration is invalid. Regenerate the page to restore it.",
-      "searchPlaceholder": "Search people…",
-      "memberCount": "{count, plural, one {{n} person} other {{n} people}}",
-      "errorTitle": "This directory failed to load",
-      "loading": "Loading people",
-      "emptyTitle": "No people yet",
-      "emptyBody": "People appear here as rows land in the table.",
-      "noMatchesTitle": "No matching people",
-      "detailTitle": "Person"
+      "invalidConfig": "Uložená konfigurace tohoto adresáře je neplatná. Obnovte ji opětovným vygenerováním stránky.",
+      "searchPlaceholder": "Hledat osoby…",
+      "memberCount": "{count, plural, one {{n} osoba} few {{n} osoby} many {{n} osoby} other {{n} osob}}",
+      "errorTitle": "Tento adresář se nepodařilo načíst",
+      "loading": "Načítání osob",
+      "emptyTitle": "Zatím žádné osoby",
+      "emptyBody": "Osoby se zde zobrazí, jakmile v tabulce přibudou řádky.",
+      "noMatchesTitle": "Žádné odpovídající osoby",
+      "detailTitle": "Osoba"
     },
     "masterDetail": {
-      "invalidConfig": "This page’s stored configuration is invalid. Regenerate the page to restore it.",
-      "railTitle": "Records",
-      "errorTitle": "This list failed to load",
-      "loading": "Loading records",
-      "emptyBody": "Records appear here as rows land in the table.",
-      "noMatchesTitle": "No matching records",
-      "noMatchesBody": "Try removing a filter.",
-      "selectPrompt": "Select a record",
-      "selectBody": "Choose an item from the list to see its details."
+      "invalidConfig": "Uložená konfigurace této stránky je neplatná. Obnovte ji opětovným vygenerováním stránky.",
+      "railTitle": "Záznamy",
+      "errorTitle": "Tento seznam se nepodařilo načíst",
+      "loading": "Načítání záznamů",
+      "emptyBody": "Záznamy se zde zobrazí, jakmile v tabulce přibudou řádky.",
+      "noMatchesTitle": "Žádné odpovídající záznamy",
+      "noMatchesBody": "Zkuste odebrat filtr.",
+      "selectPrompt": "Vyberte záznam",
+      "selectBody": "Vyberte položku ze seznamu a zobrazte její podrobnosti."
     },
     "chat": {
-      "invalidLayout": "This chat page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "noInboxTitle": "No inbox on this page",
-      "noInboxBody": "Regenerate the page.",
-      "conversationsFailed": "The conversation query failed",
-      "messagesFailed": "The messages query failed",
-      "loadingConversations": "Loading conversations",
-      "loadingMessages": "Loading messages",
-      "selectTitle": "Select a conversation",
-      "selectBody": "Pick a conversation from the inbox to read its messages."
+      "invalidLayout": "Uložené rozvržení této stránky chatu je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
+      "noInboxTitle": "Na této stránce není žádná schránka",
+      "noInboxBody": "Znovu vygenerujte stránku.",
+      "conversationsFailed": "Dotaz na konverzace selhal",
+      "messagesFailed": "Dotaz na zprávy selhal",
+      "loadingConversations": "Načítání konverzací",
+      "loadingMessages": "Načítání zpráv",
+      "selectTitle": "Vyberte konverzaci",
+      "selectBody": "Vyberte konverzaci ze schránky a přečtěte si její zprávy."
     },
     "files": {
-      "allFiles": "All files",
-      "recent": "Recent",
-      "starred": "Starred",
-      "invalidLayout": "This files page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "missingSlotTitle": "No file browser on this page",
-      "missingSlotBody": "The stored layout has no browser slot. Regenerate the page.",
-      "loadFailed": "The file query failed",
-      "loading": "Loading files",
-      "uploadsUnavailable": "Uploads are not available on this page yet.",
-      "previewTitle": "File",
-      "kindLabel": "Kind",
-      "linkLabel": "Link"
+      "allFiles": "Všechny soubory",
+      "recent": "Nedávné",
+      "starred": "S hvězdičkou",
+      "invalidLayout": "Uložené rozvržení této stránky souborů je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
+      "missingSlotTitle": "Na této stránce není žádný prohlížeč souborů",
+      "missingSlotBody": "Uložené rozvržení nemá slot pro prohlížeč. Znovu vygenerujte stránku.",
+      "loadFailed": "Dotaz na soubory selhal",
+      "loading": "Načítání souborů",
+      "uploadsUnavailable": "Nahrávání souborů zatím na této stránce není k dispozici.",
+      "previewTitle": "Soubor",
+      "kindLabel": "Druh",
+      "linkLabel": "Odkaz"
     },
     "logViewer": {
-      "invalidLayout": "This log page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "levelFilterLabel": "Log level filter",
-      "timeFilterLabel": "Time window filter",
+      "invalidLayout": "Uložené rozvržení této stránky protokolu je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
+      "levelFilterLabel": "Filtr úrovně protokolu",
+      "timeFilterLabel": "Filtr časového okna",
       "window": {
-        "1h": "1h",
-        "24h": "24h",
-        "7d": "7d"
+        "1h": "1 h",
+        "24h": "24 h",
+        "7d": "7 d"
       },
       "heldCount": "+{count}",
-      "missingSlotTitle": "No log widget on this page",
-      "missingSlotBody": "The stored layout has no log slot. Regenerate the page.",
-      "loadFailed": "The log query failed",
-      "loading": "Loading log entries",
-      "traceTitle": "Trace",
-      "latestTitle": "Latest activity",
-      "backToLatest": "Back to latest",
-      "eventFallback": "Event"
+      "missingSlotTitle": "Na této stránce není žádný widget protokolu",
+      "missingSlotBody": "Uložené rozvržení nemá slot pro protokol. Znovu vygenerujte stránku.",
+      "loadFailed": "Dotaz na protokol selhal",
+      "loading": "Načítání záznamů protokolu",
+      "traceTitle": "Trasování",
+      "latestTitle": "Nejnovější aktivita",
+      "backToLatest": "Zpět na nejnovější",
+      "eventFallback": "Událost"
     },
     "calendar": {
-      "eventCount": "{count, plural, one {{n} event} other {{n} events}}",
-      "composePlaceholder": "Event title…",
-      "addEvent": "Add event",
-      "dateRange": "Date range",
+      "eventCount": "{count, plural, one {{n} událost} few {{n} události} many {{n} události} other {{n} událostí}}",
+      "composePlaceholder": "Název události…",
+      "addEvent": "Přidat událost",
+      "dateRange": "Rozsah dat",
       "agendaTitle": "Agenda",
-      "categoriesTitle": "Categories",
-      "upcomingTitle": "Upcoming",
-      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout."
+      "categoriesTitle": "Kategorie",
+      "upcomingTitle": "Nadcházející",
+      "invalidLayout": "Uložené rozvržení tohoto kalendáře je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení."
     },
     "scheduler": {
-      "previousWeek": "Previous week",
-      "nextWeek": "Next week",
-      "week": "Week",
-      "month": "Month",
-      "invalidLayout": "This schedule’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "shiftCount": "{count, plural, one {{n} shift} other {{n} shifts}}",
-      "addShift": "Add shift"
+      "previousWeek": "Předchozí týden",
+      "nextWeek": "Další týden",
+      "week": "Týden",
+      "month": "Měsíc",
+      "invalidLayout": "Uložené rozvržení tohoto rozvrhu je neplatné. Znovu vygenerujte stránku nebo obnovte její rozvržení.",
+      "shiftCount": "{count, plural, one {{n} směna} few {{n} směny} many {{n} směny} other {{n} směn}}",
+      "addShift": "Přidat směnu"
     },
     "settings": {
-      "title": "Notification settings",
-      "subtitle": "Choose what you're notified about and how",
-      "matrixLabel": "Notify me about",
-      "rowHeader": "Event",
-      "saved": "Saved",
-      "unavailableTag": "Not available yet",
-      "loading": "Loading preferences",
-      "errorTitle": "These settings failed to load",
-      "emptyTitle": "Nothing to configure yet",
-      "emptyBody": "Notification events appear here as producers ship."
+      "title": "Nastavení oznámení",
+      "subtitle": "Zvolte, o čem a jak budete informováni",
+      "matrixLabel": "Upozornit mě na",
+      "rowHeader": "Událost",
+      "saved": "Uloženo",
+      "unavailableTag": "Zatím není k dispozici",
+      "loading": "Načítání předvoleb",
+      "errorTitle": "Tato nastavení se nepodařilo načíst",
+      "emptyTitle": "Zatím není co nastavovat",
+      "emptyBody": "Události oznámení se zde objeví, jakmile budou jejich producenti nasazeni."
     },
     "pageCrud": {
-      "description": "The canonical table page: searchable data grid, create/edit forms, safe deletes with reference checks, and undoable changes."
+      "description": "Standardní stránka tabulky: prohledávatelná datová mřížka, formuláře pro vytvoření a úpravu, bezpečné mazání s kontrolou odkazů a vratné změny."
     },
     "pageDashboard": {
-      "description": "A widget dashboard over your data: KPI cards, charts, and lists on an editable grid."
+      "description": "Nástěnka s widgety nad vašimi daty: karty ukazatelů, grafy a seznamy v upravitelné mřížce."
     },
     "pageBoard": {
-      "description": "A kanban board grouped by a status field — drag cards between columns to update records."
+      "description": "Kanbanová nástěnka seskupená podle pole se stavem — přetažením karet mezi sloupci aktualizujete záznamy."
     },
     "pageCalendar": {
-      "description": "A month calendar with agenda, category filters, and quick event capture from a date field."
+      "description": "Měsíční kalendář s agendou, filtry kategorií a rychlým zadáváním událostí z pole s datem."
     },
     "pageScheduler": {
-      "description": "A week-by-resource shift matrix with capacity tracking and coverage totals."
+      "description": "Matice směn podle týdne a zdroje se sledováním kapacity a součty pokrytí."
     },
     "pageDirectory": {
-      "description": "A people directory with search, group filters, and a profile drawer."
+      "description": "Adresář osob s vyhledáváním, filtry skupin a bočním panelem profilu."
     },
     "pageMasterDetail": {
-      "description": "A list-beside-detail layout: pick a record on the left, work with it on the right."
+      "description": "Rozvržení se seznamem vedle detailu: vlevo vyberete záznam, vpravo s ním pracujete."
     },
     "pageQueueInbox": {
-      "description": "A review queue with approve/reject decisions, bulk actions, and undo."
+      "description": "Fronta ke kontrole s rozhodnutími schválit/zamítnout, hromadnými akcemi a vrácením zpět."
     },
     "pageLogViewer": {
-      "description": "A live-tailing log table with level and time filters and a trace side panel."
+      "description": "Živě doplňovaná tabulka protokolu s filtry úrovně a času a bočním panelem trasování."
     },
     "pageFiles": {
-      "description": "A file browser with smart folders, uploads, and a preview drawer."
+      "description": "Prohlížeč souborů s chytrými složkami, nahráváním a bočním panelem náhledu."
     },
     "pageChat": {
-      "description": "A conversation inbox beside a message thread, bound to your messages tables."
+      "description": "Schránka konverzací vedle vlákna zpráv, navázaná na vaše tabulky se zprávami."
     },
     "pageBuilder": {
-      "description": "A drag-and-drop document builder with block palette, inspector, and publish flow."
+      "description": "Editor dokumentů s přetahováním, paletou bloků, inspektorem a postupem publikování."
     },
     "pageWizard": {
-      "description": "A multi-step guided flow that walks users through a structured process."
+      "description": "Vícekrokový průvodce, který uživatele provede strukturovaným procesem."
     },
     "pageSettings": {
-      "description": "A notification-preferences matrix with per-channel toggles and autosave."
+      "description": "Matice předvoleb oznámení s přepínači pro každý kanál a automatickým ukládáním."
     }
   },
   "frame": {
-    "noResult": "No result for widget",
-    "emptyTitle": "No data for range",
-    "loadError": "Something went wrong loading this widget.",
-    "renderError": "This widget failed to render.",
-    "refreshing": "Refreshing",
-    "infoLabel": "Widget info",
-    "menuLabel": "Widget menu"
+    "noResult": "Widget nevrátil žádný výsledek",
+    "emptyTitle": "Pro toto období nejsou žádná data",
+    "loadError": "Při načítání tohoto widgetu se něco pokazilo.",
+    "renderError": "Tento widget se nepodařilo vykreslit.",
+    "refreshing": "Obnovování",
+    "infoLabel": "Informace o widgetu",
+    "menuLabel": "Nabídka widgetu"
   },
   "charts": {
-    "livePillLabel": "Live",
+    "livePillLabel": "Živě",
     "forecast": {
-      "nowLabel": "Now",
-      "forecastLabel": "Forecast",
-      "actualLabel": "Actual"
+      "nowLabel": "Nyní",
+      "forecastLabel": "Předpověď",
+      "actualLabel": "Skutečnost"
     },
-    "otherLabel": "Other",
+    "otherLabel": "Ostatní",
     "heat": {
-      "lessLabel": "Less",
-      "moreLabel": "More"
+      "lessLabel": "Méně",
+      "moreLabel": "Více"
     },
     "choropleth": {
-      "lowLabel": "Low",
-      "highLabel": "High"
+      "lowLabel": "Nízká",
+      "highLabel": "Vysoká"
     },
     "funnel": {
-      "stepConversion": "{pct}% continue",
-      "overallConversion": "{pct}% overall"
+      "stepConversion": "{pct}% pokračuje",
+      "overallConversion": "{pct}% celkem"
     }
   }
 }

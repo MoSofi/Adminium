@@ -9,10 +9,27 @@
  * the server-side installer are later layers that consume a validated manifest.
  */
 
+import {
+  addOnBlockSchema,
+  addOnCategorySchema,
+  isSlotId,
+  type AddOnBlock,
+} from '@adminium/add-on-contracts';
 import { z } from 'zod';
 
 /** Integer spec version, frozen at 1 for Adminium 1.x (§2, 01 §8). */
 export const MANIFEST_VERSION = 1;
+
+/**
+ * What kind of thing this manifest describes (24 §5.2). OPTIONAL, defaulting to
+ * `"app"` — which is the whole reason `manifestVersion` does not move: every
+ * manifest written before wave 4 stays valid unchanged, and an additive
+ * optional field with a back-compatible default is how a frozen spec grows
+ * without lying about its version.
+ */
+export const MANIFEST_KINDS = ['app', 'add-on'] as const;
+export const manifestKindSchema = z.enum(MANIFEST_KINDS);
+export type ManifestKind = (typeof MANIFEST_KINDS)[number];
 
 /** strict semver — `major.minor.patch` with optional pre-release/build. */
 const SEMVER =
@@ -52,18 +69,32 @@ export const publisherSchema = z
   .strict();
 export type Publisher = z.infer<typeof publisherSchema>;
 
+/**
+ * Everything both kinds share. `categories` is deliberately NOT here: it splits
+ * by kind (an add-on is not a vertical — D2), so each branch adds its own.
+ */
+export const identityShape = {
+  key: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'key must be ^[a-z][a-z0-9-]{1,79}$'),
+  name: z.string().min(1).max(80),
+  version: semver,
+  publisher: publisherSchema,
+  // SPDX id — the FRONTEND's license (informational; core is AGPL-3.0).
+  license: z.string().min(1).max(80),
+  description: i18nMessageSchema,
+};
+
 export const identitySchema = z
   .object({
-    key: z.string().regex(/^[a-z][a-z0-9-]{1,79}$/, 'key must be ^[a-z][a-z0-9-]{1,79}$'),
-    name: z.string().min(1).max(80),
-    version: semver,
-    publisher: publisherSchema,
-    // SPDX id — the FRONTEND's license (informational; core is AGPL-3.0).
-    license: z.string().min(1).max(80),
-    description: i18nMessageSchema,
+    ...identityShape,
     categories: z.array(categorySchema).min(1),
   })
   .strict();
+
+/**
+ * Keys no app or add-on may ever take, because they would shadow a storefront
+ * route or a data file (D17). Apps and add-ons share one key namespace.
+ */
+export const RESERVED_KEYS = ['apps', 'add-on', 'add-ons', 'demo', 'index', 'search'] as const;
 
 // ── §2.11 capabilities ───────────────────────────────────────────────────────
 
@@ -76,6 +107,14 @@ export const MANIFEST_CAPABILITIES = [
   'file-storage',
   'email-delivery',
   'realtime',
+  // Added by wave 4 (24 D3). Adding a capability key is a THREE-place change
+  // and all three land together: here, `CAP_ICONS` in the website's
+  // marketplace data (note `CAP_META` derives from it), and a
+  // `marketplaceData.cap.<key>` label in all eight locales.
+  /** The add-on's server code calls a third-party API. */
+  'outbound-http',
+  /** The host runs an OAuth 2.0 authorization-code flow on the add-on's behalf. */
+  'oauth-connect',
 ] as const;
 export const capabilitySchema = z.enum(MANIFEST_CAPABILITIES);
 export type Capability = z.infer<typeof capabilitySchema>;
@@ -285,8 +324,42 @@ export const frontendSchema = z
 
 // ── the manifest envelope ─────────────────────────────────────────────────────
 
-export const manifestSchema = z
+/**
+ * The two envelope-wide rules, as plain predicates over the shape both branches
+ * share. They are attached to EACH BRANCH below rather than to the union: a
+ * `.refine()` on a `z.discriminatedUnion` would run against the union type and
+ * lose the narrowing, and moving them up there is how they get silently dropped
+ * (24 §5.2's first implementer note).
+ */
+interface SharedEnvelope {
+  capabilities?: Capability[] | undefined;
+  compatibility: z.infer<typeof compatibilitySchema>;
+}
+
+/** §2.11 — hosted-only and offline-required are mutually exclusive. */
+const capabilitiesNotContradictory = (m: SharedEnvelope): boolean =>
+  !(
+    (m.capabilities?.includes('hosted-only') ?? false) &&
+    (m.capabilities?.includes('offline-required') ?? false)
+  );
+
+/** maxAdminiumVersion (exclusive) must be strictly above the min. */
+const compatibilityWindowOrdered = (m: SharedEnvelope): boolean =>
+  m.compatibility.maxAdminiumVersion === undefined ||
+  compareSemver(m.compatibility.maxAdminiumVersion, m.compatibility.minAdminiumVersion) > 0;
+
+const CAPS_MESSAGE = {
+  message: 'hosted-only and offline-required are mutually exclusive',
+  path: ['capabilities'] as const,
+};
+const WINDOW_MESSAGE = {
+  message: 'maxAdminiumVersion must be greater than minAdminiumVersion',
+  path: ['compatibility'] as const,
+};
+
+export const appManifestSchema = z
   .object({
+    kind: z.literal('app'),
     manifestVersion: z.literal(MANIFEST_VERSION),
     ...identitySchema.shape,
     compatibility: compatibilitySchema,
@@ -300,24 +373,155 @@ export const manifestSchema = z
     frontend: frontendSchema,
   })
   .strict()
-  // §2.11: hosted-only and offline-required are mutually exclusive.
-  .refine(
-    (m) =>
-      !(
-        (m.capabilities?.includes('hosted-only') ?? false) &&
-        (m.capabilities?.includes('offline-required') ?? false)
-      ),
-    { message: 'hosted-only and offline-required are mutually exclusive', path: ['capabilities'] },
-  )
-  // maxAdminiumVersion (exclusive) must be strictly above the min.
-  .refine(
-    (m) =>
-      m.compatibility.maxAdminiumVersion === undefined ||
-      compareSemver(m.compatibility.maxAdminiumVersion, m.compatibility.minAdminiumVersion) > 0,
-    { message: 'maxAdminiumVersion must be greater than minAdminiumVersion', path: ['compatibility'] },
-  );
+  .refine(capabilitiesNotContradictory, { ...CAPS_MESSAGE, path: [...CAPS_MESSAGE.path] })
+  .refine(compatibilityWindowOrdered, { ...WINDOW_MESSAGE, path: [...WINDOW_MESSAGE.path] });
 
-export type Manifest = z.infer<typeof manifestSchema>;
+/**
+ * `pages` and `frontend` are absent from this branch on purpose (24 §5.7 item
+ * 6): an add-on cannot install pages, roles or a frontend, and leaving the
+ * fields off the schema entirely is a stronger guarantee than a lint rule.
+ */
+export const addOnManifestSchema = z
+  .object({
+    kind: z.literal('add-on'),
+    manifestVersion: z.literal(MANIFEST_VERSION),
+    ...identityShape,
+    categories: z.array(addOnCategorySchema).min(1),
+    compatibility: compatibilitySchema,
+    addOn: addOnBlockSchema,
+    // An add-on may bring its own tables — kept on disconnect (D16).
+    requiredSchema: requiredSchemaSchema.optional(),
+    settings: z.array(settingSchema).optional(),
+    capabilities: z.array(capabilitySchema).optional(),
+    widgets: z.array(manifestWidgetSchema).optional(),
+  })
+  .strict()
+  .refine(capabilitiesNotContradictory, { ...CAPS_MESSAGE, path: [...CAPS_MESSAGE.path] })
+  .refine(compatibilityWindowOrdered, { ...WINDOW_MESSAGE, path: [...WINDOW_MESSAGE.path] });
+
+/**
+ * The envelope. A document with no `kind` is treated as an app before the union
+ * discriminates, which is what keeps every pre-wave-4 manifest valid.
+ */
+export const manifestSchema = z.preprocess(
+  (v) =>
+    typeof v === 'object' && v !== null && !Array.isArray(v) && (v as Record<string, unknown>).kind === undefined
+      ? { ...(v as Record<string, unknown>), kind: 'app' }
+      : v,
+  z.discriminatedUnion('kind', [appManifestSchema, addOnManifestSchema]),
+);
+
+export type AppManifest = z.infer<typeof appManifestSchema>;
+export type AddOnManifest = z.infer<typeof addOnManifestSchema>;
+export type Manifest = AppManifest | AddOnManifest;
+
+export type { AddOnBlock };
+
+/** Narrowing helper — the discriminant is the only thing worth branching on. */
+export function isAddOnManifest(m: Manifest): m is AddOnManifest {
+  return m.kind === 'add-on';
+}
+
+/**
+ * Cross-block rules the envelope cannot express, each with its issue code
+ * (24 §5.3). Runs only for `kind: "add-on"`; returns [] for an app.
+ */
+export function addOnIssues(
+  m: Manifest,
+  ctx: {
+    /** Installed app keys, so `attaches` can be checked. Omit to skip. */
+    knownAppKeys?: readonly string[];
+    /** The host app's `requiredSchema` table refs. Omit to skip the scope check. */
+    hostTables?: readonly string[];
+  } = {},
+): { code: string; path: string; message: string }[] {
+  if (!isAddOnManifest(m)) return [];
+  const out: { code: string; path: string; message: string }[] = [];
+  const block = m.addOn;
+
+  // ATTACH_TARGET_UNKNOWN — every target is a known app key or "*".
+  if (ctx.knownAppKeys !== undefined) {
+    block.attaches.forEach((target, i) => {
+      if (target.app !== '*' && !ctx.knownAppKeys!.includes(target.app)) {
+        out.push({
+          code: 'ATTACH_TARGET_UNKNOWN',
+          path: `addOn.attaches.${i}.app`,
+          message: `attaches to an unknown app key "${target.app}"`,
+        });
+      }
+    });
+  }
+
+  // SLOT_UNKNOWN — belt and braces; the schema enum already refuses these.
+  (block.slots ?? []).forEach((fill, i) => {
+    if (!isSlotId(fill.slot)) {
+      out.push({
+        code: 'SLOT_UNKNOWN',
+        path: `addOn.slots.${i}.slot`,
+        message: `"${fill.slot}" is not in the closed slot registry`,
+      });
+    }
+  });
+
+  // SCOPE_OUT_OF_RANGE — a `records:<table>:<verb>` scope must name a table this
+  // add-on can actually reach: one of the host app's, or one of its own.
+  const reachable = new Set<string>([
+    ...(m.requiredSchema?.tables ?? []).map((t) => t.ref),
+    ...(ctx.hostTables ?? []),
+  ]);
+  (block.scopes ?? []).forEach((scope, i) => {
+    const [domain, table] = scope.split(':');
+    if (domain !== 'records') return;
+    if (table === undefined || table.length === 0) {
+      out.push({
+        code: 'SCOPE_OUT_OF_RANGE',
+        path: `addOn.scopes.${i}`,
+        message: `"${scope}" names no table`,
+      });
+      return;
+    }
+    if (ctx.hostTables !== undefined && !reachable.has(table)) {
+      out.push({
+        code: 'SCOPE_OUT_OF_RANGE',
+        path: `addOn.scopes.${i}`,
+        message: `"${scope}" reaches a table neither the host app nor this add-on declares`,
+      });
+    }
+  });
+
+  // NETWORK_ALLOW_REQUIRED — outbound-http without an allow-list is a hole.
+  const wantsHttp = m.capabilities?.includes('outbound-http') ?? false;
+  if (wantsHttp && (block.network?.allow.length ?? 0) === 0) {
+    out.push({
+      code: 'NETWORK_ALLOW_REQUIRED',
+      path: 'addOn.network.allow',
+      message: 'outbound-http requires a non-empty allow-list of exact https hostnames',
+    });
+  }
+
+  // CAPABILITY_CONFLICT — an oauth2 connect needs the capability that runs it.
+  if (block.connect.kind === 'oauth2' && !(m.capabilities?.includes('oauth-connect') ?? false)) {
+    out.push({
+      code: 'CAPABILITY_CONFLICT',
+      path: 'capabilities',
+      message: 'connect.kind "oauth2" requires the oauth-connect capability',
+    });
+  }
+
+  // FRONTEND_SECRET_LEAK — publicSettings may never name a secret setting.
+  const secrets = new Set((m.settings ?? []).filter((s) => s.secret === true).map((s) => s.key));
+  (block.publicSettings ?? []).forEach((key, i) => {
+    if (secrets.has(key)) {
+      out.push({
+        code: 'FRONTEND_SECRET_LEAK',
+        path: `addOn.publicSettings.${i}`,
+        message: `"${key}" is marked secret and must never reach the client bundle`,
+      });
+    }
+  });
+
+  return out;
+}
 
 /**
  * Numeric semver compare on the release triple (pre-release/build ignored —

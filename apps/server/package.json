@@ -44,6 +44,7 @@
     "@adminium/adapter-postgres": "workspace:*",
     "@adminium/adapter-sqlite": "workspace:*",
     "@adminium/engine": "workspace:*",
+    "@adminium/i18n": "workspace:*",
     "@adminium/llm": "workspace:*",
     "@adminium/meta": "workspace:*",
     "@adminium/schema-import": "workspace:*",

@@ -274,7 +274,7 @@ function FilePreviewCard({ preview }: { preview: NonNullable<WizardState['filePr
         <MonoText className="text-body-sm text-fg">{preview.fileName}</MonoText>
         <Tag>
           {preview.detected
-            ? t('studio.source.file.detectedAs', 'Detected: {format}').replace('{format}', formatName)
+            ? t('studio.source.file.detectedAs', 'Detected: {format}', { format: formatName })
             : formatName}
         </Tag>
       </div>
@@ -298,10 +298,7 @@ function FilePreviewCard({ preview }: { preview: NonNullable<WizardState['filePr
       ))}
       {preview.warnings.length > 3 ? (
         <p className="text-caption text-fg-subtle">
-          {t('studio.source.file.moreWarnings', '+{count} more warnings — the full list appears in the analyze step.').replace(
-            '{count}',
-            String(preview.warnings.length - 3),
-          )}
+          {t('studio.source.file.moreWarnings', '+{count} more warnings — the full list appears in the analyze step.', { count: String(preview.warnings.length - 3), })}
         </p>
       ) : null}
     </div>

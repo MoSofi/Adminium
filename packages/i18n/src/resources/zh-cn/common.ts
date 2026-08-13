@@ -50,7 +50,10 @@ export default {
       "done": "返回登录",
       "rateLimited": "请求过多——请稍后再试。",
       "failed": "出错了。请重试。",
-      "smtpUnconfigured": "此 Adminium 未配置邮件服务器，无法发送重置链接。请让管理员为你重置密码。"
+      "smtpUnconfigured": "此 Adminium 未配置邮件服务器，无法发送重置链接。请让管理员为你重置密码。",
+      "subtitle": "输入你的邮箱地址，我们会给你发送重置链接。",
+      "sentBody": "我们已将重置链接发送至 {email}，链接将在 15 分钟后失效。",
+      "resendHint": "没有收到？"
     },
     "reset": {
       "title": "设置新密码",
@@ -66,7 +69,8 @@ export default {
       "strong": "强",
       "tooShort": "请至少使用 8 个字符。",
       "submit": "重置密码",
-      "failed": "重置失败。请重试。"
+      "failed": "重置失败。请重试。",
+      "mismatch": "两次输入的密码不一致。"
     },
     "otp": {
       "title": "双重验证",
@@ -113,6 +117,7 @@ export default {
     "userMenu": "账户菜单",
     "profile": "个人资料",
     "preferences": "偏好设置",
+    "studio": "Studio",
     "signOut": "退出登录"
   },
   "palette": {
@@ -127,7 +132,11 @@ export default {
     "themeLight": "切换到浅色主题",
     "footerNavigate": "导航",
     "footerOpen": "选择",
-    "footerClose": "关闭"
+    "footerClose": "关闭",
+    "recent": "最近使用",
+    "searching": "正在搜索记录…",
+    "records": "记录",
+    "empty": "未找到与“{query}”匹配的结果"
   },
   "shortcuts": {
     "title": "键盘快捷键",
@@ -138,6 +147,7 @@ export default {
     "panel": "显示快捷键面板",
     "search": "聚焦搜索框",
     "sidebar": "切换侧边栏",
+    "studio": "转到 Studio",
     "theme": "切换浅色 / 深色",
     "then": "然后",
     "footerPre": "随时按",
@@ -145,7 +155,86 @@ export default {
   },
   "states": {
     "checked": "8 秒前检查过",
-    "diagnostics": "诊断"
+    "diagnostics": "诊断",
+    "reference": {
+      "label": "参考编号",
+      "copy": "复制参考编号",
+      "copied": "已复制",
+      "hint": "报告问题时请附上它——服务器日志中记录了相同的 ID。"
+    },
+    "notFound": {
+      "title": "页面未找到",
+      "body": "我们找不到该页面。它可能已被移动，或者链接已失效。",
+      "primary": "回到仪表盘",
+      "secondary": "联系支持团队"
+    },
+    "forbidden": {
+      "title": "你没有访问权限",
+      "body": "此仪表盘已受限。请让工作区管理员为你开通访问权限。",
+      "primary": "申请访问权限",
+      "secondary": "返回"
+    },
+    "error": {
+      "title": "出了点问题",
+      "body": "Adminium 处理此请求时发生意外错误。详细信息记录在服务器日志中。",
+      "primary": "重试"
+    },
+    "dbUnreachable": {
+      "title": "无法连接数据库",
+      "body": "我们无法连接到 prod-db。连接恢复后，你的仪表盘会继续工作。",
+      "primary": "重试连接",
+      "secondary": "编辑连接",
+      "diag": {
+        "status": "连接超时 (10s)",
+        "hint": "将 52.9.14.2 加入允许列表后重试"
+      }
+    },
+    "maintenance": {
+      "title": "计划内维护",
+      "body": "Adminium 正在维护中，稍后即可恢复。感谢你的耐心等待。",
+      "primary": "查看状态"
+    },
+    "rateLimited": {
+      "title": "已达到速率限制",
+      "body": "短时间内请求过多。请等待几分钟后重试。",
+      "primary": "重试",
+      "secondary": "返回"
+    },
+    "offline": {
+      "title": "你已离线",
+      "body": "请检查你的网络连接。恢复联网后，Adminium 会自动重新连接。",
+      "primary": "立即重试",
+      "banner": "你已离线——正在尝试重新连接…"
+    },
+    "expiredLink": {
+      "title": "此链接已过期",
+      "body": "免密登录链接会在 10 分钟后过期。请重新获取一个链接以继续。",
+      "primary": "发送新链接",
+      "secondary": "返回登录"
+    },
+    "expiredSession": {
+      "title": "你的会话已过期",
+      "body": "出于安全考虑，你因长时间未操作已退出登录。请重新登录，从上次中断处继续。",
+      "primary": "重新登录"
+    },
+    "emptyNoSources": {
+      "title": "还没有数据源",
+      "body": "连接一个 PostgreSQL 数据库，Adminium 会为你生成第一个管理仪表盘。",
+      "primary": "连接数据库",
+      "secondary": "导入示例数据"
+    },
+    "readOnly": {
+      "title": "只读模式",
+      "body": "你对此工作区拥有 Viewer 权限。你可以浏览仪表盘，但编辑和危险操作已被禁用。",
+      "primary": "申请编辑权限",
+      "secondary": "知道了"
+    },
+    "suspended": {
+      "title": "此工作区已被暂停",
+      "body": "管理员已暂停此工作区。你的数据仍完整保留——请联系工作区所有者以恢复访问权限。",
+      "primary": "联系所有者",
+      "secondary": "返回"
+    }
   },
   "notFound": {
     "title": "页面不见了",
@@ -154,7 +243,8 @@ export default {
     "matches": "匹配的页面",
     "popular": "常用页面",
     "goBack": "返回",
-    "backToDashboard": "回到仪表盘"
+    "backToDashboard": "回到仪表盘",
+    "noMatches": "没有与“{query}”匹配的页面"
   },
   "page": {
     "invalid": {
@@ -205,7 +295,8 @@ export default {
     },
     "locale": {
       "label": "语言",
-      "directionNote": "文字方向：从右到左（由语言自动设定）"
+      "directionNote": "文字方向：从右到左（由语言自动设定）",
+      "communityDraft": "此翻译为社区草稿，尚未经过母语者审校。"
     }
   },
   "account": {
@@ -1027,7 +1118,8 @@ export default {
         "unique": "唯一",
         "pii": "PII",
         "masked": "已脱敏"
-      }
+      },
+      "unavailableTitle": "架构重映射编辑器不可用"
     }
   },
   "onboarding": {
@@ -1309,7 +1401,7 @@ export default {
         "title": "许可证",
         "agpl": "Adminium Desktop 是遵循 GNU Affero General Public License v3.0 的自由软件。",
         "viewLicense": "查看许可证",
-        "licenseTitle": "GNU Affero General Public License v3.0",
+        "licenseTitle": "GNU Affero 通用公共许可证 v3.0",
         "licenseUnavailable": "此构建中没有随附的许可证文件。",
         "viewNotices": "第三方许可证",
         "noticesTitle": "第三方声明",
@@ -1962,5 +2054,9 @@ export default {
       "reportFailed": "定时报告失败",
       "backupCompleted": "备份完成"
     }
+  },
+  "theme": {
+    "toLight": "切换到浅色主题",
+    "toDark": "切换到深色主题"
   }
 } as const;

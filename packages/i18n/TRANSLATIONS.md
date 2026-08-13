@@ -90,7 +90,53 @@ user downloads only German strings. The TS mirrors exist because the runtime
 cannot use JSON import attributes portably (browser + NodeNext); the JSON
 stays canonical for translators and tooling.
 
-Review status tracking (`.meta.json`), machine-translation bootstrap
-(`i18n:mt`), and the extraction gate (`i18n:extract` / `i18n:check`) are the
-10-T06/10-T14/10-T15 tooling — not yet landed; until then this manual flow +
-the parity test are the gate.
+## Review status (`.meta.json`)
+
+Parity proves every locale has every KEY. It says nothing about whether the
+translations are any good — a bundle of machine drafts and a bundle a native
+speaker signed off look identical on disk. `locales/<tag>/.meta.json` closes
+that gap:
+
+```json
+{ "common.states.notFound.title": { "status": "mt", "srcHash": "a1b2c3d4e5f6" } }
+```
+
+- **`status`** is an intent: `mt` (drafted, unreviewed) or `reviewed`.
+- **`srcHash`** pins the *English* the translation was actually made from.
+
+Staleness is **derived, never stored**: an entry is outdated exactly while
+`hash(currentEnglish) !== srcHash`. Storing it would be lossy — an
+edit-then-revert of the source could never clear the flag, because the record of
+what the translator originally read would already be gone.
+
+```sh
+pnpm --filter @adminium/i18n i18n:check    # reconcile, report, exit 1 on drift
+pnpm --filter @adminium/i18n i18n:meta     # coverage table, read-only
+pnpm --filter @adminium/i18n i18n:review -- --locale de-DE --ns ui --all
+```
+
+`i18n:check` also regenerates `src/review-status.ts`, the runtime view the
+locale picker reads to label a language "(community draft)". `src/review-status.test.ts`
+fails if that generated file ever disagrees with the tracked data — otherwise a
+stale hand-edit could claim a bundle was reviewed when nobody had read it.
+
+**Ship gate (§3.3).** v1.0 needs `reviewed` = 100% for `common`/`ui`/`errors`
+and ≥95% for `studio`/`generated`. Every locale is currently 0% — all 19,439
+tracked strings are machine drafts.
+
+## Lint gates
+
+Two rules in `@adminium/config` keep the bundles honest, because both failure
+modes are otherwise invisible until a user hits that exact screen in that exact
+locale:
+
+- **`adminium/no-literal-strings`** — hardcoded copy in JSX renders English in
+  all 8 locales. Scoped to the surfaces that own copy; `@adminium/ui` is exempt
+  because every string there arrives as a prop by contract.
+- **`adminium/no-dynamic-i18n-key`** — a key assembled at the call site
+  (`` t(`op.${x}`) ``) can't be checked against the bundles and renders as a raw
+  dotted string on a miss. Use an exhaustive map and index into it. The rule
+  flags *fabrication* only; validity of `t(KEYS[x])` is the type checker's job.
+
+Machine-translation bootstrap (`i18n:mt`) and the extraction gate
+(`i18n:extract`) remain 10-T14/10-T15 and have not landed.

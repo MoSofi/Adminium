@@ -11,7 +11,17 @@ import { Database } from 'lucide-react';
 import { Button, MonoText, cn } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
+import { CopyButton } from '../studio/connect/CopyButton.js';
 import type { StateTone, SystemStateSpec } from './stateMap.js';
+
+/**
+ * Whether the clipboard API is reachable at all. `navigator.clipboard` is
+ * undefined outside a secure context, so `http://192.168.1.50:4600` — an
+ * entirely ordinary way to reach a self-hosted instance — has none.
+ */
+function canCopy(): boolean {
+  return typeof navigator !== 'undefined' && navigator.clipboard !== undefined;
+}
 
 const toneTile: Record<StateTone, string> = {
   accent: 'bg-accent-soft text-accent',
@@ -49,7 +59,7 @@ export function StateHero({ spec, onPrimary, onSecondary, requestId, fullPage = 
           className="fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-2 bg-warn px-3 py-2.5 text-[12.5px] font-bold text-accent-fg"
         >
           <Icon className="size-[15px]" aria-hidden="true" />
-          {spec.banner}
+          {t(spec.banner.key, spec.banner.en)}
         </div>
       )}
       <div className="flex w-full max-w-[440px] flex-col items-center text-center">
@@ -64,8 +74,8 @@ export function StateHero({ spec, onPrimary, onSecondary, requestId, fullPage = 
         <div className={cn('flex size-16 items-center justify-center rounded-[17px]', toneTile[spec.tone])}>
           <Icon className="size-[30px]" aria-hidden="true" />
         </div>
-        <h1 className="mb-2 mt-[18px] text-[24px] font-extrabold tracking-[-0.03em]">{spec.title}</h1>
-        <p className="m-0 max-w-[400px] text-[14px] leading-relaxed text-fg-muted">{spec.body}</p>
+        <h1 className="mb-2 mt-[18px] text-[24px] font-extrabold tracking-[-0.03em]">{t(spec.title.key, spec.title.en)}</h1>
+        <p className="m-0 max-w-[400px] text-[14px] leading-relaxed text-fg-muted">{t(spec.body.key, spec.body.en)}</p>
 
         {spec.diagnostics === undefined ? null : (
           <div className="mt-[22px] w-full overflow-hidden rounded-lg border border-border bg-surface text-start shadow-card">
@@ -80,32 +90,80 @@ export function StateHero({ spec, onPrimary, onSecondary, requestId, fullPage = 
               </div>
               <div className="flex gap-2">
                 <dt className="w-[52px] shrink-0 text-fg-subtle">status</dt>
-                <dd className="m-0 text-danger">{spec.diagnostics.status}</dd>
+                <dd className="m-0 text-danger">{t(spec.diagnostics.status.key, spec.diagnostics.status.en)}</dd>
               </div>
               <div className="flex gap-2">
                 <dt className="w-[52px] shrink-0 text-fg-subtle">hint</dt>
-                <dd className="m-0 text-fg-muted">{spec.diagnostics.hint}</dd>
+                <dd className="m-0 text-fg-muted">{t(spec.diagnostics.hint.key, spec.diagnostics.hint.en)}</dd>
               </div>
             </dl>
           </div>
         )}
 
+        {/*
+          A CTA renders only when something is wired to it. The label used to be
+          enough on its own, so five states shipped a button that swallowed the
+          click and did nothing — worst of all on this screen, where "Status
+          page" was the only thing on a 500 that looked like a way out. A
+          missing button is a smaller lie than a dead one.
+        */}
         <div className="mt-[26px] flex gap-2.5">
-          {spec.primary === undefined ? null : (
+          {spec.primary === undefined || onPrimary === undefined ? null : (
             <Button onClick={onPrimary}>
               {PrimaryIcon === undefined ? null : <PrimaryIcon aria-hidden="true" />}
-              {spec.primary.label}
+              {t(spec.primary.label.key, spec.primary.label.en)}
             </Button>
           )}
-          {spec.secondary === undefined ? null : (
+          {spec.secondary === undefined || onSecondary === undefined ? null : (
             <Button variant="outline" onClick={onSecondary}>
-              {spec.secondary}
+              {t(spec.secondary.key, spec.secondary.en)}
             </Button>
           )}
         </div>
 
+        {/*
+          The reference used to be a bare `req_9f2a…` with nothing to say what
+          it was or what to do with it — on a screen that had just told the user
+          an unspecified something went wrong. It is the join key between this
+          screen and the server's log line for the same request, so it now says
+          so, and can be lifted in one click instead of transcribed off a
+          screenshot.
+        */}
         {requestId === null || requestId === undefined ? null : (
-          <MonoText className="mt-5 text-[11px] text-fg-subtle">{requestId}</MonoText>
+          <div className="mt-5 flex flex-col items-center gap-1.5">
+            {/*
+              `select-all` so one click takes the whole token. This is the path
+              that always works: the copy button below needs
+              `navigator.clipboard`, which needs a secure context, and a
+              self-host reached over plain HTTP on a LAN address does not have
+              one. Without this the reference would be recoverable only by
+              retyping it, which is how it started.
+            */}
+            <p className="m-0 text-[11px] text-fg-subtle">
+              {t('states.reference.label', 'Reference')}{' '}
+              <MonoText className="select-all">{requestId}</MonoText>
+            </p>
+            {/*
+              Same rule as the CTAs above: no control that cannot act. Where
+              there is no clipboard the button would take the click, fail
+              silently and never flip to "Copied" — a dead button on the screen
+              built to explain a failure.
+            */}
+            {canCopy() ? (
+              <CopyButton
+                value={requestId}
+                variant="ghost"
+                label={t('states.reference.copy', 'Copy reference')}
+                copiedLabel={t('states.reference.copied', 'Copied')}
+              />
+            ) : null}
+            <p className="m-0 max-w-[320px] text-[11px] text-fg-subtle">
+              {t(
+                'states.reference.hint',
+                'Quote this when reporting the problem — your server log records the same id.',
+              )}
+            </p>
+          </div>
         )}
 
         <div className="mt-9 flex items-center gap-2 opacity-60">

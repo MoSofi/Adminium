@@ -26,7 +26,7 @@ export default {
     "hidePassword": "Skjul adgangskode",
     "reveal": "Vis",
     "hide": "Skjul",
-    "clearSearch": "Clear search"
+    "clearSearch": "Ryd søgning"
   },
   "state": {
     "loading": "Indlæser…",
@@ -69,8 +69,8 @@ export default {
       },
       "usageMeter": {
         "description": "Kvoteforbrug op mod en grænse; bjælken skifter til gul og derefter rød ud over dine tærskler.",
-        "usageLabel": "Usage",
-        "ofLabel": "of"
+        "usageLabel": "Forbrug",
+        "ofLabel": "af"
       },
       "statTileCompact": {
         "description": "En smal nøgletalsflise med mikroetiket, trendchip og 6-bjælkers spark — til tætte rækker på 4 til 6."
@@ -87,16 +87,16 @@ export default {
       },
       "gaugeArc": {
         "description": "En speedometerbue med kvalitative bånd og en viser; viser også et gitter af målere.",
-        "emptyTitle": "No gauges to show",
-        "emptyBody": "Services appear here as gauges once there is a reading for them."
+        "emptyTitle": "Ingen målere at vise",
+        "emptyBody": "Tjenester vises her som målere, når der findes en aflæsning for dem."
       },
       "periodComparison": {
         "description": "Denne periode mod den forrige som to bjælker, med forskellen beregnet nedenunder.",
         "higherLabel": "højere",
         "lowerLabel": "lavere",
         "flatLabel": "uændret",
-        "periodALabel": "This period",
-        "periodBLabel": "Last period"
+        "periodALabel": "Denne periode",
+        "periodBLabel": "Forrige periode"
       },
       "microKpiSubtitle": {
         "description": "Et enkeltlinjes nøgletal i sidehovedet, bygget ud fra en skabelon og genberegnet løbende."
@@ -113,216 +113,216 @@ export default {
         "description": "Boksplot-oversigt over en numerisk kolonnes spredning pr. kategori – min, kvartiler, median og maks.",
         "emptyTitle": "Ingen fordeling at vise",
         "emptyBody": "Ingen rækker matchede filtrene til boksplot.",
-        "chartLabel": "Box plot"
+        "chartLabel": "Boksplot"
       },
       "violin": {
         "description": "Spejlede tæthedskurver, der sammenligner en numerisk kolonnes fordeling på tværs af grupper.",
         "emptyTitle": "Ingen fordeling at vise",
         "emptyBody": "Ingen rækker matchede filtrene til tæthedsprofiler.",
-        "chartLabel": "Violin plot"
+        "chartLabel": "Violinplot"
       },
       "ridgeline": {
         "description": "Overlappende tætheds-rygge, der sammenligner en numerisk kolonne på tværs af ordnede grupper.",
         "emptyTitle": "Ingen rygge at vise",
         "emptyBody": "Ingen rækker matchede filtrene til tæthedsprofiler.",
-        "chartLabel": "Ridgeline"
+        "chartLabel": "Ridgeline-diagram"
       },
       "scatterBubble": {
         "description": "To numeriske kolonner som punkter, med valgfri boblestørrelse og en tendenslinje.",
         "emptyTitle": "Ingen punkter at vise",
         "emptyBody": "Ingen rækker matchede filtrene for de valgte kolonner.",
-        "chartLabel": "Scatter plot"
+        "chartLabel": "Punktdiagram"
       },
       "hexbin": {
         "description": "Heksbinnet tæthed af to numeriske kolonner, farvet efter antal rækker pr. felt.",
         "emptyTitle": "Ingen tæthed at vise",
         "emptyBody": "Ingen rækker matchede filtrene til binning.",
-        "chartLabel": "Density hexbin"
+        "chartLabel": "Heksbin-tæthed"
       },
       "correlationMatrix": {
         "description": "Pearson-korrelation mellem valgte numeriske kolonner, fra stærkt positiv til stærkt negativ.",
         "emptyTitle": "Intet at korrelere",
         "emptyBody": "Vælg mindst to numeriske kolonner med matchende rækker.",
-        "chartLabel": "Correlation matrix"
+        "chartLabel": "Korrelationsmatrix"
       },
       "parallelCoordinates": {
         "description": "Hver post som en linje på tværs af flere normaliserede numeriske akser, farvet efter kategori.",
         "emptyTitle": "Ingen poster at vise",
         "emptyBody": "Ingen rækker matchede filtrene på tværs af de valgte akser.",
-        "chartLabel": "Parallel coordinates"
+        "chartLabel": "Parallelle koordinater"
       },
-      "unexpectedShape": "Unexpected data shape.",
+      "unexpectedShape": "Uventet dataform.",
       "lineArea": {
-        "chartLabel": "Line chart",
-        "description": "A metric over time as a line with a soft area fill, with an optional dashed prior-period comparison."
+        "chartLabel": "Kurvediagram",
+        "description": "En måling over tid som en kurve med et blødt udfyldt areal og en valgfri stiplet sammenligning med forrige periode."
       },
       "bar": {
-        "chartLabel": "Bar chart",
-        "description": "Categorical or time-bucketed values as vertical bars, with an optional highlight on the largest or current bar."
+        "chartLabel": "Søjlediagram",
+        "description": "Kategoriske eller tidsopdelte værdier som lodrette søjler, med valgfri fremhævning af den største eller aktuelle søjle."
       },
       "donut": {
-        "chartLabel": "Donut chart",
-        "otherLabel": "Other",
-        "description": "Category shares as donut slices with a legend and centre total, folding small slices into an Other bucket."
+        "chartLabel": "Ringdiagram",
+        "otherLabel": "Andet",
+        "description": "Kategoriandele som ringudsnit med signaturforklaring og total i midten; små udsnit samles under Andet."
       },
       "bullet": {
-        "chartLabel": "Bullet chart",
-        "description": "Progress toward a goal as a measure bar over qualitative bands, with a target tick per row.",
-        "emptyTitle": "No goals to track",
-        "emptyBody": "Add measures with targets to compare against."
+        "chartLabel": "Bullet-diagram",
+        "description": "Fremdrift mod et mål som en målebjælke over kvalitative bånd, med en målmarkering pr. række.",
+        "emptyTitle": "Ingen mål at følge",
+        "emptyBody": "Tilføj målinger med mål at sammenligne med."
       },
       "rankingBars": {
-        "chartLabel": "Ranking",
-        "description": "A top-N ranking as horizontal bars — the leader at full strength, the rest dimmed — with values alongside.",
-        "emptyTitle": "Nothing to rank",
-        "emptyBody": "No records matched this breakdown yet."
+        "chartLabel": "Rangering",
+        "description": "En top-N-rangering som vandrette bjælker — føreren i fuld styrke, resten dæmpet — med værdierne ved siden af.",
+        "emptyTitle": "Intet at rangere",
+        "emptyBody": "Ingen poster matchede denne opdeling endnu."
       },
       "pareto": {
-        "chartLabel": "Pareto chart",
-        "description": "Sorted category bars under a cumulative-percent line, with an optional 80% cutline.",
-        "emptyTitle": "No categories to chart",
-        "emptyBody": "No grouped counts were returned for this range."
+        "chartLabel": "Paretodiagram",
+        "description": "Sorterede kategorisøjler under en kurve med kumuleret procent, med en valgfri 80%-grænselinje.",
+        "emptyTitle": "Ingen kategorier at vise",
+        "emptyBody": "Der blev ikke returneret grupperede antal for dette interval."
       },
       "waterfall": {
-        "chartLabel": "Waterfall chart",
-        "description": "A floating-bar bridge from a start total through positive and negative steps to a net total.",
-        "emptyTitle": "No movement to bridge",
-        "emptyBody": "No start, change, or total steps were found."
+        "chartLabel": "Vandfaldsdiagram",
+        "description": "En bro af svævende søjler fra en starttotal gennem positive og negative trin til en nettototal.",
+        "emptyTitle": "Ingen bevægelse at bygge bro over",
+        "emptyBody": "Der blev ikke fundet nogen start-, ændrings- eller totaltrin."
       },
       "marimekko": {
-        "chartLabel": "Marimekko chart",
-        "description": "A two-level mix as variable-width stacked columns — width for the outer share, segments for the inner split.",
-        "emptyTitle": "No mix to break down",
-        "emptyBody": "No two-level breakdown was returned for this range."
+        "chartLabel": "Marimekko-diagram",
+        "description": "Et miks i to niveauer som stablede søjler med varierende bredde — bredden viser den ydre andel, segmenterne den indre fordeling.",
+        "emptyTitle": "Intet miks at opdele",
+        "emptyBody": "Der blev ikke returneret en opdeling i to niveauer for dette interval."
       },
       "stackedBar100": {
-        "chartLabel": "100% stacked bar",
-        "description": "One 100% bar split into proportional segments with a legend, comparing shares of a whole.",
-        "emptyTitle": "No shares to split",
-        "emptyBody": "No parts were returned for this breakdown."
+        "chartLabel": "100% stablet søjle",
+        "description": "Én 100%-søjle delt i proportionale segmenter med signaturforklaring, der sammenligner andele af en helhed.",
+        "emptyTitle": "Ingen andele at opdele",
+        "emptyBody": "Der blev ikke returneret nogen dele for denne opdeling."
       },
       "slope": {
-        "chartLabel": "Slope chart",
-        "description": "Two periods joined by one line per record, coloured by whether the value rose or fell.",
-        "emptyTitle": "No period shift to show",
-        "emptyBody": "No before/after values were returned to compare."
+        "chartLabel": "Hældningsdiagram",
+        "description": "To perioder forbundet med én linje pr. post, farvet efter om værdien steg eller faldt.",
+        "emptyTitle": "Ingen periodeforskydning at vise",
+        "emptyBody": "Der blev ikke returneret før/efter-værdier at sammenligne."
       },
       "multiline": {
-        "chartLabel": "Multi-line chart",
-        "description": "Several series as overlaid lines with end labels, comparing trends over the same time span.",
-        "emptyTitle": "No series to plot",
-        "emptyBody": "No time series matched the filters for this range."
+        "chartLabel": "Flerkurvediagram",
+        "description": "Flere serier som overlejrede kurver med etiketter i enden, der sammenligner tendenser over samme tidsrum.",
+        "emptyTitle": "Ingen serier at afbilde",
+        "emptyBody": "Ingen tidsserier matchede filtrene for dette interval."
       },
       "stream": {
-        "chartLabel": "Stream chart",
-        "description": "Stacked bands flowing around a centre line, showing how a total's composition shifts over time.",
-        "emptyTitle": "No flow to chart",
-        "emptyBody": "No stacked series were returned for this range."
+        "chartLabel": "Strømdiagram",
+        "description": "Stablede bånd, der flyder om en midterlinje og viser, hvordan en totals sammensætning ændrer sig over tid.",
+        "emptyTitle": "Intet flow at vise",
+        "emptyBody": "Der blev ikke returneret stablede serier for dette interval."
       },
       "forecast": {
-        "chartLabel": "Forecast chart",
-        "nowLabel": "Now",
-        "forecastLabel": "Forecast",
-        "actualLabel": "Actual",
-        "description": "A history line extended by a dashed projection inside a widening confidence band, split at a now divider.",
-        "emptyTitle": "No history to project",
-        "emptyBody": "No past points were returned to forecast from."
+        "chartLabel": "Prognosediagram",
+        "nowLabel": "Nu",
+        "forecastLabel": "Prognose",
+        "actualLabel": "Faktisk",
+        "description": "En historikkurve forlænget af en stiplet fremskrivning inde i et stadig bredere konfidensbånd, delt ved en nu-markør.",
+        "emptyTitle": "Ingen historik at fremskrive",
+        "emptyBody": "Der blev ikke returneret tidligere punkter at lave prognose ud fra."
       },
       "anomaly": {
-        "chartLabel": "Anomaly chart",
-        "description": "A value line over its expected range, flagging points that fall outside it with halo dots.",
-        "emptyTitle": "No signal to scan",
-        "emptyBody": "No points were returned to check for anomalies."
+        "chartLabel": "Afvigelsesdiagram",
+        "description": "En værdikurve over sit forventede interval, hvor punkter uden for intervallet fremhæves med ringmarkerede prikker.",
+        "emptyTitle": "Intet signal at scanne",
+        "emptyBody": "Der blev ikke returneret punkter at tjekke for afvigelser."
       },
       "candlestick": {
-        "chartLabel": "Candlestick chart",
+        "chartLabel": "Candlestick-diagram",
         "livePillLabel": "Live",
-        "description": "Open-high-low-close candles coloured by direction, with a dashed last-price line and an optional live pill.",
-        "emptyTitle": "No candles to chart",
-        "emptyBody": "No open-high-low-close rows matched this range."
+        "description": "Candlesticks med åbn, høj, lav og luk farvet efter retning, med en stiplet linje for seneste kurs og en valgfri live-plakette.",
+        "emptyTitle": "Ingen candlesticks at vise",
+        "emptyBody": "Ingen rækker med åbn, høj, lav og luk matchede dette interval."
       },
       "bump": {
-        "chartLabel": "Bump chart",
-        "description": "Rank-over-time lines showing how competitors trade places between periods.",
-        "emptyTitle": "No ranks to trace",
-        "emptyBody": "No period-over-period rankings were returned."
+        "chartLabel": "Bump-diagram",
+        "description": "Kurver over placering gennem tiden, der viser, hvordan konkurrenter bytter plads fra periode til periode.",
+        "emptyTitle": "Ingen placeringer at følge",
+        "emptyBody": "Der blev ikke returneret rangeringer fra periode til periode."
       },
       "timelineLanes": {
-        "chartLabel": "Timeline lanes",
-        "laneLabel": "Events",
-        "description": "Dated events as pills on horizontal swimlanes sharing one time axis.",
-        "emptyTitle": "No events to place",
-        "emptyBody": "No events matched the filters for this range."
+        "chartLabel": "Tidslinjebaner",
+        "laneLabel": "Hændelser",
+        "description": "Daterede hændelser som plaketter på vandrette baner med fælles tidsakse.",
+        "emptyTitle": "Ingen hændelser at placere",
+        "emptyBody": "Ingen hændelser matchede filtrene for dette interval."
       },
       "treemap": {
-        "chartLabel": "Treemap",
-        "otherLabel": "Other",
-        "description": "A part-to-whole breakdown as squarified tiles sized by value, folding small slices into an Other tile.",
-        "emptyTitle": "No slices to tile",
-        "emptyBody": "No categories were returned for this breakdown."
+        "chartLabel": "Trækort",
+        "otherLabel": "Andet",
+        "description": "En del-af-helhed-opdeling som kvadratiske fliser, hvis størrelse følger værdien; små udsnit samles i en Andet-flise.",
+        "emptyTitle": "Ingen udsnit at vise",
+        "emptyBody": "Der blev ikke returneret kategorier for denne opdeling."
       },
       "sunburst": {
-        "chartLabel": "Sunburst",
-        "description": "A two-level hierarchy as nested rings — parents inside, their children outside — with a parent legend.",
-        "emptyTitle": "No rings to draw",
-        "emptyBody": "No grouped categories were returned to nest."
+        "chartLabel": "Solstrålediagram",
+        "description": "Et hierarki i to niveauer som indlejrede ringe — forældrene inderst, deres børn yderst — med signaturforklaring for forældrene.",
+        "emptyTitle": "Ingen ringe at tegne",
+        "emptyBody": "Der blev ikke returneret grupperede kategorier at indlejre."
       },
       "funnel": {
-        "chartLabel": "Funnel",
-        "description": "Ordered shrinking stages with per-step continuation rates and an overall-conversion footer.",
-        "emptyTitle": "No stages to funnel",
-        "emptyBody": "No step counts were returned for this range."
+        "chartLabel": "Tragt",
+        "description": "Ordnede trin, der bliver mindre og mindre, med videreførselsrate pr. trin og den samlede konvertering i bunden.",
+        "emptyTitle": "Ingen trin i tragten",
+        "emptyBody": "Der blev ikke returneret antal pr. trin for dette interval."
       },
       "radialBar": {
-        "chartLabel": "Radial bar",
-        "description": "Up to four percentages as concentric progress rings with a dot legend.",
-        "emptyTitle": "No rings to fill",
-        "emptyBody": "No categories matched this breakdown yet."
+        "chartLabel": "Radiale søjler",
+        "description": "Op til fire procenter som koncentriske fremdriftsringe med en prikbaseret signaturforklaring.",
+        "emptyTitle": "Ingen ringe at fylde",
+        "emptyBody": "Ingen kategorier matchede denne opdeling endnu."
       },
       "radar": {
         "chartLabel": "Radar",
-        "description": "Several named axes on a polygon with one filled shape per series, against an optional target overlay.",
-        "emptyTitle": "No axes to compare",
-        "emptyBody": "No matrix of series and axes was returned."
+        "description": "Flere navngivne akser i en polygon med én udfyldt figur pr. serie, oven på et valgfrit mållag.",
+        "emptyTitle": "Ingen akser at sammenligne",
+        "emptyBody": "Der blev ikke returneret en matrix af serier og akser."
       },
       "chord": {
-        "chartLabel": "Chord",
-        "description": "Pairwise flows as ribbons between nodes on a ring, with ribbon opacity weighted by volume.",
-        "emptyTitle": "No flows to link",
-        "emptyBody": "No connections between groups were returned."
+        "chartLabel": "Akkorddiagram",
+        "description": "Parvise strømme som bånd mellem knuder på en ring, hvor båndenes gennemsigtighed vægtes efter mængde.",
+        "emptyTitle": "Ingen strømme at forbinde",
+        "emptyBody": "Der blev ikke returneret forbindelser mellem grupper."
       },
       "wordcloud": {
-        "chartLabel": "Word cloud",
-        "description": "Terms sized by frequency and flowed into rows, for a glanceable view of what dominates.",
-        "emptyTitle": "No terms to cloud",
-        "emptyBody": "No weighted terms matched the filters."
+        "chartLabel": "Ordsky",
+        "description": "Ord i en størrelse efter hyppighed, ombrudt i rækker, så du hurtigt kan se, hvad der dominerer.",
+        "emptyTitle": "Ingen ord til skyen",
+        "emptyBody": "Ingen vægtede ord matchede filtrene."
       },
       "cohortMatrix": {
-        "chartLabel": "Cohort retention",
-        "description": "Cohort rows against period columns, each cell shaded by retention or revenue."
+        "chartLabel": "Kohortefastholdelse",
+        "description": "Kohorterækker mod periodekolonner, hvor hver celle tones efter fastholdelse eller omsætning."
       },
       "heatmapCalendar": {
-        "chartLabel": "Activity calendar",
-        "legendLessLabel": "Less",
-        "legendMoreLabel": "More",
-        "description": "A year of daily activity as a week-by-day grid shaded by intensity."
+        "chartLabel": "Aktivitetskalender",
+        "legendLessLabel": "Mindre",
+        "legendMoreLabel": "Mere",
+        "description": "Et års daglige aktivitet som et gitter af uger og dage, tonet efter intensitet."
       },
       "heatMonth": {
-        "chartLabel": "Monthly activity",
-        "description": "One calendar month as a day grid shaded by each day's value."
+        "chartLabel": "Månedlig aktivitet",
+        "description": "Én kalendermåned som et dagsgitter, tonet efter den enkelte dags værdi."
       },
       "choroplethGrid": {
-        "chartLabel": "Regional breakdown",
-        "legendLowLabel": "Low",
-        "legendHighLabel": "High",
-        "description": "Regional values as a tinted US tilegram or compact grid, with an optional top-N ranking list."
+        "chartLabel": "Regional fordeling",
+        "legendLowLabel": "Lav",
+        "legendHighLabel": "Høj",
+        "description": "Regionale værdier som et tonet amerikansk fliselandkort eller et kompakt gitter, med en valgfri top-N-rangliste."
       },
       "sankey": {
         "chartLabel": "Flow",
-        "description": "Layered source-to-target flows as ribbons whose thickness encodes volume."
+        "description": "Lagdelte strømme fra kilde til mål som bånd, hvis tykkelse angiver mængden."
       },
       "sparkline": {
-        "description": "An inline micro-trend of recent values — no axes or labels — for KPI cards, table cells and list rows."
+        "description": "En indlejret mikrotendens over de seneste værdier — uden akser eller etiketter — til nøgletalskort, tabelceller og listerækker."
       }
     },
     "feeds": {
@@ -330,32 +330,32 @@ export default {
         "description": "Et løbende feed over hvem der gjorde hvad i dit arbejdsområde, nyeste først.",
         "emptyTitle": "Ingen nylig aktivitet",
         "emptyBody": "Handlinger i dit arbejdsområde vises her.",
-        "viewAllLabel": "View all"
+        "viewAllLabel": "Vis alle"
       },
       "notificationFeed": {
         "description": "Grupperede notifikationer med ulæst-status, filtre og indlejrede handlinger.",
         "emptyTitle": "Ingen notifikationer",
         "emptyBody": "Nye notifikationer vises her.",
-        "allLabel": "All",
-        "unreadLabel": "Unread",
-        "mentionsLabel": "Mentions",
-        "filterLabel": "Notification filter",
-        "markAllReadLabel": "Mark all read",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
-        "earlierLabel": "Earlier",
-        "dismissLabel": "Dismiss",
-        "emptyUnreadTitle": "You're all caught up",
-        "emptyMentionsTitle": "No mentions"
+        "allLabel": "Alle",
+        "unreadLabel": "Ulæste",
+        "mentionsLabel": "Omtaler",
+        "filterLabel": "Notifikationsfilter",
+        "markAllReadLabel": "Markér alle som læst",
+        "todayLabel": "I dag",
+        "yesterdayLabel": "I går",
+        "earlierLabel": "Tidligere",
+        "dismissLabel": "Afvis",
+        "emptyUnreadTitle": "Du er helt ajour",
+        "emptyMentionsTitle": "Ingen omtaler"
       },
       "realtimeFeed": {
         "description": "Et live-hændelsesfeed, der føjer nye poster øverst, efterhånden som de ankommer.",
         "emptyTitle": "Venter på hændelser",
         "emptyBody": "Live-hændelser vises, efterhånden som de sker.",
         "liveLabel": "Live",
-        "pausedLabel": "Paused",
+        "pausedLabel": "Sat på pause",
         "pauseLabel": "Pause",
-        "resumeLabel": "Resume"
+        "resumeLabel": "Fortsæt"
       },
       "timelineVertical": {
         "description": "En lodret tidslinje over hændelser, udgivelser, hændelser eller kørselstrin.",
@@ -385,39 +385,39 @@ export default {
         "description": "Et månedsgitter over planlagte begivenheder med chips pr. dag og månedsnavigation.",
         "emptyTitle": "Intet planlagt",
         "emptyBody": "Planlagte begivenheder vises i denne kalender.",
-        "previousLabel": "Previous month",
-        "nextLabel": "Next month",
-        "overflowLabel": "+{count} more"
+        "previousLabel": "Forrige måned",
+        "nextLabel": "Næste måned",
+        "overflowLabel": "+{count} mere"
       },
       "dayAgenda": {
         "description": "Den valgte dags begivenheder som en tidsordnet dagsorden.",
         "emptyTitle": "Intet planlagt",
         "emptyBody": "Begivenheder for den valgte dag vises her.",
-        "countLabel": "{count, plural, one {{n} event} other {{n} events}}"
+        "countLabel": "{count, plural, one {{n} begivenhed} other {{n} begivenheder}}"
       },
       "scheduleMatrix": {
         "description": "Et vagtgitter efter ressource og dag med daglig dækning og en signaturforklaring.",
         "emptyTitle": "Ingen vagter planlagt",
         "emptyBody": "Tildelte vagter vises i denne plan.",
-        "resourceLabel": "Resource",
-        "coverageLabel": "Coverage",
-        "hoursLabel": "{hours}h"
+        "resourceLabel": "Ressource",
+        "coverageLabel": "Dækning",
+        "hoursLabel": "{hours} t"
       },
       "capacityBoard": {
         "description": "Udnyttelsesbjælker pr. medlem med projektopdeling og belastningsstatus.",
         "emptyTitle": "Ingen arbejdsbelastningsdata",
         "emptyBody": "Medlemmernes udnyttelse vises her, når der findes tildelinger.",
         "status": {
-          "overloaded": "Overloaded",
-          "balanced": "Balanced",
-          "available": "Available"
+          "overloaded": "Overbelastet",
+          "balanced": "Balanceret",
+          "available": "Ledig"
         },
         "utilizationLabel": "{name}: {util}%",
-        "assignmentLabel": "{project} · {hours}h",
-        "periodLabel": "h · {period}",
+        "assignmentLabel": "{project} · {hours} t",
+        "periodLabel": "t · {period}",
         "period": {
-          "week": "week",
-          "month": "month"
+          "week": "uge",
+          "month": "måned"
         }
       },
       "calendarLegendFilter": {
@@ -459,26 +459,26 @@ export default {
         "description": "En valgbar liste over poster, der styrer et detaljepanel.",
         "emptyTitle": "Ingen elementer",
         "emptyBody": "Elementer vises her, når de findes.",
-        "allLabel": "All",
-        "toggleLabel": "Toggle {title}",
-        "progressLabel": "{title} progress"
+        "allLabel": "Alle",
+        "toggleLabel": "Slå {title} til/fra",
+        "progressLabel": "Fremdrift for {title}"
       },
       "logTable": {
         "description": "En hændelseslog med søgning, fejlfilter og rækkehandlinger.",
         "emptyTitle": "Ingen logposter",
         "emptyBody": "Hændelser registreres her, efterhånden som de sker.",
         "liveLabel": "Live",
-        "placeholder": "Search logs…",
-        "filterLabel": "Log filter",
-        "allLabel": "All",
-        "errorsLabel": "Errors",
-        "noMatchesLabel": "No matching entries",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
+        "placeholder": "Søg i loggen…",
+        "filterLabel": "Logfilter",
+        "allLabel": "Alle",
+        "errorsLabel": "Fejl",
+        "noMatchesLabel": "Ingen matchende poster",
+        "todayLabel": "I dag",
+        "yesterdayLabel": "I går",
         "action": {
-          "retry": "retry",
+          "retry": "prøv igen",
           "download": "download",
-          "inspect": "inspect"
+          "inspect": "inspicér"
         }
       },
       "cardGallery": {
@@ -490,22 +490,22 @@ export default {
         "description": "Grupperede rækker med aggregatkolonner, foldbare detaljer og totaler.",
         "emptyTitle": "Ingen opsummeringsdata",
         "emptyBody": "Grupperede totaler vises her, når der er data.",
-        "groupLabel": "Group",
-        "totalsLabel": "Total"
+        "groupLabel": "Gruppe",
+        "totalsLabel": "I alt"
       },
       "schemaTree": {
         "description": "En udforsker til skemaer, tabeller og kolonner med type- og nøglemærkater.",
         "emptyTitle": "Intet skema indlæst",
         "emptyBody": "Forbind en database for at udforske dens skema her.",
-        "treeLabel": "Schema",
+        "treeLabel": "Skema",
         "viewLabel": "view"
       },
       "toggleMatrix": {
         "description": "Et interaktivt gitter af boolske kontakter til roller, politikker eller kanaler.",
         "emptyTitle": "Ingen matrix konfigureret",
         "emptyBody": "Rækker og kolonner vises her, når de er konfigureret.",
-        "matrixLabel": "Permissions matrix",
-        "rowHeaderLabel": "Permission"
+        "matrixLabel": "Tilladelsesmatrix",
+        "rowHeaderLabel": "Tilladelse"
       },
       "sparklineTable": {
         "description": "Målingsrækker med mini-graf, aktuel værdi og en ændringsmarkering, der skelner godt fra skidt.",
@@ -540,38 +540,38 @@ export default {
         "moreLabel": "+{n} mere"
       },
       "dataGrid": {
-        "selectAllLabel": "Select all rows",
-        "selectRowLabel": "Select row",
-        "sortByLabel": "Sort by {column}",
-        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells."
+        "selectAllLabel": "Vælg alle rækker",
+        "selectRowLabel": "Vælg række",
+        "sortByLabel": "Sortér efter {column}",
+        "description": "Standardgitteret til CRUD med sorterbare kolonner, rækkemarkering og typebevidste celler."
       },
       "paginationFooter": {
-        "emptyLabel": "0 rows",
-        "ofLabel": "of",
-        "pageSizeLabel": "Rows",
+        "emptyLabel": "0 rækker",
+        "ofLabel": "af",
+        "pageSizeLabel": "Rækker",
         "a11y": {
-          "pageSize": "Rows per page"
+          "pageSize": "Rækker pr. side"
         },
-        "prevLabel": "Previous page",
-        "nextLabel": "Next page",
-        "description": "A footer with the visible row range, prev/next paging, and a page-size select."
+        "prevLabel": "Forrige side",
+        "nextLabel": "Næste side",
+        "description": "En bundlinje med det viste rækkeinterval, frem og tilbage mellem sider og et valg af sidestørrelse."
       },
       "bulkActionToolbar": {
-        "selectedLabel": "selected",
-        "clearLabel": "Clear selection",
-        "toolbarLabel": "Bulk actions",
-        "description": "A selection-aware toolbar showing the selected count and bulk actions."
+        "selectedLabel": "valgt",
+        "clearLabel": "Ryd markering",
+        "toolbarLabel": "Massehandlinger",
+        "description": "En markeringsbevidst værktøjslinje, der viser antal valgte og massehandlinger."
       },
       "miniTable": {
-        "viewAllLabel": "View all",
-        "description": "A compact dashboard row list with mapped columns and a view-all link."
+        "viewAllLabel": "Vis alle",
+        "description": "En kompakt rækkeliste til dashboards med tilknyttede kolonner og et link til at se alle."
       },
-      "revealLabel": "Reveal value",
-      "hideLabel": "Hide value",
-      "trueLabel": "true",
-      "falseLabel": "false",
+      "revealLabel": "Vis værdi",
+      "hideLabel": "Skjul værdi",
+      "trueLabel": "sand",
+      "falseLabel": "falsk",
       "detailKeyValue": {
-        "description": "A record's fields as label/value rows with type-aware values."
+        "description": "En posts felter som etiket/værdi-rækker med typebevidste værdier."
       }
     },
     "boards": {
@@ -626,7 +626,7 @@ export default {
         "sendLabel": "Send",
         "attachLabel": "Tilføj vedhæftning",
         "typingLabel": "skriver…",
-        "composerLabel": "Message"
+        "composerLabel": "Besked"
       },
       "aiChatPanel": {
         "description": "Et assistentpanel til at stille spørgsmål om dit skema og dine data.",
@@ -638,8 +638,8 @@ export default {
         "configureTitle": "Ingen AI-udbyder konfigureret",
         "configureBody": "Tilføj en Anthropic- eller OpenAI-nøgle — eller peg Adminium mod dit eget endpoint — for at stille spørgsmål om dit skema.",
         "configureCtaLabel": "Konfigurér en udbyder",
-        "assistantLabel": "Assistant",
-        "composerLabel": "Ask a question"
+        "assistantLabel": "Assistent",
+        "composerLabel": "Stil et spørgsmål"
       },
       "typingIndicator": {
         "description": "En avatar og en kursiv “skriver…”-række, bundet til en live-boolean pr. samtale.",
@@ -677,7 +677,7 @@ export default {
         "emptyBody": "Rækker med en regionskode og en talværdi vises her som tonede felter.",
         "legendLowLabel": "Lav",
         "legendHighLabel": "Høj",
-        "chartLabel": "Regional breakdown"
+        "chartLabel": "Regional fordeling"
       }
     },
     "domain": {
@@ -706,8 +706,8 @@ export default {
         "billedToLabel": "Faktureret til",
         "issuedLabel": "Udstedt",
         "dueLabel": "Forfalder",
-        "noDocumentTitle": "No document yet",
-        "noDocumentBody": "Pick a starter template or add a block to begin."
+        "noDocumentTitle": "Intet dokument endnu",
+        "noDocumentBody": "Vælg en startskabelon, eller tilføj en blok for at komme i gang."
       },
       "blockTotalsSummary": {
         "description": "Dokumentets totaler — subtotal, rabat, moms og det samlede skyldige beløb, genberegnet ud fra linjerne.",
@@ -736,13 +736,13 @@ export default {
         "description": "Et mini-søjlediagram i dokumentets farve, tilpasset en dokumentblok.",
         "emptyTitle": "Ingen data til diagrammet",
         "emptyBody": "Søjlerne vises, når rapporten har en dataserie.",
-        "a11yLabel": "Bar chart"
+        "a11yLabel": "Søjlediagram"
       },
       "blockLineChart": {
         "description": "Et mini-kurvediagram med valgfrit udfyldt areal, tilpasset en dokumentblok.",
         "emptyTitle": "Ingen data til diagrammet",
         "emptyBody": "Kurven vises, når rapporten har en dataserie.",
-        "a11yLabel": "Line chart"
+        "a11yLabel": "Kurvediagram"
       },
       "blockTwoColTable": {
         "description": "En tokolonnetabel med en formateret overskriftsrække og en værdikolonne med fast bredde.",
@@ -801,7 +801,7 @@ export default {
         "namePlaceholder": "Fulde navn",
         "titlePlaceholder": "Titel",
         "dateLabel": "Dato",
-        "nameInputLabel": "Signature name"
+        "nameInputLabel": "Underskrivers navn"
       },
       "blockTermsCheckbox": {
         "description": "En vilkårsafkrydsning med redigerbar tekst.",
@@ -847,123 +847,123 @@ export default {
         "description": "Et gitter af foruddefinerede skabeloner med genererede miniaturer; vælger du en, oprettes et helt dokument.",
         "emptyTitle": "Ingen skabeloner",
         "emptyBody": "Definer skabeloner i konfigurationen, eller tilknyt en skabelontabel.",
-        "blankLabel": "Blank",
+        "blankLabel": "Tom",
         "kicker": {
-          "invoice": "Invoice",
-          "report": "Report",
-          "email": "Email"
+          "invoice": "Faktura",
+          "report": "Rapport",
+          "email": "E-mail"
         }
       },
       "sloMonitorCard": {
         "description": "SLA-kort pr. tjeneste med status, tilgængelighed op mod målet, daglig oppetidsstribe, fejlbudget og p95-latenstid.",
         "emptyTitle": "Ingen overvågning",
         "emptyBody": "Tilknyt en overvågningstabel med en status- og en tilgængelighedskolonne.",
-        "targetLabel": "Target",
-        "budgetLabel": "Error budget",
-        "latencyLabel": "p95 latency",
+        "targetLabel": "Mål",
+        "budgetLabel": "Fejlbudget",
+        "latencyLabel": "p95-latenstid",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "Unknown"
+          "operational": "Normal drift",
+          "degraded": "Forringet",
+          "down": "Nede",
+          "unknown": "Ukendt"
         }
       },
       "uptimeSegmentBar": {
         "description": "Dagsstriber i statusside-stil, farvet efter daglig status, med skift mellem 30 og 90 dage.",
         "emptyTitle": "Ingen oppetidshistorik",
         "emptyBody": "Daglige statusrækker vises her som en oppetidsstribe.",
-        "daysAgoLabel": "{days} days ago",
-        "todayLabel": "Today",
-        "uptimeLabel": "uptime",
-        "period30Label": "30d",
-        "period90Label": "90d",
+        "daysAgoLabel": "For {days} dage siden",
+        "todayLabel": "I dag",
+        "uptimeLabel": "oppetid",
+        "period30Label": "30 d",
+        "period90Label": "90 d",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "No data"
+          "operational": "Normal drift",
+          "degraded": "Forringet",
+          "down": "Nede",
+          "unknown": "Ingen data"
         }
       },
       "experimentVariantCompare": {
         "description": "Konverteringsbjælker pr. variant med løft i forhold til kontrollen og en signifikansmåler.",
         "emptyTitle": "Ingen varianter",
         "emptyBody": "Tilknyt en tabel med eksperimentvarianter og konverteringstal.",
-        "controlLabel": "CONTROL",
-        "winnerLabel": "WINNER",
-        "significanceLabel": "Confidence",
-        "verdictSignificantLabel": "Statistically significant — safe to call.",
-        "verdictInconclusiveLabel": "Not yet significant — keep the test running.",
-        "countsLabel": "{users} participants · {conversions} conversions"
+        "controlLabel": "KONTROL",
+        "winnerLabel": "VINDER",
+        "significanceLabel": "Konfidens",
+        "verdictSignificantLabel": "Statistisk signifikant — trygt at konkludere.",
+        "verdictInconclusiveLabel": "Endnu ikke signifikant — lad testen køre videre.",
+        "countsLabel": "{users} deltagere · {conversions} konverteringer"
       },
       "creditCardTile": {
         "description": "En gemt betalingsmetode som et brandet kort med maskeret nummer, indehaver og udløb.",
         "emptyTitle": "Ingen betalingsmetode",
         "emptyBody": "Tilføj et kort for at se det her.",
-        "defaultLabel": "Default",
-        "setDefaultLabel": "Set default",
-        "manageLabel": "Manage",
-        "addLabel": "Add payment method",
-        "expiresLabel": "Expires"
+        "defaultLabel": "Standard",
+        "setDefaultLabel": "Gør til standard",
+        "manageLabel": "Administrér",
+        "addLabel": "Tilføj betalingsmetode",
+        "expiresLabel": "Udløber"
       },
       "planPricingCards": {
         "description": "Prisniveauer med skift mellem månedlig og årlig, funktionslister og et fremhævet abonnement.",
         "emptyTitle": "Ingen abonnementer",
         "emptyBody": "Tilknyt en abonnementstabel med navn og månedlig pris.",
-        "monthlyLabel": "Monthly",
-        "annualLabel": "Annual",
-        "popularLabel": "POPULAR",
-        "perMonthLabel": "/ month",
-        "billedAnnuallyLabel": "Billed {total} yearly",
-        "currentLabel": "Current plan",
-        "ctaLabel": "Choose plan"
+        "monthlyLabel": "Månedlig",
+        "annualLabel": "Årlig",
+        "popularLabel": "POPULÆR",
+        "perMonthLabel": "/ md.",
+        "billedAnnuallyLabel": "Faktureres med {total} årligt",
+        "currentLabel": "Nuværende abonnement",
+        "ctaLabel": "Vælg abonnement"
       },
       "apiKeysPanel": {
         "description": "API-nøgler med miljømærker, maskerede værdier, tilladelser, seneste brug samt handlinger til at kopiere, forny og tilbagekalde.",
         "emptyTitle": "Ingen API-nøgler",
         "emptyBody": "Opret en nøgle for at begynde at kalde API'et.",
-        "revealedTitle": "Key created",
-        "revealedBody": "Copy it now — it is never shown again.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied",
-        "revealLabel": "Reveal key",
-        "hideLabel": "Hide key",
-        "rollLabel": "Roll key",
-        "revokeLabel": "Revoke key",
-        "neverUsedLabel": "Never used",
-        "lastUsedLabel": "Last used {since}"
+        "revealedTitle": "Nøgle oprettet",
+        "revealedBody": "Kopiér den nu — den vises aldrig igen.",
+        "copyLabel": "Kopiér",
+        "copiedLabel": "Kopieret",
+        "revealLabel": "Vis nøgle",
+        "hideLabel": "Skjul nøgle",
+        "rollLabel": "Udskift nøgle",
+        "revokeLabel": "Tilbagekald nøgle",
+        "neverUsedLabel": "Aldrig brugt",
+        "lastUsedLabel": "Sidst brugt {since}"
       },
       "apiPlayground": {
         "description": "En anmodningsbygger med parametre og et svarpanel. Den sammensætter kun og sender aldrig en rigtig anmodning.",
         "emptyTitle": "Intet endepunkt valgt",
         "emptyBody": "Vælg et endepunkt for at sammensætte en anmodning mod det.",
         "sendLabel": "Send",
-        "requestLabel": "Request",
-        "responseLabel": "Response",
-        "paramsLabel": "Parameters",
-        "responsePlaceholder": "Send the request to see the response."
+        "requestLabel": "Forespørgsel",
+        "responseLabel": "Svar",
+        "paramsLabel": "Parametre",
+        "responsePlaceholder": "Send forespørgslen for at se svaret."
       },
       "codeSnippetBlock": {
         "description": "Et kodeuddrag, der kan kopieres, med et sprogmærke og valgfrie faner pr. sprog.",
         "emptyTitle": "Intet uddrag",
         "emptyBody": "Tilknyt en kodekolonne, eller angiv et statisk uddrag i konfigurationen.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "Kopiér",
+        "copiedLabel": "Kopieret"
       },
       "webhookEndpointsList": {
         "description": "Webhook-endepunkter med hændelse, mål-URL, seneste udløsning og en aktiveringskontakt.",
         "emptyTitle": "Ingen endepunkter",
         "emptyBody": "Tilføj et webhook-endepunkt for at modtage tabelhændelser.",
-        "neverFiredLabel": "Never fired",
-        "lastFiredLabel": "Last fired {since}"
+        "neverFiredLabel": "Aldrig udløst",
+        "lastFiredLabel": "Sidst udløst {since}"
       },
       "resourceApiCard": {
         "description": "En tabels genererede API-flade: antal rækker, sikkerhedsmærke, metodemærker og anmodningsvolumen.",
         "emptyTitle": "Ingen ressource",
         "emptyBody": "Tilknyt en tabel for at vise dens genererede API-flade.",
         "rlsLabel": "RLS",
-        "publicLabel": "Public",
-        "rowsLabel": "rows",
-        "perDayLabel": "{count}/day"
+        "publicLabel": "Offentlig",
+        "rowsLabel": "rækker",
+        "perDayLabel": "{count}/dag"
       },
       "liveTimer": {
         "description": "Et stopur med start og stop til en opgave; når du stopper det, oprettes en tidsregistrering.",
@@ -971,34 +971,34 @@ export default {
         "emptyBody": "Tilknyt en tidsregistreringsrække med en opgave og en varighedskolonne.",
         "startLabel": "Start",
         "stopLabel": "Stop",
-        "taskPlaceholder": "Untitled task"
+        "taskPlaceholder": "Opgave uden titel"
       },
       "syncStatusCard": {
         "description": "Forbindelsens identitet, latenstid, synkroniserede rækker og synkroniseringsplan med en handling til at synkronisere nu.",
         "emptyTitle": "Ingen forbindelse",
         "emptyBody": "Tilknyt en forbindelsesrække for at vise dens synkroniseringsstatus.",
-        "connectedLabel": "Connected",
-        "disconnectedLabel": "Disconnected",
-        "rowsSyncedLabel": "Rows synced",
-        "tablesLabel": "Tables",
-        "lastSyncLabel": "Last sync",
-        "nextSyncLabel": "Next sync",
-        "syncingLabel": "Syncing…",
-        "syncActionLabel": "Sync now"
+        "connectedLabel": "Forbundet",
+        "disconnectedLabel": "Afbrudt",
+        "rowsSyncedLabel": "Synkroniserede rækker",
+        "tablesLabel": "Tabeller",
+        "lastSyncLabel": "Seneste synkronisering",
+        "nextSyncLabel": "Næste synkronisering",
+        "syncingLabel": "Synkroniserer…",
+        "syncActionLabel": "Synkronisér nu"
       },
       "ipAllowlistCard": {
         "description": "Faste udgående IP-adresser, der skal tillades i en firewall, hver med en kopiknap.",
         "emptyTitle": "Ingen udgående IP-adresser",
         "emptyBody": "Udgående adresser vises her, når forbindelsen er klargjort.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "Kopiér",
+        "copiedLabel": "Kopieret"
       },
       "onboardingChecklist": {
         "description": "Opsætningstrin med tidsestimater og handlinger over en løbende opdateret fremdriftsring og -bjælke.",
         "emptyTitle": "Intet at sætte op",
         "emptyBody": "Tilføj onboarding-trin i konfigurationen, eller tilknyt en trintabel.",
-        "progressLabel": "{done} of {total} done",
-        "celebrateTitle": "All done"
+        "progressLabel": "{done} af {total} klaret",
+        "celebrateTitle": "Alt er klaret"
       },
       "testimonialCard": {
         "description": "Et kundecitat med avatar og kildeangivelse.",
@@ -1042,7 +1042,7 @@ export default {
         "description": "Et moodboard-gitter af billedpladser med billedtekster, til tabeller med billed-URL'er.",
         "emptyTitle": "Ingen billeder endnu",
         "emptyBody": "Referencebilleder vises på denne tavle.",
-        "placeholder": "Drop reference"
+        "placeholder": "Slip reference"
       },
       "linkList": {
         "description": "Referencelinks med titler og URL'er, der åbnes i en ny fane.",
@@ -1083,16 +1083,16 @@ export default {
         "successTitle": "Post oprettet",
         "successBody": "Posten blev gemt.",
         "required": "Dette felt er påkrævet.",
-        "titleLabel": "Create record",
-        "closeLabel": "Close"
+        "titleLabel": "Opret post",
+        "closeLabel": "Luk"
       },
       "drawerForm": {
         "description": "En sidepanel-formular til at oprette eller redigere poster med mange felter.",
         "trigger": "Ny",
         "submit": "Gem",
         "cancel": "Annuller",
-        "titleLabel": "New record",
-        "closeLabel": "Close"
+        "titleLabel": "Ny post",
+        "closeLabel": "Luk"
       },
       "stepper": {
         "description": "En trinindikator, der viser hvor langt et flerdelt forløb er nået.",
@@ -1144,20 +1144,20 @@ export default {
         "valuePlaceholder": "Værdi…",
         "emptyBody": "Ingen betingelser endnu — tilføj en for at definere dette segment.",
         "op": {
-          "eq": "is",
-          "neq": "is not",
-          "gt": "is greater than",
-          "gte": "is at least",
-          "lt": "is less than",
-          "lte": "is at most",
-          "contains": "contains",
-          "not-contains": "does not contain",
-          "starts-with": "starts with",
-          "in": "is one of",
-          "before": "is before",
-          "after": "is after",
-          "is-null": "is empty",
-          "is-not-null": "is not empty"
+          "eq": "er",
+          "neq": "er ikke",
+          "gt": "er større end",
+          "gte": "er mindst",
+          "lt": "er mindre end",
+          "lte": "er højst",
+          "contains": "indeholder",
+          "not-contains": "indeholder ikke",
+          "starts-with": "begynder med",
+          "in": "er en af",
+          "before": "er før",
+          "after": "er efter",
+          "is-null": "er tom",
+          "is-not-null": "er ikke tom"
         }
       },
       "flowBuilder": {
@@ -1224,17 +1224,17 @@ export default {
         "questionPlaceholder": "Stil et spørgsmål…",
         "emptyTitle": "Ingen spørgsmål endnu",
         "emptyBody": "Vælg en spørgsmålstype for at begynde på dit spørgeskema.",
-        "questionLabel": "Question",
-        "dropdownPlaceholder": "Choose…",
+        "questionLabel": "Spørgsmål",
+        "dropdownPlaceholder": "Vælg…",
         "kind": {
-          "single-choice": "Single choice",
-          "multi-choice": "Multiple choice",
-          "dropdown": "Dropdown",
-          "short-text": "Short text",
-          "long-text": "Long text",
-          "rating": "Star rating",
+          "single-choice": "Enkeltvalg",
+          "multi-choice": "Flervalg",
+          "dropdown": "Rullemenu",
+          "short-text": "Kort tekst",
+          "long-text": "Lang tekst",
+          "rating": "Stjernebedømmelse",
           "nps": "NPS 0–10",
-          "date": "Date"
+          "date": "Dato"
         }
       },
       "inlineEditableField": {
@@ -1243,7 +1243,7 @@ export default {
         "save": "Gem",
         "cancel": "Annullér",
         "empty": "Tom",
-        "valueLabel": "Value"
+        "valueLabel": "Værdi"
       },
       "passwordStrengthMeter": {
         "description": "En firedelt måler for adgangskodens styrke.",
@@ -1268,7 +1268,7 @@ export default {
         "navigate": "Naviger",
         "select": "Åbn",
         "close": "Luk",
-        "emptyTitle": "No results for \"{query}\"",
+        "emptyTitle": "Ingen resultater for “{query}”",
         "emptyBody": "Begynd at skrive for at søge.",
         "groupActions": "Handlinger",
         "groupNavigate": "Naviger",
@@ -1285,8 +1285,8 @@ export default {
         "summary": "{count} resultater for “{query}”",
         "emptyTitle": "Ingen resultater",
         "emptyBody": "Prøv et andet søgeord.",
-        "searchLabel": "Search",
-        "facetRailLabel": "Filter by type"
+        "searchLabel": "Søg",
+        "facetRailLabel": "Filtrér efter type"
       },
       "breadcrumb": {
         "description": "Stien til den aktuelle post eller mappe.",
@@ -1306,22 +1306,22 @@ export default {
         "footerHint": "Tryk ? når som helst",
         "then": "derefter",
         "emptyTitle": "Ingen genveje registreret.",
-        "generalGroupLabel": "General",
+        "generalGroupLabel": "Generelt",
         "navigationGroupLabel": "Navigation",
-        "recordsGroupLabel": "Records",
-        "openCommandPaletteLabel": "Open command palette",
-        "searchLabel": "Search",
-        "showShortcutsLabel": "Show shortcuts",
-        "goToDashboardLabel": "Go to dashboard",
-        "goToOrdersLabel": "Go to orders",
-        "newRecordLabel": "New record",
-        "saveLabel": "Save",
-        "undoLabel": "Undo"
+        "recordsGroupLabel": "Poster",
+        "openCommandPaletteLabel": "Åbn kommandopaletten",
+        "searchLabel": "Søg",
+        "showShortcutsLabel": "Vis genveje",
+        "goToDashboardLabel": "Gå til dashboard",
+        "goToOrdersLabel": "Gå til ordrer",
+        "newRecordLabel": "Ny post",
+        "saveLabel": "Gem",
+        "undoLabel": "Fortryd"
       },
       "avatarStack": {
         "description": "Overlappende avatarer med “+N”-overløb og valgfri tilstedeværelse.",
         "online": "{count} online",
-        "a11yLabel": "People"
+        "a11yLabel": "Personer"
       }
     },
     "system": {
@@ -1396,10 +1396,10 @@ export default {
         "latency": "Svartid"
       },
       "widgetMissing": {
-        "description": "The fallback card shown when a stored page references a widget that is not installed.",
-        "title": "Widget unavailable",
-        "bodyLead": "No widget is registered as",
-        "bodyTail": "It may belong to a newer version or an uninstalled extension."
+        "description": "Reservekortet, der vises, når en gemt side henviser til en widget, som ikke er installeret.",
+        "title": "Widget ikke tilgængelig",
+        "bodyLead": "Ingen widget er registreret som",
+        "bodyTail": "Den hører måske til en nyere version eller en afinstalleret udvidelse."
       }
     }
   },
@@ -1413,350 +1413,350 @@ export default {
       "committed": "{title} placeret i kolonne {col}, række {row}.",
       "reverted": "{title} sat tilbage til sin oprindelige position."
     },
-    "draggableRole": "draggable widget"
+    "draggableRole": "widget, der kan trækkes"
   },
   "templates": {
     "crud": {
-      "newRow": "New row",
-      "exportAction": "Export",
-      "searchPlaceholder": "Search {table}…",
-      "removeFilter": "Remove {column} filter",
-      "queryFailed": "Query failed",
-      "loadingRows": "Loading rows",
-      "noMatchesTitle": "No matching rows",
-      "emptyTitle": "{count, plural, one {No {entity} yet} other {No {entity}s yet}}",
-      "createTitle": "Add {entity}",
-      "createSubtitle": "Creates one row in {table}.",
-      "createSubmit": "Add {entity}",
-      "createSuccessTitle": "{name} added",
-      "createSuccessBody": "You can undo this from the toast.",
-      "editTitle": "Edit {entity}",
-      "saveSubmit": "Save changes",
-      "deleteTitle": "Delete {entity}",
-      "deletePreflight": "Checking references…",
-      "deleteNoReferences": "This row has no inbound references.",
-      "deleteConsequencesIntro": "Deleting this row also affects:",
-      "referenceRows": "{count, plural, one {{n} row} other {{n} rows}}",
-      "confirmPrompt": "Type {value} to confirm",
-      "bulkDeleteTitle": "{count, plural, one {Delete {n} row} other {Delete {n} rows}}",
-      "bulkDeleteBody": "Referential consequences apply to every selected row.",
-      "bulkDeleteConfirm": "Delete rows",
-      "uniqueHelper": "Must be unique in {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}",
+      "newRow": "Ny række",
+      "exportAction": "Eksportér",
+      "searchPlaceholder": "Søg i {table}…",
+      "removeFilter": "Fjern filteret for {column}",
+      "queryFailed": "Forespørgslen mislykkedes",
+      "loadingRows": "Indlæser rækker",
+      "noMatchesTitle": "Ingen matchende rækker",
+      "emptyTitle": "{count, plural, one {Ingen {entity} endnu} other {Ingen {entity} endnu}}",
+      "createTitle": "Tilføj {entity}",
+      "createSubtitle": "Opretter én række i {table}.",
+      "createSubmit": "Tilføj {entity}",
+      "createSuccessTitle": "{name} tilføjet",
+      "createSuccessBody": "Du kan fortryde dette fra notifikationen.",
+      "editTitle": "Rediger {entity}",
+      "saveSubmit": "Gem ændringer",
+      "deleteTitle": "Slet {entity}",
+      "deletePreflight": "Tjekker referencer…",
+      "deleteNoReferences": "Denne række har ingen indgående referencer.",
+      "deleteConsequencesIntro": "Sletning af denne række påvirker også:",
+      "referenceRows": "{count, plural, one {{n} række} other {{n} rækker}}",
+      "confirmPrompt": "Skriv {value} for at bekræfte",
+      "bulkDeleteTitle": "{count, plural, one {Slet {n} række} other {Slet {n} rækker}}",
+      "bulkDeleteBody": "Referencekonsekvenserne gælder for hver eneste valgt række.",
+      "bulkDeleteConfirm": "Slet rækker",
+      "uniqueHelper": "Skal være unik i {table}.",
+      "uniqueHelperCounted": "{count, plural, one {Kontrolleret mod {n} række.} other {Kontrolleret mod {n} rækker.}}",
       "toast": {
-        "created": "{entity} created.",
-        "createFailed": "Create failed.",
-        "saved": "Changes saved.",
-        "updateFailed": "Update failed.",
-        "deleted": "{name} deleted.",
-        "deleteFailed": "Delete failed.",
-        "bulkDeleted": "{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}",
-        "bulkDeleteFailed": "Bulk delete failed.",
-        "undone": "Change undone.",
-        "undoFailed": "Undo failed."
+        "created": "{entity} oprettet.",
+        "createFailed": "Oprettelsen mislykkedes.",
+        "saved": "Ændringerne er gemt.",
+        "updateFailed": "Opdateringen mislykkedes.",
+        "deleted": "{name} slettet.",
+        "deleteFailed": "Sletningen mislykkedes.",
+        "bulkDeleted": "{count, plural, one {{n} række slettet.} other {{n} rækker slettet.}}",
+        "bulkDeleteFailed": "Massesletningen mislykkedes.",
+        "undone": "Ændring fortrudt.",
+        "undoFailed": "Fortrydelsen mislykkedes."
       },
       "detail": {
-        "fields": "Fields",
-        "inboundReferences": "inbound references",
-        "relatedCount": "{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}",
-        "loadError": "Failed to load the record."
+        "fields": "Felter",
+        "inboundReferences": "indgående referencer",
+        "relatedCount": "{count, plural, one {{n} relateret post i {table}} other {{n} relaterede poster i {table}}}",
+        "loadError": "Posten kunne ikke indlæses."
       }
     },
     "queue": {
-      "allSegment": "All",
-      "daysUnit": "{count, plural, one {{count} day} other {{count} days}}",
-      "approvedToast": "{count} approved.",
-      "rejectedToast": "{count} rejected.",
-      "undoneToast": "Decision undone.",
-      "undoFailedToast": "Could not undo this decision.",
-      "failedToast": "Decision failed.",
-      "invalidConfig": "This queue’s stored configuration is invalid. Regenerate the page to restore it.",
-      "queueLabel": "Queue",
-      "statusFilterLabel": "Status filter",
-      "errorTitle": "This queue failed to load",
-      "loading": "Loading queue",
-      "emptyTitle": "Nothing in the queue",
-      "emptyBody": "New requests appear here as they arrive.",
-      "caughtUpTitle": "You're all caught up",
-      "caughtUpBody": "No requests in this tab right now.",
-      "selectItem": "Select {title}",
-      "selectPrompt": "Select a request",
-      "selectBody": "Choose an item to review its details.",
-      "rejectTitle": "Reject requests",
-      "rejectCount": "Selected · {count}",
-      "rejectPlaceholder": "Add a note for the requester…",
-      "rejectReasonLabel": "Rejection reason",
-      "rejectNote": "The requester will be notified with your note."
+      "allSegment": "Alle",
+      "daysUnit": "{count, plural, one {{count} dag} other {{count} dage}}",
+      "approvedToast": "{count} godkendt.",
+      "rejectedToast": "{count} afvist.",
+      "undoneToast": "Beslutningen er fortrudt.",
+      "undoFailedToast": "Denne beslutning kunne ikke fortrydes.",
+      "failedToast": "Beslutningen mislykkedes.",
+      "invalidConfig": "Denne køs gemte konfiguration er ugyldig. Generér siden igen for at gendanne den.",
+      "queueLabel": "Kø",
+      "statusFilterLabel": "Statusfilter",
+      "errorTitle": "Denne kø kunne ikke indlæses",
+      "loading": "Indlæser kø",
+      "emptyTitle": "Intet i køen",
+      "emptyBody": "Nye anmodninger vises her, efterhånden som de kommer ind.",
+      "caughtUpTitle": "Du er helt ajour",
+      "caughtUpBody": "Ingen anmodninger i denne fane lige nu.",
+      "selectItem": "Vælg {title}",
+      "selectPrompt": "Vælg en anmodning",
+      "selectBody": "Vælg et element for at gennemgå dets detaljer.",
+      "rejectTitle": "Afvis anmodninger",
+      "rejectCount": "Valgt · {count}",
+      "rejectPlaceholder": "Tilføj en note til anmoderen…",
+      "rejectReasonLabel": "Årsag til afvisning",
+      "rejectNote": "Anmoderen får besked sammen med din note."
     },
     "dashboard": {
-      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout."
+      "invalidLayout": "Dette dashboards gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout."
     },
     "builder": {
-      "publish": "Publish",
-      "paletteTitle": "Blocks",
-      "inspectorTitle": "Inspector",
-      "startFromTemplate": "Start from a template",
-      "untitledDoc": "Untitled document",
-      "invalidConfig": "This builder page’s stored config is invalid. Regenerate the page or reset it.",
+      "publish": "Udgiv",
+      "paletteTitle": "Blokke",
+      "inspectorTitle": "Inspektør",
+      "startFromTemplate": "Start ud fra en skabelon",
+      "untitledDoc": "Dokument uden titel",
+      "invalidConfig": "Denne byggersides gemte konfiguration er ugyldig. Generér siden igen, eller nulstil den.",
       "starterPicker": {
-        "subtitle": "Selection replaces the current draft."
+        "subtitle": "Dit valg erstatter den nuværende kladde."
       },
       "inspector": {
-        "titleLabel": "Title",
-        "numberLabel": "Number",
-        "currencyLabel": "Currency",
-        "taxRateLabel": "Tax rate %",
-        "modulesLabel": "Modules"
+        "titleLabel": "Titel",
+        "numberLabel": "Nummer",
+        "currencyLabel": "Valuta",
+        "taxRateLabel": "Momssats %",
+        "modulesLabel": "Moduler"
       },
       "summary": {
-        "questions": "Questions",
-        "estLength": "Est. length",
+        "questions": "Spørgsmål",
+        "estLength": "Anslået længde",
         "estMinutes": "~{minutes} min",
-        "steps": "Steps",
-        "triggers": "Triggers",
-        "conditions": "Conditions",
-        "actions": "Actions",
-        "triggerLocked": "The trigger step can’t be removed."
+        "steps": "Trin",
+        "triggers": "Udløsere",
+        "conditions": "Betingelser",
+        "actions": "Handlinger",
+        "triggerLocked": "Udløsertrinnet kan ikke fjernes."
       },
       "publishModal": {
-        "confirmTitle": "Publish survey?",
-        "confirmSubtitle": "Review before it goes live.",
-        "confirmCta": "Publish survey",
-        "publishedTitle": "Survey published",
-        "publishedSubtitle": "Your survey is live and collecting responses right now."
+        "confirmTitle": "Udgiv spørgeskema?",
+        "confirmSubtitle": "Gennemgå det, før det går live.",
+        "confirmCta": "Udgiv spørgeskema",
+        "publishedTitle": "Spørgeskema udgivet",
+        "publishedSubtitle": "Dit spørgeskema er live og samler svar ind lige nu."
       },
       "blocks": {
-        "block-totals-summary": "Totals summary",
-        "block-line-items": "Line items",
-        "block-kpi-row": "KPI row",
-        "block-bar-chart": "Bar chart",
-        "block-line-chart": "Line chart",
-        "block-two-col-table": "Two-column table",
-        "block-tax-breakdown": "Tax breakdown",
-        "block-multi-currency": "Multi-currency",
-        "block-payment-history": "Payment history",
-        "block-discount-codes": "Discount codes",
-        "block-loyalty-banner": "Loyalty points",
-        "block-recurring-banner": "Recurring",
-        "block-qr-pay": "Payment QR",
-        "block-delivery-stepper": "Delivery timeline",
-        "block-signature": "Signature",
-        "block-terms-checkbox": "Terms",
-        "block-approval": "Approval",
-        "block-attachments": "Attachments",
-        "block-late-fees": "Late fees",
-        "block-image-placeholder": "Image",
-        "block-contact": "Contact",
-        "block-highlight-box": "Highlight box"
+        "block-totals-summary": "Totaloversigt",
+        "block-line-items": "Linjeposter",
+        "block-kpi-row": "Nøgletalsrække",
+        "block-bar-chart": "Søjlediagram",
+        "block-line-chart": "Kurvediagram",
+        "block-two-col-table": "Tokolonnetabel",
+        "block-tax-breakdown": "Momsopdeling",
+        "block-multi-currency": "Flere valutaer",
+        "block-payment-history": "Betalingshistorik",
+        "block-discount-codes": "Rabatkoder",
+        "block-loyalty-banner": "Loyalitetspoint",
+        "block-recurring-banner": "Tilbagevendende",
+        "block-qr-pay": "Betalings-QR",
+        "block-delivery-stepper": "Leveringstidslinje",
+        "block-signature": "Underskrift",
+        "block-terms-checkbox": "Vilkår",
+        "block-approval": "Godkendelse",
+        "block-attachments": "Vedhæftede filer",
+        "block-late-fees": "Rykkergebyrer",
+        "block-image-placeholder": "Billede",
+        "block-contact": "Kontakt",
+        "block-highlight-box": "Fremhævningsboks"
       },
       "starters": {
         "titles": {
-          "st-standard": "Standard invoice",
-          "st-recurring": "Recurring subscription",
-          "st-deposit": "Deposit request",
-          "st-credit-note": "Credit note",
-          "st-late-reminder": "Late-payment reminder",
-          "st-quote": "Quote / estimate",
-          "st-proforma": "Pro forma",
-          "st-receipt": "Payment receipt",
-          "st-retainer": "Retainer",
-          "st-usage": "Usage-based invoice",
-          "st-milestone": "Project milestone",
-          "st-donation": "Donation receipt (Tax ID)",
-          "st-monthly": "Monthly summary",
-          "st-quarterly": "Quarterly review",
-          "st-usage-report": "Usage breakdown",
-          "st-exec": "Executive one-pager",
-          "st-welcome": "Welcome email",
-          "st-receipt-email": "Invoice receipt",
-          "st-digest": "Weekly digest",
-          "st-dunning": "Payment reminder"
+          "st-standard": "Standardfaktura",
+          "st-recurring": "Løbende abonnement",
+          "st-deposit": "Anmodning om depositum",
+          "st-credit-note": "Kreditnota",
+          "st-late-reminder": "Rykker for manglende betaling",
+          "st-quote": "Tilbud / overslag",
+          "st-proforma": "Proforma",
+          "st-receipt": "Betalingskvittering",
+          "st-retainer": "Fast honorar",
+          "st-usage": "Forbrugsbaseret faktura",
+          "st-milestone": "Projektmilepæl",
+          "st-donation": "Donationskvittering (skattenummer)",
+          "st-monthly": "Månedsoversigt",
+          "st-quarterly": "Kvartalsgennemgang",
+          "st-usage-report": "Forbrugsoversigt",
+          "st-exec": "Ledelsesresumé på én side",
+          "st-welcome": "Velkomstmail",
+          "st-receipt-email": "Fakturakvittering",
+          "st-digest": "Ugentligt sammendrag",
+          "st-dunning": "Betalingspåmindelse"
         },
         "categories": {
-          "billing": "Billing",
-          "sales": "Sales",
-          "nonProfit": "Non-profit",
-          "reports": "Reports",
-          "lifecycle": "Lifecycle",
-          "transactional": "Transactional",
+          "billing": "Fakturering",
+          "sales": "Salg",
+          "nonProfit": "Nonprofit",
+          "reports": "Rapporter",
+          "lifecycle": "Livscyklus",
+          "transactional": "Transaktionel",
           "marketing": "Marketing"
         }
       }
     },
     "common": {
-      "clearFilters": "Clear filters",
-      "noMatchesBody": "Try a different search or remove a filter.",
-      "detailLabel": "Detail",
-      "loadingRecord": "Loading record"
+      "clearFilters": "Ryd filtre",
+      "noMatchesBody": "Prøv en anden søgning, eller fjern et filter.",
+      "detailLabel": "Detaljer",
+      "loadingRecord": "Indlæser post"
     },
     "directory": {
-      "invalidConfig": "This directory’s stored configuration is invalid. Regenerate the page to restore it.",
-      "searchPlaceholder": "Search people…",
-      "memberCount": "{count, plural, one {{n} person} other {{n} people}}",
-      "errorTitle": "This directory failed to load",
-      "loading": "Loading people",
-      "emptyTitle": "No people yet",
-      "emptyBody": "People appear here as rows land in the table.",
-      "noMatchesTitle": "No matching people",
+      "invalidConfig": "Dette kartoteks gemte konfiguration er ugyldig. Generér siden igen for at gendanne den.",
+      "searchPlaceholder": "Søg efter personer…",
+      "memberCount": "{count, plural, one {{n} person} other {{n} personer}}",
+      "errorTitle": "Dette kartotek kunne ikke indlæses",
+      "loading": "Indlæser personer",
+      "emptyTitle": "Ingen personer endnu",
+      "emptyBody": "Personer vises her, efterhånden som rækker lander i tabellen.",
+      "noMatchesTitle": "Ingen matchende personer",
       "detailTitle": "Person"
     },
     "masterDetail": {
-      "invalidConfig": "This page’s stored configuration is invalid. Regenerate the page to restore it.",
-      "railTitle": "Records",
-      "errorTitle": "This list failed to load",
-      "loading": "Loading records",
-      "emptyBody": "Records appear here as rows land in the table.",
-      "noMatchesTitle": "No matching records",
-      "noMatchesBody": "Try removing a filter.",
-      "selectPrompt": "Select a record",
-      "selectBody": "Choose an item from the list to see its details."
+      "invalidConfig": "Denne sides gemte konfiguration er ugyldig. Generér siden igen for at gendanne den.",
+      "railTitle": "Poster",
+      "errorTitle": "Denne liste kunne ikke indlæses",
+      "loading": "Indlæser poster",
+      "emptyBody": "Poster vises her, efterhånden som rækker lander i tabellen.",
+      "noMatchesTitle": "Ingen matchende poster",
+      "noMatchesBody": "Prøv at fjerne et filter.",
+      "selectPrompt": "Vælg en post",
+      "selectBody": "Vælg et element på listen for at se dets detaljer."
     },
     "chat": {
-      "invalidLayout": "This chat page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "noInboxTitle": "No inbox on this page",
-      "noInboxBody": "Regenerate the page.",
-      "conversationsFailed": "The conversation query failed",
-      "messagesFailed": "The messages query failed",
-      "loadingConversations": "Loading conversations",
-      "loadingMessages": "Loading messages",
-      "selectTitle": "Select a conversation",
-      "selectBody": "Pick a conversation from the inbox to read its messages."
+      "invalidLayout": "Denne chatsides gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
+      "noInboxTitle": "Ingen indbakke på denne side",
+      "noInboxBody": "Generér siden igen.",
+      "conversationsFailed": "Forespørgslen på samtaler mislykkedes",
+      "messagesFailed": "Forespørgslen på beskeder mislykkedes",
+      "loadingConversations": "Indlæser samtaler",
+      "loadingMessages": "Indlæser beskeder",
+      "selectTitle": "Vælg en samtale",
+      "selectBody": "Vælg en samtale i indbakken for at læse dens beskeder."
     },
     "files": {
-      "allFiles": "All files",
-      "recent": "Recent",
-      "starred": "Starred",
-      "invalidLayout": "This files page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "missingSlotTitle": "No file browser on this page",
-      "missingSlotBody": "The stored layout has no browser slot. Regenerate the page.",
-      "loadFailed": "The file query failed",
-      "loading": "Loading files",
-      "uploadsUnavailable": "Uploads are not available on this page yet.",
-      "previewTitle": "File",
-      "kindLabel": "Kind",
+      "allFiles": "Alle filer",
+      "recent": "Seneste",
+      "starred": "Stjernemarkerede",
+      "invalidLayout": "Denne filsides gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
+      "missingSlotTitle": "Ingen filbrowser på denne side",
+      "missingSlotBody": "Det gemte layout har ingen browserplads. Generér siden igen.",
+      "loadFailed": "Forespørgslen på filer mislykkedes",
+      "loading": "Indlæser filer",
+      "uploadsUnavailable": "Upload er endnu ikke tilgængelig på denne side.",
+      "previewTitle": "Fil",
+      "kindLabel": "Type",
       "linkLabel": "Link"
     },
     "logViewer": {
-      "invalidLayout": "This log page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "levelFilterLabel": "Log level filter",
-      "timeFilterLabel": "Time window filter",
+      "invalidLayout": "Denne logsides gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
+      "levelFilterLabel": "Filter for logniveau",
+      "timeFilterLabel": "Filter for tidsvindue",
       "window": {
-        "1h": "1h",
-        "24h": "24h",
-        "7d": "7d"
+        "1h": "1 t",
+        "24h": "24 t",
+        "7d": "7 d"
       },
       "heldCount": "+{count}",
-      "missingSlotTitle": "No log widget on this page",
-      "missingSlotBody": "The stored layout has no log slot. Regenerate the page.",
-      "loadFailed": "The log query failed",
-      "loading": "Loading log entries",
-      "traceTitle": "Trace",
-      "latestTitle": "Latest activity",
-      "backToLatest": "Back to latest",
-      "eventFallback": "Event"
+      "missingSlotTitle": "Ingen log-widget på denne side",
+      "missingSlotBody": "Det gemte layout har ingen logplads. Generér siden igen.",
+      "loadFailed": "Logforespørgslen mislykkedes",
+      "loading": "Indlæser logposter",
+      "traceTitle": "Sporing",
+      "latestTitle": "Seneste aktivitet",
+      "backToLatest": "Tilbage til seneste",
+      "eventFallback": "Hændelse"
     },
     "calendar": {
-      "eventCount": "{count, plural, one {{n} event} other {{n} events}}",
-      "composePlaceholder": "Event title…",
-      "addEvent": "Add event",
-      "dateRange": "Date range",
-      "agendaTitle": "Agenda",
-      "categoriesTitle": "Categories",
-      "upcomingTitle": "Upcoming",
-      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout."
+      "eventCount": "{count, plural, one {{n} begivenhed} other {{n} begivenheder}}",
+      "composePlaceholder": "Titel på begivenhed…",
+      "addEvent": "Tilføj begivenhed",
+      "dateRange": "Datointerval",
+      "agendaTitle": "Dagsorden",
+      "categoriesTitle": "Kategorier",
+      "upcomingTitle": "Kommende",
+      "invalidLayout": "Denne kalenders gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout."
     },
     "scheduler": {
-      "previousWeek": "Previous week",
-      "nextWeek": "Next week",
-      "week": "Week",
-      "month": "Month",
-      "invalidLayout": "This schedule’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "shiftCount": "{count, plural, one {{n} shift} other {{n} shifts}}",
-      "addShift": "Add shift"
+      "previousWeek": "Forrige uge",
+      "nextWeek": "Næste uge",
+      "week": "Uge",
+      "month": "Måned",
+      "invalidLayout": "Denne plans gemte layout er ugyldigt. Generér siden igen, eller nulstil dens layout.",
+      "shiftCount": "{count, plural, one {{n} vagt} other {{n} vagter}}",
+      "addShift": "Tilføj vagt"
     },
     "settings": {
-      "title": "Notification settings",
-      "subtitle": "Choose what you're notified about and how",
-      "matrixLabel": "Notify me about",
-      "rowHeader": "Event",
-      "saved": "Saved",
-      "unavailableTag": "Not available yet",
-      "loading": "Loading preferences",
-      "errorTitle": "These settings failed to load",
-      "emptyTitle": "Nothing to configure yet",
-      "emptyBody": "Notification events appear here as producers ship."
+      "title": "Notifikationsindstillinger",
+      "subtitle": "Vælg, hvad du får besked om, og hvordan",
+      "matrixLabel": "Giv mig besked om",
+      "rowHeader": "Hændelse",
+      "saved": "Gemt",
+      "unavailableTag": "Ikke tilgængelig endnu",
+      "loading": "Indlæser præferencer",
+      "errorTitle": "Disse indstillinger kunne ikke indlæses",
+      "emptyTitle": "Intet at konfigurere endnu",
+      "emptyBody": "Notifikationshændelser vises her, efterhånden som producenterne udgives."
     },
     "pageCrud": {
-      "description": "The canonical table page: searchable data grid, create/edit forms, safe deletes with reference checks, and undoable changes."
+      "description": "Den kanoniske tabelside: søgbart datagitter, opret/rediger-formularer, sikre sletninger med referencetjek og ændringer, der kan fortrydes."
     },
     "pageDashboard": {
-      "description": "A widget dashboard over your data: KPI cards, charts, and lists on an editable grid."
+      "description": "Et widget-dashboard over dine data: nøgletalskort, diagrammer og lister på et redigerbart gitter."
     },
     "pageBoard": {
-      "description": "A kanban board grouped by a status field — drag cards between columns to update records."
+      "description": "En kanban-tavle grupperet efter et statusfelt — træk kort mellem kolonner for at opdatere poster."
     },
     "pageCalendar": {
-      "description": "A month calendar with agenda, category filters, and quick event capture from a date field."
+      "description": "En månedskalender med dagsorden, kategorifiltre og hurtig oprettelse af begivenheder ud fra et datofelt."
     },
     "pageScheduler": {
-      "description": "A week-by-resource shift matrix with capacity tracking and coverage totals."
+      "description": "Et vagtgitter med uge mod ressource, kapacitetsopfølgning og dækningstotaler."
     },
     "pageDirectory": {
-      "description": "A people directory with search, group filters, and a profile drawer."
+      "description": "Et personkartotek med søgning, gruppefiltre og et profilsidepanel."
     },
     "pageMasterDetail": {
-      "description": "A list-beside-detail layout: pick a record on the left, work with it on the right."
+      "description": "Et layout med liste ved siden af detaljer: vælg en post til venstre, og arbejd med den til højre."
     },
     "pageQueueInbox": {
-      "description": "A review queue with approve/reject decisions, bulk actions, and undo."
+      "description": "En gennemgangskø med godkend/afvis-beslutninger, massehandlinger og fortrydelse."
     },
     "pageLogViewer": {
-      "description": "A live-tailing log table with level and time filters and a trace side panel."
+      "description": "En logtabel med live-visning, filtre for niveau og tid samt et sidepanel til sporing."
     },
     "pageFiles": {
-      "description": "A file browser with smart folders, uploads, and a preview drawer."
+      "description": "En filbrowser med smarte mapper, upload og et sidepanel til forhåndsvisning."
     },
     "pageChat": {
-      "description": "A conversation inbox beside a message thread, bound to your messages tables."
+      "description": "En samtaleindbakke ved siden af en beskedtråd, bundet til dine beskedtabeller."
     },
     "pageBuilder": {
-      "description": "A drag-and-drop document builder with block palette, inspector, and publish flow."
+      "description": "En træk-og-slip-dokumentbygger med blokpalet, inspektør og udgivelsesflow."
     },
     "pageWizard": {
-      "description": "A multi-step guided flow that walks users through a structured process."
+      "description": "Et guidet flow i flere trin, der fører brugerne gennem en struktureret proces."
     },
     "pageSettings": {
-      "description": "A notification-preferences matrix with per-channel toggles and autosave."
+      "description": "En matrix over notifikationspræferencer med kontakter pr. kanal og automatisk lagring."
     }
   },
   "frame": {
-    "noResult": "No result for widget",
-    "emptyTitle": "No data for range",
-    "loadError": "Something went wrong loading this widget.",
-    "renderError": "This widget failed to render.",
-    "refreshing": "Refreshing",
-    "infoLabel": "Widget info",
-    "menuLabel": "Widget menu"
+    "noResult": "Intet resultat for widget",
+    "emptyTitle": "Ingen data for perioden",
+    "loadError": "Noget gik galt under indlæsningen af denne widget.",
+    "renderError": "Denne widget kunne ikke vises.",
+    "refreshing": "Opdaterer",
+    "infoLabel": "Widget-info",
+    "menuLabel": "Widget-menu"
   },
   "charts": {
     "livePillLabel": "Live",
     "forecast": {
-      "nowLabel": "Now",
-      "forecastLabel": "Forecast",
-      "actualLabel": "Actual"
+      "nowLabel": "Nu",
+      "forecastLabel": "Prognose",
+      "actualLabel": "Faktisk"
     },
-    "otherLabel": "Other",
+    "otherLabel": "Andet",
     "heat": {
-      "lessLabel": "Less",
-      "moreLabel": "More"
+      "lessLabel": "Mindre",
+      "moreLabel": "Mere"
     },
     "choropleth": {
-      "lowLabel": "Low",
-      "highLabel": "High"
+      "lowLabel": "Lav",
+      "highLabel": "Høj"
     },
     "funnel": {
-      "stepConversion": "{pct}% continue",
-      "overallConversion": "{pct}% overall"
+      "stepConversion": "{pct}% fortsætter",
+      "overallConversion": "{pct}% samlet"
     }
   }
 } as const;
