@@ -20,7 +20,7 @@ import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tansta
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { AlertTriangle, Globe2, Languages, RotateCcw, Search } from 'lucide-react';
-import { availableLocales, localeEntry, type LocaleId } from '@adminium/i18n/registry';
+import { availableLocales, localeEntry } from '@adminium/i18n/registry';
 import {
   Badge,
   Button,
@@ -178,8 +178,11 @@ function KeyBrowser({ locales }: { locales: LocaleManifestEntry[] }): ReactNode 
   const onSaved = (): void => {
     void queryClient.invalidateQueries({ queryKey: ['i18n'] });
     // Repaint this tab immediately rather than waiting for the socket to come
-    // back around — the admin should see their own edit at once.
-    void resyncOverrides(locale as LocaleId);
+    // back around — the admin should see their own edit at once. Resyncs the
+    // locale being READ, not the one being edited: editing ar_EG from an en_US
+    // session must not install Arabic overrides into that session, and when the
+    // two do coincide this picks the edit up anyway.
+    void resyncOverrides();
   };
 
   const total = keys.data?.total ?? 0;
@@ -578,7 +581,7 @@ export function TranslationsPage(): ReactNode {
 
   const onChanged = (): void => {
     void queryClient.invalidateQueries({ queryKey: ['i18n'] });
-    void resyncOverrides(bootstrap.prefs.locale);
+    void resyncOverrides();
   };
 
   const locales = manifest.data?.locales ?? [];
