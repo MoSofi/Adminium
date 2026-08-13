@@ -1,7 +1,7 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { useState } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ModalBody, ModalFooter, ModalHeader } from '../modal/index.js';
 import { MODAL_EXIT_MS, TwoPhaseModal, useModalFlow } from './TwoPhaseModal.js';
@@ -69,6 +69,37 @@ describe('TwoPhaseModal', () => {
     await user.click(screen.getByRole('button', { name: 'Reopen' }));
     expect(screen.getByText('Invite member')).toBeDefined();
     expect(screen.queryByRole('heading', { name: 'Invitation sent' })).toBeNull();
+  });
+
+  it('unmounting before the exit animation cancels the deferred reset', () => {
+    // Regression: the deferred `flow.reset()` used to survive unmount, firing a
+    // setState against a dead component — and, on a slow CI runner, after the
+    // test environment had been torn down.
+    const reset = vi.fn();
+    function UnmountHarness() {
+      const flow = useModalFlow<{ email: string }>();
+      return (
+        <TwoPhaseModal open flow={{ ...flow, reset }} successTitle="Invitation sent" doneLabel="Done">
+          <ModalHeader title="Invite member" closeLabel="Close" />
+          <ModalBody />
+          <ModalFooter />
+        </TwoPhaseModal>
+      );
+    }
+
+    vi.useFakeTimers();
+    try {
+      const { unmount } = render(<UnmountHarness />);
+      // Radix's close button runs onOpenChange(false), scheduling the reset.
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      unmount();
+      act(() => {
+        vi.advanceTimersByTime(MODAL_EXIT_MS * 4);
+      });
+      expect(reset).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('Esc closes from the form phase (Radix built-in)', async () => {

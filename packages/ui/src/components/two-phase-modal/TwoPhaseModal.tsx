@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { Modal, type ModalProps } from '../modal/Modal.js';
@@ -76,6 +76,16 @@ export function TwoPhaseModal<T>({
   ...modalProps
 }: TwoPhaseModalProps<T>) {
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Unmounting before the deferred reset fires would otherwise leave the timer
+  // to call `flow.reset()` against a dead component (a setState-after-unmount
+  // in the app; in tests, a callback that can outlive the environment teardown).
+  useEffect(
+    () => () => {
+      if (resetTimer.current !== null) clearTimeout(resetTimer.current);
+    },
+    [],
+  );
 
   const handleOpenChange = (open: boolean) => {
     onOpenChange?.(open);
