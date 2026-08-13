@@ -27,10 +27,15 @@ export const emailTemplateDetailReply = emailTemplateListItem.extend({
 });
 export type EmailTemplateDetailView = z.infer<typeof emailTemplateDetailReply>;
 
-/** `locale` is `xx_XX`-style, ≤5 chars (column width, 0006 migration). */
+/**
+ * `locale` is a canonical locale id. Widened from 5 to 35 chars alongside
+ * migration 0012 (23-runtime-translations.md §3.5): an admin-created locale
+ * may carry a script subtag, and a 5-char cap would make a custom locale
+ * unable to have an email variant at all.
+ */
 export const emailTemplateParams = z.object({
   key: z.string().min(1).max(80),
-  locale: z.string().min(2).max(5),
+  locale: z.string().min(2).max(35),
 });
 
 export const emailTemplatePutBody = z.object({

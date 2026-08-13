@@ -84,13 +84,11 @@ export function TestStep({
     if (preview === null) return;
     push('running', t('studio.test.log.readingFile', 'Reading uploaded schema file…'));
     await wait(lineDelayMs);
-    push('info', t('studio.test.log.parsingFile', 'Parsing {file}…').replace('{file}', preview.fileName));
+    push('info', t('studio.test.log.parsingFile', 'Parsing {file}…', { file: preview.fileName }));
     await wait(lineDelayMs);
     push(
       'ok',
-      t('studio.test.log.detected', 'Detected {tables} tables · {columns} columns')
-        .replace('{tables}', String(preview.tables))
-        .replace('{columns}', String(preview.columns)),
+      t('studio.test.log.detected', 'Detected {tables} tables · {columns} columns', { tables: String(preview.tables), columns: String(preview.columns) }),
     );
     await wait(lineDelayMs);
     for (const warning of preview.warnings.slice(0, MAX_WARNING_LINES)) {
@@ -99,10 +97,7 @@ export function TestStep({
     if (preview.warnings.length > MAX_WARNING_LINES) {
       push(
         'warn',
-        t('studio.test.log.moreWarnings', '+{count} more parser warnings').replace(
-          '{count}',
-          String(preview.warnings.length - MAX_WARNING_LINES),
-        ),
+        t('studio.test.log.moreWarnings', '+{count} more parser warnings', { count: String(preview.warnings.length - MAX_WARNING_LINES), }),
       );
     }
     pushCapabilityNotes();
@@ -116,9 +111,7 @@ export function TestStep({
     const columns = tables.reduce((sum, table) => sum + table.columns.length, 0);
     push(
       'ok',
-      t('studio.test.log.found', 'Found {tables} tables · {columns} columns')
-        .replace('{tables}', String(tables.length))
-        .replace('{columns}', String(columns)),
+      t('studio.test.log.found', 'Found {tables} tables · {columns} columns', { tables: String(tables.length), columns: String(columns) }),
     );
     await wait(lineDelayMs);
     push('info', t('studio.test.log.mapping', 'Mapping column types → input widgets'));
@@ -131,10 +124,7 @@ export function TestStep({
       'ok',
       proposedMasks === null
         ? t('studio.test.log.piiDoneUnknown', 'PII scan complete')
-        : t('studio.test.log.piiDone', 'PII scan complete — {count} columns masked by default').replace(
-            '{count}',
-            String(proposedMasks),
-          ),
+        : t('studio.test.log.piiDone', 'PII scan complete — {count} columns masked by default', { count: String(proposedMasks), }),
     );
     pushCapabilityNotes();
     push('ok', t('studio.test.log.ready', 'Ready'));
@@ -188,10 +178,7 @@ export function TestStep({
       onPatch({ readOnly: probe.readOnly, privileges: probe.privileges });
       push(
         'ok',
-        t('studio.test.log.connected', 'Connected ({latency} ms) · read-only introspection').replace(
-          '{latency}',
-          String(Math.round(probe.latencyMs)),
-        ),
+        t('studio.test.log.connected', 'Connected ({latency} ms) · read-only introspection', { latency: String(Math.round(probe.latencyMs)), }),
       );
       await wait(lineDelayMs);
 

@@ -62,9 +62,7 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
         await wait(lineDelayMs);
         push(
           'ok',
-          t('studio.generate.log.done', '{pages} pages generated across {groups} nav groups')
-            .replace('{pages}', String(generated.pages))
-            .replace('{groups}', String(generated.navGroups.length)),
+          t('studio.generate.log.done', '{pages} pages generated across {groups} nav groups', { pages: String(generated.pages), groups: String(generated.navGroups.length) }),
         );
         setResult(generated);
         setPhase('done');
@@ -101,9 +99,7 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
     return (
       <SuccessState
         title={t('studio.generate.successTitle', 'Your dashboard is ready')}
-        body={t('studio.generate.successBody', '{pages} pages across {groups} navigation groups — generated from your schema, editable in Studio.')
-          .replace('{pages}', String(result.pages))
-          .replace('{groups}', String(result.navGroups.length))}
+        body={t('studio.generate.successBody', '{pages} pages across {groups} navigation groups — generated from your schema, editable in Studio.', { pages: String(result.pages), groups: String(result.navGroups.length) })}
         doneLabel={t('studio.generate.openApp', 'Open your app')}
         onDone={() => {
           clearWizardState();

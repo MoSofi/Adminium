@@ -130,10 +130,7 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
                 <li key={relation.id} className="flex flex-wrap items-center gap-2">
                   <MonoText className="truncate text-[12px]">{endpointText(relation)}</MonoText>
                   <Badge tone="accent">
-                    {t('studio.remap.relations.confidence', 'inferred · {pct}%').replace(
-                      '{pct}',
-                      String(Math.round(relation.confidence * 100)),
-                    )}
+                    {t('studio.remap.relations.confidence', 'inferred · {pct}%', { pct: String(Math.round(relation.confidence * 100)), })}
                   </Badge>
                   {accepted ? <Badge tone="pos">{t('studio.remap.relations.accepted', 'Accepted')}</Badge> : null}
                   {suppressed ? (

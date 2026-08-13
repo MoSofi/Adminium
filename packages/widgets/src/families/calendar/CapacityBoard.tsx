@@ -42,6 +42,7 @@ export interface CapacityBoardProps {
 }
 
 type LoadStatus = 'overloaded' | 'balanced' | 'available';
+type CapacityPeriod = 'week' | 'month';
 const STATUS_TONE: Record<LoadStatus, Tone> = {
   overloaded: 'danger',
   balanced: 'pos',
@@ -53,6 +54,19 @@ const STATUS_LABEL: Record<LoadStatus, string> = {
   balanced: 'Balanced',
   available: 'Available',
 };
+/**
+ * Literal bundle key per status/period, so the extractor and the bundle-parity
+ * tests see every key and a new enum member is a compile error (10 §2.5).
+ */
+const STATUS_KEY = {
+  overloaded: 'ui:widgets.calendar.capacityBoard.status.overloaded',
+  balanced: 'ui:widgets.calendar.capacityBoard.status.balanced',
+  available: 'ui:widgets.calendar.capacityBoard.status.available',
+} as const satisfies Record<LoadStatus, string>;
+const PERIOD_KEY = {
+  week: 'ui:widgets.calendar.capacityBoard.period.week',
+  month: 'ui:widgets.calendar.capacityBoard.period.month',
+} as const satisfies Record<CapacityPeriod, string>;
 
 /** Tone for a project (explicit assignment tone, else stable per project name). */
 function projectTone(assignment: CapacityAssignment): Tone {
@@ -115,7 +129,7 @@ export function CapacityBoard({
                 </div>
                 <MonoText className="tabular-nums text-caption font-semibold text-fg">{fmt.percent(util / 100)}</MonoText>
                 <StatusPill status={status} tone={STATUS_TONE[status]}>
-                  {t(`ui:widgets.calendar.capacityBoard.status.${status}`, STATUS_LABEL[status])}
+                  {t(STATUS_KEY[status], STATUS_LABEL[status])}
                 </StatusPill>
               </div>
               <div
@@ -144,7 +158,7 @@ export function CapacityBoard({
               <p className="mt-1 text-caption text-fg-subtle">
                 <MonoText className="tabular-nums">{fmt.number(totalHours)}</MonoText> / <MonoText className="tabular-nums">{fmt.number(cap)}</MonoText>
                 {t('ui:widgets.calendar.capacityBoard.periodLabel', 'h · {period}', {
-                  period: t(`ui:widgets.calendar.capacityBoard.period.${period}`, period),
+                  period: t(PERIOD_KEY[period], period),
                 })}
               </p>
             </li>

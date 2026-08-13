@@ -50,7 +50,10 @@ export default {
       "done": "Back to sign in",
       "rateLimited": "Too many requests — try again later.",
       "failed": "Something went wrong. Try again.",
-      "smtpUnconfigured": "This Adminium has no email server configured, so it cannot send a reset link. Ask an administrator to reset your password for you."
+      "smtpUnconfigured": "This Adminium has no email server configured, so it cannot send a reset link. Ask an administrator to reset your password for you.",
+      "subtitle": "Enter your email and we'll send you a reset link.",
+      "sentBody": "We sent a reset link to {email}. It expires in 15 minutes.",
+      "resendHint": "Didn't get it?"
     },
     "reset": {
       "title": "Set a new password",
@@ -66,7 +69,8 @@ export default {
       "strong": "Strong",
       "tooShort": "Use at least 8 characters.",
       "submit": "Reset password",
-      "failed": "Reset failed. Try again."
+      "failed": "Reset failed. Try again.",
+      "mismatch": "Passwords don't match."
     },
     "otp": {
       "title": "Two-factor authentication",
@@ -113,6 +117,7 @@ export default {
     "userMenu": "Account menu",
     "profile": "Profile",
     "preferences": "Preferences",
+    "studio": "Studio",
     "signOut": "Sign out"
   },
   "palette": {
@@ -127,7 +132,11 @@ export default {
     "themeLight": "Switch to light theme",
     "footerNavigate": "navigate",
     "footerOpen": "select",
-    "footerClose": "close"
+    "footerClose": "close",
+    "recent": "Recent",
+    "searching": "Searching records…",
+    "records": "Records",
+    "empty": "No results for \"{query}\""
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -138,6 +147,7 @@ export default {
     "panel": "Show shortcuts panel",
     "search": "Focus search",
     "sidebar": "Toggle sidebar",
+    "studio": "Go to Studio",
     "theme": "Toggle light / dark",
     "then": "then",
     "footerPre": "Press",
@@ -145,7 +155,86 @@ export default {
   },
   "states": {
     "checked": "checked 8s ago",
-    "diagnostics": "Diagnostics"
+    "diagnostics": "Diagnostics",
+    "reference": {
+      "label": "Reference",
+      "copy": "Copy reference",
+      "copied": "Copied",
+      "hint": "Quote this when reporting the problem — your server log records the same id."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "We couldn't find that page. It may have been moved or the link is broken.",
+      "primary": "Back to dashboard",
+      "secondary": "Contact support"
+    },
+    "forbidden": {
+      "title": "You don’t have access",
+      "body": "This dashboard is restricted. Ask a workspace admin to grant you access.",
+      "primary": "Request access",
+      "secondary": "Go back"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "body": "Adminium hit an unexpected error handling this request. The details are in the server log.",
+      "primary": "Try again"
+    },
+    "dbUnreachable": {
+      "title": "Database unreachable",
+      "body": "We couldn't connect to prod-db. Your dashboards will resume once the connection is restored.",
+      "primary": "Retry connection",
+      "secondary": "Edit connection",
+      "diag": {
+        "status": "connection timed out (10s)",
+        "hint": "allowlist 52.9.14.2, then retry"
+      }
+    },
+    "maintenance": {
+      "title": "Scheduled maintenance",
+      "body": "Adminium is undergoing maintenance and will be back shortly. Thanks for your patience.",
+      "primary": "View status"
+    },
+    "rateLimited": {
+      "title": "Rate limit reached",
+      "body": "Too many requests in a short time. Wait a few minutes and try again.",
+      "primary": "Try again",
+      "secondary": "Go back"
+    },
+    "offline": {
+      "title": "You're offline",
+      "body": "Check your internet connection. Adminium will reconnect automatically when you’re back.",
+      "primary": "Retry now",
+      "banner": "You're offline — trying to reconnect…"
+    },
+    "expiredLink": {
+      "title": "This link has expired",
+      "body": "Magic sign-in links expire after 10 minutes. Request a fresh one to continue.",
+      "primary": "Send a new link",
+      "secondary": "Back to sign in"
+    },
+    "expiredSession": {
+      "title": "Your session expired",
+      "body": "For your security you were signed out after a period of inactivity. Sign in to pick up where you left off.",
+      "primary": "Sign in again"
+    },
+    "emptyNoSources": {
+      "title": "No data sources yet",
+      "body": "Connect a PostgreSQL database and Adminium will generate your first admin dashboard.",
+      "primary": "Connect a database",
+      "secondary": "Import sample data"
+    },
+    "readOnly": {
+      "title": "Read-only mode",
+      "body": "You have Viewer access to this workspace. You can explore dashboards, but editing and destructive actions are disabled.",
+      "primary": "Request edit access",
+      "secondary": "Got it"
+    },
+    "suspended": {
+      "title": "This workspace is suspended",
+      "body": "This workspace has been suspended by an administrator. Your data is preserved — contact the workspace owner to restore access.",
+      "primary": "Contact owner",
+      "secondary": "Go back"
+    }
   },
   "notFound": {
     "title": "This page went missing",
@@ -154,7 +243,8 @@ export default {
     "matches": "Matching pages",
     "popular": "Popular destinations",
     "goBack": "Go back",
-    "backToDashboard": "Back to dashboard"
+    "backToDashboard": "Back to dashboard",
+    "noMatches": "No pages match \"{query}\""
   },
   "page": {
     "invalid": {
@@ -205,7 +295,8 @@ export default {
     },
     "locale": {
       "label": "Language",
-      "directionNote": "Text direction: right to left (set automatically by the language)"
+      "directionNote": "Text direction: right to left (set automatically by the language)",
+      "communityDraft": "This translation is a community draft — it has not been reviewed by a native speaker yet."
     }
   },
   "account": {
@@ -1027,7 +1118,8 @@ export default {
         "unique": "UNIQUE",
         "pii": "PII",
         "masked": "Masked"
-      }
+      },
+      "unavailableTitle": "Schema remap editor not available"
     }
   },
   "onboarding": {
@@ -1962,5 +2054,9 @@ export default {
       "reportFailed": "Scheduled report failed",
       "backupCompleted": "Backup completed"
     }
+  },
+  "theme": {
+    "toLight": "Switch to light theme",
+    "toDark": "Switch to dark theme"
   }
 } as const;

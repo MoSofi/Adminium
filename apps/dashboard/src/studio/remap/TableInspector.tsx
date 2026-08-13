@@ -68,10 +68,7 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
 
       <FormField
         label={t('studio.remap.table.labelOverride', 'Display label')}
-        helper={t('studio.remap.table.labelHelper', 'Inferred: {name}').replace(
-          '{name}',
-          titleCase(table.name),
-        )}
+        helper={t('studio.remap.table.labelHelper', 'Inferred: {name}', { name: titleCase(table.name), })}
         {...(fieldError === undefined ? {} : { error: fieldError })}
       >
         <Input
@@ -143,10 +140,7 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
               value:
                 semantics?.hierarchy == null
                   ? '—'
-                  : t('studio.remap.table.selfFk', 'Self-reference via {column}').replace(
-                      '{column}',
-                      semantics.hierarchy.parentColumn,
-                    ),
+                  : t('studio.remap.table.selfFk', 'Self-reference via {column}', { column: semantics.hierarchy.parentColumn, }),
             },
             {
               label: t('studio.remap.table.polymorphic', 'Polymorphic pairs'),

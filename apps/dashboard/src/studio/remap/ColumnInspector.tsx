@@ -99,10 +99,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
 
       <FormField
         label={t('studio.remap.column.labelOverride', 'Display label')}
-        helper={t('studio.remap.column.labelHelper', 'Inferred: {name}').replace(
-          '{name}',
-          titleCase(column.name),
-        )}
+        helper={t('studio.remap.column.labelHelper', 'Inferred: {name}', { name: titleCase(column.name), })}
         {...(fieldError === undefined ? {} : { error: fieldError })}
       >
         <Input
@@ -118,9 +115,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
 
       <FormField
         label={t('studio.remap.column.logicalType', 'Logical type')}
-        helper={t('studio.remap.column.logicalTypeHelper', 'Inferred: {type} (from {dbType}) — mapped by the adapter; not overridable in v1.')
-          .replace('{type}', column.logicalType)
-          .replace('{dbType}', column.dbType)}
+        helper={t('studio.remap.column.logicalTypeHelper', 'Inferred: {type} (from {dbType}) — mapped by the adapter; not overridable in v1.', { type: column.logicalType, dbType: column.dbType })}
         tag={<Tag mono>{column.logicalType}</Tag>}
       >
         <Select disabled value={column.logicalType} onChange={() => undefined} mono>
@@ -137,10 +132,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
         helper={
           semantics === null
             ? t('studio.remap.column.unclassified', 'Not classified yet.')
-            : t('studio.remap.column.semanticHelper', 'Classifier: {tag} · {confidence}% confidence · source: {source}')
-                .replace('{tag}', semantics.primary)
-                .replace('{confidence}', String(confidencePct))
-                .replace('{source}', semantics.source)
+            : t('studio.remap.column.semanticHelper', 'Classifier: {tag} · {confidence}% confidence · source: {source}', { tag: semantics.primary, confidence: String(confidencePct), source: semantics.source })
         }
       >
         <Select
@@ -152,7 +144,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
           }}
         >
           <option value="">
-            {t('studio.remap.column.semanticInferred', 'inferred: {tag}').replace('{tag}', inferredTag)}
+            {t('studio.remap.column.semanticInferred', 'inferred: {tag}', { tag: inferredTag })}
           </option>
           {SEMANTIC_TAGS.map((tag) => (
             <option key={tag} value={tag}>
@@ -232,7 +224,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
               <li key={value} className="grid grid-cols-[minmax(4rem,1fr)_minmax(6rem,1.4fr)_auto] items-center gap-2">
                 <MonoText className="truncate text-[12px]">{value}</MonoText>
                 <Input
-                  aria-label={t('studio.remap.column.enumLabelFor', 'Label for {value}').replace('{value}', value)}
+                  aria-label={t('studio.remap.column.enumLabelFor', 'Label for {value}', { value: value })}
                   value={enumLabels[value] ?? ''}
                   placeholder={titleCase(value)}
                   onChange={(event) => {
@@ -243,7 +235,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                   }}
                 />
                 <Select
-                  aria-label={t('studio.remap.column.enumToneFor', 'Tone for {value}').replace('{value}', value)}
+                  aria-label={t('studio.remap.column.enumToneFor', 'Tone for {value}', { value: value })}
                   value={enumTones[value] ?? ''}
                   onChange={(event) => {
                     const tones = { ...enumTones };

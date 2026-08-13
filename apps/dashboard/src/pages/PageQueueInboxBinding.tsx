@@ -88,12 +88,8 @@ export function PageQueueInboxBinding({ page, adapters }: PageTemplateProps) {
         const failed = result.results.filter((entry) => !entry.ok).length;
         if (failed > 0) {
           throw new Error(
-            t(
-              'templates.queueInbox.bulkFailed',
-              '{failed} of {total} selected rows could not be updated.',
-            )
-              .replace('{failed}', String(failed))
-              .replace('{total}', String(result.results.length)),
+            t('templates.queueInbox.bulkFailed',
+              '{failed} of {total} selected rows could not be updated.', { failed: String(failed), total: String(result.results.length) }),
           );
         }
         return { undoToken: result.undoToken };

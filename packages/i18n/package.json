@@ -26,6 +26,14 @@
       "types": "./dist/locales.d.ts",
       "default": "./dist/locales.js"
     },
+    "./editing": {
+      "types": "./dist/editing.d.ts",
+      "default": "./dist/editing.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
     "./resources": {
       "types": "./dist/resources/index.d.ts",
       "default": "./dist/resources/index.js"
@@ -34,6 +42,10 @@
   },
   "scripts": {
     "gen:resources": "node scripts/gen-resources.mjs",
+    "gen:a11y-keys": "node scripts/gen-a11y-keys.mjs",
+    "i18n:meta": "node scripts/meta.mjs report",
+    "i18n:check": "node scripts/meta.mjs check",
+    "i18n:review": "node scripts/meta.mjs review",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",

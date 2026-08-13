@@ -50,7 +50,10 @@ export default {
       "done": "Tilbage til login",
       "rateLimited": "For mange anmodninger — prøv igen senere.",
       "failed": "Noget gik galt. Prøv igen.",
-      "smtpUnconfigured": "Dette Adminium har ingen mailserver konfigureret og kan derfor ikke sende et nulstillingslink. Bed en administrator om at nulstille din adgangskode."
+      "smtpUnconfigured": "Dette Adminium har ingen mailserver konfigureret og kan derfor ikke sende et nulstillingslink. Bed en administrator om at nulstille din adgangskode.",
+      "subtitle": "Indtast din e-mail, så sender vi dig et nulstillingslink.",
+      "sentBody": "Vi har sendt et nulstillingslink til {email}. Det udløber om 15 minutter.",
+      "resendHint": "Fik du det ikke?"
     },
     "reset": {
       "title": "Vælg en ny adgangskode",
@@ -66,7 +69,8 @@ export default {
       "strong": "Stærk",
       "tooShort": "Brug mindst 8 tegn.",
       "submit": "Nulstil adgangskode",
-      "failed": "Nulstilling mislykkedes. Prøv igen."
+      "failed": "Nulstilling mislykkedes. Prøv igen.",
+      "mismatch": "Adgangskoderne er ikke ens."
     },
     "otp": {
       "title": "Tofaktorgodkendelse",
@@ -113,6 +117,7 @@ export default {
     "userMenu": "Kontomenu",
     "profile": "Profil",
     "preferences": "Præferencer",
+    "studio": "Studio",
     "signOut": "Log ud"
   },
   "palette": {
@@ -127,7 +132,11 @@ export default {
     "themeLight": "Skift til lyst tema",
     "footerNavigate": "naviger",
     "footerOpen": "vælg",
-    "footerClose": "luk"
+    "footerClose": "luk",
+    "recent": "Seneste",
+    "searching": "Søger i poster…",
+    "records": "Poster",
+    "empty": "Ingen resultater for „{query}“"
   },
   "shortcuts": {
     "title": "Tastaturgenveje",
@@ -138,6 +147,7 @@ export default {
     "panel": "Vis genvejspanelet",
     "search": "Fokusér søgning",
     "sidebar": "Slå sidepanelet til/fra",
+    "studio": "Gå til Studio",
     "theme": "Skift mellem lys / mørk",
     "then": "derefter",
     "footerPre": "Tryk på",
@@ -145,7 +155,86 @@ export default {
   },
   "states": {
     "checked": "tjekket for 8 sek. siden",
-    "diagnostics": "Diagnostik"
+    "diagnostics": "Diagnostik",
+    "reference": {
+      "label": "Reference",
+      "copy": "Kopiér reference",
+      "copied": "Kopieret",
+      "hint": "Angiv den, når du rapporterer problemet — din serverlog indeholder det samme id."
+    },
+    "notFound": {
+      "title": "Siden blev ikke fundet",
+      "body": "Vi kunne ikke finde den side. Den er måske flyttet, eller linket er ødelagt.",
+      "primary": "Tilbage til dashboardet",
+      "secondary": "Kontakt support"
+    },
+    "forbidden": {
+      "title": "Du har ikke adgang",
+      "body": "Dette dashboard er adgangsbegrænset. Bed en administrator i arbejdsområdet om at give dig adgang.",
+      "primary": "Anmod om adgang",
+      "secondary": "Gå tilbage"
+    },
+    "error": {
+      "title": "Noget gik galt",
+      "body": "Adminium stødte på en uventet fejl under behandlingen af denne anmodning. Detaljerne findes i serverloggen.",
+      "primary": "Prøv igen"
+    },
+    "dbUnreachable": {
+      "title": "Databasen kan ikke nås",
+      "body": "Vi kunne ikke forbinde til prod-db. Dine dashboards genoptages, så snart forbindelsen er genoprettet.",
+      "primary": "Prøv forbindelsen igen",
+      "secondary": "Redigér forbindelsen",
+      "diag": {
+        "status": "forbindelsen fik timeout (10s)",
+        "hint": "tillad 52.9.14.2, prøv så igen"
+      }
+    },
+    "maintenance": {
+      "title": "Planlagt vedligeholdelse",
+      "body": "Adminium er under vedligeholdelse og er tilbage om kort tid. Tak for tålmodigheden.",
+      "primary": "Se status"
+    },
+    "rateLimited": {
+      "title": "Grænsen for forespørgsler er nået",
+      "body": "For mange forespørgsler på kort tid. Vent et par minutter, og prøv igen.",
+      "primary": "Prøv igen",
+      "secondary": "Gå tilbage"
+    },
+    "offline": {
+      "title": "Du er offline",
+      "body": "Tjek din internetforbindelse. Adminium forbinder automatisk igen, når du er tilbage.",
+      "primary": "Prøv igen nu",
+      "banner": "Du er offline — forbinder igen…"
+    },
+    "expiredLink": {
+      "title": "Dette link er udløbet",
+      "body": "Magiske login-links udløber efter 10 minutter. Bed om et nyt for at fortsætte.",
+      "primary": "Send et nyt link",
+      "secondary": "Tilbage til login"
+    },
+    "expiredSession": {
+      "title": "Din session er udløbet",
+      "body": "Af sikkerhedsmæssige årsager blev du logget ud efter en periode uden aktivitet. Log ind for at fortsætte, hvor du slap.",
+      "primary": "Log ind igen"
+    },
+    "emptyNoSources": {
+      "title": "Ingen datakilder endnu",
+      "body": "Forbind en PostgreSQL-database, så genererer Adminium dit første admin-dashboard.",
+      "primary": "Forbind en database",
+      "secondary": "Importér eksempeldata"
+    },
+    "readOnly": {
+      "title": "Skrivebeskyttet tilstand",
+      "body": "Du har Viewer-adgang til dette arbejdsområde. Du kan udforske dashboards, men redigering og destruktive handlinger er slået fra.",
+      "primary": "Anmod om redigeringsadgang",
+      "secondary": "Forstået"
+    },
+    "suspended": {
+      "title": "Dette arbejdsområde er suspenderet",
+      "body": "Dette arbejdsområde er suspenderet af en administrator. Dine data er bevaret — kontakt ejeren af arbejdsområdet for at få adgang igen.",
+      "primary": "Kontakt ejeren",
+      "secondary": "Gå tilbage"
+    }
   },
   "notFound": {
     "title": "Denne side er forsvundet",
@@ -154,7 +243,8 @@ export default {
     "matches": "Matchende sider",
     "popular": "Populære destinationer",
     "goBack": "Gå tilbage",
-    "backToDashboard": "Tilbage til dashboardet"
+    "backToDashboard": "Tilbage til dashboardet",
+    "noMatches": "Ingen sider matcher „{query}“"
   },
   "page": {
     "invalid": {
@@ -205,7 +295,8 @@ export default {
     },
     "locale": {
       "label": "Sprog",
-      "directionNote": "Tekstretning: højre mod venstre (indstilles automatisk af sproget)"
+      "directionNote": "Tekstretning: højre mod venstre (indstilles automatisk af sproget)",
+      "communityDraft": "Denne oversættelse er et fællesskabsudkast — den er endnu ikke gennemgået af en indfødt taler."
     }
   },
   "account": {
@@ -918,7 +1009,7 @@ export default {
     },
     "remap": {
       "column": {
-        "nullable": "nullable",
+        "nullable": "kan være NULL",
         "labelOverride": "Visningsetiket",
         "labelHelper": "Udledt: {name}",
         "logicalType": "Logisk type",
@@ -1027,7 +1118,8 @@ export default {
         "unique": "UNIK",
         "pii": "PII",
         "masked": "Maskeret"
-      }
+      },
+      "unavailableTitle": "Editor til skema-ommapning ikke tilgængelig"
     }
   },
   "onboarding": {
@@ -1962,5 +2054,9 @@ export default {
       "reportFailed": "Planlagt rapport mislykkedes",
       "backupCompleted": "Backup fuldført"
     }
+  },
+  "theme": {
+    "toLight": "Skift til lyst tema",
+    "toDark": "Skift til mørkt tema"
   }
 } as const;

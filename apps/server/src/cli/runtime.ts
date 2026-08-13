@@ -245,6 +245,7 @@ export const startServer: StartServer = async (runtime) => {
     ...(staticRoot === undefined ? {} : { staticRoot }),
   });
   await app.listen({ port: env.PORT, host: env.HOST });
+  installSignalShutdown(app);
   return {
     url: displayUrl(env.HOST, env.PORT),
     bridgePairingCode,
@@ -254,6 +255,58 @@ export const startServer: StartServer = async (runtime) => {
     },
   };
 };
+
+/**
+ * Ctrl-C must run `app.close()`, which is what fires the `onClose` hooks that
+ * stop the job worker and the cron scheduler (`jobs/register.ts`).
+ *
+ * WHY THIS EXISTS. `start()` in `../start.ts` has always installed these — but
+ * nothing in the CLI calls it (`cli/run.ts` imports `./commands/start.js`, a
+ * different module), so every server the CLI boots — `adminium`, `adminium
+ * start`, the wizard's final boot — ran with NO signal handler at all. The
+ * hooks never fired. If anything then closed the meta store while the process
+ * was still alive, `JobWorker.poll` kept ticking against a destroyed Kysely
+ * driver and logged a full stack trace once a second, forever. In practice that
+ * buries every other line in the terminal within seconds: the observed symptom
+ * was a scrollback containing nothing but "job poll failed — driver has already
+ * been destroyed", with the actual error the user was looking for scrolled far
+ * out of reach.
+ *
+ * `once` per signal, and a module-level guard, so a process that boots twice
+ * (tests, the desktop wrapper) cannot stack listeners and trip Node's
+ * MaxListenersExceededWarning.
+ */
+let signalShutdownInstalled = false;
+
+export function installSignalShutdown(
+  app: AdminiumServer,
+  proc: Pick<NodeJS.Process, 'once' | 'exit'> = process,
+): void {
+  if (signalShutdownInstalled) return;
+  signalShutdownInstalled = true;
+
+  let closing = false;
+  const shutdown = (signal: NodeJS.Signals): void => {
+    // A second Ctrl-C while the first close is still draining should still be
+    // an escape hatch, not a no-op — the user is asking to stop NOW.
+    if (closing) {
+      proc.exit(130);
+      return;
+    }
+    closing = true;
+    // `info`, so the wizard's quiet `warn` default stays quiet on Ctrl-C.
+    app.log.info({ signal }, 'shutting down');
+    app.close().then(
+      () => proc.exit(0),
+      (error: unknown) => {
+        app.log.error({ err: error }, 'error during shutdown');
+        proc.exit(1);
+      },
+    );
+  };
+  proc.once('SIGTERM', () => shutdown('SIGTERM'));
+  proc.once('SIGINT', () => shutdown('SIGINT'));
+}
 
 // ─── Injected dependency bag ─────────────────────────────────────────────────
 

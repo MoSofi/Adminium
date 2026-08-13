@@ -11,6 +11,7 @@ import i18next, { type BackendModule, type i18n, type ReadCallback, type Resourc
 import { IcuFormat } from './icu-format.js';
 
 import { localeEntry, tagForLocale, type LocaleId } from './locales.js';
+import { bumpI18nRevision } from './revision.js';
 import { EN_US_RESOURCES, NAMESPACES, type Namespace, type ResourceBundle } from './resources/index.js';
 
 /** The concrete i18next instance type consumers hold (re-exported so callers never import i18next directly). */
@@ -55,7 +56,14 @@ function lazyBackend(load: BundleLoader): BackendModule {
               return;
             }
             const data = 'default' in bundle ? (bundle as { default: ResourceBundle }).default : bundle;
-            callback(null, data as never);
+            // CLONE (23-T01). i18next stores a backend bundle BY REFERENCE
+            // (`skipCopy: true` on the connector's store write), and this
+            // object is the live default export of a dynamic-import module —
+            // a process-wide singleton. Anything that later merges runtime
+            // overrides into the store would rewrite the compiled chunk
+            // itself, destroying the original text for every other instance
+            // in the process. Clone once here so the store owns its copy.
+            callback(null, structuredClone(data) as never);
           },
           () => {
             // Missing/failed chunk: resolve empty so the fallback chain applies
@@ -76,14 +84,24 @@ function lazyBackend(load: BundleLoader): BackendModule {
 export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance> {
   const tag = tagForLocale(opts.locale);
 
+  // DEEP clone, not a spread (23-T01). A shallow spread leaves
+  // `resources['en-US'].common === EN_US_RESOURCES.common`, and i18next's
+  // ResourceStore takes `this.data = data` with no copy of its own — so the
+  // store would alias the compiled ES-module singletons. Any later merge of
+  // runtime overrides (23 §4.3) would then permanently rewrite the compiled
+  // English in memory: the original text is gone, so even a correct
+  // reset-to-built-in has nothing to restore, and on the server every
+  // subsequently created instance inherits another caller's overrides.
   const resources: Resource = {
-    'en-US': { ...EN_US_RESOURCES },
+    'en-US': structuredClone(EN_US_RESOURCES) as Resource[string],
   };
   for (const [resourceTag, byNs] of Object.entries(opts.resources ?? {})) {
     if (byNs === undefined) continue;
     const target = (resources[resourceTag] ??= {});
     for (const [ns, bundle] of Object.entries(byNs)) {
-      if (bundle !== undefined) (target as Record<string, unknown>)[ns] = bundle;
+      // Cloned for the same reason as the bundled resources above: a caller
+      // (Electron packaging, tests) may hand us a module singleton.
+      if (bundle !== undefined) (target as Record<string, unknown>)[ns] = structuredClone(bundle);
     }
   }
 
@@ -102,7 +120,12 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
     // React escapes; ICU handles placeables (§2.3).
     interpolation: { escapeValue: false },
     returnNull: false,
-    returnEmptyString: false,
+    // TRUE since 23-T08: an empty string is a deliberate override state
+    // ("render nothing", 23 §3.3), not a missing value. With `false`, an
+    // admin's blank would fall through to the en-US built-in and the state
+    // would be unexpressible. Compiled bundles are unaffected — the parity
+    // gate asserts no compiled message is empty.
+    returnEmptyString: true,
     ...(opts.onMissingKey === undefined
       ? {}
       : {
@@ -111,6 +134,17 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
             for (const lng of lngs) opts.onMissingKey?.(lng, ns, key);
           },
         }),
+  });
+
+  // A language switch changes what every key resolves to, so it is a revision
+  // change like any other (23 §4.4). Without this, only components that
+  // consume `I18nProvider`'s context re-render — and the dashboard's ~2.3k
+  // call sites use a module-level `t()` that is not a hook, so already-painted
+  // strings kept the OUTGOING language until a reload while `dir` flipped
+  // immediately. That produced a mirrored English UI, and it is the defect
+  // `apps/e2e/tests/rtl-locale.spec.ts` used to pin as a known bug.
+  instance.on('languageChanged', () => {
+    bumpI18nRevision();
   });
 
   return instance;

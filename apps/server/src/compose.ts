@@ -79,6 +79,7 @@ import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
+import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
 import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
@@ -458,6 +459,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(searchRoutes({ manager, meta }));
       await api.register(widgetDataRoutes({ manager, meta }));
       await api.register(settingsRoutes({ meta }));
+      await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
       await api.register(onboardingRoutes({ meta }));

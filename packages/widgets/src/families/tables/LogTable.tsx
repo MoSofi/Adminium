@@ -70,6 +70,17 @@ export function smartTimestamp(
 
 const ROW_ACTION_ICON = { retry: <RotateCcw size={14} />, download: <Download size={14} />, inspect: <Search size={14} /> };
 
+/**
+ * Literal bundle key per row action (`none` renders no button). Indexed rather
+ * than assembled so the extractor sees all three and a new action in the config
+ * enum is a compile error instead of a raw key on the icon button (10 §2.5).
+ */
+const ROW_ACTION_KEY = {
+  retry: 'ui:widgets.tables.logTable.action.retry',
+  download: 'ui:widgets.tables.logTable.action.download',
+  inspect: 'ui:widgets.tables.logTable.action.inspect',
+} as const satisfies Record<Exclude<NonNullable<LogTableConfig['rowAction']>, 'none'>, string>;
+
 export interface LogTableProps {
   rows: readonly LogRow[];
   rowAction?: LogTableConfig['rowAction'];
@@ -211,7 +222,7 @@ export function LogTable({
                 {rowAction !== 'none' && (
                   <IconButton
                     size="sm"
-                    label={labels?.[rowAction] ?? t(`ui:widgets.tables.logTable.action.${rowAction}`, rowAction)}
+                    label={labels?.[rowAction] ?? t(ROW_ACTION_KEY[rowAction], rowAction)}
                     className="justify-self-end"
                     onClick={() => onRowAction?.(rowAction, row)}
                   >

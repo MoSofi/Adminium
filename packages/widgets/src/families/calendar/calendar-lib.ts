@@ -408,7 +408,14 @@ export function daysBetween(start: string, end: string): number {
  * translated labels through config, the same contract as the boards family's
  * announcements (04 §2).
  */
-export const DEFAULT_RANGE_PRESETS: readonly { id: string; label: string; days?: number; anchor?: 'mtd' | 'qtd' | 'ytd' }[] = [
+export type DefaultRangePresetId = '7d' | '30d' | '90d' | 'mtd' | 'qtd' | 'ytd';
+
+export const DEFAULT_RANGE_PRESETS: readonly {
+  id: DefaultRangePresetId;
+  label: string;
+  days?: number;
+  anchor?: 'mtd' | 'qtd' | 'ytd';
+}[] = [
   { id: '7d', label: 'Last 7 days', days: 7 },
   { id: '30d', label: 'Last 30 days', days: 30 },
   { id: '90d', label: 'Last 90 days', days: 90 },

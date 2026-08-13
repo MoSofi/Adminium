@@ -39,7 +39,7 @@ export interface SchemaOverride {
   tableName: string;
   columnName: string | null;
   value: Record<string, unknown>;
-  origin: 'user' | 'llm';
+  origin: 'user' | 'llm' | 'auto';
   llmRunId: string | null;
   status: 'active' | 'disabled';
   createdBy: string | null;
@@ -54,7 +54,7 @@ export interface CreateOverrideInput {
   tableName: string;
   columnName?: string | null | undefined;
   value: unknown;
-  origin?: 'user' | 'llm' | undefined;
+  origin?: 'user' | 'llm' | 'auto' | undefined;
   llmRunId?: string | null | undefined;
   status?: 'active' | 'disabled' | undefined;
   createdBy?: string | null | undefined;
@@ -68,7 +68,7 @@ function decode(row: Selectable<AdminiumSchemaOverridesTable>): SchemaOverride {
     tableName: row.tableName,
     columnName: row.columnName,
     value: readJson<Record<string, unknown>>(row.value),
-    origin: row.origin as 'user' | 'llm',
+    origin: row.origin as 'user' | 'llm' | 'auto',
     llmRunId: row.llmRunId,
     status: row.status as 'active' | 'disabled',
     createdBy: row.createdBy,

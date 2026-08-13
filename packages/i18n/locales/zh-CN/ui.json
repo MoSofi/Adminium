@@ -18,7 +18,7 @@
     "hidePassword": "隐藏密码",
     "reveal": "显示",
     "hide": "隐藏",
-    "clearSearch": "Clear search"
+    "clearSearch": "清除搜索"
   },
   "state": {
     "loading": "加载中…",
@@ -61,8 +61,8 @@
       },
       "usageMeter": {
         "description": "配额用量与上限的对比；超过所设阈值后，进度条会依次变为橙色和红色。",
-        "usageLabel": "Usage",
-        "ofLabel": "of"
+        "usageLabel": "用量",
+        "ofLabel": "/"
       },
       "statTileCompact": {
         "description": "纤薄的指标磁贴，含微型标签、趋势标记和 6 条迷你图——适合 4 至 6 个一行的密集布局。"
@@ -79,16 +79,16 @@
       },
       "gaugeArc": {
         "description": "带定性区间和指针的速度表弧线；也可呈现仪表网格。",
-        "emptyTitle": "No gauges to show",
-        "emptyBody": "Services appear here as gauges once there is a reading for them."
+        "emptyTitle": "暂无可显示的仪表",
+        "emptyBody": "服务有读数后，将在此处显示为仪表。"
       },
       "periodComparison": {
         "description": "本期与上期以两条进度条对比，下方给出计算出的差值。",
         "higherLabel": "更高",
         "lowerLabel": "更低",
         "flatLabel": "持平",
-        "periodALabel": "This period",
-        "periodBLabel": "Last period"
+        "periodALabel": "本期",
+        "periodBLabel": "上期"
       },
       "microKpiSubtitle": {
         "description": "由模板生成的单行页眉统计，随实时状态重新计算。"
@@ -105,216 +105,216 @@
         "description": "按类别汇总数值列分布的箱线图——最小值、四分位数、中位数和最大值。",
         "emptyTitle": "没有可绘制的分布",
         "emptyBody": "没有符合筛选条件的行可用于箱线图。",
-        "chartLabel": "Box plot"
+        "chartLabel": "箱线图"
       },
       "violin": {
         "description": "镜像密度曲线，比较数值列在各组之间的分布。",
         "emptyTitle": "没有可绘制的分布",
         "emptyBody": "没有符合筛选条件的行可用于密度曲线。",
-        "chartLabel": "Violin plot"
+        "chartLabel": "小提琴图"
       },
       "ridgeline": {
         "description": "重叠的密度山脊图，比较数值列在有序分组间的分布。",
         "emptyTitle": "没有可绘制的山脊",
         "emptyBody": "没有符合筛选条件的行可用于密度曲线。",
-        "chartLabel": "Ridgeline"
+        "chartLabel": "山脊图"
       },
       "scatterBubble": {
         "description": "将两个数值列绘制为散点，可选气泡大小和趋势线。",
         "emptyTitle": "没有可绘制的散点",
         "emptyBody": "没有符合筛选条件的行匹配所选列。",
-        "chartLabel": "Scatter plot"
+        "chartLabel": "散点图"
       },
       "hexbin": {
         "description": "两个数值列的六边形密度图，按每格落入的行数着色。",
         "emptyTitle": "没有可绘制的密度",
         "emptyBody": "没有符合筛选条件的行可供分箱。",
-        "chartLabel": "Density hexbin"
+        "chartLabel": "六边形密度图"
       },
       "correlationMatrix": {
         "description": "所选数值列之间的皮尔逊相关性，从强正相关到强负相关。",
         "emptyTitle": "没有可计算的相关性",
         "emptyBody": "请至少选择两个具有匹配行的数值列。",
-        "chartLabel": "Correlation matrix"
+        "chartLabel": "相关性矩阵"
       },
       "parallelCoordinates": {
         "description": "将每条记录绘制为跨多个归一化数值轴的折线，按类别着色。",
         "emptyTitle": "没有可绘制的记录",
         "emptyBody": "没有符合筛选条件的行覆盖所选各轴。",
-        "chartLabel": "Parallel coordinates"
+        "chartLabel": "平行坐标图"
       },
-      "unexpectedShape": "Unexpected data shape.",
+      "unexpectedShape": "数据结构不符合预期。",
       "lineArea": {
-        "chartLabel": "Line chart",
-        "description": "A metric over time as a line with a soft area fill, with an optional dashed prior-period comparison."
+        "chartLabel": "折线图",
+        "description": "以折线呈现指标随时间的变化，并带柔和的面积填充，可选叠加上期对比虚线。"
       },
       "bar": {
-        "chartLabel": "Bar chart",
-        "description": "Categorical or time-bucketed values as vertical bars, with an optional highlight on the largest or current bar."
+        "chartLabel": "柱状图",
+        "description": "以垂直柱形呈现分类或按时间分桶的数值，可选高亮最大柱或当前柱。"
       },
       "donut": {
-        "chartLabel": "Donut chart",
-        "otherLabel": "Other",
-        "description": "Category shares as donut slices with a legend and centre total, folding small slices into an Other bucket."
+        "chartLabel": "环形图",
+        "otherLabel": "其他",
+        "description": "以环形扇区呈现各类别占比，含图例和中心合计，并将细小扇区归入“其他”。"
       },
       "bullet": {
-        "chartLabel": "Bullet chart",
-        "description": "Progress toward a goal as a measure bar over qualitative bands, with a target tick per row.",
-        "emptyTitle": "No goals to track",
-        "emptyBody": "Add measures with targets to compare against."
+        "chartLabel": "子弹图",
+        "description": "在定性区间上以度量条呈现目标完成进度，每行带一个目标刻度。",
+        "emptyTitle": "暂无可跟踪的目标",
+        "emptyBody": "添加带目标值的度量即可进行对比。"
       },
       "rankingBars": {
-        "chartLabel": "Ranking",
-        "description": "A top-N ranking as horizontal bars — the leader at full strength, the rest dimmed — with values alongside.",
-        "emptyTitle": "Nothing to rank",
-        "emptyBody": "No records matched this breakdown yet."
+        "chartLabel": "排名",
+        "description": "以水平条形呈现前 N 名排名——第一名满色，其余淡化——并在旁显示数值。",
+        "emptyTitle": "暂无可排名的内容",
+        "emptyBody": "尚无记录符合此细分。"
       },
       "pareto": {
-        "chartLabel": "Pareto chart",
-        "description": "Sorted category bars under a cumulative-percent line, with an optional 80% cutline.",
-        "emptyTitle": "No categories to chart",
-        "emptyBody": "No grouped counts were returned for this range."
+        "chartLabel": "帕累托图",
+        "description": "排序后的类别柱形，上方为累计百分比折线，可选 80% 分界线。",
+        "emptyTitle": "暂无可绘制的类别",
+        "emptyBody": "此范围没有返回分组计数。"
       },
       "waterfall": {
-        "chartLabel": "Waterfall chart",
-        "description": "A floating-bar bridge from a start total through positive and negative steps to a net total.",
-        "emptyTitle": "No movement to bridge",
-        "emptyBody": "No start, change, or total steps were found."
+        "chartLabel": "瀑布图",
+        "description": "以浮动柱形从起始合计经正负增减过渡到净合计。",
+        "emptyTitle": "暂无可衔接的变动",
+        "emptyBody": "未找到起始、变动或合计步骤。"
       },
       "marimekko": {
-        "chartLabel": "Marimekko chart",
-        "description": "A two-level mix as variable-width stacked columns — width for the outer share, segments for the inner split.",
-        "emptyTitle": "No mix to break down",
-        "emptyBody": "No two-level breakdown was returned for this range."
+        "chartLabel": "马赛克图",
+        "description": "以宽度可变的堆叠柱呈现两级构成——宽度表示外层占比，分段表示内层拆分。",
+        "emptyTitle": "暂无可拆解的构成",
+        "emptyBody": "此范围没有返回两级细分。"
       },
       "stackedBar100": {
-        "chartLabel": "100% stacked bar",
-        "description": "One 100% bar split into proportional segments with a legend, comparing shares of a whole.",
-        "emptyTitle": "No shares to split",
-        "emptyBody": "No parts were returned for this breakdown."
+        "chartLabel": "100% 堆叠条形图",
+        "description": "一条 100% 的条形按比例拆分为若干分段并配图例，用于比较各部分在整体中的占比。",
+        "emptyTitle": "暂无可拆分的占比",
+        "emptyBody": "此细分没有返回任何组成部分。"
       },
       "slope": {
-        "chartLabel": "Slope chart",
-        "description": "Two periods joined by one line per record, coloured by whether the value rose or fell.",
-        "emptyTitle": "No period shift to show",
-        "emptyBody": "No before/after values were returned to compare."
+        "chartLabel": "斜率图",
+        "description": "每条记录用一条线连接两个时期，并按数值上升或下降着色。",
+        "emptyTitle": "暂无可显示的期间变化",
+        "emptyBody": "没有返回可供对比的前后数值。"
       },
       "multiline": {
-        "chartLabel": "Multi-line chart",
-        "description": "Several series as overlaid lines with end labels, comparing trends over the same time span.",
-        "emptyTitle": "No series to plot",
-        "emptyBody": "No time series matched the filters for this range."
+        "chartLabel": "多折线图",
+        "description": "多个系列叠加为折线并在末端标注，用于比较同一时间跨度内的趋势。",
+        "emptyTitle": "暂无可绘制的系列",
+        "emptyBody": "此范围没有符合筛选条件的时间序列。"
       },
       "stream": {
-        "chartLabel": "Stream chart",
-        "description": "Stacked bands flowing around a centre line, showing how a total's composition shifts over time.",
-        "emptyTitle": "No flow to chart",
-        "emptyBody": "No stacked series were returned for this range."
+        "chartLabel": "流图",
+        "description": "围绕中心线流动的堆叠色带，展示总量的构成如何随时间变化。",
+        "emptyTitle": "暂无可绘制的流量",
+        "emptyBody": "此范围没有返回堆叠系列。"
       },
       "forecast": {
-        "chartLabel": "Forecast chart",
-        "nowLabel": "Now",
-        "forecastLabel": "Forecast",
-        "actualLabel": "Actual",
-        "description": "A history line extended by a dashed projection inside a widening confidence band, split at a now divider.",
-        "emptyTitle": "No history to project",
-        "emptyBody": "No past points were returned to forecast from."
+        "chartLabel": "预测图",
+        "nowLabel": "现在",
+        "forecastLabel": "预测",
+        "actualLabel": "实际",
+        "description": "历史折线由虚线预测延伸，置于逐渐变宽的置信区间内，并在“现在”处以分隔线断开。",
+        "emptyTitle": "暂无可用于预测的历史",
+        "emptyBody": "没有返回可供预测的历史数据点。"
       },
       "anomaly": {
-        "chartLabel": "Anomaly chart",
-        "description": "A value line over its expected range, flagging points that fall outside it with halo dots.",
-        "emptyTitle": "No signal to scan",
-        "emptyBody": "No points were returned to check for anomalies."
+        "chartLabel": "异常图",
+        "description": "数值折线叠加在预期区间上，超出区间的点以光晕圆点标出。",
+        "emptyTitle": "暂无可扫描的信号",
+        "emptyBody": "没有返回可供检测异常的数据点。"
       },
       "candlestick": {
-        "chartLabel": "Candlestick chart",
-        "livePillLabel": "Live",
-        "description": "Open-high-low-close candles coloured by direction, with a dashed last-price line and an optional live pill.",
-        "emptyTitle": "No candles to chart",
-        "emptyBody": "No open-high-low-close rows matched this range."
+        "chartLabel": "K 线图",
+        "livePillLabel": "实时",
+        "description": "开高低收蜡烛按涨跌着色，附最新价虚线，可选实时标记。",
+        "emptyTitle": "暂无可绘制的 K 线",
+        "emptyBody": "此范围没有符合条件的开高低收数据行。"
       },
       "bump": {
-        "chartLabel": "Bump chart",
-        "description": "Rank-over-time lines showing how competitors trade places between periods.",
-        "emptyTitle": "No ranks to trace",
-        "emptyBody": "No period-over-period rankings were returned."
+        "chartLabel": "名次变化图",
+        "description": "排名随时间变化的折线，展示各方在不同时期如何互换位次。",
+        "emptyTitle": "暂无可追踪的排名",
+        "emptyBody": "没有返回逐期排名数据。"
       },
       "timelineLanes": {
-        "chartLabel": "Timeline lanes",
-        "laneLabel": "Events",
-        "description": "Dated events as pills on horizontal swimlanes sharing one time axis.",
-        "emptyTitle": "No events to place",
-        "emptyBody": "No events matched the filters for this range."
+        "chartLabel": "时间线泳道",
+        "laneLabel": "事件",
+        "description": "带日期的事件以胶囊形式排布在共享同一时间轴的横向泳道上。",
+        "emptyTitle": "暂无可排布的事件",
+        "emptyBody": "此范围没有符合筛选条件的事件。"
       },
       "treemap": {
-        "chartLabel": "Treemap",
-        "otherLabel": "Other",
-        "description": "A part-to-whole breakdown as squarified tiles sized by value, folding small slices into an Other tile.",
-        "emptyTitle": "No slices to tile",
-        "emptyBody": "No categories were returned for this breakdown."
+        "chartLabel": "矩形树图",
+        "otherLabel": "其他",
+        "description": "以按数值确定大小的方块呈现部分与整体的构成，并将细小分块归入“其他”方块。",
+        "emptyTitle": "暂无可平铺的分块",
+        "emptyBody": "此细分没有返回任何类别。"
       },
       "sunburst": {
-        "chartLabel": "Sunburst",
-        "description": "A two-level hierarchy as nested rings — parents inside, their children outside — with a parent legend.",
-        "emptyTitle": "No rings to draw",
-        "emptyBody": "No grouped categories were returned to nest."
+        "chartLabel": "旭日图",
+        "description": "以嵌套圆环呈现两级层次——父级在内、子级在外——并附父级图例。",
+        "emptyTitle": "暂无可绘制的圆环",
+        "emptyBody": "没有返回可嵌套的分组类别。"
       },
       "funnel": {
-        "chartLabel": "Funnel",
-        "description": "Ordered shrinking stages with per-step continuation rates and an overall-conversion footer.",
-        "emptyTitle": "No stages to funnel",
-        "emptyBody": "No step counts were returned for this range."
+        "chartLabel": "漏斗图",
+        "description": "依次收窄的有序阶段，含每步的继续率和总体转化率页脚。",
+        "emptyTitle": "暂无可呈现的阶段",
+        "emptyBody": "此范围没有返回各步骤的计数。"
       },
       "radialBar": {
-        "chartLabel": "Radial bar",
-        "description": "Up to four percentages as concentric progress rings with a dot legend.",
-        "emptyTitle": "No rings to fill",
-        "emptyBody": "No categories matched this breakdown yet."
+        "chartLabel": "径向条形图",
+        "description": "最多四个百分比以同心进度环呈现，并附圆点图例。",
+        "emptyTitle": "暂无可填充的圆环",
+        "emptyBody": "尚无类别符合此细分。"
       },
       "radar": {
-        "chartLabel": "Radar",
-        "description": "Several named axes on a polygon with one filled shape per series, against an optional target overlay.",
-        "emptyTitle": "No axes to compare",
-        "emptyBody": "No matrix of series and axes was returned."
+        "chartLabel": "雷达图",
+        "description": "多个命名坐标轴构成多边形，每个系列一个填充形状，可叠加目标参考。",
+        "emptyTitle": "暂无可对比的坐标轴",
+        "emptyBody": "没有返回系列与坐标轴的矩阵数据。"
       },
       "chord": {
-        "chartLabel": "Chord",
-        "description": "Pairwise flows as ribbons between nodes on a ring, with ribbon opacity weighted by volume.",
-        "emptyTitle": "No flows to link",
-        "emptyBody": "No connections between groups were returned."
+        "chartLabel": "弦图",
+        "description": "环上节点之间的两两流量以色带呈现，色带透明度按流量加权。",
+        "emptyTitle": "暂无可连接的流量",
+        "emptyBody": "没有返回分组之间的关联。"
       },
       "wordcloud": {
-        "chartLabel": "Word cloud",
-        "description": "Terms sized by frequency and flowed into rows, for a glanceable view of what dominates.",
-        "emptyTitle": "No terms to cloud",
-        "emptyBody": "No weighted terms matched the filters."
+        "chartLabel": "词云",
+        "description": "词条按出现频率确定字号并按行排布，一眼看清哪些内容占主导。",
+        "emptyTitle": "暂无可生成词云的词条",
+        "emptyBody": "没有符合筛选条件的加权词条。"
       },
       "cohortMatrix": {
-        "chartLabel": "Cohort retention",
-        "description": "Cohort rows against period columns, each cell shaded by retention or revenue."
+        "chartLabel": "同期群留存",
+        "description": "同期群为行、周期为列，每个单元格按留存率或收入着色。"
       },
       "heatmapCalendar": {
-        "chartLabel": "Activity calendar",
-        "legendLessLabel": "Less",
-        "legendMoreLabel": "More",
-        "description": "A year of daily activity as a week-by-day grid shaded by intensity."
+        "chartLabel": "活动日历",
+        "legendLessLabel": "较少",
+        "legendMoreLabel": "较多",
+        "description": "以周×日的网格呈现全年每日活动，按强度着色。"
       },
       "heatMonth": {
-        "chartLabel": "Monthly activity",
-        "description": "One calendar month as a day grid shaded by each day's value."
+        "chartLabel": "每月活动",
+        "description": "将一个自然月呈现为日期网格，按每天的数值着色。"
       },
       "choroplethGrid": {
-        "chartLabel": "Regional breakdown",
-        "legendLowLabel": "Low",
-        "legendHighLabel": "High",
-        "description": "Regional values as a tinted US tilegram or compact grid, with an optional top-N ranking list."
+        "chartLabel": "区域细分",
+        "legendLowLabel": "低",
+        "legendHighLabel": "高",
+        "description": "以着色的美国方块地图或紧凑网格呈现各区域数值，可选附前 N 名排行榜。"
       },
       "sankey": {
-        "chartLabel": "Flow",
-        "description": "Layered source-to-target flows as ribbons whose thickness encodes volume."
+        "chartLabel": "流向图",
+        "description": "分层的源到目标流向以色带呈现，色带粗细表示流量大小。"
       },
       "sparkline": {
-        "description": "An inline micro-trend of recent values — no axes or labels — for KPI cards, table cells and list rows."
+        "description": "近期数值的内联迷你走势——无坐标轴与标签——适用于指标卡、表格单元格和列表行。"
       }
     },
     "feeds": {
@@ -322,32 +322,32 @@
         "description": "按时间倒序显示工作区中谁做了什么的动态信息流。",
         "emptyTitle": "暂无近期动态",
         "emptyBody": "工作区中的操作将显示在这里。",
-        "viewAllLabel": "View all"
+        "viewAllLabel": "查看全部"
       },
       "notificationFeed": {
         "description": "带未读状态、筛选和内联操作的分组通知。",
         "emptyTitle": "暂无通知",
         "emptyBody": "新通知将显示在这里。",
-        "allLabel": "All",
-        "unreadLabel": "Unread",
-        "mentionsLabel": "Mentions",
-        "filterLabel": "Notification filter",
-        "markAllReadLabel": "Mark all read",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
-        "earlierLabel": "Earlier",
-        "dismissLabel": "Dismiss",
-        "emptyUnreadTitle": "You're all caught up",
-        "emptyMentionsTitle": "No mentions"
+        "allLabel": "全部",
+        "unreadLabel": "未读",
+        "mentionsLabel": "提及",
+        "filterLabel": "通知筛选",
+        "markAllReadLabel": "全部标为已读",
+        "todayLabel": "今天",
+        "yesterdayLabel": "昨天",
+        "earlierLabel": "更早",
+        "dismissLabel": "关闭",
+        "emptyUnreadTitle": "已全部读完",
+        "emptyMentionsTitle": "暂无提及"
       },
       "realtimeFeed": {
         "description": "实时事件流，新条目到达时会置于顶部。",
         "emptyTitle": "正在等待事件",
         "emptyBody": "实时事件将随发生实时显示。",
-        "liveLabel": "Live",
-        "pausedLabel": "Paused",
-        "pauseLabel": "Pause",
-        "resumeLabel": "Resume"
+        "liveLabel": "实时",
+        "pausedLabel": "已暂停",
+        "pauseLabel": "暂停",
+        "resumeLabel": "继续"
       },
       "timelineVertical": {
         "description": "事件、发布、故障或执行步骤的垂直时间线。",
@@ -377,9 +377,9 @@
         "description": "按月显示已排期事件的网格，含每日标签和月份导航。",
         "emptyTitle": "暂无排期",
         "emptyBody": "已排期的事件将显示在此日历中。",
-        "previousLabel": "Previous month",
-        "nextLabel": "Next month",
-        "overflowLabel": "+{count} more"
+        "previousLabel": "上个月",
+        "nextLabel": "下个月",
+        "overflowLabel": "+{count} 项"
       },
       "dayAgenda": {
         "description": "所选日期的事件按时间排序的日程。",
@@ -391,25 +391,25 @@
         "description": "按资源和日期排列的班次网格，含每日覆盖情况和图例。",
         "emptyTitle": "暂无排班",
         "emptyBody": "已分配的班次将显示在此排班表中。",
-        "resourceLabel": "Resource",
-        "coverageLabel": "Coverage",
-        "hoursLabel": "{hours}h"
+        "resourceLabel": "资源",
+        "coverageLabel": "覆盖情况",
+        "hoursLabel": "{hours} 小时"
       },
       "capacityBoard": {
         "description": "按成员显示利用率条，含项目细分和负载状态。",
         "emptyTitle": "暂无工作量数据",
         "emptyBody": "有分配后，成员的利用率将显示在此处。",
         "status": {
-          "overloaded": "Overloaded",
-          "balanced": "Balanced",
-          "available": "Available"
+          "overloaded": "超负荷",
+          "balanced": "均衡",
+          "available": "有余量"
         },
-        "utilizationLabel": "{name}: {util}%",
-        "assignmentLabel": "{project} · {hours}h",
-        "periodLabel": "h · {period}",
+        "utilizationLabel": "{name}：{util}%",
+        "assignmentLabel": "{project} · {hours} 小时",
+        "periodLabel": "小时 · {period}",
         "period": {
-          "week": "week",
-          "month": "month"
+          "week": "周",
+          "month": "月"
         }
       },
       "calendarLegendFilter": {
@@ -451,26 +451,26 @@
         "description": "可选择的记录列表，用于驱动详情面板。",
         "emptyTitle": "暂无条目",
         "emptyBody": "条目存在后将显示在这里。",
-        "allLabel": "All",
-        "toggleLabel": "Toggle {title}",
-        "progressLabel": "{title} progress"
+        "allLabel": "全部",
+        "toggleLabel": "切换{title}",
+        "progressLabel": "{title}进度"
       },
       "logTable": {
         "description": "带搜索、错误筛选和行操作的追加式事件日志。",
         "emptyTitle": "暂无日志条目",
         "emptyBody": "事件将随发生记录在这里。",
-        "liveLabel": "Live",
-        "placeholder": "Search logs…",
-        "filterLabel": "Log filter",
-        "allLabel": "All",
-        "errorsLabel": "Errors",
-        "noMatchesLabel": "No matching entries",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
+        "liveLabel": "实时",
+        "placeholder": "搜索日志…",
+        "filterLabel": "日志筛选",
+        "allLabel": "全部",
+        "errorsLabel": "错误",
+        "noMatchesLabel": "没有匹配的条目",
+        "todayLabel": "今天",
+        "yesterdayLabel": "昨天",
         "action": {
-          "retry": "retry",
-          "download": "download",
-          "inspect": "inspect"
+          "retry": "重试",
+          "download": "下载",
+          "inspect": "查看"
         }
       },
       "cardGallery": {
@@ -482,22 +482,22 @@
         "description": "带汇总列、可展开明细和合计的分组行。",
         "emptyTitle": "暂无汇总数据",
         "emptyBody": "有数据后分组合计将显示在这里。",
-        "groupLabel": "Group",
-        "totalsLabel": "Total"
+        "groupLabel": "分组",
+        "totalsLabel": "合计"
       },
       "schemaTree": {
         "description": "带类型和键徽章的架构、表和列浏览器。",
         "emptyTitle": "尚未读取架构",
         "emptyBody": "连接数据库即可在此浏览其架构。",
-        "treeLabel": "Schema",
-        "viewLabel": "view"
+        "treeLabel": "架构",
+        "viewLabel": "视图"
       },
       "toggleMatrix": {
         "description": "用于角色、策略或渠道的布尔开关交互网格。",
         "emptyTitle": "尚未配置矩阵",
         "emptyBody": "配置后行和列将显示在这里。",
-        "matrixLabel": "Permissions matrix",
-        "rowHeaderLabel": "Permission"
+        "matrixLabel": "权限矩阵",
+        "rowHeaderLabel": "权限"
       },
       "sparklineTable": {
         "description": "指标行，包含迷你走势图、当前值和可区分好坏方向的变化标签。",
@@ -532,38 +532,38 @@
         "moreLabel": "还有 {n} 个"
       },
       "dataGrid": {
-        "selectAllLabel": "Select all rows",
-        "selectRowLabel": "Select row",
-        "sortByLabel": "Sort by {column}",
-        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells."
+        "selectAllLabel": "选择所有行",
+        "selectRowLabel": "选择此行",
+        "sortByLabel": "按{column}排序",
+        "description": "标准的增删改查表格，含可排序列、行选择和类型感知单元格。"
       },
       "paginationFooter": {
-        "emptyLabel": "0 rows",
-        "ofLabel": "of",
-        "pageSizeLabel": "Rows",
+        "emptyLabel": "0 行",
+        "ofLabel": "/",
+        "pageSizeLabel": "行数",
         "a11y": {
-          "pageSize": "Rows per page"
+          "pageSize": "每页行数"
         },
-        "prevLabel": "Previous page",
-        "nextLabel": "Next page",
-        "description": "A footer with the visible row range, prev/next paging, and a page-size select."
+        "prevLabel": "上一页",
+        "nextLabel": "下一页",
+        "description": "页脚，显示当前可见的行范围、上一页/下一页翻页和每页行数选择器。"
       },
       "bulkActionToolbar": {
-        "selectedLabel": "selected",
-        "clearLabel": "Clear selection",
-        "toolbarLabel": "Bulk actions",
-        "description": "A selection-aware toolbar showing the selected count and bulk actions."
+        "selectedLabel": "项已选",
+        "clearLabel": "清除所选",
+        "toolbarLabel": "批量操作",
+        "description": "感知选择状态的工具栏，显示已选数量和批量操作。"
       },
       "miniTable": {
-        "viewAllLabel": "View all",
-        "description": "A compact dashboard row list with mapped columns and a view-all link."
+        "viewAllLabel": "查看全部",
+        "description": "紧凑的仪表板行列表，含映射列和“查看全部”链接。"
       },
-      "revealLabel": "Reveal value",
-      "hideLabel": "Hide value",
-      "trueLabel": "true",
-      "falseLabel": "false",
+      "revealLabel": "显示值",
+      "hideLabel": "隐藏值",
+      "trueLabel": "是",
+      "falseLabel": "否",
       "detailKeyValue": {
-        "description": "A record's fields as label/value rows with type-aware values."
+        "description": "将记录的字段呈现为标签/值行，值按类型渲染。"
       }
     },
     "boards": {
@@ -618,7 +618,7 @@
         "sendLabel": "发送",
         "attachLabel": "添加附件",
         "typingLabel": "正在输入…",
-        "composerLabel": "Message"
+        "composerLabel": "消息"
       },
       "aiChatPanel": {
         "description": "用于询问数据库结构和数据的助手面板。",
@@ -630,8 +630,8 @@
         "configureTitle": "尚未配置 AI 提供方",
         "configureBody": "添加 Anthropic 或 OpenAI 密钥，或将 Adminium 指向你自己的接口地址，即可询问数据库结构。",
         "configureCtaLabel": "配置提供方",
-        "assistantLabel": "Assistant",
-        "composerLabel": "Ask a question"
+        "assistantLabel": "助手",
+        "composerLabel": "提出问题"
       },
       "typingIndicator": {
         "description": "头像加斜体“正在输入…”行，绑定到每个会话的实时布尔值。",
@@ -669,7 +669,7 @@
         "emptyBody": "包含区域代码和数值的行会在这里显示为着色方块。",
         "legendLowLabel": "低",
         "legendHighLabel": "高",
-        "chartLabel": "Regional breakdown"
+        "chartLabel": "区域细分"
       }
     },
     "domain": {
@@ -698,8 +698,8 @@
         "billedToLabel": "开票给",
         "issuedLabel": "开具日期",
         "dueLabel": "到期日",
-        "noDocumentTitle": "No document yet",
-        "noDocumentBody": "Pick a starter template or add a block to begin."
+        "noDocumentTitle": "尚无文档",
+        "noDocumentBody": "选择一个入门模板或添加区块即可开始。"
       },
       "blockTotalsSummary": {
         "description": "文档合计：小计、折扣、税费和应付总额，均根据明细行重新计算。",
@@ -728,13 +728,13 @@
         "description": "采用文档强调色的迷你柱状图，尺寸适配文档区块。",
         "emptyTitle": "暂无绘图数据",
         "emptyBody": "报告包含数据系列后，柱形将显示在此处。",
-        "a11yLabel": "Bar chart"
+        "a11yLabel": "柱状图"
       },
       "blockLineChart": {
         "description": "迷你折线图，可选填充区域，尺寸适配文档区块。",
         "emptyTitle": "暂无绘图数据",
         "emptyBody": "报告包含数据系列后，折线将显示在此处。",
-        "a11yLabel": "Line chart"
+        "a11yLabel": "折线图"
       },
       "blockTwoColTable": {
         "description": "两列表格，首行为样式化表头，右列使用等宽字体。",
@@ -793,7 +793,7 @@
         "namePlaceholder": "姓名",
         "titlePlaceholder": "职务",
         "dateLabel": "日期",
-        "nameInputLabel": "Signature name"
+        "nameInputLabel": "签名姓名"
       },
       "blockTermsCheckbox": {
         "description": "条款勾选框，标签可编辑。",
@@ -839,158 +839,158 @@
         "description": "预设模板网格，附带生成的缩略图；选中后即可创建完整文档。",
         "emptyTitle": "暂无模板",
         "emptyBody": "请在配置中定义模板，或绑定模板表。",
-        "blankLabel": "Blank",
+        "blankLabel": "空白",
         "kicker": {
-          "invoice": "Invoice",
-          "report": "Report",
-          "email": "Email"
+          "invoice": "发票",
+          "report": "报告",
+          "email": "邮件"
         }
       },
       "sloMonitorCard": {
         "description": "按服务显示的 SLA 卡片，包含状态、相对目标的可用率、每日在线状态条、错误预算和 p95 延迟。",
         "emptyTitle": "暂无监控",
         "emptyBody": "请绑定含状态列和可用率列的监控表。",
-        "targetLabel": "Target",
-        "budgetLabel": "Error budget",
-        "latencyLabel": "p95 latency",
+        "targetLabel": "目标",
+        "budgetLabel": "错误预算",
+        "latencyLabel": "p95 延迟",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "Unknown"
+          "operational": "正常",
+          "degraded": "降级",
+          "down": "中断",
+          "unknown": "未知"
         }
       },
       "uptimeSegmentBar": {
         "description": "状态页风格的每日状态条，按当日状态着色，可在 30 天和 90 天之间切换。",
         "emptyTitle": "暂无在线记录",
         "emptyBody": "每日状态数据将在此显示为在线状态条。",
-        "daysAgoLabel": "{days} days ago",
-        "todayLabel": "Today",
-        "uptimeLabel": "uptime",
-        "period30Label": "30d",
-        "period90Label": "90d",
+        "daysAgoLabel": "{days} 天前",
+        "todayLabel": "今天",
+        "uptimeLabel": "在线率",
+        "period30Label": "30 天",
+        "period90Label": "90 天",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "No data"
+          "operational": "正常",
+          "degraded": "降级",
+          "down": "中断",
+          "unknown": "暂无数据"
         }
       },
       "experimentVariantCompare": {
         "description": "按变体显示的转化条，含相对对照组的提升幅度和显著性指示器。",
         "emptyTitle": "暂无变体",
         "emptyBody": "请绑定含转化数据的实验变体表。",
-        "controlLabel": "CONTROL",
-        "winnerLabel": "WINNER",
-        "significanceLabel": "Confidence",
-        "verdictSignificantLabel": "Statistically significant — safe to call.",
-        "verdictInconclusiveLabel": "Not yet significant — keep the test running.",
-        "countsLabel": "{users} participants · {conversions} conversions"
+        "controlLabel": "对照组",
+        "winnerLabel": "胜出",
+        "significanceLabel": "置信度",
+        "verdictSignificantLabel": "统计显著——可以下结论。",
+        "verdictInconclusiveLabel": "尚未显著——请继续运行实验。",
+        "countsLabel": "{users} 名参与者 · {conversions} 次转化"
       },
       "creditCardTile": {
         "description": "已保存的支付方式，以品牌卡片形式显示掩码卡号、持卡人和有效期。",
         "emptyTitle": "暂无支付方式",
         "emptyBody": "添加银行卡后即可在此查看。",
-        "defaultLabel": "Default",
-        "setDefaultLabel": "Set default",
-        "manageLabel": "Manage",
-        "addLabel": "Add payment method",
-        "expiresLabel": "Expires"
+        "defaultLabel": "默认",
+        "setDefaultLabel": "设为默认",
+        "manageLabel": "管理",
+        "addLabel": "添加支付方式",
+        "expiresLabel": "有效期至"
       },
       "planPricingCards": {
         "description": "套餐档位，含按月/按年切换、功能清单和重点推荐套餐。",
         "emptyTitle": "暂无套餐",
         "emptyBody": "请绑定含名称和月度价格的套餐表。",
-        "monthlyLabel": "Monthly",
-        "annualLabel": "Annual",
-        "popularLabel": "POPULAR",
-        "perMonthLabel": "/ month",
-        "billedAnnuallyLabel": "Billed {total} yearly",
-        "currentLabel": "Current plan",
-        "ctaLabel": "Choose plan"
+        "monthlyLabel": "按月",
+        "annualLabel": "按年",
+        "popularLabel": "热门",
+        "perMonthLabel": "/月",
+        "billedAnnuallyLabel": "按年计费 {total}",
+        "currentLabel": "当前套餐",
+        "ctaLabel": "选择套餐"
       },
       "apiKeysPanel": {
         "description": "API 密钥列表，含环境标记、掩码值、权限范围、最近使用时间，以及复制、轮换和吊销操作。",
         "emptyTitle": "暂无 API 密钥",
         "emptyBody": "创建密钥后即可开始调用 API。",
-        "revealedTitle": "Key created",
-        "revealedBody": "Copy it now — it is never shown again.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied",
-        "revealLabel": "Reveal key",
-        "hideLabel": "Hide key",
-        "rollLabel": "Roll key",
-        "revokeLabel": "Revoke key",
-        "neverUsedLabel": "Never used",
-        "lastUsedLabel": "Last used {since}"
+        "revealedTitle": "密钥已创建",
+        "revealedBody": "请立即复制——它不会再次显示。",
+        "copyLabel": "复制",
+        "copiedLabel": "已复制",
+        "revealLabel": "显示密钥",
+        "hideLabel": "隐藏密钥",
+        "rollLabel": "轮换密钥",
+        "revokeLabel": "吊销密钥",
+        "neverUsedLabel": "从未使用",
+        "lastUsedLabel": "上次使用 {since}"
       },
       "apiPlayground": {
         "description": "请求编辑器，含参数和响应面板。仅用于构造请求，绝不会真正发送。",
         "emptyTitle": "未选择接口",
         "emptyBody": "请选择一个接口以构造针对它的请求。",
-        "sendLabel": "Send",
-        "requestLabel": "Request",
-        "responseLabel": "Response",
-        "paramsLabel": "Parameters",
-        "responsePlaceholder": "Send the request to see the response."
+        "sendLabel": "发送",
+        "requestLabel": "请求",
+        "responseLabel": "响应",
+        "paramsLabel": "参数",
+        "responsePlaceholder": "发送请求即可查看响应。"
       },
       "codeSnippetBlock": {
         "description": "可复制的代码片段，含语言标记和可选的分语言标签页。",
         "emptyTitle": "暂无代码片段",
         "emptyBody": "请绑定代码列，或在配置中设置静态代码片段。",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "复制",
+        "copiedLabel": "已复制"
       },
       "webhookEndpointsList": {
         "description": "Webhook 接口列表，含事件、目标网址、最近触发时间和启用开关。",
         "emptyTitle": "暂无接口",
         "emptyBody": "添加 Webhook 接口以接收数据表事件。",
-        "neverFiredLabel": "Never fired",
-        "lastFiredLabel": "Last fired {since}"
+        "neverFiredLabel": "从未触发",
+        "lastFiredLabel": "上次触发 {since}"
       },
       "resourceApiCard": {
         "description": "数据表生成的 API 接口：行数、安全标记、方法标签和请求量。",
         "emptyTitle": "暂无资源",
         "emptyBody": "请绑定数据表以显示其生成的 API 接口。",
         "rlsLabel": "RLS",
-        "publicLabel": "Public",
-        "rowsLabel": "rows",
-        "perDayLabel": "{count}/day"
+        "publicLabel": "公开",
+        "rowsLabel": "行",
+        "perDayLabel": "{count}/天"
       },
       "liveTimer": {
         "description": "任务用的启停秒表；停止后会自动记录一条工时。",
         "emptyTitle": "暂无计时器",
         "emptyBody": "请绑定含任务和时长列的工时记录行。",
-        "startLabel": "Start",
-        "stopLabel": "Stop",
-        "taskPlaceholder": "Untitled task"
+        "startLabel": "开始",
+        "stopLabel": "停止",
+        "taskPlaceholder": "未命名任务"
       },
       "syncStatusCard": {
         "description": "连接标识、延迟、已同步行数和同步计划，并提供立即同步操作。",
         "emptyTitle": "暂无连接",
         "emptyBody": "请绑定连接行以显示其同步状态。",
-        "connectedLabel": "Connected",
-        "disconnectedLabel": "Disconnected",
-        "rowsSyncedLabel": "Rows synced",
-        "tablesLabel": "Tables",
-        "lastSyncLabel": "Last sync",
-        "nextSyncLabel": "Next sync",
-        "syncingLabel": "Syncing…",
-        "syncActionLabel": "Sync now"
+        "connectedLabel": "已连接",
+        "disconnectedLabel": "未连接",
+        "rowsSyncedLabel": "已同步行数",
+        "tablesLabel": "数据表",
+        "lastSyncLabel": "上次同步",
+        "nextSyncLabel": "下次同步",
+        "syncingLabel": "正在同步…",
+        "syncActionLabel": "立即同步"
       },
       "ipAllowlistCard": {
         "description": "需要在防火墙中放行的固定出口 IP 地址，每项均带复制按钮。",
         "emptyTitle": "暂无出口 IP",
         "emptyBody": "连接开通后，出口地址将在此显示。",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "复制",
+        "copiedLabel": "已复制"
       },
       "onboardingChecklist": {
         "description": "配置步骤，含预计用时和操作按钮，上方为实时重算的进度环和进度条。",
         "emptyTitle": "暂无待办事项",
         "emptyBody": "请在配置中添加引导步骤，或绑定步骤表。",
-        "progressLabel": "{done} of {total} done",
-        "celebrateTitle": "All done"
+        "progressLabel": "已完成 {done} / {total}",
+        "celebrateTitle": "全部完成"
       },
       "testimonialCard": {
         "description": "客户评价，含头像和署名。",
@@ -1034,7 +1034,7 @@
         "description": "带标题的图片位灵感板网格，适用于含图片 URL 的表。",
         "emptyTitle": "暂无图片",
         "emptyBody": "参考图片将显示在此板上。",
-        "placeholder": "Drop reference"
+        "placeholder": "拖放参考图片"
       },
       "linkList": {
         "description": "带标题和网址的参考链接，在新标签页中打开。",
@@ -1075,16 +1075,16 @@
         "successTitle": "记录已创建",
         "successBody": "记录已保存。",
         "required": "此字段为必填项。",
-        "titleLabel": "Create record",
-        "closeLabel": "Close"
+        "titleLabel": "创建记录",
+        "closeLabel": "关闭"
       },
       "drawerForm": {
         "description": "用于字段较多记录的侧边抽屉创建或编辑表单。",
         "trigger": "新建",
         "submit": "保存",
         "cancel": "取消",
-        "titleLabel": "New record",
-        "closeLabel": "Close"
+        "titleLabel": "新建记录",
+        "closeLabel": "关闭"
       },
       "stepper": {
         "description": "显示多步流程进展的步骤指示器。",
@@ -1136,20 +1136,20 @@
         "valuePlaceholder": "值…",
         "emptyBody": "尚无条件——添加一个来定义此分群。",
         "op": {
-          "eq": "is",
-          "neq": "is not",
-          "gt": "is greater than",
-          "gte": "is at least",
-          "lt": "is less than",
-          "lte": "is at most",
-          "contains": "contains",
-          "not-contains": "does not contain",
-          "starts-with": "starts with",
-          "in": "is one of",
-          "before": "is before",
-          "after": "is after",
-          "is-null": "is empty",
-          "is-not-null": "is not empty"
+          "eq": "等于",
+          "neq": "不等于",
+          "gt": "大于",
+          "gte": "大于或等于",
+          "lt": "小于",
+          "lte": "小于或等于",
+          "contains": "包含",
+          "not-contains": "不包含",
+          "starts-with": "开头为",
+          "in": "属于其中之一",
+          "before": "早于",
+          "after": "晚于",
+          "is-null": "为空",
+          "is-not-null": "不为空"
         }
       },
       "flowBuilder": {
@@ -1216,17 +1216,17 @@
         "questionPlaceholder": "输入题目…",
         "emptyTitle": "尚无题目",
         "emptyBody": "选择一种题型，开始搭建您的问卷。",
-        "questionLabel": "Question",
-        "dropdownPlaceholder": "Choose…",
+        "questionLabel": "题目",
+        "dropdownPlaceholder": "请选择…",
         "kind": {
-          "single-choice": "Single choice",
-          "multi-choice": "Multiple choice",
-          "dropdown": "Dropdown",
-          "short-text": "Short text",
-          "long-text": "Long text",
-          "rating": "Star rating",
+          "single-choice": "单选",
+          "multi-choice": "多选",
+          "dropdown": "下拉选择",
+          "short-text": "短文本",
+          "long-text": "长文本",
+          "rating": "星级评分",
           "nps": "NPS 0–10",
-          "date": "Date"
+          "date": "日期"
         }
       },
       "inlineEditableField": {
@@ -1235,7 +1235,7 @@
         "save": "保存",
         "cancel": "取消",
         "empty": "空",
-        "valueLabel": "Value"
+        "valueLabel": "值"
       },
       "passwordStrengthMeter": {
         "description": "显示密码强度的四段式指示器。",
@@ -1260,7 +1260,7 @@
         "navigate": "导航",
         "select": "打开",
         "close": "关闭",
-        "emptyTitle": "No results for \"{query}\"",
+        "emptyTitle": "“{query}”没有结果",
         "emptyBody": "开始输入以搜索。",
         "groupActions": "操作",
         "groupNavigate": "导航",
@@ -1277,8 +1277,8 @@
         "summary": "“{query}”的 {count} 条结果",
         "emptyTitle": "无结果",
         "emptyBody": "请尝试其他搜索词。",
-        "searchLabel": "Search",
-        "facetRailLabel": "Filter by type"
+        "searchLabel": "搜索",
+        "facetRailLabel": "按类型筛选"
       },
       "breadcrumb": {
         "description": "当前记录或文件夹的层级路径。",
@@ -1298,22 +1298,22 @@
         "footerHint": "随时按 ?",
         "then": "然后",
         "emptyTitle": "未注册任何快捷键。",
-        "generalGroupLabel": "General",
-        "navigationGroupLabel": "Navigation",
-        "recordsGroupLabel": "Records",
-        "openCommandPaletteLabel": "Open command palette",
-        "searchLabel": "Search",
-        "showShortcutsLabel": "Show shortcuts",
-        "goToDashboardLabel": "Go to dashboard",
-        "goToOrdersLabel": "Go to orders",
-        "newRecordLabel": "New record",
-        "saveLabel": "Save",
-        "undoLabel": "Undo"
+        "generalGroupLabel": "通用",
+        "navigationGroupLabel": "导航",
+        "recordsGroupLabel": "记录",
+        "openCommandPaletteLabel": "打开命令面板",
+        "searchLabel": "搜索",
+        "showShortcutsLabel": "显示快捷键",
+        "goToDashboardLabel": "前往仪表板",
+        "goToOrdersLabel": "前往订单",
+        "newRecordLabel": "新建记录",
+        "saveLabel": "保存",
+        "undoLabel": "撤销"
       },
       "avatarStack": {
         "description": "带“+N”溢出和可选在线状态的重叠头像。",
         "online": "{count} 人在线",
-        "a11yLabel": "People"
+        "a11yLabel": "人员"
       }
     },
     "system": {
@@ -1388,10 +1388,10 @@
         "latency": "延迟"
       },
       "widgetMissing": {
-        "description": "The fallback card shown when a stored page references a widget that is not installed.",
-        "title": "Widget unavailable",
-        "bodyLead": "No widget is registered as",
-        "bodyTail": "It may belong to a newer version or an uninstalled extension."
+        "description": "当已保存的页面引用了未安装的小组件时显示的回退卡片。",
+        "title": "小组件不可用",
+        "bodyLead": "没有小组件注册为",
+        "bodyTail": "它可能属于更高版本，或来自某个未安装的扩展。"
       }
     }
   },
@@ -1405,350 +1405,350 @@
       "committed": "{title} 已放置在第 {col} 列，第 {row} 行。",
       "reverted": "{title} 已返回原始位置。"
     },
-    "draggableRole": "draggable widget"
+    "draggableRole": "可拖动的小组件"
   },
   "templates": {
     "crud": {
-      "newRow": "New row",
-      "exportAction": "Export",
-      "searchPlaceholder": "Search {table}…",
-      "removeFilter": "Remove {column} filter",
-      "queryFailed": "Query failed",
-      "loadingRows": "Loading rows",
-      "noMatchesTitle": "No matching rows",
+      "newRow": "新建行",
+      "exportAction": "导出",
+      "searchPlaceholder": "搜索 {table}…",
+      "removeFilter": "移除 {column} 筛选",
+      "queryFailed": "查询失败",
+      "loadingRows": "正在加载行",
+      "noMatchesTitle": "没有匹配的行",
       "emptyTitle": "{count, plural, other {No {entity}s yet}}",
-      "createTitle": "Add {entity}",
-      "createSubtitle": "Creates one row in {table}.",
-      "createSubmit": "Add {entity}",
-      "createSuccessTitle": "{name} added",
-      "createSuccessBody": "You can undo this from the toast.",
-      "editTitle": "Edit {entity}",
-      "saveSubmit": "Save changes",
-      "deleteTitle": "Delete {entity}",
-      "deletePreflight": "Checking references…",
-      "deleteNoReferences": "This row has no inbound references.",
-      "deleteConsequencesIntro": "Deleting this row also affects:",
+      "createTitle": "添加 {entity}",
+      "createSubtitle": "将在 {table} 中创建一行。",
+      "createSubmit": "添加 {entity}",
+      "createSuccessTitle": "已添加 {name}",
+      "createSuccessBody": "您可以从该通知中撤销此操作。",
+      "editTitle": "编辑 {entity}",
+      "saveSubmit": "保存更改",
+      "deleteTitle": "删除 {entity}",
+      "deletePreflight": "正在检查引用…",
+      "deleteNoReferences": "此行没有入站引用。",
+      "deleteConsequencesIntro": "删除此行还会影响：",
       "referenceRows": "{count, plural, other {{n} rows}}",
-      "confirmPrompt": "Type {value} to confirm",
+      "confirmPrompt": "输入 {value} 以确认",
       "bulkDeleteTitle": "{count, plural, other {Delete {n} rows}}",
-      "bulkDeleteBody": "Referential consequences apply to every selected row.",
-      "bulkDeleteConfirm": "Delete rows",
-      "uniqueHelper": "Must be unique in {table}.",
+      "bulkDeleteBody": "引用带来的影响适用于所选的每一行。",
+      "bulkDeleteConfirm": "删除这些行",
+      "uniqueHelper": "在 {table} 中必须唯一。",
       "uniqueHelperCounted": "{count, plural, other {Checked against {n} rows.}}",
       "toast": {
-        "created": "{entity} created.",
-        "createFailed": "Create failed.",
-        "saved": "Changes saved.",
-        "updateFailed": "Update failed.",
-        "deleted": "{name} deleted.",
-        "deleteFailed": "Delete failed.",
+        "created": "{entity} 已创建。",
+        "createFailed": "创建失败。",
+        "saved": "更改已保存。",
+        "updateFailed": "更新失败。",
+        "deleted": "{name} 已删除。",
+        "deleteFailed": "删除失败。",
         "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
-        "bulkDeleteFailed": "Bulk delete failed.",
-        "undone": "Change undone.",
-        "undoFailed": "Undo failed."
+        "bulkDeleteFailed": "批量删除失败。",
+        "undone": "更改已撤销。",
+        "undoFailed": "撤销失败。"
       },
       "detail": {
-        "fields": "Fields",
-        "inboundReferences": "inbound references",
+        "fields": "字段",
+        "inboundReferences": "入站引用",
         "relatedCount": "{count, plural, other {{n} related records in {table}}}",
-        "loadError": "Failed to load the record."
+        "loadError": "无法加载该记录。"
       }
     },
     "queue": {
-      "allSegment": "All",
+      "allSegment": "全部",
       "daysUnit": "{count, plural, other {{count} days}}",
-      "approvedToast": "{count} approved.",
-      "rejectedToast": "{count} rejected.",
-      "undoneToast": "Decision undone.",
-      "undoFailedToast": "Could not undo this decision.",
-      "failedToast": "Decision failed.",
-      "invalidConfig": "This queue’s stored configuration is invalid. Regenerate the page to restore it.",
-      "queueLabel": "Queue",
-      "statusFilterLabel": "Status filter",
-      "errorTitle": "This queue failed to load",
-      "loading": "Loading queue",
-      "emptyTitle": "Nothing in the queue",
-      "emptyBody": "New requests appear here as they arrive.",
-      "caughtUpTitle": "You're all caught up",
-      "caughtUpBody": "No requests in this tab right now.",
-      "selectItem": "Select {title}",
-      "selectPrompt": "Select a request",
-      "selectBody": "Choose an item to review its details.",
-      "rejectTitle": "Reject requests",
-      "rejectCount": "Selected · {count}",
-      "rejectPlaceholder": "Add a note for the requester…",
-      "rejectReasonLabel": "Rejection reason",
-      "rejectNote": "The requester will be notified with your note."
+      "approvedToast": "已批准 {count} 项。",
+      "rejectedToast": "已拒绝 {count} 项。",
+      "undoneToast": "已撤销该决定。",
+      "undoFailedToast": "无法撤销该决定。",
+      "failedToast": "操作失败。",
+      "invalidConfig": "此队列保存的配置无效。请重新生成页面以恢复。",
+      "queueLabel": "队列",
+      "statusFilterLabel": "状态筛选",
+      "errorTitle": "无法加载此队列",
+      "loading": "正在加载队列",
+      "emptyTitle": "队列为空",
+      "emptyBody": "新请求到达后将显示在这里。",
+      "caughtUpTitle": "全部处理完毕",
+      "caughtUpBody": "此标签页当前没有请求。",
+      "selectItem": "选择 {title}",
+      "selectPrompt": "选择一个请求",
+      "selectBody": "选择一项以查看其详情。",
+      "rejectTitle": "拒绝请求",
+      "rejectCount": "已选 · {count}",
+      "rejectPlaceholder": "为请求者添加备注…",
+      "rejectReasonLabel": "拒绝原因",
+      "rejectNote": "请求者将收到通知及您的备注。"
     },
     "dashboard": {
-      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout."
+      "invalidLayout": "此仪表板保存的布局无效。请重新生成页面或重置其布局。"
     },
     "builder": {
-      "publish": "Publish",
-      "paletteTitle": "Blocks",
-      "inspectorTitle": "Inspector",
-      "startFromTemplate": "Start from a template",
-      "untitledDoc": "Untitled document",
-      "invalidConfig": "This builder page’s stored config is invalid. Regenerate the page or reset it.",
+      "publish": "发布",
+      "paletteTitle": "区块",
+      "inspectorTitle": "检查器",
+      "startFromTemplate": "从模板开始",
+      "untitledDoc": "未命名文档",
+      "invalidConfig": "此构建器页面保存的配置无效。请重新生成页面或将其重置。",
       "starterPicker": {
-        "subtitle": "Selection replaces the current draft."
+        "subtitle": "选择模板会替换当前草稿。"
       },
       "inspector": {
-        "titleLabel": "Title",
-        "numberLabel": "Number",
-        "currencyLabel": "Currency",
-        "taxRateLabel": "Tax rate %",
-        "modulesLabel": "Modules"
+        "titleLabel": "标题",
+        "numberLabel": "编号",
+        "currencyLabel": "币种",
+        "taxRateLabel": "税率 %",
+        "modulesLabel": "模块"
       },
       "summary": {
-        "questions": "Questions",
-        "estLength": "Est. length",
-        "estMinutes": "~{minutes} min",
-        "steps": "Steps",
-        "triggers": "Triggers",
-        "conditions": "Conditions",
-        "actions": "Actions",
-        "triggerLocked": "The trigger step can’t be removed."
+        "questions": "题目",
+        "estLength": "预计时长",
+        "estMinutes": "约 {minutes} 分钟",
+        "steps": "步骤",
+        "triggers": "触发器",
+        "conditions": "条件",
+        "actions": "动作",
+        "triggerLocked": "触发器步骤无法移除。"
       },
       "publishModal": {
-        "confirmTitle": "Publish survey?",
-        "confirmSubtitle": "Review before it goes live.",
-        "confirmCta": "Publish survey",
-        "publishedTitle": "Survey published",
-        "publishedSubtitle": "Your survey is live and collecting responses right now."
+        "confirmTitle": "发布问卷？",
+        "confirmSubtitle": "上线前请再检查一遍。",
+        "confirmCta": "发布问卷",
+        "publishedTitle": "问卷已发布",
+        "publishedSubtitle": "您的问卷已上线，正在收集回答。"
       },
       "blocks": {
-        "block-totals-summary": "Totals summary",
-        "block-line-items": "Line items",
-        "block-kpi-row": "KPI row",
-        "block-bar-chart": "Bar chart",
-        "block-line-chart": "Line chart",
-        "block-two-col-table": "Two-column table",
-        "block-tax-breakdown": "Tax breakdown",
-        "block-multi-currency": "Multi-currency",
-        "block-payment-history": "Payment history",
-        "block-discount-codes": "Discount codes",
-        "block-loyalty-banner": "Loyalty points",
-        "block-recurring-banner": "Recurring",
-        "block-qr-pay": "Payment QR",
-        "block-delivery-stepper": "Delivery timeline",
-        "block-signature": "Signature",
-        "block-terms-checkbox": "Terms",
-        "block-approval": "Approval",
-        "block-attachments": "Attachments",
-        "block-late-fees": "Late fees",
-        "block-image-placeholder": "Image",
-        "block-contact": "Contact",
-        "block-highlight-box": "Highlight box"
+        "block-totals-summary": "合计汇总",
+        "block-line-items": "明细行",
+        "block-kpi-row": "指标行",
+        "block-bar-chart": "柱状图",
+        "block-line-chart": "折线图",
+        "block-two-col-table": "两列表格",
+        "block-tax-breakdown": "税费明细",
+        "block-multi-currency": "多币种",
+        "block-payment-history": "付款记录",
+        "block-discount-codes": "折扣码",
+        "block-loyalty-banner": "会员积分",
+        "block-recurring-banner": "周期性",
+        "block-qr-pay": "支付二维码",
+        "block-delivery-stepper": "配送时间线",
+        "block-signature": "签名",
+        "block-terms-checkbox": "条款",
+        "block-approval": "审批",
+        "block-attachments": "附件",
+        "block-late-fees": "滞纳金",
+        "block-image-placeholder": "图片",
+        "block-contact": "联系人",
+        "block-highlight-box": "重点提示框"
       },
       "starters": {
         "titles": {
-          "st-standard": "Standard invoice",
-          "st-recurring": "Recurring subscription",
-          "st-deposit": "Deposit request",
-          "st-credit-note": "Credit note",
-          "st-late-reminder": "Late-payment reminder",
-          "st-quote": "Quote / estimate",
-          "st-proforma": "Pro forma",
-          "st-receipt": "Payment receipt",
-          "st-retainer": "Retainer",
-          "st-usage": "Usage-based invoice",
-          "st-milestone": "Project milestone",
-          "st-donation": "Donation receipt (Tax ID)",
-          "st-monthly": "Monthly summary",
-          "st-quarterly": "Quarterly review",
-          "st-usage-report": "Usage breakdown",
-          "st-exec": "Executive one-pager",
-          "st-welcome": "Welcome email",
-          "st-receipt-email": "Invoice receipt",
-          "st-digest": "Weekly digest",
-          "st-dunning": "Payment reminder"
+          "st-standard": "标准发票",
+          "st-recurring": "周期性订阅",
+          "st-deposit": "定金请求",
+          "st-credit-note": "贷记单",
+          "st-late-reminder": "逾期付款提醒",
+          "st-quote": "报价 / 估价",
+          "st-proforma": "形式发票",
+          "st-receipt": "付款收据",
+          "st-retainer": "预聘费",
+          "st-usage": "按用量计费发票",
+          "st-milestone": "项目里程碑",
+          "st-donation": "捐赠收据（税号）",
+          "st-monthly": "月度汇总",
+          "st-quarterly": "季度回顾",
+          "st-usage-report": "用量明细",
+          "st-exec": "管理层一页纸",
+          "st-welcome": "欢迎邮件",
+          "st-receipt-email": "发票收据",
+          "st-digest": "每周摘要",
+          "st-dunning": "付款提醒"
         },
         "categories": {
-          "billing": "Billing",
-          "sales": "Sales",
-          "nonProfit": "Non-profit",
-          "reports": "Reports",
-          "lifecycle": "Lifecycle",
-          "transactional": "Transactional",
-          "marketing": "Marketing"
+          "billing": "计费",
+          "sales": "销售",
+          "nonProfit": "非营利",
+          "reports": "报告",
+          "lifecycle": "生命周期",
+          "transactional": "事务性",
+          "marketing": "营销"
         }
       }
     },
     "common": {
-      "clearFilters": "Clear filters",
-      "noMatchesBody": "Try a different search or remove a filter.",
-      "detailLabel": "Detail",
-      "loadingRecord": "Loading record"
+      "clearFilters": "清除筛选",
+      "noMatchesBody": "试试其他搜索词或移除筛选。",
+      "detailLabel": "详情",
+      "loadingRecord": "正在加载记录"
     },
     "directory": {
-      "invalidConfig": "This directory’s stored configuration is invalid. Regenerate the page to restore it.",
-      "searchPlaceholder": "Search people…",
+      "invalidConfig": "此通讯录保存的配置无效。请重新生成页面以恢复。",
+      "searchPlaceholder": "搜索人员…",
       "memberCount": "{count, plural, other {{n} people}}",
-      "errorTitle": "This directory failed to load",
-      "loading": "Loading people",
-      "emptyTitle": "No people yet",
-      "emptyBody": "People appear here as rows land in the table.",
-      "noMatchesTitle": "No matching people",
-      "detailTitle": "Person"
+      "errorTitle": "无法加载此通讯录",
+      "loading": "正在加载人员",
+      "emptyTitle": "还没有人员",
+      "emptyBody": "表中有数据后，人员将显示在这里。",
+      "noMatchesTitle": "没有匹配的人员",
+      "detailTitle": "人员"
     },
     "masterDetail": {
-      "invalidConfig": "This page’s stored configuration is invalid. Regenerate the page to restore it.",
-      "railTitle": "Records",
-      "errorTitle": "This list failed to load",
-      "loading": "Loading records",
-      "emptyBody": "Records appear here as rows land in the table.",
-      "noMatchesTitle": "No matching records",
-      "noMatchesBody": "Try removing a filter.",
-      "selectPrompt": "Select a record",
-      "selectBody": "Choose an item from the list to see its details."
+      "invalidConfig": "此页面保存的配置无效。请重新生成页面以恢复。",
+      "railTitle": "记录",
+      "errorTitle": "无法加载此列表",
+      "loading": "正在加载记录",
+      "emptyBody": "表中有数据后，记录将显示在这里。",
+      "noMatchesTitle": "没有匹配的记录",
+      "noMatchesBody": "试试移除筛选。",
+      "selectPrompt": "选择一条记录",
+      "selectBody": "从列表中选择一项以查看其详情。"
     },
     "chat": {
-      "invalidLayout": "This chat page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "noInboxTitle": "No inbox on this page",
-      "noInboxBody": "Regenerate the page.",
-      "conversationsFailed": "The conversation query failed",
-      "messagesFailed": "The messages query failed",
-      "loadingConversations": "Loading conversations",
-      "loadingMessages": "Loading messages",
-      "selectTitle": "Select a conversation",
-      "selectBody": "Pick a conversation from the inbox to read its messages."
+      "invalidLayout": "此聊天页面保存的布局无效。请重新生成页面或重置其布局。",
+      "noInboxTitle": "此页面没有收件箱",
+      "noInboxBody": "请重新生成页面。",
+      "conversationsFailed": "会话查询失败",
+      "messagesFailed": "消息查询失败",
+      "loadingConversations": "正在加载会话",
+      "loadingMessages": "正在加载消息",
+      "selectTitle": "选择一个会话",
+      "selectBody": "从收件箱中选择一个会话以阅读其消息。"
     },
     "files": {
-      "allFiles": "All files",
-      "recent": "Recent",
-      "starred": "Starred",
-      "invalidLayout": "This files page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "missingSlotTitle": "No file browser on this page",
-      "missingSlotBody": "The stored layout has no browser slot. Regenerate the page.",
-      "loadFailed": "The file query failed",
-      "loading": "Loading files",
-      "uploadsUnavailable": "Uploads are not available on this page yet.",
-      "previewTitle": "File",
-      "kindLabel": "Kind",
-      "linkLabel": "Link"
+      "allFiles": "全部文件",
+      "recent": "最近",
+      "starred": "已加星标",
+      "invalidLayout": "此文件页面保存的布局无效。请重新生成页面或重置其布局。",
+      "missingSlotTitle": "此页面没有文件浏览器",
+      "missingSlotBody": "保存的布局中没有浏览器插槽。请重新生成页面。",
+      "loadFailed": "文件查询失败",
+      "loading": "正在加载文件",
+      "uploadsUnavailable": "此页面暂不支持上传。",
+      "previewTitle": "文件",
+      "kindLabel": "类型",
+      "linkLabel": "链接"
     },
     "logViewer": {
-      "invalidLayout": "This log page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "levelFilterLabel": "Log level filter",
-      "timeFilterLabel": "Time window filter",
+      "invalidLayout": "此日志页面保存的布局无效。请重新生成页面或重置其布局。",
+      "levelFilterLabel": "日志级别筛选",
+      "timeFilterLabel": "时间范围筛选",
       "window": {
-        "1h": "1h",
-        "24h": "24h",
-        "7d": "7d"
+        "1h": "1 小时",
+        "24h": "24 小时",
+        "7d": "7 天"
       },
       "heldCount": "+{count}",
-      "missingSlotTitle": "No log widget on this page",
-      "missingSlotBody": "The stored layout has no log slot. Regenerate the page.",
-      "loadFailed": "The log query failed",
-      "loading": "Loading log entries",
-      "traceTitle": "Trace",
-      "latestTitle": "Latest activity",
-      "backToLatest": "Back to latest",
-      "eventFallback": "Event"
+      "missingSlotTitle": "此页面没有日志小组件",
+      "missingSlotBody": "保存的布局中没有日志插槽。请重新生成页面。",
+      "loadFailed": "日志查询失败",
+      "loading": "正在加载日志条目",
+      "traceTitle": "调用链",
+      "latestTitle": "最新动态",
+      "backToLatest": "返回最新",
+      "eventFallback": "事件"
     },
     "calendar": {
       "eventCount": "{count, plural, other {{n} events}}",
-      "composePlaceholder": "Event title…",
-      "addEvent": "Add event",
-      "dateRange": "Date range",
-      "agendaTitle": "Agenda",
-      "categoriesTitle": "Categories",
-      "upcomingTitle": "Upcoming",
-      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout."
+      "composePlaceholder": "事件标题…",
+      "addEvent": "添加事件",
+      "dateRange": "日期范围",
+      "agendaTitle": "日程",
+      "categoriesTitle": "类别",
+      "upcomingTitle": "即将到来",
+      "invalidLayout": "此日历保存的布局无效。请重新生成页面或重置其布局。"
     },
     "scheduler": {
-      "previousWeek": "Previous week",
-      "nextWeek": "Next week",
-      "week": "Week",
-      "month": "Month",
-      "invalidLayout": "This schedule’s stored layout is invalid. Regenerate the page or reset its layout.",
+      "previousWeek": "上一周",
+      "nextWeek": "下一周",
+      "week": "周",
+      "month": "月",
+      "invalidLayout": "此排班表保存的布局无效。请重新生成页面或重置其布局。",
       "shiftCount": "{count, plural, other {{n} shifts}}",
-      "addShift": "Add shift"
+      "addShift": "添加班次"
     },
     "settings": {
-      "title": "Notification settings",
-      "subtitle": "Choose what you're notified about and how",
-      "matrixLabel": "Notify me about",
-      "rowHeader": "Event",
-      "saved": "Saved",
-      "unavailableTag": "Not available yet",
-      "loading": "Loading preferences",
-      "errorTitle": "These settings failed to load",
-      "emptyTitle": "Nothing to configure yet",
-      "emptyBody": "Notification events appear here as producers ship."
+      "title": "通知设置",
+      "subtitle": "选择通知内容与方式",
+      "matrixLabel": "通知我",
+      "rowHeader": "事件",
+      "saved": "已保存",
+      "unavailableTag": "暂不可用",
+      "loading": "正在加载偏好设置",
+      "errorTitle": "无法加载这些设置",
+      "emptyTitle": "暂无可配置项",
+      "emptyBody": "随着功能上线，通知事件将显示在这里。"
     },
     "pageCrud": {
-      "description": "The canonical table page: searchable data grid, create/edit forms, safe deletes with reference checks, and undoable changes."
+      "description": "标准的数据表页面：可搜索的数据网格、创建/编辑表单、带引用检查的安全删除，以及可撤销的更改。"
     },
     "pageDashboard": {
-      "description": "A widget dashboard over your data: KPI cards, charts, and lists on an editable grid."
+      "description": "基于您数据的小组件仪表板：可编辑网格上的指标卡、图表和列表。"
     },
     "pageBoard": {
-      "description": "A kanban board grouped by a status field — drag cards between columns to update records."
+      "description": "按状态字段分组的看板——在列之间拖动卡片即可更新记录。"
     },
     "pageCalendar": {
-      "description": "A month calendar with agenda, category filters, and quick event capture from a date field."
+      "description": "月视图日历，含日程、类别筛选，并可从日期字段快速录入事件。"
     },
     "pageScheduler": {
-      "description": "A week-by-resource shift matrix with capacity tracking and coverage totals."
+      "description": "按周与资源排列的班次矩阵，含容量跟踪和覆盖合计。"
     },
     "pageDirectory": {
-      "description": "A people directory with search, group filters, and a profile drawer."
+      "description": "人员通讯录，含搜索、分组筛选和资料抽屉。"
     },
     "pageMasterDetail": {
-      "description": "A list-beside-detail layout: pick a record on the left, work with it on the right."
+      "description": "列表与详情并排的布局：在左侧选择记录，在右侧进行处理。"
     },
     "pageQueueInbox": {
-      "description": "A review queue with approve/reject decisions, bulk actions, and undo."
+      "description": "审核队列，支持批准/拒绝决定、批量操作和撤销。"
     },
     "pageLogViewer": {
-      "description": "A live-tailing log table with level and time filters and a trace side panel."
+      "description": "实时滚动的日志表格，含级别与时间筛选以及调用链侧栏。"
     },
     "pageFiles": {
-      "description": "A file browser with smart folders, uploads, and a preview drawer."
+      "description": "文件浏览器，含智能文件夹、上传和预览抽屉。"
     },
     "pageChat": {
-      "description": "A conversation inbox beside a message thread, bound to your messages tables."
+      "description": "会话收件箱与消息会话串并排，绑定到您的消息数据表。"
     },
     "pageBuilder": {
-      "description": "A drag-and-drop document builder with block palette, inspector, and publish flow."
+      "description": "拖放式文档构建器，含区块面板、检查器和发布流程。"
     },
     "pageWizard": {
-      "description": "A multi-step guided flow that walks users through a structured process."
+      "description": "多步骤引导流程，带领用户完成结构化的操作。"
     },
     "pageSettings": {
-      "description": "A notification-preferences matrix with per-channel toggles and autosave."
+      "description": "通知偏好矩阵，含按渠道的开关和自动保存。"
     }
   },
   "frame": {
-    "noResult": "No result for widget",
-    "emptyTitle": "No data for range",
-    "loadError": "Something went wrong loading this widget.",
-    "renderError": "This widget failed to render.",
-    "refreshing": "Refreshing",
-    "infoLabel": "Widget info",
-    "menuLabel": "Widget menu"
+    "noResult": "此小组件没有结果",
+    "emptyTitle": "此范围内没有数据",
+    "loadError": "加载此小组件时出错。",
+    "renderError": "此小组件渲染失败。",
+    "refreshing": "正在刷新",
+    "infoLabel": "小组件信息",
+    "menuLabel": "小组件菜单"
   },
   "charts": {
-    "livePillLabel": "Live",
+    "livePillLabel": "实时",
     "forecast": {
-      "nowLabel": "Now",
-      "forecastLabel": "Forecast",
-      "actualLabel": "Actual"
+      "nowLabel": "现在",
+      "forecastLabel": "预测",
+      "actualLabel": "实际"
     },
-    "otherLabel": "Other",
+    "otherLabel": "其他",
     "heat": {
-      "lessLabel": "Less",
-      "moreLabel": "More"
+      "lessLabel": "少",
+      "moreLabel": "多"
     },
     "choropleth": {
-      "lowLabel": "Low",
-      "highLabel": "High"
+      "lowLabel": "低",
+      "highLabel": "高"
     },
     "funnel": {
-      "stepConversion": "{pct}% continue",
-      "overallConversion": "{pct}% overall"
+      "stepConversion": "{pct}% 继续",
+      "overallConversion": "总体 {pct}%"
     }
   }
 }

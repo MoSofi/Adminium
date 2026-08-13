@@ -67,6 +67,19 @@ export interface PageLogViewerLabels {
   retry?: string | undefined;
 }
 
+/**
+ * Literal bundle key per time window (`all` reuses the shared filter-bar "All").
+ * Indexed rather than assembled so the extractor sees each key and a fifth
+ * `LOG_TIME_WINDOWS` entry is a compile error, not a raw dotted string in the
+ * toolbar (10 §2.5).
+ */
+const WINDOW_KEY = {
+  all: 'ui:widgets.forms.filterChipBar.all',
+  '1h': 'ui:templates.logViewer.window.1h',
+  '24h': 'ui:templates.logViewer.window.24h',
+  '7d': 'ui:templates.logViewer.window.7d',
+} as const satisfies Record<LogTimeWindowKey, string>;
+
 export interface PageLogViewerProps {
   /** The page's `config.layout` document (raw — validated here). */
   layout: unknown;
@@ -261,8 +274,8 @@ export function PageLogViewer({
               className="rounded px-2.5 py-1 font-mono text-caption font-semibold text-fg-muted data-[active=true]:bg-surface data-[active=true]:text-fg data-[active=true]:shadow-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             >
               {option.key === 'all'
-                ? (labels?.all ?? t('ui:widgets.forms.filterChipBar.all', 'All'))
-                : t(`ui:templates.logViewer.window.${option.key}`, option.key)}
+                ? (labels?.all ?? t(WINDOW_KEY.all, 'All'))
+                : t(WINDOW_KEY[option.key], option.key)}
             </button>
           ))}
         </div>

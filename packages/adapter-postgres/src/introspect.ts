@@ -109,18 +109,36 @@ function quoteLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+/**
+ * Schemas Adminium owns on a source database, and therefore never presents as
+ * user data. `adminium_demo` is the demo-data ledger the example apps install
+ * (their `db/demo-toolkit.sql`) so their seed rows can be removed again — it is
+ * our bookkeeping, not the customer's, and a generated admin app that offered a
+ * CRUD grid over it would be showing plumbing.
+ *
+ * An explicit `schemas` request still wins: asking for it by name returns it.
+ */
+const RESERVED_SCHEMAS = ['adminium_demo'];
+
+/** Everything Postgres itself owns. */
+const SYSTEM_SCHEMA_PREDICATE =
+  `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_(toast|temp)'`;
+
 /** Predicate over `pg_namespace` alias `n` for the included schemas. */
 function schemaPredicate(schemas: readonly string[] | null): string {
   if (schemas !== null && schemas.length > 0) {
     return `n.nspname IN (${schemas.map(quoteLiteral).join(', ')})`;
   }
-  return `n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname !~ '^pg_(toast|temp)'`;
+  const reserved = RESERVED_SCHEMAS.map(quoteLiteral).join(', ');
+  return `${SYSTEM_SCHEMA_PREDICATE} AND n.nspname NOT IN (${reserved})`;
 }
 
+// Lists reserved schemas too: they are filtered out of the default selection in
+// TypeScript, so that naming one explicitly still reaches it.
 const SCHEMAS_SQL = `
 SELECT n.nspname AS name
 FROM pg_catalog.pg_namespace n
-WHERE ${schemaPredicate(null)}
+WHERE ${SYSTEM_SCHEMA_PREDICATE}
 ORDER BY n.nspname`;
 
 function classesSql(pred: string): string {
@@ -386,7 +404,9 @@ export async function introspectPostgres(
     .filter((name): name is string => name !== null);
   const requested = opts.schemas ?? null;
   const schemas =
-    requested === null ? allSchemas : requested.filter((name) => allSchemas.includes(name));
+    requested === null
+      ? allSchemas.filter((name) => !RESERVED_SCHEMAS.includes(name))
+      : requested.filter((name) => allSchemas.includes(name));
   const pred = schemaPredicate(requested === null ? null : schemas);
 
   // 2. Classes ---------------------------------------------------------------

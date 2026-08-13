@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
-import { Bell, LogOut, Moon, Settings, Sun, User } from 'lucide-react';
+import { Bell, Database, LogOut, Moon, Settings, SlidersHorizontal, Sun, User } from 'lucide-react';
 import {
   Avatar,
   DropdownMenu,
@@ -39,6 +39,7 @@ import {
 } from '../api/notifications.js';
 import type { BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { hasStudioAccess } from '../studio/StudioGuard.js';
 import { RuntimeChipHost } from './RuntimeChipHost.js';
 import { useChordPending } from './ShortcutsProvider.js';
 
@@ -49,6 +50,13 @@ export interface TopbarProps {
   onOpenPalette: () => void;
   onSignOut: () => void;
   onOpenAccount: () => void;
+  /**
+   * Studio entry points (09 §8: "a Studio section appears in the user menu").
+   * Rendered only for role ≥ Admin — `StudioGuard` and the server both
+   * re-enforce, so this gates discovery, not access.
+   */
+  onOpenStudio: () => void;
+  onOpenStudioSettings: () => void;
 }
 
 /**
@@ -170,12 +178,21 @@ function NotificationBell() {
   );
 }
 
-export function Topbar({ bootstrap, title, onOpenPalette, onSignOut, onOpenAccount }: TopbarProps) {
+export function Topbar({
+  bootstrap,
+  title,
+  onOpenPalette,
+  onSignOut,
+  onOpenAccount,
+  onOpenStudio,
+  onOpenStudioSettings,
+}: TopbarProps) {
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
   const dark = resolved.theme === 'dark';
   const pending = useChordPending();
   const { user } = bootstrap;
+  const admin = hasStudioAccess(bootstrap.roles);
 
   return (
     <header
@@ -216,7 +233,11 @@ export function Topbar({ bootstrap, title, onOpenPalette, onSignOut, onOpenAccou
         <Tooltip content={t('topbar.theme', 'Toggle light / dark')}>
           <IconButton
             size="lg"
-            label={t('topbar.themeLabel', dark ? 'Switch to light theme' : 'Switch to dark theme')}
+            label={
+            dark
+              ? t('theme.toLight', 'Switch to light theme')
+              : t('theme.toDark', 'Switch to dark theme')
+          }
             onClick={() => setPref('theme', dark ? 'light' : 'dark')}
           >
             {dark ? <Sun className="size-[17px]" /> : <Moon className="size-[17px]" />}
@@ -247,6 +268,18 @@ export function Topbar({ bootstrap, title, onOpenPalette, onSignOut, onOpenAccou
             <DropdownMenuItem icon={<Settings />} onSelect={onOpenAccount}>
               {t('topbar.preferences', 'Preferences')}
             </DropdownMenuItem>
+            {admin ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t('topbar.studio', 'Studio')}</DropdownMenuLabel>
+                <DropdownMenuItem icon={<Database />} onSelect={onOpenStudio}>
+                  {t('studio.hub.title', 'Data connections')}
+                </DropdownMenuItem>
+                <DropdownMenuItem icon={<SlidersHorizontal />} onSelect={onOpenStudioSettings}>
+                  {t('studio.settingsHub.title', 'Workspace settings')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem icon={<LogOut className="rtl:-scale-x-100" />} onSelect={onSignOut}>
               {t('topbar.signOut', 'Sign out')}

@@ -1,6 +1,9 @@
+import noDynamicI18nKey from './no-dynamic-i18n-key.js';
 import noLiteralColorOnTokenBg from './no-literal-color-on-token-bg.js';
+import noLiteralStrings from './no-literal-strings.js';
 import noPhysicalDirectionClasses from './no-physical-direction-classes.js';
 import noStyleProp from './no-style-prop.js';
+import noTResultReplace from './no-t-result-replace.js';
 
 /**
  * eslint-plugin-adminium — shipped from @adminium/config (02-design-system.md §8).
@@ -15,6 +18,9 @@ const plugin = {
     'no-style-prop': noStyleProp,
     'no-physical-direction-classes': noPhysicalDirectionClasses,
     'no-literal-color-on-token-bg': noLiteralColorOnTokenBg,
+    'no-literal-strings': noLiteralStrings,
+    'no-dynamic-i18n-key': noDynamicI18nKey,
+    'no-t-result-replace': noTResultReplace,
   },
 };
 

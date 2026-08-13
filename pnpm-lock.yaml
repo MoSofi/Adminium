@@ -292,6 +292,9 @@ importers:
       '@adminium/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@adminium/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
       '@adminium/llm':
         specifier: workspace:*
         version: link:../../packages/llm
@@ -472,6 +475,25 @@ importers:
         specifier: 'catalog:'
         version: 3.2.7(@types/debug@4.1.13)(@types/node@24.13.3)(happy-dom@18.0.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(yaml@2.9.0)
 
+  packages/add-on-contracts:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@adminium/config':
+        specifier: workspace:*
+        version: link:../config
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.5(jiti@2.7.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.13.3)(happy-dom@18.0.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(yaml@2.9.0)
+
   packages/charts:
     dependencies:
       '@adminium/i18n':
@@ -625,6 +647,9 @@ importers:
 
   packages/manifest:
     dependencies:
+      '@adminium/add-on-contracts':
+        specifier: workspace:*
+        version: link:../add-on-contracts
       zod:
         specifier: 'catalog:'
         version: 4.4.3

@@ -455,4 +455,42 @@ describe('§7.2 PII layer (independent of primary)', () => {
     expect(notes.get('company_name')!.semantics.flags.pii).toBeNull();
     expect(notes.get('company_name')!.semantics.flags.maskedByDefault).toBe(false);
   });
+
+  it('ADVERSARIAL: avatar_url is NOT gov-id despite containing "vat"', () => {
+    expect(users.get('avatar_url')!.semantics.flags.pii).not.toBe('gov-id');
+    expect(users.get('avatar_url')!.semantics.flags.maskedByDefault).toBe(false);
+  });
+
+  it('gov-id triggers match on token boundaries only', () => {
+    // The names that must still be caught, and the ordinary words that must
+    // not. `vat` inside avatar/private/reservation/activation was flagging
+    // every avatar column in every generated app as a government ID.
+    const detect = (name: string) => {
+      const model = parseDatabaseModel({
+        irVersion: 1,
+        dialect: 'postgres',
+        name: 'probe',
+        tables: [
+          {
+            schema: 'public',
+            name: 'people',
+            columns: [
+              { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+              { name, logicalType: 'varchar', maxLength: 64 },
+            ],
+            primaryKey: ['id'],
+          },
+        ],
+      });
+      const classified = classifyTableColumns(model, model.tables[0]!);
+      return classified.find((c: ClassifiedColumn) => c.column === name)!.semantics.flags.pii;
+    };
+
+    for (const name of ['ssn', 'customer_ssn', 'tax_id', 'vat', 'vat_number', 'passport_number', 'national_id', 'driver_license']) {
+      expect(detect(name), name).toBe('gov-id');
+    }
+    for (const name of ['avatar_url', 'private_notes', 'reservation_date', 'activation_code', 'observation', 'conservation_status']) {
+      expect(detect(name), name).not.toBe('gov-id');
+    }
+  });
 });

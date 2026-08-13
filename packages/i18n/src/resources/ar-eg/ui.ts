@@ -26,7 +26,7 @@ export default {
     "hidePassword": "إخفاء كلمة المرور",
     "reveal": "كشف",
     "hide": "إخفاء",
-    "clearSearch": "Clear search"
+    "clearSearch": "مسح البحث"
   },
   "state": {
     "loading": "جارٍ التحميل…",
@@ -69,8 +69,8 @@ export default {
       },
       "usageMeter": {
         "description": "استهلاك الحصة مقابل حد أقصى؛ يتحوّل الشريط إلى البرتقالي ثم الأحمر بعد تجاوز عتباتك.",
-        "usageLabel": "Usage",
-        "ofLabel": "of"
+        "usageLabel": "الاستخدام",
+        "ofLabel": "من"
       },
       "statTileCompact": {
         "description": "مربع مقياس نحيف بعنوان مصغّر وشارة اتجاه ورسم من 6 أعمدة — لصفوف كثيفة من 4 إلى 6."
@@ -87,16 +87,16 @@ export default {
       },
       "gaugeArc": {
         "description": "قوس عدّاد بنطاقات وصفية ومؤشر؛ ويعرض أيضًا شبكة من المؤشرات.",
-        "emptyTitle": "No gauges to show",
-        "emptyBody": "Services appear here as gauges once there is a reading for them."
+        "emptyTitle": "لا توجد مؤشرات للعرض",
+        "emptyBody": "تظهر الخدمات هنا كمؤشرات بمجرد توفّر قراءة لها."
       },
       "periodComparison": {
         "description": "هذه الفترة مقابل السابقة في شريطين، مع حساب الفارق أسفلهما.",
         "higherLabel": "أعلى",
         "lowerLabel": "أقل",
         "flatLabel": "دون تغيير",
-        "periodALabel": "This period",
-        "periodBLabel": "Last period"
+        "periodALabel": "هذه الفترة",
+        "periodBLabel": "الفترة السابقة"
       },
       "microKpiSubtitle": {
         "description": "إحصاء من سطر واحد في الترويسة، مبني على قالب ويُعاد حسابه من الحالة الحيّة."
@@ -113,216 +113,216 @@ export default {
         "description": "ملخّص صندوقي لتوزّع عمود رقمي حسب الفئة — الأدنى والأرباع والوسيط والأعلى.",
         "emptyTitle": "لا يوجد توزيع للعرض",
         "emptyBody": "لا توجد صفوف مطابقة للمرشّحات لعرضها كمخططات صندوقية.",
-        "chartLabel": "Box plot"
+        "chartLabel": "مخطط صندوقي"
       },
       "violin": {
         "description": "منحنيات كثافة متماثلة تقارن توزّع عمود رقمي عبر المجموعات.",
         "emptyTitle": "لا يوجد توزيع للعرض",
         "emptyBody": "لا توجد صفوف مطابقة للمرشّحات لبناء ملامح الكثافة.",
-        "chartLabel": "Violin plot"
+        "chartLabel": "مخطط كماني"
       },
       "ridgeline": {
         "description": "حِيود كثافة متداخلة تقارن عمودًا رقميًا عبر مجموعات مرتّبة.",
         "emptyTitle": "لا توجد حِيود للعرض",
         "emptyBody": "لا توجد صفوف مطابقة للمرشّحات لبناء ملامح الكثافة.",
-        "chartLabel": "Ridgeline"
+        "chartLabel": "مخطط حِيود"
       },
       "scatterBubble": {
         "description": "عمودان رقميان كنقاط، مع حجم فقاعة اختياري وخط اتجاه.",
         "emptyTitle": "لا توجد نقاط للعرض",
         "emptyBody": "لا توجد صفوف مطابقة للمرشّحات للأعمدة المحددة.",
-        "chartLabel": "Scatter plot"
+        "chartLabel": "مخطط انتشار"
       },
       "hexbin": {
         "description": "كثافة سداسية لعمودين رقميين، مُلوّنة حسب عدد الصفوف في كل خلية.",
         "emptyTitle": "لا توجد كثافة للعرض",
         "emptyBody": "لا توجد صفوف مطابقة للمرشّحات للتجميع.",
-        "chartLabel": "Density hexbin"
+        "chartLabel": "كثافة سداسية"
       },
       "correlationMatrix": {
         "description": "ارتباط بيرسون بين الأعمدة الرقمية المحددة، من موجب قوي إلى سالب قوي.",
         "emptyTitle": "لا شيء لحساب ارتباطه",
         "emptyBody": "اختر عمودين رقميين على الأقل بصفوف متطابقة.",
-        "chartLabel": "Correlation matrix"
+        "chartLabel": "مصفوفة ارتباط"
       },
       "parallelCoordinates": {
         "description": "كل سجل كخط عبر عدّة محاور رقمية مُطبّعة، مُلوّن حسب الفئة.",
         "emptyTitle": "لا توجد سجلات للعرض",
         "emptyBody": "لا توجد صفوف مطابقة للمرشّحات عبر المحاور المحددة.",
-        "chartLabel": "Parallel coordinates"
+        "chartLabel": "إحداثيات متوازية"
       },
-      "unexpectedShape": "Unexpected data shape.",
+      "unexpectedShape": "شكل بيانات غير متوقّع.",
       "lineArea": {
-        "chartLabel": "Line chart",
-        "description": "A metric over time as a line with a soft area fill, with an optional dashed prior-period comparison."
+        "chartLabel": "مخطط خطي",
+        "description": "مقياس عبر الزمن كخط مع تعبئة خفيفة للمساحة، مع مقارنة اختيارية متقطّعة بالفترة السابقة."
       },
       "bar": {
-        "chartLabel": "Bar chart",
-        "description": "Categorical or time-bucketed values as vertical bars, with an optional highlight on the largest or current bar."
+        "chartLabel": "مخطط أعمدة",
+        "description": "قيم حسب الفئة أو حسب فترات زمنية كأعمدة رأسية، مع إبراز اختياري لأكبر عمود أو للعمود الحالي."
       },
       "donut": {
-        "chartLabel": "Donut chart",
-        "otherLabel": "Other",
-        "description": "Category shares as donut slices with a legend and centre total, folding small slices into an Other bucket."
+        "chartLabel": "مخطط حلقي",
+        "otherLabel": "أخرى",
+        "description": "حصص الفئات كشرائح حلقية مع مفتاح توضيحي وإجمالي في المنتصف، مع ضمّ الشرائح الصغيرة في فئة «أخرى»."
       },
       "bullet": {
-        "chartLabel": "Bullet chart",
-        "description": "Progress toward a goal as a measure bar over qualitative bands, with a target tick per row.",
-        "emptyTitle": "No goals to track",
-        "emptyBody": "Add measures with targets to compare against."
+        "chartLabel": "مخطط رصاصي",
+        "description": "التقدّم نحو هدف كشريط قياس فوق نطاقات وصفية، مع علامة هدف لكل صف.",
+        "emptyTitle": "لا توجد أهداف للتتبّع",
+        "emptyBody": "أضف مقاييس لها أهداف للمقارنة بها."
       },
       "rankingBars": {
-        "chartLabel": "Ranking",
-        "description": "A top-N ranking as horizontal bars — the leader at full strength, the rest dimmed — with values alongside.",
-        "emptyTitle": "Nothing to rank",
-        "emptyBody": "No records matched this breakdown yet."
+        "chartLabel": "الترتيب",
+        "description": "ترتيب لأعلى العناصر كأشرطة أفقية — المتصدّر بلون كامل والبقية باهتة — مع القيم إلى جانبها.",
+        "emptyTitle": "لا يوجد ما يُرتَّب",
+        "emptyBody": "لا توجد سجلات مطابقة لهذا التفصيل بعد."
       },
       "pareto": {
-        "chartLabel": "Pareto chart",
-        "description": "Sorted category bars under a cumulative-percent line, with an optional 80% cutline.",
-        "emptyTitle": "No categories to chart",
-        "emptyBody": "No grouped counts were returned for this range."
+        "chartLabel": "مخطط باريتو",
+        "description": "أعمدة فئات مرتّبة تحت خط النسبة التراكمية، مع خط قطع اختياري عند 80%.",
+        "emptyTitle": "لا توجد فئات للرسم",
+        "emptyBody": "لم تُعَد أي أعداد مجمَّعة لهذا النطاق."
       },
       "waterfall": {
-        "chartLabel": "Waterfall chart",
-        "description": "A floating-bar bridge from a start total through positive and negative steps to a net total.",
-        "emptyTitle": "No movement to bridge",
-        "emptyBody": "No start, change, or total steps were found."
+        "chartLabel": "مخطط شلالي",
+        "description": "جسر من أعمدة عائمة يبدأ من إجمالي أولي ويمرّ بخطوات موجبة وسالبة حتى الإجمالي الصافي.",
+        "emptyTitle": "لا توجد حركة للربط",
+        "emptyBody": "لم يُعثر على خطوات بداية أو تغيّر أو إجمالي."
       },
       "marimekko": {
-        "chartLabel": "Marimekko chart",
-        "description": "A two-level mix as variable-width stacked columns — width for the outer share, segments for the inner split.",
-        "emptyTitle": "No mix to break down",
-        "emptyBody": "No two-level breakdown was returned for this range."
+        "chartLabel": "مخطط ماريميكو",
+        "description": "مزيج من مستويين كأعمدة مكدَّسة متغيّرة العرض — العرض للحصة الخارجية والأجزاء للتقسيم الداخلي.",
+        "emptyTitle": "لا يوجد مزيج للتفصيل",
+        "emptyBody": "لم يُعَد أي تفصيل من مستويين لهذا النطاق."
       },
       "stackedBar100": {
-        "chartLabel": "100% stacked bar",
-        "description": "One 100% bar split into proportional segments with a legend, comparing shares of a whole.",
-        "emptyTitle": "No shares to split",
-        "emptyBody": "No parts were returned for this breakdown."
+        "chartLabel": "شريط مكدَّس 100%",
+        "description": "شريط واحد بنسبة 100% مقسَّم إلى أجزاء متناسبة مع مفتاح توضيحي، لمقارنة الحصص من الكل.",
+        "emptyTitle": "لا توجد حصص للتقسيم",
+        "emptyBody": "لم تُعَد أي أجزاء لهذا التفصيل."
       },
       "slope": {
-        "chartLabel": "Slope chart",
-        "description": "Two periods joined by one line per record, coloured by whether the value rose or fell.",
-        "emptyTitle": "No period shift to show",
-        "emptyBody": "No before/after values were returned to compare."
+        "chartLabel": "مخطط ميل",
+        "description": "فترتان يربط بينهما خط لكل سجل، ملوَّن حسب ارتفاع القيمة أو انخفاضها.",
+        "emptyTitle": "لا يوجد تغيّر بين الفترتين للعرض",
+        "emptyBody": "لم تُعَد قيم قبل/بعد للمقارنة."
       },
       "multiline": {
-        "chartLabel": "Multi-line chart",
-        "description": "Several series as overlaid lines with end labels, comparing trends over the same time span.",
-        "emptyTitle": "No series to plot",
-        "emptyBody": "No time series matched the filters for this range."
+        "chartLabel": "مخطط متعدد الخطوط",
+        "description": "عدّة سلاسل كخطوط متراكبة مع تسميات في نهاياتها، لمقارنة الاتجاهات خلال المدى الزمني نفسه.",
+        "emptyTitle": "لا توجد سلاسل للرسم",
+        "emptyBody": "لا توجد سلاسل زمنية مطابقة للمرشّحات في هذا النطاق."
       },
       "stream": {
-        "chartLabel": "Stream chart",
-        "description": "Stacked bands flowing around a centre line, showing how a total's composition shifts over time.",
-        "emptyTitle": "No flow to chart",
-        "emptyBody": "No stacked series were returned for this range."
+        "chartLabel": "مخطط تدفّق",
+        "description": "نطاقات مكدَّسة تتدفّق حول خط مركزي، تُظهر كيف يتغيّر تكوين الإجمالي عبر الزمن.",
+        "emptyTitle": "لا يوجد تدفّق للرسم",
+        "emptyBody": "لم تُعَد أي سلاسل مكدَّسة لهذا النطاق."
       },
       "forecast": {
-        "chartLabel": "Forecast chart",
-        "nowLabel": "Now",
-        "forecastLabel": "Forecast",
-        "actualLabel": "Actual",
-        "description": "A history line extended by a dashed projection inside a widening confidence band, split at a now divider.",
-        "emptyTitle": "No history to project",
-        "emptyBody": "No past points were returned to forecast from."
+        "chartLabel": "مخطط تنبّؤ",
+        "nowLabel": "الآن",
+        "forecastLabel": "التنبّؤ",
+        "actualLabel": "الفعلي",
+        "description": "خط تاريخي يمتد بإسقاط متقطّع داخل نطاق ثقة يتّسع تدريجيًا، يفصله فاصل عند اللحظة الحالية.",
+        "emptyTitle": "لا يوجد تاريخ للإسقاط",
+        "emptyBody": "لم تُعَد أي نقاط سابقة للتنبّؤ منها."
       },
       "anomaly": {
-        "chartLabel": "Anomaly chart",
-        "description": "A value line over its expected range, flagging points that fall outside it with halo dots.",
-        "emptyTitle": "No signal to scan",
-        "emptyBody": "No points were returned to check for anomalies."
+        "chartLabel": "مخطط الشذوذ",
+        "description": "خط القيمة فوق نطاقها المتوقَّع، مع تمييز النقاط الخارجة عنه بنقاط محاطة بهالة.",
+        "emptyTitle": "لا توجد إشارة للفحص",
+        "emptyBody": "لم تُعَد أي نقاط لفحص الشذوذ فيها."
       },
       "candlestick": {
-        "chartLabel": "Candlestick chart",
-        "livePillLabel": "Live",
-        "description": "Open-high-low-close candles coloured by direction, with a dashed last-price line and an optional live pill.",
-        "emptyTitle": "No candles to chart",
-        "emptyBody": "No open-high-low-close rows matched this range."
+        "chartLabel": "مخطط شموع",
+        "livePillLabel": "مباشر",
+        "description": "شموع الافتتاح والأعلى والأدنى والإغلاق ملوَّنة حسب الاتجاه، مع خط متقطّع لآخر سعر وشارة «مباشر» اختيارية.",
+        "emptyTitle": "لا توجد شموع للرسم",
+        "emptyBody": "لا توجد صفوف افتتاح وأعلى وأدنى وإغلاق مطابقة لهذا النطاق."
       },
       "bump": {
-        "chartLabel": "Bump chart",
-        "description": "Rank-over-time lines showing how competitors trade places between periods.",
-        "emptyTitle": "No ranks to trace",
-        "emptyBody": "No period-over-period rankings were returned."
+        "chartLabel": "مخطط تبدّل المراكز",
+        "description": "خطوط ترتيب عبر الزمن تُظهر كيف يتبادل المتنافسون المراكز بين الفترات.",
+        "emptyTitle": "لا توجد مراتب للتتبّع",
+        "emptyBody": "لم تُعَد أي ترتيبات من فترة إلى أخرى."
       },
       "timelineLanes": {
-        "chartLabel": "Timeline lanes",
-        "laneLabel": "Events",
-        "description": "Dated events as pills on horizontal swimlanes sharing one time axis.",
-        "emptyTitle": "No events to place",
-        "emptyBody": "No events matched the filters for this range."
+        "chartLabel": "مسارات زمنية",
+        "laneLabel": "الأحداث",
+        "description": "أحداث مؤرَّخة كشرائح على مسارات أفقية تتشارك محورًا زمنيًا واحدًا.",
+        "emptyTitle": "لا توجد أحداث للعرض",
+        "emptyBody": "لا توجد أحداث مطابقة للمرشّحات في هذا النطاق."
       },
       "treemap": {
-        "chartLabel": "Treemap",
-        "otherLabel": "Other",
-        "description": "A part-to-whole breakdown as squarified tiles sized by value, folding small slices into an Other tile.",
-        "emptyTitle": "No slices to tile",
-        "emptyBody": "No categories were returned for this breakdown."
+        "chartLabel": "خريطة شجرية",
+        "otherLabel": "أخرى",
+        "description": "تفصيل الجزء من الكل كمربعات يتناسب حجمها مع القيمة، مع ضمّ الشرائح الصغيرة في مربّع «أخرى».",
+        "emptyTitle": "لا توجد شرائح للعرض",
+        "emptyBody": "لم تُعَد أي فئات لهذا التفصيل."
       },
       "sunburst": {
-        "chartLabel": "Sunburst",
-        "description": "A two-level hierarchy as nested rings — parents inside, their children outside — with a parent legend.",
-        "emptyTitle": "No rings to draw",
-        "emptyBody": "No grouped categories were returned to nest."
+        "chartLabel": "مخطط شعاعي",
+        "description": "تسلسل هرمي من مستويين كحلقات متداخلة — الآباء في الداخل والأبناء في الخارج — مع مفتاح توضيحي للآباء.",
+        "emptyTitle": "لا توجد حلقات للرسم",
+        "emptyBody": "لم تُعَد أي فئات مجمَّعة للتداخل."
       },
       "funnel": {
-        "chartLabel": "Funnel",
-        "description": "Ordered shrinking stages with per-step continuation rates and an overall-conversion footer.",
-        "emptyTitle": "No stages to funnel",
-        "emptyBody": "No step counts were returned for this range."
+        "chartLabel": "قمع",
+        "description": "مراحل مرتّبة تتناقص تدريجيًا مع معدّل الاستمرار لكل خطوة وتذييل بإجمالي التحويل.",
+        "emptyTitle": "لا توجد مراحل للقمع",
+        "emptyBody": "لم تُعَد أي أعداد خطوات لهذا النطاق."
       },
       "radialBar": {
-        "chartLabel": "Radial bar",
-        "description": "Up to four percentages as concentric progress rings with a dot legend.",
-        "emptyTitle": "No rings to fill",
-        "emptyBody": "No categories matched this breakdown yet."
+        "chartLabel": "أشرطة دائرية",
+        "description": "حتى أربع نسب مئوية كحلقات تقدّم متحدة المركز مع مفتاح توضيحي بالنقاط.",
+        "emptyTitle": "لا توجد حلقات للتعبئة",
+        "emptyBody": "لا توجد فئات مطابقة لهذا التفصيل بعد."
       },
       "radar": {
-        "chartLabel": "Radar",
-        "description": "Several named axes on a polygon with one filled shape per series, against an optional target overlay.",
-        "emptyTitle": "No axes to compare",
-        "emptyBody": "No matrix of series and axes was returned."
+        "chartLabel": "رادار",
+        "description": "عدّة محاور مسمّاة على مضلّع مع شكل معبّأ لكل سلسلة، مقابل طبقة هدف اختيارية.",
+        "emptyTitle": "لا توجد محاور للمقارنة",
+        "emptyBody": "لم تُعَد أي مصفوفة من السلاسل والمحاور."
       },
       "chord": {
-        "chartLabel": "Chord",
-        "description": "Pairwise flows as ribbons between nodes on a ring, with ribbon opacity weighted by volume.",
-        "emptyTitle": "No flows to link",
-        "emptyBody": "No connections between groups were returned."
+        "chartLabel": "مخطط وتري",
+        "description": "تدفّقات ثنائية كأشرطة بين عُقد على حلقة، وتزداد عتامة الشريط بحجم التدفّق.",
+        "emptyTitle": "لا توجد تدفّقات للربط",
+        "emptyBody": "لم تُعَد أي صلات بين المجموعات."
       },
       "wordcloud": {
-        "chartLabel": "Word cloud",
-        "description": "Terms sized by frequency and flowed into rows, for a glanceable view of what dominates.",
-        "emptyTitle": "No terms to cloud",
-        "emptyBody": "No weighted terms matched the filters."
+        "chartLabel": "سحابة كلمات",
+        "description": "مصطلحات يتناسب حجمها مع تكرارها ومرتّبة في صفوف، لعرض سريع لما يتصدّر.",
+        "emptyTitle": "لا توجد مصطلحات للعرض",
+        "emptyBody": "لا توجد مصطلحات موزونة مطابقة للمرشّحات."
       },
       "cohortMatrix": {
-        "chartLabel": "Cohort retention",
-        "description": "Cohort rows against period columns, each cell shaded by retention or revenue."
+        "chartLabel": "احتفاظ الأفواج",
+        "description": "صفوف الأفواج مقابل أعمدة الفترات، وتُظلَّل كل خلية حسب الاحتفاظ أو الإيراد."
       },
       "heatmapCalendar": {
-        "chartLabel": "Activity calendar",
-        "legendLessLabel": "Less",
-        "legendMoreLabel": "More",
-        "description": "A year of daily activity as a week-by-day grid shaded by intensity."
+        "chartLabel": "تقويم النشاط",
+        "legendLessLabel": "أقل",
+        "legendMoreLabel": "أكثر",
+        "description": "سنة من النشاط اليومي كشبكة أسابيع وأيام مظلَّلة حسب الكثافة."
       },
       "heatMonth": {
-        "chartLabel": "Monthly activity",
-        "description": "One calendar month as a day grid shaded by each day's value."
+        "chartLabel": "النشاط الشهري",
+        "description": "شهر تقويمي واحد كشبكة أيام مظلَّلة حسب قيمة كل يوم."
       },
       "choroplethGrid": {
-        "chartLabel": "Regional breakdown",
-        "legendLowLabel": "Low",
-        "legendHighLabel": "High",
-        "description": "Regional values as a tinted US tilegram or compact grid, with an optional top-N ranking list."
+        "chartLabel": "التفصيل حسب المنطقة",
+        "legendLowLabel": "منخفض",
+        "legendHighLabel": "مرتفع",
+        "description": "قيم المناطق كخريطة مربّعات ملوَّنة للولايات المتحدة أو كشبكة مدمجة، مع قائمة ترتيب اختيارية لأعلى العناصر."
       },
       "sankey": {
-        "chartLabel": "Flow",
-        "description": "Layered source-to-target flows as ribbons whose thickness encodes volume."
+        "chartLabel": "التدفّق",
+        "description": "تدفّقات متدرّجة من المصدر إلى الهدف كأشرطة يعبّر سُمكها عن الحجم."
       },
       "sparkline": {
-        "description": "An inline micro-trend of recent values — no axes or labels — for KPI cards, table cells and list rows."
+        "description": "اتجاه مصغّر مضمَّن للقيم الأخيرة — بلا محاور أو تسميات — لبطاقات المؤشرات وخلايا الجداول وصفوف القوائم."
       }
     },
     "feeds": {
@@ -330,32 +330,32 @@ export default {
         "description": "سِجلّ متواصل لمن فعل ماذا في مساحة عملك، الأحدث أولًا.",
         "emptyTitle": "لا يوجد نشاط حديث",
         "emptyBody": "ستظهر الإجراءات في مساحة عملك هنا.",
-        "viewAllLabel": "View all"
+        "viewAllLabel": "عرض الكل"
       },
       "notificationFeed": {
         "description": "إشعارات مجمَّعة بحالة غير مقروء ومرشِّحات وإجراءات مضمَّنة.",
         "emptyTitle": "لا توجد إشعارات",
         "emptyBody": "ستظهر الإشعارات الجديدة هنا.",
-        "allLabel": "All",
-        "unreadLabel": "Unread",
-        "mentionsLabel": "Mentions",
-        "filterLabel": "Notification filter",
-        "markAllReadLabel": "Mark all read",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
-        "earlierLabel": "Earlier",
-        "dismissLabel": "Dismiss",
-        "emptyUnreadTitle": "You're all caught up",
-        "emptyMentionsTitle": "No mentions"
+        "allLabel": "الكل",
+        "unreadLabel": "غير مقروء",
+        "mentionsLabel": "الإشارات",
+        "filterLabel": "مرشِّح الإشعارات",
+        "markAllReadLabel": "تعليم الكل كمقروء",
+        "todayLabel": "اليوم",
+        "yesterdayLabel": "أمس",
+        "earlierLabel": "أقدم",
+        "dismissLabel": "إغلاق",
+        "emptyUnreadTitle": "لقد أنجزت كل شيء",
+        "emptyMentionsTitle": "لا توجد إشارات"
       },
       "realtimeFeed": {
         "description": "بثّ مباشر للأحداث يضيف العناصر الجديدة في الأعلى فور وصولها.",
         "emptyTitle": "في انتظار الأحداث",
         "emptyBody": "ستظهر الأحداث المباشرة فور حدوثها.",
-        "liveLabel": "Live",
-        "pausedLabel": "Paused",
-        "pauseLabel": "Pause",
-        "resumeLabel": "Resume"
+        "liveLabel": "مباشر",
+        "pausedLabel": "متوقّف مؤقتًا",
+        "pauseLabel": "إيقاف مؤقت",
+        "resumeLabel": "استئناف"
       },
       "timelineVertical": {
         "description": "خطّ زمني رأسي للأحداث أو الإصدارات أو الأعطال أو خطوات التنفيذ.",
@@ -385,39 +385,39 @@ export default {
         "description": "شبكة شهرية للأحداث المجدولة مع شارات لكل يوم وتنقل بين الأشهر.",
         "emptyTitle": "لا يوجد شيء مجدول",
         "emptyBody": "ستظهر الأحداث المجدولة في هذا التقويم.",
-        "previousLabel": "Previous month",
-        "nextLabel": "Next month",
-        "overflowLabel": "+{count} more"
+        "previousLabel": "الشهر السابق",
+        "nextLabel": "الشهر التالي",
+        "overflowLabel": "+{count} أخرى"
       },
       "dayAgenda": {
         "description": "أحداث اليوم المحدد كجدول أعمال مرتب زمنيًا.",
         "emptyTitle": "لا يوجد شيء مجدول",
         "emptyBody": "ستظهر أحداث اليوم المحدد هنا.",
-        "countLabel": "{count, plural, one {{n} event} other {{n} events}}"
+        "countLabel": "{count, plural, zero {لا أحداث} one {حدث واحد} two {حدثان} few {{n} أحداث} many {{n} حدثًا} other {{n} حدث}}"
       },
       "scheduleMatrix": {
         "description": "شبكة ورديات حسب المورد واليوم مع تغطية يومية ومفتاح توضيحي.",
         "emptyTitle": "لا توجد ورديات مجدولة",
         "emptyBody": "ستظهر الورديات المخصصة في هذا الجدول.",
-        "resourceLabel": "Resource",
-        "coverageLabel": "Coverage",
-        "hoursLabel": "{hours}h"
+        "resourceLabel": "المورد",
+        "coverageLabel": "التغطية",
+        "hoursLabel": "{hours} س"
       },
       "capacityBoard": {
         "description": "أشرطة استخدام لكل عضو مع تفصيل المشاريع وحالة الحِمل.",
         "emptyTitle": "لا توجد بيانات عبء عمل",
         "emptyBody": "سيظهر استخدام الأعضاء هنا بمجرد وجود تخصيصات.",
         "status": {
-          "overloaded": "Overloaded",
-          "balanced": "Balanced",
-          "available": "Available"
+          "overloaded": "زائد الحِمل",
+          "balanced": "متوازن",
+          "available": "متاح"
         },
         "utilizationLabel": "{name}: {util}%",
-        "assignmentLabel": "{project} · {hours}h",
-        "periodLabel": "h · {period}",
+        "assignmentLabel": "{project} · {hours} س",
+        "periodLabel": "س · {period}",
         "period": {
-          "week": "week",
-          "month": "month"
+          "week": "أسبوعيًا",
+          "month": "شهريًا"
         }
       },
       "calendarLegendFilter": {
@@ -459,26 +459,26 @@ export default {
         "description": "قائمة قابلة للتحديد من السجلات تتحكّم في لوحة التفاصيل.",
         "emptyTitle": "لا توجد عناصر",
         "emptyBody": "ستظهر العناصر هنا بمجرد وجودها.",
-        "allLabel": "All",
-        "toggleLabel": "Toggle {title}",
-        "progressLabel": "{title} progress"
+        "allLabel": "الكل",
+        "toggleLabel": "تبديل {title}",
+        "progressLabel": "تقدّم {title}"
       },
       "logTable": {
         "description": "سِجلّ أحداث بالبحث ومرشِّح الأخطاء وإجراءات الصفوف.",
         "emptyTitle": "لا توجد مُدخلات سِجل",
         "emptyBody": "ستُسجَّل الأحداث هنا فور حدوثها.",
-        "liveLabel": "Live",
-        "placeholder": "Search logs…",
-        "filterLabel": "Log filter",
-        "allLabel": "All",
-        "errorsLabel": "Errors",
-        "noMatchesLabel": "No matching entries",
-        "todayLabel": "Today",
-        "yesterdayLabel": "Yesterday",
+        "liveLabel": "مباشر",
+        "placeholder": "ابحث في السجلات…",
+        "filterLabel": "مرشِّح السجل",
+        "allLabel": "الكل",
+        "errorsLabel": "الأخطاء",
+        "noMatchesLabel": "لا توجد مُدخلات مطابقة",
+        "todayLabel": "اليوم",
+        "yesterdayLabel": "أمس",
         "action": {
-          "retry": "retry",
-          "download": "download",
-          "inspect": "inspect"
+          "retry": "إعادة المحاولة",
+          "download": "تنزيل",
+          "inspect": "فحص"
         }
       },
       "cardGallery": {
@@ -490,22 +490,22 @@ export default {
         "description": "صفوف مجمَّعة بأعمدة تجميعية وتفاصيل قابلة للتوسيع ومجاميع.",
         "emptyTitle": "لا توجد بيانات ملخَّصة",
         "emptyBody": "ستظهر المجاميع المجمَّعة هنا بمجرد توفّر البيانات.",
-        "groupLabel": "Group",
-        "totalsLabel": "Total"
+        "groupLabel": "المجموعة",
+        "totalsLabel": "الإجمالي"
       },
       "schemaTree": {
         "description": "مستكشف للمخططات والجداول والأعمدة بشارات الأنواع والمفاتيح.",
         "emptyTitle": "لم يُقرأ أي مخطط",
         "emptyBody": "اربط قاعدة بيانات لاستكشاف مخططها هنا.",
-        "treeLabel": "Schema",
-        "viewLabel": "view"
+        "treeLabel": "المخطط",
+        "viewLabel": "عرض"
       },
       "toggleMatrix": {
         "description": "شبكة تفاعلية من المفاتيح المنطقية للأدوار أو السياسات أو القنوات.",
         "emptyTitle": "لم تُهيَّأ أي مصفوفة",
         "emptyBody": "ستظهر الصفوف والأعمدة هنا بعد التهيئة.",
-        "matrixLabel": "Permissions matrix",
-        "rowHeaderLabel": "Permission"
+        "matrixLabel": "مصفوفة الصلاحيات",
+        "rowHeaderLabel": "الصلاحية"
       },
       "sparklineTable": {
         "description": "صفوف مقاييس بها رسم مصغّر والقيمة الحالية وشارة تغيّر تميّز الاتجاه الجيد من السيئ.",
@@ -540,38 +540,38 @@ export default {
         "moreLabel": "+{n} أخرى"
       },
       "dataGrid": {
-        "selectAllLabel": "Select all rows",
-        "selectRowLabel": "Select row",
-        "sortByLabel": "Sort by {column}",
-        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells."
+        "selectAllLabel": "تحديد كل الصفوف",
+        "selectRowLabel": "تحديد الصف",
+        "sortByLabel": "الترتيب حسب {column}",
+        "description": "شبكة CRUD الأساسية بأعمدة قابلة للترتيب وتحديد للصفوف وخلايا تراعي نوع البيانات."
       },
       "paginationFooter": {
-        "emptyLabel": "0 rows",
-        "ofLabel": "of",
-        "pageSizeLabel": "Rows",
+        "emptyLabel": "0 صف",
+        "ofLabel": "من",
+        "pageSizeLabel": "الصفوف",
         "a11y": {
-          "pageSize": "Rows per page"
+          "pageSize": "عدد الصفوف في الصفحة"
         },
-        "prevLabel": "Previous page",
-        "nextLabel": "Next page",
-        "description": "A footer with the visible row range, prev/next paging, and a page-size select."
+        "prevLabel": "الصفحة السابقة",
+        "nextLabel": "الصفحة التالية",
+        "description": "تذييل يعرض نطاق الصفوف الظاهرة والتنقّل بين الصفحات ومحدِّد عدد الصفوف في الصفحة."
       },
       "bulkActionToolbar": {
-        "selectedLabel": "selected",
-        "clearLabel": "Clear selection",
-        "toolbarLabel": "Bulk actions",
-        "description": "A selection-aware toolbar showing the selected count and bulk actions."
+        "selectedLabel": "محدد",
+        "clearLabel": "إلغاء التحديد",
+        "toolbarLabel": "إجراءات جماعية",
+        "description": "شريط أدوات يتتبّع التحديد ويعرض عدد العناصر المحددة والإجراءات الجماعية."
       },
       "miniTable": {
-        "viewAllLabel": "View all",
-        "description": "A compact dashboard row list with mapped columns and a view-all link."
+        "viewAllLabel": "عرض الكل",
+        "description": "قائمة صفوف مدمجة للوحة المعلومات بأعمدة مرتبطة ورابط لعرض الكل."
       },
-      "revealLabel": "Reveal value",
-      "hideLabel": "Hide value",
-      "trueLabel": "true",
-      "falseLabel": "false",
+      "revealLabel": "كشف القيمة",
+      "hideLabel": "إخفاء القيمة",
+      "trueLabel": "صحيح",
+      "falseLabel": "خطأ",
       "detailKeyValue": {
-        "description": "A record's fields as label/value rows with type-aware values."
+        "description": "حقول السجل كصفوف تسمية/قيمة مع قيم تراعي نوع البيانات."
       }
     },
     "boards": {
@@ -626,7 +626,7 @@ export default {
         "sendLabel": "إرسال",
         "attachLabel": "إضافة مرفق",
         "typingLabel": "يكتب…",
-        "composerLabel": "Message"
+        "composerLabel": "الرسالة"
       },
       "aiChatPanel": {
         "description": "لوحة مساعد لطرح الأسئلة حول مخطط قاعدة بياناتك وبياناتك.",
@@ -638,8 +638,8 @@ export default {
         "configureTitle": "لم يتم إعداد مزوّد ذكاء اصطناعي",
         "configureBody": "أضف مفتاح Anthropic أو OpenAI — أو وجّه Adminium إلى نقطة النهاية الخاصة بك — لطرح الأسئلة حول مخططك.",
         "configureCtaLabel": "إعداد مزوّد",
-        "assistantLabel": "Assistant",
-        "composerLabel": "Ask a question"
+        "assistantLabel": "المساعد",
+        "composerLabel": "اطرح سؤالًا"
       },
       "typingIndicator": {
         "description": "صورة رمزية وسطر مائل ”يكتب…“ مرتبط بقيمة منطقية حية لكل محادثة.",
@@ -677,7 +677,7 @@ export default {
         "emptyBody": "تظهر الصفوف التي تحتوي على رمز منطقة وقيمة رقمية هنا كمربعات ملوَّنة.",
         "legendLowLabel": "منخفض",
         "legendHighLabel": "مرتفع",
-        "chartLabel": "Regional breakdown"
+        "chartLabel": "التفصيل حسب المنطقة"
       }
     },
     "domain": {
@@ -706,8 +706,8 @@ export default {
         "billedToLabel": "الفاتورة إلى",
         "issuedLabel": "تاريخ الإصدار",
         "dueLabel": "تاريخ الاستحقاق",
-        "noDocumentTitle": "No document yet",
-        "noDocumentBody": "Pick a starter template or add a block to begin."
+        "noDocumentTitle": "لا يوجد مستند بعد",
+        "noDocumentBody": "اختر قالبًا جاهزًا أو أضف كتلة للبدء."
       },
       "blockTotalsSummary": {
         "description": "إجماليات المستند — المجموع الفرعي والخصم والضريبة والمبلغ المستحق، محسوبة من بنود المستند.",
@@ -736,13 +736,13 @@ export default {
         "description": "رسم أعمدة مصغر بلون المستند، بحجم مناسب لكتلة مستند.",
         "emptyTitle": "لا توجد بيانات للرسم",
         "emptyBody": "تظهر الأعمدة بمجرد أن يحتوي التقرير على سلسلة بيانات.",
-        "a11yLabel": "Bar chart"
+        "a11yLabel": "مخطط أعمدة"
       },
       "blockLineChart": {
         "description": "رسم خطي مصغر مع تعبئة اختيارية للمساحة، بحجم مناسب لكتلة مستند.",
         "emptyTitle": "لا توجد بيانات للرسم",
         "emptyBody": "يظهر الخط بمجرد أن يحتوي التقرير على سلسلة بيانات.",
-        "a11yLabel": "Line chart"
+        "a11yLabel": "مخطط خطي"
       },
       "blockTwoColTable": {
         "description": "جدول من عمودين بصف رأس منسق وعمود قيم بخط ثابت العرض.",
@@ -801,7 +801,7 @@ export default {
         "namePlaceholder": "الاسم الكامل",
         "titlePlaceholder": "المسمى الوظيفي",
         "dateLabel": "التاريخ",
-        "nameInputLabel": "Signature name"
+        "nameInputLabel": "اسم الموقِّع"
       },
       "blockTermsCheckbox": {
         "description": "مفتاح موافقة على الشروط مع نص قابل للتحرير.",
@@ -847,158 +847,158 @@ export default {
         "description": "شبكة من القوالب الجاهزة مع صور مصغّرة مولّدة؛ اختيار أحدها ينشئ مستندًا كاملًا.",
         "emptyTitle": "لا توجد قوالب",
         "emptyBody": "عرِّف القوالب في الإعدادات أو اربط جدول قوالب.",
-        "blankLabel": "Blank",
+        "blankLabel": "فارغ",
         "kicker": {
-          "invoice": "Invoice",
-          "report": "Report",
-          "email": "Email"
+          "invoice": "فاتورة",
+          "report": "تقرير",
+          "email": "بريد إلكتروني"
         }
       },
       "sloMonitorCard": {
         "description": "بطاقة اتفاقية مستوى الخدمة لكل خدمة، وتضم الحالة ونسبة التوافر مقابل الهدف وشريط التوافر اليومي وميزانية الأخطاء وزمن الاستجابة p95.",
         "emptyTitle": "لا توجد مراقبة",
         "emptyBody": "اربط جدول مراقبة يحتوي على عمود للحالة وعمود للتوافر.",
-        "targetLabel": "Target",
-        "budgetLabel": "Error budget",
-        "latencyLabel": "p95 latency",
+        "targetLabel": "الهدف",
+        "budgetLabel": "ميزانية الأخطاء",
+        "latencyLabel": "زمن الاستجابة p95",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "Unknown"
+          "operational": "تعمل",
+          "degraded": "متدهورة",
+          "down": "متوقفة",
+          "unknown": "غير معروف"
         }
       },
       "uptimeSegmentBar": {
         "description": "شرائط يومية على نمط صفحة الحالة، ملوَّنة حسب حالة كل يوم، مع مبدّل بين 30 و90 يومًا.",
         "emptyTitle": "لا يوجد سجل توافر",
         "emptyBody": "تظهر صفوف الحالة اليومية هنا على شكل شريط توافر.",
-        "daysAgoLabel": "{days} days ago",
-        "todayLabel": "Today",
-        "uptimeLabel": "uptime",
-        "period30Label": "30d",
-        "period90Label": "90d",
+        "daysAgoLabel": "قبل {days} يومًا",
+        "todayLabel": "اليوم",
+        "uptimeLabel": "توافر",
+        "period30Label": "30 يومًا",
+        "period90Label": "90 يومًا",
         "status": {
-          "operational": "Operational",
-          "degraded": "Degraded",
-          "down": "Down",
-          "unknown": "No data"
+          "operational": "تعمل",
+          "degraded": "متدهورة",
+          "down": "متوقفة",
+          "unknown": "لا توجد بيانات"
         }
       },
       "experimentVariantCompare": {
         "description": "أشرطة تحويل لكل نسخة مع نسبة التحسّن مقابل النسخة الضابطة ومؤشّر للدلالة الإحصائية.",
         "emptyTitle": "لا توجد نسخ",
         "emptyBody": "اربط جدول نسخ التجربة مع أرقام التحويل.",
-        "controlLabel": "CONTROL",
-        "winnerLabel": "WINNER",
-        "significanceLabel": "Confidence",
-        "verdictSignificantLabel": "Statistically significant — safe to call.",
-        "verdictInconclusiveLabel": "Not yet significant — keep the test running.",
-        "countsLabel": "{users} participants · {conversions} conversions"
+        "controlLabel": "الضابطة",
+        "winnerLabel": "الفائزة",
+        "significanceLabel": "الثقة",
+        "verdictSignificantLabel": "دالّة إحصائيًا — يمكن حسم النتيجة.",
+        "verdictInconclusiveLabel": "غير دالّة إحصائيًا بعد — واصل تشغيل الاختبار.",
+        "countsLabel": "{users} مشارك · {conversions} تحويل"
       },
       "creditCardTile": {
         "description": "وسيلة دفع محفوظة تظهر كبطاقة بهوية الشبكة مع رقم مُقنَّع واسم حاملها وتاريخ انتهائها.",
         "emptyTitle": "لا توجد وسيلة دفع",
         "emptyBody": "أضف بطاقة لتظهر هنا.",
-        "defaultLabel": "Default",
-        "setDefaultLabel": "Set default",
-        "manageLabel": "Manage",
-        "addLabel": "Add payment method",
-        "expiresLabel": "Expires"
+        "defaultLabel": "الافتراضية",
+        "setDefaultLabel": "تعيين كافتراضية",
+        "manageLabel": "إدارة",
+        "addLabel": "إضافة وسيلة دفع",
+        "expiresLabel": "ينتهي في"
       },
       "planPricingCards": {
         "description": "باقات الأسعار مع مبدّل بين الاشتراك الشهري والسنوي وقوائم المزايا وباقة مميّزة.",
         "emptyTitle": "لا توجد باقات",
         "emptyBody": "اربط جدول باقات يحتوي على اسم وسعر شهري.",
-        "monthlyLabel": "Monthly",
-        "annualLabel": "Annual",
-        "popularLabel": "POPULAR",
-        "perMonthLabel": "/ month",
-        "billedAnnuallyLabel": "Billed {total} yearly",
-        "currentLabel": "Current plan",
-        "ctaLabel": "Choose plan"
+        "monthlyLabel": "شهريًا",
+        "annualLabel": "سنويًا",
+        "popularLabel": "الأكثر شيوعًا",
+        "perMonthLabel": "/ شهريًا",
+        "billedAnnuallyLabel": "تُحاسب بمبلغ {total} سنويًا",
+        "currentLabel": "الباقة الحالية",
+        "ctaLabel": "اختيار الباقة"
       },
       "apiKeysPanel": {
         "description": "مفاتيح واجهة البرمجة مع شارات البيئة والقيم المُقنَّعة والصلاحيات وآخر استخدام، وإجراءات النسخ والتدوير والإبطال.",
         "emptyTitle": "لا توجد مفاتيح",
         "emptyBody": "أنشئ مفتاحًا لتبدأ استدعاء واجهة البرمجة.",
-        "revealedTitle": "Key created",
-        "revealedBody": "Copy it now — it is never shown again.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied",
-        "revealLabel": "Reveal key",
-        "hideLabel": "Hide key",
-        "rollLabel": "Roll key",
-        "revokeLabel": "Revoke key",
-        "neverUsedLabel": "Never used",
-        "lastUsedLabel": "Last used {since}"
+        "revealedTitle": "تم إنشاء المفتاح",
+        "revealedBody": "انسخه الآن — لن يُعرض مرة أخرى أبدًا.",
+        "copyLabel": "نسخ",
+        "copiedLabel": "تم النسخ",
+        "revealLabel": "كشف المفتاح",
+        "hideLabel": "إخفاء المفتاح",
+        "rollLabel": "تدوير المفتاح",
+        "revokeLabel": "إبطال المفتاح",
+        "neverUsedLabel": "لم يُستخدم قط",
+        "lastUsedLabel": "آخر استخدام {since}"
       },
       "apiPlayground": {
         "description": "محرِّر طلبات مع المعاملات ولوحة للاستجابة. يقوم بتكوين الطلب فقط ولا يرسل طلبًا حقيقيًا أبدًا.",
         "emptyTitle": "لم تُحدَّد نقطة نهاية",
         "emptyBody": "اختر نقطة نهاية لتكوين طلب موجَّه إليها.",
-        "sendLabel": "Send",
-        "requestLabel": "Request",
-        "responseLabel": "Response",
-        "paramsLabel": "Parameters",
-        "responsePlaceholder": "Send the request to see the response."
+        "sendLabel": "إرسال",
+        "requestLabel": "الطلب",
+        "responseLabel": "الاستجابة",
+        "paramsLabel": "المعاملات",
+        "responsePlaceholder": "أرسل الطلب لعرض الاستجابة."
       },
       "codeSnippetBlock": {
         "description": "مقتطف برمجي قابل للنسخ مع شارة للغة وتبويبات اختيارية لكل لغة.",
         "emptyTitle": "لا يوجد مقتطف",
         "emptyBody": "اربط عمودًا للشيفرة أو حدِّد مقتطفًا ثابتًا في الإعدادات.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "نسخ",
+        "copiedLabel": "تم النسخ"
       },
       "webhookEndpointsList": {
         "description": "نقاط نهاية الويب هوك مع الحدث وعنوان الوجهة وآخر تشغيل ومفتاح للتفعيل.",
         "emptyTitle": "لا توجد نقاط نهاية",
         "emptyBody": "أضف نقطة نهاية ويب هوك لتستقبل أحداث الجدول.",
-        "neverFiredLabel": "Never fired",
-        "lastFiredLabel": "Last fired {since}"
+        "neverFiredLabel": "لم يُشغَّل قط",
+        "lastFiredLabel": "آخر تشغيل {since}"
       },
       "resourceApiCard": {
         "description": "واجهة البرمجة المولَّدة لجدول: عدد الصفوف وشارة الأمان وشارات الأساليب وحجم الطلبات.",
         "emptyTitle": "لا يوجد مورد",
         "emptyBody": "اربط جدولًا لعرض واجهة البرمجة المولَّدة له.",
         "rlsLabel": "RLS",
-        "publicLabel": "Public",
-        "rowsLabel": "rows",
-        "perDayLabel": "{count}/day"
+        "publicLabel": "عام",
+        "rowsLabel": "صف",
+        "perDayLabel": "{count}/يوم"
       },
       "liveTimer": {
         "description": "ساعة إيقاف بزرّي تشغيل وإيقاف لمهمة؛ إيقافها يسجّل مدخل وقت.",
         "emptyTitle": "لا يوجد مؤقّت",
         "emptyBody": "اربط صف مدخل وقت يحتوي على مهمة وعمود للمدة.",
-        "startLabel": "Start",
-        "stopLabel": "Stop",
-        "taskPlaceholder": "Untitled task"
+        "startLabel": "بدء",
+        "stopLabel": "إيقاف",
+        "taskPlaceholder": "مهمة بلا عنوان"
       },
       "syncStatusCard": {
         "description": "هوية الاتصال وزمن الاستجابة وعدد الصفوف المُزامنة وجدول المزامنة، مع إجراء للمزامنة الفورية.",
         "emptyTitle": "لا يوجد اتصال",
         "emptyBody": "اربط صف اتصال لعرض حالة مزامنته.",
-        "connectedLabel": "Connected",
-        "disconnectedLabel": "Disconnected",
-        "rowsSyncedLabel": "Rows synced",
-        "tablesLabel": "Tables",
-        "lastSyncLabel": "Last sync",
-        "nextSyncLabel": "Next sync",
-        "syncingLabel": "Syncing…",
-        "syncActionLabel": "Sync now"
+        "connectedLabel": "متصل",
+        "disconnectedLabel": "غير متصل",
+        "rowsSyncedLabel": "الصفوف المُزامنة",
+        "tablesLabel": "الجداول",
+        "lastSyncLabel": "آخر مزامنة",
+        "nextSyncLabel": "المزامنة التالية",
+        "syncingLabel": "جارٍ المزامنة…",
+        "syncActionLabel": "مزامنة الآن"
       },
       "ipAllowlistCard": {
         "description": "عناوين IP صادرة ثابتة يلزم السماح لها في الجدار الناري، ولكل منها زر نسخ.",
         "emptyTitle": "لا توجد عناوين صادرة",
         "emptyBody": "تظهر العناوين الصادرة هنا بمجرد تجهيز الاتصال.",
-        "copyLabel": "Copy",
-        "copiedLabel": "Copied"
+        "copyLabel": "نسخ",
+        "copiedLabel": "تم النسخ"
       },
       "onboardingChecklist": {
         "description": "خطوات الإعداد مع الوقت المتوقَّع والإجراءات، فوق حلقة وشريط تقدُّم يُعاد حسابهما فوريًا.",
         "emptyTitle": "لا شيء للإعداد",
         "emptyBody": "أضف خطوات التعريف في الإعدادات أو اربط جدول خطوات.",
-        "progressLabel": "{done} of {total} done",
-        "celebrateTitle": "All done"
+        "progressLabel": "اكتمل {done} من {total}",
+        "celebrateTitle": "اكتمل كل شيء"
       },
       "testimonialCard": {
         "description": "اقتباس من عميل مع صورة رمزية ونسبة القول إلى صاحبه.",
@@ -1042,7 +1042,7 @@ export default {
         "description": "شبكة لوحة إلهام من خانات صور مع تسميات توضيحية، للجداول التي تحتوي على روابط صور.",
         "emptyTitle": "لا توجد صور بعد",
         "emptyBody": "ستظهر الصور المرجعية على هذه اللوحة.",
-        "placeholder": "Drop reference"
+        "placeholder": "أفلت صورة مرجعية"
       },
       "linkList": {
         "description": "روابط مرجعية بعناوين وروابط URL، تُفتح في تبويب جديد.",
@@ -1083,16 +1083,16 @@ export default {
         "successTitle": "تم إنشاء السجل",
         "successBody": "تم حفظ السجل.",
         "required": "هذا الحقل مطلوب.",
-        "titleLabel": "Create record",
-        "closeLabel": "Close"
+        "titleLabel": "إنشاء سجل",
+        "closeLabel": "إغلاق"
       },
       "drawerForm": {
         "description": "نموذج جانبي لإنشاء أو تعديل السجلات ذات الحقول الكثيرة.",
         "trigger": "جديد",
         "submit": "حفظ",
         "cancel": "إلغاء",
-        "titleLabel": "New record",
-        "closeLabel": "Close"
+        "titleLabel": "سجل جديد",
+        "closeLabel": "إغلاق"
       },
       "stepper": {
         "description": "مؤشر خطوات يوضح مدى تقدم مسار متعدد الخطوات.",
@@ -1144,20 +1144,20 @@ export default {
         "valuePlaceholder": "القيمة…",
         "emptyBody": "لا توجد شروط بعد — أضف شرطًا لتحديد هذه الشريحة.",
         "op": {
-          "eq": "is",
-          "neq": "is not",
-          "gt": "is greater than",
-          "gte": "is at least",
-          "lt": "is less than",
-          "lte": "is at most",
-          "contains": "contains",
-          "not-contains": "does not contain",
-          "starts-with": "starts with",
-          "in": "is one of",
-          "before": "is before",
-          "after": "is after",
-          "is-null": "is empty",
-          "is-not-null": "is not empty"
+          "eq": "يساوي",
+          "neq": "لا يساوي",
+          "gt": "أكبر من",
+          "gte": "لا يقل عن",
+          "lt": "أصغر من",
+          "lte": "لا يزيد عن",
+          "contains": "يحتوي على",
+          "not-contains": "لا يحتوي على",
+          "starts-with": "يبدأ بـ",
+          "in": "أحد القيم",
+          "before": "قبل",
+          "after": "بعد",
+          "is-null": "فارغ",
+          "is-not-null": "غير فارغ"
         }
       },
       "flowBuilder": {
@@ -1224,17 +1224,17 @@ export default {
         "questionPlaceholder": "اطرح سؤالًا…",
         "emptyTitle": "لا توجد أسئلة بعد",
         "emptyBody": "اختر نوع سؤال لبدء إنشاء استبيانك.",
-        "questionLabel": "Question",
-        "dropdownPlaceholder": "Choose…",
+        "questionLabel": "السؤال",
+        "dropdownPlaceholder": "اختر…",
         "kind": {
-          "single-choice": "Single choice",
-          "multi-choice": "Multiple choice",
-          "dropdown": "Dropdown",
-          "short-text": "Short text",
-          "long-text": "Long text",
-          "rating": "Star rating",
-          "nps": "NPS 0–10",
-          "date": "Date"
+          "single-choice": "اختيار واحد",
+          "multi-choice": "اختيار متعدد",
+          "dropdown": "قائمة منسدلة",
+          "short-text": "نص قصير",
+          "long-text": "نص طويل",
+          "rating": "تقييم بالنجوم",
+          "nps": "NPS من 0 إلى 10",
+          "date": "تاريخ"
         }
       },
       "inlineEditableField": {
@@ -1243,7 +1243,7 @@ export default {
         "save": "حفظ",
         "cancel": "إلغاء",
         "empty": "فارغ",
-        "valueLabel": "Value"
+        "valueLabel": "القيمة"
       },
       "passwordStrengthMeter": {
         "description": "مؤشر من أربعة أجزاء لقوة كلمة المرور.",
@@ -1268,7 +1268,7 @@ export default {
         "navigate": "تنقل",
         "select": "فتح",
         "close": "إغلاق",
-        "emptyTitle": "No results for \"{query}\"",
+        "emptyTitle": "لا توجد نتائج عن «{query}»",
         "emptyBody": "ابدأ الكتابة للبحث.",
         "groupActions": "الإجراءات",
         "groupNavigate": "التنقل",
@@ -1285,8 +1285,8 @@ export default {
         "summary": "{count} نتيجة عن «{query}»",
         "emptyTitle": "لا توجد نتائج",
         "emptyBody": "جرّب مصطلح بحث آخر.",
-        "searchLabel": "Search",
-        "facetRailLabel": "Filter by type"
+        "searchLabel": "بحث",
+        "facetRailLabel": "التصفية حسب النوع"
       },
       "breadcrumb": {
         "description": "مسار السجل أو المجلد الحالي.",
@@ -1306,22 +1306,22 @@ export default {
         "footerHint": "اضغط ? في أي وقت",
         "then": "ثم",
         "emptyTitle": "لا توجد اختصارات مسجّلة.",
-        "generalGroupLabel": "General",
-        "navigationGroupLabel": "Navigation",
-        "recordsGroupLabel": "Records",
-        "openCommandPaletteLabel": "Open command palette",
-        "searchLabel": "Search",
-        "showShortcutsLabel": "Show shortcuts",
-        "goToDashboardLabel": "Go to dashboard",
-        "goToOrdersLabel": "Go to orders",
-        "newRecordLabel": "New record",
-        "saveLabel": "Save",
-        "undoLabel": "Undo"
+        "generalGroupLabel": "عام",
+        "navigationGroupLabel": "التنقل",
+        "recordsGroupLabel": "السجلات",
+        "openCommandPaletteLabel": "فتح لوحة الأوامر",
+        "searchLabel": "بحث",
+        "showShortcutsLabel": "عرض الاختصارات",
+        "goToDashboardLabel": "الانتقال إلى لوحة المعلومات",
+        "goToOrdersLabel": "الانتقال إلى الطلبات",
+        "newRecordLabel": "سجل جديد",
+        "saveLabel": "حفظ",
+        "undoLabel": "تراجع"
       },
       "avatarStack": {
         "description": "صور رمزية متداخلة مع فائض «+N» وحالة تواجد اختيارية.",
         "online": "{count} متصل",
-        "a11yLabel": "People"
+        "a11yLabel": "الأشخاص"
       }
     },
     "system": {
@@ -1396,10 +1396,10 @@ export default {
         "latency": "زمن الاستجابة"
       },
       "widgetMissing": {
-        "description": "The fallback card shown when a stored page references a widget that is not installed.",
-        "title": "Widget unavailable",
-        "bodyLead": "No widget is registered as",
-        "bodyTail": "It may belong to a newer version or an uninstalled extension."
+        "description": "البطاقة البديلة التي تظهر عندما تشير صفحة مخزَّنة إلى عنصر واجهة غير مثبَّت.",
+        "title": "عنصر الواجهة غير متاح",
+        "bodyLead": "لا يوجد عنصر واجهة مسجَّل باسم",
+        "bodyTail": "قد يكون تابعًا لإصدار أحدث أو لامتداد غير مثبَّت."
       }
     }
   },
@@ -1413,350 +1413,350 @@ export default {
       "committed": "تم وضع {title} في العمود {col}، الصف {row}.",
       "reverted": "تمت إعادة {title} إلى موضعه الأصلي."
     },
-    "draggableRole": "draggable widget"
+    "draggableRole": "عنصر واجهة قابل للسحب"
   },
   "templates": {
     "crud": {
-      "newRow": "New row",
-      "exportAction": "Export",
-      "searchPlaceholder": "Search {table}…",
-      "removeFilter": "Remove {column} filter",
-      "queryFailed": "Query failed",
-      "loadingRows": "Loading rows",
-      "noMatchesTitle": "No matching rows",
-      "emptyTitle": "{count, plural, one {No {entity} yet} other {No {entity}s yet}}",
-      "createTitle": "Add {entity}",
-      "createSubtitle": "Creates one row in {table}.",
-      "createSubmit": "Add {entity}",
-      "createSuccessTitle": "{name} added",
-      "createSuccessBody": "You can undo this from the toast.",
-      "editTitle": "Edit {entity}",
-      "saveSubmit": "Save changes",
-      "deleteTitle": "Delete {entity}",
-      "deletePreflight": "Checking references…",
-      "deleteNoReferences": "This row has no inbound references.",
-      "deleteConsequencesIntro": "Deleting this row also affects:",
-      "referenceRows": "{count, plural, one {{n} row} other {{n} rows}}",
-      "confirmPrompt": "Type {value} to confirm",
-      "bulkDeleteTitle": "{count, plural, one {Delete {n} row} other {Delete {n} rows}}",
-      "bulkDeleteBody": "Referential consequences apply to every selected row.",
-      "bulkDeleteConfirm": "Delete rows",
-      "uniqueHelper": "Must be unique in {table}.",
-      "uniqueHelperCounted": "{count, plural, one {Checked against {n} row.} other {Checked against {n} rows.}}",
+      "newRow": "صف جديد",
+      "exportAction": "تصدير",
+      "searchPlaceholder": "ابحث في {table}…",
+      "removeFilter": "إزالة تصفية {column}",
+      "queryFailed": "فشل الاستعلام",
+      "loadingRows": "جارٍ تحميل الصفوف",
+      "noMatchesTitle": "لا توجد صفوف مطابقة",
+      "emptyTitle": "{count, plural, zero {لا توجد {entity} بعد} one {لا توجد {entity} بعد} two {لا توجد {entity} بعد} few {لا توجد {entity} بعد} many {لا توجد {entity} بعد} other {لا توجد {entity} بعد}}",
+      "createTitle": "إضافة {entity}",
+      "createSubtitle": "يُنشئ صفًا واحدًا في {table}.",
+      "createSubmit": "إضافة {entity}",
+      "createSuccessTitle": "تمت إضافة {name}",
+      "createSuccessBody": "يمكنك التراجع عن ذلك من الإشعار.",
+      "editTitle": "تعديل {entity}",
+      "saveSubmit": "حفظ التغييرات",
+      "deleteTitle": "حذف {entity}",
+      "deletePreflight": "جارٍ فحص المراجع…",
+      "deleteNoReferences": "لا توجد مراجع واردة إلى هذا الصف.",
+      "deleteConsequencesIntro": "حذف هذا الصف يؤثر أيضًا على:",
+      "referenceRows": "{count, plural, zero {{n} صف} one {صف واحد} two {صفان} few {{n} صفوف} many {{n} صفًا} other {{n} صف}}",
+      "confirmPrompt": "اكتب {value} للتأكيد",
+      "bulkDeleteTitle": "{count, plural, zero {حذف {n} صف} one {حذف صف واحد} two {حذف صفين} few {حذف {n} صفوف} many {حذف {n} صفًا} other {حذف {n} صف}}",
+      "bulkDeleteBody": "تنطبق آثار المراجع على كل صف محدد.",
+      "bulkDeleteConfirm": "حذف الصفوف",
+      "uniqueHelper": "يجب أن تكون القيمة فريدة في {table}.",
+      "uniqueHelperCounted": "{count, plural, zero {تم التحقق مقابل {n} صف.} one {تم التحقق مقابل صف واحد.} two {تم التحقق مقابل صفين.} few {تم التحقق مقابل {n} صفوف.} many {تم التحقق مقابل {n} صفًا.} other {تم التحقق مقابل {n} صف.}}",
       "toast": {
-        "created": "{entity} created.",
-        "createFailed": "Create failed.",
-        "saved": "Changes saved.",
-        "updateFailed": "Update failed.",
-        "deleted": "{name} deleted.",
-        "deleteFailed": "Delete failed.",
-        "bulkDeleted": "{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}",
-        "bulkDeleteFailed": "Bulk delete failed.",
-        "undone": "Change undone.",
-        "undoFailed": "Undo failed."
+        "created": "تم إنشاء {entity}.",
+        "createFailed": "فشل الإنشاء.",
+        "saved": "تم حفظ التغييرات.",
+        "updateFailed": "فشل التحديث.",
+        "deleted": "تم حذف {name}.",
+        "deleteFailed": "فشل الحذف.",
+        "bulkDeleted": "{count, plural, zero {تم حذف {n} صف.} one {تم حذف صف واحد.} two {تم حذف صفين.} few {تم حذف {n} صفوف.} many {تم حذف {n} صفًا.} other {تم حذف {n} صف.}}",
+        "bulkDeleteFailed": "فشل الحذف الجماعي.",
+        "undone": "تم التراجع عن التغيير.",
+        "undoFailed": "فشل التراجع."
       },
       "detail": {
-        "fields": "Fields",
-        "inboundReferences": "inbound references",
-        "relatedCount": "{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}",
-        "loadError": "Failed to load the record."
+        "fields": "الحقول",
+        "inboundReferences": "مراجع واردة",
+        "relatedCount": "{count, plural, zero {{n} سجل مرتبط في {table}} one {سجل واحد مرتبط في {table}} two {سجلان مرتبطان في {table}} few {{n} سجلات مرتبطة في {table}} many {{n} سجلًا مرتبطًا في {table}} other {{n} سجل مرتبط في {table}}}",
+        "loadError": "تعذّر تحميل السجل."
       }
     },
     "queue": {
-      "allSegment": "All",
-      "daysUnit": "{count, plural, one {{count} day} other {{count} days}}",
-      "approvedToast": "{count} approved.",
-      "rejectedToast": "{count} rejected.",
-      "undoneToast": "Decision undone.",
-      "undoFailedToast": "Could not undo this decision.",
-      "failedToast": "Decision failed.",
-      "invalidConfig": "This queue’s stored configuration is invalid. Regenerate the page to restore it.",
-      "queueLabel": "Queue",
-      "statusFilterLabel": "Status filter",
-      "errorTitle": "This queue failed to load",
-      "loading": "Loading queue",
-      "emptyTitle": "Nothing in the queue",
-      "emptyBody": "New requests appear here as they arrive.",
-      "caughtUpTitle": "You're all caught up",
-      "caughtUpBody": "No requests in this tab right now.",
-      "selectItem": "Select {title}",
-      "selectPrompt": "Select a request",
-      "selectBody": "Choose an item to review its details.",
-      "rejectTitle": "Reject requests",
-      "rejectCount": "Selected · {count}",
-      "rejectPlaceholder": "Add a note for the requester…",
-      "rejectReasonLabel": "Rejection reason",
-      "rejectNote": "The requester will be notified with your note."
+      "allSegment": "الكل",
+      "daysUnit": "{count, plural, zero {{count} يوم} one {يوم واحد} two {يومان} few {{count} أيام} many {{count} يومًا} other {{count} يوم}}",
+      "approvedToast": "تمت الموافقة على {count}.",
+      "rejectedToast": "تم رفض {count}.",
+      "undoneToast": "تم التراجع عن القرار.",
+      "undoFailedToast": "تعذّر التراجع عن هذا القرار.",
+      "failedToast": "فشل تنفيذ القرار.",
+      "invalidConfig": "الإعدادات المخزَّنة لقائمة الانتظار هذه غير صالحة. أعد توليد الصفحة لاستعادتها.",
+      "queueLabel": "قائمة الانتظار",
+      "statusFilterLabel": "التصفية حسب الحالة",
+      "errorTitle": "تعذّر تحميل قائمة الانتظار هذه",
+      "loading": "جارٍ تحميل قائمة الانتظار",
+      "emptyTitle": "لا يوجد شيء في قائمة الانتظار",
+      "emptyBody": "تظهر الطلبات الجديدة هنا فور وصولها.",
+      "caughtUpTitle": "لقد أنجزت كل شيء",
+      "caughtUpBody": "لا توجد طلبات في علامة التبويب هذه حاليًا.",
+      "selectItem": "تحديد {title}",
+      "selectPrompt": "اختر طلبًا",
+      "selectBody": "اختر عنصرًا لمراجعة تفاصيله.",
+      "rejectTitle": "رفض الطلبات",
+      "rejectCount": "المحدد · {count}",
+      "rejectPlaceholder": "أضف ملاحظة لمقدم الطلب…",
+      "rejectReasonLabel": "سبب الرفض",
+      "rejectNote": "سيتم إشعار مقدم الطلب مع ملاحظتك."
     },
     "dashboard": {
-      "invalidLayout": "This dashboard’s stored layout is invalid. Regenerate the page or reset its layout."
+      "invalidLayout": "التخطيط المخزَّن للوحة المعلومات هذه غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطها."
     },
     "builder": {
-      "publish": "Publish",
-      "paletteTitle": "Blocks",
-      "inspectorTitle": "Inspector",
-      "startFromTemplate": "Start from a template",
-      "untitledDoc": "Untitled document",
-      "invalidConfig": "This builder page’s stored config is invalid. Regenerate the page or reset it.",
+      "publish": "نشر",
+      "paletteTitle": "الكتل",
+      "inspectorTitle": "الخصائص",
+      "startFromTemplate": "ابدأ من قالب",
+      "untitledDoc": "مستند بلا عنوان",
+      "invalidConfig": "الإعدادات المخزَّنة لصفحة المنشئ هذه غير صالحة. أعد توليد الصفحة أو أعد تعيينها.",
       "starterPicker": {
-        "subtitle": "Selection replaces the current draft."
+        "subtitle": "سيحل الاختيار محل المسودة الحالية."
       },
       "inspector": {
-        "titleLabel": "Title",
-        "numberLabel": "Number",
-        "currencyLabel": "Currency",
-        "taxRateLabel": "Tax rate %",
-        "modulesLabel": "Modules"
+        "titleLabel": "العنوان",
+        "numberLabel": "الرقم",
+        "currencyLabel": "العملة",
+        "taxRateLabel": "نسبة الضريبة %",
+        "modulesLabel": "الوحدات"
       },
       "summary": {
-        "questions": "Questions",
-        "estLength": "Est. length",
-        "estMinutes": "~{minutes} min",
-        "steps": "Steps",
-        "triggers": "Triggers",
-        "conditions": "Conditions",
-        "actions": "Actions",
-        "triggerLocked": "The trigger step can’t be removed."
+        "questions": "الأسئلة",
+        "estLength": "المدة التقديرية",
+        "estMinutes": "~{minutes} دقيقة",
+        "steps": "الخطوات",
+        "triggers": "المُشغِّلات",
+        "conditions": "الشروط",
+        "actions": "الإجراءات",
+        "triggerLocked": "لا يمكن إزالة خطوة المُشغِّل."
       },
       "publishModal": {
-        "confirmTitle": "Publish survey?",
-        "confirmSubtitle": "Review before it goes live.",
-        "confirmCta": "Publish survey",
-        "publishedTitle": "Survey published",
-        "publishedSubtitle": "Your survey is live and collecting responses right now."
+        "confirmTitle": "نشر الاستبيان؟",
+        "confirmSubtitle": "راجعه قبل أن يصبح مفعّلًا.",
+        "confirmCta": "نشر الاستبيان",
+        "publishedTitle": "تم نشر الاستبيان",
+        "publishedSubtitle": "استبيانك مفعّل ويجمع الردود الآن."
       },
       "blocks": {
-        "block-totals-summary": "Totals summary",
-        "block-line-items": "Line items",
-        "block-kpi-row": "KPI row",
-        "block-bar-chart": "Bar chart",
-        "block-line-chart": "Line chart",
-        "block-two-col-table": "Two-column table",
-        "block-tax-breakdown": "Tax breakdown",
-        "block-multi-currency": "Multi-currency",
-        "block-payment-history": "Payment history",
-        "block-discount-codes": "Discount codes",
-        "block-loyalty-banner": "Loyalty points",
-        "block-recurring-banner": "Recurring",
-        "block-qr-pay": "Payment QR",
-        "block-delivery-stepper": "Delivery timeline",
-        "block-signature": "Signature",
-        "block-terms-checkbox": "Terms",
-        "block-approval": "Approval",
-        "block-attachments": "Attachments",
-        "block-late-fees": "Late fees",
-        "block-image-placeholder": "Image",
-        "block-contact": "Contact",
-        "block-highlight-box": "Highlight box"
+        "block-totals-summary": "ملخص الإجماليات",
+        "block-line-items": "البنود",
+        "block-kpi-row": "صف المؤشرات",
+        "block-bar-chart": "رسم أعمدة",
+        "block-line-chart": "رسم خطي",
+        "block-two-col-table": "جدول من عمودين",
+        "block-tax-breakdown": "تفصيل الضرائب",
+        "block-multi-currency": "عملات متعددة",
+        "block-payment-history": "سجل المدفوعات",
+        "block-discount-codes": "أكواد الخصم",
+        "block-loyalty-banner": "نقاط الولاء",
+        "block-recurring-banner": "متكرر",
+        "block-qr-pay": "رمز QR للدفع",
+        "block-delivery-stepper": "مسار التوصيل",
+        "block-signature": "التوقيع",
+        "block-terms-checkbox": "الشروط",
+        "block-approval": "الاعتماد",
+        "block-attachments": "المرفقات",
+        "block-late-fees": "رسوم التأخير",
+        "block-image-placeholder": "صورة",
+        "block-contact": "جهة الاتصال",
+        "block-highlight-box": "مربع تمييز"
       },
       "starters": {
         "titles": {
-          "st-standard": "Standard invoice",
-          "st-recurring": "Recurring subscription",
-          "st-deposit": "Deposit request",
-          "st-credit-note": "Credit note",
-          "st-late-reminder": "Late-payment reminder",
-          "st-quote": "Quote / estimate",
-          "st-proforma": "Pro forma",
-          "st-receipt": "Payment receipt",
-          "st-retainer": "Retainer",
-          "st-usage": "Usage-based invoice",
-          "st-milestone": "Project milestone",
-          "st-donation": "Donation receipt (Tax ID)",
-          "st-monthly": "Monthly summary",
-          "st-quarterly": "Quarterly review",
-          "st-usage-report": "Usage breakdown",
-          "st-exec": "Executive one-pager",
-          "st-welcome": "Welcome email",
-          "st-receipt-email": "Invoice receipt",
-          "st-digest": "Weekly digest",
-          "st-dunning": "Payment reminder"
+          "st-standard": "فاتورة قياسية",
+          "st-recurring": "اشتراك متكرر",
+          "st-deposit": "طلب عربون",
+          "st-credit-note": "إشعار دائن",
+          "st-late-reminder": "تذكير بتأخر السداد",
+          "st-quote": "عرض سعر / تقدير",
+          "st-proforma": "فاتورة مبدئية",
+          "st-receipt": "إيصال دفع",
+          "st-retainer": "أتعاب مقدَّمة",
+          "st-usage": "فاتورة حسب الاستخدام",
+          "st-milestone": "مرحلة من المشروع",
+          "st-donation": "إيصال تبرع (الرقم الضريبي)",
+          "st-monthly": "ملخص شهري",
+          "st-quarterly": "مراجعة ربع سنوية",
+          "st-usage-report": "تفصيل الاستخدام",
+          "st-exec": "ملخص تنفيذي من صفحة واحدة",
+          "st-welcome": "بريد ترحيبي",
+          "st-receipt-email": "إيصال الفاتورة",
+          "st-digest": "ملخص أسبوعي",
+          "st-dunning": "تذكير بالدفع"
         },
         "categories": {
-          "billing": "Billing",
-          "sales": "Sales",
-          "nonProfit": "Non-profit",
-          "reports": "Reports",
-          "lifecycle": "Lifecycle",
-          "transactional": "Transactional",
-          "marketing": "Marketing"
+          "billing": "الفوترة",
+          "sales": "المبيعات",
+          "nonProfit": "غير ربحي",
+          "reports": "التقارير",
+          "lifecycle": "دورة الحياة",
+          "transactional": "المعاملات",
+          "marketing": "التسويق"
         }
       }
     },
     "common": {
-      "clearFilters": "Clear filters",
-      "noMatchesBody": "Try a different search or remove a filter.",
-      "detailLabel": "Detail",
-      "loadingRecord": "Loading record"
+      "clearFilters": "مسح عوامل التصفية",
+      "noMatchesBody": "جرّب بحثًا مختلفًا أو أزل أحد عوامل التصفية.",
+      "detailLabel": "التفاصيل",
+      "loadingRecord": "جارٍ تحميل السجل"
     },
     "directory": {
-      "invalidConfig": "This directory’s stored configuration is invalid. Regenerate the page to restore it.",
-      "searchPlaceholder": "Search people…",
-      "memberCount": "{count, plural, one {{n} person} other {{n} people}}",
-      "errorTitle": "This directory failed to load",
-      "loading": "Loading people",
-      "emptyTitle": "No people yet",
-      "emptyBody": "People appear here as rows land in the table.",
-      "noMatchesTitle": "No matching people",
-      "detailTitle": "Person"
+      "invalidConfig": "الإعدادات المخزَّنة لهذا الدليل غير صالحة. أعد توليد الصفحة لاستعادتها.",
+      "searchPlaceholder": "البحث عن الأشخاص…",
+      "memberCount": "{count, plural, zero {{n} شخص} one {شخص واحد} two {شخصان} few {{n} أشخاص} many {{n} شخصًا} other {{n} شخص}}",
+      "errorTitle": "تعذّر تحميل هذا الدليل",
+      "loading": "جارٍ تحميل الأشخاص",
+      "emptyTitle": "لا يوجد أشخاص بعد",
+      "emptyBody": "يظهر الأشخاص هنا كلما وصلت صفوف إلى الجدول.",
+      "noMatchesTitle": "لا يوجد أشخاص مطابقون",
+      "detailTitle": "الشخص"
     },
     "masterDetail": {
-      "invalidConfig": "This page’s stored configuration is invalid. Regenerate the page to restore it.",
-      "railTitle": "Records",
-      "errorTitle": "This list failed to load",
-      "loading": "Loading records",
-      "emptyBody": "Records appear here as rows land in the table.",
-      "noMatchesTitle": "No matching records",
-      "noMatchesBody": "Try removing a filter.",
-      "selectPrompt": "Select a record",
-      "selectBody": "Choose an item from the list to see its details."
+      "invalidConfig": "الإعدادات المخزَّنة لهذه الصفحة غير صالحة. أعد توليد الصفحة لاستعادتها.",
+      "railTitle": "السجلات",
+      "errorTitle": "تعذّر تحميل هذه القائمة",
+      "loading": "جارٍ تحميل السجلات",
+      "emptyBody": "تظهر السجلات هنا كلما وصلت صفوف إلى الجدول.",
+      "noMatchesTitle": "لا توجد سجلات مطابقة",
+      "noMatchesBody": "جرّب إزالة أحد عوامل التصفية.",
+      "selectPrompt": "اختر سجلًا",
+      "selectBody": "اختر عنصرًا من القائمة لعرض تفاصيله."
     },
     "chat": {
-      "invalidLayout": "This chat page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "noInboxTitle": "No inbox on this page",
-      "noInboxBody": "Regenerate the page.",
-      "conversationsFailed": "The conversation query failed",
-      "messagesFailed": "The messages query failed",
-      "loadingConversations": "Loading conversations",
-      "loadingMessages": "Loading messages",
-      "selectTitle": "Select a conversation",
-      "selectBody": "Pick a conversation from the inbox to read its messages."
+      "invalidLayout": "التخطيط المخزَّن لصفحة الدردشة هذه غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطها.",
+      "noInboxTitle": "لا يوجد صندوق وارد في هذه الصفحة",
+      "noInboxBody": "أعد توليد الصفحة.",
+      "conversationsFailed": "فشل استعلام المحادثات",
+      "messagesFailed": "فشل استعلام الرسائل",
+      "loadingConversations": "جارٍ تحميل المحادثات",
+      "loadingMessages": "جارٍ تحميل الرسائل",
+      "selectTitle": "اختر محادثة",
+      "selectBody": "اختر محادثة من صندوق الوارد لقراءة رسائلها."
     },
     "files": {
-      "allFiles": "All files",
-      "recent": "Recent",
-      "starred": "Starred",
-      "invalidLayout": "This files page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "missingSlotTitle": "No file browser on this page",
-      "missingSlotBody": "The stored layout has no browser slot. Regenerate the page.",
-      "loadFailed": "The file query failed",
-      "loading": "Loading files",
-      "uploadsUnavailable": "Uploads are not available on this page yet.",
-      "previewTitle": "File",
-      "kindLabel": "Kind",
-      "linkLabel": "Link"
+      "allFiles": "كل الملفات",
+      "recent": "الأخيرة",
+      "starred": "المميزة بنجمة",
+      "invalidLayout": "التخطيط المخزَّن لصفحة الملفات هذه غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطها.",
+      "missingSlotTitle": "لا يوجد متصفح ملفات في هذه الصفحة",
+      "missingSlotBody": "لا يحتوي التخطيط المخزَّن على خانة للمتصفح. أعد توليد الصفحة.",
+      "loadFailed": "فشل استعلام الملفات",
+      "loading": "جارٍ تحميل الملفات",
+      "uploadsUnavailable": "رفع الملفات غير متاح في هذه الصفحة بعد.",
+      "previewTitle": "الملف",
+      "kindLabel": "النوع",
+      "linkLabel": "الرابط"
     },
     "logViewer": {
-      "invalidLayout": "This log page’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "levelFilterLabel": "Log level filter",
-      "timeFilterLabel": "Time window filter",
+      "invalidLayout": "التخطيط المخزَّن لصفحة السجل هذه غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطها.",
+      "levelFilterLabel": "التصفية حسب مستوى السجل",
+      "timeFilterLabel": "التصفية حسب النطاق الزمني",
       "window": {
-        "1h": "1h",
-        "24h": "24h",
-        "7d": "7d"
+        "1h": "ساعة",
+        "24h": "24 ساعة",
+        "7d": "7 أيام"
       },
       "heldCount": "+{count}",
-      "missingSlotTitle": "No log widget on this page",
-      "missingSlotBody": "The stored layout has no log slot. Regenerate the page.",
-      "loadFailed": "The log query failed",
-      "loading": "Loading log entries",
-      "traceTitle": "Trace",
-      "latestTitle": "Latest activity",
-      "backToLatest": "Back to latest",
-      "eventFallback": "Event"
+      "missingSlotTitle": "لا يوجد عنصر سجل في هذه الصفحة",
+      "missingSlotBody": "لا يحتوي التخطيط المخزَّن على خانة للسجل. أعد توليد الصفحة.",
+      "loadFailed": "فشل استعلام السجل",
+      "loading": "جارٍ تحميل مُدخلات السجل",
+      "traceTitle": "التتبّع",
+      "latestTitle": "أحدث نشاط",
+      "backToLatest": "العودة إلى الأحدث",
+      "eventFallback": "حدث"
     },
     "calendar": {
-      "eventCount": "{count, plural, one {{n} event} other {{n} events}}",
-      "composePlaceholder": "Event title…",
-      "addEvent": "Add event",
-      "dateRange": "Date range",
-      "agendaTitle": "Agenda",
-      "categoriesTitle": "Categories",
-      "upcomingTitle": "Upcoming",
-      "invalidLayout": "This calendar’s stored layout is invalid. Regenerate the page or reset its layout."
+      "eventCount": "{count, plural, zero {{n} حدث} one {حدث واحد} two {حدثان} few {{n} أحداث} many {{n} حدثًا} other {{n} حدث}}",
+      "composePlaceholder": "عنوان الحدث…",
+      "addEvent": "إضافة حدث",
+      "dateRange": "النطاق الزمني",
+      "agendaTitle": "جدول الأعمال",
+      "categoriesTitle": "الفئات",
+      "upcomingTitle": "القادمة",
+      "invalidLayout": "التخطيط المخزَّن لهذا التقويم غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطه."
     },
     "scheduler": {
-      "previousWeek": "Previous week",
-      "nextWeek": "Next week",
-      "week": "Week",
-      "month": "Month",
-      "invalidLayout": "This schedule’s stored layout is invalid. Regenerate the page or reset its layout.",
-      "shiftCount": "{count, plural, one {{n} shift} other {{n} shifts}}",
-      "addShift": "Add shift"
+      "previousWeek": "الأسبوع السابق",
+      "nextWeek": "الأسبوع التالي",
+      "week": "أسبوع",
+      "month": "شهر",
+      "invalidLayout": "التخطيط المخزَّن لهذا الجدول غير صالح. أعد توليد الصفحة أو أعد تعيين تخطيطه.",
+      "shiftCount": "{count, plural, zero {{n} وردية} one {وردية واحدة} two {ورديتان} few {{n} ورديات} many {{n} وردية} other {{n} وردية}}",
+      "addShift": "إضافة وردية"
     },
     "settings": {
-      "title": "Notification settings",
-      "subtitle": "Choose what you're notified about and how",
-      "matrixLabel": "Notify me about",
-      "rowHeader": "Event",
-      "saved": "Saved",
-      "unavailableTag": "Not available yet",
-      "loading": "Loading preferences",
-      "errorTitle": "These settings failed to load",
-      "emptyTitle": "Nothing to configure yet",
-      "emptyBody": "Notification events appear here as producers ship."
+      "title": "إعدادات الإشعارات",
+      "subtitle": "اختر ما تريد أن تصلك إشعارات بشأنه وكيف تصلك",
+      "matrixLabel": "أشعرني بشأن",
+      "rowHeader": "الحدث",
+      "saved": "تم الحفظ",
+      "unavailableTag": "غير متاح بعد",
+      "loading": "جارٍ تحميل التفضيلات",
+      "errorTitle": "تعذّر تحميل هذه الإعدادات",
+      "emptyTitle": "لا يوجد شيء للتهيئة بعد",
+      "emptyBody": "تظهر أحداث الإشعارات هنا مع إطلاق مصادرها."
     },
     "pageCrud": {
-      "description": "The canonical table page: searchable data grid, create/edit forms, safe deletes with reference checks, and undoable changes."
+      "description": "صفحة الجدول القياسية: شبكة بيانات قابلة للبحث، ونماذج إنشاء وتعديل، وحذف آمن مع فحص المراجع، وتغييرات قابلة للتراجع."
     },
     "pageDashboard": {
-      "description": "A widget dashboard over your data: KPI cards, charts, and lists on an editable grid."
+      "description": "لوحة معلومات من عناصر الواجهة فوق بياناتك: بطاقات مؤشرات ورسوم بيانية وقوائم على شبكة قابلة للتحرير."
     },
     "pageBoard": {
-      "description": "A kanban board grouped by a status field — drag cards between columns to update records."
+      "description": "لوحة كانبان مجمَّعة حسب حقل الحالة — اسحب البطاقات بين الأعمدة لتحديث السجلات."
     },
     "pageCalendar": {
-      "description": "A month calendar with agenda, category filters, and quick event capture from a date field."
+      "description": "تقويم شهري مع جدول أعمال ومرشِّحات للفئات وإضافة سريعة للأحداث من حقل تاريخ."
     },
     "pageScheduler": {
-      "description": "A week-by-resource shift matrix with capacity tracking and coverage totals."
+      "description": "مصفوفة ورديات حسب الأسبوع والمورد مع تتبّع السعة وإجماليات التغطية."
     },
     "pageDirectory": {
-      "description": "A people directory with search, group filters, and a profile drawer."
+      "description": "دليل أشخاص مع بحث ومرشِّحات للمجموعات ولوحة جانبية للملف الشخصي."
     },
     "pageMasterDetail": {
-      "description": "A list-beside-detail layout: pick a record on the left, work with it on the right."
+      "description": "تخطيط قائمة بجوار التفاصيل: اختر سجلًا من القائمة وتعامل معه في لوحة التفاصيل."
     },
     "pageQueueInbox": {
-      "description": "A review queue with approve/reject decisions, bulk actions, and undo."
+      "description": "قائمة انتظار للمراجعة مع قرارات الموافقة والرفض وإجراءات جماعية وتراجع."
     },
     "pageLogViewer": {
-      "description": "A live-tailing log table with level and time filters and a trace side panel."
+      "description": "جدول سجل يتابع الأحداث مباشرة مع مرشِّحات للمستوى والوقت ولوحة جانبية للتتبّع."
     },
     "pageFiles": {
-      "description": "A file browser with smart folders, uploads, and a preview drawer."
+      "description": "متصفح ملفات مع مجلدات ذكية ورفع للملفات ولوحة جانبية للمعاينة."
     },
     "pageChat": {
-      "description": "A conversation inbox beside a message thread, bound to your messages tables."
+      "description": "صندوق وارد للمحادثات بجوار سلسلة الرسائل، مرتبط بجداول الرسائل لديك."
     },
     "pageBuilder": {
-      "description": "A drag-and-drop document builder with block palette, inspector, and publish flow."
+      "description": "منشئ مستندات بالسحب والإفلات مع لوحة كتل ولوحة خصائص ومسار نشر."
     },
     "pageWizard": {
-      "description": "A multi-step guided flow that walks users through a structured process."
+      "description": "مسار موجَّه متعدد الخطوات يرشد المستخدمين عبر عملية منظَّمة."
     },
     "pageSettings": {
-      "description": "A notification-preferences matrix with per-channel toggles and autosave."
+      "description": "مصفوفة تفضيلات إشعارات مع مفاتيح لكل قناة وحفظ تلقائي."
     }
   },
   "frame": {
-    "noResult": "No result for widget",
-    "emptyTitle": "No data for range",
-    "loadError": "Something went wrong loading this widget.",
-    "renderError": "This widget failed to render.",
-    "refreshing": "Refreshing",
-    "infoLabel": "Widget info",
-    "menuLabel": "Widget menu"
+    "noResult": "لا توجد نتيجة لعنصر الواجهة",
+    "emptyTitle": "لا توجد بيانات لهذا النطاق",
+    "loadError": "حدث خطأ أثناء تحميل عنصر الواجهة هذا.",
+    "renderError": "تعذّر عرض عنصر الواجهة هذا.",
+    "refreshing": "جارٍ التحديث",
+    "infoLabel": "معلومات عنصر الواجهة",
+    "menuLabel": "قائمة عنصر الواجهة"
   },
   "charts": {
-    "livePillLabel": "Live",
+    "livePillLabel": "مباشر",
     "forecast": {
-      "nowLabel": "Now",
-      "forecastLabel": "Forecast",
-      "actualLabel": "Actual"
+      "nowLabel": "الآن",
+      "forecastLabel": "المتوقَّع",
+      "actualLabel": "الفعلي"
     },
-    "otherLabel": "Other",
+    "otherLabel": "أخرى",
     "heat": {
-      "lessLabel": "Less",
-      "moreLabel": "More"
+      "lessLabel": "أقل",
+      "moreLabel": "أكثر"
     },
     "choropleth": {
-      "lowLabel": "Low",
-      "highLabel": "High"
+      "lowLabel": "منخفض",
+      "highLabel": "مرتفع"
     },
     "funnel": {
-      "stepConversion": "{pct}% continue",
-      "overallConversion": "{pct}% overall"
+      "stepConversion": "{pct}% يواصلون",
+      "overallConversion": "{pct}% إجمالًا"
     }
   }
 } as const;

@@ -37,10 +37,16 @@ export interface ConfigInspectorProps {
 }
 
 function fieldLabel(field: InspectorField): string {
+  /* i18n-dynamic-key: `field.key` is a top-level property name read off an arbitrary widget's
+     Zod config schema at runtime (`deriveInspectorFields`), including widgets supplied by a
+     manifest-host registry. It is typed `string` with no union to enumerate, so no map of
+     literal keys is possible; `humanize(field.key)` is what renders. */
   return t(`builder.fields.${field.key}`, humanize(field.key));
 }
 
 function optionLabel(value: string): string {
+  /* i18n-dynamic-key: `value` is a member of an arbitrary widget's Zod enum, harvested from
+     that schema at runtime, so the set is open-ended for the same reason as `fieldLabel`. */
   return t(`builder.enums.${value}`, humanize(value));
 }
 

@@ -44,14 +44,19 @@ interface ChildReport {
 function migrateOnDist(dbPath: string): ChildReport {
   const require = createRequire(import.meta.url);
   const metaEntry = require.resolve('@adminium/meta');
-  const kyselyEntry = require.resolve('kysely');
   const sqliteEntry = require.resolve('better-sqlite3');
   const script = `
-    const { Kysely, SqliteDialect } = await import(${JSON.stringify(kyselyEntry)});
     const BetterSqlite3 = (await import(${JSON.stringify(sqliteEntry)})).default;
     const meta = await import(${JSON.stringify(metaEntry)});
-    const db = new Kysely({
-      dialect: new SqliteDialect({ database: new BetterSqlite3(${JSON.stringify(dbPath)}) }),
+    // Built through createSqliteMetaDb, NOT a bare Kysely: production always
+    // carries the CamelCasePlugin (connect.ts), and the migrator's ledger
+    // INSERT writes camelCase column names that only resolve through it. A
+    // plugin-less handle here silently worked for years because the fixture
+    // already had every migration applied, so the insert path was never
+    // reached — the first migration added after the fixture was cut is what
+    // exposed it.
+    const { db } = meta.createSqliteMetaDb({
+      database: new BetterSqlite3(${JSON.stringify(dbPath)}),
     });
     const status = await meta.migrationStatus(db, { dialect: 'sqlite' });
     const first = await meta.applyMigrations(db, { dialect: 'sqlite' });
@@ -99,8 +104,10 @@ describe('meta store upgrade from released 0.1.0', () => {
     }
 
     // Only migrations added AFTER the release may apply on top — the released
-    // set must never re-run. (Today that list is empty; when 0011 lands this
-    // clause starts asserting the real upgrade.)
+    // set must never re-run. As of 0011/0012 (23-runtime-translations.md §3.5)
+    // this is no longer vacuous: it now asserts a real upgrade, and it is what
+    // caught the plugin-less handle documented in `migrateOnDist`.
+    expect(report.firstApplied.length).toBeGreaterThan(0);
     for (const name of report.firstApplied) {
       expect(name > RELEASED_TAIL, `${name} shipped in 0.1.0 and must not re-apply`).toBe(true);
     }

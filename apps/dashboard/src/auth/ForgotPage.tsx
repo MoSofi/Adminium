@@ -101,7 +101,9 @@ export function ForgotPage() {
       ) : (
         <ForgotSentState
           title={t('auth.forgot.sentTitle', 'Check your email')}
-          body={t('auth.forgot.sentBody', `We sent a reset link to ${sentTo}. It expires in 15 minutes.`)}
+          body={t('auth.forgot.sentBody', `We sent a reset link to ${sentTo}. It expires in 15 minutes.`, {
+          email: sentTo,
+        })}
           doneLabel={t('auth.forgot.done', 'Back to sign in')}
           onDone={toLogin}
           resendHint={t('auth.forgot.resendHint', "Didn't get it?")}

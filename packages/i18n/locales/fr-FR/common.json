@@ -42,7 +42,10 @@
       "done": "Retour à la connexion",
       "rateLimited": "Trop de demandes — réessayez plus tard.",
       "failed": "Une erreur s’est produite. Réessayez.",
-      "smtpUnconfigured": "Cet Adminium n'a pas de serveur e-mail configuré : il ne peut pas envoyer de lien de réinitialisation. Demandez à un administrateur de réinitialiser votre mot de passe."
+      "smtpUnconfigured": "Cet Adminium n'a pas de serveur e-mail configuré : il ne peut pas envoyer de lien de réinitialisation. Demandez à un administrateur de réinitialiser votre mot de passe.",
+      "subtitle": "Saisissez votre adresse e-mail et nous vous enverrons un lien de réinitialisation.",
+      "sentBody": "Nous avons envoyé un lien de réinitialisation à {email}. Il expire dans 15 minutes.",
+      "resendHint": "Vous ne l’avez pas reçu ?"
     },
     "reset": {
       "title": "Définir un nouveau mot de passe",
@@ -58,7 +61,8 @@
       "strong": "Fort",
       "tooShort": "Utilisez au moins 8 caractères.",
       "submit": "Réinitialiser le mot de passe",
-      "failed": "Échec de la réinitialisation. Réessayez."
+      "failed": "Échec de la réinitialisation. Réessayez.",
+      "mismatch": "Les mots de passe ne correspondent pas."
     },
     "otp": {
       "title": "Authentification à deux facteurs",
@@ -105,6 +109,7 @@
     "userMenu": "Menu du compte",
     "profile": "Profil",
     "preferences": "Préférences",
+    "studio": "Studio",
     "signOut": "Se déconnecter"
   },
   "palette": {
@@ -119,7 +124,11 @@
     "themeLight": "Passer au thème clair",
     "footerNavigate": "naviguer",
     "footerOpen": "sélectionner",
-    "footerClose": "fermer"
+    "footerClose": "fermer",
+    "recent": "Récents",
+    "searching": "Recherche d’enregistrements…",
+    "records": "Enregistrements",
+    "empty": "Aucun résultat pour « {query} »"
   },
   "shortcuts": {
     "title": "Raccourcis clavier",
@@ -130,6 +139,7 @@
     "panel": "Afficher le panneau des raccourcis",
     "search": "Activer la recherche",
     "sidebar": "Afficher/masquer la barre latérale",
+    "studio": "Aller au Studio",
     "theme": "Basculer clair / sombre",
     "then": "puis",
     "footerPre": "Appuyez sur",
@@ -137,7 +147,86 @@
   },
   "states": {
     "checked": "vérifié il y a 8 s",
-    "diagnostics": "Diagnostics"
+    "diagnostics": "Diagnostics",
+    "reference": {
+      "label": "Référence",
+      "copy": "Copier la référence",
+      "copied": "Copié",
+      "hint": "Indiquez-la lorsque vous signalez le problème — le journal de votre serveur contient le même identifiant."
+    },
+    "notFound": {
+      "title": "Page introuvable",
+      "body": "Nous n’avons pas trouvé cette page. Elle a peut-être été déplacée, ou le lien est rompu.",
+      "primary": "Retour au tableau de bord",
+      "secondary": "Contacter le support"
+    },
+    "forbidden": {
+      "title": "Vous n’avez pas accès",
+      "body": "Ce tableau de bord est restreint. Demandez à un administrateur de l’espace de travail de vous donner accès.",
+      "primary": "Demander l’accès",
+      "secondary": "Retour"
+    },
+    "error": {
+      "title": "Une erreur est survenue",
+      "body": "Adminium a rencontré une erreur inattendue en traitant cette requête. Les détails se trouvent dans le journal du serveur.",
+      "primary": "Réessayer"
+    },
+    "dbUnreachable": {
+      "title": "Base de données injoignable",
+      "body": "Impossible de joindre prod-db. Vos tableaux de bord reprendront une fois la connexion rétablie.",
+      "primary": "Réessayer la connexion",
+      "secondary": "Modifier la connexion",
+      "diag": {
+        "status": "connexion expirée (10 s)",
+        "hint": "autorisez 52.9.14.2, puis réessayez"
+      }
+    },
+    "maintenance": {
+      "title": "Maintenance planifiée",
+      "body": "Adminium est en maintenance et sera de retour sous peu. Merci de votre patience.",
+      "primary": "Voir le statut"
+    },
+    "rateLimited": {
+      "title": "Limite de requêtes atteinte",
+      "body": "Trop de requêtes en peu de temps. Patientez quelques minutes, puis réessayez.",
+      "primary": "Réessayer",
+      "secondary": "Retour"
+    },
+    "offline": {
+      "title": "Vous êtes hors ligne",
+      "body": "Vérifiez votre connexion Internet. Adminium se reconnectera automatiquement dès votre retour en ligne.",
+      "primary": "Réessayer maintenant",
+      "banner": "Hors ligne — tentative de reconnexion…"
+    },
+    "expiredLink": {
+      "title": "Ce lien a expiré",
+      "body": "Les liens de connexion magiques expirent au bout de 10 minutes. Demandez-en un nouveau pour continuer.",
+      "primary": "Envoyer un nouveau lien",
+      "secondary": "Retour à la connexion"
+    },
+    "expiredSession": {
+      "title": "Votre session a expiré",
+      "body": "Pour votre sécurité, vous avez été déconnecté après une période d’inactivité. Connectez-vous pour reprendre où vous en étiez.",
+      "primary": "Se reconnecter"
+    },
+    "emptyNoSources": {
+      "title": "Aucune source de données",
+      "body": "Connectez une base de données PostgreSQL et Adminium générera votre premier tableau de bord d’administration.",
+      "primary": "Connecter une base de données",
+      "secondary": "Importer des données d’exemple"
+    },
+    "readOnly": {
+      "title": "Mode lecture seule",
+      "body": "Vous disposez d’un accès Viewer à cet espace de travail. Vous pouvez explorer les tableaux de bord, mais l’édition et les actions destructrices sont désactivées.",
+      "primary": "Demander l’accès en écriture",
+      "secondary": "J’ai compris"
+    },
+    "suspended": {
+      "title": "Cet espace de travail est suspendu",
+      "body": "Cet espace de travail a été suspendu par un administrateur. Vos données sont conservées — contactez le propriétaire de l’espace de travail pour rétablir l’accès.",
+      "primary": "Contacter le propriétaire",
+      "secondary": "Retour"
+    }
   },
   "notFound": {
     "title": "Cette page a disparu",
@@ -146,7 +235,8 @@
     "matches": "Pages correspondantes",
     "popular": "Destinations populaires",
     "goBack": "Retour",
-    "backToDashboard": "Retour au tableau de bord"
+    "backToDashboard": "Retour au tableau de bord",
+    "noMatches": "Aucune page ne correspond à « {query} »"
   },
   "page": {
     "invalid": {
@@ -197,7 +287,8 @@
     },
     "locale": {
       "label": "Langue",
-      "directionNote": "Sens du texte : de droite à gauche (défini automatiquement par la langue)"
+      "directionNote": "Sens du texte : de droite à gauche (défini automatiquement par la langue)",
+      "communityDraft": "Cette traduction est une version communautaire : elle n’a pas encore été relue par un locuteur natif."
     }
   },
   "account": {
@@ -267,8 +358,8 @@
         "drizzle": "Drizzle ORM",
         "typeorm": "Entités TypeORM",
         "sequelize": "Modèles Sequelize",
-        "rails": "Rails schema.rb",
-        "django": "Django models.py",
+        "rails": "schema.rb Rails",
+        "django": "models.py Django",
         "json": "JSON Adminium"
       },
       "sqlite": {
@@ -1019,7 +1110,8 @@
         "unique": "UNIQUE",
         "pii": "PII",
         "masked": "Masquée"
-      }
+      },
+      "unavailableTitle": "Éditeur de remappage du schéma indisponible"
     }
   },
   "onboarding": {
@@ -1954,5 +2046,9 @@
       "reportFailed": "Échec du rapport planifié",
       "backupCompleted": "Sauvegarde terminée"
     }
+  },
+  "theme": {
+    "toLight": "Passer au thème clair",
+    "toDark": "Passer au thème sombre"
   }
 }

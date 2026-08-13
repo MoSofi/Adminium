@@ -28,20 +28,35 @@ import type { SystemStateId } from '../app/query.js';
 
 export type StateTone = 'accent' | 'warn' | 'danger' | 'neutral';
 
+/**
+ * A user-visible string: its bundle key plus the en-US source text.
+ *
+ * Both travel together because `t(key, fallback)` degrades to the fallback
+ * before `initDashboardI18n()` runs (and in unit tests that never boot i18n),
+ * so a bare key would render as `states.notFound.title` on screen. Typing these
+ * as objects rather than strings is deliberate: every render site has to go
+ * through `t()`, because a `Msg` is not a `ReactNode`.
+ */
+export interface Msg {
+  key: string;
+  /** en-US source text — the fallback, and what the bundles are authored from. */
+  en: string;
+}
+
 export interface SystemStateSpec {
   id: SystemStateId;
   /** Giant mono numeral behind the glyph ('404'); absent for code-less states. */
   code?: string;
   icon: LucideIcon;
   tone: StateTone;
-  title: string;
-  body: string;
-  primary?: { label: string; icon: LucideIcon };
-  secondary?: string;
+  title: Msg;
+  body: Msg;
+  primary?: { label: Msg; icon: LucideIcon };
+  secondary?: Msg;
   /** `db-unreachable` renders the diagnostics readout (host/status/hint). */
-  diagnostics?: { host: string; status: string; hint: string };
+  diagnostics?: { host: string; status: Msg; hint: Msg };
   /** `offline` additionally shows the fixed top banner. */
-  banner?: string;
+  banner?: Msg;
 }
 
 export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
@@ -50,115 +65,127 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     code: '404',
     icon: Compass,
     tone: 'neutral',
-    title: 'Page not found',
-    body: "We couldn't find that page. It may have been moved or the link is broken.",
-    primary: { label: 'Back to dashboard', icon: ArrowLeft },
-    secondary: 'Contact support',
+    title: { key: 'states.notFound.title', en: 'Page not found' },
+    body: { key: 'states.notFound.body', en: "We couldn't find that page. It may have been moved or the link is broken." },
+    primary: { label: { key: 'states.notFound.primary', en: 'Back to dashboard' }, icon: ArrowLeft },
+    secondary: { key: 'states.notFound.secondary', en: 'Contact support' },
   },
   forbidden: {
     id: 'forbidden',
     code: '403',
     icon: Lock,
     tone: 'warn',
-    title: 'You don’t have access',
-    body: 'This dashboard is restricted. Ask a workspace admin to grant you access.',
-    primary: { label: 'Request access', icon: UserPlus },
-    secondary: 'Go back',
+    title: { key: 'states.forbidden.title', en: 'You don’t have access' },
+    body: { key: 'states.forbidden.body', en: 'This dashboard is restricted. Ask a workspace admin to grant you access.' },
+    primary: { label: { key: 'states.forbidden.primary', en: 'Request access' }, icon: UserPlus },
+    secondary: { key: 'states.forbidden.secondary', en: 'Go back' },
   },
   error: {
     id: 'error',
     code: '500',
     icon: ServerCrash,
     tone: 'danger',
-    title: 'Something went wrong',
-    body: 'An unexpected error occurred on our end. Our team has been notified.',
-    primary: { label: 'Try again', icon: RefreshCw },
-    secondary: 'Status page',
+    title: { key: 'states.error.title', en: 'Something went wrong' },
+    // NOT "on our end / our team has been notified". There is no vendor behind
+    // this screen: v1 is self-hosted, so "our end" IS the reader's own server
+    // and nobody was told anything. The old copy also implied the failure had
+    // been phoned home, which is the opposite of what happened — it went to the
+    // server log, which is exactly where the reference below points.
+    body: {
+      key: 'states.error.body',
+      en: 'Adminium hit an unexpected error handling this request. The details are in the server log.',
+    },
+    primary: { label: { key: 'states.error.primary', en: 'Try again' }, icon: RefreshCw },
+    // NO secondary. The comp's "Status page" assumed a hosted product; v1 ships
+    // self-hosted (17-deferred-monetization.md), where the instance IS the
+    // reader's own server and there is no status page to send them to. It was
+    // wired to nothing and could not honestly be wired to anything, so the CTA
+    // row is one button and the reference below it carries the recovery path.
   },
   'db-unreachable': {
     id: 'db-unreachable',
     icon: Database,
     tone: 'danger',
-    title: 'Database unreachable',
-    body: "We couldn't connect to prod-db. Your dashboards will resume once the connection is restored.",
-    primary: { label: 'Retry connection', icon: RefreshCw },
-    secondary: 'Edit connection',
+    title: { key: 'states.dbUnreachable.title', en: 'Database unreachable' },
+    body: { key: 'states.dbUnreachable.body', en: "We couldn't connect to prod-db. Your dashboards will resume once the connection is restored." },
+    primary: { label: { key: 'states.dbUnreachable.primary', en: 'Retry connection' }, icon: RefreshCw },
+    secondary: { key: 'states.dbUnreachable.secondary', en: 'Edit connection' },
     diagnostics: {
       host: 'db.acme.internal:5432',
-      status: 'connection timed out (10s)',
-      hint: 'allowlist 52.9.14.2, then retry',
+      status: { key: 'states.dbUnreachable.diag.status', en: 'connection timed out (10s)' },
+      hint: { key: 'states.dbUnreachable.diag.hint', en: 'allowlist 52.9.14.2, then retry' },
     },
   },
   maintenance: {
     id: 'maintenance',
     icon: Activity,
     tone: 'accent',
-    title: 'Scheduled maintenance',
-    body: 'Adminium is undergoing maintenance and will be back shortly. Thanks for your patience.',
-    primary: { label: 'View status', icon: Activity },
+    title: { key: 'states.maintenance.title', en: 'Scheduled maintenance' },
+    body: { key: 'states.maintenance.body', en: 'Adminium is undergoing maintenance and will be back shortly. Thanks for your patience.' },
+    primary: { label: { key: 'states.maintenance.primary', en: 'View status' }, icon: Activity },
   },
   'rate-limited': {
     id: 'rate-limited',
     code: '429',
     icon: Gauge,
     tone: 'warn',
-    title: 'Rate limit reached',
-    body: 'Too many requests in a short time. Wait a few minutes and try again.',
-    primary: { label: 'Try again', icon: RefreshCw },
-    secondary: 'Go back',
+    title: { key: 'states.rateLimited.title', en: 'Rate limit reached' },
+    body: { key: 'states.rateLimited.body', en: 'Too many requests in a short time. Wait a few minutes and try again.' },
+    primary: { label: { key: 'states.rateLimited.primary', en: 'Try again' }, icon: RefreshCw },
+    secondary: { key: 'states.rateLimited.secondary', en: 'Go back' },
   },
   offline: {
     id: 'offline',
     icon: WifiOff,
     tone: 'warn',
-    title: "You're offline",
-    body: 'Check your internet connection. Adminium will reconnect automatically when you’re back.',
-    primary: { label: 'Retry now', icon: RefreshCw },
-    banner: "You're offline — trying to reconnect…",
+    title: { key: 'states.offline.title', en: "You're offline" },
+    body: { key: 'states.offline.body', en: 'Check your internet connection. Adminium will reconnect automatically when you’re back.' },
+    primary: { label: { key: 'states.offline.primary', en: 'Retry now' }, icon: RefreshCw },
+    banner: { key: 'states.offline.banner', en: "You're offline — trying to reconnect…" },
   },
   'expired-link': {
     id: 'expired-link',
     icon: Link2Off,
     tone: 'warn',
-    title: 'This link has expired',
-    body: 'Magic sign-in links expire after 10 minutes. Request a fresh one to continue.',
-    primary: { label: 'Send a new link', icon: Mail },
-    secondary: 'Back to sign in',
+    title: { key: 'states.expiredLink.title', en: 'This link has expired' },
+    body: { key: 'states.expiredLink.body', en: 'Magic sign-in links expire after 10 minutes. Request a fresh one to continue.' },
+    primary: { label: { key: 'states.expiredLink.primary', en: 'Send a new link' }, icon: Mail },
+    secondary: { key: 'states.expiredLink.secondary', en: 'Back to sign in' },
   },
   'expired-session': {
     id: 'expired-session',
     icon: LogOut,
     tone: 'warn',
-    title: 'Your session expired',
-    body: 'For your security you were signed out after a period of inactivity. Sign in to pick up where you left off.',
-    primary: { label: 'Sign in again', icon: LogIn },
+    title: { key: 'states.expiredSession.title', en: 'Your session expired' },
+    body: { key: 'states.expiredSession.body', en: 'For your security you were signed out after a period of inactivity. Sign in to pick up where you left off.' },
+    primary: { label: { key: 'states.expiredSession.primary', en: 'Sign in again' }, icon: LogIn },
   },
   'empty-no-sources': {
     id: 'empty-no-sources',
     icon: Inbox,
     tone: 'accent',
-    title: 'No data sources yet',
-    body: 'Connect a PostgreSQL database and Adminium will generate your first admin dashboard.',
-    primary: { label: 'Connect a database', icon: Plus },
-    secondary: 'Import sample data',
+    title: { key: 'states.emptyNoSources.title', en: 'No data sources yet' },
+    body: { key: 'states.emptyNoSources.body', en: 'Connect a PostgreSQL database and Adminium will generate your first admin dashboard.' },
+    primary: { label: { key: 'states.emptyNoSources.primary', en: 'Connect a database' }, icon: Plus },
+    secondary: { key: 'states.emptyNoSources.secondary', en: 'Import sample data' },
   },
   'read-only': {
     id: 'read-only',
     icon: Eye,
     tone: 'accent',
-    title: 'Read-only mode',
-    body: 'You have Viewer access to this workspace. You can explore dashboards, but editing and destructive actions are disabled.',
-    primary: { label: 'Request edit access', icon: UserPlus },
-    secondary: 'Got it',
+    title: { key: 'states.readOnly.title', en: 'Read-only mode' },
+    body: { key: 'states.readOnly.body', en: 'You have Viewer access to this workspace. You can explore dashboards, but editing and destructive actions are disabled.' },
+    primary: { label: { key: 'states.readOnly.primary', en: 'Request edit access' }, icon: UserPlus },
+    secondary: { key: 'states.readOnly.secondary', en: 'Got it' },
   },
   suspended: {
     id: 'suspended',
     code: '402',
     icon: Lock,
     tone: 'warn',
-    title: 'This workspace is suspended',
-    body: 'This workspace has been suspended by an administrator. Your data is preserved — contact the workspace owner to restore access.',
-    primary: { label: 'Contact owner', icon: Mail },
-    secondary: 'Go back',
+    title: { key: 'states.suspended.title', en: 'This workspace is suspended' },
+    body: { key: 'states.suspended.body', en: 'This workspace has been suspended by an administrator. Your data is preserved — contact the workspace owner to restore access.' },
+    primary: { label: { key: 'states.suspended.primary', en: 'Contact owner' }, icon: Mail },
+    secondary: { key: 'states.suspended.secondary', en: 'Go back' },
   },
 };

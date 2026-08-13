@@ -56,12 +56,21 @@ export type { OnboardingChecklistConfig, StarterTemplatePickerConfig };
 
 // ── starter-template-picker ─────────────────────────────────────────────────
 
-/** Localized kicker copy per builder — the annex's per-`docType` thumbnail kicker. */
-const DOC_KICKER: Record<string, string> = {
-  invoice: 'Invoice',
-  report: 'Report',
-  email: 'Email',
-};
+/** The doc surfaces that carry a kicker (mirrors `DocType`, block-types.ts). */
+type KickerDocType = 'invoice' | 'report' | 'email';
+
+/**
+ * Localized kicker copy per builder — the annex's per-`docType` thumbnail
+ * kicker. Carries its own LITERAL bundle key so the render site indexes rather
+ * than assembles one: `docType` is a free-form config string, and a key built
+ * from it would be invisible to the extractor and render raw on a miss
+ * (10 §2.5). The `satisfies` clause keeps the map exhaustive over the surfaces.
+ */
+const DOC_KICKER: Readonly<Record<string, { key: string; label: string }>> = {
+  invoice: { key: 'ui:widgets.domain.starterTemplatePicker.kicker.invoice', label: 'Invoice' },
+  report: { key: 'ui:widgets.domain.starterTemplatePicker.kicker.report', label: 'Report' },
+  email: { key: 'ui:widgets.domain.starterTemplatePicker.kicker.email', label: 'Email' },
+} satisfies Record<KickerDocType, { key: string; label: string }>;
 
 export interface StarterTemplatePickerViewProps {
   starters: readonly StarterDef[];
@@ -103,10 +112,7 @@ export function StarterTemplatePickerView({
 }: StarterTemplatePickerViewProps) {
   const t = useMaybeT();
   const rawKicker = docType === undefined ? undefined : DOC_KICKER[docType];
-  const kicker =
-    docType === undefined || rawKicker === undefined
-      ? undefined
-      : t(`ui:widgets.domain.starterTemplatePicker.kicker.${docType}`, rawKicker);
+  const kicker = rawKicker === undefined ? undefined : t(rawKicker.key, rawKicker.label);
 
   return (
     <ul

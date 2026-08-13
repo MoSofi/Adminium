@@ -55,7 +55,7 @@ export function DiffBar({
         <span className="text-body-sm font-semibold text-fg">
           {changes.length === 1
             ? t('studio.remap.diff.one', '1 change')
-            : t('studio.remap.diff.count', '{count} changes').replace('{count}', String(changes.length))}
+            : t('studio.remap.diff.count', '{count} changes', { count: String(changes.length) })}
         </span>
       ) : (
         <span className="text-body-sm text-fg-muted">{t('studio.remap.diff.saved', 'Overrides saved.')}</span>
@@ -70,10 +70,7 @@ export function DiffBar({
               <span className="font-mono">{changeText(change)}</span>
               <button
                 type="button"
-                aria-label={t('studio.remap.diff.revertOne', 'Revert {change}').replace(
-                  '{change}',
-                  changeText(change),
-                )}
+                aria-label={t('studio.remap.diff.revertOne', 'Revert {change}', { change: changeText(change), })}
                 className="rounded-full hover:opacity-70"
                 onClick={() => onRevert(change.key)}
               >
