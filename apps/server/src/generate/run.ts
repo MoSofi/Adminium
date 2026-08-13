@@ -91,6 +91,28 @@ export function filterModelToIncludedTables(
   };
 }
 
+/** The identity of a table-bound page: which template, for which table. */
+function coordinateKey(table: string, template: string): string {
+  return `${table}\u0000${template}`;
+}
+
+/**
+ * `(table, template)` pairs already covered by an `origin: 'llm'` page of this
+ * connection — the accepted §8.3 template pages (06-llm-assist.md), seeds and
+ * materialized envelopes alike (both carry `config.source.table`). Dashboards
+ * bind to no table and never claim a pair.
+ */
+async function llmCoveredTemplates(meta: MetaDb, connectionId: string): Promise<Set<string>> {
+  const covered = new Set<string>();
+  for (const page of await pagesRepo(meta).listForConnection(connectionId)) {
+    if (page.origin !== 'llm') continue;
+    const source = (page.config as { source?: { table?: unknown } } | null)?.source;
+    const table = source?.table;
+    if (typeof table === 'string') covered.add(coordinateKey(table, page.type));
+  }
+  return covered;
+}
+
 /** Envelope → the opaque row shape `pagesRepo` persists. */
 export function toGeneratedPageInput(envelope: PageEnvelope): GeneratedPageInput {
   return {
@@ -146,15 +168,42 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
     }
   }
 
+  // NOTE (06 §8.3 nav groups): an accepted `group` suggestion is NOT fed in
+  // here, so a generated page keeps its heuristic 09 §2.2 group and the apply's
+  // `nav_group` stamping is rewritten on the next run. That is deliberate until
+  // the rail can render domain groups: `buildNavTree` (routes/bootstrap) drops
+  // any row whose group is not one of the five fixed keys, so making the
+  // accepted placement authoritative removes every page of a member table from
+  // the sidebar. Making it stick and teaching the rail to show it are one
+  // change, not two.
   const { pages, warnings } = generatePages(model, { connectionId, intent });
 
   // Belt and braces: the engine validated on emit; the server re-validates
   // at the write boundary because it is the single write-time authority.
   const validated = pages.map((page) => pageEnvelopeSchema.parse(page));
 
+  // One page per (table, template): an accepted LLM template page and the
+  // generator's own archetype for that table are the SAME page under two slug
+  // schemes (`orders-board` vs `public-orders-page-board`). The apply executor
+  // holds the common order — it declines to insert an llm page a generated one
+  // already covers — and this is the other order: when the apply landed first
+  // (or a schema change only now makes the table earn that archetype), the
+  // generated twin is dropped from the run instead of appearing beside it. Any
+  // twin persisted by an earlier run is then pruned below as an orphan, unless
+  // it was hand-edited, which keeps it under "user delta wins" (04 §6.3).
+  const covered = await llmCoveredTemplates(meta, connectionId);
+  const emitted = validated.filter((page) => {
+    const table = page.source.table;
+    if (table === null || !covered.has(coordinateKey(table, page.template))) return true;
+    warnings.push(
+      `${page.template} for ${table} skipped — an accepted LLM page already covers this table+template (06 §8.3)`,
+    );
+    return false;
+  });
+
   const persistence = await pagesRepo(meta).upsertGenerated(
     connectionId,
-    validated.map(toGeneratedPageInput),
+    emitted.map(toGeneratedPageInput),
     // `hashEnvelope` arms the H5 edited-page guard (04 §6.3 "user delta wins"):
     // stored documents whose embedded generatedHash went stale were edited by a
     // human and are skipped, not overwritten.
@@ -173,12 +222,12 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   const llm = await materializeLlmPages({ meta, model, connectionId });
   warnings.push(...llm.warnings);
 
-  const navGroups = [...new Set(validated.map((page) => page.nav.group))];
+  const navGroups = [...new Set(emitted.map((page) => page.nav.group))];
   return {
     snapshotId: snapshot.id,
     introspected,
     intent,
-    pages: validated,
+    pages: emitted,
     navGroups,
     warnings,
     persistence,
