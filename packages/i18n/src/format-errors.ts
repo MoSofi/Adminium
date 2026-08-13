@@ -31,7 +31,13 @@ export interface FormatFailure {
 
 const MAX_ENTRIES = 50;
 
-/** Keyed by `key\0lng\0message` so a repeat increments rather than evicts. */
+/**
+ * Keyed by `key\0lng\0message` so a repeat increments rather than evicts.
+ *
+ * Insertion order is maintained as RECENCY order (see the re-insert below), so
+ * the first key is always the least recently seen — which is exactly what
+ * eviction takes.
+ */
 const failures = new Map<string, FormatFailure>();
 
 export function recordFormatFailure(input: Omit<FormatFailure, 'count'>): void {
@@ -40,6 +46,12 @@ export function recordFormatFailure(input: Omit<FormatFailure, 'count'>): void {
   if (existing !== undefined) {
     existing.count += 1;
     existing.at = input.at;
+    // Re-insert to move this key to the end. Updating in place would leave it
+    // wherever it first landed, and eviction below takes the FIRST key — so a
+    // message that is still failing would be evicted by unrelated one-offs.
+    // That runaway loop is the case this ring exists for; it must survive.
+    failures.delete(id);
+    failures.set(id, existing);
     return;
   }
   if (failures.size >= MAX_ENTRIES) {
@@ -49,9 +61,16 @@ export function recordFormatFailure(input: Omit<FormatFailure, 'count'>): void {
   failures.set(id, { ...input, count: 1 });
 }
 
-/** Most recent first. */
-export function formatFailures(): readonly FormatFailure[] {
-  return [...failures.values()].sort((a, b) => b.at - a.at);
+/**
+ * Most recent first.
+ *
+ * Entries are COPIED: the records are mutated in place on every repeat, so
+ * handing out live references would let a caller's snapshot change under it
+ * (and let a caller write into the ring). `Readonly` states that guarantee;
+ * the copy is what actually provides it.
+ */
+export function formatFailures(): readonly Readonly<FormatFailure>[] {
+  return [...failures.values()].map((f) => ({ ...f })).sort((a, b) => b.at - a.at);
 }
 
 export function clearFormatFailures(): void {
