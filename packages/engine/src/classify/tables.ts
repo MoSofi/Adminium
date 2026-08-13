@@ -69,6 +69,33 @@ export interface ClassifiedTable {
 // Vocab
 // ---------------------------------------------------------------------------
 
+/**
+ * Tables the connect wizard keeps out of the picker by default — 05 §8.2.
+ *
+ * Three kinds, none of which anyone wants CRUD pages over: Adminium's own
+ * `adminium_*` store, which lands in the SOURCE database whenever the meta
+ * store is placed there (a supported 01 §3.1 configuration); other tools'
+ * migration bookkeeping; and join tables, which exist to be traversed rather
+ * than edited. Generation already declines to page all three —
+ * `filterModelToIncludedTables` keeps them in the graph for M2M detection and
+ * nothing else — so offering them only ever produced a selection that could
+ * not be honoured.
+ *
+ * It lives HERE, beside the classifier that assigns the roles, because both
+ * front doors have to agree on it. The Studio hid them from its first commit
+ * while the CLI wizard listed `adminium_users` as a table to build an admin
+ * panel over, which is precisely the drift "one code path, two front doors"
+ * exists to prevent. Structurally typed so a caller holding a stored snapshot
+ * (whose tables are parsed, not `TableModel` instances) can use it too.
+ */
+export function isPreHiddenTable(table: {
+  system?: boolean | null | undefined;
+  semantics?: { role?: string | null | undefined } | null | undefined;
+}): boolean {
+  const role = table.semantics?.role ?? 'entity';
+  return table.system === true || role === 'join-table' || role === 'system';
+}
+
 /** §8 trigger: `page-log-viewer` name pattern. */
 const LOG_TABLE_RE = /(^|_)(audit|logs?|events?|history|deliveries)(_|$)/;
 const SETTINGS_TABLE_RE = /(^|_)(settings?|preferences?|configs?|configurations?|options)(_|$)/;
