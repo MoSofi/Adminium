@@ -28,6 +28,7 @@ import {
   createSqliteMetaDb,
   destroyMetaDb,
   initMetaDb,
+  postgresInt8AsNumber,
   type MetaDb,
 } from '@adminium/meta';
 
@@ -280,7 +281,11 @@ export async function connectMetaStore(
       const mod = await importDriver('pg', 'postgres');
       const Pool = driverExport<new (config: unknown) => never>(mod, 'Pool', 'postgres', 'pg');
       meta = createPostgresMetaDb({
-        pool: new Pool({ connectionString: resolved.url, max: poolSize }),
+        pool: new Pool({
+          connectionString: resolved.url,
+          max: poolSize,
+          types: postgresInt8AsNumber(mod),
+        }),
       });
       break;
     }

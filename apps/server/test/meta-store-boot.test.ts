@@ -15,6 +15,8 @@
  *   - unauthenticated GET /me → 401 (the auth gate resolves against the store)
  *   - a second createFirstSuperAdmin → FirstUserExistsError (once-only, proven
  *     against the engine's real transaction, not sqlite's)
+ *   - GET /bootstrap → epoch timestamps survive the engine's int8 decoding as
+ *     JS numbers, which is the whole reply schema's premise
  *
  * Each engine leg gates on TEST_POSTGRES_URL / TEST_MYSQL_URL exactly like the
  * other live suites and skips green when the engine is absent. In CI both
@@ -30,6 +32,7 @@ import {
   createPostgresMetaDb,
   firstRun,
   initMetaDb,
+  postgresInt8AsNumber,
   type MetaDb,
   type User,
 } from '@adminium/meta';
@@ -70,15 +73,24 @@ const ENGINES: Engine[] = [
     url: process.env.TEST_POSTGRES_URL,
     async make(base) {
       const { default: pg } = await import('pg');
-      // int8 columns (counts, timestamps) parse to JS number (< 2^53).
-      pg.types.setTypeParser(20, (v: string) => Number(v));
       const database = freshDbName();
       const admin = new pg.Client({ connectionString: base });
       await admin.connect();
       await admin.query(`CREATE DATABASE "${database}"`);
       await admin.end();
       const meta = createPostgresMetaDb({
-        pool: new pg.Pool({ connectionString: withDatabase(base, database), max: 4 }),
+        // The SAME per-pool int8 parser production uses, rather than the global
+        // `pg.types.setTypeParser(20, …)` this used to call. That global was the
+        // only thing in the codebase satisfying `createPostgresMetaDb`'s stated
+        // requirement, and setting it process-wide made the production pool's
+        // omission invisible: every timestamp came back a string in the product
+        // and a number here, for years, in the one suite built to catch exactly
+        // that class of difference.
+        pool: new pg.Pool({
+          connectionString: withDatabase(base, database),
+          max: 4,
+          types: postgresInt8AsNumber(pg as unknown as Record<string, unknown>),
+        }),
       });
       return {
         meta,
@@ -178,6 +190,44 @@ for (const engine of ENGINES) {
       expect(patch.statusCode, patch.body).toBe(200);
       const get = await app.inject({ method: 'GET', url: '/api/v1/me/prefs', headers: { cookie } });
       expect((get.json() as { data: { prefs: { theme: string | null } } }).data.prefs.theme).toBe('dark');
+    });
+
+    it('serves GET /bootstrap — timestamps as numbers, not strings', async () => {
+      // THE REGRESSION. `bootstrapReply` types `user.createdAt`, `user.updatedAt`
+      // and `configVersion` as `z.number()`; on Postgres they arrived as
+      // strings and the route died in response serialization with a 500:
+      //
+      //   ResponseSerializationError: Response doesn't match the schema
+      //   path ["data","user","createdAt"]: expected number, received string
+      //
+      // `ts` columns are `bigint` on Postgres (`columns.ts`), and node-postgres
+      // decodes int8 as a string unless told otherwise. This is the FIRST call
+      // the dashboard makes after login, so the product was unusable on a
+      // Postgres meta store while every SQLite install was fine.
+      const cookie = await loginCookie();
+      const res = await app.inject({ method: 'GET', url: '/api/v1/bootstrap', headers: { cookie } });
+      expect(res.statusCode, res.body).toBe(200);
+
+      const { data } = res.json() as {
+        data: { user: { createdAt: unknown; updatedAt: unknown }; configVersion: unknown };
+      };
+      expect(typeof data.user.createdAt).toBe('number');
+      expect(typeof data.user.updatedAt).toBe('number');
+      // Derived by max() over page updatedAt, so it inherits whatever those are.
+      expect(typeof data.configVersion).toBe('number');
+    });
+
+    it('reads epoch timestamps off the store as numbers', async () => {
+      // One layer below the route, so a failure says whether the driver or the
+      // serializer is at fault.
+      const row = await handle.meta.db
+        .selectFrom('adminium_users')
+        .select(['createdAt', 'updatedAt'])
+        .where('id', '=', admin.id)
+        .executeTakeFirstOrThrow();
+      expect(typeof row.createdAt).toBe('number');
+      expect(typeof row.updatedAt).toBe('number');
+      expect(row.createdAt).toBeGreaterThan(0);
     });
 
     it('refuses a second super-admin claim (once-only on the engine transaction)', async () => {

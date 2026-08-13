@@ -59,10 +59,48 @@ export function createSqliteMetaDb(config: SqliteDialectConfig): MetaDb {
 
 /**
  * PostgreSQL meta-store around an injected `pg` Pool. The pool must parse
- * int8 as JS number (all ts values < 2^53 — 07-meta-store.md §2.1).
+ * int8 as JS number (all ts values < 2^53 — 07-meta-store.md §2.1); build it
+ * with {@link postgresInt8AsNumber}.
  */
 export function createPostgresMetaDb(config: PostgresDialectConfig): MetaDb {
   return build('postgres', new PostgresDialect(config));
+}
+
+/** `pg`'s OID for `bigint`/`int8`. */
+const PG_INT8_OID = 20;
+
+/**
+ * The `types` option that satisfies {@link createPostgresMetaDb}'s requirement:
+ * `new Pool({ …, types: postgresInt8AsNumber(pg) })`.
+ *
+ * The requirement was stated here and satisfiable nowhere, so every caller
+ * either forgot it (the product: each `ts` column arrived as a string and
+ * `GET /api/v1/bootstrap` 500'd on its own reply schema) or met it with a
+ * process-global `pg.types.setTypeParser`, which papered over the callers that
+ * had forgotten. Now there is one implementation, next to the contract.
+ *
+ * `node-postgres` decodes int8 as a string by default and is right to — int64
+ * outruns `Number.MAX_SAFE_INTEGER`. The META schema does not: `columns.ts`
+ * pins `ts` to epoch milliseconds and `bigint` to "values always < 2^53". So
+ * this is scoped to one pool ON PURPOSE. The global equivalent is a
+ * data-integrity bug waiting to happen: the server reads the USER's tables
+ * through the same `pg` module, and their `bigint` ids are under no such
+ * promise.
+ *
+ * Structurally typed over the module so this package still declares no driver
+ * dependency — the caller that imports `pg` passes it in.
+ */
+export function postgresInt8AsNumber(pgModule: Record<string, unknown>): {
+  getTypeParser: (oid: number, format?: unknown) => unknown;
+} {
+  const types = (pgModule.types ??
+    (pgModule.default as Record<string, unknown> | undefined)?.types) as
+    | { getTypeParser: (oid: number, format?: unknown) => unknown }
+    | undefined;
+  return {
+    getTypeParser: (oid, format) =>
+      oid === PG_INT8_OID ? Number : (types?.getTypeParser(oid, format) ?? String),
+  };
 }
 
 /** MySQL/MariaDB meta-store around an injected `mysql2` pool. */
