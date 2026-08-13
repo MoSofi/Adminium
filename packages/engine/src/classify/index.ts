@@ -25,6 +25,7 @@ export {
 export {
   classifyTable,
   detectJoinTable,
+  isPreHiddenTable,
   selectDisplayColumn,
   selectNaturalKey,
   TABLE_SHAPE_KINDS,

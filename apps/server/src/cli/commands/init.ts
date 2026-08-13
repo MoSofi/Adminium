@@ -36,14 +36,14 @@
  * at them rather than growing a copy-paste loop inside a readline prompt.
  */
 
-import { GENERATE_INTENTS, type GenerateIntent } from '@adminium/engine';
+import { GENERATE_INTENTS, isPreHiddenTable, type GenerateIntent } from '@adminium/engine';
 import { firstRun } from '@adminium/meta';
 
 import { readBootstrap, writeBootstrap } from '../../config/bootstrap.js';
 import { runIntrospection } from '../../connections/introspect.js';
 import { runGeneration } from '../../generate/run.js';
 import type { ConnectionTestSummary } from '../../connections/manager.js';
-import { MetaPlacementError } from '../../connections/dsn.js';
+import { maskDsn, MetaPlacementError } from '../../connections/dsn.js';
 import { embeddedMetaWarning, metaEngineFromUrl, metaUrlCryptoFromSecret } from '../../meta/store.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
@@ -51,6 +51,7 @@ import { CliError, EXIT_OK } from '../exit.js';
 import type { CliIo, SelectChoice, Style } from '../io.js';
 import { createStyle, supportsColor } from '../io.js';
 import { loadCliEnv } from '../runtime.js';
+import type { CliDeps, StartedServer } from '../runtime.js';
 
 /**
  * Engines the connect flow offers — the same three as the Studio picker's
@@ -123,30 +124,23 @@ export function composeDsn(input: {
   return `${input.engine}://${auth}@${input.host}:${String(input.port)}/${input.database}`;
 }
 
-/** Parse the tables step's answer: blank/`all` → everything, else a CSV subset. */
-export function parseTableSelection(answer: string, available: readonly string[]): string[] {
-  const trimmed = answer.trim();
-  if (trimmed === '' || trimmed.toLowerCase() === 'all') return [...available];
-  const wanted = trimmed
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-  const byLocalName = new Map<string, string>();
-  for (const id of available) byLocalName.set(id.slice(id.lastIndexOf('.') + 1), id);
-  const chosen: string[] = [];
-  for (const entry of wanted) {
-    const match = available.includes(entry) ? entry : byLocalName.get(entry);
-    if (match !== undefined && !chosen.includes(match)) chosen.push(match);
-  }
-  return chosen;
-}
-
-/** Table ids from a stored snapshot model. */
-function tableIds(schema: unknown): string[] {
+/**
+ * Pickable table ids from a stored snapshot model.
+ *
+ * `isPreHiddenTable` is the same predicate the Studio's tables step applies
+ * (`wizardState.ts`), and applying it here is a bug fix, not a tidy-up: the CLI
+ * used to offer `adminium_users`, `adminium_sessions` and the rest of
+ * Adminium's own store as tables to build an admin panel over, whenever the
+ * meta store was placed in the source database. Generation would then decline
+ * to page them, so "all 47 tables" quietly became 31 with no explanation of
+ * where the others went.
+ */
+function pickableTableIds(schema: unknown): string[] {
   if (schema === null || typeof schema !== 'object') return [];
   const tables = (schema as { tables?: unknown }).tables;
   if (!Array.isArray(tables)) return [];
   return tables
+    .filter((table) => !isPreHiddenTable(table as Parameters<typeof isPreHiddenTable>[0]))
     .map((table) => (table as { id?: unknown }).id)
     .filter((id): id is string => typeof id === 'string');
 }
@@ -177,10 +171,10 @@ interface MetaChoice {
  * connect — the exact confusion that made this the wizard's worst step.
  */
 async function askMetaPlacement(io: CliIo, dataDir: string): Promise<MetaChoice> {
-  io.out('');
-  io.out('Adminium keeps a little state of its own — your login, the generated page');
-  io.out('layouts, saved settings. That is separate from the database you are about to');
-  io.out('connect, which Adminium only ever reads.');
+  io.note('Adminium keeps a little state of its own — your login, the generated page');
+  io.note('layouts, saved settings. That is separate from the database you are about to');
+  io.note('connect, which Adminium only ever reads.');
+  io.note();
 
   const index = await io.select('Where should that state live?', [
     {
@@ -194,7 +188,7 @@ async function askMetaPlacement(io: CliIo, dataDir: string): Promise<MetaChoice>
   ]);
   if (index === 0) return { url: null, persist: false };
 
-  const url = await io.ask('Connection string for that database', {
+  const url = await io.ask("Connection string for Adminium's own storage", {
     hint: `For example: ${DSN_EXAMPLE.postgres}`,
     validate: (answer) => {
       if (answer === '') return 'A connection string is required.';
@@ -219,12 +213,73 @@ async function askMetaPlacement(io: CliIo, dataDir: string): Promise<MetaChoice>
  */
 function printPairing(io: CliIo, style: Style, code: string | null): void {
   if (code === null) return;
-  io.out('');
-  io.out(`Pairing code for ${BRIDGE_SITE}:  ${style.bold(code)}`);
-  io.out(
-    style.dim('Type it there to hand this instance the connection string you pasted.'),
-  );
-  io.out(style.dim('It is valid until you stop Adminium, and only for that one site.'));
+  io.step(`Pairing code for ${BRIDGE_SITE}`);
+  io.note(code, 'bold');
+  io.note();
+  io.note('Type it there to hand this instance the connection string you pasted.', 'dim');
+  io.note('It is valid until you stop Adminium, and only for that one site.', 'dim');
+  io.note();
+}
+
+/**
+ * What the wizard says about the log level it chose.
+ *
+ * A foreground process that says nothing is indistinguishable from a hung one,
+ * so having made the wizard quiet, it has to say that it is quiet — and how to
+ * get the request log back for anyone who actually wanted it. Demoted to a
+ * dimmed aside: it was briefly the CLOSING line, which meant the last thing
+ * anyone read after a successful setup was a note about logging.
+ */
+export function quietNote(applied: string | undefined, fromEnv: string | undefined): string {
+  const level = applied ?? fromEnv;
+  if (level !== undefined && level !== 'warn') return `Logging at ${level}.`;
+  return 'Quiet by default — pass --log-level info to see requests.';
+}
+
+/**
+ * Open the app, then close the rail on its URL.
+ *
+ * BOTH front doors end here, and they end the same way, because what you need
+ * when a wizard finishes is the thing it was building. The terminal path used
+ * to open nothing at all — you answered seven questions, watched the pages
+ * generate, and were left at a silent prompt with the URL scrolled up past the
+ * tips and whatever warnings generation had emitted. `--no-open` was honoured
+ * in browser mode only, so the flag that turns this off was the only half of
+ * the behaviour that existed.
+ *
+ * The URL is printed twice on purpose: once as the step reporting the server is
+ * up, and once as the last line on screen, which is where the eye is when a
+ * long command stops producing output.
+ */
+async function openAndClose(opts: {
+  io: CliIo;
+  deps: CliDeps;
+  server: StartedServer;
+  noOpen: boolean;
+  /** Prose about what the first screen does. */
+  lead: readonly string[];
+  /** Dimmed one-liners for afterwards. */
+  tips: readonly string[];
+  logNote: string;
+  style: Style;
+}): Promise<void> {
+  const { io, server } = opts;
+
+  // The URL is printed BEFORE the launch is attempted, never after it. Opening
+  // a browser means spawning a process and waiting on its first event, and a
+  // desktop that is slow to answer would otherwise hold the one line the user
+  // is waiting for behind it — the URL does not depend on the launch working.
+  io.step(`Adminium is running at ${server.url}`);
+  const opened = opts.noOpen ? false : await opts.deps.openBrowser(server.url);
+  io.note(opened ? 'Opening it in your browser…' : 'Open that URL to continue.');
+  io.note();
+  for (const line of opts.lead) io.note(line);
+  io.note();
+  printPairing(io, opts.style, server.bridgePairingCode);
+  for (const tip of opts.tips) io.note(tip, 'dim');
+  io.note(opts.logNote, 'dim');
+  io.note();
+  io.outro(`${server.url}  ·  Ctrl-C to stop`);
 }
 
 // ── front door ───────────────────────────────────────────────────────────────
@@ -278,6 +333,12 @@ export const initCommand: Command = {
     },
     port: { type: 'string', short: 'p', placeholder: '<n>', describe: 'Port to listen on', defaultDescription: 'PORT or 4600' },
     host: { type: 'string', placeholder: '<addr>', describe: 'Address to bind', defaultDescription: 'HOST or 0.0.0.0' },
+    'log-level': {
+      type: 'string',
+      placeholder: '<level>',
+      describe: 'Server log level once it starts',
+      defaultDescription: 'ADMINIUM_LOG_LEVEL, else warn',
+    },
     'data-dir': { type: 'string', placeholder: '<path>', describe: 'Data directory' },
     'meta-url': { type: 'string', placeholder: '<dsn>', describe: 'Meta store DSN (skips the meta question)' },
     name: { type: 'string', placeholder: '<name>', describe: 'Connection name', defaultDescription: 'prompted' },
@@ -309,24 +370,49 @@ export const initCommand: Command = {
         ? BRIDGE_SITE
         : undefined;
 
+    // ── The wizard's terminal is a UI, not a log sink ────────────────────────
+    // The server boots at `info` by default, and Fastify logs a line per
+    // request — so the moment browser mode opened the dashboard, one SPA load
+    // buried the URL, the pairing code and the next-steps under a screenful of
+    // `GET /assets/…`. Nobody asked for a request log; they asked to be walked
+    // through setup. So the wizard runs the server quietly and says so.
+    //
+    // Explicit beats implicit, both ways round: `--log-level` wins outright,
+    // and an ADMINIUM_LOG_LEVEL already in the environment is a decision
+    // somebody made on purpose and is left alone. `adminium start`, whose whole
+    // job is to be a server, keeps its `info` default.
+    const logLevelFlag = stringFlag(values['log-level']);
+    const logLevel =
+      logLevelFlag ?? (deps.env.ADMINIUM_LOG_LEVEL === undefined ? 'warn' : undefined);
+
     if (wantsBrowser && wantsTerminal) {
       throw new CliError('--browser and --terminal ask for opposite things.', {
         hint: 'Pass one, or neither to be asked.',
       });
     }
 
-    // Fails fast and actionably when ADMINIUM_SECRET is absent — before a single
-    // question, because nothing we collect could be stored without it.
-    let env = loadCliEnv(deps.env, {
+    /**
+     * The flag overrides, resolved once. The meta step re-loads the env with a
+     * DSN the user has just typed, and when this was written out twice the two
+     * copies drifted — the second dropped nothing visible, but every override
+     * added since had to be remembered in two places.
+     */
+    const overrides = (metaUrl: string | undefined): Parameters<typeof loadCliEnv>[1] => ({
       ...(port === undefined ? {} : { port }),
       ...(host === undefined ? {} : { host }),
       ...(dataDirFlag === undefined ? {} : { dataDir: dataDirFlag }),
-      ...(metaUrlFlag === undefined ? {} : { metaUrl: metaUrlFlag }),
+      ...(metaUrl === undefined ? {} : { metaUrl }),
+      ...(logLevel === undefined ? {} : { logLevel }),
       ...(bridgeOrigins === undefined ? {} : { bridgeOrigins }),
     });
 
-    io.out(style.bold('Adminium setup'));
-    io.out(style.dim('Connect a database, get an admin app. Ctrl-C to stop.'));
+    // Fails fast and actionably when ADMINIUM_SECRET is absent — before a single
+    // question, because nothing we collect could be stored without it.
+    let env = loadCliEnv(deps.env, overrides(metaUrlFlag));
+
+    io.intro('Adminium setup');
+    io.note('Connect a database, get an admin app. Ctrl-C to stop.', 'dim');
+    io.note();
 
     const surface = await chooseSurface(io, {
       browser: wantsBrowser,
@@ -337,18 +423,20 @@ export const initCommand: Command = {
     // Skipped entirely in browser mode: the Studio wizard owns a `meta` step,
     // and asking here would be the one terminal question a browser user never
     // agreed to answer.
+    //
+    // Held so the SOURCE step can offer it back (`askForDsn`). Only what the
+    // user typed HERE, in this run — an ADMINIUM_META_URL from the environment
+    // or a decrypted bootstrap file is a DSN they have not seen this session,
+    // and offering "the same one" for a string never shown would be a worse
+    // riddle than asking twice.
+    let metaDsnEntered: string | null = null;
     if (surface === 'terminal' && env.ADMINIUM_META_URL === undefined) {
       const existing = await readBootstrap(env.ADMINIUM_DATA_DIR);
       if (existing?.metaUrl === undefined) {
         const choice = await askMetaPlacement(io, env.ADMINIUM_DATA_DIR);
+        metaDsnEntered = choice.url;
         if (choice.url !== null) {
-          env = loadCliEnv(deps.env, {
-            ...(port === undefined ? {} : { port }),
-            ...(host === undefined ? {} : { host }),
-            ...(dataDirFlag === undefined ? {} : { dataDir: dataDirFlag }),
-            metaUrl: choice.url,
-            ...(bridgeOrigins === undefined ? {} : { bridgeOrigins }),
-          });
+          env = loadCliEnv(deps.env, overrides(choice.url));
           if (choice.persist) {
             // §7.2: the meta DSN cannot live in the meta store itself, so it is
             // persisted here, AES-256-GCM-encrypted under ADMINIUM_SECRET.
@@ -367,13 +455,13 @@ export const initCommand: Command = {
     let started = false;
     try {
       if (runtime.metaStore.source === 'embedded') {
-        io.err(embeddedMetaWarning(runtime.metaStore.url));
+        io.warn(embeddedMetaWarning(runtime.metaStore.url));
       }
       // `firstRun`, not `applyMigrations`: no migration seeds the built-in roles,
       // and without `super-admin` on disk the account this wizard tells the user
       // to create at the end cannot be created at all (see `start.ts`).
       const { appliedMigrations } = await firstRun(runtime.metaStore.meta);
-      io.out(
+      io.step(
         appliedMigrations.length === 0
           ? `Meta store ready (${runtime.metaStore.engine}).`
           : `Meta store ready (${runtime.metaStore.engine}) — ${String(appliedMigrations.length)} migration(s) applied.`,
@@ -382,22 +470,23 @@ export const initCommand: Command = {
       if (surface === 'browser') {
         const server = await deps.startServer(runtime);
         started = true;
-        io.out('');
-        io.out(style.bold(`Adminium is running at ${server.url}`));
-        if (noOpen) {
-          io.out('Open that URL to continue.');
-        } else {
-          const opened = await deps.openBrowser(server.url);
-          io.out(opened ? 'Opening it in your browser…' : `Open that URL to continue.`);
-        }
-        io.out('');
-        io.out('The first screen creates your admin account. The one after it is the');
-        io.out('connect wizard — paste your connection string there and Adminium reads');
-        io.out('the schema, shows you the tables it found, and generates the pages.');
-        printPairing(io, style, server.bridgePairingCode);
-        io.out('');
-        io.out(style.dim('Next time, skip straight to it with: adminium start'));
-        io.out(style.dim('Prefer the terminal? adminium --terminal'));
+        await openAndClose({
+          io,
+          deps,
+          server,
+          noOpen,
+          style,
+          lead: [
+            'The first screen creates your admin account. The one after it is the',
+            'connect wizard — paste your connection string there and Adminium reads',
+            'the schema, shows you the tables it found, and generates the pages.',
+          ],
+          tips: [
+            'Next time, skip straight to it with: adminium start',
+            'Prefer the terminal? adminium --terminal',
+          ],
+          logNote: quietNote(logLevel, deps.env.ADMINIUM_LOG_LEVEL),
+        });
         return EXIT_OK;
       }
 
@@ -409,19 +498,18 @@ export const initCommand: Command = {
       const intent = GENERATE_INTENTS[intentIndex] as GenerateIntent;
 
       // ── Step 2 — source ───────────────────────────────────────────────────
-      const dsn = await askForDsn(io);
+      const dsn = await askForDsn(io, metaDsnEntered);
 
       // ── Step 3 — test (+ the §3.1 meta-placement rule) ────────────────────
       const engine = engineOfDsn(dsn);
-      io.out('');
-      io.out('Testing the connection…');
+      io.note('Testing the connection…');
       const summary = await runtime.manager.testDsn(engine, dsn);
       if (!summary.ok) {
         throw new CliError(summary.error?.message ?? 'Could not connect to that database.', {
           ...(summary.error?.hint == null ? {} : { hint: summary.error.hint }),
         });
       }
-      io.out(`${style.ok('Connected')} — ${describeProbe(summary)}`);
+      io.step(`Connected — ${describeProbe(summary)}`);
 
       // 01 §3.1: same-database meta placement against a read-only or DDL-less
       // role is refused here, in the manager, not merely in a wizard UI.
@@ -447,20 +535,20 @@ export const initCommand: Command = {
         dataDsn: dsn,
         settings: { intent },
       });
-      io.out(`Created connection ${connection.id}.`);
+      io.step(`Created connection ${connection.id}.`);
 
       // ── Step 4 — introspect + tables ──────────────────────────────────────
-      io.out('');
-      io.out('Reading the schema (never your rows)…');
+      io.note('Reading the schema (never your rows)…');
       const introspection = await runIntrospection({
         manager: runtime.manager,
         meta: runtime.metaStore.meta,
         connectionId: connection.id,
       });
-      const available = tableIds(introspection.snapshot.schema);
-      io.out(`Found ${String(available.length)} tables.`);
+      const available = pickableTableIds(introspection.snapshot.schema);
+      io.step(`Found ${String(available.length)} tables.`);
       if (introspection.proposedMasks > 0) {
-        io.out(`Masked ${String(introspection.proposedMasks)} likely-PII column(s) by default.`);
+        io.note(`Masked ${String(introspection.proposedMasks)} likely-PII column(s) by default.`);
+        io.note();
       }
 
       const included = await askForTables(io, available);
@@ -468,36 +556,39 @@ export const initCommand: Command = {
         await runtime.manager.connections.update(connection.id, {
           settings: { ...connection.settings, intent, includedTables: included },
         });
-        io.out(`Including ${String(included.length)} of ${String(available.length)} tables.`);
+        io.step(`Including ${String(included.length)} of ${String(available.length)} tables.`);
       }
 
       // ── Step 5 — generate ─────────────────────────────────────────────────
-      io.out('');
-      io.out('Generating pages…');
+      io.note('Generating pages…');
       const generated = await runGeneration({
         manager: runtime.manager,
         meta: runtime.metaStore.meta,
         connectionId: connection.id,
         intent,
       });
-      io.out(
+      io.step(
         `Generated ${String(generated.pages.length)} page(s) across ` +
           `${String(generated.navGroups.length)} nav group(s).`,
       );
-      for (const warning of generated.warnings) io.err(`note: ${warning}`);
+      for (const warning of generated.warnings) io.warn(warning);
 
       // ── Step 6 — boot ─────────────────────────────────────────────────────
       const server = await deps.startServer(runtime);
       started = true;
-      io.out('');
-      io.out(style.bold(`Adminium is running at ${server.url}`));
-      io.out('Open it to create your first admin account.');
-      printPairing(io, style, server.bridgePairingCode);
-      io.out('');
-      io.out(style.dim('Next time, skip the wizard with: adminium start'));
-      io.out(
-        style.dim(`AI-enrich your schema: adminium generate-prompt --connection ${connection.id}`),
-      );
+      await openAndClose({
+        io,
+        deps,
+        server,
+        noOpen,
+        style,
+        lead: ['The first screen creates your admin account, and your pages are behind it.'],
+        tips: [
+          'Next time, skip the wizard with: adminium start',
+          `AI-enrich your schema: adminium generate-prompt --connection ${connection.id}`,
+        ],
+        logNote: quietNote(logLevel, deps.env.ADMINIUM_LOG_LEVEL),
+      });
       return EXIT_OK;
     } finally {
       await io.close();
@@ -536,15 +627,39 @@ function engineOfDsn(dsn: string): SourceEngine {
  * template — and `…` is not a character on anyone's keyboard, so the one hint
  * meant to unblock people was itself a thing to decipher.
  */
-async function askForDsn(io: CliIo): Promise<string> {
-  const mode = await io.select('How do you want to connect?', [
+async function askForDsn(io: CliIo, metaUrl: string | null): Promise<string> {
+  io.note('Now the database you want an admin panel FOR — the one with your');
+  io.note('customers, orders, whatever you are here to administer. Adminium reads');
+  io.note('its schema; it never reads your rows to build the pages.');
+  io.note();
+
+  // Offering the meta DSN back is not a shortcut for its own sake: one database
+  // for both is a perfectly ordinary local setup, and without this the wizard
+  // asked for the same string twice in two minutes with nothing to say they
+  // COULD be the same — so the honest reading was that they must differ.
+  // §3.1 still adjudicates: `enforceMetaPlacement` refuses the pairing below if
+  // the role cannot write and run DDL, with a message saying so.
+  const reuse: SelectChoice[] =
+    metaUrl === null
+      ? []
+      : [
+          {
+            label: 'The same database I just gave Adminium for its own storage',
+            hint: maskDsn(metaUrl) ?? 'the connection string you just entered',
+          },
+        ];
+  const modes: SelectChoice[] = [
+    ...reuse,
     { label: 'Paste a connection string', hint: 'The quickest, if you have one to hand.' },
     { label: 'Type host, port, user, password, database', hint: 'The password stays hidden.' },
     { label: 'Point at a SQLite file', hint: 'A path to a .db / .sqlite file.' },
-  ]);
+  ];
+  const picked = await io.select('How do you want to connect to it?', modes);
+  if (metaUrl !== null && picked === 0) return metaUrl;
+  const mode = picked - reuse.length;
 
   if (mode === 0) {
-    return io.ask('Connection string', {
+    return io.ask('Connection string for the database to administer', {
       hint: `For example: ${DSN_EXAMPLE.postgres}`,
       validate: (answer) => (answer === '' ? 'A connection string is required.' : null),
     });
@@ -588,14 +703,13 @@ async function askForTables(io: CliIo, available: readonly string[]): Promise<st
   ]);
   if (mode === 0) return [...available];
 
-  const names = available.map((id) => id.slice(id.lastIndexOf('.') + 1));
-  const preview = names.slice(0, 12);
-  const answer = await io.ask('Tables to include, comma-separated', {
-    hint: `Available: ${preview.join(', ')}${names.length > preview.length ? `, and ${String(names.length - preview.length)} more` : ''}`,
-    validate: (value) =>
-      parseTableSelection(value, available).length === 0
-        ? 'None of those matched a table name. Try again, or type: all'
-        : null,
-  });
-  return parseTableSelection(answer, available);
+  // Checkboxes, not a comma-separated list. Typing the subset meant reading a
+  // truncated "Available: …" hint, remembering it while the prompt scrolled it
+  // away, and spelling every name — and a typo silently dropped the table
+  // rather than failing, because an unmatched entry simply did not match.
+  const chosen = await io.multiselect(
+    'Which tables should the admin panel cover?',
+    available.map((id) => ({ label: id.slice(id.lastIndexOf('.') + 1) })),
+  );
+  return chosen.map((index) => available[index] as string);
 }

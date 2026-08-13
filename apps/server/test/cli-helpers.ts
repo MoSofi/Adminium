@@ -21,7 +21,7 @@ export interface FakeIo extends CliIo {
   stderr(): string;
   /** Questions asked, in order — lets a wizard test assert the step sequence. */
   questions(): string[];
-  /** Every choice list `select` was offered, in order. */
+  /** Every choice list `select`/`multiselect` was offered, in order. */
   menus(): { title: string; labels: string[] }[];
 }
 
@@ -35,6 +35,11 @@ export interface FakeIoOptions {
    * point of asserting the wizard's shape.
    */
   selections?: (number | string)[];
+  /**
+   * Answers handed to `multiselect`, in order — labels or 0-based indices.
+   * Exhausted → everything, which is the prompt's own opening state.
+   */
+  picks?: (number | string)[][];
   interactive?: boolean;
   /** Drives `supportsTui`; defaults to `interactive`. */
   tui?: boolean;
@@ -47,6 +52,7 @@ export function fakeIo(opts: FakeIoOptions = {}): FakeIo {
   const offered: { title: string; labels: string[] }[] = [];
   const answers = [...(opts.answers ?? [])];
   const selections = [...(opts.selections ?? [])];
+  const picks = [...(opts.picks ?? [])];
   const interactive = opts.interactive ?? true;
 
   return {
@@ -55,6 +61,27 @@ export function fakeIo(opts: FakeIoOptions = {}): FakeIo {
     },
     err(line = '') {
       err += `${line}\n`;
+    },
+    // The rail methods record their CONTENT, undecorated. What glyph a line
+    // hangs off is `nodeIo`'s business and is asserted against the pure
+    // renderers in cli-tui.test.ts; a wizard test asserting on `◇` would be
+    // testing the paint job, and would break on every restyle.
+    intro(title) {
+      out += `${title}\n`;
+    },
+    step(text) {
+      out += `${text}\n`;
+    },
+    // The `tone` argument is deliberately dropped here — it is styling, and
+    // what a wizard test cares about is that the line was said at all.
+    note(text = '') {
+      out += `${text}\n`;
+    },
+    warn(text) {
+      out += `${text}\n`;
+    },
+    outro(text) {
+      out += `${text}\n`;
     },
     async ask(question, askOpts = {}) {
       asked.push(question);
@@ -90,6 +117,29 @@ export function fakeIo(opts: FakeIoOptions = {}): FakeIo {
         );
       }
       return Promise.resolve(index);
+    },
+    async multiselect(title, choices, multiOpts = {}) {
+      const labels = choices.map((choice) => choice.label);
+      asked.push(title);
+      offered.push({ title, labels });
+      const next = picks.shift();
+      if (next === undefined) {
+        return Promise.resolve([...(multiOpts.selected ?? labels.map((_, i) => i))]);
+      }
+      return Promise.resolve(
+        next
+          .map((entry) => {
+            if (typeof entry === 'number') return entry;
+            const index = labels.indexOf(entry);
+            if (index === -1) {
+              throw new Error(
+                `fakeIo.multiselect: no choice labelled ${JSON.stringify(entry)} in ${JSON.stringify(title)} — offered ${JSON.stringify(labels)}`,
+              );
+            }
+            return index;
+          })
+          .sort((a, b) => a - b),
+      );
     },
     isInteractive: interactive,
     supportsTui: opts.tui ?? interactive,
