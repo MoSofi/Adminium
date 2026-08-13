@@ -30,6 +30,7 @@
  * the translated copy. The thin wrappers below keep every existing call site —
  * and this module's unit tests — pointed at the same names as before.
  */
+import { isPreHiddenTable } from '@adminium/engine';
 import { getFormatters } from '@adminium/i18n';
 import {
   HIGH_VOLUME_ROWS,
@@ -283,7 +284,6 @@ export type WizardTable = InclusionTable;
  */
 export function summarizeTables(tables: readonly SchemaTable[]): WizardTable[] {
   return tables.map((table) => {
-    const role = table.semantics?.role ?? 'entity';
     const rowEstimate = table.rowCountEstimate;
     return {
       id: table.id,
@@ -293,7 +293,7 @@ export function summarizeTables(tables: readonly SchemaTable[]): WizardTable[] {
         return pii !== null && pii !== undefined;
       }).length,
       highVolume: isHighVolume(rowEstimate),
-      preHidden: table.system === true || role === 'join-table' || role === 'system',
+      preHidden: isPreHiddenTable(table),
     };
   });
 }

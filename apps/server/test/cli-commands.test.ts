@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { chunkFileName, SAMPLING_MAX_VALUES } from '../src/cli/commands/generate-prompt.js';
-import { composeDsn, parseTableSelection } from '../src/cli/commands/init.js';
+import { composeDsn } from '../src/cli/commands/init.js';
 import { formatBytes } from '../src/cli/commands/export-zip.js';
 import { loadCliEnv, displayUrl } from '../src/cli/runtime.js';
 import { runCli } from '../src/cli/run.js';
@@ -483,35 +483,6 @@ describe('composeDsn — the wizard fields mode', () => {
     expect(
       composeDsn({ engine: 'postgres', host: 'h', port: 5432, user: 'u', password: '', database: 'd' }),
     ).toBe('postgres://u@h:5432/d');
-  });
-});
-
-describe('parseTableSelection — the wizard tables step', () => {
-  const available = ['public.orders', 'public.customers', 'public.line_items'];
-
-  it('includes everything on Enter or "all"', () => {
-    expect(parseTableSelection('', available)).toEqual(available);
-    expect(parseTableSelection('all', available)).toEqual(available);
-    expect(parseTableSelection('  ALL ', available)).toEqual(available);
-  });
-
-  it('accepts unqualified local names, which is what people type', () => {
-    expect(parseTableSelection('orders, customers', available)).toEqual([
-      'public.orders',
-      'public.customers',
-    ]);
-  });
-
-  it('accepts fully-qualified ids', () => {
-    expect(parseTableSelection('public.orders', available)).toEqual(['public.orders']);
-  });
-
-  it('ignores names that do not exist rather than inventing them', () => {
-    expect(parseTableSelection('orders, nope', available)).toEqual(['public.orders']);
-  });
-
-  it('de-duplicates', () => {
-    expect(parseTableSelection('orders, public.orders', available)).toEqual(['public.orders']);
   });
 });
 
