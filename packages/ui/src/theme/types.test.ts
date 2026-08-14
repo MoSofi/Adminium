@@ -9,7 +9,20 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+import * as themeBarrel from './index.js';
 import { LOCALES, builtinLocaleDir, dirForLocale, langForLocale } from './types.js';
+
+describe('theme barrel', () => {
+  it('publishes the direction helpers', () => {
+    // `builtinLocaleDir` shipped in 23 §5.4 but was left out of this barrel,
+    // so the only way to reach it was a deep path into `types.js`. It answers
+    // a question callers outside this package genuinely have — "is this one of
+    // the eight, and which way does it run?" — so it stays exported.
+    expect(themeBarrel.builtinLocaleDir).toBe(builtinLocaleDir);
+    expect(themeBarrel.dirForLocale).toBe(dirForLocale);
+    expect(themeBarrel.langForLocale).toBe(langForLocale);
+  });
+});
 
 describe('builtinLocaleDir', () => {
   it('answers rtl for ar_EG and ltr for the other seven compiled locales', () => {
