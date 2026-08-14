@@ -101,7 +101,6 @@ the engine legs it stays out of the repo-wide gate. Run it explicitly:
 
 ```sh
 pnpm --filter @adminium/desktop build          # produces out/**
-# rebuild native modules for Electron's ABI (see below), then:
 pnpm --filter @adminium/e2e e2e:desktop
 # or, with build ordering handled by turbo:
 pnpm turbo run e2e:desktop --filter=@adminium/e2e
@@ -111,12 +110,22 @@ pnpm turbo run e2e:desktop --filter=@adminium/e2e
 
 1. A **display** — `_electron` launches a real Electron window.
 2. A **built** desktop app (`out/**`).
-3. **Native modules rebuilt for Electron's ABI.** A plain `electron-vite build`
-   does *not* rebuild `better-sqlite3`/`argon2` for Electron (see
-   `apps/desktop/package.json` `//native-modules` for why that cannot be a
-   workspace `postinstall`). Without the rebuild the utilityProcess server crashes
-   at boot and the specs fail on the crash screen. In the desktop-e2e CI job, run
-   e.g. `pnpm --filter @adminium/desktop exec electron-builder install-app-deps`
-   between build and run — the job runs only Playwright, so rewriting the shared
-   `better-sqlite3` copy is safe there (it would break Node-ABI vitest suites in a
-   shared job).
+
+**A third prerequisite used to apply and no longer does**: "native modules
+rebuilt for Electron's ABI". A plain `electron-vite build` does not rebuild
+`better-sqlite3`/`argon2`, and without that rebuild the utilityProcess server
+crashed at boot and the specs failed on the crash screen — so the desktop-e2e job
+runs `electron-builder install-app-deps` between build and run.
+
+Both addons are Node-API now (`better-sqlite3` >= 13, `argon2` >= 0.44), and an
+N-API binary loads under Electron and plain Node alike, so the rebuild is no
+longer a precondition for this suite. The CI step is retained as a harmless
+no-op — see the header of `apps/desktop/electron-builder.yml` for the
+resolution-order detail (better-sqlite3 prefers its bundled prebuild over
+`build/Release`, argon2 the reverse) and for why `npmRebuild` has not been turned
+off in the same breath as documenting it.
+
+The old warning that rewriting the shared `better-sqlite3` copy would break
+Node-ABI vitest suites in a shared job is likewise obsolete: there is only one
+ABI now. `apps/desktop/package.json` `//native-modules` still explains why this
+can never be a workspace `postinstall`, which is unchanged.

@@ -5,12 +5,14 @@ name: desktop-e2e
 # chart → backup, the §7 offline smoke (session.webRequest deny-all), and the §9
 # crash/WAL-durability check.
 #
-# It cannot run in the ordinary `pnpm test` gate — it needs a display and a
-# native-ABI rebuild — so it lives in its own workflow, exactly as the engine
-# legs live in e2e.yml. A single Ubuntu job under xvfb; native modules are
-# rebuilt for Electron's ABI (electron-builder install-app-deps) between the
-# build and the run — see apps/e2e/tests-desktop/helpers/paths.ts for why that
-# rebuild is a CI step and not a workspace postinstall.
+# It cannot run in the ordinary `pnpm test` gate — it needs a display — so it
+# lives in its own workflow, exactly as the engine legs live in e2e.yml. A single
+# Ubuntu job under xvfb.
+#
+# It also used to need a native-ABI rebuild. It no longer does: better-sqlite3
+# (>= 13) and argon2 (>= 0.44) are both Node-API and load unrebuilt under
+# Electron. The install-app-deps step below is retained as a no-op — see
+# apps/e2e/tests-desktop/helpers/paths.ts for the history.
 
 on:
   push:
@@ -73,12 +75,19 @@ jobs:
       - name: Build desktop app
         run: pnpm turbo run build --filter=@adminium/desktop
 
-      # A plain electron-vite build does NOT rebuild better-sqlite3/argon2 for
-      # Electron's ABI; install-app-deps does, against the desktop app's own
-      # node_modules. This job runs only Playwright, so rewriting the shared
-      # better-sqlite3 copy here is safe (it would break Node-ABI vitest in a
-      # shared job — which is why it is not a workspace postinstall).
-      - name: Rebuild native modules for Electron's ABI
+      # KEPT AS A NO-OP, deliberately. This step existed because a plain
+      # electron-vite build does not rebuild better-sqlite3/argon2 for Electron's
+      # ABI, and launching the app with a Node-ABI addon crashed the
+      # utilityProcess at the meta-store stage. Both addons are Node-API now
+      # (better-sqlite3 >= 13, argon2 >= 0.44), so they load under Electron
+      # unrebuilt and there is nothing here to fix.
+      #
+      # Not deleted in the same change that documented it: this job is the ONLY
+      # thing that proves the desktop app boots at all, and removing a step that
+      # currently passes — on the same commit that changes what the step means —
+      # would leave no green signal to attribute a regression to. Delete it in its
+      # own commit, with this job green before and after.
+      - name: Rebuild native modules (no-op since the N-API bumps)
         run: pnpm --filter @adminium/desktop exec electron-builder install-app-deps
 
       - name: Run desktop E2E (xvfb)

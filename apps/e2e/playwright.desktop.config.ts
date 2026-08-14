@@ -14,10 +14,12 @@
  *    script, so — exactly like the engine legs — the desktop suite stays out of
  *    the repo-wide `pnpm test` gate and cannot turn it red.
  *
- * PREREQUISITES (CI): a display, a built desktop app, AND native modules rebuilt
- * for Electron's ABI in the desktop app's node_modules. See
- * `tests-desktop/helpers/paths.ts` for why the ABI rebuild is a CI step and not
- * part of this suite.
+ * PREREQUISITES (CI): a display and a built desktop app. A third one — native
+ * modules rebuilt for Electron's ABI in the desktop app's node_modules — no
+ * longer applies now that `better-sqlite3` (>= 13) and `argon2` (>= 0.44) are
+ * both Node-API and load unrebuilt under Electron. See
+ * `tests-desktop/helpers/paths.ts` for the full history and why the CI rebuild
+ * step is kept as a no-op.
  */
 
 import { defineConfig } from '@playwright/test';

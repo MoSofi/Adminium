@@ -66,23 +66,41 @@ Three steps, in order (the release workflow drives the same sequence — see the
 pnpm turbo run build --filter=@adminium/desktop   # 1. out/**, notices, offline gate
 pnpm --filter @adminium/desktop icons             # 2. derive resources/icons/*
 pnpm --filter @adminium/desktop pack              # 3. --dir smoke (or `dist` for installers)
-pnpm rebuild better-sqlite3 argon2                # 4. ← REQUIRED, see below
 ```
 
-**Step 4 is not optional.** `electron-builder.yml` sets `npmRebuild: true`, and
-electron-builder runs `@electron/rebuild` with `buildPath` = *this package
-directory* — not, as its comment used to claim, a private staged copy. Under
-pnpm, `apps/desktop/node_modules/better-sqlite3` is a symlink into the
-workspace-shared store, so the rebuild recompiles the **one** copy that
-`apps/server`, `apps/e2e`, `packages/meta` and `packages/adapter-sqlite` all
-share, against Electron's ABI (`NODE_MODULE_VERSION` 148) instead of the local
-Node's (127). Skip step 4 and the next `pnpm test` at the repo root fails with
-`ERR_DLOPEN_FAILED` in packages you did not touch.
+**There used to be a required fourth step**, `pnpm rebuild better-sqlite3
+argon2`, and older notes across the repo still tell you to run it. It is no
+longer necessary — harmless if you do, but nothing breaks if you don't.
 
-CI needs no equivalent step: each runner is discarded after the build. Isolating
-the rebuild for real — packaging out of a `pnpm deploy --filter
+Why it was required: `electron-builder.yml` sets `npmRebuild: true`, and
+electron-builder runs `@electron/rebuild` with `buildPath` = *this package
+directory* (not a private staged copy). Under pnpm,
+`apps/desktop/node_modules/better-sqlite3` is a symlink into the workspace-shared
+store, so the rebuild recompiled the **one** copy that `apps/server`,
+`apps/e2e`, `packages/meta` and `packages/adapter-sqlite` all share — against
+Electron's ABI (`NODE_MODULE_VERSION` 148) instead of the local Node's (127).
+Skipping it left the next repo-root `pnpm test` failing `ERR_DLOPEN_FAILED` in
+packages you had not touched.
+
+Why it no longer is: both addons moved to Node-API, whose whole point is one
+binary that loads under any Node **and** under Electron.
+
+- `better-sqlite3` >= 13 — the v13 major migrated to N-API and now ships
+  prebuilds in its own tarball. Its `lib/binding.js` checks `prebuilds/` *before*
+  `build/Release`, so whatever the rebuild compiles is never even loaded.
+- `argon2` >= 0.44 — declares `binary.napi_versions: [8]` and resolves through
+  `node-gyp-build`, which checks `build/Release` *first*. A rebuild here does
+  still win — but what it produces is N-API too, so it stays loadable by plain
+  Node.
+
+There is no longer an incompatible ABI for the rebuild to strand the shared addon
+in. `npmRebuild: true` is left on deliberately (see the header in
+`electron-builder.yml`): `desktop-e2e` is green as-is, and turning it off is a
+packaging-pipeline change that wants its own verified commit.
+
+Isolating the rebuild for real — packaging out of a `pnpm deploy --filter
 @adminium/desktop` tree, which produces a genuinely private `node_modules` — is
-the known follow-up.
+still the clean follow-up, now a tidiness matter rather than a correctness one.
 
 ## Testing
 

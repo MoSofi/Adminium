@@ -20,9 +20,10 @@ name: desktop-release
 # install. The `assert feed-file discipline` step below is the tripwire.
 #
 # WHAT DEPENDS ON A SIBLING TRACK: the `electron-builder` invocations read
-# apps/desktop/electron-builder.yml, and packaging (icons, native-module rebuild
-# against Electron's ABI via electron-builder `npmRebuild`) is owned by 11-T13.
-# This workflow is 11-T14/T15: the release pipeline that drives that config.
+# apps/desktop/electron-builder.yml, and packaging (icons, and the historical
+# native-module rebuild via electron-builder `npmRebuild` — now redundant, since
+# better-sqlite3 >= 13 and argon2 >= 0.44 are Node-API) is owned by 11-T13. This
+# workflow is 11-T14/T15: the release pipeline that drives that config.
 
 on:
   push:
