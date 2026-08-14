@@ -63,7 +63,7 @@
     "fflate": "^0.8.3",
     "kysely": "^0.28.2",
     "otpauth": "^9.4.0",
-    "pino": "^9.7.0",
+    "pino": "^10.3.1",
     "zod": "catalog:"
   },
   "//optionalDependencies": [
