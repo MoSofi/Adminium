@@ -28,15 +28,15 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "@tailwindcss/vite": "^4.1.11",
+    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
+    "@testing-library/user-event": "^14.6.3",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^5.0.0",
     "eslint": "catalog:",
     "happy-dom": "^18.0.1",
-    "tailwindcss": "^4.1.11",
+    "tailwindcss": "^4.3.3",
     "typescript": "catalog:",
     "vite": "^7.0.5",
     "vitest": "catalog:"

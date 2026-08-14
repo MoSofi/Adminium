@@ -138,7 +138,7 @@
     "@adminium/adapter-postgres": "workspace:*",
     "@adminium/adapter-sqlite": "workspace:*",
     "@adminium/server": "workspace:*",
-    "argon2": "^0.44.0",
+    "argon2": "^0.45.1",
     "better-sqlite3": "^13.0.3",
     "croner": "^9.1.0",
     "electron-updater": "^6.8.9",
@@ -146,8 +146,8 @@
     "zod": "catalog:"
   },
   "optionalDependencies": {
-    "mysql2": "^3.15.3",
-    "pg": "^8.16.3"
+    "mysql2": "^3.23.3",
+    "pg": "^8.23.0"
   },
   "//native-modules": [
     "NATIVE ABI: @electron/rebuild MUST NOT be wired into a `postinstall` here,",
@@ -230,7 +230,7 @@
     "@electron/rebuild": "^4.2.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "22.15.3",
-    "electron": "^43.1.1",
+    "electron": "^43.3.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "catalog:",
