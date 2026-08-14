@@ -292,6 +292,38 @@ describe('ThemeProvider — change hooks', () => {
     renderTheme();
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('a throwing subscriber does not stop the ones behind it (23 §4.4)', () => {
+    // emitTheme runs inside the provider's useLayoutEffect, so an unguarded
+    // throw would skip every later listener — the i18n language bridge, the
+    // chart-direction bridge, the Electron nativeTheme mirror — and error the
+    // React commit. That is a white screen from one bad subscriber.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const thrower = vi.fn(() => {
+      throw new Error('subscriber exploded');
+    });
+    const after = vi.fn();
+    const unsubThrower = subscribeTheme(thrower);
+    const unsubAfter = subscribeTheme(after);
+    try {
+      const { result } = renderTheme();
+      expect(thrower).toHaveBeenCalledTimes(1);
+      expect(after).toHaveBeenCalledTimes(1);
+      expect(error).toHaveBeenCalled();
+      // The commit completed: attributes are stamped and the provider is live.
+      expect(html().getAttribute('data-accent')).toBe('indigo');
+
+      // …and it stays live — the next emit is not wedged by the first failure.
+      act(() => result.current.setPref('accent', 'teal'));
+      expect(after).toHaveBeenCalledTimes(2);
+      expect(after).toHaveBeenLastCalledWith(expect.objectContaining({ accent: 'teal' }));
+      expect(html().getAttribute('data-accent')).toBe('teal');
+    } finally {
+      unsubThrower();
+      unsubAfter();
+      error.mockRestore();
+    }
+  });
 });
 
 describe('theme hooks outside the provider', () => {
@@ -305,6 +337,60 @@ describe('theme hooks outside the provider', () => {
     expect(() => renderHook(() => useThemePrefs())).toThrow(
       'useThemePrefs() must be used inside <ThemeProvider>',
     );
+  });
+});
+
+describe('ThemeProvider — admin-created locales (23 §5)', () => {
+  it('keeps a well-shaped cached locale this build does not compile in', () => {
+    // The cache read is a SHAPE check, not a membership check (23 §5.2).
+    // Dropping an uncompiled id would strand its users on en-US every cold
+    // load — the locale exists on the server, just not in this bundle.
+    window.localStorage.setItem(STORAGE_KEYS.locale, 'he_IL');
+    const { result } = renderTheme();
+    expect(result.current.prefs.locale).toBe('he_IL');
+    expect(html().getAttribute('lang')).toBe('he-IL');
+  });
+
+  it('keeps a script-subtag id and stamps a valid BCP-47 lang', () => {
+    window.localStorage.setItem(STORAGE_KEYS.locale, 'zh_Hant_TW');
+    renderTheme();
+    expect(html().getAttribute('lang')).toBe('zh-Hant-TW');
+  });
+
+  it('still drops a malformed cached locale', () => {
+    window.localStorage.setItem(STORAGE_KEYS.locale, 'not a locale');
+    const { result } = renderTheme();
+    expect(result.current.prefs.locale).toBe('en_US');
+    expect(html().getAttribute('lang')).toBe('en-US');
+  });
+
+  it('an injected resolveDir decides direction for a locale this package cannot know', () => {
+    // The app injects a resolver backed by @adminium/i18n's runtime registry;
+    // this package deliberately has no dependency on it.
+    renderTheme({
+      userPrefs: { locale: 'he_IL' },
+      resolveDir: (locale) => (locale === 'he_IL' ? 'rtl' : null),
+    });
+    expect(html().getAttribute('dir')).toBe('rtl');
+    expect(html().getAttribute('lang')).toBe('he-IL');
+    expect(window.localStorage.getItem(STORAGE_KEYS.dir)).toBe('rtl');
+  });
+
+  it('falls back to the cached dir axis pre-auth, where no resolver exists yet', () => {
+    // The flash this prevents: the pre-hydration script paints rtl from the
+    // cached axis, then the provider — sole writer of the attribute, with no
+    // userPrefs and no registry on a signed-out screen — snaps it to ltr.
+    window.localStorage.setItem(STORAGE_KEYS.locale, 'he_IL');
+    window.localStorage.setItem(STORAGE_KEYS.dir, 'rtl');
+    renderTheme();
+    expect(html().getAttribute('dir')).toBe('rtl');
+  });
+
+  it('a compiled locale ignores a stale cached dir', () => {
+    window.localStorage.setItem(STORAGE_KEYS.locale, 'de_DE');
+    window.localStorage.setItem(STORAGE_KEYS.dir, 'rtl');
+    renderTheme();
+    expect(html().getAttribute('dir')).toBe('ltr');
   });
 });
 
