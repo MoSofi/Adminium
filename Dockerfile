@@ -34,7 +34,7 @@
 # untested here, so do not treat the above as a green light.
 
 # ─────────────────────────── build ───────────────────────────
-FROM node:22-bookworm AS build
+FROM node:26-bookworm AS build
 
 # CI=true keeps pnpm non-interactive (it otherwise aborts on "no TTY" prompts).
 ENV CI=true \
@@ -99,7 +99,7 @@ RUN node apps/server/scripts/bundle-allowlists.mjs \
 RUN pnpm deploy --filter=@adminium/server --prod --legacy /app
 
 # ────────────────────────── runtime ──────────────────────────
-FROM node:22-slim AS runtime
+FROM node:26-slim AS runtime
 
 # dumb-init reaps zombies and forwards signals, so `docker stop` reaches Fastify
 # as a real SIGTERM instead of being swallowed by a PID-1 node process.
