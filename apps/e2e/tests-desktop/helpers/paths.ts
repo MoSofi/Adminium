@@ -35,26 +35,30 @@ export const DEMO_SEED_SCRIPT = join(DESKTOP_ROOT, 'resources', 'demo', 'demo-se
 /**
  * Fail early, and with instructions, when the app has not been built.
  *
- * ─── THE NATIVE-ABI PREREQUISITE, STATED WHERE IT BITES ──────────────────────
+ * ─── THE NATIVE-ABI PREREQUISITE — RESOLVED UPSTREAM (2026-08-14) ────────────
  *
- * A plain `electron-vite build` emits `out/**` but does NOT rebuild
- * `better-sqlite3`/`argon2` against Electron's ABI — apps/desktop/package.json
- * (`//native-modules`) explains why that rebuild cannot live in a workspace
- * `postinstall`. Launching `out/main/index.js` under Electron with a
- * Node-ABI `better-sqlite3` makes the utilityProcess crash at the `meta-store`
- * stage, and the app renders the crash screen instead of the SPA — so every spec
- * here would fail at {@link module:helpers/launch.waitForAppWindow}.
- *
- * The desktop-e2e CI job therefore MUST, between build and run, rebuild the
- * native modules for Electron's ABI in the app's own node_modules, e.g.
+ * This block used to describe a hard prerequisite: a plain `electron-vite build`
+ * emits `out/**` but does NOT rebuild `better-sqlite3`/`argon2` against
+ * Electron's ABI, so launching `out/main/index.js` with a Node-ABI
+ * `better-sqlite3` crashed the utilityProcess at the `meta-store` stage and the
+ * app rendered the crash screen instead of the SPA — failing every spec here at
+ * {@link module:helpers/launch.waitForAppWindow}. The desktop-e2e job therefore
+ * had to run, between build and run:
  *
  *   pnpm --filter @adminium/desktop exec electron-builder install-app-deps
  *   # or: electron-rebuild -w better-sqlite3,argon2
  *
- * This is a CI step and not part of the suite on purpose: `@electron/rebuild`
- * rewrites the SHARED workspace copy of `better-sqlite3`, which would break every
- * Node-ABI vitest suite in the repo if it ran in a shared job. The desktop-e2e
- * job runs only Playwright, so it can tolerate the rewrite.
+ * Both addons are Node-API now — `better-sqlite3` >= 13 (the v13 major migrated
+ * to N-API and ships its own prebuilds) and `argon2` >= 0.44 (`napi_versions:
+ * [8]`, resolved by node-gyp-build). An N-API binary is ABI-stable across Node
+ * and Electron by construction, so there is no Node-ABI/Electron-ABI split for
+ * this suite to fall into. The CI step is kept as a harmless no-op.
+ *
+ * The old reason it had to be a CI step rather than part of the suite —
+ * `@electron/rebuild` rewriting the SHARED workspace copy and breaking every
+ * Node-ABI vitest suite — is obsolete for the same reason: there is only one ABI
+ * now. apps/desktop/package.json (`//native-modules`) still explains why this can
+ * never be a workspace `postinstall`, which has not changed.
  */
 export function assertDesktopBuilt(): void {
   const missing: string[] = [];
