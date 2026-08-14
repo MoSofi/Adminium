@@ -13,6 +13,38 @@ updates:
       npm-minor-and-patch:
         update-types: [minor, patch]
 
+    # HELD DELIBERATELY — the four packages that make up the dashboard's
+    # synchronously-loaded entry chunk. apps/dashboard/scripts/check-entry-budget.mjs
+    # gzips every JS asset dist/index.html loads up front and fails the build past
+    # the ratchet in chunk-budget.json, and these are the only grouped dependencies
+    # whose growth lands in that set.
+    #
+    # Why they are ignored rather than merged: the routine group PR (#18) came in
+    # 406 bytes over the ratchet, entirely from third-party growth — React
+    # 19.1 -> 19.2, TanStack Router +49 minors, Query +18 minors. The ratchet's own
+    # rule is "never raise it to make a red build green; move the new code behind a
+    # dynamic import instead", and that rule assumes the growth is OURS and can be
+    # deferred. React cannot be lazy-loaded. So the choice is between silently
+    # bending a documented rule every week and holding these four for a deliberate,
+    # measured bump — this is the second.
+    #
+    # NOT a permanent pin. Updating them is a considered change: bump them by hand,
+    # run `pnpm --filter @adminium/dashboard build`, read the check-entry-budget
+    # line, and if it goes over, either recover the bytes by deferring something or
+    # raise the ratchet through the documented exception path (see the `raisedOnce`
+    # field in chunk-budget.json — note its 2026-08-04 entry is still marked NEEDS
+    # OWNER RATIFICATION). Security advisories are exempt from `ignore` and will
+    # still open their own PRs.
+    #
+    # Deliberately NOT ignored: @types/react and @types/react-dom carry no runtime
+    # bytes, and tailwindcss/@tailwindcss/vite emit CSS, which this budget does not
+    # measure.
+    ignore:
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
+      - dependency-name: '@tanstack/react-router'
+      - dependency-name: '@tanstack/react-query'
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
