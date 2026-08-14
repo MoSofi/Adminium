@@ -3,7 +3,7 @@ packages:
   - packages/*
 
 catalog:
-  eslint: ^10.8.1
+  eslint: ^9.39.5
   typescript: ^5.9.3
   vitest: ^3.2.4
   zod: ^4.4.3
