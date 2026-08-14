@@ -70,10 +70,11 @@ describe('locale registry', () => {
     expect(isBuiltinLocaleId('he_IL')).toBe(false);
   });
 
-  // 23 §5.2. These helpers run inside a theme subscriber whose emitter has no
-  // per-listener isolation, so a throw is a white screen, not a warning. The
-  // orphan id (deleted locale, restored backup, imported bundle) is the
-  // normal aftermath of this feature.
+  // 23 §5.2. These helpers run inside a theme subscriber. `emitTheme` isolates
+  // each listener now, so a throw is no longer a white screen — it is a locale
+  // switch that stamps `dir`/`lang` and then abandons the string swap, which
+  // nothing on screen explains. The orphan id (deleted locale, restored
+  // backup, imported bundle) is the normal aftermath of this feature.
   it('never throws on an id no registry knows', () => {
     expect(() => localeEntry('sw_KE')).not.toThrow();
     expect(tagForLocale('sw_KE')).toBe('sw-KE');

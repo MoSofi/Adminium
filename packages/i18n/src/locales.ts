@@ -18,8 +18,12 @@
  * That is deliberate. Once locales are data, the orphan case — a deleted
  * locale still referenced by a user pref, a restored backup, an imported
  * config bundle — is the NORMAL aftermath of the feature, not an edge case,
- * and these helpers run inside a theme subscriber whose emitter has no
- * per-listener isolation. A throw there is a white screen, not a warning.
+ * and these helpers run inside a theme subscriber. `emitTheme` isolates each
+ * listener now (23 §4.4), so a throw here no longer errors the React commit —
+ * it is logged and swallowed, and this subscriber simply does not finish. That
+ * is a quieter failure, not a smaller one: ThemeProvider stamps `dir`/`lang`
+ * BEFORE it emits, so the page turns RTL while every string stays in the old
+ * language, and nothing on screen says why.
  *
  * `dir` is still derived from the locale, never independently settable
  * (02-design-system.md §4.2).
