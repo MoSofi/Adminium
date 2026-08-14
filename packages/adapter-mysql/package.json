@@ -27,13 +27,13 @@
   },
   "dependencies": {
     "@adminium/engine": "workspace:*",
-    "kysely": "^0.28.2",
-    "mysql2": "^3.15.3"
+    "kysely": "^0.29.5",
+    "mysql2": "^3.23.3"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "typescript": "catalog:",
     "eslint": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "files": [

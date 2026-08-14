@@ -1,13 +1,26 @@
 {
-  "entryJsGzBytes": 682500,
+  "entryJsGzBytes": 680000,
   "targetGzBytes": 358400,
-  "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight (+~2.5% minifier headroom) and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
+  "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
+  "loweredOn": {
+    "when": "2026-08-14",
+    "by": "the consolidated dependency sweep",
+    "from": 682500,
+    "measured": "663.5 KiB gz (679,424 bytes), down 0.6 KiB from main's 664.1 KiB",
+    "why": "A routine dependency refresh SHRANK the entry, so the ratchet clicks down in the same commit, which is the mechanism check-entry-budget.mjs asks for. 680000 is not an arbitrary number: it is the value this ratchet held BEFORE the 2026-08-04 raise below, so restoring it retires that raise's open ratification question rather than leaving it pending forever.",
+    "headroom": "576 bytes. Deliberately tight — that is what a ratchet is for — but tight enough that a sub-KiB addition will go red. If that proves to cost more than it buys, raise to 681000 (~1.5 KiB) rather than reverting to 682500, which would silently reinstate the unratified exception.",
+    "whatWasHeldBackToAchieveThis": {
+      "lucide-react": "0.525 -> 1.31 costs +16.1 KiB gz, measured. 152 icons are imported across the repo and v1 appears to regress tree-shaking; it also drops brand icons (the `Github` export is gone, the only typecheck failure in a 64-package bump). Held in .github/dependabot.yml.",
+      "@radix-ui/* (11 packages)": "costs +4.8 KiB gz, measured, which lands the build 34 bytes over the OLD 666.5 KiB ratchet. Held in .github/dependabot.yml. Worth revisiting deliberately — these carry a11y fixes — but not by absorbing them silently."
+    }
+  },
   "raisedOnce": {
+    "status": "REVERTED 2026-08-14 by the `loweredOn` entry above. Kept for the record; no longer in effect, and its ratification question is now moot.",
     "when": "2026-08-04",
     "by": "23-runtime-translations.md (runtime-editable translations)",
     "from": 680000,
+    "to": 682500,
     "measured": "665.2 KiB gz, up 1.1 KiB from the 664.1 KiB ratchet",
-    "why": "The runtime override layer has an irreducible boot-path cost: the merge that folds DB overrides over the compiled bundles, and the revision store the tree subscribes to, both have to exist BEFORE the first paint or the warm-boot flash guarantee (10 §7.5, 23 §4.7) breaks. Everything deferrable was deferred first — the Translations page is lazy, the editor API client is split from the boot client (api/i18nBoot.ts), the network half of the override layer is dynamic-imported (i18n/overrideCache.ts), and the key index + write validator + 458-entry a11y list moved off the main @adminium/i18n barrel onto @adminium/i18n/editing. Those four splits recovered most of what the feature added; this is the remainder.",
-    "status": "NEEDS OWNER RATIFICATION. check-entry-budget.mjs says a ratchet may never be raised to make a red build green, so this is the documented rule being asked for an exception, not a silent bypass. Revert this field to 680000 and the build goes red again."
+    "why": "The runtime override layer has an irreducible boot-path cost: the merge that folds DB overrides over the compiled bundles, and the revision store the tree subscribes to, both have to exist BEFORE the first paint or the warm-boot flash guarantee (10 §7.5, 23 §4.7) breaks. Everything deferrable was deferred first — the Translations page is lazy, the editor API client is split from the boot client (api/i18nBoot.ts), the network half of the override layer is dynamic-imported (i18n/overrideCache.ts), and the key index + write validator + 458-entry a11y list moved off the main @adminium/i18n barrel onto @adminium/i18n/editing. Those four splits recovered most of what the feature added; this is the remainder."
   }
 }

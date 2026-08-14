@@ -52,7 +52,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "i18next": "^25.3.2",
+    "i18next": "^26.3.6",
     "intl-messageformat": "^11.2.13"
   },
   "peerDependencies": {
@@ -65,12 +65,12 @@
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "@testing-library/react": "^16.3.0",
-    "@types/react": "^19.1.8",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.18",
     "eslint": "catalog:",
-    "happy-dom": "^18.0.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "happy-dom": "^20.11.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

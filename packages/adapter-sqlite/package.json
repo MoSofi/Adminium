@@ -28,13 +28,13 @@
   "dependencies": {
     "@adminium/engine": "workspace:*",
     "better-sqlite3": "^13.0.3",
-    "kysely": "^0.28.2"
+    "kysely": "^0.29.5"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
-    "@types/better-sqlite3": "^7.6.13",
-    "typescript": "catalog:",
+    "@types/better-sqlite3": "^9.6.0",
     "eslint": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "files": [
