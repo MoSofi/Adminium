@@ -1,6 +1,7 @@
 # Weekly dependency PRs, grouped so routine bumps arrive as one reviewable PR
 # per ecosystem instead of a flood. Security updates ignore the grouping and
-# open immediately regardless of schedule.
+# open immediately regardless of schedule — and they also ignore the `ignore`
+# rules below, which is the point: nothing here can suppress an advisory.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -13,37 +14,79 @@ updates:
       npm-minor-and-patch:
         update-types: [minor, patch]
 
-    # HELD DELIBERATELY — the four packages that make up the dashboard's
-    # synchronously-loaded entry chunk. apps/dashboard/scripts/check-entry-budget.mjs
-    # gzips every JS asset dist/index.html loads up front and fails the build past
-    # the ratchet in chunk-budget.json, and these are the only grouped dependencies
-    # whose growth lands in that set.
+    # HELD, each for a measured or verified reason. Everything not listed here
+    # was swept in the 2026-08-14 consolidated bump and is current.
     #
-    # Why they are ignored rather than merged: the routine group PR (#18) came in
-    # 406 bytes over the ratchet, entirely from third-party growth — React
-    # 19.1 -> 19.2, TanStack Router +49 minors, Query +18 minors. The ratchet's own
-    # rule is "never raise it to make a red build green; move the new code behind a
-    # dynamic import instead", and that rule assumes the growth is OURS and can be
-    # deferred. React cannot be lazy-loaded. So the choice is between silently
-    # bending a documented rule every week and holding these four for a deliberate,
-    # measured bump — this is the second.
-    #
-    # NOT a permanent pin. Updating them is a considered change: bump them by hand,
-    # run `pnpm --filter @adminium/dashboard build`, read the check-entry-budget
-    # line, and if it goes over, either recover the bytes by deferring something or
-    # raise the ratchet through the documented exception path (see the `raisedOnce`
-    # field in chunk-budget.json — note its 2026-08-04 entry is still marked NEEDS
-    # OWNER RATIFICATION). Security advisories are exempt from `ignore` and will
-    # still open their own PRs.
-    #
-    # Deliberately NOT ignored: @types/react and @types/react-dom carry no runtime
-    # bytes, and tailwindcss/@tailwindcss/vite emit CSS, which this budget does not
-    # measure.
+    # The rule for adding to this list: a hold must state WHY in a way the next
+    # person can re-test. "Might break something" is not a reason; a measured
+    # byte cost or a named missing export is.
     ignore:
-      - dependency-name: 'react'
-      - dependency-name: 'react-dom'
-      - dependency-name: '@tanstack/react-router'
-      - dependency-name: '@tanstack/react-query'
+      # ── Entry-chunk cost (apps/dashboard/chunk-budget.json) ────────────────
+      #
+      # lucide-react 1.x costs +16.1 KiB gz on the dashboard entry chunk,
+      # measured in isolation against main. 152 distinct icons are imported
+      # across the repo and v1 appears to regress tree-shaking. It also drops
+      # brand icons: `Github` no longer exists, and that was the ONLY typecheck
+      # failure across a 64-package bump. Revisit when either the tree-shaking
+      # regresses back or the entry has room; the icon swap is a one-line change
+      # in AuthScreens.stories.tsx.
+      - dependency-name: 'lucide-react'
+        update-types: ['version-update:semver-major']
+
+      # The Radix set costs +4.8 KiB gz together, measured — enough to put the
+      # build 34 bytes over the pre-sweep ratchet. Held as a set because they
+      # move together and are only meaningful together. These carry
+      # accessibility fixes, so this is the hold most worth revisiting: take
+      # them deliberately, re-measure, and click the ratchet if it fits.
+      - dependency-name: '@radix-ui/*'
+
+      # ── Blocked on a toolchain that has no stable release ──────────────────
+      #
+      # Vite 8 cannot land: vitest 3 pins vite ^5||^6||^7 (first accepting 8 at
+      # 4.1.0), @storybook/react-vite 9 caps at ^7, and electron-vite has NO
+      # stable release accepting 8 — only 6.0.0-beta.1 — which is a hard stop,
+      # since shipping a beta build tool into the signed desktop release
+      # pipeline is not a trade worth making. @vitejs/plugin-react 6 peers
+      # vite ^8, so it is stuck behind the same wall. These five move together
+      # or not at all; see the close comment on PR #6 for the ordering.
+      - dependency-name: 'vite'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'vitest'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'storybook'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@storybook/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitejs/plugin-react'
+        update-types: ['version-update:semver-major']
+
+      # ── Needs a code port, not a bump ──────────────────────────────────────
+      #
+      # @tanstack/react-table 9 is an architectural rewrite that removes three
+      # of the five runtime APIs packages/widgets/src/families/tables/DataGrid.tsx
+      # uses: useReactTable -> useTable, getCoreRowModel -> createCoreRowModel,
+      # getSortedRowModel -> createSortedRowModel, with features now explicit
+      # opt-in (rowSortingFeature, rowSelectionFeature). flexRender and
+      # createColumnHelper survive. Verified by importing v9 directly. One
+      # 281-line file is the entire blast radius — a contained port whenever
+      # someone wants it.
+      - dependency-name: '@tanstack/react-table'
+        update-types: ['version-update:semver-major']
+
+      # ── Deliberately pinned to the runtime, not to latest ──────────────────
+      #
+      # @types/node must track the Node the product actually runs (22 in every
+      # workflow, engines >=22, node:22 in the Dockerfile). Letting the types
+      # run ahead invites code against APIs the runtime does not have, which
+      # typechecks green and fails at boot. Bump this WITH the runtime.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+
+      # TypeScript 7 is the native-port rewrite. Far too large to ride along in
+      # a dependency sweep, and it would land under a `catalog:` pin that every
+      # workspace shares. Its own change, with its own verification.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
@@ -59,3 +102,12 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Node majors are a product decision, not a dependency refresh. Node 26 is
+    # Current (not LTS — 24 is the newest Active LTS as of 2026-08), it ships no
+    # Corepack (removed in 25+ by TSC vote), which breaks `RUN corepack enable`
+    # outright, and every workflow here pins node-version: 22. Moving the image
+    # means moving CI and `engines` in the same change. See the close comment on
+    # PR #1 for the sequence.
+    ignore:
+      - dependency-name: 'node'
+        update-types: ['version-update:semver-major']
