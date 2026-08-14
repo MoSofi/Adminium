@@ -60,6 +60,19 @@ updates:
       - dependency-name: '@vitejs/plugin-react'
         update-types: ['version-update:semver-major']
 
+      # ── Breaks a test that passes on 18 ────────────────────────────────────
+      #
+      # happy-dom 20 fails `apps/dashboard/src/about/DesktopAboutSections.test.tsx`
+      # ("turns a discovered update into Download -> progress -> Restart-to-install")
+      # with `Unable to find role="button" and name /Download update/`, timing out
+      # after ~5s. Reverting to 18 with nothing else changed takes the suite from
+      # 545/546 to 546/546, so the accessible-name or role computation moved
+      # underneath testing-library. It is the environment for every jsdom-style
+      # suite in the repo (`environment: 'happy-dom'`), so this is worth doing on
+      # its own with the query fixed or reported upstream — not inside a sweep.
+      - dependency-name: 'happy-dom'
+        update-types: ['version-update:semver-major']
+
       # ── Needs a code port, not a bump ──────────────────────────────────────
       #
       # @tanstack/react-table 9 is an architectural rewrite that removes three
