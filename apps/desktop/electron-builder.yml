@@ -7,35 +7,63 @@
 # masters resolve the way they do.
 #
 # ─── THE NATIVE-MODULE REBUILD (§2.1, the crux of M11) ───────────────────────
-# better-sqlite3 and argon2 are native (.node) addons. The forked utilityProcess
-# runs Electron's bundled Node, whose ABI (NODE_MODULE_VERSION) differs from the
-# local Node every other suite in the repo runs at, so the workspace-shared
-# prebuild cannot be dlopen'd under Electron. §2.1 wants @electron/rebuild, and
-# `npmRebuild: true` below is where it runs — paired with `asarUnpack` so the
-# resulting .node files sit on disk (a .node inside an asar cannot be dlopen'd).
-# That is what unblocks the packaged app's meta-store.
+# better-sqlite3 and argon2 are native (.node) addons, and `asarUnpack` below is
+# unconditionally required: a .node inside an asar cannot be dlopen'd, whatever
+# produced it.
 #
-# WHERE IT RUNS — corrected 2026-07-21. This comment used to claim the rebuild
-# operates on "electron-builder's STAGED, private copy of node_modules". It does
-# not, and no such copy exists at that point. app-builder-lib's
-# `installAppDependencies` calls `installOrRebuild(..., { appDir, ... })` and
-# `rebuild()` forks @electron/rebuild with `buildPath: appDir` — appDir being the
-# package directory being built, i.e. apps/desktop itself. The only staging
-# electron-builder does (`appOutDir`) happens LATER, in doPack. So the rebuild
-# walks apps/desktop/node_modules, whose better-sqlite3 and argon2 entries are
-# pnpm symlinks into the workspace-shared node_modules/.pnpm/… store, and
-# rewrites build/Release/better_sqlite3.node IN PLACE against Electron's ABI.
+# THE ABI PROBLEM THIS SECTION WAS WRITTEN FOR IS GONE (2026-08-14). It used to
+# read: the forked utilityProcess runs Electron's bundled Node, whose ABI
+# (NODE_MODULE_VERSION) differs from the local Node every other suite runs at, so
+# the workspace-shared prebuild could not be dlopen'd under Electron — hence
+# @electron/rebuild via `npmRebuild: true`. That was true while both addons were
+# built against V8/node internals. Both are now Node-API:
 #
-# CONSEQUENCE, stated rather than hidden: after any local `pack` or `dist`, the
-# shared addon is Electron-ABI and every Node-side suite in the repo
-# (apps/server, apps/e2e, packages/meta, packages/adapter-sqlite) fails to dlopen
-# it until you restore it:
+#   better-sqlite3 >= 13  — the v13 major migrated to N-API and ships prebuilds
+#                           inside its own tarball (8 platform/arch variants).
+#   argon2 >= 0.44        — declares `binary.napi_versions: [8]`, builds with
+#                           `prebuildify --napi --tag-libc`, resolves via
+#                           node-gyp-build.
+#
+# Verified by symbol inspection: each prebuild imports N-API entry points
+# (napi_*) and references ZERO V8/node internals. An N-API binary is ABI-stable
+# across Node AND Electron by definition, so there is no ABI to rewrite.
+#
+# THE TWO ADDONS NOW RESOLVE IN OPPOSITE ORDER — the detail that matters if you
+# touch this:
+#
+#   better-sqlite3  lib/binding.js checks `prebuilds/<platform>-<arch>.node`
+#                   FIRST and only falls back to build/Release. A rebuild here is
+#                   therefore INERT: the compiled output is never loaded.
+#   argon2          node-gyp-build checks `build/Release` FIRST (index.js:34),
+#                   then `prebuilds/`. A rebuild here still WINS.
+#
+# So `npmRebuild: true` is at most redundant now, and for better-sqlite3 it is
+# ignored outright. It is kept ON deliberately rather than flipped off in the
+# same change that observed this: `desktop-e2e` is green with both addons on
+# these versions, and turning the rebuild off is a packaging-pipeline change that
+# deserves its own verified commit, not a drive-by edit to a comment.
+#
+# LOCAL RESTORE — no longer an ABI necessity. The old obligation was:
 #
 #   pnpm rebuild better-sqlite3 argon2      # from the repo root, after pack/dist
 #
-# On CI this is harmless — the runner is thrown away — which is why the release
-# workflow needs no such step. The restore is a LOCAL developer obligation; see
-# apps/desktop/README.md "Packaging locally".
+# It existed because the rebuild rewrote the pnpm-shared addon to Electron's ABI
+# in place, breaking every Node-side suite (apps/server, apps/e2e, packages/meta,
+# packages/adapter-sqlite) until restored. With N-API there is no incompatible
+# ABI to strand: anything the rebuild produces is loadable by both runtimes.
+# Harmless to run, no longer required. See apps/desktop/README.md "Packaging
+# locally", which still documents it.
+#
+# WHERE THE REBUILD RUNS — corrected 2026-07-21, still accurate. This comment
+# once claimed it operates on "electron-builder's STAGED, private copy of
+# node_modules". It does not, and no such copy exists at that point.
+# app-builder-lib's `installAppDependencies` calls `installOrRebuild(...,
+# { appDir, ... })` and `rebuild()` forks @electron/rebuild with
+# `buildPath: appDir` — appDir being the package directory being built, i.e.
+# apps/desktop itself. The only staging electron-builder does (`appOutDir`)
+# happens LATER, in doPack. So the rebuild walks apps/desktop/node_modules, whose
+# better-sqlite3 and argon2 entries are pnpm symlinks into the workspace-shared
+# node_modules/.pnpm/… store.
 #
 # This does NOT reopen the postinstall question: apps/desktop/package.json's
 # //native-modules note still rules out a `postinstall` rebuild, because that
@@ -73,11 +101,14 @@ asar: true
 asarUnpack:
   - "**/*.node"
 
-# Rebuild native deps for Electron's ABI — see the header for WHERE that happens
-# (in apps/desktop/node_modules, i.e. the pnpm-shared addon) and the one-line
-# local restore afterwards. This is the ONLY sanctioned home for the
-# @electron/rebuild step; never a postinstall (apps/desktop/package.json
-# //native-modules).
+# Rebuild native deps — see the header. Both addons are N-API now, so this is
+# redundant for argon2 and INERT for better-sqlite3 (its own binding.js prefers
+# the bundled prebuild over build/Release), and there is no longer an ABI mismatch
+# to correct. Left ON pending a verified change; if it is ever turned off, the
+# `asarUnpack` above still is not optional.
+#
+# This remains the ONLY sanctioned home for an @electron/rebuild step; never a
+# postinstall (apps/desktop/package.json //native-modules).
 npmRebuild: true
 
 # `out/**` is electron-vite's four bundles (main/server/preload/renderer) plus the

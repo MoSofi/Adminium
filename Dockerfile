@@ -10,10 +10,28 @@
 # NO SECRET IS BAKED IN: `ADMINIUM_SECRET` arrives via the environment at run
 # time (§7.1). The image ships only code.
 #
-# Both stages are Debian bookworm on purpose: `better-sqlite3` and `argon2` are
-# native modules compiled in the build stage and loaded in the runtime stage, so
-# the two must share a glibc ABI. node:22-slim is bookworm-slim; swapping either
-# for Alpine (musl) would produce an image that builds and then dies at require().
+# Both stages are Debian bookworm, and node:22-slim is bookworm-slim. The reason
+# used to be an ABI one: `better-sqlite3` and `argon2` were native modules
+# COMPILED in the build stage and loaded in the runtime stage, so the two had to
+# share a glibc ABI, and swapping either for Alpine (musl) produced an image that
+# built and then died at require().
+#
+# THAT IS NO LONGER WHY (2026-08-14). Neither module compiles here anymore, and
+# both handle musl on their own:
+#
+#   better-sqlite3 >= 13  N-API, ships prebuilds/{linux,linuxmusl}-{x64,arm64}
+#                         and picks one at load time via `isLinuxMusl()`
+#                         (process.report … glibcVersionRuntime).
+#   argon2 >= 0.44        N-API, ships linux-{x64,arm64,arm} prebuilds tagged
+#                         `.glibc.node` / `.musl.node`, picked at load time by
+#                         node-gyp-build (LIBC env var, else Alpine detection).
+#
+# Selection happens independently in whichever stage does the loading, so there is
+# no cross-stage ABI to keep aligned. Staying on bookworm is still the right
+# default — it is what CI, the npm package and every smoke test exercise, and it
+# is a known-good glibc — but it is no longer load-bearing for these two modules.
+# An Alpine runtime is now plausible rather than fatal; it is also completely
+# untested here, so do not treat the above as a green light.
 
 # ─────────────────────────── build ───────────────────────────
 FROM node:22-bookworm AS build
@@ -22,9 +40,18 @@ FROM node:22-bookworm AS build
 ENV CI=true \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-# Toolchain for the native modules above: buildx runs this stage on the TARGET
-# platform, so whatever is compiled here already matches the runtime arch and no
-# cross-compilation or prebuild download is involved.
+# Toolchain for the native modules above. buildx runs this stage on the TARGET
+# platform, so anything compiled here already matches the runtime arch and no
+# cross-compilation is involved.
+#
+# On the two platforms this image is built for (linux/amd64, linux/arm64) NOTHING
+# is expected to compile anymore — better-sqlite3 13 and argon2 0.44 both resolve
+# a bundled glibc prebuild for those tuples, which is why an install that used to
+# spend minutes on arm64 under QEMU is now fast. The toolchain stays as the
+# fallback that keeps the build honest: node-gyp-build compiles when no prebuild
+# matches, so a future dependency, platform, or a dropped prebuild variant fails
+# LOUDLY at build time here rather than silently shipping an image that dies at
+# require(). Removing it would trade a slower build for a broken release.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
