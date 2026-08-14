@@ -60,6 +60,21 @@ updates:
       - dependency-name: '@vitejs/plugin-react'
         update-types: ['version-update:semver-major']
 
+      # ── Enables new rules that need real code review ───────────────────────
+      #
+      # eslint 10 turns on two rules that fire 10 times across 9 files:
+      # `no-useless-assignment` (7) and `preserve-caught-error` (3). Both are
+      # legitimate — the dead stores are genuinely dead, and rethrowing without
+      # `cause` genuinely loses the original error. But `preserve-caught-error`
+      # changes what gets THROWN, in auth/totp.ts, connections/introspect.ts and
+      # scheduled-reports among others, and that belongs in a PR where someone
+      # reads each site rather than riding along in a dependency sweep.
+      # @eslint/js moves with it.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+
       # ── Breaks a test that passes on 18 ────────────────────────────────────
       #
       # happy-dom 20 fails `apps/dashboard/src/about/DesktopAboutSections.test.tsx`
