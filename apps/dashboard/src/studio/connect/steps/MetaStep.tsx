@@ -6,17 +6,30 @@
  * explanation — and the server manager independently enforces the same rule
  * (409 on bypass, connections/manager.ts).
  *
- * v1 honesty: the meta store itself was chosen at first boot (01 §3.1) and
- * is never moved by this wizard — this step VALIDATES placement
- * compatibility for the new connection and records the choice; relocating
- * the meta store is an M10 ops task.
+ * ── THIS STEP MOVES THE STORE ───────────────────────────────────────────────
+ * It did not always. For as long as the Studio has had a meta step, the meta
+ * store was chosen at first boot and never moved: this step validated that a
+ * placement was POSSIBLE, recorded the answer in wizard state, and dropped it.
+ * Picking "same database" in the browser therefore left the embedded SQLite
+ * store exactly where it was, while the TERMINAL wizard — which asks before any
+ * store exists — honoured the identical question. Two front doors, two answers,
+ * and the browser one silently wrong.
+ *
+ * What made it fixable is that the copy has somewhere to go: `POST
+ * /api/v1/meta/relocate` copies the whole store and the server restarts onto
+ * it (`server/src/meta/relocate.ts`). So the choice is now carried out on
+ * Continue — but only when there is something to move, which is what
+ * `placement` answers. On an instance already using a configured meta store,
+ * or one whose store is pinned by ADMINIUM_META_URL, this step goes back to
+ * being exactly what it was: a compatibility check, now saying so accurately
+ * instead of claiming relocation is an unimplemented ops task.
  */
 import { Database, DatabaseZap } from 'lucide-react';
 import { useState } from 'react';
 import { Alert, Button, FormField, Input, RadioGroup, RadioCard } from '@adminium/ui';
 
 import { t } from '../../../i18n/t.js';
-import { studioApi } from '../../api.js';
+import { studioApi, type MetaStoreLocation } from '../../api.js';
 import {
   dsnValidationError,
   engineForDsn,
@@ -28,9 +41,13 @@ import {
 export interface MetaStepProps {
   state: WizardState;
   onPatch: (patch: Partial<WizardState>) => void;
+  /** Where the store lives now; null while loading, or when the route is absent. */
+  placement: MetaStoreLocation | null;
+  /** Non-null while Continue is carrying the choice out. */
+  relocating: 'copying' | 'restarting' | null;
 }
 
-export function MetaStep({ state, onPatch }: MetaStepProps) {
+export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProps) {
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
 
@@ -159,14 +176,51 @@ export function MetaStep({ state, onPatch }: MetaStepProps) {
         </div>
       ) : null}
 
-      <Alert
-        tone="info"
-        title={t('studio.meta.v1Note.title', 'About this install')}
-        body={t(
-          'studio.meta.v1Note.body',
-          'This server chose its meta store at first boot. This step validates that your choice is compatible with this connection and records it — the server enforces the same rule independently (409 META_PLACEMENT_INVALID). Moving an existing meta store is an ops task (M10).',
-        )}
-      />
+      {/*
+        Three different true statements, because three different things are
+        actually the case. The old single note asserted the most pessimistic one
+        unconditionally ("moving an existing meta store is an ops task"), which
+        stopped being true the moment Continue started moving it.
+      */}
+      {relocating !== null ? (
+        <Alert
+          tone="info"
+          role="status"
+          title={t('studio.meta.move.title', 'Moving Adminium’s tables')}
+          body={
+            relocating === 'copying'
+              ? t(
+                  'studio.meta.move.copyingBody',
+                  'Copying every adminium_ table into the new database. Your source data is not touched, and nothing is switched over until the copy is verified.',
+                )
+              : t(
+                  'studio.meta.move.restartingBody',
+                  'The copy is done. Adminium is restarting onto the new database — this page will continue by itself in a few seconds.',
+                )
+          }
+        />
+      ) : placement !== null && placement.embedded && placement.canRelocate ? (
+        <Alert
+          tone="info"
+          title={t('studio.meta.willMove.title', 'This will move Adminium’s tables')}
+          body={t(
+            'studio.meta.willMove.body',
+            'Adminium is currently using its built-in SQLite store. Continue copies that store into the database you picked and restarts onto it — accounts, pages and settings come with it, so you stay signed in.',
+          )}
+        />
+      ) : (
+        <Alert
+          tone="info"
+          title={t('studio.meta.v1Note.title', 'About this install')}
+          body={
+            placement?.reason ??
+            t(
+              'studio.meta.v1Note.body',
+              'This server already keeps its own tables in a configured database, and this step does not move them. It validates that your choice is compatible with this connection — the server enforces the same rule independently (409 META_PLACEMENT_INVALID).',
+            )
+          }
+        />
+      )}
     </section>
   );
 }

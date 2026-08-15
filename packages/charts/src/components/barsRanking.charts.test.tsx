@@ -55,6 +55,39 @@ describe('RankingBars', () => {
     expect(leader?.getAttribute('fill')).toBe('var(--accent)');
     expect(container.querySelector('svg[role="img"]')?.getAttribute('aria-label')).toBe('Top regions');
   });
+
+  it('ellipsizes a label too long for the gutter and keeps the full text in <title>', () => {
+    // SVG text does not wrap or ellipsize: before truncation, article titles
+    // bound as the dimension column drew straight through the 104px gutter and
+    // under the bars.
+    const long = 'Ea dolor sint incididunt ipsum dolor sit amet consectetur';
+    const { container } = render(
+      <RankingBars data={[{ label: long, value: 10 }]} labels={{ label: 'Articles' }} />,
+    );
+    const text = container.querySelector('text.adm-chart-axis-label');
+    // The drawn glyphs are the trailing text node; `textContent` would also
+    // fold in the <title> child that carries the full string.
+    const drawn = text?.lastChild?.textContent ?? '';
+    expect(drawn).toContain('…');
+    expect(drawn.length).toBeLessThan(long.length);
+    expect(text?.querySelector('title')?.textContent).toBe(long);
+  });
+
+  it('leaves a label that already fits alone, with no <title> noise', () => {
+    const { container } = render(
+      <RankingBars data={[{ label: 'Canada', value: 10 }]} labels={{ label: 'Regions' }} />,
+    );
+    const text = container.querySelector('text.adm-chart-axis-label');
+    expect(text?.textContent).toBe('Canada');
+    expect(text?.querySelector('title')).toBeNull();
+  });
+
+  it('clips the label gutter so an underestimated width can never reach the bars', () => {
+    const { container } = render(<RankingBars data={demoRanking(2)} labels={{ label: 'x' }} />);
+    expect(container.querySelector('clipPath')).not.toBeNull();
+    const text = container.querySelector('text.adm-chart-axis-label');
+    expect(text?.getAttribute('clip-path')).toMatch(/^url\(#.+\)$/);
+  });
 });
 
 describe('BulletChart', () => {

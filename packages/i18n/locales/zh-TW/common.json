@@ -956,7 +956,20 @@
       "testFailed": "連線失敗。",
       "v1Note": {
         "title": "關於此安裝",
-        "body": "此伺服器在首次啟動時選擇了中繼資料存放區。此步驟會驗證你的選擇與此連線相容並加以記錄——伺服器會獨立執行同一規則（409 META_PLACEMENT_INVALID）。搬移既有中繼資料存放區屬於維運工作（M10）。"
+        "body": "此伺服器已將自有資料表保存在設定好的資料庫中，本步驟不會搬移它們。它只驗證您的選擇是否與此連線相容——伺服器會獨立執行相同規則（409 META_PLACEMENT_INVALID）。"
+      },
+      "move": {
+        "title": "正在搬移 Adminium 的資料表",
+        "copying": "正在搬移 Adminium 的資料表…",
+        "restarting": "正在重新啟動…",
+        "copyingBody": "正在將每張 adminium_ 資料表複製到新資料庫。您的來源資料不會被更動，且必須通過驗證後才會切換。",
+        "restartingBody": "複製已完成。Adminium 正在新資料庫上重新啟動——本頁面將在數秒後自動繼續。",
+        "failed": "無法搬移 Adminium 的資料表——請重試。",
+        "timeout": "Adminium 已搬移資料表，但尚未恢復。您的資料已安全存放於新資料庫——請稍後重新載入本頁面。"
+      },
+      "willMove": {
+        "title": "此步驟將搬移 Adminium 的資料表",
+        "body": "Adminium 目前使用內建的 SQLite 儲存區。按「繼續」會將該儲存區複製到您選擇的資料庫並在其上重新啟動——帳號、頁面與設定都會一併搬移，您將保持登入狀態。"
       }
     },
     "intent": {
@@ -1254,7 +1267,13 @@
     "saveVersionTitle": "儲存版本",
     "saveVersionBody": "為目前文件建立快照。可隨時從「版本」還原。",
     "versionName": "版本名稱",
-    "versionNamePlaceholder": "例如：Q3 費率調整前"
+    "versionNamePlaceholder": "例如：Q3 費率調整前",
+    "discard": "捨棄變更",
+    "discardTitle": "捨棄你的變更？",
+    "discardBody": "儀表板將回復到你開啟編輯器時的樣子。你的資料不受影響。",
+    "discardConfirm": "捨棄變更",
+    "keepEditing": "繼續編輯",
+    "discarded": "變更已捨棄。"
   },
   "setup": {
     "title": "設定 Adminium",

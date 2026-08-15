@@ -12,7 +12,7 @@ import { Alert, Button, Stepper, type Step } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
-import { studioApi, type SchemaTable } from '../api.js';
+import { studioApi, waitForRestart, type MetaStoreLocation, type SchemaTable } from '../api.js';
 import { redeemBridgeSeed } from './bridgeSeed.js';
 import { wizardCapabilitySource } from './capabilityNotes.js';
 import { EnrichStep } from './steps/EnrichStep.js';
@@ -27,6 +27,7 @@ import {
   WIZARD_STEP_IDS,
   loadWizardState,
   saveWizardState,
+  effectiveDsn,
   engineForDsn,
   sameDbDisabledReason,
   sourceStepValid,
@@ -64,6 +65,14 @@ export function ConnectWizard({
   const [fileTables, setFileTables] = useState<SchemaTable[] | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   const [persisting, setPersisting] = useState(false);
+  /**
+   * The two halves of a meta-store move, distinguished because they fail
+   * differently and the second one looks alarming: `restarting` is a stretch of
+   * seconds during which the server is deliberately unreachable, and a UI that
+   * called that "Saving…" would leave the operator watching a dead page with no
+   * idea it was expected.
+   */
+  const [relocating, setRelocating] = useState<'copying' | 'restarting' | null>(null);
   /** Non-null once a bridge hand-off has been applied — renders the banner. */
   const [bridgeNotice, setBridgeNotice] = useState<'applied' | 'failed' | null>(null);
 
@@ -107,6 +116,33 @@ export function ConnectWizard({
       cancelled = true;
     };
   }, [bridgeTicket]);
+
+  /**
+   * Where this instance's meta store actually lives. Fetched once, because it
+   * decides whether the meta step is a REAL choice (an embedded store this
+   * server can still move) or a compatibility check against a placement someone
+   * already committed to. `null` covers both "still loading" and "route absent"
+   * — a topology that cannot restart itself does not register it — and both
+   * mean the same thing to this component: offer no move.
+   */
+  const [placement, setPlacement] = useState<MetaStoreLocation | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void studioApi
+      .getMetaPlacement()
+      .then((result) => {
+        if (!cancelled) setPlacement(result);
+      })
+      .catch(() => {
+        if (!cancelled) setPlacement(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** The store is embedded and this server can move it — the step can act. */
+  const canMoveMetaStore = placement !== null && placement.embedded && placement.canRelocate;
 
   const patch = (partial: Partial<WizardState>) => setState((current) => ({ ...current, ...partial }));
 
@@ -153,6 +189,49 @@ export function ConnectWizard({
   const advance = () => {
     const next = WIZARD_STEP_IDS[stepIndex + 1];
     if (next === undefined) return;
+
+    // ── Leaving the meta step MOVES the store (01 §3.1) ───────────────────
+    // This is the step that used to record an answer and do nothing with it:
+    // the Studio is served by a running server, so a meta store already
+    // existed by the time anyone could be asked where it should live, and
+    // picking "same database" here left the embedded SQLite store in place.
+    // Now the answer is carried out — copy, then restart onto the new store.
+    if (state.step === 'meta' && canMoveMetaStore && state.metaPlacement !== null) {
+      const target =
+        state.metaPlacement === 'same-db' ? effectiveDsn(state) : state.separateMetaDsn.trim();
+      setRelocating('copying');
+      setPersistError(null);
+      void studioApi
+        .relocateMeta(target)
+        .then(async (result) => {
+          // The reply means the copy committed, not that the server is back —
+          // it restarts immediately after flushing it.
+          setRelocating('restarting');
+          const back = await waitForRestart(result.healthPath);
+          if (!back) {
+            throw new Error(
+              t(
+                'studio.meta.move.timeout',
+                'Adminium moved its tables but has not come back yet. Your data is safe in the new database — reload this page in a moment.',
+              ),
+            );
+          }
+          // Deliberately NOT re-fetching placement: the store has moved, the
+          // step is done, and the next thing on screen is the enrich step.
+          goTo(next);
+        })
+        .catch((cause: unknown) => {
+          setPersistError(
+            cause instanceof ApiError
+              ? cause.message
+              : cause instanceof Error
+                ? cause.message
+                : t('studio.meta.move.failed', 'Could not move Adminium’s tables — retry.'),
+          );
+        })
+        .finally(() => setRelocating(null));
+      return;
+    }
 
     // Leaving the tables step persists inclusion + intent (M5-T02).
     if (state.step === 'tables' && state.connectionId !== null) {
@@ -250,7 +329,9 @@ export function ConnectWizard({
             onIncludedChange={(includedTables) => patch({ includedTables })}
           />
         ) : null}
-        {state.step === 'meta' ? <MetaStep state={state} onPatch={patch} /> : null}
+        {state.step === 'meta' ? (
+          <MetaStep state={state} onPatch={patch} placement={placement} relocating={relocating} />
+        ) : null}
         {state.step === 'enrich' ? (
           <EnrichStep
             state={state}
@@ -281,13 +362,24 @@ export function ConnectWizard({
         }`}
       >
         {stepIndex === 0 ? null : (
-          <Button variant="ghost" onClick={back}>
+          // Back is hidden mid-move: the store is being copied or the server is
+          // restarting, and there is no earlier step to return to that would
+          // still describe reality.
+          <Button variant="ghost" onClick={back} disabled={relocating !== null}>
             {t('studio.wizard.back', 'Back')}
           </Button>
         )}
         {state.step !== 'generate' ? (
-          <Button onClick={advance} disabled={!continueEnabled} loading={persisting}>
-            {t('studio.wizard.continue', 'Continue')}
+          <Button
+            onClick={advance}
+            disabled={!continueEnabled || relocating !== null}
+            loading={persisting || relocating !== null}
+          >
+            {relocating === 'copying'
+              ? t('studio.meta.move.copying', 'Moving Adminium’s tables…')
+              : relocating === 'restarting'
+                ? t('studio.meta.move.restarting', 'Restarting…')
+                : t('studio.wizard.continue', 'Continue')}
           </Button>
         ) : null}
       </footer>

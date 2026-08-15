@@ -169,6 +169,15 @@ export interface ApplyServiceDeps {
    * is dropped from that run rather than re-created beside it (`generate/run.ts`).
    */
   regenerate?: (ctx: RegenerateContext) => Promise<void> | void;
+  /**
+   * `LLM_WIDGET_DATA_CONTRACTS` — widget id → the data shapes it accepts,
+   * injected as data because the server tree may not import `@adminium/widgets`
+   * (01 §2.3). Threaded into `buildApplyPlan` so a widget's query descriptor
+   * asks for a shape that widget can actually read; omitted, the planner falls
+   * back to inferring the shape from the bound columns, which is what bound
+   * every time-columned KPI card as a `timeseries` it could not render.
+   */
+  widgetContracts?: Readonly<Record<string, readonly string[]>> | undefined;
   /** Clock override — tests. */
   now?: () => number;
 }
@@ -310,7 +319,11 @@ export function createApplyService(deps: ApplyServiceDeps) {
     }
 
     const diff = diffEnrichment(llm, heuristic, { userLockedIds });
-    const plan = buildApplyPlan(diff, acceptedIds, { connectionId: run.connectionId, llmRunId: run.id });
+    const plan = buildApplyPlan(diff, acceptedIds, {
+      connectionId: run.connectionId,
+      llmRunId: run.id,
+      ...(deps.widgetContracts === undefined ? {} : { widgetContracts: deps.widgetContracts }),
+    });
     return { plan, diff, model };
   }
 

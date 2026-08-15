@@ -4271,6 +4271,34 @@
     "srcHash": "cba2fb9c3015",
     "status": "mt"
   },
+  "common.studio.meta.move.copying": {
+    "status": "mt",
+    "srcHash": "e8ed6fb45335"
+  },
+  "common.studio.meta.move.copyingBody": {
+    "status": "mt",
+    "srcHash": "f3b87d524b04"
+  },
+  "common.studio.meta.move.failed": {
+    "status": "mt",
+    "srcHash": "90d0150f0a8c"
+  },
+  "common.studio.meta.move.restarting": {
+    "status": "mt",
+    "srcHash": "b86eee163a58"
+  },
+  "common.studio.meta.move.restartingBody": {
+    "status": "mt",
+    "srcHash": "d8ea0f4fe783"
+  },
+  "common.studio.meta.move.timeout": {
+    "status": "mt",
+    "srcHash": "1b0d1a6ea430"
+  },
+  "common.studio.meta.move.title": {
+    "status": "mt",
+    "srcHash": "3e5868fc54ee"
+  },
   "common.studio.meta.sameDb.description": {
     "srcHash": "48fe164d3114",
     "status": "mt"
@@ -4336,12 +4364,20 @@
     "status": "mt"
   },
   "common.studio.meta.v1Note.body": {
-    "srcHash": "41752f98565e",
-    "status": "mt"
+    "status": "mt",
+    "srcHash": "4af1fe638df0"
   },
   "common.studio.meta.v1Note.title": {
     "srcHash": "ad1bf45fdf1d",
     "status": "mt"
+  },
+  "common.studio.meta.willMove.body": {
+    "status": "mt",
+    "srcHash": "254ca8603b1c"
+  },
+  "common.studio.meta.willMove.title": {
+    "status": "mt",
+    "srcHash": "0bfc5490c9b4"
   },
   "common.studio.remap.badge.fk": {
     "srcHash": "03f7d5a32f20",
@@ -6038,6 +6074,10 @@
   "errors.LLM_JSON_PARSE": {
     "srcHash": "2c1148b379fe",
     "status": "mt"
+  },
+  "errors.LLM_LABEL_COLLISION": {
+    "status": "mt",
+    "srcHash": "160a726bf307"
   },
   "errors.LLM_LOCALE_KEYS": {
     "srcHash": "60e03ca6a523",

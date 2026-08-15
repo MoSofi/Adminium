@@ -208,7 +208,7 @@ describe('StudioAiPage', () => {
     expect(screen.getByRole('radio', { name: /OpenAI-compatible/ })).toBeDefined();
     expect(screen.getByRole('radio', { name: /Ollama/ })).toBeDefined();
     // BYO panel surfaces the contract versions (§4.3).
-    expect(screen.getByText('Prompt adminium.prompt/v1.1')).toBeDefined();
+    expect(screen.getByText('Prompt adminium.prompt/v1.2')).toBeDefined();
     expect(screen.getByText('Schema adminium.llm/v1')).toBeDefined();
     // Run history section present.
     expect(screen.getByRole('heading', { name: 'Run history' })).toBeDefined();

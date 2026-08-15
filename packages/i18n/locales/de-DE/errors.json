@@ -31,5 +31,6 @@
   "LLM_WIDGET_BINDING": "Ein vorgeschlagenes Widget ist an unpassende Spalten gebunden; es wurde verworfen.",
   "LLM_GROUP_INVALID": "Eine Navigationsgruppe ist ungültig — eine Tabelle erscheint in mehr als einer Gruppe.",
   "LLM_UNKNOWN_ICON": "Das vorgeschlagene Symbol ist nicht verfügbar; stattdessen wurde ein Standardsymbol verwendet.",
+  "LLM_LABEL_COLLISION": "Zwei Vorschläge tragen denselben Namen; beide würden unter demselben Titel erscheinen.",
   "LLM_RUN_MISMATCH": "Diese Antwort scheint aus einem anderen Prompt erzeugt worden zu sein."
 }

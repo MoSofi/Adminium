@@ -63,6 +63,7 @@ import { desktopLanRoutes } from './routes/desktop-lan/index.js';
 import { desktopLocalDbRoutes } from './routes/desktop-local-db/index.js';
 import { desktopCapabilityRoutes } from './routes/desktop-capabilities/index.js';
 import { bridgeRoutes } from './routes/bridge/index.js';
+import { metaRoutes } from './routes/meta/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { emailTemplatesRoutes } from './routes/email-templates/index.js';
@@ -85,6 +86,7 @@ import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
 import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
+import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
 
 /**
@@ -130,6 +132,13 @@ export interface ComposeServerOptions {
   logger?: boolean | undefined;
   /** Report telemetry on the scheduler. Default true; tests turn it off. */
   telemetry?: boolean | undefined;
+  /**
+   * The host that can restart this process against a moved meta store
+   * (`cli/relocation-host.ts`). Its presence is what registers
+   * `routes/meta` — see that module's header for why a topology unable to
+   * restart must not offer the route at all.
+   */
+  onMetaRelocated?: OnMetaRelocated | undefined;
 }
 
 export interface ComposedServer {
@@ -428,6 +437,18 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Also after `rbacPlugin`: all three verbs guard on `system:settings:manage`.
       if (desktopCapabilities) {
         await api.register(desktopCapabilityRoutes({ meta }));
+      }
+      // Also after `rbacPlugin`: both verbs guard on `system:settings:manage`.
+      // Registered only when a host exists to perform the restart the relocation
+      // ends in — see `routes/meta/index.ts`.
+      if (opts.onMetaRelocated !== undefined) {
+        await api.register(
+          metaRoutes({
+            metaStore: opts.metaStore,
+            env,
+            onMetaRelocated: opts.onMetaRelocated,
+          }),
+        );
       }
       if (bridge !== null) {
         await api.register(

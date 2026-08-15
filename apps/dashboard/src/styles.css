@@ -4,6 +4,15 @@
 @import "@adminium/tokens/index.css";
 @import "@adminium/tokens/tailwind.css";
 
+/* Structural/motion classes for the chart primitives (`.adm-chart-*`,
+   `.adm-donut-*`, `.adm-spark`). These are hand-written CSS, NOT Tailwind
+   utilities, so the @source globs below do nothing for them — they ship only if
+   this stylesheet is imported. `@adminium/charts/src/index.ts` says to import it
+   once; until now nothing in the repo did, so every chart in the app rendered
+   with unstyled SVG text (browser-default 16px black axis labels overflowing
+   their gutters) and an unstyled donut legend. */
+@import "@adminium/charts/styles.css";
+
 /* Generate utilities for this app AND the workspace sources it composes
    (node_modules is excluded from Tailwind's automatic source detection). */
 @source "./**/*.{ts,tsx}";

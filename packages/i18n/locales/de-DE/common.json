@@ -956,7 +956,20 @@
       "testFailed": "Verbindung fehlgeschlagen.",
       "v1Note": {
         "title": "Über diese Installation",
-        "body": "Dieser Server hat seinen Meta-Store beim ersten Start gewählt. Dieser Schritt prüft, ob Ihre Wahl mit dieser Verbindung kompatibel ist, und hält sie fest — der Server erzwingt dieselbe Regel unabhängig (409 META_PLACEMENT_INVALID). Einen bestehenden Meta-Store zu verschieben ist eine Ops-Aufgabe (M10)."
+        "body": "Dieser Server hält seine eigenen Tabellen bereits in einer konfigurierten Datenbank, und dieser Schritt verschiebt sie nicht. Er prüft, ob Ihre Wahl mit dieser Verbindung kompatibel ist — der Server erzwingt dieselbe Regel unabhängig (409 META_PLACEMENT_INVALID)."
+      },
+      "move": {
+        "title": "Adminiums Tabellen werden verschoben",
+        "copying": "Adminiums Tabellen werden verschoben …",
+        "restarting": "Neustart …",
+        "copyingBody": "Jede adminium_-Tabelle wird in die neue Datenbank kopiert. Ihre Quelldaten bleiben unberührt, und es wird erst umgeschaltet, wenn die Kopie geprüft ist.",
+        "restartingBody": "Die Kopie ist fertig. Adminium startet auf der neuen Datenbank neu — diese Seite fährt in wenigen Sekunden von selbst fort.",
+        "failed": "Adminiums Tabellen konnten nicht verschoben werden — erneut versuchen.",
+        "timeout": "Adminium hat seine Tabellen verschoben, ist aber noch nicht zurück. Ihre Daten liegen sicher in der neuen Datenbank — laden Sie diese Seite gleich neu."
+      },
+      "willMove": {
+        "title": "Dies verschiebt Adminiums Tabellen",
+        "body": "Adminium nutzt derzeit seinen integrierten SQLite-Speicher. „Weiter“ kopiert diesen Speicher in die gewählte Datenbank und startet darauf neu — Konten, Seiten und Einstellungen kommen mit, Sie bleiben angemeldet."
       }
     },
     "intent": {
@@ -1254,7 +1267,13 @@
     "saveVersionTitle": "Version speichern",
     "saveVersionBody": "Erstellt einen Schnappschuss des aktuellen Dokuments. Über „Versionen“ jederzeit wiederherstellbar.",
     "versionName": "Versionsname",
-    "versionNamePlaceholder": "z. B. Vor der Q3-Preisänderung"
+    "versionNamePlaceholder": "z. B. Vor der Q3-Preisänderung",
+    "discard": "Änderungen verwerfen",
+    "discardTitle": "Änderungen verwerfen?",
+    "discardBody": "Das Dashboard sieht wieder so aus wie beim Öffnen des Editors. Deine Daten sind nicht betroffen.",
+    "discardConfirm": "Änderungen verwerfen",
+    "keepEditing": "Weiter bearbeiten",
+    "discarded": "Änderungen verworfen."
   },
   "setup": {
     "title": "Adminium einrichten",

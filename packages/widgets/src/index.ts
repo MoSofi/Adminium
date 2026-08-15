@@ -79,6 +79,7 @@ export {
   LLM_ALLOWED_SEMANTICS,
   LLM_ALLOWED_TEMPLATES,
   LLM_ALLOWED_WIDGETS,
+  LLM_WIDGET_DATA_CONTRACTS,
   type LlmSemanticTone,
 } from './registry/llm-allowlist.js';
 

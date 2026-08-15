@@ -9,7 +9,14 @@
  * cycle (01-architecture.md §6.1, 07-meta-store.md §3.17). Enforced by the
  * dependency-cruiser gate and by test/leaf-purity.test.ts.
  */
-export { DATA_SHAPES, dataShapeSchema, type DataShape } from './data-shapes.js';
+export {
+  COMPILABLE_DATA_SHAPES,
+  DATA_SHAPES,
+  dataShapeSchema,
+  isCompilableShape,
+  type CompilableDataShape,
+  type DataShape,
+} from './data-shapes.js';
 export {
   aggregationSchema,
   bucketUnitSchema,

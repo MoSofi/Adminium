@@ -35,13 +35,23 @@ describe('PROMPT_V1 — verbatim pin (§5)', () => {
     // If this fails, the ship-verbatim prompt text (or PROMPT_VERSION) changed.
     // Update the digest ONLY together with a PROMPT_VERSION bump (criterion 2).
     expect(promptDigest()).toBe(
-      '2fd2306fdb72654e7324d1e6ac566fa0480484ef6d7f92d6448f20c1ad41b211',
+      '122e4005ac7b7703250c6b379898e85963a0a79003b9c502d3588bc22c6156fd',
     );
   });
 
-  it('the version pinned into the digest is the prompt-contract v1.1 id', () => {
-    // v1 → v1.1: page-builder taxonomy row removed (not in LLM_ALLOWED_TEMPLATES).
-    expect(PROMPT_VERSION).toBe('adminium.prompt/v1.1');
+  it('the version pinned into the digest is the prompt-contract v1.2 id', () => {
+    // v1   → v1.1: page-builder taxonomy row removed (not in LLM_ALLOWED_TEMPLATES).
+    // v1.1 → v1.2: labels must be distinct across tables, groups and dashboards.
+    expect(PROMPT_VERSION).toBe('adminium.prompt/v1.2');
+  });
+
+  it('requires labels to be distinct across tables, nav groups and dashboards', () => {
+    // v1.1 let a model label a table, its nav group AND its dashboard
+    // "Knowledge Base"; the CRUD page and the dashboard page then shipped with
+    // the same title on two different routes. Decision 1 states the rule and
+    // decision 7 stops telling dashboards to echo their nav group's name.
+    expect(PROMPT_V1_USER).toContain('Labels must be DISTINCT across the whole response');
+    expect(PROMPT_V1_USER).toContain('Label each for the measurement it presents');
   });
 
   it('system section is fixed policy text with no tokens', () => {

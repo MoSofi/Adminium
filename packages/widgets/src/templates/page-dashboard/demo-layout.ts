@@ -41,7 +41,6 @@ export const demoDashboardLayout: PageLayout = {
       h: 3,
       config: {
         title: 'Active projects',
-        metricLabel: 'Active projects',
         metricFormat: 'plain',
         iconName: 'package',
         iconTone: 'info',
@@ -57,7 +56,6 @@ export const demoDashboardLayout: PageLayout = {
       h: 3,
       config: {
         title: 'Team members',
-        metricLabel: 'Team members',
         metricFormat: 'compact',
         iconName: 'users',
         iconTone: 'pos',
@@ -73,7 +71,6 @@ export const demoDashboardLayout: PageLayout = {
       h: 3,
       config: {
         title: 'Error rate',
-        metricLabel: 'Error rate',
         metricFormat: 'percent',
         iconName: 'zap',
         iconTone: 'danger',

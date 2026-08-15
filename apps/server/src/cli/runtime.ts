@@ -32,6 +32,7 @@ import { createPromptService, type PromptService } from '../llm/prompt-service.j
 import { createRunService, type RunService } from '../llm/run-service.js';
 import { createConnectionStatsCollector } from '../llm/stats-collector.js';
 import type { CollectRunStats } from '../llm/prompt-service.js';
+import type { OnMetaRelocated } from '../meta/relocate.js';
 import { openMetaStore, type MetaStoreHandle } from '../meta/store.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
@@ -148,18 +149,6 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
   });
 
   const runService = createRunService({ meta: metaStore.meta });
-  const applyService = createApplyService({
-    meta: metaStore.meta,
-    runService,
-    // §8.3 step 3 — the real runGeneration-backed hook (both front doors share
-    // this service graph): pages pick up the freshly applied overrides, and the
-    // apply's `origin: 'llm'` seed rows are expanded into envelopes
-    // (generate/materialize-llm.ts). Failures propagate to the caller AFTER the
-    // apply is durable — applyRun fires the hook post-commit by design.
-    regenerate: async ({ connectionId, appliedBy }) => {
-      await runGeneration({ manager, meta: metaStore.meta, connectionId, createdBy: appliedBy });
-    },
-  });
 
   // The real §4.2 collector, not the `NO_STATS` default: `generate-prompt
   // --sampling` promises "sampled example values in the prompt" in its own
@@ -168,6 +157,11 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
   // `startServer` below, which passes it to `composeServer`).
   const collectStats = createConnectionStatsCollector({ manager });
 
+  // Loaded BEFORE the apply service, which needs `allowed.widgetContracts` to
+  // bind each widget to a query shape it can read. Still best-effort by design:
+  // a missing widget vocabulary costs the AI surface, never the boot (see the
+  // module header on degradation), and the planner falls back to inferring the
+  // shape from bound columns when the contracts are absent.
   let promptService: PromptService | null = null;
   let allowed: AllowedVocabularies | null = null;
   let promptServiceError: Error | null = null;
@@ -177,6 +171,22 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
   } catch (error) {
     promptServiceError = error instanceof Error ? error : new Error(String(error));
   }
+
+  const applyService = createApplyService({
+    meta: metaStore.meta,
+    runService,
+    ...(allowed?.widgetContracts === undefined
+      ? {}
+      : { widgetContracts: allowed.widgetContracts }),
+    // §8.3 step 3 — the real runGeneration-backed hook (both front doors share
+    // this service graph): pages pick up the freshly applied overrides, and the
+    // apply's `origin: 'llm'` seed rows are expanded into envelopes
+    // (generate/materialize-llm.ts). Failures propagate to the caller AFTER the
+    // apply is durable — applyRun fires the hook post-commit by design.
+    regenerate: async ({ connectionId, appliedBy }) => {
+      await runGeneration({ manager, meta: metaStore.meta, connectionId, createdBy: appliedBy });
+    },
+  });
 
   return {
     env,
@@ -211,8 +221,21 @@ export interface StartedServer {
   close(): Promise<void>;
 }
 
+export interface StartServerOptions {
+  /**
+   * Fired after a meta relocation commits, so the host can rebuild against the
+   * new store (`cli/relocation-host.ts`). Omitted ⇒ the relocation route is not
+   * registered at all: a topology with no way to restart itself must not offer
+   * a button that half-moves an instance and then keeps serving the old store.
+   */
+  onMetaRelocated?: OnMetaRelocated | undefined;
+}
+
 /** Boot + listen. Injected ({@link CliDeps.startServer}) so tests never bind a port. */
-export type StartServer = (runtime: CliRuntime) => Promise<StartedServer>;
+export type StartServer = (
+  runtime: CliRuntime,
+  opts?: StartServerOptions,
+) => Promise<StartedServer>;
 
 /** Loopback and 0.0.0.0 are not clickable — print something a browser can open. */
 export function displayUrl(host: string, port: number): string {
@@ -231,7 +254,7 @@ export function displayUrl(host: string, port: number): string {
  * shipped artifact actually reaches (01 §4: "All four deployment modes run the
  * identical `@adminium/server` process; only the wrapper differs").
  */
-export const startServer: StartServer = async (runtime) => {
+export const startServer: StartServer = async (runtime, opts = {}) => {
   const { env } = runtime;
   const staticRoot = resolveStaticRoot();
   const { app, bridgePairingCode } = await composeServer({
@@ -243,6 +266,7 @@ export const startServer: StartServer = async (runtime) => {
     allowed: runtime.allowed,
     collectStats: runtime.collectStats,
     ...(staticRoot === undefined ? {} : { staticRoot }),
+    ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
   });
   await app.listen({ port: env.PORT, host: env.HOST });
   installSignalShutdown(app);
@@ -278,10 +302,28 @@ export const startServer: StartServer = async (runtime) => {
  */
 let signalShutdownInstalled = false;
 
+/**
+ * The app the signal handlers close — a MUTABLE holder, not the closed-over
+ * `app` argument, because a meta relocation replaces the server mid-process
+ * (`cli/relocation-host.ts`). With the argument captured, the handler installed
+ * on the first boot kept closing the FIRST app forever: after a relocation,
+ * Ctrl-C shut down an already-dead Fastify and exited 0 without ever running
+ * the live server's `onClose` hooks, so the job worker and cron scheduler were
+ * never stopped. The `once`-per-signal guard below is still right; what has to
+ * move is which app it points at.
+ */
+let shutdownTarget: AdminiumServer | null = null;
+
+/** Re-point the signal handlers after the server has been rebuilt. */
+export function setShutdownTarget(app: AdminiumServer): void {
+  shutdownTarget = app;
+}
+
 export function installSignalShutdown(
   app: AdminiumServer,
   proc: Pick<NodeJS.Process, 'once' | 'exit'> = process,
 ): void {
+  setShutdownTarget(app);
   if (signalShutdownInstalled) return;
   signalShutdownInstalled = true;
 
@@ -294,12 +336,13 @@ export function installSignalShutdown(
       return;
     }
     closing = true;
+    const live = shutdownTarget ?? app;
     // `info`, so the wizard's quiet `warn` default stays quiet on Ctrl-C.
-    app.log.info({ signal }, 'shutting down');
-    app.close().then(
+    live.log.info({ signal }, 'shutting down');
+    live.close().then(
       () => proc.exit(0),
       (error: unknown) => {
-        app.log.error({ err: error }, 'error during shutdown');
+        live.log.error({ err: error }, 'error during shutdown');
         proc.exit(1);
       },
     );

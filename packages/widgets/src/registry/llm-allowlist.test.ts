@@ -6,6 +6,7 @@ import {
   LLM_ALLOWED_TEMPLATES,
   LLM_ALLOWED_WIDGETS,
 } from './llm-allowlist.js';
+import { isCompilableShape } from '../page-config/index.js';
 import { ARCHETYPE_TEMPLATE_IDS } from './archetypes.js';
 import { widgetRegistry, widgetsByFamily } from './index.js';
 import { pageTemplateRegistry } from './page-templates.js';
@@ -96,39 +97,22 @@ describe('LLM_ALLOWED_WIDGETS', () => {
       'card-gallery',
       'chart-anomaly',
       'chart-bar',
-      'chart-boxplot',
       'chart-bullet',
-      'chart-bump',
-      'chart-candlestick',
-      'chart-chord',
-      'chart-choropleth-grid',
-      'chart-cohort-matrix',
-      'chart-correlation-matrix',
       'chart-donut',
       'chart-forecast',
       'chart-funnel',
       'chart-heat-month',
       'chart-heatmap-calendar',
-      'chart-hexbin',
       'chart-line-area',
-      'chart-marimekko',
-      'chart-multiline',
       'chart-parallel-coordinates',
       'chart-pareto',
-      'chart-radar',
       'chart-radial-bar',
       'chart-ranking-bars',
-      'chart-ridgeline',
-      'chart-sankey',
       'chart-scatter-bubble',
       'chart-slope',
       'chart-sparkline',
       'chart-stacked-bar-100',
-      'chart-stream',
-      'chart-sunburst',
-      'chart-timeline-lanes',
       'chart-treemap',
-      'chart-violin',
       'chart-waterfall',
       'chart-wordcloud',
       'gauge-arc',
@@ -153,11 +137,32 @@ describe('LLM_ALLOWED_WIDGETS', () => {
     ]);
   });
 
-  it('includes every widget in the KPI and charts families (derivation, not a hand list)', () => {
+  it('includes every BINDABLE widget in the KPI and charts families (derivation, not a hand list)', () => {
     for (const family of ['kpi', 'charts'] as const) {
       for (const definition of widgetsByFamily(family)) {
-        expect(LLM_ALLOWED_WIDGETS).toContain(definition.id);
+        const shapes = Array.isArray(definition.dataContract)
+          ? definition.dataContract
+          : [definition.dataContract];
+        // Family membership is necessary but no longer sufficient: a widget the
+        // widget-data compiler cannot feed is not suggestable, or the model
+        // would place a tile guaranteed to fail at render time.
+        expect(LLM_ALLOWED_WIDGETS.includes(definition.id)).toBe(shapes.some(isCompilableShape));
       }
+    }
+  });
+
+  it('offers only widgets some query descriptor can actually satisfy', () => {
+    // The regression this encodes: `chart-sankey` (flows), `chart-multiline`
+    // (multi-timeseries) and the matrix/distribution/ohlc/geo/hierarchy/
+    // calendar-events charts were all suggestable while the compiler could
+    // produce none of their shapes (04 §5.2 M4 scope notes).
+    for (const id of LLM_ALLOWED_WIDGETS) {
+      const contract = widgetRegistry.get(id)?.dataContract;
+      const shapes = Array.isArray(contract) ? contract : [contract];
+      expect(shapes.some((s) => s !== undefined && isCompilableShape(s))).toBe(true);
+    }
+    for (const id of ['chart-sankey', 'chart-multiline', 'chart-cohort-matrix', 'chart-violin']) {
+      expect(LLM_ALLOWED_WIDGETS).not.toContain(id);
     }
   });
 

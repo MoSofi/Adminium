@@ -1,8 +1,18 @@
 {
-  "entryJsGzBytes": 680000,
+  "entryJsGzBytes": 663000,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
   "loweredOn": {
+    "when": "2026-08-14",
+    "by": "lazy-loading the four Studio surfaces (studio/routes.tsx)",
+    "from": 680000,
+    "measured": "645.8 KiB gz (661,278 bytes), down 18.3 KiB from the 664.1 KiB this ratchet held",
+    "why": "studio/routes.tsx statically imported ConnectWizard, ConnectionsHub, StudioSettingsPage and StudioAiPage, so four admin-only screens sat in the synchronously loaded entry set for every user on every route. In-flight meta-relocation work on those screens pushed the total 151 bytes past the ratchet. The gate prints the remedy and app/router.tsx already set the precedent for it — TranslationsPageLazy was split out for this exact gate — so the four follow the same pattern rather than the baseline moving. RemapEditor and ReviewScreen were already lazy; this makes the whole Studio subtree consistent. A dead `export { ConnectWizard }` re-export went with it (both wizard tests import the module directly), which is what had kept the wizard reachable from the entry graph.",
+    "headroom": "1,722 bytes (~1.7 KiB). Wider than the 576 bytes the previous entry left, on that entry's own advice: it predicted a sub-KiB addition would go red, and one did, within the day. This is the ~1.5 KiB it recommended, taken as headroom on a much lower baseline rather than as a raise.",
+    "cost": "One extra chunk fetch the first time an admin opens a Studio route, behind the <Suspense> spinner those routes already rendered. /studio/connect is the only one on a first-run path.",
+    "supersedes": "loweredPreviously"
+  },
+  "loweredPreviously": {
     "when": "2026-08-14",
     "by": "the consolidated dependency sweep",
     "from": 682500,
@@ -15,7 +25,7 @@
     }
   },
   "raisedOnce": {
-    "status": "REVERTED 2026-08-14 by the `loweredOn` entry above. Kept for the record; no longer in effect, and its ratification question is now moot.",
+    "status": "REVERTED 2026-08-14 by `loweredPreviously` above, and now well below it. Kept for the record; no longer in effect, and its ratification question is moot.",
     "when": "2026-08-04",
     "by": "23-runtime-translations.md (runtime-editable translations)",
     "from": 680000,

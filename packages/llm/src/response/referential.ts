@@ -385,8 +385,75 @@ export function runReferentialChecks(
   checkRelations(response, index, errors, prunes);
   checkNavGroups(response, index, iconSet, errors, warnings, prunes);
   checkDashboards(response, index, ctx, errors, prunes);
+  // Last: it reads `prunes` to skip items the checks above already dropped, so a
+  // collision with a discarded table/group/dashboard is never reported.
+  checkLabelCollisions(response, warnings, prunes);
 
   return { errors, warnings, prunes };
+}
+
+/**
+ * Warn when one `en_US` label is reused across a table, a nav group and/or a
+ * dashboard (prompt v1.2, decisions 1 + 7).
+ *
+ * Each of the three becomes its own routed page or nav entry — `generate/crud.ts`
+ * titles a table's CRUD page from the table label, and
+ * `llm/apply-service.ts#upsertDashboardPage` titles a dashboard page from
+ * `label.en_US` — so a reused string ships two pages a human cannot tell apart in
+ * the nav. This is a WARNING, not an item error: dropping a whole dashboard (and
+ * its ranked widgets) over a naming clash costs far more than it fixes, and the
+ * §7.2 review diff is where a human retitles it before anything is applied.
+ *
+ * Comparison is trimmed + case-folded: "Knowledge base" and "Knowledge Base"
+ * collide in the nav exactly as identical strings do.
+ */
+function checkLabelCollisions(
+  response: LlmResponseV1,
+  warnings: LlmValidationError[],
+  prunes: ResponsePrunes,
+): void {
+  /** First claimant of a folded label, in table → group → dashboard precedence. */
+  const claimed = new Map<string, string>();
+  const fold = (label: string): string => label.trim().toLowerCase();
+
+  const claim = (raw: string | undefined, owner: string, path: string, sid?: string): void => {
+    if (raw === undefined || raw.trim() === '') return;
+    const key = fold(raw);
+    const holder = claimed.get(key);
+    if (holder === undefined) {
+      claimed.set(key, owner);
+      return;
+    }
+    warnings.push(
+      makeError(
+        'LLM_LABEL_COLLISION',
+        path,
+        `Label "${raw}" is already used by ${holder}; ${owner} reuses it. Each becomes its own page or nav entry, so both would appear under the same name. Rename one before applying.`,
+        sid === undefined ? undefined : { suggestionId: sid },
+      ),
+    );
+  };
+
+  // Tables first: their CRUD pages are always generated, so they hold the name.
+  response.tables.forEach((table, i) => {
+    if (prunes.tables.has(i)) return;
+    claim(table.label.en_US, `table "${table.table}"`, `tables[${i}].label.en_US`, tableLabelId(table.table));
+  });
+
+  response.navGroups.forEach((group, i) => {
+    if (prunes.navGroups.has(i)) return;
+    claim(group.label.en_US, `nav group "${group.id}"`, `navGroups[${i}].label.en_US`, groupSuggestionId(group.id));
+  });
+
+  response.dashboards.forEach((dashboard, i) => {
+    if (prunes.dashboards.has(i)) return;
+    claim(
+      dashboard.label.en_US,
+      `dashboard "${dashboard.id}"`,
+      `dashboards[${i}].label.en_US`,
+      undefined,
+    );
+  });
 }
 
 function checkTables(

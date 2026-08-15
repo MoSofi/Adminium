@@ -39,5 +39,6 @@ export default {
   "LLM_WIDGET_BINDING": "某个建议的小组件绑定到不匹配的列；已被移除。",
   "LLM_GROUP_INVALID": "某个导航分组无效——一个表出现在多个分组中。",
   "LLM_UNKNOWN_ICON": "建议的图标不可用；已改用默认图标。",
+  "LLM_LABEL_COLLISION": "两条建议使用了相同的名称；二者会显示为同一个标题。",
   "LLM_RUN_MISMATCH": "该响应似乎是从其他提示词生成的。"
 } as const;

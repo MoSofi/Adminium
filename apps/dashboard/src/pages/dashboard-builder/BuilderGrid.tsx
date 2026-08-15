@@ -120,17 +120,28 @@ export function BuilderGrid({
                 instanceId={item.i}
                 config={item.config}
                 data={data}
+                // The grip belongs in the frame's header slot — `grid-edit.tsx`
+                // says so ("rendered by the host inside the WidgetFrame header
+                // slot only") and `WidgetFrame` lays it out inline before the
+                // title. Absolutely positioning it at the card's top-start
+                // instead dropped it ON the title text.
+                //
+                // `pointer-events-auto!` is load-bearing: the wrapper above
+                // neutralizes the preview so a demo widget's own controls are
+                // inert, and `[&_*]:pointer-events-none` outranks a plain
+                // `pointer-events-auto` on specificity. Without the important
+                // flag the grip renders in the right place and cannot be
+                // dragged.
+                {...(ctx.editMode
+                  ? { dragGrip: <GridDragHandle className="pointer-events-auto!" /> }
+                  : {})}
               />
             </div>
-            {ctx.editMode ? (
-              <div className="absolute start-2 top-2 z-10">
-                <GridDragHandle />
-              </div>
-            ) : null}
             <div className="absolute end-2 top-2 z-10 flex items-center gap-1 rounded-lg border border-border bg-surface/95 p-0.5 shadow-sm">
               <IconButton
                 size="sm"
                 variant="ghost"
+                tooltip
                 label={t('builder.item.configure', 'Configure {name}', { name })}
                 onClick={() => onConfigure(item.i)}
               >
@@ -139,6 +150,7 @@ export function BuilderGrid({
               <IconButton
                 size="sm"
                 variant="ghost"
+                tooltip
                 label={t('builder.item.duplicate', 'Duplicate {name}', { name })}
                 onClick={() => onDuplicate(item.i)}
               >
@@ -147,6 +159,7 @@ export function BuilderGrid({
               <IconButton
                 size="sm"
                 variant="ghost"
+                tooltip
                 className="text-danger hover:text-danger"
                 label={t('builder.item.remove', 'Remove {name}', { name })}
                 onClick={() => onRemove(item.i)}

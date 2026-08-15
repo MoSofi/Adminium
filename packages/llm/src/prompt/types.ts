@@ -80,6 +80,16 @@ export interface AllowedVocabularies {
   templates: readonly string[];
   /** `LLM_ALLOWED_WIDGETS` — the curated dashboard-widget subset. */
   widgets: readonly string[];
+  /**
+   * `LLM_WIDGET_DATA_CONTRACTS` — widget id → the data shapes it accepts.
+   *
+   * Not part of the prompt (the model never chooses a shape); it reaches the
+   * APPLY planner through the same injection point so a query descriptor's
+   * `shape` can be one the target widget is able to read. Optional so an older
+   * caller still composes: `buildApplyPlan` falls back to picking the shape from
+   * the bound columns, which is what it always did.
+   */
+  widgetContracts?: Readonly<Record<string, readonly string[]>>;
 }
 
 // ─── Sampling (§4.2) ─────────────────────────────────────────────────────────

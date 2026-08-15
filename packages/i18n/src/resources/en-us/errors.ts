@@ -39,5 +39,6 @@ export default {
   "LLM_WIDGET_BINDING": "A suggested widget is bound to columns that don’t fit; it was dropped.",
   "LLM_GROUP_INVALID": "A navigation group is invalid — a table appears in more than one group.",
   "LLM_UNKNOWN_ICON": "The suggested icon isn’t available; a default icon was used instead.",
+  "LLM_LABEL_COLLISION": "Two suggestions share a name; both would appear under the same title.",
   "LLM_RUN_MISMATCH": "This response looks like it was generated from a different prompt."
 } as const;

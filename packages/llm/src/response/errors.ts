@@ -43,6 +43,7 @@ export const LLM_VALIDATION_CODES = [
   'LLM_GROUP_INVALID',
   // Warnings — nothing dropped
   'LLM_UNKNOWN_ICON',
+  'LLM_LABEL_COLLISION',
   'LLM_RUN_MISMATCH',
 ] as const;
 
@@ -76,7 +77,11 @@ const FATAL_CODES = new Set<LlmValidationCode>([
   'LLM_SCHEMA_INVALID',
 ]);
 
-const WARNING_CODES = new Set<LlmValidationCode>(['LLM_UNKNOWN_ICON', 'LLM_RUN_MISMATCH']);
+const WARNING_CODES = new Set<LlmValidationCode>([
+  'LLM_UNKNOWN_ICON',
+  'LLM_LABEL_COLLISION',
+  'LLM_RUN_MISMATCH',
+]);
 
 /** The fixed severity of a code (§7.2 "Failure class" column). */
 export function severityOf(code: LlmValidationCode): LlmValidationSeverity {

@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adminium/charts": "workspace:*",
     "@adminium/engine": "workspace:*",
     "@adminium/i18n": "workspace:*",
     "@adminium/tokens": "workspace:*",

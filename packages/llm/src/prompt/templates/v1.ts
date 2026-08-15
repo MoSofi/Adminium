@@ -11,6 +11,14 @@
  * injected allowed list and the "not listed here" disclaimer names `builder`
  * among the platform-owned surfaces. The spec table predates that registry
  * decision and awaits a sync (the internal plan is revised on a separate track).
+ *
+ * v1.1 → v1.2: labels must be DISTINCT across tables, nav groups and dashboards
+ * (decisions 1 + 7). A model that named a table, its nav group AND its dashboard
+ * "Knowledge Base" shipped two separately-routed pages with the same title —
+ * `generate/crud.ts` titles the CRUD page from the table label, and
+ * `llm/apply-service.ts#upsertDashboardPage` titles the dashboard from
+ * `label.en_US`. Nothing in v1.1 forbade the reuse, and §7's "one per major
+ * domain (aligned with your nav groups)" actively invited it.
  * Both paths (direct-API and BYO) send the identical text (§1 invariant 1) —
  * the BYO flattening joins them as `=== SYSTEM ===\n…\n\n=== USER ===\n…`
  * (see builder.ts / `flattenByo`).
@@ -107,6 +115,13 @@ Produce the following, per the response schema at the end of this message.
    columns) and a one-sentence description. Localize both into every requested
    locale. Column descriptions are optional for self-explanatory columns
    (id, created_at) — omit rather than pad.
+   Labels must be DISTINCT across the whole response: every table label,
+   nav-group label (decision 2) and dashboard label (decision 7) becomes its
+   own page or navigation entry, so reusing one string for two of them ships
+   duplicate, indistinguishable navigation. Name a table for the records it
+   holds ("Orders"), a group for the domain it spans ("Sales"), and a dashboard
+   for what it measures ("Sales Performance") — never the same words for all
+   three.
 
 2. DOMAIN GROUPING (response: navGroups)
    Group all tables into 3–7 navigation groups that reflect business domains
@@ -155,7 +170,10 @@ Produce the following, per the response schema at the end of this message.
 
 7. DASHBOARD WIDGETS (response: dashboards)
    Propose up to 6 dashboards, one per major domain (aligned with your nav
-   groups). For each, rank up to 8 widgets from ALLOWED WIDGETS below. Every
+   groups). Label each for the measurement it presents, not for the domain it
+   sits in — that name is already taken by the nav group, and a dashboard that
+   repeats it collides with the group and its tables (decision 1). For each,
+   rank up to 8 widgets from ALLOWED WIDGETS below. Every
    widget binds to real columns: metric column (numeric), dimension/group-by
    column, time column where applicable, and an aggregation
    ("count" | "sum" | "avg" | "min" | "max"). Spans on a 12-column grid:
