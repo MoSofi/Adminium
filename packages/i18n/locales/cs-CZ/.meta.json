@@ -755,6 +755,26 @@
     "srcHash": "dd4416eeb971",
     "status": "mt"
   },
+  "common.builder.discard": {
+    "status": "mt",
+    "srcHash": "fa8fc0432141"
+  },
+  "common.builder.discardBody": {
+    "status": "mt",
+    "srcHash": "c12dec975d08"
+  },
+  "common.builder.discardConfirm": {
+    "status": "mt",
+    "srcHash": "fa8fc0432141"
+  },
+  "common.builder.discardTitle": {
+    "status": "mt",
+    "srcHash": "4cd0172b9fca"
+  },
+  "common.builder.discarded": {
+    "status": "mt",
+    "srcHash": "100e628b3eed"
+  },
   "common.builder.done": {
     "srcHash": "e9b450d14bc2",
     "status": "mt"
@@ -874,6 +894,10 @@
   "common.builder.item.removed": {
     "srcHash": "9a06062c3514",
     "status": "mt"
+  },
+  "common.builder.keepEditing": {
+    "status": "mt",
+    "srcHash": "d4d9e382a983"
   },
   "common.builder.options": {
     "srcHash": "10a9e3a8239d",
