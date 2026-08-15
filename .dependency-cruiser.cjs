@@ -247,13 +247,25 @@ module.exports = {
     // Tooling config files (eslint/vitest configs, build scripts) import @adminium/config
     // by design — they are dev-time wiring, not part of the runtime import graph the
     // 01-architecture.md §2.3 matrix governs.
+    // `.storybook/` is the same category and is excluded for the same reason:
+    // packages/ui/.storybook/preview.tsx loads `../../charts/src/styles.css` so the
+    // chart stories in its glob render with their hand-written `.adm-chart-*` CSS
+    // instead of unstyled SVG. That is a story-time asset, not a package edge —
+    // packages/ui/package.json still declares only @adminium/tokens, and
+    // `ui-no-charts-widgets-engine` still governs everything under packages/ui/src/.
     // `out/` joins `dist/` for the same reason: it is BUILD OUTPUT, not source.
     // apps/desktop emits there (electron-vite's convention, 11-electron.md §3),
     // and it also receives a copy of the dashboard's bundle. Cruising it reports
     // rollup's chunk graph — 47 `no-circular` errors about hashed asset chunks
     // that no human wrote and no rule governs.
+    // `apps/server/dashboard/` is the third of these and was long missing: it is
+    // gitignored, written only by apps/server/scripts/bundle-dashboard.mjs
+    // (`prepack` / `bundle:dashboard` / the release script) and never by
+    // `turbo run build`, so it exists locally after a pack and not in CI. Cruising
+    // it reported 33 phantom `no-circular` errors over the SPA's hashed chunks,
+    // which made a local `pnpm check-deps` disagree with the CI job.
     exclude: {
-      path: '(^|/)(eslint|vitest|prettier|playwright|electron\\.vite)\\.config\\.(js|ts|mjs|cjs)$|(^|/)scripts/|(^|/)storybook-static/|(^|/)vrt/|(^|/)dist/|(^|/)out/|(^|/)playwright-report/|(^|/)test-results/',
+      path: '(^|/)(eslint|vitest|prettier|playwright|electron\\.vite)\\.config\\.(js|ts|mjs|cjs)$|(^|/)scripts/|(^|/)\\.storybook/|(^|/)storybook-static/|(^|/)vrt/|(^|/)dist/|(^|/)out/|^apps/server/dashboard/|(^|/)playwright-report/|(^|/)test-results/',
     },
     moduleSystems: ['es6', 'cjs'],
     tsPreCompilationDeps: true,
