@@ -162,7 +162,7 @@ describe('createRunService', () => {
     expect(run.mode).toBe('byo');
     expect(run.provider).toBeNull();
     expect(run.model).toBeNull();
-    expect(run.promptVersion).toBe('adminium.prompt/v1.1');
+    expect(run.promptVersion).toBe('adminium.prompt/v1.2');
     expect(run.promptHash).toMatch(/^[0-9a-f]{64}$/);
     expect(run.promptText).toContain('=== SYSTEM ===');
     expect(run.promptText).toContain('=== USER ===');

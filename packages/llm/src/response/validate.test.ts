@@ -517,6 +517,75 @@ describe('warnings — non-blocking notices', () => {
     expect(result.response?.tables[0]?.icon).toBe('table');
   });
 
+  it('warns when a dashboard label repeats a table label, naming both holders', () => {
+    // The real-world shape this guards: a model labelled the table, its nav
+    // group AND its dashboard "Knowledge Base", and the CRUD page
+    // (`generate/crud.ts`, titled from the table label) and the dashboard page
+    // (`upsertDashboardPage`, titled from `label.en_US`) shipped under the same
+    // name on two different routes.
+    const response = JSON.stringify({
+      schema_version: 'adminium.llm/v1',
+      tables: [
+        {
+          table: 'public.orders',
+          confidence: 0.9,
+          label: { en_US: 'Sales' },
+          description: { en_US: 'Customer orders.' },
+          icon: 'shopping-cart',
+          displayColumn: null,
+          naturalKey: null,
+        },
+      ],
+      navGroups: [
+        { id: 'sales', label: { en_US: 'Sales' }, icon: 'shopping-cart', order: 1, tables: ['public.orders'], confidence: 0.9 },
+      ],
+      dashboards: [
+        { id: 'sales-overview', domain: 'sales', label: { en_US: 'sales  ' }, order: 1, tables: ['public.orders'], widgets: [] },
+      ],
+    });
+    const result = validateResponse(response, corpusCtx);
+
+    // Nothing is dropped — a naming clash must not cost a whole dashboard.
+    expect(result.errors).toEqual([]);
+    expect(result.response?.dashboards).toHaveLength(1);
+    expect(result.response?.navGroups).toHaveLength(1);
+
+    const collisions = result.warnings.filter((w) => w.code === 'LLM_LABEL_COLLISION');
+    expect(collisions.map((w) => w.path)).toEqual([
+      'navGroups[0].label.en_US',
+      'dashboards[0].label.en_US',
+    ]);
+    // The table holds the name (its CRUD page is always generated), so both
+    // later claimants are reported against it.
+    expect(collisions[0]?.message).toContain('table "public.orders"');
+    // Folded comparison: "sales  " collides with "Sales".
+    expect(collisions[1]?.message).toContain('table "public.orders"');
+  });
+
+  it('does not report a collision against a table the checks already dropped', () => {
+    const response = JSON.stringify({
+      schema_version: 'adminium.llm/v1',
+      tables: [
+        {
+          table: 'public.not_a_real_table',
+          confidence: 0.9,
+          label: { en_US: 'Sales' },
+          description: { en_US: 'Hallucinated.' },
+          icon: 'shopping-cart',
+          displayColumn: null,
+          naturalKey: null,
+        },
+      ],
+      navGroups: [
+        { id: 'sales', label: { en_US: 'Sales' }, icon: 'shopping-cart', order: 1, tables: ['public.orders'], confidence: 0.9 },
+      ],
+    });
+    const result = validateResponse(response, corpusCtx);
+
+    expect(result.errors.some((e) => e.code === 'LLM_UNKNOWN_TABLE')).toBe(true);
+    expect(result.warnings.some((w) => w.code === 'LLM_LABEL_COLLISION')).toBe(false);
+  });
+
   it('warns when the response run_id differs from the expected run id', () => {
     const response = JSON.stringify({
       schema_version: 'adminium.llm/v1',

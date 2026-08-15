@@ -53,11 +53,49 @@ if (check) {
     process.exit(1);
   }
   const parsed = JSON.parse(await readFile(OUT_FILE, 'utf8'));
+
+  // STALENESS, not just well-formedness. The snapshot is written at prepack and
+  // read FIRST by src/cli/allowlist.ts, so in a dev checkout it silently
+  // outranks a freshly built widgets dist. That is not hypothetical: a contract
+  // corrected in the registry but not re-bundled here made the apply planner
+  // bind a widget from the stale contract and re-shape a working dashboard
+  // tile. When the dist is present, the snapshot must equal it.
+  if (existsSync(source)) {
+    const live = await import(pathToFileURL(source).href);
+    const drifted = [];
+    if (JSON.stringify(live.LLM_ALLOWED_TEMPLATES) !== JSON.stringify(parsed.LLM_ALLOWED_TEMPLATES)) {
+      drifted.push('LLM_ALLOWED_TEMPLATES');
+    }
+    if (JSON.stringify(live.LLM_ALLOWED_WIDGETS) !== JSON.stringify(parsed.LLM_ALLOWED_WIDGETS)) {
+      drifted.push('LLM_ALLOWED_WIDGETS');
+    }
+    if (
+      JSON.stringify(live.LLM_WIDGET_DATA_CONTRACTS) !==
+      JSON.stringify(parsed.LLM_WIDGET_DATA_CONTRACTS)
+    ) {
+      drifted.push('LLM_WIDGET_DATA_CONTRACTS');
+    }
+    if (drifted.length > 0) {
+      console.error(
+        `${OUT_FILE} is STALE — ${drifted.join(', ')} differ(s) from the built registry.\n` +
+          'Re-bundle: node apps/server/scripts/bundle-allowlists.mjs',
+      );
+      process.exit(1);
+    }
+  }
+
   const ok =
     Array.isArray(parsed.LLM_ALLOWED_TEMPLATES) &&
     parsed.LLM_ALLOWED_TEMPLATES.length > 0 &&
     Array.isArray(parsed.LLM_ALLOWED_WIDGETS) &&
-    parsed.LLM_ALLOWED_WIDGETS.length > 0;
+    parsed.LLM_ALLOWED_WIDGETS.length > 0 &&
+    // Every allow-listed widget must carry its data contract, or the apply
+    // planner cannot pick a binding shape the widget can read.
+    parsed.LLM_WIDGET_DATA_CONTRACTS !== null &&
+    typeof parsed.LLM_WIDGET_DATA_CONTRACTS === 'object' &&
+    parsed.LLM_ALLOWED_WIDGETS.every((id) =>
+      Array.isArray(parsed.LLM_WIDGET_DATA_CONTRACTS[id]),
+    );
   if (!ok) {
     console.error(`${OUT_FILE} is present but carries no allow-lists.`);
     process.exit(1);
@@ -83,16 +121,29 @@ if (!existsSync(source)) {
 const mod = await import(pathToFileURL(source).href);
 const templates = mod.LLM_ALLOWED_TEMPLATES;
 const widgets = mod.LLM_ALLOWED_WIDGETS;
+const widgetContracts = mod.LLM_WIDGET_DATA_CONTRACTS;
 
 if (!Array.isArray(templates) || !Array.isArray(widgets)) {
   console.error(`${source} does not export LLM_ALLOWED_TEMPLATES / LLM_ALLOWED_WIDGETS.`);
+  process.exit(1);
+}
+if (widgetContracts === null || typeof widgetContracts !== 'object') {
+  console.error(`${source} does not export LLM_WIDGET_DATA_CONTRACTS.`);
   process.exit(1);
 }
 
 await mkdir(OUT_DIR, { recursive: true });
 await writeFile(
   OUT_FILE,
-  `${JSON.stringify({ LLM_ALLOWED_TEMPLATES: templates, LLM_ALLOWED_WIDGETS: widgets }, null, 2)}\n`,
+  `${JSON.stringify(
+    {
+      LLM_ALLOWED_TEMPLATES: templates,
+      LLM_ALLOWED_WIDGETS: widgets,
+      LLM_WIDGET_DATA_CONTRACTS: widgetContracts,
+    },
+    null,
+    2,
+  )}\n`,
   'utf8',
 );
 console.log(

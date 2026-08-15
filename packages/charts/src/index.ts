@@ -54,6 +54,7 @@ export type { SparkBar, SparkLineLayout } from './geometry/sparkline.js';
 export { bins, extent, niceTicks, quantileSorted, tickStep } from './utils/stats.js';
 export type { Bin } from './utils/stats.js';
 export { formatCompact, formatShortDate } from './utils/format.js';
+export { estimateTextWidth, truncateToWidth } from './utils/text.js';
 
 // Deterministic seeded demo data (§7.7)
 export { fnv1a, mulberry32 } from './demo/mulberry32.js';

@@ -66,7 +66,16 @@ export const rankedEntityListDefinition: WidgetDefinition = defineWidget({
   family: 'tables',
   component: lazy(() => import('./tables-tail-components.js').then((m) => ({ default: m.RankedEntityListWidget }))),
   configSchema: rankedEntityListConfigSchema,
-  dataContract: 'record-list',
+  // Genuinely reads BOTH: `rankedEntitiesOf` projects each row's `label` + `value`
+  // through `tailRowsOf`, which unwraps `{items}` as readily as `{rows}`/`{data}`
+  // — and `{items, total}` IS the categorical envelope. Declaring `record-list`
+  // alone understated it, and once the apply planner started binding from the
+  // contract that omission would have re-bound a working "top N by count" tile
+  // ("Busiest agents": group by assignee, count) as a list of raw recent rows.
+  // Sibling `record-list` tiles are NOT lenient this way and must not copy this:
+  // `grouped-summary-table` reads `data`/`columns`, so a categorical payload
+  // renders it empty.
+  dataContract: ['record-list', 'categorical'],
   sizing: { minW: 3, minH: 4, defaultW: 4, defaultH: 6 }, // annex min 3×2 (no default given)
   placement: 'grid',
   skeleton: 'list',

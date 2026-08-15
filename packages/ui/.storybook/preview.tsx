@@ -15,6 +15,12 @@ import { ThemeProvider } from '../src/theme/index.js';
 
 import '@adminium/tokens/index.css';
 import '../src/styles/storybook.css';
+// The charts + widgets stories in the glob above render the chart primitives,
+// whose `.adm-chart-*` / `.adm-donut-*` classes are hand-written CSS rather than
+// Tailwind utilities — without this every chart story renders with unstyled SVG
+// text and an unstyled donut legend. Reached by relative path for the same
+// reason the stories are: `@adminium/ui` does not depend on `@adminium/charts`.
+import '../../charts/src/styles.css';
 
 /** Signals the VRT runner that mount effects have settled (03 §10). */
 function VrtReady({ children }: { children: ReactNode }) {

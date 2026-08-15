@@ -39,5 +39,6 @@ export default {
   "LLM_WIDGET_BINDING": "Un widget suggéré est lié à des colonnes inadaptées ; il a été écarté.",
   "LLM_GROUP_INVALID": "Un groupe de navigation est invalide — une table apparaît dans plusieurs groupes.",
   "LLM_UNKNOWN_ICON": "L’icône suggérée n’est pas disponible ; une icône par défaut a été utilisée.",
+  "LLM_LABEL_COLLISION": "Deux suggestions portent le même nom ; toutes deux apparaîtraient sous le même titre.",
   "LLM_RUN_MISMATCH": "Cette réponse semble avoir été générée à partir d’une autre invite."
 } as const;

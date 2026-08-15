@@ -964,7 +964,20 @@ export default {
       "testFailed": "Connection failed.",
       "v1Note": {
         "title": "About this install",
-        "body": "This server chose its meta store at first boot. This step validates that your choice is compatible with this connection and records it — the server enforces the same rule independently (409 META_PLACEMENT_INVALID). Moving an existing meta store is an ops task (M10)."
+        "body": "This server already keeps its own tables in a configured database, and this step does not move them. It validates that your choice is compatible with this connection — the server enforces the same rule independently (409 META_PLACEMENT_INVALID)."
+      },
+      "move": {
+        "title": "Moving Adminium’s tables",
+        "copying": "Moving Adminium’s tables…",
+        "restarting": "Restarting…",
+        "copyingBody": "Copying every adminium_ table into the new database. Your source data is not touched, and nothing is switched over until the copy is verified.",
+        "restartingBody": "The copy is done. Adminium is restarting onto the new database — this page will continue by itself in a few seconds.",
+        "failed": "Could not move Adminium’s tables — retry.",
+        "timeout": "Adminium moved its tables but has not come back yet. Your data is safe in the new database — reload this page in a moment."
+      },
+      "willMove": {
+        "title": "This will move Adminium’s tables",
+        "body": "Adminium is currently using its built-in SQLite store. Continue copies that store into the database you picked and restarts onto it — accounts, pages and settings come with it, so you stay signed in."
       }
     },
     "intent": {
@@ -1262,7 +1275,13 @@ export default {
     "saveVersionTitle": "Save a version",
     "saveVersionBody": "Snapshots the current document. Restore it any time from Versions.",
     "versionName": "Version name",
-    "versionNamePlaceholder": "e.g. Before Q3 rates change"
+    "versionNamePlaceholder": "e.g. Before Q3 rates change",
+    "discard": "Discard changes",
+    "discardTitle": "Discard your changes?",
+    "discardBody": "The dashboard goes back to how it looked when you opened the editor. Your data isn’t affected.",
+    "discardConfirm": "Discard changes",
+    "keepEditing": "Keep editing",
+    "discarded": "Changes discarded."
   },
   "setup": {
     "title": "Set up Adminium",

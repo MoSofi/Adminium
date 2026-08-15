@@ -39,5 +39,6 @@ export default {
   "LLM_WIDGET_BINDING": "Navržený widget je navázán na nevhodné sloupce; byl vyřazen.",
   "LLM_GROUP_INVALID": "Navigační skupina je neplatná — tabulka se objevuje ve více než jedné skupině.",
   "LLM_UNKNOWN_ICON": "Navržená ikona není k dispozici; místo ní byla použita výchozí.",
+  "LLM_LABEL_COLLISION": "Dva návrhy sdílejí stejný název; oba by se zobrazily pod stejným nadpisem.",
   "LLM_RUN_MISMATCH": "Tato odpověď vypadá, že byla vygenerována z jiného promptu."
 } as const;

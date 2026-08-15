@@ -47,6 +47,7 @@ import { maskDsn, MetaPlacementError } from '../../connections/dsn.js';
 import { embeddedMetaWarning, metaEngineFromUrl, metaUrlCryptoFromSecret } from '../../meta/store.js';
 import { boolFlag, numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
+import { createRelocationHost } from '../relocation-host.js';
 import { CliError, EXIT_OK } from '../exit.js';
 import type { CliIo, SelectChoice, Style } from '../io.js';
 import { createStyle, supportsColor } from '../io.js';
@@ -468,7 +469,19 @@ export const initCommand: Command = {
       );
 
       if (surface === 'browser') {
-        const server = await deps.startServer(runtime);
+        // Browser mode is the ONLY path where the meta question is still open
+        // once a store exists — the terminal path settled it at step 0, above.
+        // So this is where the relocation host earns its keep: the Studio's
+        // meta step can now actually move the store, and this is what restarts
+        // the server onto it. See `cli/relocation-host.ts`.
+        const relocationHost = createRelocationHost({
+          env,
+          deps,
+          log: (message) => {
+            io.note(message);
+          },
+        });
+        const server = await relocationHost.start(runtime);
         started = true;
         await openAndClose({
           io,

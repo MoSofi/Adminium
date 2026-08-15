@@ -504,3 +504,156 @@ describe('full walk: test → include → meta → generate (read-only source)',
     expect(continueButton()).toHaveProperty('disabled', true);
   });
 });
+
+/**
+ * The meta step used to record an answer and do nothing with it — the Studio
+ * runs on a server that already has a meta store, so "same database" was a
+ * choice the browser path could not carry out. It can now: `GET
+ * /meta/placement` says whether there is anything to move, and Continue does
+ * the moving.
+ *
+ * The two directions are both tested, because the OLD behaviour is still
+ * correct in one of them: an instance already on a configured store must not
+ * try to relocate, and the wizard must not stall waiting for a restart that
+ * will never happen.
+ */
+describe('meta step — carrying out the placement choice', () => {
+  const walkToMetaStep = async () => {
+    await userEvent.click(continueButton());
+    await userEvent.type(screen.getByLabelText(/Connection name/), 'Prod');
+    await userEvent.type(
+      screen.getByPlaceholderText('postgres://user:password@host:5432/database'),
+      'postgres://ava@db.acme.io:5432/prod',
+    );
+    await userEvent.click(continueButton());
+    await screen.findByText('Ready');
+    await waitFor(() => expect(continueButton()).toHaveProperty('disabled', false));
+    await userEvent.click(continueButton());
+    await screen.findByText('public.customers');
+    await userEvent.click(continueButton());
+    await screen.findByText('Where should Adminium keep its own tables?');
+  };
+
+  it('moves the store, then advances once the server is back', async () => {
+    const { calls } = scriptFetch({
+      'GET /api/v1/meta/placement': () =>
+        jsonResponse(200, {
+          data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true, reason: null },
+        }),
+      'POST /api/v1/meta/relocate': () =>
+        jsonResponse(200, {
+          data: { engine: 'postgres', rowsCopied: 41, restarting: true, healthPath: '/api/v1/healthz' },
+        }),
+      'GET /api/v1/healthz': () => jsonResponse(200, { status: 'ok' }),
+    });
+    renderWizard();
+    await walkToMetaStep();
+
+    // The step says what Continue is about to do — the old copy claimed the
+    // opposite ("moving an existing meta store is an ops task").
+    expect(screen.getByText(/This will move Adminium’s tables/)).toBeDefined();
+
+    await userEvent.click(screen.getByRole('radio', { name: /Separate database/ }));
+    await userEvent.type(
+      screen.getByLabelText(/Meta database connection string/),
+      'postgres://adminium@meta.acme.io:5432/adminium_meta',
+    );
+    // Re-scripting swaps the global fetch, so the RETURNED recorder is the one
+    // that sees everything from here on — the outer `calls` stops being
+    // appended to the moment this runs.
+    const { calls: after } = scriptFetch({
+      'POST /api/v1/connections/test': () =>
+        jsonResponse(200, {
+          ok: true,
+          latencyMs: 9,
+          serverVersion: '16.4',
+          readOnly: false,
+          privileges: { canReadSchema: true, canRead: true, canWrite: true, canDDL: true },
+          error: null,
+        }),
+      'GET /api/v1/meta/placement': () =>
+        jsonResponse(200, {
+          data: { source: 'embedded', engine: 'sqlite', embedded: true, canRelocate: true, reason: null },
+        }),
+      'POST /api/v1/meta/relocate': () =>
+        jsonResponse(200, {
+          data: { engine: 'postgres', rowsCopied: 41, restarting: true, healthPath: '/api/v1/healthz' },
+        }),
+      'GET /api/v1/healthz': () => jsonResponse(200, { status: 'ok' }),
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Test connection' }));
+    await screen.findByText(/Compatible/);
+
+    await userEvent.click(continueButton());
+
+    // The DSN the user typed is what gets moved to.
+    await waitFor(() => {
+      const relocate = after.find((call) => call.url === '/api/v1/meta/relocate');
+      expect(relocate?.body).toEqual({ dsn: 'postgres://adminium@meta.acme.io:5432/adminium_meta' });
+    });
+    // …and the wizard only moves on after the server answers again.
+    await waitFor(() => {
+      expect(after.some((call) => call.url === '/api/v1/healthz')).toBe(true);
+    });
+    // Asserted as "left the meta step" rather than on the next step's contents,
+    // which is what this test actually cares about.
+    await waitFor(() => {
+      expect(screen.queryByText('Where should Adminium keep its own tables?')).toBeNull();
+    });
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it('does not try to move a store that is already where it belongs', async () => {
+    const { calls } = scriptFetch({
+      // A WRITABLE source, so the same-db card is selectable at all — the
+      // default script's role is read-only, which disables it for the §3.1
+      // reason the other tests cover.
+      //
+      // BOTH endpoints, because `TestStep` patches `readOnly` twice: once from
+      // the probe, then again from the CREATED connection, which wins. Overriding
+      // only the probe leaves the card disabled and the step unable to advance.
+      'POST /api/v1/connections/test': () =>
+        jsonResponse(200, {
+          ok: true,
+          latencyMs: 12,
+          serverVersion: '16.4',
+          readOnly: false,
+          privileges: { canReadSchema: true, canRead: true, canWrite: true, canDDL: true },
+          error: null,
+        }),
+      'POST /api/v1/connections': () =>
+        jsonResponse(201, {
+          id: 'conn_1',
+          name: 'Prod',
+          engine: 'postgres',
+          sourceKind: 'dsn',
+          dsnMasked: 'postgres://ava@db.acme.io:5432/prod',
+          readOnly: false,
+          status: 'connected',
+          lastTestedAt: 1,
+          lastLatencyMs: 12,
+          lastError: null,
+          snapshot: null,
+          createdAt: 1,
+          updatedAt: 1,
+        }),
+      'GET /api/v1/meta/placement': () =>
+        jsonResponse(200, {
+          data: { source: 'bootstrap', engine: 'postgres', embedded: false, canRelocate: true, reason: null },
+        }),
+    });
+    renderWizard();
+    await walkToMetaStep();
+
+    expect(screen.queryByText(/This will move Adminium’s tables/)).toBeNull();
+    expect(screen.getByText(/already keeps its own tables in a configured database/)).toBeDefined();
+
+    await userEvent.click(screen.getByRole('radio', { name: /Same database/ }));
+    await userEvent.click(continueButton());
+
+    await waitFor(() => {
+      expect(screen.queryByText('Where should Adminium keep its own tables?')).toBeNull();
+    });
+    expect(calls.some((call) => call.url === '/api/v1/meta/relocate')).toBe(false);
+  });
+});

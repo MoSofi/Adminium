@@ -964,7 +964,20 @@ export default {
       "testFailed": "Échec de la connexion.",
       "v1Note": {
         "title": "À propos de cette installation",
-        "body": "Ce serveur a choisi son magasin méta au premier démarrage. Cette étape vérifie que votre choix est compatible avec cette connexion et l’enregistre — le serveur applique la même règle indépendamment (409 META_PLACEMENT_INVALID). Déplacer un magasin méta existant est une tâche d’exploitation (M10)."
+        "body": "Ce serveur garde déjà ses propres tables dans une base configurée, et cette étape ne les déplace pas. Elle vérifie que votre choix est compatible avec cette connexion — le serveur applique la même règle indépendamment (409 META_PLACEMENT_INVALID)."
+      },
+      "move": {
+        "title": "Déplacement des tables d’Adminium",
+        "copying": "Déplacement des tables d’Adminium…",
+        "restarting": "Redémarrage…",
+        "copyingBody": "Copie de chaque table adminium_ vers la nouvelle base. Vos données sources ne sont pas touchées, et rien n’est basculé tant que la copie n’est pas vérifiée.",
+        "restartingBody": "La copie est terminée. Adminium redémarre sur la nouvelle base — cette page continuera d’elle-même dans quelques secondes.",
+        "failed": "Impossible de déplacer les tables d’Adminium — réessayez.",
+        "timeout": "Adminium a déplacé ses tables mais n’est pas encore revenu. Vos données sont en sécurité dans la nouvelle base — rechargez cette page dans un instant."
+      },
+      "willMove": {
+        "title": "Cette étape va déplacer les tables d’Adminium",
+        "body": "Adminium utilise actuellement son magasin SQLite intégré. « Continuer » copie ce magasin dans la base choisie et redémarre dessus — comptes, pages et paramètres suivent, vous restez connecté."
       }
     },
     "intent": {
@@ -1262,7 +1275,13 @@ export default {
     "saveVersionTitle": "Enregistrer une version",
     "saveVersionBody": "Capture l’état actuel du document. Restaurez-le à tout moment depuis Versions.",
     "versionName": "Nom de la version",
-    "versionNamePlaceholder": "p. ex. Avant le changement des tarifs T3"
+    "versionNamePlaceholder": "p. ex. Avant le changement des tarifs T3",
+    "discard": "Abandonner les modifications",
+    "discardTitle": "Abandonner vos modifications ?",
+    "discardBody": "Le tableau de bord revient à son état à l’ouverture de l’éditeur. Vos données ne sont pas affectées.",
+    "discardConfirm": "Abandonner les modifications",
+    "keepEditing": "Continuer l’édition",
+    "discarded": "Modifications abandonnées."
   },
   "setup": {
     "title": "Configurer Adminium",
