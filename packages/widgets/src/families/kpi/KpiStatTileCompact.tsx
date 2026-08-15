@@ -29,7 +29,9 @@ export function KpiStatTileCompact({ config, data }: WidgetProps<KpiStatTileComp
   const opts = formatOptionsOf(config);
   const value = formatMetricValue(metric.value, config.metricFormat, opts);
   const delta = computeDelta(metric, config.deltaMode, config.metricFormat, opts);
-  const label = config.metricLabel ?? config.title;
+  // NOT `?? config.title` — see KpiStatCard: `placement: 'grid'` means the frame
+  // header already shows the title, so the fallback only ever duplicated it.
+  const label = config.metricLabel;
   const spark = config.showSparkline ? metric.spark : undefined;
 
   return (

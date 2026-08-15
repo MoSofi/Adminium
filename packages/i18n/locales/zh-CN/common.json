@@ -956,7 +956,20 @@
       "testFailed": "连接失败。",
       "v1Note": {
         "title": "关于此安装",
-        "body": "此服务器在首次启动时选择了元数据存储。此步骤验证你的选择与此连接兼容并记录下来——服务器会独立执行同一规则（409 META_PLACEMENT_INVALID）。迁移现有元数据存储属于运维任务（M10）。"
+        "body": "此服务器已将自有数据表保存在配置好的数据库中，本步骤不会迁移它们。它只校验你的选择是否与此连接兼容——服务器会独立执行同一规则（409 META_PLACEMENT_INVALID）。"
+      },
+      "move": {
+        "title": "正在迁移 Adminium 的数据表",
+        "copying": "正在迁移 Adminium 的数据表…",
+        "restarting": "正在重启…",
+        "copyingBody": "正在将每张 adminium_ 表复制到新数据库。你的源数据不会被改动，只有在校验通过后才会切换。",
+        "restartingBody": "复制已完成。Adminium 正在新数据库上重启——本页面将在几秒后自动继续。",
+        "failed": "无法迁移 Adminium 的数据表——请重试。",
+        "timeout": "Adminium 已迁移数据表，但尚未恢复。你的数据已安全存放在新数据库中——请稍后刷新本页面。"
+      },
+      "willMove": {
+        "title": "此操作将迁移 Adminium 的数据表",
+        "body": "Adminium 目前使用内置的 SQLite 存储。点击“继续”会把该存储复制到你选择的数据库并在其上重启——账号、页面和设置都会一起迁移，你将保持登录状态。"
       }
     },
     "intent": {
@@ -1254,7 +1267,13 @@
     "saveVersionTitle": "保存版本",
     "saveVersionBody": "为当前文档创建快照。可随时从“版本”中恢复。",
     "versionName": "版本名称",
-    "versionNamePlaceholder": "例如：Q3 费率调整前"
+    "versionNamePlaceholder": "例如：Q3 费率调整前",
+    "discard": "放弃更改",
+    "discardTitle": "放弃你的更改？",
+    "discardBody": "仪表盘将恢复到你打开编辑器时的样子。你的数据不受影响。",
+    "discardConfirm": "放弃更改",
+    "keepEditing": "继续编辑",
+    "discarded": "更改已放弃。"
   },
   "setup": {
     "title": "设置 Adminium",

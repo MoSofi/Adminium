@@ -66,6 +66,7 @@ export function allowlistCandidates(moduleUrl: string = import.meta.url): string
 interface AllowlistModule {
   LLM_ALLOWED_TEMPLATES?: readonly string[];
   LLM_ALLOWED_WIDGETS?: readonly string[];
+  LLM_WIDGET_DATA_CONTRACTS?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Read one candidate; `null` when it is absent or does not carry both lists. */
@@ -85,7 +86,13 @@ async function readCandidate(candidate: string): Promise<AllowedVocabularies | n
   const templates = mod.LLM_ALLOWED_TEMPLATES;
   const widgets = mod.LLM_ALLOWED_WIDGETS;
   if (templates === undefined || widgets === undefined) return null;
-  return { templates, widgets };
+  // Optional on purpose: a snapshot bundled before widget contracts existed
+  // still satisfies this loader, and the apply planner degrades to choosing a
+  // binding shape from the bound columns rather than refusing to load.
+  const widgetContracts = mod.LLM_WIDGET_DATA_CONTRACTS;
+  return widgetContracts === undefined
+    ? { templates, widgets }
+    : { templates, widgets, widgetContracts };
 }
 
 /**

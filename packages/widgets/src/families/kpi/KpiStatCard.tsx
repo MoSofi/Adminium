@@ -53,7 +53,12 @@ export function KpiStatCard({ config, data }: WidgetProps<KpiStatCardConfig>) {
   const opts = formatOptionsOf(config);
   const value = formatMetricValue(metric.value, config.metricFormat, opts);
   const delta = computeDelta(metric, config.deltaMode, config.metricFormat, opts);
-  const label = config.metricLabel ?? config.title;
+  // NOT `?? config.title`: this widget is `placement: 'grid'`, so WidgetHost is
+  // never frameless for it and WidgetFrame has already rendered `config.title`
+  // as the card header. Falling back printed the same string twice — once in the
+  // header, once here. `metricLabel` is the metric's own name ("Revenue (30d)"
+  // under a "Revenue" header); with none given the header alone says it.
+  const label = config.metricLabel;
   const Icon = ICONS[config.iconName];
   const spark = config.showSparkline ? metric.spark : undefined;
 

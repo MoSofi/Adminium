@@ -964,7 +964,20 @@ export default {
       "testFailed": "Připojení se nezdařilo.",
       "v1Note": {
         "title": "O této instalaci",
-        "body": "Tento server si zvolil své meta úložiště při prvním spuštění. Tento krok ověří, že je vaše volba kompatibilní s tímto připojením, a zaznamená ji — server vynucuje stejné pravidlo nezávisle (409 META_PLACEMENT_INVALID). Přesun existujícího meta úložiště je provozní úkol (M10)."
+        "body": "Tento server už drží své vlastní tabulky v nakonfigurované databázi a tento krok je nepřesouvá. Ověřuje, že je vaše volba kompatibilní s tímto připojením — server vynucuje stejné pravidlo nezávisle (409 META_PLACEMENT_INVALID)."
+      },
+      "move": {
+        "title": "Přesouvání tabulek Adminia",
+        "copying": "Přesouvání tabulek Adminia…",
+        "restarting": "Restartování…",
+        "copyingBody": "Kopírují se všechny tabulky adminium_ do nové databáze. Vašich zdrojových dat se to nedotkne a k přepnutí dojde až po ověření kopie.",
+        "restartingBody": "Kopie je hotová. Adminium se restartuje na novou databázi — tato stránka bude za pár sekund pokračovat sama.",
+        "failed": "Tabulky Adminia se nepodařilo přesunout — zkuste to znovu.",
+        "timeout": "Adminium své tabulky přesunulo, ale zatím se nevrátilo. Vaše data jsou v nové databázi v bezpečí — za chvíli stránku načtěte znovu."
+      },
+      "willMove": {
+        "title": "Tento krok přesune tabulky Adminia",
+        "body": "Adminium nyní používá vestavěné úložiště SQLite. Tlačítko Pokračovat zkopíruje toto úložiště do zvolené databáze a restartuje se na ni — účty, stránky i nastavení jdou s ním, takže zůstanete přihlášeni."
       }
     },
     "intent": {
@@ -1262,7 +1275,13 @@ export default {
     "saveVersionTitle": "Uložit verzi",
     "saveVersionBody": "Vytvoří snímek aktuálního dokumentu. Kdykoli jej obnovíte z Verzí.",
     "versionName": "Název verze",
-    "versionNamePlaceholder": "např. Před změnou sazeb za Q3"
+    "versionNamePlaceholder": "např. Před změnou sazeb za Q3",
+    "discard": "Zahodit změny",
+    "discardTitle": "Zahodit vaše změny?",
+    "discardBody": "Nástěnka se vrátí do stavu, v jakém byla při otevření editoru. Vaše data zůstanou beze změny.",
+    "discardConfirm": "Zahodit změny",
+    "keepEditing": "Pokračovat v úpravách",
+    "discarded": "Změny byly zahozeny."
   },
   "setup": {
     "title": "Nastavení Adminia",

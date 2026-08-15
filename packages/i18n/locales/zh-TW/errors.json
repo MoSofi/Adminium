@@ -31,5 +31,6 @@
   "LLM_WIDGET_BINDING": "某個建議的小工具繫結到不相符的欄；已被移除。",
   "LLM_GROUP_INVALID": "某個導覽群組無效——一個資料表出現在多個群組中。",
   "LLM_UNKNOWN_ICON": "建議的圖示無法使用；已改用預設圖示。",
+  "LLM_LABEL_COLLISION": "兩則建議使用了相同的名稱；兩者會顯示為同一個標題。",
   "LLM_RUN_MISMATCH": "此回應似乎是從其他提示詞產生的。"
 }

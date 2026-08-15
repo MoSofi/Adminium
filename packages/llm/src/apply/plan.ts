@@ -81,8 +81,16 @@ export interface PlannedLayoutItem {
   w: number;
   /** Height in half-row (40px) units — KPI 3, everything else 8. */
   h: number;
-  config: { title: string; binding: Record<string, unknown> };
+  config: {
+    title: string;
+    binding: Record<string, unknown>;
+    /** Value formatting; omitted where the widget's own default already fits. */
+    metricFormat?: MetricFormat;
+  };
 }
+
+/** The subset of the annex §1 `format` vocabulary this planner can infer. */
+type MetricFormat = 'plain' | 'compact';
 
 /** A planned dashboard grid (`config.layout`), matching `pageLayoutSchema`. */
 export interface PlannedLayout {
@@ -177,11 +185,26 @@ export interface ApplyPlan {
   excludedUserLocked: string[];
 }
 
+/**
+ * Widget id → the data shapes that widget accepts. Supply
+ * `LLM_WIDGET_DATA_CONTRACTS` from `@adminium/widgets`; it is injected as plain
+ * data so this package never depends on the render layer (01 §2.3), exactly as
+ * `allowedWidgets` is injected into the referential checks.
+ */
+export type WidgetContracts = Readonly<Record<string, readonly string[]>>;
+
 export interface ApplyPlanOptions {
   /** The connection these writes target; stamped into query-descriptor bindings. */
   connectionId: string;
   /** The run this plan derives from — provenance recorded on the plan. */
   llmRunId?: string;
+  /**
+   * Each widget's declared `dataContract`, so a binding's `shape` is one the
+   * widget can actually read. Omitting it falls back to choosing the shape from
+   * the bound columns alone, which mismatches any widget whose contract
+   * disagrees — see {@link buildBinding}.
+   */
+  widgetContracts?: WidgetContracts;
 }
 
 // ─── Span → grid heuristic (§5 / 04-widget-registry.md §6.1) ─────────────────
@@ -198,6 +221,42 @@ function clampSpan(span: number): number {
 
 function widgetHeight(width: number): number {
   return width <= KPI_HEIGHT ? KPI_HEIGHT : CHART_HEIGHT;
+}
+
+// ─── Metric formatting ───────────────────────────────────────────────────────
+
+/**
+ * Choose a value format for one bound widget from its aggregation alone.
+ *
+ * The kpi family defaults `metricFormat` to `'plain'` while the charts family
+ * defaults it to `'compact'`, so an un-configured KPI card rendered a summed
+ * `views` column as "3,920,852" beside a ranking chart that wrote the same
+ * magnitude as "3.9M". Counts and sums are unbounded row-scale quantities and
+ * read better compacted; averages, minima and maxima sit on the scale of a
+ * single row's value and must stay exact ("4.2", not "4").
+ *
+ * Only `plain` / `compact` are inferable here. The planner sees a widget
+ * suggestion, not the schema snapshot, so it cannot tell a currency column from
+ * a plain integer, and it deliberately does NOT guess `'percent'`: that format
+ * treats its input as a fraction (0.74 → "74%"), so applying it to a 0–100
+ * column such as `helpful_percent` would render 70.72 as "7,072%". A column
+ * holding whole percentage points has no correct representation in the current
+ * vocabulary — it needs a `percent100` (or a unit suffix), which is a
+ * registry-wide change, not a planner decision.
+ */
+function inferMetricFormat(w: WidgetValue): MetricFormat | undefined {
+  if (w.metricColumn === undefined) return undefined;
+  switch (w.agg) {
+    case 'count':
+    case 'sum':
+      return 'compact';
+    case 'avg':
+    case 'min':
+    case 'max':
+      return 'plain';
+    default:
+      return undefined;
+  }
 }
 
 // ─── Narrow structural views of diff `llmValue`s (this package's own outputs) ──
@@ -262,47 +321,163 @@ function tableSource(qualified: string): { schema?: string; name: string; type: 
 }
 
 /**
- * Build a declarative query-descriptor binding for one accepted widget, shaped
- * from its bound columns: a `timeColumn` ⇒ `timeseries` (month buckets); else a
- * `dimensionColumn` ⇒ `categorical` (group-by); else `single-metric`. The
- * aggregation defaults to `sum` when a metric column is bound, else `count(*)`.
+ * Rolling window used when a `metric+delta` widget is given a time column: the
+ * last 30 days against the 30 before them. Mirrors the heuristic generator's
+ * own KPI bindings (`@adminium/widgets` `generate/dashboard-domain.ts`) so an
+ * LLM-authored card and a generated one behave identically.
  */
-function buildBinding(connectionId: string, w: WidgetValue): Record<string, unknown> {
+const METRIC_DELTA_WINDOW = { last: 30, unit: 'day', compareToPrior: true } as const;
+
+/**
+ * Order the shapes a widget could plausibly be given, most-preferred first,
+ * based on which columns the model bound to it. Intersecting this with the
+ * widget's declared `dataContract` is what picks the binding.
+ */
+function shapePreference(w: WidgetValue): readonly string[] {
+  if (w.timeColumn !== undefined) {
+    // A time column feeds a series directly, and also a rolling metric with a
+    // prior-period delta — which is what a KPI card wants from one.
+    return ['timeseries', 'metric+delta', 'single-metric', 'categorical', 'record-list', 'stream'];
+  }
+  if (w.dimensionColumn !== undefined) {
+    return ['categorical', 'record-list', 'metric+delta', 'single-metric', 'stream'];
+  }
+  return ['single-metric', 'metric+delta', 'categorical', 'record-list', 'stream'];
+}
+
+/**
+ * Build a declarative query-descriptor binding for one accepted widget.
+ *
+ * The `shape` decides which envelope the server returns, so it must be one the
+ * WIDGET can read — `contracts` carries each widget's declared `dataContract`
+ * (`LLM_WIDGET_DATA_CONTRACTS`, injected as data). Bound columns then rank the
+ * accepted shapes and fill in the details; the aggregation defaults to `sum`
+ * when a metric column is bound, else `count(*)`.
+ *
+ * Choosing from the columns ALONE — as this did — silently mismatched every
+ * widget whose contract disagreed with its bindings. A `timeColumn` won
+ * unconditionally, so a `kpi-stat-card` (contract `metric+delta`, a
+ * `{value, prior}` scalar) that the model gave `created_at` was bound as
+ * `timeseries` and handed a `{points: [...]}` series, which its shape guard
+ * rejects — the card rendered "Unexpected data shape". The `chart-line-area`
+ * beside it took the same branch and was correct, which is why the failure
+ * looked selective. Without a contract map the old column-driven order still
+ * applies, so an un-injected caller degrades to the previous behaviour rather
+ * than to a wrong shape.
+ */
+function buildBinding(
+  connectionId: string,
+  w: WidgetValue,
+  contracts: WidgetContracts | undefined,
+): Record<string, unknown> {
   const source = tableSource(w.table);
   const fn = w.agg ?? (w.metricColumn !== undefined ? 'sum' : 'count');
   const aggregation: Record<string, unknown> = { fn, alias: 'value' };
   if (w.metricColumn !== undefined) aggregation['column'] = w.metricColumn;
 
+  const preference = shapePreference(w);
+  const accepted = contracts?.[w.widget];
+  const shape =
+    accepted === undefined
+      ? preference[0]
+      : (preference.find((candidate) => accepted.includes(candidate)) ?? preference[0]);
+
   const binding: Record<string, unknown> = {
     kind: 'table-query',
     connectionId,
     source,
+    shape,
     aggregations: [aggregation],
   };
 
-  if (w.timeColumn !== undefined) {
-    binding['shape'] = 'timeseries';
-    binding['bucket'] = { column: w.timeColumn, unit: 'month' };
-  } else if (w.dimensionColumn !== undefined) {
-    binding['shape'] = 'categorical';
-    binding['groupBy'] = [w.dimensionColumn];
-    binding['limit'] = 8;
-  } else {
-    binding['shape'] = 'single-metric';
+  switch (shape) {
+    case 'timeseries':
+      binding['bucket'] = { column: w.timeColumn, unit: 'month' };
+      break;
+    case 'categorical':
+      binding['groupBy'] = [w.dimensionColumn];
+      binding['limit'] = 8;
+      break;
+    case 'metric+delta':
+      // The compiler rejects a bucket or group-by on this shape — the prior
+      // comes from the rolling window instead. Without a time column there is
+      // nothing to compare against, so the card shows a bare value.
+      if (w.timeColumn !== undefined) {
+        binding['window'] = { column: w.timeColumn, ...METRIC_DELTA_WINDOW };
+      }
+      break;
+    case 'record-list':
+    case 'stream':
+      // Row-shaped tiles take recent rows, newest first, rather than an
+      // aggregate; `select` stays unset so the server returns the table's
+      // default projection.
+      delete binding['aggregations'];
+      binding['limit'] = 20;
+      if (w.timeColumn !== undefined) {
+        binding['orderBy'] = [{ column: w.timeColumn, dir: 'desc' }];
+      }
+      break;
+    default:
+      // 'single-metric' — aggregation only; it cannot group or bucket either.
+      break;
   }
   return binding;
 }
 
+/** Axis-aligned overlap test on the half-open grid rectangles. */
+function overlaps(a: GridRect, b: GridRect): boolean {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+interface GridRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /**
- * Pack accepted widgets left-to-right on the 12-column grid in rank order,
- * wrapping to a new shelf when the current row overflows. Pure and deterministic
- * — widths come from the §5 span heuristic, heights from {@link widgetHeight}.
+ * The topmost-then-leftmost free slot for a `width × height` box.
+ *
+ * Candidate rows are `0` plus the bottom edge of every placed item: any feasible
+ * placement can be slid upward until it rests on one of those, so a tighter fit
+ * can never begin between two of them. Columns are scanned exhaustively (the
+ * grid is 12 wide and a dashboard holds at most 8 widgets, so the whole search
+ * is trivially small). The maximum bottom edge is always in the candidate set
+ * and is free across the full width, so the scan always terminates on a hit.
+ */
+function firstFreeSlot(placed: readonly GridRect[], width: number, height: number): GridRect {
+  const rows = [...new Set([0, ...placed.map((p) => p.y + p.h)])].sort((a, b) => a - b);
+  for (const y of rows) {
+    for (let x = 0; x + width <= GRID_COLUMNS; x += 1) {
+      const candidate = { x, y, w: width, h: height };
+      if (!placed.some((p) => overlaps(candidate, p))) return candidate;
+    }
+  }
+  // Unreachable given the candidate set above; keeps the function total.
+  const bottom = placed.reduce((max, p) => Math.max(max, p.y + p.h), 0);
+  return { x: 0, y: bottom, w: width, h: height };
+}
+
+/**
+ * Place accepted widgets on the 12-column grid in rank order, each at the
+ * topmost-then-leftmost slot it fits (04-widget-registry.md §6.1). Pure and
+ * deterministic — widths come from the §5 span heuristic, heights from
+ * {@link widgetHeight}.
+ *
+ * This replaced a single-pass shelf packer that never backfilled: it advanced
+ * `y` by the tallest item in the row, so mixed-height rows left holes and any
+ * wrap stranded the columns left over. The knowledge-base dashboard
+ * (KPI 3 + KPI 3 + donut 4 + bars 6 + line 8) rendered two short cards beside a
+ * tall donut with a 6-column × 5-row void beneath them, then pushed the line
+ * chart below the fold. First-fit tucks the bars into that void instead.
  */
 function planLayout(
   connectionId: string,
   dashboardSlug: string,
   widgets: readonly WidgetValue[],
   accepted: ReadonlySet<string>,
+  contracts: WidgetContracts | undefined,
 ): { layout: PlannedLayout; widgetIds: string[] } {
   const chosen = widgets
     .filter((w) => accepted.has(widgetId(dashboardSlug, w.widget, w.rank)))
@@ -311,31 +486,30 @@ function planLayout(
 
   const items: PlannedLayoutItem[] = [];
   const widgetIds: string[] = [];
-  let x = 0;
-  let y = 0;
-  let rowHeight = 0;
+  const placed: GridRect[] = [];
 
   for (const w of chosen) {
     const width = clampSpan(w.span);
-    const height = widgetHeight(width);
-    if (x + width > GRID_COLUMNS) {
-      x = 0;
-      y += rowHeight;
-      rowHeight = 0;
-    }
+    const slot = firstFreeSlot(placed, width, widgetHeight(width));
     const id = widgetId(dashboardSlug, w.widget, w.rank);
+    const format = inferMetricFormat(w);
     items.push({
       i: id,
       widget: w.widget,
-      x,
-      y,
-      w: width,
-      h: height,
-      config: { title: w.titleEn, binding: buildBinding(connectionId, w) },
+      x: slot.x,
+      y: slot.y,
+      w: slot.w,
+      h: slot.h,
+      config: {
+        title: w.titleEn,
+        binding: buildBinding(connectionId, w, contracts),
+        // Omitted rather than defaulted, so a widget whose own default already
+        // fits keeps it (respects `exactOptionalPropertyTypes`).
+        ...(format === undefined ? {} : { metricFormat: format }),
+      },
     });
     widgetIds.push(id);
-    x += width;
-    rowHeight = Math.max(rowHeight, height);
+    placed.push(slot);
   }
 
   return { layout: { version: 1, items }, widgetIds };
@@ -494,11 +668,12 @@ function dashboardWrite(
   row: SuggestionDiff,
   connectionId: string,
   accepted: ReadonlySet<string>,
+  contracts: WidgetContracts | undefined,
 ): DashboardPageWrite | null {
   const value = row.llmValue;
   if (!isRecord(value)) return null;
   const d = value as unknown as DashboardValue;
-  const { layout, widgetIds } = planLayout(connectionId, d.id, d.widgets ?? [], accepted);
+  const { layout, widgetIds } = planLayout(connectionId, d.id, d.widgets ?? [], accepted, contracts);
   return {
     target: 'page',
     kind: 'dashboard-page',
@@ -570,7 +745,7 @@ export function buildApplyPlan(
     if (NON_ACTIONABLE.has(row.status)) continue;
     if (FOLDED.has(row.category)) continue; // widgets materialize inside dashboards
 
-    const write = emit(row, opts.connectionId, accepted);
+    const write = emit(row, opts.connectionId, accepted, opts.widgetContracts);
     if (write !== null) writes.push(write);
   }
 
@@ -583,6 +758,7 @@ function emit(
   row: SuggestionDiff,
   connectionId: string,
   accepted: ReadonlySet<string>,
+  contracts: WidgetContracts | undefined,
 ): WriteDescriptor | null {
   switch (row.category) {
     case 'label':
@@ -602,7 +778,7 @@ function emit(
     case 'template':
       return templateWrite(row, connectionId);
     case 'dashboard':
-      return dashboardWrite(row, connectionId, accepted);
+      return dashboardWrite(row, connectionId, accepted, contracts);
     case 'widget':
       return null; // folded — handled above
   }

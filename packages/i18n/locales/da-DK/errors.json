@@ -31,5 +31,6 @@
   "LLM_WIDGET_BINDING": "En foreslået widget er bundet til kolonner, der ikke passer; den blev fjernet.",
   "LLM_GROUP_INVALID": "En navigationsgruppe er ugyldig — en tabel optræder i mere end én gruppe.",
   "LLM_UNKNOWN_ICON": "Det foreslåede ikon er ikke tilgængeligt; et standardikon blev brugt i stedet.",
+  "LLM_LABEL_COLLISION": "To forslag deler samme navn; begge ville optræde under den samme titel.",
   "LLM_RUN_MISMATCH": "Dette svar ser ud til at være genereret ud fra en anden prompt."
 }

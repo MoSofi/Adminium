@@ -2,7 +2,7 @@
  * Dashboard builder shell (04-widget-registry.md §6.2/§6.3, task 04-T14).
  * Wraps the `page-dashboard` render path with an edit-mode surface:
  *
- *  - a header View/Edit toggle (any viewer may edit; page-edit roles edit the
+ *  - a header "Edit" button (any viewer may edit; page-edit roles edit the
  *    SHARED default, everyone else their PERSONAL override — `editTargetForRoles`);
  *  - a widget palette (add at first-fit) and an auto-generated config inspector;
  *  - duplicate / remove per widget;
@@ -11,12 +11,21 @@
  *    "Reset layout" (`useResetLayout`) drops the personal override and restores
  *    the shared default without a reload.
  *
+ * EDIT-MODE EXITS ARE EXPLICIT. Both were previously implicit or misnamed: a
+ * View/Edit `SegmentedControl` read as two buttons where "View" looked inert in
+ * view mode and silently SAVED in edit mode, while "Save layout" saved without
+ * leaving. And "Reset layout" — a personal-override action — was offered to
+ * shared editors, for whom its DELETE hit nothing and its `setMode('view')`
+ * merely threw the draft away. Now: "Edit" opens; "Save layout"/"Done" keeps and
+ * closes; "Discard changes" reverts and closes; the kebab appears only for the
+ * personal editors "Reset layout" is actually for.
+ *
  * View mode renders the unchanged live `PageDashboard`; edit mode renders the
  * working draft on `BuilderGrid` from deterministic demo data.
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { Eye, MoreVertical, Pencil, Plus, RotateCcw } from 'lucide-react';
+import { MoreVertical, Pencil, Plus, RotateCcw, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
@@ -29,7 +38,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  SegmentedControl,
 } from '@adminium/ui';
 import {
   PageDashboard,
@@ -109,6 +117,7 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const announce = useCallback((message: string) => setAnnouncement(message), []);
 
@@ -134,14 +143,50 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
     }
   }, [editTarget, dirty, draft, personalFlush, sharedSave, sharedFlush, markClean]);
 
-  const handleMode = (next: string): void => {
-    if (next === 'edit') {
-      setMode('edit');
-    } else {
-      commitOnExit();
-      setMode('view');
+  /**
+   * Leave edit mode, keeping the work — the primary action ("Save layout" for a
+   * shared editor, "Done" for a personal one, whose changes already auto-saved).
+   *
+   * Saving used to be a SIDE EFFECT of the View/Edit toggle: picking "View"
+   * silently committed, while the explicit "Save layout" button saved and left
+   * you in edit mode. Two paths, opposite exit behaviour, neither labelled.
+   */
+  const handleFinish = useCallback((): void => {
+    commitOnExit();
+    setMode('view');
+  }, [commitOnExit]);
+
+  /**
+   * Leave edit mode, throwing the work away.
+   *
+   * This is the action a shared editor was actually getting from the kebab's
+   * "Reset layout" — that item exits without committing, so the draft was
+   * dropped under a name that describes something else entirely (dropping a
+   * PERSONAL override). Here it is the named, confirmed control.
+   *
+   * A personal layout auto-saves as you go, so reverting it has to be WRITTEN
+   * back, not merely forgotten: cancel the pending debounce first, or its
+   * trailing PUT lands after the revert and restores what was just discarded.
+   */
+  const handleDiscard = useCallback((): void => {
+    setDiscardOpen(false);
+    const original = seedRef.current;
+    reseed(original);
+    if (editTarget === 'personal') {
+      personalCancel();
+      if (dirty) {
+        personalSave(original);
+        void personalFlush();
+      }
     }
-  };
+    setMode('view');
+    announce(t('builder.discarded', 'Changes discarded.'));
+  }, [reseed, editTarget, dirty, personalCancel, personalSave, personalFlush, announce]);
+
+  const requestDiscard = useCallback((): void => {
+    if (dirty) setDiscardOpen(true);
+    else handleDiscard();
+  }, [dirty, handleDiscard]);
 
   const nameOf = useCallback((itemId: string): string => {
     const item = draft.items.find((entry) => entry.i === itemId);
@@ -182,6 +227,7 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
     await sharedFlush();
     markClean();
     announce(t('builder.savedShared', 'Dashboard saved for everyone with access.'));
+    setMode('view');
   }, [sharedSave, sharedFlush, draft, markClean, announce]);
 
   const handleReset = useCallback(async (): Promise<void> => {
@@ -235,6 +281,9 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
             >
               {t('builder.addWidget', 'Add widget')}
             </Button>
+            <Button variant="destructive" size="sm" onClick={requestDiscard}>
+              {t('builder.discard', 'Discard changes')}
+            </Button>
             {canEditShared ? (
               <Button
                 variant="primary"
@@ -244,34 +293,47 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
               >
                 {t('builder.saveLayout', 'Save layout')}
               </Button>
-            ) : null}
+            ) : (
+              <Button variant="primary" size="sm" onClick={handleFinish}>
+                {t('builder.done', 'Done')}
+              </Button>
+            )}
           </>
-        ) : null}
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            iconLeft={<Pencil className="size-4" aria-hidden="true" />}
+            onClick={() => setMode('edit')}
+          >
+            {t('builder.edit', 'Edit')}
+          </Button>
+        )}
 
-        <SegmentedControl
-          value={mode}
-          onValueChange={handleMode}
-          options={[
-            { value: 'view', label: t('builder.view', 'View'), icon: <Eye className="size-4" /> },
-            { value: 'edit', label: t('builder.edit', 'Edit'), icon: <Pencil className="size-4" /> },
-          ]}
-        />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <IconButton variant="bordered" size="md" label={t('builder.options', 'Dashboard options')}>
-              <MoreVertical className="size-4" aria-hidden="true" />
-            </IconButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              icon={<RotateCcw className="size-4" />}
-              onSelect={() => setResetOpen(true)}
-            >
-              {t('builder.resetLayout', 'Reset layout')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/*
+          "Reset layout" drops the caller's PERSONAL override and restores the
+          shared default, so it is meaningless to someone who edits the shared
+          default itself — for them the DELETE hit nothing and the menu item
+          read as dead, while in edit mode its `setMode('view')` silently threw
+          the draft away. Personal editors keep it; shared editors get no kebab.
+        */}
+        {canEditShared ? null : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton variant="bordered" size="md" label={t('builder.options', 'Dashboard options')}>
+                <MoreVertical className="size-4" aria-hidden="true" />
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                icon={<RotateCcw className="size-4" />}
+                onSelect={() => setResetOpen(true)}
+              >
+                {t('builder.resetLayout', 'Reset layout')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </header>
 
       {editing ? (
@@ -350,6 +412,28 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
             onClick={() => void handleReset()}
           >
             {t('builder.resetConfirm', 'Reset layout')}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal open={discardOpen} onOpenChange={setDiscardOpen} size="sm">
+        <ModalHeader
+          icon={<Undo2 className="size-5" aria-hidden="true" />}
+          tone="warn"
+          title={t('builder.discardTitle', 'Discard your changes?')}
+          subtitle={t(
+            'builder.discardBody',
+            'The dashboard goes back to how it looked when you opened the editor. Your data isn’t affected.',
+          )}
+          closeLabel={t('common.close', 'Close')}
+        />
+        <ModalBody />
+        <ModalFooter>
+          <Button variant="ghost" size="sm" onClick={() => setDiscardOpen(false)}>
+            {t('builder.keepEditing', 'Keep editing')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handleDiscard}>
+            {t('builder.discardConfirm', 'Discard changes')}
           </Button>
         </ModalFooter>
       </Modal>

@@ -18,6 +18,7 @@
 import { widgetRegistry } from './index.js';
 import { pageTemplateDefinitions } from './page-templates.js';
 import type { WidgetDefinition, WidgetFamily } from './types.js';
+import { isCompilableShape } from '../page-config/index.js';
 import type { DataShape } from '../page-config/index.js';
 
 /* ------------------------------------------------------------------ helpers */
@@ -28,6 +29,29 @@ function sortedUnique(ids: Iterable<string>): readonly string[] {
 
 function dataContractIncludes(contract: DataShape | DataShape[], shape: DataShape): boolean {
   return Array.isArray(contract) ? contract.includes(shape) : contract === shape;
+}
+
+/** A widget's declared contract as a list, whether it declared one shape or several. */
+function contractShapes(contract: DataShape | DataShape[]): readonly DataShape[] {
+  return Array.isArray(contract) ? contract : [contract];
+}
+
+/**
+ * Can the widget-data pipeline actually FEED this widget? A dashboard tile is
+ * only useful if some query descriptor produces a payload its data contract
+ * accepts, and the compiler implements six of the eighteen canonical shapes
+ * (04 §5.2 "M4 scope notes").
+ *
+ * Without this test the prompt offered 17 widgets — `chart-sankey` (`flows`),
+ * `chart-multiline` (`multi-timeseries`), the five `matrix` charts, the three
+ * `distribution` ones, and so on — that no binding could ever satisfy: every
+ * one of them was guaranteed to render "Unexpected data shape" or reject with
+ * 422 the moment a model chose it. They rejoin automatically when 04-T09/T10
+ * teaches the compiler their shapes, because both sides read
+ * `COMPILABLE_DATA_SHAPES`.
+ */
+function isBindable(definition: WidgetDefinition): boolean {
+  return contractShapes(definition.dataContract).some(isCompilableShape);
 }
 
 /* ---------------------------------------------------------- page templates */
@@ -91,6 +115,8 @@ const LLM_DASHBOARD_WIDGET_FAMILIES: ReadonlySet<WidgetFamily> = new Set<WidgetF
  */
 function isLlmDashboardWidget(definition: WidgetDefinition): boolean {
   if (definition.capabilities?.editsData === true) return false;
+  // Suggestable requires bindable: see {@link isBindable}.
+  if (!isBindable(definition)) return false;
   if (LLM_DASHBOARD_WIDGET_FAMILIES.has(definition.family)) return true;
   return (
     definition.family === 'tables' &&
@@ -107,6 +133,32 @@ function isLlmDashboardWidget(definition: WidgetDefinition): boolean {
 export const LLM_ALLOWED_WIDGETS: readonly string[] = sortedUnique(
   [...widgetRegistry.values()].filter(isLlmDashboardWidget).map((definition) => definition.id),
 );
+
+/**
+ * Widget id → the data shapes that widget accepts, for every id in
+ * {@link LLM_ALLOWED_WIDGETS}.
+ *
+ * Injected into `@adminium/llm`'s apply planner the same way the allow-lists
+ * above are injected into the prompt builder and the referential checks — as
+ * plain data, so the LLM package keeps its "no dependency on the render layer"
+ * rule (01 §2.3).
+ *
+ * The planner needs it because a query descriptor's `shape` is what decides
+ * which envelope the server returns, and picking that from the bound columns
+ * alone produced tiles the widget could not read: every KPI card the model gave
+ * a `timeColumn` was bound as `timeseries` (a `{points}` series) when
+ * `kpi-stat-card` declares `metric+delta` (a `{value, prior}` scalar), so the
+ * card rendered "Unexpected data shape".
+ */
+export const LLM_WIDGET_DATA_CONTRACTS: Readonly<Record<string, readonly DataShape[]>> =
+  Object.freeze(
+    Object.fromEntries(
+      LLM_ALLOWED_WIDGETS.map((id) => [
+        id,
+        Object.freeze(contractShapes(widgetRegistry.get(id)?.dataContract ?? 'static')),
+      ]),
+    ),
+  );
 
 /* -------------------------------------------------------------- semantics */
 

@@ -956,7 +956,20 @@
       "testFailed": "Forbindelsen mislykkedes.",
       "v1Note": {
         "title": "Om denne installation",
-        "body": "Denne server valgte sit metalager ved første opstart. Dette trin validerer, at dit valg er kompatibelt med denne forbindelse, og registrerer det — serveren håndhæver samme regel uafhængigt (409 META_PLACEMENT_INVALID). Flytning af et eksisterende metalager er en driftsopgave (M10)."
+        "body": "Denne server gemmer allerede sine egne tabeller i en konfigureret database, og dette trin flytter dem ikke. Det validerer, at dit valg er kompatibelt med denne forbindelse — serveren håndhæver den samme regel uafhængigt (409 META_PLACEMENT_INVALID)."
+      },
+      "move": {
+        "title": "Flytter Adminiums tabeller",
+        "copying": "Flytter Adminiums tabeller …",
+        "restarting": "Genstarter …",
+        "copyingBody": "Kopierer hver adminium_-tabel til den nye database. Dine kildedata røres ikke, og der skiftes først over, når kopien er verificeret.",
+        "restartingBody": "Kopien er færdig. Adminium genstarter på den nye database — denne side fortsætter af sig selv om få sekunder.",
+        "failed": "Kunne ikke flytte Adminiums tabeller — prøv igen.",
+        "timeout": "Adminium flyttede sine tabeller, men er ikke kommet tilbage endnu. Dine data er sikre i den nye database — genindlæs siden om et øjeblik."
+      },
+      "willMove": {
+        "title": "Dette flytter Adminiums tabeller",
+        "body": "Adminium bruger i øjeblikket sit indbyggede SQLite-lager. Fortsæt kopierer det lager til den valgte database og genstarter på den — konti, sider og indstillinger følger med, så du forbliver logget ind."
       }
     },
     "intent": {
@@ -1254,7 +1267,13 @@
     "saveVersionTitle": "Gem en version",
     "saveVersionBody": "Tager et øjebliksbillede af det aktuelle dokument. Gendan det når som helst fra Versioner.",
     "versionName": "Versionsnavn",
-    "versionNamePlaceholder": "f.eks. Før Q3-satsændringen"
+    "versionNamePlaceholder": "f.eks. Før Q3-satsændringen",
+    "discard": "Kassér ændringer",
+    "discardTitle": "Kassér dine ændringer?",
+    "discardBody": "Dashboardet vender tilbage til, som det så ud, da du åbnede editoren. Dine data påvirkes ikke.",
+    "discardConfirm": "Kassér ændringer",
+    "keepEditing": "Fortsæt redigering",
+    "discarded": "Ændringer kasseret."
   },
   "setup": {
     "title": "Konfigurer Adminium",

@@ -97,6 +97,23 @@ describe('captureBridgeTicket / takeBridgeTicket', () => {
   });
 });
 
+/**
+ * The bridge redemptions among all calls the wizard made.
+ *
+ * These assertions used to be `toHaveBeenCalledOnce()` on the whole mock, which
+ * conflated "the ticket was redeemed once" — the invariant that matters, since
+ * a second redemption 404s on a single-use ticket — with "the wizard issued
+ * exactly one request in its lifetime", which was only incidentally true. The
+ * meta-placement probe (`GET /meta/placement`, which decides whether the meta
+ * step can move the store) made the second claim false without touching the
+ * first.
+ */
+function bridgeCalls(mock: { mock: { calls: unknown[][] } }): string[] {
+  return mock.mock.calls
+    .map((call) => String(call[0]))
+    .filter((url) => url.includes('/api/v1/bridge/seed/'));
+}
+
 describe('ConnectWizard — bridge hand-off', () => {
   it('redeems the ticket and shows the DSN on the source step', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
@@ -115,8 +132,7 @@ describe('ConnectWizard — bridge hand-off', () => {
     const field = await screen.findByDisplayValue(DSN);
     expect(field).toBeDefined();
 
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('/api/v1/bridge/seed/tkt_123');
+    expect(bridgeCalls(fetchMock)).toEqual(['/api/v1/bridge/seed/tkt_123']);
   });
 
   it('tells the user where the string came from', async () => {
@@ -140,7 +156,7 @@ describe('ConnectWizard — bridge hand-off', () => {
         <ConnectWizard onOpenApp={() => undefined} bridgeTicket="tkt_123" lineDelayMs={0} pollIntervalMs={1} />
       </QueryClientProvider>,
     );
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(bridgeCalls(fetchMock)).toHaveLength(1);
   });
 
   it('infers the engine from the scheme when the site did not send one', async () => {

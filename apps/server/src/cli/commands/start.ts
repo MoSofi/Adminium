@@ -24,6 +24,7 @@ import { embeddedMetaWarning } from '../../meta/store.js';
 import { numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
 import { EXIT_OK } from '../exit.js';
+import { createRelocationHost } from '../relocation-host.js';
 import { loadCliEnv } from '../runtime.js';
 
 export const startCommand: Command = {
@@ -102,7 +103,18 @@ export const startCommand: Command = {
       }
     }
 
-    const server = await deps.startServer(runtime);
+    // Through the host, not `startServer` directly: the Docker image's CMD is
+    // `start`, so this is the process that serves the Studio for a container
+    // install — and its meta step must be able to move the store too, not only
+    // the wizard's `npx` boot.
+    const relocationHost = createRelocationHost({
+      env,
+      deps,
+      log: (message) => {
+        io.out(message);
+      },
+    });
+    const server = await relocationHost.start(runtime);
     io.out(`Adminium is running at ${server.url}`);
 
     // The local bridge's consent token (`routes/bridge`). Printed HERE as well

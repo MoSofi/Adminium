@@ -4,6 +4,11 @@ import type { VariantProps } from 'class-variance-authority';
 import type * as React from 'react';
 
 import { cn } from '../../lib/cn.js';
+// Statically imported, deliberately. `@radix-ui/react-tooltip` is already in the
+// dashboard's entry chunk via the app shell's `Topbar`, so deferring it here buys
+// 0.7 KiB gz (measured, 647.1 → 646.4) — and costs a module-level cache, async
+// state in a Tier-1 primitive, and a bare→wrapped remount on first render.
+import { Tooltip } from '../tooltip/Tooltip.js';
 
 /**
  * Square icon button, radius 10 (`rounded-md`), sizes 28/32/34/38px. Hover →
@@ -36,13 +41,33 @@ export interface IconButtonProps
     VariantProps<typeof iconButtonVariants> {
   /** Required accessible name (icon-only control) — rendered as `aria-label`. */
   label: string;
+  /**
+   * Also show {@link label} as a hover/focus tooltip. Icon-only controls give a
+   * sighted mouse user nothing to read otherwise — `aria-label` reaches assistive
+   * tech and no one else.
+   *
+   * OPT-IN rather than on by default: `IconButton` has ~100 call sites, and
+   * several are already somebody else's trigger (`DropdownMenuTrigger asChild`,
+   * `PopoverTrigger asChild`), where a second `asChild` trigger on the same
+   * element is fragile. Ignored when `asChild` is set, for that reason.
+   */
+  tooltip?: boolean;
   /** Merge classes/props into the single child element (Radix Slot). */
   asChild?: boolean;
 }
 
-export function IconButton({ className, variant, size, label, asChild = false, children, ...props }: IconButtonProps) {
+export function IconButton({
+  className,
+  variant,
+  size,
+  label,
+  tooltip = false,
+  asChild = false,
+  children,
+  ...props
+}: IconButtonProps) {
   const Comp = asChild ? Slot : 'button';
-  return (
+  const button = (
     <Comp
       {...(asChild ? {} : { type: 'button' as const })}
       aria-label={label}
@@ -51,5 +76,12 @@ export function IconButton({ className, variant, size, label, asChild = false, c
     >
       {children}
     </Comp>
+  );
+  // The tooltip repeats the accessible name, so it is decorative to AT — Radix
+  // would otherwise describe the control twice.
+  return tooltip && !asChild ? (
+    <Tooltip content={<span aria-hidden="true">{label}</span>}>{button}</Tooltip>
+  ) : (
+    button
   );
 }

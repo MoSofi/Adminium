@@ -197,7 +197,75 @@ export const studioApi = {
 
   parseSchemaFile: (input: { content: string; format?: string; fileName?: string }) =>
     api.post<SchemaImportPreview>('/api/v1/schema-import/parse', input),
+
+  /**
+   * Where Adminium's own tables live. 404s on a topology that cannot restart
+   * itself (the route is not registered) — callers treat that as "no move
+   * available" rather than as an error.
+   */
+  getMetaPlacement: async (): Promise<MetaStoreLocation> =>
+    (await api.get<{ data: MetaStoreLocation }>('/api/v1/meta/placement')).data,
+
+  /**
+   * Move the meta store. The server replies BEFORE restarting, so a resolved
+   * promise means "the copy committed", not "the server is back" — follow it
+   * with {@link waitForRestart}.
+   */
+  relocateMeta: async (dsn: string): Promise<MetaRelocated> =>
+    (await api.post<{ data: MetaRelocated }>('/api/v1/meta/relocate', { dsn })).data,
 };
+
+/**
+ * Where the meta store IS. Named apart from `wizardState.ts`'s `MetaPlacement`,
+ * which is the user's CHOICE between same-db and separate-db — the two live
+ * side by side in this step and conflating them was a name collision waiting to
+ * become a logic one.
+ */
+export interface MetaStoreLocation {
+  source: 'env' | 'bootstrap' | 'embedded';
+  engine: ConnectionEngine;
+  embedded: boolean;
+  canRelocate: boolean;
+  reason: string | null;
+}
+
+export interface MetaRelocated {
+  engine: ConnectionEngine;
+  rowsCopied: number;
+  restarting: boolean;
+  healthPath: string;
+}
+
+/**
+ * Poll until the server answers again after a relocation restart.
+ *
+ * Every failure mode here is EXPECTED and must not abort the wait: the socket
+ * is dropped mid-flight, then the port refuses connections while the process
+ * rebuilds its service graph, then it answers. So fetch rejections are swallowed
+ * and only the deadline ends the loop. `cache: 'no-store'` because a cached 200
+ * from before the restart would end the wait early, against a server that is
+ * still down.
+ */
+export async function waitForRestart(
+  healthPath: string,
+  opts: { timeoutMs?: number; intervalMs?: number; signal?: AbortSignal } = {},
+): Promise<boolean> {
+  const timeoutMs = opts.timeoutMs ?? 60_000;
+  const intervalMs = opts.intervalMs ?? 500;
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    if (opts.signal?.aborted === true) return false;
+    try {
+      const response = await fetch(healthPath, { cache: 'no-store' });
+      if (response.ok) return true;
+    } catch {
+      // Connection refused / reset — the restart in progress. Keep waiting.
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
 
 /**
  * 11-electron.md §8.1's "lightweight connection-health poll" — the second of the

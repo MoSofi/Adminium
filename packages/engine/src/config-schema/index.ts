@@ -32,16 +32,19 @@ export {
 } from './migrations.js';
 // Assembled surface: the per-template leaf schemas (04-widget-registry.md §5.1, §6.1).
 export {
+  COMPILABLE_DATA_SHAPES,
   DATA_SHAPES,
   aggregationSchema,
   bucketUnitSchema,
   dataShapeSchema,
   filterSchema,
+  isCompilableShape,
   layoutItemSchema,
   pageLayoutSchema,
   queryDescriptorSchema,
   type Aggregation,
   type BucketUnit,
+  type CompilableDataShape,
   type DataShape,
   type LayoutItem,
   type PageLayout,

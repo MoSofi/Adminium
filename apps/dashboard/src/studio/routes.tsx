@@ -19,11 +19,40 @@ import { Alert, Spinner } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { StudioGuard } from './StudioGuard.js';
-import { ConnectWizard } from './connect/ConnectWizard.js';
 import { takeBridgeTicket } from './connect/bridgeSeed.js';
-import { ConnectionsHub } from './hub/ConnectionsHub.js';
-import { StudioSettingsPage } from './settings/StudioSettingsPage.js';
-import { StudioAiPage } from './ai/StudioAiPage.js';
+
+// --- the four Studio surfaces, LAZY -------------------------------------------
+//
+// Same reasoning as `TranslationsPageLazy` in app/router.tsx: these are
+// admin-only screens a handful of super-admins open occasionally, and static
+// imports put every one of them — the multi-step connect wizard, the
+// connections hub, the settings hub and the AI panel — in the synchronously
+// loaded entry set for every user on every route. That is what pushed the build
+// past `check-entry-budget`'s ratchet, and the gate prints the remedy: lazy-load
+// the addition rather than raise the baseline (the v1.0 target is 350 KiB gz).
+//
+// `takeBridgeTicket` stays static: it is a tiny module read in a state
+// initialiser before the wizard renders, so deferring it would race the ticket.
+
+const ConnectWizardLazy = lazy(async () => {
+  const mod = await import('./connect/ConnectWizard.js');
+  return { default: mod.ConnectWizard };
+});
+
+const ConnectionsHubLazy = lazy(async () => {
+  const mod = await import('./hub/ConnectionsHub.js');
+  return { default: mod.ConnectionsHub };
+});
+
+const StudioSettingsPageLazy = lazy(async () => {
+  const mod = await import('./settings/StudioSettingsPage.js');
+  return { default: mod.StudioSettingsPage };
+});
+
+const StudioAiPageLazy = lazy(async () => {
+  const mod = await import('./ai/StudioAiPage.js');
+  return { default: mod.StudioAiPage };
+});
 
 // --- remap contract (file owned by the remap agent, may land later) ----------
 
@@ -109,11 +138,13 @@ function ConnectRouteComponent() {
   const [bridgeTicket] = useState(takeBridgeTicket);
   return (
     <StudioGuard>
-      <ConnectWizard
-        bridgeTicket={bridgeTicket}
-        onOpenApp={() => void navigate({ to: '/' })}
-        onOpenReview={(runId) => void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })}
-      />
+      <Suspense fallback={<CenteredSpinner />}>
+        <ConnectWizardLazy
+          bridgeTicket={bridgeTicket}
+          onOpenApp={() => void navigate({ to: '/' })}
+          onOpenReview={(runId) => void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })}
+        />
+      </Suspense>
     </StudioGuard>
   );
 }
@@ -123,7 +154,7 @@ function HubRouteComponent() {
   return (
     <StudioGuard>
       <Suspense fallback={<CenteredSpinner />}>
-        <ConnectionsHub
+        <ConnectionsHubLazy
           onConnectNew={() => void navigate({ to: '/studio/connect' })}
           onOpenRemap={(connectionId) =>
             void navigate({ to: '/studio/remap/$connectionId', params: { connectionId } })
@@ -139,7 +170,7 @@ function SettingsRouteComponent() {
   return (
     <StudioGuard>
       <Suspense fallback={<CenteredSpinner />}>
-        <StudioSettingsPage
+        <StudioSettingsPageLazy
           onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })}
           onOpenTranslations={() => void navigate({ to: '/settings/translations' })}
           onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
@@ -154,7 +185,7 @@ function AiSettingsRouteComponent() {
   return (
     <StudioGuard>
       <Suspense fallback={<CenteredSpinner />}>
-        <StudioAiPage
+        <StudioAiPageLazy
           onOpenReview={(runId) =>
             void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })
           }
@@ -236,6 +267,3 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
 export function remapEditorBundled(): boolean {
   return remapModules['./remap/RemapEditor.tsx'] !== undefined;
 }
-
-// Referenced by tests that render the wizard outside the router.
-export { ConnectWizard };

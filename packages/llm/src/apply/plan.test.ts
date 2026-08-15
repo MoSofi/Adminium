@@ -433,3 +433,367 @@ describe('widgets fold into their dashboard, not standalone descriptors', () => 
     expect(p.writes).toEqual([]);
   });
 });
+
+describe('binding shape follows the widget data contract, not just the columns', () => {
+  /** The real contracts for the widgets under test (`LLM_WIDGET_DATA_CONTRACTS`). */
+  const CONTRACTS = {
+    'kpi-stat-card': ['metric+delta'],
+    'kpi-stat-tile-compact': ['metric+delta'],
+    'chart-line-area': ['timeseries'],
+    'chart-donut': ['categorical'],
+    'chart-bar': ['timeseries', 'categorical'],
+    'log-table': ['record-list'],
+  } as const;
+
+  /** Plan one widget and return its query-descriptor binding. */
+  function bindingFor(
+    w: Record<string, unknown>,
+    // `null` = not injected. A defaulted `undefined` would re-select CONTRACTS,
+    // which is exactly the degradation path this needs to be able to test.
+    contracts: Readonly<Record<string, readonly string[]>> | null = CONTRACTS,
+  ): Record<string, unknown> {
+    const wid = widgetId('ops', String(w['widget']), Number(w['rank']));
+    const rows: SuggestionDiff[] = [
+      {
+        id: wid,
+        category: 'widget',
+        table: String(w['table']),
+        status: 'llm-new',
+        llmValue: w,
+        heuristicValue: undefined,
+        confidence: 0.9,
+      },
+      {
+        id: 'dashboard:ops',
+        category: 'dashboard',
+        status: 'llm-new',
+        llmValue: {
+          id: 'ops',
+          domain: 'support-desk',
+          label: { en_US: 'Support Operations' },
+          order: 1,
+          tables: [String(w['table'])],
+          widgets: [w],
+        },
+        heuristicValue: undefined,
+        confidence: 0.9,
+      },
+    ];
+    const plan = buildApplyPlan(rows, [wid, 'dashboard:ops'], {
+      connectionId: CONNECTION,
+      ...(contracts === null ? {} : { widgetContracts: contracts }),
+    });
+    const page = plan.writes.find((x) => 'kind' in x && x.kind === 'dashboard-page');
+    return (page as DashboardPageWrite).layout.items[0]!.config.binding;
+  }
+
+  const ticketsCreated = {
+    widget: 'kpi-stat-card',
+    rank: 1,
+    span: 3,
+    table: 'public.tickets',
+    metricColumn: 'id',
+    timeColumn: 'created_at',
+    agg: 'count',
+    titleEn: 'Tickets created',
+  };
+
+  it('binds a time-columned KPI card as metric+delta, not a timeseries', () => {
+    // The reported failure: all four KPI cards on the support dashboard bound a
+    // timeColumn, were given `shape: 'timeseries'` (a `{points}` series), and
+    // rendered "Unexpected data shape" because kpi-stat-card reads
+    // `{value, prior}`. The charts beside them took the same branch correctly.
+    const binding = bindingFor(ticketsCreated);
+    expect(binding['shape']).toBe('metric+delta');
+    // The compiler rejects a bucket on this shape; the prior comes from the
+    // rolling window instead, which is what fills the card's delta pill.
+    expect(binding['bucket']).toBeUndefined();
+    expect(binding['groupBy']).toBeUndefined();
+    expect(binding['window']).toEqual({
+      column: 'created_at',
+      last: 30,
+      unit: 'day',
+      compareToPrior: true,
+    });
+  });
+
+  it('reproduces the old behaviour when no contracts are injected', () => {
+    // Degradation path: an older caller (or a vocabulary snapshot bundled before
+    // contracts existed) still plans, just without the contract correction.
+    expect(bindingFor(ticketsCreated, null)['shape']).toBe('timeseries');
+  });
+
+  it('leaves a KPI card with no time column on a bare metric', () => {
+    const binding = bindingFor({
+      widget: 'kpi-stat-card',
+      rank: 2,
+      span: 3,
+      table: 'public.kb_articles',
+      metricColumn: 'views',
+      agg: 'sum',
+      titleEn: 'Total article views',
+    });
+    expect(binding['shape']).toBe('metric+delta');
+    expect(binding['window']).toBeUndefined();
+  });
+
+  it('still binds a line chart with the same columns as a bucketed timeseries', () => {
+    const binding = bindingFor({
+      widget: 'chart-line-area',
+      rank: 3,
+      span: 8,
+      table: 'public.tickets',
+      metricColumn: 'id',
+      timeColumn: 'created_at',
+      agg: 'count',
+      titleEn: 'Ticket volume over time',
+    });
+    expect(binding['shape']).toBe('timeseries');
+    expect(binding['bucket']).toEqual({ column: 'created_at', unit: 'month' });
+  });
+
+  it('still binds a donut grouped by its dimension', () => {
+    const binding = bindingFor({
+      widget: 'chart-donut',
+      rank: 4,
+      span: 4,
+      table: 'public.tickets',
+      metricColumn: 'id',
+      dimensionColumn: 'channel',
+      agg: 'count',
+      titleEn: 'Tickets by channel',
+    });
+    expect(binding['shape']).toBe('categorical');
+    expect(binding['groupBy']).toEqual(['channel']);
+  });
+
+  it('lets the bound columns break the tie for a multi-contract widget', () => {
+    // chart-bar accepts both shapes: a dimension column means categorical…
+    expect(
+      bindingFor({
+        widget: 'chart-bar',
+        rank: 5,
+        span: 6,
+        table: 'public.tickets',
+        metricColumn: 'id',
+        dimensionColumn: 'priority',
+        agg: 'count',
+        titleEn: 'Tickets by priority',
+      })['shape'],
+    ).toBe('categorical');
+    // …and a time column means timeseries.
+    expect(
+      bindingFor({
+        widget: 'chart-bar',
+        rank: 6,
+        span: 6,
+        table: 'public.tickets',
+        metricColumn: 'id',
+        timeColumn: 'created_at',
+        agg: 'count',
+        titleEn: 'Tickets per month',
+      })['shape'],
+    ).toBe('timeseries');
+  });
+
+  it('binds a row-shaped tile as a record-list with no aggregation', () => {
+    const binding = bindingFor({
+      widget: 'log-table',
+      rank: 7,
+      span: 6,
+      table: 'public.audit_log',
+      timeColumn: 'created_at',
+      dimensionColumn: 'action',
+      titleEn: 'Latest changes',
+    });
+    expect(binding['shape']).toBe('record-list');
+    expect(binding['aggregations']).toBeUndefined();
+    expect(binding['orderBy']).toEqual([{ column: 'created_at', dir: 'desc' }]);
+  });
+});
+
+describe('grid packing backfills instead of leaving shelf holes', () => {
+  /** Plan a dashboard from `[widget, span]` pairs in rank order. */
+  function planGrid(specs: readonly [string, number][]): { i: string; x: number; y: number; w: number; h: number }[] {
+    const widgets = specs.map(([widget, span], k) => ({
+      widget,
+      rank: k + 1,
+      span,
+      table: 'public.kb_articles',
+      titleEn: `w${k + 1}`,
+    }));
+    const ids = widgets.map((w) => widgetId('kb', w.widget, w.rank));
+    const rows: SuggestionDiff[] = [
+      ...widgets.map((w, k) => ({
+        id: ids[k]!,
+        category: 'widget' as const,
+        table: 'public.kb_articles',
+        status: 'llm-new' as const,
+        llmValue: w,
+        heuristicValue: undefined,
+        confidence: 0.9,
+      })),
+      {
+        id: 'dashboard:kb',
+        category: 'dashboard',
+        status: 'llm-new',
+        llmValue: {
+          id: 'kb',
+          domain: 'knowledge',
+          label: { en_US: 'Article Performance' },
+          order: 1,
+          tables: ['public.kb_articles'],
+          widgets,
+        },
+        heuristicValue: undefined,
+        confidence: 0.9,
+      },
+    ];
+    const plan = buildApplyPlan(rows, [...ids, 'dashboard:kb'], { connectionId: CONNECTION });
+    const page = plan.writes.find((x) => 'kind' in x && x.kind === 'dashboard-page');
+    return (page as DashboardPageWrite).layout.items.map((it) => ({
+      i: it.i,
+      x: it.x,
+      y: it.y,
+      w: it.w,
+      h: it.h,
+    }));
+  }
+
+  it('tucks a wide chart into the void left under two short KPI cards', () => {
+    // The knowledge-base dashboard from the field report. Under the old shelf
+    // packer the two KPIs (h=3) sat beside the donut (h=8), leaving a
+    // 6-wide × 5-tall hole, and the ranking bars + line chart each wrapped to a
+    // fresh shelf below it — pushing the line chart off the bottom of the page.
+    const items = planGrid([
+      ['kpi-stat-card', 3],
+      ['kpi-stat-card', 3],
+      ['chart-donut', 4],
+      ['chart-ranking-bars', 6],
+      ['chart-line-area', 8],
+    ]);
+
+    expect(items.map((it) => ({ x: it.x, y: it.y, w: it.w, h: it.h }))).toEqual([
+      { x: 0, y: 0, w: 3, h: 3 }, // KPI
+      { x: 3, y: 0, w: 3, h: 3 }, // KPI
+      { x: 6, y: 0, w: 4, h: 8 }, // donut, full height beside them
+      { x: 0, y: 3, w: 6, h: 8 }, // bars fill the hole under the KPIs
+      { x: 0, y: 11, w: 8, h: 8 }, // line chart
+    ]);
+  });
+
+  it('never overlaps two widgets and never exceeds the 12-column grid', () => {
+    const items = planGrid([
+      ['kpi-stat-card', 3],
+      ['chart-line-area', 8],
+      ['kpi-stat-card', 3],
+      ['chart-bar', 6],
+      ['chart-donut', 4],
+      ['kpi-stat-card', 3],
+      ['chart-bar', 6],
+    ]);
+    for (const it of items) expect(it.x + it.w).toBeLessThanOrEqual(12);
+    for (let a = 0; a < items.length; a += 1) {
+      for (let b = a + 1; b < items.length; b += 1) {
+        const p = items[a]!;
+        const q = items[b]!;
+        const hit = p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+        expect(hit, `${p.i} overlaps ${q.i}`).toBe(false);
+      }
+    }
+  });
+});
+
+describe('metricFormat inference (kpi defaults plain, charts default compact)', () => {
+  /** Build a one-widget dashboard and return the planned layout item's config. */
+  function planOne(w: Record<string, unknown>): Record<string, unknown> {
+    const wid = widgetId('kb', String(w['widget']), Number(w['rank']));
+    const rows: SuggestionDiff[] = [
+      {
+        id: wid,
+        category: 'widget',
+        table: String(w['table']),
+        status: 'llm-new',
+        llmValue: w,
+        heuristicValue: undefined,
+        confidence: 0.9,
+      },
+      {
+        // No `table`: a dashboard suggestion is not table-scoped, and
+        // `exactOptionalPropertyTypes` rejects an explicit `undefined`.
+        id: 'dashboard:kb',
+        category: 'dashboard',
+        status: 'llm-new',
+        llmValue: {
+          id: 'kb',
+          domain: 'knowledge',
+          label: { en_US: 'Article Performance' },
+          order: 1,
+          tables: [String(w['table'])],
+          widgets: [w],
+        },
+        heuristicValue: undefined,
+        confidence: 0.9,
+      },
+    ];
+    const plan = buildApplyPlan(rows, [wid, 'dashboard:kb'], { connectionId: CONNECTION });
+    const page = plan.writes.find((x) => 'kind' in x && x.kind === 'dashboard-page');
+    const layout = (page as { layout: { items: { config: Record<string, unknown> }[] } }).layout;
+    return layout.items[0]!.config;
+  }
+
+  it('compacts a summed measure — the 3,920,852-vs-3.9M case', () => {
+    const config = planOne({
+      widget: 'kpi-stat-card',
+      rank: 1,
+      span: 3,
+      table: 'public.kb_articles',
+      metricColumn: 'views',
+      agg: 'sum',
+      titleEn: 'Total article views',
+    });
+    expect(config['metricFormat']).toBe('compact');
+  });
+
+  it('compacts a row count', () => {
+    const config = planOne({
+      widget: 'kpi-stat-card',
+      rank: 2,
+      span: 3,
+      table: 'public.kb_articles',
+      metricColumn: 'id',
+      agg: 'count',
+      titleEn: 'Articles',
+    });
+    expect(config['metricFormat']).toBe('compact');
+  });
+
+  it('keeps an average exact rather than compacting it', () => {
+    const config = planOne({
+      widget: 'kpi-stat-card',
+      rank: 3,
+      span: 3,
+      table: 'public.kb_articles',
+      metricColumn: 'helpful_percent',
+      agg: 'avg',
+      titleEn: 'Average helpfulness',
+    });
+    // NOT 'percent': that format multiplies by 100, so a 0–100 column would
+    // render 70.72 as "7,072%". Whole percentage points need a vocabulary entry
+    // the registry does not have yet.
+    expect(config['metricFormat']).toBe('plain');
+  });
+
+  it('leaves a metric-less widget on its own default', () => {
+    const config = planOne({
+      widget: 'chart-donut',
+      rank: 4,
+      span: 4,
+      table: 'public.kb_articles',
+      dimensionColumn: 'status',
+      agg: 'count',
+      titleEn: 'Articles by status',
+    });
+    expect(config['metricFormat']).toBeUndefined();
+  });
+});

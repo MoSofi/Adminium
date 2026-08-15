@@ -31,6 +31,7 @@
  */
 
 import { sql, type DynamicModule, type Kysely, type RawBuilder, type SelectQueryBuilder } from 'kysely';
+import { COMPILABLE_DATA_SHAPES } from '@adminium/engine/config';
 import type { Aggregation, BucketUnit, QueryDescriptor } from '@adminium/engine/config';
 import type { Dialect } from '@adminium/engine';
 
@@ -52,16 +53,14 @@ export const GROUP_ALIAS = '__group';
 
 const ALIAS_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 
-const SUPPORTED_SHAPES = new Set([
-  'single-metric',
-  'metric+delta',
-  'timeseries',
-  'categorical',
-  'record-list',
-  // Live feed snapshot (04 §5.3): compiled exactly like `record-list` (recent
-  // rows, DESC), shaped into a `StreamShape` with the resolved WS channel.
-  'stream',
-]);
+/**
+ * Derived from the shared `COMPILABLE_DATA_SHAPES` constant rather than listed
+ * here, so this compiler and the enrichment prompt's widget allow-list cannot
+ * disagree about which shapes exist. (`stream` is the live-feed snapshot of
+ * 04 §5.3: compiled exactly like `record-list` — recent rows, DESC — then shaped
+ * into a `StreamShape` with the resolved WS channel.)
+ */
+const SUPPORTED_SHAPES: ReadonlySet<string> = new Set<string>(COMPILABLE_DATA_SHAPES);
 
 type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
 

@@ -79,4 +79,42 @@ describe('IconButton', () => {
     const link = screen.getByRole('link', { name: 'Open settings' });
     expect(link.className).toContain('nb-ib');
   });
+  it('shows the label as a tooltip on focus when opted in', async () => {
+    // Icon-only controls gave a sighted mouse user nothing to read: `label`
+    // reached assistive tech via aria-label and stopped there.
+    render(
+      <IconButton label="Duplicate widget" tooltip>
+        <svg />
+      </IconButton>,
+    );
+    expect(screen.getByRole('button', { name: 'Duplicate widget' })).toBeDefined();
+    expect(screen.queryByText('Duplicate widget')).toBeNull();
+
+    // Radix opens on hover AND on keyboard focus; focus is the path that works
+    // headlessly (synthetic hover does not drive its pointer heuristics), and it
+    // is also the one that matters for a11y.
+    screen.getByRole('button', { name: 'Duplicate widget' }).focus();
+    expect((await screen.findAllByText('Duplicate widget')).length).toBeGreaterThan(0);
+  });
+
+  it('stays a bare button without the opt-in, and never wraps an asChild trigger', () => {
+    const { unmount } = render(
+      <IconButton label="Plain">
+        <svg />
+      </IconButton>,
+    );
+    expect(screen.getByRole('button', { name: 'Plain' }).parentElement?.tagName).not.toBe('BUTTON');
+    unmount();
+
+    // asChild means the element is already somebody else's trigger; a second
+    // Radix trigger on it would be fragile, so the tooltip is skipped.
+    render(
+      <IconButton label="Menu" tooltip asChild>
+        <a href="/x">
+          <svg />
+        </a>
+      </IconButton>,
+    );
+    expect(screen.getByRole('link', { name: 'Menu' })).toBeDefined();
+  });
 });

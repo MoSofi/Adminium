@@ -141,7 +141,7 @@ describe('OnboardingChecklist (/welcome)', () => {
   });
 });
 
-describe('OnboardingEntry (shell)', () => {
+describe('OnboardingEntry (/studio/settings)', () => {
   function renderEntry(onboarding: OnboardingState, roles = ['super-admin']) {
     const stub = stubFetch({ onboarding, roles });
     const boot = makeBootstrap({ roles });
@@ -164,15 +164,20 @@ describe('OnboardingEntry (shell)', () => {
     expect(await screen.findByRole('button', { name: 'Continue setup' })).toBeDefined();
   });
 
-  it('dismisses to the unobtrusive way-back entry', async () => {
+  it('dismisses permanently, leaving no way-back affordance', async () => {
     const { dismissCalls } = renderEntry(state());
     const dismiss = await screen.findByRole('button', { name: 'Dismiss setup checklist' });
     await userEvent.click(dismiss);
     await waitFor(() => {
       expect(dismissCalls).toEqual([{ dismissed: true }]);
     });
-    // After dismissal the prominent banner is gone but a way-back remains.
-    expect(await screen.findByRole('button', { name: /Getting started/ })).toBeDefined();
+    // The entry now lives on /studio/settings rather than shell-global, so a
+    // dismissed checklist renders nothing at all — the surface stays reachable
+    // via that page, not via a slim strip above every route.
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Continue setup' })).toBeNull();
+    });
+    expect(screen.queryByRole('button', { name: /Getting started/ })).toBeNull();
   });
 
   it('renders nothing for a non-admin', async () => {

@@ -25,7 +25,6 @@ import { logout } from '../auth/authApi.js';
 import { resyncOverrides } from '../i18n/setup.js';
 import { t } from '../i18n/t.js';
 import { DesktopUpdateToaster } from '../desktop/updates.js';
-import { OnboardingEntry } from '../onboarding/OnboardingEntry.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
 import { ShortcutsPanel } from './ShortcutsPanel.js';
@@ -244,7 +243,6 @@ export function AppShell() {
           onOpenStudio={() => void navigate({ to: '/studio' })}
           onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
         />
-        <OnboardingEntry bootstrap={bootstrap} />
         <main className="min-h-0 flex-1">
           <Outlet />
         </main>

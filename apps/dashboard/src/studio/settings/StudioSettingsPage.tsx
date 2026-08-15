@@ -34,6 +34,7 @@ import {
 
 import { bootstrapQuery } from '../../app/bootstrap.js';
 import { t } from '../../i18n/t.js';
+import { OnboardingEntry } from '../../onboarding/OnboardingEntry.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
 import { connectionsQuery, DeleteConnectionModal } from '../hub/ConnectionsHub.js';
@@ -244,102 +245,105 @@ export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenTranslations, o
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
 
   return (
-    <div className="mx-auto flex w-full max-w-narrow flex-col gap-4 p-6">
-      <header>
-        <h1 className="text-page-title text-fg">
-          {t('studio.settingsHub.title', 'Workspace settings')}
-        </h1>
-        <p className="mt-0.5 text-body-sm text-fg-muted">
-          {t('studio.settingsHub.subtitle', 'Identity, security and destructive actions for this workspace.')}
-        </p>
-      </header>
+    <>
+      <OnboardingEntry bootstrap={bootstrap} />
+      <div className="mx-auto flex w-full max-w-narrow flex-col gap-4 p-6">
+        <header>
+          <h1 className="text-page-title text-fg">
+            {t('studio.settingsHub.title', 'Workspace settings')}
+          </h1>
+          <p className="mt-0.5 text-body-sm text-fg-muted">
+            {t('studio.settingsHub.subtitle', 'Identity, security and destructive actions for this workspace.')}
+          </p>
+        </header>
 
-      {isSuperAdmin ? (
-        <WorkspaceFormLoader />
-      ) : (
-        <Alert
-          tone="info"
-          title={t('studio.settingsHub.superAdminOnlyTitle', 'Super admin required')}
-          body={t(
-            'studio.settingsHub.superAdminOnly',
-            'Only a super admin can change workspace identity and security settings.',
-          )}
-        />
-      )}
+        {isSuperAdmin ? (
+          <WorkspaceFormLoader />
+        ) : (
+          <Alert
+            tone="info"
+            title={t('studio.settingsHub.superAdminOnlyTitle', 'Super admin required')}
+            body={t(
+              'studio.settingsHub.superAdminOnly',
+              'Only a super admin can change workspace identity and security settings.',
+            )}
+          />
+        )}
 
-      {/* AI enrichment is an Admin+ surface (/studio/settings/ai) — every user who
-          can see this page can open it, so it is not gated further here. */}
-      <Card>
-        <CardHeader className="flex items-center gap-3">
-          <IconTile tone="accent" size="md" icon={<Sparkles />} />
-          <div className="min-w-0 flex-1">
-            <h3 className="text-section text-fg">
-              {t('studio.settingsHub.aiCard.heading', 'AI enrichment')}
-            </h3>
-            <p className="text-caption text-fg-subtle">
-              {t(
-                'studio.settingsHub.aiCard.body',
-                'Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.',
-              )}
-            </p>
-          </div>
-          <Button variant="secondary" size="sm" onClick={onOpenAiSettings}>
-            {t('studio.settingsHub.aiCard.cta', 'Open AI settings')}
-          </Button>
-        </CardHeader>
-      </Card>
-
-      {/* Global defaults is a super-admin-only surface (/settings/defaults) — hide
-          the cross-link from plain admins rather than sending them to a forbidden
-          dead-end. */}
-      {isSuperAdmin ? (
+        {/* AI enrichment is an Admin+ surface (/studio/settings/ai) — every user who
+            can see this page can open it, so it is not gated further here. */}
         <Card>
           <CardHeader className="flex items-center gap-3">
-            <IconTile tone="accent" size="md" icon={<Globe2 />} />
+            <IconTile tone="accent" size="md" icon={<Sparkles />} />
             <div className="min-w-0 flex-1">
               <h3 className="text-section text-fg">
-                {t('studio.settingsHub.defaultsCard.heading', 'Appearance & language defaults')}
+                {t('studio.settingsHub.aiCard.heading', 'AI enrichment')}
               </h3>
               <p className="text-caption text-fg-subtle">
                 {t(
-                  'studio.settingsHub.defaultsCard.body',
-                  'Workspace-wide theme, accent, density and language live under Global defaults.',
+                  'studio.settingsHub.aiCard.body',
+                  'Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.',
                 )}
               </p>
             </div>
-            <Button variant="secondary" size="sm" onClick={onOpenGlobalDefaults}>
-              {t('studio.settingsHub.defaultsCard.cta', 'Open global defaults')}
+            <Button variant="secondary" size="sm" onClick={onOpenAiSettings}>
+              {t('studio.settingsHub.aiCard.cta', 'Open AI settings')}
             </Button>
           </CardHeader>
         </Card>
-      ) : null}
 
-      {/* 23-runtime-translations.md §7. Same super-admin gate and the same
-          reason: the page renders the 403 state for anyone else, so hiding
-          the cross-link keeps plain admins out of a dead end. */}
-      {isSuperAdmin ? (
-        <Card>
-          <CardHeader className="flex items-center gap-3">
-            <IconTile tone="accent" size="md" icon={<Languages />} />
-            <div className="min-w-0 flex-1">
-              <h3 className="text-section text-fg">
-                {t('studio.settingsHub.translationsCard.heading', 'Languages & translations')}
-              </h3>
-              <p className="text-caption text-fg-subtle">
-                {t(
-                  'studio.settingsHub.translationsCard.body',
-                  'Reword anything in Adminium, choose which languages people can pick, and add your own.',
-                )}
-              </p>
-            </div>
-            <Button variant="secondary" size="sm" onClick={onOpenTranslations}>
-              {t('studio.settingsHub.translationsCard.cta', 'Open translations')}
-            </Button>
-          </CardHeader>
-        </Card>
-      ) : null}
+        {/* Global defaults is a super-admin-only surface (/settings/defaults) — hide
+            the cross-link from plain admins rather than sending them to a forbidden
+            dead-end. */}
+        {isSuperAdmin ? (
+          <Card>
+            <CardHeader className="flex items-center gap-3">
+              <IconTile tone="accent" size="md" icon={<Globe2 />} />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-section text-fg">
+                  {t('studio.settingsHub.defaultsCard.heading', 'Appearance & language defaults')}
+                </h3>
+                <p className="text-caption text-fg-subtle">
+                  {t(
+                    'studio.settingsHub.defaultsCard.body',
+                    'Workspace-wide theme, accent, density and language live under Global defaults.',
+                  )}
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={onOpenGlobalDefaults}>
+                {t('studio.settingsHub.defaultsCard.cta', 'Open global defaults')}
+              </Button>
+            </CardHeader>
+          </Card>
+        ) : null}
 
-      <DangerZone />
-    </div>
+        {/* 23-runtime-translations.md §7. Same super-admin gate and the same
+            reason: the page renders the 403 state for anyone else, so hiding
+            the cross-link keeps plain admins out of a dead end. */}
+        {isSuperAdmin ? (
+          <Card>
+            <CardHeader className="flex items-center gap-3">
+              <IconTile tone="accent" size="md" icon={<Languages />} />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-section text-fg">
+                  {t('studio.settingsHub.translationsCard.heading', 'Languages & translations')}
+                </h3>
+                <p className="text-caption text-fg-subtle">
+                  {t(
+                    'studio.settingsHub.translationsCard.body',
+                    'Reword anything in Adminium, choose which languages people can pick, and add your own.',
+                  )}
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={onOpenTranslations}>
+                {t('studio.settingsHub.translationsCard.cta', 'Open translations')}
+              </Button>
+            </CardHeader>
+          </Card>
+        ) : null}
+
+        <DangerZone />
+      </div>
+    </>
   );
 }

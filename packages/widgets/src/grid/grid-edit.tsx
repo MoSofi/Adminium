@@ -169,14 +169,20 @@ export function GridDragHandle({ className }: { className?: string | undefined }
 }
 
 const RESIZE_CLASS =
-  'absolute bottom-0 end-0 z-10 flex size-4 cursor-nwse-resize items-end justify-end p-0.5 ' +
-  'text-fg-subtle opacity-0 focus-visible:opacity-100 focus-visible:outline-2 ' +
+  'absolute bottom-0 end-0 z-10 flex size-5 cursor-nwse-resize items-end justify-end rounded-ee-2xl p-1 ' +
+  'text-fg-muted opacity-0 transition-opacity hover:text-fg focus-visible:opacity-100 focus-visible:outline-2 ' +
   'focus-visible:outline-offset-2 focus-visible:outline-accent group-hover/grid-item:opacity-100';
 
 /**
  * The resize corner — the grid renders it on each item container (LOGICAL
  * `end-0`: SE corner in LTR, SW in RTL, 04 §6.2). Pointer-driven, with a
  * keyboard fallback (arrows resize) so the affordance is not mouse-only.
+ *
+ * Drawn as three stepped diagonal grip lines, the conventional resize-corner
+ * idiom. The previous mark was an 8px right-angle bracket in `--fg-subtle`,
+ * which at that size read as a stray corner artifact rather than something to
+ * drag. The lines mirror with the handle in RTL — `scale-x-[-1]` under `rtl:`
+ * — so the grip always points away from the widget.
  */
 export function GridResizeHandle() {
   const controls = useGridItemEdit();
@@ -190,10 +196,19 @@ export function GridResizeHandle() {
       onPointerDown={controls.onResizePointerDown}
       onKeyDown={controls.onResizeKeyDown}
     >
-      <span
+      <svg
         aria-hidden="true"
-        className="block size-2 rounded-se-none rounded-es-md border-b-2 border-e-2 border-current"
-      />
+        viewBox="0 0 12 12"
+        className="size-3 rtl:scale-x-[-1]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      >
+        <path d="M11 5 5 11" />
+        <path d="M11 9 9 11" />
+        <path d="M11 1 1 11" />
+      </svg>
     </button>
   );
 }
