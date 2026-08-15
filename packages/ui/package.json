@@ -24,6 +24,7 @@
   },
   "scripts": {
     "gen:barrel": "node scripts/gen-barrel.mjs",
+    "dev": "node scripts/gen-barrel.mjs && tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "build": "node scripts/gen-barrel.mjs && tsc -p tsconfig.build.json",
     "typecheck": "node scripts/gen-barrel.mjs && tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
