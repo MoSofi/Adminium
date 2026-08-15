@@ -46,6 +46,7 @@
     "i18n:meta": "node scripts/meta.mjs report",
     "i18n:check": "node scripts/meta.mjs check",
     "i18n:review": "node scripts/meta.mjs review",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
