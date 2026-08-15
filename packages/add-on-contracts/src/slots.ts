@@ -4,8 +4,17 @@
  * A slot is a named place in a host surface, its payload, and its fill rule.
  * The registry is closed for the same reason the widget-id vocabulary is: an
  * open-ended extension point cannot be reviewed, translated, or kept working
- * across host versions. Adding a slot is a spec change with a version bump on
- * this package — never a pull request against an app.
+ * across host versions. Adding a slot is a spec change, never a pull request
+ * against an app.
+ *
+ * There is NO compatibility signal for this vocabulary, so do not look for one.
+ * A slot carries no `version` field, unlike ContractDefinition (`version: 1`,
+ * checked by hasContractVersion), and this package cannot version on its own
+ * cadence either: the repo's changeset config declares `fixed: [["@adminium/*"]]`,
+ * so every workspace moves together and the package version says nothing about
+ * which slots a release speaks. Evolving a slot after release therefore needs a
+ * real `version` field on the contract pattern — an earlier revision of this
+ * comment claimed a package bump was the mechanism, and it never was.
  *
  * Every slot here is filled by something built in wave 4. A slot nobody fills
  * is a guess about a future add-on, which is why an earlier draft's twelfth
