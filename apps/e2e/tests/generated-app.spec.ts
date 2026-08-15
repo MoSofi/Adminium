@@ -175,10 +175,22 @@ test.describe('generated app on the seeded Northwind connection', () => {
 
     // KPI row: at least one stat card with a resolved (numeric) value from
     // live widget-data (single-metric count over orders).
+    //
+    // The title is rendered by WidgetFrame's <h3>, NOT inside the card body:
+    // `KpiStatCard` used to fall back to `config.title` when it had no
+    // `metricLabel`, which printed the same string twice — once in the frame
+    // header and once in the card. That fallback is gone, so filtering the card
+    // by its title text matches nothing. Scope by the FRAME whose heading names
+    // the metric, then assert the value inside that frame's card.
     const kpis = page.locator('[data-widget="kpi-stat-card"]');
     await expect(kpis.first()).toBeVisible();
     await expect(page.getByText(/^Total /).first()).toBeVisible();
-    await expect(kpis.filter({ hasText: /^Total Orders/ })).toContainText(/\d/);
+    await expect(
+      page
+        .locator('[data-widget-frame]')
+        .filter({ has: page.getByRole('heading', { name: /^Total Orders/ }) })
+        .locator('[data-widget="kpi-stat-card"]'),
+    ).toContainText(/\d/);
 
     // Charts render as accessible SVGs (role="img", named by their title)
     // once widget-data resolves. The categorical donut works on all engines.
