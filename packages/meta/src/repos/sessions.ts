@@ -42,6 +42,33 @@ export function sessionsRepo(meta: MetaDb) {
       return row;
     },
 
+    /** One row by id, in whatever state it is — revoked and expired included. */
+    async findById(sessionId: string): Promise<Session | null> {
+      const row = await db
+        .selectFrom('adminium_sessions')
+        .selectAll()
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+      return row ?? null;
+    },
+
+    /**
+     * A user's live rows (un-revoked, unexpired at `at`), most recently active
+     * first — the "where am I signed in" list. Absolute expiry only: the
+     * sliding idle window and the 2FA-challenge rows that share this table are
+     * the server's vocabulary, so it filters those on top (auth/sessions.ts).
+     */
+    async listForUser(userId: string, at: number = Date.now()): Promise<Session[]> {
+      return db
+        .selectFrom('adminium_sessions')
+        .selectAll()
+        .where('userId', '=', userId)
+        .where('revokedAt', 'is', null)
+        .where('expiresAt', '>', at)
+        .orderBy('lastSeenAt', 'desc')
+        .execute();
+    },
+
     /** A session is valid when un-revoked and unexpired at `at`. */
     async findValidByTokenHash(tokenHash: string, at: number = Date.now()): Promise<Session | null> {
       const row = await db

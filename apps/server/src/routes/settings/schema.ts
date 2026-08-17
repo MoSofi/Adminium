@@ -41,31 +41,68 @@ export type SettingsDefaultsReply = z.infer<typeof settingsDefaultsReply>;
 // Bounds mirror the settings-registry Zod defs (07-meta-store.md §7.1) — the
 // repo re-validates on write, so these fail fast with a 422 instead of a 500.
 //
-// The `auth.*` security controls (require2fa / allowSignup / sessionTtlHours /
-// passwordMinLength) are intentionally NOT exposed here: no auth flow reads
-// them yet, so a PUT surface would persist inert config and present dead
-// security toggles in the UI. They return when enforcement lands (the login /
-// session / password paths), so admins are never shown a control that does
-// nothing.
+// `auth.allowSignup` is still NOT exposed: nothing reads it (there is no
+// self-signup route to gate), so a toggle for it would persist inert config
+// and present a dead security control in the UI. It returns when a signup
+// path enforces it. The other three `auth.*` keys are exposed below, because
+// enforcement for each landed with this surface.
 
-/** `PUT /settings/branding` — workspace identity (registry `branding.*`). */
+/**
+ * `PUT /settings/branding` — the workspace identity fields an admin TYPES
+ * (registry `branding.appName` + `branding.showVersion`). The logo is not
+ * here: bytes travel over `POST /branding/logo` (routes/branding), and a
+ * JSON section-put that silently ignored a file would be the worse contract.
+ */
 export const settingsBrandingPutBody = z.object({
   appName: z.string().min(1).max(60),
+  showVersion: z.boolean(),
 });
 export type SettingsBrandingPutBody = z.infer<typeof settingsBrandingPutBody>;
 
+/**
+ * What the settings screen READS back — the typed fields plus the resolved
+ * logo. `logoUrl` is a URL rather than the raw `branding.logoFileId` because
+ * no client should have to know how a file id becomes bytes; it carries the
+ * id as a query stamp so a replaced logo busts the browser cache.
+ */
+export const settingsBrandingView = settingsBrandingPutBody.extend({
+  logoUrl: z.string().nullable(),
+});
+export type SettingsBrandingView = z.infer<typeof settingsBrandingView>;
+
 export const settingsWorkspaceReply = z.object({
   data: z.object({
-    branding: settingsBrandingPutBody,
+    branding: settingsBrandingView,
   }),
 });
 export type SettingsWorkspaceReply = z.infer<typeof settingsWorkspaceReply>;
 
+// --- security (auth.*) ----------------------------------------------------------
+// Exposed only now, and only these three, because each one is read by a live
+// auth path — the rule the `auth.allowSignup` note above still applies:
+//   sessionTtlHours   → auth/sessions.ts createSession, on every mint;
+//   passwordMinLength → the reset and change handlers, on every password write
+//                       (setup/service.ts already enforced it at first run);
+//   require2fa        → login/session flag an account with no TOTP into the
+//                       enroll flow, and 2fa/disable refuses while it is on.
+// Bounds mirror the registry defs, same as the branding section.
+
+/** `PUT /settings/security` — the enforced `auth.*` policy (full write). */
+export const settingsSecurityPutBody = z.object({
+  sessionTtlHours: z.number().int().min(1).max(8760),
+  require2fa: z.boolean(),
+  passwordMinLength: z.number().int().min(8).max(128),
+});
+export type SettingsSecurityPutBody = z.infer<typeof settingsSecurityPutBody>;
+
+export const settingsSecurityReply = z.object({ data: settingsSecurityPutBody });
+export type SettingsSecurityReply = z.infer<typeof settingsSecurityReply>;
+
 // --- telemetry + update check (M10-T04, 08 §2.16 `settingsTelemetryPutBody`) ----
 // Both are OFF by default in the registry and are first asked on the first-run
-// consent screen; this section is how they are revisited later. Unlike the
-// `auth.*` controls above, these two ARE exposed because both are enforced
-// today: `telemetry.enabled` gates ../../telemetry/service.ts and
+// consent screen; this section is how they are revisited later. Exposed under
+// the same rule as every other section here — both are enforced today:
+// `telemetry.enabled` gates ../../telemetry/service.ts and
 // `updates.checkEnabled` gates ../../telemetry/update-check.ts, each of which
 // returns before touching the network when its key is false.
 

@@ -26,7 +26,19 @@ export const authLoginBody = z.object({
 });
 export type AuthLoginBody = z.infer<typeof authLoginBody>;
 
-export const authLoginReply = z.object({ data: z.object({ user: authUserView }) });
+export const authLoginReply = z.object({
+  data: z.object({
+    user: authUserView,
+    /**
+     * Present and true only when `auth.require2fa` is on and this account has
+     * no TOTP yet: the client routes into /auth/2fa/enroll rather than to the
+     * dashboard. Optional because the paths that cannot produce it (2FA verify
+     * — the user demonstrably has TOTP — and the desktop boot-token exchange)
+     * share this reply and must not have to say "false".
+     */
+    twoFactorSetupRequired: z.literal(true).optional(),
+  }),
+});
 export type AuthLoginReply = z.infer<typeof authLoginReply>;
 
 /** 202 login step-up: the user has TOTP enabled (§2.1). */
@@ -51,6 +63,12 @@ export const authSessionReply = z.object({
     user: authUserView,
     /** Role slugs, e.g. `["super-admin"]` — full RBAC arrives with rbac. */
     roles: z.array(z.string()),
+    /**
+     * `auth.require2fa` is on and this account has no TOTP. Always present
+     * here (unlike the login reply) because this is the route a reload asks
+     * "where does this user belong?", and a missing field would read as "no".
+     */
+    twoFactorSetupRequired: z.boolean(),
   }),
 });
 export type AuthSessionReply = z.infer<typeof authSessionReply>;
@@ -62,6 +80,7 @@ export type AuthForgotBody = z.infer<typeof authForgotBody>;
 
 export const authResetBody = z.object({
   token: z.string().min(1),
+  /** Floor only — `auth.passwordMinLength` is the policy (see the handler). */
   newPassword: z.string().min(8).max(200),
 });
 export type AuthResetBody = z.infer<typeof authResetBody>;
@@ -95,6 +114,41 @@ export const auth2faDisableBody = z.object({
   code: z.string().trim().min(6).max(20).optional(),
 });
 export type Auth2faDisableBody = z.infer<typeof auth2faDisableBody>;
+
+/** One row of `GET /auth/sessions` — the caller's own signed-in devices. */
+export const authSessionListItem = z.object({
+  id: z.string(),
+  /** Address and client recorded at sign-in; null when unknown. */
+  ip: z.string().nullable(),
+  userAgent: z.string().nullable(),
+  createdAt: z.number(),
+  lastSeenAt: z.number(),
+  expiresAt: z.number(),
+  /** True for the one session this very request authenticated with. */
+  current: z.boolean(),
+});
+export type AuthSessionListItem = z.infer<typeof authSessionListItem>;
+
+export const authSessionListReply = z.object({
+  data: z.object({ sessions: z.array(authSessionListItem) }),
+});
+export type AuthSessionListReply = z.infer<typeof authSessionListReply>;
+
+export const authSessionRevokeParams = z.object({
+  id: z.string().min(1).max(64),
+});
+export type AuthSessionRevokeParams = z.infer<typeof authSessionRevokeParams>;
+
+export const authPasswordChangeBody = z.object({
+  currentPassword: z.string().min(1).max(200),
+  /**
+   * 8 is the registry FLOOR of `auth.passwordMinLength`, not the policy — the
+   * handler reads the workspace's own value and 422s below it. Bounding it
+   * here only keeps obviously-too-short bodies out of the argon2 path.
+   */
+  newPassword: z.string().min(8).max(200),
+});
+export type AuthPasswordChangeBody = z.infer<typeof authPasswordChangeBody>;
 
 /**
  * `POST /auth/desktop-session` (11-electron.md §5) — the desktop shell's per-boot

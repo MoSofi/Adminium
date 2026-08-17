@@ -16,15 +16,19 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 
+import { BRANDING_UPDATED, readBranding } from '../../branding/service.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   settingsBrandingPutBody,
   settingsDefaultsPutBody,
   settingsDefaultsReply,
+  settingsSecurityPutBody,
+  settingsSecurityReply,
   settingsTelemetryPutBody,
   settingsTelemetryReply,
   settingsWorkspaceReply,
   type SettingsDefaultsReply,
+  type SettingsSecurityReply,
   type SettingsTelemetryReply,
   type SettingsWorkspaceReply,
 } from './schema.js';
@@ -93,10 +97,19 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     return { data: { ...defaults, adoption } };
   }
 
-  /** Registry-backed workspace identity view (M5-T05). */
+  /** Registry-backed workspace identity view (M5-T05), logo included. */
   async function workspaceReply(): Promise<SettingsWorkspaceReply> {
-    const appName = await settings.get('branding.appName');
-    return { data: { branding: { appName } } };
+    return { data: { branding: await readBranding(meta) } };
+  }
+
+  /** The enforced `auth.*` policy (see schema.ts for what reads each key). */
+  async function securityReply(): Promise<SettingsSecurityReply> {
+    const [sessionTtlHours, require2fa, passwordMinLength] = await Promise.all([
+      settings.get('auth.sessionTtlHours'),
+      settings.get('auth.require2fa'),
+      settings.get('auth.passwordMinLength'),
+    ]);
+    return { data: { sessionTtlHours, require2fa, passwordMinLength } };
   }
 
   /** The two outbound-call consents (M10-T04). */
@@ -109,6 +122,13 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
   }
 
   return async (app) => {
+    /** Same channel as the defaults broadcast; no-ops in harnesses with no realtime. */
+    function publishBrandingChanged(at: number): void {
+      if (app.hasDecorator('realtime')) {
+        app.realtime.publish('config-changed', BRANDING_UPDATED, {}, at);
+      }
+    }
+
     app.get(
       '/settings/defaults',
       {
@@ -158,9 +178,7 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     // --- workspace identity (M5-T05, sectioned puts per 08 §2.16) -------------
     // Same conventions as /settings/defaults: Zod body, super-admin guard,
     // audit with before/after images. No realtime broadcast — nothing in the
-    // bootstrap payload derives from this key yet. The `auth.*` security
-    // controls are deliberately not exposed until an auth flow enforces them
-    // (see schema.ts) — persisting inert security toggles is worse than absent.
+    // bootstrap payload derives from this key yet.
 
     app.get(
       '/settings/workspace',
@@ -190,12 +208,78 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
             at,
           });
         }
+        if (before.showVersion !== request.body.showVersion) {
+          await settings.set('branding.showVersion', request.body.showVersion, {
+            updatedBy: actingUserId,
+            at,
+          });
+        }
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'settings.branding.update',
           changes: { before: { ...before }, after: { ...request.body } },
         });
+        // Branding IS in every client's chrome (rail wordmark, logo, version
+        // chip), so unlike the other sections here a write has to reach open
+        // sessions — same `config-changed` channel the defaults use.
+        publishBrandingChanged(at);
         return workspaceReply();
+      },
+    );
+
+    // --- security (auth.*) ---------------------------------------------------
+    // Same shape as the sections above. Nothing here needs a realtime
+    // broadcast: `sessionTtlHours` binds the next mint, `passwordMinLength`
+    // the next password write, and `require2fa` is re-read on every login and
+    // /auth/session — no client holds a stale copy to invalidate.
+
+    app.get(
+      '/settings/security',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { response: { 200: settingsSecurityReply } },
+      },
+      async () => securityReply(),
+    );
+
+    app.put(
+      '/settings/security',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { body: settingsSecurityPutBody, response: { 200: settingsSecurityReply } },
+      },
+      async (request) => {
+        const before = (await securityReply()).data;
+        const next = request.body;
+        const at = app.rbac.now();
+        const actingUserId =
+          request.apiKeyPrincipal === null
+            ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
+            : null;
+
+        if (before.sessionTtlHours !== next.sessionTtlHours) {
+          await settings.set('auth.sessionTtlHours', next.sessionTtlHours, {
+            updatedBy: actingUserId,
+            at,
+          });
+        }
+        if (before.require2fa !== next.require2fa) {
+          await settings.set('auth.require2fa', next.require2fa, { updatedBy: actingUserId, at });
+        }
+        if (before.passwordMinLength !== next.passwordMinLength) {
+          await settings.set('auth.passwordMinLength', next.passwordMinLength, {
+            updatedBy: actingUserId,
+            at,
+          });
+        }
+
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'settings.security.update',
+          changes: { before: { ...before }, after: { ...next } },
+        });
+
+        return securityReply();
       },
     );
 
