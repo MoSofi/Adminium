@@ -84,6 +84,21 @@
   border-color: var(--border-strong);
 }
 
+/* card hover bloom: shadow only, NO lift. Distinct from .nb-lift on purpose —
+   a dashboard is ~40 cards, and translating each one on mouseover reads as
+   noise. Matches the comp's `.nb-card:hover` (Analytics.dc.html lines 32-33).
+   The dark value has no comp counterpart (the comp's dark block never restates
+   it); it is the light recipe re-tuned for a #141419 surface. */
+.nb-cardh {
+  transition: box-shadow .16s ease, border-color .16s ease;
+}
+.nb-cardh:hover {
+  box-shadow: 0 6px 18px -10px rgba(20, 20, 35, .24);
+}
+[data-theme="dark"] .nb-cardh:hover {
+  box-shadow: 0 6px 18px -10px rgba(0, 0, 0, .6);
+}
+
 /* button press: hover brighten, active shrink */
 .nb-press {
   transition: transform .12s ease, filter .12s ease;

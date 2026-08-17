@@ -51,6 +51,11 @@
   --text-title: 20px;     --text-title--font-weight: 800;   --text-title--letter-spacing: -0.02em;
   --text-modal: 16.5px;   --text-modal--font-weight: 800;
   --text-section: 14.5px; --text-section--font-weight: 700; --text-section--letter-spacing: -0.01em;
+  /* Widget-card and topbar headings. Neither can reuse --text-section: the comp's
+     card title carries NO tracking (14px/700 flat) and its topbar h1 is a full
+     tier larger and heavier (18px/800/-0.02em). */
+  --text-card-title: 14px;   --text-card-title--font-weight: 700;
+  --text-topbar-title: 18px; --text-topbar-title--font-weight: 800; --text-topbar-title--letter-spacing: -0.02em;
   --text-body: 13px;      --text-body--line-height: 1.5;
   --text-body-sm: 12.5px; --text-body-sm--line-height: 1.5;
   --text-caption: 11.5px;
@@ -59,5 +64,13 @@
   /* layout */
   --spacing-sidebar: 256px;
   --container-form: 640px; --container-narrow: 720px; --container-page: 1080px;
-  --container-marketing: 1160px; --container-wide: 1200px; --container-max: 1360px;
+  --container-marketing: 1160px; --container-wide: 1200px; --container-max: 1360px; --container-widest: 1800px;
+  /* The reading column for pages whose content is a short stack of controls
+     rather than a grid — import, settings, account. Wide enough for a two-up
+     field row, narrow enough that a lone label does not run the full monitor.
+     `--container-narrow` (720px) is a text measure and squeezes those rows. */
+  --container-content: 900px;
+  /* Dashboard column. Deliberately NOT --container-page (1080px), which form and
+     settings pages depend on staying narrow. */
+  --container-dash: 1320px;
 }
