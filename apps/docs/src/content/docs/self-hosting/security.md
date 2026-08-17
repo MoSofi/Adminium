@@ -28,7 +28,7 @@ openssl rand -hex 32
 ```
 
 It derives the AES-256-GCM key that encrypts every stored DSN and provider API
-key at rest, plus the session HMAC key and the CSRF key.
+key at rest, and it signs the session cookie.
 
 - **Keep it out of the image.** It arrives via the environment at run time. The
   image ships only code.
@@ -99,7 +99,7 @@ You do not need to configure these; they are worth knowing:
 |---|---|
 | Encryption at rest | AES-256-GCM for stored DSNs and provider keys |
 | Password hashing | argon2id |
-| CSRF protection | On |
+| Session cookie | httpOnly, signed, `SameSite=Lax`, `Secure` over HTTPS |
 | CORS | **Off** — same-origin by default |
 | Loopback DSN guard | Blocks connecting to `localhost` from a hosted instance |
 | PII masking | **On by default** for columns classified as personal |

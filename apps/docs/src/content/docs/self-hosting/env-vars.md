@@ -39,8 +39,8 @@ export ADMINIUM_SECRET=$(openssl rand -hex 32)
 ```
 
 It derives — via a KDF, it is not used directly — the AES-256-GCM key that
-encrypts every stored DSN and provider API key at rest, plus the session and
-CSRF keys.
+encrypts every stored DSN and provider API key at rest, and it signs the session
+cookie.
 
 :::danger[It must be stable, and it must be kept]
 **Lose it** and every stored connection string and provider key is

@@ -45,8 +45,8 @@ evaluation default, not a production one.
 
 ### 2. `ADMINIUM_SECRET`, and where you keep it
 
-Required. It derives the AES-256-GCM key for every stored DSN and API key, the
-session HMAC key, and the CSRF key.
+Required. It derives the AES-256-GCM key for every stored DSN and API key, and
+signs the session cookie.
 
 ```bash
 export ADMINIUM_SECRET=${ADMINIUM_SECRET:-$(openssl rand -hex 32)}
