@@ -242,9 +242,36 @@ export function scalarValue(raw: string): string | number | boolean | null {
   return null;
 }
 
+const SPACE = /\s/;
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
+
+/**
+ * `\s` as a single-character test. Scanning a run of whitespace one character
+ * at a time is linear, where a `\s+` sitting next to a `.*`/`[^x]*` in the same
+ * regex is quadratic — the engine retries every split of the run.
+ */
+export function isSpace(ch: string | undefined): boolean {
+  return ch !== undefined && SPACE.test(ch);
+}
+
+/**
+ * True when `text` holds one of the four code points `.` never matches
+ * (`\n`, `\r`, `\u2028`, `\u2029`). A `(.*)$` / `(.+)$` tail rejects any text
+ * containing one, so the hand-rolled line matchers must reject it too.
+ */
+export function hasLineTerminator(text: string): boolean {
+  return LINE_TERMINATOR.test(text);
+}
+
 export function snakeCase(name: string): string {
   return name
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    // `([A-Z]+)([A-Z][a-z])` was quadratic (CodeQL js/polynomial-redos): the
+    // `[A-Z]+` run and the `[A-Z]` after it match the same characters, so a
+    // long all-caps identifier retried every split at every start offset. The
+    // lookahead keeps the split point identical — only the last upper-case
+    // letter of a run can be followed by `[A-Z][a-z]` — while matching one
+    // character per position.
+    .replace(/([A-Z])(?=[A-Z][a-z])/g, '$1_')
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .replaceAll('-', '_')
     .toLowerCase();

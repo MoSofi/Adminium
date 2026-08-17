@@ -151,6 +151,19 @@ export function requireModel(config: ProviderConfig, provider: ProviderId): stri
   return raw;
 }
 
+/**
+ * Drops every trailing `/` from a base URL so the callers can concatenate
+ * `${baseUrl}/v1/...` without doubling the separator. Empty-string in,
+ * empty-string out; a URL that is nothing but slashes collapses to ''.
+ *
+ * Scanned rather than matched. `/\/+$/` is unanchored at the left, so the
+ * engine restarted at every index, and at each one re-walked the whole run of
+ * slashes before `$` failed — quadratic (CodeQL js/polynomial-redos #10, "many
+ * repetitions of '/'"). `baseUrl` is operator-supplied config for the
+ * `openai-compatible` and `ollama` providers and reaches here unbounded.
+ */
 export function stripTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '');
+  let end = url.length;
+  while (end > 0 && url.charCodeAt(end - 1) === 0x2f /* '/' */) end -= 1;
+  return end === url.length ? url : url.slice(0, end);
 }

@@ -239,3 +239,68 @@ describe('identifier quoting + serialization policy', () => {
     expect(sqliteSerializers.binary).toBeUndefined();
   });
 });
+
+describe('ReDoS hardening — declared types and CHECK bodies parse linearly', () => {
+  // CodeQL js/polynomial-redos. This adapter reads raw `sqlite_master.sql`
+  // text, so a declared type and a CHECK body are whatever the application let
+  // a user call things. Each input below is the pathological string CodeQL
+  // named; the figures are what the previous regexes actually cost, measured.
+  const BUDGET_MS = 1_000;
+
+  const timed = <T>(run: () => T): { ms: number; value: T } => {
+    const started = performance.now();
+    const value = run();
+    return { ms: performance.now() - started, value };
+  };
+
+  it('mapSqliteType: a declared type that opens parens and never closes one (~4.3s before)', () => {
+    const hostile = `NUM${'('.repeat(50_000)}`;
+    const { ms, value } = timed(() => mapSqliteType(hostile));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    // Unclosed parens are not a modifier, so nothing is stripped: the base name
+    // stays `NUM(…` — NUMERIC affinity with no usable hint — exactly as before.
+    expect(value).toMatchObject({ affinity: 'NUMERIC', logicalType: 'unknown' });
+  });
+
+  it.each([
+    ['one long identifier run (~4.2s)', '_'.repeat(50_000)],
+    ['in( opened and never closed (~3.5s)', '_ in(' + '_ in(('.repeat(20_000)],
+  ])('parseCheckEnum: %s', (_label, expression) => {
+    const { ms, value } = timed(() => parseCheckEnum(expression));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(value).toBeNull();
+  });
+
+  it.each([
+    ['VARCHAR(255)', { logicalType: 'varchar', maxLength: 255, affinity: 'TEXT' }],
+    ['NATIVE CHARACTER(70)', { logicalType: 'varchar', maxLength: 70, affinity: 'TEXT' }],
+    ['decimal(10,2)', { logicalType: 'decimal', numericPrecision: 10, numericScale: 2 }],
+    ['  numeric ( 8 , 0 ) ', { logicalType: 'decimal', numericPrecision: 8, numericScale: 0 }],
+    ['TEXT', { logicalType: 'text', maxLength: null, affinity: 'TEXT' }],
+    ['BIGINT', { logicalType: 'bigint', affinity: 'INTEGER' }],
+    ['varchar(', { logicalType: 'text', maxLength: null, affinity: 'TEXT' }],
+    ['varchar)', { logicalType: 'text', maxLength: null, affinity: 'TEXT' }],
+  ] as const)('mapSqliteType keeps its grammar: %s', (declaredType, expected) => {
+    expect(mapSqliteType(declaredType)).toMatchObject(expected);
+  });
+
+  it.each([
+    [
+      "status IN ('open', 'pending', 'closed')",
+      { column: 'status', values: ['open', 'pending', 'closed'] },
+    ],
+    [`"priority" IN ('low','high')`, { column: 'priority', values: ['low', 'high'] }],
+    ["mood IN ('it''s fine','meh')", { column: 'mood', values: ["it's fine", 'meh'] }],
+    ["[c] in('a')", { column: 'c', values: ['a'] }],
+    ['`c` in (\'a\')', { column: 'c', values: ['a'] }],
+    ["'c' in ('a')", { column: 'c', values: ['a'] }],
+    ['length(note) > 2', null],
+    ['kind in ()', null], // empty list — the `+` never matched empty
+    ["kind in ('a'", null], // unclosed list
+    // An empty list must not stop the search: the one-piece pattern retried at
+    // the next offset and found the second clause, and so must the split one.
+    ["a in () b in ('z')", { column: 'b', values: ['z'] }],
+  ] as const)('parseCheckEnum keeps its grammar: %s', (expression, expected) => {
+    expect(parseCheckEnum(expression)).toEqual(expected);
+  });
+});
