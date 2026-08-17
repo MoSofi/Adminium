@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Stage 6 — referential cross-checks against the live schema snapshot and the
  * registry allow-lists (06-llm-assist.md §7.3, exhaustive).

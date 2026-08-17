@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * OpenAI Chat Completions client (06-llm-assist.md §3.1). Auth: `Authorization:
  * Bearer`; POST `/v1/chat/completions`. The wire-format helpers are exported and

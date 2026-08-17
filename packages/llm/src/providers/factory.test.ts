@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Provider dispatcher tests (06-llm-assist.md §3.1): each supported ProviderId
  * maps to the right client id; `adminium-managed` is a config error in this build.

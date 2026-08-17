@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * OpenAI-compatible client (06-llm-assist.md §3.1): same Chat Completions wire
  * format as OpenAI against a user-supplied `baseUrl` (Groq, Together, vLLM, LM

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `@adminium/llm` prompt-builder barrel — 06-llm-assist.md §4, §5.
  *

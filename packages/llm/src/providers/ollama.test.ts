@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Ollama client — mocked-fetch wire tests (06-llm-assist.md §3.1): default
  * localhost baseUrl, no auth, POST /api/chat with temperature in `options`, and

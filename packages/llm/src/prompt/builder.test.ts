@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `buildPrompt` — the single prompt producer (06-llm-assist.md §1, §4, §5).
  *

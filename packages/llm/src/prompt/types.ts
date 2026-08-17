@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Prompt-builder contract types (06-llm-assist.md §4.1, §4.4, §2).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Schema IR + statistics serialization for the prompt (06-llm-assist.md §4.1,
  * §4.2, §5.2).

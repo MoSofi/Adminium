@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The heuristic-baseline diff engine (06-llm-assist.md §8.2) and the
  * "Accept all ≥ 0.8" bulk semantics (acceptance criterion 12).

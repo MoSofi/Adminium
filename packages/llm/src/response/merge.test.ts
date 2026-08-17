@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `merge.ts` — deterministic chunk reduce + PROMPT_MERGE_V1 orchestration
  * (06-llm-assist.md §4.5). These focus on the reduce SEMANTICS with small

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Anthropic Messages API client (06-llm-assist.md §3.1). Auth: `x-api-key` +
  * `anthropic-version`; POST `/v1/messages` in the Messages wire format. Fetch

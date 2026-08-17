@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared contract types (06-llm-assist.md §3.1, §7.1, §7.4): provider ids, the
  * run status machine, and a constructible `EnrichmentSet`.
