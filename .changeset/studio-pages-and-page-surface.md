@@ -1,11 +1,11 @@
 ---
-'@adminium/server': minor
-'@adminium/meta': minor
-'@adminium/engine': minor
-'@adminium/widgets': minor
-'@adminium/charts': minor
-'@adminium/i18n': minor
-'@adminium/ui': minor
+'@adminium/server': patch
+'@adminium/meta': patch
+'@adminium/engine': patch
+'@adminium/widgets': patch
+'@adminium/charts': patch
+'@adminium/i18n': patch
+'@adminium/ui': patch
 '@adminium/tokens': patch
 ---
 
