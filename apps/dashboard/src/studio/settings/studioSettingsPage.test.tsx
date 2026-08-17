@@ -173,6 +173,18 @@ describe('StudioSettingsPage', () => {
     ).toHaveLength(0);
   });
 
+  it('routes a plain admin to the page manager', async () => {
+    // `/studio/pages` is not in the avatar menu, so this card is its only
+    // discoverable entry point — if it stops navigating, the whole surface
+    // becomes URL-only. Admin, not super-admin: page management is an Admin+
+    // capability and the card must not be hidden behind the super-admin gate
+    // the identity form sits behind.
+    const user = userEvent.setup();
+    const { router } = await renderPage(['admin']);
+    await user.click(await screen.findByRole('button', { name: 'Manage pages' }));
+    expect(router.state.location.pathname).toBe('/studio/pages');
+  });
+
   it('danger zone: type-to-confirm gating before the DELETE fires', async () => {
     const user = userEvent.setup();
     const { calls } = await renderPage();
