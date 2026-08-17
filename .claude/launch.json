@@ -37,9 +37,9 @@
         "astro",
         "dev",
         "--port",
-        "4321"
+        "4322"
       ],
-      "port": 4321
+      "port": 4322
     },
     {
       "name": "booking-scheduler",
@@ -266,6 +266,50 @@
         "--strictPort"
       ],
       "port": 5220
+    },
+    {
+      "name": "adminium-server",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "ADMINIUM_DATA_DIR=/Users/msofi/Work/playground",
+        "node",
+        "apps/server/dist/cli/index.js",
+        "start",
+        "--port",
+        "4600",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 4600
+    },
+    {
+      "name": "adminium-dashboard",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@adminium/dashboard",
+        "exec",
+        "vite",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "adminium-dashboard-vs-e2e",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "ADMINIUM_DEV_API=127.0.0.1:4620",
+        "ADMINIUM_DEV_PORT=5199",
+        "pnpm",
+        "--filter",
+        "@adminium/dashboard",
+        "exec",
+        "vite",
+        "--strictPort"
+      ],
+      "port": 5199
     }
   ]
 }
