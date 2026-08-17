@@ -141,6 +141,13 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Anatomy',
+          items: [
+            { label: 'How Adminium works', link: '/anatomy/' },
+            { label: 'The packages, one by one', link: '/anatomy/packages/' },
+          ],
+        },
+        {
           label: 'Self-Hosting',
           items: [
             { label: 'Overview & requirements', link: '/self-hosting/' },

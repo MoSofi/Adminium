@@ -25,8 +25,8 @@ The compose file marks it **required** and fails fast if unset, rather than
 defaulting it — a defaulted encryption key is worse than none, because it looks
 like security.
 
-It derives the AES-256-GCM key for every stored DSN and API key, the session
-HMAC key, and the CSRF key. Change it and every stored secret becomes
+It derives the AES-256-GCM key for every stored DSN and API key, and signs the
+session cookie. Change it and every stored secret becomes
 undecryptable. Put it in `.env`, back it up where you back up passwords, and do
 not rotate it casually.
 :::
