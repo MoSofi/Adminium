@@ -31,6 +31,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "dev": "node scripts/dev.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "test": "vitest run",

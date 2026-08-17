@@ -5,12 +5,14 @@
 
 import { z } from 'zod';
 
+import { boolFlag } from '../query-flag.js';
+
 export const schemaConnParams = z.object({ id: z.string().min(1) });
 export const snapshotParams = z.object({ id: z.string().min(1), snapshotId: z.string().min(1) });
 
 export const schemaGetQuery = z.object({
   /** `raw=true` returns the untouched introspection result (§2.5). */
-  raw: z.coerce.boolean().optional(),
+  raw: boolFlag(),
   /**
    * Locale the effective LABELS resolve to (10-i18n-theming.md §6.4,
    * 23-runtime-translations.md §8). The client sends its resolved preference;
