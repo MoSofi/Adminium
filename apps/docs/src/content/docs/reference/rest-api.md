@@ -18,7 +18,7 @@ Two mechanisms:
 
 | | Used by | Sends |
 |---|---|---|
-| **Session cookie** | The dashboard | Cookie + CSRF token |
+| **Session cookie** | The dashboard | `adminium_session` — httpOnly, signed, `SameSite=Lax` |
 | **API key** | Your scripts and integrations | `Authorization: Bearer <key>` |
 
 API keys are scoped and revocable. Create them in Settings → API Keys. Issue one
