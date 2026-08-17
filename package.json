@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "turbo run dev --filter=@adminium/dashboard...",
+    "dev": "turbo run dev --filter=@adminium/dashboard... --filter=@adminium/server",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
