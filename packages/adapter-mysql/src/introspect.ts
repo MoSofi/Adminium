@@ -288,18 +288,56 @@ function normalizeCheckClause(clause: string): string {
     .replace(/_[a-z][a-z0-9]*\s*(?=')/gi, ''); // strip charset introducers (_utf8mb4'…')
 }
 
-const CHECK_IN_PATTERN = /[`"]?([a-zA-Z_][\w$]*)[`"]?\s+in\s+\(([^)]+)\)/i;
+/**
+ * Head of the `col IN (` shape; the value list is closed separately by a linear
+ * `indexOf(')')`.
+ *
+ * The one-piece `/[`"]?([a-zA-Z_][\w$]*)[`"]?\s+in\s+\(([^)]+)\)/i` this
+ * replaces is quadratic in two independent ways (CodeQL js/polynomial-redos
+ * flagged the byte-identical postgres and sqlite copies as alerts #7 and #9 but
+ * missed this one):
+ *   - `([^)]+)\)` rescans to end-of-string at every start offset when the clause
+ *     holds no `)` — `'x in ('.repeat(n)` cost 249 ms at 32 KB, 4x per doubling;
+ *   - `[\w$]*` and the `\s+` after it retry every split of an identifier run at
+ *     every offset inside it — a 64 KB word before a space run cost 4.9 s.
+ *
+ * `{0,63}` is 64 characters counting the leading `[a-zA-Z_]` — MySQL's maximum
+ * identifier length, the same 64 this package already declares as
+ * MYSQL_MAX_IDENTIFIER_LENGTH (serialization.ts). Note this narrows the accepted
+ * set, if only in theory: a word of 65 or more characters before ` IN (` used to
+ * be captured whole and now yields just its trailing 64. No CHECK clause MySQL
+ * can hand back reaches that case, because MySQL cannot name a column that long.
+ * (postgres bounds the same head at 62 and sqlite at 127 — each server's own
+ * limit, not a shared number.)
+ */
+const CHECK_IN_HEAD = /[`"]?([a-zA-Z_][\w$]{0,63})[`"]?\s+in\s+\(/gi;
 
 /** Parse a `col IN ('a','b')` check shape into a synthesized enum. */
 export function parseCheckEnum(clause: string): { column: string; values: string[] } | null {
   const normalized = normalizeCheckClause(clause);
-  const match = CHECK_IN_PATTERN.exec(normalized);
-  if (match?.[1] === undefined || match[2] === undefined) return null;
-  const values: string[] = [];
-  for (const literal of match[2].matchAll(/'((?:[^']|'')*)'/g)) {
-    values.push((literal[1] ?? '').replaceAll("''", "'"));
+  CHECK_IN_HEAD.lastIndex = 0;
+  for (
+    let head = CHECK_IN_HEAD.exec(normalized);
+    head !== null;
+    head = CHECK_IN_HEAD.exec(normalized)
+  ) {
+    const start = CHECK_IN_HEAD.lastIndex;
+    const end = normalized.indexOf(')', start);
+    // No `)` after this head means none after any later head either.
+    if (end === -1) return null;
+    const column = head[1];
+    if (end > start && column !== undefined) {
+      const values: string[] = [];
+      for (const literal of normalized.slice(start, end).matchAll(/'((?:[^']|'')*)'/g)) {
+        values.push((literal[1] ?? '').replaceAll("''", "'"));
+      }
+      return values.length > 0 ? { column, values } : null;
+    }
+    // Empty list: resume just after this `(`, as the one-piece pattern did when
+    // it backtracked past `([^)]+)` and retried at the next offset.
+    CHECK_IN_HEAD.lastIndex = start;
   }
-  return values.length > 0 ? { column: match[1], values } : null;
+  return null;
 }
 
 /** Strip one balanced outer paren pair from a check expression, like pg. */
