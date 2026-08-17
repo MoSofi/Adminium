@@ -177,6 +177,11 @@ export interface RateBucket {
  *                        that actually move file bytes: `POST /branding/logo`,
  *                        `POST /imports/upload`, `GET /imports/:id/error-report`
  *                        and `GET /exports/:id/download`.
+ *  - `app-shell`       — the SPA's COLD-START payload (900/min): the six routes
+ *                        a browser must GET to render the shell at all, before
+ *                        the user has asked for anything — nine requests, since
+ *                        the i18n bundle is fetched per namespace. Not a §6 row;
+ *                        see the deviation note below for why it had to exist.
  *
  * DELIBERATE §6 DEVIATIONS (documented here so the table can't drift
  * silently):
@@ -189,6 +194,35 @@ export interface RateBucket {
  *    bucket name, so the budgets are independent by construction; making them
  *    nest would mean two `incr` calls per request and a much less predictable
  *    429. The narrow limits are all well under 300/min anyway.
+ *  - `app-shell` is an EXTRA bucket §6 does not list. §6 row 1 reads as a
+ *    budget for what a USER DOES, but the general bucket as built also charges
+ *    what the APP COSTS TO BOOT, and those are different sizes. Every cold
+ *    document load spends nine `/api/` GETs before the user has asked for
+ *    anything: `/bootstrap`, `/branding`, `/system/info`, `/i18n/manifest`,
+ *    three `/i18n/bundle/:locale/:namespace` namespaces and
+ *    `/me/notifications`. At 300/min
+ *    that leaves one principal ~30 page loads a minute, floor to ceiling —
+ *    which the e2e suite (41 `page.goto`s, 428 requests in its worst 60s
+ *    window) blows straight through, and which a tab-heavy admin or anyone
+ *    holding reload can reach as well. The consequence is out of proportion to
+ *    the cause: a 429 on `/bootstrap` or on a bundle does not degrade a
+ *    feature, it replaces the entire app with the rate-limited state page.
+ *
+ *    So the line this bucket draws is: `app-shell` is what the browser must
+ *    fetch to render the shell AT ALL, `api` is what the user's actions cost.
+ *    The moved routes are fetched once per DOCUMENT, never per interaction,
+ *    are cheap (settings reads, build-time bundles, one meta-store round trip)
+ *    and are conditional-GET cacheable, so most hits are 304 revalidations
+ *    doing no work at all. They are the API-side half of the payload
+ *    `/assets/*` is — and that half is unlimited (`global: false`), so bucketing
+ *    these at all is already stricter than their static twin.
+ *
+ *    900/min is nine requests × 100 cold loads a minute: sized so a client
+ *    reloading every 600ms for a solid minute — faster than a human, about
+ *    what a headless test runner does — still works, while a scripted flood is
+ *    still bounded to 15/s of cached reads per principal. It is deliberately
+ *    NOT a licence for chattiness: adding a tenth per-load request to the
+ *    shell should move this number, not hide inside it.
  *  - The `adminium_settings.security` override §6 mentions is not built — see
  *    the module header for why (there is no `security.*` namespace to read).
  */
@@ -198,6 +232,7 @@ export const RATE_BUCKETS = {
   'auth-password-reset': { max: 5, timeWindowMs: 60_000, keyBy: 'ip' },
   search: { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
   api: { max: 300, timeWindowMs: 60_000, keyBy: 'principal' },
+  'app-shell': { max: 900, timeWindowMs: 60_000, keyBy: 'principal' },
   'widget-data': { max: 120, timeWindowMs: 60_000, keyBy: 'principal' },
   'data-io': { max: 10, timeWindowMs: 3_600_000, keyBy: 'principal' },
   llm: { max: 20, timeWindowMs: 3_600_000, keyBy: 'principal' },
@@ -225,6 +260,15 @@ const AUTO_BUCKETS: readonly {
   bucket: RateLimitBucket;
 }[] = [
   { methods: ['POST'], pattern: /\/widget-data\/(?:query|batch)$/, bucket: 'widget-data' },
+  // The cold-start payload — see the `app-shell` deviation note above. GET
+  // only, and anchored: `POST /branding/logo` must keep falling through to
+  // `file-bytes` below, and `/branding` must not swallow it.
+  {
+    methods: ['GET'],
+    pattern:
+      /\/(?:bootstrap|branding|system\/info|i18n\/manifest|i18n\/bundle\/:locale\/:namespace|me\/notifications)$/,
+    bucket: 'app-shell',
+  },
   { methods: ['POST'], pattern: /\/(?:branding\/logo|imports\/upload)$/, bucket: 'file-bytes' },
   {
     methods: ['GET'],
