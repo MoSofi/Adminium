@@ -3,11 +3,12 @@
  * copy per Login.dc.html, theme-toggle corner, and the ui screen as
  * the 380px form column.
  */
-import { Hexagon, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { AuthLayout, IconButton, useTheme, useThemePrefs } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
+import { BrandMark } from '../shell/BrandMark.js';
 
 export function ThemeToggleButton() {
   const resolved = useTheme();
@@ -31,15 +32,10 @@ export function ThemeToggleButton() {
 
 export function AuthScreenLayout({ children }: { children: ReactNode }) {
   return (
+    // `logo`: the workspace's own mark, from the PUBLIC branding route — a
+    // white label that only applies after you sign in is not a white label.
     <AuthLayout
-      logo={
-        <span className="flex items-center gap-2.5">
-          <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-white/15">
-            <Hexagon className="size-[17px]" aria-hidden="true" />
-          </span>
-          <span className="text-[16px] font-extrabold tracking-[-0.02em]">Adminium</span>
-        </span>
-      }
+      logo={<BrandMark tone="onAccent" />}
       headline={t('auth.headline', 'Turn any database into a dashboard.')}
       description={t(
         'auth.description',

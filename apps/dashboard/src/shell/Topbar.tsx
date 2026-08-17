@@ -20,7 +20,6 @@ import {
   ArrowLeft,
   Bell,
   Database,
-  Files,
   LogOut,
   Moon,
   Settings,
@@ -74,7 +73,6 @@ export interface TopbarProps {
    * re-enforce, so this gates discovery, not access.
    */
   onOpenStudio: () => void;
-  onOpenStudioPages: () => void;
   onOpenStudioSettings: () => void;
 }
 
@@ -211,7 +209,6 @@ export function Topbar({
   onSignOut,
   onOpenAccount,
   onOpenStudio,
-  onOpenStudioPages,
   onOpenStudioSettings,
 }: TopbarProps) {
   const resolved = useTheme();
@@ -343,9 +340,9 @@ export function Topbar({
                 <DropdownMenuItem icon={<Database />} onSelect={onOpenStudio}>
                   {t('studio.hub.title', 'Data connections')}
                 </DropdownMenuItem>
-                <DropdownMenuItem icon={<Files />} onSelect={onOpenStudioPages}>
-                  {t('studioPages.title', 'Pages')}
-                </DropdownMenuItem>
+                {/* Pages is deliberately absent: Workspace settings owns the
+                    entry point ("Manage pages"), so the menu lists one door per
+                    destination instead of two paths to the same surface. */}
                 <DropdownMenuItem icon={<SlidersHorizontal />} onSelect={onOpenStudioSettings}>
                   {t('studio.settingsHub.title', 'Workspace settings')}
                 </DropdownMenuItem>

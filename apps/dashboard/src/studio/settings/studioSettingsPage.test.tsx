@@ -10,7 +10,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -19,7 +19,7 @@ import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
-import type { WorkspaceSettingsData } from './workspaceApi.js';
+import type { WorkspaceBranding, WorkspaceSettingsData } from './workspaceApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -33,7 +33,7 @@ class FakeWebSocket {
 
 function makeWorkspace(overrides: Partial<WorkspaceSettingsData> = {}): WorkspaceSettingsData {
   return {
-    branding: { appName: 'Adminium' },
+    branding: { appName: 'Adminium', logoUrl: null, showVersion: true },
     ...overrides,
   };
 }
@@ -66,7 +66,11 @@ interface Call {
   body: unknown;
 }
 
-function stubFetch(roles: string[], connections: ConnectionDto[] = [makeConnection()]) {
+function stubFetch(
+  roles: string[],
+  connections: ConnectionDto[] = [makeConnection()],
+  branding: WorkspaceBranding = makeWorkspace().branding,
+) {
   const calls: Call[] = [];
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
     const url = String(input);
@@ -77,12 +81,27 @@ function stubFetch(roles: string[], connections: ConnectionDto[] = [makeConnecti
       return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ roles, nav: { groups: [] } }) }));
     }
     if (url === '/api/v1/settings/workspace' && method === 'GET') {
-      return Promise.resolve(jsonResponse(200, { data: makeWorkspace() }));
+      return Promise.resolve(jsonResponse(200, { data: { branding } }));
     }
     if (url === '/api/v1/settings/branding' && method === 'PUT') {
-      const put = body as { appName: string };
+      const put = body as { appName: string; showVersion: boolean };
       return Promise.resolve(
-        jsonResponse(200, { data: makeWorkspace({ branding: { appName: put.appName } }) }),
+        jsonResponse(200, {
+          data: makeWorkspace({ branding: { ...put, logoUrl: null } }),
+        }),
+      );
+    }
+    if (url === '/api/v1/branding' && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, { data: branding }));
+    }
+    if (url.startsWith('/api/v1/branding/logo')) {
+      return Promise.resolve(
+        jsonResponse(method === 'POST' ? 201 : 200, {
+          data: {
+            ...branding,
+            logoUrl: method === 'DELETE' ? null : '/api/v1/branding/logo?v=file_new',
+          },
+        }),
       );
     }
     if (url === '/api/v1/connections' && method === 'GET') {
@@ -99,9 +118,13 @@ function stubFetch(roles: string[], connections: ConnectionDto[] = [makeConnecti
   return { calls, fetchMock };
 }
 
-async function renderPage(roles: string[] = ['super-admin'], connections?: ConnectionDto[]) {
+async function renderPage(
+  roles: string[] = ['super-admin'],
+  connections?: ConnectionDto[],
+  branding?: WorkspaceBranding,
+) {
   vi.stubGlobal('WebSocket', FakeWebSocket);
-  const stub = stubFetch(roles, connections);
+  const stub = stubFetch(roles, connections, branding);
   const queryClient = createQueryClient();
   const router = createAppRouter(queryClient, {
     history: createMemoryHistory({ initialEntries: ['/studio/settings'] }),
@@ -157,7 +180,7 @@ describe('StudioSettingsPage', () => {
     await screen.findByText('Workspace settings updated');
 
     const brandingPut = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/branding'));
-    expect(brandingPut?.body).toEqual({ appName: 'Acme Ops' });
+    expect(brandingPut?.body).toEqual({ appName: 'Acme Ops', showVersion: true });
     // No security surface is ever hit.
     expect(calls.some((c) => c.url.endsWith('/settings/security'))).toBe(false);
   });
@@ -171,6 +194,131 @@ describe('StudioSettingsPage', () => {
     expect(
       fetchMock.mock.calls.filter((call) => String(call[0]) === '/api/v1/settings/workspace'),
     ).toHaveLength(0);
+  });
+
+  it('review-then-confirm covers the version chip too', async () => {
+    const user = userEvent.setup();
+    const { calls } = await renderPage();
+    await screen.findByRole('heading', { name: 'Workspace settings' });
+
+    await user.click(screen.getByRole('switch', { name: 'Version in the sidebar' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Shown → Hidden')).toBeDefined();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await screen.findByText('Workspace settings updated');
+    const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/branding'));
+    expect(put?.body).toEqual({ appName: 'Adminium', showVersion: false });
+  });
+
+  it('stages a picked logo and uploads it only on save', async () => {
+    const user = userEvent.setup();
+    const { calls } = await renderPage();
+    await screen.findByRole('heading', { name: 'Workspace identity' });
+
+    const input = document.querySelector('[data-testid="branding-logo-input"]');
+    await user.upload(
+      input as HTMLInputElement,
+      new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'mark.png', { type: 'image/png' }),
+    );
+
+    // Nothing has left the browser yet: a half-finished edit must not already
+    // be live on every screen of the app.
+    const posted = () => calls.some((c) => c.url.startsWith('/api/v1/branding/logo'));
+    expect(posted()).toBe(false);
+    expect(screen.getByRole('button', { name: 'Replace logo' })).toBeDefined();
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    const dialog = await screen.findByRole('dialog');
+    // Bytes have no before → after, so the file's own name is the review row.
+    expect(within(dialog).getByText('mark.png')).toBeDefined();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await screen.findByText('Workspace settings updated');
+    const post = calls.find((c) => c.method === 'POST' && c.url.startsWith('/api/v1/branding/logo'));
+    expect(post?.url).toContain('filename=mark.png');
+  });
+
+  it('accepts a dropped image anywhere in the logo row', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+    await screen.findByRole('heading', { name: 'Workspace identity' });
+
+    const zone = document.querySelector('[data-part="branding-logo-dropzone"]') as HTMLElement;
+    // The whole row is the target, not just the preview square — a drop that
+    // lands beside a 44px tile navigates the browser to the image instead.
+    expect(zone.contains(screen.getByRole('button', { name: 'Upload logo' }))).toBe(true);
+    const file = new File([new Uint8Array([0x89, 0x50])], 'dropped.svg', { type: 'image/svg+xml' });
+    // jsdom has no drag session and user-event has no drag API, so the drop is
+    // fired with the one thing the handler reads off it.
+    fireEvent.dragOver(zone);
+    fireEvent.drop(zone, { dataTransfer: { files: [file] } });
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(within(await screen.findByRole('dialog')).getByText('dropped.svg')).toBeDefined();
+  });
+
+  it('offers Remove only once a logo exists, and DELETEs it on save', async () => {
+    const user = userEvent.setup();
+    const { calls } = await renderPage(['super-admin'], undefined, {
+      appName: 'Adminium',
+      logoUrl: '/api/v1/branding/logo?v=file_1',
+      showVersion: true,
+    });
+    await screen.findByRole('heading', { name: 'Workspace identity' });
+    expect(screen.getByRole('button', { name: 'Replace logo' })).toBeDefined();
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+    // A staged logo cannot be typed back, so there is one explicit way out.
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDefined();
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await screen.findByText('Workspace settings updated');
+    expect(calls.some((c) => c.method === 'DELETE' && c.url === '/api/v1/branding/logo')).toBe(true);
+  });
+
+  it('Undo puts a staged logo back and leaves nothing to save', async () => {
+    const user = userEvent.setup();
+    await renderPage(['super-admin'], undefined, {
+      appName: 'Adminium',
+      logoUrl: '/api/v1/branding/logo?v=file_1',
+      showVersion: true,
+    });
+    await screen.findByRole('heading', { name: 'Workspace identity' });
+
+    await user.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeDefined();
+  });
+
+  it('names itself in the topbar, not in the page body', async () => {
+    await renderPage();
+    const heading = await screen.findByRole('heading', { name: 'Workspace settings' });
+    expect(heading.closest('[data-part="topbar"]')).not.toBeNull();
+    // The shell falls back to "Home" for any page that publishes no title, so
+    // this is what stops the header contradicting the page under it.
+    expect(document.querySelector('main')?.querySelectorAll('h1')).toHaveLength(0);
+  });
+
+  it('gathers the cross-links into one card with no trailing divider', async () => {
+    await renderPage();
+    const card = (await screen.findByRole('button', { name: 'Manage pages' })).closest('.divide-y');
+    expect(card).not.toBeNull();
+    // Every cross-link is a row of that one card…
+    for (const cta of ['Open AI settings', 'Open global defaults', 'Open translations']) {
+      expect(screen.getByRole('button', { name: cta }).closest('.divide-y')).toBe(card);
+    }
+    // …and `divide-y` draws its hairlines as top borders on every row but the
+    // first, so the last row can never carry one below it — whichever rows the
+    // super-admin gate leaves out.
+    expect(card?.className).toContain('divide-y');
   });
 
   it('routes a plain admin to the page manager', async () => {

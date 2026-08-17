@@ -7,10 +7,10 @@
  * Renders full-bleed (`fullPage`) for app-wide failures and inline inside the
  * content outlet for page-scoped ones (shell + nav stay usable).
  */
-import { Database } from 'lucide-react';
 import { Button, MonoText, cn } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
+import { BrandMark } from '../shell/BrandMark.js';
 import { CopyButton } from '../studio/connect/CopyButton.js';
 import type { StateTone, SystemStateSpec } from './stateMap.js';
 
@@ -166,12 +166,7 @@ export function StateHero({ spec, onPrimary, onSecondary, requestId, fullPage = 
           </div>
         )}
 
-        <div className="mt-9 flex items-center gap-2 opacity-60">
-          <span className="flex size-[22px] items-center justify-center rounded-[7px] bg-accent text-accent-fg">
-            <Database className="size-3" aria-hidden="true" />
-          </span>
-          <span className="text-[12px] font-bold">Adminium</span>
-        </div>
+        <BrandMark tone="muted" className="mt-9 gap-2 opacity-60" />
       </div>
     </div>
   );
