@@ -118,7 +118,7 @@ export function StarterTemplatePickerView({
     <ul
       data-widget="starter-template-picker"
       data-testid={testId}
-      className="grid h-full grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2 overflow-auto px-4 pb-4"
+      className="grid h-full grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {starters.map((starter) => (
         <li key={starter.id}>
@@ -335,7 +335,7 @@ export function OnboardingChecklistView({
       data-widget="onboarding-checklist"
       data-testid={testId}
       data-complete={complete ? '' : undefined}
-      className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-3 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {/*
         The annex's "live-recomputing gauge-ring + progress-bar pair", swapped for

@@ -13,6 +13,7 @@ import {
   type ClassifiedTableInput,
   type WidgetCandidate,
 } from './candidates.js';
+import { validateConfigAgainst, widgetRegistry } from './index.js';
 
 /**
  * H1/H2 rule tests (04-widget-registry.md §8; research/widget-registry.md
@@ -147,7 +148,10 @@ describe('emitCandidates — §15 step 3 on a timestamped money table', () => {
     expect(money.binding.aggregations).toEqual([
       { fn: 'sum', column: 'total_amount', alias: 'value' },
     ]);
-    expect(money.config).toEqual({ title: 'Total Total Amount', format: 'currency' });
+    // `metricFormat`, not `format`. This assertion pinned the broken value for as
+    // long as it existed: the shared `format` key is an object, so the string
+    // never parsed and KpiStatCard rendered every money total unformatted.
+    expect(money.config).toEqual({ title: 'Total Total Amount', metricFormat: 'currency' });
 
     const fresh = result.find((c) => c.rule === 'kpi.new-this-period') as WidgetCandidate;
     expect(fresh.shape).toBe('metric+delta');
@@ -418,5 +422,80 @@ describe('emitModelCandidates — cross-table rules (annex §9)', () => {
     expect(widgets(model.get('public.conversations') as WidgetCandidate[])).not.toContain(
       'chat-thread',
     );
+  });
+});
+
+/**
+ * Every emitted config must PARSE against the widget it is emitted for.
+ *
+ * This gate exists because the failure mode is silent. `validateConfigAgainst`
+ * degrades gracefully by design — an unparseable key is pruned, a warning goes
+ * to the console, and the widget renders with schema defaults. That is right at
+ * runtime and disastrous for authoring: `kpi.money-sum` emitted
+ * `format: 'currency'` against a `format` key that is an OBJECT, so every money
+ * KPI on every generated dashboard rendered unformatted, and nothing failed.
+ * The drawer could not repair it either, because `format` is a composite key it
+ * deliberately skips.
+ *
+ * Asserting zero warnings — not merely "no throw" — is the whole point.
+ */
+describe('emitted candidate configs are valid against their own widget schema', () => {
+  // Fixtures are rebuilt here rather than reused: the richer ones live inside
+  // other describe blocks, and this gate wants BREADTH of rules fired, not the
+  // specific shapes those blocks assert on.
+  const chatPair = [
+    build('public.conversations', [
+      { name: 'id', logicalType: 'varchar', semantic: 'pk-id' },
+      { name: 'subject', logicalType: 'text', semantic: 'title' },
+      { name: 'created_at', logicalType: 'timestamptz', semantic: 'created-at' },
+    ]),
+    build(
+      'public.messages',
+      [
+        { name: 'id', logicalType: 'varchar', semantic: 'pk-id' },
+        {
+          name: 'conversation_id',
+          logicalType: 'varchar',
+          semantic: 'fk',
+          references: { tableId: 'public.conversations', column: 'id' },
+        },
+        { name: 'body', logicalType: 'text', semantic: 'free-text' },
+        { name: 'created_at', logicalType: 'timestamptz', semantic: 'created-at' },
+      ],
+      { role: 'messages' },
+    ),
+  ];
+  const storage = build('public.assets', [
+    { name: 'id', logicalType: 'varchar', semantic: 'pk-id' },
+    { name: 'name', logicalType: 'text', semantic: 'title' },
+    { name: 'size_bytes', logicalType: 'bigint', semantic: 'size' },
+    { name: 'created_at', logicalType: 'timestamptz', semantic: 'created-at' },
+  ]);
+
+  const everyCandidate = (): WidgetCandidate[] => {
+    const model = emitModelCandidates([orders, storage, ...chatPair], ctx);
+    return [...model.values()].flat();
+  };
+
+  it('covers a meaningful number of rules', () => {
+    expect(everyCandidate().length).toBeGreaterThan(5);
+  });
+
+  it('emits no config a widget would prune', () => {
+    const offenders: string[] = [];
+    for (const candidate of everyCandidate()) {
+      const definition = widgetRegistry.get(candidate.widget);
+      if (definition === undefined) {
+        offenders.push(`${candidate.rule} → unregistered widget '${candidate.widget}'`);
+        continue;
+      }
+      const { warnings } = validateConfigAgainst(definition, candidate.config);
+      for (const warning of warnings) {
+        offenders.push(
+          `${candidate.rule} → ${candidate.widget}.${warning.path || '(root)'}: ${warning.code}`,
+        );
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

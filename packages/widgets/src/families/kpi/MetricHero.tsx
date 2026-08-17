@@ -82,7 +82,7 @@ export function MetricHero({ config, data }: WidgetProps<MetricHeroConfig>) {
   const animated = useCountUp(metric?.value ?? 0, config.countUp);
 
   if (metric === null) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
 
   const opts = formatOptionsOf(config);
@@ -104,7 +104,7 @@ export function MetricHero({ config, data }: WidgetProps<MetricHeroConfig>) {
         )}`;
 
   return (
-    <div className="flex h-full flex-col justify-between gap-3 px-4 pb-4 compact:px-3 compact:pb-3" data-widget="metric-hero">
+    <div className="flex h-full flex-col justify-between gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="metric-hero">
       <div className="flex flex-col gap-1.5">
         {label === undefined ? null : <p className="truncate text-body-sm text-fg-muted">{label}</p>}
         <div className="flex flex-wrap items-center gap-2.5">

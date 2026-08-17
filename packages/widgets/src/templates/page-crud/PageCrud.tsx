@@ -487,63 +487,75 @@ export function PageCrud({
 
   return (
     <div data-part="page-crud" data-testid={testId} className="flex h-full min-h-0 flex-col">
-      {/* Toolbar — morphs to the bulk bar while rows are selected (09 §7.1). */}
-      <div className="flex min-h-12 items-center gap-2 pb-3">
-        {selectedIds.length > 0 ? (
-          <BulkActionToolbar
-            selectedIds={selectedIds}
-            actions={[
-              { key: 'export', label: labels?.exportAction ?? t('ui:templates.crud.exportAction', 'Export') },
-              ...(canDelete
-                ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true }]
-                : []),
-            ]}
-            onAction={(key, ids) => {
-              if (key === 'delete') setBulkDeleteIds(ids);
-            }}
-            onClear={() => setSelected(new Set())}
+      {/* ONE card holds toolbar + grid + footer, each pair separated by a
+          hairline — the composition both comps use (Data Table.dc.html and
+          CRUD Admin.dc.html are identical on this point). The toolbar used to
+          float above a separate card, which read as two unrelated slabs and
+          left the grid's card without the elevation every other surface has.
+          `shadow-card` is `--shadow`, the token the comps set on this box. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+        {/* Toolbar. Search first, then the views/filter control, then the
+            active filter chips; only the END slot swaps on selection (09 §7.1
+            "morphs"). Selecting rows used to replace the WHOLE rail, which took
+            the search box and the chips off screen exactly when a user is
+            mid-way through narrowing a set — so they could no longer see, let
+            alone adjust, the query their selection came from. */}
+        <div className="flex min-h-[62px] items-center gap-2.5 border-b border-border px-4 py-3.5">
+          <SearchInput
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={
+              labels?.searchPlaceholder ??
+              t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: source.table })
+            }
+            className="w-72"
+            onClear={() => setSearch('')}
+            clearLabel={t('ui:action.clearSearch', 'Clear search')}
           />
-        ) : (
-          <>
-            {toolbarAccessory}
-            <SearchInput
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={
-                labels?.searchPlaceholder ??
-                t('ui:templates.crud.searchPlaceholder', 'Search {table}…', { table: source.table })
-              }
-              className="w-72"
-              onClear={() => setSearch('')}
-              clearLabel={t('ui:action.clearSearch', 'Clear search')}
+          {toolbarAccessory}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+            {filters.map((filter, index) => (
+              <FilterChip
+                key={`${filter.column}-${String(index)}`}
+                field={filter.column}
+                op={FILTER_OP_GLYPHS[filter.op] ?? filter.op}
+                value={filter.op === 'is_null' || filter.op === 'not_null' ? '' : String(filter.value)}
+                onRemove={() => {
+                  setFilters((current) => current.filter((_, i) => i !== index));
+                  setCursor('');
+                  setCursorStack([]);
+                }}
+                removeLabel={t('ui:templates.crud.removeFilter', 'Remove {column} filter', { column: filter.column })}
+              />
+            ))}
+          </div>
+          {selectedIds.length > 0 ? (
+            <BulkActionToolbar
+              selectedIds={selectedIds}
+              actions={[
+                { key: 'export', label: labels?.exportAction ?? t('ui:templates.crud.exportAction', 'Export') },
+                ...(canDelete
+                  ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true }]
+                  : []),
+              ]}
+              onAction={(key, ids) => {
+                if (key === 'delete') setBulkDeleteIds(ids);
+              }}
+              onClear={() => setSelected(new Set())}
             />
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-              {filters.map((filter, index) => (
-                <FilterChip
-                  key={`${filter.column}-${String(index)}`}
-                  field={filter.column}
-                  op={FILTER_OP_GLYPHS[filter.op] ?? filter.op}
-                  value={filter.op === 'is_null' || filter.op === 'not_null' ? '' : String(filter.value)}
-                  onRemove={() => {
-                    setFilters((current) => current.filter((_, i) => i !== index));
-                    setCursor('');
-                    setCursorStack([]);
-                  }}
-                  removeLabel={t('ui:templates.crud.removeFilter', 'Remove {column} filter', { column: filter.column })}
-                />
-              ))}
-            </div>
-            {canCreate && (
-              <Button iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+          ) : (
+            canCreate && (
+              /* `topbar` is the size authored for exactly this CTA — the comp's
+                 700 weight and asymmetric inset that keeps the leading `+` from
+                 drifting off its label. The default `md` rendered it a weight
+                 lighter and evenly padded. */
+              <Button size="topbar" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
                 {labels?.newRow ?? t('ui:templates.crud.newRow', 'New row')}
               </Button>
-            )}
-          </>
-        )}
-      </div>
+            )
+          )}
+        </div>
 
-      {/* Grid + footer. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
         {list.error !== null ? (
           <EmptyState
             tone="danger"

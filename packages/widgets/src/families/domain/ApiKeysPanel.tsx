@@ -125,7 +125,7 @@ export function ApiKeysPanelView({
     <div
       data-widget="api-keys-panel"
       data-testid={testId}
-      className="flex h-full flex-col gap-2 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {revealedSecret === undefined ? null : (
         <Banner tone="pos" data-testid="api-key-revealed">

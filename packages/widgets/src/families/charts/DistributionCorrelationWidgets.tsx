@@ -42,7 +42,7 @@ import type {
 
 function BadShape() {
   const t = useMaybeT();
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
+  return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 /**
@@ -70,7 +70,7 @@ export function ChartBoxplotWidget({ config, data }: WidgetProps<ChartBoxplotCon
     );
   }
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-boxplot">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-boxplot">
       <BoxPlotChart
         groups={distribution.groups}
         labels={{ label: config.title ?? t('ui:widgets.charts.boxplot.chartLabel', 'Box plot') }}
@@ -100,7 +100,7 @@ export function ChartViolinWidget({ config, data }: WidgetProps<ChartViolinConfi
     );
   }
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-violin">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-violin">
       <ViolinChart
         groups={groups}
         labels={{ label: config.title ?? t('ui:widgets.charts.violin.chartLabel', 'Violin plot') }}
@@ -130,7 +130,7 @@ export function ChartRidgelineWidget({ config, data }: WidgetProps<ChartRidgelin
     );
   }
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-ridgeline">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-ridgeline">
       <RidgelineChart
         groups={groups}
         labels={{ label: config.title ?? t('ui:widgets.charts.ridgeline.chartLabel', 'Ridgeline') }}
@@ -178,7 +178,7 @@ export function ChartScatterBubbleWidget({ config, data }: WidgetProps<ChartScat
     );
   }
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-scatter-bubble">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-scatter-bubble">
       <ScatterBubbleChart
         points={points}
         labels={{ label: config.title ?? t('ui:widgets.charts.scatterBubble.chartLabel', 'Scatter plot') }}
@@ -205,7 +205,7 @@ export function ChartHexbinWidget({ config, data }: WidgetProps<ChartHexbinConfi
     );
   }
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-hexbin">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-hexbin">
       <HexbinChart
         cells={matrix.cells}
         labels={{ label: config.title ?? t('ui:widgets.charts.hexbin.chartLabel', 'Density hexbin') }}
@@ -231,7 +231,7 @@ export function ChartCorrelationMatrixWidget({ config, data }: WidgetProps<Chart
     );
   }
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-correlation-matrix">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-correlation-matrix">
       <CorrelationMatrixChart
         cells={matrix.cells}
         columns={matrix.colKeys}
@@ -295,7 +295,7 @@ export function ChartParallelCoordinatesWidget({ config, data }: WidgetProps<Cha
     );
   }
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-parallel-coordinates">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-parallel-coordinates">
       <ParallelCoordinatesChart
         axes={inputs.axes}
         records={inputs.records}

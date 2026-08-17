@@ -6,13 +6,17 @@ import { z } from 'zod';
  * 12-column grid; heights are stored in half-row units of 40 px (an annex
  * height of 1.5 rows persists as h: 3).
  */
+/** Max stored height in 40 px half-units. Exported so the grid track clamps
+ *  against the same number the schema validates — it used to hand-copy it. */
+export const MAX_H = 24;
+
 export const layoutItemSchema = z.object({
   i: z.string(), // widget instance id (nanoid)
   widget: z.string(), // registry id
   x: z.number().int().min(0).max(11),
   y: z.number().int().min(0),
   w: z.number().int().min(1).max(12),
-  h: z.number().int().min(1).max(24), // half-units
+  h: z.number().int().min(1).max(MAX_H), // half-units
   config: z.record(z.string(), z.unknown()),
 });
 

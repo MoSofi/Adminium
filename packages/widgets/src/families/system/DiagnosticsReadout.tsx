@@ -92,7 +92,7 @@ export function DiagnosticsReadoutView({
     <div
       data-widget="diagnostics-readout"
       data-testid={testId}
-      className="flex h-full flex-col gap-2 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div className="rounded-lg border border-border bg-surface-2 px-3 py-1.5">
         {present.map((check) => {

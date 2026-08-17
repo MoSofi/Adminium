@@ -292,7 +292,7 @@ export function MapBubble({
       data-widget="map-bubble"
       data-testid={testId}
       data-map-status={mapStatus}
-      className="flex h-full flex-col gap-3 px-4 pb-4 compact:px-3 compact:pb-3"
+      className="flex h-full flex-col gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {keys.length > 1 && (
         <SegmentedControl

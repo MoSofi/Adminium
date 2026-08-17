@@ -68,13 +68,13 @@ export function EmptyStateWidget({ config, onEvent }: WidgetProps<EmptyStateConf
     />
   );
 
-  if (!isDropzone) return <div className="flex h-full items-center justify-center px-4 pb-4">{body}</div>;
+  if (!isDropzone) return <div className="flex h-full items-center justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]">{body}</div>;
 
   // Drop-zone variant: the annex's dashed-border target framing around the same
   // centred content. The zone is presentational here — `upload-dropzone` (annex
   // §8, media family) owns real file intake.
   return (
-    <div className="flex h-full items-center justify-center px-4 pb-4">
+    <div className="flex h-full items-center justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <div className="flex h-full w-full items-center justify-center rounded-xl border-2 border-dashed border-border-strong">
         {body}
       </div>

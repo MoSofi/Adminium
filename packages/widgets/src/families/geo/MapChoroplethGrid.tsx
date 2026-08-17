@@ -106,7 +106,7 @@ export function MapChoroplethGrid({
     <div
       data-widget="map-choropleth-grid"
       data-testid={testId}
-      className="flex flex-wrap items-start gap-4 px-4 pb-4 compact:px-3 compact:pb-3"
+      className="flex flex-wrap items-start gap-4 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div className="overflow-x-auto">
         <ChoroplethGridChart

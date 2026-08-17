@@ -57,7 +57,13 @@ export interface ChartSurfaceProps {
   className?: string;
 }
 
-const ZERO_PADDING: ChartPadding = { top: 0, right: 0, bottom: 0, left: 0 };
+/**
+ * Padding a chart gets when it declares none. Not zero: an undeclared gutter
+ * used to mean marks and labels drew flush to the viewBox edge and clipped.
+ * Every chart in the package currently declares all four sides, so this is a
+ * floor for new ones rather than a change to any existing layout.
+ */
+const DEFAULT_PADDING: ChartPadding = { top: 6, right: 6, bottom: 6, left: 6 };
 
 export function ChartSurface({
   labels,
@@ -73,7 +79,7 @@ export function ChartSurface({
   const resolvedDir = useChartDir(dir);
   const mounted = useMountAnimation();
 
-  const pad: ChartPadding = { ...ZERO_PADDING, ...padding };
+  const pad: ChartPadding = { ...DEFAULT_PADDING, ...padding };
   const innerWidth = Math.max(0, width - pad.left - pad.right);
   const innerHeight = Math.max(0, height - pad.top - pad.bottom);
 

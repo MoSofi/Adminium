@@ -50,7 +50,7 @@ export function BreadcrumbWidget({ config, data, onEvent }: WidgetProps<Breadcru
   if (shown.length === 0) return null;
 
   return (
-    <div className="flex h-full items-center px-4 pb-4" data-widget="breadcrumb" data-testid={config.testId}>
+    <div className="flex h-full items-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="breadcrumb" data-testid={config.testId}>
       <Breadcrumbs
         label={config.a11yLabel ?? t('ui:widgets.chrome.breadcrumb.a11yLabel', 'Breadcrumb')}
         items={shown.map((crumb) =>

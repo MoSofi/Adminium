@@ -2,8 +2,9 @@
  * `chart-funnel` primitive (research/widget-registry.md §2): ordered shrinking
  * stages in two layouts — `horizontal` (start-aligned bars) and `stepped`
  * (centered bars with "N% continue" step rows) — plus an overall-conversion
- * footer. Bars mirror in RTL (categorical part-to-whole, §7.4); the fading
- * accent-alpha ramp keeps in-bar labels readable in both themes. Tokens only.
+ * footer. Bars mirror in RTL (categorical part-to-whole, §7.4). Label and value
+ * ride a line above the bar, never on it: on the accent ramp no foreground
+ * token clears AA at every stage. Tokens only.
  */
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';
@@ -14,6 +15,9 @@ import type { ChartDir } from '../hooks/useRtl.js';
 import { formatCompact } from '../utils/format.js';
 import { ChartSurface } from './ChartSurface.js';
 import type { ChartLabels } from './ChartSurface.js';
+
+/** Caption line above each bar: 12.5px label + 3px to the track (design 164). */
+const LABEL_BLOCK = 16;
 
 export interface FunnelChartProps {
   data: readonly FunnelStageInput[];
@@ -62,7 +66,7 @@ export function Funnel({
       {...(dir !== undefined ? { dir } : {})}
       {...(a11yFallback !== undefined ? { a11yFallback } : {})}
       {...(className !== undefined ? { className } : {})}
-      padding={{ top: 2, right: 2, bottom: overallFooter ? 24 : 2, left: 2 }}
+      padding={{ top: 8, right: 2, bottom: overallFooter ? 24 : 2, left: 2 }}
     >
       {({ innerWidth, innerHeight, rtl, mounted }) => {
         if (innerWidth <= 0 || innerHeight <= 0) return null;
@@ -70,7 +74,12 @@ export function Funnel({
         if (stages.length === 0) return null;
 
         const rowHeight = innerHeight / stages.length;
-        const barHeight = Math.max(6, rowHeight * (showStepConversion ? 0.54 : 0.72));
+        // Each row is a caption line over a bar (design line 164). The bar takes
+        // what the caption leaves, so a short chart loses bar thickness rather
+        // than pushing the caption onto the bar below it.
+        const barHeight = Math.max(6, Math.min(rowHeight - LABEL_BLOCK, rowHeight * (showStepConversion ? 0.54 : 0.72)));
+        const labelEdge = rtl ? innerWidth : 0;
+        const valueEdge = rtl ? 0 : innerWidth;
 
         return (
           <g data-funnel="">
@@ -78,9 +87,8 @@ export function Funnel({
               const barWidth = stage.widthFrac * innerWidth;
               const startX = variant === 'stepped' ? stage.offsetFrac * innerWidth : 0;
               const x = rtl ? innerWidth - startX - barWidth : startX;
-              const y = i * rowHeight + (rowHeight - barHeight) / 2;
-              const textX = rtl ? innerWidth - 8 : 8;
-              const anchor = rtl ? 'end' : 'start';
+              const y = i * rowHeight + LABEL_BLOCK + Math.max(0, rowHeight - LABEL_BLOCK - barHeight) / 2;
+              const captionY = y - 5;
               return (
                 <g
                   key={stage.label}
@@ -90,30 +98,29 @@ export function Funnel({
                 >
                   <rect x={x} y={y} width={Math.max(0, barWidth)} height={barHeight} rx={4} fill={stage.colorVar} />
                   <text
-                    className="adm-chart-axis-label"
-                    x={textX}
-                    y={y + barHeight / 2 - 3}
-                    textAnchor={anchor}
-                    dominantBaseline="middle"
+                    className="adm-chart-entity-label"
+                    x={labelEdge}
+                    y={captionY}
+                    textAnchor={rtl ? 'end' : 'start'}
                   >
                     {stage.label}
                   </text>
                   <text
-                    className="adm-chart-axis-label adm-chart-num"
-                    x={textX}
-                    y={y + barHeight / 2 + 10}
-                    textAnchor={anchor}
-                    dominantBaseline="middle"
+                    className="adm-chart-num adm-chart-value"
+                    x={valueEdge}
+                    y={captionY}
+                    textAnchor={rtl ? 'start' : 'end'}
                   >
                     {`${format(stage.value)} · ${Math.round(stage.overallPct)}%`}
                   </text>
+                  {/* Retention rides the free middle of the caption line rather
+                      than the row boundary, which the caption now occupies. */}
                   {showStepConversion && i > 0 && (
                     <text
-                      className="adm-chart-axis-label"
+                      className="adm-chart-legend-caption"
                       x={innerWidth / 2}
-                      y={i * rowHeight}
+                      y={captionY}
                       textAnchor="middle"
-                      dominantBaseline="middle"
                       data-step-conversion=""
                     >
                       {resolvedStepConversionLabel(Math.round(stage.stepPct))}
@@ -124,7 +131,7 @@ export function Funnel({
             })}
             {overallFooter && (
               <text
-                className="adm-chart-tooltip-value"
+                className="adm-chart-num adm-chart-value"
                 x={innerWidth / 2}
                 y={innerHeight + 16}
                 textAnchor="middle"

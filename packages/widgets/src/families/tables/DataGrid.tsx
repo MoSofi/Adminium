@@ -145,14 +145,32 @@ export function DataGrid({
     ...(manualSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
   });
 
-  const rowPad = density === 'compact' ? 'px-3 py-1.5' : 'px-3 py-2.5';
+  /* Row metrics come from the density axis (02 §1.8, §3): the cells below set
+     `py-[var(--row-py)]` (13px / 7px) and `text-[length:var(--cell-fs)]`
+     (13px / 12px). Both are declared once in @adminium/tokens/density.css, and
+     this grid — the component they were authored for — is their only consumer,
+     so the hardcoded `px-3 py-2.5` pair that used to live here silently unpinned
+     the whole axis: `data-density="compact"` reflowed cards but never tables,
+     and the cell font sat a tier below the comp's 13px. The `density` prop is a
+     per-instance OVERRIDE of the ambient axis, applied by re-declaring the
+     attribute on this subtree rather than by re-declaring the values
+     (02 acceptance #1: no package outside tokens declares them).
+     Only the inline inset is density-invariant — 14px in every comp. */
+  const gridPad = 'px-3.5';
   const headerRows = table.getHeaderGroups();
   const bodyRows = table.getRowModel().rows;
   const allSelected = selectable && bodyRows.length > 0 && bodyRows.every((row) => row.getIsSelected());
   const someSelected = selectable && bodyRows.some((row) => row.getIsSelected());
 
   return (
-    <div data-testid={testId} data-part="data-grid" role="table" aria-rowcount={rows.length} className="min-w-full overflow-x-auto">
+    <div
+      data-testid={testId}
+      data-part="data-grid"
+      role="table"
+      aria-rowcount={rows.length}
+      {...(density === 'compact' ? { 'data-density': 'compact' as const } : {})}
+      className="min-w-full overflow-x-auto"
+    >
       {headerRows.map((headerGroup) => (
         <div
           key={headerGroup.id}
@@ -160,7 +178,7 @@ export function DataGrid({
           className="flex items-center border-b border-border bg-surface-2"
         >
           {selectable && (
-            <div role="columnheader" className="flex w-10 shrink-0 items-center justify-center py-2">
+            <div role="columnheader" className="flex w-11 shrink-0 items-center justify-center py-2">
               <Checkbox
                 aria-label={labels?.selectAll ?? t('ui:widgets.tables.dataGrid.selectAllLabel', 'Select all rows')}
                 checked={allSelected ? true : someSelected ? 'indeterminate' : false}
@@ -177,8 +195,13 @@ export function DataGrid({
             const sorted = header.column.getIsSorted();
             const sortable = header.column.getCanSort();
             const label = flexRender(header.column.columnDef.header, header.getContext());
+            /* `text-micro` IS the comp's header tier (10.5px/700/.05em) and the
+               house pattern for it — see `Label`'s eyebrow, which names table
+               headers as a use. The hand-rolled trio it replaces drifted on two
+               axes: .08em tracking and `--fg-muted`, where every comp header is
+               .05em on `--fg-subtle`. */
             const headerText = (
-              <span className="truncate text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-muted">
+              <span className="truncate text-micro uppercase text-fg-subtle">
                 {label}
               </span>
             );
@@ -187,7 +210,7 @@ export function DataGrid({
                 key={header.id}
                 role="columnheader"
                 aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
-                className={`flex min-w-0 flex-1 items-center ${rowPad} ${cellAlignClass(spec)}`}
+                className={`flex min-w-0 flex-1 items-center py-[11px] ${gridPad} ${cellAlignClass(spec)}`}
               >
                 {sortable ? (
                   <button
@@ -198,7 +221,7 @@ export function DataGrid({
                         ? `${labels.sortBy} ${spec.label}`
                         : t('ui:widgets.tables.dataGrid.sortByLabel', 'Sort by {column}', { column: spec.label })
                     }
-                    className="group inline-flex min-w-0 items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    className="group inline-flex min-w-0 items-center gap-[5px] rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                   >
                     {headerText}
                     {sorted === 'asc' ? (
@@ -215,7 +238,7 @@ export function DataGrid({
               </div>
             );
           })}
-          {rowEnd !== undefined && <div role="columnheader" className="w-10 shrink-0" />}
+          {rowEnd !== undefined && <div role="columnheader" className="w-11 shrink-0" />}
         </div>
       ))}
 
@@ -237,14 +260,16 @@ export function DataGrid({
                     }
               }
               tabIndex={onRowOpen === undefined ? undefined : 0}
+              /* Full-strength tints, as in both comps: the /60 alpha washed the
+                 selected row out to a hint and made the hover barely visible. */
               className={`flex items-center transition-colors ${
-                isSelected ? 'bg-accent-soft/60' : 'hover:bg-surface-2/60'
+                isSelected ? 'bg-accent-soft' : 'hover:bg-surface-2'
               } ${onRowOpen === undefined ? '' : 'cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'}`}
             >
               {selectable && (
                 <div
                   role="cell"
-                  className="flex w-10 shrink-0 items-center justify-center py-2"
+                  className="flex w-11 shrink-0 items-center justify-center py-2"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Checkbox
@@ -261,14 +286,21 @@ export function DataGrid({
                     key={cell.id}
                     role="cell"
                     data-column={spec.name}
-                    className={`flex min-w-0 flex-1 items-center text-body-sm text-fg ${rowPad} ${cellAlignClass(spec)}`}
+                    /* The key-field weight: both comps set the primary display
+                       column at 700 and leave every other cell at regular, which
+                       is what gives a row its anchor. `isDisplay` was already on
+                       the spec ("key field" highlight, 09 §8.3) but nothing in
+                       the list read it, so every column rendered identically. */
+                    className={`flex min-w-0 flex-1 items-center text-[length:var(--cell-fs)] text-fg ${
+                      spec.isDisplay ? 'font-bold' : ''
+                    } ${gridPad} py-[var(--row-py)] ${cellAlignClass(spec)}`}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </div>
                 );
               })}
               {rowEnd !== undefined && (
-                <div role="cell" className="flex w-10 shrink-0 items-center justify-center" onClick={(event) => event.stopPropagation()}>
+                <div role="cell" className="flex w-11 shrink-0 items-center justify-center" onClick={(event) => event.stopPropagation()}>
                   {rowEnd(row.original)}
                 </div>
               )}

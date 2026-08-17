@@ -154,7 +154,7 @@ export function ProgressLogConsoleView({
       data-widget="progress-log-console"
       data-variant={variant}
       data-testid={testId}
-      className="flex h-full flex-col gap-2 px-4 pb-4"
+      className="flex h-full flex-col gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div
         // A streaming log is a log landmark, announced politely: assertive would

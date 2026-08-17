@@ -85,7 +85,7 @@ export function AlertBannerView({
   const body = lead === undefined ? undefined : message;
 
   return (
-    <div className="relative px-4 pb-4">
+    <div className="relative px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <Alert
         data-widget="alert-banner"
         data-severity={severity ?? 'info'}

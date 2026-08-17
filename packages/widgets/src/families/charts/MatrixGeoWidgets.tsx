@@ -31,7 +31,7 @@ import type { WidgetProps } from '../../registry/types.js';
 
 function BadShape() {
   const t = useMaybeT();
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
+  return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 type Rec = Record<string, unknown>;
@@ -149,7 +149,7 @@ export function ChartCohortMatrixWidget({ config, data }: WidgetProps<ChartCohor
       ? `${Math.round(value)}%`
       : formatMetricValue(value, config.valueFormat, opts);
   return (
-    <div className="overflow-x-auto px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-cohort-matrix">
+    <div className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-cohort-matrix">
       <CohortMatrixChart
         rowKeys={matrix.rowKeys}
         colKeys={matrix.colKeys}
@@ -171,7 +171,10 @@ export const chartHeatmapCalendarConfigSchema = widgetSharedConfigSchema.extend(
   levels: z.number().int().min(4).max(5).default(5),
   /** Override the locale's first weekday (0=Sun..6=Sat). */
   firstDayOfWeek: z.number().int().min(0).max(6).optional(),
-  cellSize: z.number().int().min(8).max(20).default(12),
+  // 11px is the comp's contribution grid. The default is restated here rather
+  // than left to the chart component's own: the wrapper forwards this value
+  // unconditionally, so a component-side default is dead weight.
+  cellSize: z.number().int().min(8).max(20).default(11),
   valueFormat: z.enum(['plain', 'compact']).default('plain'),
 });
 export type ChartHeatmapCalendarConfig = z.infer<typeof chartHeatmapCalendarConfigSchema>;
@@ -188,7 +191,7 @@ export function ChartHeatmapCalendarWidget({ config, data }: WidgetProps<ChartHe
   const opts = formatOptionsOf(config);
   const fmt = getFormatters(opts.locale ?? 'en-US');
   return (
-    <div className="overflow-x-auto px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-heatmap-calendar">
+    <div className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-heatmap-calendar">
       <HeatCalendarChart
         points={series.points}
         labels={{ label: config.title ?? t('ui:widgets.charts.heatmapCalendar.chartLabel', 'Activity calendar') }}
@@ -241,7 +244,7 @@ export function ChartHeatMonthWidget({ config, data }: WidgetProps<ChartHeatMont
   }
 
   return (
-    <div className="overflow-x-auto px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-heat-month">
+    <div className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-heat-month">
       <HeatMonthChart
         year={year}
         month={month}
@@ -295,7 +298,7 @@ export function ChartChoroplethGridWidget({ config, data }: WidgetProps<ChartCho
       : [];
 
   return (
-    <div className="flex flex-wrap items-start gap-4 px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-choropleth-grid">
+    <div className="flex flex-wrap items-start gap-4 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-choropleth-grid">
       <div className="overflow-x-auto">
         <ChoroplethGridChart
           points={geo.points}
@@ -345,7 +348,7 @@ export function ChartSankeyWidget({ config, data }: WidgetProps<ChartSankeyConfi
   if (flows === null || flows.nodes.length === 0 || flows.links.length === 0) return <BadShape />;
   const opts = formatOptionsOf(config);
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-sankey">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-sankey">
       {config.summaryLabel !== undefined && (
         <div className="mb-2 flex justify-end">
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-caption font-medium text-fg-muted">

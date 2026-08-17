@@ -98,7 +98,7 @@ export function NavCardView({ items, columns = 3, emptyTitle, emptyBody, onNavig
     <div
       data-widget="nav-card"
       data-testid={testId}
-      className={cn('grid h-full gap-3 overflow-auto px-4 pb-4', COLUMN_CLASSES[columns] ?? COLUMN_CLASSES[3])}
+      className={cn('grid h-full gap-3 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]', COLUMN_CLASSES[columns] ?? COLUMN_CLASSES[3])}
     >
       {items.map((item) => (
         <a

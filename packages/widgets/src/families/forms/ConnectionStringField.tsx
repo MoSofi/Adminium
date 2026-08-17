@@ -230,7 +230,7 @@ export function ConnectionStringFieldWidget({ config, data, onEvent }: WidgetPro
   if (config.incompleteText !== undefined) errorText['incomplete'] = config.incompleteText;
 
   return (
-    <div className="flex h-full flex-col justify-center px-4 pb-4">
+    <div className="flex h-full flex-col justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <ConnectionStringField
         value={dsn}
         onValueChange={setDsn}

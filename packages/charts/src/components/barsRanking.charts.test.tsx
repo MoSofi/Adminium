@@ -64,7 +64,7 @@ describe('RankingBars', () => {
     const { container } = render(
       <RankingBars data={[{ label: long, value: 10 }]} labels={{ label: 'Articles' }} />,
     );
-    const text = container.querySelector('text.adm-chart-axis-label');
+    const text = container.querySelector('text.adm-chart-entity-label');
     // The drawn glyphs are the trailing text node; `textContent` would also
     // fold in the <title> child that carries the full string.
     const drawn = text?.lastChild?.textContent ?? '';
@@ -77,7 +77,7 @@ describe('RankingBars', () => {
     const { container } = render(
       <RankingBars data={[{ label: 'Canada', value: 10 }]} labels={{ label: 'Regions' }} />,
     );
-    const text = container.querySelector('text.adm-chart-axis-label');
+    const text = container.querySelector('text.adm-chart-entity-label');
     expect(text?.textContent).toBe('Canada');
     expect(text?.querySelector('title')).toBeNull();
   });
@@ -85,7 +85,7 @@ describe('RankingBars', () => {
   it('clips the label gutter so an underestimated width can never reach the bars', () => {
     const { container } = render(<RankingBars data={demoRanking(2)} labels={{ label: 'x' }} />);
     expect(container.querySelector('clipPath')).not.toBeNull();
-    const text = container.querySelector('text.adm-chart-axis-label');
+    const text = container.querySelector('text.adm-chart-entity-label');
     expect(text?.getAttribute('clip-path')).toMatch(/^url\(#.+\)$/);
   });
 });

@@ -88,7 +88,7 @@ export function PolicyListView({ policies, enableLabel, onToggle, testId }: Poli
     <ul
       data-widget="policy-list"
       data-testid={testId}
-      className="flex h-full flex-col gap-1.5 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-1.5 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {policies.map((policy) => (
         <li
@@ -222,7 +222,7 @@ export function IpAllowlistCardView({
     <ul
       data-widget="ip-allowlist-card"
       data-testid={testId}
-      className="flex h-full flex-col gap-1 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-1 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {entries.map((entry) => (
         <li
@@ -310,7 +310,7 @@ export function TrustBadgesView({ badges, testId }: TrustBadgesViewProps) {
     <ul
       data-widget="trust-badges"
       data-testid={testId}
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 pb-4 text-caption text-fg-muted"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 px-[var(--widget-pad)] pb-[var(--widget-pad)] text-caption text-fg-muted"
     >
       {badges.map((badge, index) => (
         <li key={badge} className="flex items-center gap-2" data-part="trust-badge">
@@ -379,7 +379,7 @@ export function TestimonialCardView({ testimonial, locale, testId }: Testimonial
     <figure
       data-widget="testimonial-card"
       data-testid={testId}
-      className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-3 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <Quote aria-hidden="true" className="size-5 shrink-0 text-accent opacity-60" />
       <blockquote className="flex-1 text-body-sm leading-relaxed text-fg" data-part="testimonial-quote">

@@ -12,14 +12,20 @@ import { layoutBullet } from '../geometry/bullet.js';
 import type { BulletInput } from '../geometry/bullet.js';
 import type { ChartDir } from '../hooks/useRtl.js';
 import { formatCompact } from '../utils/format.js';
+import { truncateToWidth } from '../utils/text.js';
 import { ChartSurface } from './ChartSurface.js';
 import type { ChartLabels } from './ChartSurface.js';
+
+/** Matches `.adm-chart-entity-label` in styles.css — the gutter budget assumes it. */
+const LABEL_FONT_PX = 12.5;
+/** Breathing room between the end of a label and the start of the band track. */
+const LABEL_PADDING = 8;
 
 export interface BulletChartProps {
   data: readonly BulletInput[];
   labels: ChartLabels;
   height?: number;
-  /** Inline-start label gutter width, px (default 92). */
+  /** Inline-start label gutter width, px (default 104). */
   labelGutter?: number;
   /** Inline-end value gutter width, px (default 52). */
   valueGutter?: number;
@@ -38,7 +44,9 @@ export function BulletChart({
   data,
   labels,
   height = 200,
-  labelGutter = 92,
+  // 104px is the design's measure-name column, and it is what the 12.5px entity
+  // label needs: the old 92px was budgeted for a 10px label.
+  labelGutter = 104,
   valueGutter = 52,
   formatValue = formatCompact,
   dir,
@@ -67,6 +75,7 @@ export function BulletChart({
           <g className="adm-chart-fade" style={{ '--adm-fade': mounted ? '1' : '0' }}>
             {layout.rows.map((row) => {
               const midY = row.rowY + layout.rowHeight / 2 + 3;
+              const shortLabel = truncateToWidth(row.label, labelGutter - LABEL_PADDING, LABEL_FONT_PX);
               return (
                 <g key={row.label} data-bullet-row={row.index}>
                   {/* Qualitative bands (background track). */}
@@ -101,24 +110,23 @@ export function BulletChart({
                     fill="var(--danger)"
                     data-target=""
                   />
-                  {/* Inline-start label. */}
+                  {/* Inline-start label. SVG text neither wraps nor ellipsizes,
+                      so an over-long measure name would draw across the bands. */}
                   <text
-                    className="adm-chart-axis-label"
+                    className="adm-chart-entity-label"
                     x={labelEdge}
                     y={midY}
                     textAnchor={rtl ? 'end' : 'start'}
                   >
-                    {row.label}
+                    {shortLabel !== row.label && <title>{row.label}</title>}
+                    {shortLabel}
                   </text>
                   {/* Inline-end measure value. */}
                   <text
-                    className="adm-chart-num"
+                    className="adm-chart-num adm-chart-value"
                     x={valueEdge}
                     y={midY}
                     textAnchor={rtl ? 'start' : 'end'}
-                    fontSize={11}
-                    fontWeight={700}
-                    fill="var(--fg)"
                   >
                     {formatValue(row.measure)}
                   </text>

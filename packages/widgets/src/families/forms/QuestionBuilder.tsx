@@ -147,7 +147,7 @@ export function QuestionBuilderWidget({ config, data, onEvent }: WidgetProps<Que
     <div
       data-widget="question-builder"
       data-testid={config.testId}
-      className="flex h-full gap-3 overflow-hidden px-4 pb-4"
+      className="flex h-full gap-3 overflow-hidden px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {/* Palette rail (annex "palette rail 3×5"). Collapses under the canvas on
           a narrow grid cell rather than squeezing both into unusable columns. */}

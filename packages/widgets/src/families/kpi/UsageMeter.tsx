@@ -23,7 +23,7 @@ export function UsageMeter({ config, data, onEvent }: WidgetProps<UsageMeterConf
   const t = useMaybeT();
   const metric = asSingleMetric(data);
   if (metric === null) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
 
   const opts = formatOptionsOf(config);
@@ -41,7 +41,7 @@ export function UsageMeter({ config, data, onEvent }: WidgetProps<UsageMeterConf
 
   return (
     <div
-      className={`flex h-full flex-col justify-center gap-2 px-4 pb-4 ${config.compact ? 'gap-1.5 px-3 pb-3' : ''}`}
+      className={`flex h-full flex-col justify-center gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)] ${config.compact ? 'gap-1.5 px-3 pb-3' : ''}`}
       data-widget="usage-meter"
       data-tone={tone}
     >

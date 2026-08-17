@@ -26,6 +26,9 @@ export interface TreemapTile {
   colorVar: string;
   /** Sequential alpha ramp step for area intensity (var(--viz-ramp-N)). */
   rampVar: string;
+  /** The N in `rampVar`, 1..6 — the renderer needs it to pick a legible label
+      color: from step 4 (65% accent) up, --fg no longer clears AA on the tile. */
+  rampStep: number;
 }
 
 export interface TreemapOptions {
@@ -41,10 +44,10 @@ function vizColor(index: number): string {
 }
 
 /** Ramp step 1..6 by descending rank (largest tile = strongest). */
-function rampColor(rank: number, count: number): string {
-  if (count <= 1) return 'var(--viz-ramp-6)';
+function rampStepFor(rank: number, count: number): number {
+  if (count <= 1) return 6;
   const step = 6 - Math.round((rank / (count - 1)) * 5); // rank 0 → 6, last → 1
-  return `var(--viz-ramp-${Math.min(6, Math.max(1, step))})`;
+  return Math.min(6, Math.max(1, step));
 }
 
 function worstRatio(row: readonly number[], length: number): number {
@@ -156,6 +159,7 @@ export function treemapTiles(
     .sort((a, b) => a.index - b.index)
     .map((p) => {
       const source = items[p.index] as TreemapInput;
+      const rampStep = rampStepFor(rankByIndex.get(p.index) ?? 0, placed.length);
       return {
         label: source.label,
         value: source.value,
@@ -165,7 +169,8 @@ export function treemapTiles(
         width: p.width,
         height: p.height,
         colorVar: vizColor(colorIndex.get(source) ?? p.index),
-        rampVar: rampColor(rankByIndex.get(p.index) ?? 0, placed.length),
+        rampVar: `var(--viz-ramp-${rampStep})`,
+        rampStep,
       };
     });
 }

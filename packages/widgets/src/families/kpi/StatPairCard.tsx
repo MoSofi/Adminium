@@ -60,7 +60,7 @@ function Side({ label, value }: { label: string | undefined; value: string }) {
 export function StatPairCard({ config, data }: WidgetProps<StatPairCardConfig>) {
   const { a, b } = statPairValues(data, config);
   if (a === null && b === null) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
 
   const opts = formatOptionsOf(config);
@@ -69,7 +69,7 @@ export function StatPairCard({ config, data }: WidgetProps<StatPairCardConfig>) 
 
   return (
     <div
-      className="flex h-full items-center gap-4 px-4 pb-4 compact:gap-3 compact:px-3 compact:pb-3"
+      className="flex h-full items-center gap-4 px-[var(--widget-pad)] pb-[var(--widget-pad)] compact:gap-3"
       data-widget="stat-pair-card"
       data-derived={config.derivedFormula}
     >

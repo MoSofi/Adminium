@@ -131,7 +131,7 @@ export function CodeSnippetBlockView({
     <div
       data-widget="code-snippet-block"
       data-testid={testId}
-      className="flex h-full flex-col gap-2 overflow-hidden px-4 pb-4"
+      className="flex h-full flex-col gap-2 overflow-hidden px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div className="flex items-center gap-1.5">
         {tabs.length > 1 ? (
@@ -282,7 +282,7 @@ export function WebhookEndpointsListView({
     <ul
       data-widget="webhook-endpoints-list"
       data-testid={testId}
-      className="flex h-full flex-col gap-1.5 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-1.5 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {hooks.map((hook) => {
         const since = formatSince(hook.lastFired, locale, now);
@@ -415,7 +415,7 @@ export function ResourceApiCardView({
     <div
       data-widget="resource-api-card"
       data-testid={testId}
-      className="flex h-full flex-col gap-2.5 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-2.5 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div className="flex items-center gap-2">
         <MonoText className="min-w-0 flex-1 truncate text-body-sm font-bold text-fg" data-part="resource-name">

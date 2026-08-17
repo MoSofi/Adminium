@@ -110,7 +110,7 @@ export function ApiPlaygroundView({
       data-widget="api-playground"
       data-testid={testId}
       data-paradigm={paradigm}
-      className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-3 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <section className="flex flex-col gap-2" aria-label={requestLabel ?? t('ui:widgets.domain.apiPlayground.requestLabel', 'Request')}>
         <div className="flex items-center gap-2">

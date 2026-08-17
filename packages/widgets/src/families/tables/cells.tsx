@@ -55,14 +55,14 @@ function MaskedCell({
   const [revealed, setRevealed] = useState(false);
   if (!revealable) {
     return (
-      <MonoText data-part="cell-masked" className="text-fg-subtle">
+      <MonoText data-part="cell-masked" className="truncate text-fg-subtle">
         {MASKED_PLACEHOLDER}
       </MonoText>
     );
   }
   return (
-    <span data-part="cell-masked" className="inline-flex items-center gap-1.5">
-      <MonoText className={revealed ? undefined : 'text-fg-subtle'}>
+    <span data-part="cell-masked" className="inline-flex min-w-0 items-center gap-1.5">
+      <MonoText className={revealed ? 'truncate' : 'truncate text-fg-subtle'}>
         {revealed ? String(value) : MASKED_PLACEHOLDER}
       </MonoText>
       <button
@@ -154,9 +154,14 @@ export function CellValue({
   }
   if (value === null || value === undefined) return EMPTY_CELL;
 
+  /* Every text-shaped cell truncates. The grid cell is a flex container, so its
+     children are blockified and `truncate` bites — but only the plain-string and
+     url branches ever set it, so a long email or uuid escaped its column and
+     painted over the next one's pill (visible in any table with a mono column
+     narrower than its values). The comp ellipsizes all of them. */
   if (column.semantic === 'money') {
     return (
-      <MonoText data-part="cell-money" className="font-semibold">
+      <MonoText data-part="cell-money" className="truncate font-semibold">
         {formatMoney(value, { locale: context.locale, currency: context.currency ?? column.currency })}
       </MonoText>
     );
@@ -190,14 +195,14 @@ export function CellValue({
     column.logicalType === 'timestamptz'
   ) {
     return (
-      <span data-part="cell-timestamp" title={formatAbsoluteTime(value, context.locale)} className="whitespace-nowrap text-fg-muted">
+      <span data-part="cell-timestamp" title={formatAbsoluteTime(value, context.locale)} className="truncate whitespace-nowrap text-fg-muted">
         {formatRelativeTime(value, { locale: context.locale })}
       </span>
     );
   }
 
   if (column.semantic === 'email') {
-    return <MonoText data-part="cell-email">{String(value)}</MonoText>;
+    return <MonoText data-part="cell-email" className="truncate">{String(value)}</MonoText>;
   }
   if (column.semantic === 'url' || column.semantic === 'image-url') {
     return (
@@ -216,7 +221,7 @@ export function CellValue({
 
   if (column.semantic === 'percent') {
     const amount = typeof value === 'number' ? value : Number(value);
-    return <MonoText data-part="cell-percent">{Number.isFinite(amount) ? `${String(amount)}%` : String(value)}</MonoText>;
+    return <MonoText data-part="cell-percent" className="truncate">{Number.isFinite(amount) ? `${String(amount)}%` : String(value)}</MonoText>;
   }
 
   if (column.logicalType === 'json') {
@@ -224,7 +229,7 @@ export function CellValue({
   }
 
   if (column.mono || column.semantic === 'pk-id' || column.semantic === 'external-id' || column.logicalType === 'uuid' || isPlainNumber(column)) {
-    return <MonoText>{String(value)}</MonoText>;
+    return <MonoText className="truncate">{String(value)}</MonoText>;
   }
 
   return <span className="truncate">{String(value)}</span>;

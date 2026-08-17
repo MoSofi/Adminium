@@ -92,14 +92,14 @@ export function ShortcutsPanelView({
   const t = useMaybeT();
   if (groups.length === 0) {
     return (
-      <p className="px-4 pb-4 text-body-sm text-fg-muted">
+      <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">
         {emptyTitle ?? t('ui:widgets.chrome.shortcutsPanel.emptyTitle', 'No shortcuts registered.')}
       </p>
     );
   }
 
   return (
-    <div data-widget="shortcuts-panel" data-testid={testId} className="h-full overflow-y-auto px-4 pb-4">
+    <div data-widget="shortcuts-panel" data-testid={testId} className="h-full overflow-y-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
         {groups.map((group) => (
           <section key={group.group} data-part="shortcut-group">

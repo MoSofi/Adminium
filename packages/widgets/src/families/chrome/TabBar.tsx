@@ -61,7 +61,7 @@ export function TabBarWidget({ config, data, onEvent }: WidgetProps<TabBarConfig
   const active = config.activeKey ?? (tabs[0] as TabDef).key;
 
   return (
-    <div className="flex h-full items-start px-4 pb-4" data-widget="tab-bar" data-testid={config.testId}>
+    <div className="flex h-full items-start px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="tab-bar" data-testid={config.testId}>
       <Tabs
         // `variant` maps the annex's `style` vocabulary onto the UI component's.
         variant={config.style === 'segmented' ? 'pill' : 'underline'}

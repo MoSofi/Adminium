@@ -160,7 +160,10 @@ describe('registry metadata', () => {
       expect(definition.capabilities?.exportPng).toBe(true);
     }
     expect(byId.get('chart-ranking-bars')?.sizing).toEqual({ minW: 3, minH: 4, defaultW: 3, defaultH: 6 });
-    expect(byId.get('chart-stacked-bar-100')?.sizing).toEqual({ minW: 3, minH: 2, defaultW: 4, defaultH: 4 });
+    // minH is 4, not the annex's 2: see the sizing comment on the definition and
+    // qa/chart-legibility-floor.test.ts — 2 half-units is 80px, below the card's
+    // own chrome, and minW is inert on the single-column mobile grid.
+    expect(byId.get('chart-stacked-bar-100')?.sizing).toEqual({ minW: 3, minH: 4, defaultW: 4, defaultH: 4 });
     expect(byId.get('chart-slope')?.sizing).toEqual({ minW: 4, minH: 6, defaultW: 6, defaultH: 6 });
   });
 
