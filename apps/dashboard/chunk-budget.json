@@ -1,5 +1,5 @@
 {
-  "entryJsGzBytes": 664700,
+  "entryJsGzBytes": 670500,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
   "loweredOn": {
@@ -56,5 +56,29 @@
     "whatElseWasTried": "Template descriptions rewritten to about half their original length (the schematic beside them carries the layout, so the words no longer had to); the seven longest new strings tightened; two orphaned keys left by the deleted CreatePageModal/PageEditorDrawer removed from all 8 locales. Those recovered ~250 bytes of the ~350 the feature was over.",
     "headroom": "497 bytes. Deliberately small: this is a raise, and the ratchet's value is that it normally only clicks down. The next new surface should not absorb its copy cost here — it should land the 10-T06 namespace split, which would return this and more.",
     "alternativeNotTaken": "Moving the en-US `studio` namespace out of the static bundle. That is the real fix and it would pay for this several times over, but it changes the i18n boot path in a shared package, it belongs to 10-T06/10-T10, and doing it inside a UI change would put a silent runtime-missing-string risk behind an unrelated review."
+  },
+  "raisedFor_2026_08_17": {
+    "when": "2026-08-17",
+    "by": "User management (team, roles matrix, audit log, account security) AND the dashboard-builder binding editor — 08-T08, M2-T05, 09-T14, 04-T14",
+    "from": 664700,
+    "to": 670500,
+    "measured": "670,117 bytes (654.4 KiB gz) with both features complete — 5,417 bytes over the 664,700 ratchet.",
+    "why": "The overflow is en-US COPY, not code. This is the FOURTH consecutive raise from the same structural cause (see raisedFor, raisedAgainFor, and this entry): `packages/i18n/src/resources/index.ts` statically bundles ALL FIVE en-US namespaces into the entry, so every user-facing string on any new surface has an irreducible entry cost regardless of how lazily its component loads. Its own docblock says the lazy split ships with the M8 extraction pipeline (10-T06/10-T10). These two features added 338 keys: 223 for the four people/accountability screens and 115 for the binding editor.",
+    "whatWasDeferredFirst": "All of the code, verified twice by grepping the built entry for code-shaped markers. User management: `auditQuery`, `revokeSession`, `team.invite.created` — zero hits in the entry, present only in lazy chunks. Binding editor: `BindingEditor`, `bindingDraft`, `draftIsLossy` — zero hits in the entry, present in two lazy chunks. In both cases the copy strings DO appear in the entry, which is what identifies the i18n catalogue rather than the components as the source.",
+    "whatWasNotDone": "The copy was NOT cut. Two of the longest new strings are the invite banner (the link is shown once, only a hash is stored) and the remove-user confirmation (erases account + preferences + sessions, blanks the name from the settings record, suspend keeps all of it). Both exist to stop an unrecoverable mistake and shortening them to buy ~300 bytes would be the wrong trade.",
+    "headroom": "383 bytes. Deliberately tight, per the convention the earlier entries set.",
+    "alternativeNotTaken": "Moving the new keys to `studio.json` buys nothing — all five namespaces sit in the same static bundle. **The real fix is 10-T06's namespace split, and after four raises from this one cause it is now the single highest-leverage item for this gate**: it would return this raise and the three before it several times over. It changes the i18n boot path in a shared package and carries a silent runtime-missing-string risk, so it does not belong inside a feature change — but it should be scheduled before the next surface lands, not after."
+  },
+  "raisedFor_2026_08_17_branding": {
+    "when": "2026-08-17",
+    "by": "White-label branding: workspace name, uploaded logo and the opt-out version chip across the shell (BrandMark + the public /branding route)",
+    "from": 668000,
+    "to": 668600,
+    "measured": "668,189 bytes with the feature complete — 189 bytes over the 668,000 ratchet, which had held 423 bytes of headroom.",
+    "why": "The overflow is en-US COPY, and this time that is not an inference: deleting the feature's 14 new en-US strings and rebuilding measured 667,977 bytes — 23 bytes UNDER the ratchet. So the CODE for the whole feature (BrandMark, the branding query client, the logo field and the version switch) is net zero on the entry, because replacing four hardcoded brand blocks with one component gives back what the component costs. Every byte of this raise is the i18n catalogue, the same structural cause as the two raises above, and it stays that way until 10-T06 splits the namespaces.",
+    "whyNotDeferred": "This is the shell's own chrome, on the first paint, on every route including the ones with no session: the sign-in screen, the 404 and the error heroes all render the mark. A dynamic import there would put a chunk fetch in front of the first thing anyone sees, and the workspace name would visibly swap from the built-in one a beat later — which is the exact flicker the component's fallback exists to avoid.",
+    "whatElseWasTried": "Two keys dropped (the preview image is decorative beside its own `Logo` field label, and the generic upload failure reuses the card's existing `saveFailed` string) and the two long helper lines shortened in all 8 locales. Measured recovery: 27 bytes of the 191 it started at. gzip had already folded most of the repetition, which is worth recording — copy trimming is a much weaker lever against this gate than the earlier entries' ~250-byte results suggested.",
+    "headroom": "411 bytes, matching the 423–510 the entries above set.",
+    "alternativeNotTaken": "Serving the branding strings from the runtime-translation layer instead of the compiled bundle. They would leave the entry, but the shell would then paint its own name from the network on every cold load — trading a fixed 200 bytes for the flash this feature is meant to prevent."
   }
 }

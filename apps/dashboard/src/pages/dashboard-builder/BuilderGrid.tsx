@@ -11,7 +11,7 @@
  * `getSizing` enforces each widget's registry resize floor.
  */
 
-import { Copy, Settings2, Trash2 } from 'lucide-react';
+import { Copy, DatabaseZap, Settings2, Trash2 } from 'lucide-react';
 import { useCallback } from 'react';
 import {
   DashboardGrid,
@@ -120,13 +120,36 @@ export function BuilderGrid({
             ? { status: 'success', data: rendered.demoData(seedFromString(item.i)) }
             : { status: 'success', data: undefined };
         const selected = item.i === selectedId;
+        // THE CANVAS ALWAYS LIES ABOUT DATA — every widget above renders
+        // `demoData(seed)` whether or not it carries a binding, so a widget
+        // nobody ever wired to the database is pixel-identical to one that is.
+        // A dragged-in widget starts unbound (`binding` is `.optional()`, so
+        // `insertWidget`'s `safeParse({})` cannot invent one) and keeps showing
+        // those invented numbers on the LIVE page. This badge is the only place
+        // in edit mode that distinguishes the two; "Configure" is where it gets
+        // fixed. Presence of the key is the test, not its validity: a malformed
+        // binding IS bound and the inspector reports it as broken.
+        const unbound = item.config['binding'] === undefined;
         return (
           <div
             data-builder-item={item.i}
+            data-builder-unbound={unbound ? 'true' : undefined}
             className={`group relative h-full rounded-2xl border border-dashed ${
               selected ? 'border-accent ring-2 ring-accent' : 'border-border-strong'
             }`}
           >
+            {unbound ? (
+              <span
+                className="absolute bottom-2 start-2 z-10 inline-flex items-center gap-1 rounded-md border border-warn/40 bg-warn-soft px-1.5 py-0.5 text-caption font-medium text-warn"
+                title={t(
+                  'builder.item.unboundHint',
+                  'This widget shows sample data here and on the live page. Open Configure to connect it to a table.',
+                )}
+              >
+                <DatabaseZap className="size-3" aria-hidden="true" />
+                {t('builder.item.unbound', 'Sample data')}
+              </span>
+            ) : null}
             <div className="pointer-events-none h-full [&_*]:pointer-events-none">
               <WidgetHost
                 widgetId={item.widget}
