@@ -12,6 +12,8 @@
  * - Transactional per migration on PostgreSQL/SQLite (transactional DDL); on
  *   MySQL the ledger row is written immediately after the last statement and
  *   every DDL statement is individually re-runnable (ifNotExists guards).
+ * - Serialized across processes by a per-dialect advisory lock (migrate-lock.ts)
+ *   so two replicas booting together cannot both enter the pending set.
  */
 
 import { createHash } from 'node:crypto';
@@ -20,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import { sql, type Kysely } from 'kysely';
 
 import { columnHelpers, type MetaDialect } from './columns.js';
+import { withMigrationLock, type MigrationLockOptions } from './migrate-lock.js';
 import { ALL_MIGRATIONS, type MetaMigration } from './migrations/index.js';
 import type { MetaDB } from './schema/tables.js';
 
@@ -82,6 +85,17 @@ export interface MigratorOptions {
   version?: string;
   /** Clock override — tests only. */
   now?: () => number;
+  /**
+   * Advisory-lock settings for the pass, or `false` to run unlocked — for a
+   * caller that already holds the lock, or a test that wants the raw runner.
+   */
+  lock?: Omit<MigrationLockOptions, 'dialect'> | false;
+  /**
+   * Set when `db` is already inside a transaction the caller opened (the
+   * SQLite lock is). Suppresses the per-migration transaction: SQLite has no
+   * nested `BEGIN`, and the pass is already atomic as a whole.
+   */
+  inTransaction?: boolean;
 }
 
 export interface ApplyResult {
@@ -153,16 +167,37 @@ async function readAndValidateLedger(
 
 /**
  * Apply all pending migrations, in order. Idempotent: already-applied
- * migrations are skipped via the ledger; concurrent runners racing on the same
- * migration collide on the ledger PK inside the transaction (PG/SQLite), so
- * each migration is applied exactly once.
+ * migrations are skipped via the ledger.
+ *
+ * Concurrent runners are serialized by the advisory lock (migrate-lock.ts),
+ * held on one pinned connection for the whole pass — the ledger PK alone only
+ * defends PostgreSQL/SQLite, where it shares a transaction with the DDL, and
+ * MySQL is exactly the dialect where it does not. Pass `lock: false` to opt
+ * out; a lock wait is bounded and fails with {@link MigrationLockTimeoutError}
+ * rather than hanging a container boot.
  */
 export async function applyMigrations(db: Kysely<MetaDB>, options: MigratorOptions): Promise<ApplyResult> {
+  // `db.connection()` cannot pin anything on a handle that is already a
+  // transaction, and an outer transaction is itself a serialization point.
+  if (options.lock === false || options.inTransaction === true || db.isTransaction) {
+    return applyMigrationsUnlocked(db, options);
+  }
+  return withMigrationLock(db, { dialect: options.dialect, ...options.lock }, (locked, ctx) =>
+    applyMigrationsUnlocked(locked, { ...options, lock: false, inTransaction: ctx.inTransaction }),
+  );
+}
+
+async function applyMigrationsUnlocked(
+  db: Kysely<MetaDB>,
+  options: MigratorOptions,
+): Promise<ApplyResult> {
   const migrations = orderedMigrations(options.migrations ?? ALL_MIGRATIONS);
   const now = options.now ?? Date.now;
   const version = options.version ?? META_PACKAGE_VERSION;
   const dialect = options.dialect;
 
+  // Kept for unlocked callers: inside the SQLite lock's transaction the pragma
+  // is a no-op, which is why the lock runs it before its BEGIN (migrate-lock.ts).
   if (dialect === 'sqlite') await enableSqliteForeignKeys(db);
   await ensureLedger(db, dialect);
   const { appliedNames } = await readAndValidateLedger(db, migrations);
@@ -181,9 +216,11 @@ export async function applyMigrations(db: Kysely<MetaDB>, options: MigratorOptio
       adminiumVersion: version,
     });
 
-    if (dialect === 'mysql') {
-      // No transactional DDL: statements are individually re-runnable
-      // (ifNotExists), and the ledger row lands right after the last one.
+    if (dialect === 'mysql' || options.inTransaction === true) {
+      // MySQL: no transactional DDL, so statements are individually re-runnable
+      // (ifNotExists) and the ledger row lands right after the last one.
+      // `inTransaction`: the caller already opened one (the SQLite lock does),
+      // and SQLite has no nested BEGIN.
       await migration.up(db as unknown as Kysely<unknown>, c);
       await db.insertInto(LEDGER).values(ledgerRow()).execute();
     } else {
