@@ -16,6 +16,7 @@ export * from './columns.js';
 export * from './connect.js';
 export * from './schema/index.js';
 export * from './migrations/index.js';
+export * from './migrate-lock.js';
 export * from './migrator.js';
 export * from './relocate.js';
 export * from './repos/index.js';
