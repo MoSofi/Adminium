@@ -18,17 +18,24 @@ half-configured and fail later.
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
 | `ADMINIUM_DATA_DIR` | No | `./data` | Writable directory for files, exports, backups, and the embedded meta store. |
-| `DATABASE_URL` | No | — | **First-boot seed only** — see below. |
 | `ADMINIUM_LOG_LEVEL` | No | `info` | `fatal` · `error` · `warn` · `info` · `debug` · `trace` |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
 | `ADMINIUM_BRIDGE_ORIGINS` | No | *(off)* | CSV of exact origins allowed to hand this instance a connection string. **No wildcard.** |
+| `ADMINIUM_RUNTIME` | No | `self-host` | `self-host` · `desktop`. **Set by the Electron shell only** — see below. |
+| `ADMINIUM_BOOT_TOKEN` | No | *(unset)* | 64 hex characters. **Desktop shell only** — see below. |
+| `ADMINIUM_DESKTOP_SINGLE_USER` | No | *(unset)* | **Desktop shell only.** Mirrors the app's "skip login on this computer" answer. |
+| `ADMINIUM_DEMO_SEED_SCRIPT` | No | *(unset)* | **Desktop shell only.** Absolute path to the demo-database seed script. |
 | `ADMINIUM_DISABLE_UPDATES` | No | *(unset)* | **Desktop app only.** `1` forces the update mode to `disabled` — see below. |
 
 An empty string is treated as unset, so `FOO= adminium start` behaves like
 `FOO` being absent.
+
+Anything not on this list is ignored. Adminium validates exactly these — a
+misspelled variable does not fail the boot, it simply does nothing, which is why
+the list is worth checking against.
 
 ## `ADMINIUM_SECRET`
 
@@ -84,16 +91,15 @@ The meta store's engine is independent of your source database's.
 
 → [Where to put the meta store](/self-hosting/meta-store/)
 
-## `DATABASE_URL`
+:::note[There is no `DATABASE_URL`]
+Adminium has no environment variable for the database you want an admin panel
+**for**. It is not configuration — it is a connection you create in the first-run
+wizard, or through `POST /api/v1/connections`, and it is stored encrypted in the
+meta store like every other one.
 
-:::caution[A seed, not configuration]
-If set, `DATABASE_URL` is imported as the first source connection on the **first
-boot only**, then ignored.
-
-It is not "the database Adminium uses". Changing it later does nothing.
-Removing it does not remove the connection. It exists so a container can boot
-with a connection already present; after that, connections are managed in Studio
-or through the API.
+Earlier builds accepted a `DATABASE_URL` and described it here as a first-boot
+seed. Nothing ever read it, so setting it did nothing at all; it has been removed
+rather than left as a variable that looks like a control.
 :::
 
 ## `ADMINIUM_TRUST_PROXY`
@@ -203,6 +209,29 @@ ADMINIUM_TELEMETRY=off
 
 Together with `ADMINIUM_TELEMETRY=off` and `updates.checkEnabled` left at its
 default, that is a complete no-phone-home configuration.
+
+## The desktop block
+
+`ADMINIUM_RUNTIME`, `ADMINIUM_BOOT_TOKEN`, `ADMINIUM_DESKTOP_SINGLE_USER` and
+`ADMINIUM_DEMO_SEED_SCRIPT` are set by the **Electron app** when it launches its
+own server process. They are listed here because Adminium validates them, not
+because a self-host deployment should set them.
+
+`ADMINIUM_RUNTIME` is the one to understand, because it decides what the server
+*exposes*. Under `desktop` — and only under `desktop` — the server registers
+`POST /api/v1/auth/desktop-session`, the route that trades the desktop app's
+per-launch boot token for a session without a password. It exists so the app can
+open straight into your data on a machine you already unlocked.
+
+On a self-host or Docker install the runtime is `self-host`, that route is
+**never registered**, and the password-free door does not exist to be attacked —
+which is a stronger guarantee than a check inside a handler. Setting
+`ADMINIUM_RUNTIME=desktop` on a server would create it. Do not.
+
+The other three are inert without it: the boot token is minted fresh per launch
+and never stored, the single-user flag mirrors a choice made in the desktop app's
+own settings, and the seed-script path points at a file that ships inside the app
+bundle.
 
 ## `ADMINIUM_DISABLE_UPDATES`
 

@@ -26,6 +26,13 @@ export type ErrorCode =
   | 'UNKNOWN_IDENTIFIER'
   | 'RATE_LIMITED'
   | 'SOURCE_DB_UNREACHABLE'
+  // The two meta-store placement refusals (01-architecture.md §3.1). Both are
+  // thrown by `connections/dsn.ts` subclasses and both were missing from this
+  // union while already travelling the wire — `META_PLACEMENT_INVALID` has been
+  // served by `POST /connections` since M3 and asserted by name in
+  // `connections.test.ts`, so the canonical table here was simply out of date.
+  | 'META_PLACEMENT_INVALID'
+  | 'META_PREFIX_COLLISION'
   | 'INTERNAL';
 
 /** The wire shape of every non-2xx response. */
