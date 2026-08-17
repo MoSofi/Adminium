@@ -28,8 +28,16 @@ export interface BuiltinRoleDef {
 /**
  * The four built-in roles (§3.8, §6). Super-admin gets every system action
  * (the RBAC layer short-circuits for `super-admin` anyway); admin gets the §6
- * management set; editor/viewer get table/page grants dynamically at
- * generation time, no system actions.
+ * management set — including `users.manage` and `audit.read`, without which an
+ * Admin can neither invite a colleague nor read the trail its own changes
+ * leave; editor/viewer get table/page grants dynamically at generation time,
+ * no system actions.
+ *
+ * `roles.manage` deliberately stays super-admin-only: it authorizes GRANTING a
+ * role, and an actor that can both invite a user and pick that user's role can
+ * mint itself any privilege (the invite reply carries the activation token —
+ * there is no SMTP to keep it out of the inviter's hands). `seedBuiltinRoles`
+ * runs at every boot and backfills the two new rows on existing installs.
  *
  * Reserved-key footprint: "every system action" includes ALL FOUR
  * `RESERVED_SYSTEM_ACTION_KEYS` (automations/webhooks/manifests/sql.run — no
@@ -55,7 +63,7 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     slug: 'admin',
     name: 'Admin',
     description: 'Manages connections, schema, and LLM assist.',
-    systemActions: ['connections.manage', 'schema.remap', 'llm.run'],
+    systemActions: ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run'],
   },
   {
     slug: 'editor',
