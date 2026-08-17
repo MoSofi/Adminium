@@ -105,7 +105,8 @@ export default {
       "planning": "Plánování",
       "people": "Lidé",
       "account": "Účet"
-    }
+    },
+    "back": "Zpět"
   },
   "topbar": {
     "search": "Hledat…",
@@ -128,8 +129,8 @@ export default {
     "askAi": "Zeptat se AI",
     "shortcuts": "Klávesové zkratky",
     "signOut": "Odhlásit se",
-    "themeDark": "Přepnout na tmavý motiv",
-    "themeLight": "Přepnout na světlý motiv",
+    "themeDark": "Tmavý režim",
+    "themeLight": "Světlý režim",
     "footerNavigate": "navigace",
     "footerOpen": "vybrat",
     "footerClose": "zavřít",
@@ -599,6 +600,11 @@ export default {
         "heading": "Obohacení pomocí AI",
         "body": "Nastavte poskytovatele AI (nebo okruh kopírovat-vložit) k obohacení popisků, skupin a vztahů.",
         "cta": "Otevřít nastavení AI"
+      },
+      "pagesCard": {
+        "heading": "Stránky",
+        "body": "Přidávejte, upravujte a mažte stránky, měňte jejich obsah a přeuspořádejte postranní panel.",
+        "cta": "Spravovat stránky"
       }
     },
     "settingsAi": {
@@ -1890,37 +1896,48 @@ export default {
   },
   "templates": {
     "crud": {
-      "title": "Záznamy"
+      "title": "Záznamy",
+      "description": "Prohledávatelná tabulka řádků s přidáním, úpravou a mazáním."
     },
     "dashboard": {
-      "title": "Přehled"
+      "title": "Přehled",
+      "description": "Mřížka grafů a čísel, kterou si uspořádáte sami."
     },
     "board": {
-      "title": "Nástěnka"
+      "title": "Nástěnka",
+      "description": "Karty ve sloupcích podle stavu, přetahované mezi nimi."
     },
     "calendar": {
-      "title": "Kalendář"
+      "title": "Kalendář",
+      "description": "Záznamy umístěné podle data do měsíční nebo týdenní mřížky."
     },
     "scheduler": {
-      "title": "Plánovač"
+      "title": "Plánovač",
+      "description": "Kdo co dělá – jako časová osa pro každou osobu."
     },
     "logViewer": {
-      "title": "Protokoly"
+      "title": "Protokoly",
+      "description": "Husté filtrovatelné řádky událostí s detailním trasováním."
     },
     "files": {
-      "title": "Soubory"
+      "title": "Soubory",
+      "description": "Soubory a složky jako procházitelná knihovna."
     },
     "chat": {
-      "title": "Chat"
+      "title": "Chat",
+      "description": "Konverzace ve vláknech s historií zpráv."
     },
     "builder": {
-      "title": "Editor"
+      "title": "Editor",
+      "description": "Plátno pro dokumenty a šablony s přetahováním."
     },
     "wizard": {
-      "title": "Průvodce"
+      "title": "Průvodce",
+      "description": "Vedená posloupnost kroků k dokončení úkolu."
     },
     "settings": {
-      "title": "Nastavení"
+      "title": "Nastavení",
+      "description": "Seskupené řádky předvoleb s přepínači a poli."
     },
     "directory": {
       "title": "Adresář",
@@ -1934,7 +1951,8 @@ export default {
       "noMatchesBody": "Zkuste jiné hledání nebo odeberte filtr.",
       "errorTitle": "Tento adresář se nepodařilo načíst",
       "loading": "Načítání osob",
-      "memberCount": "{count} osob"
+      "memberCount": "{count} osob",
+      "description": "Lidé jako karty, s organizačním schématem podřízenosti."
     },
     "masterDetail": {
       "title": "Seznam a detail",
@@ -1946,7 +1964,8 @@ export default {
       "noMatchesBody": "Zkuste odebrat filtr.",
       "errorTitle": "Tento seznam se nepodařilo načíst",
       "loading": "Načítání záznamů",
-      "selectPrompt": "Vyberte záznam"
+      "selectPrompt": "Vyberte záznam",
+      "description": "Seznam vlevo, vybraný záznam vedle něj."
     },
     "queueInbox": {
       "title": "Fronta",
@@ -1971,7 +1990,8 @@ export default {
       "errorTitle": "Tuto frontu se nepodařilo načíst",
       "loading": "Načítání fronty",
       "selectPrompt": "Vyberte žádost",
-      "daysUnit": "{count} dní"
+      "daysUnit": "{count} dní",
+      "description": "Pracovní fronta se schválením a zamítnutím u každé položky."
     }
   },
   "dataio": {
@@ -2075,7 +2095,167 @@ export default {
     }
   },
   "theme": {
-    "toLight": "Přepnout na světlý motiv",
-    "toDark": "Přepnout na tmavý motiv"
+    "toLight": "Světlý režim",
+    "toDark": "Tmavý režim"
+  },
+  "studioPages": {
+    "title": "Stránky",
+    "subtitle": "Přidávejte, upravujte a uspořádejte stránky své aplikace i jejich pořadí v postranním panelu.",
+    "createButton": "Nová stránka",
+    "loadFailed": {
+      "title": "Stránky se nepodařilo načíst",
+      "body": "Správa stránek vyžaduje oprávnění „Spravovat stránky“. Požádejte správce, aby ho přidal některé z vašich rolí."
+    },
+    "tab": {
+      "pages": "Všechny stránky",
+      "sidebar": "Pořadí v panelu"
+    },
+    "list": {
+      "title": "Stránky",
+      "count": "{count, plural, one {# stránka} few {# stránky} many {# stránky} other {# stránek}}"
+    },
+    "empty": {
+      "title": "Zatím žádné stránky",
+      "body": "Připojte databázi a stránky se vygenerují automaticky, nebo si jednu vytvořte ručně."
+    },
+    "status": {
+      "live": "Aktivní",
+      "hidden": "Skrytá"
+    },
+    "origin": {
+      "generated": "Vygenerovaná",
+      "manifest": "Doplněk",
+      "llm": "Asistent",
+      "system": "Systémová",
+      "user": "Vlastní"
+    },
+    "row": {
+      "menu": "Akce pro {title}"
+    },
+    "action": {
+      "edit": "Upravit stránku",
+      "duplicate": "Duplikovat",
+      "hide": "Skrýt z postranního panelu",
+      "show": "Zobrazit v postranním panelu",
+      "delete": "Smazat stránku"
+    },
+    "create": {
+      "title": "Nová stránka",
+      "failed": "Stránku se nepodařilo vytvořit",
+      "submit": "Vytvořit stránku",
+      "subtitle": "Vyberte, co stránka zobrazuje a jak vypadá. Náhled sleduje vaše volby."
+    },
+    "duplicate": {
+      "title": "Duplikovat stránku",
+      "failed": "Stránku se nepodařilo duplikovat",
+      "submit": "Duplikovat"
+    },
+    "delete": {
+      "title": "Smazat tuto stránku?",
+      "body": "Tuto akci nelze vrátit zpět. Uložená zobrazení i osobní rozvržení této stránky budou smazána všem.",
+      "bodyGenerated": "Tato stránka vznikla generováním ze schématu, takže se při dalším generování vrátí. Uložená zobrazení a osobní rozvržení budou smazána všem.",
+      "prompt": "Pro potvrzení napište {slug}",
+      "confirm": "Smazat stránku"
+    },
+    "field": {
+      "title": "Název",
+      "titleHint": "Zobrazuje se v postranním panelu a v hlavičce stránky.",
+      "slug": "Adresa stránky",
+      "slugHint": "Malá písmena, číslice a pomlčky. Jen poslední část – zbytek adresy doplníme za vás.",
+      "slugTaken": "Tuto adresu už používá jiná stránka.",
+      "slugWarning": "Změna adresy rozbije stávající odkazy a záložky na tuto stránku.",
+      "template": "Šablona",
+      "templateHint": "Určuje, co stránka může obsahovat. Lze změnit později.",
+      "group": "Skupina v panelu",
+      "groupHint": "Ve které části postranního panelu se objeví.",
+      "icon": "Ikona",
+      "iconHint": "Zobrazuje se vedle názvu stránky v postranním panelu.",
+      "visible": "Zobrazit v postranním panelu",
+      "visibleHint": "Skrytá stránka zůstává dostupná na své URL každému, kdo má odkaz.",
+      "table": "Tabulka",
+      "tableCreateHint": "Tabulka, ze které stránka čte. Vyberte ji hned a stránka bude rovnou použitelná; bez výběru ji můžete připojit později.",
+      "tableNone": "Nepřipojeno",
+      "tableNeedsConnection": "Nejprve vyberte zdroj dat.",
+      "connection": "Zdroj dat",
+      "connectionNone": "Žádný",
+      "iconPick": "Vyberte ikonu stránky",
+      "padding": "Okraje stránky"
+    },
+    "editor": {
+      "title": "Upravit stránku",
+      "save": "Uložit změny",
+      "saveFailed": "Změny se nepodařilo uložit",
+      "openPage": "Otevřít stránku",
+      "generated": {
+        "title": "Tato stránka byla vygenerována z vašeho schématu",
+        "body": "Vaše změny při dalším generování zůstanou – stránka se označí jako upravená a nechá se být. Smazání ale vydrží jen do chvíle, než ji další generování znovu vytvoří."
+      },
+      "contentUnavailable": "Obsah stránky se nepodařilo načíst",
+      "contentUnavailableBody": "Údaje výše lze i tak uložit.",
+      "contentInvalid": "Konfiguraci této stránky nelze přečíst",
+      "contentInvalidBody": "Pochází z novější verze, nebo je poškozená. Vygenerujte stránku znovu, nebo ji smažte.",
+      "data": "Data",
+      "schemaFailed": "Tabulky se nepodařilo načíst",
+      "schemaFailedBody": "Toto připojení možná ještě nebylo analyzováno. Spusťte introspekci ve Studiu → Datová připojení.",
+      "notBindable": "Tato šablona není vázaná na jednu tabulku",
+      "notBindableBody": "Její obsah se skládá z widgetů. Otevřete stránku a přidejte je tlačítkem „Upravit“.",
+      "recompose": "Tato stránka bude znovu sestavena",
+      "recomposeBody": "Uložení nahradí její obsah novým rozvržením pro šablonu a tabulku výše. Úpravy sloupců a widgetů na této stránce budou ztraceny.",
+      "missing": "Tato stránka už neexistuje",
+      "missingBody": "Mohla být smazána nebo odstraněna generováním.",
+      "details": "Podrobnosti",
+      "itemsPending": "Nejprve uložte změnu výše – obsah stránky se znovu sestaví z nové šablony a tabulky.",
+      "columns": "Sloupce",
+      "appearance": "Vzhled"
+    },
+    "sidebar": {
+      "help": "Změňte pořadí stránek uvnitř skupiny, nebo některou přesuňte do jiné skupiny. Změny platí pro všechny.",
+      "discard": "Zahodit",
+      "save": "Uložit pořadí",
+      "saveFailed": "Nové pořadí se nepodařilo uložit",
+      "emptyGroup": "V této skupině nejsou žádné stránky.",
+      "moveUp": "Posunout {title} nahoru",
+      "moveDown": "Posunout {title} dolů",
+      "moveTo": "Přesunout {title} do skupiny",
+      "ungrouped": {
+        "title": "Některé stránky nepatří do žádné skupiny",
+        "body": "Tyto stránky na své URL fungují, ale v postranním panelu se nikde neobjeví. Otevřete každou z nich a vyberte skupinu."
+      }
+    },
+    "columns": {
+      "help": "Změňte pořadí sloupců, přejmenujte jejich záhlaví a vyberte, které se v tabulce zobrazí.",
+      "discard": "Zahodit",
+      "save": "Uložit sloupce",
+      "saveFailed": "Sloupce se nepodařilo uložit",
+      "pk": "Klíč",
+      "pii": "PII",
+      "header": "Záhlaví pro {name}",
+      "shown": "Zobrazeno",
+      "toggle": "Zobrazit {name} v tabulce",
+      "moveUp": "Posunout {name} nahoru",
+      "moveDown": "Posunout {name} dolů",
+      "remove": "Odebrat {name}",
+      "none": {
+        "title": "Tato stránka zatím nemá sloupce",
+        "body": "Sloupce se při generování stránky načtou z tabulky. Připojte tuto stránku k tabulce a vygenerujte ji znovu."
+      }
+    },
+    "icon": {
+      "none": "Vyberte ikonu",
+      "search": "Hledat ikony",
+      "noMatches": "Tomuto hledání neodpovídají žádné ikony."
+    },
+    "preview": {
+      "untitled": "Nepojmenovaná stránka",
+      "note": "Nákres rozvržení, nikoli vašich dat. Skutečná stránka se naplní po uložení."
+    },
+    "padding": {
+      "default": "Výchozí pro tuto šablonu",
+      "none": "Žádné",
+      "standard": "Standardní (28 × 24)",
+      "custom": "Vlastní…",
+      "x": "Po stranách (px)",
+      "y": "Nahoře a dole (px)"
+    }
   }
 } as const;

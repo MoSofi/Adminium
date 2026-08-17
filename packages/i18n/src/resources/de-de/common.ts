@@ -105,7 +105,8 @@ export default {
       "planning": "Planung",
       "people": "Personen",
       "account": "Konto"
-    }
+    },
+    "back": "Zurück"
   },
   "topbar": {
     "search": "Suchen…",
@@ -128,8 +129,8 @@ export default {
     "askAi": "KI fragen",
     "shortcuts": "Tastaturkürzel",
     "signOut": "Abmelden",
-    "themeDark": "Zum dunklen Design wechseln",
-    "themeLight": "Zum hellen Design wechseln",
+    "themeDark": "Dunkler Modus",
+    "themeLight": "Heller Modus",
     "footerNavigate": "navigieren",
     "footerOpen": "auswählen",
     "footerClose": "schließen",
@@ -599,6 +600,11 @@ export default {
         "heading": "KI-Anreicherung",
         "body": "Konfigurieren Sie einen KI-Anbieter (oder den Kopieren-Einfügen-Umlauf), um Bezeichnungen, Gruppen und Beziehungen anzureichern.",
         "cta": "KI-Einstellungen öffnen"
+      },
+      "pagesCard": {
+        "heading": "Seiten",
+        "body": "Seiten hinzufügen, bearbeiten und löschen, ihre Inhalte ändern und die Seitenleiste neu ordnen.",
+        "cta": "Seiten verwalten"
       }
     },
     "settingsAi": {
@@ -1890,37 +1896,48 @@ export default {
   },
   "templates": {
     "crud": {
-      "title": "Datensätze"
+      "title": "Datensätze",
+      "description": "Eine durchsuchbare Tabelle mit Anlegen, Bearbeiten und Löschen."
     },
     "dashboard": {
-      "title": "Dashboard"
+      "title": "Dashboard",
+      "description": "Ein Raster aus Diagrammen und Kennzahlen, das Sie selbst anordnen."
     },
     "board": {
-      "title": "Board"
+      "title": "Board",
+      "description": "Karten in Spalten nach Status, per Drag-and-drop verschiebbar."
     },
     "calendar": {
-      "title": "Kalender"
+      "title": "Kalender",
+      "description": "Datensätze nach Datum in einem Monats- oder Wochenraster."
     },
     "scheduler": {
-      "title": "Dienstplan"
+      "title": "Dienstplan",
+      "description": "Wer was tut – als Zeitleiste pro Person."
     },
     "logViewer": {
-      "title": "Protokolle"
+      "title": "Protokolle",
+      "description": "Dichte, filterbare Ereigniszeilen mit Detail-Trace."
     },
     "files": {
-      "title": "Dateien"
+      "title": "Dateien",
+      "description": "Dateien und Ordner als durchsuchbare Bibliothek."
     },
     "chat": {
-      "title": "Chat"
+      "title": "Chat",
+      "description": "Unterhaltungen in Threads mit Nachrichtenverlauf."
     },
     "builder": {
-      "title": "Editor"
+      "title": "Editor",
+      "description": "Eine Drag-and-drop-Fläche für Dokumente und Vorlagen."
     },
     "wizard": {
-      "title": "Assistent"
+      "title": "Assistent",
+      "description": "Eine geführte Schrittfolge für eine Aufgabe."
     },
     "settings": {
-      "title": "Einstellungen"
+      "title": "Einstellungen",
+      "description": "Gruppierte Einstellungszeilen mit Schaltern und Feldern."
     },
     "directory": {
       "title": "Verzeichnis",
@@ -1934,7 +1951,8 @@ export default {
       "noMatchesBody": "Versuchen Sie eine andere Suche oder entfernen Sie einen Filter.",
       "errorTitle": "Dieses Verzeichnis konnte nicht geladen werden",
       "loading": "Personen werden geladen",
-      "memberCount": "{count} Personen"
+      "memberCount": "{count} Personen",
+      "description": "Personen als Karten, mit Organigramm der Berichtswege."
     },
     "masterDetail": {
       "title": "Liste & Detail",
@@ -1946,7 +1964,8 @@ export default {
       "noMatchesBody": "Entfernen Sie einen Filter.",
       "errorTitle": "Diese Liste konnte nicht geladen werden",
       "loading": "Datensätze werden geladen",
-      "selectPrompt": "Datensatz auswählen"
+      "selectPrompt": "Datensatz auswählen",
+      "description": "Eine Liste links, der gewählte Datensatz daneben."
     },
     "queueInbox": {
       "title": "Warteschlange",
@@ -1971,7 +1990,8 @@ export default {
       "errorTitle": "Diese Warteschlange konnte nicht geladen werden",
       "loading": "Warteschlange wird geladen",
       "selectPrompt": "Anfrage auswählen",
-      "daysUnit": "{count} Tage"
+      "daysUnit": "{count} Tage",
+      "description": "Eine Arbeitsliste mit Genehmigen und Ablehnen je Eintrag."
     }
   },
   "dataio": {
@@ -2075,7 +2095,167 @@ export default {
     }
   },
   "theme": {
-    "toLight": "Zum hellen Design wechseln",
-    "toDark": "Zum dunklen Design wechseln"
+    "toLight": "Heller Modus",
+    "toDark": "Dunkler Modus"
+  },
+  "studioPages": {
+    "title": "Seiten",
+    "subtitle": "Seiten Ihrer App hinzufügen, bearbeiten und ordnen – samt ihrer Reihenfolge in der Seitenleiste.",
+    "createButton": "Neue Seite",
+    "loadFailed": {
+      "title": "Seiten konnten nicht geladen werden",
+      "body": "Für die Seitenverwaltung wird die Berechtigung „Seiten verwalten“ benötigt. Bitten Sie eine Administratorin oder einen Administrator, sie einer Ihrer Rollen zuzuweisen."
+    },
+    "tab": {
+      "pages": "Alle Seiten",
+      "sidebar": "Reihenfolge der Seitenleiste"
+    },
+    "list": {
+      "title": "Seiten",
+      "count": "{count, plural, one {# Seite} other {# Seiten}}"
+    },
+    "empty": {
+      "title": "Noch keine Seiten",
+      "body": "Verbinden Sie eine Datenbank, um Seiten automatisch zu erzeugen, oder legen Sie eine von Hand an."
+    },
+    "status": {
+      "live": "Aktiv",
+      "hidden": "Ausgeblendet"
+    },
+    "origin": {
+      "generated": "Erzeugt",
+      "manifest": "Add-on",
+      "llm": "Assistent",
+      "system": "System",
+      "user": "Eigene"
+    },
+    "row": {
+      "menu": "Aktionen für {title}"
+    },
+    "action": {
+      "edit": "Seite bearbeiten",
+      "duplicate": "Duplizieren",
+      "hide": "In der Seitenleiste ausblenden",
+      "show": "In der Seitenleiste anzeigen",
+      "delete": "Seite löschen"
+    },
+    "create": {
+      "title": "Neue Seite",
+      "failed": "Die Seite konnte nicht erstellt werden",
+      "submit": "Seite erstellen",
+      "subtitle": "Legen Sie fest, was diese Seite zeigt und wie sie aussieht. Die Vorschau folgt Ihrer Auswahl."
+    },
+    "duplicate": {
+      "title": "Seite duplizieren",
+      "failed": "Die Seite konnte nicht dupliziert werden",
+      "submit": "Duplizieren"
+    },
+    "delete": {
+      "title": "Diese Seite löschen?",
+      "body": "Das lässt sich nicht rückgängig machen. Gespeicherte Ansichten und persönliche Layouts dieser Seite werden für alle gelöscht.",
+      "bodyGenerated": "Diese Seite stammt aus der Schema-Generierung und kehrt beim nächsten Generierungslauf zurück. Gespeicherte Ansichten und persönliche Layouts werden für alle gelöscht.",
+      "prompt": "Geben Sie zur Bestätigung {slug} ein",
+      "confirm": "Seite löschen"
+    },
+    "field": {
+      "title": "Titel",
+      "titleHint": "Wird in der Seitenleiste und in der Kopfzeile der Seite angezeigt.",
+      "slug": "Seitenadresse",
+      "slugHint": "Kleinbuchstaben, Ziffern und Bindestriche. Nur der letzte Teil – den Rest der Adresse ergänzen wir.",
+      "slugTaken": "Diese Adresse wird bereits von einer anderen Seite verwendet.",
+      "slugWarning": "Eine geänderte Adresse macht bestehende Links und Lesezeichen zu dieser Seite ungültig.",
+      "template": "Vorlage",
+      "templateHint": "Bestimmt, was die Seite enthalten kann. Später änderbar.",
+      "group": "Gruppe der Seitenleiste",
+      "groupHint": "In welchem Abschnitt der Seitenleiste sie erscheint.",
+      "icon": "Symbol",
+      "iconHint": "Wird neben dem Seitennamen in der Seitenleiste angezeigt.",
+      "visible": "In der Seitenleiste anzeigen",
+      "visibleHint": "Eine ausgeblendete Seite bleibt über ihre URL erreichbar, wenn man den Link kennt.",
+      "table": "Tabelle",
+      "tableCreateHint": "Die Tabelle, aus der diese Seite liest. Wählen Sie jetzt eine, dann ist die Seite sofort nutzbar; ohne Auswahl können Sie sie später verknüpfen.",
+      "tableNone": "Nicht verknüpft",
+      "tableNeedsConnection": "Wählen Sie zuerst eine Datenquelle.",
+      "connection": "Datenquelle",
+      "connectionNone": "Keine",
+      "iconPick": "Seitensymbol auswählen",
+      "padding": "Seitenabstand"
+    },
+    "editor": {
+      "title": "Seite bearbeiten",
+      "save": "Änderungen speichern",
+      "saveFailed": "Änderungen konnten nicht gespeichert werden",
+      "openPage": "Seite öffnen",
+      "generated": {
+        "title": "Diese Seite wurde aus Ihrem Schema erzeugt",
+        "body": "Ihre Änderungen bleiben bei einer erneuten Generierung erhalten – die Seite wird als bearbeitet markiert und unangetastet gelassen. Ein Löschen hält allerdings nur, bis der nächste Generierungslauf sie neu anlegt."
+      },
+      "contentUnavailable": "Seiteninhalt konnte nicht geladen werden",
+      "contentUnavailableBody": "Die Angaben oben lassen sich trotzdem speichern.",
+      "contentInvalid": "Die Konfiguration dieser Seite ist nicht lesbar",
+      "contentInvalidBody": "Sie stammt aus einer neueren Version oder ist fehlerhaft. Erzeugen Sie die Seite neu oder löschen Sie sie.",
+      "data": "Daten",
+      "schemaFailed": "Tabellen konnten nicht aufgelistet werden",
+      "schemaFailedBody": "Diese Verbindung wurde möglicherweise noch nicht analysiert. Starten Sie die Introspektion unter Studio → Datenverbindungen.",
+      "notBindable": "Diese Vorlage ist nicht an eine einzelne Tabelle gebunden",
+      "notBindableBody": "Ihr Inhalt wird stattdessen Widget für Widget aufgebaut. Öffnen Sie die Seite und fügen Sie sie über „Bearbeiten“ hinzu.",
+      "recompose": "Diese Seite wird neu aufgebaut",
+      "recomposeBody": "Beim Speichern wird der Inhalt durch ein frisches Layout für Vorlage und Tabelle oben ersetzt. Spaltenanpassungen und Widget-Änderungen dieser Seite gehen verloren.",
+      "missing": "Diese Seite existiert nicht mehr",
+      "missingBody": "Sie wurde möglicherweise gelöscht oder von einem Generierungslauf entfernt.",
+      "details": "Details",
+      "itemsPending": "Speichern Sie zuerst die Änderung oben – der Seiteninhalt wird aus der neuen Vorlage und Tabelle neu aufgebaut.",
+      "columns": "Spalten",
+      "appearance": "Darstellung"
+    },
+    "sidebar": {
+      "help": "Seiten innerhalb einer Gruppe umsortieren oder in eine andere Gruppe verschieben. Die Änderungen gelten für alle Benutzerinnen und Benutzer.",
+      "discard": "Verwerfen",
+      "save": "Reihenfolge speichern",
+      "saveFailed": "Die neue Reihenfolge konnte nicht gespeichert werden",
+      "emptyGroup": "Keine Seiten in dieser Gruppe.",
+      "moveUp": "{title} nach oben verschieben",
+      "moveDown": "{title} nach unten verschieben",
+      "moveTo": "{title} in eine Gruppe verschieben",
+      "ungrouped": {
+        "title": "Einige Seiten gehören zu keiner Gruppe der Seitenleiste",
+        "body": "Diese Seiten funktionieren unter ihrer URL, erscheinen aber nirgends in der Seitenleiste. Öffnen Sie jede einzeln und wählen Sie eine Gruppe."
+      }
+    },
+    "columns": {
+      "help": "Spalten umsortieren, ihre Überschriften umbenennen und auswählen, welche in der Tabelle erscheinen.",
+      "discard": "Verwerfen",
+      "save": "Spalten speichern",
+      "saveFailed": "Spalten konnten nicht gespeichert werden",
+      "pk": "Schlüssel",
+      "pii": "PII",
+      "header": "Überschrift für {name}",
+      "shown": "Sichtbar",
+      "toggle": "{name} in der Tabelle anzeigen",
+      "moveUp": "{name} nach oben verschieben",
+      "moveDown": "{name} nach unten verschieben",
+      "remove": "{name} entfernen",
+      "none": {
+        "title": "Diese Seite hat noch keine Spalten",
+        "body": "Spalten werden bei der Generierung aus der Tabelle gelesen. Binden Sie diese Seite an eine Tabelle und generieren Sie neu, um sie zu füllen."
+      }
+    },
+    "icon": {
+      "none": "Symbol auswählen",
+      "search": "Symbole suchen",
+      "noMatches": "Keine Symbole passen zu dieser Suche."
+    },
+    "preview": {
+      "untitled": "Unbenannte Seite",
+      "note": "Eine Darstellung des Layouts, nicht Ihrer Daten. Die echte Seite füllt sich nach dem Speichern."
+    },
+    "padding": {
+      "default": "Standard dieser Vorlage",
+      "none": "Kein Abstand",
+      "standard": "Standard (28 × 24)",
+      "custom": "Benutzerdefiniert …",
+      "x": "Seiten (px)",
+      "y": "Oben und unten (px)"
+    }
   }
 } as const;

@@ -105,7 +105,8 @@ export default {
       "planning": "Planlægning",
       "people": "Personer",
       "account": "Konto"
-    }
+    },
+    "back": "Tilbage"
   },
   "topbar": {
     "search": "Søg…",
@@ -128,8 +129,8 @@ export default {
     "askAi": "Spørg AI",
     "shortcuts": "Tastaturgenveje",
     "signOut": "Log ud",
-    "themeDark": "Skift til mørkt tema",
-    "themeLight": "Skift til lyst tema",
+    "themeDark": "Mørk tilstand",
+    "themeLight": "Lys tilstand",
     "footerNavigate": "naviger",
     "footerOpen": "vælg",
     "footerClose": "luk",
@@ -599,6 +600,11 @@ export default {
         "heading": "AI-berigelse",
         "body": "Konfigurér en AI-udbyder (eller kopiér-indsæt-turen) for at berige etiketter, grupper og relationer.",
         "cta": "Åbn AI-indstillinger"
+      },
+      "pagesCard": {
+        "heading": "Sider",
+        "body": "Tilføj, rediger og slet sider, skift hvad hver enkelt viser, og omarranger sidepanelet.",
+        "cta": "Administrer sider"
       }
     },
     "settingsAi": {
@@ -1890,37 +1896,48 @@ export default {
   },
   "templates": {
     "crud": {
-      "title": "Poster"
+      "title": "Poster",
+      "description": "En søgbar tabel med rækker, hvor du kan tilføje, redigere og slette."
     },
     "dashboard": {
-      "title": "Dashboard"
+      "title": "Dashboard",
+      "description": "Et gitter af diagrammer og tal, som du selv placerer."
     },
     "board": {
-      "title": "Tavle"
+      "title": "Tavle",
+      "description": "Kort i kolonner efter status, som trækkes imellem dem."
     },
     "calendar": {
-      "title": "Kalender"
+      "title": "Kalender",
+      "description": "Poster placeret efter dato i et måneds- eller ugegitter."
     },
     "scheduler": {
-      "title": "Vagtplan"
+      "title": "Vagtplan",
+      "description": "Hvem laver hvad — som en tidslinje pr. person."
     },
     "logViewer": {
-      "title": "Logfiler"
+      "title": "Logfiler",
+      "description": "Tætte, filtrerbare hændelseslinjer med detaljeret spor."
     },
     "files": {
-      "title": "Filer"
+      "title": "Filer",
+      "description": "Filer og mapper som et bibliotek, du kan gennemse."
     },
     "chat": {
-      "title": "Chat"
+      "title": "Chat",
+      "description": "Samtaler i tråde med beskedhistorik."
     },
     "builder": {
-      "title": "Editor"
+      "title": "Editor",
+      "description": "Et træk-og-slip-lærred til dokumenter og skabeloner."
     },
     "wizard": {
-      "title": "Guide"
+      "title": "Guide",
+      "description": "En guidet række trin til at fuldføre en opgave."
     },
     "settings": {
-      "title": "Indstillinger"
+      "title": "Indstillinger",
+      "description": "Grupperede indstillingsrækker med kontakter og felter."
     },
     "directory": {
       "title": "Katalog",
@@ -1934,7 +1951,8 @@ export default {
       "noMatchesBody": "Prøv en anden søgning, eller fjern et filter.",
       "errorTitle": "Dette katalog kunne ikke indlæses",
       "loading": "Indlæser personer",
-      "memberCount": "{count} personer"
+      "memberCount": "{count} personer",
+      "description": "Personer som kort, med et organisationsdiagram over referencer."
     },
     "masterDetail": {
       "title": "Liste og detaljer",
@@ -1946,7 +1964,8 @@ export default {
       "noMatchesBody": "Prøv at fjerne et filter.",
       "errorTitle": "Denne liste kunne ikke indlæses",
       "loading": "Indlæser poster",
-      "selectPrompt": "Vælg en post"
+      "selectPrompt": "Vælg en post",
+      "description": "En liste til venstre, den valgte post ved siden af."
     },
     "queueInbox": {
       "title": "Kø",
@@ -1971,7 +1990,8 @@ export default {
       "errorTitle": "Denne kø kunne ikke indlæses",
       "loading": "Indlæser kø",
       "selectPrompt": "Vælg en anmodning",
-      "daysUnit": "{count} dage"
+      "daysUnit": "{count} dage",
+      "description": "En arbejdskø med godkend og afvis på hvert emne."
     }
   },
   "dataio": {
@@ -2075,7 +2095,167 @@ export default {
     }
   },
   "theme": {
-    "toLight": "Skift til lyst tema",
-    "toDark": "Skift til mørkt tema"
+    "toLight": "Lys tilstand",
+    "toDark": "Mørk tilstand"
+  },
+  "studioPages": {
+    "title": "Sider",
+    "subtitle": "Tilføj, rediger og organiser din apps sider — og den rækkefølge de vises i sidepanelet.",
+    "createButton": "Ny side",
+    "loadFailed": {
+      "title": "Siderne kunne ikke indlæses",
+      "body": "Sidestyring kræver tilladelsen “Administrer sider”. Bed en administrator om at give den til en af dine roller."
+    },
+    "tab": {
+      "pages": "Alle sider",
+      "sidebar": "Rækkefølge i sidepanelet"
+    },
+    "list": {
+      "title": "Sider",
+      "count": "{count, plural, one {# side} other {# sider}}"
+    },
+    "empty": {
+      "title": "Ingen sider endnu",
+      "body": "Forbind en database for at generere sider automatisk, eller opret en i hånden."
+    },
+    "status": {
+      "live": "Aktiv",
+      "hidden": "Skjult"
+    },
+    "origin": {
+      "generated": "Genereret",
+      "manifest": "Tilføjelse",
+      "llm": "Assistent",
+      "system": "System",
+      "user": "Egen"
+    },
+    "row": {
+      "menu": "Handlinger for {title}"
+    },
+    "action": {
+      "edit": "Rediger side",
+      "duplicate": "Dupliker",
+      "hide": "Skjul fra sidepanelet",
+      "show": "Vis i sidepanelet",
+      "delete": "Slet side"
+    },
+    "create": {
+      "title": "Ny side",
+      "failed": "Siden kunne ikke oprettes",
+      "submit": "Opret side",
+      "subtitle": "Vælg hvad siden viser, og hvordan den ser ud. Forhåndsvisningen følger dine valg."
+    },
+    "duplicate": {
+      "title": "Dupliker side",
+      "failed": "Siden kunne ikke duplikeres",
+      "submit": "Dupliker"
+    },
+    "delete": {
+      "title": "Slet denne side?",
+      "body": "Dette kan ikke fortrydes. Gemte visninger og personlige layouts på denne side slettes for alle.",
+      "bodyGenerated": "Denne side stammer fra skemagenerering, så den kommer igen næste gang du genererer. Gemte visninger og personlige layouts slettes for alle.",
+      "prompt": "Skriv {slug} for at bekræfte",
+      "confirm": "Slet side"
+    },
+    "field": {
+      "title": "Titel",
+      "titleHint": "Vises i sidepanelet og i sidens overskrift.",
+      "slug": "Sideadresse",
+      "slugHint": "Små bogstaver, tal og bindestreger. Kun den sidste del — resten af adressen tilføjer vi.",
+      "slugTaken": "En anden side bruger allerede denne adresse.",
+      "slugWarning": "Ændrer du adressen, går eksisterende links og bogmærker til siden i stykker.",
+      "template": "Skabelon",
+      "templateHint": "Afgør hvad siden kan indeholde. Kan ændres senere.",
+      "group": "Gruppe i sidepanelet",
+      "groupHint": "Hvilken del af sidepanelet den vises i.",
+      "icon": "Ikon",
+      "iconHint": "Vises ved siden af sidens navn i sidepanelet.",
+      "visible": "Vis i sidepanelet",
+      "visibleHint": "En skjult side kan stadig tilgås på sin URL af alle med linket.",
+      "table": "Tabel",
+      "tableCreateHint": "Tabellen som denne side læser fra. Vælg en nu, så er siden klar til brug; lad den stå tom, og du kan knytte den senere.",
+      "tableNone": "Ikke knyttet",
+      "tableNeedsConnection": "Vælg en datakilde først.",
+      "connection": "Datakilde",
+      "connectionNone": "Ingen",
+      "iconPick": "Vælg sidens ikon",
+      "padding": "Sidemargen"
+    },
+    "editor": {
+      "title": "Rediger side",
+      "save": "Gem ændringer",
+      "saveFailed": "Ændringerne kunne ikke gemmes",
+      "openPage": "Åbn side",
+      "generated": {
+        "title": "Denne side blev genereret ud fra dit skema",
+        "body": "Dine ændringer bevares, når du genererer igen — siden markeres som redigeret og røres ikke. En sletning holder derimod kun, indtil næste generering opretter den på ny."
+      },
+      "contentUnavailable": "Sidens indhold kunne ikke indlæses",
+      "contentUnavailableBody": "Oplysningerne ovenfor kan stadig gemmes.",
+      "contentInvalid": "Denne sides konfiguration kan ikke læses",
+      "contentInvalidBody": "Den er skrevet af en nyere version, eller den er ugyldig. Generer siden igen, eller slet den.",
+      "data": "Data",
+      "schemaFailed": "Tabellerne kunne ikke vises",
+      "schemaFailedBody": "Denne forbindelse er måske ikke analyseret endnu. Kør introspektion fra Studio → Dataforbindelser.",
+      "notBindable": "Denne skabelon er ikke knyttet til én tabel",
+      "notBindableBody": "Dens indhold bygges widget for widget i stedet. Åbn siden, og brug “Rediger” til at tilføje dem.",
+      "recompose": "Denne side bliver bygget om",
+      "recomposeBody": "Når du gemmer, erstattes indholdet af et nyt layout for skabelonen og tabellen ovenfor. Kolonnetilpasninger og widget-ændringer på siden går tabt.",
+      "missing": "Denne side findes ikke længere",
+      "missingBody": "Den er måske slettet eller fjernet af en generering.",
+      "details": "Detaljer",
+      "itemsPending": "Gem først ændringen ovenfor — sidens indhold bygges op igen ud fra den nye skabelon og tabel.",
+      "columns": "Kolonner",
+      "appearance": "Udseende"
+    },
+    "sidebar": {
+      "help": "Omarranger sider inden for en gruppe, eller flyt en til en anden gruppe. Ændringerne gælder for alle.",
+      "discard": "Kassér",
+      "save": "Gem rækkefølge",
+      "saveFailed": "Den nye rækkefølge kunne ikke gemmes",
+      "emptyGroup": "Ingen sider i denne gruppe.",
+      "moveUp": "Flyt {title} op",
+      "moveDown": "Flyt {title} ned",
+      "moveTo": "Flyt {title} til en gruppe",
+      "ungrouped": {
+        "title": "Nogle sider hører ikke til nogen gruppe",
+        "body": "Siderne virker på deres URL, men vises ingen steder i sidepanelet. Åbn hver enkelt og vælg en gruppe."
+      }
+    },
+    "columns": {
+      "help": "Omarranger kolonner, omdøb deres overskrifter, og vælg hvilke der vises i tabellen.",
+      "discard": "Kassér",
+      "save": "Gem kolonner",
+      "saveFailed": "Kolonnerne kunne ikke gemmes",
+      "pk": "Nøgle",
+      "pii": "PII",
+      "header": "Overskrift for {name}",
+      "shown": "Vist",
+      "toggle": "Vis {name} i tabellen",
+      "moveUp": "Flyt {name} op",
+      "moveDown": "Flyt {name} ned",
+      "remove": "Fjern {name}",
+      "none": {
+        "title": "Denne side har ingen kolonner endnu",
+        "body": "Kolonner læses fra tabellen, når siden genereres. Knyt siden til en tabel og generer igen for at udfylde dem."
+      }
+    },
+    "icon": {
+      "none": "Vælg et ikon",
+      "search": "Søg efter ikoner",
+      "noMatches": "Ingen ikoner matcher den søgning."
+    },
+    "preview": {
+      "untitled": "Side uden titel",
+      "note": "En illustration af layoutet, ikke dine data. Den rigtige side fyldes ud, når den er gemt."
+    },
+    "padding": {
+      "default": "Standard for denne skabelon",
+      "none": "Ingen",
+      "standard": "Standard (28 × 24)",
+      "custom": "Tilpasset…",
+      "x": "Sider (px)",
+      "y": "Top og bund (px)"
+    }
   }
 } as const;

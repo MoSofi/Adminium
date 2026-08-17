@@ -105,7 +105,8 @@ export default {
       "planning": "规划",
       "people": "人员",
       "account": "账户"
-    }
+    },
+    "back": "返回"
   },
   "topbar": {
     "search": "搜索…",
@@ -128,8 +129,8 @@ export default {
     "askAi": "询问 AI",
     "shortcuts": "键盘快捷键",
     "signOut": "退出登录",
-    "themeDark": "切换到深色主题",
-    "themeLight": "切换到浅色主题",
+    "themeDark": "深色模式",
+    "themeLight": "浅色模式",
     "footerNavigate": "导航",
     "footerOpen": "选择",
     "footerClose": "关闭",
@@ -599,6 +600,11 @@ export default {
         "heading": "AI 增强",
         "body": "配置 AI 提供方（或复制粘贴往返）来增强标签、分组和关系。",
         "cta": "打开 AI 设置"
+      },
+      "pagesCard": {
+        "heading": "页面",
+        "body": "添加、编辑和删除页面，更改每个页面的内容，并重新排列侧边栏。",
+        "cta": "管理页面"
       }
     },
     "settingsAi": {
@@ -1890,37 +1896,48 @@ export default {
   },
   "templates": {
     "crud": {
-      "title": "记录"
+      "title": "记录",
+      "description": "可搜索的数据表格，支持新增、编辑和删除。"
     },
     "dashboard": {
-      "title": "仪表盘"
+      "title": "仪表盘",
+      "description": "由你自行排布的图表与指标网格。"
     },
     "board": {
-      "title": "看板"
+      "title": "看板",
+      "description": "按状态分列的卡片，可在列之间拖动。"
     },
     "calendar": {
-      "title": "日历"
+      "title": "日历",
+      "description": "按日期排布在月视图或周视图网格中的记录。"
     },
     "scheduler": {
-      "title": "排班"
+      "title": "排班",
+      "description": "谁在做什么——以每人一行的时间轴呈现。"
     },
     "logViewer": {
-      "title": "日志"
+      "title": "日志",
+      "description": "密集且可筛选的事件行，附详细追踪。"
     },
     "files": {
-      "title": "文件"
+      "title": "文件",
+      "description": "以可浏览的资料库形式展示文件与文件夹。"
     },
     "chat": {
-      "title": "聊天"
+      "title": "聊天",
+      "description": "带消息历史的会话线程。"
     },
     "builder": {
-      "title": "构建器"
+      "title": "构建器",
+      "description": "用于制作文档与模板的拖放画布。"
     },
     "wizard": {
-      "title": "向导"
+      "title": "向导",
+      "description": "引导式的分步流程，逐步完成任务。"
     },
     "settings": {
-      "title": "设置"
+      "title": "设置",
+      "description": "分组的偏好设置行，含开关与输入项。"
     },
     "directory": {
       "title": "通讯录",
@@ -1934,7 +1951,8 @@ export default {
       "noMatchesBody": "试试其他搜索词或移除筛选。",
       "errorTitle": "无法加载此通讯录",
       "loading": "正在加载人员",
-      "memberCount": "{count} 人"
+      "memberCount": "{count} 人",
+      "description": "以卡片展示人员，并附组织架构图。"
     },
     "masterDetail": {
       "title": "列表与详情",
@@ -1946,7 +1964,8 @@ export default {
       "noMatchesBody": "试试移除筛选。",
       "errorTitle": "无法加载此列表",
       "loading": "正在加载记录",
-      "selectPrompt": "选择一条记录"
+      "selectPrompt": "选择一条记录",
+      "description": "左侧是列表，选中的记录显示在旁边。"
     },
     "queueInbox": {
       "title": "队列",
@@ -1971,7 +1990,8 @@ export default {
       "errorTitle": "无法加载此队列",
       "loading": "正在加载队列",
       "selectPrompt": "选择一个请求",
-      "daysUnit": "{count} 天"
+      "daysUnit": "{count} 天",
+      "description": "带有通过与拒绝操作的工作队列。"
     }
   },
   "dataio": {
@@ -2075,7 +2095,167 @@ export default {
     }
   },
   "theme": {
-    "toLight": "切换到浅色主题",
-    "toDark": "切换到深色主题"
+    "toLight": "浅色模式",
+    "toDark": "深色模式"
+  },
+  "studioPages": {
+    "title": "页面",
+    "subtitle": "添加、编辑和整理应用的页面，以及它们在侧边栏中的顺序。",
+    "createButton": "新建页面",
+    "loadFailed": {
+      "title": "无法加载页面",
+      "body": "管理页面需要“管理页面”权限。请联系管理员将该权限授予你的某个角色。"
+    },
+    "tab": {
+      "pages": "全部页面",
+      "sidebar": "侧边栏顺序"
+    },
+    "list": {
+      "title": "页面",
+      "count": "{count, plural, other {# 个页面}}"
+    },
+    "empty": {
+      "title": "暂无页面",
+      "body": "连接数据库即可自动生成页面，也可以手动创建一个。"
+    },
+    "status": {
+      "live": "已上线",
+      "hidden": "已隐藏"
+    },
+    "origin": {
+      "generated": "自动生成",
+      "manifest": "插件",
+      "llm": "助手",
+      "system": "系统",
+      "user": "自定义"
+    },
+    "row": {
+      "menu": "{title} 的操作"
+    },
+    "action": {
+      "edit": "编辑页面",
+      "duplicate": "创建副本",
+      "hide": "在侧边栏中隐藏",
+      "show": "在侧边栏中显示",
+      "delete": "删除页面"
+    },
+    "create": {
+      "title": "新建页面",
+      "failed": "无法创建页面",
+      "submit": "创建页面",
+      "subtitle": "选择此页面显示什么以及外观如何。预览会跟随你的选择。"
+    },
+    "duplicate": {
+      "title": "创建页面副本",
+      "failed": "无法创建副本",
+      "submit": "创建副本"
+    },
+    "delete": {
+      "title": "确定删除此页面吗？",
+      "body": "此操作无法撤销。该页面上所有已保存的视图和个人布局将对所有人删除。",
+      "bodyGenerated": "此页面由架构生成创建，下次重新生成时会再次出现。已保存的视图和个人布局将对所有人删除。",
+      "prompt": "输入 {slug} 以确认",
+      "confirm": "删除页面"
+    },
+    "field": {
+      "title": "标题",
+      "titleHint": "显示在侧边栏和页面标题栏中。",
+      "slug": "页面地址",
+      "slugHint": "仅限小写字母、数字和连字符。只需填写最后一段，其余部分会自动补全。",
+      "slugTaken": "已有其他页面使用该地址。",
+      "slugWarning": "修改地址会导致指向此页面的现有链接和书签失效。",
+      "template": "模板",
+      "templateHint": "决定页面可以承载哪些内容，之后可以更改。",
+      "group": "侧边栏分组",
+      "groupHint": "页面出现在侧边栏的哪个区块。",
+      "icon": "图标",
+      "iconHint": "显示在侧边栏中页面名称的旁边。",
+      "visible": "在侧边栏中显示",
+      "visibleHint": "隐藏的页面仍可通过网址访问，只要对方有链接。",
+      "table": "数据表",
+      "tableCreateHint": "此页面读取的数据表。现在选择即可直接使用；留空则可稍后再绑定。",
+      "tableNone": "未绑定",
+      "tableNeedsConnection": "请先选择数据源。",
+      "connection": "数据源",
+      "connectionNone": "无",
+      "iconPick": "选择页面图标",
+      "padding": "页面内边距"
+    },
+    "editor": {
+      "title": "编辑页面",
+      "save": "保存更改",
+      "saveFailed": "无法保存更改",
+      "openPage": "打开页面",
+      "generated": {
+        "title": "此页面根据你的数据库架构生成",
+        "body": "重新生成时会保留你的修改：页面会被标记为已编辑并原样保留。但删除只在下次生成前有效，届时页面会被重新创建。"
+      },
+      "contentUnavailable": "无法加载页面内容",
+      "contentUnavailableBody": "以上信息仍可保存。",
+      "contentInvalid": "无法读取此页面的配置",
+      "contentInvalidBody": "配置由更新的版本写入，或已损坏。请重新生成或删除该页面。",
+      "data": "数据",
+      "schemaFailed": "无法列出数据表",
+      "schemaFailedBody": "此连接可能尚未分析。请在“工作室 → 数据连接”中运行架构分析。",
+      "notBindable": "此模板不绑定单个数据表",
+      "notBindableBody": "它的内容由小组件逐个搭建。打开页面并点击“编辑”即可添加。",
+      "recompose": "此页面将被重建",
+      "recomposeBody": "保存后将依据上方的模板和数据表用全新布局替换页面内容。此页面上的列调整和小组件改动将会丢失。",
+      "missing": "此页面已不存在",
+      "missingBody": "它可能已被删除，或被某次重新生成移除。",
+      "details": "详细信息",
+      "itemsPending": "请先保存上方的更改——页面内容将依据新的模板和数据表重建。",
+      "columns": "列",
+      "appearance": "外观"
+    },
+    "sidebar": {
+      "help": "在分组内重新排序页面，或将页面移到其他分组。更改对所有人生效。",
+      "discard": "放弃",
+      "save": "保存顺序",
+      "saveFailed": "无法保存新顺序",
+      "emptyGroup": "此分组中没有页面。",
+      "moveUp": "将 {title} 上移",
+      "moveDown": "将 {title} 下移",
+      "moveTo": "将 {title} 移到其他分组",
+      "ungrouped": {
+        "title": "有些页面不属于任何侧边栏分组",
+        "body": "这些页面可以通过网址访问，但不会出现在侧边栏中。请逐个打开并选择分组。"
+      }
+    },
+    "columns": {
+      "help": "重新排序列、重命名列标题，并选择哪些列显示在表格中。",
+      "discard": "放弃",
+      "save": "保存列",
+      "saveFailed": "无法保存列",
+      "pk": "主键",
+      "pii": "个人信息",
+      "header": "{name} 的列标题",
+      "shown": "显示",
+      "toggle": "在表格中显示 {name}",
+      "moveUp": "将 {name} 上移",
+      "moveDown": "将 {name} 下移",
+      "remove": "移除 {name}",
+      "none": {
+        "title": "此页面还没有列",
+        "body": "生成页面时会从数据表读取列。请将此页面绑定到数据表后重新生成。"
+      }
+    },
+    "icon": {
+      "none": "选择图标",
+      "search": "搜索图标",
+      "noMatches": "没有图标符合该搜索。"
+    },
+    "preview": {
+      "untitled": "未命名页面",
+      "note": "这是版式示意图，不是你的数据。保存后真实页面才会填充内容。"
+    },
+    "padding": {
+      "default": "此模板的默认值",
+      "none": "无",
+      "standard": "标准 (28 × 24)",
+      "custom": "自定义…",
+      "x": "左右 (px)",
+      "y": "上下 (px)"
+    }
   }
 } as const;
