@@ -251,7 +251,6 @@ export function AppShell() {
             onSignOut={signOut}
             onOpenAccount={() => void navigate({ to: '/account' })}
             onOpenStudio={() => void navigate({ to: '/studio' })}
-            onOpenStudioPages={() => void navigate({ to: '/studio/pages' })}
             onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
           />
           <main className="min-h-0 flex-1">
