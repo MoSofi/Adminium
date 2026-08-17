@@ -1,8 +1,14 @@
 /**
  * Auth handlers (08-server-api.md §2.1): login (with 2FA step-up), 2FA
- * verify/enroll/activate/disable, logout, current session, password
- * forgot/reset. Every mutation writes an `auth` audit entry; login failures
- * are uniform INVALID_CREDENTIALS regardless of which check failed.
+ * verify/enroll/activate/disable, logout, current session, own-session list
+ * and revoke, password forgot/reset/change. Every mutation writes an `auth`
+ * audit entry; login failures are uniform INVALID_CREDENTIALS regardless of
+ * which check failed.
+ *
+ * The workspace's `auth.*` policy (07-meta-store.md §7.1) is read here rather
+ * than assumed: `auth.passwordMinLength` gates every password write, and
+ * `auth.require2fa` both flags accounts that have no TOTP and refuses to let
+ * one turn TOTP off. (`auth.sessionTtlHours` is applied by createSession.)
  */
 import { randomBytes } from 'node:crypto';
 
@@ -11,22 +17,33 @@ import {
   passwordResetsRepo,
   rolesRepo,
   sessionsRepo,
+  settingsRepo,
   usersRepo,
   writeBool,
+  type MetaDb,
   type User,
 } from '@adminium/meta';
 
-import { AppError, ConflictError, UnauthorizedError } from '../../errors.js';
+import {
+  AppError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+  ValidationFailedError,
+} from '../../errors.js';
 import { auditAuth } from '../../auth/audit.js';
 import { hashPassword, needsRehash, verifyPassword } from '../../auth/passwords.js';
 import {
   RESET_TOKEN_PREFIX,
   RESET_TOKEN_TTL_MS,
+  SESSION_IDLE_TTL_MS,
   clearSessionCookie,
   consumeChallenge,
   createChallenge,
   createSession,
   hashToken,
+  isChallengeSession,
   mintToken,
   setSessionCookie,
 } from '../../auth/sessions.js';
@@ -50,8 +67,11 @@ import type {
   AuthLoginBody,
   AuthLoginChallengeReply,
   AuthLoginReply,
+  AuthPasswordChangeBody,
   AuthResetBody,
+  AuthSessionListReply,
   AuthSessionReply,
+  AuthSessionRevokeParams,
   AuthUserView,
   OkReply,
 } from './schema.js';
@@ -59,6 +79,39 @@ import type {
 /** Uniform credential failure — no user enumeration (§2.1). */
 function invalidCredentials(message = 'Invalid email or password.'): AppError {
   return new AppError(401, 'INVALID_CREDENTIALS', message);
+}
+
+/**
+ * The workspace password policy (`auth.passwordMinLength`, §7.1) applied to a
+ * password the caller is choosing. Every write path runs this — the setup
+ * wizard has its own copy in setup/service.ts, so an invited user finishing a
+ * reset can no longer land under the floor an admin set.
+ *
+ * 422 in the setup route's shape, so one client-side renderer covers both.
+ */
+async function assertPasswordPolicy(meta: MetaDb, password: string, field: string): Promise<void> {
+  const minLength = await settingsRepo(meta).get('auth.passwordMinLength');
+  if (password.length >= minLength) return;
+  const message = `Password must be at least ${String(minLength)} characters.`;
+  throw new ValidationFailedError(message, {
+    in: 'body',
+    issues: [{ path: field, message, code: 'too_small' }],
+  });
+}
+
+/**
+ * `auth.require2fa` is on and this account has no TOTP yet.
+ *
+ * Deliberately NOT a denial: the account keeps its session, which is exactly
+ * what the existing enroll flow needs (`POST /auth/2fa/enroll` →
+ * `/auth/2fa/activate` are both `requireAuth`). Locking the user out at login
+ * would leave them no door at all — there is no second channel to enroll
+ * through. The flag is what the client uses to route them there instead, and
+ * disable2faHandler is what keeps them from walking back out.
+ */
+async function needsTwoFactorSetup(meta: MetaDb, user: User): Promise<boolean> {
+  if (user.totpEnabled) return false;
+  return settingsRepo(meta).get('auth.require2fa');
 }
 
 /**
@@ -157,7 +210,10 @@ export async function loginHandler(
     actorLabel: activeUser.name,
   });
   const fresh = (await users.findById(activeUser.id)) ?? activeUser;
-  return { data: { user: toUserView(fresh) } };
+  const setupRequired = await needsTwoFactorSetup(ctx.meta, fresh);
+  return {
+    data: { user: toUserView(fresh), ...(setupRequired ? { twoFactorSetupRequired: true } : {}) },
+  };
 }
 
 export async function verify2faHandler(
@@ -229,7 +285,13 @@ export async function sessionHandler(
 ): Promise<AuthSessionReply> {
   const { user } = principal(request);
   const roles = await rolesRepo(ctx.meta).rolesForUser(user.id);
-  return { data: { user: toUserView(user), roles: roles.map((role) => role.slug) } };
+  return {
+    data: {
+      user: toUserView(user),
+      roles: roles.map((role) => role.slug),
+      twoFactorSetupRequired: await needsTwoFactorSetup(ctx.meta, user),
+    },
+  };
 }
 
 export async function forgotPasswordHandler(
@@ -266,6 +328,11 @@ export async function resetPasswordHandler(
   const resets = passwordResetsRepo(ctx.meta);
   const users = usersRepo(ctx.meta);
 
+  // Policy BEFORE the token is consumed: a rejected password must not burn the
+  // one single-use token an invited user has, or the only way back in is
+  // another forgot-password round trip.
+  await assertPasswordPolicy(ctx.meta, body.newPassword, 'newPassword');
+
   const row = await resets.findValidByTokenHash(hashToken(body.token), now);
   // `consume` is the single-use guard: only the first request wins.
   if (row === null || !(await resets.consume(row.id, now))) {
@@ -284,6 +351,108 @@ export async function resetPasswordHandler(
   await sessionsRepo(ctx.meta).revokeAllForUser(user.id, now);
   await auditAuth(ctx.meta, request, {
     action: 'password_reset',
+    actorId: user.id,
+    actorLabel: user.name,
+  });
+  return OK;
+}
+
+/**
+ * `GET /auth/sessions` — the caller's own live sessions, current one flagged.
+ *
+ * Two filters the repo cannot apply: the sliding idle window (a row inside its
+ * absolute deadline but untouched for 7 days is dead to
+ * {@link resolveSessionByToken}, so listing it would offer a revoke that
+ * changes nothing), and the 2FA challenge rows that share the table.
+ */
+export async function listSessionsHandler(
+  ctx: AuthContext,
+  request: FastifyRequest,
+): Promise<AuthSessionListReply> {
+  const now = Date.now();
+  const { user, sessionId } = principal(request);
+  const rows = await sessionsRepo(ctx.meta).listForUser(user.id, now);
+  return {
+    data: {
+      sessions: rows
+        .filter((row) => !isChallengeSession(row) && now < row.lastSeenAt + SESSION_IDLE_TTL_MS)
+        .map((row) => ({
+          id: row.id,
+          ip: row.ip,
+          userAgent: row.userAgent,
+          createdAt: row.createdAt,
+          lastSeenAt: row.lastSeenAt,
+          expiresAt: row.expiresAt,
+          current: row.id === sessionId,
+        })),
+    },
+  };
+}
+
+/**
+ * `DELETE /auth/sessions/:id` — sign a device out.
+ *
+ * Someone else's session id answers 404, never 403: a 403 would confirm the id
+ * exists and belongs to somebody, which is a probe for valid ids. Revoking the
+ * current session clears the cookie too, so the caller's own tab does not keep
+ * presenting a token the server has already forgotten.
+ */
+export async function revokeSessionHandler(
+  ctx: AuthContext,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  params: AuthSessionRevokeParams,
+): Promise<OkReply> {
+  const now = Date.now();
+  const { user, sessionId } = principal(request);
+  const target = await sessionsRepo(ctx.meta).findById(params.id);
+  if (target === null || target.userId !== user.id || isChallengeSession(target)) {
+    throw new NotFoundError('No such session.');
+  }
+
+  const isCurrent = target.id === sessionId;
+  await sessionsRepo(ctx.meta).revoke(target.id, now);
+  if (isCurrent) clearSessionCookie(reply, request);
+  await auditAuth(ctx.meta, request, {
+    action: 'session_revoked',
+    actorId: user.id,
+    actorLabel: user.name,
+    changes: { after: { sessionId: target.id, current: isCurrent } },
+  });
+  return OK;
+}
+
+/**
+ * `POST /auth/password/change` — the signed-in equivalent of a reset.
+ *
+ * Knowing the current password is the whole authorization: this acts on the
+ * caller's own account, so no RBAC grant applies. The change revokes every
+ * session (§7 item 7) and then mints a fresh one for this request, because
+ * signing someone out of the tab they just typed their new password into
+ * reads as a failure and sends them looking for what broke.
+ */
+export async function changePasswordHandler(
+  ctx: AuthContext,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  body: AuthPasswordChangeBody,
+): Promise<OkReply> {
+  const now = Date.now();
+  const { user } = principal(request);
+  if (
+    user.passwordHash === null ||
+    !(await verifyPassword(user.passwordHash, body.currentPassword))
+  ) {
+    throw invalidCredentials('Invalid password.');
+  }
+  await assertPasswordPolicy(ctx.meta, body.newPassword, 'newPassword');
+
+  await usersRepo(ctx.meta).updatePassword(user.id, await hashPassword(body.newPassword), now);
+  await sessionsRepo(ctx.meta).revokeAllForUser(user.id, now);
+  const { token } = await createSession(ctx.meta, user.id, requestMeta(request), now);
+  setSessionCookie(reply, token, request);
+  await auditAuth(ctx.meta, request, {
+    action: 'password_changed',
     actorId: user.id,
     actorLabel: user.name,
   });
@@ -358,6 +527,13 @@ export async function disable2faHandler(
 ): Promise<OkReply> {
   const now = Date.now();
   const { user } = principal(request);
+  // The other half of `auth.require2fa`: a workspace that requires a second
+  // factor cannot have accounts opting out of it. Checked before the password
+  // verify — the answer does not depend on the credential, and it spares the
+  // argon2 cost on a call that was never going to succeed.
+  if (await settingsRepo(ctx.meta).get('auth.require2fa')) {
+    throw new ForbiddenError('This workspace requires two-factor authentication.');
+  }
   if (user.passwordHash === null || !(await verifyPassword(user.passwordHash, body.password))) {
     throw invalidCredentials('Invalid password.');
   }
