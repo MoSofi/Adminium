@@ -8,7 +8,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api } from '../app/api.js';
+import { api, setCsrfToken } from '../app/api.js';
 
 export interface SetupState {
   /** True only on a never-bootstrapped instance (zero users AND no claim). */
@@ -52,13 +52,36 @@ export function setupStateQuery() {
  * session cookie already set (the server signs the wizard in). A 409 means
  * setup was already completed — the caller must send the user to /login rather
  * than retry, since no retry can ever succeed.
+ *
+ * ─── WHY THIS WRITES THE CSRF HOLDER ─────────────────────────────────────────
+ *
+ * This call MINTS a session, and from the instant it resolves every mutation
+ * this tab makes carries an ambient credential — so `security/csrf.ts` starts
+ * demanding the session-bound token (`app/api.ts`). `GET /bootstrap` is the
+ * other place that issues it, and the self-host wizard reaches it for free by
+ * navigating into `appRoute` on success. The DESKTOP wizard does not: it stays
+ * on `/desktop/setup` (a child of the router root, because there is no account
+ * to bootstrap as when it loads) and goes straight on to create a database,
+ * introspect it and generate pages. Those three calls were 403ing, and the
+ * first symptom was the first-run wizard never reaching "Generate dashboard".
+ *
+ * So the token comes back in this reply and is installed here — in the shared
+ * client both wizards call, rather than in either wizard — because the thing
+ * that needs it is the SESSION being created, which is this function's doing.
  */
 export async function createSuperAdmin(input: SetupSuperAdminInput): Promise<SetupUser> {
-  const body = await api.post<{ data: { user: SetupUser } }>('/api/v1/setup/super-admin', {
-    email: input.email,
-    password: input.password,
-    ...(input.name === undefined || input.name.length === 0 ? {} : { name: input.name }),
-    consent: input.consent,
-  });
+  const body = await api.post<{ data: { user: SetupUser; csrfToken?: string } }>(
+    '/api/v1/setup/super-admin',
+    {
+      email: input.email,
+      password: input.password,
+      ...(input.name === undefined || input.name.length === 0 ? {} : { name: input.name }),
+      consent: input.consent,
+    },
+  );
+  // Optional on the wire only so fixtures predating the field keep typechecking
+  // (the server's Zod reply schema makes it required), exactly as
+  // `app/bootstrap.ts` treats its own copy.
+  setCsrfToken(body.data.csrfToken ?? null);
   return body.data.user;
 }
