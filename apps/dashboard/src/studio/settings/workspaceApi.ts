@@ -7,8 +7,15 @@ import { queryOptions } from '@tanstack/react-query';
 
 import { api } from '../../app/api.js';
 
-export interface WorkspaceBranding {
+/** The fields an admin TYPES — exactly what `PUT /settings/branding` takes. */
+export interface WorkspaceBrandingInput {
   appName: string;
+  showVersion: boolean;
+}
+
+/** What the form READS back: the typed fields plus the resolved logo. */
+export interface WorkspaceBranding extends WorkspaceBrandingInput {
+  logoUrl: string | null;
 }
 
 export interface WorkspaceSettingsData {
@@ -25,6 +32,8 @@ export function workspaceSettingsQuery() {
   });
 }
 
-export async function putWorkspaceBranding(body: WorkspaceBranding): Promise<WorkspaceSettingsData> {
+export async function putWorkspaceBranding(
+  body: WorkspaceBrandingInput,
+): Promise<WorkspaceSettingsData> {
   return (await api.put<{ data: WorkspaceSettingsData }>('/api/v1/settings/branding', body)).data;
 }

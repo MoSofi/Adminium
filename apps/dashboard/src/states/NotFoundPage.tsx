@@ -6,12 +6,13 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, BarChart3, Database, FolderKanban, FolderOpen, Hexagon, Settings } from 'lucide-react';
+import { ArrowLeft, BarChart3, Database, FolderKanban, FolderOpen, Settings } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button, MonoText, SearchInput } from '@adminium/ui';
 
 import { bootstrapQuery, flattenNav, type NavItem } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { BrandMark } from '../shell/BrandMark.js';
 import { lucideByName } from '../lib/lucide.js';
 
 const STATIC_CHIPS = [
@@ -51,12 +52,7 @@ export function NotFoundPage({ requestId }: NotFoundPageProps) {
       data-part="not-found-page"
       className="relative flex min-h-dvh w-full flex-col items-center justify-center overflow-hidden bg-bg p-10 text-fg"
     >
-      <div className="absolute start-[26px] top-6 flex items-center gap-2.5">
-        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-accent-fg">
-          <Hexagon className="size-[17px]" aria-hidden="true" />
-        </span>
-        <span className="text-[16px] font-extrabold tracking-[-0.02em]">Adminium</span>
-      </div>
+      <BrandMark className="absolute start-[26px] top-6" />
 
       <div className="max-w-[520px] text-center">
         <div className="relative mb-2 inline-flex items-center justify-center">
