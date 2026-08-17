@@ -113,6 +113,79 @@ export function activeTableLabels(
   return labels;
 }
 
+/**
+ * Fold the `relation.add` / `relation.remove` ops of a set of active
+ * overrides onto a relation list, in created_at order (§3.15 later-row-wins,
+ * so add-then-remove and remove-then-add both mean what they read like).
+ *
+ * An accepted relation enters at `kind: 'override'`, `confidence: 1` — 05 §6:
+ * a human decision is as certain as a declared foreign key, and outranks the
+ * 0.8 gate every downstream detector applies. A removal matches
+ * STRUCTURALLY, on (fromTable, fromColumn, toTable), not by id, which is what
+ * lets it suppress a `declared-fk` and an `inferred-name` alike.
+ *
+ * Extracted from {@link applyOverrides} because the read path was the only
+ * caller: `generate/run.ts` re-parsed the raw snapshot and never saw these
+ * ops, so a relation a user accepted in the Studio remap editor showed up in
+ * the schema browser and then vanished from the next regeneration. Both paths
+ * now fold the same ops the same way.
+ */
+export function applyRelationOverrides(
+  relations: readonly Relation[],
+  overrides: readonly SchemaOverride[],
+): Relation[] {
+  let result: Relation[] = [...relations];
+  for (const row of overrides) {
+    if (row.status !== 'active') continue;
+    const value: Record<string, unknown> = row.value;
+    if ((row.op as string) === 'relation.add') {
+      const from = row.tableName;
+      const relation: Relation = {
+        id: `override:${from}.${String(value.fromColumn)}->${String(value.toTable)}`,
+        kind: 'override',
+        cardinality:
+          value.cardinality === 'many-to-one' ? 'one-to-many' : (value.cardinality as never),
+        from: { tableId: from, columns: [value.fromColumn as string] },
+        to: { tableId: value.toTable as string, columns: [value.toColumn as string] },
+        through: null,
+        onDelete: null,
+        onUpdate: null,
+        selfReferential: from === value.toTable,
+        confidence: 1,
+      };
+      // An accepted relation SUPERSEDES the inferred one it was accepted
+      // from: rule 1 emits `inferred-name:orders(customer_id)->customers(id)`
+      // for the same pair, and keeping both would leave two edges between the
+      // same two tables — a duplicate FK chip on every card, and a duplicated
+      // join in the generated list page.
+      result = [
+        ...result.filter(
+          (r) =>
+            r.id !== relation.id &&
+            !(
+              r.through === null &&
+              r.from.tableId === relation.from.tableId &&
+              r.from.columns.length === 1 &&
+              r.from.columns[0] === relation.from.columns[0] &&
+              r.to.tableId === relation.to.tableId
+            ),
+        ),
+        relation,
+      ];
+    } else if ((row.op as string) === 'relation.remove') {
+      result = result.filter(
+        (r) =>
+          !(
+            r.from.tableId === row.tableName &&
+            r.from.columns.includes(value.fromColumn as string) &&
+            r.to.tableId === value.toTable
+          ),
+      );
+    }
+  }
+  return result;
+}
+
 export interface ApplyOverridesOptions {
   /** Locale `llm.label` L10n bundles resolve to; en_US in v1. */
   defaultLocale?: string;
@@ -126,6 +199,10 @@ export function applyOverrides(
 ): EffectiveModel {
   const locale = opts.defaultLocale ?? DEFAULT_LOCALE;
   const effective = structuredClone(model) as unknown as EffectiveModel;
+  // Relation add/remove resolves up-front from the ONE shared resolver
+  // (`generate/run.ts` calls the same one), so `relation.label` below labels
+  // the final set regardless of the order the two rows were written in.
+  effective.relations = applyRelationOverrides(effective.relations, overrides);
   const tables = new Map<string, EffectiveTable>(effective.tables.map((t) => [tableId(t as TableModel), t]));
   const columnOf = (table: EffectiveTable | undefined, name: string | null): EffectiveColumn | undefined =>
     table?.columns.find((c) => c.name === name);
@@ -232,37 +309,6 @@ export function applyOverrides(
         if (column === undefined) break;
         const resolved = resolveLocalized(value.label, locale);
         if (resolved !== null) column.label = resolved;
-        break;
-      }
-      case 'relation.add': {
-        const from = row.tableName;
-        const relation: EffectiveRelation = {
-          id: `override:${from}.${String(value.fromColumn)}->${String(value.toTable)}`,
-          kind: 'override',
-          cardinality: value.cardinality === 'many-to-one' ? 'one-to-many' : (value.cardinality as never),
-          from: { tableId: from, columns: [value.fromColumn as string] },
-          to: { tableId: value.toTable as string, columns: [value.toColumn as string] },
-          through: null,
-          onDelete: null,
-          onUpdate: null,
-          selfReferential: from === value.toTable,
-          confidence: 1,
-        };
-        effective.relations = [
-          ...effective.relations.filter((r) => r.id !== relation.id),
-          relation,
-        ];
-        break;
-      }
-      case 'relation.remove': {
-        effective.relations = effective.relations.filter(
-          (r) =>
-            !(
-              r.from.tableId === row.tableName &&
-              r.from.columns.includes(value.fromColumn as string) &&
-              r.to.tableId === value.toTable
-            ),
-        );
         break;
       }
       case 'relation.label': {
