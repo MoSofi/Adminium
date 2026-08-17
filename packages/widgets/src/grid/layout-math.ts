@@ -12,8 +12,10 @@ import type { LayoutItem } from '../page-config/index.js';
 export const GRID_COLUMNS = 12;
 /** Heights persist in half-row units of 40 px (annex row unit ≈ 80 px). */
 export const ROW_UNIT_PX = 40;
-/** Grid gap (04 §6.1). */
-export const GRID_GAP_PX = 16;
+/** Grid gap (04 §6.1). 14px is the comp's gutter on every dashboard grid.
+ *  Load-bearing beyond looks: it feeds the pointer-drag cell-step measurement in
+ *  DashboardGrid, so it must stay in lockstep with the `gap-*` utility there. */
+export const GRID_GAP_PX = 14;
 
 /**
  * Reading order for breakpoint stacking: below `lg` the grid reflows to a

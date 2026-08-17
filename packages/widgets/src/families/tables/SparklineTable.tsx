@@ -82,7 +82,12 @@ export function SparklineTable({
   }
 
   return (
-    <ul data-widget="sparkline-table" data-testid={testId} className="h-full overflow-auto px-2 py-1">
+    /* `tabIndex` makes the overflow container reachable, so a keyboard-only user
+       can scroll to the rows past the fold (WCAG 2.1.1; axe
+       scrollable-region-focusable). Long latent: the a11y sweep only started
+       seeing it once Storybook began compiling widget utilities at all, so
+       `overflow-auto` had never actually applied in the swept build. */
+    <ul data-widget="sparkline-table" data-testid={testId} tabIndex={0} className="h-full overflow-auto px-2 py-1">
       {slice.map((row) => {
         const good = goodDirectionFor(row.name, row.goodDirection, goodDirectionByMetric);
         const trend = trendOf(row.delta);

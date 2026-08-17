@@ -83,7 +83,7 @@ export function ModalWizardWidget({ config, data, instanceId, onEvent }: WidgetP
   };
 
   return (
-    <div className="flex h-full items-center px-4 pb-4" data-widget="modal-wizard" data-testid={config.testId}>
+    <div className="flex h-full items-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="modal-wizard" data-testid={config.testId}>
       <Button size="sm" data-part="wizard-trigger" onClick={() => setOpen(true)}>
         {config.triggerLabel ?? config.title ?? t('ui:widgets.forms.modalWizard.trigger', 'Create')}
       </Button>

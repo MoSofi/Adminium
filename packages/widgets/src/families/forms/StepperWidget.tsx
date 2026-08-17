@@ -72,7 +72,7 @@ export function StepperWidget({ config, data, onEvent }: WidgetProps<StepperConf
   const activeIndex = activeFromRows === -1 ? config.activeIndex : activeFromRows;
 
   return (
-    <div className="flex h-full items-center px-4 pb-4" data-widget="stepper" data-testid={config.testId}>
+    <div className="flex h-full items-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="stepper" data-testid={config.testId}>
       <Stepper
         className="w-full"
         label={config.a11yLabel ?? config.title ?? t('ui:widgets.forms.stepper.a11yLabel', 'Progress')}

@@ -47,7 +47,7 @@ const ICONS = {
 export function KpiStatCard({ config, data }: WidgetProps<KpiStatCardConfig>) {
   const metric = asMetricDelta(data);
   if (metric === null) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
 
   const opts = formatOptionsOf(config);
@@ -63,7 +63,7 @@ export function KpiStatCard({ config, data }: WidgetProps<KpiStatCardConfig>) {
   const spark = config.showSparkline ? metric.spark : undefined;
 
   return (
-    <div className="flex h-full flex-col justify-between gap-2 px-4 pb-4 compact:px-3 compact:pb-3" data-widget="kpi-stat-card">
+    <div className="flex h-full flex-col justify-between gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="kpi-stat-card">
       <div className="flex items-start justify-between gap-2">
         <IconTile tone={config.iconTone} size="md" icon={<Icon />} />
         {delta !== null && (

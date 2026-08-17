@@ -14,12 +14,12 @@
 export {
   layoutItemSchema,
   pageLayoutSchema,
+  // Re-exported, not restated: this was a hand-copied `= 24` sitting directly
+  // under a header comment promising no second definition to drift from.
+  MAX_H,
   type LayoutItem,
   type PageLayout,
 } from '../page-config/layout.js';
-
-/** Max stored height in 40 px half-units (04 §6.1 — `h: z…max(24)`). */
-export const MAX_H = 24;
 
 /**
  * The subset of a widget's registry `sizing` the grid enforces on drag/resize:
@@ -34,5 +34,12 @@ export interface MinSize {
   minH: number;
 }
 
-/** Fallback when the host supplies no per-widget `getSizing` resolver. */
-export const DEFAULT_MIN_SIZE: MinSize = { minW: 1, minH: 1 };
+/**
+ * Fallback when the host supplies no per-widget `getSizing` resolver — the
+ * NO-RESOLVER default, not the identity. 1×1 was effectively "no floor": a
+ * single column by 40px, which is smaller than the card's own header. 2×2 is
+ * the smallest cell that can hold a padded card with a title and still read as
+ * a widget; anything that genuinely wants to be smaller declares its own
+ * `sizing` in the registry, which every real widget does.
+ */
+export const DEFAULT_MIN_SIZE: MinSize = { minW: 2, minH: 2 };

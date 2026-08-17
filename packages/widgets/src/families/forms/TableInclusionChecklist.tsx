@@ -239,7 +239,7 @@ export function TableInclusionChecklistWidget({ config, data, onEvent }: WidgetP
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-4 pb-4">
+    <div className="flex h-full min-h-0 flex-col px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <TableInclusionChecklist
         tables={tables}
         selected={selected}

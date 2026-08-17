@@ -60,7 +60,7 @@ export function OtpInputWidget({ config, data, onEvent }: WidgetProps<OtpInputCo
   const target = bindingTargetOf(config.binding);
 
   return (
-    <div className="flex h-full flex-col justify-center gap-1.5 px-4 pb-4" data-widget="otp-input" data-testid={config.testId}>
+    <div className="flex h-full flex-col justify-center gap-1.5 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="otp-input" data-testid={config.testId}>
       <OtpInput
         length={config.length}
         value={code}
@@ -126,7 +126,7 @@ export function ChipInputWidget({ config, data, onEvent }: WidgetProps<ChipInput
   );
 
   return (
-    <div className="flex h-full flex-col justify-center px-4 pb-4" data-widget="chip-input" data-testid={config.testId}>
+    <div className="flex h-full flex-col justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chip-input" data-testid={config.testId}>
       {config.label === undefined ? (
         field
       ) : (
@@ -152,7 +152,7 @@ export function SegmentedControlWidget({ config, data, onEvent }: WidgetProps<Se
 
   return (
     <div
-      className="flex h-full items-center px-4 pb-4"
+      className="flex h-full items-center px-[var(--widget-pad)] pb-[var(--widget-pad)]"
       data-widget="segmented-control"
       data-style={config.style}
       data-testid={config.testId}
@@ -206,7 +206,7 @@ export function PasswordStrengthMeterWidget({ config, data }: WidgetProps<Passwo
 
   return (
     <div
-      className="flex h-full flex-col justify-center px-4 pb-4"
+      className="flex h-full flex-col justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]"
       data-widget="password-strength-meter"
       data-score={defaultPasswordScore(password)}
       data-testid={config.testId}

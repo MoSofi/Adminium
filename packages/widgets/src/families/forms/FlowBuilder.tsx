@@ -133,7 +133,7 @@ export function FlowBuilderWidget({ config, data, onEvent }: WidgetProps<FlowBui
     <div
       data-widget="flow-builder"
       data-testid={config.testId}
-      className="flex h-full flex-col gap-2 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {stats !== null && (
         <p data-part="flow-stats" className="text-caption text-fg-muted">

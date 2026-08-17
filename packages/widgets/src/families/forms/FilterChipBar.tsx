@@ -112,7 +112,7 @@ export function FilterChipBarWidget({ config, data, onEvent }: WidgetProps<Filte
     <div
       data-widget="filter-chip-bar"
       data-testid={config.testId}
-      className="flex h-full flex-wrap items-center gap-1.5 px-4 pb-4"
+      className="flex h-full flex-wrap items-center gap-1.5 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <ChoiceChips
         data-part="facet-chips"

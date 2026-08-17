@@ -88,7 +88,7 @@ export function PlanPricingCardsView({
       data-widget="plan-pricing-cards"
       data-testid={testId}
       data-period={active}
-      className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-3 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div className="flex justify-center">
         <SegmentedControl

@@ -68,7 +68,7 @@ export function OptionCardsWidget({ config, data, onEvent }: WidgetProps<OptionC
   if (options.length === 0) return null;
 
   return (
-    <div className="h-full overflow-auto px-4 pb-4" data-widget="option-cards" data-testid={config.testId}>
+    <div className="h-full overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="option-cards" data-testid={config.testId}>
       <RadioGroup
         aria-label={config.a11yLabel ?? config.title ?? t('ui:widgets.forms.optionCards.a11yLabel', 'Choose an option')}
         value={value}

@@ -108,7 +108,7 @@ export function SloMonitorCardView({
       data-widget="slo-monitor-card"
       data-testid={testId}
       data-status={monitor.status}
-      className={`flex h-full flex-col gap-3 overflow-auto border-s-4 ${OPS_TONE_BORDER_S[statusTone]} px-4 pb-4`}
+      className={`flex h-full flex-col gap-3 overflow-auto border-s-4 ${OPS_TONE_BORDER_S[statusTone]} px-[var(--widget-pad)] pb-[var(--widget-pad)]`}
     >
       <div className="flex items-start gap-2.5">
         <IconTile tone={statusTone} size="sm" icon={<Activity />} />

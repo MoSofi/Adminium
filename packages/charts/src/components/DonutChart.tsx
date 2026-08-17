@@ -90,7 +90,14 @@ export function DonutChart({
               data-other={slice.isOther ? '' : undefined}
             />
           ))}
-          <text className="adm-donut-center-value" textAnchor="middle" dy={centerLabel !== undefined ? '0.1em' : '0.35em'}>
+          {/* The centered value scales with the ring (design ratios 17/112 and
+              26/172) so a small donut cannot overflow its own hole. */}
+          <text
+            className="adm-donut-center-value"
+            style={{ '--adm-center-size': `${Math.round(size * 0.15)}px` }}
+            textAnchor="middle"
+            dy={centerLabel !== undefined ? '0.1em' : '0.35em'}
+          >
             {shownCenterValue}
           </text>
           {centerLabel !== undefined && (

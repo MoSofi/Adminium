@@ -93,7 +93,7 @@ export function ColumnMappingTableWidget({ config, data, onEvent }: WidgetProps<
     <div
       data-widget="column-mapping-table"
       data-testid={config.testId}
-      className="flex h-full flex-col overflow-auto px-4 pb-4"
+      className="flex h-full flex-col overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div role="table" className="min-w-full">
         <div

@@ -63,7 +63,7 @@ export function AvatarStackWidget({ config, data }: WidgetProps<AvatarStackConfi
     <div
       data-widget="avatar-stack"
       data-testid={config.testId}
-      className="flex h-full flex-col justify-center gap-1 px-4 pb-4"
+      className="flex h-full flex-col justify-center gap-1 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <AvatarStack max={config.max} size={config.size} label={config.title ?? t('ui:widgets.chrome.avatarStack.a11yLabel', 'People')}>
         {people.map((person) => (

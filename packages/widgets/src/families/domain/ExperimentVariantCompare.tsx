@@ -96,7 +96,7 @@ export function ExperimentVariantCompareView({
     <div
       data-widget="experiment-variant-compare"
       data-testid={testId}
-      className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-3 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div className="flex flex-col gap-2.5">
         {variants.map((variant) => {

@@ -184,7 +184,7 @@ export function RuleBuilderWidget({ config, data, onEvent }: WidgetProps<RuleBui
       data-widget="rule-builder"
       data-match={match}
       data-testid={config.testId}
-      className="flex h-full flex-col gap-2 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       {conditions.length === 0 && (
         <p className="text-body-sm text-fg-muted" data-part="rule-empty">

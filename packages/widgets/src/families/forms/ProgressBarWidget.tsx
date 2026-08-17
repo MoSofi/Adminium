@@ -34,7 +34,7 @@ export function ProgressBarWidget({ config, data }: WidgetProps<ProgressBarConfi
       data-widget="progress-bar"
       data-complete={complete ? 'true' : undefined}
       data-testid={config.testId}
-      className="flex h-full items-center gap-2 px-4 pb-4"
+      className="flex h-full items-center gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <ProgressBar
         value={value}

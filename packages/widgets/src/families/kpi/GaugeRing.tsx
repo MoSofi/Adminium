@@ -77,7 +77,7 @@ export function GaugeRing({ config, data }: WidgetProps<GaugeRingConfig>) {
   const mounted = useMountAnimation();
   const metric = asMetricDelta(data);
   if (metric === null) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
 
   const opts = formatOptionsOf(config);
@@ -101,7 +101,7 @@ export function GaugeRing({ config, data }: WidgetProps<GaugeRingConfig>) {
 
   return (
     <div
-      className="flex h-full flex-col items-center justify-center gap-3 px-4 pb-4 compact:gap-2 compact:px-3 compact:pb-3"
+      className="flex h-full flex-col items-center justify-center gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)] compact:gap-2"
       data-widget="gauge-ring"
       data-tone={tone}
     >

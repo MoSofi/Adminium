@@ -55,7 +55,7 @@ export function PeriodComparison({ config, data }: WidgetProps<PeriodComparisonC
   const t = useMaybeT();
   const metric = asMetricDelta(data);
   if (metric === null) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
 
   const opts = formatOptionsOf(config);
@@ -79,7 +79,7 @@ export function PeriodComparison({ config, data }: WidgetProps<PeriodComparisonC
 
   return (
     <div
-      className="flex h-full flex-col justify-center gap-3 px-4 pb-4 compact:gap-2 compact:px-3 compact:pb-3"
+      className="flex h-full flex-col justify-center gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)] compact:gap-2"
       data-widget="period-comparison"
       data-trend={delta?.trend ?? 'flat'}
     >

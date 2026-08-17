@@ -216,7 +216,7 @@ export function GaugeArc({ config, data }: WidgetProps<GaugeArcConfig>) {
   if (config.cluster) {
     const categorical = asCategorical(data);
     if (categorical === null) {
-      return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+      return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
     }
     // A categorical payload with no items is EMPTY, not malformed — an SLA or
     // system-health query is allowed to return zero rows. The frame can't route
@@ -237,7 +237,7 @@ export function GaugeArc({ config, data }: WidgetProps<GaugeArcConfig>) {
     }
     return (
       <div
-        className={`grid h-full content-center gap-3 px-4 pb-4 compact:px-3 compact:pb-3 ${GRID_COLUMNS[config.columns] ?? 'grid-cols-2'}`}
+        className={`grid h-full content-center gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)] ${GRID_COLUMNS[config.columns] ?? 'grid-cols-2'}`}
         data-widget="gauge-arc"
         data-cluster="true"
       >
@@ -264,7 +264,7 @@ export function GaugeArc({ config, data }: WidgetProps<GaugeArcConfig>) {
 
   const metric = asSingleMetric(data);
   if (metric === null) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
   const value = clampValue(metric.value, config.max);
   const band = bandFor(value, config.bands);
@@ -273,7 +273,7 @@ export function GaugeArc({ config, data }: WidgetProps<GaugeArcConfig>) {
 
   return (
     <div
-      className="flex h-full flex-col items-center justify-center gap-2 px-4 pb-4 compact:px-3 compact:pb-3"
+      className="flex h-full flex-col items-center justify-center gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
       data-widget="gauge-arc"
       data-cluster="false"
       data-tone={tone}

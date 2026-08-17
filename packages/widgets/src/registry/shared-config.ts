@@ -24,6 +24,14 @@ export const widgetSharedConfigSchema = z.object({
     .optional(),
   permissions: z.array(z.string()).optional(), // role ids that may see this instance
   tone: z.enum(['accent', 'pos', 'warn', 'danger', 'info', 'muted']).optional(),
+  /**
+   * Edge-to-edge body: drop the card's `--widget-pad` gutter for this instance.
+   * Opt-in by design — the padded card IS the design, and an unpadded chart is
+   * a deliberate choice for a full-bleed map or heat grid, never a default.
+   * `.default(false)` (not `.optional()`) so the config drawer renders it as a
+   * switch that reads OFF rather than an indeterminate blank.
+   */
+  bleed: z.boolean().default(false),
   format: z
     .object({
       locale: z.string().optional(), // per-widget override, else app locale

@@ -69,6 +69,23 @@ describe('Treemap', () => {
     assertTokenColors(container);
   });
 
+  it('flips the tile label to the on-accent color once the ramp goes dark', () => {
+    // --fg on var(--viz-ramp-6) is ~2.7:1 — under AA and under the 3:1
+    // large-text floor, in both themes.
+    const { container } = render(<Treemap data={data} labels={{ label: 'x' }} />);
+    const fillOf = (label: string): string | null =>
+      container.querySelector(`[data-tile="${label}"] .adm-chart-tile-name`)?.getAttribute('fill') ?? null;
+    expect(fillOf('A')).toBe('var(--accent-fg)'); // ramp 6
+    expect(fillOf('D')).toBe('var(--fg)'); // ramp 1
+  });
+
+  it('drops the label pair on a tile too short to hold both lines', () => {
+    // The value draws at y+30, so a 26px tile used to render it 4px below its
+    // own bottom edge, on top of its neighbour.
+    const { container } = render(<Treemap data={data} labels={{ label: 'x' }} height={30} />);
+    expect(container.querySelectorAll('.adm-chart-tile-name')).toHaveLength(0);
+  });
+
   it('gates the fade on mount and skips it under reduced motion', () => {
     const gated = render(<Treemap data={data} labels={{ label: 'x' }} />);
     const gatedTile = gated.container.querySelector('g.adm-chart-fade') as SVGGElement;
@@ -98,6 +115,19 @@ describe('Funnel', () => {
     assertTokenColors(container);
   });
 
+  it('keeps every stage label and value above its bar, never on it', () => {
+    // On-bar text sat on the accent ramp at ~2.7:1. The design puts the caption
+    // above the track instead, which is the only layout that clears AA at every
+    // stage without inventing a per-stage text color.
+    const { container } = render(<Funnel data={data} labels={{ label: 'x' }} />);
+    for (const stage of container.querySelectorAll('[data-stage]')) {
+      const barY = Number(stage.querySelector('rect')?.getAttribute('y'));
+      for (const text of stage.querySelectorAll('text')) {
+        expect(Number(text.getAttribute('y'))).toBeLessThan(barY);
+      }
+    }
+  });
+
   it('mirrors bar x in RTL vs LTR', () => {
     const xOf = (dir: 'ltr' | 'rtl') => {
       const { container } = render(<Funnel data={data} labels={{ label: 'x' }} dir={dir} variant="horizontal" />);
@@ -120,6 +150,14 @@ describe('RadialBar', () => {
     expect(container.querySelectorAll('path[data-value]')).toHaveLength(3);
     expect(container.querySelectorAll('.adm-donut-legend-row')).toHaveLength(3);
     assertTokenColors(container);
+  });
+
+  it('centers the value on a lone ring and leaves the hole empty for several', () => {
+    const one = render(<RadialBar data={[{ label: 'Quota', value: 73 }]} labels={{ label: 'Quota used' }} />);
+    expect(one.container.querySelector('[data-center-value]')?.textContent).toBe('73%');
+    one.unmount();
+    const many = render(<RadialBar data={data} labels={{ label: 'x' }} />);
+    expect(many.container.querySelector('[data-center-value]')).toBeNull();
   });
 });
 

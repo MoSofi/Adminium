@@ -123,6 +123,11 @@ export function ComparisonMatrix({
       data-widget="comparison-matrix"
       data-testid={testId}
       role="table"
+      /* Keyboard reach for the horizontal scroll — the matrix is wider than its
+         card whenever more than ~3 plans are compared (WCAG 2.1.1; axe
+         scrollable-region-focusable). See the note in SparklineTable for why
+         this surfaced only now. */
+      tabIndex={0}
       className="h-full overflow-auto"
     >
       <div

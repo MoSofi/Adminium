@@ -99,7 +99,7 @@ export function StackedBar100({
       </ChartSurface>
 
       {showLegend && (
-        <ul className="adm-legend" style={{ '--adm-legend-cols': String(Math.max(1, legendColumns)) }}>
+        <ul className="adm-legend adm-legend-cols" style={{ '--adm-legend-cols': String(Math.max(1, legendColumns)) }}>
           {data.map((item, index) => {
             const total = data.reduce((sum, entry) => sum + Math.max(0, entry.value), 0);
             const share = total > 0 ? Math.max(0, item.value) / total : 0;

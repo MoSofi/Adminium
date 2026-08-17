@@ -200,7 +200,7 @@ export function AutoInsights({ config, data, onEvent }: WidgetProps<AutoInsights
   const visible = visibleWindow(insights, offset, config.count);
 
   if (visible.length === 0) {
-    return <p className="px-4 pb-4 text-body-sm text-fg-muted">Unexpected data shape.</p>;
+    return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">Unexpected data shape.</p>;
   }
 
   // Rotating past the pool's end is pointless when everything already fits.
@@ -213,7 +213,7 @@ export function AutoInsights({ config, data, onEvent }: WidgetProps<AutoInsights
 
   return (
     <div
-      className="flex h-full flex-col gap-3 overflow-y-auto px-4 pb-4 compact:gap-2 compact:px-3 compact:pb-3"
+      className="flex h-full flex-col gap-3 overflow-y-auto px-[var(--widget-pad)] pb-[var(--widget-pad)] compact:gap-2"
       data-widget="auto-insights"
       data-variant={config.variant}
     >

@@ -15,8 +15,8 @@ import { truncateToWidth } from '../utils/text.js';
 import { ChartSurface } from './ChartSurface.js';
 import type { ChartLabels } from './ChartSurface.js';
 
-/** Matches `.adm-chart-axis-label` in styles.css — the gutter budget assumes it. */
-const LABEL_FONT_PX = 10;
+/** Matches `.adm-chart-entity-label` in styles.css — the gutter budget assumes it. */
+const LABEL_FONT_PX = 12.5;
 /** Breathing room between the end of a label and the start of the bar track. */
 const LABEL_PADDING = 8;
 
@@ -106,7 +106,7 @@ export function RankingBars({
                     data-leader={bar.isLeader ? '' : undefined}
                   />
                   <text
-                    className="adm-chart-axis-label"
+                    className="adm-chart-entity-label"
                     x={labelEdge}
                     y={midY}
                     textAnchor={rtl ? 'end' : 'start'}
@@ -118,13 +118,10 @@ export function RankingBars({
                     {shortLabel}
                   </text>
                   <text
-                    className="adm-chart-num"
+                    className="adm-chart-num adm-chart-value"
                     x={valueEdge}
                     y={midY}
                     textAnchor={rtl ? 'start' : 'end'}
-                    fontSize={11}
-                    fontWeight={700}
-                    fill="var(--fg)"
                   >
                     {formatValue(bar.value)}
                   </text>

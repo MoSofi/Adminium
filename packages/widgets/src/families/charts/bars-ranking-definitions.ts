@@ -102,7 +102,11 @@ export const barsRankingChartDefinitions: readonly WidgetDefinition[] = [
     component: lazy(async () => ({ default: (await import('./bars-ranking-components.js')).ChartStackedBar100Widget })),
     configSchema: chartStackedBar100ConfigSchema,
     dataContract: 'categorical',
-    sizing: { minW: 3, minH: 2, defaultW: 4, defaultH: 4 }, // annex 3×1 → 4×2
+    // annex 3×1 → 4×2. minH raised 2 → 4: the annex floor predates the card
+    // chrome, and 2 half-units is 80px — less than the header plus one legible
+    // bar row. Below `lg` the grid is single-column, so minH is the ONLY
+    // constraint that binds on a phone (chart-legibility-floor.test.ts).
+    sizing: { minW: 3, minH: 4, defaultW: 4, defaultH: 4 },
     placement: 'grid',
     skeleton: 'chart',
     capabilities: { exportPng: true },

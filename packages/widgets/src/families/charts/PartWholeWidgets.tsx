@@ -32,7 +32,7 @@ import type {
 
 function BadShape() {
   const t = useMaybeT();
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
+  return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
 // --- chart-treemap -----------------------------------------------------------
@@ -43,7 +43,7 @@ export function ChartTreemapWidget({ config, data }: WidgetProps<ChartTreemapCon
   if (inputs === null) return <BadShape />;
   const opts = formatOptionsOf(config);
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-treemap">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-treemap">
       <Treemap
         data={inputs}
         labels={{ label: config.title ?? t('ui:widgets.charts.treemap.chartLabel', 'Treemap') }}
@@ -63,7 +63,7 @@ export function ChartSunburstWidget({ config, data }: WidgetProps<ChartSunburstC
   const inputs = sunburstInputsOf(data);
   if (inputs === null) return <BadShape />;
   return (
-    <div className="flex justify-center px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-sunburst">
+    <div className="flex justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-sunburst">
       <Sunburst
         data={inputs}
         labels={{ label: config.title ?? t('ui:widgets.charts.sunburst.chartLabel', 'Sunburst') }}
@@ -82,7 +82,7 @@ export function ChartFunnelWidget({ config, data }: WidgetProps<ChartFunnelConfi
   if (inputs === null) return <BadShape />;
   const opts = formatOptionsOf(config);
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-funnel">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-funnel">
       <Funnel
         data={inputs}
         labels={{ label: config.title ?? t('ui:widgets.charts.funnel.chartLabel', 'Funnel') }}
@@ -103,7 +103,7 @@ export function ChartRadialBarWidget({ config, data }: WidgetProps<ChartRadialBa
   const inputs = radialBarInputsOf(data, config.maxRings);
   if (inputs === null) return <BadShape />;
   return (
-    <div className="flex justify-center px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-radial-bar">
+    <div className="flex justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-radial-bar">
       <RadialBar
         data={inputs}
         labels={{ label: config.title ?? t('ui:widgets.charts.radialBar.chartLabel', 'Radial bar') }}
@@ -121,7 +121,7 @@ export function ChartRadarWidget({ config, data }: WidgetProps<ChartRadarConfig>
   const inputs = radarInputsOf(data);
   if (inputs === null || inputs.axes.length === 0) return <BadShape />;
   return (
-    <div className="flex justify-center px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-radar">
+    <div className="flex justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-radar">
       <Radar
         axes={inputs.axes}
         series={inputs.series}
@@ -141,7 +141,7 @@ export function ChartChordWidget({ config, data }: WidgetProps<ChartChordConfig>
   const inputs = chordInputsOf(data, config.nodeLimit);
   if (inputs === null) return <BadShape />;
   return (
-    <div className="flex justify-center px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-chord">
+    <div className="flex justify-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-chord">
       <Chord
         nodes={inputs.nodes}
         links={inputs.links}
@@ -160,7 +160,7 @@ export function ChartWordcloudWidget({ config, data }: WidgetProps<ChartWordclou
   const inputs = wordcloudInputsOf(data, config.maxTerms);
   if (inputs === null) return <BadShape />;
   return (
-    <div className="px-4 pb-4 compact:px-3 compact:pb-3" data-widget="chart-wordcloud">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-wordcloud">
       <WordCloud
         data={inputs}
         labels={{ label: config.title ?? t('ui:widgets.charts.wordcloud.chartLabel', 'Word cloud') }}

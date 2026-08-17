@@ -110,7 +110,7 @@ export function SyncStatusCardView({
       data-widget="sync-status-card"
       data-testid={testId}
       data-phase={status.phase}
-      className="flex h-full flex-col gap-3 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-3 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <div className="flex items-start gap-2.5">
         <IconTile tone={tone} size="sm" icon={<Database />} />
@@ -298,7 +298,7 @@ export function LiveTimerView({
       data-widget="live-timer"
       data-testid={testId}
       data-running={timer.running ? '' : undefined}
-      className="flex h-full flex-col justify-center gap-3 px-4 pb-4 sm:flex-row sm:items-center"
+      className="flex h-full flex-col justify-center gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)] sm:flex-row sm:items-center"
     >
       <div className="min-w-0 flex-1">
         <p className="truncate text-body-sm font-semibold text-fg" data-part="timer-task">

@@ -174,18 +174,23 @@ describe('PageCrud template (09 §7.1)', () => {
     });
   });
 
-  it('selection morphs the toolbar into bulk actions', async () => {
+  it('selection morphs only the toolbar end slot into bulk actions', async () => {
     const user = userEvent.setup();
     const api = makeApi(rows);
     renderPage(api);
     await screen.findByText('Initech');
     expect(screen.getByPlaceholderText(/Search public\.customers/)).toBeDefined();
+    expect(screen.getByRole('button', { name: /New row/ })).toBeDefined();
 
     const bodyRows = screen.getAllByRole('row').slice(1);
     await user.click(within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
 
-    // search is replaced by the bulk bar (09 §7.1 "toolbar morphs")
-    expect(screen.queryByPlaceholderText(/Search public\.customers/)).toBeNull();
+    // The bulk bar takes the CTA's slot (09 §7.1 "toolbar morphs") — and ONLY
+    // that slot. Search and the filter chips survive the selection: they are
+    // how the user built the set they are now acting on, so hiding them mid-
+    // task was the defect this asserts against.
+    expect(screen.getByPlaceholderText(/Search public\.customers/)).toBeDefined();
+    expect(screen.queryByRole('button', { name: /New row/ })).toBeNull();
     const toolbar = screen.getByRole('toolbar', { name: 'Bulk actions' });
     expect(within(toolbar).getByText('1')).toBeDefined();
     expect(within(toolbar).getByText('Delete')).toBeDefined();

@@ -105,8 +105,18 @@ function placeAndResolve(
  * Move `id` to target cell `(x, y)` (keeping its size), pushing colliding items
  * down. UN-compacted — pair with `compactVertical` (see file header, 04 §6.2).
  */
-export function applyMove(layout: PageLayout, id: string, x: number, y: number): PageLayout {
-  return placeAndResolve(layout, id, { x, y }, DEFAULT_MIN_SIZE);
+export function applyMove(
+  layout: PageLayout,
+  id: string,
+  x: number,
+  y: number,
+  // Move used to hardcode DEFAULT_MIN_SIZE, which made the MOST-used interaction
+  // the one place the registry floor did not apply: an item already stored below
+  // its floor stayed below it forever, because the only code path that could have
+  // repaired it clamped against 1x1. Defaulted so existing callers still compile.
+  min: MinSize = DEFAULT_MIN_SIZE,
+): PageLayout {
+  return placeAndResolve(layout, id, { x, y }, min);
 }
 
 /**
@@ -125,8 +135,14 @@ export function applyResize(
 
 /** Convenience: move then top-gravity settle (the pointer-drop / keyboard-move
  *  commit path). */
-export function moveAndCompact(layout: PageLayout, id: string, x: number, y: number): PageLayout {
-  return { ...layout, items: compactVertical(applyMove(layout, id, x, y).items) };
+export function moveAndCompact(
+  layout: PageLayout,
+  id: string,
+  x: number,
+  y: number,
+  min: MinSize = DEFAULT_MIN_SIZE,
+): PageLayout {
+  return { ...layout, items: compactVertical(applyMove(layout, id, x, y, min).items) };
 }
 
 /** Convenience: resize then top-gravity settle. */
@@ -153,6 +169,34 @@ export function commitDraft(
 ): PageLayout {
   const resolved = placeAndResolve(layout, id, draft, min);
   return { ...layout, items: compactVertical(resolved.items) };
+}
+
+/**
+ * Raise every item to its widget's registry floor and settle the result.
+ *
+ * THE FLOOR USED TO BIND ONLY MID-INTERACTION. `clampItem` ran inside
+ * `applyResize`/`commitDraft`, so a widget could not be dragged below `minW ×
+ * minH` — but nothing enforced the floor on LOAD, on the move path, or on a
+ * layout that arrived from anywhere else (a hand-authored page config, an
+ * LLM-generated one, a direct PATCH, or a layout stored before the widget's
+ * sizing was raised). Those all rendered at whatever size was on disk, which is
+ * the "cramped enough to be illegible" state this exists to prevent.
+ *
+ * Correcting in memory rather than writing back is deliberate: a page VIEW must
+ * not turn into a mutation, and a debounced save fired by merely opening a page
+ * would rewrite layouts for users who never edited anything.
+ *
+ * Idempotent — `clampItem` and `compactVertical` both are, so a normalized
+ * layout normalizes to itself.
+ */
+export function normalizeLayout(
+  layout: PageLayout,
+  getSizing?: ((widgetId: string) => MinSize) | undefined,
+): PageLayout {
+  const clamped = layout.items.map((item) =>
+    clampItem(item, getSizing?.(item.widget) ?? DEFAULT_MIN_SIZE),
+  );
+  return { ...layout, items: compactVertical(clamped) };
 }
 
 /**

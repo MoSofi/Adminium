@@ -1,6 +1,6 @@
 /**
  * DashboardGrid — the `pageLayoutSchema` renderer (04-widget-registry.md §6).
- * 12 fluid columns, 40 px half-row units, 16 px gap. Below `lg` the grid reflows
+ * 12 fluid columns, 40 px half-row units, 14 px gap. Below `lg` the grid reflows
  * to one stacked column ordered by `(y, x)`; items keep their height spans.
  *
  * Two modes on one surface:
@@ -51,6 +51,7 @@ import type { GridEditLabels, GridEditLabelsInput, GridItemEditControls } from '
 import {
   applyMove,
   commitDraft,
+  normalizeLayout,
   pointerMoveTarget,
 } from './layout-edit.js';
 import type { CellStep, LayoutDraft } from './layout-edit.js';
@@ -86,7 +87,9 @@ export interface DashboardGridProps {
 }
 
 const GRID_SURFACE_ID = 'dashboard-grid-surface';
-const SURFACE_CLASS = 'grid grid-cols-1 auto-rows-[40px] gap-4 lg:grid-cols-12';
+// Keep the gap literal in sync with GRID_GAP_PX — the drag math measures cells
+// from that constant, so a mismatch drifts the drop target a pixel per column.
+const SURFACE_CLASS = 'grid grid-cols-1 auto-rows-[40px] gap-[14px] lg:grid-cols-12';
 
 /** Arrow key → signed cell delta. Horizontal mirrors LOGICALLY under RTL
  *  (reading order for move; growth toward the inline-end for resize); vertical
@@ -126,7 +129,13 @@ export function DashboardGrid({
   dir = 'ltr',
   labels,
 }: DashboardGridProps) {
-  const items = sortByPosition(layout.items);
+  // Normalize BEFORE render, in both modes. A stored layout is untrusted input —
+  // it can predate a widget's current `sizing`, or have been written by the
+  // generator, the LLM apply path or a direct PATCH, none of which clamp. Without
+  // this the resize handle refuses to go below the floor while the page happily
+  // renders something already below it.
+  const normalized = normalizeLayout(layout, getSizing);
+  const items = sortByPosition(normalized.items);
 
   if (!editMode) {
     return (
@@ -152,7 +161,10 @@ export function DashboardGrid({
 
   return (
     <EditableGrid
-      layout={layout}
+      // The NORMALIZED layout, not the raw prop: every mutation below derives
+      // from it, so an edit session that starts on a sub-floor item repairs it
+      // instead of carrying the illegal size through the next save.
+      layout={normalized}
       items={items}
       renderItem={renderItem}
       className={className}
@@ -258,11 +270,11 @@ function EditableGrid({
       // move and pointer-resize paths (04 §6.2).
       const { x, y } = pointerMoveTarget(item, event.delta, cellRef.current, dir);
       if (x === item.x && y === item.y) return;
-      const moved = applyMove(layout, id, x, y);
+      const moved = applyMove(layout, id, x, y, minSizeFor(item.widget));
       const next: PageLayout = { ...layout, items: compactVertical(moved.items) };
       commit(next, id, draftOf(item));
     },
-    [layout, commit, dir],
+    [layout, commit, dir, minSizeFor],
   );
 
   const snapModifier = useMemo<Modifier>(

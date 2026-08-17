@@ -68,7 +68,7 @@ export function AutosaveIndicatorView({
   const stamp = showStamp && status === 'saved' ? formatStamp(savedAt, locale) : undefined;
 
   return (
-    <div className="flex h-full items-center gap-2 px-4 pb-4" data-widget="autosave-indicator" data-testid={testId}>
+    <div className="flex h-full items-center gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="autosave-indicator" data-testid={testId}>
       <AutosaveIndicator
         status={status}
         dirtyLabel={dirtyLabel ?? t('ui:widgets.system.autosaveIndicator.dirty', 'Unsaved changes')}
