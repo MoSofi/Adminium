@@ -176,3 +176,26 @@ export class MetaPlacementError extends AppError {
     super(409, 'META_PLACEMENT_INVALID', message, details);
   }
 }
+
+/**
+ * 409 `META_PREFIX_COLLISION` — the meta store points at a database that
+ * ALREADY contains `adminium_*` tables Adminium did not create.
+ *
+ * The sibling of {@link MetaPlacementError}: both refuse a meta-store PLACEMENT
+ * before anything is written, and both exist because the alternative is a
+ * failure the operator cannot read. Placement's alternative is a migration that
+ * dies on a permission error; this one's is a `CREATE TABLE adminium_users`
+ * landing on somebody else's `adminium_users` — a mid-migration DDL error naming
+ * one table, from a runner that has already committed the migrations before it
+ * (07-meta-store.md §4 is up-only, so there is no rollback to a clean state).
+ *
+ * Thrown by `ConnectionManager.assertMetaPrefixAvailable`, which is where the
+ * remedy lives too — see that method for why the ledger is the discriminator.
+ */
+export class MetaPrefixCollisionError extends AppError {
+  override readonly name = 'MetaPrefixCollisionError';
+
+  constructor(message: string, details?: unknown) {
+    super(409, 'META_PREFIX_COLLISION', message, details);
+  }
+}

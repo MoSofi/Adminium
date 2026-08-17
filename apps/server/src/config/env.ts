@@ -44,7 +44,22 @@ export const envSchema = z.object({
       .default(4600),
   ),
   HOST: z.preprocess(emptyToUndefined, z.string().default('0.0.0.0')),
-  DATABASE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /*
+   * NO `DATABASE_URL`. It was validated here, passed through docker-compose.yml,
+   * and documented on two self-hosting pages as "imported as the first source
+   * connection on the first boot only" — and read by ZERO lines of product code.
+   * A Docker user who followed our own quickstart set it, saw no connection, and
+   * had nothing to debug, because there was nothing there to fail.
+   *
+   * Removed rather than implemented: a first-boot connection seed is a real
+   * feature (validate + probe the DSN, decide what a bad one does to the boot,
+   * stay idempotent across restarts, and say what happens when the row is later
+   * deleted), and it belongs behind a decision about that behavior — not
+   * retrofitted to make an already-documented variable true. The wizard and
+   * `POST /connections` create connections today. If the seed is wanted later it
+   * arrives with those answers, and this comment is the note that its NAME was
+   * once taken.
+   */
   ADMINIUM_META_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_DATA_DIR: z.preprocess(emptyToUndefined, z.string().default('./data')),
   ADMINIUM_LOG_LEVEL: z.preprocess(emptyToUndefined, z.enum(LOG_LEVELS).default('info')),
@@ -264,7 +279,6 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_SECRET: 'set a random string of at least 16 characters, e.g. `openssl rand -hex 32`',
   PORT: 'integer between 1 and 65535 (default 4600)',
   HOST: 'bind address, e.g. 0.0.0.0 or 127.0.0.1',
-  DATABASE_URL: 'optional seed source-DB DSN, e.g. postgres://user:pass@host:5432/db',
   ADMINIUM_META_URL: 'optional meta-store DSN: postgres://, mysql://, or sqlite:<path>',
   ADMINIUM_DATA_DIR: 'writable directory for files, exports, and backups (default ./data)',
   ADMINIUM_LOG_LEVEL: `one of ${LOG_LEVELS.join(', ')} (default info)`,

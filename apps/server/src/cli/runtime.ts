@@ -148,6 +148,12 @@ export async function openRuntime(env: Env, opts: OpenRuntimeOptions = {}): Prom
     ...(opts.blockLoopback === undefined ? {} : { blockLoopback: opts.blockLoopback }),
   });
 
+  // §3.1 pre-flight, and it has to be HERE — before `start`/`init` call
+  // `firstRun` — because its whole job is refusing a foreign `adminium_*`
+  // namespace while the database is still untouched. See the method for why the
+  // migration ledger is what tells our tables from somebody else's.
+  await manager.assertMetaPrefixAvailable();
+
   const runService = createRunService({ meta: metaStore.meta });
 
   // The real §4.2 collector, not the `NO_STATS` default: `generate-prompt

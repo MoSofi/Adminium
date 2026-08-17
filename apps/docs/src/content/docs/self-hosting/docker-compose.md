@@ -63,7 +63,6 @@ derives one from the other.
 | `ADMINIUM_SECRET` | **required — fails fast** | Derives every encryption key |
 | `ADMINIUM_VERSION` | `latest` | Image tag. Pin it in production. |
 | `ADMINIUM_META_URL` | *(unset)* | Meta DSN. Unset → embedded SQLite in the volume. |
-| `DATABASE_URL` | *(unset)* | **Seed only** — see below |
 | `META_DB_USER` | `adminium` | `with-meta` Postgres user |
 | `META_DB_PASSWORD` | `adminium` | `with-meta` Postgres password |
 | `META_DB_NAME` | `adminium` | `with-meta` Postgres database |
@@ -75,11 +74,10 @@ Adminium reads more variables than the compose file passes through — logging,
 proxy trust, CORS, telemetry. Add them to the `environment:` block as needed:
 [Environment variables](/self-hosting/env-vars/).
 
-:::caution[`DATABASE_URL` is a first-boot seed, not configuration]
-If set, it is imported as the first source connection on the **first boot only**,
-then ignored. It is not "the database Adminium uses" — changing it later does
-nothing, and removing it does not remove the connection. Manage connections in
-Studio.
+:::note[There is no variable for your source database]
+Earlier builds passed a `DATABASE_URL` through this file, described as a
+first-boot connection seed. No code ever read it, so a container that set it got
+silence — it has been removed. Connect your database in the first-run wizard.
 :::
 
 ## Volumes
@@ -162,8 +160,8 @@ docker compose exec meta-db psql -U adminium -d adminium
 ## Your source database is not here
 
 There is deliberately no source-DB service in the compose file. You point
-Adminium at the database you already have — in the wizard, or via the optional
-`DATABASE_URL` seed. Adminium connects **out** to your infrastructure.
+Adminium at the database you already have, in the first-run wizard. Adminium
+connects **out** to your infrastructure.
 
 ## Operating it
 
