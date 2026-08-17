@@ -18,8 +18,8 @@
 #
 # YOUR SOURCE DATABASE IS ALWAYS EXTERNAL to this file (§4.2) — Adminium connects
 # out to it. There is deliberately no source-DB service here to "get started
-# with"; you point Adminium at the database you already have, in the wizard or
-# via the optional DATABASE_URL seed below.
+# with"; you point Adminium at the database you already have, in the first-run
+# wizard.
 
 name: adminium
 
@@ -48,9 +48,10 @@ services:
       # SQLite in ADMINIUM_DATA_DIR. With --profile with-meta, use:
       #   ADMINIUM_META_URL=postgres://adminium:adminium@meta-db:5432/adminium
       ADMINIUM_META_URL: ${ADMINIUM_META_URL:-}
-      # Optional SEED ONLY (§7.1): imported as the first source connection on the
-      # first boot, then ignored. Manage connections in Studio afterwards.
-      DATABASE_URL: ${DATABASE_URL:-}
+      # NO DATABASE_URL. It was passed through here and documented as a
+      # first-boot source-connection seed while no code read it — a container
+      # that set it got silence and nothing to debug. Connect your source
+      # database in the first-run wizard instead.
       # Matches the volume mount below; also the image default.
       ADMINIUM_DATA_DIR: /data
     volumes:

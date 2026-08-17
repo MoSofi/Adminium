@@ -11,7 +11,9 @@
  * Meta-placement enforcement (01 §3.1): when the meta store lives in the
  * same physical database as a source's data DSN and the probed data role is
  * read-only or DDL-less, the manager refuses with `META_PLACEMENT_INVALID`
- * — the rule lives here, not only in the wizard UI.
+ * — the rule lives here, not only in the wizard UI. Its boot-time sibling
+ * `assertMetaPrefixAvailable` refuses a meta store whose `adminium_*` namespace
+ * is already occupied by somebody else (`META_PREFIX_COLLISION`).
  */
 
 import { Kysely, type Dialect as KyselyDialect } from 'kysely';
@@ -30,7 +32,17 @@ import type { Dialect } from '@adminium/engine';
 import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
 import { AppError, NotFoundError, ValidationFailedError } from '../errors.js';
-import { guardDsn, MetaPlacementError, sameDatabase } from './dsn.js';
+import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase } from './dsn.js';
+
+/** Every meta table is `adminium_`-prefixed (07-meta-store.md §2.1). */
+export const META_TABLE_PREFIX = 'adminium_';
+
+/**
+ * The migration ledger (`migrator.ts` `LEDGER`). Its presence is Adminium's
+ * proof of ownership over the other `adminium_*` tables in a database — see
+ * {@link ConnectionManager.assertMetaPrefixAvailable}.
+ */
+export const META_LEDGER_TABLE = 'adminium_migrations';
 
 /** Dynamic source-DB row shape — identifiers are snapshot-validated upstream. */
 export type SourceDatabase = Record<string, Record<string, unknown>>;
@@ -170,6 +182,62 @@ export class ConnectionManager {
         { placement: 'same-db', canWrite, canDDL },
       );
     }
+  }
+
+  /**
+   * PRE-FLIGHT, run before the first migration touches the meta store: refuse a
+   * database that already holds `adminium_*` tables Adminium did not create.
+   *
+   * WHY IT IS NOT THE MIGRATOR'S JOB. `applyMigrations` is up-only and
+   * append-only (07-meta-store.md §4). Pointed at a database that already has,
+   * say, an unrelated `adminium_users`, it applies 0001…000N fine and then dies
+   * on one `CREATE TABLE` with whatever the driver says — `relation
+   * "adminium_users" already exists` — having already created a dozen tables in
+   * a database that was never meant to hold them. There is no down migration to
+   * undo that, so the operator's only exit is cleaning up by hand. The refusal
+   * has to happen while the database is still untouched.
+   *
+   * THE DISCRIMINATOR IS THE LEDGER, AND ONLY THE LEDGER. "Some `adminium_*`
+   * tables are here" cannot distinguish a foreign install from OUR install on
+   * every upgrade after the first — which is the common case, and the one this
+   * check must never fire on. `adminium_migrations` is created by nothing but
+   * the migrator's own `ensureLedger`, so:
+   *
+   *  - no `adminium_*` tables at all  → a fresh database. Proceed.
+   *  - `adminium_migrations` present  → OURS. Proceed, whatever else is there:
+   *    an upgrade, a re-run, or a MySQL boot that crashed part-way through the
+   *    first migration (no transactional DDL there, so tables can outlive a
+   *    failed run and the retry must be allowed through).
+   *  - tables but NO ledger           → somebody else's `adminium_*` namespace.
+   *    Refuse, and name them.
+   *
+   * Cheap enough to run on every boot: one introspection round-trip, no rows.
+   * Kysely's introspector is the portable spelling of "list the tables" across
+   * all three meta dialects; on PostgreSQL it spans every non-system SCHEMA in
+   * the database, so a foreign `adminium_*` table parked in a second schema
+   * refuses too. Conservative in the right direction — the message names the
+   * tables, so the answer is visible rather than guessed at.
+   */
+  async assertMetaPrefixAvailable(): Promise<void> {
+    const tables = await this.#meta.db.introspection.getTables();
+    const names = tables
+      .map((table) => table.name)
+      .filter((name) => name.toLowerCase().startsWith(META_TABLE_PREFIX))
+      .sort();
+    if (names.length === 0) return;
+    if (names.some((name) => name.toLowerCase() === META_LEDGER_TABLE)) return;
+
+    // The DSN is masked: this message reaches stderr, container logs and log
+    // shippers, and the meta DSN carries a password (`maskDsn` drops it).
+    const where = maskDsn(this.#metaDsn);
+    throw new MetaPrefixCollisionError(
+      `The meta store already contains ${String(names.length)} table(s) named "${META_TABLE_PREFIX}…" ` +
+        `that Adminium did not create: ${names.join(', ')}. ` +
+        'Adminium owns the entire "adminium_" table namespace in its own store, and its migrations ' +
+        `would collide with these — no "${META_LEDGER_TABLE}" ledger is present, so they are not ours. ` +
+        'Either point ADMINIUM_META_URL at a separate database, or drop/rename those tables.',
+      { tables: names, metaDsn: where, ledger: META_LEDGER_TABLE },
+    );
   }
 
   async mustFind(connectionId: string): Promise<Connection> {
