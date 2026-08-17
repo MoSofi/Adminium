@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `core` plugin (08-server-api.md §1.2): cookie support (signed with
  * ADMINIUM_SECRET), the same-origin CORS default — no CORS headers are emitted
@@ -8,31 +9,86 @@
  *
  * ─── Rate limiting (§6) ───────────────────────────────────────────────────────
  *
- * The limiter is registered `global: false` and enabled per route by the
- * `config.rateLimitBucket` markers the credential-facing routes already carry
- * (routes/auth, routes/setup, routes/auth/desktop-session). An `onRoute` hook
- * added HERE, before @fastify/rate-limit registers its own, translates each
- * marker into the plugin's per-route `config.rateLimit` — so a route declares
- * WHICH bucket it is in and this table stays the single owner of the limits
- * (08 §6: "Limits are constants in `apps/server/src/plugins/core.ts`
- * (`RATE_BUCKETS`)"; the `adminium_settings.security` override is a later
- * wave — core composes before any meta store exists).
+ * The limiter is registered `global: false` and attached per route by an
+ * `onRoute` hook added HERE, before @fastify/rate-limit registers its own, so
+ * this table stays the single owner of the limits (08 §6: "Limits are
+ * constants in `apps/server/src/plugins/core.ts` (`RATE_BUCKETS`)").
+ *
+ * A route lands in a bucket one of two ways:
+ *
+ *  1. It DECLARES one — `config.rateLimitBucket`, the marker the
+ *     credential-facing routes already carry (routes/auth, routes/setup,
+ *     routes/auth/desktop-session, routes/search). A declaration always wins.
+ *  2. {@link AUTO_BUCKETS} matches its method + url, and everything else under
+ *     `/api/` falls back to the general `api` bucket.
+ *
+ * Rule 2 exists because the buckets §6 asks for beyond the auth doors —
+ * widget-data, exports/imports, LLM, file bytes, and the general default —
+ * span eleven route groups that are CONDITIONALLY registered (LLM needs a
+ * provider, imports need storage, desktop needs `ADMINIUM_RUNTIME=desktop`).
+ * The declaration gate only fires for routes registered in THAT boot, so a
+ * marker typo in a feature nobody enabled locally is invisible until a
+ * customer enables it. A url table in this file is checked on every boot of
+ * every shape, and keeps the limits readable as one list.
+ *
+ * `global: false` stays: turning it on would bucket the `@fastify/static`
+ * wildcard and every SPA asset, so the general default is applied by the same
+ * `onRoute` hook, gated on `route.url.startsWith('/api/')`.
+ *
+ * TWO ROUTES ARE EXEMPT ON PURPOSE — `GET /api/v1/events` (SSE) and `GET /ws`.
+ * The limiter is an `onRequest` hook, so it fires on the UPGRADE, not on
+ * traffic: a network flap or a laptop wake reconnects every open tab at once
+ * and would 429 a client out of realtime entirely, for the whole window, for
+ * doing nothing wrong.
  *
  * Buckets are FIXED-WINDOW counters in one shared in-memory map (§6: "the
  * in-memory store — single-process: droplet, self-host, and Electron all run
  * one instance"). The store is shared across ROUTES, not just requests, and
- * keys are `<bucket>:<ip>`: `/auth/login`, `/auth/2fa/verify`,
+ * keys are `<bucket>:<subject>`: `/auth/login`, `/auth/2fa/verify`,
  * `/setup/super-admin` and `/auth/desktop-session` all draw down the same five
  * tries per minute per address — per-route counters would hand an attacker one
- * budget per door. Keying by ip (not ip+session) because every bucketed route
- * is unauthenticated by nature; it also means a LAN peer hammering
- * `/auth/desktop-session` (11-electron.md §8.3) can never lock the loopback
- * exchange out.
+ * budget per door.
+ *
+ * The SUBJECT is per bucket (`keyBy`). The auth doors key by ip and must keep
+ * doing so: they are unauthenticated by nature, and per-ip keying is what
+ * guarantees a LAN peer hammering `/auth/desktop-session` (11-electron.md
+ * §8.3) can never lock the loopback exchange out. Everything else keys by
+ * PRINCIPAL — api key, else session user, else ip — because those routes are
+ * authenticated and one shared office NAT should not be one budget.
+ *
+ * THE IP FALLBACK IS A REAL BEHAVIOUR CHANGE and worth stating: `GET /branding`,
+ * `GET /branding/logo`, pre-login `/auth/*` and `/setup/*` are deliberately
+ * public, so every signed-out visitor behind one NAT now shares one `api`
+ * budget for the sign-in screen. 300/min is picked with that in mind: a cold
+ * sign-in page costs a handful of requests, so 300 leaves room for a large
+ * office to sign in simultaneously while still bounding an anonymous flood.
+ *
+ * NOT DONE, deliberately: the `adminium_settings.security` override §6
+ * mentions. There is no `security.*` settings namespace — `PUT /settings/security`
+ * is a route name whose fields map to `auth.*` — so an override would mean
+ * inventing new registry keys, and `corePlugin` composes before any meta store
+ * exists and has no meta handle to read them with. The buckets are the value;
+ * making them editable is a separate wave with a settings surface behind it.
  *
  * A limit hit throws the SAME `RateLimitedError` handlers would throw, so the
  * 429 rides the one §1.4 envelope (`details: { bucket, limit, resetAt }`) and
  * the plugin's own `retry-after` / `x-ratelimit-*` headers survive on the
  * reply the global error handler sends.
+ *
+ * ─── CSRF (§7 item 4) ─────────────────────────────────────────────────────────
+ *
+ * The verifier is a `preValidation` hook installed here; the decision itself
+ * lives in `security/csrf.ts`, which is where the reasoning is written down.
+ *
+ * `preValidation` and NOT `onRequest`: this plugin registers FIRST (app.ts),
+ * before `authPlugin`, so at `onRequest` time `request.user`, `request.session`
+ * and `request.apiKey` are all still null — an `onRequest` hook here would see
+ * every request as anonymous and check nothing. Instance-level `preValidation`
+ * runs after every `onRequest` hook and before the route's own, which is
+ * exactly the window the check needs. Registering here (rather than in a
+ * later plugin) is also what makes it universal: Fastify 5 snapshots the
+ * parent's hook arrays with `.slice()` when a child scope is created, so a
+ * hook added after `buildServer`'s scopes exist would never be seen by them.
  *
  * ─── Security headers (§7 item 5) ─────────────────────────────────────────────
  *
@@ -62,12 +118,24 @@ import type { FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
 import type { Env } from '../config/env.js';
-import { RateLimitedError } from '../errors.js';
+import { ForbiddenError, RateLimitedError } from '../errors.js';
+import {
+  allowedOriginHosts,
+  checkCsrf,
+  csrfSigningKey,
+  type CsrfDeps,
+} from '../security/csrf.js';
 
 /** One §6 bucket: a fixed window of `max` requests per `timeWindowMs`. */
 export interface RateBucket {
   max: number;
   timeWindowMs: number;
+  /**
+   * What the counter is keyed on. `ip` for the unauthenticated doors (see the
+   * module header — this is load-bearing for §8.3 loopback); `principal` =
+   * api key → session user → ip, in that order.
+   */
+  keyBy: 'ip' | 'principal';
 }
 
 /**
@@ -88,6 +156,28 @@ export interface RateBucket {
  *                        out parallel ILIKE queries over up to 20 tables, the
  *                        cheapest DoS lever of the unbucketed routes.
  *
+ *  - `api`             — the §6 row-1 general default, 300/min, applied to every
+ *                        other `/api/` route that does not match a narrower
+ *                        rule. Read the ip-fallback paragraph in the module
+ *                        header before changing the number.
+ *  - `widget-data`     — `POST /widget-data/{query,batch}` (120/min, §6): a
+ *                        dashboard paints many widgets at once, so this sits
+ *                        well above the general per-minute feel while still
+ *                        bounding a scripted fan-out.
+ *  - `data-io`         — export/import CREATION (10/hour, §6 "exports/imports"):
+ *                        `POST /exports` and `POST /imports`. Each one leads to
+ *                        a job that reads or writes a whole table. `run` is
+ *                        deliberately not charged — see {@link AUTO_BUCKETS}.
+ *  - `llm`             — the provider-calling LLM routes (20/hour, §6). Per
+ *                        principal, so it is 20 assists per person per hour,
+ *                        not per install. `apply`/`undo`/`diff` are NOT in it:
+ *                        they replay a run that was already paid for.
+ *  - `file-bytes`      — the §6 "files" row (30/hour). There is no `files`
+ *                        route group, so the budget lands on the four surfaces
+ *                        that actually move file bytes: `POST /branding/logo`,
+ *                        `POST /imports/upload`, `GET /imports/:id/error-report`
+ *                        and `GET /exports/:id/download`.
+ *
  * DELIBERATE §6 DEVIATIONS (documented here so the table can't drift
  * silently):
  *  - The auth buckets key per-IP, not the spec'd "IP + email": per-IP keying
@@ -95,18 +185,107 @@ export interface RateBucket {
  *    `/auth/desktop-session` exchange out (tested in rate-limit.test.ts). A
  *    per-account counter for distributed credential sprays is a possible
  *    additive follow-up, not a replacement.
- *  - The remaining §6 rows (General API 300/min, widget-data 120/min,
- *    exports/imports 10/h, LLM 20/h, files 30/h) and the
- *    `adminium_settings.security` override are a tracked pre-v1 hardening
- *    follow-up — they need principal-resolution (session-keyed) buckets,
- *    which this per-IP fixed-window store does not provide yet.
+ *  - A route in a narrow bucket does NOT also draw down `api`. Keys embed the
+ *    bucket name, so the budgets are independent by construction; making them
+ *    nest would mean two `incr` calls per request and a much less predictable
+ *    429. The narrow limits are all well under 300/min anyway.
+ *  - The `adminium_settings.security` override §6 mentions is not built — see
+ *    the module header for why (there is no `security.*` namespace to read).
  */
-export const RATE_BUCKETS: Readonly<Record<string, RateBucket>> = {
-  'auth-login': { max: 5, timeWindowMs: 60_000 },
-  'auth-password-forgot': { max: 3, timeWindowMs: 3_600_000 },
-  'auth-password-reset': { max: 5, timeWindowMs: 60_000 },
-  search: { max: 60, timeWindowMs: 60_000 },
-};
+export const RATE_BUCKETS = {
+  'auth-login': { max: 5, timeWindowMs: 60_000, keyBy: 'ip' },
+  'auth-password-forgot': { max: 3, timeWindowMs: 3_600_000, keyBy: 'ip' },
+  'auth-password-reset': { max: 5, timeWindowMs: 60_000, keyBy: 'ip' },
+  search: { max: 60, timeWindowMs: 60_000, keyBy: 'principal' },
+  api: { max: 300, timeWindowMs: 60_000, keyBy: 'principal' },
+  'widget-data': { max: 120, timeWindowMs: 60_000, keyBy: 'principal' },
+  'data-io': { max: 10, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  llm: { max: 20, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  'file-bytes': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
+} as const satisfies Readonly<Record<string, RateBucket>>;
+
+/**
+ * The marker vocabulary. Tightened from `string` so a typo in a route's
+ * `config.rateLimitBucket` is a TYPECHECK failure rather than a boot failure
+ * only the deployments that enable that feature ever see.
+ */
+export type RateLimitBucket = keyof typeof RATE_BUCKETS;
+
+/**
+ * Method + url rules for routes that do not declare a marker (see the module
+ * header for why these live here and not on the routes). First match wins, so
+ * the narrow patterns come before the ones they would otherwise shadow. Urls
+ * are matched as Fastify registered them — with the `/api/v1` prefix and with
+ * `:param` placeholders intact — anchored at the end so a prefix change or a
+ * future `/v2` cannot silently drop a route out of its bucket.
+ */
+const AUTO_BUCKETS: readonly {
+  methods: readonly string[];
+  pattern: RegExp;
+  bucket: RateLimitBucket;
+}[] = [
+  { methods: ['POST'], pattern: /\/widget-data\/(?:query|batch)$/, bucket: 'widget-data' },
+  { methods: ['POST'], pattern: /\/(?:branding\/logo|imports\/upload)$/, bucket: 'file-bytes' },
+  {
+    methods: ['GET'],
+    pattern: /\/(?:imports\/:id\/error-report|exports\/:id\/download)$/,
+    bucket: 'file-bytes',
+  },
+  // The CREATE side only. `POST /imports/:id/run` is not double-charged: it
+  // can only fire on an import this bucket already paid for, and only while
+  // that import is `ready` (the route 409s otherwise), so charging it too
+  // would halve the documented 10/hour rather than enforce it.
+  { methods: ['POST'], pattern: /\/(?:exports|imports)$/, bucket: 'data-io' },
+  {
+    methods: ['POST'],
+    pattern: /\/(?:llm\/config\/test|llm\/runs|llm\/runs\/:id\/execute)$/,
+    bucket: 'llm',
+  },
+  { methods: ['GET'], pattern: /\/llm\/models$/, bucket: 'llm' },
+];
+
+/**
+ * The long-lived streams. `/ws` is matched exactly — it hangs off the ROOT
+ * app, not `/api/v1`, so a prefix-scoped list would miss it. SSE is matched by
+ * suffix because `registerJobsAndRealtime` takes a configurable api prefix.
+ *
+ * TRAP: a future route whose url ends in `/events` would be swept in here and
+ * silently lose its limit. There is exactly one such route today; add a new
+ * one and this pattern needs to become an exact list.
+ */
+const STREAM_ROUTES = /^\/ws$|\/events$/;
+
+/**
+ * The bucket a route lands in when it declares none. `undefined` = unlimited:
+ * everything outside `/api/` (SPA assets, the static wildcard) and the two
+ * long-lived streams.
+ */
+function autoBucket(method: string | string[], url: string): RateLimitBucket | undefined {
+  if (STREAM_ROUTES.test(url)) return undefined;
+  if (!url.startsWith('/api/')) return undefined;
+  const methods = Array.isArray(method) ? method : [method];
+  for (const rule of AUTO_BUCKETS) {
+    if (methods.some((m) => rule.methods.includes(m)) && rule.pattern.test(url)) return rule.bucket;
+  }
+  return 'api';
+}
+
+/**
+ * Who the counter belongs to. The decorations are all populated by the time a
+ * route-level limiter hook runs: `authPlugin`'s resolver is an INSTANCE
+ * `onRequest` hook, and instance hooks run before route-level ones.
+ *
+ * Deliberately not `request.apiKeyPrincipal` — that decoration comes from
+ * `plugins/rbac.ts`, which registers after `buildServer`'s scopes are
+ * snapshotted and is therefore absent on several bucketed routes.
+ */
+function principalKey(request: FastifyRequest): string {
+  const apiKeyId = request.apiKey?.id;
+  if (apiKeyId !== undefined) return `key:${apiKeyId}`;
+  const userId = request.user?.id;
+  if (userId !== undefined) return `user:${userId}`;
+  return `ip:${request.ip}`;
+}
 
 interface BucketHit {
   current: number;
@@ -249,12 +428,16 @@ export const corePlugin = fp<CorePluginOptions>(
       ...(env.ADMINIUM_TRUST_PROXY ? {} : { hsts: false }),
     });
 
-    // §6 marker translation. Added BEFORE @fastify/rate-limit registers so its
+    // §6 bucket assignment. Added BEFORE @fastify/rate-limit registers so its
     // own onRoute hook (which reads `config.rateLimit`) runs after this one.
     app.addHook('onRoute', (route) => {
-      const bucket = route.config?.rateLimitBucket;
+      const declared = route.config?.rateLimitBucket;
+      const bucket = declared ?? autoBucket(route.method, route.url);
       if (bucket === undefined) return;
-      const spec = RATE_BUCKETS[bucket];
+      // The declared spelling is still validated at boot: `RateLimitBucket`
+      // stops the typo at compile time, but a route registered from JS or
+      // through a cast would otherwise get silently no limit at all.
+      const spec = (RATE_BUCKETS as Readonly<Record<string, RateBucket | undefined>>)[bucket];
       if (spec === undefined) {
         const methods = Array.isArray(route.method) ? route.method.join(',') : route.method;
         throw new Error(
@@ -266,9 +449,31 @@ export const corePlugin = fp<CorePluginOptions>(
         rateLimit: {
           max: spec.max,
           timeWindow: spec.timeWindowMs,
-          keyGenerator: (request: FastifyRequest) => `${bucket}:${request.ip}`,
+          keyGenerator: (request: FastifyRequest) =>
+            `${bucket}:${spec.keyBy === 'ip' ? request.ip : principalKey(request)}`,
         },
       };
+    });
+
+    // §7 item 4. `preValidation`, not `onRequest` — see the module header.
+    const csrf: CsrfDeps = {
+      key: csrfSigningKey(env.ADMINIUM_SECRET),
+      allowedOrigins: allowedOriginHosts(origins),
+    };
+    app.decorate('csrfOrigins', csrf.allowedOrigins);
+    app.addHook('preValidation', async (request) => {
+      const failure = checkCsrf(request, csrf);
+      if (failure === null) return;
+      // The reason is logged, never returned: telling a caller WHICH leg it
+      // failed is a free oracle for probing the check.
+      request.log.warn(
+        { csrf: failure, method: request.method, url: request.url },
+        'csrf check refused a mutation',
+      );
+      throw new ForbiddenError(
+        'This request could not be verified as coming from Adminium. Reload the page and try again.',
+        'CSRF_FAILED',
+      );
     });
 
     await app.register(fastifyRateLimit, {

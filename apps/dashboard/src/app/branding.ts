@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Workspace branding client — the white-label chrome (name, logo, version
  * chip) that every shell surface paints itself with.
@@ -14,7 +15,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api } from './api.js';
+import { api, csrfHeaders } from './api.js';
 
 export interface BrandingData {
   appName: string;
@@ -57,6 +58,9 @@ export async function uploadBrandingLogo(file: File): Promise<BrandingData> {
     headers: {
       accept: 'application/json',
       'content-type': file.type === '' ? 'application/octet-stream' : file.type,
+      // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+      // every logo upload 403s.
+      ...csrfHeaders(),
     },
     body: file,
   });

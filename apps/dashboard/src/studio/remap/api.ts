@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Remap editor API client:
  *
@@ -13,7 +14,7 @@
  */
 import { queryOptions } from '@tanstack/react-query';
 
-import { api, ApiError } from '../../app/api.js';
+import { api, ApiError, csrfHeaders } from '../../app/api.js';
 import type { GenerateReply, SchemaReply } from './model.js';
 import type { OverrideDto, OverridesPutDocument } from './overrides.js';
 
@@ -25,7 +26,9 @@ async function putJson<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(path, {
     method: 'PUT',
     credentials: 'same-origin',
-    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+    // every schema-override save 403s.
+    headers: { accept: 'application/json', 'content-type': 'application/json', ...csrfHeaders() },
     body: JSON.stringify(payload),
   });
   let body: unknown = null;
