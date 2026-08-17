@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * API-key routes (08-server-api.md §2.16, M2-T06): list, create with the
  * one-time secret reveal (`adm_sk_…` stored SHA-256-hashed + short prefix for

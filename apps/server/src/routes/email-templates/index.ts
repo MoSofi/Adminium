@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Email-templates routes (M7 reports/notifications track; 07-meta-store.md
  * §3.28 `adminium_email_templates`), mounted under `/api/v1`. The reply

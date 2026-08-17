@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the users resource (08-server-api.md §2.15). The user
  * projection EXTENDS `authUserView` rather than restating it: that object is

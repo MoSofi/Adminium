@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The desktop capability grant table over REST (11-electron.md §12, §1 principle 2).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for `GET /api/v1/search` (08-server-api.md §2.9, M4-T06).
  *

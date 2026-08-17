@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the jobs resource (08-server-api.md §1.5 naming, §2.17
  * routes). Success envelope `{ data }`; the cursor list adds

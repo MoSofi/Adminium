@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Global-defaults settings routes (10-i18n-theming.md §7.2/§7.3, M8-T04):
  *

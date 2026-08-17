@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-exports routes (M7-T07, 09-generated-app.md §11.2), mounted under
  * `/api/v1`:

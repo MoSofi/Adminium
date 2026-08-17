@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Zod schemas for the desktop demo-database resource (11-T08, §6 step 2 card 4). */
 
 import { z } from 'zod';

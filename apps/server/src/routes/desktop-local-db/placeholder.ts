@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Auto-generate placeholder entries" (11-electron.md §6 step 2 card 1;
  * the toggle is `Connect Database.dc.html`'s, task 11-T07).

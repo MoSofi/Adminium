@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Audit query routes (08-server-api.md §2.14, M2-T06): `GET /audit` with
  * category/actor/date-range/resource filters and keyset pagination on

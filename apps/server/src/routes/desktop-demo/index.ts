@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `POST /api/v1/desktop/demo-database` — 11-electron.md §6 step 2 card 4
  * ("Explore the demo database"), task 11-T08.

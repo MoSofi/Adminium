@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the email-templates resource (M7 builders track contract;
  * 07-meta-store.md §3.28). SYNC NOTE: the client-side mirror of these shapes

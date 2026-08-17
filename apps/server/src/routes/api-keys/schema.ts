@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the api-keys resource (08-server-api.md §2.16). The full
  * secret appears exactly once — in `apiKeyCreateReply.key` ("Copy it now —

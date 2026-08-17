@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `GET /api/v1/desktop/lan-share` — what §8.3's share panel needs from the side
  * of the boundary that holds the data (11-electron.md §8.3, §1 principle 2).

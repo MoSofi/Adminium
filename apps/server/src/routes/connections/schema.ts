@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod request/response schemas for `routes/connections/`
  * (08-server-api.md §2.4). DSNs never appear in replies — `dsnMasked` only.

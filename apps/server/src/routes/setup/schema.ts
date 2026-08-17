@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the first-run setup resource (M10-T04; naming per
  * 08-server-api.md §1.5: `<resource><Action><Part>` consts, `z.infer`

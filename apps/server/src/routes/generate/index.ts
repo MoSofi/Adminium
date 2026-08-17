@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Generation route (M4-T08 — "the zero manual config default"):
  *

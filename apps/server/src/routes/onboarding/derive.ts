@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * First-run onboarding checklist derivation (M5-T06, 09-generated-app.md).
  *

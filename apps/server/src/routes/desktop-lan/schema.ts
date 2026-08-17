@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wire schema for `GET /api/v1/desktop/lan-share` (11-electron.md §8.3).
  *

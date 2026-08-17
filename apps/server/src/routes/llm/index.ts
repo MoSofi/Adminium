@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LLM-assist routes (06-llm-assist.md §10.5) — the HTTP surface over the T07 run
  * service, the T08 `llm-run` job, and the T10b apply executor.

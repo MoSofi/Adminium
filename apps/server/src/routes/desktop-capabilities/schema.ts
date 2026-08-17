@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wire schemas for the desktop capability grant table (11-electron.md §12).
  *

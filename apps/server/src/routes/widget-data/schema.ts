@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the widget-data routes (04-widget-registry.md §5.2).
  * The descriptor schema is the shared pure-Zod leaf re-exported through
