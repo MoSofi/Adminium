@@ -135,6 +135,56 @@ export interface JoinTableResult {
 }
 
 /**
+ * Accepted-relation threshold (05 §6). The SAME number lives in
+ * classify/columns.ts, infer/relations.ts and generate/domains.ts; all four
+ * move together or the model means different things to different readers.
+ */
+const ACCEPTED_RELATION_CONFIDENCE = 0.8;
+
+/**
+ * The column view {@link detectJoinTable} must be given — its FK test read
+ * through two lenses, not one.
+ *
+ * `detectJoinTable` looks for `semantics.primary === 'fk'`, but §7.1 rule 2
+ * (pk-id) precedes rule 3 (fk), so a composite-PK FK column — which is what
+ * the canonical join table is made of — classifies as `pk-id` and is invisible
+ * to it. The detector already compensates with a fallback to the DECLARED
+ * `references` mirror. An INFERRED or overridden FK has no such mirror, so on
+ * exactly the FK-less schemas `infer/relations.ts` exists for, a perfectly
+ * obvious `order_products(order_id, product_id)` stayed an `entity`: rule 1
+ * added both relations, rule 2 emitted the M2M from them, and then the table
+ * classifier — reading raw `classifyColumn` output — could not see either.
+ *
+ * So accepted relations (≥ 0.8, non-M2M) are restated as `fk` here: the
+ * inferred half of the same fallback. The override is LOCAL to join
+ * detection and never reaches `ClassifiedTable.columns` — a composite-PK
+ * column stays `pk-id` everywhere else, as §7.1 says it must.
+ *
+ * M2M relations are excluded on purpose: their `from.columns` are the TARGET
+ * table's key columns, not FKs on the through table, so counting them would
+ * make every table owning an M2M look like it had an extra FK.
+ */
+export function joinDetectionColumns(
+  model: DatabaseModel,
+  table: TableModel,
+  columns: readonly ClassifiedColumn[],
+): ClassifiedColumn[] {
+  const fkColumns = new Set<string>();
+  for (const relation of model.relations) {
+    if (relation.through !== null) continue;
+    if (relation.from.tableId !== table.id) continue;
+    if (relation.confidence < ACCEPTED_RELATION_CONFIDENCE) continue;
+    for (const column of relation.from.columns) fkColumns.add(column);
+  }
+  if (fkColumns.size === 0) return [...columns];
+  return columns.map((column) =>
+    column.semantics.primary === 'fk' || !fkColumns.has(column.column)
+      ? column
+      : { ...column, semantics: { ...column.semantics, primary: 'fk' as const } },
+  );
+}
+
+/**
  * A table qualifies when: exactly 2 FK-like columns referencing two tables
  * (possibly the same one), and at most 2 additional columns drawn from
  * {surrogate id, created-at-classified, position/sort_order, one small
@@ -221,7 +271,7 @@ function detectHierarchy(model: DatabaseModel, table: TableModel): { parentColum
         r.selfReferential &&
         r.from.tableId === table.id &&
         r.from.columns.includes(column.name) &&
-        r.confidence >= 0.8,
+        r.confidence >= ACCEPTED_RELATION_CONFIDENCE,
     );
     if (selfRelation) return { parentColumn: column.name };
   }
@@ -317,7 +367,7 @@ export function classifyTable(model: DatabaseModel, table: TableModel): Classifi
     columns.find((c) => c.column === name)?.semantics.primary ?? 'plain';
   const has = (tag: string) => columns.some((c) => c.semantics.primary === tag);
 
-  const join = detectJoinTable(table, columns);
+  const join = detectJoinTable(table, joinDetectionColumns(model, table, columns));
   const hierarchy = detectHierarchy(model, table);
   const polymorphic = detectPolymorphic(model, table);
   const tableName = normalizeName(table.name);

@@ -10,7 +10,12 @@
  * is not registered — dev/test topologies.
  */
 
-import { applyClassification, hashModel, type DatabaseModel } from '@adminium/engine';
+import {
+  applyClassification,
+  applyInference,
+  hashModel,
+  type DatabaseModel,
+} from '@adminium/engine';
 import { AdapterError } from '@adminium/engine/adapter';
 import { overridesRepo, snapshotsRepo, type MetaDb, type SchemaSnapshot } from '@adminium/meta';
 import { z } from 'zod';
@@ -94,7 +99,22 @@ export async function runIntrospection(opts: RunIntrospectionOptions): Promise<I
     await adapter.close().catch(() => undefined);
   }
 
-  const classified = applyClassification(model);
+  // 05 §6 rules 1–2 BEFORE §§7–8. Both classifiers read `model.relations`,
+  // and on a schema that declares no foreign keys (MyISAM, legacy SQLite,
+  // most ORM-generated MySQL) that array arrives empty: every `*_id` column
+  // falls through to `external-id`, every join table classifies as an
+  // `entity`, and `detectDomains` shatters into singletons. Inferring first
+  // is what lets the classifier see the graph it is supposed to describe.
+  //
+  // Deliberately NOT folded into `applyClassification`: that function spreads
+  // `...model` and rebuilds only `tables`, so relations added inside it would
+  // be discarded by the next call. Two functions, in this order.
+  //
+  // This is also the ONLY place inference runs. The snapshot persists its
+  // output, so `generate/run.ts` reads the relations back rather than
+  // re-deriving them — which is what lets a `relation.remove` override stay
+  // removed instead of being re-inferred on every regeneration.
+  const classified = applyClassification(applyInference(model));
   const checksum = hashModel(classified);
   const stats: Record<string, { rowCount: number }> = {};
   for (const table of classified.tables) {
