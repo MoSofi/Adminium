@@ -217,6 +217,15 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
       `page ${id} is no longer generated but was edited by hand — kept instead of pruned (user delta wins, 04 §6.3)`,
     );
   }
+  for (const blocked of persistence.blockedSlugs) {
+    // Surfacing this is the whole point of not throwing: the run succeeded, but
+    // one generated page silently does not exist because a hand-authored page
+    // (Studio → Pages) holds its URL. Naming the slug is what lets an admin
+    // rename either side and re-run.
+    warnings.push(
+      `page ${blocked.id} could not be written — another page already uses the slug "${blocked.slug}". Rename it in Studio → Pages, then regenerate.`,
+    );
+  }
 
   // §8.3 step 3 tail: expand `origin: 'llm'` seed rows into real envelopes.
   const llm = await materializeLlmPages({ meta, model, connectionId });

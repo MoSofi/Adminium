@@ -2,9 +2,14 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:cr
 
 /**
  * Secret handling (01-architecture.md §7.1): `ADMINIUM_SECRET` is the master
- * secret; HKDF-SHA256 derives purpose-scoped keys (DSN/LLM-key encryption at
- * rest, session-token HMAC, CSRF). Values at rest are AES-256-GCM tokens of
+ * secret; HKDF-SHA256 derives purpose-scoped keys (DSN, meta-URL, LLM-key and
+ * TOTP-secret encryption at rest). @fastify/cookie signs the session cookie
+ * with the master secret directly. Values at rest are AES-256-GCM tokens of
  * the form `enc:v1:<base64(iv|tag|ciphertext)>`.
+ *
+ * There is no CSRF key: no CSRF token is issued or checked anywhere. The
+ * cross-site defence is the session cookie's `SameSite=Lax` plus CORS being
+ * off by default (see `auth/sessions.ts` and `plugins/core.ts`).
  */
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
@@ -22,8 +27,8 @@ export class SecretIntegrityError extends Error {
 
 /**
  * Derives a 32-byte key from the master secret via HKDF-SHA256. `info`
- * scopes the key to a purpose so encryption, HMAC, and CSRF keys never
- * coincide even for the same secret + salt.
+ * scopes the key to a purpose so two purposes never coincide on one key
+ * even for the same secret + salt.
  */
 export function deriveKey(secret: string, salt: string | Uint8Array, info = 'adminium:enc'): Buffer {
   if (secret.length === 0) {

@@ -85,6 +85,49 @@ export function permissionsRepo(meta: MetaDb) {
       return Number(res.numDeletedRows) === 1;
     },
 
+    /**
+     * Drop every role's grants for one resource — the cleanup a page delete
+     * owes.
+     *
+     * `resource_ref` is polymorphic across the three kinds, so it is a plain
+     * `varchar(255)` with no foreign key; nothing cascades page grants the way
+     * `adminium_views` and `adminium_scheduled_reports` cascade. Without this,
+     * deleting a page leaves dead `page:<id>:*` rows behind forever — and page
+     * ids are deterministic for generated pages, so a page later regenerated
+     * at the same id would silently inherit the deleted page's access list.
+     * Returns the number of rows removed.
+     */
+    async revokeAllForResource(resourceKind: ResourceKind, resourceRef: string): Promise<number> {
+      const res = await db
+        .deleteFrom('adminium_role_permissions')
+        .where('resourceKind', '=', resourceKindSchema.parse(resourceKind))
+        .where('resourceRef', '=', resourceRef)
+        .executeTakeFirst();
+      return Number(res.numDeletedRows ?? 0n);
+    },
+
+    /** Every role that holds a grant on one resource (page-access editor). */
+    async listForResource(
+      resourceKind: ResourceKind,
+      resourceRef: string,
+    ): Promise<RolePermission[]> {
+      const kind = resourceKindSchema.parse(resourceKind);
+      const rows = await db
+        .selectFrom('adminium_role_permissions')
+        .selectAll()
+        .where('resourceKind', '=', kind)
+        .where('resourceRef', '=', resourceRef)
+        .orderBy('roleId', 'asc')
+        .execute();
+      return rows.map((row) => ({
+        id: row.id,
+        roleId: row.roleId,
+        resourceKind: kind,
+        resourceRef: row.resourceRef,
+        actions: permissionActionsSchemaFor(kind).parse(readJson(row.actions)),
+      }));
+    },
+
     async listForRole(roleId: string): Promise<RolePermission[]> {
       const rows = await db
         .selectFrom('adminium_role_permissions')

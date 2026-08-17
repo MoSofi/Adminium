@@ -49,6 +49,64 @@ async function insertPage(
   return id;
 }
 
+describe('lifecycle routes without rbacPlugin', () => {
+  // This harness mounts `pagesRoutes` with no RBAC plugin — the minimal
+  // read-only shape. The lifecycle routes must still REGISTER: a 404 here is
+  // indistinguishable from a server that predates the feature, which is
+  // exactly the confusion an earlier early-return version caused. Fail closed
+  // with a 403, but fail *legibly*.
+  let t: AuthTestApp;
+  let cookie: string;
+
+  beforeEach(async () => {
+    t = await buildAuthApp();
+    await t.app.register(
+      async (api) => {
+        await api.register(pagesRoutes({ meta: t.meta }));
+      },
+      { prefix: '/api/v1' },
+    );
+    const auth = await login(t.app);
+    cookie = auth.cookie ?? '';
+  });
+  afterEach(async () => {
+    await t.destroy();
+  });
+
+  it('registers every lifecycle route — none of them 404', async () => {
+    // The invariant is REGISTRATION. Bodyless verbs land on the preHandler and
+    // give the clean 403; the others carry a body, and Fastify runs schema
+    // validation *before* preHandler, so a deliberately-empty payload 422s
+    // first. Either way the route exists, which is the thing a stale
+    // deployment cannot fake.
+    for (const [method, url] of [
+      ['GET', '/api/v1/pages'],
+      ['POST', '/api/v1/pages'],
+      ['PUT', '/api/v1/pages/nav-order'],
+      ['PATCH', '/api/v1/pages/page_x'],
+      ['DELETE', '/api/v1/pages/page_x'],
+    ] as const) {
+      const res = await t.app.inject({
+        method,
+        url,
+        headers: { cookie },
+        ...(method === 'GET' || method === 'DELETE' ? {} : { payload: {} }),
+      });
+      expect({ url, is404: res.statusCode === 404 }).toEqual({ url, is404: false });
+    }
+  });
+
+  it('refuses the bodyless lifecycle verbs with 403', async () => {
+    for (const [method, url] of [
+      ['GET', '/api/v1/pages'],
+      ['DELETE', '/api/v1/pages/page_x'],
+    ] as const) {
+      const res = await t.app.inject({ method, url, headers: { cookie } });
+      expect({ url, status: res.statusCode }).toEqual({ url, status: 403 });
+    }
+  });
+});
+
 describe('GET /api/v1/pages/:pageId', () => {
   let t: AuthTestApp;
   let cookie: string;

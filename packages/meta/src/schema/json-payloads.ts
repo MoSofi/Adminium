@@ -121,6 +121,12 @@ export const SYSTEM_ACTION_KEYS = [
   // hub's jobs:<id> channel authorizer.
   'jobs.read',
   'jobs.manage',
+  // Page lifecycle (08 §2.6): create/rename/retemplate/duplicate/delete a page
+  // and reorder the sidebar, via Studio → Pages. Distinct from the per-page
+  // `page:<id>:edit` grant, which authorizes editing ONE page's stored layout
+  // and is what `canEditLayout` reports; this one authorizes changing which
+  // pages exist at all, so it is workspace-scoped rather than page-scoped.
+  'pages.manage',
 ] as const;
 export type SystemActionKey = (typeof SYSTEM_ACTION_KEYS)[number];
 export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);

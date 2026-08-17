@@ -342,6 +342,216 @@ for (const dialect of TEST_DIALECTS) {
       expect(await repo.countGeneratedByConnection()).toEqual({ [connectionId]: 2 });
     });
 
+    // --- page lifecycle (Studio → Pages, 08 §2.6) ---------------------------
+
+    it('a user page holding a generated slug is reported, not thrown', async () => {
+      // The bug this pins: upsertGenerated keys on ID but the unique index is
+      // on (connection_id, slug). A user page that claimed `orders` before the
+      // generator emitted it used to raise a driver UNIQUE violation INSIDE
+      // the run's transaction, rolling the whole generation back — a permanent
+      // 500 on POST /connections/:id/generate with no delete route to recover.
+      const repo = pagesRepo(t.meta);
+      await repo.create({
+        connectionId,
+        slug: 'orders',
+        type: 'page-dashboard',
+        title: 'My Orders',
+        config: { v: 1 },
+        origin: 'user',
+      });
+
+      const result = await repo.upsertGenerated(
+        connectionId,
+        [crudPage('customers'), crudPage('orders')],
+        { at: 2_000 },
+      );
+
+      expect(result.blockedSlugs).toEqual([{ id: 'page_orders', slug: 'orders' }]);
+      // The rest of the run still landed — one bad slug must not cost the batch.
+      expect(result.created).toBe(1);
+      expect(await repo.findBySlug(connectionId, 'customers')).not.toBeNull();
+      // The user's page is untouched.
+      const kept = await repo.findBySlug(connectionId, 'orders');
+      expect(kept?.title).toBe('My Orders');
+      expect(kept?.origin).toBe('user');
+    });
+
+    it('a slug freed by the same run is not a collision', async () => {
+      // `legacy` is pruned in this very run, so a page renaming INTO it is a
+      // hand-off, not a clash. Naively indexing every existing row would have
+      // blocked it.
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(connectionId, [crudPage('legacy')], { at: 1_000 });
+
+      const result = await repo.upsertGenerated(
+        connectionId,
+        [crudPage('reports', { id: 'page_reports', slug: 'legacy' })],
+        { at: 2_000 },
+      );
+
+      expect(result.blockedSlugs).toEqual([]);
+      expect(result.created).toBe(1);
+      expect(result.pruned).toBe(1);
+    });
+
+    it('updateMeta writes the row AND the envelope so regeneration cannot revert it', async () => {
+      const repo = pagesRepo(t.meta);
+      const envelope: Record<string, unknown> = {
+        v: 1,
+        kind: 'page',
+        id: 'page_customers',
+        title: { key: 'nav.customers', fallback: 'Customers' },
+        nav: { group: 'library', icon: 'table', order: 20 },
+        config: { marker: 'a' },
+      };
+      (envelope['config'] as Record<string, unknown>)['generatedHash'] = testHash(envelope);
+      await repo.upsertGenerated(connectionId, [crudPage('customers', { config: envelope })], {
+        at: 1_000,
+        hashEnvelope: testHash,
+      });
+
+      const updated = await repo.updateMeta(
+        'page_customers',
+        { title: 'Accounts', navGroup: 'workspace', navOrder: 3 },
+        { at: 2_000 },
+      );
+      expect(updated).not.toBe('not-found');
+      expect(updated).not.toBe('conflict');
+
+      // Row projection — what the sidebar reads.
+      const row = await repo.findById('page_customers');
+      expect(row?.title).toBe('Accounts');
+      expect(row?.navGroup).toBe('workspace');
+      // Envelope mirror — what makes it durable.
+      const stored = row?.config as {
+        title: { key: string; fallback: string };
+        nav: { group: string; order: number; icon: string };
+        config: { generatedHash: string };
+      };
+      expect(stored.title).toEqual({ key: 'nav.customers', fallback: 'Accounts' });
+      expect(stored.nav).toMatchObject({ group: 'workspace', order: 3, icon: 'table' });
+      // The hash is deliberately NOT re-stamped — that staleness is the signal.
+      expect(stored.config.generatedHash).toBe((envelope['config'] as { generatedHash: string }).generatedHash);
+
+      // Now regenerate: the original document comes back, and must be skipped.
+      const result = await repo.upsertGenerated(
+        connectionId,
+        [crudPage('customers', { config: envelope })],
+        { at: 3_000, hashEnvelope: testHash },
+      );
+      expect(result.skippedEdited).toEqual(['page_customers']);
+      expect((await repo.findById('page_customers'))?.title).toBe('Accounts');
+    });
+
+    it('updateMeta honours If-Match and reports a stale revision as a conflict', async () => {
+      const repo = pagesRepo(t.meta);
+      const page = await repo.create({
+        connectionId,
+        slug: 'notes',
+        type: 'page-crud',
+        title: 'Notes',
+        config: { v: 1, nav: { group: 'library', icon: 'file', order: 1 } },
+      });
+      expect(await repo.updateMeta(page.id, { title: 'A' }, { expectedRevision: 99 })).toBe('conflict');
+      expect((await repo.findById(page.id))?.title).toBe('Notes');
+      const ok = await repo.updateMeta(page.id, { title: 'A' }, { expectedRevision: page.revision });
+      expect(ok).not.toBe('conflict');
+      expect(await repo.updateMeta('page_nope', { title: 'A' })).toBe('not-found');
+    });
+
+    it('updateMeta leaves a document alone when it carries no title/nav blocks', async () => {
+      // llm seed rows are `{source, llmRunId}`, not envelopes. Inventing a
+      // partial `nav` block on one would fail pageEnvelopeSchema on next read.
+      const repo = pagesRepo(t.meta);
+      const page = await repo.create({
+        connectionId,
+        slug: 'seed',
+        type: 'page-crud',
+        title: 'Seed',
+        config: { source: { table: 'public.x' }, llmRunId: 'run_1' },
+        origin: 'llm',
+      });
+      await repo.updateMeta(page.id, { title: 'Renamed', navGroup: 'people' });
+      const row = await repo.findById(page.id);
+      expect(row?.title).toBe('Renamed');
+      expect(row?.navGroup).toBe('people');
+      expect(row?.config).toEqual({ source: { table: 'public.x' }, llmRunId: 'run_1' });
+    });
+
+    it('reorderNav renumbers each group densely from zero', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(connectionId, [
+        crudPage('a', { navOrder: 20 }),
+        crudPage('b', { navOrder: 30 }),
+        crudPage('c', { navOrder: 40 }),
+      ]);
+
+      const moved = await repo.reorderNav([
+        { id: 'page_c', navGroup: 'library' },
+        { id: 'page_a', navGroup: 'library' },
+        { id: 'page_b', navGroup: 'workspace' },
+        { id: 'page_missing', navGroup: 'workspace' },
+      ]);
+      expect(moved).toBe(3);
+
+      const pages = await repo.listForConnection(connectionId);
+      const byId = new Map(pages.map((p) => [p.id, p]));
+      expect(byId.get('page_c')).toMatchObject({ navGroup: 'library', navOrder: 0 });
+      expect(byId.get('page_a')).toMatchObject({ navGroup: 'library', navOrder: 1 });
+      // A second group restarts at 0 rather than continuing the run.
+      expect(byId.get('page_b')).toMatchObject({ navGroup: 'workspace', navOrder: 0 });
+    });
+
+    it('delete removes the row and listAll reports origin without the config blob', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(connectionId, [crudPage('customers')]);
+      const mine = await repo.create({
+        connectionId,
+        slug: 'mine',
+        type: 'page-dashboard',
+        title: 'Mine',
+        config: { v: 1 },
+      });
+
+      const all = await repo.listAll();
+      expect(all.map((p) => p.slug).sort()).toEqual(['customers', 'mine']);
+      expect(all.every((p) => !('config' in p))).toBe(true);
+      expect(all.find((p) => p.slug === 'mine')?.origin).toBe('user');
+      expect(all.find((p) => p.slug === 'mine')?.isEnabled).toBe(true);
+
+      expect(await repo.delete(mine.id)).toBe(true);
+      expect(await repo.delete(mine.id)).toBe(false);
+      expect(await repo.findById(mine.id)).toBeNull();
+    });
+
+    it('setTemplateConfig replaces only the body, never the envelope frame', async () => {
+      const repo = pagesRepo(t.meta);
+      const page = await repo.create({
+        connectionId,
+        slug: 'grid',
+        type: 'page-crud',
+        title: 'Grid',
+        config: {
+          v: 1,
+          kind: 'page',
+          id: 'page_grid',
+          template: 'page-crud',
+          config: { columns: [{ name: 'id' }], generatedHash: 'h1' },
+        },
+      });
+      const updated = await repo.setTemplateConfig(page.id, {
+        columns: [{ name: 'id' }, { name: 'email' }],
+        generatedHash: 'h1',
+      });
+      expect(updated).not.toBe('not-found');
+      const stored = (await repo.findById(page.id))?.config as {
+        template: string;
+        config: { columns: { name: string }[] };
+      };
+      expect(stored.template).toBe('page-crud');
+      expect(stored.config.columns).toHaveLength(2);
+    });
+
     it('round-trips config JSON and lists pages in nav order', async () => {
       const repo = pagesRepo(t.meta);
       await repo.upsertGenerated(connectionId, [
