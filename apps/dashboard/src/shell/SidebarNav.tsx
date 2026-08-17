@@ -22,14 +22,17 @@ import {
   CalendarClock,
   Database,
   Download,
-  Hexagon,
   Mail,
+  ScrollText,
+  ShieldCheck,
   Upload,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@adminium/ui';
 
 import { unreadCountQuery } from '../api/notifications.js';
+import { BrandMark, useBranding } from './BrandMark.js';
 import type { BootstrapData, NavGroupKey, NavItem } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { lucideByName } from '../lib/lucide.js';
@@ -102,8 +105,37 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
     ],
   },
   {
+    // The `people` group was a declared `NavGroupKey` with no links behind it
+    // until user management landed — which is exactly what "a complete RBAC
+    // engine with no way to reach it" looked like in the rail.
+    group: 'people',
+    links: [
+      { to: '/settings/team', labelKey: 'nav.team', fallback: 'Team', icon: Users, adminOnly: true },
+      {
+        to: '/settings/roles',
+        labelKey: 'nav.roles',
+        fallback: 'Roles & permissions',
+        icon: ShieldCheck,
+        adminOnly: true,
+      },
+      {
+        to: '/audit',
+        labelKey: 'nav.audit',
+        fallback: 'Audit log',
+        icon: ScrollText,
+        adminOnly: true,
+      },
+    ],
+  },
+  {
     group: 'account',
     links: [
+      {
+        to: '/account/security',
+        labelKey: 'nav.security',
+        fallback: 'Password & sessions',
+        icon: ShieldCheck,
+      },
       {
         to: '/account/notifications',
         labelKey: 'nav.notificationSettings',
@@ -188,6 +220,7 @@ function NavItemList({ items }: { items: readonly NavItem[] }) {
 
 export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
   const { nav, version } = bootstrap;
+  const { showVersion } = useBranding();
   // 2+ sources → sub-label items per connection (M5-T05); else stay flat.
   const multiConnection = distinctConnectionCount(nav) >= 2;
   const admin = hasStudioAccess(bootstrap.roles);
@@ -213,13 +246,18 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
         (rail 14px + child 8px = 22px, top 18px + 8px = 26px).
       */}
       <div className="flex items-center gap-2.5 px-[22px] pb-3.5 pt-[26px]">
-        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-accent-fg shadow-glow">
-          <Hexagon className="size-[17px]" aria-hidden="true" />
-        </span>
-        <span className="text-[16px] font-extrabold tracking-[-0.02em] text-fg">Adminium</span>
-        <span className="ms-auto rounded-sm border border-border px-1.5 py-0.5 text-[10px] font-bold text-fg-subtle">
-          v{version}
-        </span>
+        <BrandMark glow className="min-w-0" />
+        {/* The version chip is opt-out (`branding.showVersion`): knowing which
+            build you are on is a support handshake, but a white-labelled
+            deployment is entitled not to advertise what it is built on. */}
+        {showVersion ? (
+          <span
+            data-part="sidebar-version"
+            className="ms-auto shrink-0 rounded-sm border border-border px-1.5 py-0.5 text-[10px] font-bold text-fg-subtle"
+          >
+            v{version}
+          </span>
+        ) : null}
       </div>
 
       {/* Nav groups */}

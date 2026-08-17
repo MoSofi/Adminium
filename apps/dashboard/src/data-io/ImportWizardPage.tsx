@@ -480,9 +480,6 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
     // route's `PageSurface`) and as the `page-wizard` template body (wrapped by
     // PageRenderer's). Owning one here would double the padding in both.
     <div className="flex h-full min-h-0 flex-col">
-      <h1 className="mb-4 text-h2 font-semibold text-fg">
-        {t('dataio.import.title', 'Import data')}
-      </h1>
       <PageWizard
         steps={steps}
         activeStepId={step}

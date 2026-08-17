@@ -29,7 +29,16 @@
  */
 
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
-import { exportsRepo, filesRepo, settingsRepo, type EnqueueJobInput } from '@adminium/meta';
+import {
+  auditRepo,
+  exportsRepo,
+  filesRepo,
+  jobsRepo,
+  passwordResetsRepo,
+  sessionsRepo,
+  settingsRepo,
+  type EnqueueJobInput,
+} from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from './app.js';
 import type { Env } from './config/env.js';
@@ -62,6 +71,7 @@ import { desktopDemoRoutes } from './routes/desktop-demo/index.js';
 import { desktopLanRoutes } from './routes/desktop-lan/index.js';
 import { desktopLocalDbRoutes } from './routes/desktop-local-db/index.js';
 import { desktopCapabilityRoutes } from './routes/desktop-capabilities/index.js';
+import { brandingRoutes } from './routes/branding/index.js';
 import { bridgeRoutes } from './routes/bridge/index.js';
 import { metaRoutes } from './routes/meta/index.js';
 import { connectionsRoutes } from './routes/connections/index.js';
@@ -75,6 +85,7 @@ import { meViewsRoutes } from './routes/me-views/index.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
 import { onboardingRoutes } from './routes/onboarding/index.js';
 import { pagesRoutes } from './routes/pages/index.js';
+import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
@@ -82,6 +93,7 @@ import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
+import { usersRoutes } from './routes/users/index.js';
 import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
 import { createTelemetryService } from './telemetry/service.js';
@@ -110,6 +122,31 @@ export const TELEMETRY_JITTER_MS = 60 * 60 * 1000;
  */
 export const EXPORTS_RETENTION_SCHEDULE_NAME = 'exports-retention-sweep';
 export const EXPORTS_RETENTION_CRON = '30 4 * * *';
+
+/**
+ * Daily META-STORE retention sweep — the one that keeps a self-host install
+ * from growing forever.
+ *
+ * WHAT WAS WRONG. `sessionsRepo`, `passwordResetsRepo`, `jobsRepo` and
+ * `auditRepo` each ship a `gc()` written against the BRIEF §8 retention policy,
+ * and NOTHING called any of them. Every login wrote a session row that outlived
+ * its own expiry forever; every scheduled-report tick and every export left a
+ * finished `adminium_jobs` row behind; the audit log grew one row per mutation
+ * for the life of the instance. Meanwhile `retention.auditLogDays` and
+ * `retention.jobsDays` were writable from Settings and read by nobody — a
+ * control that adjusts nothing, which is worse than no control.
+ *
+ * ONE schedule for all four, not four schedules: they run in the same store,
+ * take milliseconds, and a single `retention-gc` name is one thing to find in
+ * `scheduler.names()` when an operator asks why a table shrank overnight.
+ *
+ * 03:00, NOT 04:00, and that hour is not free real estate: the telemetry ping
+ * is `0 4 * * *` with up to 60 minutes of jitter, so it owns 04:00–05:00
+ * entirely, and the exports sweep sits at 04:30 inside that window. A third
+ * daily in there would contend with both on the same meta store.
+ */
+export const RETENTION_GC_SCHEDULE_NAME = 'retention-gc';
+export const RETENTION_GC_CRON = '0 3 * * *';
 
 export interface ComposeServerOptions {
   env: Env;
@@ -480,11 +517,16 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(searchRoutes({ manager, meta }));
       await api.register(widgetDataRoutes({ manager, meta }));
       await api.register(settingsRoutes({ meta }));
+      // Branding rides with settings but owns the bytes half (logo storage)
+      // and the two PUBLIC reads the sign-in screen paints itself with.
+      await api.register(brandingRoutes({ meta, storage }));
       await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
       await api.register(onboardingRoutes({ meta }));
       await api.register(rolesRoutes);
+      await api.register(usersRoutes);
+      await api.register(permissionsRoutes);
       await api.register(apiKeysRoutes);
       await api.register(auditRoutes);
       if (llm !== null && allowed !== null) {
@@ -545,6 +587,46 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await files.markDeleted(artifact.fileId);
       await storage.remove(artifact.storageKey);
     }
+  });
+
+  // Meta-store retention (BRIEF §8). Every deletion is logged with its count:
+  // a GC that runs silently is indistinguishable from a GC that is not running,
+  // and "why is adminium_audit_log 4 GB" is exactly the question an operator
+  // asks six months in, when there is nothing left to read.
+  //
+  // `retention.exportsDays` is deliberately absent — the exports sweep above
+  // owns that lifecycle, including the artifact bytes on disk, which this pass
+  // knows nothing about.
+  jobs.scheduler.registerSchedule(RETENTION_GC_SCHEDULE_NAME, RETENTION_GC_CRON, async () => {
+    const settings = settingsRepo(meta);
+    const at = Date.now();
+
+    // Fixed-policy, so they read no setting: a session past its own `expires_at`
+    // and a used/expired reset token are not retained data, they are dead rows.
+    // Both `gc()` implementations keep revoked/expired rows for 24 h so an
+    // audit trail of "you were logged out" survives the day it happened.
+    const sessions = await sessionsRepo(meta).gc(at);
+    const passwordResets = await passwordResetsRepo(meta).gc(at);
+
+    const jobsDays = await settings.get('retention.jobsDays');
+    const finishedJobs = await jobsRepo(meta).gc(at, jobsDays);
+
+    // The audit log is the one table where deleting is a policy decision rather
+    // than hygiene, so `retention.auditArchive` gets a veto. It promises
+    // "archive audit batches to adminium_files before deleting" and no archiver
+    // exists yet; honouring the delete half alone would destroy exactly the rows
+    // the operator asked to keep. Skipping instead means the table grows — a
+    // problem you can still fix — and says so in the log.
+    const auditLogDays = await settings.get('retention.auditLogDays');
+    const auditArchive = await settings.get('retention.auditArchive');
+    const auditEntries = auditArchive ? null : await auditRepo(meta).gc(at, auditLogDays);
+
+    app.log.info(
+      { sessions, passwordResets, jobs: finishedJobs, auditEntries, jobsDays, auditLogDays },
+      auditArchive
+        ? 'retention sweep complete — audit log skipped, retention.auditArchive is on and archiving is not implemented'
+        : 'retention sweep complete',
+    );
   });
 
   // The manager owns live source-DB pools; the server owns the manager's

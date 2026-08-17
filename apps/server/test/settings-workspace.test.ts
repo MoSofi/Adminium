@@ -4,9 +4,10 @@
  * before/after images, Zod bounds → 422, and the super-admin guard. Mirrors
  * the settings-defaults suite's harness.
  *
- * The `auth.*` security controls are intentionally not exposed as a settings
- * surface (no auth flow enforces them yet), so there is no /settings/security
- * route to exercise here.
+ * `PUT /settings/security` joins them now that the three keys it writes are
+ * enforced (auth/sessions.ts + routes/auth/handlers.ts, exercised end to end
+ * in auth-sessions.test.ts). `auth.allowSignup` is still not exposed — no
+ * signup path reads it — and must stay untouched by this surface.
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -108,7 +109,9 @@ describe('settings workspace routes', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().data).toEqual({
-      branding: { appName: 'Adminium' },
+      // `logoUrl`, not `logoFileId`: how a file id becomes bytes is this
+      // route's business, not the client's.
+      branding: { appName: 'Adminium', logoUrl: null, showVersion: true },
     });
   });
 
@@ -117,7 +120,7 @@ describe('settings workspace routes', () => {
       method: 'PUT',
       url: '/api/v1/settings/branding',
       headers: asUser(t.superAdmin),
-      payload: { appName: 'Acme Ops' },
+      payload: { appName: 'Acme Ops', showVersion: true },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().data.branding.appName).toBe('Acme Ops');
@@ -132,10 +135,23 @@ describe('settings workspace routes', () => {
     expect(entry?.changes?.after).toMatchObject({ appName: 'Acme Ops' });
   });
 
+  it('PUT /settings/branding hides the sidebar version chip', async () => {
+    const res = await t.app.inject({
+      method: 'PUT',
+      url: '/api/v1/settings/branding',
+      headers: asUser(t.superAdmin),
+      payload: { appName: 'Adminium', showVersion: false },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.branding.showVersion).toBe(false);
+    expect(await settingsRepo(t.meta).get('branding.showVersion')).toBe(false);
+  });
+
   it('rejects out-of-bounds values with 422 (mirrors the registry bounds)', async () => {
     for (const payload of [
-      { appName: '' },
-      { appName: 'x'.repeat(61) },
+      { appName: '', showVersion: true },
+      { appName: 'x'.repeat(61), showVersion: true },
+      { appName: 'Acme Ops', showVersion: 'yes' },
     ]) {
       const res = await t.app.inject({
         method: 'PUT',
@@ -149,17 +165,61 @@ describe('settings workspace routes', () => {
     expect(await settingsRepo(t.meta).get('branding.appName')).toBe('Adminium');
   });
 
-  it('does not expose a /settings/security surface (auth.* not enforced yet)', async () => {
+  it('GET /settings/security returns the registry defaults', async () => {
+    const res = await t.app.inject({
+      method: 'GET',
+      url: '/api/v1/settings/security',
+      headers: asUser(t.superAdmin),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data).toEqual({
+      sessionTtlHours: 720,
+      require2fa: false,
+      passwordMinLength: 10,
+    });
+  });
+
+  it('PUT /settings/security persists the three enforced keys and audits them', async () => {
     const res = await t.app.inject({
       method: 'PUT',
       url: '/api/v1/settings/security',
       headers: asUser(t.superAdmin),
+      // `allowSignup` rides along: nothing enforces it, so the body drops it.
       payload: { require2fa: true, allowSignup: true, sessionTtlHours: 24, passwordMinLength: 12 },
     });
-    expect(res.statusCode).toBe(404);
-    // The registry defaults stay untouched — nothing wrote inert security config.
+    expect(res.statusCode).toBe(200);
+
     const settings = settingsRepo(t.meta);
-    expect(await settings.get('auth.require2fa')).toBe(false);
+    expect(await settings.get('auth.require2fa')).toBe(true);
+    expect(await settings.get('auth.sessionTtlHours')).toBe(24);
+    expect(await settings.get('auth.passwordMinLength')).toBe(12);
+    expect(await settings.get('auth.allowSignup')).toBe(false);
+
+    const entry = (await auditRepo(t.meta).list({ category: 'settings' })).find(
+      (e) => e.action === 'settings.security.update',
+    );
+    expect(entry?.actorId).toBe(t.superAdmin.id);
+    expect(entry?.changes?.before).toMatchObject({ sessionTtlHours: 720, require2fa: false });
+    expect(entry?.changes?.after).toMatchObject({ sessionTtlHours: 24, require2fa: true });
+  });
+
+  it('rejects security values outside the registry bounds with 422', async () => {
+    for (const payload of [
+      { require2fa: false, sessionTtlHours: 0, passwordMinLength: 12 },
+      { require2fa: false, sessionTtlHours: 8_761, passwordMinLength: 12 },
+      { require2fa: false, sessionTtlHours: 24, passwordMinLength: 7 },
+      { require2fa: false, sessionTtlHours: 24, passwordMinLength: 129 },
+    ]) {
+      const res = await t.app.inject({
+        method: 'PUT',
+        url: '/api/v1/settings/security',
+        headers: asUser(t.superAdmin),
+        payload,
+      });
+      expect(res.statusCode).toBe(422);
+      expect(res.json().error.code).toBe('VALIDATION_FAILED');
+    }
+    const settings = settingsRepo(t.meta);
     expect(await settings.get('auth.sessionTtlHours')).toBe(720);
     expect(await settings.get('auth.passwordMinLength')).toBe(10);
   });
@@ -167,7 +227,13 @@ describe('settings workspace routes', () => {
   it('requires system:settings:manage — admin 403, anonymous 401, nothing persists', async () => {
     for (const [method, url, payload] of [
       ['GET', '/api/v1/settings/workspace', undefined],
-      ['PUT', '/api/v1/settings/branding', { appName: 'Nope' }],
+      ['PUT', '/api/v1/settings/branding', { appName: 'Nope', showVersion: false }],
+      ['GET', '/api/v1/settings/security', undefined],
+      [
+        'PUT',
+        '/api/v1/settings/security',
+        { require2fa: true, sessionTtlHours: 1, passwordMinLength: 128 },
+      ],
     ] as const) {
       const res = await t.app.inject({
         method,

@@ -39,6 +39,7 @@ import {
 import { CardGallery, type GalleryCard } from '@adminium/widgets';
 
 import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { DOCS_BASE_URL, DOCS_SEARCH_URL, docsUrl } from './docsLinks.js';
 import {
@@ -145,26 +146,19 @@ export function KnowledgeBasePage(): ReactNode {
 
   return (
     <PageSurface width="page" className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="text-title text-fg">
-            {t('kb.title', 'Knowledge Base')}
-          </h1>
-          <p className="text-body-sm text-fg-muted">
-            {t('kb.subtitle', '{count, plural, one {# guide} other {# guides}} · full docs at docs.adminium.dev', {
-              count: KB_ARTICLES.length,
-            })}
-          </p>
-        </div>
-        <div className="ms-auto">
-          <Button asChild variant="outline" size="md">
-            <a href={DOCS_BASE_URL} target="_blank" rel="noreferrer noopener">
-              {t('kb.openDocs', 'Open the docs')}
-              <ExternalLink className="size-3.5" aria-hidden="true" />
-            </a>
-          </Button>
-        </div>
-      </div>
+      <PageActions
+        title={t('kb.title', 'Knowledge Base')}
+        subtitle={t('kb.subtitle', '{count, plural, one {# guide} other {# guides}} · full docs at docs.adminium.dev', {
+          count: KB_ARTICLES.length,
+        })}
+      >
+        <Button asChild variant="outline" size="md">
+          <a href={DOCS_BASE_URL} target="_blank" rel="noreferrer noopener">
+            {t('kb.openDocs', 'Open the docs')}
+            <ExternalLink className="size-3.5" aria-hidden="true" />
+          </a>
+        </Button>
+      </PageActions>
 
       {/* Hero search */}
       <Card className="flex flex-col items-center gap-4 bg-gradient-to-b from-accent-soft to-surface py-8 text-center">

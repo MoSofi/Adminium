@@ -15,6 +15,7 @@ import { AppToastProvider } from '../../pages/toasts.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
 import { ConnectionsHub } from './ConnectionsHub.js';
+import { ShellHarness } from '../../test/shellHarness.js';
 
 let restoreI18n: () => void;
 beforeAll(() => {
@@ -90,11 +91,13 @@ function renderHub(props: Partial<Parameters<typeof ConnectionsHub>[0]> = {}) {
   return render(
     <QueryClientProvider client={queryClient}>
       <AppToastProvider>
+        <ShellHarness>
         <ConnectionsHub
           onConnectNew={props.onConnectNew ?? (() => undefined)}
           onOpenRemap={props.onOpenRemap ?? (() => undefined)}
           pollIntervalMs={0}
         />
+        </ShellHarness>
       </AppToastProvider>
     </QueryClientProvider>,
   );

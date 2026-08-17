@@ -21,6 +21,7 @@ import { Button, Card, CardBody, CardHeader, IconTile } from '@adminium/ui';
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { StatePage } from '../states/StatePage.js';
 import {
@@ -191,12 +192,10 @@ function GlobalDefaultsBody(): ReactNode {
   const { data } = useSuspenseQuery(settingsDefaultsQuery());
   return (
     <PageSurface width="narrow">
-      <div className="mb-4">
-        <h2 className="text-section text-fg">{t('settings.defaults.title', 'Global defaults')}</h2>
-        <p className="text-body-sm text-fg-muted">
-          {t('settings.defaults.subtitle', 'Workspace-wide appearance and language defaults.')}
-        </p>
-      </div>
+      <PageActions
+        title={t('settings.defaults.title', 'Global defaults')}
+        subtitle={t('settings.defaults.subtitle', 'Workspace-wide appearance and language defaults.')}
+      />
       {/* Remount the form when the server state changes (realtime refetch). */}
       <DefaultsForm key={`${data.theme}|${data.accent}|${data.density}|${data.locale}`} initial={data} />
     </PageSurface>

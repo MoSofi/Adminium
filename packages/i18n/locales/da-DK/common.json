@@ -98,7 +98,11 @@
       "people": "Personer",
       "account": "Konto"
     },
-    "back": "Tilbage"
+    "back": "Tilbage",
+    "team": "Team",
+    "roles": "Roller og rettigheder",
+    "audit": "Auditlog",
+    "security": "Adgangskode og sessioner"
   },
   "topbar": {
     "search": "Søg…",
@@ -545,6 +549,23 @@
           "label": "Applikationsnavn",
           "helper": "Vises i sidepanelet, browsertitlen og e-mails.",
           "error": "Angiv et navn på højst 60 tegn."
+        },
+        "logo": {
+          "label": "Logo",
+          "drop": "Slip et billede her",
+          "helper": "PNG, JPEG, WebP, GIF eller SVG på op til 1 MB. Erstatter det indbyggede mærke overalt.",
+          "upload": "Upload logo",
+          "replace": "Erstat logo",
+          "remove": "Fjern",
+          "uploaded": "Logo opdateret",
+          "removed": "Logo fjernet",
+          "tooLarge": "Billedet er større end 1 MB.",
+          "badType": "Vælg et PNG-, JPEG-, WebP-, GIF- eller SVG-billede.",
+          "undo": "Fortryd"
+        },
+        "showVersion": {
+          "label": "Version i sidepanelet",
+          "helper": "Buildnummeret ved siden af logoet. Slået fra skjuler, hvilken version du kører."
         }
       },
       "security": {
@@ -574,6 +595,8 @@
         "close": "Luk",
         "on": "Til",
         "off": "Fra",
+        "shown": "Vist",
+        "hidden": "Skjult",
         "change": "{before} → {after}"
       },
       "defaultsCard": {
@@ -1250,7 +1273,9 @@
       "duplicate": "Dupliker {name}",
       "remove": "Fjern {name}",
       "removed": "{name} fjernet.",
-      "duplicated": "{name} duplikeret."
+      "duplicated": "{name} duplikeret.",
+      "unboundHint": "Denne widget viser eksempeldata her og på live-siden. Åbn Konfigurer for at forbinde den til en tabel.",
+      "unbound": "Eksempeldata"
     },
     "families": {
       "kpi": "KPI’er",
@@ -1279,7 +1304,134 @@
     "discardBody": "Dashboardet vender tilbage til, som det så ud, da du åbnede editoren. Dine data påvirkes ikke.",
     "discardConfirm": "Kassér ændringer",
     "keepEditing": "Fortsæt redigering",
-    "discarded": "Ændringer kasseret."
+    "discarded": "Ændringer kasseret.",
+    "binding": {
+      "addFilter": "Tilføj filter",
+      "brokenBody": "Den svarer ikke længere til en forespørgsel, som denne version forstår, så widgetten viser en fejl på live-siden.",
+      "brokenTitle": "Denne widgets forespørgsel er defekt",
+      "bucketColumn": "Datokolonne",
+      "bucketRequired": "Vælg den kolonne, der indeholder datoen.",
+      "bucketUnit": "Gruppér tid efter",
+      "columnNone": "Ingen",
+      "columnPlaceholder": "Vælg en kolonne…",
+      "connect": "Forbind til data",
+      "edit": "Rediger forespørgsel",
+      "event": {
+        "category": "Kategorikolonne (valgfri)",
+        "date": "Startdatokolonne",
+        "end": "Slutdatokolonne (valgfri)",
+        "title": "Titelkolonne"
+      },
+      "eventColumnsRequired": "Begivenheder kræver en startdato og en titel. En slutdato kræver også en kategori, fordi kolonnerne læses i rækkefølge.",
+      "filterColumnRequired": "Vælg en kolonne.",
+      "filterColumn": "Kolonne",
+      "filterListHelper": "Adskil værdier med kommaer.",
+      "filterOp": "Betingelse",
+      "filterValue": "Værdi",
+      "fn": {
+        "avg": "Gennemsnit",
+        "countDistinct": "Antal forskellige værdier",
+        "count": "Antal rækker",
+        "max": "Maksimum",
+        "min": "Minimum",
+        "sum": "Sum"
+      },
+      "groupByColumns": "Kolonner",
+      "groupByRequired": "Denne visning kræver en opdelingskolonne.",
+      "groupByRows": "Rækker",
+      "groupBy": "Gruppér efter",
+      "incompleteBody": "Udfyld de fremhævede felter — en halvfærdig forespørgsel ville fejle på det live dashboard.",
+      "incompleteTitle": "Denne forespørgsel er ikke færdig",
+      "limit": "Maks. antal rækker der hentes",
+      "loadingSchema": "Indlæser tabeller…",
+      "lossyBody": "Dele af den — ekstra målinger, sorteringer eller links til sidefiltre — vises ikke her og går tabt, hvis du gemmer.",
+      "lossyTitle": "Denne forespørgsel er mere avanceret end editoren",
+      "measureColumnRequired": "Denne beregning kræver en kolonne.",
+      "measureColumn": "Af kolonne",
+      "measureFn": "Beregn",
+      "noConnectionBody": "Widgets kan kun bindes på en side, der hører til en forbindelse.",
+      "noConnectionTitle": "Denne side har ingen databaseforbindelse",
+      "noDateColumns": "Denne tabel har ingen dato- eller tidsstempelkolonne.",
+      "noFilters": "Ingen filtre — hver eneste række i tabellen tælles med.",
+      "noSnapshotBody": "Tabeller og kolonner kommer fra forbindelsens seneste introspektion. Kør introspektion i Studio, og åbn derefter denne editor igen.",
+      "noSnapshotTitle": "Intet skema-snapshot for denne forbindelse",
+      "op": {
+        "between": "er mellem",
+        "ilike": "indeholder (uanset store/små bogstaver)",
+        "in": "er en af",
+        "isNull": "er tom",
+        "like": "indeholder",
+        "notNull": "er ikke tom"
+      },
+      "orderAsc": "Ældste / laveste først",
+      "orderBy": "Sortér efter",
+      "orderDesc": "Nyeste / højeste først",
+      "orderDir": "Retning",
+      "orderNone": "Databasens rækkefølge",
+      "pickTableFirst": "Vælg en tabel for at vælge dens kolonner.",
+      "removeFilter": "Fjern filter",
+      "remove": "Fjern datakilde",
+      "save": "Brug denne forespørgsel",
+      "sectionBreakdown": "Opdeling",
+      "sectionColumns": "Kolonner",
+      "sectionFilters": "Filtre",
+      "sectionMeasure": "Måling",
+      "sectionRows": "Rækker",
+      "sectionSource": "Kilde",
+      "sectionTime": "Tidsakse",
+      "sectionWindow": "Periode",
+      "selectColumns": "Kolonner der skal vises",
+      "selectRequired": "Vælg mindst én kolonne at vise.",
+      "shape": {
+        "calendarEvents": "Daterede begivenheder",
+        "categorical": "En værdi pr. kategori",
+        "distribution": "Spredningen i én kolonne",
+        "matrix": "Et gitter med rækker og kolonner",
+        "metricDelta": "Et tal sammenlignet med den foregående periode",
+        "multiTimeseries": "Én linje over tid pr. kategori",
+        "recordList": "En liste af rækker",
+        "record": "Én række",
+        "singleMetric": "Ét enkelt tal",
+        "stream": "Et live-feed af de seneste rækker",
+        "timeseries": "En værdi over tid"
+      },
+      "shapeHelper": "Ændrer du dette, ændres det, hvilke forespørgselsindstillinger der gælder.",
+      "shapeLabel": "Hvad denne widget viser",
+      "summaryColumns": "{count, plural, one {# kolonne} other {# kolonner}}",
+      "summaryFilters": "{count, plural, one {# filter} other {# filtre}}",
+      "tableEmpty": "Ingen matchende tabel.",
+      "tablePlaceholder": "Søg i tabeller…",
+      "tableRequired": "Vælg en tabel at forespørge.",
+      "table": "Tabel eller view",
+      "title": "Datakilde",
+      "unbindableBody": "Den viser en dataform, som forespørgselsmotoren endnu ikke bygger, så den gengiver sit eget eksempelindhold.",
+      "unbindableTitle": "Denne widget kan endnu ikke forespørge data",
+      "unboundBody": "Den viser eksempeltal her OG på live-siden. Forbind den til en tabel for at vise rigtige data.",
+      "unboundTitle": "Ikke forbundet til dine data",
+      "unit": {
+        "day": "Dagligt",
+        "hour": "Hver time",
+        "month": "Månedligt",
+        "quarter": "Kvartalsvis",
+        "week": "Ugentligt",
+        "year": "Årligt"
+      },
+      "valueColumnRequired": "Vælg den kolonne, der skal måles.",
+      "valueColumn": "Værdikolonne",
+      "windowColumn": "Datokolonne",
+      "windowLast": "Seneste",
+      "windowNone": "Al tid",
+      "windowRequired": "Sammenligning med den foregående periode kræver en datokolonne.",
+      "windowUnit": {
+        "day": "dage",
+        "hour": "timer",
+        "month": "måneder",
+        "quarter": "kvartaler",
+        "week": "uger",
+        "year": "år"
+      },
+      "windowUnitLabel": "Enhed"
+    }
   },
   "setup": {
     "title": "Konfigurer Adminium",
@@ -1632,7 +1784,8 @@
       "helpAbout": "Om Adminium"
     },
     "settings": {
-      "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i dit workspace."
+      "explainer": "Disse indstillinger gælder kun for Adminium-appen på denne computer. De gemmes på denne maskine, ikke i dit workspace.",
+      "title": "Skrivebordsindstillinger"
     },
     "security": {
       "heading": "Login"
@@ -1679,7 +1832,8 @@
       "mismatchBody": "Deling er slået fra, men serveren har endnu ikke frigivet netværket. Genstart Adminium for at lukke det.",
       "transportTitle": "Trafik på dit lokale netværk er ikke krypteret.",
       "transportBody": "Del kun på netværk, du stoler på. Brug Adminium self-host bag HTTPS til fjernadgang.",
-      "firewall": "Første gang du deler, spørger dit styresystem, om indgående forbindelser skal tillades — vælg Tillad, ellers kan andre enheder ikke nå Adminium."
+      "firewall": "Første gang du deler, spørger dit styresystem, om indgående forbindelser skal tillades — vælg Tillad, ellers kan andre enheder ikke nå Adminium.",
+      "manageTeam": "Administrér brugere og roller"
     },
     "setup": {
       "title": "Velkommen til Adminium",
@@ -2249,5 +2403,305 @@
       "x": "Sider (px)",
       "y": "Top og bund (px)"
     }
+  },
+  "audit": {
+    "action": {
+      "view": "Vis"
+    },
+    "actor": {
+      "apiKey": "API-nøgle",
+      "automation": "Automatisering",
+      "system": "System",
+      "user": "Bruger"
+    },
+    "category": {
+      "auth": "Login og konti",
+      "automation": "Automatiseringer",
+      "connection": "Forbindelser",
+      "data": "Poster",
+      "export": "Import og eksport",
+      "llm": "AI-assistance",
+      "rbac": "Roller og rettigheder",
+      "schema": "Skema",
+      "settings": "Indstillinger",
+      "system": "System"
+    },
+    "column": {
+      "action": "Handling",
+      "actor": "Aktør",
+      "category": "Kategori",
+      "details": "Detaljer",
+      "when": "Tidspunkt"
+    },
+    "drawer": {
+      "actorId": "Aktør-id",
+      "actorKind": "Aktørtype",
+      "after": "Efter",
+      "before": "Før",
+      "category": "Kategori",
+      "changes": "Ændringer",
+      "connection": "Forbindelse",
+      "field": "Felt",
+      "ip": "IP-adresse",
+      "noChanges": "Denne handling registrerede ingen før/efter-øjebliksbilleder.",
+      "none": "Ingen",
+      "requestId": "Anmodnings-id",
+      "resource": "Ressource",
+      "subtitle": "{actor} · {when}",
+      "truncated": "Afkortet ved 16 KB",
+      "userAgent": "User agent"
+    },
+    "empty": {
+      "body": "Ændringer af data, skema, indstillinger og rettigheder lander her, efterhånden som de sker.",
+      "filtered": {
+        "body": "Udvid datointervallet, eller ryd kategorifilteret.",
+        "title": "Intet matcher disse filtre"
+      },
+      "title": "Der er ikke logget noget endnu"
+    },
+    "filterActor": "Aktør-id",
+    "filterCategoryAny": "Alle kategorier",
+    "filterCategory": "Filtrér efter kategori",
+    "filterFrom": "Fra",
+    "filterTo": "Til",
+    "listFailed": {
+      "title": "Auditloggen kunne ikke indlæses"
+    },
+    "loadMore": "Indlæs ældre hændelser",
+    "subtitle": "Hver ændring i dette arbejdsområde, hvem der foretog den, og hvad den ændrede.",
+    "title": "Auditlog"
+  },
+  "roles": {
+    "action": {
+      "delete": "Slet",
+      "rename": "Omdøb"
+    },
+    "builtinLocked": "Indbyggede roller kan ikke slettes.",
+    "category": {
+      "access": "Adgang",
+      "data": "Data",
+      "operations": "Drift",
+      "workspace": "Arbejdsområde"
+    },
+    "column": {
+      "actions": "Handlinger",
+      "members": "Medlemmer",
+      "name": "Rolle"
+    },
+    "create": {
+      "descriptionLabel": "Beskrivelse",
+      "description": "En ny rolle starter helt uden rettigheder.",
+      "failed": "Rollen kunne ikke oprettes",
+      "namePlaceholder": "f.eks. Supportmedarbejder",
+      "name": "Navn",
+      "submit": "Opret rolle",
+      "title": "Ny rolle"
+    },
+    "createButton": "Ny rolle",
+    "delete": {
+      "confirm": "Slet rolle",
+      "description": "Rollen og dens rettighedsrækker fjernes.",
+      "failed": "Rollen kunne ikke slettes",
+      "hasMembers": "„{name}“ har stadig {count, plural, one {# medlem} other {# medlemmer}}. Vælg den rolle, de flyttes til — Adminium efterlader ikke en konto uden rolle.",
+      "noMembers": "Ingen har „{name}“, så intet flyttes.",
+      "reassignPlaceholder": "Vælg en rolle…",
+      "reassignTo": "Flyt medlemmer til",
+      "title": "Slet rolle"
+    },
+    "list": {
+      "title": "Roller"
+    },
+    "loadFailed": {
+      "body": "Matricen nedenfor er ufuldstændig, så hvis du gemmer den, ryddes rettigheder, der blot ikke er indlæst. Genindlæs, før du foretager ændringer.",
+      "title": "Nogle rettigheder kunne ikke læses"
+    },
+    "matrix": {
+      "discard": "Kassér",
+      "empty": {
+        "body": "Denne instans rapporterede slet ingen rettigheder, der kan tildeles, hvilket ikke burde ske — genindlæs, og tjek serverloggen, hvis det bliver ved.",
+        "title": "Ingen rettigheder at vise"
+      },
+      "label": "Rollerettigheder",
+      "noChanges": "Ingen ventende ændringer",
+      "pending": "{count, plural, one {# ventende ændring} other {# ventende ændringer}}",
+      "rowHeader": "Rettighed",
+      "title": "Rettigheder"
+    },
+    "memberCount": "{count, plural, one {# bruger} other {# brugere}}",
+    "permission": {
+      "apiKeysManage": "Administrér API-nøgler",
+      "auditRead": "Læs auditloggen",
+      "connectionsManage": "Administrér databaseforbindelser",
+      "exportsManage": "Administrér alles eksporter",
+      "importsManage": "Administrér alles importer",
+      "jobsManage": "Start og annullér baggrundsjob",
+      "jobsRead": "Se alle baggrundsjob",
+      "llmRun": "Kør AI-assistance",
+      "pagesManage": "Opret og organisér sider",
+      "reportsManage": "Administrér planlagte rapporter",
+      "rolesManage": "Administrér roller og rettigheder",
+      "schemaRemap": "Redigér skemaetiketter og tilsidesættelser",
+      "settingsManage": "Administrér arbejdsområdeindstillinger",
+      "usersManage": "Administrér brugere"
+    },
+    "rename": {
+      "failed": "Rollen kunne ikke omdøbes",
+      "title": "Omdøb rolle"
+    },
+    "saveFailed": {
+      "title": "Ikke alle roller kunne gemmes"
+    },
+    "subtitle": "Hvad hver rolle må. En bruger får summen af alle de roller, vedkommende har.",
+    "title": "Roller og rettigheder"
+  },
+  "security": {
+    "password": {
+      "changedBody": "Brug den nye adgangskode, næste gang du logger ind. Sessioner på andre enheder påvirkes ikke — tilbagekald dem nedenfor, hvis du vil have dem logget ud.",
+      "changed": "Adgangskoden er skiftet",
+      "confirm": "Bekræft ny adgangskode",
+      "current": "Nuværende adgangskode",
+      "failed": "Din adgangskode kunne ikke skiftes",
+      "helper": "Mindst 8 tegn.",
+      "mismatch": "De to adgangskoder er ikke ens.",
+      "new": "Ny adgangskode",
+      "submit": "Skift adgangskode",
+      "title": "Adgangskode"
+    },
+    "sessions": {
+      "expires": "Udløber {at}",
+      "failedBody": "Denne liste er det eneste sted, der viser, hvor din konto er logget ind, så betragt en tom liste som ukendt frem for som ingen.",
+      "failed": "Dine sessioner kunne ikke læses",
+      "ip": "IP {ip}",
+      "loading": "Leder efter andre enheder, der er logget ind…",
+      "noIp": "Ingen IP registreret",
+      "revokeBody": "Sessionen slutter med det samme, og den, der bruger den, skal logge ind igen.",
+      "revokeFailed": "Den enhed kunne ikke logges ud",
+      "revokeTitle": "Log denne enhed ud",
+      "revoke": "Log ud",
+      "seenUnknown": "Sidst set: ukendt",
+      "seen": "Sidst set {since}",
+      "thisDevice": "Denne enhed",
+      "title": "Logget ind",
+      "unknownDevice": "Ukendt enhed"
+    },
+    "subtitle": "Din adgangskode, din anden faktor og alle de steder, du er logget ind.",
+    "title": "Sikkerhed",
+    "twoFactor": {
+      "activateFailed": "Den kode blev ikke accepteret",
+      "activate": "Slå tofaktor til",
+      "body": "En godkendelsesapp genererer en 6-cifret kode, som Adminium beder om efter din adgangskode.",
+      "code": "Kode fra din app",
+      "copyKey": "Kopiér opsætningsnøgle",
+      "copyLink": "Kopiér opsætningslink",
+      "disableBody": "Din konto går tilbage til kun adgangskode, og dine gendannelseskoder holder op med at virke.",
+      "disableConfirm": "Slå det fra",
+      "disableFailed": "Tofaktor kunne ikke slås fra",
+      "disablePassword": "Din adgangskode",
+      "disableTitle": "Slå tofaktorgodkendelse fra",
+      "disable": "Slå tofaktor fra",
+      "enrollFailed": "Opsætningen kunne ikke startes",
+      "enroll": "Konfigurér tofaktor",
+      "hide": "Skjul opsætningsnøgle",
+      "off": "Slået fra",
+      "on": "Slået til",
+      "recovery": {
+        "body": "Hver kode logger dig ind én gang, hvis du mister din godkendelsesapp. De vises kun nu.",
+        "copy": "Kopiér koder",
+        "title": "Gem dine gendannelseskoder"
+      },
+      "reveal": "Vis opsætningsnøgle",
+      "secretHelper": "Indsæt opsætningslinket i din godkendelsesapp, eller skriv nøglen ind i hånden.",
+      "secret": "Opsætningsnøgle",
+      "title": "Tofaktorgodkendelse"
+    }
+  },
+  "team": {
+    "action": {
+      "reactivate": "Reaktivér",
+      "remove": "Slet",
+      "resend": "Nyt link",
+      "roles": "Roller",
+      "suspend": "Suspendér"
+    },
+    "column": {
+      "actions": "Handlinger",
+      "lastSeen": "Sidst set",
+      "person": "Person",
+      "roles": "Roller",
+      "status": "Status"
+    },
+    "counts": "{active} aktive · {invited} inviterede · {suspended} suspenderede",
+    "empty": {
+      "body": "Inviter en holdkammerat for at give vedkommende sit eget login og sin egen rolle.",
+      "filtered": {
+        "body": "Ryd filtrene for at se hele kataloget.",
+        "title": "Ingen matcher disse filtre"
+      },
+      "title": "Kun du har en konto"
+    },
+    "filterRoleAny": "Alle roller",
+    "filterRole": "Filtrér efter rolle",
+    "filterStatusAny": "Alle statusser",
+    "filterStatus": "Filtrér efter status",
+    "invite": {
+      "copied": "Kopieret",
+      "copyLink": "Kopiér link",
+      "created": {
+        "body": "Send selv dette link til {email}. Det vises kun én gang — Adminium gemmer kun en hash af det, så hvis du mister det, bliver du nødt til at slette invitationen og udstede en ny.",
+        "title": "Invitationen er oprettet"
+      },
+      "emailIt": "Send invitationen på e-mail",
+      "expiresRelative": "Linket udløber {at} ({relative}).",
+      "expires": "Linket udløber {at}.",
+      "noEmail": {
+        "smtp": "Der er ingen SMTP-server konfigureret på denne instans, så der er intet at sende mail med. Del linket via en kanal, du allerede har tillid til.",
+        "title": "Adminium sendte ikke dette link på e-mail",
+        "unknown": "Adminium kunne ikke tjekke, om denne instans kan sende mail. Del linket via en kanal, du allerede har tillid til."
+      }
+    },
+    "inviteButton": "Inviter holdkammerat",
+    "inviteDialog": {
+      "description": "Adminium opretter kontoen og giver dig et engangs-aktiveringslink, du kan give videre.",
+      "emailPlaceholder": "navn@example.com",
+      "email": "E-mail",
+      "failed": "Invitationen kunne ikke oprettes",
+      "namePlaceholder": "f.eks. Dana Osei",
+      "name": "Navn",
+      "rolesHelper": "Vælg den mindst privilegerede rolle, der lader vedkommende passe sit arbejde. Du kan ændre det senere.",
+      "roles": "Roller",
+      "submit": "Opret invitation",
+      "title": "Inviter en holdkammerat"
+    },
+    "listFailed": {
+      "title": "Kataloget kunne ikke indlæses"
+    },
+    "loadMore": "Indlæs flere",
+    "neverSignedIn": "Har aldrig logget ind",
+    "noRoles": "Ingen roller",
+    "remove": {
+      "body": "Dette sletter {name}s konto, vedkommendes præferencer og login-sessioner og fjerner navnet fra registreringen af de indstillinger, vedkommende har ændret. Suspenderer du i stedet, bevares det hele, og vedkommende forhindres blot i at logge ind. Det kan ikke fortrydes.",
+      "confirm": "Slet permanent",
+      "prompt": "Skriv „{email}“ for at bekræfte",
+      "title": "Slet kontoen permanent"
+    },
+    "roles": {
+      "unavailable": "Roller er ikke synlige for din konto, så ingen kan tildeles her."
+    },
+    "rolesDialog": {
+      "description": "En bruger får summen af alle de roller, vedkommende har.",
+      "failed": "Rollerne kunne ikke ændres",
+      "title": "Roller for {name}"
+    },
+    "rolesLocked": "Ændring af roller kræver rettigheden „Administrér roller“.",
+    "search": "Søg efter navn eller e-mail",
+    "status": {
+      "active": "Aktiv",
+      "invited": "Inviteret",
+      "suspended": "Suspenderet"
+    },
+    "subtitle": "Hvem der har en konto på dette Adminium, og hvad hver enkelt kan.",
+    "title": "Team",
+    "twoFactorOn": "Tofaktorgodkendelse er slået til",
+    "twoFactorShort": "2FA"
   }
 }

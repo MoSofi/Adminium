@@ -27,6 +27,7 @@ import {
 import { ScheduledJobsList, type ScheduledJob } from '@adminium/widgets';
 
 import { bootstrapQuery, flattenNav } from '../app/bootstrap.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import {
@@ -194,22 +195,17 @@ export function ScheduledReportsPage() {
 
   return (
     <PageSurface width="content" fill className="gap-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-h2 font-semibold text-fg">
-            {t('reports.title', 'Scheduled reports')}
-          </h1>
-          <p className="mt-0.5 text-body-sm text-fg-muted">
-            {t(
-              'reports.subtitle',
-              'Recurring data snapshots of a page, delivered as in-app notifications.',
-            )}
-          </p>
-        </div>
+      <PageActions
+        title={t('reports.title', 'Scheduled reports')}
+        subtitle={t(
+          'reports.subtitle',
+          'Recurring data snapshots of a page, delivered as in-app notifications.',
+        )}
+      >
         <Button onClick={() => { setFormError(null); setDraft(draftOf(null)); }} data-testid="new-report">
           {t('reports.new', 'New report')}
         </Button>
-      </div>
+      </PageActions>
 
       {list.isError ? (
         <Alert

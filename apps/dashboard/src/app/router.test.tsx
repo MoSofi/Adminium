@@ -106,7 +106,13 @@ describe('system-state routes', () => {
   it('serves /state/$stateId publicly', async () => {
     const { fetchMock } = await renderAt('/state/maintenance', { authed: false });
     expect(await screen.findByRole('heading', { name: 'Scheduled maintenance' })).toBeDefined();
-    expect(fetchMock).not.toHaveBeenCalled();
+    // Nothing session-shaped: this screen exists for visitors who have none.
+    // `/branding` is the one call it does make, and it is public by design —
+    // the state screens carry the workspace's own mark.
+    const gated = fetchMock.mock.calls.filter(
+      (call) => !String(call[0]).startsWith('/api/v1/branding'),
+    );
+    expect(gated).toHaveLength(0);
   });
 
   /**

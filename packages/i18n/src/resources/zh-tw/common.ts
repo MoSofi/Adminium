@@ -106,7 +106,11 @@ export default {
       "people": "人員",
       "account": "帳戶"
     },
-    "back": "返回"
+    "back": "返回",
+    "team": "團隊",
+    "roles": "角色與權限",
+    "audit": "稽核紀錄",
+    "security": "密碼與工作階段"
   },
   "topbar": {
     "search": "搜尋…",
@@ -553,6 +557,23 @@ export default {
           "label": "應用程式名稱",
           "helper": "顯示在側邊欄、瀏覽器標題與電子郵件中。",
           "error": "請輸入不超過 60 個字元的名稱。"
+        },
+        "logo": {
+          "label": "標誌",
+          "drop": "將圖片拖放到此處",
+          "helper": "支援 PNG、JPEG、WebP、GIF 或 SVG，上限 1 MB。將在所有位置取代內建標誌。",
+          "upload": "上傳標誌",
+          "replace": "更換標誌",
+          "remove": "移除",
+          "uploaded": "標誌已更新",
+          "removed": "標誌已移除",
+          "tooLarge": "此圖片大於 1 MB。",
+          "badType": "請選擇 PNG、JPEG、WebP、GIF 或 SVG 圖片。",
+          "undo": "復原"
+        },
+        "showVersion": {
+          "label": "側邊欄中的版本",
+          "helper": "標誌旁的版本編號。關閉後將隱藏您執行的版本。"
         }
       },
       "security": {
@@ -582,6 +603,8 @@ export default {
         "close": "關閉",
         "on": "開",
         "off": "關",
+        "shown": "顯示",
+        "hidden": "隱藏",
         "change": "{before} → {after}"
       },
       "defaultsCard": {
@@ -1258,7 +1281,9 @@ export default {
       "duplicate": "複製 {name}",
       "remove": "移除 {name}",
       "removed": "已移除 {name}。",
-      "duplicated": "已複製 {name}。"
+      "duplicated": "已複製 {name}。",
+      "unboundHint": "此小工具在這裡以及正式頁面上都顯示範例資料。請開啟「設定」將它連接到資料表。",
+      "unbound": "範例資料"
     },
     "families": {
       "kpi": "關鍵指標",
@@ -1287,7 +1312,134 @@ export default {
     "discardBody": "儀表板將回復到你開啟編輯器時的樣子。你的資料不受影響。",
     "discardConfirm": "捨棄變更",
     "keepEditing": "繼續編輯",
-    "discarded": "變更已捨棄。"
+    "discarded": "變更已捨棄。",
+    "binding": {
+      "addFilter": "新增篩選條件",
+      "brokenBody": "它已不符合此版本能理解的查詢格式，因此小工具在正式頁面上會顯示錯誤。",
+      "brokenTitle": "此小工具的查詢已損毀",
+      "bucketColumn": "日期欄位",
+      "bucketRequired": "請選擇存放日期的欄位。",
+      "bucketUnit": "時間分組單位",
+      "columnNone": "無",
+      "columnPlaceholder": "選擇欄位…",
+      "connect": "連接資料",
+      "edit": "編輯查詢",
+      "event": {
+        "category": "類別欄位（選填）",
+        "date": "開始日期欄位",
+        "end": "結束日期欄位（選填）",
+        "title": "標題欄位"
+      },
+      "eventColumnsRequired": "事件需要開始日期與標題。若要指定結束日期，也必須指定類別，因為這些欄位是依序讀取的。",
+      "filterColumnRequired": "請選擇欄位。",
+      "filterColumn": "欄位",
+      "filterListHelper": "多個值請以逗號分隔。",
+      "filterOp": "條件",
+      "filterValue": "值",
+      "fn": {
+        "avg": "平均值",
+        "countDistinct": "相異值計數",
+        "count": "資料列筆數",
+        "max": "最大值",
+        "min": "最小值",
+        "sum": "總和"
+      },
+      "groupByColumns": "直欄",
+      "groupByRequired": "此檢視需要一個分組欄位。",
+      "groupByRows": "橫列",
+      "groupBy": "分組依據",
+      "incompleteBody": "請填寫已標示的欄位——只寫了一半的查詢在正式儀表板上會失敗。",
+      "incompleteTitle": "此查詢尚未完成",
+      "limit": "最多擷取的資料列數",
+      "loadingSchema": "正在載入資料表…",
+      "lossyBody": "其中部分內容——額外的量值、排序或頁面篩選連結——不會顯示在這裡，若你儲存就會被捨棄。",
+      "lossyTitle": "此查詢比編輯器所能處理的更進階",
+      "measureColumnRequired": "此計算需要一個欄位。",
+      "measureColumn": "計算欄位",
+      "measureFn": "計算方式",
+      "noConnectionBody": "只有隸屬於某個連線的頁面，才能將小工具繫結到資料。",
+      "noConnectionTitle": "此頁面沒有資料庫連線",
+      "noDateColumns": "此資料表沒有日期或時間戳記欄位。",
+      "noFilters": "沒有篩選條件——資料表中的每一列都會被計入。",
+      "noSnapshotBody": "資料表與欄位來自此連線上次的內省結果。請先在 Studio 中執行內省，然後重新開啟此編輯器。",
+      "noSnapshotTitle": "此連線沒有結構描述快照",
+      "op": {
+        "between": "介於",
+        "ilike": "包含（不分大小寫）",
+        "in": "是其中之一",
+        "isNull": "是空值",
+        "like": "包含",
+        "notNull": "不是空值"
+      },
+      "orderAsc": "最舊／最小的在前",
+      "orderBy": "排序依據",
+      "orderDesc": "最新／最大的在前",
+      "orderDir": "排序方向",
+      "orderNone": "資料庫預設順序",
+      "pickTableFirst": "請先選擇資料表，才能選擇其中的欄位。",
+      "removeFilter": "移除篩選條件",
+      "remove": "移除資料來源",
+      "save": "使用此查詢",
+      "sectionBreakdown": "分組",
+      "sectionColumns": "欄位",
+      "sectionFilters": "篩選條件",
+      "sectionMeasure": "量值",
+      "sectionRows": "資料列",
+      "sectionSource": "來源",
+      "sectionTime": "時間軸",
+      "sectionWindow": "期間",
+      "selectColumns": "要顯示的欄位",
+      "selectRequired": "請至少選擇一個要顯示的欄位。",
+      "shape": {
+        "calendarEvents": "附日期的事件",
+        "categorical": "每個類別一個值",
+        "distribution": "單一欄位的分佈",
+        "matrix": "由橫列與直欄組成的格線",
+        "metricDelta": "一個數字，並與前一期間比較",
+        "multiTimeseries": "每個類別一條隨時間變化的線",
+        "recordList": "資料列清單",
+        "record": "單一資料列",
+        "singleMetric": "單一數字",
+        "stream": "近期資料列的即時動態",
+        "timeseries": "隨時間變化的值"
+      },
+      "shapeHelper": "變更這項設定會改變可套用的查詢控制項。",
+      "shapeLabel": "此小工具顯示的內容",
+      "summaryColumns": "{count, plural, other {# 個欄位}}",
+      "summaryFilters": "{count, plural, other {# 個篩選條件}}",
+      "tableEmpty": "沒有符合的資料表。",
+      "tablePlaceholder": "搜尋資料表…",
+      "tableRequired": "請選擇要查詢的資料表。",
+      "table": "資料表或檢視表",
+      "title": "資料來源",
+      "unbindableBody": "它呈現的資料形態是查詢引擎尚未支援的，因此會改用自己的範例內容。",
+      "unbindableTitle": "此小工具尚無法查詢資料",
+      "unboundBody": "它在這裡以及正式頁面上都顯示範例數字。請將它連接到資料表以顯示真實資料。",
+      "unboundTitle": "尚未連接你的資料",
+      "unit": {
+        "day": "每日",
+        "hour": "每小時",
+        "month": "每月",
+        "quarter": "每季",
+        "week": "每週",
+        "year": "每年"
+      },
+      "valueColumnRequired": "請選擇要計算的欄位。",
+      "valueColumn": "數值欄位",
+      "windowColumn": "日期欄位",
+      "windowLast": "最近",
+      "windowNone": "全部時間",
+      "windowRequired": "與前一期間比較需要一個日期欄位。",
+      "windowUnit": {
+        "day": "天",
+        "hour": "小時",
+        "month": "個月",
+        "quarter": "季",
+        "week": "週",
+        "year": "年"
+      },
+      "windowUnitLabel": "單位"
+    }
   },
   "setup": {
     "title": "設定 Adminium",
@@ -1640,7 +1792,8 @@ export default {
       "helpAbout": "關於 Adminium"
     },
     "settings": {
-      "explainer": "這些設定僅適用於這台電腦上的 Adminium 應用程式，會儲存在本機，不會儲存到你的工作區。"
+      "explainer": "這些設定僅適用於這台電腦上的 Adminium 應用程式，會儲存在本機，不會儲存到你的工作區。",
+      "title": "桌面設定"
     },
     "security": {
       "heading": "登入"
@@ -1687,7 +1840,8 @@ export default {
       "mismatchBody": "分享已關閉，但伺服器尚未釋放網路。請重新啟動 Adminium 以關閉它。",
       "transportTitle": "區域網路中的流量未加密。",
       "transportBody": "僅在你信任的網路中分享。如需遠端存取，請使用置於 HTTPS 之後的 Adminium 自架版本。",
-      "firewall": "首次分享時，作業系統會詢問是否允許傳入連線 — 請選擇「允許」，否則其他裝置將無法存取 Adminium。"
+      "firewall": "首次分享時，作業系統會詢問是否允許傳入連線 — 請選擇「允許」，否則其他裝置將無法存取 Adminium。",
+      "manageTeam": "管理使用者與角色"
     },
     "setup": {
       "title": "歡迎使用 Adminium",
@@ -2257,5 +2411,305 @@ export default {
       "x": "左右 (px)",
       "y": "上下 (px)"
     }
+  },
+  "audit": {
+    "action": {
+      "view": "檢視"
+    },
+    "actor": {
+      "apiKey": "API 金鑰",
+      "automation": "自動化",
+      "system": "系統",
+      "user": "使用者"
+    },
+    "category": {
+      "auth": "登入與帳戶",
+      "automation": "自動化",
+      "connection": "連線",
+      "data": "記錄",
+      "export": "匯入與匯出",
+      "llm": "AI 協助",
+      "rbac": "角色與權限",
+      "schema": "結構描述",
+      "settings": "設定",
+      "system": "系統"
+    },
+    "column": {
+      "action": "動作",
+      "actor": "執行者",
+      "category": "類別",
+      "details": "詳細資料",
+      "when": "時間"
+    },
+    "drawer": {
+      "actorId": "執行者 ID",
+      "actorKind": "執行者類型",
+      "after": "變更後",
+      "before": "變更前",
+      "category": "類別",
+      "changes": "變更內容",
+      "connection": "連線",
+      "field": "欄位",
+      "ip": "IP 位址",
+      "noChanges": "此動作沒有記錄變更前後的內容。",
+      "none": "無",
+      "requestId": "要求 ID",
+      "resource": "資源",
+      "subtitle": "{actor} · {when}",
+      "truncated": "已於 16 KB 處截斷",
+      "userAgent": "使用者代理程式"
+    },
+    "empty": {
+      "body": "資料、結構描述、設定與權限的變更，會在發生時顯示在這裡。",
+      "filtered": {
+        "body": "請擴大日期範圍，或清除類別篩選。",
+        "title": "沒有項目符合這些篩選條件"
+      },
+      "title": "尚未記錄任何項目"
+    },
+    "filterActor": "執行者 ID",
+    "filterCategoryAny": "任何類別",
+    "filterCategory": "依類別篩選",
+    "filterFrom": "起始",
+    "filterTo": "結束",
+    "listFailed": {
+      "title": "無法載入稽核紀錄"
+    },
+    "loadMore": "載入較舊的項目",
+    "subtitle": "這個工作區中的每一項變更、由誰執行，以及變更了什麼。",
+    "title": "稽核紀錄"
+  },
+  "roles": {
+    "action": {
+      "delete": "刪除",
+      "rename": "重新命名"
+    },
+    "builtinLocked": "內建角色無法刪除。",
+    "category": {
+      "access": "存取",
+      "data": "資料",
+      "operations": "維運",
+      "workspace": "工作區"
+    },
+    "column": {
+      "actions": "操作",
+      "members": "成員",
+      "name": "角色"
+    },
+    "create": {
+      "descriptionLabel": "說明",
+      "description": "新角色一開始完全沒有任何權限。",
+      "failed": "無法建立角色",
+      "namePlaceholder": "例如：客服人員",
+      "name": "名稱",
+      "submit": "建立角色",
+      "title": "新增角色"
+    },
+    "createButton": "新增角色",
+    "delete": {
+      "confirm": "刪除角色",
+      "description": "此角色與它的權限設定列都會被移除。",
+      "failed": "無法刪除角色",
+      "hasMembers": "「{name}」仍有 {count, plural, other {# 位成員}}。請選擇要把他們移到哪個角色——Adminium 不會讓任何帳戶沒有角色。",
+      "noMembers": "沒有人擁有「{name}」，因此不會有任何成員需要移動。",
+      "reassignPlaceholder": "選擇一個角色…",
+      "reassignTo": "將成員移至",
+      "title": "刪除角色"
+    },
+    "list": {
+      "title": "角色"
+    },
+    "loadFailed": {
+      "body": "下方的矩陣並不完整，因此直接儲存會清除那些只是尚未載入的權限。請先重新載入，再進行變更。",
+      "title": "有部分權限無法讀取"
+    },
+    "matrix": {
+      "discard": "捨棄",
+      "empty": {
+        "body": "此執行個體回報完全沒有可授予的權限，這不應該發生——請重新載入；若情況持續，請檢查伺服器日誌。",
+        "title": "沒有可顯示的權限"
+      },
+      "label": "角色權限",
+      "noChanges": "沒有待儲存的變更",
+      "pending": "{count, plural, other {# 項待儲存的變更}}",
+      "rowHeader": "權限",
+      "title": "權限"
+    },
+    "memberCount": "{count, plural, other {# 位使用者}}",
+    "permission": {
+      "apiKeysManage": "管理 API 金鑰",
+      "auditRead": "讀取稽核紀錄",
+      "connectionsManage": "管理資料庫連線",
+      "exportsManage": "管理所有人的匯出",
+      "importsManage": "管理所有人的匯入",
+      "jobsManage": "啟動與取消背景工作",
+      "jobsRead": "檢視所有背景工作",
+      "llmRun": "執行 AI 協助",
+      "pagesManage": "建立與整理頁面",
+      "reportsManage": "管理排程報表",
+      "rolesManage": "管理角色與權限",
+      "schemaRemap": "編輯結構描述的標籤與覆寫",
+      "settingsManage": "管理工作區設定",
+      "usersManage": "管理使用者"
+    },
+    "rename": {
+      "failed": "無法重新命名角色",
+      "title": "重新命名角色"
+    },
+    "saveFailed": {
+      "title": "有部分角色無法儲存"
+    },
+    "subtitle": "每個角色可以做什麼。使用者會取得他所擁有的所有角色的權限總和。",
+    "title": "角色與權限"
+  },
+  "security": {
+    "password": {
+      "changedBody": "下次登入時請使用新密碼。其他裝置上的工作階段不受影響——若你希望它們登出，請在下方撤銷。",
+      "changed": "密碼已變更",
+      "confirm": "確認新密碼",
+      "current": "目前的密碼",
+      "failed": "無法變更你的密碼",
+      "helper": "至少 8 個字元。",
+      "mismatch": "兩次輸入的密碼不一致。",
+      "new": "新密碼",
+      "submit": "變更密碼",
+      "title": "密碼"
+    },
+    "sessions": {
+      "expires": "{at} 到期",
+      "failedBody": "這份清單是唯一能顯示你的帳戶在哪些地方登入的地方，因此清單是空的時候，應視為狀態不明，而不是視為沒有任何登入。",
+      "failed": "無法讀取你的工作階段",
+      "ip": "IP {ip}",
+      "loading": "正在尋找其他已登入的裝置…",
+      "noIp": "未記錄 IP",
+      "revokeBody": "該工作階段會立即結束，正在使用它的人必須重新登入。",
+      "revokeFailed": "無法將該裝置登出",
+      "revokeTitle": "將此裝置登出",
+      "revoke": "登出",
+      "seenUnknown": "上次活動：不明",
+      "seen": "上次活動 {since}",
+      "thisDevice": "這台裝置",
+      "title": "已登入的裝置",
+      "unknownDevice": "無法辨識的裝置"
+    },
+    "subtitle": "你的密碼、你的第二道驗證，以及你目前登入的所有位置。",
+    "title": "安全性",
+    "twoFactor": {
+      "activateFailed": "這組驗證碼未被接受",
+      "activate": "啟用兩步驟驗證",
+      "body": "驗證器應用程式會產生一組 6 位數驗證碼，Adminium 會在你輸入密碼之後要求輸入它。",
+      "code": "驗證器應用程式中的驗證碼",
+      "copyKey": "複製設定金鑰",
+      "copyLink": "複製設定連結",
+      "disableBody": "你的帳戶會恢復為僅使用密碼，而你的備用碼將會失效。",
+      "disableConfirm": "關閉",
+      "disableFailed": "無法關閉兩步驟驗證",
+      "disablePassword": "你的密碼",
+      "disableTitle": "關閉兩步驟驗證",
+      "disable": "關閉兩步驟驗證",
+      "enrollFailed": "無法開始設定",
+      "enroll": "設定兩步驟驗證",
+      "hide": "隱藏設定金鑰",
+      "off": "未啟用",
+      "on": "已啟用",
+      "recovery": {
+        "body": "如果你遺失了驗證器，每一組備用碼都可以讓你登入一次。它們只會在現在顯示這一次。",
+        "copy": "複製備用碼",
+        "title": "儲存你的備用碼"
+      },
+      "reveal": "顯示設定金鑰",
+      "secretHelper": "把設定連結貼到你的驗證器中，或手動輸入這組金鑰。",
+      "secret": "設定金鑰",
+      "title": "兩步驟驗證"
+    }
+  },
+  "team": {
+    "action": {
+      "reactivate": "重新啟用",
+      "remove": "刪除",
+      "resend": "新連結",
+      "roles": "角色",
+      "suspend": "停權"
+    },
+    "column": {
+      "actions": "操作",
+      "lastSeen": "上次活動",
+      "person": "人員",
+      "roles": "角色",
+      "status": "狀態"
+    },
+    "counts": "{active} 位啟用中 · {invited} 位已邀請 · {suspended} 位已停權",
+    "empty": {
+      "body": "邀請團隊成員加入，讓他們擁有自己的登入帳戶與角色。",
+      "filtered": {
+        "body": "清除篩選條件，即可看到完整的成員名冊。",
+        "title": "沒有人符合這些篩選條件"
+      },
+      "title": "目前只有你擁有帳戶"
+    },
+    "filterRoleAny": "任何角色",
+    "filterRole": "依角色篩選",
+    "filterStatusAny": "任何狀態",
+    "filterStatus": "依狀態篩選",
+    "invite": {
+      "copied": "已複製",
+      "copyLink": "複製連結",
+      "created": {
+        "body": "請你自己把這個連結傳送給 {email}。它只會顯示這一次——Adminium 只保存它的雜湊值，因此一旦遺失，你就必須刪除這份邀請並重新發出一份新的。",
+        "title": "邀請已建立"
+      },
+      "emailIt": "以電子郵件寄送邀請",
+      "expiresRelative": "此連結將於 {at} 失效（{relative}）。",
+      "expires": "此連結將於 {at} 失效。",
+      "noEmail": {
+        "smtp": "此執行個體未設定 SMTP 伺服器，因此沒有任何可用來寄送郵件的方式。請透過你原本就信任的管道分享這個連結。",
+        "title": "Adminium 沒有以電子郵件寄出這個連結",
+        "unknown": "Adminium 無法確認此執行個體是否能夠寄送郵件。請透過你原本就信任的管道分享這個連結。"
+      }
+    },
+    "inviteButton": "邀請團隊成員",
+    "inviteDialog": {
+      "description": "Adminium 會建立帳戶，並給你一組一次性的啟用連結，讓你轉交出去。",
+      "emailPlaceholder": "name@example.com",
+      "email": "電子郵件",
+      "failed": "無法建立邀請",
+      "namePlaceholder": "例如：陳怡君",
+      "name": "姓名",
+      "rolesHelper": "請選擇足以讓他們完成工作的最小權限角色。之後可以再變更。",
+      "roles": "角色",
+      "submit": "建立邀請",
+      "title": "邀請團隊成員"
+    },
+    "listFailed": {
+      "title": "無法載入成員名冊"
+    },
+    "loadMore": "載入更多",
+    "neverSignedIn": "從未登入",
+    "noRoles": "沒有角色",
+    "remove": {
+      "body": "這會抹除 {name} 的帳戶、他們的偏好設定與登入工作階段，並把他們變更過的設定紀錄中的姓名清空。改用「停權」則會保留上述全部內容，只是讓他們無法登入。此操作無法復原。",
+      "confirm": "永久刪除",
+      "prompt": "輸入「{email}」以確認",
+      "title": "永久刪除帳戶"
+    },
+    "roles": {
+      "unavailable": "你的帳戶無法檢視角色，因此無法在這裡指派任何角色。"
+    },
+    "rolesDialog": {
+      "description": "使用者會取得他所擁有的所有角色的權限總和。",
+      "failed": "無法變更角色",
+      "title": "{name} 的角色"
+    },
+    "rolesLocked": "變更角色需要「管理角色」權限。",
+    "search": "搜尋姓名或電子郵件",
+    "status": {
+      "active": "啟用中",
+      "invited": "已邀請",
+      "suspended": "已停權"
+    },
+    "subtitle": "誰在這個 Adminium 上擁有帳戶，以及他們各自可以做什麼。",
+    "title": "團隊",
+    "twoFactorOn": "已啟用兩步驟驗證",
+    "twoFactorShort": "2FA"
   }
 } as const;

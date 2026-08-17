@@ -57,7 +57,6 @@ function stubFetch() {
 function renderTopbar(roles: string[]) {
   stubFetch();
   const onOpenStudio = vi.fn();
-  const onOpenStudioPages = vi.fn();
   const onOpenStudioSettings = vi.fn();
   render(
     <QueryClientProvider client={createQueryClient()}>
@@ -71,7 +70,6 @@ function renderTopbar(roles: string[]) {
               onSignOut={() => {}}
               onOpenAccount={() => {}}
               onOpenStudio={onOpenStudio}
-              onOpenStudioPages={onOpenStudioPages}
               onOpenStudioSettings={onOpenStudioSettings}
             />
           </ShortcutsProvider>
@@ -79,7 +77,7 @@ function renderTopbar(roles: string[]) {
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  return { onOpenStudio, onOpenStudioPages, onOpenStudioSettings };
+  return { onOpenStudio, onOpenStudioSettings };
 }
 
 afterEach(() => {
@@ -98,6 +96,15 @@ describe('avatar menu Studio section', () => {
     await user.click(screen.getByRole('button', { name: 'Account menu' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Workspace settings' }));
     expect(onOpenStudioSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves Pages out of the menu — Workspace settings owns that entry point', async () => {
+    const user = userEvent.setup();
+    renderTopbar(['admin']);
+
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    expect(await screen.findByRole('menuitem', { name: 'Workspace settings' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Pages' })).toBeNull();
   });
 
   it('hides the section from roles StudioGuard would reject', async () => {

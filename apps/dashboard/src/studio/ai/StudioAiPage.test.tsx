@@ -21,6 +21,7 @@ import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
 import { StudioAiPage } from './StudioAiPage.js';
 import type { LlmConfig, LlmRunDto } from './api.js';
+import { ShellHarness } from '../../test/shellHarness.js';
 
 // ── fixtures ────────────────────────────────────────────────────────────────
 
@@ -178,9 +179,11 @@ function renderPage(options: StubOptions & { onOpenReview?: (runId: string) => v
   render(
     <QueryClientProvider client={queryClient}>
       <AppToastProvider>
-        <Suspense fallback={<div>loading</div>}>
-          <StudioAiPage onOpenReview={onOpenReview} />
-        </Suspense>
+        <ShellHarness>
+          <Suspense fallback={<div>loading</div>}>
+            <StudioAiPage onOpenReview={onOpenReview} />
+          </Suspense>
+        </ShellHarness>
       </AppToastProvider>
     </QueryClientProvider>,
   );

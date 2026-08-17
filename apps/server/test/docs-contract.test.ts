@@ -19,6 +19,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
+import { envSchema } from '../src/config/env.js';
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const docsRoot = join(repoRoot, 'apps', 'docs', 'src', 'content', 'docs');
 
@@ -147,6 +149,23 @@ describe('the docs describe the build that shipped', () => {
     expect(page).not.toMatch(/governed by the same opt-in/);
     expect(page).toContain('updates.checkEnabled');
     expect(page).toMatch(/separate consent/i);
+  });
+
+  it('the env-vars page\'s "complete list" is complete, and lists nothing removed', () => {
+    // THE BUG THIS PINS, twice over. Under a heading reading "The complete list"
+    // the page omitted 4 of the 16 variables `envSchema` validates (the whole
+    // desktop block) and carried a `DATABASE_URL` row plus a section describing
+    // it as the first-boot connection seed — a variable no product code ever
+    // read. Both halves are now derived from the schema rather than maintained
+    // by hand, so a new variable that never reaches the docs fails here.
+    const page = read('apps/docs/src/content/docs/self-hosting/env-vars.md');
+    const table = page.slice(page.indexOf('## The complete list'), page.indexOf('An empty string'));
+    for (const name of Object.keys(envSchema.shape)) {
+      expect(table, `env-vars.md does not list ${name}`).toContain(`\`${name}\``);
+    }
+    // And the removed one is gone from the page entirely, except where the page
+    // deliberately explains its absence.
+    expect(table).not.toContain('`DATABASE_URL`');
   });
 
   it('describes ADMINIUM_TELEMETRY as the override it now is', () => {

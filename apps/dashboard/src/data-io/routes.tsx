@@ -12,6 +12,8 @@
  */
 import { createRoute, type AnyRoute } from '@tanstack/react-router';
 
+import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { DataExportsPage } from './DataExportsPage.js';
 import { ImportWizardPage } from './ImportWizardPage.js';
@@ -23,6 +25,7 @@ import { ImportWizardPage } from './ImportWizardPage.js';
 function ImportsRouteComponent() {
   return (
     <PageSurface width="content" fill>
+      <PageActions title={t('dataio.import.title', 'Import data')} />
       <ImportWizardPage />
     </PageSurface>
   );
@@ -31,6 +34,7 @@ function ImportsRouteComponent() {
 function ExportsRouteComponent() {
   return (
     <PageSurface width="content" fill>
+      <PageActions title={t('dataio.exports.title', 'Data exports')} />
       <DataExportsPage />
     </PageSurface>
   );

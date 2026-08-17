@@ -21,6 +21,7 @@ import { StatePage } from '../states/StatePage.js';
 import { ProgressRing } from './ProgressRing.js';
 import { isOnboardingAdmin, useOnboarding } from './useOnboarding.js';
 import { stepMeta, type OnboardingStepMeta } from './steps.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import type { OnboardingStep } from './api.js';
 
@@ -98,12 +99,10 @@ function OnboardingBody({ bootstrap }: { bootstrap: BootstrapData }): ReactNode 
 
   return (
     <PageSurface width="narrow" className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-section text-fg">{t('onboarding.title', 'Getting started')}</h2>
-        <p className="text-body-sm text-fg-muted">
-          {t('onboarding.subtitle', 'A few steps to get your workspace ready.')}
-        </p>
-      </div>
+      <PageActions
+        title={t('onboarding.title', 'Getting started')}
+        subtitle={t('onboarding.subtitle', 'A few steps to get your workspace ready.')}
+      />
 
       <Card>
         <CardHeader className="flex items-center gap-5">

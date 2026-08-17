@@ -19,6 +19,7 @@ import { Alert, Button, Card, CardBody, CardHeader, IconTile, KeyValueList } fro
 import { isDesktopRuntime } from '../lib/desktop-runtime.js';
 import { t } from '../i18n/t.js';
 import { aboutQuery, updateCheckQuery, type AboutData, type MetaEngine } from './aboutApi.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { DesktopAboutSections } from './DesktopAboutSections.js';
 
@@ -110,14 +111,13 @@ export function AboutPage(): ReactNode {
 
   return (
     <PageSurface width="narrow" className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-h2 font-extrabold tracking-[-0.02em] text-fg">
-          {t('about.title', 'About Adminium')}
-        </h1>
-        <p className="text-body-sm text-fg-muted">
-          {t('about.subtitle', 'Version, licence, and where this instance’s source code lives.')}
-        </p>
-      </div>
+      {/* Heading and subtitle live in the TOPBAR, not the body: the shell
+          renders an <h1> for every route regardless, so a second one here said
+          the same thing twice while the shell's copy said "Home". */}
+      <PageActions
+        title={t('about.title', 'About Adminium')}
+        subtitle={t('about.subtitle', 'Version, licence, and where this instance’s source code lives.')}
+      />
 
       {/* The self-host summary. On desktop it is omitted: §13's System card
           below carries the same version/engine facts in fuller form, and showing
