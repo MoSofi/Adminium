@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M2 exit criteria, end-to-end (16-milestones.md — "M2 — Server
  * core", Exit criteria) against ONE composed server instance on a fresh

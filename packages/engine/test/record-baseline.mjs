@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Re-records `fixtures/northwind.pages.baseline.json` from the CURRENT
  * generator output — a DELIBERATE act (see generate-baseline.test.ts: the

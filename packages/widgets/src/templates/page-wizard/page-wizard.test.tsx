@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `page-wizard` template (M7-T07): step-state derivation, rail affordances

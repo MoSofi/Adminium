@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * In-process single-use undo store for an LLM apply (06-llm-assist.md §8.3 /
  * §10.3 "success toast with Undo").

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * page-scheduler template tests (09-generated-app.md §7.6, M7-T03 modal→grid

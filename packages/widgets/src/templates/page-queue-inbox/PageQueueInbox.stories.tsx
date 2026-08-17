@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-queue-inbox` template stories (M7 queues track): the Approvals Queue
  * flavor (KPI row, segment tabs with live counts, undo-first bulk

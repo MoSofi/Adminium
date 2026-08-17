@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-contract shapes for the `feeds` family (annex §4). Types only — erased
  * at compile time, so both the pure `feeds-config` module (which the registry's

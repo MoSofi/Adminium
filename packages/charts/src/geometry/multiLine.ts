@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure multi-series polyline geometry (d3-shape only) — the core of
  * `chart-multiline` and `chart-bump` (research/widget-registry.md §2). DOM-free

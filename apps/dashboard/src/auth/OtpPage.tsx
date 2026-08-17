@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/otp` — the 2FA step-up (TwoFactorForm → POST /api/v1/auth/2fa/verify).
  * The challenge token comes from the login 202 via sessionStorage; arriving

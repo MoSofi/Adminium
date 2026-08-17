@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ⌘K command palette (09-generated-app.md §5.2, Command
  * Palette.dc.html): ui CommandPalette shell + useCommandK, fixed group order —

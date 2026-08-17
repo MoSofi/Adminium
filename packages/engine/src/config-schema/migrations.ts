@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Config-migration runner (01-architecture.md §8.2).
  *

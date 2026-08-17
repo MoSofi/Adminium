@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0006 — platform: adminium_llm_runs, adminium_automations,
  * adminium_automation_runs, adminium_scheduled_reports, adminium_exports,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Typed job-handler registry (08-server-api.md §2.17 job kinds, M2-T07).
  * Each kind pairs a Zod payload schema with an async handler; the worker

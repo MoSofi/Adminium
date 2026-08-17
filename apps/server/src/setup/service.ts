@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * First-run setup service (M10-T04, 16-milestones.md M10 + 01-architecture.md
  * §6). The ONE code path behind both front doors: the `/api/v1/setup/*` routes

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The desktop boot-token exchange (11-electron.md §5, §2.2 step 8).
  *

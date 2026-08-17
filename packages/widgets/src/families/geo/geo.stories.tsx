@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK COMM-GEO `geo` family stories (annex §7): the Leaflet bubble map and the
  * region-coded tilegram, the four WidgetFrame states through WidgetHost

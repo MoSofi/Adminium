@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `tables` family Track F config schemas + deterministic demo generators —
  * PURE module (zod, the shared config, the pure `column-spec` leaf and

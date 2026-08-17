@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bump-chart geometry (`chart-bump`, research/widget-registry.md §2): rank
  * over ordered periods, rank 1 pinned to the top. Ranks are a discrete

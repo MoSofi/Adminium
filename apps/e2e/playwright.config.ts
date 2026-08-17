@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Playwright config for the 3-engine e2e matrix (M9-T05, 01-architecture.md
  * §11 task 01-T10): drives the BUILT server serving the BUILT dashboard,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure review-model tests (06-llm-assist.md §8.2, §10.3). Pins the two
  * behaviours acceptance criterion 12 hangs on — "'Accept all ≥ 0.8' never

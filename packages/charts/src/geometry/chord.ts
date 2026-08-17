@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure chord geometry (`chart-chord`, research/widget-registry.md §2): nodes on
  * a ring sized by total pairwise volume, connected by quadratic-bezier ribbons

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-crud` config-body composer — the body-building vocabulary of the
  * Engine's bespoke `generate/crud.ts`, relocated behind the leaf boundary

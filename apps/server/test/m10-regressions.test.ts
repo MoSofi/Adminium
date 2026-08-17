@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Regression suite for the M10 self-host defects (v0.5 gate).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 2 — source (09 §8.2 step 1, M9-T04): three input modes behind a
  * SegmentedControl — DSN (mono connection-string field + provider quick-fill

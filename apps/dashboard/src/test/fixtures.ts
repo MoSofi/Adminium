@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Shared bootstrap + page-envelope fixtures mirroring the server reply shapes. */
 import type { PageEnvelope } from '@adminium/engine/config';
 

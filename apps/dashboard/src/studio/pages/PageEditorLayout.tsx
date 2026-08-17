@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The two-column shell both page routes share: fields on one side, a live
  * preview of the chosen template on the other.

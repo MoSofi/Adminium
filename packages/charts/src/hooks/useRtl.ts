@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Chart direction context (04-widget-registry.md §7.4). Wave B widget
  * wrappers bridge the i18n `dir` into this context (or pass `dir` straight to

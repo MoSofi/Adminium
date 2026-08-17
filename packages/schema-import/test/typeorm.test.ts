@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** TypeORM parser — golden model over the Northwind-ish entity file. */
 import { describe, expect, it } from 'vitest';
 

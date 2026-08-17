@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Branded 404 (404.dc.html + ia-mapping §4 Surface G keepers):
  * gradient mono numeral with the floating database tile, page-search

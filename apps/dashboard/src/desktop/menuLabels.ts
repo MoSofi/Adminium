@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Push the native menu's localized labels to the Electron shell (11-electron.md
  * §14: "All labels localized via @adminium/i18n bundles … menu rebuilds on

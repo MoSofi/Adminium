@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Non-React theme subscription (02-design-system.md §4.1) — for
  * Leaflet tile swaps, chart re-tints, Electron `nativeTheme` mirroring.

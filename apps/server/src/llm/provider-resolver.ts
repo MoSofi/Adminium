@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Production {@link ResolveRun} — turns a persisted run into a live provider
  * client with the DECRYPTED API key (06-llm-assist.md §3.2, §7.5, §9,

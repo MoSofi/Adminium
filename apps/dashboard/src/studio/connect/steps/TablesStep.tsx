@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 4 — table inclusion (M5-T02, 09 §8.2 step 3): every introspected
  * table with mono row-count estimates and PII warn badges; high-volume

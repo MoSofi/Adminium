@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * TRACK FORMS — unit tests for the M7 Wave-4 `forms` TAIL (annex §10):

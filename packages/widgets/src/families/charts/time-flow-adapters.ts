@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure §3-envelope → chart-primitive-input adapters for the M7 "time, forecast
  * & flow" charts group. Structural output types (compatible with the

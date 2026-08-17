@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `communication` family public surface (annex §9) — the standalone chat
  * components plus the Track-COMM registry metadata. Component code is also

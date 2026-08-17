@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * API-keys data layer (M10-T06) over the existing `/api/v1/api-keys` routes
  * (08-server-api.md §2.16) — no new server surface.

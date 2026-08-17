@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE utilityProcess ENTRY (11-electron.md §2.1 topology, §2.2 steps 5–7).
  *

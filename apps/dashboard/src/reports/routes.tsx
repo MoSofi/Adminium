@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Scheduled-reports route factory (M7 reports track) — mounted under the
  * authed app layout by app/router.tsx, the studioRoutes/dataIoRoutes pattern:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `command-palette` (annex §11) — ⌘K modal: live substring filter over an index,
  * grouped results in fixed order, keyboard navigation, ↵ executes/navigates,

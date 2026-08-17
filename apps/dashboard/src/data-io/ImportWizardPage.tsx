@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Import Wizard (M7-T07, 09-generated-app.md §11.1) — the four-step flow on
  * the `page-wizard` template shell: Upload (target picker + `upload-dropzone`)

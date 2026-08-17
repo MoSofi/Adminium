@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Adminium-owned migration runner (07-meta-store.md §4).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The generated-field renderer shared by `modal-wizard` and `drawer-form`
  * (annex §10 auto-instantiation: "column type → control (text/varchar→input,

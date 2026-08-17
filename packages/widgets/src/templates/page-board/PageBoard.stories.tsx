@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-board` template stories (09 §7.5): the stored-config kanban over a
  * canned record-list (Project Board), the swimlane variant (Kanban

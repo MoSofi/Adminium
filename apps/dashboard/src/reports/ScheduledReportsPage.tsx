@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Scheduled Reports (M7 reports track; comp: Scheduled Reports
  * .dc.html): the recurring-report manager — list rows through

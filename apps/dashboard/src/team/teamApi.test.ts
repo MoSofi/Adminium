@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure helpers behind the team directory (no DOM, no fetch): the query-string
  * builder, the activation-link join, and the instant formatters that `audit/`

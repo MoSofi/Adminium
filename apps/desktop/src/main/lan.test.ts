@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `main/lan.ts` — the facts §8.3's panel and toggle are built on.
  *

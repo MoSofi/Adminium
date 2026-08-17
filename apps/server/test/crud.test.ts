@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Live CRUD suite against real PostgreSQL + the real postgres adapter,
  * seeded with the adapter package's Northwind fixture. Skips (green) when

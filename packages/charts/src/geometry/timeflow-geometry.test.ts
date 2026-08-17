@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Geometry tests for the M7 "time, forecast & flow" chart group (04-T09).
  * Pure functions → determinism (Node-vs-expected byte identity), golden path

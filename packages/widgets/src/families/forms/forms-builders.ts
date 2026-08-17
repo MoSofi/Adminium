@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The closed vocabularies + pure logic behind the §10 BUILDER widgets —
  * `rule-builder`, `flow-builder`, `question-builder`, `column-mapping-table` and

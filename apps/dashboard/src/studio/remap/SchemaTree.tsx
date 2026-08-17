@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Left pane: searchable table tree with per-table column lists, mono type
  * chips and PK/FK/UNIQUE/PII badges (UI Kit schema explorer vocabulary).

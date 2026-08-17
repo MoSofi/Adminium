@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared AuthLayout composition for every `/login`-group screen: brand panel
  * copy per Login.dc.html, theme-toggle corner, and the ui screen as

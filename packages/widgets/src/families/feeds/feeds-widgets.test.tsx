@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `feeds` family (annex §4): render + interaction tests for the complete 7-id

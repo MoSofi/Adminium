@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `pnpm --filter @adminium/server dev` — the API server's watch loop.
  *

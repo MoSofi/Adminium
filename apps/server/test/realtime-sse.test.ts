@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SSE fallback `GET /api/v1/events` (08-server-api.md §3, M2-T07): auth +
  * channel authorization via inject, and a real-HTTP streaming test that

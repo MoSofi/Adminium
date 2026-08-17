@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard builder shell (04-widget-registry.md §6.2/§6.3, task 04-T14).
  * Wraps the `page-dashboard` render path with an edit-mode surface:

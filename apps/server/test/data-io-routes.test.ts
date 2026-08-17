@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M7-T07 data-io end-to-end over the fake SQLite-backed adapter (same harness
  * as crud-e2e.test.ts): upload → validate → import-run job → rows in the

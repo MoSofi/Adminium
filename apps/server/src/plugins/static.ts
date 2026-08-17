@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `static` plugin (08-server-api.md §1.2): serves a dashboard build directory
  * when one exists, with an SPA fallback to `index.html` for non-`/api/*`

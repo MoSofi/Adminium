@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared helpers for the generator (05-introspection-engine.md generation
  * section, 09-generated-app.md §2.2 slug rules).

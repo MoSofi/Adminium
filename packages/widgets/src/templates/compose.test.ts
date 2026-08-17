@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `composeTemplate` tests — 04-widget-registry.md §10 + acceptance #16:
  * "`composeTemplate('page-dashboard', …)` with zero chart candidates fails only

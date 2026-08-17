@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared fixtures for the direct-path runner tests (not collected — no `.test`).
  *

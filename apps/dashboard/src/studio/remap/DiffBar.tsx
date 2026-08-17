@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dirty-state bar: "{n} changes" + per-change chips with individual revert,
  * revert-all, and Save (PUT full document). After a successful save the

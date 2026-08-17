@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Drift guard for the generated a11y-critical key list (23 §3.3).
  *

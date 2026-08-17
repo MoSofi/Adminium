@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { sparkBars, sparkLine } from '@adminium/charts';
 import { MonoText } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-bump` primitive (research/widget-registry.md §2): rank-over-time
  * polylines with hollow dots and end labels (channel rank). Rank is an ordinal

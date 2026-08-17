@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Manifest spec v1 (13-marketplace.md §2), frozen at `manifestVersion: 1` for
  * all of Adminium 1.x. Pure Zod v4 + types — no `node:` imports — so the

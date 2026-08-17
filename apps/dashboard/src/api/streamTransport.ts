@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The app's realtime stream transport (04-widget-registry.md §5.3). A single
  * multiplexed WS connection (SSE fallback) shared by every live stream widget,

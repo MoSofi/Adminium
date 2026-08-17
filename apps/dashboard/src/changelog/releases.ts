@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The checked-in release feed behind `/changelog` (M10-T06).
  *

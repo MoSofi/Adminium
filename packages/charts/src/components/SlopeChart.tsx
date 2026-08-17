@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-slope` primitive (research/widget-registry.md §2): two period axes
  * (A → B) with one connecting line per record, colored pos/danger by direction,

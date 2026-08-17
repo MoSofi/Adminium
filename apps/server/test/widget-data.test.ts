@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Live widget-data API suite against real PostgreSQL + the real postgres
  * adapter, seeded with the Northwind fixture (04-widget-registry.md §5.2).

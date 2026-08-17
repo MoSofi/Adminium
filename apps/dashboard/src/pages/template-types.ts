@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared page-template contract types (09-generated-app.md §4.1) — leaf
  * module so template bindings and the registry never import each other.

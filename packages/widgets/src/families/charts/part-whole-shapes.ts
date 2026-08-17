@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Lenient narrowing for the §3 envelopes the part-to-whole & hierarchy charts
  * (04-T09) consume beyond `categorical` (which lib/shapes.ts already covers):

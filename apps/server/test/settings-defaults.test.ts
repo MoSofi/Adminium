@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GET/PUT /api/v1/settings/defaults (10-i18n-theming.md §7.2, M8-T04):
  * defaults + adoption counts, full-object write with audit (category

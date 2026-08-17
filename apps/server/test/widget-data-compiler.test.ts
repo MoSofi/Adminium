@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the widget-data query-descriptor compiler
  * (04-widget-registry.md §5.2): SQL-text assertions over dynamic Kysely

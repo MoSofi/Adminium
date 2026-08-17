@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Empty-states gallery — the exemplar port of Empty States.dc.html
  * (M1-T05). All six designed states compose the `EmptyState` component (and

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The §4.2 statistics collector, backed by a live {@link ConnectionManager}.
  *

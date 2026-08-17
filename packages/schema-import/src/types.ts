@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Public types for @adminium/schema-import — 05-introspection-engine.md §5.
  *

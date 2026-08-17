@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/studio/llm-runs/:id/review` — the review-diff screen (06-llm-assist.md
  * §8.2, §10.3). Loads the run detail + `SuggestionDiff[]`, groups them into the

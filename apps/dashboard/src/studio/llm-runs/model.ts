@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Review-diff model (06-llm-assist.md §8.2, §10.3) — the pure logic behind the
  * `/studio/llm-runs/:id/review` screen: it maps the server's per-suggestion

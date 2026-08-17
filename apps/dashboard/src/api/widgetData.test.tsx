@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data batch binding (04 §5, 09 §4.1): descriptor extraction from the
  * dashboard layout, batch dedupe (one round trip per page mount), and the

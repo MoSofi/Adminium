@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-scheduler` template stories (09 §7.6, M7-T03): the Shift Scheduler
  * comp (click-to-cycle matrix with coverage bars + week nav), the Team

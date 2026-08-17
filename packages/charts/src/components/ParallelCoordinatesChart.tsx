@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-parallel-coordinates` primitive (research/widget-registry.md §2):
  * evenly spaced vertical axes with one colored polyline per record. Axis order

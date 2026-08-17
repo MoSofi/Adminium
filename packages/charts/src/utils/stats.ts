@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * In-package stats helpers (~60 LOC) so @adminium/charts never pulls d3-array
  * (04-widget-registry.md §7 — only d3-scale and d3-shape are allowed

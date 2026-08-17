@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/studio/connect` — the connect wizard (M5-T01/T02/T03, 09 §8.2):
  * page-wizard pattern — `Stepper` header, one step body, sticky footer with

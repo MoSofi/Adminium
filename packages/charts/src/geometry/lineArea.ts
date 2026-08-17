@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Pure, DOM-free line/area path builders (d3-shape only). */
 import { area, curveLinear, curveMonotoneX, line } from 'd3-shape';
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Compact numeral formatting for axis/legend labels ("1.2k", "3.4M"). */
 export function formatCompact(value: number): string {
   const abs = Math.abs(value);

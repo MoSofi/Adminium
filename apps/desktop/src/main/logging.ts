@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Desktop logging (11-electron.md §9 "Logs"): "server stdout/stderr piped to
  * `<userData>/logs/adminium-server.log`, main-process log alongside; 5 MB × 5

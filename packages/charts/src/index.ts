@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/charts — bespoke SVG chart layer (04-widget-registry.md §7).
  * No chart library: d3-scale + d3-shape math only; colors strictly via CSS

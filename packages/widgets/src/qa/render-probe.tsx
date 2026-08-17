@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Loaded-render probe shared by the four-state and config-fuzz harnesses
  * (04-T17). Renders a widget's (lazy) component directly inside a Suspense +

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Column manager for `page-crud` pages — the table's `config.columns[]`.
  *

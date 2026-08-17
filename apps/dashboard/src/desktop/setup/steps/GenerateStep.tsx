@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 4 — "Generate" (11-electron.md §6): "Introspection + generation,
  * identical to Studio M5."

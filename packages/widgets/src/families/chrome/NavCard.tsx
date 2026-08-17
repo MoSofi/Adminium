@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `nav-card` (annex §11) — clickable surface card: tinted icon tile, title,
  * 2-line description, hover lift + sliding arrow; for hub/landing pages inside

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step — "Enrich with AI" (06-llm-assist.md §10.2). Three option cards
  * ("Use my AI provider" / "Copy a prompt to my own AI tool" / "Skip — use

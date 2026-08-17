@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-donut` primitive (research/widget-registry.md §2): SVG arcs via
  * d3-shape, inner total slot, legend rows (color dot, label, mono value),

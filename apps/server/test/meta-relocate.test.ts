@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Meta-store relocation (01-architecture.md §3.1, §7.2) — the service, the
  * retire step, and the host that restarts onto the moved store.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/studio` — the connections manager hub (M5-T05, 09 §8.1, ported from
  * `Data Connections.dc.html` per the §5 checklist): stat tiles over

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The two guards that belong between `docker compose pull && up -d` and the
  * first migration statement: take a snapshot, and refuse to run against a store

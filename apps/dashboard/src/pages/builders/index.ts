@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Builder surfaces (M7-T06): the `page-builder` template binding (invoice /
  * report / survey / automation flavors over adminium_pages) and the Email

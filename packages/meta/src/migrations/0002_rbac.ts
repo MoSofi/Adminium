@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0002 — RBAC: adminium_roles, adminium_role_permissions,
  * adminium_user_roles, adminium_api_keys (07-meta-store.md §3.7–§3.10).

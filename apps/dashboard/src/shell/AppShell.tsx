@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * AppShell (09-generated-app.md §5.1): sidebar + sticky topbar + routed
  * outlet, plus the app-wide surfaces — ⌘K palette, shortcuts panel, offline

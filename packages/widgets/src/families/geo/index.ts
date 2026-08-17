@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `geo` family public surface (annex §7) — the bubble map and the region-coded
  * tilegram, plus the TRACK COMM-GEO registry metadata. Component code is also

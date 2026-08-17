@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `product-personalizer@1` (24 §5.5, added 2026-08-05 with `personalizer`) —
  * the one contract whose implementation spans three surfaces (shopper, staff,

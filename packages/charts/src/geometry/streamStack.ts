@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Streamgraph stacking geometry (`chart-stream`, research/widget-registry.md
  * §2): centered ("silhouette") stacked bands over time. Pure + DOM-free; the

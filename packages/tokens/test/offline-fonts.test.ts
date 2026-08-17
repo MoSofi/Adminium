@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The font half of the offline guarantee (11-electron.md §7, 11-T09).
  *

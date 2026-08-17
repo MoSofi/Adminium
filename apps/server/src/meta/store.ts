@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Meta-store resolution + connection (01-architecture.md §3.1, §7.1, §7.2).
  *

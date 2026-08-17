@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Override document model + dirty-state buffer for the schema remap editor
  * (05-introspection-engine.md overrides, 07-meta-store.md §3.15).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Connections hub component tests (M5-T05): card rendering (engine badge,
  * health pill, counts, relative snapshot age), the header/empty CTAs, the

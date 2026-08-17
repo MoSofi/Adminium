@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * List pipeline for `GET /data/:connectionId/:table` (08-server-api.md
  * §2.7.1): select allowlisting, filter DSL, `q=` quick search, ≤ 3 sort

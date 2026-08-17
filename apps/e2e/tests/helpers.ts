@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from '@playwright/test';
 
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from './constants.js';

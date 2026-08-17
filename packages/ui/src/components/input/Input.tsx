@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { cva } from 'class-variance-authority';
 import type { VariantProps } from 'class-variance-authority';
 import type * as React from 'react';

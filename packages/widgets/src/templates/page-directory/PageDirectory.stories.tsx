@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-directory` template stories (M7 people track): the Team Directory
  * card grid with search + dept chips, the Org Chart tree variant on a

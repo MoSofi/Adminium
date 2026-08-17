@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The parent ↔ utilityProcess wire contract (11-electron.md §2.2 steps 5–9).
  *

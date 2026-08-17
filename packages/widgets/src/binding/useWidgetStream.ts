@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `useWidgetStream` — the client half of the `stream` binding (04-widget-registry.md
  * §5.3). A stream widget (realtime-feed, live log-table tail, unread-badge)

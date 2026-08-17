@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ensure-storybook — build `storybook-static/` only when needed.
  *

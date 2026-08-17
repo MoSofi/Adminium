@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-sunburst` primitive (research/widget-registry.md §2): two nested rings
  * from a 2-level hierarchy (inner = parents, outer = children), with a legend of

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/api/v1/llm/*` route tests (06-llm-assist.md §10.5, §3.2, acceptance #10/#13).
  *

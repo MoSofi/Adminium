@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Per-path validation-error list for the BYO paste screen (06-llm-assist.md
  * §7.2). Every error renders verbatim — code · JSON path · human sentence

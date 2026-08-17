@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `inline-editable-field` (annex §10) — a text/number/select span rendered as a
  * transparent input inside documents and canvases: click (or Enter/Space) to

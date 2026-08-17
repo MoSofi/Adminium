@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GET /api/v1/settings/workspace + PUT /settings/branding (M5-T05, 08 §2.16
  * sectioned puts): registry-backed defaults, a persisted write with audit

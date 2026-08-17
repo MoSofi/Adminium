@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Right-pane inspector for a selected column: label override, logical type
  * (read-only — see note), semantic override over the engine SEMANTIC_TAGS

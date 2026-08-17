@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * App-lifetime stream transport singleton for the live-tail templates
  * (page-log-viewer's WS tail — 04-widget-registry.md §5.3).

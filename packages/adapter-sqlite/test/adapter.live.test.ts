@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Full-adapter tests through the real better-sqlite3 driver — gated on the
  * native binding loading, so the suite skips cleanly pre-install. Covers the

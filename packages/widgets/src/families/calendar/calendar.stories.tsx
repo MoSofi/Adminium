@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK CAL `calendar` family stories (annex §5): each widget's loaded variant,
  * the four WidgetFrame states through WidgetHost (acceptance #4), and light/dark

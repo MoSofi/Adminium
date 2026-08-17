@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Live introspection tests, gated on the better-sqlite3 driver (the standing
  * rule: suites skip cleanly pre-install). The headline assertions: loading

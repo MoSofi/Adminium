@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A real CRUD round-trip through the embedded stack, driven from the
  * authenticated renderer (11-electron.md §6/§9, 11-T20).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK OPS — component barrel for the eighteen §13 ops / billing / API /
  * marketing cards: the single lazy-import target for

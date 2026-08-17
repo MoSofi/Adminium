@@ -78,6 +78,22 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      # The licence gate. It runs BEFORE the 20-minute turbo task on purpose: it
+      # needs no install and no build, finishes in under a second, and a missing
+      # header is the cheapest possible failure to report.
+      #
+      # It cannot be an ESLint rule — every package's lint script is `eslint src`
+      # and there is no root eslint.config.js, so 263 tracked source files
+      # (apps/server/test, packages/*/test, scripts/, every vitest.config.ts)
+      # are outside any lint invocation. `git ls-files` has no such blind spot.
+      # See the header of scripts/check-spdx.mjs.
+      #
+      # Fix a red run with `pnpm run check-spdx --fix`. If it goes red on a file
+      # nobody edited, a code GENERATOR rewrote it without the header — put the
+      # SPDX line in that generator's template, never in an exemption list.
+      - name: Check SPDX headers
+        run: pnpm run check-spdx
+
       - name: Lint, typecheck, build, test
         run: pnpm turbo run lint typecheck build test
         env:
@@ -96,6 +112,17 @@ jobs:
       # failure should say what broke, not "build".
       - name: Check offline assets
         run: pnpm run check-offline-assets
+
+      # 08-server-api.md §1.1: every /api/v1 route declares a zod schema, so the
+      # OpenAPI document is DERIVED from the route tree rather than written by
+      # hand — and a derived artifact that nobody regenerates is a stale
+      # contract published as a current one. This composes the real server
+      # (apps/server/scripts/openapi.mjs) and fails when the emitted spec
+      # differs from the committed apps/server/openapi.json. Same shape as the
+      # allow-list and translation gates above; it runs after the build step
+      # because it imports the server's dist.
+      - name: Check OpenAPI spec is current
+        run: pnpm run openapi-check
 
       # 10-i18n-theming.md §3.5 / 23-runtime-translations.md §10. This gate has
       # existed as a package script since M8 and was never wired into CI, so

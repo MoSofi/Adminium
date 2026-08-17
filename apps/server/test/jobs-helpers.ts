@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared jobs/realtime test harness (not collected — no .test suffix).
  *

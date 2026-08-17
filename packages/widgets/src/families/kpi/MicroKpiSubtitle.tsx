@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `micro-kpi-subtitle` (annex §1) — the inline header micro-KPI line recomputed
  * from live state ("3 unread · 10 total", "24 members · 8 online", "N connected ·

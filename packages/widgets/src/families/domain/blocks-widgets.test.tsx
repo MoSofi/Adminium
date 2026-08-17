@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * TRACK BUILDER unit tests (annex §13) — `document-canvas` + the 22 `block-*`

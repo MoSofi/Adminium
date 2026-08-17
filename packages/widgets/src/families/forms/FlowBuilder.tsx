@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `flow-builder` (annex §10) — a vertical workflow canvas of typed nodes
  * (trigger=accent, condition=warn, action=pos) joined by connectors, with live

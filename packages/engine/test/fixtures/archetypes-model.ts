@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A synthetic schema built to exercise every §14 auto-trigger the runtime can
  * compose (research/widget-registry.md §14, M7 exit criteria). One table per

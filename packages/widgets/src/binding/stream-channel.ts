@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data stream channel names (04-widget-registry.md §5.3). Channels are
  * `widget-data:{connectionId}:{qualifiedTable}`; the qualified table is the

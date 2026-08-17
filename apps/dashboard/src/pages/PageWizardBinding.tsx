@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-wizard` binding (09-generated-app.md §4.1, §11.1): resolves the
  * seeded Import-wizard page (template `page-wizard`) to the real Import

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests — declared type → affinity → LogicalType mapping
  * (05 §2.2 SQLite column + §4.3 quirks), default classification, CHECK

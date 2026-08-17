@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Read-only, virtualized monospace viewer for a BYO enrichment prompt
  * (06-llm-assist.md §10.2 step 4). The flattened prompt (`=== SYSTEM ===` /

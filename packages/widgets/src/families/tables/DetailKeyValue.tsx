@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { KeyValueList, KeyValueRow, Tag } from '@adminium/ui';
 
 import { CellValue } from './cells.js';

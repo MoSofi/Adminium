@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Config schemas for the "bars & ranking" chart group (04-T09): chart-bullet,
  * chart-ranking-bars, chart-pareto, chart-waterfall, chart-marimekko,

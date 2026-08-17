@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Mount-animation gate (04-widget-registry.md §7.5 and
  * research/design-system.md §4.3): elements render in their "from" state,

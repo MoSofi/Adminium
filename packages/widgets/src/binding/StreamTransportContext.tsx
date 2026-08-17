@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React context carrying the app's realtime {@link StreamTransport} (04 §5.3).
  * The host app (`apps/dashboard`) constructs the concrete WS/SSE transport once

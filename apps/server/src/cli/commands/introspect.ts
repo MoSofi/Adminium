@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `adminium introspect` — introspect a connection and print/persist the snapshot.
  *

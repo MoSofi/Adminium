@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-ridgeline` primitive (research/widget-registry.md §2): overlapping
  * filled density ridges with decreasing alpha, one ridge per group (front row

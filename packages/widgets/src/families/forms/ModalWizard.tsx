@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `modal-wizard` (annex §10) — the two-state modal (form → success
  * confirmation): backdrop/Escape close, submit harvests values and persists, the

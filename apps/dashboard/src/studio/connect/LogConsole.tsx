@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * progress-log-console (09 §8.2 step 2) — mono introspection log with the
  * comps' storytelling lines; tones per line kind. The comp left several

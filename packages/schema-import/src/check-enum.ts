@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CHECK-constraint → enum synthesis shared by the SQL and Rails parsers.
  * Recognizes `col IN ('a','b')` (any dialect, quoted or bare identifiers) and

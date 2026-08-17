@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Checked-in extraction of the widget-registry ANNEX catalog
  * (the internal widget-registry annex, §1–§13) — the source of truth the

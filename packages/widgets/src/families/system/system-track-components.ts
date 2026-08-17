@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `system` family component barrel — the single lazy-import target for this
  * family's definitions, so the registry metadata graph reaches the

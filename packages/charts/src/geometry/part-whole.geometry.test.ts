@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure-geometry tests for the part-to-whole & hierarchy charts (04-T09):
  * determinism (same input → byte-identical output, proving Node-vs-browser

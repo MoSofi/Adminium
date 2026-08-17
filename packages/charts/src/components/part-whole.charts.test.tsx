@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * Render tests for the part-to-whole & hierarchy chart primitives (04-T09):

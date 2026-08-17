@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Inspector field derivation (04-T14): the config inspector's fields are
  * generated from a widget's Zod config schema — primitive kinds only, composite

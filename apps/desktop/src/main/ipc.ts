@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Typed `ipcMain` handlers — the main-process half of the §4 preload bridge
  * (11-electron.md §4, §2.4).

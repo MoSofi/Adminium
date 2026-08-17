@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The setup wizard's shape (`src/cli/commands/init.ts`).
  *

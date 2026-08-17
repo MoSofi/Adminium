@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `question-builder` (annex §10) — the survey editor pair: a palette rail of the
  * 8 addable question types beside reorderable question cards with type-specific

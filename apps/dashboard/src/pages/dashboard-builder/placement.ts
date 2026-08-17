@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Builder-local layout placement helpers (04-widget-registry.md §6.2 "Adding
  * widgets"). The builder needs to place, clone, remove and re-configure grid

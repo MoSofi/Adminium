@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Interaction-patterns gallery (M1-T05) — the load-bearing behaviors the comps
  * share (research/ia-mapping.md §5 "reusable primitives"), each as a sub-story

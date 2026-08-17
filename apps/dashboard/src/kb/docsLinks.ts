@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The one place the docs site's origin is written down (14-docs-site.md).
  *

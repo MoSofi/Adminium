@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Thrown for fatal import problems (undetectable format, unparseable JSON, invalid IR). */
 export class SchemaImportError extends Error {
   override readonly name = 'SchemaImportError';

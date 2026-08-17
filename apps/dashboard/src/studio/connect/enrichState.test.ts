@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure enrich-step rules (06-llm-assist.md §10.2, §7.5) — section/locale
  * toggles, provider-card gating, request shaping, the BYO merge gate, the §7.5

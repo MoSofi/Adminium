@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React binding of the pure buffer core (`overrides.ts`): baseline derives
  * from the overrides query, the overlay is local state. After a successful

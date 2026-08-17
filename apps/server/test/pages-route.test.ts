@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GET /api/v1/pages/:pageId (08-server-api.md §2.6 read surface): returns the
  * stored envelope verbatim under `data`, 404s on missing/disabled pages, and

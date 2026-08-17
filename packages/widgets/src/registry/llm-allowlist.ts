@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LLM allow-lists (06-llm-assist.md §4.4/§5) — the closed vocabularies the
  * schema-enrichment prompt injects so the model can only ever suggest page

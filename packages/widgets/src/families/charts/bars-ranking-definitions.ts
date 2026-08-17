@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family "bars & ranking" definitions (04-T09; annex §2 ids
  * chart-bullet, chart-ranking-bars, chart-pareto, chart-waterfall,

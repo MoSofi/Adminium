@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The desktop-only §13 About sections (11-electron.md §13), rendered beneath the
  * shared About surface (see `AboutPage.tsx`) whenever the SPA runs in the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The export's secret policy (M10-T03; BRIEF §3).
  *

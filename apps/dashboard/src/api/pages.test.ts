@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-config client (09-generated-app.md §3): migrate → validate, with every
  * failure mode returned as a value — too-new documents and invalid envelopes

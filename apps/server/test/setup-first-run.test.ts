@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * First-run super-admin bootstrap (M10-T04) — the whole attack surface of a
  * self-hosted first boot, so this suite is written against the ATTACK, not just

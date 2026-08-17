@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Scheduled-report time math (07-meta-store.md §3.24, M7 reports track).
  *

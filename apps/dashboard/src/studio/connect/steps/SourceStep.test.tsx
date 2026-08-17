@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SourceStep (M9-T04) focused regression: in schema-file mode the format Select
  * must be disabled while a parse is in flight — same as the Dropzone — so a

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `adminium export-zip` — bundle the instance's server + configuration.
  *

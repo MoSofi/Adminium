@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The i18n revision counter (23-runtime-translations.md §4.4).
  *

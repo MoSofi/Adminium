@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** JSON IR parser — the public ingestion contract + pretty error mapping. */
 import { describe, expect, it } from 'vitest';
 

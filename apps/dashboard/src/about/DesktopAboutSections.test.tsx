@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * §13's desktop About panel — the sections that exist ONLY in the Electron shell
  * (11-electron.md §13). Renders the whole `AboutPage` with `window.adminiumDesktop`

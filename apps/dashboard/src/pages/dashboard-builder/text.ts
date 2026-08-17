@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Human-label helpers for builder surfaces. Widget ids and Zod config-schema
  * keys are technical identifiers; the palette and the auto-generated config

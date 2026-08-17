@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Relations tab: declared FKs read-only, inferred relations with confidence
  * and accept/suppress (relation.add / relation.remove ops, 05 §6 accept →

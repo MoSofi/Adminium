@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `kpi` family component barrel — the single lazy-import target of this
  * family's definitions, so Vite emits one chunk for the whole family

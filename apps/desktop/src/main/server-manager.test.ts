@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The §2.2 handshake and the §2.2 step 9 restart policy, driven with a fake
  * child and a fake clock. No Electron, no fork, no socket.

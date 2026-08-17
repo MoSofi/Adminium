@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Locating the dashboard build (01-architecture.md §4.1: the published package
  * "bundles the server, the dashboard `dist/`, and the meta migrations").

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LAN share, server side (11-electron.md §8.3): `GET /api/v1/desktop/lan-share`'s
  * gates and counts, `lanShareActive`'s bind reading, and §8.3's audit-log

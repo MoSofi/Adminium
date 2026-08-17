@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 3 — connection test + introspection (09 §8.2 step 2, M5-T01):
  * POST /connections/test (probe) → POST /connections (create) →

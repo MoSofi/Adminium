@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `avatar-stack` (annex §11) — overlapping gradient-initials avatars with a
  * "+N" overflow bubble; presence variant adds online dots + an online-count

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `tab-bar` (annex §11) — icon+label underline or pill tabs driving panel
  * visibility; supports count pills in labels and cross-page link tabs. Evidence:

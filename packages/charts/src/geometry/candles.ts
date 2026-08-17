@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * OHLC candlestick geometry (`chart-candlestick`, research/widget-registry.md
  * §2). Pure + DOM-free. The price axis is a fixed LTR-island convention

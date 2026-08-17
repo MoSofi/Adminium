@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Snapshot module — 05-introspection-engine.md §9 (M3-T02 diff half /
  * 05-T09 engine side).

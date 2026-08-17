@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TanStack Router tree — code-based, per 09-generated-app.md §2.3: a single
  * dynamic `/p/$slug` route resolves generated pages from the nav tree (the

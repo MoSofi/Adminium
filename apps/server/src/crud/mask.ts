@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Field-level PII read masking (08-server-api.md §5.3): callers without the
  * unmask permission receive masked columns as `null` plus a `_masked`

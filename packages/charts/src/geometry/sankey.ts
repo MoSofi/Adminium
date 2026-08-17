@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure Sankey flow geometry (research/widget-registry.md §2 `chart-sankey`):
  * layered node rects + cubic-bezier ribbon paths weighted by flow. DOM-free and

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Full-stack CRUD API suite over a FAKE adapter provider (SQLite-backed
  * QueryEngine behind an in-process AdapterProvider). Runs everywhere — no

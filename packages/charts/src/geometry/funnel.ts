@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure funnel geometry (`chart-funnel`, research/widget-registry.md §2):
  * ordered shrinking stages with two layouts —

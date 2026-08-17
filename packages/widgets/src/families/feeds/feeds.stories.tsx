@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `feeds` family stories (annex §4) — the complete 7-id slice: each widget's
  * loaded variant, the four WidgetFrame states through WidgetHost (acceptance

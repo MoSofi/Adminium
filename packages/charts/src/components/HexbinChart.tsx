@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-hexbin` primitive (research/widget-registry.md §2): hex-grid density
  * tiles, alpha by count, sparse (null/0) cells omitted. The grid mirrors in RTL

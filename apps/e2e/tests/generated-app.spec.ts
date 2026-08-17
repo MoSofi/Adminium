@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M9-T05 e2e — the generated app against a live engine (E2E_ENGINE), seeded
  * with the Northwind demo fixture by scripts/e2e-server.mjs:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Generation pipeline glue (M4-T08): latest classified snapshot (introspect
  * first when none) → `generatePages()` (@adminium/engine) → validate every

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard-build resolution + the published-package wiring (01 §4.1: the
  * `adminium` package "bundles the server, the dashboard `dist/`, and the meta

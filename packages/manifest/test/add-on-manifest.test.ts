@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `kind: "add-on"` branch (24 §5.2, §5.3) and — just as important — the
  * proof that adding it broke nothing: a manifest written before wave 4 carries

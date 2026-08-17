@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Sidebar (09-generated-app.md §5.1): 256px rail — logo block + app-version
  * chip and the five fixed nav groups from the bootstrap NavTree (uppercase

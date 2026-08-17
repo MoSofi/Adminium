@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic seeded demo payloads for the M7 "time, forecast & flow" charts
  * (04 §7.7, acceptance #11 — byte-identical across runs/platforms). Time base

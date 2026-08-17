@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Github, Hexagon, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';

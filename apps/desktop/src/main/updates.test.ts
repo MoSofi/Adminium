@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The updater (11-electron.md §11), driven through injected ports — no Electron,
  * no electron-updater, no real timers. What these pin is exactly what the module

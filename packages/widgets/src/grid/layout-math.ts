@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Static layout math for the dashboard grid (04-widget-registry.md §6.1).
  * M4 renders layouts read-only — the dnd-kit editing pipeline (applyMove,

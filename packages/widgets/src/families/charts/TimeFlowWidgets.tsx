@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family "time, forecast & flow" widgets (04-T09; annex §2 ids
  * chart-multiline, chart-stream, chart-forecast, chart-anomaly,

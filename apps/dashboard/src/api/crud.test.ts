@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CrudApi client ↔ `/api/v1/data/:connectionId/:table`
  * (apps/server/src/routes/data): URL/param serialization, reply mapping, and

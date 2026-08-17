@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Inert stand-in for the `electron` module under vitest (aliased in
  * vitest.config.ts — see the rationale there). It exists so importing a main

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The table-inclusion RULES behind `table-inclusion-checklist` (annex §10) —
  * PURE module (React-free, JSX-free, copy-free).

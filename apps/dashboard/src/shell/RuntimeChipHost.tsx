@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The topbar's runtime chip (11-electron.md §8.1) — the two feeds §8.1
  * sanctions, joined to `runtimeChipState()`'s precedence, rendered as

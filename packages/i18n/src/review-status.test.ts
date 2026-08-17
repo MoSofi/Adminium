@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Gate on the translation review-status data (10-i18n-theming.md §3.1/§3.3).
  *

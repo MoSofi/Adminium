@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * A minimal stand-in for the app shell's topbar, for tests that render ONE page
  * component rather than the whole router.

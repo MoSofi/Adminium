@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pre-hydration script — flash prevention. See 02-design-system.md §4.3.
  *

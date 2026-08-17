@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chrome` family shared helpers (annex §11) — PURE module (no React, no
  * @adminium/ui, no lucide). Imported by both the family's config module and its

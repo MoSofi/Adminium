@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Auth flow helpers against `/api/v1/auth/*` (apps/server/src/routes/auth).
  * The ui auth screens are controlled compositions — these functions own the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Avatar, CountBadge, EmptyState, SearchInput } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Users } from 'lucide-react';

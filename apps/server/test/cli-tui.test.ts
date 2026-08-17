@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The TUI primitives (`src/cli/io.ts`).
  *

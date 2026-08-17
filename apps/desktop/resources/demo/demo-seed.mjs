@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The demo database — 11-electron.md §6 Step 2 card 4 ("Explore the demo
  * database"), task 11-T08.

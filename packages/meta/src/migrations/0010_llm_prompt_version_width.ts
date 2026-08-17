@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0010 — widen `adminium_llm_runs.prompt_version` (str(10) → str(40)).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Audit query-route tests (08-server-api.md §2.14, M2-T06): RBAC guard,
  * category/actor/date-range/resource filters, keyset pagination, detail

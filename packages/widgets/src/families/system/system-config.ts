@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `system` family config schemas + deterministic demo generators (annex §12) —
  * PURE module (zod + system-lib only; no React, no @adminium/ui, no lucide).

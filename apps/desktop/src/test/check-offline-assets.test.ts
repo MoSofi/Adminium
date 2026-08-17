@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `scripts/check-offline-assets.mjs` — the 11-electron.md §7 gate (11-T09).
  *

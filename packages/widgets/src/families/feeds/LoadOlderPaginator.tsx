@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `load-older-paginator` (annex §4) — the footer button that appends N older
  * records per click and relabels (or disappears) on exhaustion. Attached to a

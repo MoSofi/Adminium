@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-master-detail` template stories (M7 people/queues track): the Ticket
  * Queue flavor (enum-tone priority tints, live facet chips, derived micro-KPI

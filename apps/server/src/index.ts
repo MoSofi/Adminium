@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/server — Fastify 5 application (08-server-api.md §1) plus the M0
  * config layer (env, secrets, bootstrap file). `buildServer()` assembles the

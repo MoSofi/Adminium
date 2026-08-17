@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Write-time validation for admin-authored overrides (23 §6.3).
  *

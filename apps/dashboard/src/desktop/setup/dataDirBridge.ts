@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * §6 step 1's three bridge calls, in one place.
  *

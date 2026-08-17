@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Grid-track layout schema surface (04-widget-registry.md §6.1).
  *

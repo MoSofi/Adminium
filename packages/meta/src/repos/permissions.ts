@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * permissionsRepo — adminium_role_permissions (07-meta-store.md §3.9).
  * The `actions` JSON is Zod-validated per resource kind and never queried in

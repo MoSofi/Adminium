@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure radar geometry (`chart-radar`, research/widget-registry.md §2): N named
  * axes arranged on a regular polygon, one polygon per series (current vs an

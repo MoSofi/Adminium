@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Config schemas for the `charts` family M4 base group (annex §2):
  * `chart-line-area`, `chart-bar`, `chart-donut`, `chart-sparkline`. PURE

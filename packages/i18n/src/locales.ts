@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Canonical locale registry (10-i18n-theming.md §2.1) plus the runtime
  * overlay that lets an admin add locales the build never saw

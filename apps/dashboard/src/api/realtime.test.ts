@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Realtime → cache invalidation map (09 §2.1 step 5, §4.1): `config-changed`
  * refreshes bootstrap + every page document; table / widget-data publications

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { QueryDescriptor } from '../../page-config/index.js';
 import { isErrorRow } from '../../families/tables/LogTable.js';
 import type { LogRow } from '../../families/tables/tables-track-f-types.js';

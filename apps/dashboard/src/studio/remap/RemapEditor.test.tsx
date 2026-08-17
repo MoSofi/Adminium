@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Remap editor integration: tree rendering from a schema fixture (labels,
  * type chips, badges), the label-edit → diff bar → save → PUT-exact-document

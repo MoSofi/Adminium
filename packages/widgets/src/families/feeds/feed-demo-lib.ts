@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The framework-free leaf of the `feeds` family (annex §4): the deterministic
  * seeded PRNG, the fixed demo epoch, and the day constant the demo payloads and

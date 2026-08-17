@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Transaction-pooling endpoints, end to end — no database required.
  *

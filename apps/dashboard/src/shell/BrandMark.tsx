@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The workspace's mark and name — the one component that decides what
  * "Adminium" is called and what its logo looks like on any given install.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-settings` binding (09-generated-app.md §4.1; comp: Notification
  * Settings) — projects the PageSettings template onto the LIVE

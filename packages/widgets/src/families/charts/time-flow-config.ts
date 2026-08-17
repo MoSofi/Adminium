@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Config Zod schemas for the M7 "time, forecast & flow" charts family group
  * (04-T09; annex §2 per-widget `Config` lists). Pure module — no chart

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * User-directory routes (08-server-api.md §2.15): the list page and its
  * filters, the invite → activation-token → `POST /auth/password/reset` round

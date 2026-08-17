@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TablesStep (M7 Wave 4) focused a11y regression: the step's `<section>` and the
  * `table-inclusion-checklist` widget's `<ul>` are two nested landmarks, so they

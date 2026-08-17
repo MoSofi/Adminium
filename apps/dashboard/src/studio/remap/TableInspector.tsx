@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Right-pane inspector for a selected table: label override, icon picker,
  * nav group (read-only — see note below), include/exclude toggle, and the

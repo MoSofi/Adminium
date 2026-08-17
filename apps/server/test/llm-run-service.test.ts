@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LLM run-service lifecycle (06-llm-assist.md §7.4, §9).
  *

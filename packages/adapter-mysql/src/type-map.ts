@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * MySQL/MariaDB COLUMN_TYPE → portable LogicalType mapping —
  * 05-introspection-engine.md §2.2 ("canonical table — extend, never fork"),

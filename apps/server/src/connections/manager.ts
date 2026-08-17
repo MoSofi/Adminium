@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ConnectionManager — the three-connection privilege model at runtime
  * (01-architecture.md §3, M3-T04):

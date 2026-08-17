@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `tables` family Track-F component barrel — the single lazy-import target for
  * this track's definitions, so the registry's metadata graph reaches the

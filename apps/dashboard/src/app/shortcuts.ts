@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Global keyboard manager (09-generated-app.md §5.3): components register
  * shortcut definitions; the shortcuts panel renders from the live

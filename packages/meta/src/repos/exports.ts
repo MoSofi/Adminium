@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * exportsRepo — adminium_exports (07-meta-store.md §3.25): one row per data
  * export request. The row is the export's public state machine

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure wizard rules (M5-T01/02/03 + M9-T04): DSN validation + engine
  * inference, engine-picker sync (scheme rewrite, default-port swap, SQLite

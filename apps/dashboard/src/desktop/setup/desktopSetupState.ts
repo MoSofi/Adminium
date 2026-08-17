@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The first-run wizard's state + pure rules (11-electron.md §6, task 11-T07).
  *

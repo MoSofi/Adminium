@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The host-capability vocabulary the desktop shell can be granted (11-electron.md
  * §12 / 13-marketplace.md §2.11).

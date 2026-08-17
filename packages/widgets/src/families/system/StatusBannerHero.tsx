@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `status-banner-hero` (annex §12) — state-driven hero whose bg/border/icon/
  * title derive from the WORST child state (up/degraded/down), with an inline

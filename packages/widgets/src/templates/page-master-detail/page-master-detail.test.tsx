@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `page-master-detail` template tests (M7 track, 09 §7.3 + M7-T04): the master

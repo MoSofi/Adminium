@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family public surface (annex §2) — metadata only. Component code for
  * every chart widget loads through each definition's `lazy()` ref (one Vite

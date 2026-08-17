@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Value renderers for the review-diff rows (§10.3 "row anatomy"): each diff
  * category carries a differently-shaped `llmValue`/`heuristicValue` (the

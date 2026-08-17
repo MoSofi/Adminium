@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-contract shapes for the `tables` family Track F widgets (annex §3).
  * Types only — erased at compile time, so both the pure `tables-track-f-config`

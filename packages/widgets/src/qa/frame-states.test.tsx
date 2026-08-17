@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * Four-state gate — 04-widget-registry.md acceptance #4 / 04-T17 (2):

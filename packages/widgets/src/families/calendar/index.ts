@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `calendar` family public surface (annex §5) — the calendar/scheduling
  * components (calendar-month, day-agenda, schedule-matrix, capacity-board) plus

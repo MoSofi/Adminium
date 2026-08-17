@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { lazy } from 'react';
 import { z } from 'zod';
 

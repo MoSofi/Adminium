@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 3 — "Your account" (11-electron.md §6): the super-admin, the
  * "Skip login on this computer" checkbox (§5), and the locale/theme pickers

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { IconButton, MonoText } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';

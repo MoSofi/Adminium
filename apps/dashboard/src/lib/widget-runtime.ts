@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The {@link WidgetRuntimeEnv} this SPA hands the widget registry — the input to
  * 11-electron.md §7's offline asset policy ("the widget registry resolves `map-*`

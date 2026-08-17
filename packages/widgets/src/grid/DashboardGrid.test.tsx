@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * DashboardGrid edit-mode tests (04-widget-registry.md §6.2). dnd-kit's pointer

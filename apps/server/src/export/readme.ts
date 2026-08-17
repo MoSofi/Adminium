@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The bundle's README. Its whole job is to answer, before anyone opens
  * `config/`, the question this export is most likely to be misread as: "is this

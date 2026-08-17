@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The desktop build (11-electron.md §3), owned by 11-T01.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Vite 7 config for the dashboard SPA (09-generated-app.md §2.1).
  *

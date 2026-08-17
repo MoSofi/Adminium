@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { ChoroplethGridChart, hasUsTilegramTiles } from '@adminium/charts';
 import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState } from '@adminium/ui';

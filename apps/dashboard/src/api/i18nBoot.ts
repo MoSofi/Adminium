@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The BOOT-PATH slice of the i18n client (23-runtime-translations.md §4.7).
  *

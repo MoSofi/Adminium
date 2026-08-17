@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The RBAC principal — "who is acting" (08-server-api.md §8: the auth layer
  * resolves a principal, not a session, so API keys and users flow through the

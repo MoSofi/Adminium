@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-queue-inbox` mutation adapter contract (09-generated-app.md §7.4).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dirty-state buffer core: keying, stage/drop/revert semantics, change
  * listing, and the EXACT `PUT /connections/:id/overrides` document shape.

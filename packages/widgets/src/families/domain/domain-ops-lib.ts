@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK OPS — shared PURE helpers for the §13 ops / billing / API / marketing
  * cards. JSX-free and React-free: imported by BOTH the family's config module

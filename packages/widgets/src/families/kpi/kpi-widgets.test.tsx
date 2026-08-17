@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * KPI family (annex §1) render + unit tests, covering the complete 10-id slice:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline asset policy for the widget registry (11-electron.md §7, 11-T09).
  *

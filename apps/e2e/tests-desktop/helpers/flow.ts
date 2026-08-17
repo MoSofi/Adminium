@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The UI walk the E2E specs share (11-electron.md §6, 11-T20): first-run wizard
  * → demo database → app shell → data grid → chart. Selectors are role/label

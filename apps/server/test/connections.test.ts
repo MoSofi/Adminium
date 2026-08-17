@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Live connections-manager suite (M3-T04/T05/T06) against a real local
  * PostgreSQL — skipped entirely when psql, the Northwind fixture, or the

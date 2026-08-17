@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `status-pill` (annex §12) — the UNIVERSAL enum renderer: soft tone bg,
  * colored dot, label. Every enum column in the generated app registers one of

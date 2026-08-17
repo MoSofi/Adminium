@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The two desktop-only setup endpoints (11-electron.md §6 step 2), as the
  * wizard's cards 1 and 4 call them.

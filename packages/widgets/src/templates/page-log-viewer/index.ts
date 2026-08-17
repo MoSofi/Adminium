@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-log-viewer` template (09-generated-app.md §7.8; 04 §10) — the component
  * the dashboard PageRenderer mounts for `template: 'page-log-viewer'`

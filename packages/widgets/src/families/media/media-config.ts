@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { z } from 'zod';
 
 import { MEDIA_DEMO_EPOCH, SMART_FOLDER_FILTERS, mulberry32 } from './media-lib.js';

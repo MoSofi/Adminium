@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * First-run bootstrap (07-meta-store.md §6): migrations + built-in role and
  * permission seeds + `system.*` settings, plus the guarded creation of the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * gen-barrel — regenerates src/index.ts from the package's local barrels.
  *
@@ -33,7 +34,13 @@ if (existsSync(componentsDir)) {
   }
 }
 
+// The SPDX line is emitted here rather than inserted by scripts/check-spdx.mjs,
+// because this script rewrites src/index.ts from scratch and is chained into BOTH
+// `build` and `typecheck` — so an externally-inserted header would be silently
+// reverted by an ordinary `pnpm turbo run typecheck` and the licence gate would
+// go red on a file nobody touched.
 const banner =
+  '// SPDX-License-Identifier: AGPL-3.0-only\n' +
   '// GENERATED — pnpm gen:barrel\n' +
   '// Do not edit by hand: scripts/gen-barrel.mjs rewrites this file on every build.\n' +
   '// Add exports via a local index.ts in your component directory instead.\n';

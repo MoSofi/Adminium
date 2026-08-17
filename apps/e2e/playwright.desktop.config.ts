@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Playwright config for the DESKTOP `_electron` suite (11-electron.md §7 +
  * acceptance criteria, task 11-T20).

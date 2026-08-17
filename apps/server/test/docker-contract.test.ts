@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The Docker distribution contract (01-architecture.md §4.2, M10-T02).
  *

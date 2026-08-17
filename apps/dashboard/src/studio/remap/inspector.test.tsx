@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Column inspector: semantic override over SEMANTIC_TAGS with the classifier
  * confidence hint, PII masking toggle (`column.pii`), and the enum semantics

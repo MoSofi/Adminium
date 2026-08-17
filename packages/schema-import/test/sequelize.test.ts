@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Sequelize parser — golden model over both define() and Model.init forms. */
 import { describe, expect, it } from 'vitest';
 

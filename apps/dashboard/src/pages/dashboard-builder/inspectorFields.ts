@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Config-inspector field derivation (04-widget-registry.md §6.2 / task 04-T14):
  * a widget's config inspector is auto-generated from its Zod config schema.

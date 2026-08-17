@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/schema-import — schema-file parsers producing the engine's
  * DatabaseModel IR (05-introspection-engine.md §5): SQL DDL / pg_dump /

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /settings/defaults integration (10-i18n-theming.md §7.3): super-admin
  * gating, adoption meters, the full-object PUT on save + success toast, and

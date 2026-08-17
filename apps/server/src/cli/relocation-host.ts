@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Restarting the server against a meta store that has just moved
  * (`meta/relocate.ts`; 01-architecture.md §3.1).

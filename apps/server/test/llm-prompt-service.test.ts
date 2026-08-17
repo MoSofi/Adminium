@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The lifted prompt service (M10-T01, 06 §10.4 + §10.5).
  *

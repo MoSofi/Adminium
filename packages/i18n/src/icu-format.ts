@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ICU i18nFormat module for i18next, built directly on intl-messageformat's
  * NAMED export (10-i18n-theming.md §2.3).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M4-T08 end-to-end: live-PG Northwind → create connection → POST
  * /connections/:id/generate (introspects on demand) → adminium_pages rows

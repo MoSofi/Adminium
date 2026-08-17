@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * a11y-sweep — automated axe pass over every story in the built Storybook
  * (03-component-library.md §9, 15-quality.md §7.1).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure 100%-stacked horizontal bar layout (`chart-stacked-bar-100`,
  * research/widget-registry.md §2): one bar split into shares with small gaps.

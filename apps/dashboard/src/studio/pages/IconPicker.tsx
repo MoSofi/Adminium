@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Icon picker — pick a lucide icon by looking at it, not by knowing its name.
  *

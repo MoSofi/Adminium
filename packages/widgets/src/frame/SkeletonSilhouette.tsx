@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Skeleton } from '@adminium/ui';
 
 import type { WidgetSkeleton } from '../registry/types.js';

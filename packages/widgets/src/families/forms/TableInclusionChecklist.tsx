@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `table-inclusion-checklist` (annex §10) — scrollable toggleable table list:
  * custom checkbox, mono name, human row counts, PII warning badges,

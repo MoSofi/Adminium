@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/add-on-contracts — the shapes an add-on is written against
  * (24-marketplace-wave-4.md §5).

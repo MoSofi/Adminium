@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE COMPOSITION ROOT (01-architecture.md §4: "All four deployment modes run
  * the identical `@adminium/server` process; only the wrapper differs").
@@ -167,6 +168,13 @@ export interface ComposeServerOptions {
   staticRoot?: string | undefined;
   /** Passed through to {@link buildServer} (tests silence it with `false`). */
   logger?: boolean | undefined;
+  /**
+   * Passed through to {@link buildServer}: collect an OpenAPI document for
+   * `app.swagger()`. Only `scripts/openapi.mjs` sets it — the spec has to be
+   * generated from the COMPLETE route tree, and this module is the only thing
+   * that assembles one.
+   */
+  openapi?: boolean | undefined;
   /** Report telemetry on the scheduler. Default true; tests turn it off. */
   telemetry?: boolean | undefined;
   /**
@@ -265,6 +273,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     metaDb: meta,
     ...(opts.staticRoot === undefined ? {} : { staticRoot: opts.staticRoot }),
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
+    ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
   });
 
   await app.register(rbacPlugin, { meta });

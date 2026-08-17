@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The 12 system states (09-generated-app.md §6.1). Eleven variants carry the
  * copy verbatim from System States.dc.html; `suspended` is the new

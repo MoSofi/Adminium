@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests — COLUMN_TYPE → LogicalType mapping (05 §2.2 MySQL
  * column), enum(...)/set(...) parsing, default classification (05 §4.2),

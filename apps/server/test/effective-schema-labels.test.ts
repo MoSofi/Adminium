@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `llm.label` in the effective schema (06-llm-assist.md §8.3): an accepted
  * LLM label bundle is a real override row (`op: 'llm.label'`, origin 'llm',

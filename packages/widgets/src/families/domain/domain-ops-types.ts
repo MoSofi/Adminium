@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK OPS — data-contract shapes for the §13 ops / billing / API / marketing
  * cards (the 18 ids that are neither `document-canvas` nor a `block-*`).

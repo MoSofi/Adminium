@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Vendors unmodified upstream woff2 builds from the @fontsource packages in node_modules
  * into src/fonts/, where they are served via the "./fonts/*" export and referenced by

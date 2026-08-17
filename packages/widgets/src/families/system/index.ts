@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `system` family public surface (annex §12) — the state/feedback components
  * (state-hero, empty-state, status-pill, alert-banner, status-banner-hero,

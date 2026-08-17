@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Responsive width via ResizeObserver. Charts are fluid in the inline axis
  * (grid cells set the block size); the SVG viewBox tracks the measured width

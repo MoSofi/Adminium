@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Anomaly-detection geometry (`chart-anomaly`, research/widget-registry.md §2):
  * a centered moving-average "expected" line, a symmetric expected-range band

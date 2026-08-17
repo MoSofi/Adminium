@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `drawer-form` (annex §10) — side-drawer create/edit flow with the full field
  * set; appends the record on submit. The >5-field counterpart of `modal-wizard`

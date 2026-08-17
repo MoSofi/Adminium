@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bridges the resolved app direction into `@adminium/charts`'
  * `ChartDirectionContext` so every chart mirrors its chrome (categorical bar

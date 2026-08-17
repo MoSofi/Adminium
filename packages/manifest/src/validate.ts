@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Manifest validation entry point (13-marketplace.md §2, §9). Layers the
  * envelope schema with the v1 publisher policy: the installer rejects any

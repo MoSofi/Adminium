@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Effective schema = active snapshot + active override ops applied in
  * created_at order, later ops winning per (op, table, column) target

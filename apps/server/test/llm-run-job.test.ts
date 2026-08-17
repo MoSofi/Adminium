@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `llm-run` job handler end-to-end (06-llm-assist.md §7.5, §10.2, §9,
  * acceptance #6 + §10 "key never logged").

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '@adminium/i18n/react';
 import { EmptyState, SegmentedControl, subscribeTheme } from '@adminium/ui';
 import { MapPin } from 'lucide-react';

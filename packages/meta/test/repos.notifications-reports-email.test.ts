@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * notificationsRepo / notificationPrefsRepo / scheduledReportsRepo /
  * emailTemplatesRepo (07-meta-store.md §3.20/§3.21/§3.24/§3.28) — M7

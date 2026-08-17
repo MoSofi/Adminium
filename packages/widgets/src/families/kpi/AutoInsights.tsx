@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `auto-insights` (annex §1) — a short RANKED list of generated insights:
  * sparkles/tone icon, bold stat + sentence, and a mini sparkline; plus the

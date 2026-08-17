@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The capability vocabulary and status logic, as the SPA sees it
  * (11-electron.md §12). Pure — no React, no bridge — so the one contract that

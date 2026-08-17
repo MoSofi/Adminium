@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-cohort-matrix` primitive (research/widget-registry.md §2): cohort rows
  * × period columns, accent-alpha cells, triangular nulls transparent, in-cell

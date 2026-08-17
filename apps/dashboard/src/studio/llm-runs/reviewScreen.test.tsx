@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Review-diff screen tests (06-llm-assist.md §10.3, acceptance 11/12/14):
  * category grouping + header counts, the §8.2 default check state, the bulk

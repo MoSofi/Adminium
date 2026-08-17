@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Settings → AI under 11-electron.md §8.2's LLM row: "Available, labeled; BYO
  * round-trip is the default and is highlighted first in desktop."

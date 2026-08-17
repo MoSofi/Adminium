@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Builder placement helpers (04-T14): first-fit placement, insert/duplicate/
  * remove with top-gravity compaction, config edit, and locked-path extraction.

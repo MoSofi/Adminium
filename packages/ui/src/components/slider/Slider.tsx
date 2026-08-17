@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import * as SliderPrimitive from '@radix-ui/react-slider';
 import type * as React from 'react';
 

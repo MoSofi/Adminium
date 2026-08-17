@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * GET /api/v1/bootstrap (09-generated-app.md §2.1): auth gating, resolved
  * prefs, nav-tree derivation from adminium_pages (fixed group order, disabled

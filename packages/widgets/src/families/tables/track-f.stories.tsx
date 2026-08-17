@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Track F `tables` additions stories (annex §3): master-list, log-table,
  * card-gallery, grouped-summary-table, schema-tree, toggle-matrix. Each shows

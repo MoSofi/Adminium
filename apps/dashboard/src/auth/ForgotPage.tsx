@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/forgot` — ForgotPasswordForm → POST /api/v1/auth/password/forgot. Always
  * shows the sent state on 200 (no user enumeration); resend reuses the same

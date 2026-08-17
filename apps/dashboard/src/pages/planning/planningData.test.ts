@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * planningData unit tests — the pure extraction/normalization layer the
  * planning archetype bindings run before their widget-data batch:

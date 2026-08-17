@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-treemap` primitive (research/widget-registry.md §2): squarified
  * slice-and-dice tiles, area/alpha by value, in-tile labels above a threshold.

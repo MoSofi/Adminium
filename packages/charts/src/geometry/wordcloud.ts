@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure word-cloud geometry (`chart-wordcloud`, research/widget-registry.md §2):
  * terms sized by frequency and flowed into wrapped rows within a fixed width.

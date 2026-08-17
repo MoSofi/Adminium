@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The main-process half of the §4 bridge, driven through a fake `ipcMain`.
  *

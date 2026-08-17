@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-builder` template stories (M7-T06): the four flavors the annex names
  * for this template's comps — an invoice document canvas with palette +

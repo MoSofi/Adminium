@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Router guards + shell integration (09-generated-app.md §2.3):
  * - unauthenticated `/` → `/login?returnTo=…`;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `shipping-carrier@1` (24 §5.5) — one delivery company, shaped so the second
  * one is a copy.

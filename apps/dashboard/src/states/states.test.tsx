@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * System states (09-generated-app.md §6.1): the map covers all 12 ids with
  * the comp copy, and StateHero renders code/glyph/copy/CTAs/diagnostics.

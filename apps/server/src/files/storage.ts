@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Local file storage for adminium_files bytes (07-meta-store.md §3.27, v1
  * `storage = 'local'`): artifacts live under `<dataDir>/files/<id>` where

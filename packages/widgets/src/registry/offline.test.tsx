@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * The §7 offline asset policy (11-electron.md §7, 11-T09) — the pure rule and,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Account-security data layer: password change, the active-session list, and
  * the 2FA enrolment calls that have existed in `routes/auth` since M2 with no

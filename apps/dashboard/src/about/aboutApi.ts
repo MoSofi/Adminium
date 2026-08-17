@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * About API client (M10-T04): GET /api/v1/about and /api/v1/about/update-check.
  * Shapes mirror apps/server src/routes/about/schema.ts (type-only copy per the

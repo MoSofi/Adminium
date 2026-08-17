@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * BYO telemetry-free guarantee (06-llm-assist.md §9 / §9.1, acceptance #9 + #1).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Telemetry + update-check opt-in guarantees (M10-T04; v0.5 exit criterion
  * "Telemetry is opt-in (off by default)").

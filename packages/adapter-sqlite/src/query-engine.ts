@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `createQueryEngine()` — the Kysely dialect factory for the SQLite data
  * connection (05-introspection-engine.md §3 `QueryEngine`, 08-server-api.md

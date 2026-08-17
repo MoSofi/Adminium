@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Onboarding entry (M5-T06): the proactive surfacing of the setup checklist
  * for admins. Mounted by StudioSettingsPage (/studio/settings) only — not

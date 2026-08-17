@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * §9's "5 MB × 5 rotation" and the stdout/stderr piping.
  *

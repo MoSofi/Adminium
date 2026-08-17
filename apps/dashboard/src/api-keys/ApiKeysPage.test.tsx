@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/api-keys` (M10-T06). The tests that matter here are the security ones:
  *

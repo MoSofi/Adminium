@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Schema remap editor (M5-T04; research/ia-mapping.md §4 "remapped
  * public.customers"): two-pane Studio surface over the connection's active

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * page-builder binding tests (M7-T06, 09 §7.11): envelope → PageBuilder
  * projection, the doc-in-layout persistence path (shared vs personal routed on

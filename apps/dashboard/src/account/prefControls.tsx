@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared preference-axis controls (10-i18n-theming.md §7.3/§7.4): theme and
  * density segmented controls, the accent swatch row, and the locale select

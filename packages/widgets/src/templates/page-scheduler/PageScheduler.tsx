@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-scheduler` template renderer (09-generated-app.md §7.6, 04 §10
  * manifest `page-scheduler.json`, annex §14 "person FK × date × shift-type").

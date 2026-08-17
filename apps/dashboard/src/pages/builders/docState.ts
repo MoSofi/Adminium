@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * page-builder doc persistence algebra (09-generated-app.md §7.11, M7-T06) —
  * PURE module. The authored document is part of the page's stored layout: it

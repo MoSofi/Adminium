@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/studio/settings` — the Studio settings hub (M5-T05, 09 §8.1), ported from
  * `Settings.dc.html` + `Workspace Settings.dc.html` per the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Per-dialect advisory lock around the migration pass (07-meta-store.md §4).
  *

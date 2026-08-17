@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The runtime-translation version stamp (23-runtime-translations.md §3.4).
  *
