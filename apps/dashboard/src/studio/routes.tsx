@@ -4,6 +4,7 @@
  *
  * - `/studio`                        → connections manager hub (M5-T05)
  * - `/studio/connect`                → connect wizard (M5-T01/02/03)
+ * - `/studio/pages`                  → page manager (08 §2.6 lifecycle surface)
  * - `/studio/settings`               → workspace settings hub (M5-T05)
  * - `/studio/remap/$connectionId`    → schema remap editor — OWNED BY THE
  *   REMAP AGENT. Contract: `./remap/RemapEditor.tsx` exports
@@ -18,6 +19,7 @@ import { createRoute, useNavigate, type AnyRoute } from '@tanstack/react-router'
 import { Alert, Spinner } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { StudioGuard } from './StudioGuard.js';
 import { takeBridgeTicket } from './connect/bridgeSeed.js';
 
@@ -54,6 +56,21 @@ const StudioAiPageLazy = lazy(async () => {
   return { default: mod.StudioAiPage };
 });
 
+const StudioPagesPageLazy = lazy(async () => {
+  const mod = await import('./pages/StudioPagesPage.js');
+  return { default: mod.StudioPagesPage };
+});
+
+const NewPageScreenLazy = lazy(async () => {
+  const mod = await import('./pages/NewPageScreen.js');
+  return { default: mod.NewPageScreen };
+});
+
+const EditPageScreenLazy = lazy(async () => {
+  const mod = await import('./pages/EditPageScreen.js');
+  return { default: mod.EditPageScreen };
+});
+
 // --- remap contract (file owned by the remap agent, may land later) ----------
 
 interface RemapEditorModule {
@@ -78,7 +95,7 @@ const reviewModules = import.meta.glob('./llm-runs/ReviewScreen.tsx');
 
 function RemapUnavailable() {
   return (
-    <div className="mx-auto max-w-narrow p-6">
+    <PageSurface width="narrow">
       <Alert
         tone="info"
         title={t('studio.remap.unavailableTitle', 'Schema remap editor not available')}
@@ -87,7 +104,7 @@ function RemapUnavailable() {
           'This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations.',
         )}
       />
-    </div>
+    </PageSurface>
   );
 }
 
@@ -100,7 +117,7 @@ const RemapEditorLazy = lazy(async (): Promise<{ default: ComponentType<{ connec
 
 function ReviewUnavailable() {
   return (
-    <div className="mx-auto max-w-narrow p-6">
+    <PageSurface width="narrow">
       <Alert
         tone="info"
         title={t('studio.review.unavailableTitle', 'Review screen not available')}
@@ -109,7 +126,7 @@ function ReviewUnavailable() {
           'This build does not include the enrichment review screen yet (06-T14). It lands with the diff-and-apply flow.',
         )}
       />
-    </div>
+    </PageSurface>
   );
 }
 
@@ -165,6 +182,26 @@ function HubRouteComponent() {
   );
 }
 
+function PagesRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={<CenteredSpinner />}>
+        <StudioPagesPageLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
+function NewPageRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={<CenteredSpinner />}>
+        <NewPageScreenLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
 function SettingsRouteComponent() {
   const navigate = useNavigate();
   return (
@@ -174,6 +211,7 @@ function SettingsRouteComponent() {
           onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })}
           onOpenTranslations={() => void navigate({ to: '/settings/translations' })}
           onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
+          onOpenPages={() => void navigate({ to: '/studio/pages' })}
         />
       </Suspense>
     </StudioGuard>
@@ -213,6 +251,38 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     path: '/studio/connect',
     component: ConnectRouteComponent,
   });
+
+  const pagesRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/pages',
+    component: PagesRouteComponent,
+  });
+
+  // `/new` is registered BEFORE the `$pageId` param route so the literal wins.
+  // Registered after, `new` would be matched as a page id and the create screen
+  // would render "that page no longer exists".
+  const newPageRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/pages/new',
+    component: NewPageRouteComponent,
+  });
+
+  const editPageRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/pages/$pageId',
+    component: EditPageRouteComponent,
+  });
+
+  function EditPageRouteComponent() {
+    const { pageId } = editPageRoute.useParams();
+    return (
+      <StudioGuard>
+        <Suspense fallback={<CenteredSpinner />}>
+          <EditPageScreenLazy pageId={pageId} />
+        </Suspense>
+      </StudioGuard>
+    );
+  }
 
   const settingsRoute = createRoute({
     getParentRoute: () => parent,
@@ -260,7 +330,17 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     );
   }
 
-  return [studioIndexRoute, connectRoute, settingsRoute, aiSettingsRoute, reviewRoute, remapRoute];
+  return [
+    studioIndexRoute,
+    connectRoute,
+    pagesRoute,
+    newPageRoute,
+    editPageRoute,
+    settingsRoute,
+    aiSettingsRoute,
+    reviewRoute,
+    remapRoute,
+  ];
 }
 
 /** Test seam: does the remap module exist in this build? */

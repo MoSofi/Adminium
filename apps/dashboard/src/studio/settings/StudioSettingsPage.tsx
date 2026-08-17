@@ -14,7 +14,7 @@
  */
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { Building2, Globe2, Languages, Sparkles, TriangleAlert } from 'lucide-react';
+import { Building2, Files, Globe2, Languages, Sparkles, TriangleAlert } from 'lucide-react';
 import {
   Alert,
   Button,
@@ -37,6 +37,7 @@ import { t } from '../../i18n/t.js';
 import { OnboardingEntry } from '../../onboarding/OnboardingEntry.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import type { ConnectionDto } from '../api.js';
+import { PageSurface } from '../../shell/PageSurface.js';
 import { connectionsQuery, DeleteConnectionModal } from '../hub/ConnectionsHub.js';
 import {
   WORKSPACE_SETTINGS_QUERY_KEY,
@@ -238,16 +239,23 @@ export interface StudioSettingsPageProps {
   onOpenTranslations: () => void;
   /** Router-injected: opens `/studio/settings/ai` (06 §10.1, Admin+). */
   onOpenAiSettings: () => void;
+  /** Router-injected: opens `/studio/pages` (08 §2.6 lifecycle surface, Admin+). */
+  onOpenPages: () => void;
 }
 
-export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenTranslations, onOpenAiSettings }: StudioSettingsPageProps): ReactNode {
+export function StudioSettingsPage({
+  onOpenGlobalDefaults,
+  onOpenTranslations,
+  onOpenAiSettings,
+  onOpenPages,
+}: StudioSettingsPageProps): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
 
   return (
     <>
       <OnboardingEntry bootstrap={bootstrap} />
-      <div className="mx-auto flex w-full max-w-narrow flex-col gap-4 p-6">
+      <PageSurface width="content" className="flex flex-col gap-4">
         <header>
           <h1 className="text-page-title text-fg">
             {t('studio.settingsHub.title', 'Workspace settings')}
@@ -269,6 +277,30 @@ export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenTranslations, o
             )}
           />
         )}
+
+        {/* Pages (/studio/pages) is Admin+ like this hub, so no extra gate here.
+            The server's `system:pages:manage` is the real boundary and the page
+            itself explains a 403 — better than hiding the entry point from an
+            admin who could be granted the permission. */}
+        <Card>
+          <CardHeader className="flex items-center gap-3">
+            <IconTile tone="accent" size="md" icon={<Files />} />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-section text-fg">
+                {t('studio.settingsHub.pagesCard.heading', 'Pages')}
+              </h3>
+              <p className="text-caption text-fg-subtle">
+                {t(
+                  'studio.settingsHub.pagesCard.body',
+                  'Add, edit and delete pages, change what each one shows, and reorder the sidebar.',
+                )}
+              </p>
+            </div>
+            <Button variant="secondary" size="sm" onClick={onOpenPages}>
+              {t('studio.settingsHub.pagesCard.cta', 'Manage pages')}
+            </Button>
+          </CardHeader>
+        </Card>
 
         {/* AI enrichment is an Admin+ surface (/studio/settings/ai) — every user who
             can see this page can open it, so it is not gated further here. */}
@@ -343,7 +375,7 @@ export function StudioSettingsPage({ onOpenGlobalDefaults, onOpenTranslations, o
         ) : null}
 
         <DangerZone />
-      </div>
+      </PageSurface>
     </>
   );
 }

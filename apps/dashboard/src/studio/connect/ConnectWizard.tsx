@@ -12,6 +12,7 @@ import { Alert, Button, Stepper, type Step } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
 import { t } from '../../i18n/t.js';
+import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, waitForRestart, type MetaStoreLocation, type SchemaTable } from '../api.js';
 import { redeemBridgeSeed } from './bridgeSeed.js';
 import { wizardCapabilitySource } from './capabilityNotes.js';
@@ -263,7 +264,7 @@ export function ConnectWizard({
   };
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col gap-6 p-6">
+    <PageSurface className="mx-auto flex min-h-full max-w-[760px] flex-col gap-6">
       <header className="flex flex-col gap-4">
         <h1 className="text-page-title text-fg">{t('studio.wizard.title', 'New connection')}</h1>
         <Stepper
@@ -383,7 +384,7 @@ export function ConnectWizard({
           </Button>
         ) : null}
       </footer>
-    </div>
+    </PageSurface>
   );
 }
 

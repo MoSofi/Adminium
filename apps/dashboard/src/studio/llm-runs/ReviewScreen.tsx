@@ -31,6 +31,7 @@ import {
   selectableIds,
   summarizeAccepted,
 } from './model.js';
+import { PageSurface } from '../../shell/PageSurface.js';
 import { clearDraftSelection, loadDraftSelection, saveDraftSelection } from './persistence.js';
 
 function runQuery(runId: string) {
@@ -199,19 +200,19 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
 
   if (runResult.isError || run === undefined) {
     return (
-      <div className="mx-auto max-w-narrow p-6">
+      <PageSurface width="narrow">
         <Alert
           tone="danger"
           title={t('studio.llmRuns.review.error.title', 'Could not load this run')}
           body={runResult.error instanceof Error ? runResult.error.message : undefined}
         />
-      </div>
+      </PageSurface>
     );
   }
 
   if (!REVIEWABLE_STATUSES.has(run.status)) {
     return (
-      <div className="mx-auto max-w-narrow p-6">
+      <PageSurface width="narrow">
         <Alert
           tone="info"
           title={t('studio.llmRuns.review.notReady.title', 'This run has no suggestions to review yet')}
@@ -220,12 +221,12 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
             'A run must be validated before its suggestions can be reviewed. Generate or paste a response first.',
           )}
         />
-      </div>
+      </PageSurface>
     );
   }
 
   return (
-    <div className="mx-auto flex max-w-wide flex-col gap-4 p-4 pb-24 md:p-6">
+    <PageSurface width="wide" className="flex flex-col gap-4 pb-24">
       {counts !== null ? (
         <ReviewHeader
           run={run}
@@ -294,6 +295,6 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
           onOpenChange={setApplyOpen}
         />
       ) : null}
-    </div>
+    </PageSurface>
   );
 }
