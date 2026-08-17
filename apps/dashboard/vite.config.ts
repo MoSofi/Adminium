@@ -11,13 +11,21 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+/**
+ * Backend the dev server proxies to. Defaults to :4600, so nothing changes
+ * without the override — it exists so the live source can be pointed at an
+ * alternate instance (the throwaway `e2e-app` on :4620, a colleague's box)
+ * without editing this file. `ADMINIUM_DEV_PORT` does the same for the SPA.
+ */
+const API_HOST = process.env.ADMINIUM_DEV_API ?? '127.0.0.1:4600';
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 5173,
+    port: Number(process.env.ADMINIUM_DEV_PORT ?? 5173),
     proxy: {
-      '/api': { target: 'http://127.0.0.1:4600', changeOrigin: false },
-      '/ws': { target: 'ws://127.0.0.1:4600', ws: true },
+      '/api': { target: `http://${API_HOST}`, changeOrigin: false },
+      '/ws': { target: `ws://${API_HOST}`, ws: true },
     },
   },
   build: {

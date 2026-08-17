@@ -15,6 +15,7 @@ import type { PageEnvelope } from '@adminium/engine/config';
 
 import { PageSettingsBinding } from '../pages/PageSettingsBinding.js';
 import type { PageTemplateAdapters } from '../pages/templates.js';
+import { PageSurface } from '../shell/PageSurface.js';
 
 const envelope: PageEnvelope = {
   v: 1,
@@ -38,5 +39,13 @@ const adapters: PageTemplateAdapters = {
 };
 
 export function NotificationSettingsPage() {
-  return <PageSettingsBinding page={envelope} adapters={adapters} />;
+  // Mounts the `page-settings` template directly rather than through
+  // PageRenderer, so it has to supply the surface PageRenderer would have —
+  // the same one `surfaceDefaults` gives that template. Without it this route
+  // was the one settings screen with no gutter at all.
+  return (
+    <PageSurface>
+      <PageSettingsBinding page={envelope} adapters={adapters} />
+    </PageSurface>
+  );
 }

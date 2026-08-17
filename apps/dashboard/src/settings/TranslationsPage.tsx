@@ -50,6 +50,7 @@ import { bootstrapQuery } from '../app/bootstrap.js';
 import { resyncOverrides } from '../i18n/setup.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { StatePage } from '../states/StatePage.js';
 
 const SUPER_ADMIN_ROLE = 'super-admin';
@@ -587,7 +588,7 @@ export function TranslationsPage(): ReactNode {
   const locales = manifest.data?.locales ?? [];
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <PageSurface className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
         <h2 className="text-section text-fg">
           {t('settings.translations.title', 'Languages & translations')}
@@ -612,7 +613,7 @@ export function TranslationsPage(): ReactNode {
 
       <LocaleManager locales={locales} onChanged={onChanged} />
       {locales.length > 0 ? <KeyBrowser locales={locales} /> : null}
-    </div>
+    </PageSurface>
   );
 }
 

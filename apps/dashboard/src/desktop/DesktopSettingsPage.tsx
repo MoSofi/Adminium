@@ -28,6 +28,7 @@ import { useAppToasts } from '../pages/toasts.js';
 import { StatePage } from '../states/StatePage.js';
 import { CapabilitiesCard } from './capabilities/CapabilitiesCard.js';
 import { LanShareCard } from './LanShareCard.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { isDesktopRuntime, readSingleUser, setRequireLogin } from './singleUser.js';
 
 export const DESKTOP_RUNTIME_QUERY_KEY = ['desktop', 'runtime-info'] as const;
@@ -114,7 +115,7 @@ export function DesktopSettingsPage(): ReactNode {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <PageSurface className="flex flex-col gap-6">
       <div className="flex items-start gap-2 rounded-lg bg-info-soft p-3 text-body-sm text-fg">
         <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-info" />
         <p>
@@ -127,6 +128,6 @@ export function DesktopSettingsPage(): ReactNode {
       <RequireLoginCard />
       <LanShareCard />
       <CapabilitiesCard />
-    </div>
+    </PageSurface>
   );
 }

@@ -29,8 +29,15 @@ import { bootstrapQuery, findNavItemBySlug } from '../app/bootstrap.js';
 import { hrefForPage, hrefForRecord } from '../app/links.js';
 import { requestIdForError, stateIdForError } from '../app/query.js';
 import { t } from '../i18n/t.js';
+import {
+  PageSurface,
+  resolvePagePadding,
+  type PagePadding,
+  type PageSurfaceWidth,
+} from '../shell/PageSurface.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
+import { DEFAULT_TEMPLATE_SURFACE, templateSurface } from './surfaceDefaults.js';
 import { resolvePageTemplate, type PageTemplateAdapters, type PageTemplateComponent } from './templates.js';
 import { useUndoToast } from './toasts.js';
 
@@ -49,7 +56,10 @@ export function PageRenderer() {
 function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string; recordId?: string | undefined }) {
   const page = useQuery(pageQuery(pageId));
 
-  if (page.isPending) return <PageSkeleton />;
+  // No envelope yet, so no template and no width to match — `page` is what this
+  // skeleton has always used. Once TemplateMount knows the template it renders
+  // its own skeleton in the real column instead.
+  if (page.isPending) return <PageSkeleton width="page" />;
   if (page.isError) {
     // Page-scoped failure: system state inside the outlet, shell stays usable.
     return (
@@ -127,7 +137,18 @@ function TemplateMount({
 
   const adapters = usePageAdapters(page, slug);
 
-  if (resolution.phase === 'resolving') return <PageSkeleton />;
+  // The ONE gutter for `/p/<slug>` (02 §1.8): the template's default from
+  // `surfaceDefaults`, overridden by the page's stored `padding` when an admin
+  // set one. Applied here rather than in each of the fourteen bindings so the
+  // skeleton, the error cards and the loaded template all sit in the same box —
+  // previously the skeleton had a gutter and ten of the templates had none, so
+  // the page jumped as it loaded.
+  const surface = templateSurface(page.template);
+  const padding = resolvePagePadding(page.padding, surface.padding);
+
+  if (resolution.phase === 'resolving') {
+    return <PageSkeleton padding={padding} width={surface.width} />;
+  }
   const Template = resolution.component;
   if (Template === null) {
     // Unknown template id — forward compatibility per 09 §3.1: degrade, never crash.
@@ -164,7 +185,9 @@ function TemplateMount({
         />
       )}
     >
-      <Template page={page} adapters={adapters} recordId={recordId} canEditLayout={canEditLayout} />
+      <PageSurface padding={padding} width={surface.width} fill={surface.fill}>
+        <Template page={page} adapters={adapters} recordId={recordId} canEditLayout={canEditLayout} />
+      </PageSurface>
     </WidgetErrorBoundary>
   );
 }
@@ -251,15 +274,24 @@ function usePageAdapters(page: PageEnvelope, slug: string): PageTemplateAdapters
 
 // --- chrome ------------------------------------------------------------------
 
-function PageSkeleton() {
+/**
+ * Sits in the same box the loaded page will: `TemplateMount` knows the
+ * template by the time it renders this, so the swap is content appearing in
+ * place rather than the whole page re-flowing. `PageDocument` renders it before
+ * the envelope arrives and has to fall back to the shared default.
+ */
+function PageSkeleton({ padding, width }: { padding?: PagePadding; width?: PageSurfaceWidth }) {
   return (
-    <div className="mx-auto max-w-page p-6" data-testid="page-skeleton">
-      <div className="flex flex-col gap-4">
+    <PageSurface
+      padding={padding ?? DEFAULT_TEMPLATE_SURFACE.padding}
+      width={width ?? DEFAULT_TEMPLATE_SURFACE.width}
+    >
+      <div className="flex flex-col gap-4" data-testid="page-skeleton">
         <Skeleton className="h-7 w-1/3" />
         <Skeleton className="h-4 w-1/2" />
         <Skeleton className="h-64 w-full" />
       </div>
-    </div>
+    </PageSurface>
   );
 }
 
@@ -277,7 +309,7 @@ function PageMessageCard({
   action?: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-page p-6">
+    <PageSurface width="page">
       <Card>
         <CardHeader className="flex items-center gap-3">
           <IconTile tone="warn" size="md" icon={icon} />
@@ -291,6 +323,6 @@ function PageMessageCard({
           {action}
         </CardBody>
       </Card>
-    </div>
+    </PageSurface>
   );
 }

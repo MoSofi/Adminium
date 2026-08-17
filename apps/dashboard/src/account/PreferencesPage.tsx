@@ -34,6 +34,7 @@ import {
   localeLabel,
   themeLabel,
 } from './prefControls.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { ME_PREFS_QUERY_KEY, mePrefsQuery, patchMePrefs, type MePrefsData, type RawUserPrefs } from './prefsApi.js';
 
 type Axis = 'theme' | 'accent' | 'density' | 'locale';
@@ -125,7 +126,7 @@ export function PreferencesPage(): ReactNode {
   }
 
   return (
-    <div className="mx-auto max-w-narrow p-6">
+    <PageSurface width="narrow">
       <Card>
         <CardHeader className="flex items-center gap-3">
           <IconTile tone="accent" size="md" icon={<SlidersHorizontal />} />
@@ -200,6 +201,6 @@ export function PreferencesPage(): ReactNode {
           </p>
         </CardBody>
       </Card>
-    </div>
+    </PageSurface>
   );
 }

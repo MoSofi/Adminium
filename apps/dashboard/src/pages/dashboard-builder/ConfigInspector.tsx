@@ -8,8 +8,8 @@
  */
 
 import { Lock } from 'lucide-react';
-import type { ReactElement } from 'react';
-import type { WidgetDefinition } from '@adminium/widgets';
+import { useMemo, type ReactElement } from 'react';
+import { validateConfigAgainst, type WidgetDefinition } from '@adminium/widgets';
 import {
   Drawer,
   DrawerBody,
@@ -127,6 +127,27 @@ export function ConfigInspector({
 }: ConfigInspectorProps) {
   const fields = definition === undefined ? [] : deriveInspectorFields(definition.configSchema, lockedPaths);
 
+  /**
+   * WHAT THE CONTROLS DISPLAY — the widget's EFFECTIVE config, not the raw
+   * stored object.
+   *
+   * The two had drifted apart, and that gap was the whole "I change a field and
+   * nothing happens" report. Generated pages store a minimal config (often just
+   * `{ title }`); the widget renders `validateConfigAgainst(...)`, which fills in
+   * every `.default()`. So a `kpi-stat-card` stored as `{title:'Total Orders'}`
+   * showed `showSparkline` OFF in the drawer while the sparkline was visibly on
+   * screen — and toggling it ON wrote the value it already effectively had, so
+   * nothing changed. Same for metricFormat, deltaMode, iconName and iconTone.
+   *
+   * Writes still go through the SPARSE stored `config` below, so opening a
+   * drawer and nudging one field does not silently materialize every default
+   * into `adminium_pages.config`.
+   */
+  const effective = useMemo<Record<string, unknown>>(
+    () => (definition === undefined ? config : validateConfigAgainst(definition, config).config),
+    [definition, config],
+  );
+
   const setField = (key: string, next: unknown): void => {
     const nextConfig = { ...config };
     if (next === undefined) delete nextConfig[key];
@@ -168,7 +189,7 @@ export function ConfigInspector({
                     }
                   : {})}
               >
-                {renderControl(field, config[field.key], (next) => setField(field.key, next))}
+                {renderControl(field, effective[field.key], (next) => setField(field.key, next))}
               </FormField>
             ))}
           </div>

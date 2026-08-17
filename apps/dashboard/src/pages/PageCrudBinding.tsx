@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageCrud, gridColumnSpecSchema, type GridColumnSpec, type PageCrudGridState } from '@adminium/widgets';
 
 import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { useAppToasts } from './toasts.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
@@ -136,39 +137,52 @@ export function PageCrudBinding({ page, adapters, recordId }: PageTemplateProps)
   }
 
   const viewProps = configToProps(appliedView?.config ?? null);
+  const sourceTable = page.source.table ?? crud.table;
 
   return (
-    <PageCrud
-      key={appliedToken}
-      api={crud}
-      columns={columns}
-      source={{ connectionId: page.source.connectionId, table: page.source.table ?? crud.table }}
-      detailRecordId={recordId ?? null}
-      onDetailRecordChange={adapters.openRecord}
-      onEvent={adapters.onEvent}
-      initialSearch={viewProps.initialSearch}
-      defaultSort={viewProps.defaultSort}
-      initialFilters={viewProps.initialFilters}
-      {...(viewProps.pageSize === undefined ? {} : { pageSize: viewProps.pageSize })}
-      onGridStateChange={captureGridState}
-      toolbarAccessory={
-        <ViewSwitcher
-          views={views}
-          activeViewId={appliedView?.id ?? null}
-          onApply={applyView}
-          onSaveNew={handleSaveNew}
-          onUpdate={(view) => {
-            handleUpdate(view);
-            return Promise.resolve();
-          }}
-          onRename={handleRename}
-          onDelete={handleDelete}
-          onSetDefault={(view) => {
-            handleSetDefault(view);
-            return Promise.resolve();
-          }}
-        />
-      }
-    />
+    <>
+      {/* The topbar title is the nav label an admin chose ("Support tickets");
+          this says which table the page is actually a projection of. A database
+          identifier, so it carries no translatable string. */}
+      <PageActions subtitle={sourceTable} />
+      {/* The page gutter and the `--container-wide` column come from the
+          `PageSurface` PageRenderer wraps every template in (see
+          pages/surfaceDefaults.ts) — without them the card's border, radius and
+          shadow all die against the viewport edge and `--bg` never shows, which
+          is what made the grid read as raw full-bleed rows. That surface also
+          carries the `h-full` that lets PageCrud's own chain resolve. */}
+      <PageCrud
+        key={appliedToken}
+        api={crud}
+        columns={columns}
+        source={{ connectionId: page.source.connectionId, table: sourceTable }}
+        detailRecordId={recordId ?? null}
+        onDetailRecordChange={adapters.openRecord}
+        onEvent={adapters.onEvent}
+        initialSearch={viewProps.initialSearch}
+        defaultSort={viewProps.defaultSort}
+        initialFilters={viewProps.initialFilters}
+        {...(viewProps.pageSize === undefined ? {} : { pageSize: viewProps.pageSize })}
+        onGridStateChange={captureGridState}
+        toolbarAccessory={
+          <ViewSwitcher
+            views={views}
+            activeViewId={appliedView?.id ?? null}
+            onApply={applyView}
+            onSaveNew={handleSaveNew}
+            onUpdate={(view) => {
+              handleUpdate(view);
+              return Promise.resolve();
+            }}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            onSetDefault={(view) => {
+              handleSetDefault(view);
+              return Promise.resolve();
+            }}
+          />
+        }
+      />
+    </>
   );
 }

@@ -242,6 +242,49 @@ describe('built-in page-dashboard binding (real template, no registration)', () 
   });
 });
 
+/**
+ * The page gutter (02 §1.8). PageRenderer wraps every template in ONE
+ * `PageSurface` built from `surfaceDefaults`, so the padding of `/p/<slug>` is
+ * decided in one table rather than by whichever binding was edited last. Before
+ * this, `page-crud` carried the gutter and ten other templates carried none.
+ */
+describe('page gutter', () => {
+  async function surfaceAt(path: string, fixture: Fixture = {}) {
+    await renderAt(path, fixture);
+    // Wait for the template itself — the skeleton renders a surface too, and
+    // asserting on that one would prove nothing about the loaded page.
+    await screen.findByRole('heading', { name: 'Customers · page-crud' });
+    const surface = document.querySelector('[data-part="page-surface"]');
+    if (surface === null) throw new Error('no page surface rendered');
+    return surface as HTMLElement;
+  }
+
+  it('gives a template with no stored override its own default', async () => {
+    unregisterFns.push(registerPageTemplate('page-crud', TestCrudTemplate));
+    const surface = await surfaceAt('/p/customers');
+    expect(surface.getAttribute('data-padding')).toBe('standard');
+    expect(surface.className).toContain('max-w-wide');
+  });
+
+  it('lets a stored `padding` override the template default', async () => {
+    unregisterFns.push(registerPageTemplate('page-crud', TestCrudTemplate));
+    const surface = await surfaceAt('/p/customers', {
+      pageReply: () => jsonResponse(200, { data: makeCrudEnvelope({ padding: 'none' }) }),
+    });
+    expect(surface.getAttribute('data-padding')).toBe('none');
+    expect(surface.className).not.toContain('p-[var(--main-pad)]');
+  });
+
+  it('renders a stored custom pair as inline padding', async () => {
+    unregisterFns.push(registerPageTemplate('page-crud', TestCrudTemplate));
+    const surface = await surfaceAt('/p/customers', {
+      pageReply: () => jsonResponse(200, { data: makeCrudEnvelope({ padding: { x: 40, y: 12 } }) }),
+    });
+    expect(surface.style.getPropertyValue('--adm-page-pad')).toBe('12px 40px');
+    expect(surface.className).toContain('p-[var(--adm-page-pad)]');
+  });
+});
+
 describe('never-crash cards (09 §3.1)', () => {
   it('renders the unknown-template card for unrecognized template ids', async () => {
     await renderAt('/p/customers', {
