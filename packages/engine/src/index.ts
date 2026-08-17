@@ -3,6 +3,7 @@ export const PACKAGE_NAME = '@adminium/engine';
 
 export * from './schema-model.js';
 export * from './adapter.js';
+export * from './infer/index.js';
 export * from './classify/index.js';
 export * from './snapshot/index.js';
 export * from './generate/index.js';

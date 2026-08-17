@@ -23,10 +23,11 @@ import {
   snapshotsRepo,
   type GeneratedPageInput,
   type MetaDb,
+  type SchemaOverride,
   type UpsertGeneratedResult,
 } from '@adminium/meta';
 
-import { activeTableLabels } from '../connections/effective-schema.js';
+import { activeTableLabels, applyRelationOverrides } from '../connections/effective-schema.js';
 import { runIntrospection } from '../connections/introspect.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { materializeLlmPages } from './materialize-llm.js';
@@ -91,6 +92,67 @@ export function filterModelToIncludedTables(
   };
 }
 
+/**
+ * Overlay the accepted `relation.add` / `relation.remove` overrides onto the
+ * snapshot's model so they reach `generatePages` (05 §6: an accepted relation
+ * re-enters future regenerations at confidence 1.0, `kind: 'override'`).
+ *
+ * The loop was open at exactly one end. `effective-schema.ts` folded these ops
+ * in on the READ path, so a relation a user accepted in the Studio remap
+ * editor appeared in the schema browser and in the data API — and then the
+ * next regeneration re-parsed the raw snapshot, saw none of it, and emitted
+ * pages with no FK chip, no related-list, and no join. The user's correction
+ * was visible everywhere except the thing it was made to correct.
+ *
+ * A stale op — one whose table or column the schema has since dropped — is
+ * DROPPED with a warning rather than passed through. The write route
+ * (routes/schema) validates targets against the snapshot of the day, so the
+ * only way to get here is schema drift, and a relation pointing at a column
+ * that no longer exists generates a page that cannot load.
+ *
+ * Inference is deliberately NOT re-run here: it ran once at introspection and
+ * its output is in the snapshot. Re-deriving it would resurrect every relation
+ * a `relation.remove` was written to suppress, because rule 1 would find the
+ * column unclaimed again and re-infer it on every single run.
+ */
+export function applyAcceptedRelations(
+  model: DatabaseModel,
+  overrides: readonly SchemaOverride[],
+): { model: DatabaseModel; warnings: string[] } {
+  const resolved = applyRelationOverrides(model.relations, overrides);
+
+  const columnsByTable = new Map(
+    model.tables.map((table) => [table.id, new Set(table.columns.map((c) => c.name))]),
+  );
+  const resolves = (tableId: string, columns: readonly string[]): boolean => {
+    const known = columnsByTable.get(tableId);
+    return known !== undefined && columns.every((column) => known.has(column));
+  };
+
+  // Only the OVERRIDE-authored rows are re-validated. Everything else in the
+  // list came out of introspection and is self-consistent by construction;
+  // re-checking it here would just be a second, weaker copy of the parser.
+  const warnings: string[] = [];
+  const relations = resolved.filter((relation) => {
+    if (relation.kind !== 'override') return true;
+    if (resolves(relation.from.tableId, relation.from.columns) && resolves(relation.to.tableId, relation.to.columns)) {
+      return true;
+    }
+    warnings.push(
+      `accepted relation ${relation.from.tableId}.${relation.from.columns.join(',')} → ${relation.to.tableId} was skipped — the schema no longer has that table or column. Re-map it in Studio → Schema.`,
+    );
+    return false;
+  });
+
+  if (relations.length === model.relations.length && relations.every((r, i) => r === model.relations[i])) {
+    return { model, warnings };
+  }
+  return {
+    model: { ...model, relations, stats: { ...model.stats, relationCount: relations.length } },
+    warnings,
+  };
+}
+
 /** The identity of a table-bound page: which template, for which table. */
 function coordinateKey(table: string, template: string): string {
   return `${table}\u0000${template}`;
@@ -147,11 +209,19 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
     introspected = true;
   }
 
-  // Snapshots store the classified model (connections/introspect.ts).
-  const model = filterModelToIncludedTables(
-    parseDatabaseModel(snapshot.schema),
-    connection.settings.includedTables,
-  );
+  const overrides = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
+  const overrideWarnings: string[] = [];
+
+  // Snapshots store the classified model — declared FKs plus the §6 relations
+  // `applyInference` derived at introspection time (connections/introspect.ts).
+  //
+  // Accepted relations are folded in BEFORE the table filter, so an override
+  // pointing at a table the wizard excluded is dropped by the same rule that
+  // drops a declared FK into an excluded table, rather than surviving as a
+  // dangling edge.
+  const accepted = applyAcceptedRelations(parseDatabaseModel(snapshot.schema), overrides);
+  overrideWarnings.push(...accepted.warnings);
+  const model = filterModelToIncludedTables(accepted.model, connection.settings.includedTables);
 
   // Overlay effective table labels (user `table.label` > accepted `llm.label`,
   // provenance 06 §8.3) onto the parsed model BEFORE generation, so every
@@ -159,7 +229,6 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   // nav — carry the rename. The stored snapshot stays label-free; this is a
   // per-run, in-memory attachment. L10n bundles resolve to the connection's
   // default locale (en_US in v1).
-  const overrides = await overridesRepo(meta).listForConnection(connectionId, { status: 'active' });
   const labels = activeTableLabels(overrides);
   if (labels.size > 0) {
     for (const table of model.tables) {
@@ -177,6 +246,7 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   // the sidebar. Making it stick and teaching the rail to show it are one
   // change, not two.
   const { pages, warnings } = generatePages(model, { connectionId, intent });
+  warnings.unshift(...overrideWarnings);
 
   // Belt and braces: the engine validated on emit; the server re-validates
   // at the write boundary because it is the single write-time authority.
