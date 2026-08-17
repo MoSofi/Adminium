@@ -37,7 +37,8 @@ import { useRouter } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Alert, Button, Stepper, useThemePrefs } from '@adminium/ui';
 
-import { ApiError } from '../../app/api.js';
+import { ApiError, hasCsrfToken } from '../../app/api.js';
+import { bootstrapQuery } from '../../app/bootstrap.js';
 import { useCapabilities } from '../../app/capabilities.js';
 import { t } from '../../i18n/t.js';
 import { AuthScreenLayout } from '../../auth/AuthScreenLayout.js';
@@ -120,6 +121,43 @@ export function DesktopSetupHost(): ReactNode {
   // so the two agree about the same server's rule rather than each guessing.
   const setupState = useQuery(setupStateQuery());
   const passwordMinLength = setupState.data?.passwordMinLength ?? 8;
+
+  /**
+   * ─── THE CSRF TOKEN, ON A RESUME ───────────────────────────────────────────
+   *
+   * Everything step 4 does mutates with the session step 3 created, and §7 item
+   * 4 requires the session-bound token from any such call (`app/api.ts`). This
+   * route never runs `appRoute`'s bootstrap — that is the whole reason it hangs
+   * off the router root — so the token reaches it by exactly two paths.
+   *
+   * On the straight-line walk it arrives with step 3's own reply
+   * (`setup/setupApi.ts`), and `await`ing here is then a no-op.
+   *
+   * A RESUME has no step 3. `desktopSetupState.ts` restores the wizard from
+   * sessionStorage, so a refresh mid-step-4 re-mounts straight onto this step
+   * with the account already made, the session still in the cookie jar, and an
+   * empty holder — the module-level token died with the page, and the password
+   * was deliberately never persisted, so there is no re-auth path either.
+   * Without this, the first thing the resumed wizard does is 403.
+   *
+   * `/bootstrap` is the other issuer and it answers here (there is a user by
+   * now, even though there are no pages yet). It is AWAITED rather than fired
+   * from an effect because the call it protects starts in the same commit: a
+   * fire-and-forget prime is a race, and it is a race step 4 loses, since
+   * `prepare()` dispatches its first mutation immediately on mount. A 401 means
+   * the cookie is gone — no session, so nothing the server's check applies to —
+   * and is swallowed. `ensureQueryData` de-dupes, so the components below that
+   * read the same query share this one request rather than adding another.
+   */
+  const queryClient = router.options.context.queryClient;
+  const primeCsrfToken = useCallback(async (): Promise<void> => {
+    if (hasCsrfToken()) return;
+    try {
+      await queryClient.ensureQueryData(bootstrapQuery());
+    } catch {
+      // See above: no session ⇒ nothing to prime, and nothing to refuse either.
+    }
+  }, [queryClient]);
 
   // §6 step 3: "Locale/theme pickers pre-filled from OS locale + system theme".
   // Seeded once, and only into a field the user has not touched (`null` means
@@ -258,6 +296,10 @@ export function DesktopSetupHost(): ReactNode {
    * ones, which this does not read.
    */
   const prepare = async (): Promise<void> => {
+    // BEFORE the early return, not after: on a resume the connection already
+    // exists, this returns straight to `ready`, and the button that renders
+    // there mutates too. See {@link primeCsrfToken}.
+    await primeCsrfToken();
     if (state.connectionId !== null) {
       setPhase('ready');
       return;

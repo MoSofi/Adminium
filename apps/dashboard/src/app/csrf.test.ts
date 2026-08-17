@@ -6,6 +6,11 @@
  * entirely. Patching only the shared client would ship a dashboard that 403s
  * on schema-override saves, logo uploads, CSV imports and one delete path —
  * so each of the five is pinned here by name.
+ *
+ * It also pins WHO writes the holder, which turned out to be the harder half:
+ * `/bootstrap` is not the only route that hands this app a session, and the one
+ * that does not go through it — the desktop first-run wizard's
+ * `POST /setup/super-admin` — is the front door of every fresh install.
  */
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,6 +20,7 @@ import { uploadBrandingLogo } from './branding.js';
 import { dataIoApi } from '../data-io/api.js';
 import { studioApi } from '../studio/api.js';
 import { putOverrides } from '../studio/remap/api.js';
+import { createSuperAdmin } from '../setup/setupApi.js';
 import { api, CSRF_HEADER, setCsrfToken } from './api.js';
 import { bootstrapQuery } from './bootstrap.js';
 
@@ -42,7 +48,7 @@ afterEach(() => {
 });
 
 describe('the token holder', () => {
-  it('is filled by the bootstrap query — the single writer', async () => {
+  it('is filled by the bootstrap query — the writer for every authed surface', async () => {
     setCsrfToken(null);
     const fetchMock = stubOk({ data: makeBootstrap({ csrfToken: TOKEN }) });
     await new QueryClient().ensureQueryData(bootstrapQuery());
@@ -58,6 +64,45 @@ describe('the token holder', () => {
     const fetchMock = stubOk();
     await api.post('/api/v1/anything');
     expect(sentHeaders(fetchMock)).not.toHaveProperty(CSRF_HEADER);
+  });
+
+  /**
+   * The second writer, and the regression it exists for.
+   *
+   * `/bootstrap` covers every surface under `appRoute`, which is every surface
+   * that already had a session when it loaded. The desktop first-run wizard is
+   * the one that does not: it hangs off the router ROOT (there is no account to
+   * bootstrap as when it renders), step 3 CREATES the session, and step 4 then
+   * creates a database, introspects it and generates pages without ever
+   * navigating away. Those three mutations carry a session and browser
+   * provenance, so the server demands the token — and with `/bootstrap` as the
+   * only writer, the holder was still empty. The shipped symptom was the
+   * desktop E2E specs timing out waiting for "Generate dashboard".
+   */
+  it('is filled by createSuperAdmin too — the session it mints is never bootstrapped', async () => {
+    setCsrfToken(null);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(201, {
+          data: { user: { id: 'usr_1', email: 'ava@adminium.io', name: 'Ava' }, csrfToken: TOKEN },
+        }),
+      )
+      .mockResolvedValue(jsonResponse(200, { data: {} }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await createSuperAdmin({
+      email: 'ava@adminium.io',
+      password: 'desktop-e2e-password',
+      name: 'Ava',
+      consent: { telemetry: false, updateCheck: false },
+    });
+
+    // The wizard's next call — `POST /api/v1/desktop/demo-database` in the real
+    // walk. Same assertion style as the bootstrap case: the header is the
+    // contract, the holder is not.
+    await api.post('/api/v1/desktop/demo-database', {});
+    expect(sentHeaders(fetchMock, 1)[CSRF_HEADER]).toBe(TOKEN);
   });
 });
 

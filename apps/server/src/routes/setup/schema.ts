@@ -49,8 +49,25 @@ export const setupSuperAdminBody = z
   .strict();
 export type SetupSuperAdminBody = z.infer<typeof setupSuperAdminBody>;
 
-/** 201 — the super admin exists and the response carries their session cookie. */
+/**
+ * 201 — the super admin exists and the response carries their session cookie.
+ *
+ * `csrfToken` is that session's §7-item-4 token, the same value
+ * `GET /bootstrap` issues for it. It is here because this reply MINTS the
+ * ambient credential the CSRF check exists to protect, and the client that
+ * receives it may keep mutating without ever reaching `/bootstrap`: the desktop
+ * first-run wizard (11-electron.md §6) creates the account at step 3 and then
+ * creates a database, introspects it and generates pages at step 4, all on the
+ * `/desktop/setup` route — which is a child of the router ROOT precisely
+ * because it cannot bootstrap (there is no account to bootstrap as when it
+ * loads). Without the token in this reply, every one of those step-4 calls is a
+ * session-authenticated, browser-provenanced, tokenless mutation: a 403.
+ *
+ * Handing it back here leaks nothing. Reading this response body cross-origin
+ * requires CORS, which is off unless an operator opts an origin in
+ * (plugins/core.ts) — the same thing that already protects `/bootstrap`'s copy.
+ */
 export const setupSuperAdminReply = z.object({
-  data: z.object({ user: authUserView }),
+  data: z.object({ user: authUserView, csrfToken: z.string() }),
 });
 export type SetupSuperAdminReply = z.infer<typeof setupSuperAdminReply>;

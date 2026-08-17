@@ -2297,10 +2297,14 @@
                             "updatedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "csrfToken": {
+                          "type": "string"
                         }
                       },
                       "required": [
-                        "user"
+                        "user",
+                        "csrfToken"
                       ],
                       "additionalProperties": false
                     }

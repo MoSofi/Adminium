@@ -12,9 +12,24 @@
  * about: renderer → loopback HTTP → Fastify → adapter → SQLite.
  *
  * The fetches run in the page, so they carry the SPA's own session cookie
- * (SameSite=Lax, same-origin; the API takes no CSRF token — see
- * apps/dashboard/src/app/api.ts). This is the same door the generated app's grid
+ * (SameSite=Lax, same-origin). This is the same door the generated app's grid
  * uses to save an edit.
+ *
+ * ─── AND THE SAME CSRF TOKEN (08-server-api.md §7 item 4) ────────────────────
+ *
+ * A session cookie is no longer sufficient for a mutation. `security/csrf.ts`
+ * requires the session-bound token from any non-GET that carries a session AND
+ * browser provenance — which a `page.evaluate` fetch does, being a real
+ * same-origin fetch from a real renderer. The SPA keeps its copy in a
+ * module-scoped holder inside the bundle (`apps/dashboard/src/app/api.ts`),
+ * unreachable from here, so this asks the server for it the same way the SPA
+ * did: `GET /api/v1/bootstrap` issues the token for whatever session the cookie
+ * resolves to. GETs never carry it — they are never checked.
+ *
+ * Doing anything else here would be a lie about the product. Dropping `Origin`
+ * would take these requests out of the check's scope entirely (the
+ * no-browser-provenance carve-out for CLI/script callers), and the spec would
+ * then pass while the grid's own save 403'd.
  */
 
 import type { Page } from '@playwright/test';
@@ -38,6 +53,12 @@ export async function editEmployeeTitle(page: Page, marker: string): Promise<Edi
       return response.json();
     };
 
+    // The §7-item-4 token for this renderer's session — the PATCH below is
+    // refused without it. Same issuer the SPA reads it from.
+    const boot = (await readJson(
+      await fetch('/api/v1/bootstrap', { credentials: 'same-origin' }),
+    )) as { data: { csrfToken: string } };
+
     const connections = (await readJson(
       await fetch('/api/v1/connections', { credentials: 'same-origin' }),
     )) as { connections: Array<{ id: string }> };
@@ -56,7 +77,7 @@ export async function editEmployeeTitle(page: Page, marker: string): Promise<Edi
       await fetch(`/api/v1/data/${connectionId}/${table}/${recordId}`, {
         method: 'PATCH',
         credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-adminium-csrf': boot.data.csrfToken },
         body: JSON.stringify({ values: { job_title: value } }),
       }),
     );

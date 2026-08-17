@@ -15,7 +15,14 @@
  * hand-roll `fetch` because this client is JSON-only. They import
  * {@link csrfHeaders} from here; patching only this file would ship a
  * dashboard that 403s on schema-override saves, logo uploads, CSV imports and
- * the delete-connection confirm. `app/bootstrap.ts` is the only writer.
+ * the delete-connection confirm.
+ *
+ * There are exactly TWO writers, and the second one is not an afterthought:
+ * `app/bootstrap.ts` (every load of an authed surface) and
+ * `setup/setupApi.ts` (the call that CREATES the session, whose reply carries
+ * the token for it). The rule that generates both: whatever hands this tab a
+ * session must hand it the token in the same breath, because from that moment
+ * on the tab is making credentialed mutations. See {@link csrfHeaders}.
  */
 
 export class ApiError extends Error {
@@ -44,9 +51,19 @@ export const CSRF_HEADER = 'x-adminium-csrf';
 
 let csrfToken: string | null = null;
 
-/** Called by the bootstrap query with the token the server just issued. */
+/** Called with the token the server just issued. Two callers — see the header. */
 export function setCsrfToken(token: string | null): void {
   csrfToken = token;
+}
+
+/**
+ * Is a token in hand? For surfaces that hold a session but never bootstrap and
+ * therefore have to prime the holder themselves — today only the desktop
+ * first-run wizard, resuming after a reload. Deliberately not a getter for the
+ * token itself: nothing outside this module needs the value.
+ */
+export function hasCsrfToken(): boolean {
+  return csrfToken !== null;
 }
 
 /**
@@ -62,6 +79,16 @@ export function setCsrfToken(token: string | null): void {
  * empty holder and are fine for a different reason: they carry no session, and
  * a session is the ambient credential the server's check exists to protect
  * (`security/csrf.ts` skips sessionless requests).
+ *
+ * `/desktop/setup` is the one surface that satisfies NEITHER clause, and it is
+ * the reason this paragraph is no longer the whole story: it is a child of the
+ * router root (it cannot bootstrap — there is no account yet), and step 3
+ * creates a session it then keeps mutating with. It closes the gap itself, at
+ * both moments a session can appear on it: `setup/setupApi.ts` installs the
+ * token that `POST /setup/super-admin` returns, and `desktopSetupHost.tsx`
+ * primes from `/bootstrap` when a reload lands it back on the wizard with a
+ * session already in the cookie jar. Any FUTURE session-bearing surface outside
+ * `appRoute` owes the same two answers.
  *
  * What is NOT true — the earlier version of this comment claimed it — is that
  * a missing token would surface as "a clean 403 rather than a silent no-op".
