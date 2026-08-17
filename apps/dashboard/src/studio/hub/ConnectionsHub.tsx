@@ -25,6 +25,7 @@ import {
 
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
+import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, type ConnectionDto, type IntrospectResult } from '../api.js';
 
 export function connectionsQuery() {
@@ -384,7 +385,7 @@ export function ConnectionsHub({ onConnectNew, onOpenRemap, pollIntervalMs = 120
   const pages = connections.reduce((sum, c) => sum + c.pageCount, 0);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-4 p-6">
+    <PageSurface width="page" className="flex flex-col gap-4">
       <header className="flex items-center gap-4">
         <div className="min-w-0">
           <h1 className="text-page-title text-fg">{t('studio.hub.title', 'Data connections')}</h1>
@@ -465,6 +466,6 @@ export function ConnectionsHub({ onConnectNew, onOpenRemap, pollIntervalMs = 120
         }}
         onDeleted={() => setDeleting(null)}
       />
-    </div>
+    </PageSurface>
   );
 }

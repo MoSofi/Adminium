@@ -48,6 +48,7 @@ import { llmAffordances, systemInfoQuery } from '../../app/capabilities.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';
 import {
   aiApi,
@@ -844,7 +845,7 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
   const provider = <ProviderConfigForm key="provider" config={config} networkAllowed={providerApi.enabled} />;
 
   return (
-    <div className="mx-auto flex w-full max-w-narrow flex-col gap-6 p-6">
+    <PageSurface width="narrow" className="flex flex-col gap-6">
       <header className="flex items-start gap-3">
         <IconTile tone="accent" size="lg" icon={<Sparkles />} />
         <div>
@@ -864,6 +865,6 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
           the nodes rather than remounting them and dropping the provider draft. */}
       {byoFirst ? [byo, provider] : [provider, byo]}
       <RunHistorySection connections={connections} onOpenReview={onOpenReview} />
-    </div>
+    </PageSurface>
   );
 }

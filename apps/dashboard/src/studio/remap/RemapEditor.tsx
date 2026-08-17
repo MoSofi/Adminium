@@ -40,6 +40,7 @@ import { TableInspector } from './TableInspector.js';
 import { putOverrides, regeneratePages, remapOverridesQuery, remapSchemaQuery } from './api.js';
 import { tableById, type RemapSelection } from './model.js';
 import { overrideKey, type RemapOverride } from './overrides.js';
+import { PageSurface } from '../../shell/PageSurface.js';
 import { useRemapBuffer } from './useRemapBuffer.js';
 
 export interface RemapEditorProps {
@@ -169,7 +170,7 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
   const sourceNotes = model === undefined ? [] : capabilityNotes(modelCapabilitySource(model));
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+    <PageSurface fill className="gap-3">
       <header className="flex flex-wrap items-center gap-2">
         <h2 className="text-section text-fg">{t('studio.remap.title', 'Schema remap')}</h2>
         {schemaQuery.data !== undefined ? (
@@ -270,6 +271,6 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
         dismissLabel={t('common.dismiss', 'Dismiss')}
         label={t('common.notifications', 'Notifications')}
       />
-    </div>
+    </PageSurface>
   );
 }
