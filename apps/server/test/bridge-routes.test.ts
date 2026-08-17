@@ -8,8 +8,14 @@
  * gates in `routes/bridge/index.ts` — allow-listed origin, pairing code,
  * authenticated session — each get their own failing case, and the headers a
  * browser relies on to enforce gate 1 are asserted rather than assumed.
+ *
+ * The last block covers what the gates leave behind: every hand-off outcome
+ * writes an `auth`-category row naming the origin that presented the code, and
+ * none of them writes the code, the ticket or the DSN.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { auditRepo } from '@adminium/meta';
 
 import { createBridgeStore, type BridgeStore } from '../src/bridge/store.js';
 import { bridgeRoutes } from '../src/routes/bridge/index.js';
@@ -33,7 +39,13 @@ describe('local bridge routes', () => {
     await t.app.register(
       async (api) => {
         await api.register(
-          bridgeRoutes({ origins: [SITE], pairingCode: CODE, store, version: '9.9.9' }),
+          bridgeRoutes({
+            meta: t.meta,
+            origins: [SITE],
+            pairingCode: CODE,
+            store,
+            version: '9.9.9',
+          }),
         );
       },
       { prefix: '/api/v1' },
@@ -241,6 +253,66 @@ describe('local bridge routes', () => {
         headers: { cookie },
       });
       expect(res.statusCode).toBe(404);
+    });
+  });
+
+  // ── the trail (this route used to be a KNOWN GAP) ──────────────────────────
+
+  describe('the hand-off leaves an audit trail', () => {
+    const rows = async () => await auditRepo(t.meta).list({ category: 'auth' });
+
+    it('records a successful hand-off, naming the origin that presented the code', async () => {
+      const res = await handoff({ code: CODE, dsn: DSN, engine: 'postgres' });
+      expect(res.statusCode).toBe(200);
+
+      const entry = (await rows()).find((e) => e.action === 'bridge_handoff');
+      expect(entry, 'minting a seed for a cross-origin caller must leave a row').toBeDefined();
+      // There is no principal here by design, so "who" is the origin — plus the
+      // ip/user-agent/request-id `auditAuth` stamps on every auth row.
+      expect(entry?.actorLabel).toBe(SITE);
+      expect(entry?.actorId).toBeNull();
+      expect(entry?.requestId).toMatch(/^req_[0-9a-f]{8}$/);
+      expect((entry?.changes?.after as { origin?: string }).origin).toBe(SITE);
+      expect((entry?.changes?.after as { engine?: string }).engine).toBe('postgres');
+    });
+
+    it('never writes the pairing code, the ticket, or the DSN into the row', async () => {
+      const res = await handoff({ code: CODE, dsn: DSN, engine: 'postgres' });
+      const ticket = (res.json() as { data: { ticket: string } }).data.ticket;
+      const entry = (await rows()).find((e) => e.action === 'bridge_handoff');
+      const serialized = JSON.stringify(entry);
+      // `adminium_audit_log` is readable by anyone with `system:audit:read`;
+      // all three of these are credentials that would survive there forever.
+      expect(serialized).not.toContain(CODE);
+      expect(serialized).not.toContain(ticket);
+      expect(serialized).not.toContain(DSN);
+      expect(serialized).not.toContain('postgres://');
+    });
+
+    it('records a wrong code as a REFUSAL, not as a hand-off', async () => {
+      const res = await handoff({ code: 'ZZZZ9999', dsn: DSN });
+      expect(res.statusCode).toBe(403);
+
+      const all = await rows();
+      expect(all.some((e) => e.action === 'bridge_handoff')).toBe(false);
+      const refusal = all.find((e) => e.action === 'bridge_handoff_refused');
+      expect(refusal, 'a code-guessing run is the thing this trail is for').toBeDefined();
+      expect(refusal?.actorLabel).toBe(SITE);
+      expect((refusal?.changes?.after as { reason?: string }).reason).toBe(
+        'pairing-code-mismatch',
+      );
+      // The near-miss would narrow the real code for an audit-log reader.
+      expect(JSON.stringify(refusal)).not.toContain('ZZZZ9999');
+    });
+
+    it('records a disallowed origin — the gate a non-browser caller walks into', async () => {
+      const res = await handoff({ code: CODE, dsn: DSN }, EVIL);
+      expect(res.statusCode).toBe(403);
+
+      const refusal = (await rows()).find((e) => e.action === 'bridge_handoff_refused');
+      expect(refusal).toBeDefined();
+      expect(refusal?.actorLabel).toBe(EVIL);
+      expect((refusal?.changes?.after as { reason?: string }).reason).toBe('origin-not-allowed');
     });
   });
 });

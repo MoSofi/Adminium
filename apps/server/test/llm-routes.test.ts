@@ -666,3 +666,88 @@ describe('llm routes — runs', () => {
     expect(twice.statusCode).toBe(404);
   });
 });
+
+// ── The two run routes that used to be KNOWN GAPS ────────────────────────────
+// `src/audit/coverage.ts` proves the marker exists; these prove the row does.
+
+describe('llm routes — the run lifecycle leaves a trail (audit coverage)', () => {
+  let t: Harness;
+  beforeEach(async () => {
+    t = await buildHarness();
+  });
+  afterEach(async () => {
+    await t.app.close();
+    await t.meta.db.destroy();
+  });
+
+  it('POST /runs audits the create — this is where the schema leaves the building', async () => {
+    const { id } = await createByoRun(t);
+
+    const entry = (await auditRepo(t.meta).list({ category: 'llm' })).find(
+      (e) => e.action === 'llm.run.create',
+    );
+    expect(entry, 'creating a run builds a prompt out of the workspace schema').toBeDefined();
+    expect(entry?.actorId).toBe(t.users.admin.id);
+    expect(entry?.actorLabel).toBe(t.users.admin.name);
+    expect(entry?.connectionId).toBe(t.connectionId);
+    expect((entry?.changes?.after as { runId?: string }).runId).toBe(id);
+  });
+
+  it('a REFUSED create writes no row — an unknown connection is not an egress', async () => {
+    const res = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/llm/runs',
+      headers: asUser(t.users.admin),
+      payload: { connectionId: 'con_nope', path: 'byo', locales: ['en_US'] },
+    });
+    expect(res.statusCode).toBe(409);
+    const entries = await auditRepo(t.meta).list({ category: 'llm' });
+    expect(entries.some((e) => e.action === 'llm.run.create')).toBe(false);
+  });
+
+  it('POST /runs/:id/response audits the paste, and never stores the pasted text', async () => {
+    const { id } = await createByoRun(t);
+    const text = validResponse(id);
+    const res = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/llm/runs/${id}/response`,
+      headers: asUser(t.users.admin),
+      payload: { text },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const entry = (await auditRepo(t.meta).list({ category: 'llm' })).find(
+      (e) => e.action === 'llm.run.response',
+    );
+    expect(entry, 'llm.run.apply acts on this text; its arrival needs a row too').toBeDefined();
+    expect(entry?.actorId).toBe(t.users.admin.id);
+    expect(entry?.connectionId).toBe(t.connectionId);
+    const after = entry?.changes?.after as { runId?: string; bytes?: number };
+    expect(after.runId).toBe(id);
+    expect(after.bytes).toBe(text.length);
+    // The size, not the payload: a whole schema proposal in the log would put
+    // every column label in front of anyone with `system:audit:read`.
+    expect(JSON.stringify(entry)).not.toContain('Customer orders.');
+  });
+
+  it('a REFUSED paste writes no row — a terminal run cannot receive one', async () => {
+    const id = await validatedRun(t);
+    const before = (await auditRepo(t.meta).list({ category: 'llm' })).filter(
+      (e) => e.action === 'llm.run.response',
+    ).length;
+
+    // The run is already `validated`; a second paste is a 409 (§7.4 immutable).
+    const again = await t.app.inject({
+      method: 'POST',
+      url: `/api/v1/llm/runs/${id}/response`,
+      headers: asUser(t.users.admin),
+      payload: { text: validResponse(id) },
+    });
+    expect(again.statusCode).toBe(409);
+
+    const after = (await auditRepo(t.meta).list({ category: 'llm' })).filter(
+      (e) => e.action === 'llm.run.response',
+    ).length;
+    expect(after, 'a rejected paste must not read as one that landed').toBe(before);
+  });
+});

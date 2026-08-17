@@ -9,6 +9,12 @@
  *
  * "Owner" is the `payload.userId` convention; `POST /jobs` stamps it with the
  * enqueuing user. Progress comes from the in-process worker (01 §5 model).
+ *
+ * Both mutations write an `automation`-category audit row (`job.enqueue`,
+ * `job.cancel`) through `app.rbac.audit`. The routes take their own injected
+ * `resolveUser`/`can` and stay independently mountable, but the audit
+ * decorator is the one thing they need from the surrounding app — mount them
+ * after `rbacPlugin`, which is what `compose.ts` and `jobs/register.ts` do.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { ZodError } from 'zod';
@@ -183,6 +189,25 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
           ...(body.maxAttempts !== undefined ? { maxAttempts: body.maxAttempts } : {}),
           ...(body.dedupeKey !== undefined ? { dedupeKey: body.dedupeKey } : {}),
         });
+        // Audited AFTER the row exists, so a rejected kind, an internal kind or
+        // a payload that failed the handler schema never reads as an enqueue
+        // that happened. The row carries the SCHEDULING facts only — the
+        // payload itself is kind-defined and may name records or filters, and
+        // the worker's own rows cover what the job then did.
+        await app.rbac.audit(request, {
+          category: 'automation',
+          action: 'job.enqueue',
+          changes: {
+            after: {
+              jobId: job.id,
+              kind: job.kind,
+              priority: job.priority,
+              runAt: job.runAt,
+              maxAttempts: job.maxAttempts,
+              dedupeKey: body.dedupeKey ?? null,
+            },
+          },
+        });
         return reply
           .status(202)
           .send({ data: { jobId: job.id, status: jobStatus.parse(job.status) } });
@@ -266,6 +291,25 @@ export function jobsRoutes(deps: JobsRoutesDeps): FastifyPluginAsyncZod {
         }
         const updated = await jobs.findById(job.id);
         if (updated === null) throw new NotFoundError(`Job ${job.id} not found.`);
+        // Past the `already ${status}` conflict, so a no-op cancel never gets a
+        // row. `before`/`after` carry the OBSERVED statuses rather than a claim
+        // of success: a `running` job is cancelled cooperatively, so `after` is
+        // still `running` here and the worker records the terminal state. The
+        // owner is named because "who cancelled somebody else's job" is the
+        // question this row exists to answer.
+        await app.rbac.audit(request, {
+          category: 'automation',
+          action: 'job.cancel',
+          changes: {
+            before: { status: job.status },
+            after: {
+              jobId: job.id,
+              kind: job.kind,
+              status: updated.status,
+              ownerId: jobOwnerId(job),
+            },
+          },
+        });
         return { data: toView(updated) };
       },
     );
