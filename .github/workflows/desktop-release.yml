@@ -322,6 +322,69 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: pnpm --filter @adminium/desktop run dist --publish never
 
+      # ── Step 3.25: notarize + staple the DMGs themselves ─────────────────────
+      #
+      # electron-builder's `mac.notarize: true` notarizes the .app and ONLY the
+      # .app. The build log proves the ordering:
+      #
+      #   signing  dist/mac/Adminium.app
+      #   notarization successful          <- the .app
+      #   building target=DMG arch=x64     <- the dmg is created AFTER, around it
+      #
+      # So the dmg is never submitted to the notary service, never gets a ticket of
+      # its own, and `xcrun stapler staple` has nothing to attach. This is not a
+      # misconfiguration that can be fixed inside electron-builder.yml — it is what
+      # electron-builder does, and the verify step below has demanded a stapled dmg
+      # since it was written. The two have simply never met: desktop-v0.1.0 shipped
+      # AD-HOC signed and died at the first check, so the dmg loop's failure was
+      # never observed until the 2026-08-17 dispatch run.
+      #
+      # WHY NOT JUST DROP THE CHECK: Apple's guidance for disk-image distribution is
+      # to notarize the image and staple the ticket to it. Without a staple, opening
+      # the downloaded dmg forces an ONLINE Gatekeeper lookup — and since the dmg's
+      # own hash was never registered, that lookup has nothing to find. The .app
+      # inside being stapled does not cover the container the user actually
+      # double-clicks. So the check is right and the pipeline was incomplete.
+      #
+      # MUST RUN BEFORE THE VERIFY STEP, which is the consumer of the staple. Costs
+      # one extra notary round-trip per arch (~5-10 min on the mac leg).
+      #
+      # APPLE_API_KEY is NOT redeclared here: it is the staged .p8 PATH written to
+      # $GITHUB_ENV at job scope by "Stage notarization API key" above. Re-declaring
+      # it at step scope would shadow that path with the raw base64 secret — the
+      # same shadowing bug the CSC_* contract note above warns about.
+      #
+      # Gated on MAC_CSC_LINK for the same reason as the signing gate: with no cert
+      # the .app is unsigned, and notarytool rejects an unsigned bundle outright, so
+      # a credential-less validation run would die here instead of reaching verify.
+      - name: Notarize and staple DMGs (macOS)
+        if: matrix.platform == 'mac' && env.MAC_CSC_LINK != ''
+        shell: bash
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          dmgs=( apps/desktop/dist/*.dmg )
+          # Fail loudly rather than silently staple nothing: a zero-length glob here
+          # would sail through and hand the verify step the exact un-stapled dmgs
+          # this step exists to prevent.
+          if [ ${#dmgs[@]} -eq 0 ]; then
+            echo "::error::no .dmg found under apps/desktop/dist/ — packaging layout changed?"
+            exit 1
+          fi
+          for dmg in "${dmgs[@]}"; do
+            echo "──────── notarizing $dmg"
+            xcrun notarytool submit "$dmg" \
+              --key "$APPLE_API_KEY" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER" \
+              --wait
+            xcrun stapler staple "$dmg"
+          done
+          echo "Notarized and stapled ${#dmgs[@]} dmg(s)"
+
       # ── Step 3.5: PROVE the macOS artifacts are actually shippable ────────────
       #
       # The §11 feed-file tripwire has a signing counterpart, and this is it. Added
@@ -427,10 +490,18 @@ jobs:
             fi
           done
 
-          # The dmg is the human download path and is notarized/stapled separately
-          # from the .app inside it, so it needs its own ticket check. (The zip needs
-          # none — it is not a container format staples apply to; its .app was
-          # checked above, and that is what electron-updater consumes.)
+          # The dmg is the human download path and needs its own ticket check.
+          #
+          # CORRECTED 2026-08-17: this comment used to say the dmg "is notarized/
+          # stapled separately from the .app inside it" — asserting electron-builder
+          # did that. IT DOES NOT. electron-builder notarizes only the .app and then
+          # builds the dmg around it, so nothing ever gave the dmg a ticket and this
+          # loop could not have passed. The staple these checks now find comes from
+          # the dedicated "Notarize and staple DMGs" step above; if that step is ever
+          # removed, this loop starts failing again — which is the intent.
+          #
+          # (The zip needs none — it is not a container format staples apply to; its
+          # .app was checked above, and that is what electron-updater consumes.)
           for dmg in apps/desktop/dist/*.dmg; do
             if ! out="$(xcrun stapler validate "$dmg" 2>&1)"; then
               fail "$dmg has no stapled notarization ticket: $out"
