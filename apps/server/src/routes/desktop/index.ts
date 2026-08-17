@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `POST /api/v1/desktop/backup` — the §9 backup, run where the data lives
  * (11-electron.md §9, §1 principle 2).
@@ -79,6 +80,14 @@ export function desktopRoutes(deps: DesktopRoutesDeps): FastifyPluginAsyncZod {
         // anonymous request has no principal to resolve and is refused before
         // the handler exists.
         preHandler: [app.requireMeta, app.rbac.require(PERMISSIONS.settingsManage)],
+        // §7 item 4. The one caller is the Electron MAIN process, which reads
+        // `adminium_session` out of Electron's cookie jar and POSTs by hand
+        // through Node's `fetch` (apps/desktop/src/main/index.ts): it is a
+        // cookie-authenticated non-GET caller that can carry neither a
+        // session-bound token nor an Origin, so both the File-menu backup and
+        // the nightly schedule would 403. Gate 2 above is the substitute
+        // control, and a loopback socket peer is a stronger one than a token.
+        config: { csrf: 'exempt' },
         schema: { body: desktopBackupBody, response: { 200: desktopBackupReply } },
       },
       async (request): Promise<DesktopBackupReply> => {

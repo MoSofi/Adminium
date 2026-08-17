@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bootstrap query + types (09-generated-app.md §2.1–§2.2): the one round trip
  * that primes the shell — session user, resolved preference axes, the nav
@@ -14,7 +15,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type { Accent, Density, Dir, ThemePref } from '@adminium/tokens';
 import type { Locale } from '@adminium/ui';
 
-import { api, ApiError } from './api.js';
+import { api, ApiError, setCsrfToken } from './api.js';
 
 export interface SessionUser {
   id: string;
@@ -72,6 +73,13 @@ export interface BootstrapData {
   version: string;
   configVersion: number;
   llm: { enabled: boolean };
+  /**
+   * §7 item 4 — the session-bound CSRF token every mutating call echoes in
+   * `x-adminium-csrf`. Optional here only so fixtures predating it keep
+   * typechecking; the server always sends it (the field is required in the
+   * Zod reply schema).
+   */
+  csrfToken?: string;
 }
 
 /** Never retry auth failures — they mean "go to /login", not "try harder". */
@@ -85,7 +93,16 @@ export function bootstrapQuery() {
     queryKey: ['bootstrap'] as const,
     staleTime: Infinity,
     retry: retryBootstrap,
-    queryFn: async () => (await api.get<{ data: BootstrapData }>('/api/v1/bootstrap')).data,
+    queryFn: async () => {
+      const { data } = await api.get<{ data: BootstrapData }>('/api/v1/bootstrap');
+      // The single writer of the CSRF holder every mutating call site reads
+      // (app/api.ts). Here rather than in a component because the four call
+      // sites that bypass `api` are not inside the React tree's data flow,
+      // and because this query is the one thing guaranteed to run before the
+      // shell can mutate anything.
+      setCsrfToken(data.csrfToken ?? null);
+      return data;
+    },
   });
 }
 

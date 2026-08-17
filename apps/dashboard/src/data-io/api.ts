@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-io API client (M7-T07, 09-generated-app.md §11) — thin typed wrappers
  * over `/api/v1/imports` + `/api/v1/exports`. Shapes mirror the server Zod
@@ -7,7 +8,7 @@
 
 import { queryOptions } from '@tanstack/react-query';
 
-import { api, ApiError } from '../app/api.js';
+import { api, ApiError, csrfHeaders } from '../app/api.js';
 
 // --- imports --------------------------------------------------------------------
 
@@ -118,7 +119,9 @@ async function uploadImportFile(file: File): Promise<UploadPreview> {
     {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { accept: 'application/json', 'content-type': 'text/csv' },
+      // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+      // every CSV import 403s at the upload step.
+      headers: { accept: 'application/json', 'content-type': 'text/csv', ...csrfHeaders() },
       body: file,
     },
   );

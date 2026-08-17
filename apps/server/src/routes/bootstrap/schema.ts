@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for `GET /api/v1/bootstrap` (09-generated-app.md §2.1,
  * 01-architecture.md §5): the one-round-trip boot payload — session user +
@@ -59,6 +60,14 @@ export const bootstrapReply = z.object({
     configVersion: z.number(),
     /** `llm.enabled` gates the ⌘K "Ask AI" affordance (06-llm-assist.md). */
     llm: z.object({ enabled: z.boolean() }),
+    /**
+     * §7 item 4: the session-bound CSRF token every mutating call echoes in
+     * `x-adminium-csrf` (security/csrf.ts). Issued here because this is the
+     * one round trip the SPA is guaranteed to make before it can mutate
+     * anything, and because it is session-bound — an anonymous surface has no
+     * session to bind to, and `/bootstrap` already 401s for those visitors.
+     */
+    csrfToken: z.string(),
   }),
 });
 export type BootstrapReply = z.infer<typeof bootstrapReply>;
