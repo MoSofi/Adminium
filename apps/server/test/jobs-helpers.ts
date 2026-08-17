@@ -25,6 +25,7 @@ import {
 import { createSqliteMetaDb, firstRun, jobsRepo, type JobsRepo, type MetaDb } from '@adminium/meta';
 
 import { AppError, errorEnvelope } from '../src/errors.js';
+import { rbacPlugin } from '../src/plugins/rbac.js';
 import {
   createJobRegistry,
   registerNoopProgressHandler,
@@ -187,3 +188,23 @@ export function buildBareApp() {
 }
 
 export type BareApp = ReturnType<typeof buildBareApp>;
+
+/**
+ * The rbac plugin plus a stub session hook, in the order `compose.ts` wires
+ * them — register this BEFORE `jobsRoutes` on a bare app.
+ *
+ * The jobs routes take their own injected `resolveUser`/`can` and must stay
+ * independently mountable, but their audit rows go through `app.rbac.audit`,
+ * which resolves the actor from `request.user` (compose passes
+ * `resolveUser: (req) => req.user`). A harness that wants the rows therefore
+ * has to supply both halves: the decorator, and something to stamp on it.
+ */
+export async function withRbacAudit(app: BareApp, meta: MetaDb): Promise<void> {
+  app.addHook('onRequest', async (request) => {
+    const id = request.headers[TEST_USER_HEADER];
+    if (typeof id === 'string' && id.length > 0) {
+      (request as unknown as { user: { id: string; name: string } }).user = { id, name: id };
+    }
+  });
+  await app.register(rbacPlugin, { meta });
+}

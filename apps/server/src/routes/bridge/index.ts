@@ -28,6 +28,16 @@
  *     same-origin, cookie-authenticated and `connections:manage`-gated. A
  *     guessed ticket is worthless without an admin session.
  *
+ * ── AUDIT ───────────────────────────────────────────────────────────────────
+ * `/handoff` writes an `auth`-category row on every outcome — `bridge_handoff`
+ * when a seed is parked, `bridge_handoff_refused` when gate 1 or gate 2 turns
+ * the caller away. It goes through `auditAuth` rather than `app.rbac.audit`
+ * because there is no principal to stamp: the row's actor is the ORIGIN that
+ * presented the code, alongside the ip/user-agent/request-id `auditAuth` adds.
+ * The pairing code, the ticket and the DSN are all credentials and none of the
+ * three is ever written — the row says a hand-off happened and from where, and
+ * nothing that would help somebody reproduce it.
+ *
  * ── WHY CORS IS HAND-ROLLED HERE ────────────────────────────────────────────
  * `plugins/core.ts` registers `@fastify/cors` globally with `credentials: true`
  * for split deployments. That is exactly the wrong policy for this resource:
@@ -40,7 +50,9 @@
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { MetaDb } from '@adminium/meta';
 
+import { auditAuth } from '../../auth/audit.js';
 import { AppError } from '../../errors.js';
 import type { BridgeStore } from '../../bridge/store.js';
 import { pairingCodeMatches } from '../../bridge/store.js';
@@ -63,14 +75,27 @@ export interface BridgeRoutesDeps {
   /** Printed by the CLI at boot; required by `/handoff`. */
   pairingCode: string;
   store: BridgeStore;
+  /** For the `auth`-category hand-off rows (see the AUDIT section above). */
+  meta: MetaDb;
   version?: string | undefined;
+}
+
+/**
+ * What the audit row calls the caller. There is no principal on `/handoff` —
+ * the whole point is that it is unauthenticated — so the ORIGIN is the closest
+ * thing to an identity the request carries, and it is the field an investigator
+ * filters on. `request.ip` and the user agent ride along from `auditAuth`.
+ */
+function handoffActorLabel(request: FastifyRequest): string {
+  const origin = request.headers.origin;
+  return typeof origin === 'string' && origin.length > 0 ? origin : 'unknown-origin';
 }
 
 /** Where the Studio wizard lives, for the redirect the site performs next. */
 export const CONNECT_PATH = '/studio/connect';
 
 export function bridgeRoutes(deps: BridgeRoutesDeps): FastifyPluginAsyncZod {
-  const { origins, pairingCode, store } = deps;
+  const { meta, origins, pairingCode, store } = deps;
   const version = deps.version ?? APP_VERSION;
   const allowed = new Set(origins);
 
@@ -140,14 +165,45 @@ export function bridgeRoutes(deps: BridgeRoutesDeps): FastifyPluginAsyncZod {
       },
       async (request, reply): Promise<BridgeHandoffReply> => {
         if (!applyCors(request, reply)) {
+          // A refused ORIGIN is audited too: the browser gates that never
+          // reach here, but a non-browser caller replaying a stolen code from
+          // somewhere else does, and this row is the only place that shows it.
+          await auditAuth(meta, request, {
+            action: 'bridge_handoff_refused',
+            actorId: null,
+            actorLabel: handoffActorLabel(request),
+            changes: { after: { reason: 'origin-not-allowed' } },
+          });
           throw new AppError(403, 'ORIGIN_NOT_ALLOWED', 'This origin is not allowed to pair.');
         }
         const { code, dsn, engine } = request.body;
         if (!pairingCodeMatches(code, pairingCode)) {
+          // Same row shape as the success below — a code-guessing run and the
+          // hand-off it eventually lands are meant to read as one sequence.
+          // The submitted code is NOT recorded: a near-miss in the log would
+          // narrow the real one for anyone with `system:audit:read`.
+          await auditAuth(meta, request, {
+            action: 'bridge_handoff_refused',
+            actorId: null,
+            actorLabel: handoffActorLabel(request),
+            changes: { after: { reason: 'pairing-code-mismatch' } },
+          });
           // One message for a wrong code, whatever was wrong about it.
           throw new AppError(403, 'PAIRING_FAILED', 'That pairing code does not match.');
         }
         const ticket = store.put({ dsn, engine: engine ?? null });
+        // Written only once the seed is really parked. Neither the pairing code
+        // nor the ticket appears: the ticket is a bearer credential for the DSN
+        // (gate 3 is the only other thing standing in front of it), and the DSN
+        // itself is a database password. `engine` is the one harmless fact
+        // about the payload, and it is what tells an investigator what kind of
+        // credential was pushed through the door.
+        await auditAuth(meta, request, {
+          action: 'bridge_handoff',
+          actorId: null,
+          actorLabel: handoffActorLabel(request),
+          changes: { after: { origin: handoffActorLabel(request), engine: engine ?? null } },
+        });
         return { data: { ticket, connectPath: CONNECT_PATH } };
       },
     );
