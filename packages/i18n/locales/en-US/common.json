@@ -97,7 +97,8 @@
       "planning": "Planning",
       "people": "People",
       "account": "Account"
-    }
+    },
+    "back": "Back"
   },
   "topbar": {
     "search": "Search…",
@@ -120,8 +121,8 @@
     "askAi": "Ask AI",
     "shortcuts": "Keyboard shortcuts",
     "signOut": "Sign out",
-    "themeDark": "Switch to dark theme",
-    "themeLight": "Switch to light theme",
+    "themeDark": "Dark mode",
+    "themeLight": "Light mode",
     "footerNavigate": "navigate",
     "footerOpen": "select",
     "footerClose": "close",
@@ -591,6 +592,11 @@
         "heading": "AI enrichment",
         "body": "Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.",
         "cta": "Open AI settings"
+      },
+      "pagesCard": {
+        "heading": "Pages",
+        "body": "Add, edit and delete pages, change what each one shows, and reorder the sidebar.",
+        "cta": "Manage pages"
       }
     },
     "settingsAi": {
@@ -1882,37 +1888,48 @@
   },
   "templates": {
     "crud": {
-      "title": "Records"
+      "title": "Records",
+      "description": "Rows in a searchable table."
     },
     "dashboard": {
-      "title": "Dashboard"
+      "title": "Dashboard",
+      "description": "Charts and figures you arrange."
     },
     "board": {
-      "title": "Board"
+      "title": "Board",
+      "description": "Cards in columns by status."
     },
     "calendar": {
-      "title": "Calendar"
+      "title": "Calendar",
+      "description": "Records on a month grid, by date."
     },
     "scheduler": {
-      "title": "Scheduler"
+      "title": "Scheduler",
+      "description": "A timeline per person."
     },
     "logViewer": {
-      "title": "Logs"
+      "title": "Logs",
+      "description": "Filterable event lines."
     },
     "files": {
-      "title": "Files"
+      "title": "Files",
+      "description": "Files and folders to browse."
     },
     "chat": {
-      "title": "Chat"
+      "title": "Chat",
+      "description": "Threaded conversations."
     },
     "builder": {
-      "title": "Builder"
+      "title": "Builder",
+      "description": "A drag-and-drop document canvas."
     },
     "wizard": {
-      "title": "Wizard"
+      "title": "Wizard",
+      "description": "Guided steps to finish a task."
     },
     "settings": {
-      "title": "Settings"
+      "title": "Settings",
+      "description": "Preference rows with toggles."
     },
     "directory": {
       "title": "Directory",
@@ -1926,7 +1943,8 @@
       "noMatchesBody": "Try a different search or remove a filter.",
       "errorTitle": "This directory failed to load",
       "loading": "Loading people",
-      "memberCount": "{count} people"
+      "memberCount": "{count} people",
+      "description": "People cards and an org chart."
     },
     "masterDetail": {
       "title": "List & detail",
@@ -1938,7 +1956,8 @@
       "noMatchesBody": "Try removing a filter.",
       "errorTitle": "This list failed to load",
       "loading": "Loading records",
-      "selectPrompt": "Select a record"
+      "selectPrompt": "Select a record",
+      "description": "A list, with the record beside it."
     },
     "queueInbox": {
       "title": "Queue",
@@ -1963,7 +1982,8 @@
       "errorTitle": "This queue failed to load",
       "loading": "Loading queue",
       "selectPrompt": "Select a request",
-      "daysUnit": "{count} days"
+      "daysUnit": "{count} days",
+      "description": "A work queue with approve and reject."
     }
   },
   "dataio": {
@@ -2067,7 +2087,167 @@
     }
   },
   "theme": {
-    "toLight": "Switch to light theme",
-    "toDark": "Switch to dark theme"
+    "toLight": "Light mode",
+    "toDark": "Dark mode"
+  },
+  "studioPages": {
+    "title": "Pages",
+    "subtitle": "Add, edit and organise the pages of your app, and the order they appear in the sidebar.",
+    "createButton": "New page",
+    "loadFailed": {
+      "title": "Pages could not be loaded",
+      "body": "Managing pages needs the “Manage pages” permission. Ask an administrator to grant it to one of your roles."
+    },
+    "tab": {
+      "pages": "All pages",
+      "sidebar": "Sidebar order"
+    },
+    "list": {
+      "title": "Pages",
+      "count": "{count, plural, one {# page} other {# pages}}"
+    },
+    "empty": {
+      "title": "No pages yet",
+      "body": "Connect a database to generate pages automatically, or create one by hand."
+    },
+    "status": {
+      "live": "Live",
+      "hidden": "Hidden"
+    },
+    "origin": {
+      "generated": "Generated",
+      "manifest": "Add-on",
+      "llm": "Assistant",
+      "system": "System",
+      "user": "Custom"
+    },
+    "row": {
+      "menu": "Actions for {title}"
+    },
+    "action": {
+      "edit": "Edit page",
+      "duplicate": "Duplicate",
+      "hide": "Hide from sidebar",
+      "show": "Show in sidebar",
+      "delete": "Delete page"
+    },
+    "create": {
+      "title": "New page",
+      "failed": "The page could not be created",
+      "submit": "Create page",
+      "subtitle": "Pick what this page shows and how it looks."
+    },
+    "duplicate": {
+      "title": "Duplicate page",
+      "failed": "The page could not be duplicated",
+      "submit": "Duplicate"
+    },
+    "delete": {
+      "title": "Delete this page?",
+      "body": "This cannot be undone. Saved views and personal layouts on this page are deleted for everyone.",
+      "bodyGenerated": "This page was created by schema generation, so it will come back the next time you regenerate. Saved views and personal layouts on it are deleted for everyone.",
+      "prompt": "Type {slug} to confirm",
+      "confirm": "Delete page"
+    },
+    "field": {
+      "title": "Title",
+      "titleHint": "Shown in the sidebar and the page header.",
+      "slug": "Page address",
+      "slugHint": "Lowercase letters, numbers and dashes. Just the last part — the rest of the address is added for you.",
+      "slugTaken": "Another page already uses this address.",
+      "slugWarning": "Changing the address breaks existing links and bookmarks to this page.",
+      "template": "Template",
+      "templateHint": "Decides what the page can hold. You can change it later.",
+      "group": "Sidebar group",
+      "groupHint": "Which section of the sidebar it appears in.",
+      "icon": "Icon",
+      "iconHint": "Shown beside the page name in the sidebar.",
+      "visible": "Show in sidebar",
+      "visibleHint": "A hidden page stays reachable at its URL for anyone who has the link.",
+      "table": "Table",
+      "tableCreateHint": "The table this page reads. You can bind it later.",
+      "tableNone": "Not bound",
+      "tableNeedsConnection": "Pick a data source first.",
+      "connection": "Data source",
+      "connectionNone": "None",
+      "iconPick": "Choose the page icon",
+      "padding": "Page padding"
+    },
+    "editor": {
+      "title": "Edit page",
+      "save": "Save changes",
+      "saveFailed": "Changes could not be saved",
+      "openPage": "Open page",
+      "generated": {
+        "title": "This page was generated from your schema",
+        "body": "Your changes survive regeneration. Deleting only lasts until the next run recreates it."
+      },
+      "contentUnavailable": "Page contents could not be loaded",
+      "contentUnavailableBody": "The details above can still be saved.",
+      "contentInvalid": "This page’s configuration is not readable",
+      "contentInvalidBody": "It was written by a newer version, or it is malformed. Regenerate the page or delete it.",
+      "data": "Data",
+      "schemaFailed": "Tables could not be listed",
+      "schemaFailedBody": "This connection may not have been analysed yet. Run introspection from Studio → Data connections.",
+      "notBindable": "This template is not bound to one table",
+      "notBindableBody": "Its contents are built widget by widget instead. Open the page and use Edit to add them.",
+      "recompose": "This page will be rebuilt",
+      "recomposeBody": "Saving rebuilds the contents. Column and widget edits here are lost.",
+      "missing": "That page no longer exists",
+      "missingBody": "It may have been deleted, or removed by a regeneration run.",
+      "details": "Details",
+      "itemsPending": "Save the change above first — the contents are rebuilt from it.",
+      "columns": "Columns",
+      "appearance": "Appearance"
+    },
+    "sidebar": {
+      "help": "Reorder pages within a group, or move one to another group. Changes apply to every user.",
+      "discard": "Discard",
+      "save": "Save order",
+      "saveFailed": "The new order could not be saved",
+      "emptyGroup": "No pages in this group.",
+      "moveUp": "Move {title} up",
+      "moveDown": "Move {title} down",
+      "moveTo": "Move {title} to a group",
+      "ungrouped": {
+        "title": "Some pages are in no sidebar group",
+        "body": "These pages work at their URL but appear nowhere in the sidebar. Open each one and pick a group."
+      }
+    },
+    "columns": {
+      "help": "Reorder columns, rename their headers, and choose which are shown in the table.",
+      "discard": "Discard",
+      "save": "Save columns",
+      "saveFailed": "Columns could not be saved",
+      "pk": "Key",
+      "pii": "PII",
+      "header": "Header for {name}",
+      "shown": "Shown",
+      "toggle": "Show {name} in the table",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "remove": "Remove {name}",
+      "none": {
+        "title": "This page has no columns yet",
+        "body": "Columns are read from the table when the page is generated. Bind this page to a table and regenerate to fill them in."
+      }
+    },
+    "icon": {
+      "none": "Choose an icon",
+      "search": "Search icons",
+      "noMatches": "No icons match that search."
+    },
+    "preview": {
+      "untitled": "Untitled page",
+      "note": "An illustration of the layout, not your data."
+    },
+    "padding": {
+      "default": "Default for this template",
+      "none": "None",
+      "standard": "Standard (28 × 24)",
+      "custom": "Custom…",
+      "x": "Sides (px)",
+      "y": "Top and bottom (px)"
+    }
   }
 }

@@ -2227,6 +2227,10 @@
     "srcHash": "85dfa32c97d8",
     "status": "mt"
   },
+  "common.nav.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
   "common.nav.connection.shared": {
     "srcHash": "50d0d8dd11a9",
     "status": "mt"
@@ -5159,6 +5163,18 @@
     "srcHash": "ddcd2975143c",
     "status": "mt"
   },
+  "common.studio.settingsHub.pagesCard.body": {
+    "status": "mt",
+    "srcHash": "c86309ff9216"
+  },
+  "common.studio.settingsHub.pagesCard.cta": {
+    "status": "mt",
+    "srcHash": "7c280ac5ed53"
+  },
+  "common.studio.settingsHub.pagesCard.heading": {
+    "status": "mt",
+    "srcHash": "600584c2d5cc"
+  },
   "common.studio.settingsHub.review.cancel": {
     "srcHash": "77dfd2135f4d",
     "status": "mt"
@@ -5691,25 +5707,513 @@
     "srcHash": "ac979fe42d47",
     "status": "mt"
   },
+  "common.studioPages.action.delete": {
+    "status": "mt",
+    "srcHash": "260b69625056"
+  },
+  "common.studioPages.action.duplicate": {
+    "status": "mt",
+    "srcHash": "972d57379db3"
+  },
+  "common.studioPages.action.edit": {
+    "status": "mt",
+    "srcHash": "17e45f8f7000"
+  },
+  "common.studioPages.action.hide": {
+    "status": "mt",
+    "srcHash": "4a6971a46e51"
+  },
+  "common.studioPages.action.show": {
+    "status": "mt",
+    "srcHash": "914e4685995d"
+  },
+  "common.studioPages.columns.discard": {
+    "status": "mt",
+    "srcHash": "36fff63ccbcd"
+  },
+  "common.studioPages.columns.header": {
+    "status": "mt",
+    "srcHash": "0966aa8facfd"
+  },
+  "common.studioPages.columns.help": {
+    "status": "mt",
+    "srcHash": "5d345bc1dcc3"
+  },
+  "common.studioPages.columns.moveDown": {
+    "status": "mt",
+    "srcHash": "79aa2de91a3d"
+  },
+  "common.studioPages.columns.moveUp": {
+    "status": "mt",
+    "srcHash": "2590f4da159f"
+  },
+  "common.studioPages.columns.none.body": {
+    "status": "mt",
+    "srcHash": "0fdaa0191112"
+  },
+  "common.studioPages.columns.none.title": {
+    "status": "mt",
+    "srcHash": "cdcfd2c8f615"
+  },
+  "common.studioPages.columns.pii": {
+    "status": "mt",
+    "srcHash": "716aef4dcaf2"
+  },
+  "common.studioPages.columns.pk": {
+    "status": "mt",
+    "srcHash": "c67dd20ee842"
+  },
+  "common.studioPages.columns.remove": {
+    "status": "mt",
+    "srcHash": "df7193a589dc"
+  },
+  "common.studioPages.columns.save": {
+    "status": "mt",
+    "srcHash": "a6b5cdf58623"
+  },
+  "common.studioPages.columns.saveFailed": {
+    "status": "mt",
+    "srcHash": "d46b58bc5fd5"
+  },
+  "common.studioPages.columns.shown": {
+    "status": "mt",
+    "srcHash": "a70f2efcefa6"
+  },
+  "common.studioPages.columns.toggle": {
+    "status": "mt",
+    "srcHash": "b138d660c1d9"
+  },
+  "common.studioPages.create.failed": {
+    "status": "mt",
+    "srcHash": "884ae9e32e4d"
+  },
+  "common.studioPages.create.submit": {
+    "status": "mt",
+    "srcHash": "9261a3c76b66"
+  },
+  "common.studioPages.create.subtitle": {
+    "status": "mt",
+    "srcHash": "4d52f12dfae1"
+  },
+  "common.studioPages.create.title": {
+    "status": "mt",
+    "srcHash": "9eb767b92650"
+  },
+  "common.studioPages.createButton": {
+    "status": "mt",
+    "srcHash": "9eb767b92650"
+  },
+  "common.studioPages.delete.body": {
+    "status": "mt",
+    "srcHash": "acbeecd16e20"
+  },
+  "common.studioPages.delete.bodyGenerated": {
+    "status": "mt",
+    "srcHash": "ce2c5a998f01"
+  },
+  "common.studioPages.delete.confirm": {
+    "status": "mt",
+    "srcHash": "260b69625056"
+  },
+  "common.studioPages.delete.prompt": {
+    "status": "mt",
+    "srcHash": "d2614fb2076b"
+  },
+  "common.studioPages.delete.title": {
+    "status": "mt",
+    "srcHash": "ed1897b414d0"
+  },
+  "common.studioPages.duplicate.failed": {
+    "status": "mt",
+    "srcHash": "0a75c1fb5b89"
+  },
+  "common.studioPages.duplicate.submit": {
+    "status": "mt",
+    "srcHash": "972d57379db3"
+  },
+  "common.studioPages.duplicate.title": {
+    "status": "mt",
+    "srcHash": "208939b024e2"
+  },
+  "common.studioPages.editor.appearance": {
+    "status": "mt",
+    "srcHash": "41def7a0febe"
+  },
+  "common.studioPages.editor.columns": {
+    "status": "mt",
+    "srcHash": "cf723c59b62a"
+  },
+  "common.studioPages.editor.contentInvalid": {
+    "status": "mt",
+    "srcHash": "a78831312b80"
+  },
+  "common.studioPages.editor.contentInvalidBody": {
+    "status": "mt",
+    "srcHash": "b51ae6f69158"
+  },
+  "common.studioPages.editor.contentUnavailable": {
+    "status": "mt",
+    "srcHash": "f9a0b41ab28b"
+  },
+  "common.studioPages.editor.contentUnavailableBody": {
+    "status": "mt",
+    "srcHash": "2f9a7b1a5b8a"
+  },
+  "common.studioPages.editor.data": {
+    "status": "mt",
+    "srcHash": "e5e429bcc9c2"
+  },
+  "common.studioPages.editor.details": {
+    "status": "mt",
+    "srcHash": "dc3decbb9384"
+  },
+  "common.studioPages.editor.generated.body": {
+    "status": "mt",
+    "srcHash": "8d7e6eec8d9a"
+  },
+  "common.studioPages.editor.generated.title": {
+    "status": "mt",
+    "srcHash": "13d322544e1a"
+  },
+  "common.studioPages.editor.itemsPending": {
+    "status": "mt",
+    "srcHash": "340693564dc5"
+  },
+  "common.studioPages.editor.missing": {
+    "status": "mt",
+    "srcHash": "a710d05f2e5f"
+  },
+  "common.studioPages.editor.missingBody": {
+    "status": "mt",
+    "srcHash": "d581714604cc"
+  },
+  "common.studioPages.editor.notBindable": {
+    "status": "mt",
+    "srcHash": "52f4aefef550"
+  },
+  "common.studioPages.editor.notBindableBody": {
+    "status": "mt",
+    "srcHash": "881343ebdafb"
+  },
+  "common.studioPages.editor.openPage": {
+    "status": "mt",
+    "srcHash": "9ee309dcedc9"
+  },
+  "common.studioPages.editor.recompose": {
+    "status": "mt",
+    "srcHash": "4dc18b787bd6"
+  },
+  "common.studioPages.editor.recomposeBody": {
+    "status": "mt",
+    "srcHash": "86d5d152d6ef"
+  },
+  "common.studioPages.editor.save": {
+    "status": "mt",
+    "srcHash": "179359b39edb"
+  },
+  "common.studioPages.editor.saveFailed": {
+    "status": "mt",
+    "srcHash": "0042ba6bbee0"
+  },
+  "common.studioPages.editor.schemaFailed": {
+    "status": "mt",
+    "srcHash": "fb52e22dce1f"
+  },
+  "common.studioPages.editor.schemaFailedBody": {
+    "status": "mt",
+    "srcHash": "4938edf3840d"
+  },
+  "common.studioPages.editor.title": {
+    "status": "mt",
+    "srcHash": "17e45f8f7000"
+  },
+  "common.studioPages.empty.body": {
+    "status": "mt",
+    "srcHash": "4de4c75aca91"
+  },
+  "common.studioPages.empty.title": {
+    "status": "mt",
+    "srcHash": "97e5c15d6488"
+  },
+  "common.studioPages.field.connection": {
+    "status": "mt",
+    "srcHash": "ffb77dd8c3e5"
+  },
+  "common.studioPages.field.connectionNone": {
+    "status": "mt",
+    "srcHash": "6eef6648406c"
+  },
+  "common.studioPages.field.group": {
+    "status": "mt",
+    "srcHash": "b9096ba56d5a"
+  },
+  "common.studioPages.field.groupHint": {
+    "status": "mt",
+    "srcHash": "c138f9e15ee7"
+  },
+  "common.studioPages.field.icon": {
+    "status": "mt",
+    "srcHash": "716f63b96e0c"
+  },
+  "common.studioPages.field.iconHint": {
+    "status": "mt",
+    "srcHash": "980dbeb24606"
+  },
+  "common.studioPages.field.iconPick": {
+    "status": "mt",
+    "srcHash": "383deaaab5ca"
+  },
+  "common.studioPages.field.padding": {
+    "status": "mt",
+    "srcHash": "a7c8e5cb82c5"
+  },
+  "common.studioPages.field.slug": {
+    "status": "mt",
+    "srcHash": "0e2d9b0777a4"
+  },
+  "common.studioPages.field.slugHint": {
+    "status": "mt",
+    "srcHash": "ae134bf5102c"
+  },
+  "common.studioPages.field.slugTaken": {
+    "status": "mt",
+    "srcHash": "ede15fce36a1"
+  },
+  "common.studioPages.field.slugWarning": {
+    "status": "mt",
+    "srcHash": "a824eeec4ae7"
+  },
+  "common.studioPages.field.table": {
+    "status": "mt",
+    "srcHash": "0424f6e7026f"
+  },
+  "common.studioPages.field.tableCreateHint": {
+    "status": "mt",
+    "srcHash": "b03c174eec99"
+  },
+  "common.studioPages.field.tableNeedsConnection": {
+    "status": "mt",
+    "srcHash": "c8e7c5c0b63d"
+  },
+  "common.studioPages.field.tableNone": {
+    "status": "mt",
+    "srcHash": "04ab4fc311e1"
+  },
+  "common.studioPages.field.template": {
+    "status": "mt",
+    "srcHash": "3ec1ae061c27"
+  },
+  "common.studioPages.field.templateHint": {
+    "status": "mt",
+    "srcHash": "6ca184650041"
+  },
+  "common.studioPages.field.title": {
+    "status": "mt",
+    "srcHash": "768e0c1c6957"
+  },
+  "common.studioPages.field.titleHint": {
+    "status": "mt",
+    "srcHash": "b5134907ae00"
+  },
+  "common.studioPages.field.visible": {
+    "status": "mt",
+    "srcHash": "914e4685995d"
+  },
+  "common.studioPages.field.visibleHint": {
+    "status": "mt",
+    "srcHash": "ef311cb59c82"
+  },
+  "common.studioPages.icon.noMatches": {
+    "status": "mt",
+    "srcHash": "237668fe26ee"
+  },
+  "common.studioPages.icon.none": {
+    "status": "mt",
+    "srcHash": "f1247003fc00"
+  },
+  "common.studioPages.icon.search": {
+    "status": "mt",
+    "srcHash": "a8b63bb6a000"
+  },
+  "common.studioPages.list.count": {
+    "status": "mt",
+    "srcHash": "5c0451aaed78"
+  },
+  "common.studioPages.list.title": {
+    "status": "mt",
+    "srcHash": "600584c2d5cc"
+  },
+  "common.studioPages.loadFailed.body": {
+    "status": "mt",
+    "srcHash": "b2f15b063c09"
+  },
+  "common.studioPages.loadFailed.title": {
+    "status": "mt",
+    "srcHash": "257bbef7245d"
+  },
+  "common.studioPages.origin.generated": {
+    "status": "mt",
+    "srcHash": "8eefdd52ad2d"
+  },
+  "common.studioPages.origin.llm": {
+    "status": "mt",
+    "srcHash": "8010d1f4d069"
+  },
+  "common.studioPages.origin.manifest": {
+    "status": "mt",
+    "srcHash": "2877bc7cc2bc"
+  },
+  "common.studioPages.origin.system": {
+    "status": "mt",
+    "srcHash": "bc0792d8dc81"
+  },
+  "common.studioPages.origin.user": {
+    "status": "mt",
+    "srcHash": "081ae3fdc403"
+  },
+  "common.studioPages.padding.custom": {
+    "status": "mt",
+    "srcHash": "dce04fd31553"
+  },
+  "common.studioPages.padding.default": {
+    "status": "mt",
+    "srcHash": "27954ce47251"
+  },
+  "common.studioPages.padding.none": {
+    "status": "mt",
+    "srcHash": "b1e3b3ca6eea"
+  },
+  "common.studioPages.padding.standard": {
+    "status": "mt",
+    "srcHash": "da1aed655399"
+  },
+  "common.studioPages.padding.x": {
+    "status": "mt",
+    "srcHash": "9243b7615f44"
+  },
+  "common.studioPages.padding.y": {
+    "status": "mt",
+    "srcHash": "7df1d9c86989"
+  },
+  "common.studioPages.preview.note": {
+    "status": "mt",
+    "srcHash": "01c80fe3f6cd"
+  },
+  "common.studioPages.preview.untitled": {
+    "status": "mt",
+    "srcHash": "b5f468bd36a8"
+  },
+  "common.studioPages.row.menu": {
+    "status": "mt",
+    "srcHash": "be793ddab31a"
+  },
+  "common.studioPages.sidebar.discard": {
+    "status": "mt",
+    "srcHash": "36fff63ccbcd"
+  },
+  "common.studioPages.sidebar.emptyGroup": {
+    "status": "mt",
+    "srcHash": "a4e5c24c8221"
+  },
+  "common.studioPages.sidebar.help": {
+    "status": "mt",
+    "srcHash": "3b99fc9b3cb1"
+  },
+  "common.studioPages.sidebar.moveDown": {
+    "status": "mt",
+    "srcHash": "8c9f6a7968a0"
+  },
+  "common.studioPages.sidebar.moveTo": {
+    "status": "mt",
+    "srcHash": "0722446577fe"
+  },
+  "common.studioPages.sidebar.moveUp": {
+    "status": "mt",
+    "srcHash": "fde0d7db7b9c"
+  },
+  "common.studioPages.sidebar.save": {
+    "status": "mt",
+    "srcHash": "b0c2a207e618"
+  },
+  "common.studioPages.sidebar.saveFailed": {
+    "status": "mt",
+    "srcHash": "3eeb17939810"
+  },
+  "common.studioPages.sidebar.ungrouped.body": {
+    "status": "mt",
+    "srcHash": "0855ae7bf735"
+  },
+  "common.studioPages.sidebar.ungrouped.title": {
+    "status": "mt",
+    "srcHash": "ebe30ee72b42"
+  },
+  "common.studioPages.status.hidden": {
+    "status": "mt",
+    "srcHash": "d4c2792a7245"
+  },
+  "common.studioPages.status.live": {
+    "status": "mt",
+    "srcHash": "65c821a596ce"
+  },
+  "common.studioPages.subtitle": {
+    "status": "mt",
+    "srcHash": "7fc181e8d000"
+  },
+  "common.studioPages.tab.pages": {
+    "status": "mt",
+    "srcHash": "921a7ea35a9a"
+  },
+  "common.studioPages.tab.sidebar": {
+    "status": "mt",
+    "srcHash": "903d1e6bac1a"
+  },
+  "common.studioPages.title": {
+    "status": "mt",
+    "srcHash": "600584c2d5cc"
+  },
+  "common.templates.board.description": {
+    "status": "mt",
+    "srcHash": "10443d82317e"
+  },
   "common.templates.board.title": {
     "srcHash": "e879b0be0190",
     "status": "mt"
+  },
+  "common.templates.builder.description": {
+    "status": "mt",
+    "srcHash": "2380256b4981"
   },
   "common.templates.builder.title": {
     "srcHash": "4759bf14d7a5",
     "status": "mt"
   },
+  "common.templates.calendar.description": {
+    "status": "mt",
+    "srcHash": "5501624edd29"
+  },
   "common.templates.calendar.title": {
     "srcHash": "adab5090ac6a",
     "status": "mt"
+  },
+  "common.templates.chat.description": {
+    "status": "mt",
+    "srcHash": "c10bc9e7c123"
   },
   "common.templates.chat.title": {
     "srcHash": "2ced57f12591",
     "status": "mt"
   },
+  "common.templates.crud.description": {
+    "status": "mt",
+    "srcHash": "e72c1a5e42f5"
+  },
   "common.templates.crud.title": {
     "srcHash": "e51c55255be9",
     "status": "mt"
+  },
+  "common.templates.dashboard.description": {
+    "status": "mt",
+    "srcHash": "943429648430"
   },
   "common.templates.dashboard.title": {
     "srcHash": "d87f47b47e4d",
@@ -5722,6 +6226,10 @@
   "common.templates.directory.clearFilters": {
     "srcHash": "412226715c56",
     "status": "mt"
+  },
+  "common.templates.directory.description": {
+    "status": "mt",
+    "srcHash": "62947039cc2e"
   },
   "common.templates.directory.detailTitle": {
     "srcHash": "8c41ae88467f",
@@ -5763,9 +6271,17 @@
     "srcHash": "4b892fe0c040",
     "status": "mt"
   },
+  "common.templates.files.description": {
+    "status": "mt",
+    "srcHash": "684bc4140547"
+  },
   "common.templates.files.title": {
     "srcHash": "6ce6c512ea43",
     "status": "mt"
+  },
+  "common.templates.logViewer.description": {
+    "status": "mt",
+    "srcHash": "fcd2a429b121"
   },
   "common.templates.logViewer.title": {
     "srcHash": "126dd3b70a5c",
@@ -5778,6 +6294,10 @@
   "common.templates.masterDetail.clearFilters": {
     "srcHash": "412226715c56",
     "status": "mt"
+  },
+  "common.templates.masterDetail.description": {
+    "status": "mt",
+    "srcHash": "a5388c5e4780"
   },
   "common.templates.masterDetail.emptyBody": {
     "srcHash": "bcd75a294df1",
@@ -5838,6 +6358,10 @@
   "common.templates.queueInbox.daysUnit": {
     "srcHash": "088b2d35730e",
     "status": "mt"
+  },
+  "common.templates.queueInbox.description": {
+    "status": "mt",
+    "srcHash": "d9a188c0dab2"
   },
   "common.templates.queueInbox.emptyBody": {
     "srcHash": "a4078fb3b6a7",
@@ -5903,13 +6427,25 @@
     "srcHash": "ff308429f063",
     "status": "mt"
   },
+  "common.templates.scheduler.description": {
+    "status": "mt",
+    "srcHash": "975af3d31474"
+  },
   "common.templates.scheduler.title": {
     "srcHash": "cdcb4d849370",
     "status": "mt"
   },
+  "common.templates.settings.description": {
+    "status": "mt",
+    "srcHash": "9ec62a316266"
+  },
   "common.templates.settings.title": {
     "srcHash": "c7f73bb54d92",
     "status": "mt"
+  },
+  "common.templates.wizard.description": {
+    "status": "mt",
+    "srcHash": "2c8aa1016aa4"
   },
   "common.templates.wizard.title": {
     "srcHash": "127a661b8e2a",

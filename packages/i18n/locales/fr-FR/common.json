@@ -97,7 +97,8 @@
       "planning": "Planification",
       "people": "Personnes",
       "account": "Compte"
-    }
+    },
+    "back": "Retour"
   },
   "topbar": {
     "search": "Rechercher…",
@@ -120,8 +121,8 @@
     "askAi": "Demander à l’IA",
     "shortcuts": "Raccourcis clavier",
     "signOut": "Se déconnecter",
-    "themeDark": "Passer au thème sombre",
-    "themeLight": "Passer au thème clair",
+    "themeDark": "Mode sombre",
+    "themeLight": "Mode clair",
     "footerNavigate": "naviguer",
     "footerOpen": "sélectionner",
     "footerClose": "fermer",
@@ -591,6 +592,11 @@
         "heading": "Enrichissement par IA",
         "body": "Configurez un fournisseur IA (ou l’aller-retour copier-coller) pour enrichir libellés, groupes et relations.",
         "cta": "Ouvrir les réglages IA"
+      },
+      "pagesCard": {
+        "heading": "Pages",
+        "body": "Ajoutez, modifiez et supprimez des pages, changez leur contenu et réordonnez la barre latérale.",
+        "cta": "Gérer les pages"
       }
     },
     "settingsAi": {
@@ -1882,37 +1888,48 @@
   },
   "templates": {
     "crud": {
-      "title": "Enregistrements"
+      "title": "Enregistrements",
+      "description": "Un tableau de lignes consultable, avec ajout, édition et suppression."
     },
     "dashboard": {
-      "title": "Tableau de bord"
+      "title": "Tableau de bord",
+      "description": "Une grille de graphiques et de chiffres que vous disposez vous-même."
     },
     "board": {
-      "title": "Tableau"
+      "title": "Tableau",
+      "description": "Des cartes en colonnes par statut, déplaçables entre elles."
     },
     "calendar": {
-      "title": "Calendrier"
+      "title": "Calendrier",
+      "description": "Des enregistrements placés par date sur une grille mensuelle ou hebdomadaire."
     },
     "scheduler": {
-      "title": "Planning"
+      "title": "Planning",
+      "description": "Qui fait quoi, sous forme de planning par personne."
     },
     "logViewer": {
-      "title": "Journaux"
+      "title": "Journaux",
+      "description": "Des lignes d’événements denses et filtrables, avec une trace détaillée."
     },
     "files": {
-      "title": "Fichiers"
+      "title": "Fichiers",
+      "description": "Fichiers et dossiers sous forme de bibliothèque navigable."
     },
     "chat": {
-      "title": "Discussion"
+      "title": "Discussion",
+      "description": "Des conversations en fils avec l’historique des messages."
     },
     "builder": {
-      "title": "Éditeur"
+      "title": "Éditeur",
+      "description": "Un canevas glisser-déposer pour documents et modèles."
     },
     "wizard": {
-      "title": "Assistant"
+      "title": "Assistant",
+      "description": "Une séquence d’étapes guidée pour accomplir une tâche."
     },
     "settings": {
-      "title": "Paramètres"
+      "title": "Paramètres",
+      "description": "Des lignes de préférences groupées, avec interrupteurs et champs."
     },
     "directory": {
       "title": "Annuaire",
@@ -1926,7 +1943,8 @@
       "noMatchesBody": "Essayez une autre recherche ou retirez un filtre.",
       "errorTitle": "Cet annuaire n’a pas pu être chargé",
       "loading": "Chargement des personnes",
-      "memberCount": "{count} personnes"
+      "memberCount": "{count} personnes",
+      "description": "Les personnes en cartes, avec un organigramme des rattachements."
     },
     "masterDetail": {
       "title": "Liste et détail",
@@ -1938,7 +1956,8 @@
       "noMatchesBody": "Essayez de retirer un filtre.",
       "errorTitle": "Cette liste n’a pas pu être chargée",
       "loading": "Chargement des enregistrements",
-      "selectPrompt": "Sélectionnez un enregistrement"
+      "selectPrompt": "Sélectionnez un enregistrement",
+      "description": "Une liste à gauche, l’enregistrement sélectionné à côté."
     },
     "queueInbox": {
       "title": "File d’attente",
@@ -1963,7 +1982,8 @@
       "errorTitle": "Cette file d’attente n’a pas pu être chargée",
       "loading": "Chargement de la file d’attente",
       "selectPrompt": "Sélectionnez une demande",
-      "daysUnit": "{count} jours"
+      "daysUnit": "{count} jours",
+      "description": "Une file de travail avec approuver et rejeter sur chaque élément."
     }
   },
   "dataio": {
@@ -2067,7 +2087,167 @@
     }
   },
   "theme": {
-    "toLight": "Passer au thème clair",
-    "toDark": "Passer au thème sombre"
+    "toLight": "Mode clair",
+    "toDark": "Mode sombre"
+  },
+  "studioPages": {
+    "title": "Pages",
+    "subtitle": "Ajoutez, modifiez et organisez les pages de votre application, ainsi que leur ordre dans la barre latérale.",
+    "createButton": "Nouvelle page",
+    "loadFailed": {
+      "title": "Impossible de charger les pages",
+      "body": "La gestion des pages requiert l’autorisation « Gérer les pages ». Demandez à un administrateur de l’attribuer à l’un de vos rôles."
+    },
+    "tab": {
+      "pages": "Toutes les pages",
+      "sidebar": "Ordre de la barre latérale"
+    },
+    "list": {
+      "title": "Pages",
+      "count": "{count, plural, one {# page} other {# pages}}"
+    },
+    "empty": {
+      "title": "Aucune page pour l’instant",
+      "body": "Connectez une base de données pour générer des pages automatiquement, ou créez-en une à la main."
+    },
+    "status": {
+      "live": "Active",
+      "hidden": "Masquée"
+    },
+    "origin": {
+      "generated": "Générée",
+      "manifest": "Extension",
+      "llm": "Assistant",
+      "system": "Système",
+      "user": "Personnalisée"
+    },
+    "row": {
+      "menu": "Actions pour {title}"
+    },
+    "action": {
+      "edit": "Modifier la page",
+      "duplicate": "Dupliquer",
+      "hide": "Masquer dans la barre latérale",
+      "show": "Afficher dans la barre latérale",
+      "delete": "Supprimer la page"
+    },
+    "create": {
+      "title": "Nouvelle page",
+      "failed": "Impossible de créer la page",
+      "submit": "Créer la page",
+      "subtitle": "Choisissez ce que cette page affiche et son apparence. L’aperçu suit vos choix."
+    },
+    "duplicate": {
+      "title": "Dupliquer la page",
+      "failed": "Impossible de dupliquer la page",
+      "submit": "Dupliquer"
+    },
+    "delete": {
+      "title": "Supprimer cette page ?",
+      "body": "Cette action est irréversible. Les vues enregistrées et les dispositions personnelles de cette page sont supprimées pour tout le monde.",
+      "bodyGenerated": "Cette page provient de la génération du schéma : elle réapparaîtra à la prochaine génération. Les vues enregistrées et les dispositions personnelles sont supprimées pour tout le monde.",
+      "prompt": "Saisissez {slug} pour confirmer",
+      "confirm": "Supprimer la page"
+    },
+    "field": {
+      "title": "Titre",
+      "titleHint": "Affiché dans la barre latérale et dans l’en-tête de la page.",
+      "slug": "Adresse de la page",
+      "slugHint": "Minuscules, chiffres et tirets. Seulement la dernière partie — le reste de l’adresse est ajouté pour vous.",
+      "slugTaken": "Une autre page utilise déjà cette adresse.",
+      "slugWarning": "Modifier l’adresse casse les liens et les favoris existants vers cette page.",
+      "template": "Modèle",
+      "templateHint": "Détermine ce que la page peut contenir. Modifiable par la suite.",
+      "group": "Groupe de la barre latérale",
+      "groupHint": "La section de la barre latérale où elle apparaît.",
+      "icon": "Icône",
+      "iconHint": "Affichée à côté du nom de la page dans la barre latérale.",
+      "visible": "Afficher dans la barre latérale",
+      "visibleHint": "Une page masquée reste accessible à son URL pour qui possède le lien.",
+      "table": "Table",
+      "tableCreateHint": "La table que cette page lit. Choisissez-en une maintenant et la page est prête à l’emploi ; laissez vide pour la lier plus tard.",
+      "tableNone": "Non liée",
+      "tableNeedsConnection": "Choisissez d’abord une source de données.",
+      "connection": "Source de données",
+      "connectionNone": "Aucune",
+      "iconPick": "Choisir l’icône de la page",
+      "padding": "Marge de la page"
+    },
+    "editor": {
+      "title": "Modifier la page",
+      "save": "Enregistrer les modifications",
+      "saveFailed": "Impossible d’enregistrer les modifications",
+      "openPage": "Ouvrir la page",
+      "generated": {
+        "title": "Cette page a été générée à partir de votre schéma",
+        "body": "Vos modifications sont conservées lors d’une nouvelle génération : la page est marquée comme modifiée et laissée intacte. En revanche, une suppression ne tient que jusqu’à ce que la génération suivante la recrée."
+      },
+      "contentUnavailable": "Impossible de charger le contenu de la page",
+      "contentUnavailableBody": "Les informations ci-dessus peuvent tout de même être enregistrées.",
+      "contentInvalid": "La configuration de cette page est illisible",
+      "contentInvalidBody": "Elle provient d’une version plus récente, ou elle est corrompue. Régénérez la page ou supprimez-la.",
+      "data": "Données",
+      "schemaFailed": "Impossible de lister les tables",
+      "schemaFailedBody": "Cette connexion n’a peut-être pas encore été analysée. Lancez l’introspection depuis Studio → Connexions de données.",
+      "notBindable": "Ce modèle n’est pas lié à une seule table",
+      "notBindableBody": "Son contenu se construit widget par widget. Ouvrez la page et utilisez « Modifier » pour les ajouter.",
+      "recompose": "Cette page va être reconstruite",
+      "recomposeBody": "L’enregistrement remplace son contenu par une nouvelle disposition pour le modèle et la table ci-dessus. Les ajustements de colonnes et les modifications de widgets de cette page seront perdus.",
+      "missing": "Cette page n’existe plus",
+      "missingBody": "Elle a peut-être été supprimée, ou retirée par une génération.",
+      "details": "Détails",
+      "itemsPending": "Enregistrez d’abord la modification ci-dessus — le contenu de la page est reconstruit à partir du nouveau modèle et de la nouvelle table.",
+      "columns": "Colonnes",
+      "appearance": "Apparence"
+    },
+    "sidebar": {
+      "help": "Réordonnez les pages au sein d’un groupe, ou déplacez-en une vers un autre groupe. Les changements s’appliquent à tout le monde.",
+      "discard": "Abandonner",
+      "save": "Enregistrer l’ordre",
+      "saveFailed": "Impossible d’enregistrer le nouvel ordre",
+      "emptyGroup": "Aucune page dans ce groupe.",
+      "moveUp": "Monter {title}",
+      "moveDown": "Descendre {title}",
+      "moveTo": "Déplacer {title} vers un groupe",
+      "ungrouped": {
+        "title": "Certaines pages n’appartiennent à aucun groupe",
+        "body": "Ces pages fonctionnent à leur URL mais n’apparaissent nulle part dans la barre latérale. Ouvrez chacune d’elles et choisissez un groupe."
+      }
+    },
+    "columns": {
+      "help": "Réordonnez les colonnes, renommez leurs en-têtes et choisissez celles qui apparaissent dans le tableau.",
+      "discard": "Abandonner",
+      "save": "Enregistrer les colonnes",
+      "saveFailed": "Impossible d’enregistrer les colonnes",
+      "pk": "Clé",
+      "pii": "PII",
+      "header": "En-tête de {name}",
+      "shown": "Affichée",
+      "toggle": "Afficher {name} dans le tableau",
+      "moveUp": "Monter {name}",
+      "moveDown": "Descendre {name}",
+      "remove": "Retirer {name}",
+      "none": {
+        "title": "Cette page n’a pas encore de colonnes",
+        "body": "Les colonnes sont lues dans la table lors de la génération de la page. Liez cette page à une table puis régénérez pour les renseigner."
+      }
+    },
+    "icon": {
+      "none": "Choisir une icône",
+      "search": "Rechercher des icônes",
+      "noMatches": "Aucune icône ne correspond à cette recherche."
+    },
+    "preview": {
+      "untitled": "Page sans titre",
+      "note": "Une illustration de la disposition, pas de vos données. La vraie page se remplit une fois enregistrée."
+    },
+    "padding": {
+      "default": "Par défaut pour ce modèle",
+      "none": "Aucune",
+      "standard": "Standard (28 × 24)",
+      "custom": "Personnalisée…",
+      "x": "Côtés (px)",
+      "y": "Haut et bas (px)"
+    }
   }
 }
