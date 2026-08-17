@@ -12,7 +12,16 @@ import type { ColumnDefault, DatabaseModel, FkAction, LogicalType } from '@admin
 
 import { ModelBuilder, type ColumnDraft, type TableDraft } from '../builder.js';
 import { SchemaImportError } from '../errors.js';
-import { findBalanced, parseArgs, singularize, snakeCase, splitTopLevel, stringLiteral } from '../text.js';
+import {
+  findBalanced,
+  hasLineTerminator,
+  isSpace,
+  parseArgs,
+  singularize,
+  snakeCase,
+  splitTopLevel,
+  stringLiteral,
+} from '../text.js';
 import type { WarningList } from '../warnings.js';
 
 const PY_SCAN = { backslashEscapes: true, lineComments: ['#'] } as const;
@@ -455,6 +464,40 @@ function scanModels(content: string): DjangoModel[] {
   return models;
 }
 
+/** a-z or `_` — the characters of `[a-z_]` in the `class Meta:` key matcher. */
+function isMetaKeyChar(code: number): boolean {
+  return (code >= 97 && code <= 122) || code === 95;
+}
+
+/**
+ * Linear-time stand-in for `/^([a-z_]+)\s*=\s*(.+)$/`, the `class Meta:`
+ * assignment matcher (CodeQL js/polynomial-redos alert #11). The trailing `\s*`
+ * and `.+` both match a space, so `'x=' + 50_000 spaces` followed by anything
+ * `.` cannot match (a stray `\r` from a CR-only models.py) retried every split
+ * of the run — ~0.6s per line at 20 KB, quadratic beyond that.
+ *
+ * Same accept set as the regex. The key run and the first `\s*` are
+ * deterministic (neither `=` nor a `[a-z_]` character can appear inside the
+ * other's run), and for the value the engine only ever gives back whitespace to
+ * satisfy the `.+` "at least one character" requirement — one character is
+ * enough, so `min(spaceEnd, length - 1)` reproduces the greedy result exactly.
+ */
+function metaAssignment(line: string): { key: string; value: string } | null {
+  let i = 0;
+  while (i < line.length && isMetaKeyChar(line.charCodeAt(i))) i += 1;
+  if (i === 0) return null; // `[a-z_]+` needs at least one character
+  const key = line.slice(0, i);
+  while (isSpace(line[i])) i += 1;
+  if (line[i] !== '=') return null;
+  i += 1;
+  let valueStart = i;
+  while (isSpace(line[valueStart])) valueStart += 1;
+  valueStart = Math.min(valueStart, line.length - 1);
+  if (valueStart < i) return null; // nothing at all after `=`
+  const value = line.slice(valueStart);
+  return hasLineTerminator(value) ? null : { key, value };
+}
+
 function parseClassBody(bodyLines: string[]): { fields: DjangoField[]; meta: Record<string, string> } {
   const fields: DjangoField[] = [];
   const meta: Record<string, string> = {};
@@ -479,15 +522,15 @@ function parseClassBody(bodyLines: string[]): { fields: DjangoField[]; meta: Rec
       continue;
     }
     if (inMeta) {
-      const kv = /^([a-z_]+)\s*=\s*(.+)$/.exec(line);
+      const kv = metaAssignment(line);
       if (kv) {
-        let value = kv[2] as string;
+        let value = kv.value;
         // Multi-line meta values (indexes = [...]) — join until balanced.
         while (!isBalanced(value) && i + 1 < bodyLines.length) {
           i += 1;
           value += '\n' + (bodyLines[i] as string).trim();
         }
-        meta[kv[1] as string] = value.trim();
+        meta[kv.key] = value.trim();
       }
       i += 1;
       continue;

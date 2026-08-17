@@ -88,12 +88,31 @@ const BASE_TYPE_MAP: Readonly<Record<string, LogicalType>> = {
 const FLOAT_PRECISION = 24;
 const DOUBLE_PRECISION = 53;
 
+/**
+ * Remove the first `(…)` group — the linear equivalent of
+ * `.replace(/\([^)]*\)/, '')`.
+ *
+ * Written as an index scan because that regex is quadratic (CodeQL
+ * js/polynomial-redos): on a COLUMN_TYPE that opens parens and never closes
+ * one (`((((…`) the unanchored scan restarts at every `(` and `[^)]*` rescans
+ * the whole remainder before failing on `\)`.
+ *
+ * Equivalent by construction: `[^)]*` cannot cross a `)`, so the leftmost
+ * match always runs from the first `(` to the first `)` after it; and when no
+ * `)` follows the first `(`, none follows any later `(` either, so the regex
+ * matches nothing.
+ */
+function stripFirstParenGroup(value: string): string {
+  const open = value.indexOf('(');
+  if (open === -1) return value;
+  const close = value.indexOf(')', open + 1);
+  if (close === -1) return value;
+  return value.slice(0, open) + value.slice(close + 1);
+}
+
 /** Strip `(…)` modifiers and trailing attributes (`unsigned`, `zerofill`). */
 function baseTypeName(columnType: string): string {
-  return columnType
-    .trim()
-    .toLowerCase()
-    .replace(/\([^)]*\)/, '')
+  return stripFirstParenGroup(columnType.trim().toLowerCase())
     .replace(/\b(unsigned|zerofill|signed)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -109,6 +128,65 @@ function modifiers(columnType: string): number[] {
     .filter((n) => Number.isFinite(n));
 }
 
+/** The characters JS's `.` (no `s` flag) refuses to match. */
+const LINE_TERMINATORS = new Set(['\n', '\r', '\u2028', '\u2029']);
+
+/**
+ * Scan the single-quoted literals out of an enum/set value list — the linear
+ * equivalent of `body.matchAll(/'((?:[^'\\]|\\.|'')*)'/g)`, returning each
+ * still-escaped body.
+ *
+ * That regex is quadratic (CodeQL js/polynomial-redos): on a list that opens a
+ * quote and never closes it (`'` then `\'&` repeated) every `\'` hides a quote
+ * from the alternation, so the whole remainder is rescanned from each of the
+ * O(n) quote positions. Hand-scanning is O(n) because a failed walk skips the
+ * region it just covered.
+ *
+ * Equivalence rests on the alternation being deterministic — at any position
+ * exactly one of `[^'\\]`, `\\.`, `''` can apply — so the walk from an opening
+ * quote is a fixed sequence of iteration boundaries, and greedy backtracking
+ * simply ends the literal at the LAST boundary that holds a `'` (`lastQuote`).
+ * When no boundary holds one, no match starts at any position the walk
+ * covered: every `'` it passed sat inside a `\x` escape, and restarting there
+ * walks the identical suffix. So resuming past the walk's stopping point (end
+ * of input, or a `\` the regex's `.` cannot follow) loses nothing.
+ */
+function scanQuotedLiterals(body: string): string[] {
+  const literals: string[] = [];
+  let pos = 0;
+  while (pos < body.length) {
+    const open = body.indexOf("'", pos);
+    if (open === -1) break;
+    let i = open + 1;
+    let lastQuote = -1;
+    for (;;) {
+      if (i >= body.length) break;
+      const ch = body[i];
+      if (ch === "'") {
+        lastQuote = i;
+        // `''` is an escaped quote, so the greedy body keeps going.
+        if (body[i + 1] !== "'") break;
+        i += 2;
+        continue;
+      }
+      if (ch === '\\') {
+        const next = body[i + 1];
+        if (next === undefined || LINE_TERMINATORS.has(next)) break;
+        i += 2;
+        continue;
+      }
+      i += 1;
+    }
+    if (lastQuote === -1) {
+      pos = i + 1;
+      continue;
+    }
+    literals.push(body.slice(open + 1, lastQuote));
+    pos = lastQuote + 1;
+  }
+  return literals;
+}
+
 /**
  * Parse the quoted value list of `enum('a','b')` / `set('a','b')`. MySQL
  * escapes embedded quotes by doubling (`''`) and the odd dump uses `\'` —
@@ -117,11 +195,9 @@ function modifiers(columnType: string): number[] {
 export function parseEnumValues(columnType: string): string[] | null {
   const match = /^\s*(enum|set)\s*\((.*)\)\s*$/is.exec(columnType);
   if (match?.[2] === undefined) return null;
-  const values: string[] = [];
-  for (const literal of match[2].matchAll(/'((?:[^'\\]|\\.|'')*)'/g)) {
-    values.push((literal[1] ?? '').replaceAll("''", "'").replaceAll("\\'", "'"));
-  }
-  return values;
+  return scanQuotedLiterals(match[2]).map((literal) =>
+    literal.replaceAll("''", "'").replaceAll("\\'", "'"),
+  );
 }
 
 /**

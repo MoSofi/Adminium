@@ -313,21 +313,71 @@ function strArray(value: unknown): string[] {
 // CHECK (col IN (...)) → EnumDef synthesis — 05 §4.1
 // ---------------------------------------------------------------------------
 
-const CHECK_ANY_PATTERN =
-  /\(?"?([a-zA-Z_][\w$]*)"?\)?(?:::[\w "]+(?:\(\d+(?:,\s*\d+)?\))?)?\s*=\s*ANY\s*\(\(?\s*ARRAY\[([^\]]+)\]/;
-const CHECK_IN_PATTERN = /"?([a-zA-Z_][\w$]*)"?\s+IN\s+\(([^)]+)\)/i;
+/**
+ * The two check shapes, split into a HEAD (everything up to the opening
+ * delimiter of the value list) and a closing delimiter matched by `indexOf`.
+ *
+ * The one-piece patterns these replace ended in `([^\]]+)\]` / `([^)]+)\)`,
+ * which is quadratic (CodeQL js/polynomial-redos): a `pg_get_constraintdef`
+ * body that repeats `A=ANY(ARRAY[\` or `_ in ((` and never closes the list
+ * makes the negated class rescan the whole remainder from every one of the
+ * O(n) candidate starts. Splitting is exact, because for a given start the
+ * rest of the pattern fixes exactly one position for that opening delimiter —
+ * the optional `\(?`/`\s*` pieces cannot slide it — so the only thing the
+ * negated class ever decided was "where is the next closer", which is what
+ * `indexOf` answers in one linear pass.
+ *
+ * The identifier runs are bounded rather than open (`[\w$]*` rescanned the
+ * whole run from every offset inside it, the `'_'.repeat(n)` attack). 62 is
+ * exact for Postgres, not a guess: the server truncates identifiers at
+ * NAMEDATALEN - 1 = 63 bytes, so a real column name never reaches the cap.
+ * `[\w "]` is capped at 128 for the same reason — it spells a cast's type name,
+ * which stops at the `.` of a qualified name and so cannot exceed one 63-byte
+ * identifier plus quotes.
+ */
+const CHECK_ANY_HEAD =
+  /\(?"?([a-zA-Z_][\w$]{0,62})"?\)?(?:::[\w "]{1,128}(?:\(\d+(?:,\s*\d+)?\))?)?\s*=\s*ANY\s*\(\(?\s*ARRAY\[/g;
+const CHECK_IN_HEAD = /"?([a-zA-Z_][\w$]{0,62})"?\s+IN\s+\(/gi;
+
+/**
+ * Leftmost `head` match whose value list is closed by `closer`, with a
+ * non-empty body (the negated classes were `+`, not `*`).
+ *
+ * A head with no `closer` anywhere after it ends the search: every later head
+ * starts further right, so `indexOf` would return -1 for those too.
+ */
+function matchDelimitedList(
+  text: string,
+  head: RegExp,
+  closer: string,
+): { column: string; body: string } | null {
+  head.lastIndex = 0;
+  for (let match = head.exec(text); match !== null; match = head.exec(text)) {
+    const start = head.lastIndex;
+    const end = text.indexOf(closer, start);
+    if (end === -1) return null;
+    const column = match[1];
+    if (end > start && column !== undefined) return { column, body: text.slice(start, end) };
+    // Empty list: resume just after this opening delimiter, as the one-piece
+    // pattern did when it backtracked and retried at the next offset.
+    head.lastIndex = start;
+  }
+  return null;
+}
 
 /** Parse `col = ANY (ARRAY['a', 'b'])` / `col IN ('a','b')` check shapes. */
 export function parseCheckEnum(
   definition: string,
 ): { column: string; values: string[] } | null {
-  const match = CHECK_ANY_PATTERN.exec(definition) ?? CHECK_IN_PATTERN.exec(definition);
-  if (match?.[1] === undefined || match[2] === undefined) return null;
+  const match =
+    matchDelimitedList(definition, CHECK_ANY_HEAD, ']') ??
+    matchDelimitedList(definition, CHECK_IN_HEAD, ')');
+  if (match === null) return null;
   const values: string[] = [];
-  for (const literal of match[2].matchAll(/'((?:[^']|'')*)'/g)) {
+  for (const literal of match.body.matchAll(/'((?:[^']|'')*)'/g)) {
     values.push((literal[1] ?? '').replaceAll("''", "'"));
   }
-  return values.length > 0 ? { column: match[1], values } : null;
+  return values.length > 0 ? { column: match.column, values } : null;
 }
 
 /** `CHECK ((expr))` → `expr` (strip prefix + one balanced outer paren pair). */

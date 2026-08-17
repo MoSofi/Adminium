@@ -203,3 +203,61 @@ describe('identifier quoting + serialization policy', () => {
     expect(postgresSerializers.binary).toBeUndefined();
   });
 });
+
+describe('ReDoS hardening — CHECK bodies parse linearly (CodeQL js/polynomial-redos)', () => {
+  // `pg_get_constraintdef` text is not fully trusted: a CHECK body carries
+  // column names and enum labels, and an application that lets users name
+  // things puts their text in both. Each input below is the pathological
+  // string CodeQL named; the figures are what the previous one-piece patterns
+  // actually cost, measured.
+  const BUDGET_MS = 1_000;
+
+  const timed = <T>(run: () => T): { ms: number; value: T } => {
+    const started = performance.now();
+    const value = run();
+    return { ms: performance.now() - started, value };
+  };
+
+  it.each([
+    // [label, definition, old wall-clock]
+    ['a bare word then a long run of double spaces (~12.2s)', 'A::' + '  '.repeat(40_000)],
+    [
+      'ARRAY[ opened and never closed (~8.6s)',
+      'A=ANY(ARRAY[' + 'A=ANY(ARRAY[\\'.repeat(20_000),
+    ],
+    ['one long identifier run (~9.4s)', '_'.repeat(50_000)],
+    ['IN ( opened and never closed (~4.4s)', '_ in (' + '_ in (('.repeat(20_000)],
+  ])('parseCheckEnum: %s', (_label, definition) => {
+    const { ms, value } = timed(() => parseCheckEnum(definition));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    // None of these close a value list, so none is an enum — as before.
+    expect(value).toBeNull();
+  });
+
+  it.each([
+    [
+      "CHECK ((status = ANY (ARRAY['todo'::text, 'doing'::text])))",
+      { column: 'status', values: ['todo', 'doing'] },
+    ],
+    [
+      "CHECK (((tier)::text = ANY ((ARRAY['free'::character varying])::text[])))",
+      { column: 'tier', values: ['free'] },
+    ],
+    ["CHECK (kind IN ('a', 'b'))", { column: 'kind', values: ['a', 'b'] }],
+    [
+      "CHECK ((mood = ANY (ARRAY['it''s fine'::text])))",
+      { column: 'mood', values: ["it's fine"] },
+    ],
+    ['CHECK ((price > (0)::numeric))', null],
+    ['CHECK ((char_length(name) > 2))', null],
+    ['CHECK (kind IN ())', null], // empty list — the `+` never matched empty
+    ["CHECK (kind IN ('a'", null], // unclosed list
+    ["CHECK ((s = ANY (ARRAY['a'::text)))", null], // unclosed ARRAY[
+    ['CHECK ((s = ANY (ARRAY[])))', null],
+    // An empty list must not stop the search: the one-piece pattern retried at
+    // the next offset and found the second CHECK, and so must the split one.
+    ["CHECK (a IN ()) CHECK (b IN ('z'))", { column: 'b', values: ['z'] }],
+  ] as const)('parseCheckEnum keeps its grammar: %s', (definition, expected) => {
+    expect(parseCheckEnum(definition)).toEqual(expected);
+  });
+});

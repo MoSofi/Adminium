@@ -405,13 +405,25 @@ function listOfStrings(arrayLiteral: string): string[] {
 
 function scanEntities(source: string, warnings: WarningList): EntitySite[] {
   const entities: EntitySite[] = [];
-  const classRe = /(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)[^{]*\{/g;
+  // The regex used to end `[^{]*\{`, which overlapped the `[\w$]*` of the class
+  // name (both match `$`), making `class $$$$…` quadratic — CodeQL
+  // js/polynomial-redos alert #18, ~0.6s for a 20 KB run of `$`. The brace is
+  // now located with a linear `indexOf`, which finds exactly the same character:
+  // `[^{]*` could not cross a `{`, so it always stopped at the first one after
+  // the (greedily matched, never usefully shortened) class name.
+  const classRe = /(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/g;
   let prevEnd = 0;
   let m: RegExpExecArray | null;
   while ((m = classRe.exec(source)) !== null) {
-    const braceIndex = m.index + m[0].length - 1;
+    const braceIndex = source.indexOf('{', m.index + m[0].length);
+    // No `{` left in the file — no later `class` could have matched either.
+    if (braceIndex === -1) break;
     const bodyEnd = findBalanced(source, braceIndex, JS_SCAN);
-    if (bodyEnd === -1) continue;
+    if (bodyEnd === -1) {
+      // Resume where the old pattern left off: just past the unbalanced brace.
+      classRe.lastIndex = braceIndex + 1;
+      continue;
+    }
     const before = source.slice(prevEnd, m.index);
     prevEnd = bodyEnd + 1;
     classRe.lastIndex = bodyEnd + 1;
