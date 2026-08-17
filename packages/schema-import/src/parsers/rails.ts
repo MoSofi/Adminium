@@ -453,14 +453,85 @@ function indexColumns(positional: string | undefined): string[] {
   return single === null ? [] : [single];
 }
 
+/**
+ * Linear-time stand-in for `/->\s*\{\s*"?([^"}]*)"?\s*\}/` — the body of a
+ * `default: -> { … }` lambda, or null when `raw` holds no such lambda.
+ *
+ * The regex form is *cubic*, not merely quadratic: `\s*`, `[^"}]*` and the
+ * trailing `\s*` all accept a space, so `'-> {' + n spaces` with no closing
+ * brace makes the engine try every three-way split of the run. Measured on
+ * node 22: 250 spaces 22 ms, 500 70 ms, 1_000 542 ms, 2_000 4.3 s, 4_000 34 s —
+ * a clean 8x per doubling. That is one `default:` value in an uploaded
+ * `schema.rb`, so a 4 KB run of spaces stalls the importer for half a minute.
+ *
+ * Same accept set, by two observations about where the regex can backtrack:
+ *
+ *  - The leading `\s*` runs are effectively possessive. `\{` cannot match a
+ *    whitespace character, so giving one back never rescues the match.
+ *  - Inside the braces only the *maximal* `\s*` split can match. A shorter split
+ *    leaves the cursor on whitespace, so `"?` matches empty and `[^"}]*` — which
+ *    accepts whitespace too — swallows exactly the same text up to the first `"`
+ *    or `}`. The rest of the attempt is then character-for-character the maximal
+ *    attempt's, so if the maximal split failed every shorter one fails.
+ *    Likewise `[^"}]*` need only be tried at full length: it stops at the first
+ *    `"` or `}`, and any shorter split would have to reach a `}` through the
+ *    trailing `\s*`, which that first `"` or end-of-string blocks.
+ *
+ * That leaves: skip to `{`, skip whitespace, take an optional opening quote,
+ * scan to the first `"` or `}`, and accept on a `}` there or on `"` followed by
+ * whitespace and a `}`. The two cursors keep repeated start offsets from
+ * rescanning ground already covered, which is what holds the loop linear on
+ * inputs like `'->{a'.repeat(n) + '"' + ' '.repeat(n)`.
+ */
+function arrowLambdaBody(raw: string): string | null {
+  let scanned = 0;
+  let delimiter = -1;
+  /** First `"` or `}` at or after `from`, or -1. Queries only ever move right. */
+  const nextDelimiter = (from: number): number => {
+    if (delimiter >= from) return delimiter;
+    if (scanned < from) scanned = from;
+    while (scanned < raw.length && raw[scanned] !== '"' && raw[scanned] !== '}') scanned += 1;
+    delimiter = scanned < raw.length ? scanned : -1;
+    return delimiter;
+  };
+  const afterSpace = (from: number): number => {
+    let i = from;
+    while (isSpace(raw[i])) i += 1;
+    return i;
+  };
+  /** The `"?\s*\}` tail. Memoised because consecutive starts share one quote. */
+  let closerAt = -1;
+  let closerOk = false;
+  const closes = (quote: number): boolean => {
+    if (quote !== closerAt) {
+      closerAt = quote;
+      closerOk = raw[afterSpace(quote + 1)] === '}';
+    }
+    return closerOk;
+  };
+
+  for (let at = raw.indexOf('->'); at !== -1; at = raw.indexOf('->', at + 1)) {
+    const brace = afterSpace(at + 2);
+    if (raw[brace] !== '{') continue;
+    const open = afterSpace(brace + 1);
+    const body = raw[open] === '"' ? open + 1 : open;
+    const end = nextDelimiter(body);
+    // Neither `"` nor `}` left: every later start begins further right, so no
+    // later attempt can find the `}` this one is missing either.
+    if (end === -1) return null;
+    if (raw[end] === '}' || closes(end)) return raw.slice(body, end);
+  }
+  return null;
+}
+
 function classifyRubyDefault(raw: string): ColumnDefault {
   const value = scalarValue(raw);
   if (typeof value === 'string') return { kind: 'literal', text: value };
   if (typeof value === 'number') return { kind: 'literal', text: String(value) };
   if (typeof value === 'boolean') return { kind: 'literal', text: String(value) };
-  const arrow = /->\s*\{\s*"?([^"}]*)"?\s*\}/.exec(raw);
-  if (arrow) {
-    const expr = (arrow[1] as string).trim();
+  const arrow = arrowLambdaBody(raw);
+  if (arrow !== null) {
+    const expr = arrow.trim();
     if (/now\(\)|current_timestamp/i.test(expr)) return { kind: 'now' };
     if (/gen_random_uuid/i.test(expr)) return { kind: 'uuid' };
     return { kind: 'expression', text: expr };

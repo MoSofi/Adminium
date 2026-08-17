@@ -205,3 +205,76 @@ describe('snakeCase — quadratic upper-case-run matcher (#17)', () => {
     expect(snakeCase('Order')).toBe('order');
   });
 });
+
+describe('rails `default: -> { … }` — cubic lambda matcher (not a CodeQL alert)', () => {
+  // CodeQL did not flag this one; it is the same shape as the eight it did, on
+  // the same untrusted path (an uploaded `schema.rb`). The old
+  // `/->\s*\{\s*"?([^"}]*)"?\s*\}/` is *cubic*: `\s*`, `[^"}]*` and the trailing
+  // `\s*` all accept a space, so an unterminated lambda followed by a run of
+  // spaces makes the engine try every three-way split of that run.
+  // Measured: 250 spaces 22 ms, 500 70 ms, 1_000 542 ms, 2_000 4.3 s,
+  // 4_000 34 s — a clean 8x per doubling.
+  const table = (defaultExpr: string): string =>
+    [
+      'create_table "orders", force: :cascade do |t|',
+      `  t.datetime "created_at", default: ${defaultExpr}`,
+      '  t.integer "quantity", default: 1, null: false',
+      'end',
+    ].join('\n');
+
+  it('stays linear on an unterminated lambda + 3 KB of spaces (~15s before)', () => {
+    // The trailing `x` matters: parseRails trims each line, so a run of spaces
+    // at end-of-line never reaches this matcher. One non-space character after
+    // it makes the run interior, and the cubic path opens.
+    const hostile = `-> {${' '.repeat(3_000)}x`;
+    const { ms, value } = timed(() => parseSchemaFile(table(hostile), { format: 'rails' }));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    const columns = value.model.tables[0]?.columns ?? [];
+    // It never closes, so it is not a lambda and falls through to the raw
+    // expression branch verbatim — and the sibling column still parses.
+    expect(columns.map((c) => c.name)).toEqual(['id', 'created_at', 'quantity']);
+    expect(columns[1]?.default).toEqual({ kind: 'expression', text: hostile });
+    expect(columns[2]?.default).toEqual({ kind: 'literal', text: '1' });
+  });
+
+  it('stays linear on many unclosed `->{` before a lone quote (~5.8s before)', () => {
+    // A second, independent quadratic in the same matcher: every `->` offset is
+    // a fresh start that rescans forward to the same quote. The trailing spaces
+    // are trimmed off the line before parsing — the 20k `->{a` prefix is what
+    // costs — but they are kept here because they are what makes a *naive* fix
+    // (one that rescans the run per start offset) quadratic in its own right.
+    const hostile = `${'->{a'.repeat(20_000)}"${' '.repeat(80_000)}`;
+    const { ms, value } = timed(() => parseSchemaFile(table(hostile), { format: 'rails' }));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(value.model.tables[0]?.columns.map((c) => c.name)).toEqual([
+      'id',
+      'created_at',
+      'quantity',
+    ]);
+  });
+
+  it('still reads a lambda padded with a long run of spaces', () => {
+    const padded = `-> {${' '.repeat(60_000)}"now()"${' '.repeat(60_000)}}`;
+    const { ms, value } = timed(() => parseSchemaFile(table(padded), { format: 'rails' }));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(value.model.tables[0]?.columns[1]?.default).toEqual({ kind: 'now' });
+  });
+
+  it.each([
+    ['-> { "now()" }', { kind: 'now' }],
+    ['-> { now() }', { kind: 'now' }],
+    ['->{CURRENT_TIMESTAMP}', { kind: 'now' }],
+    ['-> { "gen_random_uuid()" }', { kind: 'uuid' }],
+    ['-> { nextval(\'seq\') }', { kind: 'expression', text: "nextval('seq')" }],
+    ['-> {}', { kind: 'expression', text: '' }], // empty body: `[^"}]*` matched empty
+    ['-> { }', { kind: 'expression', text: '' }],
+    ['-> { "a" }', { kind: 'expression', text: 'a' }],
+    ['-> { "a }', { kind: 'expression', text: 'a' }], // opening quote, no closing one
+    ['-> { a" }', { kind: 'expression', text: 'a' }], // closing quote, no opening one
+    ['-> { x } -> { y }', { kind: 'expression', text: 'x' }], // leftmost wins
+    ['- > { x }', { kind: 'expression', text: '- > { x }' }], // not a lambda at all
+  ] as const)('lambda grammar is unchanged: %s', (defaultExpr, expected) => {
+    const { model } = parseSchemaFile(table(defaultExpr), { format: 'rails' });
+    expect(model.tables[0]?.columns[1]?.default).toEqual(expected);
+  });
+});
