@@ -291,3 +291,70 @@ describe('identifier quoting + serialization policy', () => {
     expect(mysqlSerializers.binary).toBeUndefined();
   });
 });
+
+describe('ReDoS hardening — COLUMN_TYPE parsing is linear (CodeQL js/polynomial-redos)', () => {
+  // COLUMN_TYPE is not fully trusted input: an application that lets users name
+  // things puts their text into a column type and into enum labels, and this
+  // module parses that text verbatim. Each string below is the pathological
+  // input CodeQL named for one alert; the wall-clock figures in the comments
+  // are what the previous unanchored regexes actually cost, measured.
+  const BUDGET_MS = 1_000;
+
+  const timed = <T>(run: () => T): { ms: number; value: T } => {
+    const started = performance.now();
+    const value = run();
+    return { ms: performance.now() - started, value };
+  };
+
+  it('mapMysqlType: a type that opens parens and never closes one (~4.5s before)', () => {
+    const hostile = `varchar${'('.repeat(50_000)}`;
+    const { ms, value } = timed(() => mapMysqlType(hostile));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    // Unclosed parens are not a modifier, so nothing is stripped and the base
+    // name stays unmappable — exactly what /\([^)]*\)/ produced.
+    expect(value.logicalType).toBe('unknown');
+  });
+
+  it("parseEnumValues: an unterminated label repeating \\'& (~11.3s before)", () => {
+    const hostile = `enum('${"\\'&".repeat(50_000)})`;
+    const { ms, value } = timed(() => parseEnumValues(hostile));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    // No closing quote is reachable, so no literal is produced — as before.
+    expect(value).toEqual([]);
+  });
+
+  it.each([
+    // The whole modifier/attribute grammar the rewritten scan has to preserve.
+    ['varchar(255)', { logicalType: 'varchar', maxLength: 255 }],
+    ['char(36)', { logicalType: 'varchar', maxLength: 36 }],
+    ['varbinary(255)', { logicalType: 'binary', maxLength: 255 }],
+    ['decimal(10,2)', { logicalType: 'decimal', numericPrecision: 10, numericScale: 2 }],
+    ['decimal(10, 2)', { logicalType: 'decimal', numericPrecision: 10, numericScale: 2 }],
+    ['int(11) unsigned', { logicalType: 'integer', unsigned: true }],
+    ['int unsigned zerofill', { logicalType: 'integer', unsigned: true }],
+    ['tinyint(1)', { logicalType: 'boolean' }],
+    ['double precision', { logicalType: 'float' }],
+    ['timestamp(3)', { logicalType: 'timestamptz' }],
+    ['  VARCHAR(64)  ', { logicalType: 'varchar', maxLength: 64 }],
+    ['varchar', { logicalType: 'varchar', maxLength: null }],
+    ['varchar(', { logicalType: 'unknown' }],
+    ['varchar)', { logicalType: 'unknown' }],
+  ] as const)('mapMysqlType keeps its grammar: %s', (columnType, expected) => {
+    expect(mapMysqlType(columnType)).toMatchObject(expected);
+  });
+
+  it.each([
+    ["enum('todo','doing','done')", ['todo', 'doing', 'done']],
+    ["set('red','green')", ['red', 'green']],
+    ["enum('it''s fine','meh')", ["it's fine", 'meh']],
+    ["enum('it\\'s fine','meh')", ["it's fine", 'meh']],
+    ["ENUM ( 'a' , 'b' )", ['a', 'b']],
+    ["enum('')", ['']],
+    ["enum('a,b','c')", ['a,b', 'c']],
+    ["enum('back\\\\slash','x')", ['back\\\\slash', 'x']],
+    ["enum('a')", ['a']],
+    ["enum('a','b'", null], // no closing paren: not an enum at all
+  ] as const)('parseEnumValues keeps its grammar: %s', (columnType, expected) => {
+    expect(parseEnumValues(columnType)).toEqual(expected);
+  });
+});

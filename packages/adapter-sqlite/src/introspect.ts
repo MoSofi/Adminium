@@ -270,19 +270,50 @@ export function scanCheckConstraints(
   return results;
 }
 
-const CHECK_IN_PATTERN = /["'`[]?([a-zA-Z_][\w$]*)["'`\]]?\s+in\s*\(([^)]+)\)/i;
+/**
+ * The `col IN (…)` head — everything up to the opening paren of the value
+ * list, which `parseCheckEnum` then closes with `indexOf`.
+ *
+ * The one-piece pattern this replaces ended in `([^)]+)\)`, which is quadratic
+ * (CodeQL js/polynomial-redos) — and this runs on CHECK bodies lifted verbatim
+ * out of `sqlite_master.sql`, where a column name is whatever the application
+ * let a user call it. A body repeating `_ in ((` and never closing the list
+ * made `[^)]+` rescan the whole remainder from each of the O(n) candidate
+ * starts; `'_'.repeat(n)` did the same through the unbounded `[\w$]*`.
+ *
+ * 127 is the package's own identifier ceiling — `SQLITE_MAX_IDENTIFIER_LENGTH`
+ * is 128 (05 §2.1 "unlimited-ish sqlite (use 128)") and the query engine
+ * enforces it, so a name this pattern would now decline is a name the adapter
+ * could not address anyway.
+ */
+const CHECK_IN_HEAD = /["'`[]?([a-zA-Z_][\w$]{0,127})["'`\]]?\s+in\s*\(/gi;
 
 /** Parse a `col IN ('a','b')` check shape into a synthesized enum (05 §4.3). */
 export function parseCheckEnum(
   expression: string,
 ): { column: string; values: string[] } | null {
-  const match = CHECK_IN_PATTERN.exec(expression);
-  if (match?.[1] === undefined || match[2] === undefined) return null;
-  const values: string[] = [];
-  for (const literal of match[2].matchAll(/'((?:[^']|'')*)'/g)) {
-    values.push((literal[1] ?? '').replaceAll("''", "'"));
+  CHECK_IN_HEAD.lastIndex = 0;
+  for (
+    let head = CHECK_IN_HEAD.exec(expression);
+    head !== null;
+    head = CHECK_IN_HEAD.exec(expression)
+  ) {
+    const start = CHECK_IN_HEAD.lastIndex;
+    const end = expression.indexOf(')', start);
+    // No `)` after this head means none after any later head either.
+    if (end === -1) return null;
+    const column = head[1];
+    if (end > start && column !== undefined) {
+      const values: string[] = [];
+      for (const literal of expression.slice(start, end).matchAll(/'((?:[^']|'')*)'/g)) {
+        values.push((literal[1] ?? '').replaceAll("''", "'"));
+      }
+      return values.length > 0 ? { column, values } : null;
+    }
+    // Empty list: resume just after this `(`, as the one-piece pattern did.
+    CHECK_IN_HEAD.lastIndex = start;
   }
-  return values.length > 0 ? { column: match[1], values } : null;
+  return null;
 }
 
 /** Tail of the DDL after the closing paren — WITHOUT ROWID / STRICT options. */

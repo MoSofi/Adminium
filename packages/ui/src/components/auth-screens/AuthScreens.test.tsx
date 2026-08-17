@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -234,6 +234,55 @@ describe('ForgotPasswordForm', () => {
       render(<ForgotPasswordForm labels={forgotLabels} onSubmit={() => {}} />);
       expect(screen.getByRole('button', { name: 'Send reset link' }).hasAttribute('disabled')).toBe(false);
     });
+  });
+});
+
+/**
+ * CodeQL js/polynomial-redos #19/#20. Both pre-auth screens validated the email
+ * with their own copy of `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`, which ran quadratically
+ * on "strings starting with '!@!.' and with many repetitions of '!.'". Nothing
+ * authenticates before these screens, so that input is anonymous and unbounded.
+ *
+ * Both now route through the single `lib/email.ts` validator — that shared
+ * module carries the acceptance table and the big-input timing proof; these two
+ * assert the wiring, so a copy that drifts back into one form is caught here.
+ */
+describe('pre-auth email validation is not quadratic', () => {
+  // 20k repetitions took the old pattern 1.3s; it is kept modest here because
+  // the render around it costs more than the check does. The trailing `@` is
+  // what makes the match fail (and so backtrack) — and unlike a trailing space
+  // it survives the forms' own `.trim()`. `fireEvent`, not `user.type`: typing
+  // 40k characters one keystroke at a time is the slow part, not the bug.
+  const attack = `!@!.${'!.'.repeat(20_000)}@`;
+
+  it('SignInForm rejects it promptly', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<SignInForm labels={signInLabels} onSubmit={onSubmit} />);
+
+    const started = performance.now();
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: attack } });
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    const elapsed = performance.now() - started;
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter a valid email address.')).toBeDefined();
+    expect(elapsed).toBeLessThan(2_000);
+  });
+
+  it('ForgotPasswordForm rejects it promptly', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<ForgotPasswordForm labels={forgotLabels} onSubmit={onSubmit} />);
+
+    const started = performance.now();
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: attack } });
+    await user.click(screen.getByRole('button', { name: 'Send reset link' }));
+    const elapsed = performance.now() - started;
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter a valid email address.')).toBeDefined();
+    expect(elapsed).toBeLessThan(2_000);
   });
 });
 

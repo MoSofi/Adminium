@@ -13,7 +13,16 @@ import type { ColumnDefault, DatabaseModel, FkAction, LogicalType } from '@admin
 import { ModelBuilder, type ColumnDraft, type TableDraft } from '../builder.js';
 import { extractCheckEnum } from '../check-enum.js';
 import { SchemaImportError } from '../errors.js';
-import { parseArgs, pluralize, scalarValue, singularize, stringLiteral, splitTopLevel } from '../text.js';
+import {
+  hasLineTerminator,
+  isSpace,
+  parseArgs,
+  pluralize,
+  scalarValue,
+  singularize,
+  stringLiteral,
+  splitTopLevel,
+} from '../text.js';
 import type { WarningList } from '../warnings.js';
 
 const T_TYPES: Readonly<Record<string, { logicalType: LogicalType; dbType: string }>> = {
@@ -41,6 +50,57 @@ const T_TYPES: Readonly<Record<string, { logicalType: LogicalType; dbType: strin
   interval: { logicalType: 'interval', dbType: 'interval' },
 };
 
+/**
+ * Linear-time stand-in for the `/^<keyword>\s+(.*)$/` statement matchers —
+ * returns the argument text after `keyword`, or null when `line` is not that
+ * statement.
+ *
+ * The regex form is quadratic (CodeQL js/polynomial-redos, alerts #12/#14/#15/
+ * #16): `\s+` and `.*` both match a space, so every split of the whitespace run
+ * is retried whenever `$` cannot land — and `$` cannot land when the tail holds
+ * a character `.` never matches. A `schema.rb` saved with CR-only line endings
+ * is one giant "line" full of `\r`, so `'add_index ' + 50_000 spaces + '\rx\ry'`
+ * is a plain uploaded file, not a contrived string.
+ *
+ * Same accept set as the regex: `\s+` is greedy and any line terminator that
+ * defeats `$` sits *past* the whitespace run, so shortening `\s+` only prepends
+ * characters to the capture and can never rescue a failed match. Testing the
+ * maximal split alone is therefore exact.
+ */
+function keywordArgs(line: string, keyword: string): string | null {
+  if (!line.startsWith(keyword)) return null;
+  let i = keyword.length;
+  while (isSpace(line[i])) i += 1;
+  if (i === keyword.length) return null; // `\s+` needs at least one space
+  const args = line.slice(i);
+  return hasLineTerminator(args) ? null : args;
+}
+
+/** a-z or `_` — the characters of `[a-z_]` in the `t.<method>` matcher. */
+function isMethodChar(code: number): boolean {
+  return (code >= 97 && code <= 122) || code === 95;
+}
+
+/**
+ * Linear-time stand-in for `/^t\.([a-z_]+[!?]?)\s*(.*)$/` (alert #13), the same
+ * `\s`/`.` overlap as {@link keywordArgs}. Giving back a `[a-z_]` character
+ * cannot help either — the character after a shorter run is a letter, which
+ * neither `[!?]?` nor `\s*` accepts — so the maximal split is again exact.
+ */
+function tableMethodLine(line: string): { method: string; args: string } | null {
+  if (!line.startsWith('t.')) return null;
+  let i = 2;
+  while (i < line.length && isMethodChar(line.charCodeAt(i))) i += 1;
+  if (i === 2) return null; // `[a-z_]+` needs at least one character
+  const suffix = line[i];
+  if (suffix === '!' || suffix === '?') i += 1;
+  const method = line.slice(2, i);
+  let argStart = i;
+  while (isSpace(line[argStart])) argStart += 1;
+  const args = line.slice(argStart);
+  return hasLineTerminator(args) ? null : { method, args };
+}
+
 export function parseRails(content: string, name: string, warnings: WarningList): DatabaseModel {
   const builder = new ModelBuilder(warnings);
   const lines = content.split('\n');
@@ -57,10 +117,10 @@ export function parseRails(content: string, name: string, warnings: WarningList)
     }
     if (line.length === 0 || line.startsWith('#')) continue;
 
-    const createMatch = /^create_table\s+(.*)$/.exec(line);
-    if (createMatch) {
+    const createArgs = keywordArgs(line, 'create_table');
+    if (createArgs !== null) {
       sawCreateTable = true;
-      current = startTable(createMatch[1] as string, builder, warnings);
+      current = startTable(createArgs, builder, warnings);
       continue;
     }
     if (line === 'end' || line.startsWith('end ')) {
@@ -68,27 +128,27 @@ export function parseRails(content: string, name: string, warnings: WarningList)
       continue;
     }
     if (current !== null) {
-      const tMatch = /^t\.([a-z_]+[!?]?)\s*(.*)$/.exec(line);
-      if (tMatch) {
-        handleTableLine(tMatch[1] as string, tMatch[2] as string, current, builder, warnings);
+      const tLine = tableMethodLine(line);
+      if (tLine) {
+        handleTableLine(tLine.method, tLine.args, current, builder, warnings);
         continue;
       }
       continue;
     }
 
-    const addIndex = /^add_index\s+(.*)$/.exec(line);
-    if (addIndex) {
-      handleAddIndex(addIndex[1] as string, builder, warnings);
+    const addIndex = keywordArgs(line, 'add_index');
+    if (addIndex !== null) {
+      handleAddIndex(addIndex, builder, warnings);
       continue;
     }
-    const addFk = /^add_foreign_key\s+(.*)$/.exec(line);
-    if (addFk) {
-      handleAddForeignKey(addFk[1] as string, builder, warnings);
+    const addFk = keywordArgs(line, 'add_foreign_key');
+    if (addFk !== null) {
+      handleAddForeignKey(addFk, builder, warnings);
       continue;
     }
-    const addCheck = /^add_check_constraint\s+(.*)$/.exec(line);
-    if (addCheck) {
-      const args = parseArgs(addCheck[1] as string, 'ruby');
+    const addCheck = keywordArgs(line, 'add_check_constraint');
+    if (addCheck !== null) {
+      const args = parseArgs(addCheck, 'ruby');
       const tableName = rubyString(args.positional[0]);
       const expr = rubyString(args.positional[1]);
       const table = tableName !== null ? builder.getTable(tableName) : undefined;

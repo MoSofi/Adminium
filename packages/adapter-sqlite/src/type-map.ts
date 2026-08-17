@@ -41,12 +41,32 @@ export interface MappedType {
   affinity: SqliteAffinity;
 }
 
+/**
+ * Remove the first `(…)` group — the linear equivalent of
+ * `.replace(/\([^)]*\)/, '')`.
+ *
+ * Written as an index scan because that regex is quadratic (CodeQL
+ * js/polynomial-redos), and SQLite declared types are free text straight out
+ * of `sqlite_master.sql`: on a declared type that opens parens and never
+ * closes one (`((((…`) the unanchored scan restarts at every `(` and `[^)]*`
+ * rescans the whole remainder before failing on `\)`.
+ *
+ * Equivalent by construction: `[^)]*` cannot cross a `)`, so the leftmost
+ * match always runs from the first `(` to the first `)` after it; and when no
+ * `)` follows the first `(`, none follows any later `(` either, so the regex
+ * matches nothing.
+ */
+function stripFirstParenGroup(value: string): string {
+  const open = value.indexOf('(');
+  if (open === -1) return value;
+  const close = value.indexOf(')', open + 1);
+  if (close === -1) return value;
+  return value.slice(0, open) + value.slice(close + 1);
+}
+
 /** Strip `(…)` modifiers and collapse whitespace. */
 function baseTypeName(declaredType: string): string {
-  return declaredType
-    .trim()
-    .toUpperCase()
-    .replace(/\([^)]*\)/, '')
+  return stripFirstParenGroup(declaredType.trim().toUpperCase())
     .replace(/\s+/g, ' ')
     .trim();
 }
