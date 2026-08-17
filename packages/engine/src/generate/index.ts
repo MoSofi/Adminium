@@ -50,6 +50,33 @@ export {
 } from './dashboard.js';
 export { detectDomains, type Domain } from './domains.js';
 export {
+  TABLE_BOUND_TEMPLATES,
+  composeRequestedPage,
+  isTableBoundTemplate,
+  type RecomposeContext,
+  type RecomposeResult,
+} from './recompose.js';
+/**
+ * The page-template vocabulary, forwarded from the widgets `generate` leaf.
+ *
+ * The server needs both to accept a "create page" request — `PAGE_TEMPLATE_IDS`
+ * to reject a template that would render as the unknown-template card, and
+ * `templateKind` to stamp the envelope's `kind` (which decides whether
+ * `pageEnvelopeSchema` enforces `config.layout`). It cannot import
+ * `@adminium/widgets` itself: `.dependency-cruiser.cjs`'s
+ * `server-no-ui-widgets-charts` rule is an unconditional error with no path
+ * carve-out. Engine may import the leaf, so it forwards — the same reason
+ * `routes/pages/layout-schema.ts` reaches `pageLayoutSchema` through
+ * `@adminium/engine/config`, and with the same payoff: zero second definition
+ * to drift from.
+ */
+export {
+  PAGE_TEMPLATE_IDS,
+  getPageTemplateManifest,
+  templateKind,
+  type ComposedPageKind,
+} from '@adminium/widgets/generate';
+export {
   ID_SLUG_BUDGET,
   MAX_SLUG_LENGTH,
   hashEnvelope,

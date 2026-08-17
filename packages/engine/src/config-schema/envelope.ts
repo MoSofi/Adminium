@@ -31,6 +31,27 @@ export const navConfigSchema = z.object({
 });
 export type NavConfig = z.infer<typeof navConfigSchema>;
 
+/**
+ * Per-page gutter override for the inner main section (02-design-system.md
+ * §1.8). OMITTED is the common case and means "whatever this template
+ * normally uses" — only an explicit value overrides, so the default can be
+ * retuned centrally without rewriting stored documents.
+ *
+ * `none` and `standard` name the two shared choices; the object form is an
+ * explicit x/y pair in CSS pixels. Capped at 200px because the control that
+ * writes it is a number input, and a page inset by four figures is a support
+ * ticket, not a layout.
+ */
+export const pagePaddingSchema = z.union([
+  z.literal('none'),
+  z.literal('standard'),
+  z.object({
+    x: z.number().int().min(0).max(200),
+    y: z.number().int().min(0).max(200),
+  }),
+]);
+export type PagePaddingConfig = z.infer<typeof pagePaddingSchema>;
+
 const envelopeShape = z.object({
   v: z.literal(1), // config schema version (integer, 01-architecture.md §8.2)
   kind: configKindSchema,
@@ -46,6 +67,10 @@ const envelopeShape = z.object({
   }),
   nav: navConfigSchema,
   access: z.object({ minRole: z.string().min(1), permissions: z.array(z.string()) }),
+  // Page chrome, not template body — hence a sibling of `config` rather than a
+  // key inside it. Optional so every stored document predating it still
+  // validates and keeps rendering with its template's own gutter.
+  padding: pagePaddingSchema.optional(),
   // Per-template body. Unknown fields are preserved on round-trip
   // (forward compatibility, 01-architecture.md §6.2); per-template schemas
   // live in @adminium/widgets/page-config and are applied by kind below.

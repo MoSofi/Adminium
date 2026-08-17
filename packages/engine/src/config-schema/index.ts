@@ -14,11 +14,13 @@ export {
   configKindSchema,
   navConfigSchema,
   pageEnvelopeSchema,
+  pagePaddingSchema,
   widgetConfigSchema,
   type ConfigKind,
   type NavConfig,
   type PageConfig,
   type PageEnvelope,
+  type PagePaddingConfig,
   type WidgetConfig,
 } from './envelope.js';
 export {
@@ -30,6 +32,7 @@ export {
   type ConfigDocument,
   type ConfigMigration,
 } from './migrations.js';
+export { TABLE_BOUND_TEMPLATES, isTableBoundTemplate } from './table-bound.js';
 // Assembled surface: the per-template leaf schemas (04-widget-registry.md §5.1, §6.1).
 export {
   COMPILABLE_DATA_SHAPES,
@@ -50,4 +53,20 @@ export {
   type PageLayout,
   type QueryDescriptor,
   type QueryFilter,
+} from '@adminium/widgets/page-config';
+// `page-crud`'s config body is a `columns[]` of these (04 §6.1). Re-exported
+// here so the two consumers that must validate one — the server's page-config
+// PATCH and the dashboard's column editor — share the single definition
+// rather than restating it; neither may import `@adminium/widgets` directly
+// (dependency-cruiser `server-no-ui-widgets-charts`, `dashboard-no-full-engine`).
+export {
+  GRID_LOGICAL_TYPES,
+  GRID_SEMANTICS,
+  gridColumnSpecSchema,
+  gridLogicalTypeSchema,
+  gridToneSchema,
+  type GridColumnSpec,
+  type GridColumnSpecInput,
+  type GridLogicalType,
+  type GridTone,
 } from '@adminium/widgets/page-config';
