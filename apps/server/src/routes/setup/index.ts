@@ -26,6 +26,9 @@
  *    `POST /setup/super-admin` is not a mistake — it is somebody probing for an
  *    un-set-up panel, and that is worth a row even though the client is told
  *    nothing beyond the invariant 409.
+ *  - The 201 carries the new session's CSRF token (§7 item 4). This route MINTS
+ *    a session, and a client that keeps mutating on the same screen afterwards
+ *    has nowhere else to learn the token from — see `setupSuperAdminReply`.
  *
  * `auditAuth` and not `app.rbac.audit`: these routes are registered inside
  * `buildServer`, and Fastify 5 snapshots the parent's decorators into a child
@@ -41,6 +44,7 @@ import { AppError, ConflictError, ValidationFailedError } from '../../errors.js'
 import { auditAuth } from '../../auth/audit.js';
 import { createSession, setSessionCookie } from '../../auth/sessions.js';
 import type { AuthContext } from '../../plugins/auth.js';
+import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { SetupClosedError, WeakPasswordError, type SetupService } from '../../setup/service.js';
 import { toUserView } from '../auth/handlers.js';
 import { RATE_LIMIT_BUCKETS } from '../auth/index.js';
@@ -141,14 +145,21 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
         // Land the wizard signed in — re-typing the credentials you just chose
         // is friction with no security value (you proved nothing by knowing it).
         const userAgent = request.headers['user-agent'];
-        const { token } = await createSession(ctx().meta, user.id, {
+        const { token, session } = await createSession(ctx().meta, user.id, {
           ip: request.ip,
           userAgent: typeof userAgent === 'string' ? userAgent.slice(0, 300) : null,
         });
         setSessionCookie(reply, token, request);
 
         void reply.status(201);
-        return { data: { user: toUserView(user) } };
+        return {
+          data: {
+            user: toUserView(user),
+            // The §7-item-4 token for the session this reply just minted. See
+            // `setupSuperAdminReply` for why it cannot wait for `/bootstrap`.
+            csrfToken: issueCsrfToken(csrfSigningKey(ctx().env.ADMINIUM_SECRET), session.id),
+          },
+        };
       },
     );
   };
