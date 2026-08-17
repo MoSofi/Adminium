@@ -97,7 +97,8 @@
       "planning": "規劃",
       "people": "人員",
       "account": "帳戶"
-    }
+    },
+    "back": "返回"
   },
   "topbar": {
     "search": "搜尋…",
@@ -120,8 +121,8 @@
     "askAi": "詢問 AI",
     "shortcuts": "鍵盤快速鍵",
     "signOut": "登出",
-    "themeDark": "切換至深色主題",
-    "themeLight": "切換至淺色主題",
+    "themeDark": "深色模式",
+    "themeLight": "淺色模式",
     "footerNavigate": "導覽",
     "footerOpen": "選取",
     "footerClose": "關閉",
@@ -591,6 +592,11 @@
         "heading": "AI 增強",
         "body": "設定 AI 供應商（或複製貼上往返）以增強標籤、分組與關聯。",
         "cta": "開啟 AI 設定"
+      },
+      "pagesCard": {
+        "heading": "頁面",
+        "body": "新增、編輯與刪除頁面，變更每個頁面的內容，並重新排列側邊欄。",
+        "cta": "管理頁面"
       }
     },
     "settingsAi": {
@@ -1882,37 +1888,48 @@
   },
   "templates": {
     "crud": {
-      "title": "記錄"
+      "title": "記錄",
+      "description": "可搜尋的資料表格，支援新增、編輯與刪除。"
     },
     "dashboard": {
-      "title": "儀表板"
+      "title": "儀表板",
+      "description": "由您自行排列的圖表與指標格線。"
     },
     "board": {
-      "title": "看板"
+      "title": "看板",
+      "description": "依狀態分欄的卡片，可在欄之間拖曳。"
     },
     "calendar": {
-      "title": "行事曆"
+      "title": "行事曆",
+      "description": "依日期排在月檢視或週檢視格線上的記錄。"
     },
     "scheduler": {
-      "title": "排班"
+      "title": "排班",
+      "description": "誰在做什麼——以每人一列的時間軸呈現。"
     },
     "logViewer": {
-      "title": "記錄檔"
+      "title": "記錄檔",
+      "description": "密集且可篩選的事件列，附詳細追蹤。"
     },
     "files": {
-      "title": "檔案"
+      "title": "檔案",
+      "description": "以可瀏覽的資料庫形式呈現檔案與資料夾。"
     },
     "chat": {
-      "title": "聊天"
+      "title": "聊天",
+      "description": "附訊息歷史的對話討論串。"
     },
     "builder": {
-      "title": "建立工具"
+      "title": "建立工具",
+      "description": "用於製作文件與範本的拖放畫布。"
     },
     "wizard": {
-      "title": "精靈"
+      "title": "精靈",
+      "description": "引導式的分步流程，逐步完成工作。"
     },
     "settings": {
-      "title": "設定"
+      "title": "設定",
+      "description": "分組的偏好設定列，含開關與欄位。"
     },
     "directory": {
       "title": "通訊錄",
@@ -1926,7 +1943,8 @@
       "noMatchesBody": "試試其他搜尋詞或移除篩選。",
       "errorTitle": "無法載入此通訊錄",
       "loading": "正在載入人員",
-      "memberCount": "{count} 人"
+      "memberCount": "{count} 人",
+      "description": "以卡片呈現人員，並附組織圖。"
     },
     "masterDetail": {
       "title": "清單與詳情",
@@ -1938,7 +1956,8 @@
       "noMatchesBody": "試試移除篩選。",
       "errorTitle": "無法載入此清單",
       "loading": "正在載入記錄",
-      "selectPrompt": "選擇一筆記錄"
+      "selectPrompt": "選擇一筆記錄",
+      "description": "左側是清單，選取的記錄顯示在旁邊。"
     },
     "queueInbox": {
       "title": "佇列",
@@ -1963,7 +1982,8 @@
       "errorTitle": "無法載入此佇列",
       "loading": "正在載入佇列",
       "selectPrompt": "選擇一個請求",
-      "daysUnit": "{count} 天"
+      "daysUnit": "{count} 天",
+      "description": "附有核准與拒絕操作的工作佇列。"
     }
   },
   "dataio": {
@@ -2067,7 +2087,167 @@
     }
   },
   "theme": {
-    "toLight": "切換至淺色主題",
-    "toDark": "切換至深色主題"
+    "toLight": "淺色模式",
+    "toDark": "深色模式"
+  },
+  "studioPages": {
+    "title": "頁面",
+    "subtitle": "新增、編輯與整理應用程式的頁面，以及它們在側邊欄中的排序。",
+    "createButton": "新增頁面",
+    "loadFailed": {
+      "title": "無法載入頁面",
+      "body": "管理頁面需要「管理頁面」權限。請聯絡管理員將該權限授予您的其中一個角色。"
+    },
+    "tab": {
+      "pages": "所有頁面",
+      "sidebar": "側邊欄排序"
+    },
+    "list": {
+      "title": "頁面",
+      "count": "{count, plural, other {# 個頁面}}"
+    },
+    "empty": {
+      "title": "尚無頁面",
+      "body": "連線資料庫即可自動產生頁面，也可以手動建立一個。"
+    },
+    "status": {
+      "live": "已啟用",
+      "hidden": "已隱藏"
+    },
+    "origin": {
+      "generated": "自動產生",
+      "manifest": "外掛",
+      "llm": "助理",
+      "system": "系統",
+      "user": "自訂"
+    },
+    "row": {
+      "menu": "{title} 的操作"
+    },
+    "action": {
+      "edit": "編輯頁面",
+      "duplicate": "建立複本",
+      "hide": "在側邊欄中隱藏",
+      "show": "在側邊欄中顯示",
+      "delete": "刪除頁面"
+    },
+    "create": {
+      "title": "新增頁面",
+      "failed": "無法建立頁面",
+      "submit": "建立頁面",
+      "subtitle": "選擇此頁面顯示什麼以及外觀如何。預覽會跟隨您的選擇。"
+    },
+    "duplicate": {
+      "title": "建立頁面複本",
+      "failed": "無法建立複本",
+      "submit": "建立複本"
+    },
+    "delete": {
+      "title": "確定要刪除此頁面嗎？",
+      "body": "此操作無法復原。此頁面上所有已儲存的檢視與個人版面配置將對所有人刪除。",
+      "bodyGenerated": "此頁面由結構描述產生，下次重新產生時會再次出現。已儲存的檢視與個人版面配置將對所有人刪除。",
+      "prompt": "輸入 {slug} 以確認",
+      "confirm": "刪除頁面"
+    },
+    "field": {
+      "title": "標題",
+      "titleHint": "顯示在側邊欄與頁面標題列中。",
+      "slug": "頁面網址",
+      "slugHint": "僅限小寫字母、數字與連字號。只需填寫最後一段，其餘部分會自動補上。",
+      "slugTaken": "已有其他頁面使用此網址。",
+      "slugWarning": "變更網址會使指向此頁面的現有連結與書籤失效。",
+      "template": "範本",
+      "templateHint": "決定頁面可以承載哪些內容，之後可以變更。",
+      "group": "側邊欄群組",
+      "groupHint": "頁面出現在側邊欄的哪個區塊。",
+      "icon": "圖示",
+      "iconHint": "顯示在側邊欄中頁面名稱的旁邊。",
+      "visible": "在側邊欄中顯示",
+      "visibleHint": "隱藏的頁面仍可透過網址存取，只要對方有連結。",
+      "table": "資料表",
+      "tableCreateHint": "此頁面讀取的資料表。現在選擇即可直接使用；留空則可稍後再繫結。",
+      "tableNone": "未繫結",
+      "tableNeedsConnection": "請先選擇資料來源。",
+      "connection": "資料來源",
+      "connectionNone": "無",
+      "iconPick": "選擇頁面圖示",
+      "padding": "頁面內距"
+    },
+    "editor": {
+      "title": "編輯頁面",
+      "save": "儲存變更",
+      "saveFailed": "無法儲存變更",
+      "openPage": "開啟頁面",
+      "generated": {
+        "title": "此頁面依您的結構描述產生",
+        "body": "重新產生時會保留您的修改：頁面會標記為已編輯並原樣保留。但刪除只在下次產生前有效，屆時頁面會重新建立。"
+      },
+      "contentUnavailable": "無法載入頁面內容",
+      "contentUnavailableBody": "上方的設定仍可儲存。",
+      "contentInvalid": "無法讀取此頁面的設定",
+      "contentInvalidBody": "設定由較新的版本寫入，或已損毀。請重新產生或刪除此頁面。",
+      "data": "資料",
+      "schemaFailed": "無法列出資料表",
+      "schemaFailedBody": "此連線可能尚未分析。請在「工作室 → 資料連線」中執行結構分析。",
+      "notBindable": "此範本不繫結單一資料表",
+      "notBindableBody": "它的內容由小工具逐一組成。開啟頁面並點選「編輯」即可加入。",
+      "recompose": "此頁面將重新建立",
+      "recomposeBody": "儲存後會依上方的範本與資料表用全新版面配置取代頁面內容。此頁面上的欄位調整與小工具變更將會遺失。",
+      "missing": "此頁面已不存在",
+      "missingBody": "它可能已被刪除，或被某次重新產生移除。",
+      "details": "詳細資訊",
+      "itemsPending": "請先儲存上方的變更——頁面內容將依新的範本與資料表重建。",
+      "columns": "欄位",
+      "appearance": "外觀"
+    },
+    "sidebar": {
+      "help": "在群組內重新排序頁面，或將頁面移至其他群組。變更會對所有人生效。",
+      "discard": "捨棄",
+      "save": "儲存排序",
+      "saveFailed": "無法儲存新的排序",
+      "emptyGroup": "此群組中沒有頁面。",
+      "moveUp": "將 {title} 上移",
+      "moveDown": "將 {title} 下移",
+      "moveTo": "將 {title} 移至其他群組",
+      "ungrouped": {
+        "title": "有些頁面不屬於任何側邊欄群組",
+        "body": "這些頁面可透過網址存取，但不會出現在側邊欄中。請逐一開啟並選擇群組。"
+      }
+    },
+    "columns": {
+      "help": "重新排序欄位、重新命名欄位標題，並選擇哪些欄位顯示在表格中。",
+      "discard": "捨棄",
+      "save": "儲存欄位",
+      "saveFailed": "無法儲存欄位",
+      "pk": "主鍵",
+      "pii": "個人資料",
+      "header": "{name} 的欄位標題",
+      "shown": "顯示",
+      "toggle": "在表格中顯示 {name}",
+      "moveUp": "將 {name} 上移",
+      "moveDown": "將 {name} 下移",
+      "remove": "移除 {name}",
+      "none": {
+        "title": "此頁面尚無欄位",
+        "body": "產生頁面時會從資料表讀取欄位。請將此頁面繫結至資料表後重新產生。"
+      }
+    },
+    "icon": {
+      "none": "選擇圖示",
+      "search": "搜尋圖示",
+      "noMatches": "沒有圖示符合此搜尋。"
+    },
+    "preview": {
+      "untitled": "未命名頁面",
+      "note": "這是版面示意圖，不是您的資料。儲存後真實頁面才會填入內容。"
+    },
+    "padding": {
+      "default": "此範本的預設值",
+      "none": "無",
+      "standard": "標準 (28 × 24)",
+      "custom": "自訂…",
+      "x": "左右 (px)",
+      "y": "上下 (px)"
+    }
   }
 }
