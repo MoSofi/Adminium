@@ -31,8 +31,8 @@ export type DataShape = z.infer<typeof dataShapeSchema>;
 
 /**
  * The subset of {@link DATA_SHAPES} the widget-data query compiler can actually
- * produce today (04 §5.2 "M4 scope notes"; the rest reject with 422 until
- * 04-T09/T10 land). SINGLE SOURCE OF TRUTH for that boundary:
+ * produce today (04 §5.2); the rest reject with 422. SINGLE SOURCE OF TRUTH for
+ * that boundary:
  *
  *  - `apps/server/src/widget-data/compiler.ts` validates requested shapes
  *    against it, and
@@ -43,13 +43,23 @@ export type DataShape = z.infer<typeof dataShapeSchema>;
  * widgets (chart-sankey, chart-multiline, the matrix family…) that no binding
  * could ever satisfy. Extending the compiler therefore widens the prompt
  * vocabulary automatically — add the shape here in the same change.
+ *
+ * Two of the eighteen are NOT compiler gaps and must never be listed here:
+ * `static` is config-only with no server round trip (04 §3), and `form-state`
+ * is fed by the CRUD form path, not by a query descriptor. Still outstanding:
+ * `hierarchy/tree`, `geo-points`, `flows`, `boolean-map`, `ohlc`.
  */
 export const COMPILABLE_DATA_SHAPES = [
   'single-metric',
   'metric+delta',
   'timeseries',
+  'multi-timeseries',
   'categorical',
   'record-list',
+  'record',
+  'matrix',
+  'calendar-events',
+  'distribution',
   'stream',
 ] as const satisfies readonly DataShape[];
 

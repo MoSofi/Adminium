@@ -245,16 +245,57 @@ describe('widget-data compiler — refusals', () => {
       { shape: 'timeseries', aggregations: [{ fn: 'count', alias: 'n' }] }, // no bucket
       { shape: 'categorical', aggregations: [{ fn: 'count', alias: 'n' }] }, // no groupBy
       { shape: 'record-list', aggregations: [{ fn: 'count', alias: 'n' }] },
-      { shape: 'matrix' }, // unsupported shape
+      // `matrix` is COMPILABLE now, so this row no longer tests "unsupported
+      // shape" — it tests matrix's own rule that a cell needs an aggregation.
+      { shape: 'matrix' },
+      // …and its other two rules, which the old "unsupported shape" row hid.
       {
-        shape: 'single-metric',
-        aggregations: [{ fn: 'percentile', column: 'freight', p: 0.5, alias: 'p50' }],
-      },
+        shape: 'matrix',
+        aggregations: [{ fn: 'count', alias: 'n' }],
+        groupBy: ['customer_id'],
+      }, // needs exactly two groupBy keys
+      {
+        shape: 'matrix',
+        aggregations: [{ fn: 'count', alias: 'n' }],
+        groupBy: ['customer_id', 'order_id'],
+        bucket: { column: 'order_date', unit: 'month' },
+      }, // cannot time-bucket
       { shape: 'single-metric', aggregations: [{ fn: 'count', alias: '__bucket' }] }, // reserved alias
       { shape: 'single-metric', aggregations: [{ fn: 'sum', alias: 'x' }] }, // sum needs a column
     ];
     for (const input of bad) {
       expect(() => compile(input)).toThrow(ValidationFailedError);
+    }
+  });
+
+  /**
+   * `percentile` used to reject unconditionally, and this suite pinned that by
+   * listing it among the structural refusals above. It is now a supported
+   * aggregation, so the assertion inverts: Postgres emits `percentile_cont`
+   * inline, while SQLite (no percentile function at all) and MySQL 8 (no
+   * `percentile_cont`) fall back to the documented in-process scan.
+   */
+  it('compiles percentile natively on postgres and via a scan on sqlite/mysql', () => {
+    const descriptorInput = {
+      shape: 'single-metric' as const,
+      aggregations: [{ fn: 'percentile', column: 'freight', p: 0.5, alias: 'p50' }],
+    };
+
+    const pg = compile(descriptorInput);
+    expect(pg.percentileScan).toBeNull();
+    expect(pg.query.compile().sql).toContain('percentile_cont');
+
+    for (const dialect of ['sqlite', 'mysql'] as const) {
+      const scanned = compileWidgetQuery({
+        db,
+        view,
+        descriptor: descriptor(descriptorInput),
+        canReadPii: false,
+        dialect,
+        now: () => NOW,
+      });
+      expect(scanned.percentileScan).not.toBeNull();
+      expect(scanned.query.compile().sql).not.toContain('percentile_cont');
     }
   });
 });

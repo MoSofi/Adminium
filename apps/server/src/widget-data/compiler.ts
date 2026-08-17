@@ -13,21 +13,24 @@
  * - all values bind as parameters; the only inlined token is the bucket
  *   unit, drawn from a closed Zod enum.
  *
- * M4 scope notes: shapes compiled here are `single-metric`, `metric+delta`,
- * `timeseries`, `categorical`, and `record-list` (the M4 widget set).
- * `percentile` aggregations and the remaining shapes reject with 422 until
- * 04-T09/T10.
+ * Scope: the compilable shapes are exactly `COMPILABLE_DATA_SHAPES`; the
+ * remaining five (`hierarchy/tree`, `geo-points`, `flows`, `boolean-map`,
+ * `ohlc`) still reject with 422. `static` and `form-state` are not compiler
+ * gaps and never will be — the first is config-only, the second is fed by the
+ * CRUD form path.
  *
- * Dialect divergence (04 §5.2 step 4): time bucketing and rolling-window
- * bounds are the two clauses whose SQL differs per engine. Rather than a
- * kysely-typed adapter hook (the `@adminium/engine/adapter` `QueryEngine`
- * contract must stay free of a `kysely` dependency — it types the dialect
- * opaquely), the compiler branches on the connection's engine here, where
- * kysely and the rest of the SQL compilation already live: `bucketExpr()`
- * emits `date_trunc` / `strftime` / `DATE_FORMAT` per dialect, and window
- * boundaries bind as a `Date` on Postgres but as a UTC `'YYYY-MM-DD
+ * Dialect divergence (04 §5.2 step 4): time bucketing, rolling-window bounds
+ * and quantiles are the three clauses whose SQL differs per engine. Rather
+ * than a kysely-typed adapter hook (the `@adminium/engine/adapter`
+ * `QueryEngine` contract must stay free of a `kysely` dependency — it types
+ * the dialect opaquely), the compiler branches on the connection's engine
+ * here, where kysely and the rest of the SQL compilation already live:
+ * `bucketExpr()` emits `date_trunc` / `strftime` / `DATE_FORMAT` per dialect;
+ * window boundaries bind as a `Date` on Postgres but as a UTC `'YYYY-MM-DD
  * HH:MM:SS'` string on MySQL/SQLite (better-sqlite3 refuses to bind a
- * `Date`).
+ * `Date`); and `percentileExpr()` emits `percentile_cont` where the engine has
+ * it and otherwise arms the in-process scan described at
+ * {@link PERCENTILE_SCAN_MAX}.
  */
 
 import { sql, type DynamicModule, type Kysely, type RawBuilder, type SelectQueryBuilder } from 'kysely';
@@ -47,9 +50,40 @@ export const RECORD_LIST_LIMIT_DEFAULT = 50;
 /** Group-by cardinality cap — excess folds into `__other` (04 §5.2). */
 export const GROUP_BUCKET_CAP = 500;
 
+/**
+ * Row cap on the in-process quantile scan — the ONE deliberate exception to
+ * {@link WIDGET_LIMIT_MAX}. SQLite has no percentile function at all and
+ * MySQL 8 has no `percentile_cont`, so on those engines a quantile request
+ * compiles to a plain projection of the value column which the shaper sorts
+ * and interpolates. Bounded so a wide table cannot pull an unbounded scan into
+ * the node heap; past the cap the quantiles are of the scanned prefix, which
+ * the shaper reports through `truncated`.
+ */
+export const PERCENTILE_SCAN_MAX = 50_000;
+
 /** Reserved output aliases the shaper relies on. */
 export const BUCKET_ALIAS = '__bucket';
 export const GROUP_ALIAS = '__group';
+/** Second group-by key — `matrix` column headers. */
+export const COL_ALIAS = '__col';
+/** Raw value projection backing an in-process quantile scan. */
+export const VALUE_ALIAS = '__value';
+
+/**
+ * The five quantiles a `distribution` envelope carries (04 §3
+ * `{min, q1, med, q3, max}`). `percentile_cont(0)` / `(1)` are exactly `min` /
+ * `max`, so the whole envelope is one uniform quantile request — the same list
+ * drives the native SQL path and the in-process scan.
+ */
+export const DISTRIBUTION_QUANTILES: readonly { alias: string; p: number; key: DistributionKey }[] = [
+  { alias: '__d_min', p: 0, key: 'min' },
+  { alias: '__d_q1', p: 0.25, key: 'q1' },
+  { alias: '__d_med', p: 0.5, key: 'med' },
+  { alias: '__d_q3', p: 0.75, key: 'q3' },
+  { alias: '__d_max', p: 1, key: 'max' },
+];
+
+export type DistributionKey = 'min' | 'q1' | 'med' | 'q3' | 'max';
 
 const ALIAS_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 
@@ -61,6 +95,21 @@ const ALIAS_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
  * into a `StreamShape` with the resolved WS channel.)
  */
 const SUPPORTED_SHAPES: ReadonlySet<string> = new Set<string>(COMPILABLE_DATA_SHAPES);
+
+/**
+ * Shapes whose SELECT projects table rows rather than aggregates. They share
+ * one compilation path and — critically — one PII rule: every one of them
+ * routes its rows through `maskRows` in the shaper, because a masked column
+ * reaches the payload whenever the descriptor omits `select` and the compiler
+ * falls back to `selectableColumns` (which keeps masked columns, only secrets
+ * are dropped). Adding a row-bearing shape without adding it here leaks.
+ */
+const ROW_SHAPES: ReadonlySet<string> = new Set<string>([
+  'record-list',
+  'record',
+  'stream',
+  'calendar-events',
+]);
 
 type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
 
@@ -77,6 +126,24 @@ export interface CompileWidgetQueryOptions {
   now?: (() => Date) | undefined;
 }
 
+/**
+ * Quantiles the shaper must compute itself because the source engine has no
+ * percentile function. The compiled `query` then projects raw rows —
+ * `valueAlias` plus `keyAlias` when the shape groups — instead of aggregates,
+ * and the shaper folds them into exactly the aliases listed here, so every
+ * downstream envelope reads the same row layout on all four dialects.
+ */
+export interface PercentileScan {
+  /** Alias of the raw value column projected for sorting. */
+  valueAlias: string;
+  /** Alias rows group under (`__group` / `__bucket`), or null when ungrouped. */
+  keyAlias: string | null;
+  /** Output alias → requested quantile, in descriptor order. */
+  quantiles: { alias: string; p: number }[];
+  /** Fold order: time keys ascend, category keys sort by descending value. */
+  order: 'key-asc' | 'value-desc';
+}
+
 export interface CompiledWidgetQuery {
   table: ResolvedTable;
   shape: QueryDescriptor['shape'];
@@ -86,14 +153,18 @@ export interface CompiledWidgetQuery {
   prior: Qb | null;
   /** Output aliases of the requested aggregations, in order. */
   aggregationAliases: string[];
-  /** Set when the query buckets by time (`timeseries`). */
+  /** Set when the query buckets by time (`timeseries`, `multi-timeseries`). */
   bucketAlias: string | null;
-  /** Set when the query groups by a column (`categorical`). */
+  /** Set when the query groups by a column (`categorical` and friends). */
   groupAlias: string | null;
-  /** Resolved columns of a `record-list` SELECT (masking metadata). */
+  /** Second group-by key — `matrix` column headers only. */
+  colAlias: string | null;
+  /** Resolved columns of a row-bearing SELECT (masking metadata). */
   selectedColumns: ResolvedColumn[];
   /** Exact-count twin for `record-list` (fills `RecordList.total`). */
   count: Qb | null;
+  /** Set when quantiles are computed in process rather than in SQL. */
+  percentileScan: PercentileScan | null;
   /** Effective LIMIT after the hard cap. */
   limit: number;
 }
@@ -223,6 +294,67 @@ function windowBoundValue(date: Date, dialect: Dialect): Date | string {
   return date;
 }
 
+/**
+ * Does this engine have an ordered-set quantile aggregate? Postgres (and the
+ * schema-only `generic`) do; MySQL 8 has no `percentile_cont` and SQLite has
+ * no percentile function at all, so both take the in-process scan.
+ */
+function hasNativePercentile(dialect: Dialect): boolean {
+  return dialect !== 'mysql' && dialect !== 'sqlite';
+}
+
+/**
+ * Quantile expression, compiled per dialect — the same `bucketExpr` shape of
+ * decision. Only reached when {@link hasNativePercentile} holds; `p` is a
+ * closed `[0, 1]` number from the descriptor schema, so `sql.lit` inlines a
+ * numeric literal and never caller text.
+ */
+function percentileExpr(ref: Ref, p: number): RawBuilder<unknown> {
+  return sql`percentile_cont(${sql.lit(p)}) within group (order by ${ref})`;
+}
+
+/**
+ * Validate the aggregations of a scan-mode descriptor into one quantile list.
+ * The scan projects a SINGLE value column, so a descriptor may neither mix
+ * `percentile` with other aggregate functions nor spread its percentiles over
+ * several columns — both reject with an explicit 422 rather than quietly
+ * quantiling the wrong column or silently dropping the other aggregates.
+ */
+function quantileAggregations(
+  aggregations: readonly Aggregation[],
+  dialect: Dialect,
+): { column: string; quantiles: { alias: string; p: number }[] } {
+  const columns = new Set<string>();
+  const quantiles: { alias: string; p: number }[] = [];
+  for (const aggregation of aggregations) {
+    if (aggregation.fn !== 'percentile') {
+      reject(
+        `Quantiles are computed in process on ${dialect}, so "percentile" cannot share a descriptor with "${aggregation.fn}". Split it into two widgets.`,
+        { dialect, fn: aggregation.fn },
+      );
+    }
+    if (!ALIAS_PATTERN.test(aggregation.alias) || aggregation.alias.startsWith('__')) {
+      reject('Aggregation aliases must be simple identifiers.', { alias: aggregation.alias });
+    }
+    if (aggregation.column === undefined) {
+      reject('Aggregation "percentile" requires a column.', { alias: aggregation.alias });
+    }
+    if (aggregation.p === undefined) {
+      reject('Aggregation "percentile" requires `p` (0–1).', { alias: aggregation.alias });
+    }
+    columns.add(aggregation.column);
+    quantiles.push({ alias: aggregation.alias, p: aggregation.p });
+  }
+  const column = [...columns][0];
+  if (columns.size !== 1 || column === undefined) {
+    reject(`Quantiles are computed in process on ${dialect} and scan one column at a time.`, {
+      dialect,
+      columns: columns.size,
+    });
+  }
+  return { column, quantiles };
+}
+
 /** Validate + resolve one aggregation; returns its select expression factory. */
 function compileAggregation(
   db: Kysely<SourceDatabase>,
@@ -235,7 +367,14 @@ function compileAggregation(
     reject('Aggregation aliases must be simple identifiers.', { alias: aggregation.alias });
   }
   if (aggregation.fn === 'percentile') {
-    reject('`percentile` aggregations are not supported yet (04-T09).', {});
+    if (aggregation.column === undefined) {
+      reject('Aggregation "percentile" requires a column.', { alias: aggregation.alias });
+    }
+    if (aggregation.p === undefined) {
+      reject('Aggregation "percentile" requires `p` (0–1).', { alias: aggregation.alias });
+    }
+    const column = view.readableColumn(table, aggregation.column, canReadPii);
+    return { alias: aggregation.alias, expr: percentileExpr(db.dynamic.ref(column.name), aggregation.p) };
   }
   if (aggregation.column === undefined) {
     if (aggregation.fn !== 'count') {
@@ -305,7 +444,15 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
   }
   if (shape === 'timeseries') {
     if (!hasAgg || !hasBucket) reject('Shape "timeseries" requires a `bucket` and an aggregation.', {});
-    if (hasGroup) reject('Grouped timeseries is `multi-timeseries` (not supported yet).', {});
+    if (hasGroup) reject('Grouped timeseries is `multi-timeseries`.', {});
+  }
+  if (shape === 'multi-timeseries') {
+    if (!hasAgg || !hasBucket) {
+      reject('Shape "multi-timeseries" requires a `bucket` and an aggregation.', {});
+    }
+    if ((descriptor.groupBy?.length ?? 0) !== 1) {
+      reject('Shape "multi-timeseries" requires exactly one groupBy column (the series key).', {});
+    }
   }
   if (shape === 'categorical') {
     if (!hasAgg) reject('Shape "categorical" requires an aggregation.', {});
@@ -314,8 +461,38 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
     }
     if (hasBucket) reject('Shape "categorical" cannot time-bucket; use "timeseries".', {});
   }
-  if ((shape === 'record-list' || shape === 'stream') && (hasAgg || hasGroup || hasBucket)) {
+  if (shape === 'matrix') {
+    if (!hasAgg) reject('Shape "matrix" requires an aggregation (the cell value).', {});
+    if ((descriptor.groupBy?.length ?? 0) !== 2) {
+      reject('Shape "matrix" requires exactly two groupBy columns (row key, column key).', {});
+    }
+    if (hasBucket) reject('Shape "matrix" cannot time-bucket.', {});
+  }
+  if (shape === 'distribution') {
+    if (hasAgg) reject('Shape "distribution" derives its own quantiles — drop `aggregations`.', {});
+    if (hasBucket) reject('Shape "distribution" cannot time-bucket.', {});
+    if ((descriptor.select?.length ?? 0) !== 1) {
+      reject('Shape "distribution" requires `select: [valueColumn]`.', {});
+    }
+    if ((descriptor.groupBy?.length ?? 0) > 1) {
+      reject('Shape "distribution" groups by at most one column.', {});
+    }
+  }
+  if (ROW_SHAPES.has(shape) && (hasAgg || hasGroup || hasBucket)) {
     reject(`Shape "${shape}" selects rows — aggregations/grouping are not allowed.`, {});
+  }
+  if (shape === 'calendar-events') {
+    // Positional `select` is the whole event mapping: the descriptor schema is
+    // a closed leaf shared with the client, so an event carries no bespoke
+    // field map — column ORDER names the roles instead (04 §3 `{date, title,
+    // category?, end?}`).
+    const selected = descriptor.select?.length ?? 0;
+    if (selected < 2 || selected > 4) {
+      reject(
+        'Shape "calendar-events" requires `select: [dateColumn, titleColumn, categoryColumn?, endColumn?]`.',
+        { selected },
+      );
+    }
   }
 }
 
@@ -362,22 +539,60 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     return out;
   };
 
-  // --- SELECT ----------------------------------------------------------------
-  const aggregations = descriptor.aggregations ?? [];
-  const seenAliases = new Set<string>();
-  const compiledAggs = aggregations.map((aggregation) => {
-    if (seenAliases.has(aggregation.alias)) {
-      reject('Duplicate aggregation alias.', { alias: aggregation.alias });
-    }
-    seenAliases.add(aggregation.alias);
-    return compileAggregation(db, view, table, canReadPii, aggregation);
-  });
-
+  // --- quantiles: native SQL where the engine has it, else the scan ----------
   const shape = descriptor.shape;
-  const rowShape = shape === 'record-list' || shape === 'stream';
+  const rowShape = ROW_SHAPES.has(shape);
+  const aggregations = descriptor.aggregations ?? [];
+  const groupColumns = descriptor.groupBy ?? [];
+  // `distribution` is a fixed five-quantile request over its single `select`
+  // column; a `percentile` aggregation is a caller-spelled one. Both take the
+  // same two roads.
+  const distributionColumn =
+    shape === 'distribution'
+      ? view.readableColumn(table, (descriptor.select as string[])[0] as string, canReadPii)
+      : null;
+  const scan =
+    !hasNativePercentile(dialect) &&
+    (distributionColumn !== null || aggregations.some((a) => a.fn === 'percentile'));
+  let scanColumn: ResolvedColumn | null = distributionColumn;
+  let quantiles: { alias: string; p: number }[] = [];
+  if (scan) {
+    // The scan folds around ONE key, so two-key shapes have no in-process road.
+    if (shape === 'matrix' || shape === 'multi-timeseries') {
+      reject(`Quantiles are computed in process on ${dialect}, around one key — "${shape}" needs two.`, {
+        shape,
+        dialect,
+      });
+    }
+    if (distributionColumn !== null) {
+      quantiles = DISTRIBUTION_QUANTILES.map(({ alias, p }) => ({ alias, p }));
+    } else {
+      const resolved = quantileAggregations(aggregations, dialect);
+      scanColumn = view.readableColumn(table, resolved.column, canReadPii);
+      quantiles = resolved.quantiles;
+    }
+  }
+
+  // --- SELECT ----------------------------------------------------------------
+  const seenAliases = new Set<string>();
+  const compiledAggs = scan
+    ? []
+    : aggregations.map((aggregation) => {
+        if (seenAliases.has(aggregation.alias)) {
+          reject('Duplicate aggregation alias.', { alias: aggregation.alias });
+        }
+        seenAliases.add(aggregation.alias);
+        return compileAggregation(db, view, table, canReadPii, aggregation);
+      });
+
   let selectedColumns: ResolvedColumn[] = [];
-  const requestedLimit = descriptor.limit ?? (rowShape ? RECORD_LIST_LIMIT_DEFAULT : WIDGET_LIMIT_MAX);
-  const limit = Math.min(Math.max(requestedLimit, 1), WIDGET_LIMIT_MAX);
+  const requestedLimit =
+    descriptor.limit ??
+    (shape === 'record-list' || shape === 'stream' ? RECORD_LIST_LIMIT_DEFAULT : WIDGET_LIMIT_MAX);
+  // `record` is the single-row envelope — one row, whatever the caller asked.
+  const limit = shape === 'record' ? 1 : Math.min(Math.max(requestedLimit, 1), WIDGET_LIMIT_MAX);
+  // `__group` then `__col`, positionally — the descriptor caps `groupBy` at 2.
+  const groupAliases = [GROUP_ALIAS, COL_ALIAS];
 
   const build = (window: { start: Date; end: Date } | null): Qb => {
     let qb = applyWhere(db.selectFrom(table.id) as unknown as Qb, window);
@@ -388,22 +603,43 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
           ? descriptor.select.map((name) => view.readableColumn(table, name, canReadPii))
           : view.selectableColumns(table);
       qb = qb.select(selectedColumns.map((column) => dynamic.ref(column.name)));
+    } else if (scan) {
+      // Raw projection: the shaper sorts and interpolates (PERCENTILE_SCAN_MAX).
+      qb = qb.select(sql`${dynamic.ref((scanColumn as ResolvedColumn).name)}`.as(VALUE_ALIAS));
+    } else if (distributionColumn !== null) {
+      const ref = dynamic.ref(distributionColumn.name);
+      qb = qb.select(DISTRIBUTION_QUANTILES.map(({ alias, p }) => percentileExpr(ref, p).as(alias)));
     } else {
       qb = qb.select(compiledAggs.map(({ expr, alias }) => expr.as(alias)));
     }
 
-    if (shape === 'timeseries' && descriptor.bucket !== undefined) {
+    if ((shape === 'timeseries' || shape === 'multi-timeseries') && descriptor.bucket !== undefined) {
       const bucketColumn = view.readableColumn(table, descriptor.bucket.column, canReadPii);
       const bucket = bucketExpr(dialect, dynamic.ref(bucketColumn.name), descriptor.bucket.unit);
-      qb = qb.select(bucket.as(BUCKET_ALIAS)).groupBy(bucket).orderBy(bucket, 'asc');
+      qb = qb.select(bucket.as(BUCKET_ALIAS));
+      // A scan projects raw rows — grouping and ordering happen in the shaper.
+      if (!scan) qb = qb.groupBy(bucket).orderBy(bucket, 'asc');
     }
-    if (shape === 'categorical') {
-      const groupColumn = view.readableColumn(table, (descriptor.groupBy as string[])[0] as string, canReadPii);
-      const ref = dynamic.ref(groupColumn.name);
-      qb = qb.select(sql`${ref}`.as(GROUP_ALIAS)).groupBy(ref);
-      // Deterministic fold order: biggest buckets first, by the first alias.
+    if (!rowShape) {
+      groupColumns.forEach((name, index) => {
+        const column = view.readableColumn(table, name, canReadPii);
+        const ref = dynamic.ref(column.name);
+        qb = qb.select(sql`${ref}`.as(groupAliases[index] as string));
+        if (!scan) qb = qb.groupBy(ref);
+      });
+    }
+    if (!scan && groupColumns.length > 0) {
       const first = compiledAggs[0];
-      if (first !== undefined) qb = qb.orderBy(sql.ref(first.alias), 'desc');
+      if (shape === 'categorical' && first !== undefined) {
+        // Deterministic fold order: biggest buckets first, by the first alias.
+        qb = qb.orderBy(sql.ref(first.alias), 'desc');
+      } else if (shape !== 'categorical') {
+        // Stable header order so `matrix` rows/columns and the series list of
+        // `multi-timeseries` are the same on every request.
+        groupColumns.forEach((_, index) => {
+          qb = qb.orderBy(sql.ref(groupAliases[index] as string), 'asc');
+        });
+      }
     }
 
     for (const key of descriptor.orderBy ?? []) {
@@ -411,8 +647,11 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       qb = qb.orderBy(dynamic.ref(column.name), key.dir);
     }
 
-    // Aggregate-only shapes need no LIMIT; grouped/row shapes get the cap.
-    if (rowShape || shape === 'categorical' || shape === 'timeseries') {
+    // Aggregate-only shapes need no LIMIT; grouped/row shapes get the cap, and
+    // the quantile scan its own, much larger, bound.
+    if (scan) {
+      qb = qb.limit(PERCENTILE_SCAN_MAX);
+    } else if (rowShape || shape === 'timeseries' || groupColumns.length > 0) {
       qb = qb.limit(limit);
     }
     return qb;
@@ -432,15 +671,27 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
         )
       : null;
 
+  const keyed = groupColumns.length > 0;
   return {
     table,
     shape,
     query,
     prior,
     count,
-    aggregationAliases: compiledAggs.map(({ alias }) => alias),
-    bucketAlias: shape === 'timeseries' ? BUCKET_ALIAS : null,
-    groupAlias: shape === 'categorical' ? GROUP_ALIAS : null,
+    aggregationAliases: scan
+      ? aggregations.map(({ alias }) => alias)
+      : compiledAggs.map(({ alias }) => alias),
+    bucketAlias: shape === 'timeseries' || shape === 'multi-timeseries' ? BUCKET_ALIAS : null,
+    groupAlias: !rowShape && keyed ? GROUP_ALIAS : null,
+    colAlias: shape === 'matrix' ? COL_ALIAS : null,
+    percentileScan: scan
+      ? {
+          valueAlias: VALUE_ALIAS,
+          keyAlias: shape === 'timeseries' ? BUCKET_ALIAS : keyed ? GROUP_ALIAS : null,
+          quantiles,
+          order: shape === 'categorical' ? 'value-desc' : 'key-asc',
+        }
+      : null,
     selectedColumns,
     limit,
   };
