@@ -8,7 +8,11 @@
 import type { IconName } from '@adminium/ui';
 
 /** Known in-app CTA destinations (typed for TanStack navigate). */
-export type OnboardingStepTarget = '/studio/connect' | '/studio' | '/settings/defaults';
+export type OnboardingStepTarget =
+  | '/studio/connect'
+  | '/studio'
+  | '/settings/defaults'
+  | '/settings/team';
 
 export interface OnboardingStepMeta {
   key: string;
@@ -21,7 +25,7 @@ export interface OnboardingStepMeta {
   timeFallback: string;
   actionKey: string;
   actionFallback: string;
-  /** CTA route; omitted steps have no destination yet (e.g. team invites). */
+  /** CTA route; omitted steps have no destination yet. */
   target?: OnboardingStepTarget;
 }
 
@@ -63,6 +67,9 @@ export const ONBOARDING_STEP_META: readonly OnboardingStepMeta[] = [
     timeFallback: '2 min',
     actionKey: 'onboarding.steps.inviteTeammates.action',
     actionFallback: 'Invite',
+    // Landed with the team directory — until then this step's CTA had nowhere
+    // to go, because the product had no way to create a second account at all.
+    target: '/settings/team',
   },
   {
     key: 'workspace-defaults',
