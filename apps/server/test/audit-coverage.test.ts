@@ -8,14 +8,20 @@
  *  1. drives the REAL composition root and asserts no state-changing route is
  *     unmarked. That is the ratchet: a new POST/PUT/PATCH/DELETE fails here
  *     until somebody decides, in writing, whether it audits;
- *  2. pins the KNOWN GAPS to a hard-coded list. `auditGap` exists so a route
- *     that should audit and does not is visibly different from one that is
- *     exempt — and pinning the list here means a gap can be removed without
- *     touching this file, but never added without editing it;
- *  3. asserts the two routes this wave FIXED actually write rows, against the
- *     audit table rather than against the marker. A marker that lies is worse
- *     than no marker, so the two most privileged writes in the product are
- *     verified end to end.
+ *  2. pins the KNOWN GAPS to a hard-coded list — now EMPTY. `auditGap` exists
+ *     so a route that should audit and does not is visibly different from one
+ *     that is exempt — and pinning the list here means a gap can be removed
+ *     without touching this file, but never added without editing it;
+ *  3. asserts the two routes an earlier wave FIXED actually write rows, against
+ *     the audit table rather than against the marker. A marker that lies is
+ *     worse than no marker, so the two most privileged writes in the product
+ *     are verified end to end.
+ *
+ * The five gaps the last wave closed are verified the same way, each next to
+ * the route it belongs to rather than here: `jobs-routes.test.ts` (job.enqueue,
+ * job.cancel), `bridge-routes.test.ts` (bridge_handoff*), `llm-routes.test.ts`
+ * (llm.run.create, llm.run.response). Each pairs a row-lands case with a
+ * refused-request case, because a marker cannot tell the two apart.
  */
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -52,17 +58,14 @@ import { makeEnv, TEST_SECRET } from './helpers.js';
 /**
  * The routes that SHOULD write an audit row and do not, as of this wave.
  *
- * Hard-coded rather than derived from `AUDIT_COVERAGE`, which would make the
- * assertion tautological. Removing a gap means deleting a line here and in the
- * table; adding one means editing this file, which is the point.
+ * EMPTY, as of the wave that closed the last five (jobs enqueue/cancel, the
+ * bridge hand-off, and the two LLM run routes — each with its own row-lands
+ * assertion further down this file). It stays here rather than being deleted
+ * because the mechanism is the point: hard-coded rather than derived from
+ * `AUDIT_COVERAGE`, which would make the assertion tautological, so a new
+ * `auditGap` can only ever be added by editing this file.
  */
-const KNOWN_GAPS = [
-  'POST /api/v1/jobs',
-  'POST /api/v1/jobs/:id/cancel',
-  'POST /api/v1/bridge/handoff',
-  'POST /api/v1/llm/runs',
-  'POST /api/v1/llm/runs/:id/response',
-];
+const KNOWN_GAPS: string[] = [];
 
 function memoryStore(meta: MetaDb): MetaStoreHandle {
   return {

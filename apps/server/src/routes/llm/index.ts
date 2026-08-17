@@ -319,6 +319,33 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
           throw error;
         }
 
+        // After the run + prompt artifact exist, so a refused create (no
+        // snapshot, no provider selected, BYO telemetry) is never logged as
+        // one. This is the row that dates the EGRESS: `/execute` audits the
+        // provider call, but the workspace schema left the building here — the
+        // prompt was built from the snapshot and handed to the caller. The
+        // prompt text is not in the row; its size and shape are.
+        await app.rbac.audit(request, {
+          category: 'llm',
+          action: 'llm.run.create',
+          connectionId: created.run.connectionId,
+          changes: {
+            after: {
+              runId: created.run.id,
+              snapshotId: created.run.snapshotId,
+              mode: created.run.mode,
+              provider: created.run.provider,
+              model: created.run.model,
+              promptVersion: created.run.promptVersion,
+              sections: created.run.sections,
+              locales: created.run.locales,
+              sampling: created.run.sampling,
+              chunks: created.artifact.chunks.length,
+              tokenEstimate: created.artifact.tokenEstimate,
+            },
+          },
+        });
+
         return reply.status(201).send({
           run: toRunDto(created.run),
           prompt: {
@@ -387,6 +414,31 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
             allowedTemplates,
             allowedWidgets,
             ...(deps.allowedIcons !== undefined ? { allowedIcons: deps.allowedIcons } : {}),
+          });
+          // Inside the `try`, after `receiveResponse` returned: an immutable or
+          // out-of-order run throws below and must not read as a paste that
+          // landed. `llm.run.apply` is audited and acts on exactly this text,
+          // so without this row the applied content has no recorded origin.
+          // The text itself stays out — it is up to a whole schema proposal —
+          // and the counters are what say how much of it arrived.
+          await app.rbac.audit(request, {
+            category: 'llm',
+            action: 'llm.run.response',
+            connectionId: result.run.connectionId,
+            changes: {
+              after: {
+                runId: result.run.id,
+                mode: result.run.mode,
+                chunkIndex: request.body.chunkIndex ?? null,
+                chunksReceived: result.run.chunksReceived,
+                chunksTotal: result.run.chunksTotal,
+                status: result.run.status,
+                validationStatus: result.run.validationStatus,
+                errors: result.validation.errors.length,
+                warnings: result.validation.warnings.length,
+                bytes: request.body.text.length,
+              },
+            },
           });
           return {
             run: toRunDetailDto(result.run),

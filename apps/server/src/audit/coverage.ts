@@ -268,29 +268,22 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
 
   // ── LLM assist (06-llm-assist.md).
   'PUT /api/v1/llm/config': audited('rbac'), // llm.config.update
+  'POST /api/v1/llm/runs': audited('rbac'), // llm.run.create
   'POST /api/v1/llm/runs/:id/execute': audited('rbac'), // llm.run.execute
+  'POST /api/v1/llm/runs/:id/response': audited('rbac'), // llm.run.response
   'POST /api/v1/llm/runs/:id/apply': audited('rbac'), // llm.run.apply
   'POST /api/v1/llm/runs/:id/undo/:token': audited('rbac'), // llm.run.undo
 
-  // ── KNOWN GAPS ────────────────────────────────────────────────────────────
-  // Each of these changes durable state and writes nothing. They are recorded
-  // as gaps rather than exemptions so the coverage test's frozen list is the
-  // only place they can live, and so removing one needs no test edit.
-  'POST /api/v1/jobs': auditGap(
-    'Enqueuing a job is a privileged write (it schedules work against a connection) and neither the route nor the worker audits the enqueue.',
-  ),
-  'POST /api/v1/jobs/:id/cancel': auditGap(
-    'Cancelling another actor’s in-flight job leaves no record of who cancelled it.',
-  ),
-  'POST /api/v1/bridge/handoff': auditGap(
-    'Consumes the one-time pairing code and mints a session for a cross-origin caller — the audit trail should show a bridge hand-off happened.',
-  ),
-  'POST /api/v1/llm/runs': auditGap(
-    'Creating a run sends workspace schema to a third-party provider; only the later execute is audited.',
-  ),
-  'POST /api/v1/llm/runs/:id/response': auditGap(
-    'Records the provider’s reply against the run — the input to llm.run.apply, which is audited while its source is not.',
-  ),
+  // ── Background jobs (08 §2.17). The generic enqueue/cancel door; the
+  // per-domain enqueues (exports, imports, introspect, reports) audit in their
+  // own categories, and the worker audits what the job then did.
+  'POST /api/v1/jobs': audited('rbac'), // job.enqueue
+  'POST /api/v1/jobs/:id/cancel': audited('rbac'), // job.cancel
+
+  // ── Local bridge. Unauthenticated by design, so it goes through `auditAuth`
+  // like the other credential-facing doors rather than `app.rbac.audit`, which
+  // would have no principal to stamp. See routes/bridge/index.ts § AUDIT.
+  'POST /api/v1/bridge/handoff': audited('auth'), // bridge_handoff | bridge_handoff_refused
 };
 
 /** One `METHOD /url` pair and the mark that covers it. */

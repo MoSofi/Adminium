@@ -499,6 +499,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       if (bridge !== null) {
         await api.register(
           bridgeRoutes({
+            meta,
             origins: bridge.origins,
             pairingCode: bridge.pairingCode,
             store: bridge.store,

@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
+import { auditRepo, permissionsRepo, rolesRepo, usersRepo } from '@adminium/meta';
 
 import { NOOP_PROGRESS_KIND } from '../src/jobs/registry.js';
 import { matrixRowsFromGrants } from '../src/rbac/permissions.js';
@@ -17,6 +17,7 @@ import {
   buildBareApp,
   makeJobsContext,
   makeStubAuth,
+  withRbacAudit,
   type BareApp,
   type JobsTestContext,
   type StubAuth,
@@ -37,6 +38,7 @@ beforeEach(async () => {
   auth.grant(ADMIN, 'system:jobs:read', 'system:jobs:manage');
 
   app = buildBareApp();
+  await withRbacAudit(app, ctx.meta);
   await app.register(
     jobsRoutes({
       meta: ctx.meta,
@@ -278,6 +280,7 @@ describe('real RBAC path (closed-set regression)', () => {
 
     const stubUsers = makeStubAuth();
     const realApp = buildBareApp();
+    await withRbacAudit(realApp, localCtx.meta);
     await realApp.register(
       jobsRoutes({
         meta: localCtx.meta,
@@ -336,5 +339,82 @@ describe('POST /jobs — internal-kind guard (security review 2026-07-23)', () =
   it('still enqueues a non-internal kind for the same caller', async () => {
     const data = await enqueueViaApi();
     expect(data.jobId).toBeTruthy();
+  });
+});
+
+// ── The trail (both routes used to be KNOWN GAPS) ────────────────────────────
+// `src/audit/coverage.ts` proves the markers exist; these prove the rows do.
+
+describe('jobs routes — audit trail', () => {
+  const rows = async () => await auditRepo(ctx.meta).list({ category: 'automation' });
+
+  it('POST /jobs records the enqueue and who scheduled it', async () => {
+    const { jobId } = await enqueueViaApi(OWNER);
+
+    const entry = (await rows()).find((e) => e.action === 'job.enqueue');
+    expect(entry, 'scheduling privileged work must name the scheduler').toBeDefined();
+    expect(entry?.actorId).toBe(OWNER);
+    expect(entry?.actorKind).toBe('user');
+    const after = entry?.changes?.after as { jobId?: string; kind?: string };
+    expect(after.jobId).toBe(jobId);
+    expect(after.kind).toBe(NOOP_PROGRESS_KIND);
+  });
+
+  it('a REFUSED enqueue writes nothing — an internal kind is not an enqueue', async () => {
+    ctx.registry.registerJobHandler(
+      'audit-internal-kind',
+      z.object({ userId: z.string().optional() }).passthrough(),
+      async () => undefined,
+      { internal: true },
+    );
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/jobs',
+      headers: auth.as(OWNER),
+      payload: { kind: 'audit-internal-kind', payload: {} },
+    });
+    expect(res.statusCode).toBe(403);
+    expect((await rows()).some((e) => e.action === 'job.enqueue')).toBe(false);
+  });
+
+  it('POST /jobs/:id/cancel records WHO cancelled someone else’s job', async () => {
+    // The question the row exists to answer: OWNER enqueued it, ADMIN killed it.
+    const { jobId } = await enqueueViaApi(OWNER);
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/jobs/${jobId}/cancel`,
+      headers: auth.as(ADMIN),
+    });
+    expect(res.statusCode, res.body).toBe(200);
+
+    const entry = (await rows()).find((e) => e.action === 'job.cancel');
+    expect(entry).toBeDefined();
+    expect(entry?.actorId).toBe(ADMIN);
+    expect(entry?.changes?.before).toMatchObject({ status: 'pending' });
+    expect(entry?.changes?.after).toMatchObject({
+      jobId,
+      status: 'cancelled',
+      ownerId: OWNER,
+    });
+  });
+
+  it('a REFUSED cancel writes nothing — a terminal job cannot be cancelled twice', async () => {
+    const { jobId } = await enqueueViaApi(OWNER);
+    const first = await app.inject({
+      method: 'POST',
+      url: `/api/v1/jobs/${jobId}/cancel`,
+      headers: auth.as(ADMIN),
+    });
+    expect(first.statusCode).toBe(200);
+    const before = (await rows()).filter((e) => e.action === 'job.cancel').length;
+
+    const again = await app.inject({
+      method: 'POST',
+      url: `/api/v1/jobs/${jobId}/cancel`,
+      headers: auth.as(ADMIN),
+    });
+    expect(again.statusCode).toBe(409);
+    const after = (await rows()).filter((e) => e.action === 'job.cancel').length;
+    expect(after, 'a 409 must not read as a cancel that happened').toBe(before);
   });
 });
