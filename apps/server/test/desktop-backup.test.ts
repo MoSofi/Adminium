@@ -214,6 +214,31 @@ describe('§9 backup format', () => {
     }
   });
 
+  it('trims hyphens the same way the regex pair did', () => {
+    // The `^-+` / `-+$` pair became an index trim; pin the whole grammar.
+    expect(deriveDatabaseSlug('/d/--lead.sqlite', 'conn_1')).toBe('lead');
+    expect(deriveDatabaseSlug('/d/trail--.sqlite', 'conn_1')).toBe('trail');
+    expect(deriveDatabaseSlug('/d/--both--.sqlite', 'conn_1')).toBe('both');
+    expect(deriveDatabaseSlug('/d/a-b_c.sqlite', 'conn_1')).toBe('a-b_c');
+    // All hyphens trims to nothing, which fails the pattern → id fallback.
+    expect(deriveDatabaseSlug('/d/---.sqlite', 'conn_x')).toBe('db-connx');
+    expect(deriveDatabaseSlug(`/d/${'a'.repeat(80)}.sqlite`, 'conn_1')).toBe('a'.repeat(64));
+  });
+
+  it('derives a slug in linear time from a hyphen-heavy basename', () => {
+    // CodeQL js/polynomial-redos: `-+$` is quadratic when the hyphen run does
+    // NOT end the string, because the unanchored scan restarts inside the run
+    // at every offset. A restore reads whatever member names an archive
+    // carries, so this input is not the writer's to promise. 50k hyphens cost
+    // ~3.7s before; measured.
+    const hostile = `/d/a${'-'.repeat(50_000)}a.sqlite`;
+    const started = performance.now();
+    const slug = deriveDatabaseSlug(hostile, 'conn_1');
+    expect(performance.now() - started).toBeLessThan(1_000);
+    // Interior hyphens are kept, so the slug is the first 64 chars — unchanged.
+    expect(slug).toBe(`a${'-'.repeat(63)}`);
+  });
+
   it('de-duplicates slugs so two same-named files cannot collide', () => {
     // "Open an existing SQLite file" can register ~/work/app.sqlite and
     // ~/archive/app.sqlite. One member name for both = a backup that looks

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ComponentPropsWithRef, FormEvent, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn.js';
+import { looksLikeEmail } from '../../lib/email.js';
 import { Alert } from '../alert/index.js';
 import { Button } from '../button/index.js';
 import { FormField } from '../form-field/index.js';
@@ -60,8 +61,6 @@ export interface ForgotPasswordFormProps
   notice?: ReactNode;
   defaultEmail?: string | undefined;
 }
-
-const looksLikeEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 /**
  * ForgotPasswordForm — request-a-reset-link screen per

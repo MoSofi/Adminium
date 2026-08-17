@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import type { ComponentPropsWithRef, FormEvent, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn.js';
+import { looksLikeEmail } from '../../lib/email.js';
 import { Alert } from '../alert/index.js';
 import { Button } from '../button/index.js';
 import { Checkbox } from '../checkbox/index.js';
@@ -66,8 +67,6 @@ export interface SignInFormProps
   /** Initial "Keep me signed in" state. Default false (unchecked). */
   defaultRemember?: boolean | undefined;
 }
-
-const looksLikeEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 /**
  * SignInForm — email + password screen per Login.dc.html. Controlled

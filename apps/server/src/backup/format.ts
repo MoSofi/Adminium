@@ -312,6 +312,26 @@ export function preRestoreDirName(at: number): string {
 // ─── Slugs ──────────────────────────────────────────────────────────────────
 
 /**
+ * Strip leading and trailing `-` — the linear equivalent of
+ * `.replace(/^-+/, '').replace(/-+$/, '')`.
+ *
+ * `-+$` is quadratic (CodeQL js/polynomial-redos): on a name whose hyphen run
+ * does NOT end the string (`a` + `-`×n + `a`) the unanchored scan restarts
+ * inside the run at every offset and each attempt backtracks the whole way
+ * looking for the end anchor — 9s of CPU at n=80k, measured. A restore reads
+ * whatever member names the archive carries, so the input is not the writer's
+ * to promise. Trimming by index is O(n) and accepts exactly the same strings.
+ */
+function trimHyphens(value: string): string {
+  const HYPHEN = 45;
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charCodeAt(start) === HYPHEN) start += 1;
+  while (end > start && value.charCodeAt(end - 1) === HYPHEN) end -= 1;
+  return value.slice(start, end);
+}
+
+/**
  * A slug for a local database file, derived from its BASENAME.
  *
  * The basename, not the connection name, because on desktop they are the same
@@ -328,12 +348,7 @@ export function preRestoreDirName(at: number): string {
  */
 export function deriveDatabaseSlug(filePath: string, connectionId: string): string {
   const base = basename(filePath, extname(filePath));
-  const slug = base
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '')
-    .slice(0, 64);
+  const slug = trimHyphens(base.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')).slice(0, 64);
   if (BACKUP_SLUG_PATTERN.test(slug)) return slug;
   return `db-${connectionId.toLowerCase().replace(/[^a-z0-9]+/g, '')}`.slice(0, 64);
 }
