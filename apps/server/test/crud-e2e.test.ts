@@ -446,6 +446,45 @@ describe('CRUD API end-to-end (fake adapter)', () => {
     expect((restored.json() as { data: { unit_price: number } }).data.unit_price).toBe(99.5);
   });
 
+  it('delete: ?dryRun=false / ?confirm=false mean false, and a non-boolean word is a 422', async () => {
+    // Regression: these were `z.coerce.boolean()`, i.e. `Boolean(queryString)`,
+    // so every non-empty value — `false` included — arrived as `true`.
+    // `?confirm=false` therefore SATISFIED the cascade gate and deleted.
+    const confirmFalse = await t.app.inject({
+      method: 'DELETE',
+      url: `/api/v1/data/${connId}/main.customers/ALFKI?confirm=false`,
+      headers: asUser(t.users.editor),
+    });
+    expect(confirmFalse.statusCode).toBe(409);
+    expect((confirmFalse.json() as { error: { code: string } }).error.code).toBe('CONFLICT');
+
+    // `?dryRun=false` must fall through to the real delete path (which the
+    // confirm gate then stops), not return the 200 cascade preview.
+    const dryRunFalse = await t.app.inject({
+      method: 'DELETE',
+      url: `/api/v1/data/${connId}/main.customers/ALFKI?dryRun=false`,
+      headers: asUser(t.users.editor),
+    });
+    expect(dryRunFalse.statusCode).toBe(409);
+    expect((dryRunFalse.json() as { error: { code: string } }).error.code).toBe('CONFLICT');
+
+    // Anything that is not `true`/`false` is rejected rather than coerced.
+    const garbage = await t.app.inject({
+      method: 'DELETE',
+      url: `/api/v1/data/${connId}/main.customers/ALFKI?confirm=yes`,
+      headers: asUser(t.users.editor),
+    });
+    expect(garbage.statusCode).toBe(422);
+
+    // ALFKI is still there — none of the three deleted anything.
+    const stillThere = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/data/${connId}/main.customers/ALFKI`,
+      headers: asUser(t.users.editor),
+    });
+    expect(stillThere.statusCode).toBe(200);
+  });
+
   it('delete: cascade preflight, confirm contract, FK mapping, and undo with the original PK', async () => {
     // Referenced record → preflight demands confirmation.
     const dryRun = await t.app.inject({

@@ -7,6 +7,8 @@
 
 import { z } from 'zod';
 
+import { boolFlag } from '../query-flag.js';
+
 export const rowSchema = z.record(z.string(), z.unknown());
 
 export const dataTableParams = z.object({
@@ -67,9 +69,9 @@ export const recordUpdateBody = z.object({ values: rowSchema });
 
 export const recordDeleteQuery = z.object({
   /** Referential consequences only — no write happens (§2.7.2). */
-  dryRun: z.coerce.boolean().optional(),
+  dryRun: boolFlag(),
   /** Required when inbound references exist (cascade modal confirm). */
-  confirm: z.coerce.boolean().optional(),
+  confirm: boolFlag(),
 });
 
 export const recordMutationReply = z.object({

@@ -103,6 +103,27 @@ for (const dialect of TEST_DIALECTS) {
       expect(await permissions.isAllowed(role.id, 'system', 'audit.read')).toBe(false);
     });
 
+    it('revokeAllForResource clears one page across every role', async () => {
+      // `resource_ref` is polymorphic, so no FK can cascade page grants when
+      // the page row is deleted. Page ids are deterministic for generated
+      // pages, so a leaked grant would be silently re-inherited by a page
+      // regenerated at the same id later.
+      const roles = rolesRepo(t.meta);
+      const permissions = permissionsRepo(t.meta);
+      const a = await roles.create({ slug: 'a', name: 'A' }, T0);
+      const b = await roles.create({ slug: 'b', name: 'B' }, T0);
+      await permissions.grant(a.id, 'page', 'page_orders', { view: true, edit: true });
+      await permissions.grant(b.id, 'page', 'page_orders', { view: true, edit: false });
+      await permissions.grant(a.id, 'page', 'page_keep', { view: true, edit: false });
+
+      expect(await permissions.listForResource('page', 'page_orders')).toHaveLength(2);
+      expect(await permissions.revokeAllForResource('page', 'page_orders')).toBe(2);
+      expect(await permissions.listForResource('page', 'page_orders')).toEqual([]);
+      // A same-named ref of a different KIND is untouched.
+      expect(await permissions.listForResource('page', 'page_keep')).toHaveLength(1);
+      expect(await permissions.revokeAllForResource('page', 'page_orders')).toBe(0);
+    });
+
     it('cascades matrix rows and assignments when the role row is deleted (real meta-internal FK)', async () => {
       const roles = rolesRepo(t.meta);
       const permissions = permissionsRepo(t.meta);
