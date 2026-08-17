@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The SPA's capability status logic (11-electron.md §12).
  *

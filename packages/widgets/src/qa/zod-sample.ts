@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic "valid config" sampler for the config-schema fuzz harness
  * (04-widget-registry.md acceptance #4/#17 spirit, 04-T17 (3)): generate N

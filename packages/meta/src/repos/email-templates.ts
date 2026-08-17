@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * emailTemplatesRepo — adminium_email_templates (07-meta-store.md §3.28):
  * overrides of built-in email templates, unique on `(key, locale)`. The row

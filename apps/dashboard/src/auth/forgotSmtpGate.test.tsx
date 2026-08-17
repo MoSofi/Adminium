@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/forgot` under 11-electron.md §8.2's email row.
  *

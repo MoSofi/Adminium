@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/api-keys` — API keys & tokens (M10-T06; ports `API Keys.dc.html`).
  *

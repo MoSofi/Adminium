@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/studio/settings/ai` — Settings → AI (06-llm-assist.md §10.1). The one place
  * an Admin configures the direct-API provider used to enrich a schema, reads the

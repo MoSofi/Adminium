@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * page-dashboard template tests (M4-T05): renders a fixture layout on the

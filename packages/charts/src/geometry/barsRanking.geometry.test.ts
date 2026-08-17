@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure-geometry contract for the "bars & ranking" chart group (04-T09): every
  * layout is deterministic (same input → deep-equal output, so server-side

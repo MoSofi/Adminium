@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The topbar notification bell AS THE PRODUCT RENDERS IT (M7 T6 wave-2 fix):
  * the wave shipped the whole notifications stack — routes, meta tables, WS

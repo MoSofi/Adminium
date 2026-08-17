@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Formatter layer tests (10-i18n-theming.md §4): per-locale separators, the
  * §4.2 numeral policy (latn digits in data context everywhere incl. ar_EG;

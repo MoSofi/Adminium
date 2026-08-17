@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * RFC 4180 CSV serializer/parser (M7-T07, data-io/csv.ts): quoting/escaping
  * rules, CRLF records, the documented BOM decision, streaming splits, and

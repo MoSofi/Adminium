@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-config client (09-generated-app.md §2.3 loader contract, §3):
  * `GET /api/v1/pages/:pageId` → run client-side config migrations

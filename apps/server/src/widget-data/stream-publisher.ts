@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data stream publisher (04-widget-registry.md §5.3). The single place
  * server code fans a data mutation out to the live stream widgets subscribed to

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Query-descriptor compiler (04-widget-registry.md §5.2, M4-T04 subset).
  *

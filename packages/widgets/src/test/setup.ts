@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Vitest setup for @adminium/widgets. Default environment is `node` (the
  * page-config / registry-metadata tests are DOM-free); React frame/host tests

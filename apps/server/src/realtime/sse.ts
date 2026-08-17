@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SSE fallback `GET /api/v1/events?channels=a,b` (08-server-api.md §3,
  * M2-T07) for proxies/environments without WebSocket. Same channel model and

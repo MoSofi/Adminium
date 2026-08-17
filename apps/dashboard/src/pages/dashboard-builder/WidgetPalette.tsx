@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget palette (04-widget-registry.md §6.2 "Adding widgets"): a family-grouped,
  * searchable drawer where every entry is a live demo-data preview of the widget.

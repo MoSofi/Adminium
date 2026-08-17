@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure, DOM-free layout for the correlation charts (research/widget-registry.md
  * §2): `chart-scatter-bubble`, `chart-hexbin`, `chart-correlation-matrix`,

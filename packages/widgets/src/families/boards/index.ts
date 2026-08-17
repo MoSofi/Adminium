@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `boards` family public surface (annex §6) — the kanban board + swimlane grid
  * components plus their registry metadata. Component code is also reachable

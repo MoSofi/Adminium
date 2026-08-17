@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SQLite snapshotting for the §9 backup (11-electron.md §9), and the discovery
  * of what there is to snapshot.

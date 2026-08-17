@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-marimekko` primitive (research/widget-registry.md §2): column width =
  * outer share, stacked vertical segments = inner mix, with in-cell labels past

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-funnel` primitive (research/widget-registry.md §2): ordered shrinking
  * stages in two layouts — `horizontal` (start-aligned bars) and `stepped`

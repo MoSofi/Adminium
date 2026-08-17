@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Unit tests for the §5.1 permission grammar (src/rbac/permissions.ts). */
 import { describe, expect, it } from 'vitest';
 

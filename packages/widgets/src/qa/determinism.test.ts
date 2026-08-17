@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Determinism gate — 04-widget-registry.md acceptance #11 / 04-T17 (4):
  * `demoData(seed)` is byte-identical across runs and platforms for every

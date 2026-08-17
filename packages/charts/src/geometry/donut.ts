@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Pure donut geometry — d3-shape pie/arc, maxSlices + "other" bucketing. */
 import { arc, pie } from 'd3-shape';
 

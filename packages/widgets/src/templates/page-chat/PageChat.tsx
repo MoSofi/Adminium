@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '@adminium/i18n/react';
 import { Button, EmptyState, Spinner } from '@adminium/ui';
 import { useMemo, useRef, useState } from 'react';

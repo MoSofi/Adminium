@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { TriangleAlert } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';

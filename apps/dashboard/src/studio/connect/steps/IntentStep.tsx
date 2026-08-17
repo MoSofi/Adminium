@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 1 — generation intent (09 §8.4, Console comp "What do you need?").
  * Option cards for the four intent variants; the comp's unimplemented

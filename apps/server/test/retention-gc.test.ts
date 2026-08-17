@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The daily retention sweep (`compose.ts` `RETENTION_GC_SCHEDULE_NAME`).
  *

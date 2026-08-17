@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Contract tests between the SHIPPED SURFACES and the DOCS SITE.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Window management: BrowserWindow creation, the §2.4 security posture, the
  * navigation lockdown, window-state persistence (§14), and the two static

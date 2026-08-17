@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family — part-to-whole & hierarchy group (04-T09): registry
  * definitions + deterministic demoData for `chart-treemap`, `chart-sunburst`,

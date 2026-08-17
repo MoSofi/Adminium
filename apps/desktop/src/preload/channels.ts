@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The renderer ↔ main wire contract for the §4 bridge: channel names and the
  * result envelope.

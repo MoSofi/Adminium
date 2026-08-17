@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `empty-state` (annex §12) — centred card content: 56px tone-soft icon tile,
  * bold title, muted body ≤36ch, primary/secondary actions. Variants: plain, CTA,

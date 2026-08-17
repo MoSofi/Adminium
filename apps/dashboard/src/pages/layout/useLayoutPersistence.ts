@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard layout-persistence hooks (04-widget-registry.md §6.3) — the save
  * surface the builder (04-T14, Batch 2) consumes. Three write paths plus the

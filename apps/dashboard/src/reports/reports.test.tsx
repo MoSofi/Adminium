@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Scheduled Reports surfaces (M7 reports track): cadence formatting, the
  * list rendering through `scheduled-jobs-list` with the honest CSV-snapshot

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bounded, newest-first stream buffer (04-widget-registry.md §5.3). Pure and
  * immutable so the fold is unit-testable without a socket or the DOM:

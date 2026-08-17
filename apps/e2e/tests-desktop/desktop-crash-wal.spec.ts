@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * 11-T20 — the crash / WAL-durability check (11-electron.md §9).
  *

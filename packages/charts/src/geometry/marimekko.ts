@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure Marimekko / Mekko layout (`chart-marimekko`, research/widget-registry.md
  * §2): column width = outer share, vertical segments = inner mix. DOM-free.

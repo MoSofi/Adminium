@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Responsive SVG viewport shared by every chart (04-widget-registry.md
  * §7.2): ResizeObserver-driven width, fixed pixel height, padding model,

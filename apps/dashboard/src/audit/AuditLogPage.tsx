@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/audit` — the audit log, and the missing consumer of `routes/audit`, which
  * has been registered and enforcing `system:audit:read` since M7 with no screen

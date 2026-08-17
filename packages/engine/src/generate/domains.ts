@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * FK-cluster domain detection — 05-introspection-engine.md §8.3.
  *

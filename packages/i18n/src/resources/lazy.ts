@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Lazy loaders for the 7 non-English locale bundles (10-i18n-theming.md §2.3):
  * en-US ships in the main bundle (./index.ts — it is the fallback text and

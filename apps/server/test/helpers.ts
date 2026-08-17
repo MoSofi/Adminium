@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Shared test helpers (not collected by vitest — no .test suffix). */
 import { envSchema, type Env } from '../src/config/env.js';
 

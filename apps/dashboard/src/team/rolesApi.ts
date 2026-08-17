@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Roles & permissions data layer over `/api/v1/roles` and
  * `/api/v1/permissions/catalog`.

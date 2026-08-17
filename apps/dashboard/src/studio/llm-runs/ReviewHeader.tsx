@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Review-screen header (§10.3): a run summary (path · model-or-"BYO" · snapshot
  * · counts agree/conflict/new/rejects) plus the bulk controls — an "Accept all

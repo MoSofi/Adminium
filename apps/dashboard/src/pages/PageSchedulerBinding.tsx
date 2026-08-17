@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-scheduler` binding (09-generated-app.md §4.1, §7.6, M7-T03): projects
  * the page envelope onto the real `PageScheduler` template from

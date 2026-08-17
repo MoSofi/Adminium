@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * dependency-cruiser rules enforcing the import matrix of
  * 01-architecture.md §2.3 (task 01-T03 / M0-T03).

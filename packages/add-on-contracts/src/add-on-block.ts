@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `addOn` manifest block (24-marketplace-wave-4.md §5.3) and its validation
  * rules. Lives here rather than in `@adminium/manifest` because the rules are

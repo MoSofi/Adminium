@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Settings → Desktop → "Share on local network" (11-electron.md §8.3).
  *

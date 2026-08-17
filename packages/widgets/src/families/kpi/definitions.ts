@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `kpi` family definitions — the COMPLETE annex §1 slice (10 ids). The M4-T06
  * wave landed `kpi-stat-card` + `usage-meter`; M7 Wave 4 (TRACK KPI-FEEDS)

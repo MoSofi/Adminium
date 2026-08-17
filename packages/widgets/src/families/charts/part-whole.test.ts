@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Registry-metadata + mapping tests for the part-to-whole & hierarchy charts
  * (04-T09). Kept free of the @adminium/charts chart primitives (they load

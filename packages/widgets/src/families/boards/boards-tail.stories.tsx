@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK TABLES-CAL-BOARDS `boards` M7 Wave-4 TAIL stories (annex §6): the
  * standalone `board-card` and the `inline-compose-card` quick-add — each

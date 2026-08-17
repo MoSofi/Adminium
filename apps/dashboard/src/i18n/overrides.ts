@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Client side of the runtime override layer (23-runtime-translations.md §4.4,
  * §4.7).

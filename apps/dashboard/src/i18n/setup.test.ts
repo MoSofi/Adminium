@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `resyncOverrides()` locale resolution (23-runtime-translations.md §4.4).
  *

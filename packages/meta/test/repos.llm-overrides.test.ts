@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * llmOverridesRepo — the LLM slice of adminium_schema_overrides (06-llm-assist.md §8.3).
  *

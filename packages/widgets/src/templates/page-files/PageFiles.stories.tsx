@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-files` template stories (09 §7.9): the demo-mode composition
  * (file-browser + usage-meter), a bound run over an attachments-shaped table

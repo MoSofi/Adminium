@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `parseSchemaFile` — the single public entry point (05 §5). Detects the
  * format (unless forced via `opts.format`), dispatches to the right parser

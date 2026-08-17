@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-contract shapes for the `calendar` family (annex §5). `CalendarEvent`
  * mirrors the canonical `calendar-events` envelope (04 §3

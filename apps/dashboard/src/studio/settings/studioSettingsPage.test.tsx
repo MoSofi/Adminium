@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /studio/settings integration (M5-T05): workspace identity for super admins
  * with the review-then-confirm save modal (changed fields listed, branding

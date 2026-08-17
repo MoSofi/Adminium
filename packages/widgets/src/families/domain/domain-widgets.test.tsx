@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * TRACK DOMAIN unit tests (annex §13) — the two M7 exit-criteria widgets.

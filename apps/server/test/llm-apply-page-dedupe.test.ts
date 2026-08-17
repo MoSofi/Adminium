@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One page per (table, template), one nav group per table — the §8.3 apply and
  * the heuristic generator meeting on the same coordinate (06-llm-assist.md §8.3).

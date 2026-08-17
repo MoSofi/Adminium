@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 2 — "Your first database" (11-electron.md §6): the four source cards.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The SPA half of §11's auto-update, owned by 11-T16 ("notification-center
  * integration / SPA surfaces").

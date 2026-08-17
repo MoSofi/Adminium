@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `stepper` (annex §10) — progress stepper, horizontal or vertical: numbered /
  * spinner / check circles, connector lines filling accent on completion,

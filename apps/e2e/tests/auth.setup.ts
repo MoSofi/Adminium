@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One real UI sign-in per run, saved as Playwright storageState.
  *

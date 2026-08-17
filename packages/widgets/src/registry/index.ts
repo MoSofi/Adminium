@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { kpiWidgetDefinitions } from '../families/kpi/definitions.js';
 import { chartsWidgetDefinitions } from '../families/charts/definitions.js';
 import { barsRankingChartDefinitions } from '../families/charts/bars-ranking-definitions.js';

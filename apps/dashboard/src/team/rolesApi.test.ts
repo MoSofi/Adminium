@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure helpers behind the roles matrix. The first two describes are the ones
  * that matter: a reserved permission must never become a row, and a save must

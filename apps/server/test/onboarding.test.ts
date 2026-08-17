@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Onboarding-state (M5-T06): the pure reactive derivation plus the route —
  * each fact flips exactly one step, the surface is admin-guarded, and dismissal

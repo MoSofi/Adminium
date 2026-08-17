@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Binding-draft translation + validity (04-widget-registry.md §5.1).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CrudApi implementation — the typed client for
  * `/api/v1/data/:connectionId/:table` (08-server-api.md §2.7; exact shapes

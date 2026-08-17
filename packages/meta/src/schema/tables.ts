@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Kysely `MetaDB` interface — one table interface per adminium_* table
  * (BRIEF §6 / 07-meta-store.md §3: 32 names, 31 physical tables +

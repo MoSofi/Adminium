@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * 11-T05's menu suite (11-electron.md §14).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * PlanningRecordDrawer — the `/p/$slug/r/$recordId` drawer for the planning
  * archetype pages (09-generated-app.md §2.3; the `page-crud` detail pattern).

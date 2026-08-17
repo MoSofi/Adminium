@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bundle coverage for the connect wizard's studio.* keys (pre-M12 audit).
  *

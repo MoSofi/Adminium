@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `forms` family's INPUT widgets (annex §10) — `otp-input`, `chip-input`,
  * `segmented-control`, `password-strength-meter`. Each is a thin registry

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Local file storage (M7-T07, files/storage.ts): sha256/size on write, the
  * incremental writer, and the fail-closed storage-key guard.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Launching and instrumenting the built Electron app (11-electron.md §2, 11-T20).
  *

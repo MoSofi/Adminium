@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Settings → Desktop → "App permissions" (11-electron.md §12).
  *

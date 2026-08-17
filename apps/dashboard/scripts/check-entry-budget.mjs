@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Entry-chunk size ratchet, run as the last step of `pnpm build`.
  *

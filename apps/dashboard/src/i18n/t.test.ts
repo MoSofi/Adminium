@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The app translator keeps the stub's `t(key, fallback)` contract
  * (10-i18n-theming.md M8 assignment): before init it returns the fallback

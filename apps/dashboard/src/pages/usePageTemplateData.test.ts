@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * extractTemplateBindings (M7 archetype pages): resource envelopes are
  * `kind: 'page'` — unlike api/widgetData.ts#extractBindings this extractor

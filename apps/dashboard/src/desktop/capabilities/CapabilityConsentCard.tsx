@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The capability consent surface (11-electron.md §12) — the OAuth-scope pattern
  * from `Integrations.dc.html`, as a modal.

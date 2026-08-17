@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `period-comparison` (annex §1) — two labeled progress bars (this period vs
  * last) with a computed diff footer ("+$13.1k (37.3%) higher"). Renders only the

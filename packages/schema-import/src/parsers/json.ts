@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * JSON IR parser — the public ingestion contract (05 §2.3/§5.2). The "format"
  * is simply the DatabaseModel schema itself; this wraps `parseDatabaseModel`

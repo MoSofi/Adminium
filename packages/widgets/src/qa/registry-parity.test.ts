@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Registry-parity gate — 04-widget-registry.md acceptance #1 / 04-T17 (1).
  *

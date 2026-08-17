@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/adapter-sqlite — the `better-sqlite3` implementation of the
  * `DatabaseAdapter` contract (05-introspection-engine.md §3/§4.3, M9/05-T14).

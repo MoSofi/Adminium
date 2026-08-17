@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/studio/pages/new` — create a page, with the template's shape beside the
  * form.

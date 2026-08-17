@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared harness for the remap editor component tests: a routing fetch stub
  * over the four endpoints the editor talks to, plus a QueryClient render

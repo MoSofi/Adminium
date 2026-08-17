@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Palette catalog helpers (04-widget-registry.md §6.2 "Adding widgets"):
  * group the registry's grid-placeable widgets by family for the family-grouped,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-anomaly` primitive (research/widget-registry.md §2): actual line over
  * an expected-range band + dashed expected line + halo dots on anomalies. A

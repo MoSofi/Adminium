@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK BUILDER — payload types for `document-canvas` and the 22 `block-*`
  * document-vocabulary widgets (annex §13, "Document blocks").

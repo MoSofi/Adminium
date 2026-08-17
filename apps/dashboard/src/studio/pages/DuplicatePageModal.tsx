@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Duplicate page" — the copy needs its own identity, and only two fields of
  * it. Everything else (template, widgets, columns, source binding, and the

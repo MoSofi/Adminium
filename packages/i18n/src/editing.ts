@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Edit-time surface of `@adminium/i18n` — the key index, the write validator
  * and the generated a11y-critical key list (23-runtime-translations.md §6.3).

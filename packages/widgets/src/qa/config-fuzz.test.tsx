@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * Config-schema fuzz gate — 04-widget-registry.md acceptance #4/#17 spirit /

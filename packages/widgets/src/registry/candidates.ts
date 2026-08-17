@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Candidate rules — hook **H1 (candidate emission)** and **H2 (scoring &
  * pruning)** of the auto-instantiation pipeline (04-widget-registry.md §8),

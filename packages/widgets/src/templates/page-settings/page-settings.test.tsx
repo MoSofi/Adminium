@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `page-settings` template (M7 reports/notifications track): the controlled

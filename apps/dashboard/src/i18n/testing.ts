@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Test-only i18n stand-in. Resolves keys against the REAL en-US bundles
  * (@adminium/i18n/resources — dependency-free leaf) with a minimal ICU-lite

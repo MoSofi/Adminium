@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Saved-views client (M5-T06) — typed wrappers over the views CRUD endpoints.
  * Shapes mirror the server Zod reply (`apps/server/src/routes/views/schema.ts`)

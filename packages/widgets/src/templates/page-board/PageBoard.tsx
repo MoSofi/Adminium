@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-board` template renderer (09-generated-app.md §7.5, 04 §10 manifest
  * `page-board.json`, annex §14 "workflow enum → board").

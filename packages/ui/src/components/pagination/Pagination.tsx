@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ComponentPropsWithRef } from 'react';
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0008 — LLM apply overrides (06-llm-assist.md §8.3, T10b).
  *

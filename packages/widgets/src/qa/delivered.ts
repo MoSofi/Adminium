@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The aggregated set of Wave-1 widget definitions the QA harness (04-T17) runs
  * against — determinism, config-fuzz, four-state, story, and parity checks all

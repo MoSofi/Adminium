@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests — driver error → `AdapterError` mapping (05 §3). The
  * driver error shapes are constructed by hand (a `pg.DatabaseError` is an

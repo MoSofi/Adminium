@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `scripts/generate-notices.mjs` — the 11-electron.md §13 third-party-notices
  * gate (11-T18).

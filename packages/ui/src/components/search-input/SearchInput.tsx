@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Search, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type * as React from 'react';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The single page gutter (02-design-system.md §1.8 density axis).
  *

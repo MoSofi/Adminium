@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * In-process polling worker over `adminium_jobs` (01-architecture.md §5
  * background path, 07-meta-store.md §3.12, M2-T07).

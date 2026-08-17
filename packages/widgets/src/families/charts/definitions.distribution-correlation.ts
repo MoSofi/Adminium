@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family — distribution & correlation group (04-T09). Metadata-only
  * definitions for the seven annex §2 ids `chart-boxplot`, `chart-violin`,

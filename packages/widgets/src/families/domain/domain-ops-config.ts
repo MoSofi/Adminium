@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK OPS — config schemas + deterministic demo generators for the eighteen
  * §13 ops / billing / API / marketing cards. PURE module (zod + domain-lib +

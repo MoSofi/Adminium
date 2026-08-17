@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * RTL + locale end-to-end (10-i18n-theming.md §5, §8.3).
  *

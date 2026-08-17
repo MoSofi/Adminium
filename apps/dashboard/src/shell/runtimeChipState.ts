@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Which of §8.1's four chips does this Adminium show right now?
  * (11-electron.md §8.1; the chip component itself is `@adminium/ui`'s

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React binding for the global shortcut manager (app/shortcuts.ts): one
  * window keydown listener for the whole app, `useShortcut` registration that

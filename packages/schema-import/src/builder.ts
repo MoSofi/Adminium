@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Intermediate model builder shared by all parsers. Parsers register table /
  * column / enum / relation DRAFTS with loose (possibly unqualified, possibly

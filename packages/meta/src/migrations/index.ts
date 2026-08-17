@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Ordered, append-only migration list (07-meta-store.md §4). Up-only: a
  * mistake ships as a new compensating migration; an applied migration is never

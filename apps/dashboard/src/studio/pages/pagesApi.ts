@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio page-manager API client (08-server-api.md §2.6).
  *

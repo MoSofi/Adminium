@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/studio/pages/$pageId` — edit a page, with the template's shape beside the
  * form.

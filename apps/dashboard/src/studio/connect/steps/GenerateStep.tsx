@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 6 — generate + success (09 §8.2 step 4 tail): POST
  * /connections/:id/generate with the chosen intent, narrated by the staged

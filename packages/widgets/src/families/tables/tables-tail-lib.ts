@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared, framework-light helpers for the `tables` family M7 Wave-4 TAIL slice
  * (annex §3) — envelope extraction, tone coercion, the good/bad delta polarity

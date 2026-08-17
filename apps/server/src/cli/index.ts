@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `adminium` — the CLI entry point (`bin` in package.json, 01-architecture.md
  * §4.1: "one `npx adminium` is a complete install").

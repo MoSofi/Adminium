@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TOTP two-factor auth (08-server-api.md §2.1): RFC 6238 via `otpauth`,
  * 6 digits / 30 s / SHA-1 / ±1 step verify window. Secrets are encrypted at

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The §4 bridge as the renderer sees it: what is exposed, and what a rejection
  * looks like.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-ranking-bars` primitive (research/widget-registry.md §2): label +
  * proportional horizontal bar (leader at full accent, the rest dimmed) + mono

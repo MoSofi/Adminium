@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Email Templates surface (M7-T06; comps: Email Templates.dc.html; 09 §7.11).
  *

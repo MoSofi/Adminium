@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/tokens — WCAG 2.1 contrast gate.
  *

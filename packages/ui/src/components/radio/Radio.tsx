@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import { useId } from 'react';
 import type * as React from 'react';

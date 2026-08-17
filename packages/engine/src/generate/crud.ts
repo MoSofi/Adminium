@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-crud` envelope generation — one per included table (research/
  * widget-registry.md §14: "Every included table"; 01-architecture.md §6.1

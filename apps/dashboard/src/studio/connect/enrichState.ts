@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Enrich-with-AI step — pure state + rules (06-llm-assist.md §10.2, §4.4, §7.5,
  * §9). Kept out of the components so the three-intent state machine, the

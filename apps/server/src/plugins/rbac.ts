@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `rbac` plugin (08-server-api.md §5, M2-T05): decorates
  *

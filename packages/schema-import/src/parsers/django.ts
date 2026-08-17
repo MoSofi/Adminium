@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Django `models.py` parser — 05-introspection-engine.md §5.2 row 7. Pure
  * line grammar per `class X(models.Model):` block. Field map per the

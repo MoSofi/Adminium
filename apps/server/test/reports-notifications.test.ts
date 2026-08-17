@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M7 reports/notifications track: croner schedule math, the /me notification
  * routes (keyset + unread + read transitions + the §8.2 prefs matrix), the

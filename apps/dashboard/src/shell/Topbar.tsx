@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Sticky translucent topbar (09-generated-app.md §5.1, ia-mapping §5
  * color-mix + blur keeper): the page title over an optional subtitle line, the

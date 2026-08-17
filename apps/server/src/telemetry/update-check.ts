@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Self-host update-available check (M10-T04): compares the running build
  * against the latest public release so a self-hoster learns a security fix

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Login/session/logout happy path + uniform credential failures + audit rows
  * (08-server-api.md §2.1) and the 503 META_NOT_CONFIGURED boot-without-meta

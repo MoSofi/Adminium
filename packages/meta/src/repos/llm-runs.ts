@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * llmRunsRepo — adminium_llm_runs (07-meta-store.md §3.19, 06-llm-assist.md §7.4).
  *

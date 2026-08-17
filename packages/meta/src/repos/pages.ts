@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * pagesRepo — adminium_pages (07-meta-store.md §3.16).
  *

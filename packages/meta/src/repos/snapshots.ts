@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * snapshotsRepo — adminium_schema_snapshots (07-meta-store.md §3.14).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { createContext, useContext, type ComponentPropsWithRef } from 'react';
 

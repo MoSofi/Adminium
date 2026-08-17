@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * §8.1's four chip states and the precedence between them
  * (`shell/runtimeChipState.ts`).

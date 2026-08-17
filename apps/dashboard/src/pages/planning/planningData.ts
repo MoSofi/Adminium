@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data plumbing for the PLANNING archetype bindings — `page-board`,
  * `page-calendar`, `page-scheduler` (09-generated-app.md §7.5/§7.6).

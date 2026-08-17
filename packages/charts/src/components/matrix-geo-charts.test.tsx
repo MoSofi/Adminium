@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * Render tests for the Track E chart primitives (matrix, calendar & geo-grid):

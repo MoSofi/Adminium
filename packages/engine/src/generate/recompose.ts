@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Recompose ONE page against a chosen table — the Studio page editor's
  * "change the data this page shows" write.

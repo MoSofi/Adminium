@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Badge, Button, EmptyState, IconButton } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';

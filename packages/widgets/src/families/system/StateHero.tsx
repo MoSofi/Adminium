@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `state-hero` (annex §12) — parameterized full-page status: optional giant mono
  * HTTP code, tone-tinted icon chip, title, body, primary/secondary CTAs. The 404

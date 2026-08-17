@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Full-adapter tests through the real `pg` pool — gated on BOTH probes
  * (local Postgres reachable AND the driver installed), so the suite skips

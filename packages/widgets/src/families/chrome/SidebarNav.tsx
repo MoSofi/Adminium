@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `sidebar-nav` (annex §11) — grouped data-driven nav: group labels, icon links,
  * active state, optional live count badges. The generator builds its payload

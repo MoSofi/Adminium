@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { PageCrud } from './PageCrud.js';
 import type {
   CrudApi,

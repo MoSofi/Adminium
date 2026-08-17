@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-log-viewer` binding (09-generated-app.md §4.1, §7.8): projects the
  * page envelope onto the real `PageLogViewer` template from

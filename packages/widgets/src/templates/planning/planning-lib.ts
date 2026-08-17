@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared helpers for the PLANNING archetype templates — `page-board`,
  * `page-calendar`, `page-scheduler` (09-generated-app.md §7.5/§7.6,

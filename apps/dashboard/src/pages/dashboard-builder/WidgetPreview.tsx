@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic demo-data preview of a registry widget (04-widget-registry.md
  * §5.3 "Demo mode"): renders the widget through `WidgetHost` fed by its own

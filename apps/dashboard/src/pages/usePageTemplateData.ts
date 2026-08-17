@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data binding for RESOURCE templates (kind: 'page') — the M7
  * archetype pages (`page-directory`, `page-master-detail`,

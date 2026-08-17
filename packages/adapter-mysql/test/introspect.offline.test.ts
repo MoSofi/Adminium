@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline introspection tests — the full assembly pipeline driven through a
  * canned-rows executor (no server, no driver), plus the SQL-text contract:

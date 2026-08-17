@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Team directory data layer over the `/api/v1/users` routes — the client half
  * of the v1 user-management blocker (a self-hosted Adminium could create

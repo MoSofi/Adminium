@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio route factory (09 §8.1) — mounted under the authed app layout by
  * app/router.tsx. Routes this wave:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Whole-store copy, across every pair of dialects the machine can run.
  *

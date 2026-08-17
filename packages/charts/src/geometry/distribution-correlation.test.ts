@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure-geometry tests for the distribution & correlation charts (04-T09):
  * deterministic path strings (Node-vs-golden, no DOM), RTL mirroring of the

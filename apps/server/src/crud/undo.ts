@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Undo-token pattern (08-server-api.md §2.7.3): mutations execute
  * immediately; before-images are captured in the same transaction; the

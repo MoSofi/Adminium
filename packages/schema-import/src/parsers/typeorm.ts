@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TypeORM entity parser — 05-introspection-engine.md §5.2 row 4, tokenizer
  * level (no TS compiler): `@Entity` classes are located, class-level and

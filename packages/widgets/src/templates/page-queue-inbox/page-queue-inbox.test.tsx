@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `page-queue-inbox` template tests (M7 queues track, 09 §7.4 + §4.1):

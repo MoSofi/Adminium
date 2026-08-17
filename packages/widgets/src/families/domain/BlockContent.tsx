@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { MonoText } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Mail, Phone, User } from 'lucide-react';

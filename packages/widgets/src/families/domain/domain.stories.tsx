@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK DOMAIN `domain` family stories (annex §13): each widget's loaded
  * variant, the four WidgetFrame states through WidgetHost (acceptance #4), and

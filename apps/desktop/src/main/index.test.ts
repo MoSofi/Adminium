@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The boot sequence (11-electron.md §2.2), driven through `createDesktopApp`'s
  * injected ports. No Electron here — see the module header of index.ts and the

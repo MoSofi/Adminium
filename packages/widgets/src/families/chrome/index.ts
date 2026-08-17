@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chrome` family public surface (annex §11) — the navigation/chrome components
  * (sidebar-nav, command-palette, global-search, breadcrumb, tab-bar, nav-card,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React bindings for `@adminium/i18n` (separate entry so the framework-free
  * core — server emails, jobs, CLI — never pulls React in; §2.2). Deliberately

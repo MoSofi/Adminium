@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `GET /api/v1/system/info` — the deployment's capability flags, and the §8.2
  * gating matrix built on them (11-electron.md §8.1, §8.2).

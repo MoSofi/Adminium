@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * e2e boot script (M9-T05): boots the BUILT @adminium/server serving the
  * BUILT dashboard, against a Northwind source database on the engine chosen

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Playwright config for the @adminium/ui visual-regression matrix
  * (03-component-library.md §10). Runs vrt/vrt.spec.ts against the static

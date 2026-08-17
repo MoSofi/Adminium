@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-timeline-lanes` primitive (research/widget-registry.md §2): horizontal
  * swimlanes with positioned pill events on a shared time axis (Deploys /

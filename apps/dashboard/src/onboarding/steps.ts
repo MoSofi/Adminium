@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Static presentation metadata for the onboarding steps (M5-T06). The server
  * owns each step's `done` (reactive derivation); this owns its icon, copy keys

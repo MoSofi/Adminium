@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0001 — core auth: adminium_users, adminium_user_prefs,
  * adminium_sessions, adminium_password_resets, adminium_settings

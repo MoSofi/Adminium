@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `kpi-stat-tile-compact` (annex §1) — the slim tile variant of the workhorse
  * card, for dense "power" rows of 4–6: uppercase micro-label, mono value, a tiny

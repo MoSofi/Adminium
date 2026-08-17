@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Slot registry v1 — CLOSED (24-marketplace-wave-4.md §5.4, eleven slots).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `import-run` job handler (M7-T07, 09-generated-app.md §11.1): executes one
  * validated adminium_imports request — streaming CSV parse, mapping +

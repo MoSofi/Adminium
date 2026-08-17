@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure GitHub-style contribution-calendar geometry (research/widget-registry.md
  * §2 `chart-heatmap-calendar`): up to 53 week columns × 7 day rows of per-day

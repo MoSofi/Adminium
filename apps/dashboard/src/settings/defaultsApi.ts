@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Global-defaults API client (10-i18n-theming.md §7.2): GET/PUT
  * /api/v1/settings/defaults. Shapes mirror apps/server

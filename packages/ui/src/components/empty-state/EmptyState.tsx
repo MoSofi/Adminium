@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { CalendarX2, CheckCircle2, Inbox, SearchX } from 'lucide-react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 

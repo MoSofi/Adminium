@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `DatabaseAdapter` contract — 05-introspection-engine.md §3, with the
  * three-connection privilege model of 01-architecture.md §3.

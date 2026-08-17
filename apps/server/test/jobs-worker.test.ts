@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * JobWorker over the sqlite meta queue (M2-T07): claim → run → complete,
  * progress fan-out on `jobs:<id>`, exponential backoff → dead-letter, the

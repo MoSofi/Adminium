@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Connect wizard component tests (M5-T01/02/03 + M9-T04) — happy-dom, fetch
  * mocked like the sibling api tests (no msw): step navigation, source-mode

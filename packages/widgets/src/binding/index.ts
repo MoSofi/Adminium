@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `@adminium/widgets/binding` — the `stream` data-binding layer (04-widget-registry.md
  * §5.3): the transport contract + provider, the bounded newest-first buffer,

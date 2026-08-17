@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 export { Badge, badgeVariants } from './Badge.js';
 export type { BadgeProps } from './Badge.js';
 // NB: the `Tone` union is intentionally NOT re-exported here — consumers get

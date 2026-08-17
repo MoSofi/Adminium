@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-calendar` template stories (09 §7.6): the Calendar Scheduler comp
  * (month + agenda + composer), the Release Calendar comp (legend + upcoming

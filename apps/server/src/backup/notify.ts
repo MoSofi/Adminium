@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The completion notification (11-electron.md §9: "Completion raises an
  * `adminium_notifications` entry with 'Show in folder'").

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { ArrowLeft, KeyRound, Mail, MailCheck } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentPropsWithRef, FormEvent, ReactNode } from 'react';

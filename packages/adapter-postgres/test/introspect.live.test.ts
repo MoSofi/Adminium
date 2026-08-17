@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Live introspection tests, gated on a local Postgres probe (the standing
  * rule: CI without PG stays green). These suites drive the FULL introspection

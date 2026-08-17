@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `toggle-switch-list` (annex §10) — a card of rows: label + description
  * (+ optional tone-tinted icon tile) + a switch bound to a `boolean-map`;

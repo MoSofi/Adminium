@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The "Require login on this device" answer (11-electron.md §5), read and
  * written through the preload bridge.

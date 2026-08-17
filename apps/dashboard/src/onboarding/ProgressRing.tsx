@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Onboarding progress ring (M5-T06 keeper from Workspace
  * Onboarding.dc.html). A bespoke SVG data-viz — like the chart widgets it uses

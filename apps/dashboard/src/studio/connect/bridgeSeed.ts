@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The receiving end of the local bridge (`apps/server/src/routes/bridge`).
  *

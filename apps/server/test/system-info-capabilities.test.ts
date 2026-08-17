@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `GET /api/v1/system/info` — the 11-electron.md §8.2 capability flags the SPA
  * gates local-mode UX on (§8.1 runtime chip, SMTP-gated email actions,

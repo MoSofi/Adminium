@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Direct-API enrichment progress screen (06-llm-assist.md §10.2 step 3). Runs
  * the `llm-run` job and narrates its realtime progress through the introspection

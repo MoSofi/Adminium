@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/changelog` — product updates & releases (M10-T06; ports
  * `Changelog.dc.html`).

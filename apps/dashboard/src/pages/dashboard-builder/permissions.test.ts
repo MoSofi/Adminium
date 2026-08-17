@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Edit-target gating (04-T14, 04 §6.3): the layer a caller's edits persist to is
  * driven by the server's per-page `page:<id>:edit` capability (`canEditLayout`),

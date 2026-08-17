@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { RuleTester } from 'eslint';
 import { describe, it } from 'vitest';
 

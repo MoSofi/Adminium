@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * DashboardData adapter contract (04-widget-registry.md §5.2/§5.3).
  *

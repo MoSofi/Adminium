@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-queue-inbox` binding (09-generated-app.md §4.1, §7.4): projects the
  * page envelope onto the `PageQueueInbox` template from `@adminium/widgets`

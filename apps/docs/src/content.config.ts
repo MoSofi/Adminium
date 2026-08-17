@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Starlight content-collection schema (14-docs-site.md §10.1).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Controllable `window.matchMedia` mock for happy-dom tests.
  *

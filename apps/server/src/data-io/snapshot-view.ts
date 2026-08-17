@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Out-of-request SnapshotView loading (M7-T07): the export/import jobs and
  * routes need the same snapshot-allowlisted identifier resolution the data

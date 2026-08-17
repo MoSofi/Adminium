@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Canonical model JSON + sha256 — 05-introspection-engine.md §9.
  *

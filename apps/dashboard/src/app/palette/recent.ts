@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ⌘K Recent tracking (09-generated-app.md §5.2): a mixed-entity recency list
  * in `localStorage['adminium-recent:<userId>']` — max 8 entries of

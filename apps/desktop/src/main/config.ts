@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Desktop config module (11-electron.md §2.3) — the `<userData>/config.json`
  * that the main process owns.

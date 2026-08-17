@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `tables` family M7 Wave-4 TAIL component barrel — the single lazy-import
  * target for this track's definitions, so the registry's metadata graph reaches

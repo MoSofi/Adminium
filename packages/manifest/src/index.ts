@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/manifest — Micro-SaaS manifest spec v1 (13-marketplace.md §2).
  *

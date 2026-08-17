@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Telemetry client (M10-T04). OPT-IN: `telemetry.enabled` defaults to `false`
  * in the settings registry, so a fresh install reports nothing until someone

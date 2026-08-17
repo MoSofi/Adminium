@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Row → data-contract envelope shapers (04-widget-registry.md §5.2 step 5).
  *

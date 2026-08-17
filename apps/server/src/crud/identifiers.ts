@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Snapshot-backed identifier allowlisting (08-server-api.md §2.7 / §7 item 1):
  * every `:table` and column name in a data request resolves against the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Password hashing (08-server-api.md §2.1, §7 item 7): argon2id with the
  * OWASP first-choice parameters — 19 MiB memory, 2 iterations, parallelism 1.

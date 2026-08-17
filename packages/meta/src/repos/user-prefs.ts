@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * userPrefsRepo — adminium_user_prefs (07-meta-store.md §3.4) plus the
  * BRIEF §7 preference resolution (§7.2): system default → global settings

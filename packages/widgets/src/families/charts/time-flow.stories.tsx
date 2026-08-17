@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Time, forecast & flow" group stories (04-T09 / 04-T17): each widget's loaded
  * variant plus the four WidgetFrame states, through WidgetHost with a registry

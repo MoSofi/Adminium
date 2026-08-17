@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the connections layer: DSN parsing/masking, the §7
  * item-2 SSRF guard, same-database detection, the two 01 §3.1 meta-store

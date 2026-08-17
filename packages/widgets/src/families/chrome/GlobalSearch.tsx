@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `global-search` (annex §11) — header search box with an anchored dropdown
  * (quick links when empty, grouped results otherwise) plus a full-page results

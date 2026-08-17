@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bundled en-US resources (10-i18n-theming.md §2.3): the fallback language
  * ships in the main bundle and must never be async. All five namespaces are

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shapes shared by more than one contract. Kept in one place so a `FileRef`
  * from a carrier label and a `FileRef` from a production file are the same

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/desktop/setup` — the first-run wizard's host (11-electron.md §6, task
  * 11-T07).

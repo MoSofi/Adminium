@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import noDynamicI18nKey from './no-dynamic-i18n-key.js';
 import noLiteralColorOnTokenBg from './no-literal-color-on-token-bg.js';
 import noLiteralStrings from './no-literal-strings.js';

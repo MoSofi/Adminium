@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-dashboard` template stories (M4-T05): the full demo-mode comp port
  * (4-card KPI row + hero line-area + donut + secondary bar + mini-table

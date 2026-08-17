@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK FCS `forms` family stories (annex §10): each widget's loaded variant,
  * the four WidgetFrame states through WidgetHost (acceptance #4), and

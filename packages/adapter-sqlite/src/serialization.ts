@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Identifier quoting + per-LogicalType value serialization for the SQLite
  * data connection — 05-introspection-engine.md §3 (`QueryEngine`) and

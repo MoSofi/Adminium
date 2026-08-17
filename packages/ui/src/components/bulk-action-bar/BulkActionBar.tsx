@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { X } from 'lucide-react';
 import { createContext, useContext } from 'react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';

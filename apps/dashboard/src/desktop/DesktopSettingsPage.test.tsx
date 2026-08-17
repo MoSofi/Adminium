@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/settings/desktop` — the "Require login on this device" toggle (11-electron.md
  * §5, §2.3).

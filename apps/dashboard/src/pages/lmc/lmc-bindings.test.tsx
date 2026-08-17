@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LOGS/MEDIA/CHAT binding tests (09-generated-app.md §4.1, §7.8/§7.9):
  * `usePageWidgetStates` batches `kind: 'page'` layouts under the shared

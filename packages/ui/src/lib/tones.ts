@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * lib/tones.ts — the canonical home of the semantic tone vocabulary and the
  * status→tone registry (03-component-library.md §3.3, §7.6).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Schematic preview of a page template — what the page will LOOK like.
  *

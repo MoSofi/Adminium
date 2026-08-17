@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Tiny token cursor over a single SQL statement (comments already stripped).
  * Understands quoted identifiers ("x", `x`, [x]), string literals ('x' with

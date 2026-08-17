@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 1 — "Welcome & data location" (11-electron.md §6).
  *

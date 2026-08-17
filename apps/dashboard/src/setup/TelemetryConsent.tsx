@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The first-run consent step (M10-T04). Two independent opt-ins, both rendered
  * OFF and both requiring a deliberate flip — nothing here is pre-checked, which

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { layoutItemSchema, pageLayoutSchema, queryDescriptorSchema } from '@adminium/widgets/page-config';
 import { z } from 'zod';
 

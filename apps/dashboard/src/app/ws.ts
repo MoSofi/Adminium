@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Realtime client (09-generated-app.md §2.1 step 4/5): connects to the
  * server's `GET /ws` gateway (apps/server/src/realtime/ws.ts protocol),

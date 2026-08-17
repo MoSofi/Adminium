@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Draft review-state persistence (acceptance criterion 12: "accept/reject state
  * persists across reload until applied"). Before a run is applied there is no

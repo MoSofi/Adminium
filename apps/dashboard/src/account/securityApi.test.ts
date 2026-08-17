@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure helpers behind the session list. `deviceLabel` is the one that matters:
  * a session list is read in order to decide what to revoke, and a confidently

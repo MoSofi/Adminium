@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-chat` template stories (09 §7.9): the demo-mode composition
  * (inbox + thread + attachments rail), a bound conversation+message pair with

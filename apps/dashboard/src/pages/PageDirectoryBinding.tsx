@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-directory` binding (09-generated-app.md §4.1, §7.7): projects the
  * page envelope onto the `PageDirectory` template from `@adminium/widgets`.

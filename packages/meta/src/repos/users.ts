@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * usersRepo — adminium_users (07-meta-store.md §3.3).
  * Thin data access only: password hashing happens in the server.

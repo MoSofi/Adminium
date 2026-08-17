@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `diagnostics-readout` (annex §12) — compact terminal card of key/value
  * connection-check results with semantic-toned status values + a last-checked

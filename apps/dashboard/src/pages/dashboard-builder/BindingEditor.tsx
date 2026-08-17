@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Binding editor (04-widget-registry.md §5.1 / §6.2) — the surface that authors
  * a widget's `config.binding`.

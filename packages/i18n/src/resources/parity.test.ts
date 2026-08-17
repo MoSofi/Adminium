@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Locale-bundle parity gate (10-i18n-theming.md §3.5), all 8 locales:
  *

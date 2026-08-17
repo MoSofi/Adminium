@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SQLite declared type → affinity → portable LogicalType mapping —
  * 05-introspection-engine.md §2.2 ("SQLite (declared → affinity)") and §4.3.

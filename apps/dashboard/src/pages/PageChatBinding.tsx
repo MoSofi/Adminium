@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-chat` binding (09-generated-app.md §4.1, §7.9): projects the page
  * envelope onto the real `PageChat` template from `@adminium/widgets`.

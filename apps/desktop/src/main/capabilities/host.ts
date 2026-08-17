@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CapabilityHost — the generic capability registry + IPC router
  * (11-electron.md §12).

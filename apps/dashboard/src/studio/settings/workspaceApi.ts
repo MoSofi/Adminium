@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Workspace-settings API client (M5-T05) — mirrors the Zod reply schemas in
  * `apps/server/src/routes/settings/schema.ts` (copied-mirror convention from

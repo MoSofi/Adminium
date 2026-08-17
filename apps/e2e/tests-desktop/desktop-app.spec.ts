@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * 11-T20 — the desktop E2E happy path (Playwright `_electron`).
  *

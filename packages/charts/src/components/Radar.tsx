@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-radar` primitive (research/widget-registry.md §2): N named axes on a
  * regular polygon with one filled polygon per series (current vs an optional

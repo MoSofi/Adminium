@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure tilegram / grid-choropleth geometry (research/widget-registry.md §2
  * `chart-choropleth-grid`): region tiles tinted by value, label text flipping

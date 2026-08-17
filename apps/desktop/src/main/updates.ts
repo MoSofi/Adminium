@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * UpdateManager — `electron-updater` integration (11-electron.md §11), owned by
  * 11-T16.

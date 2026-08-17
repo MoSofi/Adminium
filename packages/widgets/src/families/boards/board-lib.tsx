@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { getInitials } from '@adminium/ui';
 import type { Tone } from '@adminium/ui';
 import { mulberry32 } from '@adminium/charts';

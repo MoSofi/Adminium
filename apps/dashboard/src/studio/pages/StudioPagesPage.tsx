@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio → Pages (09 §8.1 addition; server surface = 08-server-api.md §2.6).
  *

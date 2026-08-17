@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure ranking-bar layout (`chart-ranking-bars`, research/widget-registry.md
  * §2): label + proportional horizontal bar (leader solid, rest dimmed) + mono

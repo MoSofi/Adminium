@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `artwork-source@1` (24 §5.5) — a way for a customer to supply artwork that is
  * not a plain upload.

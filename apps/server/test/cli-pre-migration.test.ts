@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The pre-migration guards (`src/backup/pre-migration.ts`) through both front
  * doors — the operation this covers is `docker compose pull && up -d`, where

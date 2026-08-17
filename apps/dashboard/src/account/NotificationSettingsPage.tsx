@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/account/notifications` — the ACCOUNT-group Notification Settings surface
  * (research/ia-mapping.md §2A; comp: Notification Settings.dc.html).

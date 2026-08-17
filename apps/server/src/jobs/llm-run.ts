@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `llm-run` job handler — the direct-API path as an `adminium_jobs` job
  * (06-llm-assist.md §7.5, §10.2 step 3, acceptance #6).

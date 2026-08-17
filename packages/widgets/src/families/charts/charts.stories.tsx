@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Charts family stories (M4-T05): each registry widget's loaded variants
  * plus the WidgetFrame states through WidgetHost (acceptance criterion

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure Pareto layout (`chart-pareto`, research/widget-registry.md §2): sorted
  * bars + a cumulative-% line, with an optional cutline (default 80%). DOM-free.

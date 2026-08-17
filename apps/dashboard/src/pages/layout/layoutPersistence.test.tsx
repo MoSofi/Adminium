@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard layout-persistence client (04-T13): the typed wrappers hit the
  * documented endpoints, the shared/personal save hooks debounce a burst of

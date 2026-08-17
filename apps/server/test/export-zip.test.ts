@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M10-T03 — the config bundle: export, re-import, version replay, and the
  * secret guarantee.

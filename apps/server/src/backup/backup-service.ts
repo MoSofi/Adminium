@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The §9 backup writer (11-electron.md §9) — the thing behind
  * `POST /api/v1/desktop/backup`.

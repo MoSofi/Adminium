@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The list-DSL filter grammar and its dynamic-Kysely compiler
  * (08-server-api.md §2.7.1). Identifiers are resolved against the snapshot

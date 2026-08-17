@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK BUILDER — config schemas + deterministic demo generators for
  * `document-canvas` and the 22 `block-*` document-vocabulary widgets

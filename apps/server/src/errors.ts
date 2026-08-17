@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Application errors + the one non-2xx envelope (08-server-api.md §1.4).
  *

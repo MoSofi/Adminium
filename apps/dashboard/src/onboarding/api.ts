@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Onboarding client (M5-T06) — thin typed wrappers over the onboarding-state
  * endpoints. Shapes mirror the server Zod reply

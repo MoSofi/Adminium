@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-heat-month` primitive (research/widget-registry.md §2): a 7-column
  * month grid with day numbers and up to 5 intensity levels + a day-of-week

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Realtime event → TanStack Query invalidation map (09-generated-app.md §2.1
  * step 5, §4.1):

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the MySQL statistics collector (06 §4.2). No `mysql2`
  * driver: a mock executor routes information_schema/scan/sampling SQL by shape

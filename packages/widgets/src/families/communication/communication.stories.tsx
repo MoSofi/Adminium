@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Track COMM `communication` family stories (annex §9): the conversation inbox,
  * chat thread, and AI assist panel loaded variants, the four WidgetFrame states

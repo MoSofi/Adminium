@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Copy-to-clipboard button used across the BYO enrichment screens
  * (06-llm-assist.md §10.2 step 4): "Copy prompt" and "Copy errors for your AI

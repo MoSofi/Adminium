@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * API-key lifecycle tests (08-server-api.md §2.16, M2-T06): one-time secret
  * reveal, hashed-at-rest storage, the bearer request-auth path (create →

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `breadcrumb` (annex §11) — ancestor chain from parent pointers, clickable,
  * separator glyph, RTL-aware. Evidence: File Manager.

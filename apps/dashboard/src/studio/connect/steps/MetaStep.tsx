@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Step 5 — meta-storage placement (M5-T03, 01-architecture.md §3.1):
  * same-DB (`adminium_*` tables beside your source tables) vs separate-DB

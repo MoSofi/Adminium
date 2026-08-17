@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-boxplot` primitive (research/widget-registry.md §2): whisker/box/median
  * per category with a y-axis tick scale. Categorical x mirrors in RTL (band

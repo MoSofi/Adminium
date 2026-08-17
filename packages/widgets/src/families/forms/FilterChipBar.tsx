@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `filter-chip-bar` (annex §10) — toggle chips with live mono count pills
  * computed from the SIBLING list ("All 24 · Running 3 · Completed 21"); a

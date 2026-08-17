@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Check, CircleAlert } from 'lucide-react';
 import type { ComponentPropsWithRef } from 'react';
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure editing math for the dashboard grid edit mode (04-widget-registry.md
  * §6.2). The static renderer's geometry + top-gravity compaction live in

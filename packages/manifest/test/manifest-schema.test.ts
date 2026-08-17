@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Manifest spec v1 validation (13-marketplace.md §2): a valid ecommerce-shop
  * manifest round-trips, and every documented rule rejects.

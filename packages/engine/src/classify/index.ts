@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `@adminium/engine` classification entry point — 05-introspection-engine.md
  * §§6–8 (05-T07 column semantics + PII layer, 05-T08 table shapes).

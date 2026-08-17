@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-heatmap-calendar` primitive (research/widget-registry.md §2): GitHub-
  * style week×day contribution grid with intensity levels, month markers, a

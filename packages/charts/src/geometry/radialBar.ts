@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure radial-bar geometry (`chart-radial-bar`, research/widget-registry.md §2):
  * concentric progress rings, one per category (≤4), each a stroke-dashoffset

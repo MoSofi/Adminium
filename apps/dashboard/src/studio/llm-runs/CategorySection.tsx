@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One collapsible category section of the review screen (§10.3 body): a header
  * with the group icon, localized name, a total-count badge and an accepted

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Vitest setup (happy-dom): Testing Library cleanup, a controllable
  * matchMedia stub (ThemeProvider tracks prefers-color-scheme), and reset of

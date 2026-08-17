@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Pure micro-chart layout for sparklines (bar and line variants). */
 import { extent } from '../utils/stats.js';
 

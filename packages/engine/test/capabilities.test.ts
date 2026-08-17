@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Per-engine capability matrix + degradation notes (M9-T04,
  * gap-analysis §2.1): the static facts that drive the wizard's honesty copy.

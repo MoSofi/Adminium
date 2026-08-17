@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Ambient declaration for side-effect CSS imports. `families/geo/MapBubble.tsx`
  * dynamically imports `leaflet/dist/leaflet.css` (Leaflet's stylesheet positions

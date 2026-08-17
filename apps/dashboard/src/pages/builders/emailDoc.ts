@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Email blocks ⇄ document-canvas doc mapping (M7-T06 Email Templates surface).
  *

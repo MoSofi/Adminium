@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Third-party notices generator — 11-electron.md §13 (11-T18):
  *

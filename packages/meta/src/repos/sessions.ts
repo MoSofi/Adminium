@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * sessionsRepo — adminium_sessions (07-meta-store.md §3.5).
  * Cookie tokens are opaque; only their SHA-256 hex is stored (hashing in server).

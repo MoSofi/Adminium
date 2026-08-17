@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { getFormatters, latnDataTag } from '@adminium/i18n';
 
 import { formatAbsoluteTime, formatRelativeTime } from '../tables/column-spec.js';

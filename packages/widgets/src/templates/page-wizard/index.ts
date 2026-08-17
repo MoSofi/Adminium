@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-wizard` template (04 §10 archetype 12; 09-generated-app.md §11.1) —
  * the stepped-flow shell the dashboard PageRenderer mounts for

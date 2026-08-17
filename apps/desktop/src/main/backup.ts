@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * BackupCoordinator — native dialogs, "show in folder", restore choreography,
  * and the §9 auto-backup schedule (11-electron.md §9, §2.1).

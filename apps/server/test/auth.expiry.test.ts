@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Session lifetime rules (08-server-api.md §2.1): 7-day idle timeout from
  * `last_seen_at`, 30-day absolute cap from creation — both answering 401

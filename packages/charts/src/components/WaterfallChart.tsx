@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-waterfall` primitive (research/widget-registry.md §2): a floating-bar
  * bridge (Start / New / Expansion / Churn / Net) with +/− colored steps and

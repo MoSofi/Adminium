@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LLM apply EXECUTOR (06-llm-assist.md §8.3, T10b) — integration against a
  * seeded in-memory SQLite meta store (no live source DB, no provider network).

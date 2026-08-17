@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the SQLite statistics collector (06 §4.2). No
  * better-sqlite3 binding: a mock executor routes count/scan/sampling SQL by

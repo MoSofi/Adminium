@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bootstrap consumption (09-generated-app.md §2.1–§2.3): query fn parses the
  * `{ data }` envelope, nav helpers drive `/` redirect + slug resolution, and

@@ -25,7 +25,13 @@ Everyday scripts (all fan out through Turborepo and are cached):
 | `pnpm typecheck` | `tsc` workspace-wide, strict mode |
 | `pnpm test` | Vitest per package |
 | `pnpm check-deps` | dependency-cruiser boundary check (`.dependency-cruiser.cjs`) |
+| `pnpm check-spdx` | every tracked source file opens with `// SPDX-License-Identifier: AGPL-3.0-only`; `--fix` inserts the missing ones |
 | `pnpm changeset` | record a changeset for your change |
+
+New source file? Run `pnpm check-spdx --fix` — it inserts the header (after a
+shebang, where there is one). If the gate goes red on a file nobody edited, a
+code generator rewrote it: put the SPDX line in that generator's template rather
+than exempting the file.
 
 ## Package map
 

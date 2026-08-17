@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/i18n — 8-locale registry, i18next+ICU runtime factory, Intl
  * formatter layer, RTL utils (10-i18n-theming.md). Framework-free;

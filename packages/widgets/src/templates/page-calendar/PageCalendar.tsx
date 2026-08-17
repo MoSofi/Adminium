@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-calendar` template renderer (09-generated-app.md §7.6, 04 §10 manifest
  * `page-calendar.json`, annex §14 "date + title → calendar").

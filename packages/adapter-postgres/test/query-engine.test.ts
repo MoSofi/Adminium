@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `createQueryEngine()` pool wiring — the guards that do not need a live server.
  *

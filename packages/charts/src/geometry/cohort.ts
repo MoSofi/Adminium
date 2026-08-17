@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure cohort-retention matrix geometry (research/widget-registry.md §2
  * `chart-cohort-matrix`): cohort rows × period columns, accent alpha by value,

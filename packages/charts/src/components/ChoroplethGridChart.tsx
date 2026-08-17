@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-choropleth-grid` primitive (research/widget-registry.md §2): a US
  * tilegram (49 state tiles) or compact region grid, tinted by the active metric,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M5-T02 — `settings.includedTables` consumption in the generation pipeline:
  * the model is restricted to the persisted selection before `generatePages`,

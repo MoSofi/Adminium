@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bootstrap nav connection labels (M5-T05): every nav item carries its
  * owning `connectionId` + `connectionName` so multi-connection sidebars can

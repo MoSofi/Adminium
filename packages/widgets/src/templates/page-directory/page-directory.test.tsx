@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `page-directory` template tests (M7 people track, 09 §7.7): renders the

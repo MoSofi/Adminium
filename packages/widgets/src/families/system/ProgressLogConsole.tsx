@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `progress-log-console` (annex §12) — terminal-style streaming checklist: mono
  * log lines, done lines get a green check, the active line gets a spinner, with

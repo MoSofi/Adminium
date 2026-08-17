@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { JOB_BACKOFF_BASE_MS, JOB_STALE_LOCK_MS, applyMigrations, jobsRepo } from '../src/index.js';

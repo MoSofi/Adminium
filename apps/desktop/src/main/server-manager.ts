@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ServerManager — forks, supervises and shuts down the embedded server
  * (11-electron.md §2.1 topology, §2.2 boot sequence steps 5/7/9).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * T15 golden e2e (06-llm-assist.md, acceptance #1/#3/#9): the FULL BYO
  * round-trip through the real UI against the seeded sqlite Northwind app.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared PURE helpers for the `domain` family (annex §13) — a deterministic
  * seeded PRNG, tone coercion, the cycle-safe self-FK → tree adapter + tidy-tree

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Realtime client transport (apps/server/src/realtime/ws.ts + sse.ts protocol):
  * dynamic channel subscribe/unsubscribe frames over an open WS, and the WS→SSE

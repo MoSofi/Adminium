@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * File export — the one place `@adminium/widgets` turns what is on screen into
  * a file the browser downloads. Two callers, one policy:

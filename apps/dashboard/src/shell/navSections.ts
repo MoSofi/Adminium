@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Per-connection nav sectioning (M5-T05 follow-up to Wave 1): with two or
  * more connected databases the generated nav groups are ambiguous ("Orders"

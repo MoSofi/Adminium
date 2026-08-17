@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * PageRenderer integration (09-generated-app.md §3–§4): mounts the real
  * router at /p/customers with a mocked page-crud envelope and a registered

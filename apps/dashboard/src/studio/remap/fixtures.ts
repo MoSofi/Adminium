@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Test fixture: a small effective model (northwind-ish customers / orders /
  * order_notes) in the exact shape `GET /connections/:id/schema` replies with

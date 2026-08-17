@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Snapshot diff engine — 05-introspection-engine.md §9 `diffModels`.
  *

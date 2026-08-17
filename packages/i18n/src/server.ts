@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Server-side i18n (10-i18n-theming.md §7.6, 23-runtime-translations.md §9).
  *

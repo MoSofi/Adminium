@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-archetype selection — the **Auto-trigger** column of
  * research/widget-registry.md §14, and the H2 cap that closes it: "1 page

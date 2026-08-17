@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio AI (LLM-assist) API client (06-llm-assist.md §10.5) — one typed wrapper
  * over the `/api/v1/llm/*` routes that every Batch-4 AI surface (Settings → AI,

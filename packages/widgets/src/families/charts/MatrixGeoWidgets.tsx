@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family — matrix, calendar & geo-grid widgets (annex §2, 04-T09):
  * registry wrappers that map stored instance config + §3 envelopes onto the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-log-viewer` template stories (09 §7.8): the demo-mode composition
  * (KPI pair + log-table + trace timeline), a bound run over audit-shaped rows

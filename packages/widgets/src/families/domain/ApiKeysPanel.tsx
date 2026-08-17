@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Badge, Banner, Button, IconButton, MonoText, Tag } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Copy, Eye, EyeOff, RefreshCw, Trash2 } from 'lucide-react';

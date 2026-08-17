@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Minimal, dependency-free SHA-256 (FIPS 180-4) over a UTF-8 string.
  *

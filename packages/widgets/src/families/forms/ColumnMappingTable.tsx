@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `column-mapping-table` (annex §10) — a 3-column grid mapping source columns →
  * target fields, with sample values and a target picker per row (including

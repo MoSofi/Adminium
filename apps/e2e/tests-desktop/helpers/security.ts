@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Renderer security posture + navigation lockdown assertions (11-electron.md
  * §2.4, and the acceptance criterion "Renderer security: contextIsolation on,

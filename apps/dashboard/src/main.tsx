@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Entry (09-generated-app.md §2.1): the pre-hydration guard already ran from
  * index.html (inline literal of @adminium/tokens preHydrationScript), so the

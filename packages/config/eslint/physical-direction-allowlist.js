@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Allowlist for `adminium/no-physical-direction-classes` (10-i18n-theming.md
  * §5.2). Each entry is an EXACT class token (including any variant/negative

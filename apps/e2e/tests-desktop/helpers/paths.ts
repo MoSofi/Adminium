@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Where the BUILT Electron app lives (11-electron.md §3, 11-T20).
  *

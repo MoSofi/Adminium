@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0012 — widen the locale columns (23-runtime-translations.md §3.5).
  *

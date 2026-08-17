@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * page-builder template tests (M7-T06, 09-generated-app.md §7.11):

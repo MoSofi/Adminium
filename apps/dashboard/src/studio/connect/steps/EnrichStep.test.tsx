@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Enrich-with-AI step tests (06-llm-assist.md §10.2) — happy-dom, fetch mocked
  * like the sibling wizard tests: the three-intent state machine (provider / BYO

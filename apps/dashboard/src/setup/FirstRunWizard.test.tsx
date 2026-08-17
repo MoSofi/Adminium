@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * First-run wizard + routing gate (M10-T04):
  *  - a fresh install routes to `/setup` from `/` and from `/login`;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ShiftMatrix — the INTERACTIVE resource × day scheduling grid the
  * `page-scheduler` template mounts for `schedule-matrix` items

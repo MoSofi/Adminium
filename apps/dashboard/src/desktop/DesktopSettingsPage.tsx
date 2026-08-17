@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/settings/desktop` — the desktop settings panel (11-electron.md §2.3: "Everything
  * user-facing in [config.json] is also editable from the dashboard's desktop

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One-call wiring for jobs + realtime (M2-T07): builds the hub, handler
  * registry (with the demo `noop-progress` handler), polling worker and croner

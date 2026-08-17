@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Domain-scoped `page-dashboard` candidate assembly — the cross-table widget
  * selection of the Engine's bespoke `generate/dashboard.ts`, relocated behind

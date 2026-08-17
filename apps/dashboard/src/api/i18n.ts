@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Client for `/api/v1/i18n` (23-runtime-translations.md §6.1).
  *

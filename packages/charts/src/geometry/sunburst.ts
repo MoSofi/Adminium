@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure sunburst geometry (`chart-sunburst`, research/widget-registry.md §2): two
  * nested rings from a 2-level hierarchy — inner ring = parents (angle ∝ subtree

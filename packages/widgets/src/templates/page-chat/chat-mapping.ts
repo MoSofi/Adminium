@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { attachmentsOf, chatRowsOf } from '../../families/communication/chat-lib.js';
 import type { ChatMessage } from '../../families/communication/chat-lib.js';
 import type { ConversationRow } from '../../families/communication/ConversationInbox.js';

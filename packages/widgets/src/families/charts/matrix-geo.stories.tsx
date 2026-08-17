@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Track E charts family stories (matrix, calendar & geo-grid): each registry
  * widget's loaded variant plus the four WidgetFrame states through WidgetHost

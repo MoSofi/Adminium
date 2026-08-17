@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * One review-diff row (§10.3 "row anatomy"): checkbox · table/column identifier
  * chip · heuristic value → LLM value side-by-side · confidence meter · reason ·

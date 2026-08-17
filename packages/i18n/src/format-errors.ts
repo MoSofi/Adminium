@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bounded ring of ICU format failures (23-runtime-translations.md §4.5, T12).
  *

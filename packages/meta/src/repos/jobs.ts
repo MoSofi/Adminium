@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * jobsRepo — adminium_jobs (07-meta-store.md §3.12), the table-backed queue.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Onboarding query + dismissal (M5-T06). The state is admin-only (the server
  * guards it with `system:connections:manage`), so the query is gated on the

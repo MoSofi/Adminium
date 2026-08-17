@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /settings/translations integration (23-runtime-translations.md §7):
  * super-admin gating, the key browser, saving an override, resetting to the

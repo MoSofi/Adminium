@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family — part-to-whole & hierarchy wrappers (04-T09): map stored
  * instance config + §3 envelopes onto the @adminium/charts primitives. Loaded

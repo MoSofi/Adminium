@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CLI exit codes. The `apply-llm-response` triple is a published contract
  * (06-llm-assist.md §10.4: "Exit codes: `0` applied, `2` validation failed,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Native application menu (11-electron.md §14). Structure owned by 11-T05;
  * 11-T19 wires the localization.

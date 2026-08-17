@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/help` (M10-T06): local search over the checked-in index, category cards
  * that double as filter toggles (the `ia-mapping.md` §4 keeper), the filtered

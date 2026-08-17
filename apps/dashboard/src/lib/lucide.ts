@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Nav rows carry lucide icon names in kebab-case (`bar-chart-3`); resolve them
  * to components via the `icons` map, falling back to a neutral file glyph so

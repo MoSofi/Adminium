@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Pure bar/column layout — no DOM, reusable by server-side report rendering. */
 import { categoricalBandScale } from './scales.js';
 import { extent, niceTicks } from '../utils/stats.js';

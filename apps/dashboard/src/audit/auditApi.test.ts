@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure helpers behind the audit log: the date-range bounds, and the
  * before/after diff the drawer renders. The diff is where an audit surface

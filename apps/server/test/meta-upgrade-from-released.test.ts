@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Upgrade path from the RELEASED build (M15: "no test opens a meta store from
  * an older released build"). The fixture is an untouched sqlite meta store

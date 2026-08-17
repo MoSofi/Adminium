@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Settings registry (07-meta-store.md §7.1): every global settings key with
  * its Zod schema, code default, and secret flag. `adminium_settings` stores

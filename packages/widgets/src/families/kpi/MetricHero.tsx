@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `metric-hero` (annex §1) — the oversized single metric: a
  * `requestAnimationFrame` count-up to the bound value, a delta pill, a spark

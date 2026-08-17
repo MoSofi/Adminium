@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * rolesRepo — adminium_roles + adminium_user_roles
  * (07-meta-store.md §3.8, §3.10).

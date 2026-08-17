@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dialect-parameterized test harness (07-meta-store.md 07-T07 / 15-quality.md):
  * every suite iterates TEST_DIALECTS with `describe.skipIf(!d.available)`.

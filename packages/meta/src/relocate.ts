@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Whole-store copy, for moving a meta store from one database to another
  * (07-meta-store.md §1; 01-architecture.md §3.1 meta placement).

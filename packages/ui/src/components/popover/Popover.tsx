@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import type * as React from 'react';
 

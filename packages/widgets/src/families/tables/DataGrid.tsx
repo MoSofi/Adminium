@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '@adminium/i18n/react';
 import { Checkbox } from '@adminium/ui';
 import {

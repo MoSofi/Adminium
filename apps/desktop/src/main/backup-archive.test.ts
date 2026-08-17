@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Reading and unpacking a §9 archive (11-electron.md §9), from the main process.
  *

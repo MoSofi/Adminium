@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `forms` family public surface (annex §10) — the form/wizard/input components
  * (modal-wizard, drawer-form, stepper, progress-bar, otp-input, chip-input,
