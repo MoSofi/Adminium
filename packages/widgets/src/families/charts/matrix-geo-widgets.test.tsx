@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * Track E charts family wrapper tests (matrix, calendar & geo-grid): config→

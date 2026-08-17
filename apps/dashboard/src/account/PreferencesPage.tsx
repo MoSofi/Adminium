@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /account/preferences — the per-user Preferences page
  * (Profile Settings.dc.html Preferences tab, upgraded per

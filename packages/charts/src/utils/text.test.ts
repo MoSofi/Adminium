@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `utils/text` — DOM-free SVG label measurement (the `chart-ranking-bars`
  * overflow fix). Pure module, so these are plain value assertions.

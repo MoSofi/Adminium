@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `gauge-ring` (annex §1) — an SVG circle with an animated `stroke-dashoffset`
  * sweep, a center value and a status caption ("86/100 Healthy", "73% of 5M

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * First-run setup API client (M10-T04): GET /api/v1/setup/state and
  * POST /api/v1/setup/super-admin. Shapes mirror apps/server

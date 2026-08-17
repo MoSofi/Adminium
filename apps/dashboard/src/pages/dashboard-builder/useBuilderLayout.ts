@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Working-copy layout state for the dashboard builder (04-widget-registry.md
  * §6.2). Holds the draft `PageLayout` being edited plus the current inspector

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-directory` template (09-generated-app.md §7.7; 04 §10) — the component
  * the dashboard PageRenderer mounts for `template: 'page-directory'`

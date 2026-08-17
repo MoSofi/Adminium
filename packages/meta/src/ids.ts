@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Type-prefixed monotonic ULID generator for every adminium_* primary key.
  *

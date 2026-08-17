@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Distribution & correlation charts group (04-T09): config schemas, §3 envelope
  * narrowing, and deterministic seeded demo payloads for the seven widgets

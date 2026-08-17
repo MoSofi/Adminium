@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Vitest setup for @adminium/ui (happy-dom environment).
  * - Testing Library cleanup after every test (no `globals: true`, so the

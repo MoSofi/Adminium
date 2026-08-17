@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Password forgot/reset (08-server-api.md §2.1): the forgot endpoint always
  * answers 200 (no user enumeration), tokens are single-use and expire, and a

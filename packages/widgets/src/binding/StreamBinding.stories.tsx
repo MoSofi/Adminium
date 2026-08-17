@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `stream` binding demo (04-widget-registry.md §5.3). Drives the existing
  * `log-table` shell as a LIVE tail from `useWidgetStream` + the deterministic

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `progress-bar` (annex §10) — determinate pill track with an animated accent
  * fill + optional mono % caption. Powers wizard %, import progress (the fill

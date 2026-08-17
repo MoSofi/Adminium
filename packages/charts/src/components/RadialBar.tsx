@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-radial-bar` primitive (research/widget-registry.md §2): concentric
  * progress rings (≤4 categories), each a stroke sweep of its percent, with a

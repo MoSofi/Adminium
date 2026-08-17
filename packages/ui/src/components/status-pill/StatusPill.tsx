@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type * as React from 'react';
 
 import { Badge } from '../badge/Badge.js';

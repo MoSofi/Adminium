@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/settings/translations` — the runtime translation editor
  * (23-runtime-translations.md §7).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Forecast geometry (`chart-forecast`, research/widget-registry.md §2): a pure
  * linear-projection model plus a closed confidence-polygon path builder. Both

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `adminium migrate` — run the meta migrations against the configured store.
  *

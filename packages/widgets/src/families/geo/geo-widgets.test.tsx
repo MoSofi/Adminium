@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `geo` family (annex §7, TRACK COMM-GEO): the `geo-points` reader, the bubble

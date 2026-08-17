@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The multiplexed widget-data stream transport (04-widget-registry.md §5.3):
  * reference-counted channel subscribe/unsubscribe, per-channel fan-out, status

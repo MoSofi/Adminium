@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` part-to-whole group — Zod config schemas, config types and the pure
  * §3-envelope→primitive input mappers, split out of `def.part-whole.ts` so the

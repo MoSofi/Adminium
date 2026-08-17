@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M7 wave-2 e2e — the archetype TEMPLATE PAGES on the seeded Northwind app.
  *

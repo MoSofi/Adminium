@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-contract shapes for the `tables` family M7 Wave-4 TAIL slice (annex §3):
  * sparkline-table, top-movers-list, ranked-entity-list, accordion-list,

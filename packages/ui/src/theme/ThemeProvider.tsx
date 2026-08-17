@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ThemeProvider — runtime for the four theming axes (theme/accent/density/locale→dir),
  * per 02-design-system.md §4 and 03-component-library.md §3.6.

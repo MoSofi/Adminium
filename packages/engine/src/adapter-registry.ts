@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Adapter registry mechanics + the typed adapter error — the acyclic leaf
  * under ./adapter.ts (the repo forbids circular imports, 01 §2.3).

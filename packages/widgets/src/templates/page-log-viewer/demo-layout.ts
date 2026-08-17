@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The default `page-log-viewer` demo layout — the manifest's slot areas
  * (templates/page-log-viewer.json) filled the way the §14 archetype pass fills

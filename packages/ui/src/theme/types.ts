@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Theming axis types for ThemeProvider (02-design-system.md §4.1).
  * Axis value unions come from `@adminium/tokens` so the DOM attributes,

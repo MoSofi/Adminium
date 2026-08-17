@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Meta-placement routes: `GET /meta/placement`, `POST /meta/relocate`.
  *

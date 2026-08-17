@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Regression: a masked primary key must never leak through the keyset
  * pagination cursor (security review 2026-07-23, PII-masking dimension).

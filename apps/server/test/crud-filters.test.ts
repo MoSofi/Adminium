@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the CRUD list DSL (08-server-api.md §2.7.1): the
  * filter compiler over dynamic Kysely with a dummy driver, SQL-text

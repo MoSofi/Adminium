@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-stream` primitive (research/widget-registry.md §2): centered stacked
  * "stream" bands over time with a legend (traffic composition). Time x never

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Intl formatting layer (10-i18n-theming.md §4). All numbers, dates,
  * currencies, relative times, and lists render through here — never through

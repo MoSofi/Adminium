@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Per-user preference API client (10-i18n-theming.md §7.2):
  * `GET /api/v1/me/prefs` → raw nullable overrides + server-resolved axes;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `media` family public surface (annex §8) — the file/media components
  * (file-browser, upload-dropzone, upload-progress-list, attachment-list,

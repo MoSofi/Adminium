@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * estimatedTotal() against real engines (05 §10 semantics): postgres reads
  * pg_class.reltuples, mysql reads information_schema TABLE_ROWS, sqlite always

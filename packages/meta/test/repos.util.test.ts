@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * readJson must accept BOTH driver shapes (07-meta-store.md §2.1 repos own
  * JSON round-tripping):

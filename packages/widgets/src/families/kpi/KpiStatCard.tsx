@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `kpi-stat-card` — the workhorse metric card (annex §1, 04 §11): tinted
  * icon tile, label, large mono value, optional delta pill (pos/danger tone

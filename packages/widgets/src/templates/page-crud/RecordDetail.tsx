@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Badge, Button, Spinner, Tabs, TabsContent, TabsList, TabsTrigger } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Pencil, Trash2 } from 'lucide-react';

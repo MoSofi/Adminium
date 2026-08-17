@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `gauge-arc` (annex §1) — a 180° speedometer arc with coloured qualitative
  * bands and a needle (or a plain half-arc dasharray gauge with `needle: false`),

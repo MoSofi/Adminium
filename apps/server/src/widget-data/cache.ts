@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * In-memory widget-data result cache (04-widget-registry.md §5.2 step 6).
  *

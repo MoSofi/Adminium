@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-io surfaces (M7-T07): the §11.1 number-consistency invariant, the
  * Import Wizard's upload step (target gate → dropzone), and the Data Exports

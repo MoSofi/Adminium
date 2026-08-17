@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * settingsRepo — adminium_settings (07-meta-store.md §3.2, §7.1).
  * Stores explicit overrides only; reads resolve `stored ?? registry default`.

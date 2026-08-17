@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * notificationsRepo — adminium_notifications (07-meta-store.md §3.20): one row
  * per in-app notification. Write-once rows read later, so `kind` is the

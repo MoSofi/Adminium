@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Table-label overrides through `runGeneration` (the sidebar-nav channel):
  * an active `llm.label` rename on a table must land in the PERSISTED

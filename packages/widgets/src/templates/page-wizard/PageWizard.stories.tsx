@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-wizard` template stories (M7-T07): the four §11.1 Import-Wizard
  * states — upload, mapping (mid-flow with a done step), a failed run

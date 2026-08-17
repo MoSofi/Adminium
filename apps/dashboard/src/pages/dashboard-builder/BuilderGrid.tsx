@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Edit-mode dashboard canvas (04-widget-registry.md §6.2). Renders the working
  * draft on Track GRID's edit-mode `DashboardGrid` (dnd-kit drag, SE-corner

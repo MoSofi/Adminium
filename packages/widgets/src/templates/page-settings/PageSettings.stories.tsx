@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-settings` template stories (M7 reports/notifications track): the
  * Notification-Settings comp states — the live matrix with an unavailable

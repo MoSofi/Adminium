@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/help` — the in-app Knowledge Base (M10-T06; ports
  * `Knowledge Base.dc.html`), annex §14 archetype `page-kb-docs`:

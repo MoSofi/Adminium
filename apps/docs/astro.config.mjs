@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @ts-check
 /**
  * docs.adminium.dev — Astro + Starlight (14-docs-site.md §3).

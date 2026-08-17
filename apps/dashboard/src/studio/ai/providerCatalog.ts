@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Provider catalog for Settings → AI (06-llm-assist.md §3.1 provider matrix,
  * §10.1 provider cards). Pure presentation metadata for the four self-host

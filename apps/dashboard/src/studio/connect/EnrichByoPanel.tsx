@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * BYO round-trip panel (06-llm-assist.md §10.2 step 4, §9). For each prompt
  * chunk: a read-only virtualized prompt viewer with a token-estimate chip,

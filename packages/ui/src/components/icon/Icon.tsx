@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Icon — thin wrapper over lucide-react (research/design-system.md §3 "Icons"):
  * Lucide exclusively, `stroke-width: 2`, inline sizes 12–18px (12/13/14/15

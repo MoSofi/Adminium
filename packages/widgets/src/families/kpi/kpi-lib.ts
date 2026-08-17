@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Tone } from '@adminium/ui';
 
 import { formatMetricValue } from '../../lib/format.js';

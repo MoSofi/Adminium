@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { z } from 'zod';
 
 import { DEFAULT_CENTER, DEFAULT_ZOOM, mulberry32 } from './geo-lib.js';

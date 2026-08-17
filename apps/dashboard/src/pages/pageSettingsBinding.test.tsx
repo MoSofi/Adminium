@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * PageSettingsBinding (M7 T6): the /me/notification-prefs matrix rendering,
  * the per-cell autosave PUT (optimistic flip → server truth → Saved), the

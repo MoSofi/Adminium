@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `media` family (annex §8, TRACK MEDIA): unit tests for the pure lib (file-kind

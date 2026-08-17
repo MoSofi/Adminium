@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /welcome — the first-run workspace-onboarding surface (M5-T06; ports
  * Onboarding.dc.html + Workspace Onboarding.dc.html). Keepers:

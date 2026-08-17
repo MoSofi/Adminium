@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // GENERATED — pnpm gen:barrel
 // Do not edit by hand: scripts/gen-barrel.mjs rewrites this file on every build.
 // Add exports via a local index.ts in your component directory instead.

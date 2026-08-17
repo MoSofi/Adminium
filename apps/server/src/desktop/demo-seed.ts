@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Is the §6 demo database available in this build (11-electron.md §6 step 2
  * card 4)?

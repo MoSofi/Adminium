@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { latnDataTag } from '@adminium/i18n';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, Badge, IconButton, MonoText, StatusPill } from '@adminium/ui';

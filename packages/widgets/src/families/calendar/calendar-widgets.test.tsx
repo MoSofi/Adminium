@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * `calendar` family (annex §5, TRACK CAL): render + i18n + determinism tests for

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Config schemas for the `tables` family M4 base group (annex §3): `data-grid`,
  * `pagination-footer`, `bulk-action-toolbar`, `detail-key-value`, `mini-table`.

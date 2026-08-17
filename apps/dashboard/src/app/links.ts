@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Navigation href helpers (09-generated-app.md §2.3): the only way shell and
  * page code build links to generated pages. Leaf module (no router import) so

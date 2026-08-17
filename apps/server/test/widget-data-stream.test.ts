@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Realtime `stream` bindings — server half (04-widget-registry.md §5.3, 04-T11).
  * Offline units (no DB): the `widget-data:*` channel grammar + subscription

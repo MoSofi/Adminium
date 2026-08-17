@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment node
 /**
  * index.html carries a LITERAL copy of @adminium/tokens' preHydrationScript

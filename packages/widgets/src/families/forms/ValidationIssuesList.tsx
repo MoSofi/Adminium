@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `validation-issues-list` (annex §10) — severity-toned issue rows: an icon
  * tile, the title, the resolution description, and an outcome count pill.

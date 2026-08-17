@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * App-wide translator. Same call signature as the pre-M8 stub —
  * `t(key, fallback)` — but now backed by the shared i18next instance

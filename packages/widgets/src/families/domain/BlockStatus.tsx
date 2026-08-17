@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Badge, Button, Checkbox, MonoText } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Award, RefreshCw } from 'lucide-react';

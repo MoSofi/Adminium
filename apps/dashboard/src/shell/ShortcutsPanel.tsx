@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shortcuts panel (09-generated-app.md §5.3, Shortcuts Panel.dc.html):
  * a Modal rendering the LIVE registration set from the shortcut manager —

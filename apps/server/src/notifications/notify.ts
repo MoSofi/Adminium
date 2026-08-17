@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The shared in-app notification writer (07-meta-store.md §3.20,
  * 08-server-api.md §3 `notifications:<userId>`): every producer inserts

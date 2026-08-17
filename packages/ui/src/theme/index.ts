@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 export { ThemeProvider } from './ThemeProvider.js';
 export type { ThemeProviderProps, ThemePrefChangeHandler } from './ThemeProvider.js';
 export { useTheme, useThemePrefs } from './useTheme.js';

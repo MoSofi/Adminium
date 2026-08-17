@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-template registry (09-generated-app.md §4.1): PageRenderer resolves the
  * envelope's `template` id to a component. Resolution order:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Postgres table-statistics collector — 06-llm-assist.md §4.2.
  *

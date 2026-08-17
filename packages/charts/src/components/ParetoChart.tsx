@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-pareto` primitive (research/widget-registry.md §2): sorted bars + a
  * cumulative-% accent line with an optional 80% cutline. Composed from

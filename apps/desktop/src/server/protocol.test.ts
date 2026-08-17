@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The handshake contract (11-electron.md §2.2 steps 7/9).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The receiving end of the local bridge — `takeBridgeTicket` plus the wizard's
  * hand-off prefill (`./bridgeSeed.ts`, `ConnectWizard`).

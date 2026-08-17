@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Storybook preview — the four theming axes as global toolbar items
  * (03-component-library.md §8, 02-T13). One decorator drives everything by

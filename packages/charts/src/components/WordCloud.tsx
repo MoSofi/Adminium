@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-wordcloud` primitive (research/widget-registry.md §2): terms sized by
  * frequency, flowed into wrapped rows and rendered as SVG <text> (font size is

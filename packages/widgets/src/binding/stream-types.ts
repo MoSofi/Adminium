@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `stream` data-binding shape — client transport contracts (04-widget-registry.md
  * §3 `stream`, §5.3 realtime). Append-only event delivery for the live widgets

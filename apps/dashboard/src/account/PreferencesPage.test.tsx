@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /account/preferences integration (10-i18n-theming.md §7.4): inheritance
  * badges from the raw NULL-per-axis prefs, override → PATCH payload via the

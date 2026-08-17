@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data states for `kind: 'page'` archetype documents (LOGS/MEDIA/CHAT
  * track — page-log-viewer / page-files / page-chat bindings).

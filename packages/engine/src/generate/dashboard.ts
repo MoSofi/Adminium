@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-dashboard` envelope generation — one per FK-cluster domain, cap 3
  * for v1 (research/widget-registry.md §14 trigger, §15 decision summary).

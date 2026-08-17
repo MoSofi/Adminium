@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Name normalization for classifier rules — 05-introspection-engine.md §7:
  * "Name matching operates on a normalized token form: lowercase, camelCase

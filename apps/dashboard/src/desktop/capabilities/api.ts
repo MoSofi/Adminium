@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The capability grant table + device descriptors, as the dashboard reaches them
  * (11-electron.md §12). Two feeds, one per side of the process boundary — the

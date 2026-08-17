@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Boot-time adapter registration (01-architecture.md §2.3.1): the server —
  * and only the server — composes concrete adapter packages into the engine's

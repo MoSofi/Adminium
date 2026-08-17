@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `tables` family public surface — standalone components consumed by the
  * page templates (page-crud composes DataGrid/PaginationFooter/… directly)

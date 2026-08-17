@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * DSN parsing, masking, and the connection-string SSRF guard
  * (08-server-api.md §7 item 2). Scheme allowlist `postgres|mysql|sqlite`;

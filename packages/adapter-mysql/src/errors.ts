@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Driver error → typed `AdapterError` mapping — 05-introspection-engine.md §3.
  * mysql2 errors carry a symbolic `code` (`ER_ACCESS_DENIED_ERROR`, …) plus

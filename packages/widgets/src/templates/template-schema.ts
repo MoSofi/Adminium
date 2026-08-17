@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-template manifest schema — 04-widget-registry.md §10, reproduced verbatim.
  *

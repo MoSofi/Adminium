@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Live MySQL tests — env-gated on TEST_MYSQL_URL (no local MySQL on dev
  * machines; CI provides a `mysql:8.4` service container) AND on the mysql2

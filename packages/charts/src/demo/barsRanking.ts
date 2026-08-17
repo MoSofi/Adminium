@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic domain-shaped demo generators for the "bars & ranking" chart
  * group (04-T09; 04-widget-registry.md §7.7). Same seed → identical

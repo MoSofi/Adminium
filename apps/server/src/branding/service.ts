@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Workspace branding, resolved from the settings registry — the one place
  * `branding.*` becomes the shape clients render.

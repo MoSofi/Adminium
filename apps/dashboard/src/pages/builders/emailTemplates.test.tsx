@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Email Templates surface tests (M7-T06): the manager lists templates from the
  * EXACT contract paths, the editor loads a detail, and edits autosave through

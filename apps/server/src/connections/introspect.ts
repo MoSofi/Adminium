@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Introspection pipeline (M3-T05): adapter `introspect()` → column/table
  * classification (`@adminium/engine`) → canonical checksum → snapshot row →

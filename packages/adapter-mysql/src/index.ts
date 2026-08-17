@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/adapter-mysql — the `mysql2`-driver implementation of the
  * `DatabaseAdapter` contract (05-introspection-engine.md §3/§4.2, M9/05-T13).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared heat-intensity helpers for the matrix/calendar/geo charts (Track E).
  * Pure and DOM-free (04-widget-registry.md §7.1) so scheduled-report

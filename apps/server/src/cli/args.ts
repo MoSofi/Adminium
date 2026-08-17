@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Argument parsing for the `adminium` CLI (01-architecture.md §4.1).
  *

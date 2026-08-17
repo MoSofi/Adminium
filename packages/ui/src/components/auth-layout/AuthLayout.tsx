@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn.js';

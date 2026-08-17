@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK TABLES-CAL-BOARDS `calendar` M7 Wave-4 TAIL stories (annex §5): each
  * widget's loaded variant, the four WidgetFrame states through WidgetHost

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio LLM-runs review area (06-llm-assist.md §10.3, milestone M6-T14). The
  * route factory (`studio/routes.tsx`) lazy-loads {@link ReviewScreen} from

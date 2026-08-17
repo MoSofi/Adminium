@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Eye, EyeOff, Lock, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentPropsWithRef, FormEvent, ReactNode } from 'react';

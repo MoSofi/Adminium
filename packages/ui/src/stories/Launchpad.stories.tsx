@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Storybook launchpad — the design-system exemplar port of Home.dc.html
  * (M1-T05, 16-milestones.md §5 "porting a comp"). The comp's surface

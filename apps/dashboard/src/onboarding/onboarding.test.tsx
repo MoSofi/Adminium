@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Onboarding surface (M5-T06): the progress ring, the reactive checklist at
  * /welcome (steps ✓ come straight from server-derived state), and the shell

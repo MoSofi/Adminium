@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Driver error → typed `AdapterError` mapping — 05-introspection-engine.md §3.
  * better-sqlite3 errors carry a `code` like `SQLITE_CANTOPEN`; filesystem

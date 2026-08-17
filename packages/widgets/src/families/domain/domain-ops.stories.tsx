@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK OPS stories (annex §13) — the eighteen ops / billing / API / marketing
  * cards that close the annex catalog: the four WidgetFrame states through

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Moving a live meta store to a different database (01-architecture.md §3.1
  * meta placement; §7.2 bootstrap precedence).

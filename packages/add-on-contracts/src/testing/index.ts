@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Conformance suites — part of the contract, not a courtesy (24 §5.5, D9).
  *

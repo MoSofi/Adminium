@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Keyboard manager (09-generated-app.md §5.3): platform mapping, typing
  * suppression with the Esc/⌘Enter/⌘S allowlist, chord window + timeout, and

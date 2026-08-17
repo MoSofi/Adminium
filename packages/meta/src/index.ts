@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/meta — the adminium_* meta-store (07-meta-store.md).
  *

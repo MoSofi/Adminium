@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/settings/team` — the user directory, and the surface that closes the v1
  * blocker: before it, a self-hosted Adminium could create exactly ONE account

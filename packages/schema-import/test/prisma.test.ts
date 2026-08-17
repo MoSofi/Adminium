@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Prisma parser — golden model over the Northwind-ish fixture. */
 import { describe, expect, it } from 'vitest';
 

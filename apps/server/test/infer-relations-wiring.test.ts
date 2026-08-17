@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The two ends of §6 relation inference that live in the SERVER, not the
  * engine — both of which were open.

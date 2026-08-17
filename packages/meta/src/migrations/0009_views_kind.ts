@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0009 — `adminium_views.kind` (04-widget-registry.md §6.3, 07-meta-store.md
  * §3.18).

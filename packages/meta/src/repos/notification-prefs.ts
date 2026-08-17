@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * notificationPrefsRepo — adminium_notification_prefs (07-meta-store.md §3.21):
  * composite-PK `(user_id, event_key)` matrix of per-event delivery channels

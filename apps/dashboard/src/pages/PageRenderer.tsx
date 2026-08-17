@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * PageRenderer — the runtime config interpreter (09-generated-app.md §4.1):
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Prisma schema parser — 05-introspection-engine.md §5.2 row 2. Hand-rolled
  * block parser (the grammar is small and stable): `datasource` provider →

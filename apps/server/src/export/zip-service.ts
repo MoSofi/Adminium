@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zip-export service (M10-T03, 01-architecture.md §4.1/§6.1/§8.2; BRIEF §3).
  *

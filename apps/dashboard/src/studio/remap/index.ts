@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio schema remap editor (M5-T04). Route contract: the Studio router
  * renders `<RemapEditor connectionId={...} />` at `/studio/:connectionId/remap`.

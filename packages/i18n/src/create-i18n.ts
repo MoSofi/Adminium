@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * i18next factory (10-i18n-theming.md §2.3): i18next + IcuFormat (ICU
  * MessageFormat for every message — i18next's own plural-suffix system is

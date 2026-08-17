@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { CornerDownLeft, Search, SearchX } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';

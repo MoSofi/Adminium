@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { z } from 'zod';
 
 import { CHAT_DEMO_EPOCH, mulberry32, pickFrom } from './chat-lib.js';

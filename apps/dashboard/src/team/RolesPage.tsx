@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/settings/roles` — the roles & permissions editor, and the FIRST consumer of
  * `PermissionMatrix` from `@adminium/ui` (built, tested and storied since the

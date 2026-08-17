@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared string-scanning primitives for the hand-rolled parsers. Everything
  * here is dependency-free by design (05-introspection-engine.md §5: no ANTLR,

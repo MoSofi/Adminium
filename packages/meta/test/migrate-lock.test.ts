@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Migration-lock suite (07-meta-store.md §4).
  *

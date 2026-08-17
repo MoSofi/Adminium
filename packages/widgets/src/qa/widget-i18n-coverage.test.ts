@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-chrome i18n coverage gate (RELEASE-GATE "translated-but-unwired
  * keys"): every `widgets.*` leaf key in the canonical en-US `ui` bundle must be

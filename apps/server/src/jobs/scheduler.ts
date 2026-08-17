@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Croner-based schedule registry (08-server-api.md §2 jobs plugin, BRIEF §3:
  * croner + no Redis; M2-T07). Each named schedule fires an enqueue function;

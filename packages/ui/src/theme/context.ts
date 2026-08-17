@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React context shared by ThemeProvider and the useTheme/useThemePrefs hooks.
  * Internal module — consumers use the hooks, never the raw context.

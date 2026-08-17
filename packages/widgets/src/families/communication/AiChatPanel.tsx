@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Button, EmptyState, IconTile, Input, Spinner } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { KeyRound, Send, Sparkles } from 'lucide-react';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { MonoText, StatusPill } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { AlertTriangle } from 'lucide-react';

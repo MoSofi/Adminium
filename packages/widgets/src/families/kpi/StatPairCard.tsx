@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `stat-pair-card` (annex §1) — two large mono metrics side by side with a
  * vertical divider (MRR / LTV, where LTV may be a derived formula over MRR).

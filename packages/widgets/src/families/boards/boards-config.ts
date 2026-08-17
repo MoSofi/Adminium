@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `boards` family config schemas + deterministic demo generators — PURE module
  * (zod + board-lib + shared-config only; no dnd-kit, no React component code).

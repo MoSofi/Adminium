@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-builder` template barrel (04 §10, 09 §7.11, M7-T06) — the renderer plus
  * the pure config/doc algebra the host bindings and the engine's generator

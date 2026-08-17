@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/account` (09 §2.3): the session-identity card — who is signed in, with
  * which roles and 2FA state — plus links to its sibling per-user pages,

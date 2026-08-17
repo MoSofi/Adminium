@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Realtime channel hub (08-server-api.md §3, M2-T07). In-process pub/sub that
  * both the WS gateway (`realtime/ws.ts`) and the SSE fallback

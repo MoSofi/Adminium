@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * 11-T05's unit suite: the §2.4 posture, the navigation lockdown, the §14
  * window-state clamp, and the two static pages' offline contract (§7).

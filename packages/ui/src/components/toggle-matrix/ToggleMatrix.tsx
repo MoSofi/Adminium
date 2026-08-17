@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { useDirection } from '@radix-ui/react-direction';
 import { Check, Lock, Minus } from 'lucide-react';
 import { useRef, useState } from 'react';

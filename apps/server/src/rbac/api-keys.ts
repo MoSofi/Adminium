@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * API-key secret handling (08-server-api.md §2.16): `adm_sk_` + 40 base62
  * chars, shown exactly once at create time; only the SHA-256 hex hash and a

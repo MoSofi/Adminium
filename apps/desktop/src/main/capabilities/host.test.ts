@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CapabilityHost — the §12 gate, from the main process's side (11-electron.md §12).
  *

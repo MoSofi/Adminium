@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `adminium migrate` + meta-store resolution (M10-T01, 01 §3.1/§7.2).
  *

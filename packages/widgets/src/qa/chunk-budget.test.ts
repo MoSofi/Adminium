@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CI chunk-budget gate — 04-widget-registry.md acceptance #3 / 04-T17 (5):
  * the default `page-dashboard` bundle must pull only the kpi/charts/tables/feeds

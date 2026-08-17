@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Format auto-detection — ordered heuristics over the raw content
  * (05-introspection-engine.md §5.1). Cheap by design: regex probes plus one

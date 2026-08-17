@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Own-account session and credential management (08-server-api.md §2.1):
  * `GET /auth/sessions`, `DELETE /auth/sessions/:id`,

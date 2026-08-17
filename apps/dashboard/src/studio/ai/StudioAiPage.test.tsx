@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Settings → AI (06-T12) component + RBAC tests — happy-dom, fetch mocked like
  * the sibling studio suites (no msw). Covers: the provider option-card grid and

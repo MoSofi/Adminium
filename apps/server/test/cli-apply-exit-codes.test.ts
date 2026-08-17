@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `apply-llm-response` exit codes — 06-llm-assist.md §10.4:
  *

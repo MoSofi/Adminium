@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * importsRepo — adminium_imports (07-meta-store.md §3.26): the import wizard's
  * server-side state machine

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Property + unit tests for the edit-mode layout math (04-widget-registry.md
  * §6.2): applyMove/applyResize compose with the reused `compactVertical` to a

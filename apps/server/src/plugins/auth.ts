@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `auth` plugin (08-server-api.md §1.2, §2.1): resolves the signed
  * `adminium_session` cookie (or an `Authorization: Bearer adm_…` API key —

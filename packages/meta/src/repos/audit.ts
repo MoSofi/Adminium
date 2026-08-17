@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * auditRepo — adminium_audit_log (07-meta-store.md §3.11). Append-only;
  * actor label denormalized so entries survive principal deletion; `changes`

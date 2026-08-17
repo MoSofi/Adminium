@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `calendar` family config schemas + deterministic demo generators — PURE
  * module (zod, the shared config, the framework-light `calendar-lib` helpers

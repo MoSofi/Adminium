@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { BulkActionToolbar } from './BulkActionToolbar.js';
 import { DataGrid } from './DataGrid.js';
 import { DetailKeyValue } from './DetailKeyValue.js';

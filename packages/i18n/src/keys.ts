@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The flattened en-US key surface (23-runtime-translations.md §6.1).
  *

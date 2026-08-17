@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `GET /api/v1/search` (08-server-api.md §2.9, M4-T06) over the fake-adapter
  * harness registered as a SQLITE engine — so the record search exercises the

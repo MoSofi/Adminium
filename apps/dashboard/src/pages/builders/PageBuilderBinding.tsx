@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-builder` binding (09-generated-app.md §4.1, §7.11, M7-T06): projects
  * the page envelope onto the `PageBuilder` template renderer and wires

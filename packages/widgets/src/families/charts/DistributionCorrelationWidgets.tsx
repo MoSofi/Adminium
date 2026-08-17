@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Distribution & correlation charts group (04-T09): registry wrappers mapping
  * stored instance config + §3 envelopes onto the @adminium/charts primitives

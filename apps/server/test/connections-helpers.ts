@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared harness for the connections + CRUD suites (not collected — no
  * .test suffix).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE DESKTOP ↔ SERVER ENV CONTRACT (11-electron.md §2.2 step 5).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/about` (M10-T04): version + AGPL licence + source offer + meta engine, and
  * the update notice's gating on the `updates.checkEnabled` preference —

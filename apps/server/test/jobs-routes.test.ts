@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * routes/jobs (08-server-api.md §2.17, M2-T07) via fastify.inject on the
  * bare-app harness: enqueue (permission-gated, owner-stamped), status +

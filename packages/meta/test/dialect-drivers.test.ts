@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Regression guard for the "matrix quietly only tests sqlite" trap
  * (15-quality.md): the dialect harness (test/helpers/db.ts) gates the Postgres

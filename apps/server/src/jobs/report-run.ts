@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `report-run` job handler (M7 reports track; 07-meta-store.md §3.24,
  * 09-generated-app.md §5.4).

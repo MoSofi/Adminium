@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * RBAC permission grammar (08-server-api.md §5.1) and its mapping onto the
  * `adminium_role_permissions` matrix rows (07-meta-store.md §3.9).

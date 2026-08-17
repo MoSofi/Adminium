@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `export-builder` (annex §10) — a config form (format segmented PDF/CSV/XLSX,
  * date range, include-charts switch) driving an idle → running(%) → done

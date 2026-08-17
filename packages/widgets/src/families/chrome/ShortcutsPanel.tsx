@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `shortcuts-panel` (annex §11) — keyboard shortcuts cheat sheet: categorized
  * groups of label + keycap combos, modifier and sequential "then" chords.

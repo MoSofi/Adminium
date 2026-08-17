@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `kpi` family config schemas + deterministic demo generators — PURE module
  * (zod, the shared config, and the @adminium/charts demo helpers only; no

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared constants for the e2e suite. `playwright.config.ts` forwards these
  * to `scripts/e2e-server.mjs` through `webServer.env`, so this file is the

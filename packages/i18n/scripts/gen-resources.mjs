@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Regenerates src/resources/<locale>/*.ts from the canonical locales/<tag>/*.json
  * bundles (see src/resources/parity.test.ts). The JSON files are the
@@ -24,7 +25,11 @@ for (const tag of localeTags) {
   for (const ns of namespaces) {
     const json = JSON.parse(fs.readFileSync(path.join(dir, `${ns}.json`), 'utf8'));
     const body = JSON.stringify(json, null, 2);
-    const src = `/**\n * GENERATED MIRROR of ../../../locales/${tag}/${ns}.json — do not edit by hand.\n * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);\n * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits\n * the other locales) without JSON import attributes (browser + NodeNext safe).\n * Parity is enforced by src/resources/parity.test.ts. Regenerate with\n * scripts/gen-resources.mjs.\n */\nexport default ${body} as const;\n`;
+    // The SPDX line is part of the template, not something scripts/check-spdx.mjs
+    // adds afterwards: this generator rewrites all 40 mirrors from scratch, so an
+    // externally-inserted header would be deleted on the next `gen:resources` run
+    // and the licence gate would go red with no diff anyone made.
+    const src = `// SPDX-License-Identifier: AGPL-3.0-only\n/**\n * GENERATED MIRROR of ../../../locales/${tag}/${ns}.json — do not edit by hand.\n * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);\n * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits\n * the other locales) without JSON import attributes (browser + NodeNext safe).\n * Parity is enforced by src/resources/parity.test.ts. Regenerate with\n * scripts/gen-resources.mjs.\n */\nexport default ${body} as const;\n`;
     fs.writeFileSync(path.join(outDir, `${ns}.ts`), src);
     count += 1;
   }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Clipboard + download side-effects for the BYO enrichment screens
  * (06-llm-assist.md §10.2 step 4). Kept tiny and DOM-guarded so the pure

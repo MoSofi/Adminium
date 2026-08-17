@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline connections-hub route tests (M5-T05): the list DTO's
  * included-table + generated-page counts (settings allowlist wins, else the

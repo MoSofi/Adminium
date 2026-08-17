@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-sankey` primitive (research/widget-registry.md §2): SVG bezier ribbons
  * between layered node rects, source→target flows weighted by volume, per-flow

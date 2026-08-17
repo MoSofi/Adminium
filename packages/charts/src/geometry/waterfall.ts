@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure waterfall / bridge layout (`chart-waterfall`, research/widget-registry.md
  * §2): floating bars for signed steps plus total anchors, with connector

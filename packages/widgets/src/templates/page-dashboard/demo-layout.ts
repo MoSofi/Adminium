@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The default `page-dashboard` demo layout — a straight port of the
  * "Adminium Dashboard" comp's core composition per the template manifest

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure bullet-graph layout (`chart-bullet`, research/widget-registry.md §2):
  * per row a stack of qualitative bands + a measure bar + a target tick. DOM-free.

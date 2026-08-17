@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-dashboard` template renderer (04-widget-registry.md §10,
  * 09-generated-app.md §7.2, M4-T05).

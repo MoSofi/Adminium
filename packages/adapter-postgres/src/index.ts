@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/adapter-postgres — the `pg`-driver implementation of the
  * `DatabaseAdapter` contract (05-introspection-engine.md §3/§4.1, M3-T01).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data-io route factory (M7-T07, 09-generated-app.md §11) — mounted under the
  * authed app layout by app/router.tsx, the studioRoutes pattern: this module

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard layout-persistence client (04-widget-registry.md §6.3) — typed
  * wrappers over the two write surfaces the builder saves through:

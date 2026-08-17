@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Import-time type coercion (M7-T07): CSV cells are strings; the effective
  * schema's `logicalType` says what the column wants. Coercion is strict —

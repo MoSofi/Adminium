@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The local-bridge seed store (08-server-api.md §1.2, `routes/bridge`).
  *

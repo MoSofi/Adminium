@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Relations tab for the selected table (05-introspection-engine.md §6):
  * declared FKs read-only, inferred relations with confidence + accept /

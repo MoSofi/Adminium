@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 

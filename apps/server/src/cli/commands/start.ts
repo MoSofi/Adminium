@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `adminium start` — boot the server and serve the dashboard (01 §4.1).
  *

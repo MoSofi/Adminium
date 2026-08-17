@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-line-area` primitive (research/widget-registry.md §2): SVG line with
  * gradient area fill, optional dashed prior-period comparison series, time or

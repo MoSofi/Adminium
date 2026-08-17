@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared helpers for the `geo` family (annex §7) — the seeded PRNG the demo
  * generators use, the `geo-points` envelope reader, the bubble radius scale, the

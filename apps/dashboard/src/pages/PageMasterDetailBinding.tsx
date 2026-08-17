@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `page-master-detail` binding (09-generated-app.md §4.1, §7.3): projects the
  * page envelope onto the `PageMasterDetail` template from `@adminium/widgets`.

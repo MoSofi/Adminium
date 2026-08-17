@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Prompt/run creation service (06-llm-assist.md §10.4 + §10.5).
  *

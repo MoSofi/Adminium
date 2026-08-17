@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0005 — ops: adminium_jobs, adminium_audit_log,
  * adminium_notifications, adminium_notification_prefs

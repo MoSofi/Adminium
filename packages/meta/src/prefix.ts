@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Table-name prefix guard (07-meta-store.md §1, §4 "prefix safety").
  * All DDL and the migration runner go through {@link metaTable}, which asserts

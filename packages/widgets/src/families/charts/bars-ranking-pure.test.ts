@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure contract for the "bars & ranking" widget group (04-T09): config-schema
  * defaults + per-widget empty copy, §3 envelope narrowing, deterministic demo

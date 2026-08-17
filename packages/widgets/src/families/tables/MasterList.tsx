@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, ProgressBar, StatusPill, Switch } from '@adminium/ui';
 import { useState } from 'react';

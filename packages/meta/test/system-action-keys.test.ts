@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The reserved / grantable split over the closed system-action set
  * (schema/json-payloads.ts). The four reserved keys are deferred features

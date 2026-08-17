@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Saved-views switcher for the page-crud toolbar (M5-T06). A dropdown that
  * lists the caller's views (+ shared), applies one (round-tripping the grid

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard-builder edit-permission gate (04-widget-registry.md §6.3).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * connectionsRepo — adminium_connections (07-meta-store.md §3.13).
  *

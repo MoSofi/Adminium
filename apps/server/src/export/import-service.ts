@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zip-import service — the other half of M10-T03 (01-architecture.md §6.1,
  * §8.2; acceptance: "Zip export from version N imports into version N+1 with all

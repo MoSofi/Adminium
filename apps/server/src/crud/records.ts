@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Single-record helpers for the CRUD routes (08-server-api.md §2.7.2):
  * `:recordId` parsing (JSON tuple for composite PKs), PK-filtered fetches,

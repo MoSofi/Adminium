@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The 11-electron.md §8.2 gating matrix, row by row (`app/capabilities.ts`).
  *

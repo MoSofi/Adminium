@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The live `widgetRegistry`'s id set, as a **pure, checked-in list**.
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `adminium import-zip` — restore an instance's configuration from a bundle.
  *

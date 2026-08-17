@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * 11-T20 — the offline smoke test (11-electron.md §7).
  *

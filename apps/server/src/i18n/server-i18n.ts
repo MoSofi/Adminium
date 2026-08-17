@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Server-side translator wiring (23-runtime-translations.md §9).
  *

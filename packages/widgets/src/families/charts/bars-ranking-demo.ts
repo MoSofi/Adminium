@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Deterministic demo payloads for the "bars & ranking" chart group (04 §7.7):
  * every definition's `demoData(seed)` returns the §3 envelope the live server

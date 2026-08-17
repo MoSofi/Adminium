@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Distribution & correlation group — metadata + data layer (04-T09). Verifies
  * the pieces that don't need the family component chunk: §3 envelope narrowing,

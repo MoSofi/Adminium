@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M9-T05 e2e (e): Studio connect-wizard happy path in DSN mode — postgres
  * engine only (the wizard drives a live test+introspect+generate against the

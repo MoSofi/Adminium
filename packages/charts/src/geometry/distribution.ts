@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure, DOM-free layout for the distribution charts (research/widget-registry.md
  * §2): `chart-boxplot`, `chart-violin`, `chart-ridgeline`. Server-safe so

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `domain` family config schemas + deterministic demo generators — PURE module
  * (zod + domain-lib only; no React component code).

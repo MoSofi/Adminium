@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { fileBrowserConfigSchema, type FileBrowserConfig } from '../../families/media/media-config.js';
 import { fileRowsOf } from '../../families/media/media-lib.js';
 

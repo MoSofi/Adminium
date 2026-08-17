@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * overridesRepo — adminium_schema_overrides (07-meta-store.md §3.15).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Email-templates client (M7-T06 Email Templates surface; 07-meta-store.md
  * §3.28 `adminium_email_templates`). Thin typed wrappers over the server's

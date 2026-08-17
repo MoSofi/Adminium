@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Generated QA stories — 04-widget-registry.md 04-T17 (2). For every registered
  * Wave-1 widget, a story renders its four WidgetFrame states (skeleton · empty ·

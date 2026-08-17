@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The page gutter (02-design-system.md §1.8): `PageSurface` is the only thing
  * in the app allowed to set the inner main section's padding, so these pin the

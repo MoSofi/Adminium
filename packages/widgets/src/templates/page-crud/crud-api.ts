@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CrudApi — the typed data-access adapter the `page-crud` template receives
  * as a prop. The template never fetches; the dashboard interpreter

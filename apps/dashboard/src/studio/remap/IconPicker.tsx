@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Lucide subset grid for the table icon override (`table.label.icon`,
  * 07-meta-store.md §3.15). Kebab-case names, resolved via `lucideByName` so

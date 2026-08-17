@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `scrubUrlForLog` (08-server-api.md §1.3; 11-electron.md §2.2 step 8).
  *

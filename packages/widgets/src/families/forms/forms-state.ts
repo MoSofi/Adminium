@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `form-state` payload readers + the write target (annex §10; 04 §3) — PURE
  * module. Split from `forms-lib.ts` because these two concerns are what every

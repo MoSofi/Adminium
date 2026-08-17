@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Saved views on page-crud (M5-T06): saving the current grid captures the live
  * toolbar state, and applying a saved view round-trips that state back into the

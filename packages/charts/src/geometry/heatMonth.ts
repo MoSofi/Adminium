@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure single-month heat-grid geometry (research/widget-registry.md §2
  * `chart-heat-month`): a 7-column month calendar with day numbers and up to 5

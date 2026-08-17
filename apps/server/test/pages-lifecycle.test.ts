@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page lifecycle routes (08-server-api.md §2.6) — the Studio page manager's
  * server surface:

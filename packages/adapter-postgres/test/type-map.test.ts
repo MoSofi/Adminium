@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests — dbType → LogicalType mapping table (05 §2.2), default
  * classification (05 §4.1), CHECK-enum synthesis, identifier quoting, and

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `domain` family public surface (annex §13) — the two M7 exit-criteria widgets
  * (`org-chart`, `gantt-chart`) plus their registry metadata and pure geometry.

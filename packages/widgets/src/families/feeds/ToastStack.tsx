@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `toast-stack` (annex §4; cross-listed as `undo-toast` in §12) — the overlay
  * toast HOST: max-4 toasts with an icon, a message and an optional Undo, 2.6s

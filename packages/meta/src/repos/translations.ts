@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * translationsRepo — adminium_translations (23-runtime-translations.md §3.2).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The desktop-only half of the About screen (11-electron.md §13), as the SPA
  * sees it — the bridge reads and the one server write the §13 panel needs.

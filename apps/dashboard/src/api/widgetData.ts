@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Widget-data binding (04-widget-registry.md §5, 09-generated-app.md §4.1):
  * one `POST /api/v1/widget-data/batch` round trip per dashboard page mount —

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, EmptyState, MonoText, StatusPill } from '@adminium/ui';

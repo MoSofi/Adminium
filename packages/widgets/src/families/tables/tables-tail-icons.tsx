@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Braces, Database, Hash, LayoutDashboard, Table2, Tag as TagIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 

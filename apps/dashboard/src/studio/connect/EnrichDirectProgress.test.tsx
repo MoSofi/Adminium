@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Direct-API enrichment progress (06-llm-assist.md §10.2 step 3).
  *

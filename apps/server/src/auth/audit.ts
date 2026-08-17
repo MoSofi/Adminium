@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Auth audit trail (08-server-api.md §7 item 9): every auth mutation writes an
  * `auth`-category entry — login, login_failed, logout, 2FA lifecycle, password

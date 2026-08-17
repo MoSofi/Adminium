@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `forms` family config schemas + deterministic demo generators (annex §10) —
  * PURE module (zod + forms-lib only; no React, no @adminium/ui, no lucide).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * CSRF defence — the ACTIVE half (08-server-api.md §7 item 4).
  *

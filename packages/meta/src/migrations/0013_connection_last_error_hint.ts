@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0011 — `adminium_connections.last_error_hint` (07-meta-store.md §3.13).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * /settings/defaults — the Global Defaults admin page (10-i18n-theming.md
  * §7.3, a comp gap: no design file exists). Four axis pickers for the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LLM page-row materialization (06-llm-assist.md §8.3 step 3 —
  * `generate/materialize-llm.ts`).

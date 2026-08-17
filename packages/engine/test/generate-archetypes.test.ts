@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { isRegisteredWidgetId } from '@adminium/widgets/generate';
 import { describe, expect, it } from 'vitest';
 

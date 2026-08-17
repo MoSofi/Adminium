@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * TRACK BUILDER — component barrel for `document-canvas` + the 22 `block-*`
  * widgets: the single lazy-import target for `blocks-track.definitions.ts`, so

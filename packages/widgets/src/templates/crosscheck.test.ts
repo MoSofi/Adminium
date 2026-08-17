@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Registry cross-check gate: no shipped manifest may name a widget id the
  * runtime cannot resolve, and every id that is *pending* (declared in the annex

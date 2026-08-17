@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * DashboardGrid — the `pageLayoutSchema` renderer (04-widget-registry.md §6).
  * 12 fluid columns, 40 px half-row units, 14 px gap. Below `lg` the grid reflows

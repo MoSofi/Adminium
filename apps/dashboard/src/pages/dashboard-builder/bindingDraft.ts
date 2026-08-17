@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Query-descriptor draft model (04-widget-registry.md §5.1) — the pure half of
  * the builder's binding editor.

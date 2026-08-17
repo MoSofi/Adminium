@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Audit-log data layer over the already-registered `/api/v1/audit` routes
  * (08-server-api.md §2.14) — no new server surface. The routes have shipped

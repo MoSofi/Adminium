@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Table-shape classification — 05-introspection-engine.md §8 (roles) plus
  * the §6 structural detectors that live at table granularity: join-table

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * passwordResetsRepo — adminium_password_resets (07-meta-store.md §3.6).
  * Carries both reset and invite-activation tokens; single-use.

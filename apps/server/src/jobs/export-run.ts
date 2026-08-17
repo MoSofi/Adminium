@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `export-run` job handler (M7-T07, 09-generated-app.md §11.2): drains one
  * adminium_exports request through the crud list pipeline and lands the

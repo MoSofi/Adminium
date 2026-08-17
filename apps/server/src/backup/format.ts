@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * THE DESKTOP BACKUP FORMAT (11-electron.md §9), frozen at `formatVersion: 1`.
  *

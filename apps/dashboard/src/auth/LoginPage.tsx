@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/login` — SignInForm wired to POST /api/v1/auth/login (09 §2.3 route map):
  * 200 → into the app (honoring `?returnTo`), 202 → stash the challenge token

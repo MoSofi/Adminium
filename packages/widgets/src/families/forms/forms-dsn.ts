@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The DSN grammar behind `connection-string-field` (annex §10) — PURE module
  * (zod-free, React-free, JSX-free, and deliberately free of user-visible copy).

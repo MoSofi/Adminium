@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `feeds` family public surface (annex §4) — standalone feed/list components
  * plus the Track-F registry metadata. Component code is also reachable through

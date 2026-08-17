@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Apply-confirmation modal (§10.3 footer): summarizes the writes an apply would
  * perform ("Creates 2 dashboard pages, updates 41 labels…") derived from the

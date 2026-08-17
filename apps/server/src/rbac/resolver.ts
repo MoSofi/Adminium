@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Effective-permission resolution (08-server-api.md §5.1): principal →
  * roles (`adminium_user_roles`, or the API key's single role) → union of the

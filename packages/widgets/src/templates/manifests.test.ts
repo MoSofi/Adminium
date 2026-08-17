@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shipped-manifest CI gate — 04-widget-registry.md acceptance #16, second half:
  * "all shipped template manifests validate against `pageTemplateSchema` in CI".

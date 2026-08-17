@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The §14 page-archetype step — hooks **H1/H2/H4** of the auto-instantiation
  * pipeline as the Engine drives them (04-widget-registry.md §8):

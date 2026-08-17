@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The registries are CLOSED (24 §5.4, §5.5). These tests are the thing that
  * makes "closed" mean something: adding a slot or a contract without also

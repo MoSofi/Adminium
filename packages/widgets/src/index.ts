@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/widgets — Widget registry, WidgetFrame/WidgetHost, page templates,
  * dashboard grid (04-widget-registry.md).

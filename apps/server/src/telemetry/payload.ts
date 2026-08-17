@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The telemetry payload (M10-T04) — the EXACT and complete document a
  * consenting instance ever sends. Documented here because "what is sent" is a

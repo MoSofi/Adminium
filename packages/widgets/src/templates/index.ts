@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page templates (04-widget-registry.md §10) — the manifest system.
  *

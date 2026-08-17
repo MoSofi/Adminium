@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-multiline` primitive (research/widget-registry.md §2): plain
  * multi-series polylines with gridlines, end dots and end labels (cohort LTV

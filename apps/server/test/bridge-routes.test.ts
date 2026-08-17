@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Local-bridge routes: `GET /bridge/hello`, `POST /bridge/handoff`,
  * `GET /bridge/seed/:ticket`.

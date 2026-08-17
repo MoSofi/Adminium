@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * filesRepo / exportsRepo / importsRepo (07-meta-store.md §3.25–§3.27) —
  * M7-T07 data-io wave. Same dialect-parameterized harness as the sibling

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { GridColumnSpec, GridColumnSpecInput, GridRow } from './column-spec.js';
 import { gridColumnSpecSchema } from './column-spec.js';
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Process entrypoint: loadEnv → buildServer → listen, with graceful shutdown
  * on SIGTERM/SIGINT (01-architecture.md §8.1 — the fuller boot sequence gains

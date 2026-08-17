@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Pure treemap geometry (`chart-treemap`, research/widget-registry.md §2):
  * squarified slice-and-dice layout (Bruls/Huizing/van Wijk) over a flat,

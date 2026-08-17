@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family "bars & ranking" widgets (04-T09; annex §2): registry
  * wrappers mapping stored instance config + §3 envelopes onto the

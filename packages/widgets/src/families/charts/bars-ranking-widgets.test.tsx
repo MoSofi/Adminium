@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * Render + frame-state tests for the "bars & ranking" widgets (04-T09,

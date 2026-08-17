@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Regression guard for the CI mysql-leg failure (ER_NO_DB_ERROR ×102): the
  * dialect harness used to pool straight to TEST_MYSQL_URL, and CI's DSN is

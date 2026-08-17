@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-template registry — the single source of truth for which page templates
  * `@adminium/widgets` can render (04-widget-registry.md §10; 09-generated-app.md

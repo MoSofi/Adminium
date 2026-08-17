@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Table-label channel through generation (06-llm-assist.md §8.3 provenance
  * user > llm > heuristic): a `TableModel.label` overlaid by the server

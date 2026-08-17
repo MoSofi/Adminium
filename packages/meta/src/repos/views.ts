@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * viewsRepo — adminium_views (07-meta-store.md §3.18, 04-widget-registry.md §6.3).
  *

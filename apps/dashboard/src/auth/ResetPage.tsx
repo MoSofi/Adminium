@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/reset/$token` — ResetPasswordForm → POST /api/v1/auth/password/reset.
  * Expired/consumed tokens route to the `expired-link` system state (§6.1).

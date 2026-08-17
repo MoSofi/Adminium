@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Check, Copy, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type * as React from 'react';

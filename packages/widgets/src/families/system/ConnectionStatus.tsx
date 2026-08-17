@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `connection-status` (annex §12) — spinner→success banner (pos-soft, check
  * circle) for connect/test flows, with an optional per-row Test action that

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The main-process entry (11-electron.md §2.2 "Boot sequence"), owned by 11-T01.
  *

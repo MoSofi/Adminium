@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * VRT story-matrix runner (03-component-library.md §10, M1-T07).
  *

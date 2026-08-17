@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Meta-store Kysely factories (07-meta-store.md §1 connect.ts, §5.2).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * React context carrying the host app's {@link WidgetRuntimeEnv} to WidgetHost —
  * the input to §7's offline asset policy (11-electron.md §7, 11-T09).

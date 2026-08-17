@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard builder integration (04-T14): edit-mode gating (viewer vs admin),
  * palette insert at first-fit, the auto-generated inspector honoring a locked

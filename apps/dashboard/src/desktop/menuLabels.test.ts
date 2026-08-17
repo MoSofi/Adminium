@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The native-menu localization push (11-electron.md §14).
  *

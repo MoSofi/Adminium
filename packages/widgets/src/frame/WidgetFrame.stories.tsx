@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { DropdownMenuItem } from '@adminium/ui';
 import { GripVertical } from 'lucide-react';
 

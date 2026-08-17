@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SQL DDL parser — pg_dump golden model (ALTER-declared PKs/FKs!), mysqldump
  * golden model, CHECK→enum synthesis in both spellings, skip warnings.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Session mechanics (08-server-api.md §2.1, 07-meta-store.md §3.5).
  *

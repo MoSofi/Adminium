@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The connect wizard's Enrich step under 11-electron.md §6 step 4 / §8.2's LLM
  * row: on desktop "The LLM-assist step defaults to the BYO copy/paste

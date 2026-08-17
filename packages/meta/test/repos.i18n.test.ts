@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * localesRepo + translationsRepo (23-runtime-translations.md §3.1–§3.4).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Notification-centre client (M7 reports/notifications track) — thin typed
  * wrappers over `/api/v1/me/notifications` + `/me/notification-prefs`.

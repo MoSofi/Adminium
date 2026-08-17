@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * App-level toast queue (09-generated-app.md §4.1 mutations + undo): one
  * `useToastQueue` + `ToastStack` mounted by AppShell; pages push through

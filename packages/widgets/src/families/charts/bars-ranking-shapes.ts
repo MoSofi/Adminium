@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Lenient payload narrowing for the "bars & ranking" group's §3 envelopes
  * (04 §3). Widget components receive `data: unknown` (already non-empty per the

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline asset gate — 11-electron.md §7, deliverable 1 of 11-T09:
  *

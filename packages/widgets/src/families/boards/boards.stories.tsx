@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Track BOARDS `boards` family stories (annex §6): the kanban board + swimlane
  * grid loaded variants, the four WidgetFrame states through WidgetHost

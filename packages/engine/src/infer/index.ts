@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `@adminium/engine` inference entry point — 05-introspection-engine.md §6
  * rules 1–2, the relations a schema implies but never declares.

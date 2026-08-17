@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Hand-rolled RFC 4180 CSV (M7-T07) — no dependency exists in this repo and
  * none is added (the spec's "hand-roll" instruction).

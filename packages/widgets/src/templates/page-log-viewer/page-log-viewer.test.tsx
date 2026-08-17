@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * page-log-viewer template tests (09 §7.8): renders the stored layout (KPI

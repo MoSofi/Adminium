@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Per-engine capability matrix — 05-introspection-engine.md §2.1/§4,
  * research/gap-analysis.md §2.1 (M9-T04).

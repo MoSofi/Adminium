@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `usage-meter` — quota-consumption card (annex §1): label, "used of
  * limit" mono text, horizontal progress bar; bar and caption flip to

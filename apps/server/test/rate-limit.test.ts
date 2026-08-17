@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The §6 rate limiter + §7-item-5 security headers (08-server-api.md), both
  * registered by `plugins/core.ts`:

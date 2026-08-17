@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * StatePage — renders a system state by id (route `/state/$stateId`,
  * 09-generated-app.md §6.1) and wires each state's primary/secondary CTA to

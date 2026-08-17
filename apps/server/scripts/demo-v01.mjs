@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * v0.1 exit script (16-milestones.md §3.1 — "under 2 minutes, zero
  * manual config"):

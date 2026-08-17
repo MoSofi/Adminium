@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `rule-builder` (annex §10) — condition rows (field, operator, accent value)
  * joined by ALL/ANY pill dividers, removable, with a dashed add button; feeds

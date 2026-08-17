@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The bundle format: layout, manifest, and the Zod schemas both front doors
  * (export, import) validate against (M10-T03; 01-architecture.md §6.1, §8.2).

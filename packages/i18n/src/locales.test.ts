@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Locale registry tests (10-i18n-theming.md §2.1): the 8 BRIEF locales with
  * native names, derived direction, tags, and the tag → id inverse mapping.

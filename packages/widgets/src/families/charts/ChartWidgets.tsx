@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family M4 widgets (annex §2): registry wrappers that map stored
  * instance config + §3 envelopes onto the @adminium/charts primitives.

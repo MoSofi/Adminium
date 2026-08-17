@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard grid barrel (04-widget-registry.md §6). Static renderer +
  * geometry/compaction (M4) plus the 04-T12 edit mode: dnd-kit drag/resize,

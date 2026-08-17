@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * 11-T12 — the §9 desktop backup, from the server side (11-electron.md §9).
  *

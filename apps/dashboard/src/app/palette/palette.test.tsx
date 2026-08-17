@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ⌘K palette (09-generated-app.md §5.2, M4-T06): fixed group order Actions →
  * Navigate → Recent → Records, client-side nav filtering, the DEBOUNCED async

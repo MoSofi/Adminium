@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `composeTemplate` — the page-template composition engine (04-widget-registry.md
  * §10, task 04-T07).

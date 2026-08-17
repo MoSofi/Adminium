@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Button, Drawer, DrawerBody, DrawerHeader, EmptyState, IconTile, KeyValueList, KeyValueRow, MonoText, Spinner } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { useMemo, useState } from 'react';

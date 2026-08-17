@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M8-T06 — preference-resolution end-to-end contract, app half
  * (10-i18n-theming.md §7, 02-design-system.md §4).

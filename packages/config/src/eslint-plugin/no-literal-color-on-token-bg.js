@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Rule: adminium/no-literal-color-on-token-bg
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { IconTile } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { CloudUpload } from 'lucide-react';

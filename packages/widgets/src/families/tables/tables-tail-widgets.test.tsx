@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // @vitest-environment happy-dom
 /**
  * TRACK TABLES-CAL-BOARDS — the `tables` family M7 Wave-4 TAIL (annex §3):

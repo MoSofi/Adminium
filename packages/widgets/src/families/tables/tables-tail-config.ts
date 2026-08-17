@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `tables` family M7 Wave-4 TAIL config schemas + deterministic demo generators
  * — PURE module (zod, the shared config, and the `tables-tail-types` types only;

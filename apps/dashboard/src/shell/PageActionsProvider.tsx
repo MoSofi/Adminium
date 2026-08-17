@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page → topbar channel (03 app-shell, and the Analytics comp's header, whose
  * right cluster carries a page-owned range control and Export button next to

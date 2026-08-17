@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Database, HardDrive, Unplug, Wifi, type LucideIcon } from 'lucide-react';
 
 import { cn } from '../../lib/cn.js';

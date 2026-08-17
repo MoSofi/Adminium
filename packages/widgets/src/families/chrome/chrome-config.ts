@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chrome` family config schemas + deterministic demo generators (annex §11) —
  * PURE module (zod + chrome-lib only; no React, no @adminium/ui, no lucide).

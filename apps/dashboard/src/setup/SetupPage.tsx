@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/setup` route component (M10-T04): resolves the server's password policy,
  * then renders the wizard. The "is setup still open?" decision lives in the

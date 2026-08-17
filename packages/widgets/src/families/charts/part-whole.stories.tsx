@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Stories for the part-to-whole & hierarchy charts (04-T09 / acceptance #4):
  * each widget's loaded variant plus the four WidgetFrame states through

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Config inspector (04-widget-registry.md task 04-T14): a side drawer whose
  * fields are auto-generated from the selected widget's Zod config schema

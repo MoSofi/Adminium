@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * PII detection and masking defaults — 05-introspection-engine.md §7.2.
  *

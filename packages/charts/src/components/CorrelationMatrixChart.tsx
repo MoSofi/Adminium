@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-correlation-matrix` primitive (research/widget-registry.md §2): n×n grid
  * of Pearson r, accent for positive / danger for negative, fill opacity by |r|,

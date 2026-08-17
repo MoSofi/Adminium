@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the JSON payloads stored in adminium_* json columns
  * (07-meta-store.md §3). Repos validate every JSON write against these —

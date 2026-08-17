@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Contract pin for the Studio remap editor (M5-T04): the exact PUT documents
  * the dashboard's edit buffer emits (see

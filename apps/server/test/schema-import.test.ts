@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * POST /api/v1/schema-import/parse (M5-T01 schema-file source mode):
  * guard, sql-ddl + json-ir fallback parsing, preview summary counts,

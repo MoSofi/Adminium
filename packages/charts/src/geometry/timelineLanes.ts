@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Swimlane timeline geometry (`chart-timeline-lanes`, research/widget-registry.md
  * §2): stacked horizontal lanes with events positioned along a shared time

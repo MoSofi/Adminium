@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-forecast` primitive (research/widget-registry.md §2): history line +
  * dashed forecast + widening confidence polygon + "now" divider + projected

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `cn()` — the single class-composition utility for `@adminium/ui`
  * (03-component-library.md §2, §3.1).

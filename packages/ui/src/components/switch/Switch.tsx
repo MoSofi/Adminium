@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import type * as React from 'react';
 

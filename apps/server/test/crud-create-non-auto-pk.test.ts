@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Create-path regression suite for non-auto-generated primary keys, across
  * declared dialects (e2e c5, first mysql CI leg).

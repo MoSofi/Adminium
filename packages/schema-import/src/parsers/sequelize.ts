@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Sequelize model parser — 05-introspection-engine.md §5.2 row 5, tokenizer
  * level: `sequelize.define('name', {attrs}, {options})` and

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `desktop/lanShare.ts` — the pure half of §8.3's panel.
  *

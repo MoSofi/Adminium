@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Track E geometry tests (matrix, calendar & geo-grid): determinism (same
  * input → identical output, incl. golden path strings computed in Node with no

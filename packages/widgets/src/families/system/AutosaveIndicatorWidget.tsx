@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `autosave-indicator` (annex §12) — header pill cycling warn-dot "Unsaved
  * changes" → spinner "Saving…" → green check "All changes saved", stamping the

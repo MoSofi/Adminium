@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { FileDown, LayoutDashboard, Receipt, Settings, Sparkles, UserPlus } from 'lucide-react';
 import { useState } from 'react';

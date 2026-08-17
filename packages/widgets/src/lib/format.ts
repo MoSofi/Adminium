@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Metric formatting shared by the KPI + charts families (annex §1 config:
  * `format` currency/percent/duration/compact; research/widget-registry.md

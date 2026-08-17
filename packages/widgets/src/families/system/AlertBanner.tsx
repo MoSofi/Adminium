@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `alert-banner` (annex §12) — inline callout: severity tint, bold stat lead or
  * icon, explanatory copy, optional CTA. Variants observed in the comps:

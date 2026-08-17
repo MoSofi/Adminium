@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Scheduled-reports client (M7 reports track) — thin typed wrappers over
  * `/api/v1/scheduled-reports`. Shapes mirror the server Zod reply schemas

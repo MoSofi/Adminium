@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Offline unit tests for the Postgres statistics collector (06 §4.2). No `pg`
  * driver: a mock executor routes catalog/scan/sampling SQL by shape so the

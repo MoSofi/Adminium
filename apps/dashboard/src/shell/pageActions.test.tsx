@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The page → topbar channel. Pages had no way to put anything in the header
  * before it, so what these assert is the wiring itself: that a node published

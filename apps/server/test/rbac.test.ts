@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * RBAC enforcement integration tests (08-server-api.md §5, M2-T05): the
  * permission matrix over real routes, denied-audit rows, role lifecycle,

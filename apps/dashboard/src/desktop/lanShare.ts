@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LAN share, as the SPA sees it (11-electron.md §8.3).
  *

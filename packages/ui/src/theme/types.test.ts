@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Direction/lang derivation for the locale axis (23-runtime-translations.md
  * §5.4, §5.5).

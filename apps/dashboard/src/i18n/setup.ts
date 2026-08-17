@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Dashboard i18n boot (10-i18n-theming.md §7.5): build the shared i18next
  * instance BEFORE the first render, from the pre-hydration locale cache

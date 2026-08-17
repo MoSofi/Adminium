@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Theme hooks (02-design-system.md §4.1).
  * `useTheme` → resolved values for rendering; `useThemePrefs` → raw prefs +

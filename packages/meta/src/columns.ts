@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Portable column-type helpers (07-meta-store.md §2.1).
  *

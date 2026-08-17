@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family — matrix, calendar & geo-grid definitions (annex §2, 04-T09):
  * `chart-cohort-matrix`, `chart-heatmap-calendar`, `chart-heat-month`,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { clearFormatFailures, formatFailures, recordFormatFailure } from './format-errors.js';

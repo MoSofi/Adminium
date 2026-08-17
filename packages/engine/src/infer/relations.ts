@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Relation inference — 05-introspection-engine.md §6 rules 1 (name
  * convention) and 2 (join table).

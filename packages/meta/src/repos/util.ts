@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared repo helpers: dialect-portable JSON/bool round-tripping
  * (07-meta-store.md §2.1 — repos serialize/parse JSON and coerce booleans).

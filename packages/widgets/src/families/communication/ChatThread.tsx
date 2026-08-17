@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { Avatar, EmptyState, Input, Tag } from '@adminium/ui';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Paperclip, Send } from 'lucide-react';

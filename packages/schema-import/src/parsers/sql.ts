@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SQL DDL / pg_dump / mysqldump / sqlite parser — 05-introspection-engine.md
  * §5.2 row 1. Hand-rolled tokenizer + statement splitter + per-statement

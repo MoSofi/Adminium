@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * @adminium/tokens — JS-side constants for the four theming axes plus the pre-hydration
  * script. CSS custom properties live in the sibling .css files; these exports exist so

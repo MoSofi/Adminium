@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Runtime factory tests (10-i18n-theming.md §2.3, §2.5): ICU plurals/args,
  * the missing-key fallback chain (locale → en-US → defaultValue), lazy bundle

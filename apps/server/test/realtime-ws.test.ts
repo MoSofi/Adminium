@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * WebSocket gateway `GET /ws` (08-server-api.md §3, M2-T07): pre-handshake
  * auth, subscribe/unsubscribe protocol, per-channel authorization (foreign

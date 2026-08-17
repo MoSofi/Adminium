@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `generatePages()` — Generator v1 (M4-T08, 05-introspection-engine.md
  * generation section, research/widget-registry.md §14–§15, 09-generated-app.md

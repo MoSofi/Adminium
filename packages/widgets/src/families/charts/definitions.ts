@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `charts` family definitions (annex §2; M4-T05 slice: `chart-line-area`,
  * `chart-bar`, `chart-donut`, `chart-sparkline` — the remaining ~33 ids

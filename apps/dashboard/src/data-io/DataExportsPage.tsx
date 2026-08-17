@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Data Exports (M7-T07, 09-generated-app.md §11.2): request an export
  * (table + format) and watch the artifact list — an optimistic `processing`

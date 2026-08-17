@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Review status of each locale's translations (10-i18n-theming.md §3.3).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Detecting the Electron shell from the SPA (11-electron.md §4).
  *

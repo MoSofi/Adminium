@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Global-search client (`GET /api/v1/search`, 08-server-api.md §2.9; exact
  * shapes from apps/server/src/routes/search/schema.ts). The ⌘K palette calls

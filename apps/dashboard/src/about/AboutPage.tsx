@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/about` — the About / version / license screen (M10-T04; v0.5 exit
  * criterion "the About screen shows version/license").

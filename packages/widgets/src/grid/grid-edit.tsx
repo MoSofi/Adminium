@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import type { DraggableSyntheticListeners, Modifier } from '@dnd-kit/core';
 import { GripVertical } from 'lucide-react';
 import { createContext, useCallback, useContext, useState } from 'react';

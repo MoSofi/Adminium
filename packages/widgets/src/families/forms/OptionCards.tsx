@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `option-cards` (annex §10) — single-select card grid: icon tile, title,
  * description; the selected card gets a 2px accent border + accent-soft bg.

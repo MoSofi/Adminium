@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wave 0003 — connections & schema: adminium_files, adminium_connections,
  * adminium_schema_snapshots, adminium_schema_overrides

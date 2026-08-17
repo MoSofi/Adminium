@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * scheduledReportsRepo — adminium_scheduled_reports (07-meta-store.md §3.24):
  * one row per recurring report. The row stores WHAT and WHEN (`schedule` per

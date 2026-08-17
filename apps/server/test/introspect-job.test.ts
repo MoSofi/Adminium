@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `introspect` job kind (08 §2.4) — pre-M12 audit regression pins.
  *

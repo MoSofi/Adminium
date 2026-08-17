@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared fixtures for the auth suites (not collected by vitest — no .test
  * suffix): in-memory SQLite meta store via `createSqliteMetaDb` + `firstRun`,

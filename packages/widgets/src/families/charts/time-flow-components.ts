@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * "Time, forecast & flow" component barrel — the single lazy-import target for
  * this group's definitions, so Vite keeps the whole group in the one `charts`

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, Badge, MonoText, StatusPill, type Tone } from '@adminium/ui';
 import { Check, Eye, EyeOff, X } from 'lucide-react';

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * M2 exit-criteria demo (16-milestones.md — "M2 — Server core").
  *

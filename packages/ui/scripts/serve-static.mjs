@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * serve-static — zero-dependency static file server for the built Storybook.
  *

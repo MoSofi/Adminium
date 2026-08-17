@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The Studio section of the avatar menu (09-generated-app.md §8: Studio
  * "shares the shell; a 'Studio' section appears in the user menu and via `G`

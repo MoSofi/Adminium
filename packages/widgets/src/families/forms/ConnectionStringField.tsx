@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `connection-string-field` (annex §10) — mono DSN input with a database icon, a
  * keyboard-shortcut badge, host parsing, provider quick-fill chips and an inline

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `/setup` — the first-run wizard (M10-T04; v0.5 exit criterion "fresh install
  * → first-run wizard → create super admin"). Two steps on the shared auth

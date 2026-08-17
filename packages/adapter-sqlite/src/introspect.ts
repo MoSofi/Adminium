@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * SQLite introspection — 05-introspection-engine.md §4.3.
  *

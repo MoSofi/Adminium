@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Connect-wizard state + pure rules (09-generated-app.md §8.2,
  * M5-T01/02/03 + M9-T04).

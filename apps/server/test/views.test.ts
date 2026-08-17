@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Saved-views CRUD routes (M5-T06): create/list/rename/default/delete,
  * per-user ownership (a private view is invisible to other users), the

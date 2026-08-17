@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-scatter-bubble` primitive (research/widget-registry.md §2): SVG scatter
  * with an optional bubble-radius dimension, gridlines, a dashed least-squares

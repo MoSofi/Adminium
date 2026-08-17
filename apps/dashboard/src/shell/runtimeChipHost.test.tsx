@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The runtime chip AS THE PRODUCT RENDERS IT (11-electron.md §8.1).
  *

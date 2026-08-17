@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chart-candlestick` primitive (research/widget-registry.md §2): OHLC candles
  * colored pos/danger, a dashed last-price line and an optional "live" pill.

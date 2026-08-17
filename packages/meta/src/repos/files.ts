@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * filesRepo — adminium_files (07-meta-store.md §3.27): one row per stored
  * artifact (export bundles, import uploads, error reports, branding assets…).
