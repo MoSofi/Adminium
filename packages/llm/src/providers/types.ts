@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Provider client contracts (06-llm-assist.md §3.1). The `ProviderClient`
  * interface below is reproduced VERBATIM from the doc — it is the wire-layer

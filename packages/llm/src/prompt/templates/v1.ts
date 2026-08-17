@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `PROMPT_V1` — the production schema-enrichment prompt (06-llm-assist.md §5).
  *

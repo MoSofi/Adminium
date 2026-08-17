@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Stage 1 — tolerant JSON extraction (06-llm-assist.md §7.2).
  *

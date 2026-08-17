@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The PURE apply-planner (06-llm-assist.md §8.3).
  *

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared fetch plumbing for the provider clients (06-llm-assist.md §3): one
  * JSON request helper with a timeout, deterministic error mapping to

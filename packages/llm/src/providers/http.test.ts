@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared HTTP helper tests (06-llm-assist.md §3): secret scrubbing, non-2xx →
  * status-mapped ProviderError, network + timeout mapping, and bad_response on an

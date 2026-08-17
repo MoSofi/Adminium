@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LLM key-crypto contract tests (06-llm-assist.md §3.2). The concrete AES-256-GCM
  * primitives live in the server tree (see the blocker); here we inject a fake to

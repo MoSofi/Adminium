@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Stable suggestion identity (06-llm-assist.md §8.1).
  *

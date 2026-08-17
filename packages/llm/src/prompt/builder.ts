@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `buildPrompt(input, opts)` — the ONLY producer of prompt text (06-llm-assist.md
  * §1 invariant 1, §4, §5).

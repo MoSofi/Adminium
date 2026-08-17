@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Golden apply-plan (06-llm-assist.md §8.3 / acceptance criterion 3).
  *

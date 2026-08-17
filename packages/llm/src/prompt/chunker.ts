@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chunker.ts` — token-budget map-phase chunking for huge schemas
  * (06-llm-assist.md §4.5, acceptance criterion 7).

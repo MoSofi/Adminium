@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Normalization to the shared `EnrichmentSet` (06-llm-assist.md §7.1).
  *

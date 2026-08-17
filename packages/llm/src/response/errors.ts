@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Validation error model shared by the whole response pipeline
  * (06-llm-assist.md §7.2). Every stage — extract, parse, version, Zod, locale,
