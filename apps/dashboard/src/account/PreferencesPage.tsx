@@ -18,10 +18,9 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import type { ReactNode } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
 import type { LocaleId } from '@adminium/i18n/registry';
 import type { Accent, Density, ThemePref } from '@adminium/tokens';
-import { Badge, Button, Card, CardBody, CardHeader, Divider, IconTile, useThemePrefs } from '@adminium/ui';
+import { Badge, Button, Card, CardBody, Divider, useThemePrefs } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import {
@@ -34,6 +33,7 @@ import {
   localeLabel,
   themeLabel,
 } from './prefControls.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { ME_PREFS_QUERY_KEY, mePrefsQuery, patchMePrefs, type MePrefsData, type RawUserPrefs } from './prefsApi.js';
 
@@ -127,19 +127,14 @@ export function PreferencesPage(): ReactNode {
 
   return (
     <PageSurface width="narrow">
+      <PageActions
+        title={t('account.preferences.title', 'Preferences')}
+        subtitle={t(
+          'account.preferences.subtitle',
+          'How Adminium looks and reads for you — on this and every device you sign in from.',
+        )}
+      />
       <Card>
-        <CardHeader className="flex items-center gap-3">
-          <IconTile tone="accent" size="md" icon={<SlidersHorizontal />} />
-          <div>
-            <h2 className="text-section text-fg">{t('account.preferences.title', 'Preferences')}</h2>
-            <p className="text-body-sm text-fg-muted">
-              {t(
-                'account.preferences.subtitle',
-                'How Adminium looks and reads for you — on this and every device you sign in from.',
-              )}
-            </p>
-          </div>
-        </CardHeader>
         <CardBody>
           <PrefRow
             label={t('prefs.theme.label', 'Theme')}

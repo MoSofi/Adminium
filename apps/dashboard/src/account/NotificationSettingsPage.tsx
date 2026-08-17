@@ -15,6 +15,8 @@ import type { PageEnvelope } from '@adminium/engine/config';
 
 import { PageSettingsBinding } from '../pages/PageSettingsBinding.js';
 import type { PageTemplateAdapters } from '../pages/templates.js';
+import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 
 const envelope: PageEnvelope = {
@@ -45,6 +47,9 @@ export function NotificationSettingsPage() {
   // was the one settings screen with no gutter at all.
   return (
     <PageSurface>
+      {/* The shell derives "Account" for every /account/* path; this route is
+          its own screen and says so. */}
+      <PageActions title={t('nav.notificationSettings', 'Notification settings')} />
       <PageSettingsBinding page={envelope} adapters={adapters} />
     </PageSurface>
   );
