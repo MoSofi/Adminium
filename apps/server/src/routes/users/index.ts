@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * User-directory routes (08-server-api.md §2.15, 07-meta-store.md §3.3):
  *

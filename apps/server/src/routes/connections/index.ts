@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Connections manager routes (08-server-api.md §2.4, M3-T04):
  * create (test + encrypt + meta-placement enforcement), list with health,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Route registration (08-server-api.md §1.2): each resource directory under
  * `src/routes/<resource>/` exports a plugin; all of them mount here under the

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Permission catalog (08-server-api.md §5.1): the vocabulary a role editor
  * may offer, served because the dashboard CANNOT read it at the source —

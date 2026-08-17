@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Minimal built-in schema-file parser — the M5 stub behind
  * `POST /api/v1/schema-import/parse` while `@adminium/schema-import` (the

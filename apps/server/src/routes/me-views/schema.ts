@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the per-user dashboard layout override routes
  * (04-widget-registry.md §6.3): `PUT`/`DELETE /api/v1/me/views/:pageId/layout`.

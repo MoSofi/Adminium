@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the data-exports resource (M7-T07, 07-meta-store.md §3.25,
  * 09-generated-app.md §11.2). Source/format/status vocabularies come from

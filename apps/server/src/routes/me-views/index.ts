@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Per-user dashboard layout override routes (04-widget-registry.md §6.3):
  *

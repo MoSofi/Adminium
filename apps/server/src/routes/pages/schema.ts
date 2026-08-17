@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Zod request/response schemas for `routes/pages/` (08-server-api.md §2.6). */
 
 import { PAGE_TEMPLATE_IDS } from '@adminium/engine';

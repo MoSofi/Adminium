@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Page-document + page-lifecycle routes (08-server-api.md §2.6,
  * 04-widget-registry.md §6.3):

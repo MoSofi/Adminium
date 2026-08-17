@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * About resource (M10-T04): `GET /api/v1/about` and
  * `GET /api/v1/about/update-check`.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * LLM provider-config helpers for the routes (06-llm-assist.md §3.2).
  *

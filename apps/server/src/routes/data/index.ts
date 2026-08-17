@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The generated CRUD API (`routes/data/`, 08-server-api.md §2.7, M3-T05):
  * list (filter DSL + `q` + keyset/offset), get (+ inbound counts), the

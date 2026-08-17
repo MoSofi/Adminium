@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Scheduled-reports routes (M7 reports track; 07-meta-store.md §3.24),
  * mounted under `/api/v1`:

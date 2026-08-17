@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** Handlers for the system resource (08-server-api.md §1.2 route-module layout). */
 import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { sql } from 'kysely';

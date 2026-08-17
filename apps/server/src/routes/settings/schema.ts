@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the global-defaults settings resource
  * (10-i18n-theming.md §7.2, 08-server-api.md): the four preference axes with

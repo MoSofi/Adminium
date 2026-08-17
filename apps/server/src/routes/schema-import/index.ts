@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Schema-file import route (09-generated-app.md §8.2 source mode c, M5-T01):
  *

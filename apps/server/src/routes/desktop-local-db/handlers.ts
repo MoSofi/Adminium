@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Create a local SQLite database and register it (11-electron.md §6 step 2
  * card 1, task 11-T07).

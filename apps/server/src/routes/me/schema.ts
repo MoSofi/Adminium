@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the `me` resource (08-server-api.md §2.2): profile view and
  * patch plus per-user preference axes (07-meta-store.md §3.4, §7.2 —

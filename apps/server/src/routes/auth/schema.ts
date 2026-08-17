@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the auth resource (08-server-api.md §2.1; naming per §1.5:
  * `<resource><Action><Part>` consts, PascalCase `z.infer` types).

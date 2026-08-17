@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Schema routes (08-server-api.md §2.5, 05 §11, M3-T05/T06):
  *

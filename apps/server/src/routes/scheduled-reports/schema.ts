@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the scheduled-reports resource (M7 reports track,
  * 07-meta-store.md §3.24). Schedule/recipients/format vocabularies come from

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * First-run setup resource (M10-T04): `GET /api/v1/setup/state` and
  * `POST /api/v1/setup/super-admin`. The dashboard's first-run wizard is one
@@ -18,10 +19,26 @@
  *    is credential-facing and unauthenticated.
  *  - Failures are never enumerable: an already-set-up instance returns the
  *    same 409 regardless of the email or password submitted.
+ *  - Both outcomes are AUDITED (§7 item 9). Creating the first super admin is
+ *    the single most privileged act in the product, and it used to leave no
+ *    trace at all: the audit log's earliest entry was whatever that account did
+ *    next. The refusal is audited too, because on a long-running instance a
+ *    `POST /setup/super-admin` is not a mistake — it is somebody probing for an
+ *    un-set-up panel, and that is worth a row even though the client is told
+ *    nothing beyond the invariant 409.
+ *
+ * `auditAuth` and not `app.rbac.audit`: these routes are registered inside
+ * `buildServer`, and Fastify 5 snapshots the parent's decorators into a child
+ * scope when it is created, so `rbacPlugin` — registered later, by `compose.ts`
+ * — is not visible here (the same trap `plugins/rbac.ts` documents). There is
+ * also no principal to attribute the write to: the actor IS the account being
+ * created.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
+import { audited } from '../../audit/coverage.js';
 import { AppError, ConflictError, ValidationFailedError } from '../../errors.js';
+import { auditAuth } from '../../auth/audit.js';
 import { createSession, setSessionCookie } from '../../auth/sessions.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import { SetupClosedError, WeakPasswordError, type SetupService } from '../../setup/service.js';
@@ -70,7 +87,7 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
       '/setup/super-admin',
       {
         preHandler: [app.requireMeta],
-        config: { rateLimitBucket: RATE_LIMIT_BUCKETS.login },
+        config: { rateLimitBucket: RATE_LIMIT_BUCKETS.login, audit: audited('auth') },
         schema: { body: setupSuperAdminBody, response: { 201: setupSuperAdminReply } },
       },
       async (request, reply): Promise<SetupSuperAdminReply> => {
@@ -88,6 +105,16 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
           if (error instanceof SetupClosedError) {
             // 409 — the terminal state. Identical for a second submit, a lost
             // race, and a probe against a long-running instance.
+            //
+            // The row records the attempted email, exactly as `login_failed`
+            // does: on a set-up instance this is somebody knocking on the
+            // super-admin factory, and the ip/user-agent/request-id stamp is
+            // the only place that shows up.
+            await auditAuth(ctx().meta, request, {
+              action: 'setup_super_admin_denied',
+              actorId: null,
+              actorLabel: body.email,
+            });
             throw new ConflictError(
               'Setup has already been completed. Sign in instead.',
               'CONFLICT',
@@ -101,6 +128,15 @@ export function setupRoutes(deps: SetupRoutesDeps): FastifyPluginAsyncZod {
           }
           throw error;
         }
+
+        // Written before the session is minted, so the trace of the account
+        // existing survives a failure in anything below it.
+        await auditAuth(ctx().meta, request, {
+          action: 'setup_super_admin_created',
+          actorId: user.id,
+          actorLabel: user.name,
+          changes: { after: { userId: user.id, email: user.email, consent: body.consent ?? null } },
+        });
 
         // Land the wizard signed in — re-typing the credentials you just chose
         // is friction with no security value (you proved nothing by knowing it).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Jobs routes (08-server-api.md §2.17, M2-T07), mounted under `/api/v1`:
  *

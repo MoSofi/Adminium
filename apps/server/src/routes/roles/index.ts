@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Roles & permission-matrix routes (08-server-api.md §2.3, M2-T05/08-T08):
  *
