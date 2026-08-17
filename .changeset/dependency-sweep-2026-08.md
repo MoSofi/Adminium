@@ -1,8 +1,8 @@
 ---
-'@adminium/server': minor
-'@adminium/i18n': minor
-'@adminium/meta': minor
-'@adminium/ui': minor
+'@adminium/server': patch
+'@adminium/i18n': patch
+'@adminium/meta': patch
+'@adminium/ui': patch
 '@adminium/adapter-postgres': patch
 '@adminium/adapter-mysql': patch
 '@adminium/adapter-sqlite': patch
