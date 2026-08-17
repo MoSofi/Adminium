@@ -13,12 +13,15 @@ import { AppError } from '../../errors.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import {
   activate2faHandler,
+  changePasswordHandler,
   disable2faHandler,
   enroll2faHandler,
   forgotPasswordHandler,
+  listSessionsHandler,
   loginHandler,
   logoutHandler,
   resetPasswordHandler,
+  revokeSessionHandler,
   sessionHandler,
   verify2faHandler,
 } from './handlers.js';
@@ -32,8 +35,11 @@ import {
   authLoginBody,
   authLoginChallengeReply,
   authLoginReply,
+  authPasswordChangeBody,
   authResetBody,
+  authSessionListReply,
   authSessionReply,
+  authSessionRevokeParams,
   okReply,
 } from './schema.js';
 
@@ -102,6 +108,42 @@ export const authRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { response: { 200: authSessionReply } },
     },
     async (request) => sessionHandler(ctx(), request),
+  );
+
+  // The caller's own devices and credential (§2.1). Session-bound but NOT
+  // RBAC-guarded: every one of them reads or writes the requesting account and
+  // nothing else, so there is no grant that could gate them — the session IS
+  // the authorization.
+
+  app.get(
+    '/auth/sessions',
+    {
+      preHandler: [app.requireMeta, app.requireAuth],
+      schema: { response: { 200: authSessionListReply } },
+    },
+    async (request) => listSessionsHandler(ctx(), request),
+  );
+
+  app.delete(
+    '/auth/sessions/:id',
+    {
+      preHandler: [app.requireMeta, app.requireAuth],
+      schema: { params: authSessionRevokeParams, response: { 200: okReply } },
+    },
+    async (request, reply) => revokeSessionHandler(ctx(), request, reply, request.params),
+  );
+
+  app.post(
+    '/auth/password/change',
+    {
+      preHandler: [app.requireMeta, app.requireAuth],
+      // Shares the reset bucket: it is the same act (choosing a new password)
+      // behind the same argon2 verify, and one budget across both doors is the
+      // point of keying buckets by act rather than by route.
+      config: { rateLimitBucket: RATE_LIMIT_BUCKETS.reset },
+      schema: { body: authPasswordChangeBody, response: { 200: okReply } },
+    },
+    async (request, reply) => changePasswordHandler(ctx(), request, reply, request.body),
   );
 
   app.post(
