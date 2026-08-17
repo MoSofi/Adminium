@@ -69,7 +69,7 @@ export function ConnectionStatusView({
   const headline = messages?.[state] ?? defaultMessages[state];
 
   return (
-    <div className="px-4 pb-4">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <div
         data-widget="connection-status"
         data-state={state}

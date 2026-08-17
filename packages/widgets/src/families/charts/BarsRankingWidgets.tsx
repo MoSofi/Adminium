@@ -37,10 +37,10 @@ import type {
 
 function BadShape() {
   const t = useMaybeT();
-  return <p className="px-4 pb-4 text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
+  return <p className="px-[var(--widget-pad)] pb-[var(--widget-pad)] text-body-sm text-fg-muted">{t('ui:widgets.charts.unexpectedShape', 'Unexpected data shape.')}</p>;
 }
 
-const wrap = 'px-4 pb-4 compact:px-3 compact:pb-3';
+const wrap = 'px-[var(--widget-pad)] pb-[var(--widget-pad)]';
 
 // --- chart-bullet ------------------------------------------------------------
 

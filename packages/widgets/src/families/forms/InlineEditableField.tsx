@@ -124,7 +124,7 @@ export function InlineEditableFieldWidget({ config, data, instanceId, onEvent }:
     const text = displayValue(committed, config);
     const empty = text.trim() === '';
     return (
-      <div className="flex h-full items-center px-4 pb-4" data-widget="inline-editable-field" data-testid={config.testId}>
+      <div className="flex h-full items-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="inline-editable-field" data-testid={config.testId}>
         <button
           type="button"
           data-part="inline-display"
@@ -155,7 +155,7 @@ export function InlineEditableFieldWidget({ config, data, instanceId, onEvent }:
   } as const;
 
   return (
-    <div className="flex h-full items-center px-4 pb-4" data-widget="inline-editable-field" data-editing data-testid={config.testId}>
+    <div className="flex h-full items-center px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="inline-editable-field" data-editing data-testid={config.testId}>
       {config.format === 'select' ? (
         <Select
           {...shared}

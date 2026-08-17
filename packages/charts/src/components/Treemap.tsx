@@ -22,7 +22,7 @@ export interface TreemapChartProps {
   /** Slices beyond this fold into a trailing "Other" tile. */
   maxTiles?: number;
   otherLabel?: string;
-  /** Hide the in-tile label below this width/height in px (default 48/26). */
+  /** Hide the in-tile label below this width/height in px (default 48/36). */
   labelMinWidth?: number;
   labelMinHeight?: number;
   format?: (value: number) => string;
@@ -38,7 +38,9 @@ export function Treemap({
   maxTiles,
   otherLabel,
   labelMinWidth = 48,
-  labelMinHeight = 26,
+  // 16 (name baseline) + 14 (line advance) + 6 breathing room. At the old 26 a
+  // tile drew its value 4px past its own bottom edge, onto its neighbour.
+  labelMinHeight = 36,
   format = formatCompact,
   dir,
   a11yFallback,
@@ -54,7 +56,7 @@ export function Treemap({
       {...(dir !== undefined ? { dir } : {})}
       {...(a11yFallback !== undefined ? { a11yFallback } : {})}
       {...(className !== undefined ? { className } : {})}
-      padding={{ top: 1, right: 1, bottom: 1, left: 1 }}
+      padding={{ top: 2, right: 2, bottom: 2, left: 2 }}
     >
       {({ innerWidth, innerHeight, rtl, mounted }) => {
         if (innerWidth <= 0 || innerHeight <= 0) return null;
@@ -70,6 +72,10 @@ export function Treemap({
           <g data-treemap="">
             {tiles.map((tile, i) => {
               const showLabel = tile.width >= labelMinWidth && tile.height >= labelMinHeight;
+              // The tile fill is the accent ramp, so from step 4 up the default
+              // foreground sits at ~2.7:1 on it — below AA and below the 3:1
+              // large-text floor, in both themes. Flip to the on-accent color.
+              const labelFill = tile.rampStep >= 4 ? 'var(--accent-fg)' : 'var(--fg)';
               return (
                 <g
                   key={tile.label}
@@ -92,16 +98,18 @@ export function Treemap({
                       <text
                         x={tile.x + 8}
                         y={tile.y + 16}
-                        className="adm-chart-axis-label"
+                        className="adm-chart-tile-name"
                         textAnchor="start"
+                        fill={labelFill}
                       >
                         {tile.label}
                       </text>
                       <text
                         x={tile.x + 8}
                         y={tile.y + 30}
-                        className="adm-chart-axis-label adm-chart-num"
+                        className="adm-chart-num adm-chart-tile-value"
                         textAnchor="start"
+                        fill={labelFill}
                       >
                         {format(tile.value)}
                       </text>

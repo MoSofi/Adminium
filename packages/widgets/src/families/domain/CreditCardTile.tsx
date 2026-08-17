@@ -102,7 +102,7 @@ export function CreditCardTileView({
 
   if (variant === 'ghost') {
     return (
-      <div data-widget="credit-card-tile" data-testid={testId} data-variant="ghost" className="h-full px-4 pb-4">
+      <div data-widget="credit-card-tile" data-testid={testId} data-variant="ghost" className="h-full px-[var(--widget-pad)] pb-[var(--widget-pad)]">
         <button
           type="button"
           onClick={onManage}
@@ -122,7 +122,7 @@ export function CreditCardTileView({
         data-widget="credit-card-tile"
         data-testid={testId}
         data-variant="row"
-        className="flex h-full items-center gap-3 px-4 pb-4"
+        className="flex h-full items-center gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
       >
         <span
           aria-hidden="true"
@@ -155,7 +155,7 @@ export function CreditCardTileView({
   }
 
   return (
-    <div data-widget="credit-card-tile" data-testid={testId} data-variant="tile" className="h-full px-4 pb-4">
+    <div data-widget="credit-card-tile" data-testid={testId} data-variant="tile" className="h-full px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <div
         data-part="card-tile"
         className={`group flex h-full min-h-32 flex-col justify-between rounded-xl p-4 text-white shadow-card transition-shadow hover:shadow-lg ${BRAND_GRADIENT[method.brand]}`}

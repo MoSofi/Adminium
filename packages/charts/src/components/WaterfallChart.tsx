@@ -31,6 +31,15 @@ function typeColor(type: WaterfallStepType): string {
   return 'var(--viz-ramp-4)';
 }
 
+/**
+ * Value-label color. The design colors the number like its step, so the bridge
+ * reads without tracing each bar; totals stay neutral because `typeColor`'s
+ * ramp fill is a background tint and unreadable as text on the card.
+ */
+function valueColor(type: WaterfallStepType): string {
+  return type === 'total' ? 'var(--fg-muted)' : typeColor(type);
+}
+
 function signedText(type: WaterfallStepType, value: number, format: (v: number) => string): string {
   if (type === 'up') return `+${format(value)}`;
   if (type === 'down') return `−${format(value)}`;
@@ -116,9 +125,9 @@ export function WaterfallChart({
                     x={bar.centerX}
                     y={bar.y - 5}
                     textAnchor="middle"
-                    fontSize={10}
+                    fontSize={9.5}
                     fontWeight={700}
-                    fill="var(--fg-muted)"
+                    fill={valueColor(bar.type)}
                   >
                     {signedText(bar.type, bar.value, formatValue)}
                   </text>

@@ -119,7 +119,11 @@ function makeDemoApi(): CrudApi {
 
 export const CustomersTable = {
   render: () => (
-    <div className="h-[640px] p-4">
+    /* Mirrors what the app mounts around this template (PageCrudBinding): the
+       `--bg` page plane plus the `--main-pad` gutter. Without both, the card's
+       border/radius/shadow have nothing to sit against and the story stops
+       being a check on the comp. */
+    <div className="h-[640px] bg-bg p-[var(--main-pad)]">
       <PageCrud
         api={makeDemoApi()}
         columns={demoCustomerColumns}
@@ -134,7 +138,11 @@ export const CustomersTable = {
 
 export const ReadOnlyRole = {
   render: () => (
-    <div className="h-[640px] p-4">
+    /* Mirrors what the app mounts around this template (PageCrudBinding): the
+       `--bg` page plane plus the `--main-pad` gutter. Without both, the card's
+       border/radius/shadow have nothing to sit against and the story stops
+       being a check on the comp. */
+    <div className="h-[640px] bg-bg p-[var(--main-pad)]">
       <PageCrud
         api={makeDemoApi()}
         columns={demoCustomerColumns}

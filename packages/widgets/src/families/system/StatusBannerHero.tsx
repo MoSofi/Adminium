@@ -85,7 +85,7 @@ export function StatusBannerHeroView({ state, stats, title, body, testId }: Stat
   const shown = (stats ?? []).filter((stat) => stat.value !== undefined);
 
   return (
-    <div className="px-4 pb-4">
+    <div className="px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <div
         data-widget="status-banner-hero"
         data-state={state}

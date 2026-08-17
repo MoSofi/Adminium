@@ -74,7 +74,10 @@ export function PaginationFooter({
     <div
       data-part="pagination-footer"
       data-testid={testId}
-      className="flex items-center justify-between gap-3 border-t border-border bg-surface px-3 py-2"
+      /* 13px/16px is the comp's footer inset (Data Table.dc.html); px-3/py-2 sat
+         a full step tighter than the toolbar it mirrors at the other end of the
+         card, so the two rails read as different components. */
+      className="flex items-center justify-between gap-3 border-t border-border bg-surface px-4 py-[13px]"
     >
       <MonoText data-part="pagination-range" className="text-caption text-fg-muted">
         {rangeText}

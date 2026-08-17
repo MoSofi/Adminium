@@ -19,6 +19,9 @@ import { useMountAnimation } from '../hooks/useMountAnimation.js';
 import { shortMonthNames, shortWeekdayNames } from '../utils/format.js';
 import type { ChartLabels } from './ChartSurface.js';
 
+/** Legend key swatch, px (design line 322) — independent of the day cell size. */
+const LEGEND_SWATCH = 11;
+
 export interface HeatCalendarChartProps {
   points: readonly HeatPoint[];
   labels: ChartLabels;
@@ -48,7 +51,7 @@ export function HeatCalendarChart({
   weeks = 53,
   startWeekday = 0,
   levels = 5,
-  cellSize = 12,
+  cellSize = 11,
   weekdayLabels,
   monthLabels,
   legendLabels,
@@ -153,25 +156,26 @@ export function HeatCalendarChart({
           </g>
         </g>
 
-        {/* Less → More legend. */}
+        {/* Less → More legend. The swatches are a fixed key, not a sample of the
+            grid, so they keep their own size when the day cells are resized. */}
         <g transform={`translate(${gridX}, ${monthHeader + layout.height + 8})`}>
-          <text className="adm-chart-axis-label" x={0} y={9} textAnchor="start">
+          <text className="adm-chart-legend-caption" x={0} y={9} textAnchor="start">
             {resolvedLegendLabels.less}
           </text>
           {Array.from({ length: levels }, (_, level) => (
             <rect
               key={`lg${level}`}
-              x={26 + level * (cellSize + 2)}
+              x={26 + level * (LEGEND_SWATCH + 2)}
               y={0}
-              width={cellSize}
-              height={cellSize}
-              rx={2}
+              width={LEGEND_SWATCH}
+              height={LEGEND_SWATCH}
+              rx={3}
               fill={rampColorVar(level, levels)}
             />
           ))}
           <text
-            className="adm-chart-axis-label"
-            x={26 + levels * (cellSize + 2) + 4}
+            className="adm-chart-legend-caption"
+            x={26 + levels * (LEGEND_SWATCH + 2) + 4}
             y={9}
             textAnchor="start"
           >

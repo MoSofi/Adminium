@@ -89,7 +89,7 @@ export function ToggleSwitchListWidget({ config, data, instanceId, onEvent }: Wi
       data-widget="toggle-switch-list"
       data-persist-mode={config.persistMode}
       data-testid={config.testId}
-      className="flex h-full flex-col gap-2 overflow-auto px-4 pb-4"
+      className="flex h-full flex-col gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
     >
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {rows.map((row) => {

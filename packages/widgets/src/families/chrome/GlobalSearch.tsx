@@ -199,7 +199,7 @@ export function GlobalSearchView({
         : t('ui:widgets.chrome.globalSearch.summary', '{count} results for "{query}"', { count: filtered.length, query });
 
     return (
-      <div data-widget="global-search" data-variant="page" data-testid={testId} className="flex h-full flex-col gap-3 px-4 pb-4">
+      <div data-widget="global-search" data-variant="page" data-testid={testId} className="flex h-full flex-col gap-3 px-[var(--widget-pad)] pb-[var(--widget-pad)]">
         <SearchInput
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -263,7 +263,7 @@ export function GlobalSearchView({
 
   // ── Header dropdown variant ──────────────────────────────────────────────
   return (
-    <div data-widget="global-search" data-variant="dropdown" data-testid={testId} className="px-4 pb-4">
+    <div data-widget="global-search" data-variant="dropdown" data-testid={testId} className="px-[var(--widget-pad)] pb-[var(--widget-pad)]">
       <Popover open={query !== ''}>
         <PopoverTrigger asChild>
           <div>

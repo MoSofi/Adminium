@@ -550,7 +550,12 @@ const kpiMoneySum: CandidateRule = {
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'sum', column: column.name, alias: 'value' }],
         }),
-        config: { title: `Total ${humanize(column.name)}`, format: 'currency' },
+        // `metricFormat`, not `format`: the shared `format` key is an OBJECT
+        // ({locale, currency, number, date}), so the string form failed
+        // validation and was pruned on every mount — every money KPI on a
+        // generated dashboard rendered unformatted, and `format` is skipped by
+        // the config drawer so it could not be repaired by hand either.
+        config: { title: `Total ${humanize(column.name)}`, metricFormat: 'currency' },
       }));
   },
 };
@@ -656,7 +661,13 @@ const kpiStorageUsage: CandidateRule = {
         binding: descriptor(view, ctx, 'single-metric', {
           aggregations: [{ fn: 'sum', column: column.name, alias: 'value' }],
         }),
-        config: { title: `${humanize(view.table.name)} Storage`, format: 'filesize' },
+        // Same class of bug as `kpi.money-sum` above: `format: 'filesize'` never
+        // parsed and was pruned on every mount. Dropped rather than translated —
+        // UsageMeter's `unit` is a free-text SUFFIX ("12 of 100 GB"), not a
+        // formatter, and the generator cannot know the unit of an arbitrary size
+        // column. Falling through to the metric's own `unit` is the honest
+        // default; a wrong hardcoded suffix would be worse than none.
+        config: { title: `${humanize(view.table.name)} Storage` },
       },
     ];
   },

@@ -152,6 +152,11 @@ export function WidgetHost({
     <WidgetFrame
       state={state}
       title={typeof cfg.title === 'string' ? cfg.title : undefined}
+      // `subtitle` has been in `widgetSharedConfigSchema` since the beginning
+      // and had ZERO consumers repo-wide — it rendered as field #2 of every
+      // widget's config drawer and did nothing when set. This is the consumer.
+      subtitle={typeof cfg.subtitle === 'string' && cfg.subtitle !== '' ? cfg.subtitle : undefined}
+      bleed={cfg.bleed === true}
       info={resolvedInfo}
       menu={menu}
       dragGrip={dragGrip}

@@ -1,9 +1,10 @@
 /**
  * `chart-radial-bar` primitive (research/widget-registry.md §2): concentric
  * progress rings (≤4 categories), each a stroke sweep of its percent, with a
- * legend of colored dots + mono percents. Rings never mirror in RTL (rotation
- * is direction-neutral, §7.4) — only the legend flips via flex + logical CSS.
- * Colors are tokens only; geometry is pure (04 §7.1).
+ * legend of colored dots + mono percents. A single ring reads as a gauge, so it
+ * carries its value in the middle — every ring in the design does. Rings never
+ * mirror in RTL (rotation is direction-neutral, §7.4) — only the legend flips
+ * via flex + logical CSS. Colors are tokens only; geometry is pure (04 §7.1).
  */
 import type { ReactNode } from 'react';
 
@@ -21,6 +22,10 @@ export interface RadialBarChartProps {
   size?: number;
   thickness?: number;
   showLegend?: boolean;
+  /** Centered headline value. Defaults to the single ring's formatted value. */
+  centerValue?: string;
+  /** Caption under the centered value. */
+  centerLabel?: string;
   format?: (value: number) => string;
   dir?: ChartDir;
   a11yFallback?: ReactNode;
@@ -35,6 +40,8 @@ export function RadialBar({
   size = 168,
   thickness = 12,
   showLegend = true,
+  centerValue,
+  centerLabel,
   format = defaultFormat,
   dir,
   a11yFallback,
@@ -43,6 +50,10 @@ export function RadialBar({
   const resolvedDir = useChartDir(dir);
   const mounted = useMountAnimation();
   const rings = radialBarRings(data, { size, thickness });
+  // Only a lone ring gets an automatic center value — with two or more rings the
+  // hole is small and belongs to no single series.
+  const soleRing = rings.length === 1 ? rings[0] : undefined;
+  const shownCenterValue = centerValue ?? (soleRing === undefined ? undefined : format(soleRing.value));
 
   return (
     <div
@@ -67,6 +78,26 @@ export function RadialBar({
               )}
             </g>
           ))}
+          {/* The caption is positioned off the value's baseline, so it only
+              renders as part of the pair. */}
+          {shownCenterValue !== undefined && (
+            <>
+              <text
+                className="adm-donut-center-value"
+                style={{ '--adm-center-size': `${Math.round(size * 0.15)}px` }}
+                textAnchor="middle"
+                dy={centerLabel !== undefined ? '0.1em' : '0.35em'}
+                data-center-value=""
+              >
+                {shownCenterValue}
+              </text>
+              {centerLabel !== undefined && (
+                <text className="adm-donut-center-label" textAnchor="middle" dy="1.6em">
+                  {centerLabel}
+                </text>
+              )}
+            </>
+          )}
         </g>
       </svg>
 

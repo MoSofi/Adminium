@@ -109,7 +109,7 @@ export function UptimeSegmentBarView({
         data-widget="uptime-segment-bar"
         data-testid={testId}
         data-period={window}
-        className="flex h-full flex-col justify-center gap-2 px-4 pb-4"
+        className="flex h-full flex-col justify-center gap-2 px-[var(--widget-pad)] pb-[var(--widget-pad)]"
       >
         {!showToggle ? null : (
           <div className="flex justify-end">

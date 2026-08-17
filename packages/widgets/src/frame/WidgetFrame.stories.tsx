@@ -17,7 +17,7 @@ const meta = {
 export default meta;
 
 const demoBody = (
-  <div className="flex flex-col gap-1 px-4 pb-4">
+  <div className="flex flex-col gap-1 px-[var(--widget-pad)] pb-[var(--widget-pad)]">
     <span className="text-[26px] font-bold text-fg">$48,210</span>
     <span className="text-body-sm text-fg-muted">+12.4% vs prior 30 days</span>
   </div>
