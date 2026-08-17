@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Studio API client (M5-T01/T02/T03) — thin typed wrappers over the connect
  * flow endpoints. Shapes mirror the server Zod reply schemas
@@ -8,7 +9,7 @@
 
 import { queryOptions } from '@tanstack/react-query';
 
-import { api, ApiError } from '../app/api.js';
+import { api, ApiError, csrfHeaders } from '../app/api.js';
 
 export type ConnectionEngine = 'postgres' | 'mysql' | 'sqlite';
 
@@ -125,7 +126,9 @@ async function deleteJson<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(path, {
     method: 'DELETE',
     credentials: 'same-origin',
-    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    // Hand-rolled fetch ⇒ hand-rolled CSRF header (08 §7 item 4). Without it
+    // the delete-connection confirm 403s.
+    headers: { accept: 'application/json', 'content-type': 'application/json', ...csrfHeaders() },
     body: JSON.stringify(payload),
   });
   let body: unknown = null;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto';
 
 /**
@@ -7,9 +8,13 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:cr
  * with the master secret directly. Values at rest are AES-256-GCM tokens of
  * the form `enc:v1:<base64(iv|tag|ciphertext)>`.
  *
- * There is no CSRF key: no CSRF token is issued or checked anywhere. The
- * cross-site defence is the session cookie's `SameSite=Lax` plus CORS being
- * off by default (see `auth/sessions.ts` and `plugins/core.ts`).
+ * The CSRF key is one of these derivations (`security/csrf.ts`, info string
+ * `adminium:csrf`): `GET /bootstrap` issues `HMAC(key, session.id)` and the
+ * `preValidation` hook in `plugins/core.ts` recomputes it, so nothing about a
+ * CSRF token is stored and it dies exactly when its session does. It backs up
+ * — it does not replace — the passive legs: the session cookie's
+ * `SameSite=Lax` and CORS being off by default (`auth/sessions.ts`,
+ * `plugins/core.ts`).
  */
 const KEY_BYTES = 32;
 const IV_BYTES = 12;

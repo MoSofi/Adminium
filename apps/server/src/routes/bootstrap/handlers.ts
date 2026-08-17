@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `GET /api/v1/bootstrap` handler (09-generated-app.md §2.1) — deliberately
  * thin: one query per concern, no fan-out beyond what the shell needs on a
@@ -29,6 +30,7 @@ import {
 
 import { UnauthorizedError } from '../../errors.js';
 import type { AuthContext } from '../../plugins/auth.js';
+import { csrfSigningKey, issueCsrfToken } from '../../security/csrf.js';
 import { toUserView } from '../auth/handlers.js';
 import { APP_VERSION } from '../../version.js';
 import {
@@ -42,6 +44,19 @@ import {
 function principal(request: FastifyRequest): User {
   if (request.user === null) throw new UnauthorizedError('UNAUTHENTICATED');
   return request.user;
+}
+
+/**
+ * The §7-item-4 token for this request's session. `requireAuth` guarantees a
+ * session here — an API-key principal never reaches this handler — so there is
+ * no null case to model on the wire. The key is derived per call rather than
+ * cached on `AuthContext`: HKDF is microseconds and this runs once per cold
+ * load, which is cheaper than another field to keep in sync.
+ */
+function csrfTokenFor(ctx: AuthContext, request: FastifyRequest): string {
+  const sessionId = request.session?.id;
+  if (sessionId === undefined) throw new UnauthorizedError('UNAUTHENTICATED');
+  return issueCsrfToken(csrfSigningKey(ctx.env.ADMINIUM_SECRET), sessionId);
 }
 
 /**
@@ -143,6 +158,7 @@ export async function bootstrapHandler(
       version: APP_VERSION,
       configVersion,
       llm: { enabled: typeof llmProvider === 'string' && llmProvider.length > 0 },
+      csrfToken: csrfTokenFor(ctx, request),
     },
   };
 }

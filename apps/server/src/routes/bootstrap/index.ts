@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Bootstrap resource (09-generated-app.md §2.1, 01-architecture.md §5):
  * `GET /api/v1/bootstrap` — the single round trip the SPA issues on a cold

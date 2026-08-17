@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Auth routes (08-server-api.md §2.1), mounted under /api/v1 by app.ts.
  *
@@ -11,6 +12,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { AppError } from '../../errors.js';
 import type { AuthContext } from '../../plugins/auth.js';
+import type { RateLimitBucket } from '../../plugins/core.js';
 import {
   activate2faHandler,
   changePasswordHandler,
@@ -55,8 +57,23 @@ export const RATE_LIMIT_BUCKETS = {
 
 declare module 'fastify' {
   interface FastifyContextConfig {
-    /** §6 bucket key the core plugin's rate limiter attaches to. */
-    rateLimitBucket?: string;
+    /**
+     * §6 bucket key the core plugin's rate limiter attaches to. Typed as the
+     * union of `RATE_BUCKETS` keys rather than `string`: the boot-time gate in
+     * that plugin only fires for routes registered in THAT boot, and eleven
+     * route groups are conditionally registered, so a typo in one of them
+     * would otherwise stay invisible until the feature is enabled.
+     */
+    rateLimitBucket?: RateLimitBucket;
+    /**
+     * §7 item 4 opt-out. `exempt` skips the CSRF check in `security/csrf.ts`
+     * — for cookie-authenticated callers that are structurally incapable of
+     * carrying a token, and that carry a stronger control instead. Exactly one
+     * route uses it: `POST /desktop/backup`, whose caller is the Electron main
+     * process and whose substitute gate is a loopback socket peer plus
+     * `system:settings:manage`.
+     */
+    csrf?: 'exempt';
   }
 }
 
