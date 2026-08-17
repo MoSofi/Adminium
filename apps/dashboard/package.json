@@ -22,7 +22,7 @@
     "@adminium/widgets": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-router": "^1.170.27",
-    "lucide-react": "^0.525.0",
+    "lucide-react": "^0.577.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "zod": "catalog:"

@@ -22,7 +22,7 @@
     "@adminium/meta": "workspace:*",
     "@adminium/server": "workspace:*",
     "@playwright/test": "^1.62.1",
-    "@types/node": "22.15.3",
+    "@types/node": "22.20.1",
     "better-sqlite3": "^13.0.3",
     "electron": "^43.4.0",
     "eslint": "catalog:",
