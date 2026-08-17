@@ -22,22 +22,17 @@
  *    restarts; this card renders that rejection in place, with the suggested
  *    port as a button, and no state has moved.
  *
- * ─── MISSING ON PURPOSE: §8.3's "Manage users & roles" link ──────────────────
+ * ─── §8.3's "Manage users & roles" link ──────────────────────────────────────
  *
- * §8.3 asks the panel for a link to the Roles & Permissions surface. That
- * surface does not exist in this build: `apps/server/src/routes/roles/` is
- * there, but `apps/dashboard` has no users or roles page and `app/router.tsx`
- * has no route to give it. The link is therefore omitted rather than pointed at
- * a `/settings/roles` that would render the 404 state — a dead link inside the
- * panel that exists to tell you the truth about your network is worse than an
- * absent one, and "the button is there" is not the same as "the user can manage
- * roles".
- *
- * WHOEVER BUILDS THAT PAGE: add the link to {@link SharePanel}, next to the
- * session count, which is the sentence that motivates it ("2 devices signed in"
- * → "who are they?"). The `otherUsers` count is already fetched here.
+ * §8.3 asks the panel for a link to the user/role surface, and it now exists:
+ * `/settings/team` (the directory + invites) over the `routes/users` and
+ * `routes/roles` endpoints. The link sits next to the session count because
+ * that is the sentence which motivates it — "2 devices signed in" → "who are
+ * they?" — and it is the same question the acknowledgement checkbox below is
+ * asking the admin to promise an answer to.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { Info, Network, ShieldAlert, Users } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
@@ -490,6 +485,11 @@ function SharePanel(props: {
                   { count: props.sessions },
                 )}
           </p>
+
+          {/* §8.3's link, next to the count it answers. */}
+          <Button asChild variant="secondary" size="sm" className="self-start">
+            <Link to="/settings/team">{t('desktop.lan.manageTeam', 'Manage users & roles')}</Link>
+          </Button>
         </>
       ) : null}
 
