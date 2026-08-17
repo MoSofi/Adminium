@@ -511,6 +511,202 @@
     "srcHash": "ec85149b1924",
     "status": "mt"
   },
+  "common.audit.action.view": {
+    "status": "mt",
+    "srcHash": "69bd4ef9fbd0"
+  },
+  "common.audit.actor.apiKey": {
+    "status": "mt",
+    "srcHash": "cf678cab87dc"
+  },
+  "common.audit.actor.automation": {
+    "status": "mt",
+    "srcHash": "a15fde5173db"
+  },
+  "common.audit.actor.system": {
+    "status": "mt",
+    "srcHash": "bc0792d8dc81"
+  },
+  "common.audit.actor.user": {
+    "status": "mt",
+    "srcHash": "9f8a2389a20c"
+  },
+  "common.audit.category.auth": {
+    "status": "mt",
+    "srcHash": "dd34275b1bf9"
+  },
+  "common.audit.category.automation": {
+    "status": "mt",
+    "srcHash": "82542d6d0a0a"
+  },
+  "common.audit.category.connection": {
+    "status": "mt",
+    "srcHash": "8f3509b64e0e"
+  },
+  "common.audit.category.data": {
+    "status": "mt",
+    "srcHash": "e51c55255be9"
+  },
+  "common.audit.category.export": {
+    "status": "mt",
+    "srcHash": "40d9e83e2c23"
+  },
+  "common.audit.category.llm": {
+    "status": "mt",
+    "srcHash": "9fd17eb7ffe4"
+  },
+  "common.audit.category.rbac": {
+    "status": "mt",
+    "srcHash": "997fabd09c7e"
+  },
+  "common.audit.category.schema": {
+    "status": "mt",
+    "srcHash": "b5230ecdf4e7"
+  },
+  "common.audit.category.settings": {
+    "status": "mt",
+    "srcHash": "c7f73bb54d92"
+  },
+  "common.audit.category.system": {
+    "status": "mt",
+    "srcHash": "bc0792d8dc81"
+  },
+  "common.audit.column.action": {
+    "status": "mt",
+    "srcHash": "97c89a4d6630"
+  },
+  "common.audit.column.actor": {
+    "status": "mt",
+    "srcHash": "cbd19b5c397e"
+  },
+  "common.audit.column.category": {
+    "status": "mt",
+    "srcHash": "a3c686e711e4"
+  },
+  "common.audit.column.details": {
+    "status": "mt",
+    "srcHash": "dc3decbb9384"
+  },
+  "common.audit.column.when": {
+    "status": "mt",
+    "srcHash": "769bb19e615b"
+  },
+  "common.audit.drawer.actorId": {
+    "status": "mt",
+    "srcHash": "d62520ed7584"
+  },
+  "common.audit.drawer.actorKind": {
+    "status": "mt",
+    "srcHash": "a19a1c7006dc"
+  },
+  "common.audit.drawer.after": {
+    "status": "mt",
+    "srcHash": "79ba5e1b3f99"
+  },
+  "common.audit.drawer.before": {
+    "status": "mt",
+    "srcHash": "74f39697ac32"
+  },
+  "common.audit.drawer.category": {
+    "status": "mt",
+    "srcHash": "a3c686e711e4"
+  },
+  "common.audit.drawer.changes": {
+    "status": "mt",
+    "srcHash": "8aa57de6dce6"
+  },
+  "common.audit.drawer.connection": {
+    "status": "mt",
+    "srcHash": "6512ee1541e9"
+  },
+  "common.audit.drawer.field": {
+    "status": "mt",
+    "srcHash": "c326a4660b67"
+  },
+  "common.audit.drawer.ip": {
+    "status": "mt",
+    "srcHash": "99a1caa5a191"
+  },
+  "common.audit.drawer.noChanges": {
+    "status": "mt",
+    "srcHash": "4bb63a7b1352"
+  },
+  "common.audit.drawer.none": {
+    "status": "mt",
+    "srcHash": "6eef6648406c"
+  },
+  "common.audit.drawer.requestId": {
+    "status": "mt",
+    "srcHash": "9ad53f956462"
+  },
+  "common.audit.drawer.resource": {
+    "status": "mt",
+    "srcHash": "021493f340d3"
+  },
+  "common.audit.drawer.subtitle": {
+    "status": "mt",
+    "srcHash": "66e2f1c7082a"
+  },
+  "common.audit.drawer.truncated": {
+    "status": "mt",
+    "srcHash": "7e77a196e37b"
+  },
+  "common.audit.drawer.userAgent": {
+    "status": "mt",
+    "srcHash": "dbcd80b33b37"
+  },
+  "common.audit.empty.body": {
+    "status": "mt",
+    "srcHash": "7fe9c8128fc2"
+  },
+  "common.audit.empty.filtered.body": {
+    "status": "mt",
+    "srcHash": "0e45e1f69dff"
+  },
+  "common.audit.empty.filtered.title": {
+    "status": "mt",
+    "srcHash": "eb3d75b4c1d5"
+  },
+  "common.audit.empty.title": {
+    "status": "mt",
+    "srcHash": "705fc15b0f60"
+  },
+  "common.audit.filterActor": {
+    "status": "mt",
+    "srcHash": "d62520ed7584"
+  },
+  "common.audit.filterCategory": {
+    "status": "mt",
+    "srcHash": "459a08e4a2e7"
+  },
+  "common.audit.filterCategoryAny": {
+    "status": "mt",
+    "srcHash": "5f319de0e3f8"
+  },
+  "common.audit.filterFrom": {
+    "status": "mt",
+    "srcHash": "3f66052a107e"
+  },
+  "common.audit.filterTo": {
+    "status": "mt",
+    "srcHash": "ae79ea1e9c63"
+  },
+  "common.audit.listFailed.title": {
+    "status": "mt",
+    "srcHash": "6bb046e93a27"
+  },
+  "common.audit.loadMore": {
+    "status": "mt",
+    "srcHash": "a3e999b0e0f5"
+  },
+  "common.audit.subtitle": {
+    "status": "mt",
+    "srcHash": "916b52a6c7ba"
+  },
+  "common.audit.title": {
+    "status": "mt",
+    "srcHash": "3cfc5f1cc987"
+  },
   "common.auth.forgot.back": {
     "srcHash": "4da821676b2f",
     "status": "mt"
@@ -755,6 +951,458 @@
     "srcHash": "dd4416eeb971",
     "status": "mt"
   },
+  "common.builder.binding.addFilter": {
+    "status": "mt",
+    "srcHash": "85425f957a33"
+  },
+  "common.builder.binding.brokenBody": {
+    "status": "mt",
+    "srcHash": "ba72c7f4a926"
+  },
+  "common.builder.binding.brokenTitle": {
+    "status": "mt",
+    "srcHash": "fbb3516afb7d"
+  },
+  "common.builder.binding.bucketColumn": {
+    "status": "mt",
+    "srcHash": "a2985de3c87d"
+  },
+  "common.builder.binding.bucketRequired": {
+    "status": "mt",
+    "srcHash": "1d49750a8105"
+  },
+  "common.builder.binding.bucketUnit": {
+    "status": "mt",
+    "srcHash": "8c0939cf9bff"
+  },
+  "common.builder.binding.columnNone": {
+    "status": "mt",
+    "srcHash": "6eef6648406c"
+  },
+  "common.builder.binding.columnPlaceholder": {
+    "status": "mt",
+    "srcHash": "a8b8d4dbb2e0"
+  },
+  "common.builder.binding.connect": {
+    "status": "mt",
+    "srcHash": "248cee744a99"
+  },
+  "common.builder.binding.edit": {
+    "status": "mt",
+    "srcHash": "8970bdb55271"
+  },
+  "common.builder.binding.event.category": {
+    "status": "mt",
+    "srcHash": "5c87ce1e0172"
+  },
+  "common.builder.binding.event.date": {
+    "status": "mt",
+    "srcHash": "4aa158556f4c"
+  },
+  "common.builder.binding.event.end": {
+    "status": "mt",
+    "srcHash": "f44907fc437b"
+  },
+  "common.builder.binding.event.title": {
+    "status": "mt",
+    "srcHash": "fb2517a2f8e1"
+  },
+  "common.builder.binding.eventColumnsRequired": {
+    "status": "mt",
+    "srcHash": "a46ff51d726a"
+  },
+  "common.builder.binding.filterColumn": {
+    "status": "mt",
+    "srcHash": "65ba00e95e60"
+  },
+  "common.builder.binding.filterColumnRequired": {
+    "status": "mt",
+    "srcHash": "886c394f4259"
+  },
+  "common.builder.binding.filterListHelper": {
+    "status": "mt",
+    "srcHash": "05f7017e5c23"
+  },
+  "common.builder.binding.filterOp": {
+    "status": "mt",
+    "srcHash": "2f4979324e03"
+  },
+  "common.builder.binding.filterValue": {
+    "status": "mt",
+    "srcHash": "8dce170de238"
+  },
+  "common.builder.binding.fn.avg": {
+    "status": "mt",
+    "srcHash": "15f86c051ecf"
+  },
+  "common.builder.binding.fn.count": {
+    "status": "mt",
+    "srcHash": "7f6b67d61b48"
+  },
+  "common.builder.binding.fn.countDistinct": {
+    "status": "mt",
+    "srcHash": "df7fbc68504e"
+  },
+  "common.builder.binding.fn.max": {
+    "status": "mt",
+    "srcHash": "a8df2fec28d8"
+  },
+  "common.builder.binding.fn.min": {
+    "status": "mt",
+    "srcHash": "5d398eef3ecc"
+  },
+  "common.builder.binding.fn.sum": {
+    "status": "mt",
+    "srcHash": "fc9ce14b28c6"
+  },
+  "common.builder.binding.groupBy": {
+    "status": "mt",
+    "srcHash": "8f0d8d8348ec"
+  },
+  "common.builder.binding.groupByColumns": {
+    "status": "mt",
+    "srcHash": "cf723c59b62a"
+  },
+  "common.builder.binding.groupByRequired": {
+    "status": "mt",
+    "srcHash": "c43ab6137440"
+  },
+  "common.builder.binding.groupByRows": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "common.builder.binding.incompleteBody": {
+    "status": "mt",
+    "srcHash": "f76c4a79d5a5"
+  },
+  "common.builder.binding.incompleteTitle": {
+    "status": "mt",
+    "srcHash": "ec6bbfecf7a2"
+  },
+  "common.builder.binding.limit": {
+    "status": "mt",
+    "srcHash": "800c570a0fbb"
+  },
+  "common.builder.binding.loadingSchema": {
+    "status": "mt",
+    "srcHash": "42d639e5fe9c"
+  },
+  "common.builder.binding.lossyBody": {
+    "status": "mt",
+    "srcHash": "e8bf09fb97e9"
+  },
+  "common.builder.binding.lossyTitle": {
+    "status": "mt",
+    "srcHash": "1a7fb28b5d72"
+  },
+  "common.builder.binding.measureColumn": {
+    "status": "mt",
+    "srcHash": "6e6033c75ac0"
+  },
+  "common.builder.binding.measureColumnRequired": {
+    "status": "mt",
+    "srcHash": "fdd770250757"
+  },
+  "common.builder.binding.measureFn": {
+    "status": "mt",
+    "srcHash": "8e5903a8e4db"
+  },
+  "common.builder.binding.noConnectionBody": {
+    "status": "mt",
+    "srcHash": "0c7e81f24d5d"
+  },
+  "common.builder.binding.noConnectionTitle": {
+    "status": "mt",
+    "srcHash": "5e924d7c108c"
+  },
+  "common.builder.binding.noDateColumns": {
+    "status": "mt",
+    "srcHash": "d662a12f7d7c"
+  },
+  "common.builder.binding.noFilters": {
+    "status": "mt",
+    "srcHash": "6b6c3f555f4f"
+  },
+  "common.builder.binding.noSnapshotBody": {
+    "status": "mt",
+    "srcHash": "ac84eabf651c"
+  },
+  "common.builder.binding.noSnapshotTitle": {
+    "status": "mt",
+    "srcHash": "67b10e1fe724"
+  },
+  "common.builder.binding.op.between": {
+    "status": "mt",
+    "srcHash": "0000b0648847"
+  },
+  "common.builder.binding.op.ilike": {
+    "status": "mt",
+    "srcHash": "bb3e36e01a25"
+  },
+  "common.builder.binding.op.in": {
+    "status": "mt",
+    "srcHash": "115c2c3c0a46"
+  },
+  "common.builder.binding.op.isNull": {
+    "status": "mt",
+    "srcHash": "9023f52ae1d6"
+  },
+  "common.builder.binding.op.like": {
+    "status": "mt",
+    "srcHash": "caeb909ae4ff"
+  },
+  "common.builder.binding.op.notNull": {
+    "status": "mt",
+    "srcHash": "8e5ab35fdfaa"
+  },
+  "common.builder.binding.orderAsc": {
+    "status": "mt",
+    "srcHash": "a6339f8fb617"
+  },
+  "common.builder.binding.orderBy": {
+    "status": "mt",
+    "srcHash": "a2a5bdeca939"
+  },
+  "common.builder.binding.orderDesc": {
+    "status": "mt",
+    "srcHash": "36f8407b39c1"
+  },
+  "common.builder.binding.orderDir": {
+    "status": "mt",
+    "srcHash": "fd8e45bac7d3"
+  },
+  "common.builder.binding.orderNone": {
+    "status": "mt",
+    "srcHash": "15e5cb95d079"
+  },
+  "common.builder.binding.pickTableFirst": {
+    "status": "mt",
+    "srcHash": "43aa47a2fe14"
+  },
+  "common.builder.binding.remove": {
+    "status": "mt",
+    "srcHash": "3ca35c402319"
+  },
+  "common.builder.binding.removeFilter": {
+    "status": "mt",
+    "srcHash": "97f6a406e58c"
+  },
+  "common.builder.binding.save": {
+    "status": "mt",
+    "srcHash": "64a018c4800c"
+  },
+  "common.builder.binding.sectionBreakdown": {
+    "status": "mt",
+    "srcHash": "fd91b3cc1b4b"
+  },
+  "common.builder.binding.sectionColumns": {
+    "status": "mt",
+    "srcHash": "cf723c59b62a"
+  },
+  "common.builder.binding.sectionFilters": {
+    "status": "mt",
+    "srcHash": "96e578211aa2"
+  },
+  "common.builder.binding.sectionMeasure": {
+    "status": "mt",
+    "srcHash": "d4fd0a232ee5"
+  },
+  "common.builder.binding.sectionRows": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "common.builder.binding.sectionSource": {
+    "status": "mt",
+    "srcHash": "6da13addb000"
+  },
+  "common.builder.binding.sectionTime": {
+    "status": "mt",
+    "srcHash": "925d4a0ec79f"
+  },
+  "common.builder.binding.sectionWindow": {
+    "status": "mt",
+    "srcHash": "170a28a9db6d"
+  },
+  "common.builder.binding.selectColumns": {
+    "status": "mt",
+    "srcHash": "17aa712b558d"
+  },
+  "common.builder.binding.selectRequired": {
+    "status": "mt",
+    "srcHash": "e73598361445"
+  },
+  "common.builder.binding.shape.calendarEvents": {
+    "status": "mt",
+    "srcHash": "775dca4e56a2"
+  },
+  "common.builder.binding.shape.categorical": {
+    "status": "mt",
+    "srcHash": "c75be42a8ec0"
+  },
+  "common.builder.binding.shape.distribution": {
+    "status": "mt",
+    "srcHash": "b77a839c5b7f"
+  },
+  "common.builder.binding.shape.matrix": {
+    "status": "mt",
+    "srcHash": "a5099c8091a6"
+  },
+  "common.builder.binding.shape.metricDelta": {
+    "status": "mt",
+    "srcHash": "b65bc85d4b3c"
+  },
+  "common.builder.binding.shape.multiTimeseries": {
+    "status": "mt",
+    "srcHash": "680c8739ae06"
+  },
+  "common.builder.binding.shape.record": {
+    "status": "mt",
+    "srcHash": "810e43382027"
+  },
+  "common.builder.binding.shape.recordList": {
+    "status": "mt",
+    "srcHash": "b6e16d5c9fe1"
+  },
+  "common.builder.binding.shape.singleMetric": {
+    "status": "mt",
+    "srcHash": "af65cbe55b0f"
+  },
+  "common.builder.binding.shape.stream": {
+    "status": "mt",
+    "srcHash": "d46c3d777120"
+  },
+  "common.builder.binding.shape.timeseries": {
+    "status": "mt",
+    "srcHash": "14789d238b35"
+  },
+  "common.builder.binding.shapeHelper": {
+    "status": "mt",
+    "srcHash": "216e7ff9d5c2"
+  },
+  "common.builder.binding.shapeLabel": {
+    "status": "mt",
+    "srcHash": "e86a9d5c123f"
+  },
+  "common.builder.binding.summaryColumns": {
+    "status": "mt",
+    "srcHash": "e50c61e2304b"
+  },
+  "common.builder.binding.summaryFilters": {
+    "status": "mt",
+    "srcHash": "469da6c22632"
+  },
+  "common.builder.binding.table": {
+    "status": "mt",
+    "srcHash": "1c0b51525f0a"
+  },
+  "common.builder.binding.tableEmpty": {
+    "status": "mt",
+    "srcHash": "48c3a7dace92"
+  },
+  "common.builder.binding.tablePlaceholder": {
+    "status": "mt",
+    "srcHash": "efd734e0c9a7"
+  },
+  "common.builder.binding.tableRequired": {
+    "status": "mt",
+    "srcHash": "0d2e495a2a1d"
+  },
+  "common.builder.binding.title": {
+    "status": "mt",
+    "srcHash": "ffb77dd8c3e5"
+  },
+  "common.builder.binding.unbindableBody": {
+    "status": "mt",
+    "srcHash": "9dee91988b26"
+  },
+  "common.builder.binding.unbindableTitle": {
+    "status": "mt",
+    "srcHash": "6797a295a7c0"
+  },
+  "common.builder.binding.unboundBody": {
+    "status": "mt",
+    "srcHash": "7e7ddf3f62a2"
+  },
+  "common.builder.binding.unboundTitle": {
+    "status": "mt",
+    "srcHash": "ab29144d3a5d"
+  },
+  "common.builder.binding.unit.day": {
+    "status": "mt",
+    "srcHash": "728298d3dbf4"
+  },
+  "common.builder.binding.unit.hour": {
+    "status": "mt",
+    "srcHash": "d9362548c29b"
+  },
+  "common.builder.binding.unit.month": {
+    "status": "mt",
+    "srcHash": "d31edb7b8a94"
+  },
+  "common.builder.binding.unit.quarter": {
+    "status": "mt",
+    "srcHash": "8a34f7088055"
+  },
+  "common.builder.binding.unit.week": {
+    "status": "mt",
+    "srcHash": "158f3da59275"
+  },
+  "common.builder.binding.unit.year": {
+    "status": "mt",
+    "srcHash": "7622eb5aa42d"
+  },
+  "common.builder.binding.valueColumn": {
+    "status": "mt",
+    "srcHash": "eaecf6a46a5a"
+  },
+  "common.builder.binding.valueColumnRequired": {
+    "status": "mt",
+    "srcHash": "86a9bd9b5d8e"
+  },
+  "common.builder.binding.windowColumn": {
+    "status": "mt",
+    "srcHash": "a2985de3c87d"
+  },
+  "common.builder.binding.windowLast": {
+    "status": "mt",
+    "srcHash": "d1c69a859a96"
+  },
+  "common.builder.binding.windowNone": {
+    "status": "mt",
+    "srcHash": "dbad49d89123"
+  },
+  "common.builder.binding.windowRequired": {
+    "status": "mt",
+    "srcHash": "a96aa157e430"
+  },
+  "common.builder.binding.windowUnit.day": {
+    "status": "mt",
+    "srcHash": "5548ae4f34cb"
+  },
+  "common.builder.binding.windowUnit.hour": {
+    "status": "mt",
+    "srcHash": "5aedee0964c6"
+  },
+  "common.builder.binding.windowUnit.month": {
+    "status": "mt",
+    "srcHash": "f1494311e45e"
+  },
+  "common.builder.binding.windowUnit.quarter": {
+    "status": "mt",
+    "srcHash": "61da49adb2c7"
+  },
+  "common.builder.binding.windowUnit.week": {
+    "status": "mt",
+    "srcHash": "0af64388b588"
+  },
+  "common.builder.binding.windowUnit.year": {
+    "status": "mt",
+    "srcHash": "e21ee77d5009"
+  },
+  "common.builder.binding.windowUnitLabel": {
+    "status": "mt",
+    "srcHash": "f6b935ab3371"
+  },
   "common.builder.discard": {
     "status": "mt",
     "srcHash": "fa8fc0432141"
@@ -894,6 +1542,14 @@
   "common.builder.item.removed": {
     "srcHash": "9a06062c3514",
     "status": "mt"
+  },
+  "common.builder.item.unbound": {
+    "status": "mt",
+    "srcHash": "057f604cfd13"
+  },
+  "common.builder.item.unboundHint": {
+    "status": "mt",
+    "srcHash": "efa7cd9b9f6b"
   },
   "common.builder.keepEditing": {
     "status": "mt",
@@ -1439,6 +2095,10 @@
     "srcHash": "1ffa18c8ca7a",
     "status": "mt"
   },
+  "common.desktop.lan.manageTeam": {
+    "status": "mt",
+    "srcHash": "3122b109d450"
+  },
   "common.desktop.lan.mismatch": {
     "srcHash": "3f0f42b94412",
     "status": "mt"
@@ -1606,6 +2266,10 @@
   "common.desktop.settings.explainer": {
     "srcHash": "171218afd106",
     "status": "mt"
+  },
+  "common.desktop.settings.title": {
+    "status": "mt",
+    "srcHash": "564490a84de5"
   },
   "common.desktop.setup.account.alreadyExists": {
     "srcHash": "dc4ac8af82db",
@@ -2227,6 +2891,10 @@
     "srcHash": "85dfa32c97d8",
     "status": "mt"
   },
+  "common.nav.audit": {
+    "status": "mt",
+    "srcHash": "3cfc5f1cc987"
+  },
   "common.nav.back": {
     "status": "mt",
     "srcHash": "b52b36b7269f"
@@ -2287,13 +2955,25 @@
     "srcHash": "a9a96ec01949",
     "status": "mt"
   },
+  "common.nav.roles": {
+    "status": "mt",
+    "srcHash": "997fabd09c7e"
+  },
   "common.nav.scheduledReports": {
     "srcHash": "cd24c1d35220",
     "status": "mt"
   },
+  "common.nav.security": {
+    "status": "mt",
+    "srcHash": "9addbdf7b4be"
+  },
   "common.nav.signOut": {
     "srcHash": "dc1649a16c14",
     "status": "mt"
+  },
+  "common.nav.team": {
+    "status": "mt",
+    "srcHash": "218887269ad5"
   },
   "common.notFound.backToDashboard": {
     "srcHash": "b3963db5ead8",
@@ -2779,6 +3459,234 @@
     "srcHash": "cd24c1d35220",
     "status": "mt"
   },
+  "common.roles.action.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "common.roles.action.rename": {
+    "status": "mt",
+    "srcHash": "d3f4cb898fbe"
+  },
+  "common.roles.builtinLocked": {
+    "status": "mt",
+    "srcHash": "68169c1d618b"
+  },
+  "common.roles.category.access": {
+    "status": "mt",
+    "srcHash": "2f81a22de0af"
+  },
+  "common.roles.category.data": {
+    "status": "mt",
+    "srcHash": "e5e429bcc9c2"
+  },
+  "common.roles.category.operations": {
+    "status": "mt",
+    "srcHash": "a1fdaa6b2a84"
+  },
+  "common.roles.category.workspace": {
+    "status": "mt",
+    "srcHash": "4ca0a75c2b7f"
+  },
+  "common.roles.column.actions": {
+    "status": "mt",
+    "srcHash": "c3cd636a585b"
+  },
+  "common.roles.column.members": {
+    "status": "mt",
+    "srcHash": "1cb449c11266"
+  },
+  "common.roles.column.name": {
+    "status": "mt",
+    "srcHash": "c3f104d13657"
+  },
+  "common.roles.create.description": {
+    "status": "mt",
+    "srcHash": "afefee406147"
+  },
+  "common.roles.create.descriptionLabel": {
+    "status": "mt",
+    "srcHash": "55f8ebc805e6"
+  },
+  "common.roles.create.failed": {
+    "status": "mt",
+    "srcHash": "0632def13ee2"
+  },
+  "common.roles.create.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "common.roles.create.namePlaceholder": {
+    "status": "mt",
+    "srcHash": "f22914d20a1c"
+  },
+  "common.roles.create.submit": {
+    "status": "mt",
+    "srcHash": "db859badeb38"
+  },
+  "common.roles.create.title": {
+    "status": "mt",
+    "srcHash": "165fb5e1e341"
+  },
+  "common.roles.createButton": {
+    "status": "mt",
+    "srcHash": "165fb5e1e341"
+  },
+  "common.roles.delete.confirm": {
+    "status": "mt",
+    "srcHash": "fbf0667eaa4b"
+  },
+  "common.roles.delete.description": {
+    "status": "mt",
+    "srcHash": "b131ba79a083"
+  },
+  "common.roles.delete.failed": {
+    "status": "mt",
+    "srcHash": "f4dc2b13cead"
+  },
+  "common.roles.delete.hasMembers": {
+    "status": "mt",
+    "srcHash": "a88546ac4084"
+  },
+  "common.roles.delete.noMembers": {
+    "status": "mt",
+    "srcHash": "7dae3a0a3805"
+  },
+  "common.roles.delete.reassignPlaceholder": {
+    "status": "mt",
+    "srcHash": "8cbfd4f948c2"
+  },
+  "common.roles.delete.reassignTo": {
+    "status": "mt",
+    "srcHash": "694614e44751"
+  },
+  "common.roles.delete.title": {
+    "status": "mt",
+    "srcHash": "fbf0667eaa4b"
+  },
+  "common.roles.list.title": {
+    "status": "mt",
+    "srcHash": "47dcc27d6e87"
+  },
+  "common.roles.loadFailed.body": {
+    "status": "mt",
+    "srcHash": "406e9defada3"
+  },
+  "common.roles.loadFailed.title": {
+    "status": "mt",
+    "srcHash": "9bc5cd374f50"
+  },
+  "common.roles.matrix.discard": {
+    "status": "mt",
+    "srcHash": "36fff63ccbcd"
+  },
+  "common.roles.matrix.empty.body": {
+    "status": "mt",
+    "srcHash": "664ef95371d5"
+  },
+  "common.roles.matrix.empty.title": {
+    "status": "mt",
+    "srcHash": "f0d30bfbd6e1"
+  },
+  "common.roles.matrix.label": {
+    "status": "mt",
+    "srcHash": "4b9cd8f7044f"
+  },
+  "common.roles.matrix.noChanges": {
+    "status": "mt",
+    "srcHash": "ca41eed5cdc8"
+  },
+  "common.roles.matrix.pending": {
+    "status": "mt",
+    "srcHash": "fdc3597d9782"
+  },
+  "common.roles.matrix.rowHeader": {
+    "status": "mt",
+    "srcHash": "1785713451d0"
+  },
+  "common.roles.matrix.title": {
+    "status": "mt",
+    "srcHash": "d06d55570938"
+  },
+  "common.roles.memberCount": {
+    "status": "mt",
+    "srcHash": "d44477454f93"
+  },
+  "common.roles.permission.apiKeysManage": {
+    "status": "mt",
+    "srcHash": "85a7ad27ceab"
+  },
+  "common.roles.permission.auditRead": {
+    "status": "mt",
+    "srcHash": "e26b54924cdc"
+  },
+  "common.roles.permission.connectionsManage": {
+    "status": "mt",
+    "srcHash": "65cd18d3a599"
+  },
+  "common.roles.permission.exportsManage": {
+    "status": "mt",
+    "srcHash": "4da5e826ccf4"
+  },
+  "common.roles.permission.importsManage": {
+    "status": "mt",
+    "srcHash": "9261c59d8910"
+  },
+  "common.roles.permission.jobsManage": {
+    "status": "mt",
+    "srcHash": "6f75c0236f97"
+  },
+  "common.roles.permission.jobsRead": {
+    "status": "mt",
+    "srcHash": "c82815f003b5"
+  },
+  "common.roles.permission.llmRun": {
+    "status": "mt",
+    "srcHash": "e8998fbdbe9a"
+  },
+  "common.roles.permission.pagesManage": {
+    "status": "mt",
+    "srcHash": "901b67a9a07f"
+  },
+  "common.roles.permission.reportsManage": {
+    "status": "mt",
+    "srcHash": "d5cea4e24afb"
+  },
+  "common.roles.permission.rolesManage": {
+    "status": "mt",
+    "srcHash": "40ac3d72ee9b"
+  },
+  "common.roles.permission.schemaRemap": {
+    "status": "mt",
+    "srcHash": "700575a6eb74"
+  },
+  "common.roles.permission.settingsManage": {
+    "status": "mt",
+    "srcHash": "687e00456e85"
+  },
+  "common.roles.permission.usersManage": {
+    "status": "mt",
+    "srcHash": "b7ee3c4dd0a4"
+  },
+  "common.roles.rename.failed": {
+    "status": "mt",
+    "srcHash": "79847ee7a282"
+  },
+  "common.roles.rename.title": {
+    "status": "mt",
+    "srcHash": "c59828c39f12"
+  },
+  "common.roles.saveFailed.title": {
+    "status": "mt",
+    "srcHash": "4c36562e8dc1"
+  },
+  "common.roles.subtitle": {
+    "status": "mt",
+    "srcHash": "1b632c5cfb65"
+  },
+  "common.roles.title": {
+    "status": "mt",
+    "srcHash": "997fabd09c7e"
+  },
   "common.scheduler.addShift": {
     "srcHash": "402f0f9825b6",
     "status": "mt"
@@ -2810,6 +3718,210 @@
   "common.scheduler.week": {
     "srcHash": "f82be68a7fb4",
     "status": "mt"
+  },
+  "common.security.password.changed": {
+    "status": "mt",
+    "srcHash": "092a16e7af1a"
+  },
+  "common.security.password.changedBody": {
+    "status": "mt",
+    "srcHash": "a3f47c1323c8"
+  },
+  "common.security.password.confirm": {
+    "status": "mt",
+    "srcHash": "f85039fd8e49"
+  },
+  "common.security.password.current": {
+    "status": "mt",
+    "srcHash": "19dff4dad0a7"
+  },
+  "common.security.password.failed": {
+    "status": "mt",
+    "srcHash": "cb139e9b72cd"
+  },
+  "common.security.password.helper": {
+    "status": "mt",
+    "srcHash": "6089e5f305dc"
+  },
+  "common.security.password.mismatch": {
+    "status": "mt",
+    "srcHash": "d9ae819c0970"
+  },
+  "common.security.password.new": {
+    "status": "mt",
+    "srcHash": "d850ee188c7c"
+  },
+  "common.security.password.submit": {
+    "status": "mt",
+    "srcHash": "8c684290ce0b"
+  },
+  "common.security.password.title": {
+    "status": "mt",
+    "srcHash": "8be3c943b160"
+  },
+  "common.security.sessions.expires": {
+    "status": "mt",
+    "srcHash": "eb58535ba5ee"
+  },
+  "common.security.sessions.failed": {
+    "status": "mt",
+    "srcHash": "a85a740e988c"
+  },
+  "common.security.sessions.failedBody": {
+    "status": "mt",
+    "srcHash": "49eb23b421b2"
+  },
+  "common.security.sessions.ip": {
+    "status": "mt",
+    "srcHash": "63ea46a4bfdd"
+  },
+  "common.security.sessions.loading": {
+    "status": "mt",
+    "srcHash": "3b40152a1bec"
+  },
+  "common.security.sessions.noIp": {
+    "status": "mt",
+    "srcHash": "1d163961b479"
+  },
+  "common.security.sessions.revoke": {
+    "status": "mt",
+    "srcHash": "dc1649a16c14"
+  },
+  "common.security.sessions.revokeBody": {
+    "status": "mt",
+    "srcHash": "52ffbb45151e"
+  },
+  "common.security.sessions.revokeFailed": {
+    "status": "mt",
+    "srcHash": "0ba8dd2c051f"
+  },
+  "common.security.sessions.revokeTitle": {
+    "status": "mt",
+    "srcHash": "b6c75459a5c7"
+  },
+  "common.security.sessions.seen": {
+    "status": "mt",
+    "srcHash": "226824fc2a30"
+  },
+  "common.security.sessions.seenUnknown": {
+    "status": "mt",
+    "srcHash": "df1ddda3ddb6"
+  },
+  "common.security.sessions.thisDevice": {
+    "status": "mt",
+    "srcHash": "fa5a6dd9d249"
+  },
+  "common.security.sessions.title": {
+    "status": "mt",
+    "srcHash": "1b6c524ffb71"
+  },
+  "common.security.sessions.unknownDevice": {
+    "status": "mt",
+    "srcHash": "940a132f031b"
+  },
+  "common.security.subtitle": {
+    "status": "mt",
+    "srcHash": "c21aeec03234"
+  },
+  "common.security.title": {
+    "status": "mt",
+    "srcHash": "f25ce1b8a399"
+  },
+  "common.security.twoFactor.activate": {
+    "status": "mt",
+    "srcHash": "2d7b5797a2ad"
+  },
+  "common.security.twoFactor.activateFailed": {
+    "status": "mt",
+    "srcHash": "d45fd5e0ebc6"
+  },
+  "common.security.twoFactor.body": {
+    "status": "mt",
+    "srcHash": "529022561a0c"
+  },
+  "common.security.twoFactor.code": {
+    "status": "mt",
+    "srcHash": "2e08960792c7"
+  },
+  "common.security.twoFactor.copyKey": {
+    "status": "mt",
+    "srcHash": "ddbfdf8c1e44"
+  },
+  "common.security.twoFactor.copyLink": {
+    "status": "mt",
+    "srcHash": "06431f53d0b7"
+  },
+  "common.security.twoFactor.disable": {
+    "status": "mt",
+    "srcHash": "ec64c3305191"
+  },
+  "common.security.twoFactor.disableBody": {
+    "status": "mt",
+    "srcHash": "995b2fc0a8ab"
+  },
+  "common.security.twoFactor.disableConfirm": {
+    "status": "mt",
+    "srcHash": "70d307c9afcd"
+  },
+  "common.security.twoFactor.disableFailed": {
+    "status": "mt",
+    "srcHash": "26d138283d91"
+  },
+  "common.security.twoFactor.disablePassword": {
+    "status": "mt",
+    "srcHash": "26d745d486c1"
+  },
+  "common.security.twoFactor.disableTitle": {
+    "status": "mt",
+    "srcHash": "bec24e34e32b"
+  },
+  "common.security.twoFactor.enroll": {
+    "status": "mt",
+    "srcHash": "a6722c519f04"
+  },
+  "common.security.twoFactor.enrollFailed": {
+    "status": "mt",
+    "srcHash": "0c01e9d7fe28"
+  },
+  "common.security.twoFactor.hide": {
+    "status": "mt",
+    "srcHash": "827ecd71c86c"
+  },
+  "common.security.twoFactor.off": {
+    "status": "mt",
+    "srcHash": "e3de5ab0ca4c"
+  },
+  "common.security.twoFactor.on": {
+    "status": "mt",
+    "srcHash": "e0049a66519c"
+  },
+  "common.security.twoFactor.recovery.body": {
+    "status": "mt",
+    "srcHash": "02af3ea8069c"
+  },
+  "common.security.twoFactor.recovery.copy": {
+    "status": "mt",
+    "srcHash": "fed97cde23d2"
+  },
+  "common.security.twoFactor.recovery.title": {
+    "status": "mt",
+    "srcHash": "6001f0a06476"
+  },
+  "common.security.twoFactor.reveal": {
+    "status": "mt",
+    "srcHash": "82f292099cfc"
+  },
+  "common.security.twoFactor.secret": {
+    "status": "mt",
+    "srcHash": "7ae4d13ffbf8"
+  },
+  "common.security.twoFactor.secretHelper": {
+    "status": "mt",
+    "srcHash": "fe1cd19e8387"
+  },
+  "common.security.twoFactor.title": {
+    "status": "mt",
+    "srcHash": "edfd617aa53e"
   },
   "common.settings.defaults.adoption": {
     "srcHash": "46ae7be48069",
@@ -5163,6 +6275,58 @@
     "srcHash": "ddcd2975143c",
     "status": "mt"
   },
+  "common.studio.settingsHub.identity.logo.badType": {
+    "status": "mt",
+    "srcHash": "1f1028e319ad"
+  },
+  "common.studio.settingsHub.identity.logo.drop": {
+    "status": "mt",
+    "srcHash": "ac1b555f6093"
+  },
+  "common.studio.settingsHub.identity.logo.helper": {
+    "status": "mt",
+    "srcHash": "89dcf9236632"
+  },
+  "common.studio.settingsHub.identity.logo.label": {
+    "status": "mt",
+    "srcHash": "83fce8327410"
+  },
+  "common.studio.settingsHub.identity.logo.remove": {
+    "status": "mt",
+    "srcHash": "e963907dac5c"
+  },
+  "common.studio.settingsHub.identity.logo.removed": {
+    "status": "mt",
+    "srcHash": "5ea3c45acf74"
+  },
+  "common.studio.settingsHub.identity.logo.replace": {
+    "status": "mt",
+    "srcHash": "8be846daf634"
+  },
+  "common.studio.settingsHub.identity.logo.tooLarge": {
+    "status": "mt",
+    "srcHash": "5a0f39535080"
+  },
+  "common.studio.settingsHub.identity.logo.undo": {
+    "status": "mt",
+    "srcHash": "39fc72124884"
+  },
+  "common.studio.settingsHub.identity.logo.upload": {
+    "status": "mt",
+    "srcHash": "a564e951ed29"
+  },
+  "common.studio.settingsHub.identity.logo.uploaded": {
+    "status": "mt",
+    "srcHash": "305cd61d0105"
+  },
+  "common.studio.settingsHub.identity.showVersion.helper": {
+    "status": "mt",
+    "srcHash": "0c88024c940f"
+  },
+  "common.studio.settingsHub.identity.showVersion.label": {
+    "status": "mt",
+    "srcHash": "8d664148d4f5"
+  },
   "common.studio.settingsHub.pagesCard.body": {
     "status": "mt",
     "srcHash": "c86309ff9216"
@@ -5191,6 +6355,10 @@
     "srcHash": "179359b39edb",
     "status": "mt"
   },
+  "common.studio.settingsHub.review.hidden": {
+    "status": "mt",
+    "srcHash": "d4c2792a7245"
+  },
   "common.studio.settingsHub.review.off": {
     "srcHash": "e3de5ab0ca4c",
     "status": "mt"
@@ -5198,6 +6366,10 @@
   "common.studio.settingsHub.review.on": {
     "srcHash": "e0049a66519c",
     "status": "mt"
+  },
+  "common.studio.settingsHub.review.shown": {
+    "status": "mt",
+    "srcHash": "a70f2efcefa6"
   },
   "common.studio.settingsHub.review.subtitle": {
     "srcHash": "7f8505fa5084",
@@ -6170,6 +7342,250 @@
   "common.studioPages.title": {
     "status": "mt",
     "srcHash": "600584c2d5cc"
+  },
+  "common.team.action.reactivate": {
+    "status": "mt",
+    "srcHash": "cd28a172590d"
+  },
+  "common.team.action.remove": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "common.team.action.resend": {
+    "status": "mt",
+    "srcHash": "88dfa9c078b4"
+  },
+  "common.team.action.roles": {
+    "status": "mt",
+    "srcHash": "47dcc27d6e87"
+  },
+  "common.team.action.suspend": {
+    "status": "mt",
+    "srcHash": "b24247fb5a9d"
+  },
+  "common.team.column.actions": {
+    "status": "mt",
+    "srcHash": "c3cd636a585b"
+  },
+  "common.team.column.lastSeen": {
+    "status": "mt",
+    "srcHash": "56462f81b82a"
+  },
+  "common.team.column.person": {
+    "status": "mt",
+    "srcHash": "8c41ae88467f"
+  },
+  "common.team.column.roles": {
+    "status": "mt",
+    "srcHash": "47dcc27d6e87"
+  },
+  "common.team.column.status": {
+    "status": "mt",
+    "srcHash": "bae7d5be7082"
+  },
+  "common.team.counts": {
+    "status": "mt",
+    "srcHash": "e953e6097cce"
+  },
+  "common.team.empty.body": {
+    "status": "mt",
+    "srcHash": "847d0c2dc81b"
+  },
+  "common.team.empty.filtered.body": {
+    "status": "mt",
+    "srcHash": "2540a49b3f03"
+  },
+  "common.team.empty.filtered.title": {
+    "status": "mt",
+    "srcHash": "f9a267b38956"
+  },
+  "common.team.empty.title": {
+    "status": "mt",
+    "srcHash": "830cba5617f6"
+  },
+  "common.team.filterRole": {
+    "status": "mt",
+    "srcHash": "6d118c3bceec"
+  },
+  "common.team.filterRoleAny": {
+    "status": "mt",
+    "srcHash": "e737d5c9c589"
+  },
+  "common.team.filterStatus": {
+    "status": "mt",
+    "srcHash": "f43653d7faf2"
+  },
+  "common.team.filterStatusAny": {
+    "status": "mt",
+    "srcHash": "55201ac9166b"
+  },
+  "common.team.invite.copied": {
+    "status": "mt",
+    "srcHash": "8e3df45a49db"
+  },
+  "common.team.invite.copyLink": {
+    "status": "mt",
+    "srcHash": "2f84eea5d45d"
+  },
+  "common.team.invite.created.body": {
+    "status": "mt",
+    "srcHash": "23d43eb2fd16"
+  },
+  "common.team.invite.created.title": {
+    "status": "mt",
+    "srcHash": "0002eafb56fd"
+  },
+  "common.team.invite.emailIt": {
+    "status": "mt",
+    "srcHash": "12ffa51852bc"
+  },
+  "common.team.invite.expires": {
+    "status": "mt",
+    "srcHash": "e90ffe435657"
+  },
+  "common.team.invite.expiresRelative": {
+    "status": "mt",
+    "srcHash": "bb580a5ff307"
+  },
+  "common.team.invite.noEmail.smtp": {
+    "status": "mt",
+    "srcHash": "35335919c15b"
+  },
+  "common.team.invite.noEmail.title": {
+    "status": "mt",
+    "srcHash": "bd7a3b23cf9e"
+  },
+  "common.team.invite.noEmail.unknown": {
+    "status": "mt",
+    "srcHash": "954284d6d240"
+  },
+  "common.team.inviteButton": {
+    "status": "mt",
+    "srcHash": "68565cfe3332"
+  },
+  "common.team.inviteDialog.description": {
+    "status": "mt",
+    "srcHash": "9082986d29b7"
+  },
+  "common.team.inviteDialog.email": {
+    "status": "mt",
+    "srcHash": "84add5b29527"
+  },
+  "common.team.inviteDialog.emailPlaceholder": {
+    "status": "mt",
+    "srcHash": "9703026304af"
+  },
+  "common.team.inviteDialog.failed": {
+    "status": "mt",
+    "srcHash": "c5d8c386d686"
+  },
+  "common.team.inviteDialog.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "common.team.inviteDialog.namePlaceholder": {
+    "status": "mt",
+    "srcHash": "131451083a77"
+  },
+  "common.team.inviteDialog.roles": {
+    "status": "mt",
+    "srcHash": "47dcc27d6e87"
+  },
+  "common.team.inviteDialog.rolesHelper": {
+    "status": "mt",
+    "srcHash": "c99903b3f42b"
+  },
+  "common.team.inviteDialog.submit": {
+    "status": "mt",
+    "srcHash": "7635958a9153"
+  },
+  "common.team.inviteDialog.title": {
+    "status": "mt",
+    "srcHash": "bb56a155b520"
+  },
+  "common.team.listFailed.title": {
+    "status": "mt",
+    "srcHash": "0ad93af10002"
+  },
+  "common.team.loadMore": {
+    "status": "mt",
+    "srcHash": "dfe60ca92e8c"
+  },
+  "common.team.neverSignedIn": {
+    "status": "mt",
+    "srcHash": "49777e2c194a"
+  },
+  "common.team.noRoles": {
+    "status": "mt",
+    "srcHash": "9105a77c4984"
+  },
+  "common.team.remove.body": {
+    "status": "mt",
+    "srcHash": "0ba3d90875ce"
+  },
+  "common.team.remove.confirm": {
+    "status": "mt",
+    "srcHash": "e63b5153bde0"
+  },
+  "common.team.remove.prompt": {
+    "status": "mt",
+    "srcHash": "cd2eee2ffd7e"
+  },
+  "common.team.remove.title": {
+    "status": "mt",
+    "srcHash": "c70512ee2dd2"
+  },
+  "common.team.roles.unavailable": {
+    "status": "mt",
+    "srcHash": "da65c2b6ccfc"
+  },
+  "common.team.rolesDialog.description": {
+    "status": "mt",
+    "srcHash": "196a52086f6f"
+  },
+  "common.team.rolesDialog.failed": {
+    "status": "mt",
+    "srcHash": "6b19b87f3441"
+  },
+  "common.team.rolesDialog.title": {
+    "status": "mt",
+    "srcHash": "545ee8fa6f65"
+  },
+  "common.team.rolesLocked": {
+    "status": "mt",
+    "srcHash": "b8f6703e8800"
+  },
+  "common.team.search": {
+    "status": "mt",
+    "srcHash": "5d12419516ef"
+  },
+  "common.team.status.active": {
+    "status": "mt",
+    "srcHash": "a733b809d2f1"
+  },
+  "common.team.status.invited": {
+    "status": "mt",
+    "srcHash": "53469df1c48f"
+  },
+  "common.team.status.suspended": {
+    "status": "mt",
+    "srcHash": "794696a72066"
+  },
+  "common.team.subtitle": {
+    "status": "mt",
+    "srcHash": "d96589005b64"
+  },
+  "common.team.title": {
+    "status": "mt",
+    "srcHash": "218887269ad5"
+  },
+  "common.team.twoFactorOn": {
+    "status": "mt",
+    "srcHash": "d55b2fca6000"
+  },
+  "common.team.twoFactorShort": {
+    "status": "mt",
+    "srcHash": "e8442a3a9ebf"
   },
   "common.templates.board.description": {
     "status": "mt",

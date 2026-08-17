@@ -60,6 +60,7 @@ import { ApiKeysPanelView, CodeSnippetBlockView, type ApiKeyRecord } from '@admi
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import {
@@ -350,26 +351,19 @@ export function ApiKeysPage(): ReactNode {
 
   return (
     <PageSurface className="mx-auto flex max-w-[1000px] flex-col gap-5">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="text-title text-fg">
-            {t('apiKeys.title', 'API keys & tokens')}
-          </h1>
-          <p className="text-body-sm text-fg-muted">
-            {t('apiKeys.subtitle', 'Manage programmatic access to your workspace.')}
-          </p>
-        </div>
-        <div className="ms-auto">
-          <Button
-            iconLeft={<Plus className="size-4" />}
-            onClick={() => setCreateOpen(true)}
-            disabled={rolesUnavailable || roleList.length === 0}
-            data-testid="api-keys-create"
-          >
-            {t('apiKeys.createButton', 'Create key')}
-          </Button>
-        </div>
-      </div>
+      <PageActions
+        title={t('apiKeys.title', 'API keys & tokens')}
+        subtitle={t('apiKeys.subtitle', 'Manage programmatic access to your workspace.')}
+      >
+        <Button
+          iconLeft={<Plus className="size-4" />}
+          onClick={() => setCreateOpen(true)}
+          disabled={rolesUnavailable || roleList.length === 0}
+          data-testid="api-keys-create"
+        >
+          {t('apiKeys.createButton', 'Create key')}
+        </Button>
+      </PageActions>
 
       {rolesUnavailable ? (
         <Alert

@@ -44,6 +44,7 @@ import { LoginPage } from '../auth/LoginPage.js';
 import { OtpPage } from '../auth/OtpPage.js';
 import { ResetPage } from '../auth/ResetPage.js';
 import { ShortcutsProvider } from '../shell/ShortcutsProvider.js';
+import { useBrandedDocumentTitle } from '../shell/BrandMark.js';
 import { AppShell } from '../shell/AppShell.js';
 import { NotFoundPage } from '../states/NotFoundPage.js';
 import { StatePage } from '../states/StatePage.js';
@@ -86,6 +87,11 @@ function RootComponent() {
   // (ThemeProvider resolution order, 02-design-system.md §4.2).
   const boot = useQuery({ ...bootstrapQuery(), enabled: false });
   const authed = boot.data !== undefined;
+
+  // Branding is fetched here rather than in the shell: `/branding` is public,
+  // and the surfaces that need it most (sign-in, 404, the error heroes) are
+  // the ones the shell never wraps.
+  useBrandedDocumentTitle();
 
   // Re-render the route tree when runtime overrides change (23 §4.4). This is
   // a RE-RENDER, never a keyed remount: keying this subtree would remount
@@ -500,6 +506,101 @@ const apiKeysRoute = createRoute({
   component: ApiKeysRouteComponent,
 });
 
+// --- people & accountability (08-T08, M2-T05, 09-T14) ------------------------
+// All four are LAZY for the same reason `TranslationsPage` is: they are admin
+// surfaces opened occasionally, and the entry chunk is already ~664 KiB gz
+// against a 350 KiB v1.0 target. Statically importing a permission matrix, an
+// audit table and a session list would spend the ratchet's remaining headroom
+// on screens most sessions never open.
+//
+// Team/roles/audit sit behind `StudioGuard` like `apiKeysRoute` — role ≥ Admin.
+// That gate is UX; the server independently enforces `system:users:manage`,
+// `system:roles:manage` and `system:audit:read`. Account security is NOT
+// guarded: it acts on the caller's own account, so every signed-in user needs
+// it (a viewer changing their own password is the common case).
+
+const TeamPageLazy = lazy(async () => {
+  const mod = await import('../team/TeamPage.js');
+  return { default: mod.TeamPage };
+});
+
+const RolesPageLazy = lazy(async () => {
+  const mod = await import('../team/RolesPage.js');
+  return { default: mod.RolesPage };
+});
+
+const AuditLogPageLazy = lazy(async () => {
+  const mod = await import('../audit/AuditLogPage.js');
+  return { default: mod.AuditLogPage };
+});
+
+const SecurityPageLazy = lazy(async () => {
+  const mod = await import('../account/SecurityPage.js');
+  return { default: mod.SecurityPage };
+});
+
+function TeamRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={null}>
+        <TeamPageLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
+function RolesRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={null}>
+        <RolesPageLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
+function AuditRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={null}>
+        <AuditLogPageLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
+function AccountSecurityRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <SecurityPageLazy />
+    </Suspense>
+  );
+}
+
+const settingsTeamRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/team',
+  component: TeamRouteComponent,
+});
+
+const settingsRolesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings/roles',
+  component: RolesRouteComponent,
+});
+
+const auditRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/audit',
+  component: AuditRouteComponent,
+});
+
+const accountSecurityRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/account/security',
+  component: AccountSecurityRouteComponent,
+});
+
 // --- assembly ----------------------------------------------------------------
 
 const routeTree = rootRoute.addChildren([
@@ -522,6 +623,9 @@ const routeTree = rootRoute.addChildren([
     welcomeRoute,
     accountPreferencesRoute,
     accountNotificationsRoute,
+    // BEFORE `accountSplatRoute`: `/account/$` would otherwise swallow
+    // `/account/security` and render the generic account page instead.
+    accountSecurityRoute,
     accountSplatRoute,
     aboutRoute,
     settingsDefaultsRoute,
@@ -530,6 +634,9 @@ const routeTree = rootRoute.addChildren([
     knowledgeBaseRoute,
     changelogRoute,
     apiKeysRoute,
+    settingsTeamRoute,
+    settingsRolesRoute,
+    auditRoute,
     emailTemplatesRoute,
     // Studio (09 §8.1): connect wizard + remap route contract, role ≥ Admin.
     ...studioRoutes(appRoute),

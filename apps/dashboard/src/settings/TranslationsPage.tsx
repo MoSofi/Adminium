@@ -50,6 +50,7 @@ import { bootstrapQuery } from '../app/bootstrap.js';
 import { resyncOverrides } from '../i18n/setup.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { StatePage } from '../states/StatePage.js';
 
@@ -589,17 +590,13 @@ export function TranslationsPage(): ReactNode {
 
   return (
     <PageSurface className="flex flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <h2 className="text-section text-fg">
-          {t('settings.translations.title', 'Languages & translations')}
-        </h2>
-        <p className="text-body-sm text-fg-muted">
-          {t(
-            'settings.translations.subtitle',
-            'Change any wording in Adminium, choose which languages people can pick, and add languages of your own.',
-          )}
-        </p>
-      </header>
+      <PageActions
+        title={t('settings.translations.title', 'Languages & translations')}
+        subtitle={t(
+          'settings.translations.subtitle',
+          'Change any wording in Adminium, choose which languages people can pick, and add languages of your own.',
+        )}
+      />
 
       <div className="flex items-start gap-2 rounded-md border border-border bg-surface-2 p-3">
         <AlertTriangle aria-hidden className="mt-0.5 text-warning" />

@@ -27,7 +27,6 @@ describe('loadEnv — valid input', () => {
       ADMINIUM_SECRET: SECRET,
       PORT: 4600,
       HOST: '0.0.0.0',
-      DATABASE_URL: undefined,
       ADMINIUM_META_URL: undefined,
       ADMINIUM_DATA_DIR: './data',
       ADMINIUM_LOG_LEVEL: 'info',
@@ -100,7 +99,6 @@ describe('loadEnv — valid input', () => {
         ADMINIUM_SECRET: SECRET,
         PORT: '8080',
         HOST: '127.0.0.1',
-        DATABASE_URL: 'postgres://user:pass@localhost:5432/app',
         ADMINIUM_META_URL: 'sqlite:./data/meta.db',
         ADMINIUM_DATA_DIR: '/data',
         ADMINIUM_LOG_LEVEL: 'debug',
@@ -127,12 +125,26 @@ describe('loadEnv — valid input', () => {
 
   it('treats empty strings as unset (defaults apply)', () => {
     const env = loadEnv(
-      { ADMINIUM_SECRET: SECRET, PORT: '', ADMINIUM_LOG_LEVEL: '', DATABASE_URL: '' },
+      { ADMINIUM_SECRET: SECRET, PORT: '', ADMINIUM_LOG_LEVEL: '', ADMINIUM_META_URL: '' },
       makeStderr(),
     );
     expect(env.PORT).toBe(4600);
     expect(env.ADMINIUM_LOG_LEVEL).toBe('info');
-    expect(env.DATABASE_URL).toBeUndefined();
+    expect(env.ADMINIUM_META_URL).toBeUndefined();
+  });
+
+  it('does not accept DATABASE_URL — it was documented and read by nothing', () => {
+    // THE BUG THIS PINS. `DATABASE_URL` was validated here, plumbed through
+    // docker-compose.yml, and documented on two self-hosting pages as the
+    // first-boot source-connection seed, while ZERO lines of product code read
+    // it. Anyone who followed the Docker quickstart set it and got silence. It
+    // is gone rather than implemented (see the note in `config/env.ts`), and
+    // this asserts it does not creep back as a parsed-but-unused key.
+    const env = loadEnv(
+      { ADMINIUM_SECRET: SECRET, DATABASE_URL: 'postgres://user:pass@localhost:5432/app' },
+      makeStderr(),
+    );
+    expect(env).not.toHaveProperty('DATABASE_URL');
   });
 
   it.each([

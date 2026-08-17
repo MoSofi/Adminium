@@ -38,6 +38,7 @@ import {
   type EmailTemplateDetail,
 } from '../../api/emailTemplates.js';
 import { t } from '../../i18n/t.js';
+import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { docToEmailBlocks, emailBlocksToDoc } from './emailDoc.js';
 
@@ -75,15 +76,11 @@ function EmailTemplatesManager({ onOpen }: { onOpen: (key: string, locale: strin
 
   return (
     <PageSurface width="page" fill className="gap-4" testId="email-templates-manager">
-      <header className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-section text-fg">
-            {t('emailTemplates.title', 'Email templates')}
-          </h1>
-          <p className="mt-0.5 text-caption text-fg-muted">
-            {t('emailTemplates.subtitle', 'Transactional and lifecycle emails your workspace sends.')}
-          </p>
-        </div>
+      <PageActions
+        title={t('emailTemplates.title', 'Email templates')}
+        subtitle={t('emailTemplates.subtitle', 'Transactional and lifecycle emails your workspace sends.')}
+      />
+      <header className="flex flex-wrap items-center justify-end gap-3">
         <SearchInput
           value={search}
           onChange={(event) => setSearch(event.target.value)}

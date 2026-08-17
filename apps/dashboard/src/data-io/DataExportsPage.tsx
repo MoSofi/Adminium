@@ -133,7 +133,6 @@ export function DataExportsPage() {
   return (
     // Gutter + column come from the route's `PageSurface` (data-io/routes.tsx).
     <div className="flex h-full min-h-0 flex-col gap-5">
-      <h1 className="text-h2 font-semibold text-fg">{t('dataio.exports.title', 'Data exports')}</h1>
 
       {/* --- request form ------------------------------------------------------ */}
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">

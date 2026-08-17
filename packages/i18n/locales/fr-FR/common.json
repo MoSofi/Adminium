@@ -98,7 +98,11 @@
       "people": "Personnes",
       "account": "Compte"
     },
-    "back": "Retour"
+    "back": "Retour",
+    "team": "Équipe",
+    "roles": "Rôles et permissions",
+    "audit": "Journal d’audit",
+    "security": "Mot de passe et sessions"
   },
   "topbar": {
     "search": "Rechercher…",
@@ -545,6 +549,23 @@
           "label": "Nom de l’application",
           "helper": "Affiché dans la barre latérale, le titre du navigateur et les e-mails.",
           "error": "Saisissez un nom de 60 caractères maximum."
+        },
+        "logo": {
+          "label": "Logo",
+          "drop": "Déposez une image ici",
+          "helper": "PNG, JPEG, WebP, GIF ou SVG, jusqu’à 1 Mo. Remplace la marque intégrée partout.",
+          "upload": "Importer un logo",
+          "replace": "Remplacer le logo",
+          "remove": "Supprimer",
+          "uploaded": "Logo mis à jour",
+          "removed": "Logo supprimé",
+          "tooLarge": "Cette image dépasse 1 Mo.",
+          "badType": "Choisissez une image PNG, JPEG, WebP, GIF ou SVG.",
+          "undo": "Annuler"
+        },
+        "showVersion": {
+          "label": "Version dans la barre latérale",
+          "helper": "Le numéro de build à côté du logo. Désactivé, il masque votre version."
         }
       },
       "security": {
@@ -574,6 +595,8 @@
         "close": "Fermer",
         "on": "Activé",
         "off": "Désactivé",
+        "shown": "Affiché",
+        "hidden": "Masqué",
         "change": "{before} → {after}"
       },
       "defaultsCard": {
@@ -1250,7 +1273,9 @@
       "duplicate": "Dupliquer {name}",
       "remove": "Supprimer {name}",
       "removed": "{name} supprimé.",
-      "duplicated": "{name} dupliqué."
+      "duplicated": "{name} dupliqué.",
+      "unboundHint": "Ce widget affiche des données d’exemple ici et sur la page en ligne. Ouvrez « Configurer » pour le connecter à une table.",
+      "unbound": "Données d’exemple"
     },
     "families": {
       "kpi": "Indicateurs",
@@ -1279,7 +1304,134 @@
     "discardBody": "Le tableau de bord revient à son état à l’ouverture de l’éditeur. Vos données ne sont pas affectées.",
     "discardConfirm": "Abandonner les modifications",
     "keepEditing": "Continuer l’édition",
-    "discarded": "Modifications abandonnées."
+    "discarded": "Modifications abandonnées.",
+    "binding": {
+      "addFilter": "Ajouter un filtre",
+      "brokenBody": "Elle ne correspond plus à une requête que cette version sait comprendre : le widget affiche donc une erreur sur la page en ligne.",
+      "brokenTitle": "La requête de ce widget est cassée",
+      "bucketColumn": "Colonne de date",
+      "bucketRequired": "Choisissez la colonne qui porte la date.",
+      "bucketUnit": "Regrouper le temps par",
+      "columnNone": "Aucune",
+      "columnPlaceholder": "Choisissez une colonne…",
+      "connect": "Connecter aux données",
+      "edit": "Modifier la requête",
+      "event": {
+        "category": "Colonne de catégorie (facultatif)",
+        "date": "Colonne de date de début",
+        "end": "Colonne de date de fin (facultatif)",
+        "title": "Colonne de titre"
+      },
+      "eventColumnsRequired": "Les événements exigent une date de début et un titre. Une date de fin exige aussi une catégorie, car les colonnes sont lues dans l’ordre.",
+      "filterColumnRequired": "Choisissez une colonne.",
+      "filterColumn": "Colonne",
+      "filterListHelper": "Séparez les valeurs par des virgules.",
+      "filterOp": "Condition",
+      "filterValue": "Valeur",
+      "fn": {
+        "avg": "Moyenne",
+        "countDistinct": "Nombre de valeurs distinctes",
+        "count": "Nombre de lignes",
+        "max": "Maximum",
+        "min": "Minimum",
+        "sum": "Somme"
+      },
+      "groupByColumns": "Colonnes",
+      "groupByRequired": "Cette vue nécessite une colonne de ventilation.",
+      "groupByRows": "Lignes",
+      "groupBy": "Regrouper par",
+      "incompleteBody": "Renseignez les champs signalés — une requête écrite à moitié échouerait sur le tableau de bord en ligne.",
+      "incompleteTitle": "Cette requête n’est pas terminée",
+      "limit": "Nombre maximal de lignes à récupérer",
+      "loadingSchema": "Chargement des tables…",
+      "lossyBody": "Certaines de ses parties — mesures supplémentaires, tris ou liens vers les filtres de page — ne sont pas affichées ici et seront supprimées si vous enregistrez.",
+      "lossyTitle": "Cette requête est plus avancée que l’éditeur",
+      "measureColumnRequired": "Ce calcul nécessite une colonne.",
+      "measureColumn": "Sur la colonne",
+      "measureFn": "Calculer",
+      "noConnectionBody": "Les widgets ne peuvent être liés aux données que sur une page rattachée à une connexion.",
+      "noConnectionTitle": "Cette page n’a aucune connexion à une base de données",
+      "noDateColumns": "Cette table n’a aucune colonne de type date ou horodatage.",
+      "noFilters": "Aucun filtre — toutes les lignes de la table sont comptées.",
+      "noSnapshotBody": "Les tables et les colonnes proviennent de la dernière introspection de la connexion. Lancez une introspection dans le Studio, puis rouvrez cet éditeur.",
+      "noSnapshotTitle": "Aucun instantané de schéma pour cette connexion",
+      "op": {
+        "between": "est compris entre",
+        "ilike": "contient (casse ignorée)",
+        "in": "fait partie de",
+        "isNull": "est vide",
+        "like": "contient",
+        "notNull": "n’est pas vide"
+      },
+      "orderAsc": "Plus ancien / plus petit d’abord",
+      "orderBy": "Trier par",
+      "orderDesc": "Plus récent / plus grand d’abord",
+      "orderDir": "Sens",
+      "orderNone": "Ordre de la base de données",
+      "pickTableFirst": "Choisissez une table pour sélectionner ses colonnes.",
+      "removeFilter": "Retirer le filtre",
+      "remove": "Supprimer la source de données",
+      "save": "Utiliser cette requête",
+      "sectionBreakdown": "Ventilation",
+      "sectionColumns": "Colonnes",
+      "sectionFilters": "Filtres",
+      "sectionMeasure": "Mesure",
+      "sectionRows": "Lignes",
+      "sectionSource": "Source",
+      "sectionTime": "Axe temporel",
+      "sectionWindow": "Période",
+      "selectColumns": "Colonnes à afficher",
+      "selectRequired": "Choisissez au moins une colonne à afficher.",
+      "shape": {
+        "calendarEvents": "Des événements datés",
+        "categorical": "Une valeur par catégorie",
+        "distribution": "La répartition d’une colonne",
+        "matrix": "Une grille de lignes par colonnes",
+        "metricDelta": "Un nombre, comparé à la période précédente",
+        "multiTimeseries": "Une courbe dans le temps par catégorie",
+        "recordList": "Une liste de lignes",
+        "record": "Une seule ligne",
+        "singleMetric": "Un seul nombre",
+        "stream": "Un flux en direct des lignes récentes",
+        "timeseries": "Une valeur dans le temps"
+      },
+      "shapeHelper": "Modifier ce choix change les réglages de requête applicables.",
+      "shapeLabel": "Ce que ce widget affiche",
+      "summaryColumns": "{count, plural, one {# colonne} other {# colonnes}}",
+      "summaryFilters": "{count, plural, one {# filtre} other {# filtres}}",
+      "tableEmpty": "Aucune table correspondante.",
+      "tablePlaceholder": "Rechercher des tables…",
+      "tableRequired": "Choisissez une table à interroger.",
+      "table": "Table ou vue",
+      "title": "Source de données",
+      "unbindableBody": "Il affiche une forme de données que le moteur de requêtes ne construit pas encore : il rend donc son propre contenu d’exemple.",
+      "unbindableTitle": "Ce widget ne peut pas encore interroger de données",
+      "unboundBody": "Il affiche des chiffres d’exemple ici ET sur la page en ligne. Connectez-le à une table pour afficher des données réelles.",
+      "unboundTitle": "Non connecté à vos données",
+      "unit": {
+        "day": "Quotidien",
+        "hour": "Horaire",
+        "month": "Mensuel",
+        "quarter": "Trimestriel",
+        "week": "Hebdomadaire",
+        "year": "Annuel"
+      },
+      "valueColumnRequired": "Choisissez la colonne à mesurer.",
+      "valueColumn": "Colonne de valeur",
+      "windowColumn": "Colonne de date",
+      "windowLast": "Sur les",
+      "windowNone": "Depuis le début",
+      "windowRequired": "La comparaison avec la période précédente nécessite une colonne de date.",
+      "windowUnit": {
+        "day": "derniers jours",
+        "hour": "dernières heures",
+        "month": "derniers mois",
+        "quarter": "derniers trimestres",
+        "week": "dernières semaines",
+        "year": "dernières années"
+      },
+      "windowUnitLabel": "Unité"
+    }
   },
   "setup": {
     "title": "Configurer Adminium",
@@ -1632,7 +1784,8 @@
       "helpAbout": "À propos d’Adminium"
     },
     "settings": {
-      "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans votre espace de travail."
+      "explainer": "Ces paramètres s’appliquent uniquement à l’application Adminium sur cet ordinateur. Ils sont enregistrés sur cette machine, pas dans votre espace de travail.",
+      "title": "Paramètres du bureau"
     },
     "security": {
       "heading": "Connexion"
@@ -1679,7 +1832,8 @@
       "mismatchBody": "Le partage est désactivé, mais le serveur n'a pas encore libéré le réseau. Redémarrez Adminium pour le fermer.",
       "transportTitle": "Le trafic sur votre réseau local n'est pas chiffré.",
       "transportBody": "Ne partagez que sur des réseaux de confiance. Pour un accès à distance, utilisez Adminium self-host derrière HTTPS.",
-      "firewall": "La première fois que vous partagez, votre système d'exploitation vous demandera d'autoriser les connexions entrantes — choisissez Autoriser, sinon les autres appareils ne pourront pas accéder à Adminium."
+      "firewall": "La première fois que vous partagez, votre système d'exploitation vous demandera d'autoriser les connexions entrantes — choisissez Autoriser, sinon les autres appareils ne pourront pas accéder à Adminium.",
+      "manageTeam": "Gérer les utilisateurs et les rôles"
     },
     "setup": {
       "title": "Bienvenue dans Adminium",
@@ -2249,5 +2403,305 @@
       "x": "Côtés (px)",
       "y": "Haut et bas (px)"
     }
+  },
+  "audit": {
+    "action": {
+      "view": "Voir"
+    },
+    "actor": {
+      "apiKey": "Clé d’API",
+      "automation": "Automatisation",
+      "system": "Système",
+      "user": "Utilisateur"
+    },
+    "category": {
+      "auth": "Authentification et comptes",
+      "automation": "Automatisations",
+      "connection": "Connexions de données",
+      "data": "Enregistrements",
+      "export": "Imports et exports",
+      "llm": "Assistance IA",
+      "rbac": "Rôles et permissions",
+      "schema": "Schéma",
+      "settings": "Paramètres",
+      "system": "Système"
+    },
+    "column": {
+      "action": "Action",
+      "actor": "Auteur",
+      "category": "Catégorie",
+      "details": "Détails",
+      "when": "Quand"
+    },
+    "drawer": {
+      "actorId": "Identifiant de l’auteur",
+      "actorKind": "Type d’auteur",
+      "after": "Après",
+      "before": "Avant",
+      "category": "Catégorie",
+      "changes": "Modifications",
+      "connection": "Connexion",
+      "field": "Champ",
+      "ip": "Adresse IP",
+      "noChanges": "Cette action n’a enregistré aucun instantané avant/après.",
+      "none": "Aucun",
+      "requestId": "Identifiant de requête",
+      "resource": "Ressource",
+      "subtitle": "{actor} · {when}",
+      "truncated": "Tronqué à 16 Ko",
+      "userAgent": "Agent utilisateur"
+    },
+    "empty": {
+      "body": "Les modifications apportées aux données, au schéma, aux paramètres et aux permissions apparaissent ici au fil de l’eau.",
+      "filtered": {
+        "body": "Élargissez la plage de dates ou effacez le filtre de catégorie.",
+        "title": "Aucun résultat pour ces filtres"
+      },
+      "title": "Rien n’a encore été enregistré"
+    },
+    "filterActor": "Identifiant de l’auteur",
+    "filterCategoryAny": "Toutes les catégories",
+    "filterCategory": "Filtrer par catégorie",
+    "filterFrom": "Du",
+    "filterTo": "Au",
+    "listFailed": {
+      "title": "Impossible de charger le journal d’audit"
+    },
+    "loadMore": "Charger les entrées plus anciennes",
+    "subtitle": "Chaque modification apportée à cet espace de travail, son auteur, et ce qu’elle a changé.",
+    "title": "Journal d’audit"
+  },
+  "roles": {
+    "action": {
+      "delete": "Supprimer",
+      "rename": "Renommer"
+    },
+    "builtinLocked": "Les rôles intégrés ne peuvent pas être supprimés.",
+    "category": {
+      "access": "Accès",
+      "data": "Données",
+      "operations": "Opérations",
+      "workspace": "Espace de travail"
+    },
+    "column": {
+      "actions": "Actions",
+      "members": "Membres",
+      "name": "Rôle"
+    },
+    "create": {
+      "descriptionLabel": "Description",
+      "description": "Un nouveau rôle démarre sans aucune permission.",
+      "failed": "Impossible de créer le rôle",
+      "namePlaceholder": "ex. Agent de support",
+      "name": "Nom",
+      "submit": "Créer le rôle",
+      "title": "Nouveau rôle"
+    },
+    "createButton": "Nouveau rôle",
+    "delete": {
+      "confirm": "Supprimer le rôle",
+      "description": "Le rôle et ses lignes de permissions sont supprimés.",
+      "failed": "Impossible de supprimer le rôle",
+      "hasMembers": "« {name} » compte encore {count, plural, one {# membre} other {# membres}}. Choisissez le rôle vers lequel les déplacer — Adminium ne laissera jamais un compte sans rôle.",
+      "noMembers": "Personne ne détient « {name} », rien ne sera donc déplacé.",
+      "reassignPlaceholder": "Choisissez un rôle…",
+      "reassignTo": "Déplacer les membres vers",
+      "title": "Supprimer le rôle"
+    },
+    "list": {
+      "title": "Rôles"
+    },
+    "loadFailed": {
+      "body": "La matrice ci-dessous est incomplète : l’enregistrer retirerait des permissions qui ne sont simplement pas chargées. Rechargez la page avant toute modification.",
+      "title": "Certaines permissions n’ont pas pu être lues"
+    },
+    "matrix": {
+      "discard": "Abandonner",
+      "empty": {
+        "body": "Cette instance n’a signalé aucune permission attribuable, ce qui ne devrait pas arriver — rechargez la page, et si le problème persiste, consultez le journal du serveur.",
+        "title": "Aucune permission à afficher"
+      },
+      "label": "Permissions des rôles",
+      "noChanges": "Aucune modification en attente",
+      "pending": "{count, plural, one {# modification en attente} other {# modifications en attente}}",
+      "rowHeader": "Permission",
+      "title": "Permissions"
+    },
+    "memberCount": "{count, plural, one {# utilisateur} other {# utilisateurs}}",
+    "permission": {
+      "apiKeysManage": "Gérer les clés d’API",
+      "auditRead": "Lire le journal d’audit",
+      "connectionsManage": "Gérer les connexions aux bases de données",
+      "exportsManage": "Gérer les exports de tout le monde",
+      "importsManage": "Gérer les imports de tout le monde",
+      "jobsManage": "Démarrer et annuler les tâches en arrière-plan",
+      "jobsRead": "Voir toutes les tâches en arrière-plan",
+      "llmRun": "Utiliser l’assistance IA",
+      "pagesManage": "Créer et organiser les pages",
+      "reportsManage": "Gérer les rapports planifiés",
+      "rolesManage": "Gérer les rôles et les permissions",
+      "schemaRemap": "Modifier les libellés et les remplacements du schéma",
+      "settingsManage": "Gérer les paramètres de l’espace de travail",
+      "usersManage": "Gérer les utilisateurs"
+    },
+    "rename": {
+      "failed": "Impossible de renommer le rôle",
+      "title": "Renommer le rôle"
+    },
+    "saveFailed": {
+      "title": "Impossible d’enregistrer tous les rôles"
+    },
+    "subtitle": "Ce que chaque rôle est autorisé à faire. Un utilisateur cumule les permissions de tous les rôles qu’il détient.",
+    "title": "Rôles et permissions"
+  },
+  "security": {
+    "password": {
+      "changedBody": "Utilisez le nouveau mot de passe à votre prochaine connexion. Les sessions sur vos autres appareils ne sont pas affectées — révoquez-les ci-dessous si vous voulez les déconnecter.",
+      "changed": "Mot de passe modifié",
+      "confirm": "Confirmer le nouveau mot de passe",
+      "current": "Mot de passe actuel",
+      "failed": "Impossible de modifier votre mot de passe",
+      "helper": "Au moins 8 caractères.",
+      "mismatch": "Les deux mots de passe ne correspondent pas.",
+      "new": "Nouveau mot de passe",
+      "submit": "Modifier le mot de passe",
+      "title": "Mot de passe"
+    },
+    "sessions": {
+      "expires": "Expire {at}",
+      "failedBody": "Cette liste est le seul endroit qui indique où votre compte est connecté : si elle est vide, considérez que l’information est inconnue, et non qu’il n’y a aucune session.",
+      "failed": "Impossible de lire vos sessions",
+      "ip": "IP {ip}",
+      "loading": "Recherche des autres appareils connectés…",
+      "noIp": "Aucune IP enregistrée",
+      "revokeBody": "La session prend fin immédiatement et la personne qui l’utilise devra se reconnecter.",
+      "revokeFailed": "Impossible de déconnecter cet appareil",
+      "revokeTitle": "Déconnecter cet appareil",
+      "revoke": "Déconnecter",
+      "seenUnknown": "Dernière activité : inconnue",
+      "seen": "Dernière activité {since}",
+      "thisDevice": "Cet appareil",
+      "title": "Sessions actives",
+      "unknownDevice": "Appareil non reconnu"
+    },
+    "subtitle": "Votre mot de passe, votre second facteur, et tous les endroits où vous êtes connecté.",
+    "title": "Sécurité",
+    "twoFactor": {
+      "activateFailed": "Ce code n’a pas été accepté",
+      "activate": "Activer la double authentification",
+      "body": "Une application d’authentification génère un code à 6 chiffres qu’Adminium demande après votre mot de passe.",
+      "code": "Code de votre application",
+      "copyKey": "Copier la clé de configuration",
+      "copyLink": "Copier le lien de configuration",
+      "disableBody": "Votre compte revient au mot de passe seul, et vos codes de récupération cessent de fonctionner.",
+      "disableConfirm": "Désactiver",
+      "disableFailed": "Impossible de désactiver la double authentification",
+      "disablePassword": "Votre mot de passe",
+      "disableTitle": "Désactiver l’authentification à deux facteurs",
+      "disable": "Désactiver la double authentification",
+      "enrollFailed": "Impossible de démarrer la configuration",
+      "enroll": "Configurer la double authentification",
+      "hide": "Masquer la clé de configuration",
+      "off": "Désactivée",
+      "on": "Activée",
+      "recovery": {
+        "body": "Chaque code vous connecte une seule fois si vous perdez votre application d’authentification. Ils ne sont affichés que maintenant.",
+        "copy": "Copier les codes",
+        "title": "Enregistrez vos codes de récupération"
+      },
+      "reveal": "Afficher la clé de configuration",
+      "secretHelper": "Collez le lien de configuration dans votre application d’authentification, ou saisissez la clé à la main.",
+      "secret": "Clé de configuration",
+      "title": "Authentification à deux facteurs"
+    }
+  },
+  "team": {
+    "action": {
+      "reactivate": "Réactiver",
+      "remove": "Supprimer",
+      "resend": "Nouveau lien",
+      "roles": "Rôles",
+      "suspend": "Suspendre"
+    },
+    "column": {
+      "actions": "Actions",
+      "lastSeen": "Dernière activité",
+      "person": "Personne",
+      "roles": "Rôles",
+      "status": "Statut"
+    },
+    "counts": "{active} actifs · {invited} invités · {suspended} suspendus",
+    "empty": {
+      "body": "Invitez un coéquipier pour lui donner son propre accès et son propre rôle.",
+      "filtered": {
+        "body": "Effacez les filtres pour voir tout l’annuaire.",
+        "title": "Personne ne correspond à ces filtres"
+      },
+      "title": "Vous êtes la seule personne à avoir un compte"
+    },
+    "filterRoleAny": "Tous les rôles",
+    "filterRole": "Filtrer par rôle",
+    "filterStatusAny": "Tous les statuts",
+    "filterStatus": "Filtrer par statut",
+    "invite": {
+      "copied": "Copié",
+      "copyLink": "Copier le lien",
+      "created": {
+        "body": "Envoyez vous-même ce lien à {email}. Il n’est affiché qu’une seule fois — Adminium n’en stocke qu’une empreinte, donc si vous le perdez, vous devrez supprimer l’invitation et en créer une nouvelle.",
+        "title": "Invitation créée"
+      },
+      "emailIt": "Envoyer l’invitation par e-mail",
+      "expiresRelative": "Le lien expire {at} ({relative}).",
+      "expires": "Le lien expire {at}.",
+      "noEmail": {
+        "smtp": "Aucun serveur SMTP n’est configuré sur cette instance : il n’y a donc rien pour envoyer le courrier. Partagez le lien par un canal auquel vous faites déjà confiance.",
+        "title": "Adminium n’a pas envoyé ce lien par e-mail",
+        "unknown": "Adminium n’a pas pu vérifier si cette instance est capable d’envoyer des e-mails. Partagez le lien par un canal auquel vous faites déjà confiance."
+      }
+    },
+    "inviteButton": "Inviter un coéquipier",
+    "inviteDialog": {
+      "description": "Adminium crée le compte et vous fournit un lien d’activation à usage unique à transmettre.",
+      "emailPlaceholder": "nom@exemple.com",
+      "email": "E-mail",
+      "failed": "Impossible de créer l’invitation",
+      "namePlaceholder": "ex. Dana Osei",
+      "name": "Nom",
+      "rolesHelper": "Choisissez le rôle le moins privilégié qui lui permette de faire son travail. Vous pourrez le modifier plus tard.",
+      "roles": "Rôles",
+      "submit": "Créer l’invitation",
+      "title": "Inviter un coéquipier"
+    },
+    "listFailed": {
+      "title": "Impossible de charger l’annuaire"
+    },
+    "loadMore": "Charger plus",
+    "neverSignedIn": "Jamais connecté",
+    "noRoles": "Aucun rôle",
+    "remove": {
+      "body": "Cette action efface le compte de {name}, ses préférences et ses sessions de connexion, et retire son nom de l’historique des paramètres qu’il a modifiés. Suspendre le compte conserve tout cela et l’empêche seulement de se connecter. Cette action est irréversible.",
+      "confirm": "Supprimer définitivement",
+      "prompt": "Saisissez « {email} » pour confirmer",
+      "title": "Supprimer définitivement le compte"
+    },
+    "roles": {
+      "unavailable": "Les rôles ne sont pas visibles pour votre compte : aucun ne peut donc être attribué ici."
+    },
+    "rolesDialog": {
+      "description": "Un utilisateur cumule les permissions de tous les rôles qu’il détient.",
+      "failed": "Impossible de modifier les rôles",
+      "title": "Rôles de {name}"
+    },
+    "rolesLocked": "Modifier les rôles requiert la permission « Gérer les rôles ».",
+    "search": "Rechercher un nom ou un e-mail",
+    "status": {
+      "active": "Actif",
+      "invited": "Invité",
+      "suspended": "Suspendu"
+    },
+    "subtitle": "Qui possède un compte sur cet Adminium, et ce que chacun peut faire.",
+    "title": "Équipe",
+    "twoFactorOn": "L’authentification à deux facteurs est activée",
+    "twoFactorShort": "2FA"
   }
 }

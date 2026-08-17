@@ -25,6 +25,7 @@ import {
 
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
+import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, type ConnectionDto, type IntrospectResult } from '../api.js';
 
@@ -386,22 +387,19 @@ export function ConnectionsHub({ onConnectNew, onOpenRemap, pollIntervalMs = 120
 
   return (
     <PageSurface width="page" className="flex flex-col gap-4">
-      <header className="flex items-center gap-4">
-        <div className="min-w-0">
-          <h1 className="text-page-title text-fg">{t('studio.hub.title', 'Data connections')}</h1>
-          <p className="mt-0.5 text-body-sm text-fg-muted">
-            {t(
-              'studio.hub.subtitle',
-              '{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy',
-              { healthy, total: connections.length },
-            )}
-          </p>
-        </div>
-        <Button className="ms-auto" onClick={onConnectNew}>
+      <PageActions
+        title={t('studio.hub.title', 'Data connections')}
+        subtitle={t(
+          'studio.hub.subtitle',
+          '{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy',
+          { healthy, total: connections.length },
+        )}
+      >
+        <Button onClick={onConnectNew}>
           <Plus aria-hidden className="size-4" />
           {t('studio.hub.connectNew', 'New connection')}
         </Button>
-      </header>
+      </PageActions>
 
       {connections.length === 0 ? (
         <Card>

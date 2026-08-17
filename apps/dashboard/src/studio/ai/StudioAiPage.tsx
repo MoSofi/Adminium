@@ -23,7 +23,7 @@ import {
 } from '@tanstack/react-query';
 import { useMemo, useState, type ReactNode } from 'react';
 import { getFormatters } from '@adminium/i18n';
-import { CheckCircle2, KeyRound, PlugZap, ScrollText, Sparkles } from 'lucide-react';
+import { CheckCircle2, KeyRound, PlugZap, ScrollText } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -48,6 +48,7 @@ import { llmAffordances, systemInfoQuery } from '../../app/capabilities.js';
 import { getI18nInstance, t } from '../../i18n/t.js';
 import { useAppToasts } from '../../pages/toasts.js';
 import { connectionsQuery } from '../hub/ConnectionsHub.js';
+import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import type { ConnectionDto } from '../api.js';
 import {
@@ -846,18 +847,13 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
 
   return (
     <PageSurface width="narrow" className="flex flex-col gap-6">
-      <header className="flex items-start gap-3">
-        <IconTile tone="accent" size="lg" icon={<Sparkles />} />
-        <div>
-          <h1 className="text-page-title text-fg">{t('studio.settingsAi.title', 'AI enrichment')}</h1>
-          <p className="mt-0.5 text-body-sm text-fg-muted">
-            {t(
-              'studio.settingsAi.subtitle',
-              'Connect a model to let Adminium suggest labels, groups, relations and more — always reviewed as a diff before anything applies.',
-            )}
-          </p>
-        </div>
-      </header>
+      <PageActions
+        title={t('studio.settingsAi.title', 'AI enrichment')}
+        subtitle={t(
+          'studio.settingsAi.subtitle',
+          'Connect a model to let Adminium suggest labels, groups, relations and more — always reviewed as a diff before anything applies.',
+        )}
+      />
 
       {/* Order IS the recommendation — the top card is what an admin reads
           first and what they take to be the normal way. On desktop (and on any
