@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Wire schemas for `POST /api/v1/desktop/backup` (11-electron.md §9).
  *

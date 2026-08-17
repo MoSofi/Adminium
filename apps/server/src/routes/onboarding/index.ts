@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Onboarding-state routes (M5-T06, 09-generated-app.md):
  *

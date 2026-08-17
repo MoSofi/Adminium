@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Notification-centre routes (M7 reports/notifications track;
  * 07-meta-store.md §3.20/§3.21, 09-generated-app.md §5.4), mounted under

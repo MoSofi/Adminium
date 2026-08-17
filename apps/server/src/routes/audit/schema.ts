@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the audit resource (08-server-api.md §2.14). The API
  * returns structured rows — the verb + bold-resource sentence anatomy is a

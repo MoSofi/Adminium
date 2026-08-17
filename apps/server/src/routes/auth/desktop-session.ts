@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `POST /api/v1/auth/desktop-session` — the desktop shell's boot-token
  * auto-login (11-electron.md §5).

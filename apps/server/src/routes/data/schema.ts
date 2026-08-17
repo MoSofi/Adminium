@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the generated CRUD API (`routes/data/`,
  * 08-server-api.md §2.7). Row payloads are dynamic per-table shapes and

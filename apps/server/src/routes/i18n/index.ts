@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Runtime-translations routes (23-runtime-translations.md §6), mounted under
  * `/api/v1/i18n`.

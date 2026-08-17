@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod request/response schemas for `routes/schema-import/`
  * (09-generated-app.md §8.2 source mode c, M5-T01).

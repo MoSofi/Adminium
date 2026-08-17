@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Server-side dashboard grid layout schema (04-widget-registry.md §6.1).
  *

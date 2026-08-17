@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the About resource (M10-T04; 01-architecture.md §9.3 — the
  * AGPL §13 source offer is satisfied by linking the public repo from the

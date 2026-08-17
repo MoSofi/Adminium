@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Meta-placement resource: `GET /api/v1/meta/placement`,
  * `POST /api/v1/meta/relocate` (01-architecture.md §3.1, §7.2).
@@ -27,9 +28,28 @@
  * it the browser sees a connection reset and cannot tell a successful
  * relocation from a crashed one, which are the two cases it most needs to
  * distinguish.
+ *
+ * ── WHY THE AUDIT ROW IS WRITTEN BEFORE THE MOVE, NOT AFTER ─────────────────
+ * Moving the entire meta store is one of the most consequential things an
+ * operator can do here, and it used to write no audit row at all. The row
+ * cannot be appended AFTER the relocation, though: `app.rbac.audit` writes
+ * through the handle this server booted with — the SOURCE store — and by then
+ * `copyMetaStore` has already finished, so an "it moved" row would be appended
+ * to the database nobody will ever open again. Written first, it is inside the
+ * copy, and therefore inside the destination.
+ *
+ * That ordering also means the row records the ATTEMPT. It survives in exactly
+ * the right place either way: on failure the source store is still the live one
+ * and keeps it; on success the destination store's audit log opens with the
+ * entry explaining how that store came to hold this instance's data — which,
+ * being present there at all, is itself the evidence the move completed.
+ *
+ * The row deliberately carries no DSN. The target's credentials are in it, and
+ * `adminium_audit_log` is readable by anyone with `system:audit:read`.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
+import { audited } from '../../audit/coverage.js';
 import type { Env } from '../../config/env.js';
 import { AppError } from '../../errors.js';
 import {
@@ -41,7 +61,12 @@ import {
   relocateMetaStore,
   type OnMetaRelocated,
 } from '../../meta/relocate.js';
-import { MetaUrlError, type MetaStoreHandle } from '../../meta/store.js';
+import {
+  metaEngineFromUrl,
+  MetaUrlError,
+  type MetaEngine,
+  type MetaStoreHandle,
+} from '../../meta/store.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   metaPlacementReply,
@@ -91,6 +116,21 @@ function asAppError(error: unknown): AppError {
   throw error;
 }
 
+/**
+ * The engine a submitted DSN names, or `null` when it names none.
+ *
+ * Non-throwing on purpose: the audit row is written before the relocation
+ * validates anything, and a malformed DSN must still leave a trace of who
+ * submitted it rather than replacing the 400 with a 500 from the audit path.
+ */
+function engineOf(dsn: string): MetaEngine | null {
+  try {
+    return metaEngineFromUrl(dsn);
+  } catch {
+    return null;
+  }
+}
+
 export function metaRoutes(deps: MetaRoutesDeps): FastifyPluginAsyncZod {
   const { metaStore, env, onMetaRelocated } = deps;
   const pinned = env.ADMINIUM_META_URL !== undefined && env.ADMINIUM_META_URL !== '';
@@ -119,9 +159,21 @@ export function metaRoutes(deps: MetaRoutesDeps): FastifyPluginAsyncZod {
       '/meta/relocate',
       {
         preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        config: { audit: audited('rbac') },
         schema: { body: metaRelocateBody, response: { 200: metaRelocateReply } },
       },
       async (request, reply): Promise<MetaRelocateReply> => {
+        // Before the copy — see the module header. `after` names only the
+        // engine the DSN asks for; the DSN itself never enters the trail.
+        await app.rbac.audit(request, {
+          category: 'system',
+          action: 'meta.relocate',
+          changes: {
+            before: { engine: metaStore.engine, source: metaStore.source },
+            after: { engine: engineOf(request.body.dsn) },
+          },
+        });
+
         let result;
         try {
           result = await relocateMetaStore({

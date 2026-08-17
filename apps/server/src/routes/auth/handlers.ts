@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Auth handlers (08-server-api.md §2.1): login (with 2FA step-up), 2FA
  * verify/enroll/activate/disable, logout, current session, own-session list

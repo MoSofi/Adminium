@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod request/response schemas for `routes/generate/` (M4-T08; the M5
  * `/regenerate` review flow from 05 §11 builds on the same shapes).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * System routes: `GET /healthz`, `GET /readyz` and `GET /system/info` (mounted
  * under /api/v1).

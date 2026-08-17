@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Invite minting (07-meta-store.md §3.6, 08-server-api.md §2.1).
  *

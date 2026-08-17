@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `me` handlers (08-server-api.md §2.2): profile view/patch (email change
  * requires the current password) and per-user preference axes with the §7.2

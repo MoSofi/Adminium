@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Branding resource — the white-label chrome (Adminium ships as a product an
  * operator rebrands, so the rail wordmark, the logo mark and the version chip

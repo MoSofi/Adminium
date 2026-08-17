@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the notification-centre resource (M7 reports/notifications
  * track; 07-meta-store.md §3.20/§3.21, 09-generated-app.md §5.4):

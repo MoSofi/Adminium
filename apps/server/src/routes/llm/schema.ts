@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod request/response schemas for `routes/llm/` (06-llm-assist.md §10.5, §3.2).
  *

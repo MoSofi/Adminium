@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `POST /api/v1/desktop/local-database` — 11-electron.md §6 step 2 card 1
  * ("Create a new local database"), task 11-T07.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The demo database — seed the file, register the connection (11-electron.md §6
  * step 2 card 4, task 11-T08).

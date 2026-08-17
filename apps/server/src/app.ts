@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `buildServer()` — the Fastify 5 application skeleton (08-server-api.md §1,
  * M2-T01). Assembles: pino logger with the §1.3 redaction set, `req_`-prefixed
@@ -11,6 +12,7 @@ import { randomBytes } from 'node:crypto';
 import { fastify, type FastifyBaseLogger, type FastifyError, type FastifyRequest } from 'fastify';
 import { pino, type DestinationStream, type Logger, type LoggerOptions } from 'pino';
 import {
+  jsonSchemaTransform,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -18,7 +20,9 @@ import {
 
 import type { MetaDb } from '@adminium/meta';
 
+import { createAuditCoverageRegistry } from './audit/coverage.js';
 import { hashPassword } from './auth/passwords.js';
+import { SESSION_COOKIE } from './auth/sessions.js';
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
 import { scrubUrlForLog } from './log-scrub.js';
@@ -181,7 +185,55 @@ export interface BuildServerOptions {
   metaDb?: MetaDb | undefined;
   /** Delivery hook for password-reset tokens (email transport lands later). */
   onPasswordResetToken?: ((delivery: PasswordResetDelivery) => void) | undefined;
+  /**
+   * Collect an OpenAPI 3.1 document for `app.swagger()` (`scripts/openapi.mjs`).
+   *
+   * Off by default. Nothing the product serves reads the spec, and the
+   * collector keeps a converted copy of every route's schema alive for the
+   * process's lifetime — a cost a running instance should not pay to produce a
+   * build artifact. It adds no route of its own either way: `@fastify/swagger`
+   * only decorates; serving the document is `@fastify/swagger-ui`'s job, which
+   * this product does not install.
+   */
+  openapi?: boolean | undefined;
 }
+
+/**
+ * The static half of the emitted spec (`scripts/openapi.mjs` writes the rest
+ * from the live route tree).
+ *
+ * `info.version` is the API's version, NOT {@link APP_VERSION}. The document
+ * describes `/api/v1`, and stamping the package version into it would make
+ * `openapi.json` differ on every release commit — turning the no-diff check
+ * into a gate that fails on version bumps rather than on API changes.
+ */
+export const OPENAPI_INFO = {
+  title: 'Adminium REST API',
+  version: 'v1',
+  description:
+    'The `/api/v1` surface of a self-hosted Adminium instance. Generated from the ' +
+    'live route tree and its zod schemas — see apps/server/scripts/openapi.mjs.',
+  license: { name: 'AGPL-3.0-only', url: 'https://www.gnu.org/licenses/agpl-3.0.html' },
+} as const;
+
+/**
+ * The two ways a caller authenticates (08-server-api.md §2.1, §2.16). Declared
+ * here rather than per route: every `/api/v1` route outside the unauthenticated
+ * set accepts either, and repeating that 90-odd times documents nothing.
+ */
+export const OPENAPI_SECURITY_SCHEMES = {
+  sessionCookie: {
+    type: 'apiKey',
+    in: 'cookie',
+    name: SESSION_COOKIE,
+    description: 'Browser session cookie, set by `POST /auth/login`. HttpOnly.',
+  },
+  apiKey: {
+    type: 'http',
+    scheme: 'bearer',
+    description: 'Workspace API key: `Authorization: Bearer adm_sk_…` (§2.16).',
+  },
+} as const;
 
 /**
  * Builds the configured Fastify instance. Does not listen — `start()` does.
@@ -218,6 +270,38 @@ export async function buildServer(opts: BuildServerOptions = {}) {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  // OpenAPI collection, when asked for. FIRST, before anything that can
+  // register a route: @fastify/swagger collects through its own `onRoute` hook,
+  // and Fastify 5 snapshots the hook array into each child scope as that scope
+  // is created — so a collector added after `registerRoutes` would see an empty
+  // tree, exactly the way `plugins/rbac.ts` describes for decorators. Imported
+  // dynamically so a boot that did not ask for a spec never loads it.
+  if (opts.openapi === true) {
+    const { default: fastifySwagger } = await import('@fastify/swagger');
+    await app.register(fastifySwagger, {
+      openapi: {
+        openapi: '3.1.0',
+        info: OPENAPI_INFO,
+        servers: [{ url: '/', description: 'This instance' }],
+        components: { securitySchemes: OPENAPI_SECURITY_SCHEMES },
+      },
+      // Converts the zod schemas the routes declare; without it every route
+      // serializes as an untyped body.
+      transform: jsonSchemaTransform,
+    });
+  }
+
+  // The §7-item-9 audit-coverage ledger. Collected HERE — not from a test —
+  // because `onRoute` fires during registration and `composeServer` has
+  // registered everything by the time it returns; there is no later moment at
+  // which a hook could still see the routes. (`printRoutes()` is not a way
+  // round that: it returns formatted ASCII and never exposes `route.config`,
+  // which is where the marker lives.) Fastify 5 snapshots hook arrays into each
+  // child scope at creation, so this hook — added before any scope exists —
+  // reaches every route in the tree, exactly as the schema check below does.
+  const auditCoverage = createAuditCoverageRegistry();
+  app.decorate('auditCoverage', auditCoverage);
+
   // Every /api route must declare a schema — no untyped routes (§1.1, 08-T01).
   app.addHook('onRoute', (route) => {
     const methods = Array.isArray(route.method) ? route.method : [route.method];
@@ -228,6 +312,9 @@ export async function buildServer(opts: BuildServerOptions = {}) {
         `route ${methods.join(',')} ${route.url} registered without a schema (08-server-api.md §1.1)`,
       );
     }
+    // Records the mark, and THROWS on a malformed one — same boot-time failure
+    // the unknown-rate-bucket check makes (plugins/core.ts).
+    auditCoverage.record(route);
   });
 
   // The request id is echoed on every response (§1.3).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for `routes/schema/` (08-server-api.md §2.5).
  * Model payloads are engine-owned JSON and pass through opaquely.

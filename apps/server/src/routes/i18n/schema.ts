@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Zod schemas for the runtime-translations resource
  * (23-runtime-translations.md §6.1).
