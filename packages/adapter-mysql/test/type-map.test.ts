@@ -358,3 +358,71 @@ describe('ReDoS hardening — COLUMN_TYPE parsing is linear (CodeQL js/polynomia
     expect(parseEnumValues(columnType)).toEqual(expected);
   });
 });
+
+describe('ReDoS hardening — CHECK (col IN (…)) parsing is linear', () => {
+  // Not on CodeQL's list: the postgres and sqlite adapters carry the same
+  // `CHECK_IN_PATTERN` and were flagged (js/polynomial-redos #7 and #9), while
+  // this byte-identical copy was missed. CHECK_CLAUSE comes back from
+  // information_schema as whatever text the application put in the DDL, so it
+  // is the same untrusted surface. Figures below are measured on the previous
+  // one-piece pattern.
+  const BUDGET_MS = 1_000;
+
+  const timed = <T>(run: () => T): { ms: number; value: T } => {
+    const started = performance.now();
+    const value = run();
+    return { ms: performance.now() - started, value };
+  };
+
+  it('parseCheckEnum: one long word before a real clause (~6.5s before)', () => {
+    // `[\w$]*` and the `\s+` after it retried every split of the word run at
+    // every offset inside it: 8 KB 105 ms, 16 KB 407 ms, 32 KB 1.6 s — 4x per
+    // doubling. The clause that follows must still be found.
+    const hostile = `${'a'.repeat(64_000)} status in ('new','done')`;
+    const { ms, value } = timed(() => parseCheckEnum(hostile));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(value).toEqual({ column: 'status', values: ['new', 'done'] });
+  });
+
+  it('parseCheckEnum: `col in (` opened 40k times and never closed (~37.6s before)', () => {
+    // `([^)]+)\)` rescanned to end-of-string at every start offset: 8 KB 15 ms,
+    // 16 KB 61 ms, 32 KB 245 ms — 4x per doubling.
+    const hostile = '`x` in ('.repeat(40_000);
+    const { ms, value } = timed(() => parseCheckEnum(hostile));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(value).toBeNull();
+  });
+
+  it.each([
+    ["status in ('new','done')", { column: 'status', values: ['new', 'done'] }],
+    ["`status` IN ('new')", { column: 'status', values: ['new'] }],
+    [`"status" in ('new')`, { column: 'status', values: ['new'] }],
+    ["_x9$ in ('a')", { column: '_x9$', values: ['a'] }],
+    ["status  in \t ('a','b')", { column: 'status', values: ['a', 'b'] }],
+    ["mood in ('it''s fine','meh')", { column: 'mood', values: ["it's fine", 'meh'] }],
+    // MySQL 8 backslash escaping: normalizeCheckClause turns `\'` into a bare
+    // `'`, which then reads as the end of the literal. Unchanged, quirk and all.
+    ["mood in ('it\\'s fine')", { column: 'mood', values: ['it'] }],
+    ["s in (_utf8mb4'a',_utf8mb4'b')", { column: 's', values: ['a', 'b'] }], // charset introducer
+    ["s in ('a') and t in ('b')", { column: 's', values: ['a'] }], // leftmost wins
+    ['length(note) > 2', null],
+    ["s in('a')", null], // `\s+` before `(` is required, as it always was
+    ['s in (1,2)', null], // no string literals: nothing to synthesize
+    ["s in ('a'", null], // unclosed list
+    ['s in ()', null], // empty list — the `+` never matched empty
+    // An empty list must not stop the search: the one-piece pattern retried at
+    // the next offset and found the second clause, and so must the split one.
+    ["a in () b in ('z')", { column: 'b', values: ['z'] }],
+  ] as const)('parseCheckEnum keeps its grammar: %s', (clause, expected) => {
+    expect(parseCheckEnum(clause)).toEqual(expected);
+  });
+
+  it('bounding the identifier at MySQL\'s 64 only truncates impossible names', () => {
+    const legal = 'a'.repeat(MYSQL_MAX_IDENTIFIER_LENGTH);
+    expect(parseCheckEnum(`${legal} in ('x')`)).toEqual({ column: legal, values: ['x'] });
+    // 65+ characters cannot name a MySQL column. The head now matches the last
+    // 64 rather than the whole run — a deliberate, documented narrowing.
+    const illegal = 'a'.repeat(MYSQL_MAX_IDENTIFIER_LENGTH + 16);
+    expect(parseCheckEnum(`${illegal} in ('x')`)).toEqual({ column: legal, values: ['x'] });
+  });
+});
