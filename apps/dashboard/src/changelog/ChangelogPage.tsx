@@ -37,6 +37,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { RELEASES_URL } from '../kb/docsLinks.js';
 import {
@@ -150,31 +151,24 @@ export function ChangelogPage(): ReactNode {
 
   return (
     <PageSurface className="mx-auto flex max-w-[760px] flex-col gap-6">
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="text-title text-fg">
-            {t('changelog.title', 'Changelog')}
-          </h1>
-          <p className="text-body-sm text-fg-muted">
-            {t('changelog.subtitle', 'Product updates & releases.')}
-          </p>
-        </div>
-        <div className="ms-auto">
-          {/* GitHub Releases, not a docs route: the docs site has no
-              `/releases` page, so the old link 404'd — the same defect as the
-              comp's non-functional RSS button this replaced, which is a poor
-              joke to repeat. This URL is the one the update-available notice
-              already sends people to (`telemetry/update-check.ts`
-              RELEASES_PAGE_URL), so "all releases" means the same place in both
-              surfaces. */}
-          <Button asChild variant="outline" size="md">
-            <a href={RELEASES_URL} target="_blank" rel="noreferrer noopener">
-              <Rss className="size-4" aria-hidden="true" />
-              {t('changelog.allReleases', 'All releases')}
-            </a>
-          </Button>
-        </div>
-      </div>
+      <PageActions
+        title={t('changelog.title', 'Changelog')}
+        subtitle={t('changelog.subtitle', 'Product updates & releases.')}
+      >
+        {/* GitHub Releases, not a docs route: the docs site has no
+            `/releases` page, so the old link 404'd — the same defect as the
+            comp's non-functional RSS button this replaced, which is a poor
+            joke to repeat. This URL is the one the update-available notice
+            already sends people to (`telemetry/update-check.ts`
+            RELEASES_PAGE_URL), so "all releases" means the same place in both
+            surfaces. */}
+        <Button asChild variant="outline" size="md">
+          <a href={RELEASES_URL} target="_blank" rel="noreferrer noopener">
+            <Rss className="size-4" aria-hidden="true" />
+            {t('changelog.allReleases', 'All releases')}
+          </a>
+        </Button>
+      </PageActions>
 
       <ChoiceChips
         options={options}

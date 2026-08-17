@@ -30,6 +30,16 @@ export function invalidateForRealtimeEvent(queryClient: QueryClient, event: Real
     return;
   }
 
+  if (event.channel === 'config-changed' && event.type === 'settings.branding.updated') {
+    // White-label chrome (name, logo, version chip) is on every screen at
+    // once, so a rebrand has to repaint open sessions rather than wait for
+    // their next cold load. Nothing else derives from it — no bootstrap or
+    // page invalidation here.
+    void queryClient.invalidateQueries({ queryKey: ['branding'] });
+    void queryClient.invalidateQueries({ queryKey: ['settings', 'workspace'] });
+    return;
+  }
+
   if (event.channel === 'config-changed') {
     void queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
     void queryClient.invalidateQueries({ queryKey: ['page'] });

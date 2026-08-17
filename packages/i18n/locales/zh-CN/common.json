@@ -98,7 +98,11 @@
       "people": "人员",
       "account": "账户"
     },
-    "back": "返回"
+    "back": "返回",
+    "team": "团队",
+    "roles": "角色与权限",
+    "audit": "审计日志",
+    "security": "密码与会话"
   },
   "topbar": {
     "search": "搜索…",
@@ -545,6 +549,23 @@
           "label": "应用名称",
           "helper": "显示在侧边栏、浏览器标题和邮件中。",
           "error": "请输入不超过 60 个字符的名称。"
+        },
+        "logo": {
+          "label": "标志",
+          "drop": "将图片拖放到此处",
+          "helper": "支持 PNG、JPEG、WebP、GIF 或 SVG，最大 1 MB。将在所有位置替换内置标志。",
+          "upload": "上传标志",
+          "replace": "更换标志",
+          "remove": "移除",
+          "uploaded": "标志已更新",
+          "removed": "标志已移除",
+          "tooLarge": "该图片大于 1 MB。",
+          "badType": "请选择 PNG、JPEG、WebP、GIF 或 SVG 图片。",
+          "undo": "撤销"
+        },
+        "showVersion": {
+          "label": "侧边栏中的版本",
+          "helper": "标志旁的版本号。关闭后将隐藏您运行的版本。"
         }
       },
       "security": {
@@ -574,6 +595,8 @@
         "close": "关闭",
         "on": "开",
         "off": "关",
+        "shown": "显示",
+        "hidden": "隐藏",
         "change": "{before} → {after}"
       },
       "defaultsCard": {
@@ -1250,7 +1273,9 @@
       "duplicate": "复制 {name}",
       "remove": "移除 {name}",
       "removed": "已移除 {name}。",
-      "duplicated": "已复制 {name}。"
+      "duplicated": "已复制 {name}。",
+      "unboundHint": "此小组件在这里和线上页面上显示的都是示例数据。打开“配置”将其连接到数据表。",
+      "unbound": "示例数据"
     },
     "families": {
       "kpi": "关键指标",
@@ -1279,7 +1304,134 @@
     "discardBody": "仪表盘将恢复到你打开编辑器时的样子。你的数据不受影响。",
     "discardConfirm": "放弃更改",
     "keepEditing": "继续编辑",
-    "discarded": "更改已放弃。"
+    "discarded": "更改已放弃。",
+    "binding": {
+      "addFilter": "添加筛选条件",
+      "brokenBody": "它已不再符合此版本能够识别的查询，因此该小组件会在线上页面上显示错误。",
+      "brokenTitle": "此小组件的查询已损坏",
+      "bucketColumn": "日期列",
+      "bucketRequired": "请选择承载日期的列。",
+      "bucketUnit": "时间分组方式",
+      "columnNone": "无",
+      "columnPlaceholder": "选择列…",
+      "connect": "连接数据",
+      "edit": "编辑查询",
+      "event": {
+        "category": "类别列（可选）",
+        "date": "开始日期列",
+        "end": "结束日期列（可选）",
+        "title": "标题列"
+      },
+      "eventColumnsRequired": "事件需要开始日期和标题。若要使用结束日期，还必须指定类别，因为这些列是按顺序读取的。",
+      "filterColumnRequired": "请选择一列。",
+      "filterColumn": "列",
+      "filterListHelper": "多个值之间用逗号分隔。",
+      "filterOp": "条件",
+      "filterValue": "值",
+      "fn": {
+        "avg": "平均值",
+        "countDistinct": "去重值计数",
+        "count": "行数计数",
+        "max": "最大值",
+        "min": "最小值",
+        "sum": "求和"
+      },
+      "groupByColumns": "列",
+      "groupByRequired": "此视图需要一个拆分列。",
+      "groupByRows": "行",
+      "groupBy": "分组依据",
+      "incompleteBody": "请填写高亮的字段——写了一半的查询会在线上仪表盘中失败。",
+      "incompleteTitle": "此查询尚未完成",
+      "limit": "最多获取的行数",
+      "loadingSchema": "正在加载数据表…",
+      "lossyBody": "其中的部分内容——额外的度量、排序或页面筛选联动——不会在此显示，保存后将被丢弃。",
+      "lossyTitle": "此查询比本编辑器支持的更高级",
+      "measureColumnRequired": "此计算需要指定一列。",
+      "measureColumn": "目标列",
+      "measureFn": "计算方式",
+      "noConnectionBody": "只有属于某个连接的页面，其小组件才能绑定数据。",
+      "noConnectionTitle": "此页面没有数据库连接",
+      "noDateColumns": "此数据表没有日期或时间戳列。",
+      "noFilters": "没有筛选条件——表中的每一行都会被计入。",
+      "noSnapshotBody": "表和列来自该连接上次内省的结果。请在 Studio 中运行内省，然后重新打开此编辑器。",
+      "noSnapshotTitle": "此连接没有架构快照",
+      "op": {
+        "between": "介于",
+        "ilike": "包含（不区分大小写）",
+        "in": "属于其中之一",
+        "isNull": "为空",
+        "like": "包含",
+        "notNull": "不为空"
+      },
+      "orderAsc": "最早/最小在前",
+      "orderBy": "排序依据",
+      "orderDesc": "最新/最大在前",
+      "orderDir": "排序方向",
+      "orderNone": "数据库默认顺序",
+      "pickTableFirst": "请先选择数据表，才能选择其中的列。",
+      "removeFilter": "移除筛选条件",
+      "remove": "移除数据源",
+      "save": "使用此查询",
+      "sectionBreakdown": "拆分维度",
+      "sectionColumns": "列",
+      "sectionFilters": "筛选条件",
+      "sectionMeasure": "度量",
+      "sectionRows": "行",
+      "sectionSource": "来源",
+      "sectionTime": "时间轴",
+      "sectionWindow": "时间范围",
+      "selectColumns": "要显示的列",
+      "selectRequired": "请至少选择一列进行显示。",
+      "shape": {
+        "calendarEvents": "带日期的事件",
+        "categorical": "每个类别一个值",
+        "distribution": "单列的分布情况",
+        "matrix": "行列交叉的网格",
+        "metricDelta": "一个数字，并与上一时间段对比",
+        "multiTimeseries": "每个类别一条随时间变化的折线",
+        "recordList": "一组行的列表",
+        "record": "单行",
+        "singleMetric": "单个数字",
+        "stream": "最近行的实时动态",
+        "timeseries": "随时间变化的值"
+      },
+      "shapeHelper": "更改此项会改变可用的查询设置项。",
+      "shapeLabel": "此小组件展示的内容",
+      "summaryColumns": "{count, plural, other {# 列}}",
+      "summaryFilters": "{count, plural, other {# 个筛选条件}}",
+      "tableEmpty": "没有匹配的数据表。",
+      "tablePlaceholder": "搜索数据表…",
+      "tableRequired": "请选择要查询的数据表。",
+      "table": "数据表或视图",
+      "title": "数据源",
+      "unbindableBody": "它展示的数据形态查询引擎尚未支持构建，因此它只会渲染自带的示例内容。",
+      "unbindableTitle": "此小组件尚不能查询数据",
+      "unboundBody": "它在这里和线上页面上显示的都是示例数字。请将它连接到数据表以显示真实数据。",
+      "unboundTitle": "未连接到你的数据",
+      "unit": {
+        "day": "按天",
+        "hour": "按小时",
+        "month": "按月",
+        "quarter": "按季度",
+        "week": "按周",
+        "year": "按年"
+      },
+      "valueColumnRequired": "请选择要度量的列。",
+      "valueColumn": "值列",
+      "windowColumn": "日期列",
+      "windowLast": "最近",
+      "windowNone": "全部时间",
+      "windowRequired": "与上一时间段对比需要一个日期列。",
+      "windowUnit": {
+        "day": "天",
+        "hour": "小时",
+        "month": "个月",
+        "quarter": "个季度",
+        "week": "周",
+        "year": "年"
+      },
+      "windowUnitLabel": "单位"
+    }
   },
   "setup": {
     "title": "设置 Adminium",
@@ -1632,7 +1784,8 @@
       "helpAbout": "关于 Adminium"
     },
     "settings": {
-      "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到你的工作区。"
+      "explainer": "这些设置仅适用于这台电脑上的 Adminium 应用，保存在本机，不会保存到你的工作区。",
+      "title": "桌面设置"
     },
     "security": {
       "heading": "登录"
@@ -1679,7 +1832,8 @@
       "mismatchBody": "共享已关闭，但服务器尚未释放网络。请重启 Adminium 以关闭它。",
       "transportTitle": "局域网中的流量未加密。",
       "transportBody": "仅在你信任的网络中共享。如需远程访问，请使用置于 HTTPS 之后的 Adminium 自托管版本。",
-      "firewall": "首次共享时，操作系统会询问是否允许传入连接 — 请选择\"允许\"，否则其他设备将无法访问 Adminium。"
+      "firewall": "首次共享时，操作系统会询问是否允许传入连接 — 请选择\"允许\"，否则其他设备将无法访问 Adminium。",
+      "manageTeam": "管理用户与角色"
     },
     "setup": {
       "title": "欢迎使用 Adminium",
@@ -2249,5 +2403,305 @@
       "x": "左右 (px)",
       "y": "上下 (px)"
     }
+  },
+  "audit": {
+    "action": {
+      "view": "查看"
+    },
+    "actor": {
+      "apiKey": "API 密钥",
+      "automation": "自动化",
+      "system": "系统",
+      "user": "用户"
+    },
+    "category": {
+      "auth": "登录与账户",
+      "automation": "自动化",
+      "connection": "连接",
+      "data": "记录",
+      "export": "导入与导出",
+      "llm": "AI 辅助",
+      "rbac": "角色与权限",
+      "schema": "架构",
+      "settings": "设置",
+      "system": "系统"
+    },
+    "column": {
+      "action": "操作",
+      "actor": "操作者",
+      "category": "类别",
+      "details": "详情",
+      "when": "时间"
+    },
+    "drawer": {
+      "actorId": "操作者 ID",
+      "actorKind": "操作者类型",
+      "after": "变更后",
+      "before": "变更前",
+      "category": "类别",
+      "changes": "更改",
+      "connection": "连接",
+      "field": "字段",
+      "ip": "IP 地址",
+      "noChanges": "此操作未记录变更前后的快照。",
+      "none": "无",
+      "requestId": "请求 ID",
+      "resource": "资源",
+      "subtitle": "{actor} · {when}",
+      "truncated": "已在 16 KB 处截断",
+      "userAgent": "用户代理"
+    },
+    "empty": {
+      "body": "对数据、架构、设置和权限的更改，会在发生时记录到这里。",
+      "filtered": {
+        "body": "请扩大日期范围，或清除类别筛选。",
+        "title": "没有符合这些筛选条件的记录"
+      },
+      "title": "还没有记录任何日志"
+    },
+    "filterActor": "操作者 ID",
+    "filterCategoryAny": "任意类别",
+    "filterCategory": "按类别筛选",
+    "filterFrom": "起始",
+    "filterTo": "截止",
+    "listFailed": {
+      "title": "无法加载审计日志"
+    },
+    "loadMore": "加载更早的记录",
+    "subtitle": "此工作区中的每一项更改、由谁做出，以及改动了什么。",
+    "title": "审计日志"
+  },
+  "roles": {
+    "action": {
+      "delete": "删除",
+      "rename": "重命名"
+    },
+    "builtinLocked": "内置角色无法删除。",
+    "category": {
+      "access": "访问",
+      "data": "数据",
+      "operations": "运维",
+      "workspace": "工作区"
+    },
+    "column": {
+      "actions": "操作",
+      "members": "成员",
+      "name": "角色"
+    },
+    "create": {
+      "descriptionLabel": "描述",
+      "description": "新建的角色最初不具备任何权限。",
+      "failed": "无法创建该角色",
+      "namePlaceholder": "例如：客服专员",
+      "name": "名称",
+      "submit": "创建角色",
+      "title": "新建角色"
+    },
+    "createButton": "新建角色",
+    "delete": {
+      "confirm": "删除角色",
+      "description": "该角色及其权限记录都会被删除。",
+      "failed": "无法删除该角色",
+      "hasMembers": "“{name}”仍有 {count, plural, other {# 位成员}}。请选择他们迁移到的角色——Adminium 不会让任何账户处于没有角色的状态。",
+      "noMembers": "没有人拥有“{name}”，因此不需要迁移任何人。",
+      "reassignPlaceholder": "选择一个角色…",
+      "reassignTo": "将成员迁移到",
+      "title": "删除角色"
+    },
+    "list": {
+      "title": "角色"
+    },
+    "loadFailed": {
+      "body": "下方的矩阵并不完整，此时保存会清除那些只是没有加载出来的权限。请先重新加载，再进行更改。",
+      "title": "部分权限无法读取"
+    },
+    "matrix": {
+      "discard": "放弃",
+      "empty": {
+        "body": "此实例报告说完全没有可授予的权限，这不应该发生——请重新加载；若问题依旧，请查看服务器日志。",
+        "title": "没有可显示的权限"
+      },
+      "label": "角色权限",
+      "noChanges": "没有待保存的更改",
+      "pending": "{count, plural, other {# 项待保存的更改}}",
+      "rowHeader": "权限",
+      "title": "权限"
+    },
+    "memberCount": "{count, plural, other {# 位用户}}",
+    "permission": {
+      "apiKeysManage": "管理 API 密钥",
+      "auditRead": "查看审计日志",
+      "connectionsManage": "管理数据库连接",
+      "exportsManage": "管理所有人的导出",
+      "importsManage": "管理所有人的导入",
+      "jobsManage": "启动和取消后台任务",
+      "jobsRead": "查看所有后台任务",
+      "llmRun": "运行 AI 辅助",
+      "pagesManage": "创建和整理页面",
+      "reportsManage": "管理定时报告",
+      "rolesManage": "管理角色和权限",
+      "schemaRemap": "编辑架构标签和覆盖",
+      "settingsManage": "管理工作区设置",
+      "usersManage": "管理用户"
+    },
+    "rename": {
+      "failed": "无法重命名该角色",
+      "title": "重命名角色"
+    },
+    "saveFailed": {
+      "title": "无法保存全部角色"
+    },
+    "subtitle": "每个角色可以做什么。用户会获得其所持有的全部角色的权限并集。",
+    "title": "角色与权限"
+  },
+  "security": {
+    "password": {
+      "changedBody": "下次登录时请使用新密码。其他设备上的会话不受影响——如果希望它们退出登录，请在下方结束这些会话。",
+      "changed": "密码已更改",
+      "confirm": "确认新密码",
+      "current": "当前密码",
+      "failed": "无法更改你的密码",
+      "helper": "至少 8 个字符。",
+      "mismatch": "两次输入的密码不一致。",
+      "new": "新密码",
+      "submit": "更改密码",
+      "title": "密码"
+    },
+    "sessions": {
+      "expires": "{at} 过期",
+      "failedBody": "这个列表是唯一能显示你的账户在哪些地方登录的地方，因此列表为空时应当视为情况未知，而不是没有任何登录。",
+      "failed": "无法读取你的会话",
+      "ip": "IP {ip}",
+      "loading": "正在查找其他已登录的设备…",
+      "noIp": "未记录 IP",
+      "revokeBody": "该会话会立即结束，正在使用它的人必须重新登录。",
+      "revokeFailed": "无法让该设备退出登录",
+      "revokeTitle": "让此设备退出登录",
+      "revoke": "退出登录",
+      "seenUnknown": "最后活动：未知",
+      "seen": "最后活动于 {since}",
+      "thisDevice": "此设备",
+      "title": "已登录的设备",
+      "unknownDevice": "无法识别的设备"
+    },
+    "subtitle": "你的密码、你的双重验证，以及你已登录的每一处。",
+    "title": "安全",
+    "twoFactor": {
+      "activateFailed": "该验证码未被接受",
+      "activate": "开启双重验证",
+      "body": "验证器应用会生成一个 6 位数字验证码，Adminium 会在你输入密码之后要求提供它。",
+      "code": "验证器应用中的验证码",
+      "copyKey": "复制设置密钥",
+      "copyLink": "复制设置链接",
+      "disableBody": "你的账户将恢复为仅使用密码，你的恢复代码也会失效。",
+      "disableConfirm": "关闭",
+      "disableFailed": "无法关闭双重验证",
+      "disablePassword": "你的密码",
+      "disableTitle": "关闭双重验证",
+      "disable": "关闭双重验证",
+      "enrollFailed": "无法开始设置",
+      "enroll": "设置双重验证",
+      "hide": "隐藏设置密钥",
+      "off": "未启用",
+      "on": "已启用",
+      "recovery": {
+        "body": "如果你丢失了验证器，每个恢复代码可以让你登录一次。它们只在此刻显示这一次。",
+        "copy": "复制恢复代码",
+        "title": "保存你的恢复代码"
+      },
+      "reveal": "显示设置密钥",
+      "secretHelper": "把设置链接粘贴到你的验证器应用中，或者手动输入密钥。",
+      "secret": "设置密钥",
+      "title": "双重验证"
+    }
+  },
+  "team": {
+    "action": {
+      "reactivate": "恢复",
+      "remove": "删除",
+      "resend": "新链接",
+      "roles": "角色",
+      "suspend": "暂停"
+    },
+    "column": {
+      "actions": "操作",
+      "lastSeen": "最后活动",
+      "person": "人员",
+      "roles": "角色",
+      "status": "状态"
+    },
+    "counts": "活跃 {active} · 已邀请 {invited} · 已暂停 {suspended}",
+    "empty": {
+      "body": "邀请一位同事，让他拥有自己的登录账户和角色。",
+      "filtered": {
+        "body": "清除筛选条件即可查看完整名单。",
+        "title": "没有符合这些筛选条件的人"
+      },
+      "title": "目前只有你拥有账户"
+    },
+    "filterRoleAny": "任意角色",
+    "filterRole": "按角色筛选",
+    "filterStatusAny": "任意状态",
+    "filterStatus": "按状态筛选",
+    "invite": {
+      "copied": "已复制",
+      "copyLink": "复制链接",
+      "created": {
+        "body": "请你自己把这个链接发送给 {email}。它只显示这一次——Adminium 只保存它的哈希值，所以一旦丢失，你就必须删除这条邀请并重新签发一条新的。",
+        "title": "邀请已创建"
+      },
+      "emailIt": "通过邮件发送邀请",
+      "expiresRelative": "该链接将于 {at}（{relative}）过期。",
+      "expires": "该链接将于 {at} 过期。",
+      "noEmail": {
+        "smtp": "此实例未配置 SMTP 服务器，因此没有任何可用于发送邮件的途径。请通过你已经信任的渠道分享该链接。",
+        "title": "Adminium 没有通过邮件发送这个链接",
+        "unknown": "Adminium 无法确认此实例是否能够发送邮件。请通过你已经信任的渠道分享该链接。"
+      }
+    },
+    "inviteButton": "邀请同事",
+    "inviteDialog": {
+      "description": "Adminium 会创建账户，并给你一个一次性的激活链接，由你转交给对方。",
+      "emailPlaceholder": "name@example.com",
+      "email": "邮箱",
+      "failed": "无法创建邀请",
+      "namePlaceholder": "例如：李明",
+      "name": "姓名",
+      "rolesHelper": "请选择能让他完成本职工作的最小权限角色。之后可以随时更改。",
+      "roles": "角色",
+      "submit": "创建邀请",
+      "title": "邀请同事"
+    },
+    "listFailed": {
+      "title": "无法加载成员名单"
+    },
+    "loadMore": "加载更多",
+    "neverSignedIn": "从未登录",
+    "noRoles": "没有角色",
+    "remove": {
+      "body": "此操作会抹除 {name} 的账户、他们的偏好设置和登录会话，并从他们更改过的设置记录中清空其姓名。改为暂停则会保留所有这些内容，只是不再允许他们登录。此操作无法撤销。",
+      "confirm": "永久删除",
+      "prompt": "输入“{email}”以确认",
+      "title": "永久删除账户"
+    },
+    "roles": {
+      "unavailable": "你的账户无法查看角色，因此这里无法分配任何角色。"
+    },
+    "rolesDialog": {
+      "description": "用户会获得其所持有的全部角色的权限并集。",
+      "failed": "无法更改角色",
+      "title": "{name} 的角色"
+    },
+    "rolesLocked": "更改角色需要“管理角色”权限。",
+    "search": "搜索姓名或邮箱",
+    "status": {
+      "active": "活跃",
+      "invited": "已邀请",
+      "suspended": "已暂停"
+    },
+    "subtitle": "谁在这份 Adminium 上拥有账户，以及他们各自可以做什么。",
+    "title": "团队",
+    "twoFactorOn": "已开启双重验证",
+    "twoFactorShort": "2FA"
   }
 }

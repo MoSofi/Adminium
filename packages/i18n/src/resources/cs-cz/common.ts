@@ -106,7 +106,11 @@ export default {
       "people": "Lidé",
       "account": "Účet"
     },
-    "back": "Zpět"
+    "back": "Zpět",
+    "team": "Tým",
+    "roles": "Role a oprávnění",
+    "audit": "Auditní log",
+    "security": "Heslo a relace"
   },
   "topbar": {
     "search": "Hledat…",
@@ -553,6 +557,23 @@ export default {
           "label": "Název aplikace",
           "helper": "Zobrazuje se v postranním panelu, v titulku prohlížeče a v e-mailech.",
           "error": "Zadejte název o délce nejvýše 60 znaků."
+        },
+        "logo": {
+          "label": "Logo",
+          "drop": "Přetáhněte sem obrázek",
+          "helper": "PNG, JPEG, WebP, GIF nebo SVG do 1 MB. Nahradí vestavěnou značku všude.",
+          "upload": "Nahrát logo",
+          "replace": "Nahradit logo",
+          "remove": "Odebrat",
+          "uploaded": "Logo aktualizováno",
+          "removed": "Logo odebráno",
+          "tooLarge": "Tento obrázek je větší než 1 MB.",
+          "badType": "Vyberte obrázek PNG, JPEG, WebP, GIF nebo SVG.",
+          "undo": "Zpět"
+        },
+        "showVersion": {
+          "label": "Verze v postranním panelu",
+          "helper": "Číslo sestavení vedle loga. Vypnuté skryje, jakou verzi provozujete."
         }
       },
       "security": {
@@ -582,6 +603,8 @@ export default {
         "close": "Zavřít",
         "on": "Zapnuto",
         "off": "Vypnuto",
+        "shown": "Zobrazeno",
+        "hidden": "Skryto",
         "change": "{before} → {after}"
       },
       "defaultsCard": {
@@ -1258,7 +1281,9 @@ export default {
       "duplicate": "Duplikovat {name}",
       "remove": "Odebrat {name}",
       "removed": "{name} odebrán.",
-      "duplicated": "{name} duplikován."
+      "duplicated": "{name} duplikován.",
+      "unboundHint": "Tento widget zobrazuje ukázková data zde i na živé stránce. Otevřete „Konfigurovat“ a připojte ho k tabulce.",
+      "unbound": "Ukázková data"
     },
     "families": {
       "kpi": "KPI",
@@ -1287,7 +1312,134 @@ export default {
     "discardBody": "Nástěnka se vrátí do stavu, v jakém byla při otevření editoru. Vaše data zůstanou beze změny.",
     "discardConfirm": "Zahodit změny",
     "keepEditing": "Pokračovat v úpravách",
-    "discarded": "Změny byly zahozeny."
+    "discarded": "Změny byly zahozeny.",
+    "binding": {
+      "addFilter": "Přidat filtr",
+      "brokenBody": "Už neodpovídá dotazu, kterému tato verze rozumí, takže widget na živé stránce zobrazuje chybu.",
+      "brokenTitle": "Dotaz tohoto widgetu je poškozený",
+      "bucketColumn": "Sloupec s datem",
+      "bucketRequired": "Vyberte sloupec, který nese datum.",
+      "bucketUnit": "Časové seskupení",
+      "columnNone": "Žádný",
+      "columnPlaceholder": "Vyberte sloupec…",
+      "connect": "Připojit k datům",
+      "edit": "Upravit dotaz",
+      "event": {
+        "category": "Sloupec s kategorií (volitelné)",
+        "date": "Sloupec s datem začátku",
+        "end": "Sloupec s datem konce (volitelné)",
+        "title": "Sloupec s názvem"
+      },
+      "eventColumnsRequired": "Události potřebují datum začátku a název. Datum konce navíc vyžaduje kategorii, protože se sloupce čtou v pořadí.",
+      "filterColumnRequired": "Vyberte sloupec.",
+      "filterColumn": "Sloupec",
+      "filterListHelper": "Hodnoty oddělte čárkami.",
+      "filterOp": "Podmínka",
+      "filterValue": "Hodnota",
+      "fn": {
+        "avg": "Průměr",
+        "countDistinct": "Počet různých hodnot",
+        "count": "Počet řádků",
+        "max": "Maximum",
+        "min": "Minimum",
+        "sum": "Součet"
+      },
+      "groupByColumns": "Sloupce",
+      "groupByRequired": "Toto zobrazení potřebuje sloupec pro členění.",
+      "groupByRows": "Řádky",
+      "groupBy": "Seskupit podle",
+      "incompleteBody": "Vyplňte zvýrazněná pole — nedokončený dotaz by na živém dashboardu selhal.",
+      "incompleteTitle": "Tento dotaz není dokončený",
+      "limit": "Maximální počet načtených řádků",
+      "loadingSchema": "Načítání tabulek…",
+      "lossyBody": "Některé jeho části — další metriky, řazení nebo vazby na filtry stránky — se zde nezobrazují a při uložení budou zahozeny.",
+      "lossyTitle": "Tento dotaz je pokročilejší než editor",
+      "measureColumnRequired": "Tento výpočet potřebuje sloupec.",
+      "measureColumn": "Ze sloupce",
+      "measureFn": "Vypočítat",
+      "noConnectionBody": "Widgety lze navázat na data jen na stránce, která patří k některému připojení.",
+      "noConnectionTitle": "Tato stránka nemá databázové připojení",
+      "noDateColumns": "Tato tabulka nemá žádný sloupec s datem ani časovým razítkem.",
+      "noFilters": "Žádné filtry — počítá se každý řádek tabulky.",
+      "noSnapshotBody": "Tabulky a sloupce pocházejí z poslední introspekce připojení. Spusťte introspekci ve Studiu a poté tento editor znovu otevřete.",
+      "noSnapshotTitle": "Pro toto připojení není žádný snímek schématu",
+      "op": {
+        "between": "je mezi",
+        "ilike": "obsahuje (bez ohledu na velikost písmen)",
+        "in": "je jedním z",
+        "isNull": "je prázdné",
+        "like": "obsahuje",
+        "notNull": "není prázdné"
+      },
+      "orderAsc": "Nejstarší / nejnižší první",
+      "orderBy": "Seřadit podle",
+      "orderDesc": "Nejnovější / nejvyšší první",
+      "orderDir": "Směr",
+      "orderNone": "Pořadí z databáze",
+      "pickTableFirst": "Nejprve vyberte tabulku, abyste mohli zvolit její sloupce.",
+      "removeFilter": "Odebrat filtr",
+      "remove": "Odebrat zdroj dat",
+      "save": "Použít tento dotaz",
+      "sectionBreakdown": "Členění",
+      "sectionColumns": "Sloupce",
+      "sectionFilters": "Filtry",
+      "sectionMeasure": "Metrika",
+      "sectionRows": "Řádky",
+      "sectionSource": "Zdroj",
+      "sectionTime": "Časová osa",
+      "sectionWindow": "Období",
+      "selectColumns": "Zobrazené sloupce",
+      "selectRequired": "Vyberte alespoň jeden sloupec k zobrazení.",
+      "shape": {
+        "calendarEvents": "Události s datem",
+        "categorical": "Hodnota pro každou kategorii",
+        "distribution": "Rozložení hodnot jednoho sloupce",
+        "matrix": "Mřížka řádků a sloupců",
+        "metricDelta": "Číslo porovnané s předchozím obdobím",
+        "multiTimeseries": "Jedna čára v čase pro každou kategorii",
+        "recordList": "Seznam řádků",
+        "record": "Jeden řádek",
+        "singleMetric": "Jediné číslo",
+        "stream": "Živý proud nedávných řádků",
+        "timeseries": "Hodnota v čase"
+      },
+      "shapeHelper": "Změna tohoto nastavení mění, které ovládací prvky dotazu se použijí.",
+      "shapeLabel": "Co tento widget zobrazuje",
+      "summaryColumns": "{count, plural, one {# sloupec} few {# sloupce} many {# sloupce} other {# sloupců}}",
+      "summaryFilters": "{count, plural, one {# filtr} few {# filtry} many {# filtru} other {# filtrů}}",
+      "tableEmpty": "Žádná odpovídající tabulka.",
+      "tablePlaceholder": "Hledat tabulky…",
+      "tableRequired": "Vyberte tabulku pro dotaz.",
+      "table": "Tabulka nebo pohled",
+      "title": "Zdroj dat",
+      "unbindableBody": "Zobrazuje tvar dat, který dotazovací engine zatím neumí sestavit, takže vykresluje vlastní ukázkový obsah.",
+      "unbindableTitle": "Tento widget zatím neumí dotazovat data",
+      "unboundBody": "Ukázková čísla zobrazuje zde i na živé stránce. Připojte ho k tabulce, aby zobrazoval skutečná data.",
+      "unboundTitle": "Není připojeno k vašim datům",
+      "unit": {
+        "day": "Denně",
+        "hour": "Hodinově",
+        "month": "Měsíčně",
+        "quarter": "Čtvrtletně",
+        "week": "Týdně",
+        "year": "Ročně"
+      },
+      "valueColumnRequired": "Vyberte sloupec, který se má měřit.",
+      "valueColumn": "Sloupec s hodnotou",
+      "windowColumn": "Sloupec s datem",
+      "windowLast": "Poslední",
+      "windowNone": "Celá historie",
+      "windowRequired": "Porovnání s předchozím obdobím vyžaduje sloupec s datem.",
+      "windowUnit": {
+        "day": "dny",
+        "hour": "hodiny",
+        "month": "měsíce",
+        "quarter": "čtvrtletí",
+        "week": "týdny",
+        "year": "roky"
+      },
+      "windowUnitLabel": "Jednotka"
+    }
   },
   "setup": {
     "title": "Nastavení Adminia",
@@ -1640,7 +1792,8 @@ export default {
       "helpAbout": "O aplikaci Adminium"
     },
     "settings": {
-      "explainer": "Tato nastavení platí pouze pro aplikaci Adminium na tomto počítači. Ukládají se na tomto zařízení, ne ve vašem pracovním prostoru."
+      "explainer": "Tato nastavení platí pouze pro aplikaci Adminium na tomto počítači. Ukládají se na tomto zařízení, ne ve vašem pracovním prostoru.",
+      "title": "Nastavení aplikace"
     },
     "security": {
       "heading": "Přihlášení"
@@ -1687,7 +1840,8 @@ export default {
       "mismatchBody": "Sdílení je vypnuté, ale server síť zatím neuvolnil. Zavřete ji restartem Adminia.",
       "transportTitle": "Provoz ve vaší místní síti není šifrovaný.",
       "transportBody": "Sdílejte jen v sítích, kterým důvěřujete. Pro vzdálený přístup použijte vlastní hosting Adminia za HTTPS.",
-      "firewall": "Při prvním sdílení se váš operační systém zeptá, zda povolit příchozí připojení — zvolte Povolit, jinak se k Adminiu ostatní zařízení nedostanou."
+      "firewall": "Při prvním sdílení se váš operační systém zeptá, zda povolit příchozí připojení — zvolte Povolit, jinak se k Adminiu ostatní zařízení nedostanou.",
+      "manageTeam": "Spravovat uživatele a role"
     },
     "setup": {
       "title": "Vítejte v Adminiu",
@@ -2257,5 +2411,305 @@ export default {
       "x": "Po stranách (px)",
       "y": "Nahoře a dole (px)"
     }
+  },
+  "audit": {
+    "action": {
+      "view": "Zobrazit"
+    },
+    "actor": {
+      "apiKey": "Klíč API",
+      "automation": "Automatizace",
+      "system": "Systém",
+      "user": "Uživatel"
+    },
+    "category": {
+      "auth": "Přihlašování a účty",
+      "automation": "Automatizace",
+      "connection": "Připojení",
+      "data": "Záznamy",
+      "export": "Importy a exporty",
+      "llm": "Asistent AI",
+      "rbac": "Role a oprávnění",
+      "schema": "Schéma",
+      "settings": "Nastavení",
+      "system": "Systém"
+    },
+    "column": {
+      "action": "Akce",
+      "actor": "Původce",
+      "category": "Kategorie",
+      "details": "Podrobnosti",
+      "when": "Kdy"
+    },
+    "drawer": {
+      "actorId": "ID původce",
+      "actorKind": "Typ původce",
+      "after": "Po",
+      "before": "Před",
+      "category": "Kategorie",
+      "changes": "Změny",
+      "connection": "Připojení",
+      "field": "Pole",
+      "ip": "IP adresa",
+      "noChanges": "U této akce se nezaznamenal žádný snímek před ani po.",
+      "none": "Žádné",
+      "requestId": "ID požadavku",
+      "resource": "Prostředek",
+      "subtitle": "{actor} · {when}",
+      "truncated": "Zkráceno na 16 KB",
+      "userAgent": "User agent"
+    },
+    "empty": {
+      "body": "Změny dat, schématu, nastavení a oprávnění se sem zapisují průběžně, jak nastávají.",
+      "filtered": {
+        "body": "Rozšiřte rozsah dat nebo zrušte filtr kategorie.",
+        "title": "Těmto filtrům nic neodpovídá"
+      },
+      "title": "Zatím nebylo nic zaznamenáno"
+    },
+    "filterActor": "ID původce",
+    "filterCategoryAny": "Libovolná kategorie",
+    "filterCategory": "Filtrovat podle kategorie",
+    "filterFrom": "Od",
+    "filterTo": "Do",
+    "listFailed": {
+      "title": "Auditní log se nepodařilo načíst"
+    },
+    "loadMore": "Načíst starší záznamy",
+    "subtitle": "Každá změna provedená v tomto pracovním prostoru — kdo ji provedl a co změnila.",
+    "title": "Auditní log"
+  },
+  "roles": {
+    "action": {
+      "delete": "Smazat",
+      "rename": "Přejmenovat"
+    },
+    "builtinLocked": "Vestavěné role nelze smazat.",
+    "category": {
+      "access": "Přístup",
+      "data": "Data",
+      "operations": "Provoz",
+      "workspace": "Pracovní prostor"
+    },
+    "column": {
+      "actions": "Akce",
+      "members": "Členové",
+      "name": "Role"
+    },
+    "create": {
+      "descriptionLabel": "Popis",
+      "description": "Nová role začíná zcela bez oprávnění.",
+      "failed": "Roli se nepodařilo vytvořit",
+      "namePlaceholder": "např. Pracovník podpory",
+      "name": "Název",
+      "submit": "Vytvořit roli",
+      "title": "Nová role"
+    },
+    "createButton": "Nová role",
+    "delete": {
+      "confirm": "Smazat roli",
+      "description": "Role i její řádky oprávnění budou odstraněny.",
+      "failed": "Roli se nepodařilo smazat",
+      "hasMembers": "Roli „{name}“ má stále {count, plural, one {# člen} few {# členové} many {# člena} other {# členů}}. Vyberte roli, do které se členové přesunou — Adminium nenechá žádný účet bez role.",
+      "noMembers": "Roli „{name}“ nemá nikdo, takže se nic nepřesouvá.",
+      "reassignPlaceholder": "Vyberte roli…",
+      "reassignTo": "Přesunout členy do role",
+      "title": "Smazat roli"
+    },
+    "list": {
+      "title": "Role"
+    },
+    "loadFailed": {
+      "body": "Matice níže je neúplná, takže by její uložení smazalo oprávnění, která se jen nenačetla. Před úpravami načtěte stránku znovu.",
+      "title": "Některá oprávnění se nepodařilo přečíst"
+    },
+    "matrix": {
+      "discard": "Zahodit",
+      "empty": {
+        "body": "Tato instance nehlásí vůbec žádná udělitelná oprávnění, což by se nemělo stát — načtěte stránku znovu, a pokud to přetrvá, zkontrolujte protokol serveru.",
+        "title": "Žádná oprávnění k zobrazení"
+      },
+      "label": "Oprávnění rolí",
+      "noChanges": "Žádné neuložené změny",
+      "pending": "{count, plural, one {# neuložená změna} few {# neuložené změny} many {# neuložené změny} other {# neuložených změn}}",
+      "rowHeader": "Oprávnění",
+      "title": "Oprávnění"
+    },
+    "memberCount": "{count, plural, one {# uživatel} few {# uživatelé} many {# uživatele} other {# uživatelů}}",
+    "permission": {
+      "apiKeysManage": "Spravovat klíče API",
+      "auditRead": "Číst auditní log",
+      "connectionsManage": "Spravovat databázová připojení",
+      "exportsManage": "Spravovat exporty všech uživatelů",
+      "importsManage": "Spravovat importy všech uživatelů",
+      "jobsManage": "Spouštět a rušit úlohy na pozadí",
+      "jobsRead": "Vidět všechny úlohy na pozadí",
+      "llmRun": "Spustit asistenta AI",
+      "pagesManage": "Vytvářet a uspořádat stránky",
+      "reportsManage": "Spravovat naplánované sestavy",
+      "rolesManage": "Spravovat role a oprávnění",
+      "schemaRemap": "Upravovat popisky a úpravy schématu",
+      "settingsManage": "Spravovat nastavení pracovního prostoru",
+      "usersManage": "Spravovat uživatele"
+    },
+    "rename": {
+      "failed": "Roli se nepodařilo přejmenovat",
+      "title": "Přejmenovat roli"
+    },
+    "saveFailed": {
+      "title": "Nepodařilo se uložit všechny role"
+    },
+    "subtitle": "Co smí každá role. Uživatel dostane sjednocení všech rolí, které má.",
+    "title": "Role a oprávnění"
+  },
+  "security": {
+    "password": {
+      "changedBody": "Při příštím přihlášení použijte nové heslo. Relací na jiných zařízeních se to nedotkne — pokud je chcete odhlásit, odvolejte je níže.",
+      "changed": "Heslo změněno",
+      "confirm": "Potvrzení nového hesla",
+      "current": "Současné heslo",
+      "failed": "Vaše heslo se nepodařilo změnit",
+      "helper": "Alespoň 8 znaků.",
+      "mismatch": "Hesla se neshodují.",
+      "new": "Nové heslo",
+      "submit": "Změnit heslo",
+      "title": "Heslo"
+    },
+    "sessions": {
+      "expires": "Vyprší {at}",
+      "failedBody": "Tento seznam je jediné místo, kde uvidíte, kde všude je váš účet přihlášen, takže prázdný seznam berte jako neznámý stav, ne jako důkaz, že nikde přihlášen není.",
+      "failed": "Vaše relace se nepodařilo načíst",
+      "ip": "IP {ip}",
+      "loading": "Hledáme další přihlášená zařízení…",
+      "noIp": "Nezaznamenána žádná IP adresa",
+      "revokeBody": "Relace okamžitě skončí a ten, kdo ji používá, se bude muset přihlásit znovu.",
+      "revokeFailed": "Toto zařízení se nepodařilo odhlásit",
+      "revokeTitle": "Odhlásit toto zařízení",
+      "revoke": "Odhlásit",
+      "seenUnknown": "Naposledy aktivní: neznámo",
+      "seen": "Naposledy aktivní {since}",
+      "thisDevice": "Toto zařízení",
+      "title": "Přihlášená zařízení",
+      "unknownDevice": "Nerozpoznané zařízení"
+    },
+    "subtitle": "Vaše heslo, váš druhý faktor a všechna místa, kde jste přihlášeni.",
+    "title": "Zabezpečení",
+    "twoFactor": {
+      "activateFailed": "Tento kód nebyl přijat",
+      "activate": "Zapnout dvoufázové ověření",
+      "body": "Ověřovací aplikace generuje 6místný kód, na který se Adminium zeptá po zadání hesla.",
+      "code": "Kód z vaší aplikace",
+      "copyKey": "Kopírovat nastavovací klíč",
+      "copyLink": "Kopírovat nastavovací odkaz",
+      "disableBody": "Váš účet se vrátí jen k heslu a vaše záložní kódy přestanou fungovat.",
+      "disableConfirm": "Vypnout",
+      "disableFailed": "Dvoufázové ověření se nepodařilo vypnout",
+      "disablePassword": "Vaše heslo",
+      "disableTitle": "Vypnout dvoufázové ověření",
+      "disable": "Vypnout dvoufázové ověření",
+      "enrollFailed": "Nastavení se nepodařilo spustit",
+      "enroll": "Nastavit dvoufázové ověření",
+      "hide": "Skrýt nastavovací klíč",
+      "off": "Vypnuto",
+      "on": "Zapnuto",
+      "recovery": {
+        "body": "Každý kód vás jednou přihlásí, pokud přijdete o ověřovací aplikaci. Zobrazují se pouze teď.",
+        "copy": "Kopírovat kódy",
+        "title": "Uložte si záložní kódy"
+      },
+      "reveal": "Zobrazit nastavovací klíč",
+      "secretHelper": "Vložte nastavovací odkaz do své ověřovací aplikace, nebo klíč zadejte ručně.",
+      "secret": "Nastavovací klíč",
+      "title": "Dvoufázové ověření"
+    }
+  },
+  "team": {
+    "action": {
+      "reactivate": "Znovu aktivovat",
+      "remove": "Smazat",
+      "resend": "Nový odkaz",
+      "roles": "Role",
+      "suspend": "Pozastavit"
+    },
+    "column": {
+      "actions": "Akce",
+      "lastSeen": "Naposledy aktivní",
+      "person": "Osoba",
+      "roles": "Role",
+      "status": "Stav"
+    },
+    "counts": "{active} aktivních · {invited} pozvaných · {suspended} pozastavených",
+    "empty": {
+      "body": "Pozvěte kolegu a dejte mu vlastní přihlášení a roli.",
+      "filtered": {
+        "body": "Zrušte filtry a uvidíte celý adresář.",
+        "title": "Těmto filtrům nikdo neodpovídá"
+      },
+      "title": "Účet máte jen vy"
+    },
+    "filterRoleAny": "Libovolná role",
+    "filterRole": "Filtrovat podle role",
+    "filterStatusAny": "Libovolný stav",
+    "filterStatus": "Filtrovat podle stavu",
+    "invite": {
+      "copied": "Zkopírováno",
+      "copyLink": "Kopírovat odkaz",
+      "created": {
+        "body": "Tento odkaz pošlete na adresu {email} sami. Zobrazí se jen jednou — Adminium si ukládá pouze jeho otisk (hash), takže pokud o něj přijdete, budete muset pozvánku smazat a vystavit novou.",
+        "title": "Pozvánka vytvořena"
+      },
+      "emailIt": "Poslat pozvánku e-mailem",
+      "expiresRelative": "Platnost odkazu vyprší {at} ({relative}).",
+      "expires": "Platnost odkazu vyprší {at}.",
+      "noEmail": {
+        "smtp": "Tato instance nemá nastavený server SMTP, takže není čím odeslat e-mail. Sdílejte odkaz kanálem, kterému už důvěřujete.",
+        "title": "Adminium tento odkaz neposlalo e-mailem",
+        "unknown": "Adminium nemohlo zjistit, zda tato instance umí odesílat e-maily. Sdílejte odkaz kanálem, kterému už důvěřujete."
+      }
+    },
+    "inviteButton": "Pozvat kolegu",
+    "inviteDialog": {
+      "description": "Adminium vytvoří účet a dá vám jednorázový aktivační odkaz, který předáte dál.",
+      "emailPlaceholder": "jmeno@example.com",
+      "email": "E-mail",
+      "failed": "Pozvánku se nepodařilo vytvořit",
+      "namePlaceholder": "např. Dana Osei",
+      "name": "Jméno",
+      "rolesHelper": "Vyberte roli s nejnižšími oprávněními, která mu na jeho práci stačí. Změnit to můžete později.",
+      "roles": "Role",
+      "submit": "Vytvořit pozvánku",
+      "title": "Pozvat kolegu"
+    },
+    "listFailed": {
+      "title": "Adresář se nepodařilo načíst"
+    },
+    "loadMore": "Načíst další",
+    "neverSignedIn": "Nikdy se nepřihlásil(a)",
+    "noRoles": "Žádné role",
+    "remove": {
+      "body": "Tímto se smaže účet uživatele {name}, jeho předvolby i přihlašovací relace a jeho jméno se vymaže ze záznamu o nastaveních, která změnil. Pozastavení místo toho vše zachová a jen mu zabrání v přihlášení. Tuto akci nelze vzít zpět.",
+      "confirm": "Trvale smazat",
+      "prompt": "Pro potvrzení napište „{email}“",
+      "title": "Trvale smazat účet"
+    },
+    "roles": {
+      "unavailable": "Role nejsou pro váš účet viditelné, takže zde žádnou nelze přiřadit."
+    },
+    "rolesDialog": {
+      "description": "Uživatel dostane sjednocení všech rolí, které má.",
+      "failed": "Role se nepodařilo změnit",
+      "title": "Role uživatele {name}"
+    },
+    "rolesLocked": "Změna rolí vyžaduje oprávnění „Spravovat role“.",
+    "search": "Hledat podle jména nebo e-mailu",
+    "status": {
+      "active": "Aktivní",
+      "invited": "Pozvaný(á)",
+      "suspended": "Pozastavený(á)"
+    },
+    "subtitle": "Kdo má účet v tomto Adminiu a co každý z nich smí.",
+    "title": "Tým",
+    "twoFactorOn": "Dvoufázové ověření je zapnuté",
+    "twoFactorShort": "2FA"
   }
 } as const;

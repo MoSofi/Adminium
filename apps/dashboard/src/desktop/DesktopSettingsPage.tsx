@@ -28,6 +28,7 @@ import { useAppToasts } from '../pages/toasts.js';
 import { StatePage } from '../states/StatePage.js';
 import { CapabilitiesCard } from './capabilities/CapabilitiesCard.js';
 import { LanShareCard } from './LanShareCard.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { isDesktopRuntime, readSingleUser, setRequireLogin } from './singleUser.js';
 
@@ -116,6 +117,7 @@ export function DesktopSettingsPage(): ReactNode {
 
   return (
     <PageSurface className="flex flex-col gap-6">
+      <PageActions title={t('desktop.settings.title', 'Desktop settings')} />
       <div className="flex items-start gap-2 rounded-lg bg-info-soft p-3 text-body-sm text-fg">
         <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-info" />
         <p>

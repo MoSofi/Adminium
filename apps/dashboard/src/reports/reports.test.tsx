@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BootstrapData } from '../app/bootstrap.js';
 import { ScheduledReportsPage, cadenceLabel } from './ScheduledReportsPage.js';
 import type { ScheduledReportDto } from './api.js';
+import { ShellHarness } from '../test/shellHarness.js';
 
 const BOOT = {
   user: { id: 'usr_1', name: 'Ava', email: 'ava@adminium.test' },
@@ -61,7 +62,13 @@ function renderWithClient(ui: ReactElement, seed?: (client: QueryClient) => void
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(['bootstrap'], BOOT);
   seed?.(client);
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  // ShellHarness supplies the topbar half of the shell: the page's primary
+  // action is published there (PageActions), so a bare render has no button.
+  return render(
+    <QueryClientProvider client={client}>
+      <ShellHarness>{ui}</ShellHarness>
+    </QueryClientProvider>,
+  );
 }
 
 afterEach(() => {

@@ -98,7 +98,11 @@
       "people": "People",
       "account": "Account"
     },
-    "back": "Back"
+    "back": "Back",
+    "team": "Team",
+    "roles": "Roles & permissions",
+    "audit": "Audit log",
+    "security": "Password & sessions"
   },
   "topbar": {
     "search": "Search…",
@@ -545,6 +549,23 @@
           "label": "Application name",
           "helper": "Shown in the sidebar, browser title, and emails.",
           "error": "Enter a name of at most 60 characters."
+        },
+        "logo": {
+          "label": "Logo",
+          "drop": "Drop an image here",
+          "helper": "PNG, JPEG, WebP, GIF or SVG, up to 1 MB. Replaces the built-in mark everywhere.",
+          "upload": "Upload logo",
+          "replace": "Replace logo",
+          "remove": "Remove",
+          "uploaded": "Logo updated",
+          "removed": "Logo removed",
+          "tooLarge": "That image is larger than 1 MB.",
+          "badType": "Choose a PNG, JPEG, WebP, GIF or SVG image.",
+          "undo": "Undo"
+        },
+        "showVersion": {
+          "label": "Version in the sidebar",
+          "helper": "The build number beside the logo. Off hides which version you run."
         }
       },
       "security": {
@@ -574,6 +595,8 @@
         "close": "Close",
         "on": "On",
         "off": "Off",
+        "shown": "Shown",
+        "hidden": "Hidden",
         "change": "{before} → {after}"
       },
       "defaultsCard": {
@@ -1250,7 +1273,9 @@
       "duplicate": "Duplicate {name}",
       "remove": "Remove {name}",
       "removed": "{name} removed.",
-      "duplicated": "{name} duplicated."
+      "duplicated": "{name} duplicated.",
+      "unboundHint": "This widget shows sample data here and on the live page. Open Configure to connect it to a table.",
+      "unbound": "Sample data"
     },
     "families": {
       "kpi": "KPIs",
@@ -1279,7 +1304,134 @@
     "discardBody": "The dashboard goes back to how it looked when you opened the editor. Your data isn’t affected.",
     "discardConfirm": "Discard changes",
     "keepEditing": "Keep editing",
-    "discarded": "Changes discarded."
+    "discarded": "Changes discarded.",
+    "binding": {
+      "addFilter": "Add filter",
+      "brokenBody": "It no longer matches a query this version understands, so the widget shows an error on the live page.",
+      "brokenTitle": "This widget’s query is broken",
+      "bucketColumn": "Date column",
+      "bucketRequired": "Pick the column that carries the date.",
+      "bucketUnit": "Group time by",
+      "columnNone": "None",
+      "columnPlaceholder": "Choose a column…",
+      "connect": "Connect to data",
+      "edit": "Edit query",
+      "event": {
+        "category": "Category column (optional)",
+        "date": "Start date column",
+        "end": "End date column (optional)",
+        "title": "Title column"
+      },
+      "eventColumnsRequired": "Events need a start date and a title. An end date also needs a category, because the columns are read in order.",
+      "filterColumnRequired": "Pick a column.",
+      "filterColumn": "Column",
+      "filterListHelper": "Separate values with commas.",
+      "filterOp": "Condition",
+      "filterValue": "Value",
+      "fn": {
+        "avg": "Average",
+        "countDistinct": "Count of distinct values",
+        "count": "Count of rows",
+        "max": "Maximum",
+        "min": "Minimum",
+        "sum": "Sum"
+      },
+      "groupByColumns": "Columns",
+      "groupByRequired": "This view needs a breakdown column.",
+      "groupByRows": "Rows",
+      "groupBy": "Group by",
+      "incompleteBody": "Fill in the highlighted fields — a half-written query would fail on the live dashboard.",
+      "incompleteTitle": "This query isn’t finished",
+      "limit": "Most rows to fetch",
+      "loadingSchema": "Loading tables…",
+      "lossyBody": "Parts of it — extra measures, sorts or page-filter links — aren’t shown here and will be dropped if you save.",
+      "lossyTitle": "This query is more advanced than the editor",
+      "measureColumnRequired": "This calculation needs a column.",
+      "measureColumn": "Of column",
+      "measureFn": "Calculate",
+      "noConnectionBody": "Widgets can only be bound on a page that belongs to a connection.",
+      "noConnectionTitle": "This page has no database connection",
+      "noDateColumns": "This table has no date or timestamp column.",
+      "noFilters": "No filters — every row in the table is counted.",
+      "noSnapshotBody": "Tables and columns come from the connection’s last introspection. Run introspection in Studio, then reopen this editor.",
+      "noSnapshotTitle": "No schema snapshot for this connection",
+      "op": {
+        "between": "is between",
+        "ilike": "contains (any case)",
+        "in": "is one of",
+        "isNull": "is empty",
+        "like": "contains",
+        "notNull": "is not empty"
+      },
+      "orderAsc": "Oldest / lowest first",
+      "orderBy": "Sort by",
+      "orderDesc": "Newest / highest first",
+      "orderDir": "Direction",
+      "orderNone": "Database order",
+      "pickTableFirst": "Pick a table to choose its columns.",
+      "removeFilter": "Remove filter",
+      "remove": "Remove data source",
+      "save": "Use this query",
+      "sectionBreakdown": "Breakdown",
+      "sectionColumns": "Columns",
+      "sectionFilters": "Filters",
+      "sectionMeasure": "Measure",
+      "sectionRows": "Rows",
+      "sectionSource": "Source",
+      "sectionTime": "Time axis",
+      "sectionWindow": "Period",
+      "selectColumns": "Columns to show",
+      "selectRequired": "Choose at least one column to show.",
+      "shape": {
+        "calendarEvents": "Dated events",
+        "categorical": "A value per category",
+        "distribution": "The spread of one column",
+        "matrix": "A grid of rows by columns",
+        "metricDelta": "A number, compared to the period before",
+        "multiTimeseries": "One line over time per category",
+        "recordList": "A list of rows",
+        "record": "One row",
+        "singleMetric": "A single number",
+        "stream": "A live feed of recent rows",
+        "timeseries": "A value over time"
+      },
+      "shapeHelper": "Changing this changes which query controls apply.",
+      "shapeLabel": "What this widget shows",
+      "summaryColumns": "{count, plural, one {# column} other {# columns}}",
+      "summaryFilters": "{count, plural, one {# filter} other {# filters}}",
+      "tableEmpty": "No matching table.",
+      "tablePlaceholder": "Search tables…",
+      "tableRequired": "Pick a table to query.",
+      "table": "Table or view",
+      "title": "Data source",
+      "unbindableBody": "It shows the shape of data the query engine doesn’t build yet, so it renders its own sample content.",
+      "unbindableTitle": "This widget can’t query data yet",
+      "unboundBody": "It shows sample numbers here AND on the live page. Connect it to a table to show real data.",
+      "unboundTitle": "Not connected to your data",
+      "unit": {
+        "day": "Daily",
+        "hour": "Hourly",
+        "month": "Monthly",
+        "quarter": "Quarterly",
+        "week": "Weekly",
+        "year": "Yearly"
+      },
+      "valueColumnRequired": "Pick the column to measure.",
+      "valueColumn": "Value column",
+      "windowColumn": "Date column",
+      "windowLast": "Last",
+      "windowNone": "All time",
+      "windowRequired": "Comparing to the previous period needs a date column.",
+      "windowUnit": {
+        "day": "days",
+        "hour": "hours",
+        "month": "months",
+        "quarter": "quarters",
+        "week": "weeks",
+        "year": "years"
+      },
+      "windowUnitLabel": "Unit"
+    }
   },
   "setup": {
     "title": "Set up Adminium",
@@ -1632,7 +1784,8 @@
       "helpAbout": "About Adminium"
     },
     "settings": {
-      "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in your workspace."
+      "explainer": "These settings apply to the Adminium app on this computer only. They are stored on this machine, not in your workspace.",
+      "title": "Desktop settings"
     },
     "security": {
       "heading": "Sign-in"
@@ -1679,7 +1832,8 @@
       "mismatchBody": "Sharing is switched off, but the server has not released the network yet. Restart Adminium to close it.",
       "transportTitle": "Traffic on your local network is not encrypted.",
       "transportBody": "Share only on networks you trust. For remote access, use Adminium self-host behind HTTPS.",
-      "firewall": "The first time you share, your operating system will ask whether to allow incoming connections — choose Allow, or other devices will not be able to reach Adminium."
+      "firewall": "The first time you share, your operating system will ask whether to allow incoming connections — choose Allow, or other devices will not be able to reach Adminium.",
+      "manageTeam": "Manage users & roles"
     },
     "setup": {
       "title": "Welcome to Adminium",
@@ -2249,5 +2403,305 @@
       "x": "Sides (px)",
       "y": "Top and bottom (px)"
     }
+  },
+  "audit": {
+    "action": {
+      "view": "View"
+    },
+    "actor": {
+      "apiKey": "API key",
+      "automation": "Automation",
+      "system": "System",
+      "user": "User"
+    },
+    "category": {
+      "auth": "Sign-in & accounts",
+      "automation": "Automations",
+      "connection": "Connections",
+      "data": "Records",
+      "export": "Imports & exports",
+      "llm": "AI assist",
+      "rbac": "Roles & permissions",
+      "schema": "Schema",
+      "settings": "Settings",
+      "system": "System"
+    },
+    "column": {
+      "action": "Action",
+      "actor": "Actor",
+      "category": "Category",
+      "details": "Details",
+      "when": "When"
+    },
+    "drawer": {
+      "actorId": "Actor id",
+      "actorKind": "Actor type",
+      "after": "After",
+      "before": "Before",
+      "category": "Category",
+      "changes": "Changes",
+      "connection": "Connection",
+      "field": "Field",
+      "ip": "IP address",
+      "noChanges": "This action recorded no before/after images.",
+      "none": "None",
+      "requestId": "Request id",
+      "resource": "Resource",
+      "subtitle": "{actor} · {when}",
+      "truncated": "Truncated at 16 KB",
+      "userAgent": "User agent"
+    },
+    "empty": {
+      "body": "Changes to data, schema, settings and permissions land here as they happen.",
+      "filtered": {
+        "body": "Widen the date range or clear the category filter.",
+        "title": "Nothing matches these filters"
+      },
+      "title": "Nothing has been logged yet"
+    },
+    "filterActor": "Actor id",
+    "filterCategoryAny": "Any category",
+    "filterCategory": "Filter by category",
+    "filterFrom": "From",
+    "filterTo": "To",
+    "listFailed": {
+      "title": "Could not load the audit log"
+    },
+    "loadMore": "Load older entries",
+    "subtitle": "Every change made in this workspace, who made it, and what it changed.",
+    "title": "Audit log"
+  },
+  "roles": {
+    "action": {
+      "delete": "Delete",
+      "rename": "Rename"
+    },
+    "builtinLocked": "Built-in roles cannot be deleted.",
+    "category": {
+      "access": "Access",
+      "data": "Data",
+      "operations": "Operations",
+      "workspace": "Workspace"
+    },
+    "column": {
+      "actions": "Actions",
+      "members": "Members",
+      "name": "Role"
+    },
+    "create": {
+      "descriptionLabel": "Description",
+      "description": "A new role starts with no permissions at all.",
+      "failed": "Could not create the role",
+      "namePlaceholder": "e.g. Support agent",
+      "name": "Name",
+      "submit": "Create role",
+      "title": "New role"
+    },
+    "createButton": "New role",
+    "delete": {
+      "confirm": "Delete role",
+      "description": "The role and its permission rows are removed.",
+      "failed": "Could not delete the role",
+      "hasMembers": "“{name}” still has {count, plural, one {# member} other {# members}}. Choose the role they move to — Adminium will not leave an account with no role.",
+      "noMembers": "Nobody holds “{name}”, so nothing moves.",
+      "reassignPlaceholder": "Choose a role…",
+      "reassignTo": "Move members to",
+      "title": "Delete role"
+    },
+    "list": {
+      "title": "Roles"
+    },
+    "loadFailed": {
+      "body": "The matrix below is incomplete, so saving it would clear permissions that are simply not loaded. Reload before making changes.",
+      "title": "Some permissions could not be read"
+    },
+    "matrix": {
+      "discard": "Discard",
+      "empty": {
+        "body": "This instance reported no grantable permissions at all, which should not happen — reload, and if it persists check the server log.",
+        "title": "No permissions to show"
+      },
+      "label": "Role permissions",
+      "noChanges": "No pending changes",
+      "pending": "{count, plural, one {# pending change} other {# pending changes}}",
+      "rowHeader": "Permission",
+      "title": "Permissions"
+    },
+    "memberCount": "{count, plural, one {# user} other {# users}}",
+    "permission": {
+      "apiKeysManage": "Manage API keys",
+      "auditRead": "Read the audit log",
+      "connectionsManage": "Manage database connections",
+      "exportsManage": "Manage everyone’s exports",
+      "importsManage": "Manage everyone’s imports",
+      "jobsManage": "Start and cancel background jobs",
+      "jobsRead": "See all background jobs",
+      "llmRun": "Run AI assist",
+      "pagesManage": "Create and organize pages",
+      "reportsManage": "Manage scheduled reports",
+      "rolesManage": "Manage roles and permissions",
+      "schemaRemap": "Edit schema labels and overrides",
+      "settingsManage": "Manage workspace settings",
+      "usersManage": "Manage users"
+    },
+    "rename": {
+      "failed": "Could not rename the role",
+      "title": "Rename role"
+    },
+    "saveFailed": {
+      "title": "Could not save every role"
+    },
+    "subtitle": "What each role may do. A user gets the union of every role they hold.",
+    "title": "Roles & permissions"
+  },
+  "security": {
+    "password": {
+      "changedBody": "Use the new password the next time you sign in. Sessions on other devices are unaffected — revoke them below if you want them signed out.",
+      "changed": "Password changed",
+      "confirm": "Confirm new password",
+      "current": "Current password",
+      "failed": "Could not change your password",
+      "helper": "At least 8 characters.",
+      "mismatch": "The two passwords do not match.",
+      "new": "New password",
+      "submit": "Change password",
+      "title": "Password"
+    },
+    "sessions": {
+      "expires": "Expires {at}",
+      "failedBody": "This list is the only place that shows where your account is signed in, so treat an empty one as unknown rather than as none.",
+      "failed": "Could not read your sessions",
+      "ip": "IP {ip}",
+      "loading": "Looking for other signed-in devices…",
+      "noIp": "No IP recorded",
+      "revokeBody": "The session ends immediately and whoever is using it has to sign in again.",
+      "revokeFailed": "Could not sign that device out",
+      "revokeTitle": "Sign this device out",
+      "revoke": "Sign out",
+      "seenUnknown": "Last seen: unknown",
+      "seen": "Last seen {since}",
+      "thisDevice": "This device",
+      "title": "Signed in",
+      "unknownDevice": "Unrecognised device"
+    },
+    "subtitle": "Your password, your second factor, and everywhere you are signed in.",
+    "title": "Security",
+    "twoFactor": {
+      "activateFailed": "That code was not accepted",
+      "activate": "Turn on two-factor",
+      "body": "An authenticator app generates a 6-digit code that Adminium asks for after your password.",
+      "code": "Code from your app",
+      "copyKey": "Copy setup key",
+      "copyLink": "Copy setup link",
+      "disableBody": "Your account goes back to password-only, and your recovery codes stop working.",
+      "disableConfirm": "Turn it off",
+      "disableFailed": "Could not turn off two-factor",
+      "disablePassword": "Your password",
+      "disableTitle": "Turn off two-factor authentication",
+      "disable": "Turn off two-factor",
+      "enrollFailed": "Could not start setup",
+      "enroll": "Set up two-factor",
+      "hide": "Hide setup key",
+      "off": "Off",
+      "on": "On",
+      "recovery": {
+        "body": "Each code signs you in once if you lose your authenticator. They are shown only now.",
+        "copy": "Copy codes",
+        "title": "Save your recovery codes"
+      },
+      "reveal": "Show setup key",
+      "secretHelper": "Paste the setup link into your authenticator, or type the key in by hand.",
+      "secret": "Setup key",
+      "title": "Two-factor authentication"
+    }
+  },
+  "team": {
+    "action": {
+      "reactivate": "Reactivate",
+      "remove": "Delete",
+      "resend": "New link",
+      "roles": "Roles",
+      "suspend": "Suspend"
+    },
+    "column": {
+      "actions": "Actions",
+      "lastSeen": "Last seen",
+      "person": "Person",
+      "roles": "Roles",
+      "status": "Status"
+    },
+    "counts": "{active} active · {invited} invited · {suspended} suspended",
+    "empty": {
+      "body": "Invite a teammate to give them their own sign-in and role.",
+      "filtered": {
+        "body": "Clear the filters to see the whole directory.",
+        "title": "No one matches these filters"
+      },
+      "title": "Only you have an account"
+    },
+    "filterRoleAny": "Any role",
+    "filterRole": "Filter by role",
+    "filterStatusAny": "Any status",
+    "filterStatus": "Filter by status",
+    "invite": {
+      "copied": "Copied",
+      "copyLink": "Copy link",
+      "created": {
+        "body": "Send this link to {email} yourself. It is shown once — Adminium stores only a hash of it, so if you lose it you will have to delete the invitation and issue a new one.",
+        "title": "Invitation created"
+      },
+      "emailIt": "Email the invitation",
+      "expiresRelative": "The link expires {at} ({relative}).",
+      "expires": "The link expires {at}.",
+      "noEmail": {
+        "smtp": "No SMTP server is configured on this instance, so there is nothing to send mail with. Share the link over a channel you already trust.",
+        "title": "Adminium did not email this link",
+        "unknown": "Adminium could not check whether this instance can send mail. Share the link over a channel you already trust."
+      }
+    },
+    "inviteButton": "Invite teammate",
+    "inviteDialog": {
+      "description": "Adminium creates the account and gives you a one-time activation link to pass on.",
+      "emailPlaceholder": "name@example.com",
+      "email": "Email",
+      "failed": "Could not create the invitation",
+      "namePlaceholder": "e.g. Dana Osei",
+      "name": "Name",
+      "rolesHelper": "Pick the least-privileged role that lets them do their job. You can change this later.",
+      "roles": "Roles",
+      "submit": "Create invitation",
+      "title": "Invite a teammate"
+    },
+    "listFailed": {
+      "title": "Could not load the directory"
+    },
+    "loadMore": "Load more",
+    "neverSignedIn": "Never signed in",
+    "noRoles": "No roles",
+    "remove": {
+      "body": "This erases {name}’s account, their preferences and their sign-in sessions, and blanks their name from the record of settings they changed. Suspending instead keeps all of it and only stops them signing in. This cannot be undone.",
+      "confirm": "Delete permanently",
+      "prompt": "Type “{email}” to confirm",
+      "title": "Delete account permanently"
+    },
+    "roles": {
+      "unavailable": "Roles are not visible to your account, so none can be assigned here."
+    },
+    "rolesDialog": {
+      "description": "A user gets the union of every role they hold.",
+      "failed": "Could not change the roles",
+      "title": "Roles for {name}"
+    },
+    "rolesLocked": "Changing roles needs the “Manage roles” permission.",
+    "search": "Search name or email",
+    "status": {
+      "active": "Active",
+      "invited": "Invited",
+      "suspended": "Suspended"
+    },
+    "subtitle": "Who has an account on this Adminium, and what each of them can do.",
+    "title": "Team",
+    "twoFactorOn": "Two-factor authentication is on",
+    "twoFactorShort": "2FA"
   }
 }

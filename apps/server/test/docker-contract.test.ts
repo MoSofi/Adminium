@@ -21,6 +21,7 @@ import { parse } from 'yaml';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
+import { envSchema } from '../src/config/env.js';
 import { API_PREFIX } from '../src/routes/index.js';
 import { makeEnv } from './helpers.js';
 
@@ -107,12 +108,24 @@ describe('docker-compose.yml — 01-architecture.md §4.2', () => {
     expect(svc.ports).toEqual(['4600:4600']);
   });
 
-  it('takes ADMINIUM_SECRET, ADMINIUM_META_URL and the optional DATABASE_URL seed from the env', () => {
+  it('takes ADMINIUM_SECRET and ADMINIUM_META_URL from the env', () => {
     const env = compose.services.adminium!.environment!;
     // Required, and interpolated from the host env — never a literal.
     expect(env.ADMINIUM_SECRET).toMatch(/^\$\{ADMINIUM_SECRET:\?/);
     expect(env.ADMINIUM_META_URL).toBe('${ADMINIUM_META_URL:-}');
-    expect(env.DATABASE_URL).toBe('${DATABASE_URL:-}');
+  });
+
+  it('passes through no variable the server does not validate', () => {
+    // THE BUG THIS PINS. The file forwarded `DATABASE_URL: ${DATABASE_URL:-}`,
+    // documented in-file and on two docs pages as a first-boot connection seed
+    // that nothing read. A compose file is a promise about what the container
+    // does with what you give it, so every key here must be one `envSchema`
+    // knows — checked against the schema itself rather than a hand-kept list.
+    const passed = Object.keys(compose.services.adminium!.environment!);
+    const validated = new Set(Object.keys(envSchema.shape));
+    for (const key of passed) {
+      expect(validated, `docker-compose.yml passes ${key}, which the server ignores`).toContain(key);
+    }
   });
 
   it('mounts the adminium-data volume at the declared ADMINIUM_DATA_DIR', () => {

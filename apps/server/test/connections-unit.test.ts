@@ -1,11 +1,14 @@
 /**
  * Offline unit tests for the connections layer: DSN parsing/masking, the §7
- * item-2 SSRF guard, same-database detection, the 01 §3.1 meta-placement
- * rule, adapter-module provider discovery, and the DSN crypto closures.
+ * item-2 SSRF guard, same-database detection, the two 01 §3.1 meta-store
+ * refusals (placement + prefix collision), adapter-module provider discovery,
+ * and the DSN crypto closures.
  */
 
+import BetterSqlite3 from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 import { AdapterRegistry, type AdapterProvider } from '@adminium/engine/adapter';
+import { createSqliteMetaDb, firstRun, type MetaDb } from '@adminium/meta';
 
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import {
@@ -13,6 +16,7 @@ import {
   guardOutboundUrl,
   maskDsn,
   MetaPlacementError,
+  MetaPrefixCollisionError,
   parseDsn,
   sameDatabase,
 } from '../src/connections/dsn.js';
@@ -161,6 +165,99 @@ describe('meta-placement enforcement (01 §3.1)', () => {
     expect(() =>
       embedded.enforceMetaPlacement(dataDsn, summary({ canWrite: false, canDDL: false })),
     ).not.toThrow();
+  });
+});
+
+describe('meta prefix-collision pre-flight (01 §3.1)', () => {
+  const crypto = dsnCryptoFromSecret('unit-test-secret');
+  const META_DSN = 'postgres://meta@db.local:5432/shared';
+
+  function managerOver(meta: MetaDb): ConnectionManager {
+    return new ConnectionManager({ meta, crypto, metaDsn: META_DSN });
+  }
+
+  function emptyStore(): MetaDb {
+    return createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+  }
+
+  it('passes on a fresh database — nothing there to collide with', async () => {
+    await expect(managerOver(emptyStore()).assertMetaPrefixAvailable()).resolves.toBeUndefined();
+  });
+
+  it('passes on an already-migrated store, which is every upgrade after the first', async () => {
+    // THE FALSE POSITIVE THIS GUARDS. The tables ARE there on every normal
+    // `docker compose pull && up -d` — the check must not refuse the upgrade it
+    // was added to protect. The ledger is what says they are ours.
+    const meta = emptyStore();
+    await firstRun(meta);
+    await expect(managerOver(meta).assertMetaPrefixAvailable()).resolves.toBeUndefined();
+  });
+
+  it('refuses a foreign adminium_* namespace with META_PREFIX_COLLISION (409)', async () => {
+    // Somebody else's tables, no `adminium_migrations`. Without this the first
+    // migration runs a `CREATE TABLE adminium_users` into a database that
+    // already has one, after having created a dozen other tables there — and
+    // the runner is up-only, so nothing undoes them.
+    const meta = emptyStore();
+    await meta.db.schema
+      .createTable('adminium_users')
+      .addColumn('id', 'text', (col) => col.primaryKey())
+      .execute();
+    await meta.db.schema
+      .createTable('adminium_widgets')
+      .addColumn('id', 'text', (col) => col.primaryKey())
+      .execute();
+
+    try {
+      await managerOver(meta).assertMetaPrefixAvailable();
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(MetaPrefixCollisionError);
+      const appError = error as MetaPrefixCollisionError;
+      expect(appError.statusCode).toBe(409);
+      expect(appError.code).toBe('META_PREFIX_COLLISION');
+      // Names the tables — a refusal you cannot act on is a crash with manners.
+      expect(appError.message).toContain('adminium_users');
+      expect(appError.message).toContain('adminium_widgets');
+      // And states both remedies.
+      expect(appError.message).toContain('ADMINIUM_META_URL');
+      expect(appError.message).toMatch(/drop\/rename/);
+      // The DSN in `details` is masked: this lands in container logs.
+      expect(appError.details).toMatchObject({
+        tables: ['adminium_users', 'adminium_widgets'],
+        metaDsn: 'postgres://meta@db.local:5432/shared',
+      });
+    }
+  });
+
+  it('lets a half-created store through when the ledger exists but is empty', async () => {
+    // MySQL has no transactional DDL: a boot that dies part-way through the
+    // first migration leaves tables behind AND a written ledger. Refusing there
+    // would brick the retry, which is the one thing that fixes it.
+    const meta = emptyStore();
+    await meta.db.schema
+      .createTable('adminium_migrations')
+      .addColumn('name', 'text', (col) => col.primaryKey())
+      .execute();
+    await meta.db.schema
+      .createTable('adminium_users')
+      .addColumn('id', 'text', (col) => col.primaryKey())
+      .execute();
+    await expect(managerOver(meta).assertMetaPrefixAvailable()).resolves.toBeUndefined();
+  });
+
+  it('ignores tables outside the adminium_ namespace', async () => {
+    // Pointing the meta store at a database that also holds the user's own
+    // tables is legitimate — that is the §3.1 same-db placement the wizard
+    // offers. Only the `adminium_` namespace is Adminium's to claim.
+    const meta = emptyStore();
+    for (const table of ['customers', 'orders', 'admin_users']) {
+      await meta.db.schema
+        .createTable(table)
+        .addColumn('id', 'text', (col) => col.primaryKey())
+        .execute();
+    }
+    await expect(managerOver(meta).assertMetaPrefixAvailable()).resolves.toBeUndefined();
   });
 });
 

@@ -106,7 +106,11 @@ export default {
       "people": "Personen",
       "account": "Konto"
     },
-    "back": "Zurück"
+    "back": "Zurück",
+    "team": "Team",
+    "roles": "Rollen & Berechtigungen",
+    "audit": "Audit-Log",
+    "security": "Passwort & Sitzungen"
   },
   "topbar": {
     "search": "Suchen…",
@@ -553,6 +557,23 @@ export default {
           "label": "Anwendungsname",
           "helper": "Erscheint in der Seitenleiste, im Browser-Titel und in E-Mails.",
           "error": "Geben Sie einen Namen mit höchstens 60 Zeichen ein."
+        },
+        "logo": {
+          "label": "Logo",
+          "drop": "Bild hierher ziehen",
+          "helper": "PNG, JPEG, WebP, GIF oder SVG bis 1 MB. Ersetzt die eingebaute Marke überall.",
+          "upload": "Logo hochladen",
+          "replace": "Logo ersetzen",
+          "remove": "Entfernen",
+          "uploaded": "Logo aktualisiert",
+          "removed": "Logo entfernt",
+          "tooLarge": "Dieses Bild ist größer als 1 MB.",
+          "badType": "Wählen Sie ein PNG-, JPEG-, WebP-, GIF- oder SVG-Bild.",
+          "undo": "Rückgängig"
+        },
+        "showVersion": {
+          "label": "Version in der Seitenleiste",
+          "helper": "Die Build-Nummer neben dem Logo. Aus verbirgt, welche Version Sie einsetzen."
         }
       },
       "security": {
@@ -582,6 +603,8 @@ export default {
         "close": "Schließen",
         "on": "An",
         "off": "Aus",
+        "shown": "Sichtbar",
+        "hidden": "Verborgen",
         "change": "{before} → {after}"
       },
       "defaultsCard": {
@@ -1258,7 +1281,9 @@ export default {
       "duplicate": "{name} duplizieren",
       "remove": "{name} entfernen",
       "removed": "{name} entfernt.",
-      "duplicated": "{name} dupliziert."
+      "duplicated": "{name} dupliziert.",
+      "unboundHint": "Dieses Widget zeigt hier und auf der Live-Seite Beispieldaten. Öffnen Sie „Konfigurieren“, um es mit einer Tabelle zu verbinden.",
+      "unbound": "Beispieldaten"
     },
     "families": {
       "kpi": "Kennzahlen",
@@ -1287,7 +1312,134 @@ export default {
     "discardBody": "Das Dashboard sieht wieder so aus wie beim Öffnen des Editors. Deine Daten sind nicht betroffen.",
     "discardConfirm": "Änderungen verwerfen",
     "keepEditing": "Weiter bearbeiten",
-    "discarded": "Änderungen verworfen."
+    "discarded": "Änderungen verworfen.",
+    "binding": {
+      "addFilter": "Filter hinzufügen",
+      "brokenBody": "Sie entspricht keiner Abfrage mehr, die diese Version versteht — das Widget zeigt auf der Live-Seite einen Fehler.",
+      "brokenTitle": "Die Abfrage dieses Widgets ist fehlerhaft",
+      "bucketColumn": "Datumsspalte",
+      "bucketRequired": "Wählen Sie die Spalte, die das Datum enthält.",
+      "bucketUnit": "Zeit gruppieren nach",
+      "columnNone": "Keine",
+      "columnPlaceholder": "Spalte wählen …",
+      "connect": "Mit Daten verbinden",
+      "edit": "Abfrage bearbeiten",
+      "event": {
+        "category": "Kategoriespalte (optional)",
+        "date": "Startdatum-Spalte",
+        "end": "Enddatum-Spalte (optional)",
+        "title": "Titelspalte"
+      },
+      "eventColumnsRequired": "Termine benötigen ein Startdatum und einen Titel. Ein Enddatum erfordert zusätzlich eine Kategorie, weil die Spalten der Reihe nach gelesen werden.",
+      "filterColumnRequired": "Wählen Sie eine Spalte.",
+      "filterColumn": "Spalte",
+      "filterListHelper": "Werte durch Kommas trennen.",
+      "filterOp": "Bedingung",
+      "filterValue": "Wert",
+      "fn": {
+        "avg": "Durchschnitt",
+        "countDistinct": "Anzahl eindeutiger Werte",
+        "count": "Anzahl der Zeilen",
+        "max": "Maximum",
+        "min": "Minimum",
+        "sum": "Summe"
+      },
+      "groupByColumns": "Spalten",
+      "groupByRequired": "Diese Ansicht benötigt eine Spalte für die Aufschlüsselung.",
+      "groupByRows": "Zeilen",
+      "groupBy": "Gruppieren nach",
+      "incompleteBody": "Füllen Sie die hervorgehobenen Felder aus — eine halbfertige Abfrage würde auf dem Live-Dashboard fehlschlagen.",
+      "incompleteTitle": "Diese Abfrage ist nicht fertig",
+      "limit": "Maximal abzurufende Zeilen",
+      "loadingSchema": "Tabellen werden geladen …",
+      "lossyBody": "Teile davon — zusätzliche Messwerte, Sortierungen oder Verknüpfungen mit Seitenfiltern — werden hier nicht angezeigt und gehen beim Speichern verloren.",
+      "lossyTitle": "Diese Abfrage geht über diesen Editor hinaus",
+      "measureColumnRequired": "Diese Berechnung benötigt eine Spalte.",
+      "measureColumn": "Über Spalte",
+      "measureFn": "Berechnen",
+      "noConnectionBody": "Widgets lassen sich nur auf einer Seite binden, die zu einer Verbindung gehört.",
+      "noConnectionTitle": "Diese Seite hat keine Datenbankverbindung",
+      "noDateColumns": "Diese Tabelle hat keine Datums- oder Zeitstempelspalte.",
+      "noFilters": "Keine Filter — jede Zeile der Tabelle wird gezählt.",
+      "noSnapshotBody": "Tabellen und Spalten stammen aus der letzten Introspektion der Verbindung. Führen Sie die Introspektion in Studio aus und öffnen Sie diesen Editor dann erneut.",
+      "noSnapshotTitle": "Kein Schema-Schnappschuss für diese Verbindung",
+      "op": {
+        "between": "liegt zwischen",
+        "ilike": "enthält (Groß-/Kleinschreibung egal)",
+        "in": "ist eines von",
+        "isNull": "ist leer",
+        "like": "enthält",
+        "notNull": "ist nicht leer"
+      },
+      "orderAsc": "Älteste / niedrigste zuerst",
+      "orderBy": "Sortieren nach",
+      "orderDesc": "Neueste / höchste zuerst",
+      "orderDir": "Richtung",
+      "orderNone": "Datenbankreihenfolge",
+      "pickTableFirst": "Wählen Sie eine Tabelle, um ihre Spalten auszuwählen.",
+      "removeFilter": "Filter entfernen",
+      "remove": "Datenquelle entfernen",
+      "save": "Diese Abfrage verwenden",
+      "sectionBreakdown": "Aufschlüsselung",
+      "sectionColumns": "Spalten",
+      "sectionFilters": "Filter",
+      "sectionMeasure": "Messwert",
+      "sectionRows": "Zeilen",
+      "sectionSource": "Quelle",
+      "sectionTime": "Zeitachse",
+      "sectionWindow": "Zeitraum",
+      "selectColumns": "Anzuzeigende Spalten",
+      "selectRequired": "Wählen Sie mindestens eine Spalte zum Anzeigen.",
+      "shape": {
+        "calendarEvents": "Termine mit Datum",
+        "categorical": "Ein Wert je Kategorie",
+        "distribution": "Die Verteilung einer Spalte",
+        "matrix": "Ein Raster aus Zeilen und Spalten",
+        "metricDelta": "Eine Zahl, verglichen mit dem Zeitraum davor",
+        "multiTimeseries": "Eine Linie pro Kategorie im Zeitverlauf",
+        "recordList": "Eine Liste von Zeilen",
+        "record": "Eine Zeile",
+        "singleMetric": "Eine einzelne Zahl",
+        "stream": "Ein Live-Feed aktueller Zeilen",
+        "timeseries": "Ein Wert im Zeitverlauf"
+      },
+      "shapeHelper": "Eine Änderung hier ändert, welche Abfrageoptionen gelten.",
+      "shapeLabel": "Was dieses Widget zeigt",
+      "summaryColumns": "{count, plural, one {# Spalte} other {# Spalten}}",
+      "summaryFilters": "{count, plural, one {# Filter} other {# Filter}}",
+      "tableEmpty": "Keine passende Tabelle.",
+      "tablePlaceholder": "Tabellen durchsuchen …",
+      "tableRequired": "Wählen Sie eine Tabelle für die Abfrage.",
+      "table": "Tabelle oder View",
+      "title": "Datenquelle",
+      "unbindableBody": "Es zeigt eine Datenform, die die Abfrage-Engine noch nicht erzeugt, und stellt deshalb eigene Beispielinhalte dar.",
+      "unbindableTitle": "Dieses Widget kann noch keine Daten abfragen",
+      "unboundBody": "Es zeigt Beispielzahlen hier UND auf der Live-Seite. Verbinden Sie es mit einer Tabelle, um echte Daten zu zeigen.",
+      "unboundTitle": "Nicht mit Ihren Daten verbunden",
+      "unit": {
+        "day": "Täglich",
+        "hour": "Stündlich",
+        "month": "Monatlich",
+        "quarter": "Vierteljährlich",
+        "week": "Wöchentlich",
+        "year": "Jährlich"
+      },
+      "valueColumnRequired": "Wählen Sie die Spalte, die gemessen werden soll.",
+      "valueColumn": "Wertspalte",
+      "windowColumn": "Datumsspalte",
+      "windowLast": "Letzte",
+      "windowNone": "Gesamter Zeitraum",
+      "windowRequired": "Für den Vergleich mit dem vorherigen Zeitraum wird eine Datumsspalte benötigt.",
+      "windowUnit": {
+        "day": "Tage",
+        "hour": "Stunden",
+        "month": "Monate",
+        "quarter": "Quartale",
+        "week": "Wochen",
+        "year": "Jahre"
+      },
+      "windowUnitLabel": "Einheit"
+    }
   },
   "setup": {
     "title": "Adminium einrichten",
@@ -1640,7 +1792,8 @@ export default {
       "helpAbout": "Über Adminium"
     },
     "settings": {
-      "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in Ihrem Workspace."
+      "explainer": "Diese Einstellungen gelten nur für die Adminium-App auf diesem Computer. Sie werden auf diesem Gerät gespeichert, nicht in Ihrem Workspace.",
+      "title": "Desktop-Einstellungen"
     },
     "security": {
       "heading": "Anmeldung"
@@ -1687,7 +1840,8 @@ export default {
       "mismatchBody": "Die Freigabe ist ausgeschaltet, aber der Server hat das Netzwerk noch nicht freigegeben. Starten Sie Adminium neu, um sie zu schließen.",
       "transportTitle": "Der Datenverkehr in Ihrem lokalen Netzwerk ist nicht verschlüsselt.",
       "transportBody": "Geben Sie nur in Netzwerken frei, denen Sie vertrauen. Nutzen Sie für den Fernzugriff Adminium self-host hinter HTTPS.",
-      "firewall": "Beim ersten Freigeben fragt Ihr Betriebssystem, ob eingehende Verbindungen erlaubt werden sollen — wählen Sie Zulassen, sonst können andere Geräte Adminium nicht erreichen."
+      "firewall": "Beim ersten Freigeben fragt Ihr Betriebssystem, ob eingehende Verbindungen erlaubt werden sollen — wählen Sie Zulassen, sonst können andere Geräte Adminium nicht erreichen.",
+      "manageTeam": "Benutzer & Rollen verwalten"
     },
     "setup": {
       "title": "Willkommen bei Adminium",
@@ -2257,5 +2411,305 @@ export default {
       "x": "Seiten (px)",
       "y": "Oben und unten (px)"
     }
+  },
+  "audit": {
+    "action": {
+      "view": "Anzeigen"
+    },
+    "actor": {
+      "apiKey": "API-Schlüssel",
+      "automation": "Automatisierung",
+      "system": "System",
+      "user": "Benutzer"
+    },
+    "category": {
+      "auth": "Anmeldung & Konten",
+      "automation": "Automatisierungen",
+      "connection": "Verbindungen",
+      "data": "Datensätze",
+      "export": "Importe & Exporte",
+      "llm": "KI-Assistenz",
+      "rbac": "Rollen & Berechtigungen",
+      "schema": "Schema",
+      "settings": "Einstellungen",
+      "system": "System"
+    },
+    "column": {
+      "action": "Aktion",
+      "actor": "Akteur",
+      "category": "Kategorie",
+      "details": "Details",
+      "when": "Zeitpunkt"
+    },
+    "drawer": {
+      "actorId": "Akteur-ID",
+      "actorKind": "Akteurstyp",
+      "after": "Nachher",
+      "before": "Vorher",
+      "category": "Kategorie",
+      "changes": "Änderungen",
+      "connection": "Verbindung",
+      "field": "Feld",
+      "ip": "IP-Adresse",
+      "noChanges": "Für diese Aktion wurden keine Vorher-/Nachher-Stände erfasst.",
+      "none": "Keine",
+      "requestId": "Anfrage-ID",
+      "resource": "Ressource",
+      "subtitle": "{actor} · {when}",
+      "truncated": "Bei 16 KB abgeschnitten",
+      "userAgent": "User-Agent"
+    },
+    "empty": {
+      "body": "Änderungen an Daten, Schema, Einstellungen und Berechtigungen erscheinen hier, sobald sie geschehen.",
+      "filtered": {
+        "body": "Erweitern Sie den Zeitraum oder setzen Sie den Kategoriefilter zurück.",
+        "title": "Nichts entspricht diesen Filtern"
+      },
+      "title": "Es wurde noch nichts protokolliert"
+    },
+    "filterActor": "Akteur-ID",
+    "filterCategoryAny": "Beliebige Kategorie",
+    "filterCategory": "Nach Kategorie filtern",
+    "filterFrom": "Von",
+    "filterTo": "Bis",
+    "listFailed": {
+      "title": "Das Audit-Log konnte nicht geladen werden"
+    },
+    "loadMore": "Ältere Einträge laden",
+    "subtitle": "Jede Änderung in diesem Workspace, wer sie vorgenommen hat und was sie geändert hat.",
+    "title": "Audit-Log"
+  },
+  "roles": {
+    "action": {
+      "delete": "Löschen",
+      "rename": "Umbenennen"
+    },
+    "builtinLocked": "Integrierte Rollen können nicht gelöscht werden.",
+    "category": {
+      "access": "Zugriff",
+      "data": "Daten",
+      "operations": "Betrieb",
+      "workspace": "Workspace"
+    },
+    "column": {
+      "actions": "Aktionen",
+      "members": "Mitglieder",
+      "name": "Rolle"
+    },
+    "create": {
+      "descriptionLabel": "Beschreibung",
+      "description": "Eine neue Rolle startet ganz ohne Berechtigungen.",
+      "failed": "Die Rolle konnte nicht erstellt werden",
+      "namePlaceholder": "z. B. Support-Mitarbeiter",
+      "name": "Name",
+      "submit": "Rolle erstellen",
+      "title": "Neue Rolle"
+    },
+    "createButton": "Neue Rolle",
+    "delete": {
+      "confirm": "Rolle löschen",
+      "description": "Die Rolle und ihre Berechtigungszeilen werden entfernt.",
+      "failed": "Die Rolle konnte nicht gelöscht werden",
+      "hasMembers": "„{name}“ hat weiterhin {count, plural, one {# Mitglied} other {# Mitglieder}}. Wählen Sie die Rolle, in die sie wechseln — Adminium lässt kein Konto ohne Rolle zurück.",
+      "noMembers": "Niemand hat „{name}“, es wird also nichts verschoben.",
+      "reassignPlaceholder": "Rolle wählen…",
+      "reassignTo": "Mitglieder verschieben nach",
+      "title": "Rolle löschen"
+    },
+    "list": {
+      "title": "Rollen"
+    },
+    "loadFailed": {
+      "body": "Die Matrix unten ist unvollständig — beim Speichern würden Berechtigungen entfernt, die lediglich nicht geladen wurden. Laden Sie neu, bevor Sie Änderungen vornehmen.",
+      "title": "Einige Berechtigungen konnten nicht gelesen werden"
+    },
+    "matrix": {
+      "discard": "Verwerfen",
+      "empty": {
+        "body": "Diese Instanz hat überhaupt keine vergebbaren Berechtigungen gemeldet, was nicht passieren sollte — laden Sie neu, und prüfen Sie das Server-Log, falls es bestehen bleibt.",
+        "title": "Keine Berechtigungen anzuzeigen"
+      },
+      "label": "Rollenberechtigungen",
+      "noChanges": "Keine ausstehenden Änderungen",
+      "pending": "{count, plural, one {# ausstehende Änderung} other {# ausstehende Änderungen}}",
+      "rowHeader": "Berechtigung",
+      "title": "Berechtigungen"
+    },
+    "memberCount": "{count, plural, one {# Benutzer} other {# Benutzer}}",
+    "permission": {
+      "apiKeysManage": "API-Schlüssel verwalten",
+      "auditRead": "Audit-Log lesen",
+      "connectionsManage": "Datenbankverbindungen verwalten",
+      "exportsManage": "Exporte aller Benutzer verwalten",
+      "importsManage": "Importe aller Benutzer verwalten",
+      "jobsManage": "Hintergrundjobs starten und abbrechen",
+      "jobsRead": "Alle Hintergrundjobs sehen",
+      "llmRun": "KI-Assistenz ausführen",
+      "pagesManage": "Seiten erstellen und ordnen",
+      "reportsManage": "Geplante Berichte verwalten",
+      "rolesManage": "Rollen und Berechtigungen verwalten",
+      "schemaRemap": "Schema-Bezeichnungen und -Überschreibungen bearbeiten",
+      "settingsManage": "Workspace-Einstellungen verwalten",
+      "usersManage": "Benutzer verwalten"
+    },
+    "rename": {
+      "failed": "Die Rolle konnte nicht umbenannt werden",
+      "title": "Rolle umbenennen"
+    },
+    "saveFailed": {
+      "title": "Es konnten nicht alle Rollen gespeichert werden"
+    },
+    "subtitle": "Was jede Rolle darf. Ein Benutzer erhält die Vereinigung aller Rollen, die er innehat.",
+    "title": "Rollen & Berechtigungen"
+  },
+  "security": {
+    "password": {
+      "changedBody": "Verwenden Sie das neue Passwort bei Ihrer nächsten Anmeldung. Sitzungen auf anderen Geräten sind nicht betroffen — widerrufen Sie sie unten, wenn diese abgemeldet werden sollen.",
+      "changed": "Passwort geändert",
+      "confirm": "Neues Passwort bestätigen",
+      "current": "Aktuelles Passwort",
+      "failed": "Ihr Passwort konnte nicht geändert werden",
+      "helper": "Mindestens 8 Zeichen.",
+      "mismatch": "Die beiden Passwörter stimmen nicht überein.",
+      "new": "Neues Passwort",
+      "submit": "Passwort ändern",
+      "title": "Passwort"
+    },
+    "sessions": {
+      "expires": "Läuft {at} ab",
+      "failedBody": "Diese Liste ist die einzige Stelle, die zeigt, wo Ihr Konto angemeldet ist — behandeln Sie eine leere Liste daher als unbekannt und nicht als „nirgendwo angemeldet“.",
+      "failed": "Ihre Sitzungen konnten nicht gelesen werden",
+      "ip": "IP {ip}",
+      "loading": "Es wird nach anderen angemeldeten Geräten gesucht…",
+      "noIp": "Keine IP erfasst",
+      "revokeBody": "Die Sitzung endet sofort, und wer sie gerade nutzt, muss sich erneut anmelden.",
+      "revokeFailed": "Dieses Gerät konnte nicht abgemeldet werden",
+      "revokeTitle": "Dieses Gerät abmelden",
+      "revoke": "Abmelden",
+      "seenUnknown": "Zuletzt aktiv: unbekannt",
+      "seen": "Zuletzt aktiv {since}",
+      "thisDevice": "Dieses Gerät",
+      "title": "Angemeldet",
+      "unknownDevice": "Unbekanntes Gerät"
+    },
+    "subtitle": "Ihr Passwort, Ihr zweiter Faktor und überall dort, wo Sie angemeldet sind.",
+    "title": "Sicherheit",
+    "twoFactor": {
+      "activateFailed": "Dieser Code wurde nicht akzeptiert",
+      "activate": "Zwei-Faktor aktivieren",
+      "body": "Eine Authenticator-App erzeugt einen 6-stelligen Code, nach dem Adminium nach Ihrem Passwort fragt.",
+      "code": "Code aus Ihrer App",
+      "copyKey": "Einrichtungsschlüssel kopieren",
+      "copyLink": "Einrichtungslink kopieren",
+      "disableBody": "Ihr Konto verwendet dann wieder nur das Passwort, und Ihre Wiederherstellungscodes funktionieren nicht mehr.",
+      "disableConfirm": "Deaktivieren",
+      "disableFailed": "Zwei-Faktor konnte nicht deaktiviert werden",
+      "disablePassword": "Ihr Passwort",
+      "disableTitle": "Zwei-Faktor-Authentifizierung deaktivieren",
+      "disable": "Zwei-Faktor deaktivieren",
+      "enrollFailed": "Die Einrichtung konnte nicht gestartet werden",
+      "enroll": "Zwei-Faktor einrichten",
+      "hide": "Einrichtungsschlüssel verbergen",
+      "off": "Aus",
+      "on": "An",
+      "recovery": {
+        "body": "Jeder Code meldet Sie einmal an, falls Sie Ihren Authenticator verlieren. Sie werden nur jetzt angezeigt.",
+        "copy": "Codes kopieren",
+        "title": "Speichern Sie Ihre Wiederherstellungscodes"
+      },
+      "reveal": "Einrichtungsschlüssel anzeigen",
+      "secretHelper": "Fügen Sie den Einrichtungslink in Ihre Authenticator-App ein oder tippen Sie den Schlüssel von Hand ein.",
+      "secret": "Einrichtungsschlüssel",
+      "title": "Zwei-Faktor-Authentifizierung"
+    }
+  },
+  "team": {
+    "action": {
+      "reactivate": "Reaktivieren",
+      "remove": "Löschen",
+      "resend": "Neuer Link",
+      "roles": "Rollen",
+      "suspend": "Sperren"
+    },
+    "column": {
+      "actions": "Aktionen",
+      "lastSeen": "Zuletzt aktiv",
+      "person": "Person",
+      "roles": "Rollen",
+      "status": "Status"
+    },
+    "counts": "{active} aktiv · {invited} eingeladen · {suspended} gesperrt",
+    "empty": {
+      "body": "Laden Sie ein Teammitglied ein, damit es eine eigene Anmeldung und Rolle erhält.",
+      "filtered": {
+        "body": "Setzen Sie die Filter zurück, um das ganze Verzeichnis zu sehen.",
+        "title": "Niemand entspricht diesen Filtern"
+      },
+      "title": "Nur Sie haben ein Konto"
+    },
+    "filterRoleAny": "Beliebige Rolle",
+    "filterRole": "Nach Rolle filtern",
+    "filterStatusAny": "Beliebiger Status",
+    "filterStatus": "Nach Status filtern",
+    "invite": {
+      "copied": "Kopiert",
+      "copyLink": "Link kopieren",
+      "created": {
+        "body": "Senden Sie diesen Link selbst an {email}. Er wird nur ein einziges Mal angezeigt — Adminium speichert davon nur einen Hash, und wenn Sie ihn verlieren, müssen Sie die Einladung löschen und eine neue ausstellen.",
+        "title": "Einladung erstellt"
+      },
+      "emailIt": "Einladung per E-Mail senden",
+      "expiresRelative": "Der Link läuft {at} ab ({relative}).",
+      "expires": "Der Link läuft {at} ab.",
+      "noEmail": {
+        "smtp": "Für diese Instanz ist kein SMTP-Server konfiguriert, es gibt also nichts, womit E-Mails versendet werden könnten. Teilen Sie den Link über einen Kanal, dem Sie bereits vertrauen.",
+        "title": "Adminium hat diesen Link nicht per E-Mail versendet",
+        "unknown": "Adminium konnte nicht prüfen, ob diese Instanz E-Mails versenden kann. Teilen Sie den Link über einen Kanal, dem Sie bereits vertrauen."
+      }
+    },
+    "inviteButton": "Teammitglied einladen",
+    "inviteDialog": {
+      "description": "Adminium erstellt das Konto und gibt Ihnen einen einmaligen Aktivierungslink zum Weitergeben.",
+      "emailPlaceholder": "name@example.com",
+      "email": "E-Mail",
+      "failed": "Die Einladung konnte nicht erstellt werden",
+      "namePlaceholder": "z. B. Dana Osei",
+      "name": "Name",
+      "rolesHelper": "Wählen Sie die Rolle mit den geringsten Rechten, die für die Arbeit ausreicht. Sie können das später ändern.",
+      "roles": "Rollen",
+      "submit": "Einladung erstellen",
+      "title": "Teammitglied einladen"
+    },
+    "listFailed": {
+      "title": "Das Verzeichnis konnte nicht geladen werden"
+    },
+    "loadMore": "Mehr laden",
+    "neverSignedIn": "Nie angemeldet",
+    "noRoles": "Keine Rollen",
+    "remove": {
+      "body": "Dies löscht das Konto von {name} samt Einstellungen und Anmeldesitzungen und entfernt den Namen aus dem Nachweis der von dieser Person geänderten Einstellungen. Ein Sperren behält all das und verhindert lediglich die Anmeldung. Das lässt sich nicht rückgängig machen.",
+      "confirm": "Endgültig löschen",
+      "prompt": "Geben Sie „{email}“ zur Bestätigung ein",
+      "title": "Konto endgültig löschen"
+    },
+    "roles": {
+      "unavailable": "Rollen sind für Ihr Konto nicht sichtbar, daher können hier keine zugewiesen werden."
+    },
+    "rolesDialog": {
+      "description": "Ein Benutzer erhält die Vereinigung aller Rollen, die er innehat.",
+      "failed": "Die Rollen konnten nicht geändert werden",
+      "title": "Rollen für {name}"
+    },
+    "rolesLocked": "Zum Ändern von Rollen wird die Berechtigung „Rollen verwalten“ benötigt.",
+    "search": "Name oder E-Mail suchen",
+    "status": {
+      "active": "Aktiv",
+      "invited": "Eingeladen",
+      "suspended": "Gesperrt"
+    },
+    "subtitle": "Wer ein Konto in diesem Adminium hat und was die einzelnen Personen dürfen.",
+    "title": "Team",
+    "twoFactorOn": "Zwei-Faktor-Authentifizierung ist aktiviert",
+    "twoFactorShort": "2FA"
   }
 } as const;

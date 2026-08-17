@@ -121,6 +121,12 @@ export const SETTINGS_REGISTRY = {
   'i18n.version': def(z.number().int().min(0), 0, 'Runtime-translation version stamp'),
   'branding.appName': def(z.string().min(1).max(60), 'Adminium', 'Application display name', P),
   'branding.logoFileId': def<string | null>(z.string().nullable(), null, 'Logo file id', P),
+  /**
+   * The `v<version>` chip in the sidebar rail. On by default — knowing which
+   * build you are looking at is a support handshake — but a white-labelled
+   * deployment is entitled to hide the fact that it is Adminium underneath.
+   */
+  'branding.showVersion': def(z.boolean(), true, 'Show the app version in the sidebar', P),
   'branding.faviconFileId': def<string | null>(z.string().nullable(), null, 'Favicon file id', P),
   'auth.sessionTtlHours': def(z.number().int().min(1).max(8760), 720, 'Session lifetime in hours', P),
   'auth.require2fa': def(z.boolean(), false, 'Require TOTP for all users', P),

@@ -79,7 +79,6 @@ function renderTopbar() {
               onSignOut={() => {}}
               onOpenAccount={() => {}}
               onOpenStudio={() => {}}
-              onOpenStudioPages={() => {}}
               onOpenStudioSettings={() => {}}
             />
           </ShortcutsProvider>
