@@ -51,8 +51,27 @@ export function setCsrfToken(token: string | null): void {
 
 /**
  * Headers to merge into any mutating request. Empty before `/bootstrap`
- * resolves — which is fine: nothing in the shell can mutate before then, and a
- * missing token is a clean 403 rather than a silent no-op.
+ * resolves.
+ *
+ * That is safe today for ONE structural reason, which is worth naming because
+ * it is the thing a refactor can quietly remove: `app/router.tsx`'s `appRoute`
+ * awaits `ensureQueryData(bootstrapQuery())` in `beforeLoad`, and the query fn
+ * calls {@link setCsrfToken} before it resolves — so no authed surface is
+ * mounted, and no authed mutation is reachable, until the token is here. The
+ * pre-auth screens (`/login`, `/setup`, `/forgot`, `/reset`) do mutate with an
+ * empty holder and are fine for a different reason: they carry no session, and
+ * a session is the ambient credential the server's check exists to protect
+ * (`security/csrf.ts` skips sessionless requests).
+ *
+ * What is NOT true — the earlier version of this comment claimed it — is that
+ * a missing token would surface as "a clean 403 rather than a silent no-op".
+ * At least one call site swallows it: the root `onPrefChange` catches and
+ * discards a failed `PATCH /me/prefs` so a pref write cannot crash the app,
+ * which means a tokenless (or 429'd, or otherwise refused) write disappears
+ * with the axis still applied locally. So if the invariant above is ever
+ * broken, the symptom will be a preference that silently does not persist —
+ * not a visible error. Move a mutation earlier than `appRoute` and this holder
+ * needs to become awaitable (a shared in-flight promise) first.
  */
 export function csrfHeaders(): Record<string, string> {
   return csrfToken === null ? {} : { [CSRF_HEADER]: csrfToken };
