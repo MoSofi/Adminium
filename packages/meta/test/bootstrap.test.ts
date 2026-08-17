@@ -64,9 +64,11 @@ for (const dialect of TEST_DIALECTS) {
 
       const adminGrants = await permissions.listForRole(admin!.id);
       expect(adminGrants.map((g) => g.resourceRef).sort()).toEqual(
-        ['connections.manage', 'schema.remap', 'llm.run'].sort(),
+        ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run'].sort(),
       );
-      // Role/user management defaults off for non-super-admins.
+      // Admin invites people and reads the trail; GRANTING roles stays
+      // super-admin-only (an inviter that picks roles can escalate itself).
+      expect(await permissions.isAllowed(admin!.id, 'system', 'users.manage')).toBe(true);
       expect(await permissions.isAllowed(admin!.id, 'system', 'roles.manage')).toBe(false);
       expect(await permissions.listForRole(editor!.id)).toHaveLength(0);
     });
