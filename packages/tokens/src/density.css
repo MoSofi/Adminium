@@ -5,12 +5,29 @@
   --row-py: 13px;
   --cell-fs: 13px;
   --card-pad: 20px;
-  --main-pad: 26px 28px 40px;
+  /* Widget cards run tighter than a generic Card: every `.nb-card` in the
+     Analytics comp is a flat 18px box, where --card-pad's 20px is the comp's
+     HERO tier. Kept separate so the two can't drift into one number — and so
+     the opt-in `bleed` config flag has exactly one knob to zero out. */
+  --widget-pad: 18px;
+  /* The one page gutter. Split into axes because the page-padding choice an
+     admin makes in Studio is an x/y pair, and a shorthand cannot be overridden
+     one axis at a time. The shorthand stays derived so `p-[var(--main-pad)]`
+     call sites keep working. Bottom is no longer a third, larger value: a
+     40px floor under a 24px ceiling read as a mistake on every short page. */
+  --main-pad-x: 28px;
+  --main-pad-y: 24px;
+  --main-pad: var(--main-pad-y) var(--main-pad-x);
 }
 
 [data-density="compact"] {
   --row-py: 7px;
   --cell-fs: 12px;
   --card-pad: 16px;
-  --main-pad: 16px 20px 30px;
+  /* The comp has no compact mode; 14px keeps the comfortable→compact ratio the
+     hand-rolled `px-4 → compact:px-3` pair used before the token existed. */
+  --widget-pad: 14px;
+  --main-pad-x: 20px;
+  --main-pad-y: 16px;
+  --main-pad: var(--main-pad-y) var(--main-pad-x);
 }
