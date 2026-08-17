@@ -18,10 +18,20 @@ export const buttonVariants = cva(
     'disabled:pointer-events-none disabled:opacity-40 [&_svg]:shrink-0',
   {
     variants: {
+      // Each size also pins its icon box. Every other icon-bearing component
+      // here does (`IconTile`, `DropdownMenu`, `ChoiceChips`, `BulkActionBar`,
+      // `SegmentedControl`); Button was the one that did not, so `iconLeft`
+      // fell through to lucide's own 24px default — half again the comp's
+      // 15/16px and taller than the 13px label beside it. The comps size
+      // toolbar-button glyphs at 15px and the primary CTA's at 16px.
       size: {
-        sm: 'h-7 px-2.5 text-xs',
-        md: 'h-[34px] px-3.5 text-[13px]',
-        lg: 'h-10 px-4 text-sm',
+        sm: 'h-7 px-2.5 text-xs [&_svg]:size-3.5',
+        md: 'h-[34px] px-3.5 text-[13px] [&_svg]:size-[15px]',
+        lg: 'h-10 px-4 text-sm [&_svg]:size-4',
+        // Header primary action: `md`'s height, but bolder and asymmetrically
+        // padded so a leading icon does not sit adrift of the label. Its own
+        // size rather than a change to `md`, which is the app-wide default.
+        topbar: 'h-[34px] ps-2.5 pe-3.5 text-[13px] font-bold [&_svg]:size-4',
       },
       variant: {
         primary: 'bg-accent text-accent-fg shadow-glow hover:brightness-105',
@@ -42,7 +52,7 @@ export const buttonVariants = cva(
   },
 );
 
-const SPINNER_SIZE = { sm: 'sm', md: 'sm', lg: 'md' } as const;
+const SPINNER_SIZE = { sm: 'sm', md: 'sm', lg: 'md', topbar: 'sm' } as const;
 
 export interface ButtonProps
   extends Omit<React.ComponentPropsWithRef<'button'>, 'style'>,

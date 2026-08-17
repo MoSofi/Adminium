@@ -8,6 +8,12 @@ export const cardVariants = cva('rounded-lg border border-border bg-surface shad
   variants: {
     /** Hover lift (translateY(-3px) + shadow-md) via the tokens `.nb-lift` class. */
     hoverable: { true: 'nb-lift', false: '' },
+    /**
+     * Shadow-only hover bloom via the tokens `.nb-cardh` class — the widget-card
+     * treatment. Deliberately not `hoverable`: that one also translates and
+     * swaps the border, which on a grid of ~40 dashboard cards reads as noise.
+     */
+    raise: { true: 'nb-cardh', false: '' },
     /** Selected state: accent border + 3px accent-soft ring. */
     selected: { true: 'border-accent ring-[3px] ring-accent-soft', false: '' },
     /**
@@ -17,7 +23,7 @@ export const cardVariants = cva('rounded-lg border border-border bg-surface shad
      */
     padded: { true: 'p-[var(--card-pad)]', false: '' },
   },
-  defaultVariants: { hoverable: false, selected: false, padded: true },
+  defaultVariants: { hoverable: false, raise: false, selected: false, padded: true },
 });
 
 export interface CardProps extends ComponentPropsWithRef<'div'>, VariantProps<typeof cardVariants> {
@@ -30,12 +36,12 @@ export interface CardProps extends ComponentPropsWithRef<'div'>, VariantProps<ty
  * `--shadow` (shadow-card), density padding via `--card-pad`
  * (research/design-system.md §3 Tier 3).
  */
-export function Card({ asChild, hoverable, selected, padded, className, ...props }: CardProps) {
+export function Card({ asChild, hoverable, raise, selected, padded, className, ...props }: CardProps) {
   const Comp = asChild ? Slot : 'div';
   return (
     <Comp
       data-selected={selected ? '' : undefined}
-      className={cn(cardVariants({ hoverable, selected, padded }), className)}
+      className={cn(cardVariants({ hoverable, raise, selected, padded }), className)}
       {...props}
     />
   );

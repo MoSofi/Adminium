@@ -9,7 +9,7 @@ import { Kbd } from '../kbd/index.js';
  * (research/design-system.md §3 Tier 2).
  */
 export const inputGroupContainerClasses =
-  'flex h-[34px] w-full min-w-0 items-center gap-2 rounded-md border border-border-strong bg-surface-2 ps-3 pe-2 ' +
+  'flex h-[34px] w-full min-w-0 items-center gap-1 rounded-md border border-border-strong bg-surface-2 ps-3 pe-2 ' +
   'transition-[border-color,box-shadow] duration-150 ' +
   'focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent-soft ' +
   'has-[input:disabled]:pointer-events-none has-[input:disabled]:opacity-40 ' +

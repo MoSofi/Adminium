@@ -36,6 +36,14 @@ export interface IconProps extends Omit<LucideProps, 'size'> {
    * @default false
    */
   rtlMirror?: boolean;
+  /**
+   * Restated rather than inherited. `LucideProps` reaches these through
+   * `Partial<SVGProps<SVGSVGElement>>`, which does not survive the `Omit<…,
+   * 'size'>` above under this package's React/lucide type resolution — the
+   * component destructures both, so without them it does not compile.
+   */
+  className?: string | undefined;
+  'aria-label'?: string | undefined;
 }
 
 export function Icon(props: IconProps) {
