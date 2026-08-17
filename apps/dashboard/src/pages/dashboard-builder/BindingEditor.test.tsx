@@ -118,7 +118,29 @@ describe('the unbound affordance', () => {
     expect(screen.queryByText('Not connected to your data')).toBeNull();
     expect(screen.getByText('public.orders')).toBeDefined();
     expect(screen.getByText('sum(total)')).toBeDefined();
-    expect(screen.getByText('1 filters')).toBeDefined();
+    // Singular. `builder.binding.summaryFilters` is an ICU plural, so one
+    // filter reads "1 filter" — the plain-interpolation form this once asserted
+    // rendered "1 filters" for every count, which is the bug the plural fixed.
+    expect(screen.getByText('1 filter')).toBeDefined();
+  });
+
+  it('pluralizes the filter summary past one', () => {
+    renderInspector({
+      binding: {
+        kind: 'table-query',
+        connectionId: 'conn_1',
+        source: { schema: 'public', name: 'orders', type: 'table' },
+        shape: 'single-metric',
+        aggregations: [{ fn: 'sum', column: 'total', alias: 'value' }],
+        filters: [
+          { column: 'status', op: 'eq', value: 'paid' },
+          { column: 'total', op: 'gt', value: 10 },
+        ],
+      },
+    });
+    // The other arm of the ICU plural. Without this, a regression back to plain
+    // interpolation would still pass the singular case above by accident.
+    expect(screen.getByText('2 filters')).toBeDefined();
   });
 
   it('reports a stored binding that no longer parses as broken, not as unbound', () => {
