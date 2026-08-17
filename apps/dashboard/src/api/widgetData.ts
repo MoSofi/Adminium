@@ -167,10 +167,26 @@ export function useDashboardData(page: PageEnvelope, params: WidgetDataParams = 
   const queryClient = useQueryClient();
   const { requests, invalid } = useMemo(() => extractBindings(page), [page]);
 
+  // `refreshInterval` (seconds) has been in `widgetSharedConfigSchema` from the
+  // start with no consumer anywhere — it rendered as a control in every widget's
+  // config drawer and did nothing when set. The batch is per PAGE, not per
+  // widget, so the honest interpretation of N per-instance intervals is the
+  // tightest one: poll the batch at the shortest interval any bound widget asks
+  // for. Nothing set → no polling, exactly as before.
+  const refreshMs = useMemo<number | false>(() => {
+    const layout = pageLayoutSchema.safeParse(page.config['layout']);
+    if (!layout.success) return false;
+    const intervals = layout.data.items
+      .map((item) => item.config['refreshInterval'])
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0);
+    return intervals.length === 0 ? false : Math.min(...intervals) * 1000;
+  }, [page.config]);
+
   const query = useQuery({
     queryKey: [WIDGET_DATA_KEY_ROOT, page.id, params] as const,
     enabled: requests.length > 0,
     staleTime: 0,
+    refetchInterval: refreshMs,
     queryFn: () => fetchWidgetDataBatch(requests, params),
   });
 

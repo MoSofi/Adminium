@@ -140,8 +140,8 @@ export function CommandPaletteHost({
           {
             id: 'action:toggle-theme',
             label: dark
-              ? t('palette.themeLight', 'Switch to light theme')
-              : t('palette.themeDark', 'Switch to dark theme'),
+              ? t('palette.themeLight', 'Light mode')
+              : t('palette.themeDark', 'Dark mode'),
             icon: dark ? <Sun /> : <Moon />,
             hint: '⌘⇧L',
             keywords: ['theme', 'dark', 'light', 'appearance'],

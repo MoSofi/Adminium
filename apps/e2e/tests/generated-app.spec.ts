@@ -18,8 +18,13 @@ import { gridRows, gridSearch, navLink, signIn } from './helpers.js';
 test.describe('generated app on the seeded Northwind connection', () => {
   test('(a) seeded super admin signs in and lands in the generated app', async ({ page }) => {
     await signIn(page);
-    // Persona footer proves bootstrap resolved the session user.
+    // Identity moved out of the sidebar persona footer and into the topbar
+    // account menu, so the signed-in email is now behind a click rather than
+    // permanently on screen. Opening the menu still proves what this asserted:
+    // that bootstrap resolved the session user.
+    await page.getByRole('button', { name: 'Account menu' }).click();
     await expect(page.getByText('e2e@adminium.local')).toBeVisible();
+    await page.keyboard.press('Escape');
     // `/` redirected into the first workspace page (generated dashboard).
     await expect(page).toHaveURL(/\/p\//);
   });

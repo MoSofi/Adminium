@@ -12,20 +12,41 @@
  */
 import { createRoute, type AnyRoute } from '@tanstack/react-router';
 
+import { PageSurface } from '../shell/PageSurface.js';
 import { DataExportsPage } from './DataExportsPage.js';
 import { ImportWizardPage } from './ImportWizardPage.js';
+
+// Both are a short stack of controls rather than a grid, so they take the
+// 900px reading column inside the standard gutter. `ImportWizardPage` is also
+// the `page-wizard` template body, which is why the surface is here and not in
+// the component — that mount gets its own from PageRenderer.
+function ImportsRouteComponent() {
+  return (
+    <PageSurface width="content" fill>
+      <ImportWizardPage />
+    </PageSurface>
+  );
+}
+
+function ExportsRouteComponent() {
+  return (
+    <PageSurface width="content" fill>
+      <DataExportsPage />
+    </PageSurface>
+  );
+}
 
 export function dataIoRoutes(parent: AnyRoute): AnyRoute[] {
   const importsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/imports',
-    component: ImportWizardPage,
+    component: ImportsRouteComponent,
   });
 
   const exportsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/exports',
-    component: DataExportsPage,
+    component: ExportsRouteComponent,
   });
 
   return [importsRoute, exportsRoute];

@@ -21,6 +21,7 @@ import { StatePage } from '../states/StatePage.js';
 import { ProgressRing } from './ProgressRing.js';
 import { isOnboardingAdmin, useOnboarding } from './useOnboarding.js';
 import { stepMeta, type OnboardingStepMeta } from './steps.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import type { OnboardingStep } from './api.js';
 
 function firstName(fullName: string): string {
@@ -96,7 +97,7 @@ function OnboardingBody({ bootstrap }: { bootstrap: BootstrapData }): ReactNode 
   const { checklist } = state;
 
   return (
-    <div className="mx-auto flex max-w-narrow flex-col gap-6 p-6">
+    <PageSurface width="narrow" className="flex flex-col gap-6">
       <div>
         <h2 className="text-section text-fg">{t('onboarding.title', 'Getting started')}</h2>
         <p className="text-body-sm text-fg-muted">
@@ -160,7 +161,7 @@ function OnboardingBody({ bootstrap }: { bootstrap: BootstrapData }): ReactNode 
           </Button>
         )}
       </div>
-    </div>
+    </PageSurface>
   );
 }
 

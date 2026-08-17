@@ -27,6 +27,7 @@ import {
 import { ScheduledJobsList, type ScheduledJob } from '@adminium/widgets';
 
 import { bootstrapQuery, flattenNav } from '../app/bootstrap.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import {
   scheduledReportsApi,
@@ -192,7 +193,7 @@ export function ScheduledReportsPage() {
   );
 
   return (
-    <div className="mx-auto flex h-full max-w-4xl flex-col gap-5 p-6">
+    <PageSurface width="content" fill className="gap-5">
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-h2 font-semibold text-fg">
@@ -434,6 +435,6 @@ export function ScheduledReportsPage() {
           </>
         )}
       </Modal>
-    </div>
+    </PageSurface>
   );
 }

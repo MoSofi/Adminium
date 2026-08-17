@@ -9,6 +9,7 @@ import { UserRound } from 'lucide-react';
 import { Card, CardBody, CardHeader, IconTile, KeyValueList } from '@adminium/ui';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 
 export function AccountPage() {
@@ -16,7 +17,7 @@ export function AccountPage() {
   const { user, roles } = bootstrap;
 
   return (
-    <div className="mx-auto max-w-narrow p-6">
+    <PageSurface width="narrow">
       <Card>
         <CardHeader className="flex items-center gap-3">
           <IconTile tone="accent" size="md" icon={<UserRound />} />
@@ -49,6 +50,6 @@ export function AccountPage() {
           </p>
         </CardBody>
       </Card>
-    </div>
+    </PageSurface>
   );
 }

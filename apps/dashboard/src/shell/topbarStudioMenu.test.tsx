@@ -12,7 +12,7 @@
  * and a viewer is not shown doors that `StudioGuard` would only 403 on.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { ThemeProvider, TooltipProvider } from '@adminium/ui';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -57,6 +57,7 @@ function stubFetch() {
 function renderTopbar(roles: string[]) {
   stubFetch();
   const onOpenStudio = vi.fn();
+  const onOpenStudioPages = vi.fn();
   const onOpenStudioSettings = vi.fn();
   render(
     <QueryClientProvider client={createQueryClient()}>
@@ -70,6 +71,7 @@ function renderTopbar(roles: string[]) {
               onSignOut={() => {}}
               onOpenAccount={() => {}}
               onOpenStudio={onOpenStudio}
+              onOpenStudioPages={onOpenStudioPages}
               onOpenStudioSettings={onOpenStudioSettings}
             />
           </ShortcutsProvider>
@@ -77,7 +79,7 @@ function renderTopbar(roles: string[]) {
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  return { onOpenStudio, onOpenStudioSettings };
+  return { onOpenStudio, onOpenStudioPages, onOpenStudioSettings };
 }
 
 afterEach(() => {
@@ -107,5 +109,28 @@ describe('avatar menu Studio section', () => {
     expect(await screen.findByRole('menuitem', { name: 'Profile' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Data connections' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Workspace settings' })).toBeNull();
+  });
+});
+
+/**
+ * The light/dark control moved out of the header and into this menu. Both
+ * halves matter: the first asserts the preference is still REACHABLE by mouse
+ * (⌘⇧L, the ⌘K palette and the auth screen keep their own paths), the second
+ * is what stops the header button quietly reappearing beside the bell.
+ */
+describe('avatar menu theme item', () => {
+  it('toggles the theme from the menu, with no theme button left in the header', async () => {
+    const user = userEvent.setup();
+    renderTopbar(['viewer']);
+
+    expect(screen.queryByRole('button', { name: /(Light|Dark) mode/ })).toBeNull();
+
+    const before = document.documentElement.getAttribute('data-theme');
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: /(Light|Dark) mode/ }));
+
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute('data-theme')).not.toBe(before);
+    });
   });
 });

@@ -37,6 +37,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { RELEASES_URL } from '../kb/docsLinks.js';
 import {
   RELEASES,
@@ -148,7 +149,7 @@ export function ChangelogPage(): ReactNode {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6 p-6">
+    <PageSurface className="mx-auto flex max-w-[760px] flex-col gap-6">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <h1 className="text-title text-fg">
@@ -207,6 +208,6 @@ export function ChangelogPage(): ReactNode {
           ))}
         </ol>
       )}
-    </div>
+    </PageSurface>
   );
 }

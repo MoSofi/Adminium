@@ -1,5 +1,5 @@
 {
-  "entryJsGzBytes": 663000,
+  "entryJsGzBytes": 664700,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
   "loweredOn": {
@@ -32,5 +32,29 @@
     "to": 682500,
     "measured": "665.2 KiB gz, up 1.1 KiB from the 664.1 KiB ratchet",
     "why": "The runtime override layer has an irreducible boot-path cost: the merge that folds DB overrides over the compiled bundles, and the revision store the tree subscribes to, both have to exist BEFORE the first paint or the warm-boot flash guarantee (10 §7.5, 23 §4.7) breaks. Everything deferrable was deferred first — the Translations page is lazy, the editor API client is split from the boot client (api/i18nBoot.ts), the network half of the override layer is dynamic-imported (i18n/overrideCache.ts), and the key index + write validator + 458-entry a11y list moved off the main @adminium/i18n barrel onto @adminium/i18n/editing. Those four splits recovered most of what the feature added; this is the remainder."
+  },
+  "raisedAgainFor": {
+    "when": "2026-08-17",
+    "by": "the page-gutter sweep (shell/PageSurface.tsx + pages/surfaceDefaults.ts)",
+    "from": 663600,
+    "to": 664700,
+    "measured": "664,190 bytes with the feature complete — 590 bytes over the ratchet `raisedFor` had just left at 497 bytes of headroom.",
+    "why": "The gutter is boot-path code and cannot be deferred. Every page's padding was hand-rolled (`p-6` on most screens, `p-[var(--main-pad)]` on two, nothing at all on ten of the fourteen `/p/*` templates); `PageSurface` makes it one component with a closed set of choices, and PageRenderer applies it on the `/p/$slug` route — the app's main route, in the entry set by definition. A dynamic import there would put a chunk fetch between the router and the first paint of every page, which is exactly the flash the gutter exists to prevent.",
+    "whatWasDeferredFirst": "The Studio control that writes the per-page override (`studio/pages/PaddingField.tsx`) rides the existing `studio/routes.tsx` lazy() wrappers — verified by grepping the built entry for `studio-pages-padding`: zero hits.",
+    "whatElseWasTried": "Measured the copy/code split by deleting all eight new en-US strings and rebuilding: 61 bytes. So unlike `raisedFor` below, this overflow is NOT the i18n catalogue and 10-T06 would not pay for it. The copy was tightened anyway (the interpolated helper line dropped entirely, five option labels shortened); `surfaceDefaults` was rewritten from a 14-row table to three deviation lists, since every template shares the standard gutter and a full table spent most of its bytes restating the default; the component's two conditional prop spreads collapsed into plain `undefined` props. Those recovered ~130 bytes of the ~720 it started at.",
+    "headroom": "510 bytes, matching the convention `raisedFor` set.",
+    "alternativeNotTaken": "Building the `max-w-*` class from the width prop at runtime instead of a literal map. Tailwind generates utilities from source TEXT, so the literals have to appear somewhere regardless, and an `@source inline()` safelist trades ~40 bytes for a class set that no longer fails loudly when a width is renamed."
+  },
+  "raisedFor": {
+    "when": "2026-08-17",
+    "by": "Studio → Pages (the page manager: list, create, edit, sidebar order)",
+    "from": 663000,
+    "to": 663600,
+    "measured": "663,103 bytes before this raise — 103 bytes over the ratchet, which held 1,722 bytes of headroom when it was set.",
+    "why": "The overflow is en-US COPY, not code. `packages/i18n/src/resources/index.ts` statically bundles all five en-US namespaces into the entry — its own docblock says the studio/generated lazy split lands with the M8 extraction pipeline (10-T06/10-T10) — so every user-facing string on a new admin surface has an irreducible entry cost until that task ships. This feature added ~110 of them.",
+    "whatWasDeferredFirst": "All of the code. The five new modules (StudioPagesPage, NewPageScreen, EditPageScreen, PageEditorLayout/TemplatePreview/IconPicker) are behind the existing `studio/routes.tsx` lazy() wrappers; verified by grepping the built entry for code-shaped markers (`studio-pages-create`, `studio-pages-table`, `ICON_SHORTLIST`, `grid-cols-8`) — zero hits, while the copy strings appear in both the entry and the lazy chunk, which is what identified the i18n catalogue as the source.",
+    "whatElseWasTried": "Template descriptions rewritten to about half their original length (the schematic beside them carries the layout, so the words no longer had to); the seven longest new strings tightened; two orphaned keys left by the deleted CreatePageModal/PageEditorDrawer removed from all 8 locales. Those recovered ~250 bytes of the ~350 the feature was over.",
+    "headroom": "497 bytes. Deliberately small: this is a raise, and the ratchet's value is that it normally only clicks down. The next new surface should not absorb its copy cost here — it should land the 10-T06 namespace split, which would return this and more.",
+    "alternativeNotTaken": "Moving the en-US `studio` namespace out of the static bundle. That is the real fix and it would pay for this several times over, but it changes the i18n boot path in a shared package, it belongs to 10-T06/10-T10, and doing it inside a UI change would put a silent runtime-missing-string risk behind an unrelated review."
   }
 }

@@ -1,10 +1,14 @@
 /**
  * Sidebar (09-generated-app.md §5.1): 256px rail — logo block + app-version
- * chip, the five fixed nav groups from the bootstrap NavTree (uppercase group
- * labels, accent-soft active state), and the persona UserCard footer with
- * sign-out. Live unread badges: `badge: 'unread-count'` items render the
- * `/me/notifications` unread number (M7 T6), invalidated by the WS
- * `notifications:<userId>` channel.
+ * chip and the five fixed nav groups from the bootstrap NavTree (uppercase
+ * group labels, accent-soft active state). Live unread badges:
+ * `badge: 'unread-count'` items render the `/me/notifications` unread number
+ * (M7 T6), invalidated by the WS `notifications:<userId>` channel.
+ *
+ * The rail is `sticky top-0 h-dvh` and only the middle `<nav>` scrolls. The
+ * height is load-bearing: the shell parent is `min-h-dvh`, so without it the
+ * aside stretches to *document* height, the inner `overflow-y-auto` never
+ * engages, and the logo scrolls off the top of a long page.
  *
  * Multi-connection nav labels (M5-T05): once 2+ connections exist, each
  * group's items are sub-labeled by the owning connection's display name so
@@ -19,12 +23,11 @@ import {
   Database,
   Download,
   Hexagon,
-  LogOut,
   Mail,
   Upload,
   type LucideIcon,
 } from 'lucide-react';
-import { Avatar, Badge, IconButton, cn } from '@adminium/ui';
+import { cn } from '@adminium/ui';
 
 import { unreadCountQuery } from '../api/notifications.js';
 import type { BootstrapData, NavGroupKey, NavItem } from '../app/bootstrap.js';
@@ -56,7 +59,13 @@ const GROUP_LABEL_KEY = {
 
 export interface SidebarNavProps {
   bootstrap: BootstrapData;
-  onSignOut: () => void;
+  /**
+   * Accepted but unused: the persona badge and its sign-out affordance live in
+   * the topbar account menu now (`Topbar.tsx`, `topbar.signOut`). Kept so the
+   * existing `AppShell` call site still typechecks until the prop is dropped
+   * there too.
+   */
+  onSignOut?: (() => void) | undefined;
   className?: string | undefined;
 }
 
@@ -111,17 +120,25 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
   },
 ];
 
+/**
+ * One row shared by the generated-page list and the platform-link tail — they
+ * sit in the same rail and drifted apart by a pixel each time one was touched.
+ * `group` is here for the unread badge, which recolours on the active row.
+ *
+ * The comp draws no hover state at all (it is a static mock); `--surface-2` is
+ * kept because a nav with no hover feedback reads as inert.
+ */
+const NAV_LINK_CLASS =
+  'group flex items-center gap-[11px] rounded-md px-[11px] py-2 text-[13.5px] font-semibold text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg data-[status=active]:bg-accent-soft data-[status=active]:font-bold data-[status=active]:text-accent';
+
 function PlatformLinkList({ links }: { links: readonly PlatformNavLink[] }) {
   if (links.length === 0) return null;
   return (
-    <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+    <ul className="m-0 flex list-none flex-col gap-1 p-0">
       {links.map((link) => (
         <li key={link.to}>
-          <Link
-            to={link.to}
-            className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg data-[status=active]:bg-accent-soft data-[status=active]:text-accent"
-          >
-            <link.icon className="size-4 shrink-0" aria-hidden="true" />
+          <Link to={link.to} className={NAV_LINK_CLASS}>
+            <link.icon className="size-[18px] shrink-0" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate">{t(link.labelKey, link.fallback)}</span>
           </Link>
         </li>
@@ -143,7 +160,7 @@ function UnreadCountBadge() {
   return (
     <span
       data-part="nav-unread-badge"
-      className="ms-auto rounded-full bg-accent px-1.5 font-mono text-[10px] font-bold leading-[16px] text-accent-fg tabular-nums"
+      className="ms-auto rounded-full bg-surface-3 px-[7px] py-px text-[10.5px] font-bold text-fg-subtle tabular-nums group-data-[status=active]:bg-accent group-data-[status=active]:text-accent-fg"
     >
       {count.data > 99 ? '99+' : count.data}
     </span>
@@ -152,17 +169,13 @@ function UnreadCountBadge() {
 
 function NavItemList({ items }: { items: readonly NavItem[] }) {
   return (
-    <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+    <ul className="m-0 flex list-none flex-col gap-1 p-0">
       {items.map((item) => {
         const Icon = lucideByName(item.icon);
         return (
           <li key={item.pageId}>
-            <Link
-              to="/p/$slug"
-              params={{ slug: item.slug }}
-              className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg data-[status=active]:bg-accent-soft data-[status=active]:text-accent"
-            >
-              <Icon className="size-4 shrink-0" aria-hidden="true" />
+            <Link to="/p/$slug" params={{ slug: item.slug }} className={NAV_LINK_CLASS}>
+              <Icon className="size-[18px] shrink-0" aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate">{t(item.labelKey, item.fallback)}</span>
               {item.badge === 'unread-count' ? <UnreadCountBadge /> : null}
             </Link>
@@ -173,8 +186,8 @@ function NavItemList({ items }: { items: readonly NavItem[] }) {
   );
 }
 
-export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps) {
-  const { nav, user, version } = bootstrap;
+export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
+  const { nav, version } = bootstrap;
   // 2+ sources → sub-label items per connection (M5-T05); else stay flat.
   const multiConnection = distinctConnectionCount(nav) >= 2;
   const admin = hasStudioAccess(bootstrap.roles);
@@ -190,19 +203,23 @@ export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps)
     <aside
       data-part="sidebar"
       className={cn(
-        'flex w-sidebar shrink-0 flex-col border-e border-border bg-surface',
+        'sticky top-0 flex h-dvh w-sidebar shrink-0 flex-col border-e border-border bg-surface',
         className,
       )}
     >
-      {/* Logo block + version chip */}
-      <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
-        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-accent-fg">
+      {/*
+        The aside stays unpadded so the nav's scrollbar rides flush against the
+        border; every child carries the design's *effective* inset instead
+        (rail 14px + child 8px = 22px, top 18px + 8px = 26px).
+      */}
+      <div className="flex items-center gap-2.5 px-[22px] pb-3.5 pt-[26px]">
+        <span className="flex size-[30px] items-center justify-center rounded-[9px] bg-accent text-accent-fg shadow-glow">
           <Hexagon className="size-[17px]" aria-hidden="true" />
         </span>
-        <span className="text-[15px] font-extrabold tracking-[-0.02em] text-fg">Adminium</span>
-        <Badge tone="neutral" className="ms-auto font-mono">
+        <span className="text-[16px] font-extrabold tracking-[-0.02em] text-fg">Adminium</span>
+        <span className="ms-auto rounded-sm border border-border px-1.5 py-0.5 text-[10px] font-bold text-fg-subtle">
           v{version}
-        </Badge>
+        </span>
       </div>
 
       {/* Nav groups */}
@@ -214,8 +231,8 @@ export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps)
         ) : (
           <>
             {nav.groups.map((group) => (
-              <div key={group.key} className="mb-3">
-                <div className="px-2 pb-1 pt-2 text-micro uppercase text-fg-subtle">
+              <div key={group.key} className="mb-1">
+                <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
                   {t(GROUP_LABEL_KEY[group.key], GROUP_LABELS[group.key])}
                 </div>
                 {multiConnection ? (
@@ -246,8 +263,8 @@ export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps)
               const links = platformLinksFor(entry.group);
               if (links.length === 0) return null;
               return (
-                <div key={entry.group} className="mb-3" data-part="nav-platform-group">
-                  <div className="px-2 pb-1 pt-2 text-micro uppercase text-fg-subtle">
+                <div key={entry.group} className="mb-1" data-part="nav-platform-group">
+                  <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
                     {t(GROUP_LABEL_KEY[entry.group], GROUP_LABELS[entry.group])}
                   </div>
                   <PlatformLinkList links={links} />
@@ -257,18 +274,6 @@ export function SidebarNav({ bootstrap, onSignOut, className }: SidebarNavProps)
           </>
         )}
       </nav>
-
-      {/* Persona footer */}
-      <div data-part="sidebar-user-card" className="flex items-center gap-2.5 border-t border-border px-3.5 py-3">
-        <Avatar name={user.name} size="md" />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-bold text-fg">{user.name}</div>
-          <div className="truncate text-caption text-fg-subtle">{user.email}</div>
-        </div>
-        <IconButton label={t('nav.signOut', 'Sign out')} onClick={onSignOut}>
-          <LogOut className="size-4 rtl:-scale-x-100" aria-hidden="true" />
-        </IconButton>
-      </div>
     </aside>
   );
 }

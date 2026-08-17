@@ -228,6 +228,29 @@ describe('config inspector', () => {
     expect(screen.getAllByText('Locked').length).toBeGreaterThan(0);
   });
 
+  it('opens showing the config the widget actually renders, not the sparse stored one', async () => {
+    // THE ORIGINAL "nothing is applied" BUG. Generated pages store a minimal
+    // config; the widget renders that config with every schema `.default()`
+    // filled in. The drawer used to read the RAW stored object, so a
+    // kpi-stat-card saved as `{title}` showed "Show sparkline" OFF while the
+    // sparkline was visibly on screen — and switching it ON wrote the value it
+    // already effectively had, so nothing changed on the canvas.
+    const { user } = renderBuilder({
+      roles: ['admin'],
+      page: layoutPage({
+        version: 1,
+        items: [{ i: 'w1', widget: 'kpi-stat-card', x: 0, y: 0, w: 3, h: 3, config: { title: 'Total Orders' } }],
+      }),
+    });
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    await user.click(screen.getByRole('button', { name: 'Configure KPI stat card' }));
+
+    const sparkline = (await screen.findByLabelText('Show sparkline')) as HTMLButtonElement;
+    expect(sparkline.getAttribute('aria-checked')).toBe('true');
+    // Enum defaults surface too, rather than reading as an empty "Select…".
+    expect((screen.getByLabelText('Metric format') as HTMLSelectElement).value).toBe('plain');
+  });
+
   it('applies inspector edits to the widget live', async () => {
     const { user } = renderBuilder({ roles: ['admin'], page: page() });
     await user.click(screen.getByRole('button', { name: 'Edit' }));
