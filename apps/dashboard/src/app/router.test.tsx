@@ -78,11 +78,14 @@ describe('route guards', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/p/customers');
     });
-    // Sidebar: nav tree from bootstrap (groups + items), persona footer.
+    // Sidebar: nav tree from bootstrap (groups + items) + the version chip.
     expect(await screen.findByRole('navigation', { name: 'Primary' })).toBeDefined();
     expect(screen.getByRole('link', { name: /Orders/ })).toBeDefined();
-    expect(screen.getByText('ava@adminium.io')).toBeDefined();
     expect(screen.getByText('v0.0.0')).toBeDefined();
+    // The persona is no longer a sidebar footer — identity now hangs off the
+    // topbar account menu, so the email sits behind a closed dropdown and only
+    // the trigger is assertable from the shell's resting state.
+    expect(screen.getByRole('button', { name: 'Account menu' })).toBeDefined();
     // Pages API 404s in this fixture → page-scoped not-found state inside the
     // outlet (shell + nav stay usable), never a crash.
     expect(await screen.findByText('This page went missing')).toBeDefined();

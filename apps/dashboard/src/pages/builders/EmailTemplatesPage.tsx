@@ -38,6 +38,7 @@ import {
   type EmailTemplateDetail,
 } from '../../api/emailTemplates.js';
 import { t } from '../../i18n/t.js';
+import { PageSurface } from '../../shell/PageSurface.js';
 import { docToEmailBlocks, emailBlocksToDoc } from './emailDoc.js';
 
 export const EMAIL_AUTOSAVE_DEBOUNCE_MS = 900;
@@ -73,7 +74,7 @@ function EmailTemplatesManager({ onOpen }: { onOpen: (key: string, locale: strin
   }, [list.data, search]);
 
   return (
-    <div className="mx-auto flex h-full max-w-page flex-col gap-4 p-6" data-testid="email-templates-manager">
+    <PageSurface width="page" fill className="gap-4" testId="email-templates-manager">
       <header className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-section text-fg">
@@ -152,7 +153,7 @@ function EmailTemplatesManager({ onOpen }: { onOpen: (key: string, locale: strin
           ))}
         </ul>
       )}
-    </div>
+    </PageSurface>
   );
 }
 
@@ -235,7 +236,7 @@ function LoadedEmailEditor({
   }, [save]);
 
   return (
-    <div className="mx-auto flex h-full max-w-page flex-col gap-3 p-6" data-testid="email-template-editor">
+    <PageSurface width="page" fill className="gap-3" testId="email-template-editor">
       <header className="flex flex-wrap items-center gap-3">
         <Button
           variant="ghost"
@@ -291,6 +292,6 @@ function LoadedEmailEditor({
           }}
         />
       </div>
-    </div>
+    </PageSurface>
   );
 }

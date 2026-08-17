@@ -128,7 +128,8 @@ export function PageBuilderBinding({ page, adapters, canEditLayout }: PageTempla
   );
 
   return (
-    <div className="mx-auto flex h-full max-w-page flex-col p-6" data-testid="page-builder-binding">
+    // Gutter + `max-w-page` column come from PageRenderer's `PageSurface`.
+    <div className="flex h-full min-h-0 flex-col" data-testid="page-builder-binding">
       <PageBuilder
         key={restoreKey}
         config={page.config}

@@ -19,6 +19,7 @@ import { Alert, Button, Card, CardBody, CardHeader, IconTile, KeyValueList } fro
 import { isDesktopRuntime } from '../lib/desktop-runtime.js';
 import { t } from '../i18n/t.js';
 import { aboutQuery, updateCheckQuery, type AboutData, type MetaEngine } from './aboutApi.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { DesktopAboutSections } from './DesktopAboutSections.js';
 
 /** Display names for the three v1 meta engines (07-meta-store.md). */
@@ -108,7 +109,7 @@ export function AboutPage(): ReactNode {
   const desktop = isDesktopRuntime();
 
   return (
-    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 p-6">
+    <PageSurface width="narrow" className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <h1 className="text-h2 font-extrabold tracking-[-0.02em] text-fg">
           {t('about.title', 'About Adminium')}
@@ -183,6 +184,6 @@ export function AboutPage(): ReactNode {
           </Card>
         </>
       )}
-    </div>
+    </PageSurface>
   );
 }

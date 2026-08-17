@@ -136,12 +136,18 @@ export function ViewSwitcher({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
+          {/* Dressed as the comp's toolbar "Filter" button, which is the control
+              this occupies the slot of: 34px tall (matching the SearchInput it
+              sits beside — `sm`'s 28px read as a stray, shorter pill), 12.5px
+              at 700, `--fg-muted` on a plain `--border` hairline, and a 12px
+              inset. `secondary`'s own 13px/600/`--fg` on `--border-strong` sat a
+              notch heavier and darker than every other button on that rail. */}
           <Button
             variant="secondary"
-            size="sm"
             iconLeft={<ListFilter />}
             disabled={disabled}
             data-part="view-switcher-trigger"
+            className="gap-1.5 border-border px-3 text-[12.5px] font-bold text-fg-muted"
           >
             {triggerLabel}
           </Button>

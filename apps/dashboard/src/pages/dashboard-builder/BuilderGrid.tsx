@@ -12,6 +12,7 @@
  */
 
 import { Copy, Settings2, Trash2 } from 'lucide-react';
+import { useCallback } from 'react';
 import {
   DashboardGrid,
   GridDragHandle,
@@ -39,11 +40,6 @@ export interface BuilderGridProps {
   onDuplicate: (itemId: string) => void;
   onRemove: (itemId: string) => void;
   onLayoutChange: (layout: PageLayout) => void;
-}
-
-function sizingFor(widgetId: string): MinSize {
-  const sizing = getWidget(widgetId)?.sizing;
-  return { minW: sizing?.minW ?? 1, minH: sizing?.minH ?? 1 };
 }
 
 /** Localized grid drag/resize labels + a11y announcements (04 §6.2). */
@@ -82,6 +78,23 @@ export function BuilderGrid({
   // fed a map-bubble's lat/lng points to the choropleth tilegram on desktop —
   // a blank map, in the builder the user is authoring the page in.
   const runtimeEnv = useWidgetRuntimeEnv();
+
+  // The floor has to come from the definition that ACTUALLY MOUNTS, not the one
+  // stored. §7's offline policy swaps `map-bubble` (min 6×8) for
+  // `map-choropleth-grid` (min 4×6) on desktop, so reading the stored id pinned
+  // the tilegram to a floor its own component does not need. Same class of bug
+  // the comment at the top of this component records fixing for demo data — the
+  // sizing resolver was simply missed at the time.
+  //
+  // The no-definition fallback is the widget-missing card's own sizing, because
+  // that is the card that renders when a definition is absent.
+  const sizingFor = useCallback(
+    (widgetId: string): MinSize => {
+      const sizing = getWidget(resolveOfflineWidgetId(widgetId, runtimeEnv))?.sizing;
+      return { minW: sizing?.minW ?? 3, minH: sizing?.minH ?? 2 };
+    },
+    [runtimeEnv],
+  );
 
   return (
     <DashboardGrid

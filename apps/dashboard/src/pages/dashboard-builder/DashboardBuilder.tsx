@@ -26,7 +26,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { MoreVertical, Pencil, Plus, RotateCcw, Undo2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   DropdownMenu,
@@ -56,13 +56,25 @@ import {
   useSavePersonalLayout,
   useSaveSharedLayout,
 } from '../layout/useLayoutPersistence.js';
-import { BuilderGrid } from './BuilderGrid.js';
-import { ConfigInspector } from './ConfigInspector.js';
 import { editTargetForCapability } from './permissions.js';
 import { lockedPathsOf } from './placement.js';
 import { humanize } from './text.js';
 import { useBuilderLayout } from './useBuilderLayout.js';
-import { WidgetPalette, widgetDisplayName } from './WidgetPalette.js';
+import { widgetDisplayName } from './WidgetPalette.js';
+
+/* Edit-mode surfaces, lazily loaded. None of them can be on screen until the
+   user clicks "Edit", so shipping them in the entry chunk buys nothing and the
+   ratchet (apps/dashboard/scripts/check-entry-budget.mjs) charges for it. Each
+   is rendered only while open, so a null fallback replaces nothing. */
+const BuilderGrid = lazy(async () => ({
+  default: (await import('./BuilderGrid.js')).BuilderGrid,
+}));
+const ConfigInspector = lazy(async () => ({
+  default: (await import('./ConfigInspector.js')).ConfigInspector,
+}));
+const WidgetPalette = lazy(async () => ({
+  default: (await import('./WidgetPalette.js')).WidgetPalette,
+}));
 
 const EMPTY_LAYOUT: PageLayout = { version: 1, items: [] };
 
@@ -249,7 +261,11 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
   const editing = mode === 'edit';
 
   return (
-    <div className="mx-auto flex max-w-page flex-col gap-4 p-6" data-testid="dashboard-builder">
+    // The gutter and the `max-w-dash` (1320px) column come from the
+    // `PageSurface` PageRenderer wraps this in (pages/surfaceDefaults.ts) —
+    // 1320 and not `max-w-page` (1080px) because a dashboard is a 12-col grid
+    // and 1080px squeezed each column to ~76px.
+    <div className="flex flex-col gap-[14px]" data-testid="dashboard-builder">
       <header className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-section text-fg">{title}</h1>
@@ -352,15 +368,17 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
             </Button>
           </div>
         ) : (
-          <BuilderGrid
-            draft={draft}
-            selectedId={selectedId}
-            dir={dir}
-            onConfigure={select}
-            onDuplicate={handleDuplicate}
-            onRemove={handleRemove}
-            onLayoutChange={replace}
-          />
+          <Suspense fallback={null}>
+            <BuilderGrid
+              draft={draft}
+              selectedId={selectedId}
+              dir={dir}
+              onConfigure={select}
+              onDuplicate={handleDuplicate}
+              onRemove={handleRemove}
+              onLayoutChange={replace}
+            />
+          </Suspense>
         )
       ) : (
         <PageDashboard
@@ -370,13 +388,19 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
         />
       )}
 
-      <WidgetPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        onInsert={handleInsert}
-        registry={registry}
-      />
+      {paletteOpen ? (
+        <Suspense fallback={null}>
+          <WidgetPalette
+            open
+            onClose={() => setPaletteOpen(false)}
+            onInsert={handleInsert}
+            registry={registry}
+          />
+        </Suspense>
+      ) : null}
 
+      {selectedItem === undefined ? null : (
+      <Suspense fallback={null}>
       <ConfigInspector
         open={selectedItem !== undefined}
         definition={selectedDefinition}
@@ -388,6 +412,8 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
         }}
         onClose={() => select(null)}
       />
+      </Suspense>
+      )}
 
       <Modal open={resetOpen} onOpenChange={setResetOpen} size="sm">
         <ModalHeader

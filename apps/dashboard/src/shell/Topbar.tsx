@@ -1,16 +1,33 @@
 /**
  * Sticky translucent topbar (09-generated-app.md §5.1, ia-mapping §5
- * color-mix + blur keeper): current page title, the desktop runtime chip
- * (11-electron.md §8.1), global search affordance (`/` focuses, click opens
- * ⌘K), chord-pending indicator ("G…"), theme toggle, the notification bell
- * (live unread count + feed over `/me/notifications`, M7 T6 — the WS
- * `notifications:<userId>` channel keeps both fresh via the shared
- * `['notifications']` query prefix), and the avatar menu.
+ * color-mix + blur keeper): the page title over an optional subtitle line, the
+ * desktop runtime chip (11-electron.md §8.1), chord-pending indicator ("G…"),
+ * the page-actions slot pages publish into, global search affordance (`/`
+ * focuses, click opens ⌘K), the notification bell (live unread count + feed
+ * over `/me/notifications`, M7 T6 — the WS `notifications:<userId>` channel
+ * keeps both fresh via the shared `['notifications']` query prefix), and the
+ * avatar menu, which is also where light/dark now lives.
+ *
+ * The theme control is a menu item rather than a header button because the
+ * header's icon slots are finite and a preference that is toggled once a day
+ * does not deserve one — ⌘⇧L (AppShell), the ⌘K palette and the signed-out
+ * auth screen all still reach it.
  */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from '@tanstack/react-router';
-import { Bell, Database, LogOut, Moon, Settings, SlidersHorizontal, Sun, User } from 'lucide-react';
+import { Link, useRouter } from '@tanstack/react-router';
+import {
+  ArrowLeft,
+  Bell,
+  Database,
+  Files,
+  LogOut,
+  Moon,
+  Settings,
+  SlidersHorizontal,
+  Sun,
+  User,
+} from 'lucide-react';
 import {
   Avatar,
   DropdownMenu,
@@ -20,12 +37,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   IconButton,
+  Kbd,
   Popover,
   PopoverContent,
   PopoverTrigger,
   SearchInput,
   Spinner,
-  Tooltip,
   useTheme,
   useThemePrefs,
 } from '@adminium/ui';
@@ -40,6 +57,7 @@ import {
 import type { BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
+import { PageActionsSlot, usePageBackTo, usePageSubtitle, usePageTitle } from './PageActionsProvider.js';
 import { RuntimeChipHost } from './RuntimeChipHost.js';
 import { useChordPending } from './ShortcutsProvider.js';
 
@@ -56,6 +74,7 @@ export interface TopbarProps {
    * re-enforce, so this gates discovery, not access.
    */
   onOpenStudio: () => void;
+  onOpenStudioPages: () => void;
   onOpenStudioSettings: () => void;
 }
 
@@ -100,7 +119,14 @@ function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <IconButton size="lg" label={t('topbar.notifications', 'Notifications')} className="relative">
+        {/* `border-border` overrides the `bordered` variant's `border-border-strong`:
+            the comp's header controls sit on the same hairline as the bar itself. */}
+        <IconButton
+          size="xl"
+          variant="bordered"
+          label={t('topbar.notifications', 'Notifications')}
+          className="relative border-border"
+        >
           <Bell className="size-[17px]" />
           {unreadCount > 0 && (
             <span
@@ -185,21 +211,59 @@ export function Topbar({
   onSignOut,
   onOpenAccount,
   onOpenStudio,
+  onOpenStudioPages,
   onOpenStudioSettings,
 }: TopbarProps) {
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
   const dark = resolved.theme === 'dark';
   const pending = useChordPending();
+  const subtitle = usePageSubtitle();
+  // A routed sub-screen names itself; the shell's path derivation only knows
+  // `/p/$slug` and `/account`, and answers "Home" for everything else.
+  const publishedTitle = usePageTitle();
+  const backTo = usePageBackTo();
   const { user } = bootstrap;
   const admin = hasStudioAccess(bootstrap.roles);
 
   return (
     <header
       data-part="topbar"
-      className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-[color-mix(in_srgb,var(--bg)_82%,transparent)] px-4 backdrop-blur-[8px]"
+      /* The translucent base mixes --surface, not --bg: the sidebar beside it is
+         --surface, so mixing page grey drew a visible seam along the shared edge.
+         Height comes from padding rather than `h-14` — the title block is two
+         lines whenever a page publishes a subtitle. */
+      className="sticky top-0 z-30 flex shrink-0 items-center gap-4 border-b border-border bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] px-7 py-4 backdrop-blur-[8px]"
     >
-      <h1 className="min-w-0 truncate text-section text-fg">{title}</h1>
+      {backTo === null ? null : (
+        <IconButton
+          variant="ghost"
+          size="lg"
+          label={t('nav.back', 'Back')}
+          data-part="topbar-back"
+          asChild
+        >
+          {/* Before the title, not inside the page body: a screen reached from
+              a list needs its way out where the eye already is — beside the
+              heading that tells you where you are. `rtl:-scale-x-100` because
+              "back" is a direction, and the glyph has to follow the reading
+              order the way the sign-out arrow already does. */}
+          <Link to={backTo}>
+            <ArrowLeft className="rtl:-scale-x-100" />
+          </Link>
+        </IconButton>
+      )}
+
+      <div className="min-w-0">
+        <h1 className="truncate text-topbar-title leading-[1.2] text-fg">
+          {publishedTitle ?? title}
+        </h1>
+        {subtitle === null ? null : (
+          <div data-part="topbar-subtitle" className="mt-0.5 truncate text-body-sm text-fg-muted">
+            {subtitle}
+          </div>
+        )}
+      </div>
 
       {/* 11-electron.md §8.1: "The topbar … gains a runtime chip next to the
           environment area, desktop only." There is no environment chip in the
@@ -214,7 +278,11 @@ export function Topbar({
         </span>
       )}
 
-      <div className="ms-auto flex items-center gap-2">
+      <div className="ms-auto flex items-center gap-2.5">
+        {/* Page-owned controls lead the cluster, so the shell's own affordances
+            keep a fixed position at the end of the bar as pages change. */}
+        <PageActionsSlot />
+
         {/* Read-only affordance: clicking (or `/`) opens the ⌘K palette. */}
         <SearchInput
           kbd="⌘K"
@@ -229,20 +297,6 @@ export function Topbar({
             onOpenPalette();
           }}
         />
-
-        <Tooltip content={t('topbar.theme', 'Toggle light / dark')}>
-          <IconButton
-            size="lg"
-            label={
-            dark
-              ? t('theme.toLight', 'Switch to light theme')
-              : t('theme.toDark', 'Switch to dark theme')
-          }
-            onClick={() => setPref('theme', dark ? 'light' : 'dark')}
-          >
-            {dark ? <Sun className="size-[17px]" /> : <Moon className="size-[17px]" />}
-          </IconButton>
-        </Tooltip>
 
         <NotificationBell />
 
@@ -268,12 +322,29 @@ export function Topbar({
             <DropdownMenuItem icon={<Settings />} onSelect={onOpenAccount}>
               {t('topbar.preferences', 'Preferences')}
             </DropdownMenuItem>
+            {/* Verb label, not a checkbox item: the icon and the wording already
+                say which way the switch goes, and a checked state would have to
+                pick a side ("dark is on") that half the users read backwards.
+                Closes on select (Radix default) — the theme flip is visible
+                behind the closing menu either way, and staying open would leave
+                a stale label under the cursor. Placed before the Studio
+                separator so that separator still opens the admin-only section. */}
+            <DropdownMenuItem
+              icon={dark ? <Sun /> : <Moon />}
+              trailing={<Kbd>⌘⇧L</Kbd>}
+              onSelect={() => setPref('theme', dark ? 'light' : 'dark')}
+            >
+              {dark ? t('theme.toLight', 'Light mode') : t('theme.toDark', 'Dark mode')}
+            </DropdownMenuItem>
             {admin ? (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>{t('topbar.studio', 'Studio')}</DropdownMenuLabel>
                 <DropdownMenuItem icon={<Database />} onSelect={onOpenStudio}>
                   {t('studio.hub.title', 'Data connections')}
+                </DropdownMenuItem>
+                <DropdownMenuItem icon={<Files />} onSelect={onOpenStudioPages}>
+                  {t('studioPages.title', 'Pages')}
                 </DropdownMenuItem>
                 <DropdownMenuItem icon={<SlidersHorizontal />} onSelect={onOpenStudioSettings}>
                   {t('studio.settingsHub.title', 'Workspace settings')}

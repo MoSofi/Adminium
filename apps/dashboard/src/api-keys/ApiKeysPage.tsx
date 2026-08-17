@@ -60,6 +60,7 @@ import { ApiKeysPanelView, CodeSnippetBlockView, type ApiKeyRecord } from '@admi
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
 import {
   apiKeysQuery,
@@ -348,7 +349,7 @@ export function ApiKeysPage(): ReactNode {
   const rolesUnavailable = roles.isError;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-5 p-6">
+    <PageSurface className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <h1 className="text-title text-fg">
@@ -497,7 +498,7 @@ export function ApiKeysPage(): ReactNode {
         />
       )}
 
-    </div>
+    </PageSurface>
   );
 }
 

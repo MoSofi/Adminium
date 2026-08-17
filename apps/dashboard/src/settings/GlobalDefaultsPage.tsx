@@ -21,6 +21,7 @@ import { Button, Card, CardBody, CardHeader, IconTile } from '@adminium/ui';
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { useAppToasts } from '../pages/toasts.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { StatePage } from '../states/StatePage.js';
 import {
   AccentControl,
@@ -189,7 +190,7 @@ export function GlobalDefaultsPage(): ReactNode {
 function GlobalDefaultsBody(): ReactNode {
   const { data } = useSuspenseQuery(settingsDefaultsQuery());
   return (
-    <div className="mx-auto max-w-narrow p-6">
+    <PageSurface width="narrow">
       <div className="mb-4">
         <h2 className="text-section text-fg">{t('settings.defaults.title', 'Global defaults')}</h2>
         <p className="text-body-sm text-fg-muted">
@@ -198,6 +199,6 @@ function GlobalDefaultsBody(): ReactNode {
       </div>
       {/* Remount the form when the server state changes (realtime refetch). */}
       <DefaultsForm key={`${data.theme}|${data.accent}|${data.density}|${data.locale}`} initial={data} />
-    </div>
+    </PageSurface>
   );
 }

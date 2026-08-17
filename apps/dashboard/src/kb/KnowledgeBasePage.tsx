@@ -39,6 +39,7 @@ import {
 import { CardGallery, type GalleryCard } from '@adminium/widgets';
 
 import { t } from '../i18n/t.js';
+import { PageSurface } from '../shell/PageSurface.js';
 import { DOCS_BASE_URL, DOCS_SEARCH_URL, docsUrl } from './docsLinks.js';
 import {
   KB_ARTICLES,
@@ -143,7 +144,7 @@ export function KnowledgeBasePage(): ReactNode {
   const filtered = category !== null || query.trim() !== '';
 
   return (
-    <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-6 p-6">
+    <PageSurface width="page" className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <h1 className="text-title text-fg">
@@ -260,6 +261,6 @@ export function KnowledgeBasePage(): ReactNode {
           </ul>
         )}
       </Card>
-    </div>
+    </PageSurface>
   );
 }

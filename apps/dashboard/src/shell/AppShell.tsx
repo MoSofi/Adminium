@@ -12,7 +12,7 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { WifiOff } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useTheme, useThemePrefs } from '@adminium/ui';
 
 import { invalidateForRealtimeEvent } from '../api/realtime.js';
@@ -27,7 +27,14 @@ import { t } from '../i18n/t.js';
 import { DesktopUpdateToaster } from '../desktop/updates.js';
 import { AppToastProvider } from '../pages/toasts.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
-import { ShortcutsPanel } from './ShortcutsPanel.js';
+import { PageActionsProvider } from './PageActionsProvider.js';
+/* Lazy: a `?`-triggered help modal is never on the first-paint path, and the
+   entry-chunk ratchet (scripts/check-entry-budget.mjs) is the right place to
+   pay for that. Rendered only once opened, so no Suspense fallback is needed —
+   there is nothing on screen to replace while the chunk loads. */
+const ShortcutsPanel = lazy(async () => ({
+  default: (await import('./ShortcutsPanel.js')).ShortcutsPanel,
+}));
 import { useShortcut, useShortcutManager } from './ShortcutsProvider.js';
 import { SidebarNav } from './SidebarNav.js';
 import { Topbar } from './Topbar.js';
@@ -233,20 +240,25 @@ export function AppShell() {
         className={sidebarOpen ? 'hidden lg:flex' : 'hidden'}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar
-          bootstrap={bootstrap}
-          title={title}
-          onOpenPalette={() => setPaletteOpen(true)}
-          onSignOut={signOut}
-          onOpenAccount={() => void navigate({ to: '/account' })}
-          onOpenStudio={() => void navigate({ to: '/studio' })}
-          onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
-        />
-        <main className="min-h-0 flex-1">
-          <Outlet />
-        </main>
-      </div>
+      {/* The provider has to span BOTH children: the topbar holds the slot, the
+          outlet holds the pages that publish into it. */}
+      <PageActionsProvider>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar
+            bootstrap={bootstrap}
+            title={title}
+            onOpenPalette={() => setPaletteOpen(true)}
+            onSignOut={signOut}
+            onOpenAccount={() => void navigate({ to: '/account' })}
+            onOpenStudio={() => void navigate({ to: '/studio' })}
+            onOpenStudioPages={() => void navigate({ to: '/studio/pages' })}
+            onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
+          />
+          <main className="min-h-0 flex-1">
+            <Outlet />
+          </main>
+        </div>
+      </PageActionsProvider>
 
       <CommandPaletteHost
         open={paletteOpen}
@@ -259,7 +271,11 @@ export function AppShell() {
         onSignOut={signOut}
         onShowShortcuts={() => setShortcutsOpen(true)}
       />
-      <ShortcutsPanel open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      {shortcutsOpen ? (
+        <Suspense fallback={null}>
+          <ShortcutsPanel open onOpenChange={setShortcutsOpen} />
+        </Suspense>
+      ) : null}
       {/* §11: the app-global surface for `notify`-mode update availability — a
           desktop-only, guarded no-op elsewhere. Without a subscriber here the
           main process's broadcast update events fall off the end (green-but-

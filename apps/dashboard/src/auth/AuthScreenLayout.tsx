@@ -19,8 +19,8 @@ export function ThemeToggleButton() {
       size="lg"
       label={
           dark
-            ? t('theme.toLight', 'Switch to light theme')
-            : t('theme.toDark', 'Switch to dark theme')
+            ? t('theme.toLight', 'Light mode')
+            : t('theme.toDark', 'Dark mode')
         }
       onClick={() => setPref('theme', dark ? 'light' : 'dark')}
     >
