@@ -368,3 +368,28 @@ describe('widget chrome', () => {
     expect(grip!.className).toContain('pointer-events-auto!');
   });
 });
+
+describe('unbound widgets on the canvas', () => {
+  /**
+   * The canvas feeds EVERY widget `demoData(seedFromString(item.i))`, bound or
+   * not, so a widget nobody ever wired to a table is pixel-identical to one
+   * that is — and a dragged-in widget starts unbound, because `binding` is
+   * `.optional()` and `insertWidget`'s `safeParse({})` cannot invent one. The
+   * badge is the only thing in edit mode that tells them apart.
+   */
+  it('badges the ones showing sample data and leaves bound ones alone', async () => {
+    const bound = makeDashboardEnvelope();
+    const layout = (bound.config['layout'] as { items: Record<string, unknown>[] }).items;
+    const page = layoutPage({
+      version: 1,
+      items: [layout[0]!, { ...layout[1]!, i: 'w2', config: {} }],
+    });
+    const { user } = renderBuilder({ roles: ['admin'], page });
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+
+    expect(document.querySelectorAll('[data-builder-unbound]')).toHaveLength(1);
+    const flagged = document.querySelector('[data-builder-unbound]');
+    expect(flagged?.getAttribute('data-builder-item')).toBe('w2');
+    expect(screen.getAllByText('Sample data')).toHaveLength(1);
+  });
+});

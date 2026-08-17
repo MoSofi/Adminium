@@ -14,10 +14,13 @@
  *   undo        POST   /api/v1/data/undo/:token
  *   lookup      GET    list on the FK's referenced table (q= on display column)
  *   listRelated GET    list on a referencing table (where column = value)
+ *   export      POST   /api/v1/exports  (09 §11.2, a queued export-run job)
  *
  * Every shape below mirrors apps/server/src/routes/data/schema.ts verbatim
  * so the dashboard implementation is a straight `fetch` + JSON pass-through.
  */
+
+import type { TabularExportFormat } from '../../lib/export.js';
 
 export type CrudRow = Record<string, unknown>;
 
@@ -117,6 +120,29 @@ export interface CrudBulkResult {
   undoToken: string | null;
 }
 
+/**
+ * Export formats the server can actually build. `xlsx` is in the §3.25
+ * vocabulary but `POST /exports` rejects it with a 422 (no spreadsheet
+ * dependency exists in this repo), so it is not in the contract; `json` is
+ * JSON-lines, matching the `export-run` artifact.
+ */
+export type CrudExportFormat = TabularExportFormat;
+
+export interface CrudExportRequest {
+  format: CrudExportFormat;
+  /** Selected row ids, when the request came from the bulk toolbar. */
+  ids?: readonly string[] | undefined;
+  /** The grid's live query, so a whole-result export matches what is on screen. */
+  params?: CrudListParams | undefined;
+}
+
+/** `POST /exports` reply (202), narrowed to what the template shows. */
+export interface CrudExportTicket {
+  /** `adminium_exports.id` — the row the Data Exports page polls. */
+  id: string;
+  status: 'processing' | 'ready' | 'failed' | 'cancelled' | 'expired';
+}
+
 /** FK combobox option (async server-side search on the display column). */
 export interface CrudLookupOption {
   /** The referenced key value, stringified. */
@@ -160,4 +186,13 @@ export interface CrudApi {
    * where `ref.column = value`. Optional — tabs show counts only without it.
    */
   listRelated?(ref: { table: string; column: string; value: unknown; limit?: number | undefined }): Promise<CrudRow[]>;
+  /**
+   * Queue a server-side export of the current selection/query — `POST
+   * /exports` (09 §11.2), which streams the WHOLE result set through the
+   * masking pipeline into a stored artifact. Optional: without it the bulk
+   * toolbar's Export serializes the selected rows in the browser instead, so
+   * the button works either way (the difference is fidelity and reach, not
+   * whether anything happens).
+   */
+  export?(request: CrudExportRequest): Promise<CrudExportTicket>;
 }

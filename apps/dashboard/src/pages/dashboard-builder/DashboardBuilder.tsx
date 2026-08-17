@@ -407,6 +407,10 @@ export function DashboardBuilder({ page, canEditLayout = false, states, onEvent,
         config={selectedItem?.config ?? {}}
         lockedPaths={lockedPathsOf(selectedItem?.config)}
         widgetName={selectedDefinition === undefined ? '' : widgetDisplayName(selectedDefinition)}
+        // The page's own connection scopes every binding authored on it — the
+        // generator writes `ctx.connectionId` into each descriptor it emits, and
+        // a hand-authored one has to land in the same scope.
+        connectionId={page.source.connectionId}
         onChange={(config) => {
           if (selectedId !== null) setConfig(selectedId, config);
         }}

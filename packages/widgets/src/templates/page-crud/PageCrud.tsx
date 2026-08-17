@@ -28,6 +28,7 @@ import { RecordForm } from './RecordForm.js';
 import { isDeletePreview } from './crud-api.js';
 import type {
   CrudApi,
+  CrudExportFormat,
   CrudFilterCondition,
   CrudListParams,
   CrudReferenceCount,
@@ -45,7 +46,8 @@ import type { WidgetEvent } from '../../registry/types.js';
 /**
  * `page-crud` — the per-table resource template (09-generated-app.md §7.1;
  * annex §14): toolbar (search + filter chips + "New row" — DB framing) that
- * morphs into `bulk-action-toolbar` on selection, type-aware `data-grid`
+ * morphs into `bulk-action-toolbar` on selection (CSV export + cascade
+ * delete), type-aware `data-grid`
  * over the CRUD API, keyset `pagination-footer`, detail panel
  * (`detail-key-value` + inbound-FK tabs) for `/p/$slug/r/$recordId`,
  * generated create/edit forms (TwoPhaseModal create — domain framing),
@@ -59,6 +61,15 @@ import type { WidgetEvent } from '../../registry/types.js';
 
 export const PAGE_CRUD_TEMPLATE_ID = 'page-crud';
 
+/**
+ * The format the selection bar's Export produces. One button, one format:
+ * `bulk-action-toolbar` renders flat buttons with nowhere to put a chooser,
+ * and CSV is the interchange default every consumer of an admin export
+ * expects. JSON-lines stays reachable through `CrudApi.export` and the Data
+ * exports page; `xlsx` is a server 422 (see `lib/export.ts`).
+ */
+const BULK_EXPORT_FORMAT: CrudExportFormat = 'csv';
+
 export interface PageCrudLabels {
   /** Header CTA — DB framing ("New row"). */
   newRow?: string | undefined;
@@ -67,6 +78,7 @@ export interface PageCrudLabels {
   createSubmit?: string | undefined;
   searchPlaceholder?: string | undefined;
   deleteAction?: string | undefined;
+  /** Bulk export of the selection (CSV — see `BULK_EXPORT_FORMAT`). */
   exportAction?: string | undefined;
   dismiss?: string | undefined;
   undo?: string | undefined;
@@ -296,6 +308,9 @@ export function PageCrud({
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [bulkDeleteIds, setBulkDeleteIds] = useState<readonly string[] | null>(null);
 
+  // --- export ----------------------------------------------------------------
+  const [exporting, setExporting] = useState(false);
+
   const cellContext: CellContext = useMemo(
     () => ({
       onEvent,
@@ -464,6 +479,54 @@ export function PageCrud({
     }
   };
 
+  /**
+   * Bulk Export. `api.export` queues the server-side run (whole result set,
+   * server-side masking, artifact in Data exports); without it the selected
+   * rows — already on screen — are serialized and downloaded here, which is
+   * the difference between an export button and a dead one. `xlsx` is offered
+   * by neither path: `POST /exports` rejects it 422 by design.
+   *
+   * The format is fixed at CSV rather than chosen here. `BulkActionToolbar`
+   * takes flat buttons and cannot host a chooser, so a second format would
+   * mean a second permanent button in the selection bar; JSON-lines is a
+   * pipeline format whose home is the Data exports page's format selector,
+   * and `lib/export.ts` + `CrudApi.export` still carry both.
+   */
+  const runExport = async (format: CrudExportFormat, ids: readonly string[]) => {
+    setExporting(true);
+    try {
+      if (api.export !== undefined) {
+        await api.export({ format, ids: [...ids], params: listParams });
+        queue.push({
+          variant: 'success',
+          // Nothing visible happens on the queued path — the artifact shows up
+          // on another page — so this one has to say so. `exportBuilder.running`
+          // is the bundle's existing "Preparing your export…"; the export-run it
+          // describes is literally the one being queued here.
+          title: t('ui:widgets.forms.exportBuilder.running', 'Preparing your export…'),
+        });
+      } else {
+        // Dynamic: DOM-only serialization behind a click, and `/p/$slug` is in
+        // the dashboard's entry chunk (scripts/check-entry-budget.mjs).
+        const { downloadRows } = await import('../../lib/export.js');
+        const selection = new Set(ids);
+        const rows = list.rows.filter((row) => selection.has(rowIdOf(columns, row)));
+        downloadRows(format, columns.map((column) => column.name), rows, source.table);
+        // No toast: the file lands in the browser's own download UI, which is
+        // the confirmation. A toast would just restate it.
+      }
+      // The selection SURVIVES an export: it is not destructive, and the rows
+      // are usually still wanted afterwards.
+    } catch (reason) {
+      queue.push({
+        variant: 'error',
+        title: reason instanceof Error ? reason.message : t('ui:state.error', 'Something went wrong'),
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const editableColumns = columns;
   const selectedIds = useMemo(() => [...selected], [selected]);
   const rangeStart = list.rows.length === 0 ? 0 : cursorStack.length * pageSize + 1;
@@ -533,13 +596,18 @@ export function PageCrud({
             <BulkActionToolbar
               selectedIds={selectedIds}
               actions={[
-                { key: 'export', label: labels?.exportAction ?? t('ui:templates.crud.exportAction', 'Export') },
+                {
+                  key: 'export',
+                  label: labels?.exportAction ?? t('ui:templates.crud.exportAction', 'Export'),
+                  disabled: exporting,
+                },
                 ...(canDelete
                   ? [{ key: 'delete', label: labels?.deleteAction ?? t('ui:action.delete', 'Delete'), danger: true }]
                   : []),
               ]}
               onAction={(key, ids) => {
                 if (key === 'delete') setBulkDeleteIds(ids);
+                if (key === 'export') void runExport(BULK_EXPORT_FORMAT, ids);
               }}
               onClear={() => setSelected(new Set())}
             />
