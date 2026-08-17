@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * PROMPT_V1 verbatim pin (06-llm-assist.md §5, acceptance criterion 2).
  *

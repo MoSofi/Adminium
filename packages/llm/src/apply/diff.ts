@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Diff of the LLM `EnrichmentSet` against the heuristic baseline (06-llm-assist.md
  * §8.2). Produces one {@link SuggestionDiff} per atomic suggestion, each carrying

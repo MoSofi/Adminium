@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `LlmResponseV1` contract + version negotiation (06-llm-assist.md §6.1, §6.3,
  * §4.3). Locks: the §6.3 golden response validates with zero errors; malformed

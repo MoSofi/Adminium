@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * AES-256-GCM secret-at-rest for the encrypted `llm.apiKey` setting
  * (06-llm-assist.md §3.2; 01-architecture.md §7.1). The LLM key is protected with

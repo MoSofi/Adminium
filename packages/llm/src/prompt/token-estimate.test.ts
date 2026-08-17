@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /** `chars / 3.6` token estimator (06-llm-assist.md §4.5). */
 import { describe, expect, it } from 'vitest';
 

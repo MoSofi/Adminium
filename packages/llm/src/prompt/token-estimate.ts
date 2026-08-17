@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * The `chars / 3.6` heuristic token estimator (06-llm-assist.md §2, §4.5).
  *

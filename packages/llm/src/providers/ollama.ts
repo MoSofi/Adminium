@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Local Ollama client (06-llm-assist.md §3.1): no auth, `baseUrl` defaults to
  * `http://localhost:11434`. POST `/api/chat` (non-streaming); `GET /api/tags`

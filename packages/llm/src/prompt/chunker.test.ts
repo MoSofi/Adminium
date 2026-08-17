@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `chunker.ts` — huge-schema map-reduce (06-llm-assist.md §4.5, acceptance
  * criterion 7): "A 300-table synthetic schema chunks into ≥ 2 prompts each

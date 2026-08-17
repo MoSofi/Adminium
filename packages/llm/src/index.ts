@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `@adminium/llm` — headless LLM-assist: provider clients, prompt builder,
  * response contract + validation, EnrichmentSet normalization/diff, and the

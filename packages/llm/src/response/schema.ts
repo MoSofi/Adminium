@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * `LlmResponseV1` — the one response contract shared by the direct-API and BYO
  * paths (06-llm-assist.md §1, §6.1). Shipped verbatim from §6.1: field names

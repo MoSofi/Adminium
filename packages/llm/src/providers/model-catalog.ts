@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Model catalog (06-llm-assist.md §3.1 matrix): static fallback lists plus the
  * live `listModels()` fetchers each client delegates to. Fetchers hit the

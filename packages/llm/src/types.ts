@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Shared `@adminium/llm` contract types (06-llm-assist.md §2, §7.1): the
  * normalized `EnrichmentSet` both paths reduce to, the provider identifiers, and

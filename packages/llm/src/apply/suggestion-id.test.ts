@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Stable suggestion-id scheme (06-llm-assist.md §8.1). Locks: each constructor
  * emits the exact §8.1 string; ids are deterministic (stable across calls); the

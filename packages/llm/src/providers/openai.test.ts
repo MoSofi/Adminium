@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * OpenAI client — mocked-fetch wire tests (06-llm-assist.md §3.1): Bearer auth,
  * /v1/chat/completions body with the system message prepended, response parsing,

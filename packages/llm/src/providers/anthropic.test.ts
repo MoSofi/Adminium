@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /**
  * Anthropic client — mocked-fetch wire tests (06-llm-assist.md §3.1). Locks the
  * exact request shape (URL, x-api-key + anthropic-version headers, Messages body),
