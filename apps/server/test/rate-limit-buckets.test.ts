@@ -119,6 +119,54 @@ describe('the url-matched buckets', () => {
     expect(await budget('GET', '/api/v1/imports')).toBe(RATE_BUCKETS.api.max);
   });
 
+  /**
+   * REGRESSION (this is what turned `rtl-locale.spec.ts` flaky on CI): a cold
+   * document load spends NINE `/api/` GETs rendering the shell before the user
+   * has asked for anything, so on the general 300/min bucket one principal got
+   * ~30 page loads a minute — and the e2e suite does 41 in two minutes. The
+   * 429 landed on whichever assertion happened to be mid-flight, which is why
+   * the failing test moved run to run and passed on retry.
+   *
+   * The list below is the whole boot payload as of this fix. Nothing here can
+   * detect a TENTH per-load request being added to the shell — only the e2e
+   * suite's own volume will — so if one is added, it belongs in this list and
+   * in `app-shell`'s ceiling, not quietly back in the user's general budget.
+   */
+  it('bills the cold-start payload to `app-shell`, not the general bucket', async () => {
+    await probeApp([
+      { method: 'GET', url: '/api/v1/bootstrap' },
+      { method: 'GET', url: '/api/v1/branding' },
+      { method: 'GET', url: '/api/v1/system/info' },
+      { method: 'GET', url: '/api/v1/i18n/manifest' },
+      { method: 'GET', url: '/api/v1/i18n/bundle/:locale/:namespace' },
+      { method: 'GET', url: '/api/v1/me/notifications' },
+      // Neighbours that must NOT be swept up.
+      { method: 'POST', url: '/api/v1/branding/logo' },
+      { method: 'GET', url: '/api/v1/i18n/keys' },
+      { method: 'POST', url: '/api/v1/me/notifications/read-all' },
+    ]);
+
+    for (const url of [
+      '/api/v1/bootstrap',
+      '/api/v1/branding',
+      '/api/v1/system/info',
+      '/api/v1/i18n/manifest',
+      '/api/v1/i18n/bundle/en_US/common',
+      '/api/v1/me/notifications',
+    ]) {
+      expect(await budget('GET', url), url).toBe(RATE_BUCKETS['app-shell'].max);
+    }
+
+    // Uploading a logo is file BYTES and stays on the 30/hour budget — the
+    // `app-shell` pattern is GET-only and anchored so it cannot shadow it.
+    expect(await budget('POST', '/api/v1/branding/logo')).toBe(RATE_BUCKETS['file-bytes'].max);
+    // The i18n admin surfaces are ordinary reads, not boot payload.
+    expect(await budget('GET', '/api/v1/i18n/keys')).toBe(RATE_BUCKETS.api.max);
+    // Marking notifications read is a user ACTION on the same prefix — the
+    // anchor is what keeps it in the general bucket.
+    expect(await budget('POST', '/api/v1/me/notifications/read-all')).toBe(RATE_BUCKETS.api.max);
+  });
+
   it('lets a declared marker win over the url table', async () => {
     app = fastify({ logger: false });
     await app.register(corePlugin, { env: makeEnv() });
