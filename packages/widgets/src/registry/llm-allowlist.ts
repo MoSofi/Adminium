@@ -39,16 +39,18 @@ function contractShapes(contract: DataShape | DataShape[]): readonly DataShape[]
 /**
  * Can the widget-data pipeline actually FEED this widget? A dashboard tile is
  * only useful if some query descriptor produces a payload its data contract
- * accepts, and the compiler implements six of the eighteen canonical shapes
- * (04 §5.2 "M4 scope notes").
+ * accepts, and the compiler implements eleven of the eighteen canonical shapes
+ * (04 §5.2).
  *
- * Without this test the prompt offered 17 widgets — `chart-sankey` (`flows`),
- * `chart-multiline` (`multi-timeseries`), the five `matrix` charts, the three
- * `distribution` ones, and so on — that no binding could ever satisfy: every
- * one of them was guaranteed to render "Unexpected data shape" or reject with
- * 422 the moment a model chose it. They rejoin automatically when 04-T09/T10
- * teaches the compiler their shapes, because both sides read
- * `COMPILABLE_DATA_SHAPES`.
+ * Without this test the prompt offered widgets no binding could ever satisfy —
+ * every one guaranteed to render "Unexpected data shape" or reject with 422 the
+ * moment a model chose it. The gate is a live derivation, not a snapshot: when
+ * the compiler learned `multi-timeseries`, `matrix`, `distribution` and
+ * `calendar-events`, twelve charts (chart-multiline, chart-stream, chart-bump,
+ * the five matrix charts, chart-boxplot/violin/ridgeline, chart-timeline-lanes)
+ * rejoined the prompt vocabulary automatically, because both sides read
+ * `COMPILABLE_DATA_SHAPES`. `flows` (chart-sankey, chart-chord),
+ * `hierarchy/tree`, `geo-points` and `ohlc` are what remains outside.
  */
 function isBindable(definition: WidgetDefinition): boolean {
   return contractShapes(definition.dataContract).some(isCompilableShape);

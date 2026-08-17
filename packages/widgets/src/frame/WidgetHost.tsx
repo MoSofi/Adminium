@@ -1,4 +1,6 @@
-import { Suspense, useEffect, useMemo } from 'react';
+import { DropdownMenuItem } from '@adminium/ui';
+import { ImageDown } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';
 
@@ -40,7 +42,10 @@ export interface WidgetHostProps {
   onEvent?: ((event: WidgetEvent) => void) | undefined;
   /** Drag-grip render slot, forwarded to WidgetFrame (edit mode, M7). */
   dragGrip?: ReactNode | (() => ReactNode) | undefined;
-  /** Kebab menu items, forwarded to WidgetFrame. */
+  /**
+   * Host kebab items, rendered AFTER the ones the host builds from the
+   * definition's capabilities (currently "Export PNG").
+   */
   menu?: ReactNode | undefined;
   /** Info popover content override (defaults to the definition's descriptionKey). */
   info?: ReactNode | undefined;
@@ -70,7 +75,10 @@ function errorMessageOf(error: unknown): string | undefined {
  *   structured console warning;
  * - loading → skeleton silhouette; error → error card + Retry (refetch);
  * - success + `isEmpty(data)` per the definition's dataContract → empty state;
- * - lazy chunk loading → Suspense falls back to the same silhouette.
+ * - lazy chunk loading → Suspense falls back to the same silhouette;
+ * - `capabilities.exportPng` → an "Export PNG" kebab item over the rendered
+ *   SVG (lib/export.ts). The capability is the gate: 42 definitions advertise
+ *   it, and this is what makes the flag mean something.
  */
 export function WidgetHost({
   widgetId,
@@ -148,9 +156,47 @@ export function WidgetHost({
   const Component = definition.component;
   const frameless = definition.placement === 'page';
 
+  // Raster export (04 §2.1 `capabilities.exportPng`). The module is dynamic —
+  // it is DOM-only code nobody has clicked yet, and the dashboard entry chunk
+  // is on a ratchet (apps/dashboard/scripts/check-entry-budget.mjs).
+  const frameRef = useRef<HTMLElement | null>(null);
+  const exportTitle = typeof cfg.title === 'string' && cfg.title !== '' ? cfg.title : definition.id;
+  const exportPng = useCallback(() => {
+    const root = frameRef.current;
+    if (root === null) return;
+    void import('../lib/export.js')
+      .then(async ({ exportElementAsPng }) => exportElementAsPng(root, exportTitle))
+      .catch((error: unknown) => {
+        // No toast queue reaches the frame; a widget that cannot rasterize is
+        // a capability-flag bug, so it surfaces the same way a bad instance
+        // config does (registry/index.ts logConfigWarnings).
+        console.warn('[widgets] PNG export failed', { instanceId, widgetId: definition.id, error });
+      });
+  }, [instanceId, definition.id, exportTitle]);
+
+  // "Download", not "Export": in Adminium "Export" names the QUEUED server-side
+  // export-run that lands an artifact on the Data exports page (09 §11.2), and
+  // this item does the opposite — it rasterizes what is already on screen and
+  // hands the browser a file. `ui:widgets.media.download` is this package's
+  // existing shared download label (AttachmentList, UploadProgressList), so the
+  // item is translated in all 8 locales the day it ships rather than falling
+  // back to English behind a key the `ui` bundle does not carry yet.
+  const menuItems =
+    definition.capabilities?.exportPng !== true ? (
+      menu
+    ) : (
+      <>
+        <DropdownMenuItem icon={<ImageDown />} onSelect={exportPng}>
+          {t('ui:widgets.media.download', 'Download')}
+        </DropdownMenuItem>
+        {menu}
+      </>
+    );
+
   return (
     <WidgetFrame
       state={state}
+      containerRef={frameRef}
       title={typeof cfg.title === 'string' ? cfg.title : undefined}
       // `subtitle` has been in `widgetSharedConfigSchema` since the beginning
       // and had ZERO consumers repo-wide — it rendered as field #2 of every
@@ -158,7 +204,7 @@ export function WidgetHost({
       subtitle={typeof cfg.subtitle === 'string' && cfg.subtitle !== '' ? cfg.subtitle : undefined}
       bleed={cfg.bleed === true}
       info={resolvedInfo}
-      menu={menu}
+      menu={menuItems}
       dragGrip={dragGrip}
       skeleton={definition.skeleton}
       // titleKey/bodyKey are i18n keys — the dashboard resolves them via

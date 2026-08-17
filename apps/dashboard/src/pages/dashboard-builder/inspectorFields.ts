@@ -7,9 +7,17 @@
  * wrappers to reach the base type (Zod 4 `.def` introspection).
  *
  * Composite fields (`binding`, `format`, `emptyState`, `permissions`) and
- * builder-internal meta keys are skipped — the binding/data-source editor is a
- * dedicated surface, not an auto-form. Fields named in `lockedPaths` (Tier A
- * derived / LLM-locked config, 04 §9) render read-only with a lock affordance.
+ * builder-internal meta keys are skipped. For `binding` that dedicated surface
+ * now EXISTS — `./BindingEditor.tsx`, opened from the inspector's data-source
+ * row — so the skip is a hand-off rather than the gap it used to describe.
+ *
+ * The skip stays explicit even though `fieldFor` would also return `null` for a
+ * nested object today: it is the schema-shape guard. If `binding` ever became,
+ * say, a saved-query id string, this list is what keeps a raw text box for it
+ * out of the auto-form, where editing it would corrupt the query silently.
+ *
+ * Fields named in `lockedPaths` (Tier A derived / LLM-locked config, 04 §9)
+ * render read-only with a lock affordance.
  */
 
 import type { WidgetDefinition } from '@adminium/widgets';

@@ -13,7 +13,7 @@ import {
   Spinner,
 } from '@adminium/ui';
 import { AlertTriangle, EllipsisVertical, Info, RotateCcw } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { useMaybeT } from '@adminium/i18n/react';
 
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
@@ -57,6 +57,12 @@ export interface WidgetFrameProps {
   info?: ReactNode | undefined;
   /** Kebab DropdownMenu items (Refresh · Edit · Duplicate · Export · Remove). */
   menu?: ReactNode | undefined;
+  /**
+   * Ref to the frame's root `<section>`. WidgetHost uses it to reach the
+   * rendered chart for the PNG export (`capabilities.exportPng`); nothing may
+   * read a widget's DOM without going through the frame that owns it.
+   */
+  containerRef?: Ref<HTMLElement> | undefined;
   /**
    * Drag-grip slot at inline-start of the header — render prop so the M7
    * dashboard grid can hand in its dnd-kit handle; only passed in edit mode.
@@ -125,6 +131,7 @@ export function WidgetFrame({
   headerValue,
   info,
   menu,
+  containerRef,
   dragGrip,
   skeleton = 'card',
   empty,
@@ -260,14 +267,20 @@ export function WidgetFrame({
 
   if (frameless) {
     return (
-      <section data-widget-frame data-state={state} data-testid={testId} className="flex h-full flex-col">
+      <section ref={containerRef} data-widget-frame data-state={state} data-testid={testId} className="flex h-full flex-col">
         {content}
       </section>
     );
   }
   return (
     <Card asChild padded={false} raise>
-      <section data-widget-frame data-state={state} data-testid={testId} className="flex h-full flex-col overflow-hidden">
+      <section
+        ref={containerRef}
+        data-widget-frame
+        data-state={state}
+        data-testid={testId}
+        className="flex h-full flex-col overflow-hidden"
+      >
         {content}
       </section>
     </Card>

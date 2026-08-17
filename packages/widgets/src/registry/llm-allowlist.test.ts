@@ -90,6 +90,22 @@ describe('LLM_ALLOWED_WIDGETS', () => {
     // so `isLlmDashboardWidget`'s tables clause never admits them.
     // The `geo` family Wave 4 opened is not an allow-listed dashboard family
     // either — maps are not in LLM_DASHBOARD_WIDGET_FAMILIES.
+    //
+    // 43 → 55: teaching the widget-data compiler `multi-timeseries`, `matrix`,
+    // `distribution` and `calendar-events` admitted TWELVE charts that were
+    // registered-but-unsuggestable, because `isBindable` reads the same
+    // `COMPILABLE_DATA_SHAPES` the compiler validates against. They are listed
+    // here by shape so the next compiler change lands in the obvious place:
+    //   multi-timeseries → chart-multiline, chart-stream, chart-bump
+    //   matrix           → chart-marimekko, chart-radar, chart-hexbin,
+    //                      chart-correlation-matrix, chart-cohort-matrix
+    //   distribution     → chart-boxplot, chart-violin, chart-ridgeline
+    //   calendar-events  → chart-timeline-lanes
+    // This is a real widening of what the model may PROPOSE, not a fixture
+    // refresh: each of the four shapes now has a descriptor form the compiler
+    // accepts and a shaper that emits the payload (bucket + one groupBy; two
+    // groupBy + an aggregation; `select: [valueColumn]` with compiler-derived
+    // quantiles; positional `select: [date, title, category?, end?]`).
     expect(LLM_ALLOWED_WIDGETS).toEqual([
       'accordion-list',
       'activity-feed',
@@ -97,22 +113,34 @@ describe('LLM_ALLOWED_WIDGETS', () => {
       'card-gallery',
       'chart-anomaly',
       'chart-bar',
+      'chart-boxplot',
       'chart-bullet',
+      'chart-bump',
+      'chart-cohort-matrix',
+      'chart-correlation-matrix',
       'chart-donut',
       'chart-forecast',
       'chart-funnel',
       'chart-heat-month',
       'chart-heatmap-calendar',
+      'chart-hexbin',
       'chart-line-area',
+      'chart-marimekko',
+      'chart-multiline',
       'chart-parallel-coordinates',
       'chart-pareto',
+      'chart-radar',
       'chart-radial-bar',
       'chart-ranking-bars',
+      'chart-ridgeline',
       'chart-scatter-bubble',
       'chart-slope',
       'chart-sparkline',
       'chart-stacked-bar-100',
+      'chart-stream',
+      'chart-timeline-lanes',
       'chart-treemap',
+      'chart-violin',
       'chart-waterfall',
       'chart-wordcloud',
       'gauge-arc',
@@ -152,16 +180,32 @@ describe('LLM_ALLOWED_WIDGETS', () => {
   });
 
   it('offers only widgets some query descriptor can actually satisfy', () => {
-    // The regression this encodes: `chart-sankey` (flows), `chart-multiline`
-    // (multi-timeseries) and the matrix/distribution/ohlc/geo/hierarchy/
-    // calendar-events charts were all suggestable while the compiler could
-    // produce none of their shapes (04 §5.2 M4 scope notes).
+    // The regression this encodes: charts were suggestable while the compiler
+    // could produce none of their shapes, so the model could place a tile
+    // GUARANTEED to render "Unexpected data shape" or 422 (04 §5.2).
     for (const id of LLM_ALLOWED_WIDGETS) {
       const contract = widgetRegistry.get(id)?.dataContract;
       const shapes = Array.isArray(contract) ? contract : [contract];
       expect(shapes.some((s) => s !== undefined && isCompilableShape(s))).toBe(true);
     }
-    for (const id of ['chart-sankey', 'chart-multiline', 'chart-cohort-matrix', 'chart-violin']) {
+    // The still-uncompilable shapes, named so the boundary is auditable rather
+    // than implied. `static` is not a compiler gap — it is config-only, with no
+    // server round trip to widen (04 §3) — but it is equally unsuggestable.
+    for (const shape of ['flows', 'hierarchy/tree', 'geo-points', 'ohlc', 'boolean-map', 'static'] as const) {
+      expect(isCompilableShape(shape), `${shape} became compilable — revisit this guard`).toBe(false);
+    }
+    // Every widget in a dashboard family that those shapes strand. This list
+    // SHRINKS when the compiler grows: `chart-multiline`, `chart-cohort-matrix`
+    // and `chart-violin` were here until multi-timeseries/matrix/distribution
+    // landed, and moved into the allow-list above in the same change.
+    for (const id of [
+      'chart-sankey', // flows
+      'chart-chord', // flows
+      'chart-sunburst', // hierarchy/tree
+      'chart-choropleth-grid', // geo-points
+      'chart-candlestick', // ohlc
+    ]) {
+      expect(widgetRegistry.has(id), `${id} must stay renderable`).toBe(true);
       expect(LLM_ALLOWED_WIDGETS).not.toContain(id);
     }
   });
