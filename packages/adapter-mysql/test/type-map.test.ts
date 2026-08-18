@@ -298,9 +298,28 @@ describe('ReDoS hardening — COLUMN_TYPE parsing is linear (CodeQL js/polynomia
   // module parses that text verbatim. Each string below is the pathological
   // input CodeQL named for one alert; the wall-clock figures in the comments
   // are what the previous unanchored regexes actually cost, measured.
-  const BUDGET_MS = 1_000;
+  // The gap this has to detect is enormous — every figure quoted below is in
+  // SECONDS, while the warmed measurement is single-digit milliseconds — so the
+  // budget only has to land somewhere in between. It sits far above the
+  // measurement rather than just under the smallest regression (4.4 s), because
+  // a budget set close to the observed value fails on runner contention instead
+  // of on the defect, which is exactly what 1 s did.
+  const BUDGET_MS = 2_000;
 
+  /**
+   * Warm up, then measure. The first call into one of these parsers pays for
+   * regex compilation and JIT, and on a contended CI runner that dwarfed the
+   * parse itself — this suite's first case measured 36 ms locally and 1,116 ms
+   * in CI against a 1,000 ms budget, and went red on the difference. That was
+   * warmup cost, not a regression.
+   *
+   * Warming with the SAME input is safe: these parsers are pure and memoize
+   * nothing, so a quadratic implementation is slow on the second call too and
+   * this cannot hide the blow-up the budget exists to catch. If one ever grows
+   * a cache, warm it with a differently-shaped input instead.
+   */
   const timed = <T>(run: () => T): { ms: number; value: T } => {
+    run();
     const started = performance.now();
     const value = run();
     return { ms: performance.now() - started, value };
@@ -366,9 +385,28 @@ describe('ReDoS hardening — CHECK (col IN (…)) parsing is linear', () => {
   // information_schema as whatever text the application put in the DDL, so it
   // is the same untrusted surface. Figures below are measured on the previous
   // one-piece pattern.
-  const BUDGET_MS = 1_000;
+  // The gap this has to detect is enormous — every figure quoted below is in
+  // SECONDS, while the warmed measurement is single-digit milliseconds — so the
+  // budget only has to land somewhere in between. It sits far above the
+  // measurement rather than just under the smallest regression (4.4 s), because
+  // a budget set close to the observed value fails on runner contention instead
+  // of on the defect, which is exactly what 1 s did.
+  const BUDGET_MS = 2_000;
 
+  /**
+   * Warm up, then measure. The first call into one of these parsers pays for
+   * regex compilation and JIT, and on a contended CI runner that dwarfed the
+   * parse itself — this suite's first case measured 36 ms locally and 1,116 ms
+   * in CI against a 1,000 ms budget, and went red on the difference. That was
+   * warmup cost, not a regression.
+   *
+   * Warming with the SAME input is safe: these parsers are pure and memoize
+   * nothing, so a quadratic implementation is slow on the second call too and
+   * this cannot hide the blow-up the budget exists to catch. If one ever grows
+   * a cache, warm it with a differently-shaped input instead.
+   */
   const timed = <T>(run: () => T): { ms: number; value: T } => {
+    run();
     const started = performance.now();
     const value = run();
     return { ms: performance.now() - started, value };
