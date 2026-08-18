@@ -49,6 +49,9 @@ import { createBridgeStore, createPairingCode } from './bridge/store.js';
 import { registerIntrospectJob } from './connections/introspect.js';
 import type { ConnectionManager } from './connections/manager.js';
 import { UndoStore } from './crud/undo.js';
+import { seedBuiltinEmailTemplates } from './email/builtins.js';
+import { emailSecretKey } from './email/config.js';
+import { configureEmailRuntime } from './email/send.js';
 import { createFileStorage } from './files/storage.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
 import {
@@ -278,6 +281,31 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
 
   await app.register(rbacPlugin, { meta });
 
+  // EMAIL (v1 SMTP wave). Two boot-time facts, both cheap:
+  //
+  // 1. The master secret reaches the email layer here and nowhere else. It
+  //    opens the sealed `email.send` job envelope AND `email.smtp.passEncrypted`;
+  //    the notification writer is called from producers all over the server
+  //    that have no `Env`, so threading it through each of them would scatter a
+  //    credential to serve one optional side effect.
+  // 2. A fresh install has ZERO rows in `adminium_email_templates` — nothing
+  //    seeds them — so without this a password-reset mail would have no body to
+  //    render. Idempotent natural-key upserts, one indexed read per built-in
+  //    key once seeded, which is why it is safe on EVERY boot.
+  //
+  // Seeding is best-effort: a meta store that cannot take the seed (a partially
+  // migrated relocation target, say) must still serve CRUD. Email degrades; the
+  // product does not fail to boot over it.
+  configureEmailRuntime({ secret: env.ADMINIUM_SECRET });
+  try {
+    await seedBuiltinEmailTemplates(meta, Date.now());
+  } catch (error) {
+    app.log.warn(
+      { err: error },
+      'could not seed the built-in email templates — email bodies may be missing',
+    );
+  }
+
   // LLM assist (M6, 06-llm-assist.md §10.5). Only the vocabulary is optional;
   // the key crypto and the resolver are cheap and pure.
   const llm =
@@ -322,6 +350,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         await resolvePermissionSet(meta, { kind: 'user', id: user.id, label: user.id }),
         permission,
       ),
+    // Claims the `email.send` kind (jobs/email-send.ts). Registered
+    // unconditionally: whether mail actually goes out is decided by the
+    // `email.smtp` SETTING at enqueue time, not by boot configuration.
+    email: { secret: env.ADMINIUM_SECRET },
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
   });
 
@@ -526,7 +558,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // crud quick-search path, RBAC/PII-filtered like the data routes.
       await api.register(searchRoutes({ manager, meta }));
       await api.register(widgetDataRoutes({ manager, meta }));
-      await api.register(settingsRoutes({ meta }));
+      await api.register(
+        // `emailKey` is passed explicitly rather than letting the route derive it
+        // from `process.env`: the composition root already holds the parsed env,
+        // and a route reading process.env directly is invisible to the desktop and
+        // CLI wrappers that build their own Env (01 §2.3).
+        settingsRoutes({ meta, emailKey: emailSecretKey(env.ADMINIUM_SECRET) }),
+      );
       // Branding rides with settings but owns the bytes half (logo storage)
       // and the two PUBLIC reads the sign-in screen paints itself with.
       await api.register(brandingRoutes({ meta, storage }));

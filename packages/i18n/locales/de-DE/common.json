@@ -1322,7 +1322,6 @@
         "end": "Enddatum-Spalte (optional)",
         "title": "Titelspalte"
       },
-      "eventColumnsRequired": "Termine benötigen ein Startdatum und einen Titel. Ein Enddatum erfordert zusätzlich eine Kategorie, weil die Spalten der Reihe nach gelesen werden.",
       "filterColumnRequired": "Wählen Sie eine Spalte.",
       "filterColumn": "Spalte",
       "filterListHelper": "Werte durch Kommas trennen.",
@@ -1393,7 +1392,12 @@
         "record": "Eine Zeile",
         "singleMetric": "Eine einzelne Zahl",
         "stream": "Ein Live-Feed aktueller Zeilen",
-        "timeseries": "Ein Wert im Zeitverlauf"
+        "timeseries": "Ein Wert im Zeitverlauf",
+        "tree": "Ein Wert je Kategorie, auf zwei Ebenen aufgeteilt",
+        "geoPoints": "Ein Wert je Ort oder Region",
+        "flows": "Wie viel von einer Kategorie in eine andere fließt",
+        "ohlc": "Eröffnung, Hoch, Tief und Schluss je Zeitraum",
+        "booleanMap": "Ein An/Aus-Kennzeichen je Schlüssel"
       },
       "shapeHelper": "Eine Änderung hier ändert, welche Abfrageoptionen gelten.",
       "shapeLabel": "Was dieses Widget zeigt",
@@ -1430,7 +1434,12 @@
         "week": "Wochen",
         "year": "Jahre"
       },
-      "windowUnitLabel": "Einheit"
+      "windowUnitLabel": "Einheit",
+      "role": {
+        "flagKey": "Schlüsselspalte",
+        "flagValue": "An/Aus-Spalte"
+      },
+      "roleColumnsRequired": "Füllen Sie jede erforderliche Spalte aus und lassen Sie keine Lücke vor einer bereits gefüllten Spalte — diese Spalten werden der Reihe nach gelesen."
     }
   },
   "setup": {
@@ -2703,5 +2712,30 @@
     "title": "Team",
     "twoFactorOn": "Zwei-Faktor-Authentifizierung ist aktiviert",
     "twoFactorShort": "2FA"
+  },
+  "email": {
+    "linkFallback": "Wenn die Schaltfläche nicht funktioniert, fügen Sie diesen Link in Ihren Browser ein: {url}",
+    "notification": {
+      "action": "{appName} öffnen",
+      "footer": "Sie erhalten diese E-Mail, weil E-Mail-Benachrichtigungen für Ihr Konto bei {appName} aktiviert sind. Sie können sie in Ihren Benachrichtigungseinstellungen deaktivieren.",
+      "name": "Benachrichtigung"
+    },
+    "passwordReset": {
+      "action": "Neues Passwort festlegen",
+      "heading": "Setzen Sie Ihr Passwort zurück",
+      "intro": "Hallo {name}, wir haben eine Anfrage erhalten, das Passwort für {email} zurückzusetzen.",
+      "name": "Passwort zurücksetzen",
+      "notice": "Dieser Link funktioniert nur ein einziges Mal und läuft in {expiresInMinutes} Minuten ab. Wenn Sie kein Zurücksetzen Ihres Passworts angefordert haben, können Sie diese E-Mail ignorieren — Ihr aktuelles Passwort bleibt gültig.",
+      "subject": "Ihr Passwort für {appName} zurücksetzen"
+    },
+    "userInvite": {
+      "action": "Einladung annehmen",
+      "heading": "Sie wurden eingeladen",
+      "intro": "{inviterName} hat Sie zu {appName} eingeladen. Nehmen Sie die Einladung an, um ein Passwort für {email} festzulegen und sich anzumelden.",
+      "name": "Team-Einladung",
+      "notice": "Diese Einladung funktioniert nur ein einziges Mal und läuft in {expiresInDays} Tagen ab. Wenn Sie sie nicht erwartet haben, können Sie diese E-Mail ignorieren.",
+      "subject": "Sie wurden zu {appName} eingeladen",
+      "inviterFallback": "Eine Administratorin oder ein Administrator"
+    }
   }
 }

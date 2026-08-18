@@ -180,6 +180,65 @@ describe('descriptorFromDraft', () => {
     });
   });
 
+  it('builds the rollup form of the shapes that have two — never the row form', () => {
+    // The server accepts an adjacency projection for `hierarchy/tree` and a
+    // coordinate one for `geo-points`; the editor authors the ROLLUP of each,
+    // which is spelled exactly like `matrix`/`categorical` and so needs no
+    // bespoke control (see SHAPE_CONTROLS).
+    const tree = descriptorFromDraft(
+      ordersDraft({ shape: 'hierarchy/tree', groupBy: ['status', 'channel'], limit: 100 }),
+    );
+    expect(tree.ok).toBe(true);
+    if (!tree.ok) return;
+    expect(tree.descriptor.groupBy).toEqual(['status', 'channel']);
+    expect(tree.descriptor.select).toBeUndefined();
+
+    const flows = descriptorFromDraft(
+      ordersDraft({ shape: 'flows', groupBy: ['source', 'target'], limit: 100 }),
+    );
+    expect(flows.ok).toBe(true);
+    if (!flows.ok) return;
+    expect(flows.descriptor.aggregations).toEqual([{ fn: 'count', alias: 'value' }]);
+
+    const geo = descriptorFromDraft(ordersDraft({ shape: 'geo-points', groupBy: ['region'] }));
+    expect(geo.ok).toBe(true);
+
+    // Two keys are not optional for the two-key rollups.
+    expect(descriptorFromDraft(ordersDraft({ shape: 'hierarchy/tree', groupBy: ['status'] }))).toEqual({
+      ok: false,
+      issues: ['groupBy'],
+    });
+  });
+
+  it('builds a bucketed ohlc: one value column, no measure', () => {
+    const built = descriptorFromDraft(
+      ordersDraft({ shape: 'ohlc', bucketColumn: 'created_at', bucketUnit: 'day', select: ['total'] }),
+    );
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.descriptor.aggregations).toBeUndefined();
+    expect(built.descriptor.bucket).toEqual({ column: 'created_at', unit: 'day' });
+    expect(built.descriptor.select).toEqual(['total']);
+    // The server caps its own fold, so the editor offers no row control.
+    expect(built.descriptor.limit).toBeUndefined();
+  });
+
+  it('builds a boolean-map positionally and refuses a half-filled projection', () => {
+    const built = descriptorFromDraft(
+      ordersDraft({ shape: 'boolean-map', select: ['status', 'archived'], limit: 100 }),
+    );
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.descriptor.select).toEqual(['status', 'archived']);
+
+    // Both slots are required, and order names them — a single column cannot be
+    // stored as "whichever one the user meant".
+    expect(descriptorFromDraft(ordersDraft({ shape: 'boolean-map', select: ['status'] }))).toEqual({
+      ok: false,
+      issues: ['select'],
+    });
+  });
+
   it('types filter operands by the column kind and splits list operators', () => {
     const built = descriptorFromDraft(
       ordersDraft({
@@ -240,13 +299,14 @@ describe('draftFromDescriptor', () => {
   });
 
   it('falls back to a metric shape when the stored shape is not compilable', () => {
-    // `geo-points` is one of the five shapes 04 §5.2 still lists as outstanding
-    // in the compiler — a descriptor carrying it has no form to load into.
+    // `static` is config-only — no server round trip, so no form to load into.
+    // Not a compiler gap waiting to close: this fallback is permanent for it
+    // and for `form-state`, which the CRUD form path feeds instead.
     const draft = draftFromDescriptor({
       kind: 'table-query',
       connectionId: 'conn_1',
       source: { name: 'stores', type: 'table' },
-      shape: 'geo-points',
+      shape: 'static',
     });
     expect(draft.shape).toBe('single-metric');
   });
@@ -291,9 +351,20 @@ describe('authorableShapes', () => {
     expect(authorableShapes('metric+delta')).toEqual(['single-metric', 'metric+delta']);
   });
 
-  it('drops shapes the compiler cannot produce yet', () => {
-    expect(authorableShapes(['record-list', 'geo-points'])).toEqual(['record-list']);
-    expect(authorableShapes('flows')).toEqual([]);
+  it('drops shapes no query descriptor can produce', () => {
+    expect(authorableShapes(['record-list', 'static'])).toEqual(['record-list']);
+    expect(authorableShapes('form-state')).toEqual([]);
+  });
+
+  it('offers the shapes the compiler learned last, in COMPILABLE_DATA_SHAPES order', () => {
+    // The five that used to return `[]` here. `authorableShapes` reads the same
+    // shared constant the compiler validates against, so this is a derivation,
+    // not a second list to keep in step.
+    expect(authorableShapes('hierarchy/tree')).toEqual(['hierarchy/tree']);
+    expect(authorableShapes('geo-points')).toEqual(['geo-points']);
+    expect(authorableShapes('flows')).toEqual(['flows']);
+    expect(authorableShapes('ohlc')).toEqual(['ohlc']);
+    expect(authorableShapes('boolean-map')).toEqual(['boolean-map']);
   });
 
   it('matches every widget the registry ships', () => {

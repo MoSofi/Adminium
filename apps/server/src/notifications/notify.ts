@@ -8,18 +8,42 @@
  *
  * Channel-preference gating lives HERE, not in the repo: a producer names its
  * `kind` (which doubles as the §3.21 `event_key`) and the writer consults
- * `notificationPrefsRepo.channelsFor(...).inApp` — a user who switched the
- * event off gets no row. Email/push channels are stored intent only in this
- * build (no SMTP / no push transport); the prefs ROUTE explains that, per the
- * never-hide-always-explain rule — the writer just ignores them.
+ * `notificationPrefsRepo.channelsFor(...)`. `inApp` decides whether a row is
+ * written; `email` queues a message through `email/send.ts`. The two are
+ * INDEPENDENT — a user who wants mail but no bell badge gets exactly that, so
+ * the email leg runs even when the in-app leg is switched off and this
+ * function returns `null`. `push` remains stored intent (no transport).
+ *
+ * A CONSEQUENCE WORTH SAYING OUT LOUD: `DEFAULT_NOTIFICATION_CHANNELS.email`
+ * is `true`, and it was set that way while email could not deliver. Wiring the
+ * channel up therefore switches notification mail ON for every user who never
+ * touched the prefs matrix, the moment an operator configures SMTP. That is
+ * the honest reading of a stored preference — the alternative is to keep
+ * ignoring an answer the user already gave — but it is a real change in what a
+ * fresh install does, and the prefs screen is where a user turns it back off.
+ *
+ * The email leg is strictly best-effort, and deliberately so: `notify` is
+ * called from producers that have already succeeded at the thing the user
+ * cares about (a report ran, a backup completed). A courtesy message must
+ * never be able to fail that.
  */
 import {
   notificationPrefsRepo,
   notificationsRepo,
+  settingsRepo,
+  usersRepo,
   type CreateNotificationInput,
   type MetaDb,
   type Notification,
 } from '@adminium/meta';
+
+import {
+  NOTIFICATION_EMAIL_TEMPLATE_KEY,
+  NOTIFICATION_FALLBACK_TEMPLATE,
+  enqueueEmail,
+  type EmailLogger,
+} from '../email/send.js';
+import { recipientLocale } from '../i18n/server-i18n.js';
 
 /** Event type published on `notifications:<userId>` for a fresh row. */
 export const NOTIFICATION_CREATED_EVENT = 'notification.created';
@@ -45,11 +69,24 @@ export interface NotifyOptions {
    */
   respectPrefs?: boolean | undefined;
   at?: number | undefined;
+  /**
+   * Absolute origin (`https://admin.example.com`) used to turn the row's
+   * `actionUrl` into a clickable link in the email. Producers that run inside
+   * a request pass `requestOrigin(request)`; background producers (the report
+   * scheduler) have none, and the email then carries the path as stored.
+   */
+  origin?: string | undefined;
+  /** Skip the email leg entirely (tests, and producers that mail their own). */
+  email?: boolean | undefined;
+  logger?: EmailLogger | undefined;
 }
 
 /**
- * Insert one notification (prefs permitting) and publish it. Returns the row,
- * or `null` when the recipient has the event's in-app channel switched off.
+ * Insert one notification (prefs permitting), publish it, and queue the email
+ * copy when the recipient's `email` channel is on. Returns the row, or `null`
+ * when the recipient has the event's IN-APP channel switched off — which says
+ * nothing about whether an email went out.
+ *
  * Best-effort belongs at the CALL SITE (backup/notify.ts precedent): a failed
  * courtesy row must not fail the operation that succeeded.
  */
@@ -58,13 +95,67 @@ export async function notify(
   input: CreateNotificationInput,
   opts: NotifyOptions = {},
 ): Promise<Notification | null> {
-  if (opts.respectPrefs ?? true) {
-    const channels = await notificationPrefsRepo(meta).channelsFor(input.userId, input.kind);
-    if (!channels.inApp) return null;
+  const channels = await notificationPrefsRepo(meta).channelsFor(input.userId, input.kind);
+
+  // Ordered so the email leg is reached even when the in-app leg returns early.
+  if (channels.email && (opts.email ?? true)) {
+    await deliverEmail(meta, input, opts);
   }
+
+  if ((opts.respectPrefs ?? true) && !channels.inApp) return null;
+
   const row = await notificationsRepo(meta).create(input, opts.at);
   opts.hub?.publish(notificationsChannel(row.userId), NOTIFICATION_CREATED_EVENT, {
     notification: row,
   });
   return row;
+}
+
+/**
+ * One template for every notification kind, seeded by nobody: the row's own
+ * `title`/`body` ARE the content, so a per-kind template would be thirty
+ * near-identical rows for an operator to keep in sync — and every kind added
+ * later would silently have no email at all. `NOTIFICATION_FALLBACK_TEMPLATE`
+ * carries it until an operator creates a `notification` row in the editor, at
+ * which point theirs wins.
+ */
+async function deliverEmail(
+  meta: MetaDb,
+  input: CreateNotificationInput,
+  opts: NotifyOptions,
+): Promise<void> {
+  try {
+    const user = await usersRepo(meta).findById(input.userId);
+    // A suspended account keeps its prefs row but must stop receiving mail.
+    if (user === null || user.status === 'suspended') return;
+    await enqueueEmail(
+      { meta, ...(opts.logger === undefined ? {} : { logger: opts.logger }) },
+      {
+        to: user.email,
+        templateKey: NOTIFICATION_EMAIL_TEMPLATE_KEY,
+        locale: await recipientLocale(meta, user.id),
+        vars: {
+          appName: await settingsRepo(meta).get('branding.appName'),
+          name: user.name,
+          kind: input.kind,
+          title: input.title,
+          body: input.body ?? '',
+          actionUrl: absoluteActionUrl(input.actionUrl ?? null, opts.origin),
+        },
+        fallback: NOTIFICATION_FALLBACK_TEMPLATE,
+      },
+    );
+  } catch (error) {
+    opts.logger?.warn(
+      { err: error, userId: input.userId, kind: input.kind },
+      'could not queue the notification email',
+    );
+  }
+}
+
+function absoluteActionUrl(actionUrl: string | null, origin: string | undefined): string {
+  if (actionUrl === null || actionUrl.length === 0) return '';
+  if (/^https?:\/\//.test(actionUrl)) return actionUrl;
+  if (origin === undefined || origin.length === 0) return actionUrl;
+  return `${origin.replace(/\/+$/, '')}${actionUrl.startsWith('/') ? '' : '/'}${actionUrl}`;
 }

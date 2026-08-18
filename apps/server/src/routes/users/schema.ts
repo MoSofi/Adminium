@@ -78,11 +78,16 @@ export const userInviteReply = z.object({
   user: userDto,
   invite: inviteDto,
   /**
-   * Always `false` in v1: this build has no mail transport at all, so the
-   * activation link is handed to the inviter to pass on. Typed as a literal
-   * so a future SMTP wave has to widen the contract deliberately.
+   * True when the invitation mail was queued for delivery — i.e. SMTP is
+   * configured AND the `user-invite` template resolved. False otherwise.
+   *
+   * `invite` is returned EITHER WAY and that is the point: an admin whose
+   * relay is misconfigured, greylisted, or quietly dropping mail still has the
+   * copyable activation link, and the dashboard's one-time banner renders it.
+   * Making delivery the only path would let a silent SMTP failure strand every
+   * new user with no way in.
    */
-  emailSent: z.literal(false),
+  emailSent: z.boolean(),
 });
 export type UserInviteReply = z.infer<typeof userInviteReply>;
 

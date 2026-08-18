@@ -31,6 +31,11 @@ import { registerSseRoute } from '../realtime/sse.js';
 import { registerWsRoute, type RealtimeGatewayDeps } from '../realtime/ws.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import type { FileStorage } from '../files/storage.js';
+import {
+  EMAIL_SEND_JOB_KIND,
+  registerEmailSendHandler,
+  type EmailSendHandlerDeps,
+} from './email-send.js';
 import { EXPORT_RUN_KIND, registerExportRunHandler } from './export-run.js';
 import { IMPORT_RUN_KIND, registerImportRunHandler } from './import-run.js';
 import { LLM_RUN_KIND, registerLlmRunHandler, type ResolveRun } from './llm-run.js';
@@ -57,6 +62,20 @@ export interface JobsAndRealtimeOptions {
   llm?:
     | {
         resolve: ResolveRun;
+      }
+    | undefined;
+  /**
+   * Wire the `email.send` runner (`jobs/email-send.ts`). The secret is the
+   * master `ADMINIUM_SECRET`: it opens the sealed job envelope AND the
+   * `email.smtp.passEncrypted` setting. Omit it and no handler is registered —
+   * an instance with no email layer simply never claims the kind, and
+   * `enqueueEmail` never queues one either.
+   */
+  email?:
+    | {
+        secret: string;
+        /** Transport factory override (tests inject a recorder). */
+        createTransport?: EmailSendHandlerDeps['createTransport'];
       }
     | undefined;
   /**
@@ -121,6 +140,15 @@ export async function registerJobsAndRealtime(
   }
   if (opts.llm !== undefined && !registry.has(LLM_RUN_KIND)) {
     registerLlmRunHandler(registry, { meta, resolve: opts.llm.resolve });
+  }
+  if (opts.email !== undefined && !registry.has(EMAIL_SEND_JOB_KIND)) {
+    registerEmailSendHandler(registry, {
+      meta,
+      secret: opts.email.secret,
+      ...(opts.email.createTransport === undefined
+        ? {}
+        : { createTransport: opts.email.createTransport }),
+    });
   }
 
   const hub = new RealtimeHub();

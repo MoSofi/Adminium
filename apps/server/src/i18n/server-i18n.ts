@@ -5,10 +5,10 @@
  * `@adminium/i18n/server` builds the instance; this module is what reaches
  * the meta store for the override rows and resolves a recipient's locale.
  *
- * SEQUENCING NOTE: no email is SENT in this build — there is no SMTP
- * transport (see `routes/email-templates/index.ts`). So the deliverable here
- * is the renderer path, exercised by snapshot tests, not delivery. When a
- * transport lands it consumes this unchanged.
+ * This is what renders a recipient's mail in THEIR language: `email/render.ts`
+ * resolves its strings through this module, falling back to `en_US` when the
+ * recipient's locale has no template row. The transport that consumes it lives
+ * in `email/config.ts`; delivery is queued by `email/send.ts`.
  */
 import { NAMESPACES, type Namespace, type OverrideMap } from '@adminium/i18n';
 import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';

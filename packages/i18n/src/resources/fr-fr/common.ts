@@ -1331,7 +1331,6 @@ export default {
         "end": "Colonne de date de fin (facultatif)",
         "title": "Colonne de titre"
       },
-      "eventColumnsRequired": "Les événements exigent une date de début et un titre. Une date de fin exige aussi une catégorie, car les colonnes sont lues dans l’ordre.",
       "filterColumnRequired": "Choisissez une colonne.",
       "filterColumn": "Colonne",
       "filterListHelper": "Séparez les valeurs par des virgules.",
@@ -1402,7 +1401,12 @@ export default {
         "record": "Une seule ligne",
         "singleMetric": "Un seul nombre",
         "stream": "Un flux en direct des lignes récentes",
-        "timeseries": "Une valeur dans le temps"
+        "timeseries": "Une valeur dans le temps",
+        "tree": "Une valeur par catégorie, répartie sur deux niveaux",
+        "geoPoints": "Une valeur par lieu ou région",
+        "flows": "Le volume qui passe d’une catégorie à une autre",
+        "ohlc": "Ouverture, plus haut, plus bas et clôture par période",
+        "booleanMap": "Un indicateur activé/désactivé par clé"
       },
       "shapeHelper": "Modifier ce choix change les réglages de requête applicables.",
       "shapeLabel": "Ce que ce widget affiche",
@@ -1439,7 +1443,12 @@ export default {
         "week": "dernières semaines",
         "year": "dernières années"
       },
-      "windowUnitLabel": "Unité"
+      "windowUnitLabel": "Unité",
+      "role": {
+        "flagKey": "Colonne de clé",
+        "flagValue": "Colonne activé/désactivé"
+      },
+      "roleColumnsRequired": "Renseignez chaque colonne obligatoire et ne laissez aucun vide avant une colonne renseignée, car les colonnes sont lues dans l’ordre."
     }
   },
   "setup": {
@@ -2712,5 +2721,30 @@ export default {
     "title": "Équipe",
     "twoFactorOn": "L’authentification à deux facteurs est activée",
     "twoFactorShort": "2FA"
+  },
+  "email": {
+    "linkFallback": "Si le bouton ne fonctionne pas, collez ce lien dans votre navigateur : {url}",
+    "notification": {
+      "action": "Ouvrir {appName}",
+      "footer": "Vous recevez cet e-mail parce que les notifications par e-mail sont activées pour votre compte {appName}. Vous pouvez les désactiver dans vos préférences de notification.",
+      "name": "Notification"
+    },
+    "passwordReset": {
+      "action": "Choisir un nouveau mot de passe",
+      "heading": "Réinitialiser votre mot de passe",
+      "intro": "Bonjour {name}, nous avons reçu une demande de réinitialisation du mot de passe de {email}.",
+      "name": "Réinitialisation du mot de passe",
+      "notice": "Ce lien ne fonctionne qu’une seule fois et expire dans {expiresInMinutes} minutes. Si vous n’avez pas demandé la réinitialisation de votre mot de passe, vous pouvez ignorer cet e-mail — votre mot de passe actuel reste actif.",
+      "subject": "Réinitialisez votre mot de passe {appName}"
+    },
+    "userInvite": {
+      "action": "Accepter l’invitation",
+      "heading": "Vous avez reçu une invitation",
+      "intro": "{inviterName} vous invite à rejoindre {appName}. Acceptez l’invitation pour définir un mot de passe pour {email} et vous connecter.",
+      "name": "Invitation à l’équipe",
+      "notice": "Cette invitation ne fonctionne qu’une seule fois et expire dans {expiresInDays} jours. Si vous ne l’attendiez pas, vous pouvez ignorer cet e-mail.",
+      "subject": "Vous avez reçu une invitation à rejoindre {appName}",
+      "inviterFallback": "Un administrateur"
+    }
   }
 } as const;

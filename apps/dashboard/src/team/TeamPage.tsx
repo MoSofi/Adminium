@@ -7,10 +7,11 @@
  *
  * THE INVITE RESULT IS THIS PAGE'S REASON FOR EXISTING.
  *
- * This build has no mail transport — no `apps/server/src/email/`, no
- * `nodemailer`, no route that can write the `email.smtp` setting — so `POST
- * /users` cannot send anything, and it does not pretend to: it mints an
- * activation token, returns `emailSent: false`, and hands back the path once.
+ * `POST /users` mints an activation token and hands back the path ONCE,
+ * whether or not the invite was also emailed (`emailSent` says which). The
+ * link is returned either way on purpose: an install with no SMTP configured
+ * has no other channel, and one whose relay silently drops the message still
+ * needs the fallback.
  * That single reply is the ONLY route a teammate has to the activation screen.
  * So the link renders in a one-time banner in COMPONENT STATE (never the query
  * cache), exactly as `api-keys/ApiKeysPage.tsx` renders its plaintext key, and

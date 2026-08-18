@@ -57,6 +57,8 @@ import {
   hashRecoveryCodes,
   verifyTotpCode,
 } from '../../auth/totp.js';
+import { PASSWORD_RESET_TEMPLATE_KEY, enqueueEmail, requestOrigin } from '../../email/send.js';
+import { recipientLocale } from '../../i18n/server-i18n.js';
 import type { AuthContext } from '../../plugins/auth.js';
 import type {
   Auth2faActivateBody,
@@ -311,7 +313,36 @@ export async function forgotPasswordHandler(
     { userId: user.id, kind: 'reset', tokenHash: hashToken(token), expiresAt },
     now,
   );
+  // TWO DELIVERIES, ON PURPOSE. The hook is the in-process test/embedder seam
+  // (`buildServer({ onPasswordResetToken })`) and is `undefined` in production;
+  // the queue is the real one. Both fire so the suites that assert on the hook
+  // keep passing while a shipped instance actually mails the token.
   ctx.deliverResetToken?.({ userId: user.id, email: user.email, token, expiresAt });
+  // NOTHING here may change the reply. §2.1's whole point is that
+  // `POST /auth/password/forgot` answers identically for a known and an unknown
+  // address, so an SMTP outage must not turn into a 500 that says "this account
+  // exists". `enqueueEmail` already degrades quietly; the catch covers the rest.
+  try {
+    await enqueueEmail(
+      { meta: ctx.meta, secret: ctx.env.ADMINIUM_SECRET, logger: request.log },
+      {
+        to: user.email,
+        templateKey: PASSWORD_RESET_TEMPLATE_KEY,
+        locale: await recipientLocale(ctx.meta, user.id),
+        // Names come from BUILTIN_EMAIL_TEMPLATE_VARS['password-reset'].
+        vars: {
+          appName: await settingsRepo(ctx.meta).get('branding.appName'),
+          name: user.name,
+          email: user.email,
+          // The dashboard route that consumes it (`ResetPage`, `/reset/$token`).
+          resetUrl: `${requestOrigin(request)}/reset/${token}`,
+          expiresInMinutes: String(Math.round(RESET_TOKEN_TTL_MS / 60_000)),
+        },
+      },
+    );
+  } catch (error) {
+    request.log.warn({ err: error }, 'could not queue the password-reset email');
+  }
   await auditAuth(ctx.meta, request, {
     action: 'password_reset_requested',
     actorId: user.id,

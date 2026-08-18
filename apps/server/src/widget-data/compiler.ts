@@ -14,11 +14,26 @@
  * - all values bind as parameters; the only inlined token is the bucket
  *   unit, drawn from a closed Zod enum.
  *
- * Scope: the compilable shapes are exactly `COMPILABLE_DATA_SHAPES`; the
- * remaining five (`hierarchy/tree`, `geo-points`, `flows`, `boolean-map`,
- * `ohlc`) still reject with 422. `static` and `form-state` are not compiler
- * gaps and never will be — the first is config-only, the second is fed by the
- * CRUD form path.
+ * Scope: the compilable shapes are exactly `COMPILABLE_DATA_SHAPES` — now
+ * sixteen of the eighteen. `static` and `form-state` are the only two left out,
+ * and they are not compiler gaps and never will be: the first is config-only,
+ * the second is fed by the CRUD form path.
+ *
+ * Four shapes have TWO descriptor forms, because an introspected database
+ * expresses them either way and picking one would strand half the tables:
+ *
+ * - `hierarchy/tree` — an adjacency projection (`select: [id, label, parent,
+ *   …meta]`) for a self-referencing table, or a two-key `groupBy` rollup whose
+ *   aggregate is the leaf value (what `chart-sunburst` wants);
+ * - `geo-points` — a coordinate/region projection, or a one-key `groupBy`
+ *   rollup keyed on a region code (what `chart-choropleth-grid` wants);
+ * - `ohlc` — a `bucket` over a tick/price column, folded into candles in
+ *   process, or a table that already stores `[t, o, h, l, c]` columns;
+ * - `flows` and `boolean-map` have one form each (a two-key rollup and a
+ *   `[key, flag]` projection).
+ *
+ * Which form a descriptor is in decides whether it projects ROWS, so it also
+ * decides whether the shaper must mask — see {@link isRowShape}.
  *
  * Dialect divergence (04 §5.2 step 4): time bucketing, rolling-window bounds
  * and quantiles are the three clauses whose SQL differs per engine. Rather
@@ -62,6 +77,17 @@ export const GROUP_BUCKET_CAP = 500;
  */
 export const PERCENTILE_SCAN_MAX = 50_000;
 
+/**
+ * Row cap on the in-process candle fold, the second deliberate exception to
+ * {@link WIDGET_LIMIT_MAX} and for the same reason. A bucketed `ohlc`
+ * descriptor cannot be answered by `GROUP BY` alone: `high`/`low` are `max`/
+ * `min`, but `open`/`close` are the FIRST and LAST value in each bucket by
+ * time, which no dialect expresses portably (window functions on Postgres and
+ * MySQL 8, nothing on SQLite). So the compiler projects `(bucket, value)`
+ * ordered by the raw time column and the shaper folds candles in one pass.
+ */
+export const OHLC_SCAN_MAX = 50_000;
+
 /** Reserved output aliases the shaper relies on. */
 export const BUCKET_ALIAS = '__bucket';
 export const GROUP_ALIAS = '__group';
@@ -98,19 +124,44 @@ const ALIAS_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 const SUPPORTED_SHAPES: ReadonlySet<string> = new Set<string>(COMPILABLE_DATA_SHAPES);
 
 /**
- * Shapes whose SELECT projects table rows rather than aggregates. They share
- * one compilation path and — critically — one PII rule: every one of them
- * routes its rows through `maskRows` in the shaper, because a masked column
- * reaches the payload whenever the descriptor omits `select` and the compiler
- * falls back to `selectableColumns` (which keeps masked columns, only secrets
- * are dropped). Adding a row-bearing shape without adding it here leaks.
+ * Shapes that ALWAYS project table rows rather than aggregates. See
+ * {@link isRowShape} for the ones that project rows only in one of their two
+ * descriptor forms.
  */
-const ROW_SHAPES: ReadonlySet<string> = new Set<string>([
+const ALWAYS_ROW_SHAPES: ReadonlySet<string> = new Set<string>([
   'record-list',
   'record',
   'stream',
   'calendar-events',
+  'boolean-map',
 ]);
+
+/**
+ * Does this descriptor project table rows rather than aggregates?
+ *
+ * Row-bearing descriptors share one compilation path and — critically — one
+ * PII rule: every one of them routes its rows through `maskRows` in the shaper,
+ * because a masked column reaches the payload whenever the descriptor omits
+ * `select` and the compiler falls back to `selectableColumns` (which keeps
+ * masked columns; only secrets are dropped). A new row-bearing form that this
+ * predicate does not report leaks masked columns to callers without the unmask
+ * grant, so `CompiledWidgetQuery.rowShape` carries the answer to the shaper
+ * rather than letting it re-derive one.
+ *
+ * The dual-form shapes pick by descriptor: `hierarchy/tree` and `geo-points`
+ * roll up when they carry `groupBy` (and project rows otherwise), `ohlc` folds
+ * candles when it carries a `bucket` (and projects stored candle rows
+ * otherwise).
+ */
+export function isRowShape(descriptor: QueryDescriptor): boolean {
+  const { shape } = descriptor;
+  if (ALWAYS_ROW_SHAPES.has(shape)) return true;
+  if (shape === 'hierarchy/tree' || shape === 'geo-points') {
+    return (descriptor.groupBy?.length ?? 0) === 0;
+  }
+  if (shape === 'ohlc') return descriptor.bucket === undefined;
+  return false;
+}
 
 type Qb = SelectQueryBuilder<SourceDatabase, string, Record<string, unknown>>;
 
@@ -145,9 +196,26 @@ export interface PercentileScan {
   order: 'key-asc' | 'value-desc';
 }
 
+/**
+ * A bucketed `ohlc` request, folded into candles in process (see
+ * {@link OHLC_SCAN_MAX}). The compiled `query` projects `(bucketAlias,
+ * valueAlias)` ordered by the RAW time column ascending, so the shaper's
+ * one-pass fold reads open/close straight off the first and last row of each
+ * bucket run.
+ */
+export interface OhlcScan {
+  bucketAlias: string;
+  valueAlias: string;
+}
+
 export interface CompiledWidgetQuery {
   table: ResolvedTable;
   shape: QueryDescriptor['shape'];
+  /**
+   * Whether the SELECT projects table rows — the shaper's authority on when to
+   * call `maskRows` ({@link isRowShape}).
+   */
+  rowShape: boolean;
   /** The main query, ready to `.execute()`. */
   query: Qb;
   /** Prior-window twin (`window.compareToPrior`) — same shape, shifted back. */
@@ -166,6 +234,8 @@ export interface CompiledWidgetQuery {
   count: Qb | null;
   /** Set when quantiles are computed in process rather than in SQL. */
   percentileScan: PercentileScan | null;
+  /** Set when candles are folded in process rather than aggregated in SQL. */
+  ohlcScan: OhlcScan | null;
   /** Effective LIMIT after the hard cap. */
   limit: number;
 }
@@ -479,7 +549,76 @@ function assertShapeRules(descriptor: QueryDescriptor): void {
       reject('Shape "distribution" groups by at most one column.', {});
     }
   }
-  if (ROW_SHAPES.has(shape) && (hasAgg || hasGroup || hasBucket)) {
+  const groupCount = descriptor.groupBy?.length ?? 0;
+  const selectCount = descriptor.select?.length ?? 0;
+
+  if (shape === 'hierarchy/tree') {
+    if (hasBucket) reject('Shape "hierarchy/tree" cannot time-bucket.', {});
+    if (hasGroup) {
+      // Rollup form: parent key × child key, the aggregate is the leaf value.
+      if (!hasAgg) reject('A rolled-up "hierarchy/tree" needs an aggregation (the leaf value).', {});
+      if (groupCount !== 2) {
+        reject('A rolled-up "hierarchy/tree" groups by exactly two columns (parent key, child key).', {
+          groupBy: groupCount,
+        });
+      }
+    } else if (selectCount < 3) {
+      // Adjacency form: positional, like `calendar-events` — the descriptor is
+      // a closed leaf shared with the client, so column ORDER names the roles.
+      reject(
+        'Shape "hierarchy/tree" requires `select: [idColumn, labelColumn, parentColumn, ...metaColumns]`, or a two-key `groupBy` rollup.',
+        { selected: selectCount },
+      );
+    }
+  }
+  if (shape === 'geo-points') {
+    if (hasBucket) reject('Shape "geo-points" cannot time-bucket.', {});
+    if (hasGroup) {
+      if (!hasAgg) reject('A rolled-up "geo-points" needs an aggregation (the region value).', {});
+      if (groupCount !== 1) {
+        reject('A rolled-up "geo-points" groups by exactly one column (the region code).', {
+          groupBy: groupCount,
+        });
+      }
+    } else if (selectCount < 2) {
+      reject(
+        'Shape "geo-points" requires `select: [nameColumn, latColumn, lngColumn, ...metricColumns]` or `[nameColumn, codeColumn, ...metricColumns]`.',
+        { selected: selectCount },
+      );
+    }
+  }
+  if (shape === 'flows') {
+    if (!hasAgg) reject('Shape "flows" requires an aggregation (the link weight).', {});
+    if (groupCount !== 2) {
+      reject('Shape "flows" requires exactly two groupBy columns (source key, target key).', {
+        groupBy: groupCount,
+      });
+    }
+    if (hasBucket) reject('Shape "flows" cannot time-bucket.', {});
+  }
+  if (shape === 'ohlc') {
+    if (hasGroup) reject('Shape "ohlc" has one candle per time bucket — it cannot group.', {});
+    if (hasBucket) {
+      if (hasAgg) {
+        reject('A bucketed "ohlc" derives open/high/low/close itself — drop `aggregations`.', {});
+      }
+      if (selectCount !== 1) {
+        reject('A bucketed "ohlc" requires `select: [valueColumn]` (the price/tick column).', {
+          selected: selectCount,
+        });
+      }
+    } else if (selectCount !== 5) {
+      reject(
+        'Shape "ohlc" requires `bucket` + `select: [valueColumn]`, or `select: [timeColumn, openColumn, highColumn, lowColumn, closeColumn]` for a table that already stores candles.',
+        { selected: selectCount },
+      );
+    }
+  }
+  if (shape === 'boolean-map' && selectCount !== 2) {
+    reject('Shape "boolean-map" requires `select: [keyColumn, flagColumn]`.', { selected: selectCount });
+  }
+
+  if (isRowShape(descriptor) && (hasAgg || hasGroup || hasBucket)) {
     reject(`Shape "${shape}" selects rows — aggregations/grouping are not allowed.`, {});
   }
   if (shape === 'calendar-events') {
@@ -542,7 +681,7 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
 
   // --- quantiles: native SQL where the engine has it, else the scan ----------
   const shape = descriptor.shape;
-  const rowShape = ROW_SHAPES.has(shape);
+  const rowShape = isRowShape(descriptor);
   const aggregations = descriptor.aggregations ?? [];
   const groupColumns = descriptor.groupBy ?? [];
   // `distribution` is a fixed five-quantile request over its single `select`
@@ -574,6 +713,12 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
     }
   }
 
+  // --- candles: always an in-process fold (see OHLC_SCAN_MAX) ----------------
+  const ohlcColumn =
+    shape === 'ohlc' && descriptor.bucket !== undefined
+      ? view.readableColumn(table, (descriptor.select as string[])[0] as string, canReadPii)
+      : null;
+
   // --- SELECT ----------------------------------------------------------------
   const seenAliases = new Set<string>();
   const compiledAggs = scan
@@ -604,6 +749,9 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
           ? descriptor.select.map((name) => view.readableColumn(table, name, canReadPii))
           : view.selectableColumns(table);
       qb = qb.select(selectedColumns.map((column) => dynamic.ref(column.name)));
+    } else if (ohlcColumn !== null) {
+      // Raw projection: the shaper folds candles bucket by bucket (OHLC_SCAN_MAX).
+      qb = qb.select(sql`${dynamic.ref(ohlcColumn.name)}`.as(VALUE_ALIAS));
     } else if (scan) {
       // Raw projection: the shaper sorts and interpolates (PERCENTILE_SCAN_MAX).
       qb = qb.select(sql`${dynamic.ref((scanColumn as ResolvedColumn).name)}`.as(VALUE_ALIAS));
@@ -614,12 +762,21 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       qb = qb.select(compiledAggs.map(({ expr, alias }) => expr.as(alias)));
     }
 
-    if ((shape === 'timeseries' || shape === 'multi-timeseries') && descriptor.bucket !== undefined) {
+    if (
+      descriptor.bucket !== undefined &&
+      (shape === 'timeseries' || shape === 'multi-timeseries' || ohlcColumn !== null)
+    ) {
       const bucketColumn = view.readableColumn(table, descriptor.bucket.column, canReadPii);
       const bucket = bucketExpr(dialect, dynamic.ref(bucketColumn.name), descriptor.bucket.unit);
       qb = qb.select(bucket.as(BUCKET_ALIAS));
-      // A scan projects raw rows — grouping and ordering happen in the shaper.
-      if (!scan) qb = qb.groupBy(bucket).orderBy(bucket, 'asc');
+      if (ohlcColumn !== null) {
+        // Candles are folded in process, so the ONE thing SQL must guarantee is
+        // time order — open/close are the first/last row of each bucket run.
+        qb = qb.orderBy(dynamic.ref(bucketColumn.name), 'asc');
+      } else if (!scan) {
+        // A scan projects raw rows — grouping and ordering happen in the shaper.
+        qb = qb.groupBy(bucket).orderBy(bucket, 'asc');
+      }
     }
     if (!rowShape) {
       groupColumns.forEach((name, index) => {
@@ -647,11 +804,20 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
       const column = view.readableColumn(table, key.column, canReadPii);
       qb = qb.orderBy(dynamic.ref(column.name), key.dir);
     }
+    // A stored-candle `ohlc` table is only a chart in time order, and the
+    // widget keeps the LAST n candles — so an unsorted descriptor would show an
+    // arbitrary slice. The caller's own `orderBy` wins when it gave one.
+    if (shape === 'ohlc' && rowShape && (descriptor.orderBy?.length ?? 0) === 0) {
+      const time = selectedColumns[0];
+      if (time !== undefined) qb = qb.orderBy(dynamic.ref(time.name), 'asc');
+    }
 
     // Aggregate-only shapes need no LIMIT; grouped/row shapes get the cap, and
-    // the quantile scan its own, much larger, bound.
+    // the two in-process folds their own, much larger, bounds.
     if (scan) {
       qb = qb.limit(PERCENTILE_SCAN_MAX);
+    } else if (ohlcColumn !== null) {
+      qb = qb.limit(OHLC_SCAN_MAX);
     } else if (rowShape || shape === 'timeseries' || groupColumns.length > 0) {
       qb = qb.limit(limit);
     }
@@ -676,15 +842,22 @@ export function compileWidgetQuery(opts: CompileWidgetQueryOptions): CompiledWid
   return {
     table,
     shape,
+    rowShape,
     query,
     prior,
     count,
     aggregationAliases: scan
       ? aggregations.map(({ alias }) => alias)
       : compiledAggs.map(({ alias }) => alias),
-    bucketAlias: shape === 'timeseries' || shape === 'multi-timeseries' ? BUCKET_ALIAS : null,
+    bucketAlias:
+      shape === 'timeseries' || shape === 'multi-timeseries' || ohlcColumn !== null
+        ? BUCKET_ALIAS
+        : null,
     groupAlias: !rowShape && keyed ? GROUP_ALIAS : null,
-    colAlias: shape === 'matrix' ? COL_ALIAS : null,
+    // Every two-key rollup reads its second key here: `matrix` cells, `flows`
+    // targets and the leaves of a rolled-up `hierarchy/tree`.
+    colAlias: !rowShape && groupColumns.length === 2 ? COL_ALIAS : null,
+    ohlcScan: ohlcColumn === null ? null : { bucketAlias: BUCKET_ALIAS, valueAlias: VALUE_ALIAS },
     percentileScan: scan
       ? {
           valueAlias: VALUE_ALIAS,

@@ -1322,7 +1322,6 @@
         "end": "Slutdatokolonne (valgfri)",
         "title": "Titelkolonne"
       },
-      "eventColumnsRequired": "Begivenheder kræver en startdato og en titel. En slutdato kræver også en kategori, fordi kolonnerne læses i rækkefølge.",
       "filterColumnRequired": "Vælg en kolonne.",
       "filterColumn": "Kolonne",
       "filterListHelper": "Adskil værdier med kommaer.",
@@ -1393,7 +1392,12 @@
         "record": "Én række",
         "singleMetric": "Ét enkelt tal",
         "stream": "Et live-feed af de seneste rækker",
-        "timeseries": "En værdi over tid"
+        "timeseries": "En værdi over tid",
+        "tree": "En værdi pr. kategori, opdelt i to niveauer",
+        "geoPoints": "En værdi pr. sted eller område",
+        "flows": "Hvor meget der flytter sig fra én kategori til en anden",
+        "ohlc": "Åbning, højeste, laveste og lukning pr. periode",
+        "booleanMap": "Et til/fra-flag pr. nøgle"
       },
       "shapeHelper": "Ændrer du dette, ændres det, hvilke forespørgselsindstillinger der gælder.",
       "shapeLabel": "Hvad denne widget viser",
@@ -1430,7 +1434,12 @@
         "week": "uger",
         "year": "år"
       },
-      "windowUnitLabel": "Enhed"
+      "windowUnitLabel": "Enhed",
+      "role": {
+        "flagKey": "Nøglekolonne",
+        "flagValue": "Til/fra-kolonne"
+      },
+      "roleColumnsRequired": "Udfyld hver påkrævet kolonne, og lad ingen stå tomme før en, du har udfyldt — disse kolonner læses i rækkefølge."
     }
   },
   "setup": {
@@ -2703,5 +2712,30 @@
     "title": "Team",
     "twoFactorOn": "Tofaktorgodkendelse er slået til",
     "twoFactorShort": "2FA"
+  },
+  "email": {
+    "linkFallback": "Hvis knappen ikke virker, så indsæt dette link i din browser: {url}",
+    "notification": {
+      "action": "Åbn {appName}",
+      "footer": "Du modtager denne e-mail, fordi e-mailnotifikationer er slået til for din {appName}-konto. Du kan slå dem fra i dine notifikationsindstillinger.",
+      "name": "Notifikation"
+    },
+    "passwordReset": {
+      "action": "Vælg en ny adgangskode",
+      "heading": "Nulstil din adgangskode",
+      "intro": "Hej {name}. Vi har modtaget en anmodning om at nulstille adgangskoden til {email}.",
+      "name": "Nulstilling af adgangskode",
+      "notice": "Dette link virker kun én gang og udløber om {expiresInMinutes} minutter. Hvis du ikke har bedt om at få nulstillet din adgangskode, kan du ignorere denne e-mail — din nuværende adgangskode forbliver aktiv.",
+      "subject": "Nulstil din adgangskode til {appName}"
+    },
+    "userInvite": {
+      "action": "Accepter invitationen",
+      "heading": "Du er blevet inviteret",
+      "intro": "{inviterName} har inviteret dig til at deltage i {appName}. Accepter invitationen for at vælge en adgangskode til {email} og logge ind.",
+      "name": "Teaminvitation",
+      "notice": "Denne invitation virker kun én gang og udløber om {expiresInDays} dage. Hvis du ikke forventede den, kan du ignorere denne e-mail.",
+      "subject": "Du er blevet inviteret til {appName}",
+      "inviterFallback": "En administrator"
+    }
   }
 }
