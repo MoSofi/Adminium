@@ -74,21 +74,53 @@ const preview: Preview = {
       toolbar: { icon: 'transfer', items: [...DIRS], dynamicTitle: true },
     },
   },
-  initialGlobals: { theme: 'light', accent: 'indigo', density: 'comfortable', dir: 'ltr' },
+  initialGlobals: {
+    theme: 'light',
+    accent: 'indigo',
+    density: 'comfortable',
+    dir: 'ltr',
+    // Stops addon-a11y auto-running axe in the preview iframe — see the note on
+    // `parameters.a11y` below. In Storybook 9 this switch is a GLOBAL; the
+    // identically-named parameter is read by nothing.
+    a11y: { manual: true },
+  },
   decorators: [withThemeAxes],
   parameters: {
     layout: 'padded',
     backgrounds: { disable: true },
     controls: { expanded: true },
     // addon-a11y runs axe-core automatically in the preview iframe on every
-    // story render. scripts/a11y-sweep.mjs navigates to that same iframe and
+    // story render. `scripts/a11y-sweep.mjs` navigates to that same iframe and
     // runs axe itself (the authoritative ratchet gate), so the two collide on
-    // one document — axe throws "Axe is already running" intermittently,
-    // whichever story's addon run overlaps the sweep's. `manual: true` stops the
-    // addon auto-running; the panel still checks on demand, and the sweep owns
-    // the real gate. This is the deterministic fix the per-page/retry
-    // mitigations in the sweep could only paper over.
-    a11y: { manual: true },
+    // one document and axe throws "Axe is already running" — whichever story's
+    // addon run happens to overlap the sweep's.
+    //
+    // THE SWITCH MOVED. This was `parameters.a11y.manual: true`, which is what
+    // Storybook 8 read. The 9.x addon gates its run on
+    //   `parameters.a11y.disable !== true && parameters.a11y.test !== 'off'
+    //    && globals.a11y.manual !== true`
+    // (verified in the installed `dist/preview.js`) — the PARAMETER named
+    // `manual` appears nowhere in it, so the old setting was silently inert and
+    // the sweep kept flaking while this file claimed to have fixed it.
+    //
+    // `test: 'off'` here is the parameter-level switch; `globals.a11y.manual` in
+    // `initialGlobals` above is the direct successor to the old one. Either
+    // alone suffices — both are set because a switch that quietly stops being
+    // read is precisely the failure this comment exists to record. The panel
+    // still runs on demand, and the sweep owns the real gate.
+    //
+    // WHY THE TWO AXE RUNS COLLIDE AT ALL, since it is not obvious: the addon
+    // bundles its own axe-core (4.12.1) which self-registers on `window.axe`,
+    // and `@axe-core/playwright` (4.13.x) injects into that same global. They
+    // are different versions but share one `_running` flag, so the sweep's run
+    // throws the moment it lands on a story whose addon run is still going.
+    //
+    // MEASURED, not assumed — polling `axe._running` during story render:
+    // before this change the addon ran on 2 of 3 sampled stories (including
+    // `document-canvas-report`, the exact story CI reported); after, 0 of 3.
+    // Note that counting `window.axe.run` calls does NOT detect it: the addon
+    // holds its own module reference and never calls through the global.
+    a11y: { test: 'off' },
   },
 };
 
