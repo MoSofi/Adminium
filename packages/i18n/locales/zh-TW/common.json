@@ -1322,7 +1322,6 @@
         "end": "結束日期欄位（選填）",
         "title": "標題欄位"
       },
-      "eventColumnsRequired": "事件需要開始日期與標題。若要指定結束日期，也必須指定類別，因為這些欄位是依序讀取的。",
       "filterColumnRequired": "請選擇欄位。",
       "filterColumn": "欄位",
       "filterListHelper": "多個值請以逗號分隔。",
@@ -1393,7 +1392,12 @@
         "record": "單一資料列",
         "singleMetric": "單一數字",
         "stream": "近期資料列的即時動態",
-        "timeseries": "隨時間變化的值"
+        "timeseries": "隨時間變化的值",
+        "tree": "每個類別一個值，分成兩個層級",
+        "geoPoints": "每個地點或地區一個值",
+        "flows": "從一個類別流向另一個類別的數量",
+        "ohlc": "每個期間的開盤、最高、最低與收盤價",
+        "booleanMap": "每個鍵一個開／關標記"
       },
       "shapeHelper": "變更這項設定會改變可套用的查詢控制項。",
       "shapeLabel": "此小工具顯示的內容",
@@ -1430,7 +1434,12 @@
         "week": "週",
         "year": "年"
       },
-      "windowUnitLabel": "單位"
+      "windowUnitLabel": "單位",
+      "role": {
+        "flagKey": "鍵欄位",
+        "flagValue": "開／關欄位"
+      },
+      "roleColumnsRequired": "請填寫每個必填欄位，且在已填寫的欄位之前不能留空，因為這些欄位是依序讀取的。"
     }
   },
   "setup": {
@@ -2703,5 +2712,30 @@
     "title": "團隊",
     "twoFactorOn": "已啟用兩步驟驗證",
     "twoFactorShort": "2FA"
+  },
+  "email": {
+    "linkFallback": "如果按鈕無法使用，請將這個連結貼到你的瀏覽器：{url}",
+    "notification": {
+      "action": "開啟 {appName}",
+      "footer": "你會收到這封郵件，是因為你的 {appName} 帳戶已開啟電子郵件通知。你可以在通知設定中關閉這些通知。",
+      "name": "通知"
+    },
+    "passwordReset": {
+      "action": "設定新密碼",
+      "heading": "重設你的密碼",
+      "intro": "{name} 你好，我們收到為 {email} 重設密碼的要求。",
+      "name": "重設密碼",
+      "notice": "這個連結只能使用一次，並將於 {expiresInMinutes} 分鐘後失效。如果你沒有要求重設密碼，可以忽略這封郵件——你目前的密碼仍然有效。",
+      "subject": "重設你的 {appName} 密碼"
+    },
+    "userInvite": {
+      "action": "接受邀請",
+      "heading": "你已受邀",
+      "intro": "{inviterName}邀請你加入 {appName}。請接受邀請，為 {email} 設定密碼並登入。",
+      "name": "團隊邀請",
+      "notice": "這份邀請只能使用一次，並將於 {expiresInDays} 天後失效。如果你並未預期收到這份邀請，可以忽略這封郵件。",
+      "subject": "你受邀加入 {appName}",
+      "inviterFallback": "一位管理員"
+    }
   }
 }

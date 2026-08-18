@@ -11,15 +11,17 @@
  * the react-query cache: a cached secret is a secret that outlives its one
  * render and rides along with every devtools dump.
  *
- * AND THERE IS NO SECOND CHANNEL. This build has no mail transport at all —
- * no `apps/server/src/email/`, no `nodemailer`, no route that can write the
- * `email.smtp` setting, and `notifications/notify.ts` says so outright — which
- * is why every create/resend reply carries `emailSent: false` as a literal
- * rather than a flag. The link in that one reply is the ONLY way a teammate
- * ever reaches the activation screen; if it is lost the invite has to be
- * deleted and re-issued. `TeamPage` renders it in a copy banner for that
- * reason, and gates the "email it" affordance behind `emailSendGate` so the
- * absence is explained rather than mimed.
+ * THE SECOND CHANNEL IS OPTIONAL, NOT ABSENT. Mail delivery now exists
+ * (`apps/server/src/email/`, configured through `PUT /settings/email`), so
+ * `emailSent` is a real flag rather than a literal `false`: true when the
+ * invite was queued for delivery, false when this install has no SMTP
+ * configured. The link is returned EITHER WAY on purpose — an admin whose
+ * relay silently drops the message still needs the fallback, and a link that
+ * appears only when mail fails is one nobody can find in a hurry. If it is
+ * lost the invite has to be deleted and re-issued. `TeamPage` renders it in a
+ * copy banner for that reason, and gates the "email it" affordance behind
+ * `emailSendGate` so an unconfigured install explains itself rather than
+ * miming a send.
  *
  * SYNC NOTE: `UserDto` mirrors the Zod reply in
  * `apps/server/src/routes/users/schema.ts` (the copied-mirror convention from
@@ -109,8 +111,11 @@ export interface UserCreateBody {
 export interface UserInviteReply {
   user: UserDto;
   invite: UserInvite;
-  /** Always `false` in this build — there is no transport. See the header. */
-  emailSent: false;
+  /**
+   * True when the invite was queued for delivery. False on an install with no
+   * SMTP configured — `invite` is still populated in both cases.
+   */
+  emailSent: boolean;
 }
 
 export interface UserPatch {

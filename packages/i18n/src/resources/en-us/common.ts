@@ -1331,7 +1331,6 @@ export default {
         "end": "End date column (optional)",
         "title": "Title column"
       },
-      "eventColumnsRequired": "Events need a start date and a title. An end date also needs a category, because the columns are read in order.",
       "filterColumnRequired": "Pick a column.",
       "filterColumn": "Column",
       "filterListHelper": "Separate values with commas.",
@@ -1402,7 +1401,12 @@ export default {
         "record": "One row",
         "singleMetric": "A single number",
         "stream": "A live feed of recent rows",
-        "timeseries": "A value over time"
+        "timeseries": "A value over time",
+        "tree": "A value per category, split in two levels",
+        "geoPoints": "A value per place or region",
+        "flows": "How much moves from one category to another",
+        "ohlc": "Open, high, low and close per period",
+        "booleanMap": "An on/off flag per key"
       },
       "shapeHelper": "Changing this changes which query controls apply.",
       "shapeLabel": "What this widget shows",
@@ -1439,7 +1443,12 @@ export default {
         "week": "weeks",
         "year": "years"
       },
-      "windowUnitLabel": "Unit"
+      "windowUnitLabel": "Unit",
+      "role": {
+        "flagKey": "Key column",
+        "flagValue": "On/off column"
+      },
+      "roleColumnsRequired": "Fill every required column, and leave no gaps before one you filled — these columns are read in order."
     }
   },
   "setup": {
@@ -2712,5 +2721,30 @@ export default {
     "title": "Team",
     "twoFactorOn": "Two-factor authentication is on",
     "twoFactorShort": "2FA"
+  },
+  "email": {
+    "linkFallback": "If the button doesn’t work, paste this link into your browser: {url}",
+    "notification": {
+      "action": "Open {appName}",
+      "footer": "You are receiving this because email notifications are on for your {appName} account. You can turn them off in your notification preferences.",
+      "name": "Notification"
+    },
+    "passwordReset": {
+      "action": "Choose a new password",
+      "heading": "Reset your password",
+      "intro": "Hi {name}, we received a request to reset the password for {email}.",
+      "name": "Password reset",
+      "notice": "This link works only once and expires in {expiresInMinutes} minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.",
+      "subject": "Reset your {appName} password"
+    },
+    "userInvite": {
+      "action": "Accept the invitation",
+      "heading": "You’ve been invited",
+      "intro": "{inviterName} invited you to join {appName}. Accept the invitation to set a password for {email} and sign in.",
+      "inviterFallback": "An administrator",
+      "name": "Team invitation",
+      "notice": "This invitation works only once and expires in {expiresInDays} days. If you weren’t expecting it, you can ignore this email.",
+      "subject": "You have been invited to {appName}"
+    }
   }
 } as const;

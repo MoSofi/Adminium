@@ -5,7 +5,14 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PageCrud } from './PageCrud.js';
-import type { CrudApi, CrudListParams, CrudReferenceCount, CrudRow } from './crud-api.js';
+import type {
+  CrudApi,
+  CrudExportRequest,
+  CrudExportTicket,
+  CrudListParams,
+  CrudReferenceCount,
+  CrudRow,
+} from './crud-api.js';
 import { gridColumnSpecSchema } from '../../families/tables/column-spec.js';
 import type { GridColumnSpecInput } from '../../families/tables/column-spec.js';
 
@@ -257,5 +264,151 @@ describe('page-crud localization (ui:templates.crud.*)', () => {
     );
     expect(await screen.findByText('No customers yet')).toBeDefined();
     expect(screen.getAllByRole('button', { name: 'New row' }).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The bulk Export button. It was declared in the selection bar's action list
+ * while `onAction` branched on `'delete'` only — a visible, enabled, entirely
+ * dead control. These pin both live paths (queued server run when the host
+ * implements `CrudApi.export`, browser-side serialization of the selection when
+ * it does not) so it cannot regress to decoration.
+ */
+describe('page-crud bulk Export (09 §11.2)', () => {
+  /** Collect anchors the download helper creates, ignoring anything React renders. */
+  function captureDownloads() {
+    const anchors: HTMLAnchorElement[] = [];
+    const blobs: Blob[] = [];
+    const realCreate = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      const node = realCreate(tag);
+      if (tag === 'a') {
+        (node as HTMLAnchorElement).click = vi.fn(() => {
+          if ((node as HTMLAnchorElement).download !== '') anchors.push(node as HTMLAnchorElement);
+        });
+      }
+      return node;
+    });
+    const createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return 'blob:fake';
+    });
+    vi.stubGlobal('URL', Object.assign(Object.create(URL), { createObjectURL, revokeObjectURL: vi.fn() }));
+    return { anchors, blobs };
+  }
+
+  async function selectFirstRowAndExport(user: ReturnType<typeof userEvent.setup>) {
+    const bodyRows = screen.getAllByRole('row').slice(1);
+    await user.click(within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+    const toolbar = screen.getByRole('toolbar', { name: 'Bulk actions' });
+    const button = within(toolbar).getByText('Export');
+    await user.click(button);
+  }
+
+  it('offers Export in the selection bar alongside Delete', async () => {
+    const user = userEvent.setup();
+    renderPage(makeApi(rows));
+    await screen.findByText('Initech');
+    const bodyRows = screen.getAllByRole('row').slice(1);
+    await user.click(within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+    const toolbar = screen.getByRole('toolbar', { name: 'Bulk actions' });
+    expect(within(toolbar).getByText('Export')).toBeDefined();
+  });
+
+  it('queues the server-side export run when the host implements CrudApi.export', async () => {
+    const user = userEvent.setup();
+    const api = makeApi(rows);
+    const exportFn = vi.fn(async (request: CrudExportRequest): Promise<CrudExportTicket> => ({
+      id: `exp_${request.format}`,
+      status: 'processing',
+    }));
+    renderPage({ ...api, export: exportFn });
+    await screen.findByText('Initech');
+
+    await selectFirstRowAndExport(user);
+
+    await waitFor(() => {
+      expect(exportFn).toHaveBeenCalledOnce();
+    });
+    const request = exportFn.mock.calls[0]?.[0] as CrudExportRequest;
+    // csv, never xlsx — POST /exports rejects xlsx with a 422 by design.
+    expect(request.format).toBe('csv');
+    expect(request.ids).toEqual(['1']);
+    // The grid's live query rides along, so a whole-result run matches the screen.
+    expect(request.params).toBeDefined();
+
+    // Nothing visible happens on the queued path (the artifact lands on the
+    // Data exports page), so the toast is the only feedback there is.
+    expect(await screen.findByText('Preparing your export…')).toBeDefined();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('serializes the selected rows in the browser when the host has no export endpoint', async () => {
+    const user = userEvent.setup();
+    renderPage(makeApi(rows));
+    await screen.findByText('Initech');
+    const { anchors, blobs } = captureDownloads();
+
+    await selectFirstRowAndExport(user);
+
+    await waitFor(() => {
+      expect(blobs.length).toBeGreaterThan(0);
+    });
+    const text = await (blobs[0] as Blob).text();
+    // Only the SELECTED row, projected onto the grid's columns.
+    expect(text).toContain('Initech');
+    expect(text).not.toContain('Stark Industries');
+    expect(text.split('\r\n')[0]).toContain('name');
+    expect((blobs[0] as Blob).type).toContain('text/csv');
+    expect(anchors[0]?.getAttribute('download')).toMatch(/^public\.customers-\d{8}-\d{4}\.csv$/);
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the selection after an export — it is not a destructive action', async () => {
+    const user = userEvent.setup();
+    renderPage(makeApi(rows));
+    await screen.findByText('Initech');
+    captureDownloads();
+
+    await selectFirstRowAndExport(user);
+
+    // The bulk bar is still up with the same count; the rows are usually still
+    // wanted afterwards, unlike a bulk delete.
+    const toolbar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
+    expect(within(toolbar).getByText('1')).toBeDefined();
+    expect(within(toolbar).getByText('Export')).toBeDefined();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('never opens the delete confirmation — Export and Delete are separate branches', async () => {
+    const user = userEvent.setup();
+    const api = makeApi(rows);
+    renderPage(api);
+    await screen.findByText('Initech');
+    captureDownloads();
+
+    await selectFirstRowAndExport(user);
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-part="confirm-input"]')).toBeNull();
+    });
+    expect(api.remove).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('surfaces a failed export as an error toast rather than an unhandled rejection', async () => {
+    const user = userEvent.setup();
+    const api = makeApi(rows);
+    renderPage({ ...api, export: vi.fn(async () => { throw new Error('Export quota exceeded'); }) });
+    await screen.findByText('Initech');
+
+    await selectFirstRowAndExport(user);
+
+    expect(await screen.findByText('Export quota exceeded')).toBeDefined();
   });
 });

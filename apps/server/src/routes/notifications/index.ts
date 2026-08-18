@@ -28,6 +28,7 @@ import {
   type NotificationChannels,
 } from '@adminium/meta';
 
+import { isEmailConfigured } from '../../email/send.js';
 import { UnauthorizedError } from '../../errors.js';
 import {
   NOTIFICATION_READ_EVENT,
@@ -59,9 +60,13 @@ export const NOTIFICATION_EVENT_KEYS: readonly string[] = [
   'desktop.backup.completed',
 ];
 
-/** §8.2: the email/push channels exist in the matrix but cannot deliver yet. */
+/**
+ * §8.2. Email delivery EXISTS now; what may be missing is a configured relay,
+ * so this reason describes an unconfigured install rather than a build that
+ * cannot send at all. Push is still the "later release" case.
+ */
 export const EMAIL_CHANNEL_UNAVAILABLE_REASON =
-  'No email transport (SMTP) is configured in this build — your email preferences are saved and take effect when email delivery arrives in a later release.';
+  'No SMTP server is configured for this workspace — your email preferences are saved and take effect as soon as an administrator sets one up in Settings → Email.';
 export const PUSH_CHANNEL_UNAVAILABLE_REASON =
   'Push delivery arrives in a later release — your push preferences are saved until then.';
 
@@ -92,10 +97,19 @@ function toView(row: Notification): NotificationView {
   };
 }
 
-function channelViews(): ChannelAvailabilityView[] {
+/**
+ * Availability is READ, not assumed: the email row flips the moment an admin
+ * saves an SMTP config, so the matrix stops claiming a channel is dead on an
+ * install that can in fact deliver. `notify.ts` gates on the same call, so the
+ * badge and the actual send can never disagree.
+ */
+async function channelViews(meta: MetaDb): Promise<ChannelAvailabilityView[]> {
+  const emailAvailable = await isEmailConfigured(meta, null);
   return [
     { id: 'inApp', available: true },
-    { id: 'email', available: false, reason: EMAIL_CHANNEL_UNAVAILABLE_REASON },
+    emailAvailable
+      ? { id: 'email', available: true }
+      : { id: 'email', available: false, reason: EMAIL_CHANNEL_UNAVAILABLE_REASON },
     { id: 'push', available: false, reason: PUSH_CHANNEL_UNAVAILABLE_REASON },
   ];
 }
@@ -120,7 +134,7 @@ export function notificationsRoutes(deps: NotificationsRoutesDeps): FastifyPlugi
       ...stored.map((row) => row.eventKey).filter((key) => !NOTIFICATION_EVENT_KEYS.includes(key)),
     ];
     return {
-      channels: channelViews(),
+      channels: await channelViews(meta),
       events: keys.map((key) => {
         const channels: NotificationChannels =
           byKey.get(key) ?? { ...DEFAULT_NOTIFICATION_CHANNELS };

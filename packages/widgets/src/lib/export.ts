@@ -80,7 +80,21 @@ export function serializeRows(
 
 /** `public.customers` + `csv` → `public.customers-20260817-1204.csv`. */
 export function exportFilename(base: string, extension: string, now: Date = new Date()): string {
-  const slug = base.replaceAll(/[^\w.-]+/g, '-').replaceAll(/^-+|-+$/g, '') || 'export';
+  // Dash-trimming uses an index walk, not the obvious
+  // `.replaceAll(/^-+|-+$/g, '')`, which is a polynomial-ReDoS sink
+  // (js/polynomial-redos, flagged on main until 2026-08-18). `-+$` is retried
+  // from every start offset and each attempt rescans the whole dash run, so a
+  // `base` of n dashes costs O(n^2). Only the TRAILING trim is quadratic --
+  // `^-+` is pinned to one attempt by the anchor -- but both are folded into
+  // the same pass here. Keep this loop: rewriting it as a regex reopens the
+  // alert. Behaviour is byte-identical to the regex it replaced, including
+  // leaving interior dash runs (`a---b`) untouched.
+  const cleaned = base.replaceAll(/[^\w.-]+/g, '-');
+  let start = 0;
+  let end = cleaned.length;
+  while (start < end && cleaned[start] === '-') start += 1;
+  while (end > start && cleaned[end - 1] === '-') end -= 1;
+  const slug = cleaned.slice(start, end) || 'export';
   const stamp = now.toISOString().slice(0, 16).replaceAll(/[-:]/g, '').replace('T', '-');
   return `${slug}-${stamp}.${extension}`;
 }

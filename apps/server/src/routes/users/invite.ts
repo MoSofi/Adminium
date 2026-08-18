@@ -2,11 +2,12 @@
 /**
  * Invite minting (07-meta-store.md §3.6, 08-server-api.md §2.1).
  *
- * There is no mail transport in this build — no `email/` module, no
- * nodemailer, no route that can write the `email.smtp` setting — so an invite
- * cannot be delivered. It is minted here and returned to the INVITER as a
- * copyable activation link; passing it on is a human step. `emailSent` is a
- * literal `false` on the wire for the same reason.
+ * Minting is deliberately separate from DELIVERY. The token is returned to
+ * the INVITER as a copyable activation link whether or not the invitation mail
+ * goes out (`routes/users/index.ts` queues that through `email/send.ts` and
+ * reports the outcome as `emailSent`), because an instance with no SMTP — or
+ * one whose relay is silently dropping mail — must still be able to onboard
+ * somebody. Passing the link on is then a human step.
  *
  * The token rides the existing password-reset table with `kind: 'invite'`, so
  * `resetPasswordHandler` consumes it unchanged: setting the first password

@@ -107,6 +107,17 @@ describe('LLM_ALLOWED_WIDGETS', () => {
     // accepts and a shaper that emits the payload (bucket + one groupBy; two
     // groupBy + an aggregation; `select: [valueColumn]` with compiler-derived
     // quantiles; positional `select: [date, title, category?, end?]`).
+    //
+    // 55 → 60: the last five compiler gaps closed the same way.
+    //   hierarchy/tree  → chart-sunburst
+    //   flows           → chart-sankey, chart-chord
+    //   geo-points      → chart-choropleth-grid
+    //   ohlc            → chart-candlestick
+    // `boolean-map` compiled too but strands nothing here — its two widgets
+    // (toggle-switch-list, typing-indicator) are in families the dashboard
+    // vocabulary does not draw from. Likewise `map-bubble` and
+    // `map-choropleth-grid`: bindable now, but `geo` is not an LLM dashboard
+    // family, and `schema-tree`/`org-chart` fail the tables/domain clauses.
     expect(LLM_ALLOWED_WIDGETS).toEqual([
       'accordion-list',
       'activity-feed',
@@ -117,6 +128,9 @@ describe('LLM_ALLOWED_WIDGETS', () => {
       'chart-boxplot',
       'chart-bullet',
       'chart-bump',
+      'chart-candlestick',
+      'chart-chord',
+      'chart-choropleth-grid',
       'chart-cohort-matrix',
       'chart-correlation-matrix',
       'chart-donut',
@@ -134,11 +148,13 @@ describe('LLM_ALLOWED_WIDGETS', () => {
       'chart-radial-bar',
       'chart-ranking-bars',
       'chart-ridgeline',
+      'chart-sankey',
       'chart-scatter-bubble',
       'chart-slope',
       'chart-sparkline',
       'chart-stacked-bar-100',
       'chart-stream',
+      'chart-sunburst',
       'chart-timeline-lanes',
       'chart-treemap',
       'chart-violin',
@@ -189,25 +205,30 @@ describe('LLM_ALLOWED_WIDGETS', () => {
       const shapes = Array.isArray(contract) ? contract : [contract];
       expect(shapes.some((s) => s !== undefined && isCompilableShape(s))).toBe(true);
     }
-    // The still-uncompilable shapes, named so the boundary is auditable rather
-    // than implied. `static` is not a compiler gap — it is config-only, with no
-    // server round trip to widen (04 §3) — but it is equally unsuggestable.
-    for (const shape of ['flows', 'hierarchy/tree', 'geo-points', 'ohlc', 'boolean-map', 'static'] as const) {
+    // The shapes still outside the compiler, named so the boundary is
+    // auditable rather than implied. Both are now `static` and `form-state`,
+    // and NEITHER is a compiler gap to close later: `static` is config-only
+    // with no server round trip, and `form-state` is fed by the CRUD form path
+    // (04 §3). This list reaching zero would mean the boundary moved somewhere
+    // it cannot go.
+    for (const shape of ['static', 'form-state'] as const) {
       expect(isCompilableShape(shape), `${shape} became compilable — revisit this guard`).toBe(false);
     }
-    // Every widget in a dashboard family that those shapes strand. This list
-    // SHRINKS when the compiler grows: `chart-multiline`, `chart-cohort-matrix`
-    // and `chart-violin` were here until multi-timeseries/matrix/distribution
-    // landed, and moved into the allow-list above in the same change.
-    for (const id of [
-      'chart-sankey', // flows
-      'chart-chord', // flows
-      'chart-sunburst', // hierarchy/tree
-      'chart-choropleth-grid', // geo-points
-      'chart-candlestick', // ohlc
-    ]) {
+    // The five widgets the last compiler gap stranded. They are ALLOW-LISTED
+    // now — this loop is the mirror image of the one that used to assert they
+    // were not, kept so a regression in either direction is loud. Ports of the
+    // same move: `chart-multiline`, `chart-cohort-matrix` and `chart-violin`
+    // crossed over when multi-timeseries/matrix/distribution landed.
+    for (const [id, shape] of [
+      ['chart-sankey', 'flows'],
+      ['chart-chord', 'flows'],
+      ['chart-sunburst', 'hierarchy/tree'],
+      ['chart-choropleth-grid', 'geo-points'],
+      ['chart-candlestick', 'ohlc'],
+    ] as const) {
       expect(widgetRegistry.has(id), `${id} must stay renderable`).toBe(true);
-      expect(LLM_ALLOWED_WIDGETS).not.toContain(id);
+      expect(isCompilableShape(shape), `${shape} must stay compilable`).toBe(true);
+      expect(LLM_ALLOWED_WIDGETS).toContain(id);
     }
   });
 

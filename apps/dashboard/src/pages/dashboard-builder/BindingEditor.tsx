@@ -51,7 +51,6 @@ import { t } from '../../i18n/t.js';
 import { studioApi, type SchemaColumn, type SchemaTable } from '../../studio/api.js';
 import {
   BUCKET_UNITS,
-  EVENT_SELECT_ROLES,
   FILTER_OPS,
   MEASURE_FNS,
   authorableShapes,
@@ -61,13 +60,15 @@ import {
   draftIsLossy,
   emptyDraft,
   opTakesValue,
+  rolesFor,
   withShape,
   type BindingDraft,
   type BindingIssue,
   type DraftFilter,
-  type EventSelectRole,
   type FilterOp,
   type MeasureFn,
+  type SelectRole,
+  type SelectRoleKey,
   type ValueKind,
 } from './bindingDraft.js';
 
@@ -106,6 +107,11 @@ const SHAPE_LABEL: Record<CompilableDataShape, () => string> = {
   record: () => t('builder.binding.shape.record', 'One row'),
   stream: () => t('builder.binding.shape.stream', 'A live feed of recent rows'),
   'calendar-events': () => t('builder.binding.shape.calendarEvents', 'Dated events'),
+  'hierarchy/tree': () => t('builder.binding.shape.tree', 'A value per category, split in two levels'),
+  'geo-points': () => t('builder.binding.shape.geoPoints', 'A value per place or region'),
+  flows: () => t('builder.binding.shape.flows', 'How much moves from one category to another'),
+  ohlc: () => t('builder.binding.shape.ohlc', 'Open, high, low and close per period'),
+  'boolean-map': () => t('builder.binding.shape.booleanMap', 'An on/off flag per key'),
 };
 
 const MEASURE_LABEL: Record<MeasureFn, () => string> = {
@@ -155,17 +161,48 @@ const WINDOW_UNIT_LABEL: Record<(typeof BUCKET_UNITS)[number], () => string> = {
   year: () => t('builder.binding.windowUnit.year', 'years'),
 };
 
-const EVENT_ROLE_LABEL: Record<EventSelectRole, () => string> = {
+/**
+ * Labels for the positional projection slots (`bindingDraft.SELECT_ROLES`). One
+ * literal key per slot so the i18n sweep can find them; a slot with no entry
+ * here would render its raw key, which the exhaustive `Record` prevents.
+ */
+const SELECT_ROLE_LABEL: Record<SelectRoleKey, () => string> = {
   date: () => t('builder.binding.event.date', 'Start date column'),
   title: () => t('builder.binding.event.title', 'Title column'),
   category: () => t('builder.binding.event.category', 'Category column (optional)'),
   end: () => t('builder.binding.event.end', 'End date column (optional)'),
+  flagKey: () => t('builder.binding.role.flagKey', 'Key column'),
+  flagValue: () => t('builder.binding.role.flagValue', 'On/off column'),
 };
 
 /* ------------------------------------------------------------- snapshot */
 
 const NUMERIC_TYPES: ReadonlySet<string> = new Set(['integer', 'bigint', 'decimal', 'float']);
 const TEMPORAL_TYPES: ReadonlySet<string> = new Set(['date', 'time', 'timestamp', 'timestamptz']);
+/**
+ * Coordinates only. Narrower than {@link NUMERIC_TYPES} on purpose: the server
+ * classifies a `geo-points` projection's coordinate pair by logical type, and
+ * an integer column offered here would author a binding the shaper reads back
+ * as a region code (apps/server/src/widget-data/shapers.ts `geoColumnRoles`).
+ */
+const REAL_TYPES: ReadonlySet<string> = new Set(['decimal', 'float']);
+
+/** The column list a positional slot may be filled from. */
+function columnsForRole(
+  kind: SelectRole['kind'],
+  lists: { all: SchemaColumn[]; temporal: SchemaColumn[]; numeric: SchemaColumn[]; real: SchemaColumn[] },
+): SchemaColumn[] {
+  switch (kind) {
+    case 'temporal':
+      return lists.temporal;
+    case 'numeric':
+      return lists.numeric;
+    case 'real':
+      return lists.real;
+    default:
+      return lists.all;
+  }
+}
 
 /** How a filter operand on this column is typed back out of its text control. */
 function valueKindOfColumn(column: SchemaColumn | undefined): ValueKind {
@@ -260,8 +297,18 @@ export function BindingEditor({
   // covered in red errors reads as broken rather than as unfinished.
   const [attempted, setAttempted] = useState(false);
 
+  // SAME REQUEST, SAME CACHE KEY as the three Studio surfaces that already read
+  // this snapshot (studio/connect/steps/TablesStep, studio/pages/NewPageScreen,
+  // studio/pages/EditPageScreen all key `studioApi.getSchema` on
+  // ['studio','schema',connectionId]). A private key here would fork the cache:
+  // the editor would refetch a snapshot Studio just loaded, and — the reason it
+  // matters — it would NOT be invalidated when something invalidates the Studio
+  // key after a re-introspection. The empty state below tells the user to "Run
+  // introspection in Studio, then reopen this editor"; on a forked key that
+  // instruction would be a lie for `staleTime`. `?? null` matches
+  // NewPageScreen's disabled-state key rather than minting a third variant.
   const schemaQuery = useQuery({
-    queryKey: ['builder-binding-schema', connectionId] as const,
+    queryKey: ['studio', 'schema', connectionId ?? null] as const,
     enabled: typeof connectionId === 'string' && connectionId !== '',
     staleTime: 5 * 60_000,
     queryFn: () => studioApi.getSchema(connectionId as string),
@@ -283,6 +330,10 @@ export function BindingEditor({
   );
   const numericColumns = useMemo(
     () => columns.filter((column) => NUMERIC_TYPES.has(column.logicalType)),
+    [columns],
+  );
+  const realColumns = useMemo(
+    () => columns.filter((column) => REAL_TYPES.has(column.logicalType)),
     [columns],
   );
 
@@ -335,9 +386,11 @@ export function BindingEditor({
     });
   }, []);
 
-  const setEventAt = useCallback((index: number, column: string): void => {
+  const setRoleAt = useCallback((index: number, column: string): void => {
     setDraft((current) => {
-      const next = EVENT_SELECT_ROLES.map((_role, slot) => current.select[slot] ?? '');
+      // Rebuild the whole slot array, not a splice: a positional projection is
+      // read by INDEX, so a shorter array would shift every later role.
+      const next = rolesFor(current.shape).map((_role, slot) => current.select[slot] ?? '');
       next[index] = column;
       return { ...current, select: next };
     });
@@ -661,17 +714,22 @@ export function BindingEditor({
                       ? { error: t('builder.binding.valueColumnRequired', 'Pick the column to measure.') }
                       : {})}
                   />
-                ) : controls.select === 'event' ? (
+                ) : controls.select === 'roles' ? (
                   <>
-                    {EVENT_SELECT_ROLES.map((role, index) => (
+                    {rolesFor(draft.shape).map((role, index) => (
                       <ColumnPicker
-                        key={role}
-                        label={EVENT_ROLE_LABEL[role]()}
-                        columns={role === 'date' || role === 'end' ? temporalColumns : columns}
+                        key={role.key}
+                        label={SELECT_ROLE_LABEL[role.key]()}
+                        columns={columnsForRole(role.kind, {
+                          all: columns,
+                          temporal: temporalColumns,
+                          numeric: numericColumns,
+                          real: realColumns,
+                        })}
                         value={draft.select[index] ?? ''}
-                        onChange={(next) => setEventAt(index, next)}
+                        onChange={(next) => setRoleAt(index, next)}
                         blankLabel={
-                          index < 2
+                          role.required
                             ? t('builder.binding.columnPlaceholder', 'Choose a column…')
                             : t('builder.binding.columnNone', 'None')
                         }
@@ -680,8 +738,8 @@ export function BindingEditor({
                     {showIssue('select') ? (
                       <p className="text-caption text-danger">
                         {t(
-                          'builder.binding.eventColumnsRequired',
-                          'Events need a start date and a title. An end date also needs a category, because the columns are read in order.',
+                          'builder.binding.roleColumnsRequired',
+                          'Fill every required column, and leave no gaps before one you filled — these columns are read in order.',
                         )}
                       </p>
                     ) : null}

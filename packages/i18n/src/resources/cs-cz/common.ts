@@ -1331,7 +1331,6 @@ export default {
         "end": "Sloupec s datem konce (volitelné)",
         "title": "Sloupec s názvem"
       },
-      "eventColumnsRequired": "Události potřebují datum začátku a název. Datum konce navíc vyžaduje kategorii, protože se sloupce čtou v pořadí.",
       "filterColumnRequired": "Vyberte sloupec.",
       "filterColumn": "Sloupec",
       "filterListHelper": "Hodnoty oddělte čárkami.",
@@ -1402,7 +1401,12 @@ export default {
         "record": "Jeden řádek",
         "singleMetric": "Jediné číslo",
         "stream": "Živý proud nedávných řádků",
-        "timeseries": "Hodnota v čase"
+        "timeseries": "Hodnota v čase",
+        "tree": "Hodnota pro každou kategorii, rozdělená do dvou úrovní",
+        "geoPoints": "Hodnota pro každé místo nebo oblast",
+        "flows": "Kolik se přesouvá z jedné kategorie do druhé",
+        "ohlc": "Otevření, maximum, minimum a uzavření za období",
+        "booleanMap": "Příznak zapnuto/vypnuto pro každý klíč"
       },
       "shapeHelper": "Změna tohoto nastavení mění, které ovládací prvky dotazu se použijí.",
       "shapeLabel": "Co tento widget zobrazuje",
@@ -1439,7 +1443,12 @@ export default {
         "week": "týdny",
         "year": "roky"
       },
-      "windowUnitLabel": "Jednotka"
+      "windowUnitLabel": "Jednotka",
+      "role": {
+        "flagKey": "Sloupec s klíčem",
+        "flagValue": "Sloupec zapnuto/vypnuto"
+      },
+      "roleColumnsRequired": "Vyplňte každý povinný sloupec a nenechávejte mezery před sloupcem, který jste vyplnili — sloupce se čtou v pořadí."
     }
   },
   "setup": {
@@ -2712,5 +2721,30 @@ export default {
     "title": "Tým",
     "twoFactorOn": "Dvoufázové ověření je zapnuté",
     "twoFactorShort": "2FA"
+  },
+  "email": {
+    "linkFallback": "Pokud tlačítko nefunguje, vložte tento odkaz do prohlížeče: {url}",
+    "notification": {
+      "action": "Otevřít {appName}",
+      "footer": "Tento e-mail dostáváte proto, že máte u svého účtu v aplikaci {appName} zapnutá e-mailová oznámení. Vypnout je můžete v nastavení oznámení.",
+      "name": "Oznámení"
+    },
+    "passwordReset": {
+      "action": "Zvolit nové heslo",
+      "heading": "Obnovte si heslo",
+      "intro": "Dobrý den, {name}, obdrželi jsme žádost o obnovení hesla k účtu {email}.",
+      "name": "Obnovení hesla",
+      "notice": "Tento odkaz funguje jen jednou a jeho platnost vyprší po {expiresInMinutes} minutách. Pokud jste o obnovení hesla nežádali, můžete tento e-mail ignorovat — vaše stávající heslo zůstává v platnosti.",
+      "subject": "Obnovte si heslo v aplikaci {appName}"
+    },
+    "userInvite": {
+      "action": "Přijmout pozvánku",
+      "heading": "Byli jste pozváni",
+      "intro": "{inviterName} vás pozval(a) do pracovního prostoru {appName}. Přijměte pozvánku, nastavte si heslo k účtu {email} a přihlaste se.",
+      "name": "Pozvánka do týmu",
+      "notice": "Tato pozvánka funguje jen jednou a její platnost vyprší po {expiresInDays} dnech. Pokud jste ji nečekali, můžete tento e-mail ignorovat.",
+      "subject": "Byli jste pozváni do pracovního prostoru {appName}",
+      "inviterFallback": "Správce"
+    }
   }
 } as const;

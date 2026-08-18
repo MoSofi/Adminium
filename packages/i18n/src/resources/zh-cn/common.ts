@@ -1331,7 +1331,6 @@ export default {
         "end": "结束日期列（可选）",
         "title": "标题列"
       },
-      "eventColumnsRequired": "事件需要开始日期和标题。若要使用结束日期，还必须指定类别，因为这些列是按顺序读取的。",
       "filterColumnRequired": "请选择一列。",
       "filterColumn": "列",
       "filterListHelper": "多个值之间用逗号分隔。",
@@ -1402,7 +1401,12 @@ export default {
         "record": "单行",
         "singleMetric": "单个数字",
         "stream": "最近行的实时动态",
-        "timeseries": "随时间变化的值"
+        "timeseries": "随时间变化的值",
+        "tree": "每个类别一个值，分两个层级",
+        "geoPoints": "每个地点或地区一个值",
+        "flows": "从一个类别流向另一个类别的量",
+        "ohlc": "每个时间段的开盘、最高、最低和收盘价",
+        "booleanMap": "每个键一个开/关标记"
       },
       "shapeHelper": "更改此项会改变可用的查询设置项。",
       "shapeLabel": "此小组件展示的内容",
@@ -1439,7 +1443,12 @@ export default {
         "week": "周",
         "year": "年"
       },
-      "windowUnitLabel": "单位"
+      "windowUnitLabel": "单位",
+      "role": {
+        "flagKey": "键列",
+        "flagValue": "开/关列"
+      },
+      "roleColumnsRequired": "请填写每个必填列，并且在已填写的列之前不能留空，因为这些列是按顺序读取的。"
     }
   },
   "setup": {
@@ -2712,5 +2721,30 @@ export default {
     "title": "团队",
     "twoFactorOn": "已开启双重验证",
     "twoFactorShort": "2FA"
+  },
+  "email": {
+    "linkFallback": "如果按钮无法使用，请把这个链接粘贴到浏览器中：{url}",
+    "notification": {
+      "action": "打开 {appName}",
+      "footer": "你收到这封邮件，是因为你的 {appName} 账户开启了邮件通知。你可以在通知设置中将其关闭。",
+      "name": "通知"
+    },
+    "passwordReset": {
+      "action": "设置新密码",
+      "heading": "重置密码",
+      "intro": "{name} 你好，我们收到了为 {email} 重置密码的请求。",
+      "name": "密码重置",
+      "notice": "此链接只能使用一次，并将在 {expiresInMinutes} 分钟后失效。如果你没有申请重置密码，可以忽略这封邮件——你当前的密码将继续有效。",
+      "subject": "重置你的 {appName} 密码"
+    },
+    "userInvite": {
+      "action": "接受邀请",
+      "heading": "你收到了一份邀请",
+      "intro": "{inviterName}邀请你加入 {appName}。接受邀请，为 {email} 设置密码并登录。",
+      "name": "团队邀请",
+      "notice": "此邀请只能使用一次，并将在 {expiresInDays} 天后失效。如果你并未预期会收到它，可以忽略这封邮件。",
+      "subject": "你受邀加入 {appName}",
+      "inviterFallback": "管理员"
+    }
   }
 } as const;
