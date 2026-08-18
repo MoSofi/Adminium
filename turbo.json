@@ -77,6 +77,12 @@
         "PLAYWRIGHT_*",
         "ADMINIUM_DISABLE_UPDATES"
       ]
+    },
+    "vrt": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false
     }
   }
 }

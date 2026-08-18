@@ -225,6 +225,79 @@ jobs:
       - name: Axe sweep (ratchet)
         run: pnpm --filter @adminium/ui a11y
 
+  vrt:
+    name: vrt
+    runs-on: ubuntu-latest
+    # Storybook build + a screenshot matrix; own job for the same reason `a11y`
+    # has one.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @adminium/ui exec playwright install --with-deps chromium
+
+      # Same reason as the a11y job: storybook's Vite resolves the workspace
+      # packages from their built `dist`.
+      - name: Build workspace dists
+        run: pnpm turbo run build
+
+      # WHY THIS JOB EXISTS. The VRT harness — spec, config, profile matrix,
+      # determinism hooks — has been complete since M1 and appeared in no
+      # workflow and no turbo task. It had never run once, so it could not fail,
+      # and RELEASE-GATE.md carried a row about regenerating its baselines that
+      # nothing was measuring. A harness nobody runs is not a gate; it is a file
+      # that looks like one.
+      #
+      # Baselines are LINUX-canonical (playwright.config.ts header) and there are
+      # currently zero of them, deliberately: the audit's sequencing is to record
+      # them AFTER the token and accessibility work settles, or they get recorded
+      # twice. So this step reports the empty state loudly into the job summary
+      # instead of failing, and fails for real the moment a baseline exists and
+      # drifts. Capture them with the `vrt-baselines` workflow (workflow_dispatch),
+      # which runs on this same image and uploads the PNGs for review.
+      - name: Visual regression matrix
+        run: |
+          shopt -s nullglob
+          baselines=(packages/ui/vrt/__screenshots__/*.png)
+          if [ ${#baselines[@]} -eq 0 ]; then
+            {
+              echo "### VRT: no baselines committed"
+              echo
+              echo "\`packages/ui/vrt/__screenshots__/\` is empty, so there is nothing to"
+              echo "compare against and this job cannot detect a visual regression."
+              echo
+              echo "Capture them by running the **vrt-baselines** workflow on this branch,"
+              echo "then commit the uploaded PNGs. RELEASE-GATE.md's VRT row stays unchecked"
+              echo "until that happens."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning title=VRT has no baselines::The visual-regression matrix ran against 0 committed screenshots. See the job summary."
+            exit 0
+          fi
+          echo "Comparing against ${#baselines[@]} committed baselines."
+          pnpm --filter @adminium/ui vrt
+
+      - name: Upload VRT report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vrt-report
+          path: packages/ui/playwright-report
+          retention-days: 7
+
   dep-graph:
     name: dep-graph
     runs-on: ubuntu-latest

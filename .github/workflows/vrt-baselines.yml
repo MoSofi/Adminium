@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Capture the visual-regression baselines on the CI platform.
+#
+# WHY A WORKFLOW AND NOT A LOCAL COMMAND. `packages/ui/playwright.config.ts`
+# omits the `{platform}` suffix from its snapshot path template on purpose: CI
+# and every developer share ONE baseline set, which only works if that set is
+# recorded on the image CI runs. Regenerating on macOS or Windows produces font
+# rasterization diffs across the whole matrix — the config's header says so, and
+# says not to commit them. This is the sanctioned way to record them.
+#
+# Deliberately manual. Baselines record whatever the UI looks like at the moment
+# they are taken, so recording them mid-change bakes in a state nobody reviewed;
+# the readiness audit's sequencing is to capture AFTER the token and
+# accessibility work settles, or they get recorded twice.
+#
+# Output is an ARTIFACT, not a commit. A push from CI would put ~hundreds of
+# screenshots into main with nobody having looked at one of them, which is the
+# opposite of what a visual baseline is for. Download, look, commit.
+name: vrt-baselines
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @adminium/ui exec playwright install --with-deps chromium
+
+      - name: Build workspace dists
+        run: pnpm turbo run build
+
+      - name: Capture baselines
+        run: pnpm --filter @adminium/ui vrt:update
+
+      - name: Summarize
+        if: always()
+        run: |
+          shopt -s nullglob
+          shots=(packages/ui/vrt/__screenshots__/*.png)
+          {
+            echo "### VRT baselines captured"
+            echo
+            echo "**${#shots[@]}** screenshots, recorded on \`ubuntu-latest\`."
+            echo
+            echo "Download the \`vrt-baselines\` artifact, review the images, and commit them"
+            echo "to \`packages/ui/vrt/__screenshots__/\`. The \`vrt\` job in \`ci.yml\` starts"
+            echo "comparing against them on the next push, and RELEASE-GATE.md's VRT row can"
+            echo "then be checked."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload baselines
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vrt-baselines
+          path: packages/ui/vrt/__screenshots__
+          retention-days: 14
