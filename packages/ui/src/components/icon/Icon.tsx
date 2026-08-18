@@ -12,17 +12,43 @@
  * make it an image with an accessible name (icon-only buttons label the
  * BUTTON, not the icon — see 03-component-library.md §9).
  */
-import { icons } from 'lucide-react';
-import type { LucideProps } from 'lucide-react';
+import type { LucideProps, icons } from 'lucide-react';
 
 import { cn } from '../../lib/cn.js';
+import { useLucideIcon } from './icon-resolver.js';
 
-/** Every lucide icon name, PascalCase (`"ChevronDown"`, `"CircleAlert"`, …). */
+/**
+ * Every lucide icon name, PascalCase (`"ChevronDown"`, `"CircleAlert"`, …).
+ *
+ * `import type { icons }` rather than a value import, and that is the whole
+ * point: the name space is still the full catalogue for typing, and a type-only
+ * import is erased, so none of the 1,611 icon modules reach the bundle. The
+ * value side comes from `icon-resolver.ts` — see its header for the 112.6 KiB
+ * gzipped this removed from the dashboard entry.
+ */
 export type IconName = keyof typeof icons;
 
 /** Sanctioned icon sizes (px) per research/design-system.md §3. */
 export const ICON_SIZES = [12, 13, 14, 15, 16, 18, 26] as const;
 export type IconSize = (typeof ICON_SIZES)[number];
+
+/**
+ * The placeholder's box, one literal class per sanctioned size.
+ *
+ * A map of literals rather than `size-[${size}px]`: Tailwind generates
+ * utilities from source TEXT, so an interpolated class produces nothing and the
+ * placeholder would collapse to zero — which is the layout shift it exists to
+ * prevent. The same reason `surfaceDefaults` keeps its widths as literals.
+ */
+const PLACEHOLDER_SIZE: Readonly<Record<IconSize, string>> = {
+  12: 'size-[12px]',
+  13: 'size-[13px]',
+  14: 'size-[14px]',
+  15: 'size-[15px]',
+  16: 'size-[16px]',
+  18: 'size-[18px]',
+  26: 'size-[26px]',
+};
 
 export interface IconProps extends Omit<LucideProps, 'size'> {
   /** Lucide icon name, e.g. `"Search"`, `"ChevronDown"`. */
@@ -57,7 +83,20 @@ export function Icon(props: IconProps) {
     'aria-label': ariaLabel,
     ...rest
   } = props;
-  const LucideIcon = icons[name];
+  const LucideIcon = useLucideIcon(name);
+  if (LucideIcon === undefined) {
+    // Outside the statically-imported core set, so the catalogue is loading.
+    // A same-sized inert box, not nothing: the alternative is a glyph-shaped
+    // hole that closes a frame later and shifts everything beside it.
+    return (
+      <span
+        aria-hidden={ariaLabel ? undefined : true}
+        aria-label={ariaLabel}
+        role={ariaLabel ? 'img' : undefined}
+        className={cn('inline-block', PLACEHOLDER_SIZE[size], className)}
+      />
+    );
+  }
   return (
     <LucideIcon
       size={size}

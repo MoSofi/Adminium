@@ -24,7 +24,7 @@ import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import { pageTemplateDefinitions } from '@adminium/widgets';
 
-import { ICON_SHORTLIST, isKnownIcon, searchIcons } from './IconPicker.js';
+import { ICON_SHORTLIST, ensureIconCatalogue, isKnownIcon, searchIcons } from './IconPicker.js';
 import { templateDefaultIcon } from './templateCatalog.js';
 import {
   groupPages,
@@ -55,6 +55,16 @@ function page(overrides: Partial<PageSummaryDto> = {}): PageSummaryDto {
 }
 
 describe('icon picker catalogue', () => {
+  // The catalogue is a DYNAMIC import now — `import { icons } from
+  // 'lucide-react'` in this module put all 1,611 icon modules into whatever
+  // chunk reached it, which on the boot path was 112.6 KiB gzipped of entry
+  // (see icon-resolver.ts). The picker fetches it when it opens; these tests
+  // await the same call, so they check the loaded behaviour rather than the
+  // shortlist-only frame before it lands.
+  beforeAll(async () => {
+    await ensureIconCatalogue();
+  });
+
   it('every shortlisted name is a real lucide icon', () => {
     // `lucideByName` falls back to `File` for an unknown name, so a typo in the
     // shortlist would render a plausible-looking wrong glyph instead of
