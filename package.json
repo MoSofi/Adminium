@@ -22,6 +22,8 @@
     "ir-schema-check": "pnpm --filter @adminium/engine run ir-schema:check",
     "rest-api-docs": "pnpm --filter @adminium/docs run rest-api",
     "rest-api-docs-check": "pnpm --filter @adminium/docs run rest-api:check",
+    "icon-core": "node scripts/gen-icon-core.mjs",
+    "icon-core-check": "node scripts/gen-icon-core.mjs --check",
     "i18n-check": "pnpm --filter @adminium/i18n i18n:check",
     "generate-notices": "node scripts/generate-notices.mjs",
     "changeset": "changeset"

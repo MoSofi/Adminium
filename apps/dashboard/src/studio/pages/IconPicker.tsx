@@ -9,21 +9,22 @@
  * has no way to tell whether the name was wrong or the icon just looks like
  * that.
  *
- * WHY THIS LIVES IN THE DASHBOARD, not `packages/ui`: it needs the whole
- * `icons` map to search, and `import { icons } from 'lucide-react'` defeats
- * tree-shaking for every consumer of the module that does it. The dashboard
- * already pays that cost in `lib/lucide.ts` (the sidebar resolves arbitrary
- * stored names), so searching the full catalogue here is free. Putting the same
- * import in `@adminium/ui` would push ~1,500 icon components into a chunk the
- * desktop app and every other consumer loads.
+ * THE CATALOGUE IS FETCHED, NOT IMPORTED. This picker legitimately needs all
+ * 1,611 names to search, and `import { icons } from 'lucide-react'` is how you
+ * get them — but a map import is opaque to a bundler, so it drags every icon
+ * module into whatever chunk does it. That used to be free here only because
+ * `lib/lucide.ts` had already paid it on the boot path; now that it does not,
+ * this would be the module that put 112.6 KiB gzipped back. `loadFullIconSet()`
+ * resolves the same object from a dynamic import, so the catalogue arrives when
+ * the picker is opened and never before.
  *
  * The grid shows a curated shortlist rather than all of them: 1,500 buttons is
  * a scroll, not a choice. Search falls through to the full catalogue, so
  * nothing is unreachable — the shortlist is the fast path, not the limit.
+ * Before the catalogue lands, search covers the shortlist alone.
  */
 
-import { useMemo, useState } from 'react';
-import { icons } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Popover,
@@ -31,6 +32,7 @@ import {
   PopoverTrigger,
   SearchInput,
   cn,
+  loadFullIconSet,
 } from '@adminium/ui';
 
 import { t } from '../../i18n/t.js';
@@ -77,9 +79,19 @@ function pascalCase(kebab: string): string {
     .join('');
 }
 
-/** Every lucide name in kebab-case, computed once and shared by all pickers. */
+/**
+ * Every lucide name in kebab-case, once the catalogue has been fetched. `null`
+ * until then — search runs against the shortlist alone for the first frame or
+ * two after the picker opens, which is exactly when the user has typed nothing.
+ */
 let allNamesCache: string[] | null = null;
-function allIconNames(): string[] {
+/** The same catalogue keyed as lucide keys it — what `isKnownIcon` must test. */
+let pascalNamesCache: Set<string> | null = null;
+
+/** Fetch the catalogue and cache its kebab-case names. Idempotent. */
+export async function ensureIconCatalogue(): Promise<string[]> {
+  const icons = await loadFullIconSet();
+  pascalNamesCache ??= new Set(Object.keys(icons));
   allNamesCache ??= Object.keys(icons)
     // `AArrowDown` → `a-arrow-down`; the boundary before a digit stays glued
     // (`Grid2x2`), matching how the stored names are written.
@@ -88,8 +100,24 @@ function allIconNames(): string[] {
   return allNamesCache;
 }
 
+/** Kebab names available for search right now. */
+function allIconNames(): readonly string[] {
+  return allNamesCache ?? [];
+}
+
+/**
+ * Is this a real lucide name? Answers from the catalogue when it is loaded and
+ * from the shortlist otherwise — so a caller that has not awaited
+ * {@link ensureIconCatalogue} gets "yes" for the curated names and "no" for the
+ * rest, never a wrong "yes".
+ */
 export function isKnownIcon(name: string): boolean {
-  return Object.hasOwn(icons, pascalCase(name));
+  // Tested PascalCase, not against the kebab list: the kebab round-trip is
+  // lossy where a digit follows a letter (`Table2` → `table2`, but the stored
+  // and shortlisted name is `table-2`), so a kebab membership check reports
+  // real icons as unknown.
+  if (pascalNamesCache !== null) return pascalNamesCache.has(pascalCase(name));
+  return ICON_SHORTLIST.includes(name);
 }
 
 /** Shortlist first, then the rest of the catalogue, de-duplicated. */
@@ -121,7 +149,27 @@ export interface IconPickerProps {
 export function IconPicker({ value, onChange, label, testId }: IconPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const results = useMemo(() => searchIcons(query), [query]);
+  const [catalogue, setCatalogue] = useState(0);
+
+  // Fetch on OPEN, not on mount: the field is on a form most visits never
+  // touch, and the shortlist renders without the catalogue.
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    void ensureIconCatalogue().then(
+      () => {
+        if (alive) setCatalogue((n) => n + 1);
+      },
+      () => {
+        // Search stays on the shortlist. Every icon there still renders.
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
+  const results = useMemo(() => searchIcons(query), [query, catalogue]);
   const Current = lucideByName(value === '' ? 'file' : value);
 
   return (
