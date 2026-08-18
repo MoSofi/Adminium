@@ -5,8 +5,9 @@
  * - `GET /users` — keyset page on `(created_at, id)` descending, the same
  *   anchor `/audit` uses, with `q` / `status` / `roleId` filters
  * - `POST /users` — INVITE. No password parameter exists: the row lands
- *   `status='invited'` with a NULL `password_hash` and the reply carries a
- *   single-use activation link (see invite.ts — this build has no SMTP)
+ *   `status='invited'` with a NULL `password_hash`. The invitation mail is
+ *   queued when SMTP is configured (`emailSent`), and the reply carries the
+ *   single-use activation link EITHER WAY (see invite.ts)
  * - `GET|PATCH|DELETE /users/:id`, `PUT /users/:id/roles`,
  *   `POST /users/:id/invite/resend`
  *
@@ -20,13 +21,22 @@
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest } from 'fastify';
-import { rolesRepo, sessionsRepo, usersRepo, type Role, type User } from '@adminium/meta';
+import {
+  rolesRepo,
+  sessionsRepo,
+  settingsRepo,
+  usersRepo,
+  type Role,
+  type User,
+} from '@adminium/meta';
 
+import { USER_INVITE_TEMPLATE_KEY, enqueueEmail, requestOrigin } from '../../email/send.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
+import { recipientLocale, translatorFor } from '../../i18n/server-i18n.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import { SUPER_ADMIN_SLUG } from '../../rbac/resolver.js';
 import { toUserView } from '../auth/handlers.js';
-import { mintInvite } from './invite.js';
+import { INVITE_TOKEN_TTL_MS, mintInvite, type MintedInvite } from './invite.js';
 import {
   userDeleteQuery,
   userDeleteReply,
@@ -79,6 +89,76 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
   const users = usersRepo(meta);
   const roles = rolesRepo(meta);
   const sessions = sessionsRepo(meta);
+
+  /**
+   * The master secret, off the auth plugin's context rather than threaded in:
+   * `usersRoutes` is registered as a bare plugin (compose passes it no deps at
+   * all), and `app.authContext` is where a route already reaches for `Env`.
+   * Absent only on a server built without a meta store, which cannot get here.
+   */
+  const emailSecret = app.authContext?.env.ADMINIUM_SECRET;
+
+  /**
+   * Queue the invitation mail. Returns whether it was QUEUED — not whether it
+   * arrived; the relay owns that, and the job's retry/dead-letter state is
+   * where an operator watches it. Never throws: the activation link in the
+   * reply is the fallback, so a broken mail path must not fail the invite that
+   * already created the user row.
+   */
+  /**
+   * Who the invitation says it is from. An API-key principal is nobody's
+   * session user (`actingUserId` returns null there), and a suspended or
+   * deleted actor can vanish between the invite and the send — so this always
+   * resolves to a printable noun rather than risking the empty string, which
+   * would ship "  invited you to join Acme" to a stranger. The fallback is
+   * translated into the RECIPIENT's locale, not the actor's.
+   */
+  async function inviterNameFor(request: FastifyRequest, recipientId: string): Promise<string> {
+    const actorId = actingUserId(request);
+    if (actorId !== null) {
+      const actor = await users.findById(actorId);
+      const name = actor?.name.trim() ?? '';
+      if (name !== '') return name;
+    }
+    // i18next binds `t` during init, so destructuring it is safe (same note as
+    // `email/builtins.ts`).
+    const { t } = await translatorFor(meta, recipientId);
+    return t('email.userInvite.inviterFallback', { defaultValue: 'An administrator' });
+  }
+
+  async function deliverInvite(
+    request: FastifyRequest,
+    user: User,
+    invite: MintedInvite,
+  ): Promise<boolean> {
+    try {
+      const queued = await enqueueEmail(
+        {
+          meta,
+          ...(emailSecret === undefined ? {} : { secret: emailSecret }),
+          logger: request.log,
+        },
+        {
+          to: user.email,
+          templateKey: USER_INVITE_TEMPLATE_KEY,
+          locale: await recipientLocale(meta, user.id),
+          // Names come from BUILTIN_EMAIL_TEMPLATE_VARS['user-invite'].
+          vars: {
+            appName: await settingsRepo(meta).get('branding.appName'),
+            name: user.name,
+            email: user.email,
+            inviterName: await inviterNameFor(request, user.id),
+            activationUrl: `${requestOrigin(request)}${invite.activationPath}`,
+            expiresInDays: String(Math.round(INVITE_TOKEN_TTL_MS / 86_400_000)),
+          },
+        },
+      );
+      return queued !== null;
+    } catch (error) {
+      request.log.warn({ err: error, userId: user.id }, 'could not queue the invitation email');
+      return false;
+    }
+  }
 
   const guarded = { preHandler: app.rbac.require(PERMISSIONS.usersManage) };
   /** Role assignment is a `roles:manage` power even on a users route. */
@@ -276,11 +356,12 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
           },
         },
       });
+      const emailSent = await deliverInvite(request, user, invite);
       // The token is never logged and never returned again — a lost link is
       // re-minted by POST /users/:id/invite/resend.
       return reply
         .status(201)
-        .send({ user: toDto(user, granted.map(roleRef)), invite, emailSent: false as const });
+        .send({ user: toDto(user, granted.map(roleRef)), invite, emailSent });
     },
   );
 
@@ -456,7 +537,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
         action: 'user.invite.resend',
         changes: { after: { userId: user.id, inviteExpiresAt: invite.expiresAt } },
       });
-      return { user: await dtoFor(user), invite, emailSent: false as const };
+      return { user: await dtoFor(user), invite, emailSent: await deliverInvite(request, user, invite) };
     },
   );
 };

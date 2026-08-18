@@ -66,6 +66,7 @@
     "fastify-type-provider-zod": "^7.0.0",
     "fflate": "^0.8.3",
     "kysely": "^0.29.5",
+    "nodemailer": "^7.0.13",
     "otpauth": "^9.5.1",
     "pino": "^10.3.1",
     "zod": "catalog:"
@@ -95,6 +96,7 @@
     "@adminium/config": "workspace:*",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "22.15.3",
+    "@types/nodemailer": "^8.0.1",
     "@types/ws": "^8.18.1",
     "eslint": "catalog:",
     "pino-pretty": "^13.1.3",

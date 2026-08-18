@@ -1,0 +1,142 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderEmail — password-reset snapshots (10-T18) > renders password-reset for ar_EG 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="ar-EG" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset your Adminium password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;background-color:#f4f4f5;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="width:600px;max-width:100%;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:12px;">
+        <tr>
+          <td dir="rtl" style="padding:32px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+            <h1 style="margin:0 0 12px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:22px;line-height:1.3;font-weight:700;color:#18181b;text-align:right;">Reset your password</h1>
+            <p style="margin:0 0 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;text-align:right;">Hi Ava Reyes, we received a request to reset the password for ava@example.com.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="right" style="margin:4px 0 20px;"><tr><td bgcolor="#4f46e5" style="background-color:#4f46e5;border-radius:8px;"><a href="https://admin.example.com/reset?token=abc123&amp;x=1" style="display:inline-block;padding:12px 24px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;">Choose a new password</a></td></tr></table>
+            <p style="margin:0 0 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;text-align:right;">This link works only once and expires in 30 minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;margin:0 0 20px;"><tr><td style="border-top:1px solid #e4e4e7;font-size:0;line-height:0;height:1px;">&nbsp;</td></tr></table>
+            <p style="margin:0 0 8px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:12px;line-height:1.5;color:#71717a;text-align:right;word-break:break-word;">If the button doesn’t work, paste this link into your browser: https://admin.example.com/reset?token=abc123&amp;x=1</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Reset your Adminium password",
+  "text": "Reset your password
+
+Hi Ava Reyes, we received a request to reset the password for ava@example.com.
+
+Choose a new password: https://admin.example.com/reset?token=abc123&x=1
+
+This link works only once and expires in 30 minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.
+
+--------------------------------
+
+If the button doesn’t work, paste this link into your browser: https://admin.example.com/reset?token=abc123&x=1
+",
+}
+`;
+
+exports[`renderEmail — password-reset snapshots (10-T18) > renders password-reset for de_DE 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="de-DE" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset your Adminium password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;background-color:#f4f4f5;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="width:600px;max-width:100%;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:12px;">
+        <tr>
+          <td dir="ltr" style="padding:32px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+            <h1 style="margin:0 0 12px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:22px;line-height:1.3;font-weight:700;color:#18181b;text-align:left;">Reset your password</h1>
+            <p style="margin:0 0 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;text-align:left;">Hi Ava Reyes, we received a request to reset the password for ava@example.com.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left" style="margin:4px 0 20px;"><tr><td bgcolor="#4f46e5" style="background-color:#4f46e5;border-radius:8px;"><a href="https://admin.example.com/reset?token=abc123&amp;x=1" style="display:inline-block;padding:12px 24px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;">Choose a new password</a></td></tr></table>
+            <p style="margin:0 0 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;text-align:left;">This link works only once and expires in 30 minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;margin:0 0 20px;"><tr><td style="border-top:1px solid #e4e4e7;font-size:0;line-height:0;height:1px;">&nbsp;</td></tr></table>
+            <p style="margin:0 0 8px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:12px;line-height:1.5;color:#71717a;text-align:left;word-break:break-word;">If the button doesn’t work, paste this link into your browser: https://admin.example.com/reset?token=abc123&amp;x=1</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Reset your Adminium password",
+  "text": "Reset your password
+
+Hi Ava Reyes, we received a request to reset the password for ava@example.com.
+
+Choose a new password: https://admin.example.com/reset?token=abc123&x=1
+
+This link works only once and expires in 30 minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.
+
+--------------------------------
+
+If the button doesn’t work, paste this link into your browser: https://admin.example.com/reset?token=abc123&x=1
+",
+}
+`;
+
+exports[`renderEmail — password-reset snapshots (10-T18) > renders password-reset for en_US 1`] = `
+{
+  "html": "<!DOCTYPE html>
+<html lang="en-US" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset your Adminium password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;">
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;background-color:#f4f4f5;">
+  <tr>
+    <td align="center" style="padding:24px 12px;">
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="width:600px;max-width:100%;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:12px;">
+        <tr>
+          <td dir="ltr" style="padding:32px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+            <h1 style="margin:0 0 12px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:22px;line-height:1.3;font-weight:700;color:#18181b;text-align:left;">Reset your password</h1>
+            <p style="margin:0 0 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;text-align:left;">Hi Ava Reyes, we received a request to reset the password for ava@example.com.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="left" style="margin:4px 0 20px;"><tr><td bgcolor="#4f46e5" style="background-color:#4f46e5;border-radius:8px;"><a href="https://admin.example.com/reset?token=abc123&amp;x=1" style="display:inline-block;padding:12px 24px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:8px;">Choose a new password</a></td></tr></table>
+            <p style="margin:0 0 16px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:15px;line-height:1.6;color:#3f3f46;text-align:left;">This link works only once and expires in 30 minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.</p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="width:100%;margin:0 0 20px;"><tr><td style="border-top:1px solid #e4e4e7;font-size:0;line-height:0;height:1px;">&nbsp;</td></tr></table>
+            <p style="margin:0 0 8px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:12px;line-height:1.5;color:#71717a;text-align:left;word-break:break-word;">If the button doesn’t work, paste this link into your browser: https://admin.example.com/reset?token=abc123&amp;x=1</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+",
+  "subject": "Reset your Adminium password",
+  "text": "Reset your password
+
+Hi Ava Reyes, we received a request to reset the password for ava@example.com.
+
+Choose a new password: https://admin.example.com/reset?token=abc123&x=1
+
+This link works only once and expires in 30 minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.
+
+--------------------------------
+
+If the button doesn’t work, paste this link into your browser: https://admin.example.com/reset?token=abc123&x=1
+",
+}
+`;

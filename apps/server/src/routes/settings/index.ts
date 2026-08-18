@@ -15,20 +15,29 @@
  * see apps/server/scripts/demo-v01.mjs.
  */
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
-import { settingsRepo, type MetaDb } from '@adminium/meta';
+import { settingsRepo, type MetaDb, type SettingValue } from '@adminium/meta';
 
+import { audited } from '../../audit/coverage.js';
 import { BRANDING_UPDATED, readBranding } from '../../branding/service.js';
+import { encryptSecret } from '../../config/secrets.js';
+import { assertSmtpHostAllowed, emailSecretKey } from '../../email/config.js';
+import { ValidationFailedError } from '../../errors.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   settingsBrandingPutBody,
   settingsDefaultsPutBody,
   settingsDefaultsReply,
+  settingsEmailPutBody,
+  settingsEmailReply,
   settingsSecurityPutBody,
   settingsSecurityReply,
   settingsTelemetryPutBody,
   settingsTelemetryReply,
   settingsWorkspaceReply,
   type SettingsDefaultsReply,
+  type SettingsEmailPutBody,
+  type SettingsEmailReply,
+  type SettingsEmailView,
   type SettingsSecurityReply,
   type SettingsTelemetryReply,
   type SettingsWorkspaceReply,
@@ -39,7 +48,20 @@ export const SETTINGS_DEFAULTS_UPDATED = 'settings.defaults.updated';
 
 export interface SettingsRoutesDeps {
   meta: MetaDb;
+  /**
+   * Purpose-scoped key that encrypts `email.smtp.passEncrypted`
+   * (`email/config.ts`). OPTIONAL, and derived from `ADMINIUM_SECRET` when it
+   * is absent: composition already derives one for the email job handler, and
+   * passing it in keeps a single derivation per process — but the settings
+   * routes are also registered by harnesses that know nothing about mail, and
+   * a required parameter there would only ever be filled with the same
+   * derivation this module can do for itself.
+   */
+  emailKey?: Uint8Array;
 }
+
+/** The stored shape of the `email.smtp` registry key (07-meta-store.md §7.1). */
+type StoredSmtp = SettingValue<'email.smtp'>;
 
 const AXES = ['theme', 'accent', 'density', 'locale'] as const;
 type Axis = (typeof AXES)[number];
@@ -52,9 +74,95 @@ const SETTING_KEY: Record<Axis, 'appearance.theme' | 'appearance.accent' | 'appe
   locale: 'locale.default',
 };
 
+/** True when two `email.smtp` values are the same row — a no-op PUT writes nothing. */
+function sameSmtp(a: StoredSmtp, b: StoredSmtp): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.host === b.host &&
+    a.port === b.port &&
+    a.user === b.user &&
+    a.passEncrypted === b.passEncrypted &&
+    a.from === b.from &&
+    a.secure === b.secure
+  );
+}
+
+/** The password-free projection used by both the reply and the audit row. */
+function viewOf(stored: StoredSmtp): SettingsEmailView {
+  if (stored === null) {
+    return { configured: false, host: null, port: null, user: null, from: null, secure: null };
+  }
+  return {
+    configured: true,
+    host: stored.host,
+    port: stored.port,
+    user: stored.user,
+    from: stored.from,
+    secure: stored.secure,
+  };
+}
+
 export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod {
   const { meta } = deps;
   const settings = settingsRepo(meta);
+
+  /**
+   * Derived at most once, and only if an SMTP password is actually written —
+   * `deriveKey` throws on an empty secret, and a harness that never touches
+   * this section should not have to supply one.
+   */
+  let cachedEmailKey: Uint8Array | null = deps.emailKey ?? null;
+  function emailKey(): Uint8Array {
+    if (cachedEmailKey === null) {
+      // Same source `loadEnv()` reads, and validated there at boot to be at
+      // least 16 characters — this is a fallback for a caller that did not
+      // pass one, not a second configuration channel.
+      const secret = process.env.ADMINIUM_SECRET ?? '';
+      if (secret.length === 0) {
+        throw new Error('ADMINIUM_SECRET is not set — the SMTP password cannot be encrypted.');
+      }
+      cachedEmailKey = emailSecretKey(secret);
+    }
+    return cachedEmailKey;
+  }
+
+  /**
+   * Merges a PUT body onto what is stored. Two rules live here:
+   *
+   *  - an ABSENT `pass` keeps the stored one, so editing the port or the From
+   *    does not make the admin retype a password (schema.ts argues why that
+   *    matters); an empty-string `pass` clears it, for a relay that wants none;
+   *  - a username with no password is refused. An anonymous relay is legitimate
+   *    (`user: ''`), and so is an authenticated one, but a half-filled pair is
+   *    a mistake that surfaces later as an opaque AUTH failure on a job.
+   */
+  function buildSmtpValue(
+    next: NonNullable<SettingsEmailPutBody['smtp']>,
+    stored: StoredSmtp,
+  ): StoredSmtp {
+    assertSmtpHostAllowed(next.host);
+    const passEncrypted =
+      next.pass === undefined
+        ? (stored?.passEncrypted ?? '')
+        : next.pass.length === 0
+          ? ''
+          : encryptSecret(next.pass, emailKey());
+    if (next.user.length > 0 && passEncrypted.length === 0) {
+      throw new ValidationFailedError('An SMTP username needs a password.', { field: 'pass' });
+    }
+    return {
+      host: next.host,
+      port: next.port,
+      user: next.user,
+      passEncrypted,
+      from: next.from,
+      secure: next.secure,
+    };
+  }
+
+  async function emailReply(): Promise<SettingsEmailReply> {
+    return { data: viewOf(await settings.get('email.smtp')) };
+  }
 
   async function readDefaults(): Promise<{
     theme: SettingsDefaultsReply['data']['theme'];
@@ -330,6 +438,63 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
         });
 
         return telemetryReply();
+      },
+    );
+
+    // --- email / SMTP --------------------------------------------------------
+    // The transport the whole email pipeline dials (password reset, user
+    // invites, the notification `email` channel, scheduled report delivery).
+    // Same conventions as the sections above, with one asymmetry the header in
+    // schema.ts argues: the write takes a plaintext password, the read never
+    // returns one.
+    //
+    // No realtime broadcast. Nothing in an open client's chrome derives from
+    // this key — `smtpConfigured` on `/system/info` is read on demand — so
+    // there is no stale copy in a browser to invalidate.
+
+    app.get(
+      '/settings/email',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        schema: { response: { 200: settingsEmailReply } },
+      },
+      async () => emailReply(),
+    );
+
+    app.put(
+      '/settings/email',
+      {
+        preHandler: app.rbac.require(PERMISSIONS.settingsManage),
+        // Carried on the route rather than added to the AUDIT_COVERAGE table:
+        // a marker travels with the code it describes (audit/coverage.ts).
+        config: { audit: audited('rbac') },
+        schema: { body: settingsEmailPutBody, response: { 200: settingsEmailReply } },
+      },
+      async (request) => {
+        const stored = await settings.get('email.smtp');
+        const before = viewOf(stored);
+        const at = app.rbac.now();
+        const actingUserId =
+          request.apiKeyPrincipal === null
+            ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
+            : null;
+
+        const next = request.body.smtp;
+        const value = next === null ? null : buildSmtpValue(next, stored);
+        if (!sameSmtp(stored, value)) {
+          await settings.set('email.smtp', value, { updatedBy: actingUserId, at });
+        }
+
+        await app.rbac.audit(request, {
+          category: 'settings',
+          action: 'settings.email.update',
+          // The SAFE views — an audit row is read back by humans through the
+          // audit UI and travels in an audit export, so the password must be as
+          // absent here as it is in the reply.
+          changes: { before: { ...before }, after: { ...viewOf(value) } },
+        });
+
+        return emailReply();
       },
     );
   };
