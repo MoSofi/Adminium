@@ -9,7 +9,7 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { Suspense, lazy, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useSyncExternalStore, type ComponentType } from 'react';
 import {
   Outlet,
   createRootRouteWithContext,
@@ -22,22 +22,10 @@ import { allLocales, getI18nRevision, subscribeI18nRevision } from '@adminium/i1
 import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
-import { AboutPage } from '../about/AboutPage.js';
-import { ApiKeysPage } from '../api-keys/ApiKeysPage.js';
-import { ChangelogPage } from '../changelog/ChangelogPage.js';
-import { KnowledgeBasePage } from '../kb/KnowledgeBasePage.js';
-import { AccountPage } from '../pages/AccountPage.js';
-import { NotificationSettingsPage } from '../account/NotificationSettingsPage.js';
-import { PreferencesPage } from '../account/PreferencesPage.js';
-import { EmailTemplatesPage } from '../pages/builders/EmailTemplatesPage.js';
 import { dataIoRoutes } from '../data-io/routes.js';
 import { reportsRoutes } from '../reports/routes.js';
-import { DesktopSettingsPage } from '../desktop/DesktopSettingsPage.js';
-import { DesktopSetupHost } from '../desktop/setup/desktopSetupHost.js';
 import { SetupPage } from '../setup/SetupPage.js';
 import { setupStateQuery } from '../setup/setupApi.js';
-import { GlobalDefaultsPage } from '../settings/GlobalDefaultsPage.js';
-import { OnboardingChecklist } from '../onboarding/OnboardingChecklist.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
 import { ForgotPage } from '../auth/ForgotPage.js';
@@ -57,6 +45,42 @@ import { api, ApiError } from './api.js';
 import { bootstrapQuery, defaultPageSlug, findNavItemBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
+
+
+// --- lazy route components --------------------------------------------------
+/**
+ * Every route component below is behind a dynamic import, and the reason is the
+ * gate: `check-entry-budget` measures the SYNCHRONOUSLY loaded set, and a route
+ * component statically imported here is in it by definition — on every route,
+ * for every user, including the ones who never open that screen.
+ *
+ * What is NOT lazy is deliberate: the auth screens, `AppShell`, `HomePage`,
+ * `PageRenderer`, `StatePage` and `NotFoundPage` are the first paint. Putting a
+ * chunk fetch in front of those trades bytes for a blank frame, which is the
+ * wrong trade at exactly the moment the app is being judged on speed.
+ */
+function lazyRoute(load: () => Promise<ComponentType>): ComponentType {
+  const Lazy = lazy(async () => ({ default: await load() }));
+  return function LazyRoute() {
+    return (
+      <Suspense fallback={null}>
+        <Lazy />
+      </Suspense>
+    );
+  };
+}
+
+const AboutPageLazy = lazyRoute(async () => (await import('../about/AboutPage.js')).AboutPage);
+const ApiKeysPageLazy = lazyRoute(async () => (await import('../api-keys/ApiKeysPage.js')).ApiKeysPage);
+const ChangelogPageLazy = lazyRoute(async () => (await import('../changelog/ChangelogPage.js')).ChangelogPage);
+const KnowledgeBasePageLazy = lazyRoute(async () => (await import('../kb/KnowledgeBasePage.js')).KnowledgeBasePage);
+const AccountPageLazy = lazyRoute(async () => (await import('../pages/AccountPage.js')).AccountPage);
+const NotificationSettingsPageLazy = lazyRoute(async () => (await import('../account/NotificationSettingsPage.js')).NotificationSettingsPage);
+const PreferencesPageLazy = lazyRoute(async () => (await import('../account/PreferencesPage.js')).PreferencesPage);
+const DesktopSettingsPageLazy = lazyRoute(async () => (await import('../desktop/DesktopSettingsPage.js')).DesktopSettingsPage);
+const DesktopSetupHostLazy = lazyRoute(async () => (await import('../desktop/setup/desktopSetupHost.js')).DesktopSetupHost);
+const GlobalDefaultsPageLazy = lazyRoute(async () => (await import('../settings/GlobalDefaultsPage.js')).GlobalDefaultsPage);
+const OnboardingChecklistLazy = lazyRoute(async () => (await import('../onboarding/OnboardingChecklist.js')).OnboardingChecklist);
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -236,7 +260,7 @@ const setupRoute = createRoute({
 const desktopSetupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/desktop/setup',
-  component: DesktopSetupHost,
+  component: DesktopSetupHostLazy,
 });
 
 const forgotRoute = createRoute({
@@ -365,14 +389,14 @@ const pageRecordRoute = createRoute({
 const accountRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account',
-  component: AccountPage,
+  component: AccountPageLazy,
 });
 
 /** First-run onboarding surface (M5-T06); admin-gated in-component. */
 const welcomeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/welcome',
-  component: OnboardingChecklist,
+  component: OnboardingChecklistLazy,
 });
 
 // --- M8 preference surfaces (10-i18n-theming.md §7.3–§7.4) -------------------
@@ -382,7 +406,7 @@ const welcomeRoute = createRoute({
 const accountPreferencesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account/preferences',
-  component: PreferencesPage,
+  component: PreferencesPageLazy,
 });
 
 /**
@@ -394,7 +418,7 @@ const accountPreferencesRoute = createRoute({
 const accountNotificationsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account/notifications',
-  component: NotificationSettingsPage,
+  component: NotificationSettingsPageLazy,
 });
 
 /**
@@ -404,16 +428,37 @@ const accountNotificationsRoute = createRoute({
  * `system:settings:manage`, whose 403 flows through the standard route error
  * mapping. The NAV entry (SidebarNav) is what gates discovery to admins.
  */
+/**
+ * LAZY, and this one paid more than any other split in this file. The editor
+ * shares the block canvas with `page-builder`, so a static import reached
+ * `@adminium/widgets`' `PageBuilder` → `WidgetHost` → the whole widget
+ * REGISTRY: 23 families of definitions and Zod config schemas, 336 KiB
+ * minified, in the entry chunk of every user on every route — for one admin
+ * screen. It was the last thing holding the registry in the entry.
+ */
+const EmailTemplatesPageLazy = lazy(async () => {
+  const mod = await import('../pages/builders/EmailTemplatesPage.js');
+  return { default: mod.EmailTemplatesPage };
+});
+
+function EmailTemplatesRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <EmailTemplatesPageLazy />
+    </Suspense>
+  );
+}
+
 const emailTemplatesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/email-templates',
-  component: EmailTemplatesPage,
+  component: EmailTemplatesRouteComponent,
 });
 
 const settingsDefaultsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/settings/defaults',
-  component: GlobalDefaultsPage,
+  component: GlobalDefaultsPageLazy,
 });
 
 /**
@@ -450,7 +495,7 @@ function TranslationsRouteComponent() {
 const accountSplatRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/account/$',
-  component: AccountPage,
+  component: AccountPageLazy,
 });
 
 /**
@@ -462,14 +507,14 @@ const accountSplatRoute = createRoute({
 const settingsDesktopRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/settings/desktop',
-  component: DesktopSettingsPage,
+  component: DesktopSettingsPageLazy,
 });
 
 /** About / version / licence + the self-host update notice (M10-T04). */
 const aboutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/about',
-  component: AboutPage,
+  component: AboutPageLazy,
 });
 
 // --- M10-T06 in-app product comms -------------------------------------------
@@ -484,19 +529,19 @@ const aboutRoute = createRoute({
 const knowledgeBaseRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/help',
-  component: KnowledgeBasePage,
+  component: KnowledgeBasePageLazy,
 });
 
 const changelogRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/changelog',
-  component: ChangelogPage,
+  component: ChangelogPageLazy,
 });
 
 function ApiKeysRouteComponent() {
   return (
     <StudioGuard>
-      <ApiKeysPage />
+      <ApiKeysPageLazy />
     </StudioGuard>
   );
 }
