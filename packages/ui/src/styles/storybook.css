@@ -7,3 +7,39 @@
 /* Generate utilities for every component/story source in this package. */
 @source "../**/*.{ts,tsx}";
 @source "../../.storybook/**/*.{ts,tsx}";
+
+/* AND for the two packages whose stories `.storybook/main.ts` also loads.
+   Tailwind v4 generates utilities from source TEXT, and these globs were
+   missing while `main.ts` had been loading `../../widgets/src/**` and
+   `../../charts/src/**` stories since 04-T17 — so every widget and chart story
+   rendered with its class attributes intact and NO rules behind them.
+
+   That is not a cosmetic gap. The axe sweep runs over this same Storybook, and
+   `color-contrast` is measured on COMPUTED colour: unstyled markup inherits the
+   preview's plain background, so 104 of the 162 baselined violations were
+   recorded against a page that does not resemble the product, in either
+   direction — real failures hidden, and non-failures baselined as permanent.
+   The widget families are 60% of that baseline.
+
+   `@source` paths are relative to THIS file (packages/ui/src/styles/). */
+@source "../../../widgets/src/**/*.{ts,tsx}";
+@source "../../../charts/src/**/*.{ts,tsx}";
+
+/* Paint the theme onto the preview surface.
+
+   Storybook's own stylesheet gives the preview iframe a white body, and nothing
+   here overrode it — so under `data-theme="dark"` every story rendered
+   dark-theme FOREGROUNDS on a WHITE page. That is not only wrong to look at; it
+   is what the axe sweep measured. `color-contrast` resolves the nearest opaque
+   ancestor background, and the soft tone tints (`--pos-soft`, `--accent-soft`,
+   …) are translucent by design, so axe composited them over white and reported
+   e.g. dark `--pos` #3ecf8e on #e4f8ef at 1.8:1 — a pair the product never
+   renders and the token gate passes at 4.5:1+. Most of the dark-theme
+   `color-contrast` entries in a11y-baseline.json were that artifact.
+
+   The dashboard shell paints `bg-bg text-fg` for exactly this reason; the
+   preview has to as well, or it is not showing the product. */
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+}
