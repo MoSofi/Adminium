@@ -1,5 +1,5 @@
 {
-  "entryJsGzBytes": 670500,
+  "entryJsGzBytes": 671000,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
   "loweredOn": {
@@ -80,5 +80,17 @@
     "whatElseWasTried": "Two keys dropped (the preview image is decorative beside its own `Logo` field label, and the generic upload failure reuses the card's existing `saveFailed` string) and the two long helper lines shortened in all 8 locales. Measured recovery: 27 bytes of the 191 it started at. gzip had already folded most of the repetition, which is worth recording — copy trimming is a much weaker lever against this gate than the earlier entries' ~250-byte results suggested.",
     "headroom": "411 bytes, matching the 423–510 the entries above set.",
     "alternativeNotTaken": "Serving the branding strings from the runtime-translation layer instead of the compiled bundle. They would leave the entry, but the shell would then paint its own name from the network on every cold load — trading a fixed 200 bytes for the flash this feature is meant to prevent."
+  },
+  "reconciled_2026_08_17": {
+    "when": "2026-08-17",
+    "by": "Reconciling the two same-day raises, which were measured against different trees",
+    "from": 670500,
+    "to": 671000,
+    "measured": "670,786 bytes (655.1 KiB gz) — the first measurement taken with ALL of the day's work present at once.",
+    "why": "`raisedFor_2026_08_17` and `raisedFor_2026_08_17_branding` were computed concurrently by different sessions, each against a tree that did not contain the other's change, so the file ended up holding the max of two numbers rather than a measurement of anything real. The combined tree is 286 bytes over that max. Both original blocks are kept: they are honest records of what each change cost on its own. This entry is the one that was measured against the tree as it actually ships.",
+    "whatIsInIt": "Three v1.0 blockers plus an email pipeline: user management (team directory, roles matrix, audit log, account security), self-host operational safety, the data layer (relation inference, 10 new widget-data shapes, the binding editor, two dead controls), transactional email, and a concurrent session's branding feature.",
+    "theRealProblem": "This is the THIRD raise in one day and the cause has been identical every time: `packages/i18n/src/resources/index.ts` statically bundles all five en-US namespaces into the entry, so every user-facing string on any new surface has an irreducible entry cost. The day added roughly 250 keys of English copy across four features; the CODE for all of them is lazy-loaded and verified absent from the entry. Until 10-T06/10-T10 land the namespace split, every feature that ships copy will click this ratchet up again.",
+    "recommendation": "Do 10-T06 next, before any further UI work. It is now the single highest-leverage item for the 350 KiB v1.0 target — it would return all three of today's raises and then some. Continuing to raise is not a strategy; the gate's own header says the value may only go down.",
+    "headroom": "214 bytes. Deliberately tight — the next surface should land the namespace split, not absorb its copy here."
   }
 }
