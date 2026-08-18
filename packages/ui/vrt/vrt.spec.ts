@@ -108,8 +108,12 @@ if (!existsSync(indexPath)) {
       for (const { name, globals } of profiles) {
         test(`${story.id} — ${name}`, async ({ page }) => {
           const globalsParam = `theme:${globals.theme};accent:${globals.accent};density:${globals.density};dir:${globals.dir}`;
+          // `networkidle`: widget bodies load as per-family chunks AFTER the
+          // frame renders, so `domcontentloaded` screenshots an empty header.
+          // See the same note in scripts/a11y-sweep.mjs — this is why no
+          // baseline captured before now would have been worth keeping.
           await page.goto(`/iframe.html?id=${story.id}&globals=${globalsParam}`, {
-            waitUntil: 'domcontentloaded',
+            waitUntil: 'networkidle',
           });
           // preview.tsx stamps this after the story's mount effects settle
           await page.waitForSelector('html[data-vrt-ready="true"]', { timeout: 15_000 });

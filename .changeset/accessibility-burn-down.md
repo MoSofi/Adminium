@@ -48,9 +48,10 @@ the token contrast gate measures it, since nothing else can.
 
 Eight `ui.*` keys were added across all locales for the new region labels.
 
-The baseline now holds 111, measured on the CI platform — the net of 111
-artifacts removed, 59 newly exposed and 51 that were real all along. It is
-LINUX-CANONICAL from here: a macOS sweep of the same commit reported 1 where CI
-reported 111, and since `nested-interactive` and `aria-valid-attr-value` are
-pure DOM-structure rules, that gap is not font metrics and is not yet
-understood.
+The baseline now holds 112, and getting a trustworthy number took two wrong
+answers first. `data-vrt-ready` was a bare mount effect while widget bodies load
+as per-family lazy chunks, so the sweep raced the stories: a fast machine
+reported 1 violation and CI reported 111 on the same commit. The sweep and the
+VRT spec now navigate with `networkidle` and the flag waits for DOM quiescence,
+after which both agree. Against the original 162: 111 do not reproduce, 51 were
+real all along, and 59 more were exposed once the stories rendered styled.

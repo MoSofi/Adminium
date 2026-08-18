@@ -87,7 +87,19 @@ async function runJob(job) {
   const storyUrl = `${url}/iframe.html?id=${story.id}&globals=theme:${theme}`;
   const page = await context.newPage();
   try {
-    await page.goto(storyUrl, { waitUntil: 'domcontentloaded' });
+    // `networkidle`, not `domcontentloaded`, and it is load-bearing. The widget
+    // registry loads component code through the definitions' lazy refs — one
+    // Vite chunk per family — so a story's frame renders immediately and its
+    // BODY arrives on a later request. `domcontentloaded` resolves before that
+    // request is even made, the DOM then goes quiet while the chunk is in
+    // flight, and both the readiness flag and this scan land on an empty frame.
+    // Measured on `widgets-tables-trackf--master-list-story`: 30 elements the
+    // old way, 124 this way.
+    //
+    // That race is why the same commit reported 1 violation on a developer
+    // laptop and 111 in CI — a slower machine simply lost it less often. It is
+    // safe here because the target is a static Storybook build with no polling.
+    await page.goto(storyUrl, { waitUntil: 'networkidle' });
     await page.waitForSelector('html[data-vrt-ready="true"]', { timeout: 15_000 });
     return await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -208,9 +220,15 @@ const allowed = new Set(baseline.fingerprints ?? []);
 if (process.argv.includes('--update-baseline')) {
   const union = [...new Set([...allowed, ...seen])].sort();
   const added = union.length - allowed.size;
+  // EVERY OTHER KEY IS PRESERVED. The gate's own instruction is to accept a
+  // fingerprint "with rationale", and this used to write `{note, fingerprints}`
+  // flat — so the rationale, and any history recorded beside it, was silently
+  // deleted by the next `--update-baseline`. A file that discards the reasoning
+  // you were asked to write is worse than one with no room for it.
+  const { note: _note, fingerprints: _fingerprints, ...carried } = baseline;
   await writeFile(
     baselinePath,
-    `${JSON.stringify({ note: BASELINE_NOTE, fingerprints: union }, null, 2)}\n`,
+    `${JSON.stringify({ note: BASELINE_NOTE, ...carried, fingerprints: union }, null, 2)}\n`,
   );
   console.log(
     `\n[a11y] baseline updated: ${union.length} known violations (+${added} this run). ` +
