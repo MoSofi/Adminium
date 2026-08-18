@@ -166,10 +166,22 @@ test.describe('the app is operable with the keyboard alone', () => {
     const palette = page.getByRole('dialog');
     await expect(palette).toBeVisible();
     await page.keyboard.type('Customers');
-    // Wait for the filtered result before choosing it — typing and pressing
-    // Enter in the same tick races the list.
+    // Wait for the filtered list before choosing from it — typing and pressing
+    // Enter in the same tick races the results.
     await expect(palette.getByRole('option').first()).toBeVisible();
-    await page.keyboard.press('ArrowDown');
+
+    // ARROW UNTIL THE SELECTED OPTION IS THE ONE WE WANT, rather than assuming
+    // it sits at a fixed offset. The palette searches across resources, so its
+    // ordering depends on the seeded DATA: a fixed `ArrowDown` picked the
+    // Customers page on sqlite and mysql and something else on postgres, which
+    // is a test that passes for reasons unrelated to what it claims to check.
+    const selected = palette.getByRole('option', { selected: true });
+    for (let i = 0; i < 12; i += 1) {
+      const label = (await selected.textContent()) ?? '';
+      if (/Customers/i.test(label)) break;
+      await page.keyboard.press('ArrowDown');
+    }
+    await expect(selected).toContainText(/Customers/i);
     await page.keyboard.press('Enter');
 
     await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible();
