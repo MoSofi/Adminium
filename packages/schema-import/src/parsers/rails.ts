@@ -13,7 +13,16 @@ import type { ColumnDefault, DatabaseModel, FkAction, LogicalType } from '@admin
 import { ModelBuilder, type ColumnDraft, type TableDraft } from '../builder.js';
 import { extractCheckEnum } from '../check-enum.js';
 import { SchemaImportError } from '../errors.js';
-import { parseArgs, pluralize, scalarValue, singularize, stringLiteral, splitTopLevel } from '../text.js';
+import {
+  hasLineTerminator,
+  isSpace,
+  parseArgs,
+  pluralize,
+  scalarValue,
+  singularize,
+  stringLiteral,
+  splitTopLevel,
+} from '../text.js';
 import type { WarningList } from '../warnings.js';
 
 const T_TYPES: Readonly<Record<string, { logicalType: LogicalType; dbType: string }>> = {
@@ -41,6 +50,57 @@ const T_TYPES: Readonly<Record<string, { logicalType: LogicalType; dbType: strin
   interval: { logicalType: 'interval', dbType: 'interval' },
 };
 
+/**
+ * Linear-time stand-in for the `/^<keyword>\s+(.*)$/` statement matchers —
+ * returns the argument text after `keyword`, or null when `line` is not that
+ * statement.
+ *
+ * The regex form is quadratic (CodeQL js/polynomial-redos, alerts #12/#14/#15/
+ * #16): `\s+` and `.*` both match a space, so every split of the whitespace run
+ * is retried whenever `$` cannot land — and `$` cannot land when the tail holds
+ * a character `.` never matches. A `schema.rb` saved with CR-only line endings
+ * is one giant "line" full of `\r`, so `'add_index ' + 50_000 spaces + '\rx\ry'`
+ * is a plain uploaded file, not a contrived string.
+ *
+ * Same accept set as the regex: `\s+` is greedy and any line terminator that
+ * defeats `$` sits *past* the whitespace run, so shortening `\s+` only prepends
+ * characters to the capture and can never rescue a failed match. Testing the
+ * maximal split alone is therefore exact.
+ */
+function keywordArgs(line: string, keyword: string): string | null {
+  if (!line.startsWith(keyword)) return null;
+  let i = keyword.length;
+  while (isSpace(line[i])) i += 1;
+  if (i === keyword.length) return null; // `\s+` needs at least one space
+  const args = line.slice(i);
+  return hasLineTerminator(args) ? null : args;
+}
+
+/** a-z or `_` — the characters of `[a-z_]` in the `t.<method>` matcher. */
+function isMethodChar(code: number): boolean {
+  return (code >= 97 && code <= 122) || code === 95;
+}
+
+/**
+ * Linear-time stand-in for `/^t\.([a-z_]+[!?]?)\s*(.*)$/` (alert #13), the same
+ * `\s`/`.` overlap as {@link keywordArgs}. Giving back a `[a-z_]` character
+ * cannot help either — the character after a shorter run is a letter, which
+ * neither `[!?]?` nor `\s*` accepts — so the maximal split is again exact.
+ */
+function tableMethodLine(line: string): { method: string; args: string } | null {
+  if (!line.startsWith('t.')) return null;
+  let i = 2;
+  while (i < line.length && isMethodChar(line.charCodeAt(i))) i += 1;
+  if (i === 2) return null; // `[a-z_]+` needs at least one character
+  const suffix = line[i];
+  if (suffix === '!' || suffix === '?') i += 1;
+  const method = line.slice(2, i);
+  let argStart = i;
+  while (isSpace(line[argStart])) argStart += 1;
+  const args = line.slice(argStart);
+  return hasLineTerminator(args) ? null : { method, args };
+}
+
 export function parseRails(content: string, name: string, warnings: WarningList): DatabaseModel {
   const builder = new ModelBuilder(warnings);
   const lines = content.split('\n');
@@ -57,10 +117,10 @@ export function parseRails(content: string, name: string, warnings: WarningList)
     }
     if (line.length === 0 || line.startsWith('#')) continue;
 
-    const createMatch = /^create_table\s+(.*)$/.exec(line);
-    if (createMatch) {
+    const createArgs = keywordArgs(line, 'create_table');
+    if (createArgs !== null) {
       sawCreateTable = true;
-      current = startTable(createMatch[1] as string, builder, warnings);
+      current = startTable(createArgs, builder, warnings);
       continue;
     }
     if (line === 'end' || line.startsWith('end ')) {
@@ -68,27 +128,27 @@ export function parseRails(content: string, name: string, warnings: WarningList)
       continue;
     }
     if (current !== null) {
-      const tMatch = /^t\.([a-z_]+[!?]?)\s*(.*)$/.exec(line);
-      if (tMatch) {
-        handleTableLine(tMatch[1] as string, tMatch[2] as string, current, builder, warnings);
+      const tLine = tableMethodLine(line);
+      if (tLine) {
+        handleTableLine(tLine.method, tLine.args, current, builder, warnings);
         continue;
       }
       continue;
     }
 
-    const addIndex = /^add_index\s+(.*)$/.exec(line);
-    if (addIndex) {
-      handleAddIndex(addIndex[1] as string, builder, warnings);
+    const addIndex = keywordArgs(line, 'add_index');
+    if (addIndex !== null) {
+      handleAddIndex(addIndex, builder, warnings);
       continue;
     }
-    const addFk = /^add_foreign_key\s+(.*)$/.exec(line);
-    if (addFk) {
-      handleAddForeignKey(addFk[1] as string, builder, warnings);
+    const addFk = keywordArgs(line, 'add_foreign_key');
+    if (addFk !== null) {
+      handleAddForeignKey(addFk, builder, warnings);
       continue;
     }
-    const addCheck = /^add_check_constraint\s+(.*)$/.exec(line);
-    if (addCheck) {
-      const args = parseArgs(addCheck[1] as string, 'ruby');
+    const addCheck = keywordArgs(line, 'add_check_constraint');
+    if (addCheck !== null) {
+      const args = parseArgs(addCheck, 'ruby');
       const tableName = rubyString(args.positional[0]);
       const expr = rubyString(args.positional[1]);
       const table = tableName !== null ? builder.getTable(tableName) : undefined;
@@ -393,14 +453,85 @@ function indexColumns(positional: string | undefined): string[] {
   return single === null ? [] : [single];
 }
 
+/**
+ * Linear-time stand-in for `/->\s*\{\s*"?([^"}]*)"?\s*\}/` — the body of a
+ * `default: -> { … }` lambda, or null when `raw` holds no such lambda.
+ *
+ * The regex form is *cubic*, not merely quadratic: `\s*`, `[^"}]*` and the
+ * trailing `\s*` all accept a space, so `'-> {' + n spaces` with no closing
+ * brace makes the engine try every three-way split of the run. Measured on
+ * node 22: 250 spaces 22 ms, 500 70 ms, 1_000 542 ms, 2_000 4.3 s, 4_000 34 s —
+ * a clean 8x per doubling. That is one `default:` value in an uploaded
+ * `schema.rb`, so a 4 KB run of spaces stalls the importer for half a minute.
+ *
+ * Same accept set, by two observations about where the regex can backtrack:
+ *
+ *  - The leading `\s*` runs are effectively possessive. `\{` cannot match a
+ *    whitespace character, so giving one back never rescues the match.
+ *  - Inside the braces only the *maximal* `\s*` split can match. A shorter split
+ *    leaves the cursor on whitespace, so `"?` matches empty and `[^"}]*` — which
+ *    accepts whitespace too — swallows exactly the same text up to the first `"`
+ *    or `}`. The rest of the attempt is then character-for-character the maximal
+ *    attempt's, so if the maximal split failed every shorter one fails.
+ *    Likewise `[^"}]*` need only be tried at full length: it stops at the first
+ *    `"` or `}`, and any shorter split would have to reach a `}` through the
+ *    trailing `\s*`, which that first `"` or end-of-string blocks.
+ *
+ * That leaves: skip to `{`, skip whitespace, take an optional opening quote,
+ * scan to the first `"` or `}`, and accept on a `}` there or on `"` followed by
+ * whitespace and a `}`. The two cursors keep repeated start offsets from
+ * rescanning ground already covered, which is what holds the loop linear on
+ * inputs like `'->{a'.repeat(n) + '"' + ' '.repeat(n)`.
+ */
+function arrowLambdaBody(raw: string): string | null {
+  let scanned = 0;
+  let delimiter = -1;
+  /** First `"` or `}` at or after `from`, or -1. Queries only ever move right. */
+  const nextDelimiter = (from: number): number => {
+    if (delimiter >= from) return delimiter;
+    if (scanned < from) scanned = from;
+    while (scanned < raw.length && raw[scanned] !== '"' && raw[scanned] !== '}') scanned += 1;
+    delimiter = scanned < raw.length ? scanned : -1;
+    return delimiter;
+  };
+  const afterSpace = (from: number): number => {
+    let i = from;
+    while (isSpace(raw[i])) i += 1;
+    return i;
+  };
+  /** The `"?\s*\}` tail. Memoised because consecutive starts share one quote. */
+  let closerAt = -1;
+  let closerOk = false;
+  const closes = (quote: number): boolean => {
+    if (quote !== closerAt) {
+      closerAt = quote;
+      closerOk = raw[afterSpace(quote + 1)] === '}';
+    }
+    return closerOk;
+  };
+
+  for (let at = raw.indexOf('->'); at !== -1; at = raw.indexOf('->', at + 1)) {
+    const brace = afterSpace(at + 2);
+    if (raw[brace] !== '{') continue;
+    const open = afterSpace(brace + 1);
+    const body = raw[open] === '"' ? open + 1 : open;
+    const end = nextDelimiter(body);
+    // Neither `"` nor `}` left: every later start begins further right, so no
+    // later attempt can find the `}` this one is missing either.
+    if (end === -1) return null;
+    if (raw[end] === '}' || closes(end)) return raw.slice(body, end);
+  }
+  return null;
+}
+
 function classifyRubyDefault(raw: string): ColumnDefault {
   const value = scalarValue(raw);
   if (typeof value === 'string') return { kind: 'literal', text: value };
   if (typeof value === 'number') return { kind: 'literal', text: String(value) };
   if (typeof value === 'boolean') return { kind: 'literal', text: String(value) };
-  const arrow = /->\s*\{\s*"?([^"}]*)"?\s*\}/.exec(raw);
-  if (arrow) {
-    const expr = (arrow[1] as string).trim();
+  const arrow = arrowLambdaBody(raw);
+  if (arrow !== null) {
+    const expr = arrow.trim();
     if (/now\(\)|current_timestamp/i.test(expr)) return { kind: 'now' };
     if (/gen_random_uuid/i.test(expr)) return { kind: 'uuid' };
     return { kind: 'expression', text: expr };
