@@ -1,96 +1,25 @@
 {
-  "entryJsGzBytes": 671000,
+  "entryJsGzBytes": 331000,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
   "loweredOn": {
-    "when": "2026-08-14",
-    "by": "lazy-loading the four Studio surfaces (studio/routes.tsx)",
-    "from": 680000,
-    "measured": "645.8 KiB gz (661,278 bytes), down 18.3 KiB from the 664.1 KiB this ratchet held",
-    "why": "studio/routes.tsx statically imported ConnectWizard, ConnectionsHub, StudioSettingsPage and StudioAiPage, so four admin-only screens sat in the synchronously loaded entry set for every user on every route. In-flight meta-relocation work on those screens pushed the total 151 bytes past the ratchet. The gate prints the remedy and app/router.tsx already set the precedent for it — TranslationsPageLazy was split out for this exact gate — so the four follow the same pattern rather than the baseline moving. RemapEditor and ReviewScreen were already lazy; this makes the whole Studio subtree consistent. A dead `export { ConnectWizard }` re-export went with it (both wizard tests import the module directly), which is what had kept the wizard reachable from the entry graph.",
-    "headroom": "1,722 bytes (~1.7 KiB). Wider than the 576 bytes the previous entry left, on that entry's own advice: it predicted a sub-KiB addition would go red, and one did, within the day. This is the ~1.5 KiB it recommended, taken as headroom on a much lower baseline rather than as a raise.",
-    "cost": "One extra chunk fetch the first time an admin opens a Studio route, behind the <Suspense> spinner those routes already rendered. /studio/connect is the only one on a first-run path.",
-    "supersedes": "loweredPreviously"
+    "when": "2026-08-18",
+    "by": "lazy-loading the page templates and the non-first-paint routes, and removing the lucide barrel",
+    "from": 671000,
+    "measured": "329,014 bytes (321.3 KiB gz), down from 670,786 — a 51% reduction. **Under the 350 KiB v1.0 target for the first time.**",
+    "why": "The four raises of 2026-08-17 and the note below them all attributed this gate's growth to the en-US i18n catalogue and named 10-T06's namespace split as the fix — 'the single highest-leverage item', 'it would return all three of today's raises and then some'. That was measured for the first time on 2026-08-18 and it is wrong. Deleting EN_US_RESOURCES entirely and rebuilding gives 48.7 KiB gz: real, a seventh of what was actually available, and nowhere near a 305 KiB gap. Attributing the entry chunk's own source map instead found the weight in three places nobody had looked at.",
+    "whatItActuallyWas": {
+      "1. page templates, -97.0 KiB gz": "`pages/templates.tsx` statically imported all fourteen page-template bindings, and each pulls a template component out of @adminium/widgets. A page renders exactly ONE template, so thirteen were downloaded by every user on every route and never executed. `resolvePageTemplate` was already async and `TemplateMount` already rendered a skeleton for its resolving phase — the machinery was built and then fed a synchronous map.",
+      "2. the lucide barrel, -112.6 KiB gz": "`packages/ui`'s `Icon` and the dashboard's `lucideByName` both resolved an icon from a runtime name via `import { icons } from 'lucide-react'`. A map lookup is opaque to a bundler, so all 1,611 icon modules were emitted — verified in the source map, all 1,611 with non-zero attributed bytes — for the ~136 the product draws. `scripts/gen-icon-core.mjs` now emits those as named imports; the full catalogue is a dynamic import that only a hand-picked icon outside the set pulls in.",
+      "3. route components, -62.7 KiB gz": "Eleven route components were statically imported in `app/router.tsx`, so they were in the synchronously-loaded set on every route. `EmailTemplatesPage` was the expensive one by an order of magnitude: it shares the block canvas with `page-builder`, so importing it reached `PageBuilder` → `WidgetHost` → the whole widget REGISTRY, 23 families of definitions and Zod config schemas, 336 KiB minified. The rest — About, API keys, Changelog, KB, Account, Preferences, Notifications, Defaults, Desktop settings, Desktop setup, Onboarding — are ordinary admin screens."
+    },
+    "whatWasDeliberatelyNotDone": "Removing the en-US catalogue from the entry, i.e. the thing the previous entries recommended. It is worth 48.7 KiB gz and the target no longer needs it, but it is not free: `t(key, fallback)` passes the fallback as i18next's `defaultValue`, so en-US would render from the CALL SITES instead of the catalogue — and comparing all 2,052 single-quoted call sites against `common.json` found five that have drifted. Two of them are the catalogue carrying an ICU plural (`{count, plural, one {# column} other {# columns}}`) where the fallback is a bare `{count} columns`, so the swap would ship '1 columns'. The catalogue is authoritative in those places and the fallbacks are stale; reconciling them is real work, and it is not a bundle-size task.",
+    "headroom": "1,986 bytes (~1.9 KiB). Wider than the ~400 the raise entries left, because the ratchet is no longer the binding constraint — the v1.0 target is 27 KiB below it and that is what should be defended now.",
+    "cost": "One chunk fetch the first time a page of a given template is opened, and one the first time an admin screen is opened — both behind the <Suspense> fallbacks those routes already rendered. The first paint (auth screens, AppShell, HomePage, PageRenderer, the system states, the 404) is untouched and stays static by design."
   },
-  "loweredPreviously": {
-    "when": "2026-08-14",
-    "by": "the consolidated dependency sweep",
-    "from": 682500,
-    "measured": "663.5 KiB gz (679,424 bytes), down 0.6 KiB from main's 664.1 KiB",
-    "why": "A routine dependency refresh SHRANK the entry, so the ratchet clicks down in the same commit, which is the mechanism check-entry-budget.mjs asks for. 680000 is not an arbitrary number: it is the value this ratchet held BEFORE the 2026-08-04 raise below, so restoring it retires that raise's open ratification question rather than leaving it pending forever.",
-    "headroom": "576 bytes. Deliberately tight — that is what a ratchet is for — but tight enough that a sub-KiB addition will go red. If that proves to cost more than it buys, raise to 681000 (~1.5 KiB) rather than reverting to 682500, which would silently reinstate the unratified exception.",
-    "whatWasHeldBackToAchieveThis": {
-      "lucide-react": "0.525 -> 1.31 costs +16.1 KiB gz, measured. 152 icons are imported across the repo and v1 appears to regress tree-shaking; it also drops brand icons (the `Github` export is gone, the only typecheck failure in a 64-package bump). Held in .github/dependabot.yml.",
-      "@radix-ui/* (11 packages)": "costs +4.8 KiB gz, measured, which lands the build 34 bytes over the OLD 666.5 KiB ratchet. Held in .github/dependabot.yml. Worth revisiting deliberately — these carry a11y fixes — but not by absorbing them silently."
-    }
-  },
-  "raisedOnce": {
-    "status": "REVERTED 2026-08-14 by `loweredPreviously` above, and now well below it. Kept for the record; no longer in effect, and its ratification question is moot.",
-    "when": "2026-08-04",
-    "by": "23-runtime-translations.md (runtime-editable translations)",
-    "from": 680000,
-    "to": 682500,
-    "measured": "665.2 KiB gz, up 1.1 KiB from the 664.1 KiB ratchet",
-    "why": "The runtime override layer has an irreducible boot-path cost: the merge that folds DB overrides over the compiled bundles, and the revision store the tree subscribes to, both have to exist BEFORE the first paint or the warm-boot flash guarantee (10 §7.5, 23 §4.7) breaks. Everything deferrable was deferred first — the Translations page is lazy, the editor API client is split from the boot client (api/i18nBoot.ts), the network half of the override layer is dynamic-imported (i18n/overrideCache.ts), and the key index + write validator + 458-entry a11y list moved off the main @adminium/i18n barrel onto @adminium/i18n/editing. Those four splits recovered most of what the feature added; this is the remainder."
-  },
-  "raisedAgainFor": {
-    "when": "2026-08-17",
-    "by": "the page-gutter sweep (shell/PageSurface.tsx + pages/surfaceDefaults.ts)",
-    "from": 663600,
-    "to": 664700,
-    "measured": "664,190 bytes with the feature complete — 590 bytes over the ratchet `raisedFor` had just left at 497 bytes of headroom.",
-    "why": "The gutter is boot-path code and cannot be deferred. Every page's padding was hand-rolled (`p-6` on most screens, `p-[var(--main-pad)]` on two, nothing at all on ten of the fourteen `/p/*` templates); `PageSurface` makes it one component with a closed set of choices, and PageRenderer applies it on the `/p/$slug` route — the app's main route, in the entry set by definition. A dynamic import there would put a chunk fetch between the router and the first paint of every page, which is exactly the flash the gutter exists to prevent.",
-    "whatWasDeferredFirst": "The Studio control that writes the per-page override (`studio/pages/PaddingField.tsx`) rides the existing `studio/routes.tsx` lazy() wrappers — verified by grepping the built entry for `studio-pages-padding`: zero hits.",
-    "whatElseWasTried": "Measured the copy/code split by deleting all eight new en-US strings and rebuilding: 61 bytes. So unlike `raisedFor` below, this overflow is NOT the i18n catalogue and 10-T06 would not pay for it. The copy was tightened anyway (the interpolated helper line dropped entirely, five option labels shortened); `surfaceDefaults` was rewritten from a 14-row table to three deviation lists, since every template shares the standard gutter and a full table spent most of its bytes restating the default; the component's two conditional prop spreads collapsed into plain `undefined` props. Those recovered ~130 bytes of the ~720 it started at.",
-    "headroom": "510 bytes, matching the convention `raisedFor` set.",
-    "alternativeNotTaken": "Building the `max-w-*` class from the width prop at runtime instead of a literal map. Tailwind generates utilities from source TEXT, so the literals have to appear somewhere regardless, and an `@source inline()` safelist trades ~40 bytes for a class set that no longer fails loudly when a width is renamed."
-  },
-  "raisedFor": {
-    "when": "2026-08-17",
-    "by": "Studio → Pages (the page manager: list, create, edit, sidebar order)",
-    "from": 663000,
-    "to": 663600,
-    "measured": "663,103 bytes before this raise — 103 bytes over the ratchet, which held 1,722 bytes of headroom when it was set.",
-    "why": "The overflow is en-US COPY, not code. `packages/i18n/src/resources/index.ts` statically bundles all five en-US namespaces into the entry — its own docblock says the studio/generated lazy split lands with the M8 extraction pipeline (10-T06/10-T10) — so every user-facing string on a new admin surface has an irreducible entry cost until that task ships. This feature added ~110 of them.",
-    "whatWasDeferredFirst": "All of the code. The five new modules (StudioPagesPage, NewPageScreen, EditPageScreen, PageEditorLayout/TemplatePreview/IconPicker) are behind the existing `studio/routes.tsx` lazy() wrappers; verified by grepping the built entry for code-shaped markers (`studio-pages-create`, `studio-pages-table`, `ICON_SHORTLIST`, `grid-cols-8`) — zero hits, while the copy strings appear in both the entry and the lazy chunk, which is what identified the i18n catalogue as the source.",
-    "whatElseWasTried": "Template descriptions rewritten to about half their original length (the schematic beside them carries the layout, so the words no longer had to); the seven longest new strings tightened; two orphaned keys left by the deleted CreatePageModal/PageEditorDrawer removed from all 8 locales. Those recovered ~250 bytes of the ~350 the feature was over.",
-    "headroom": "497 bytes. Deliberately small: this is a raise, and the ratchet's value is that it normally only clicks down. The next new surface should not absorb its copy cost here — it should land the 10-T06 namespace split, which would return this and more.",
-    "alternativeNotTaken": "Moving the en-US `studio` namespace out of the static bundle. That is the real fix and it would pay for this several times over, but it changes the i18n boot path in a shared package, it belongs to 10-T06/10-T10, and doing it inside a UI change would put a silent runtime-missing-string risk behind an unrelated review."
-  },
-  "raisedFor_2026_08_17": {
-    "when": "2026-08-17",
-    "by": "User management (team, roles matrix, audit log, account security) AND the dashboard-builder binding editor — 08-T08, M2-T05, 09-T14, 04-T14",
-    "from": 664700,
-    "to": 670500,
-    "measured": "670,117 bytes (654.4 KiB gz) with both features complete — 5,417 bytes over the 664,700 ratchet.",
-    "why": "The overflow is en-US COPY, not code. This is the FOURTH consecutive raise from the same structural cause (see raisedFor, raisedAgainFor, and this entry): `packages/i18n/src/resources/index.ts` statically bundles ALL FIVE en-US namespaces into the entry, so every user-facing string on any new surface has an irreducible entry cost regardless of how lazily its component loads. Its own docblock says the lazy split ships with the M8 extraction pipeline (10-T06/10-T10). These two features added 338 keys: 223 for the four people/accountability screens and 115 for the binding editor.",
-    "whatWasDeferredFirst": "All of the code, verified twice by grepping the built entry for code-shaped markers. User management: `auditQuery`, `revokeSession`, `team.invite.created` — zero hits in the entry, present only in lazy chunks. Binding editor: `BindingEditor`, `bindingDraft`, `draftIsLossy` — zero hits in the entry, present in two lazy chunks. In both cases the copy strings DO appear in the entry, which is what identifies the i18n catalogue rather than the components as the source.",
-    "whatWasNotDone": "The copy was NOT cut. Two of the longest new strings are the invite banner (the link is shown once, only a hash is stored) and the remove-user confirmation (erases account + preferences + sessions, blanks the name from the settings record, suspend keeps all of it). Both exist to stop an unrecoverable mistake and shortening them to buy ~300 bytes would be the wrong trade.",
-    "headroom": "383 bytes. Deliberately tight, per the convention the earlier entries set.",
-    "alternativeNotTaken": "Moving the new keys to `studio.json` buys nothing — all five namespaces sit in the same static bundle. **The real fix is 10-T06's namespace split, and after four raises from this one cause it is now the single highest-leverage item for this gate**: it would return this raise and the three before it several times over. It changes the i18n boot path in a shared package and carries a silent runtime-missing-string risk, so it does not belong inside a feature change — but it should be scheduled before the next surface lands, not after."
-  },
-  "raisedFor_2026_08_17_branding": {
-    "when": "2026-08-17",
-    "by": "White-label branding: workspace name, uploaded logo and the opt-out version chip across the shell (BrandMark + the public /branding route)",
-    "from": 668000,
-    "to": 668600,
-    "measured": "668,189 bytes with the feature complete — 189 bytes over the 668,000 ratchet, which had held 423 bytes of headroom.",
-    "why": "The overflow is en-US COPY, and this time that is not an inference: deleting the feature's 14 new en-US strings and rebuilding measured 667,977 bytes — 23 bytes UNDER the ratchet. So the CODE for the whole feature (BrandMark, the branding query client, the logo field and the version switch) is net zero on the entry, because replacing four hardcoded brand blocks with one component gives back what the component costs. Every byte of this raise is the i18n catalogue, the same structural cause as the two raises above, and it stays that way until 10-T06 splits the namespaces.",
-    "whyNotDeferred": "This is the shell's own chrome, on the first paint, on every route including the ones with no session: the sign-in screen, the 404 and the error heroes all render the mark. A dynamic import there would put a chunk fetch in front of the first thing anyone sees, and the workspace name would visibly swap from the built-in one a beat later — which is the exact flicker the component's fallback exists to avoid.",
-    "whatElseWasTried": "Two keys dropped (the preview image is decorative beside its own `Logo` field label, and the generic upload failure reuses the card's existing `saveFailed` string) and the two long helper lines shortened in all 8 locales. Measured recovery: 27 bytes of the 191 it started at. gzip had already folded most of the repetition, which is worth recording — copy trimming is a much weaker lever against this gate than the earlier entries' ~250-byte results suggested.",
-    "headroom": "411 bytes, matching the 423–510 the entries above set.",
-    "alternativeNotTaken": "Serving the branding strings from the runtime-translation layer instead of the compiled bundle. They would leave the entry, but the shell would then paint its own name from the network on every cold load — trading a fixed 200 bytes for the flash this feature is meant to prevent."
-  },
-  "reconciled_2026_08_17": {
-    "when": "2026-08-17",
-    "by": "Reconciling the two same-day raises, which were measured against different trees",
-    "from": 670500,
-    "to": 671000,
-    "measured": "670,786 bytes (655.1 KiB gz) — the first measurement taken with ALL of the day's work present at once.",
-    "why": "`raisedFor_2026_08_17` and `raisedFor_2026_08_17_branding` were computed concurrently by different sessions, each against a tree that did not contain the other's change, so the file ended up holding the max of two numbers rather than a measurement of anything real. The combined tree is 286 bytes over that max. Both original blocks are kept: they are honest records of what each change cost on its own. This entry is the one that was measured against the tree as it actually ships.",
-    "whatIsInIt": "Three v1.0 blockers plus an email pipeline: user management (team directory, roles matrix, audit log, account security), self-host operational safety, the data layer (relation inference, 10 new widget-data shapes, the binding editor, two dead controls), transactional email, and a concurrent session's branding feature.",
-    "theRealProblem": "This is the THIRD raise in one day and the cause has been identical every time: `packages/i18n/src/resources/index.ts` statically bundles all five en-US namespaces into the entry, so every user-facing string on any new surface has an irreducible entry cost. The day added roughly 250 keys of English copy across four features; the CODE for all of them is lazy-loaded and verified absent from the entry. Until 10-T06/10-T10 land the namespace split, every feature that ships copy will click this ratchet up again.",
-    "recommendation": "Do 10-T06 next, before any further UI work. It is now the single highest-leverage item for the 350 KiB v1.0 target — it would return all three of today's raises and then some. Continuing to raise is not a strategy; the gate's own header says the value may only go down.",
-    "headroom": "214 bytes. Deliberately tight — the next surface should land the namespace split, not absorb its copy here."
+  "supersededHistory": {
+    "note": "Six raise/lower entries from 2026-08-04 to 2026-08-17 lived here in full. They are dropped rather than kept, because four of them recorded the same wrong diagnosis in increasing detail and leaving them would preserve the reasoning that produced four raises in one day. The record that matters is above: what was believed, what was measured, and the difference.",
+    "theLesson": "Every one of those entries reasoned about the cause from what had just been added — 'this feature added 110 strings, the entry grew, therefore strings' — and none attributed the chunk it was measuring. The entry's own source map answers the question directly in about a minute, and it named three causes none of which were the one four consecutive entries agreed on.",
+    "gitHistory": "The full text is in git history for apps/dashboard/chunk-budget.json before 2026-08-18."
   }
 }
