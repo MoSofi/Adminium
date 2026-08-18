@@ -86,10 +86,23 @@ module.exports = {
         '@adminium/docs may import only @adminium/tokens from the workspace ' +
         '(01 §2.3 dependency matrix, 14-docs-site.md §2 / 14-T01). The docs site is ' +
         'static prose + a token remap: it must never import product runtime code, ' +
-        'or the published site would ship the app it documents.',
+        'or the published site would ship the app it documents. The two GENERATED ' +
+        'JSON contracts below are exempt: they are data, not code — the docs site ' +
+        'serves them verbatim at /openapi.json and /schemas/ir-v1.json via `?raw`, ' +
+        'and both had been published as URLs with nothing behind them. A copy under ' +
+        'apps/docs would satisfy this rule and reintroduce exactly the drift these ' +
+        'endpoints exist to remove.',
       severity: 'error',
       from: { path: '^apps/docs/' },
-      to: { path: ANY_WORKSPACE, pathNot: ['^apps/docs/', pkg('tokens')] },
+      to: {
+        path: ANY_WORKSPACE,
+        pathNot: [
+          '^apps/docs/',
+          pkg('tokens'),
+          '^apps/server/openapi\\.json$',
+          '^packages/engine/ir-v1\\.schema\\.json$',
+        ],
+      },
     },
     {
       name: 'ui-no-charts-widgets-engine',

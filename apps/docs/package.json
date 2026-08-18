@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "rest-api": "node scripts/sync-rest-api.mjs",
+    "rest-api:check": "node scripts/sync-rest-api.mjs --check",
     "preview": "astro preview",
     "lint": "astro check --minimumSeverity error",
     "typecheck": "astro check --minimumSeverity error",
