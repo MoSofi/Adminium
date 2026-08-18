@@ -21,6 +21,7 @@
     "@adminium/engine": "workspace:*",
     "@adminium/meta": "workspace:*",
     "@adminium/server": "workspace:*",
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "22.15.3",
     "better-sqlite3": "^13.0.3",
