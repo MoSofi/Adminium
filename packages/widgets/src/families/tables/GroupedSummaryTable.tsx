@@ -97,9 +97,9 @@ export function GroupedSummaryTable({
           className="sticky top-0 z-[1] grid items-center gap-x-4 border-b border-border bg-surface-2 px-3 py-2 text-caption font-bold uppercase tracking-wide text-fg-subtle grid-cols-[var(--adm-cols)]"
           style={{ '--adm-cols': gridCols }}
         >
-          <span>{groupLabel ?? t('ui:widgets.tables.groupedSummaryTable.groupLabel', 'Group')}</span>
+          <span role="columnheader">{groupLabel ?? t('ui:widgets.tables.groupedSummaryTable.groupLabel', 'Group')}</span>
           {columns.map((column) => (
-            <span key={column.key} className="justify-self-end text-end">{column.label}</span>
+            <span role="columnheader" key={column.key} className="justify-self-end text-end">{column.label}</span>
           ))}
         </div>
 
@@ -115,39 +115,49 @@ export function GroupedSummaryTable({
             });
           return (
             <div key={group.key} role="rowgroup">
+              {/* THE EXPAND CONTROL IS A BUTTON IN THE FIRST CELL, not the row.
+                  Two axe rules were failing here and both come from the same
+                  mistake. `aria-expanded` is not valid on `role="row"` outside a
+                  treegrid (`aria-conditional-attr`), and a row may only contain
+                  cells and headers — these were bare `<span>`s
+                  (`aria-required-children`), so the grouping was unreadable to
+                  assistive tech. A row-wide click handler with a keydown shim is
+                  also a button re-implemented badly: this one gets Enter, Space,
+                  focus and the expanded state for free. */}
               <div
                 role="row"
                 data-part="group-row"
-                tabIndex={canExpand ? 0 : undefined}
-                aria-expanded={canExpand ? isOpen : undefined}
-                onClick={canExpand ? toggle : undefined}
-                onKeyDown={
-                  canExpand
-                    ? (event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          toggle();
-                        }
-                      }
-                    : undefined
-                }
-                className={`grid items-center gap-x-4 border-b border-border/60 px-3 py-2.5 grid-cols-[var(--adm-cols)] ${canExpand ? 'cursor-pointer hover:bg-surface-2/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent' : ''}`}
+                className="grid items-center gap-x-4 border-b border-border/60 px-3 py-2.5 grid-cols-[var(--adm-cols)]"
                 style={{ '--adm-cols': gridCols }}
               >
-                <span className="flex items-center gap-1.5 font-semibold text-fg">
-                  {canExpand && (
-                    <ChevronRight
-                      aria-hidden="true"
-                      className={`size-3.5 text-fg-subtle transition-transform rtl:-scale-x-100 ${isOpen ? 'rotate-90 rtl:-rotate-90' : ''}`}
-                    />
-                  )}
-                  <span className="truncate">{group.label}</span>
-                  {group.count !== undefined && (
-                    <span className="font-mono text-caption font-normal tabular-nums text-fg-subtle">({group.count})</span>
+                <span role="rowheader" className="flex items-center gap-1.5 font-semibold text-fg">
+                  {canExpand ? (
+                    <button
+                      type="button"
+                      onClick={toggle}
+                      aria-expanded={isOpen}
+                      className="-mx-1 flex min-w-0 items-center gap-1.5 rounded-sm px-1 text-start hover:bg-surface-2/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                    >
+                      <ChevronRight
+                        aria-hidden="true"
+                        className={`size-3.5 shrink-0 text-fg-subtle transition-transform rtl:-scale-x-100 ${isOpen ? 'rotate-90 rtl:-rotate-90' : ''}`}
+                      />
+                      <span className="truncate">{group.label}</span>
+                      {group.count !== undefined && (
+                        <span className="font-mono text-caption font-normal tabular-nums text-fg-subtle">({group.count})</span>
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <span className="truncate">{group.label}</span>
+                      {group.count !== undefined && (
+                        <span className="font-mono text-caption font-normal tabular-nums text-fg-subtle">({group.count})</span>
+                      )}
+                    </>
                   )}
                 </span>
                 {columns.map((column) => (
-                  <span key={column.key} className="justify-self-end">{cell(group.aggregates[column.key], column)}</span>
+                  <span role="cell" key={column.key} className="justify-self-end">{cell(group.aggregates[column.key], column)}</span>
                 ))}
               </div>
               {isOpen &&
@@ -159,9 +169,9 @@ export function GroupedSummaryTable({
                     className="grid items-center gap-x-4 border-b border-border/40 bg-surface-2/30 px-3 py-1.5 grid-cols-[var(--adm-cols)]"
                     style={{ '--adm-cols': gridCols }}
                   >
-                    <span className="truncate ps-5 text-caption text-fg-muted">{detail.label}</span>
+                    <span role="rowheader" className="truncate ps-5 text-caption text-fg-muted">{detail.label}</span>
                     {columns.map((column) => (
-                      <span key={column.key} className="justify-self-end">
+                      <span role="cell" key={column.key} className="justify-self-end">
                         <MonoText className="text-caption tabular-nums text-fg-muted">{formatCell(detail.aggregates[column.key], column, locale)}</MonoText>
                       </span>
                     ))}
@@ -178,11 +188,13 @@ export function GroupedSummaryTable({
             className="grid items-center gap-x-4 border-t-2 border-border px-3 py-2.5 font-semibold grid-cols-[var(--adm-cols)]"
             style={{ '--adm-cols': gridCols }}
           >
-            <span className="text-fg">{totalsLabel ?? t('ui:widgets.tables.groupedSummaryTable.totalsLabel', 'Total')}</span>
+            <span role="rowheader" className="text-fg">{totalsLabel ?? t('ui:widgets.tables.groupedSummaryTable.totalsLabel', 'Total')}</span>
             {columns.map((column) => (
-              <MonoText key={column.key} className="justify-self-end text-body-sm tabular-nums text-fg">
-                {formatCell(totals[column.key], { ...column, format: column.format === 'progress' ? 'percent' : column.format }, locale)}
-              </MonoText>
+              <span role="cell" key={column.key} className="justify-self-end">
+                <MonoText className="text-body-sm tabular-nums text-fg">
+                  {formatCell(totals[column.key], { ...column, format: column.format === 'progress' ? 'percent' : column.format }, locale)}
+                </MonoText>
+              </span>
             ))}
           </div>
         )}

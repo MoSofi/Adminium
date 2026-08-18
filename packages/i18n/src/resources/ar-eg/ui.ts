@@ -300,17 +300,20 @@ export default {
       },
       "cohortMatrix": {
         "chartLabel": "احتفاظ الأفواج",
-        "description": "صفوف الأفواج مقابل أعمدة الفترات، وتُظلَّل كل خلية حسب الاحتفاظ أو الإيراد."
+        "description": "صفوف الأفواج مقابل أعمدة الفترات، وتُظلَّل كل خلية حسب الاحتفاظ أو الإيراد.",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "تقويم النشاط",
         "legendLessLabel": "أقل",
         "legendMoreLabel": "أكثر",
-        "description": "سنة من النشاط اليومي كشبكة أسابيع وأيام مظلَّلة حسب الكثافة."
+        "description": "سنة من النشاط اليومي كشبكة أسابيع وأيام مظلَّلة حسب الكثافة.",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "النشاط الشهري",
-        "description": "شهر تقويمي واحد كشبكة أيام مظلَّلة حسب قيمة كل يوم."
+        "description": "شهر تقويمي واحد كشبكة أيام مظلَّلة حسب قيمة كل يوم.",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "التفصيل حسب المنطقة",
@@ -425,12 +428,14 @@ export default {
         "description": "فئات الأحداث مع أعدادها؛ التبديل يصفّي التقويم المجاور.",
         "emptyTitle": "لا توجد فئات بعد",
         "emptyBody": "ستظهر فئات الأحداث هنا بمجرد وجود أحداث.",
-        "uncategorizedLabel": "بدون فئة"
+        "uncategorizedLabel": "بدون فئة",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "الأحداث القادمة مرتّبة حسب التاريخ، مع المسؤول والحالة.",
         "emptyTitle": "لا يوجد شيء قادم",
-        "emptyBody": "ستظهر الأحداث المجدولة هنا عند التخطيط لها."
+        "emptyBody": "ستظهر الأحداث المجدولة هنا عند التخطيط لها.",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "نطاق تاريخ مع اختيارات سريعة يصفّي بقية الصفحة.",
@@ -452,7 +457,8 @@ export default {
         "emptyBody": "ستظهر التقارير وعمليات التصدير المتكررة هنا بمجرد جدولتها.",
         "nextRunLabel": "التشغيل التالي",
         "toggleLabel": "تفعيل الجدولة",
-        "recipientsLabel": "المستلمون"
+        "recipientsLabel": "المستلمون",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -627,7 +633,8 @@ export default {
         "sendLabel": "إرسال",
         "attachLabel": "إضافة مرفق",
         "typingLabel": "يكتب…",
-        "composerLabel": "الرسالة"
+        "composerLabel": "الرسالة",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "لوحة مساعد لطرح الأسئلة حول مخطط قاعدة بياناتك وبياناتك.",
@@ -640,7 +647,8 @@ export default {
         "configureBody": "أضف مفتاح Anthropic أو OpenAI — أو وجّه Adminium إلى نقطة النهاية الخاصة بك — لطرح الأسئلة حول مخططك.",
         "configureCtaLabel": "إعداد مزوّد",
         "assistantLabel": "المساعد",
-        "composerLabel": "اطرح سؤالًا"
+        "composerLabel": "اطرح سؤالًا",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "صورة رمزية وسطر مائل ”يكتب…“ مرتبط بقيمة منطقية حية لكل محادثة.",

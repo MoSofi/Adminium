@@ -651,6 +651,7 @@ export function PageQueueInbox({
           {detailItem !== undefined && (
             <aside
               aria-label={t('ui:templates.common.detailLabel', 'Detail')}
+              tabIndex={0}
               className="hidden w-1/3 min-w-64 max-w-96 shrink-0 overflow-y-auto lg:block"
             >
               {focusedRow === undefined ? (

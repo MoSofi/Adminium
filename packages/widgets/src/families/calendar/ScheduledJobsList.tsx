@@ -74,7 +74,13 @@ export function ScheduledJobsList({
   }
 
   return (
-    <ul data-widget="scheduled-jobs-list" data-testid={testId} className="h-full divide-y divide-border overflow-auto">
+    <ul
+      data-widget="scheduled-jobs-list"
+      data-testid={testId}
+      tabIndex={0}
+      aria-label={t('ui:widgets.calendar.scheduledJobsList.listLabel', 'Scheduled jobs')}
+      className="h-full divide-y divide-border overflow-auto"
+    >
       {jobs.map((job) => {
         const enabled = job.enabled !== false;
         const next = job.next === undefined ? '' : fmtNextRun(tag, job.next);
@@ -86,6 +92,15 @@ export function ScheduledJobsList({
             data-enabled={enabled ? '' : undefined}
             // Disabled rows dim (annex) — the whole row, not just the switch, so
             // the "this is off" read survives at a glance.
+            //
+            // `aria-disabled` is what makes that legal rather than merely
+            // pretty. `opacity-55` takes the row's text to 2.6-3.9:1, and WCAG
+            // 1.4.3 exempts "an inactive user interface component" — but only
+            // when something SAYS it is inactive. Without this the dim was an
+            // unannounced contrast failure; with it the state is in the
+            // accessibility tree, where a screen-reader user gets the same
+            // information the dimming gives a sighted one.
+            {...(enabled ? {} : { 'aria-disabled': true as const })}
             className={`flex items-center gap-3 px-3 py-2.5 ${enabled ? '' : 'opacity-55'}`}
           >
             <IconTile size="md" tone={toneOf(job.tone, enabled ? 'accent' : 'neutral')} icon={<CalendarClock />} />

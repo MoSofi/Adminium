@@ -291,17 +291,20 @@
       },
       "cohortMatrix": {
         "chartLabel": "世代留存",
-        "description": "世代為列、期間為欄，每格依留存率或營收深淺著色。"
+        "description": "世代為列、期間為欄，每格依留存率或營收深淺著色。",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "活動行事曆",
         "legendLessLabel": "少",
         "legendMoreLabel": "多",
-        "description": "一整年的每日活動以週對日的格線呈現，依強度深淺著色。"
+        "description": "一整年的每日活動以週對日的格線呈現，依強度深淺著色。",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "每月活動",
-        "description": "單一日曆月份以日格線呈現，依當日數值深淺著色。"
+        "description": "單一日曆月份以日格線呈現，依當日數值深淺著色。",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "區域分佈",
@@ -416,12 +419,14 @@
         "description": "附計數的事件類別；切換即可篩選旁邊的行事曆。",
         "emptyTitle": "尚無類別",
         "emptyBody": "有事件後，事件類別會顯示在這裡。",
-        "uncategorizedLabel": "未分類"
+        "uncategorizedLabel": "未分類",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "依日期排序的近期事件，含負責人與狀態。",
         "emptyTitle": "沒有即將到來的事件",
-        "emptyBody": "排定的事件會陸續顯示在這裡。"
+        "emptyBody": "排定的事件會陸續顯示在這裡。",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "附快捷選項的日期區間，可篩選頁面其餘內容。",
@@ -443,7 +448,8 @@
         "emptyBody": "排定週期性報表或匯出後，會顯示在這裡。",
         "nextRunLabel": "下次執行",
         "toggleLabel": "啟用排程",
-        "recipientsLabel": "收件者"
+        "recipientsLabel": "收件者",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -618,7 +624,8 @@
         "sendLabel": "傳送",
         "attachLabel": "新增附件",
         "typingLabel": "正在輸入…",
-        "composerLabel": "訊息"
+        "composerLabel": "訊息",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "用於詢問資料庫結構與資料的助理面板。",
@@ -631,7 +638,8 @@
         "configureBody": "新增 Anthropic 或 OpenAI 金鑰，或將 Adminium 指向你自己的端點，即可詢問資料庫結構。",
         "configureCtaLabel": "設定供應商",
         "assistantLabel": "助理",
-        "composerLabel": "提出問題"
+        "composerLabel": "提出問題",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "頭像加斜體「輸入中…」列，繫結至每個對話的即時布林值。",

@@ -84,7 +84,16 @@ export function UpcomingEventsList({
   }
 
   return (
-    <ul data-widget="upcoming-events-list" data-testid={testId} className="h-full space-y-1.5 overflow-auto p-2">
+    // `tabIndex={0}`: the rows are `<li>`s with no focusable content in the
+    // unlinked variant, so without it the overflow is scrollable by mouse and
+    // unreachable by keyboard (axe `scrollable-region-focusable`, WCAG 2.1.1).
+    <ul
+      data-widget="upcoming-events-list"
+      data-testid={testId}
+      tabIndex={0}
+      aria-label={t('ui:widgets.calendar.upcomingEventsList.listLabel', 'Upcoming events')}
+      className="h-full space-y-1.5 overflow-auto p-2"
+    >
       {upcoming.map((event, index) => {
         const tone = event.tone === undefined ? categoryTone(event.category, categoryColorMap) : toneOf(event.tone);
         const day = parseIsoDay(event.date);

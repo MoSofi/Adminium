@@ -179,7 +179,13 @@ export function AiChatPanel({
               />
             </div>
           ) : (
-            <div data-part="ai-transcript" className="flex flex-1 flex-col gap-2 overflow-auto p-4">
+            <div
+              data-part="ai-transcript"
+              role="log"
+              tabIndex={0}
+              aria-label={t('ui:widgets.communication.aiChatPanel.transcriptLabel', 'Assistant transcript')}
+              className="flex flex-1 flex-col gap-2 overflow-auto p-4"
+            >
               {ordered.map((turn) => (
                 <AiBubble key={turn.id} turn={turn} locale={locale} />
               ))}
@@ -261,8 +267,10 @@ function AiBubble({ turn, locale }: { turn: AiTurn & { own: boolean }; locale: s
             dateTime={stamp}
             title={formatAbsoluteTime(stamp, locale)}
             data-part="ai-time"
+            // No alpha, same as ChatThread's bubble stamp: `--accent-fg` on
+            // `--accent` is gated at >= 4.5:1, and 70% took it to 3.89:1.
             className={`mt-1 block font-mono text-[9.5px] tabular-nums ${
-              own ? 'text-end text-accent-fg/70' : 'text-start text-fg-subtle'
+              own ? 'text-end text-accent-fg' : 'text-start text-fg-subtle'
             }`}
           >
             {fmtClock(locale, stamp)}

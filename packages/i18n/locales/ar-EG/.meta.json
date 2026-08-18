@@ -9599,6 +9599,10 @@
     "srcHash": "be11fb426b98",
     "status": "mt"
   },
+  "ui.widgets.calendar.calendarLegendFilter.listLabel": {
+    "status": "mt",
+    "srcHash": "6ccb60071be8"
+  },
   "ui.widgets.calendar.calendarLegendFilter.uncategorizedLabel": {
     "srcHash": "4ef7d73c1a83",
     "status": "mt"
@@ -9763,6 +9767,10 @@
     "srcHash": "9d7f452d5b2d",
     "status": "mt"
   },
+  "ui.widgets.calendar.scheduledJobsList.listLabel": {
+    "status": "mt",
+    "srcHash": "3fea948b49f8"
+  },
   "ui.widgets.calendar.scheduledJobsList.nextRunLabel": {
     "srcHash": "6c03cbdc1101",
     "status": "mt"
@@ -9786,6 +9794,10 @@
   "ui.widgets.calendar.upcomingEventsList.emptyTitle": {
     "srcHash": "e063900fbff8",
     "status": "mt"
+  },
+  "ui.widgets.calendar.upcomingEventsList.listLabel": {
+    "status": "mt",
+    "srcHash": "1abcabd808c2"
   },
   "ui.widgets.charts.anomaly.chartLabel": {
     "srcHash": "d966ba3b06e6",
@@ -9919,6 +9931,10 @@
     "srcHash": "1f0370c171b6",
     "status": "mt"
   },
+  "ui.widgets.charts.cohortMatrix.regionLabel": {
+    "status": "mt",
+    "srcHash": "45880d1174b9"
+  },
   "ui.widgets.charts.correlationMatrix.chartLabel": {
     "srcHash": "5390e3d21a86",
     "status": "mt"
@@ -9999,6 +10015,10 @@
     "srcHash": "07512ee724c8",
     "status": "mt"
   },
+  "ui.widgets.charts.heatMonth.regionLabel": {
+    "status": "mt",
+    "srcHash": "ffe5b0c9fe70"
+  },
   "ui.widgets.charts.heatmapCalendar.chartLabel": {
     "srcHash": "04ca200710c3",
     "status": "mt"
@@ -10014,6 +10034,10 @@
   "ui.widgets.charts.heatmapCalendar.legendMoreLabel": {
     "srcHash": "4bab2d8fe13f",
     "status": "mt"
+  },
+  "ui.widgets.charts.heatmapCalendar.regionLabel": {
+    "status": "mt",
+    "srcHash": "04ca200710c3"
   },
   "ui.widgets.charts.hexbin.chartLabel": {
     "srcHash": "41f5611ad812",
@@ -10603,6 +10627,10 @@
     "srcHash": "9bc2575c3930",
     "status": "mt"
   },
+  "ui.widgets.communication.aiChatPanel.transcriptLabel": {
+    "status": "mt",
+    "srcHash": "6295c0a0ebcf"
+  },
   "ui.widgets.communication.callWidget.acceptLabel": {
     "srcHash": "bb54db510a92",
     "status": "mt"
@@ -10678,6 +10706,10 @@
   "ui.widgets.communication.chatThread.sendLabel": {
     "srcHash": "9bc2575c3930",
     "status": "mt"
+  },
+  "ui.widgets.communication.chatThread.transcriptLabel": {
+    "status": "mt",
+    "srcHash": "2a20c7503389"
   },
   "ui.widgets.communication.chatThread.typingLabel": {
     "srcHash": "d19aaa387bc7",
