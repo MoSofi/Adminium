@@ -18,7 +18,14 @@ not deleting it.
 
 ## Performance
 
-- [ ] Dashboard entry chunk meets its budget (350 KB gz target; ~648 KB today)
+- [ ] Dashboard entry chunk meets its budget (350 KB gz target; **655.1 KiB
+      today — 1.87x, and the ratchet has been RAISED six times, four of them on
+      2026-08-17 alone**). Every raise had the same cause and it was never code:
+      `packages/i18n/src/resources/index.ts` statically bundles all five en-US
+      namespaces, so every user-facing string on a new surface has an
+      irreducible entry cost. 10-T06's namespace split is the only route to the
+      target that does not mean deleting copy; trimming will not close a 305 KiB
+      gap
 - [x] Bundle-size gate runs in CI so the entry chunk cannot regress silently
       (`apps/dashboard/scripts/check-entry-budget.mjs` runs at the end of the
       dashboard build, which the CI verify job executes)
@@ -104,6 +111,18 @@ not deleting it.
       is); users see a Gatekeeper/SmartScreen prompt. The signing + notarization
       steps and the verify gate remain in desktop-release.yml, so enabling them
       later is a secrets change, not a code change.
-- [ ] A `v1.0.0-rc.*` rehearsal ran the full npm + ghcr + Releases pipeline
-      green before the final tag
+- [x] An rc rehearsal ran the full npm + ghcr + Releases pipeline green before
+      the final tag — **`v0.2.2-rc.0`, 2026-08-18, run 32132761130**, all four
+      jobs green. 15/15 packages published under the `next` dist-tag with
+      `latest` held at 0.2.1 and SLSA provenance present (so OIDC trusted
+      publishing, not a hand publish); ghcr logged `move :latest = false`; the
+      GitHub Release was created with `prerelease: true`.
+      **Caveat, deliberately recorded rather than glossed:** `v0.2.2-rc.0` is a
+      `v0.x` tag, and `v0.x` is exempt from this gate — so the prerelease
+      *bypass* added for `v1.x` (see the note at the top of this file) did NOT
+      execute on this run. What is proven is the publish pipeline, not the v1
+      gate path; that still needs a real `v1.x` prerelease. Rehearsing at 1.0.0
+      was rejected because reaching it needs a `major` bump the patch-only
+      version policy forbids, and would declare v1.0 intent while the rows above
+      are open.
 - [x] This gate is enforced by CI on `v1+` tags
