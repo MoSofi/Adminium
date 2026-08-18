@@ -9,7 +9,7 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { Suspense, lazy, useSyncExternalStore, type ComponentType } from 'react';
+import { Suspense, lazy, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
 import {
   Outlet,
   createRootRouteWithContext,
@@ -59,7 +59,12 @@ import { requestIdForError, stateIdForError } from './query.js';
  * chunk fetch in front of those trades bytes for a blank frame, which is the
  * wrong trade at exactly the moment the app is being judged on speed.
  */
-function lazyRoute(load: () => Promise<ComponentType>): ComponentType {
+// Returns a FUNCTION component, not `ComponentType`. `ComponentType` is
+// `ComponentClass | FunctionComponent`, and TanStack's `RouteComponent` accepts
+// only the function half — so the wider return type failed `createRoute`'s
+// `component` at eleven call sites. It only ever produces a function; saying so
+// is the fix.
+function lazyRoute(load: () => Promise<ComponentType>): () => ReactElement {
   const Lazy = lazy(async () => ({ default: await load() }));
   return function LazyRoute() {
     return (
