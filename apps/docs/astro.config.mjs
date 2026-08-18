@@ -149,6 +149,15 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Desktop app',
+          items: [
+            { label: 'Install', link: '/desktop/' },
+            { label: 'First run', link: '/desktop/first-run/' },
+            { label: 'Backups & restore', link: '/desktop/backups/' },
+            { label: 'Share it on your network', link: '/desktop/lan-share/' },
+          ],
+        },
+        {
           label: 'Self-Hosting',
           items: [
             { label: 'Overview & requirements', link: '/self-hosting/' },

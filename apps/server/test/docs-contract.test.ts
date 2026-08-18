@@ -204,6 +204,34 @@ describe('the docs describe the build that shipped', () => {
     expect(read('apps/docs/src/pages/openapi.json.ts')).toContain('server/openapi.json?raw');
   });
 
+  it('documents the desktop app for the people who run it, not just release it', () => {
+    // THE GAP THIS PINS. The docs had exactly one desktop page —
+    // `contributing/release-desktop.md`, about cutting a tag — and nothing at
+    // all for someone who downloaded the installer: no install, no first run, no
+    // backup, no LAN share, and no Desktop section in the sidebar to look in.
+    const routes = docsRoutes();
+    for (const route of ['desktop', 'desktop/first-run', 'desktop/backups', 'desktop/lan-share']) {
+      expect(routes, `the docs site does not publish /${route}`).toContain(route);
+    }
+    // And the sidebar is explicit, so a page nobody links is a page nobody finds.
+    const config = read('apps/docs/astro.config.mjs');
+    expect(config).toContain("label: 'Desktop app'");
+    for (const link of ['/desktop/', '/desktop/first-run/', '/desktop/backups/', '/desktop/lan-share/']) {
+      expect(config, `the sidebar does not link ${link}`).toContain(`link: '${link}'`);
+    }
+  });
+
+  it('tells desktop users the one thing a backup alone will not restore', () => {
+    // `ADMINIUM_SECRET` lives in config.json and never in the backup zip, by
+    // design — and every DSN and LLM key in the archive is encrypted with it. A
+    // backup page that does not say so documents a restore that fails on a new
+    // machine.
+    const backups = read('apps/docs/src/content/docs/desktop/backups.md');
+    expect(backups).toContain('ADMINIUM_SECRET');
+    expect(backups).toContain('config.json');
+    expect(backups).toMatch(/pre-restore/);
+  });
+
   it('does not claim the update check is governed by the telemetry opt-in', () => {
     // THE BUG THIS PINS. The page said the update check "is governed by the same
     // opt-in", while update-check.ts states the opposite in a design note and a
