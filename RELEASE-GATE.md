@@ -18,14 +18,22 @@ not deleting it.
 
 ## Performance
 
-- [ ] Dashboard entry chunk meets its budget (350 KB gz target; **655.1 KiB
-      today — 1.87x, and the ratchet has been RAISED six times, four of them on
-      2026-08-17 alone**). Every raise had the same cause and it was never code:
-      `packages/i18n/src/resources/index.ts` statically bundles all five en-US
-      namespaces, so every user-facing string on a new surface has an
-      irreducible entry cost. 10-T06's namespace split is the only route to the
-      target that does not mean deleting copy; trimming will not close a 305 KiB
-      gap
+- [x] Dashboard entry chunk meets its budget — **321.3 KiB gz (329,014 bytes)
+      against the 350 KiB target, 2026-08-18.** Down from 655.1 KiB, a 51%
+      reduction, in three changes: the fourteen page-template bindings are lazy
+      (`pages/templates.tsx`, −97.0 KiB — a page renders one template and
+      downloaded all fourteen); the lucide catalogue is no longer imported as a
+      map (`scripts/gen-icon-core.mjs` + `packages/ui/.../icon-resolver.ts`,
+      −112.6 KiB — all 1,611 icon modules were in the entry for the ~136 the
+      product draws); and eleven route components are lazy (`app/router.tsx`,
+      −62.7 KiB — `EmailTemplatesPage` alone reached `PageBuilder` →
+      `WidgetHost` → the whole widget registry).
+      **The six earlier raises blamed the wrong thing.** They attributed the
+      growth to the en-US i18n catalogue and named 10-T06 as the fix. Measured:
+      deleting `EN_US_RESOURCES` entirely is worth 48.7 KiB gz — a seventh of
+      what was available, and it was not needed. The full record, including why
+      the i18n split was deliberately NOT taken, is in
+      `apps/dashboard/chunk-budget.json`
 - [x] Bundle-size gate runs in CI so the entry chunk cannot regress silently
       (`apps/dashboard/scripts/check-entry-budget.mjs` runs at the end of the
       dashboard build, which the CI verify job executes)
@@ -59,11 +67,59 @@ not deleting it.
       themes, strict (0 failures)
 - [x] axe sweep gated in CI by a grow-only fingerprint baseline (no new
       violation kinds can land)
-- [ ] axe fingerprint baseline burned down to zero or each remaining
-      fingerprint individually accepted with rationale
-- [ ] AuthLayout brand-panel contrast resolved (needs a design decision —
-      no token swap fixes it)
-- [ ] VRT baselines regenerated on the CI platform after the token changes
+- [x] axe fingerprint baseline burned down to zero or each remaining
+      fingerprint individually accepted with rationale — **162 → 1, 2026-08-18.**
+      121 of the 162 were never real: the sweep's Storybook build had two
+      harness defects, so it was measuring something the product does not look
+      like. `storybook.css` `@source`d only `packages/ui` while `main.ts` has
+      loaded the widgets and charts stories since 04-T17, so every widget story
+      rendered unstyled; and nothing painted `--bg` on the preview body, so
+      dark-theme foregrounds sat on Storybook's white body and axe composited
+      the translucent tone tints over white. Fixing both exposed 27 violations
+      the unstyled build had HIDDEN and left 128 real ones, which were fixed
+      rather than baselined — alpha-dimmed small text, six keyboard-unreachable
+      scroll regions, `role="row"` containers with no cell children, a `<dl>`
+      with a `<p>` child, an `aria-expanded` row that should have been a button,
+      and two dimmed surfaces that never said `aria-disabled`. The single
+      remaining entry is accepted with a measured rationale in
+      `packages/ui/a11y-baseline.json` — a tone chip on a selected row, which is
+      a dark-palette decision (44 pairs, 4.50 down to 3.54) and not a component
+      bug
+- [x] AuthLayout brand-panel contrast resolved — **it WAS a token swap, just not
+      the one that had been tried.** The panel painted `--accent`, which resolves
+      to the DARK ramp under `data-theme="dark"`; that ramp is a foreground
+      colour, so it is light, and white copy on it measured **1.64–2.35:1**
+      across the eight accents. It now paints `--accent-light`, the same variable
+      in both themes, making the panel one fixed dark brand surface at
+      5.90–18.88:1 that still follows `data-accent`. The white alphas went with
+      it (description and trust badges 80%/60% → 90%, the testimonial card from
+      `bg-white/10` to `bg-black/15`). The panel is `aria-hidden`, so the axe
+      sweep skips the whole subtree and always will — it is gated instead by a
+      new `brand-panel` group in `packages/tokens/scripts/contrast-check.mjs`
+      (3,088 → 3,328 gated pairs, all passing) and pinned from the component side
+      in `AuthLayout.test.tsx`
+- [x] Accessibility is checked on ASSEMBLED pages, not only in isolation
+      (`apps/e2e/tests/a11y.spec.ts`): the sign-in screen, the generated
+      dashboard, a page-crud list, a record detail and an admin settings surface,
+      each scanned with `@axe-core/playwright` — which was a devDependency of one
+      package and appeared in no test. No baseline there, deliberately: it starts
+      clean and must stay clean
+- [x] A keyboard-only journey spec exists (`apps/e2e/tests/keyboard.spec.ts`):
+      tab from the top of the document into the nav and follow a link, the
+      account menu's open/arrow/Escape-restores-focus cycle, the command palette
+      on its shortcut, and reaching a grid's sort control — all driven with the
+      keyboard alone, no `.click()` and no `.focus()`. axe cannot supply any of
+      it: it reads a snapshot, so it cannot tell you that tabbing never reaches
+      something or that Escape strands you
+- [ ] VRT baselines regenerated on the CI platform after the token changes.
+      **2026-08-18: the harness is now wired** — `vrt` is a turbo task and a job
+      in `ci.yml`, after being complete-but-unreferenced (no workflow, no turbo
+      task, never executed once) for the whole of M1–M11. It currently reports
+      **0 committed baselines** loudly into the job summary rather than passing
+      silently. Capture them with the `vrt-baselines` workflow
+      (`workflow_dispatch`, runs on the same image, uploads the PNGs as an
+      artifact to review and commit) — deliberately AFTER the accessibility
+      burn-down below, or the whole matrix gets recorded twice
 
 ## i18n / RTL
 
@@ -106,11 +162,21 @@ not deleting it.
       (`meta-upgrade-from-released.test.ts`)
 - [x] Server update check reads only `v*` releases (other tag series, drafts,
       and prereleases excluded), selects by highest version
-- [x] macOS signing — **WAIVED for v1.0, ship unsigned** (owner decision
-      2026-07-23). Both desktop platforms ship unsigned for v1 (Windows already
-      is); users see a Gatekeeper/SmartScreen prompt. The signing + notarization
-      steps and the verify gate remain in desktop-release.yml, so enabling them
-      later is a secrets change, not a code change.
+- [x] macOS signing — **the 2026-07-23 waiver is SUPERSEDED: macOS now ships
+      signed.** The `desktop-v0.2.1` tag run signed both app bundles with a
+      Developer ID, notarized and stapled both DMGs in a dedicated step (
+      electron-builder's `mac.notarize` covers the `.app` only), and passed the
+      strict verifier with zero warnings. All five Apple secrets live in the
+      `desktop-release` environment; the repo-level secret count is zero. The
+      verifier is fail-closed with no secret guard, so a cert-less tag produces
+      an ad-hoc build, trips the check, and starves the release job.
+      **Windows stays unsigned by the original waiver** — a SmartScreen
+      trade-off, recorded in `docs/contributing/release-desktop.md`.
+      **Still owed, and not a code change: the `desktop-v0.2.1` GitHub Release
+      is a DRAFT.** The signed artifacts exist and nobody can download them
+      until a human presses Publish, which is the policy (`CI never makes a
+      release public`) working as intended — but it means the proven build is
+      not yet shipped.
 - [x] An rc rehearsal ran the full npm + ghcr + Releases pipeline green before
       the final tag — **`v0.2.2-rc.0`, 2026-08-18, run 32132761130**, all four
       jobs green. 15/15 packages published under the `next` dist-tag with
