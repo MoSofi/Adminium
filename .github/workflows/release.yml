@@ -53,13 +53,53 @@ jobs:
         run: |
           major="${VERSION#v}"
           major="${major%%.*}"
+          parsed=
           case "$major" in
             ''|*[!0-9]*)
               echo "Unparseable version '$VERSION' — enforcing the gate to be safe." ;;
             0)
               echo "v0.x release — RELEASE-GATE.md not enforced."; exit 0 ;;
+            *)
+              parsed=1 ;;
           esac
-          unchecked="$(grep -n -- '- \[ \]' RELEASE-GATE.md || true)"
+          # A PRERELEASE (1.0.0-rc.1) reports but does not block.
+          #
+          # This gate used to fail prereleases exactly like a GA tag, which
+          # deadlocked it against its own checklist: one row requires that "a
+          # `v1.0.0-rc.*` rehearsal ran the full npm + ghcr + Releases
+          # pipeline", and that rehearsal needs a v1 prerelease tag — which the
+          # gate refused while any row was unchecked, that row included. A
+          # rehearsal exists to run BEFORE the gate is green; blocking it on a
+          # green gate inverts the order.
+          #
+          # Safe because the rest of this workflow is already prerelease-aware:
+          # docker never moves `:latest` for a prerelease, the GitHub release
+          # is created with `--prerelease`, and publish-npm.mjs ships
+          # prereleases under the `next` dist-tag. A GA `v1.x` tag is still
+          # hard-blocked below.
+          # `parsed` is required: an UNPARSEABLE version can contain a hyphen
+          # too ("not-a-version"), and without this it would be read as a
+          # prerelease and skip the gate — the opposite of the "enforce to be
+          # safe" rule above.
+          case "$VERSION" in
+            *-*) prerelease="$parsed" ;;
+            *) prerelease= ;;
+          esac
+
+          # ANCHORED on purpose. An unanchored `- [ ]` also matched this
+          # file's own PROSE — the sentence explaining that an unchecked
+          # `- [ ]` item blocks a release is itself an unchecked-looking
+          # match — so the gate could never go green no matter how many real
+          # rows were ticked, and nobody would find out until the GA tag.
+          # `^[[:space:]]*- \[ \]` matches list items (indented ones too) and
+          # not descriptions of them.
+          unchecked="$(grep -nE '^[[:space:]]*- \[ \]' RELEASE-GATE.md || true)"
+          if [ -n "$unchecked" ] && [ -n "$prerelease" ]; then
+            echo "RELEASE-GATE.md still has unchecked items. This is a PRERELEASE,"
+            echo "so the rehearsal proceeds — GA stays blocked until these close:"
+            echo "$unchecked"
+            exit 0
+          fi
           if [ -n "$unchecked" ]; then
             echo "RELEASE-GATE.md still has unchecked items — a v1+ tag cannot publish:"
             echo "$unchecked"

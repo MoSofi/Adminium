@@ -2,8 +2,14 @@
 
 The checklist that must be fully checked before a `v1.*` tag may publish.
 CI enforces it: the `release-gate` job in `.github/workflows/release.yml`
-fails any `v1+` tag build while an unchecked `- [ ]` item remains here, and
+fails any GA `v1+` tag build while an unchecked `- [ ]` item remains here, and
 every publish job depends on it. `v0.x` tags are exempt.
+
+A `v1.x` **prerelease** (`v1.0.0-rc.1`) is reported on but NOT blocked — it
+prints the unchecked rows and proceeds. That exemption exists because the last
+row below requires an rc rehearsal, and gating the rehearsal on a fully-checked
+list made that row unsatisfiable by itself. Prereleases publish to npm under
+the `next` dist-tag and never move Docker's `:latest`.
 
 Rules: check an item only when it is verifiably true on `main` (test, CI job,
 or recorded decision). An item that stops being true gets unchecked. Deciding
