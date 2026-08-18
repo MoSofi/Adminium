@@ -136,12 +136,12 @@ export type BindingBuildResult =
 /**
  * How the projection control behaves for a shape:
  *  - `none`   the shape aggregates and selects nothing;
- *  - `one`    exactly one value column (`distribution`);
+ *  - `one`    exactly one value column (`distribution`, bucketed `ohlc`);
  *  - `many`   a free column list (the row shapes);
- *  - `event`  the positional calendar mapping `[date, title, category?, end?]`
- *             — column ORDER names the roles, so this cannot be a checkbox set.
+ *  - `roles`  a POSITIONAL mapping — column ORDER names the roles, so this
+ *             cannot be a checkbox set. {@link SELECT_ROLES} lists the slots.
  */
-export type SelectMode = 'none' | 'one' | 'many' | 'event';
+export type SelectMode = 'none' | 'one' | 'many' | 'roles';
 
 /** Which controls a shape offers, and what it needs before it can be saved. */
 export interface ShapeControls {
@@ -286,10 +286,76 @@ export const SHAPE_CONTROLS = {
     groupBy: NO_GROUP,
     bucket: false,
     window: 'off',
-    select: 'event',
+    select: 'roles',
     order: true,
     limit: true,
     defaultLimit: 500,
+  },
+  /**
+   * The four shapes below each have TWO descriptor forms on the server (see the
+   * compiler header). The editor offers the ROLLUP of each, because that is the
+   * form an arbitrary introspected table can satisfy and the one the dashboard
+   * charts want — a rolled-up tree is what `chart-sunburst` sizes rings by, a
+   * rolled-up geo is what `chart-choropleth-grid` fills regions from. Each
+   * reuses controls the editor already renders, so none of them needs a bespoke
+   * form: a two-key rollup is spelled exactly like `matrix`.
+   *
+   * The adjacency/coordinate/stored-candle forms stay authorable through the
+   * LLM pass and the generator's rules; `draftIsLossy` is what warns before
+   * this form overwrites one of them.
+   */
+  'hierarchy/tree': {
+    measure: true,
+    groupBy: { min: 2, max: 2 },
+    bucket: false,
+    window: 'off',
+    select: 'none',
+    order: false,
+    limit: true,
+    defaultLimit: 100,
+  },
+  'geo-points': {
+    measure: true,
+    groupBy: ONE_GROUP,
+    bucket: false,
+    window: 'off',
+    select: 'none',
+    order: false,
+    limit: true,
+    defaultLimit: 100,
+  },
+  flows: {
+    measure: true,
+    groupBy: { min: 2, max: 2 },
+    bucket: false,
+    window: 'off',
+    select: 'none',
+    order: false,
+    limit: true,
+    defaultLimit: 100,
+  },
+  ohlc: {
+    // A bucketed `ohlc` derives open/high/low/close from ONE value column, so
+    // it takes no measure — and the server caps the fold itself, which is why
+    // there is no row control to offer.
+    measure: false,
+    groupBy: NO_GROUP,
+    bucket: true,
+    window: 'optional',
+    select: 'one',
+    order: false,
+    limit: false,
+    defaultLimit: 100,
+  },
+  'boolean-map': {
+    measure: false,
+    groupBy: NO_GROUP,
+    bucket: false,
+    window: 'off',
+    select: 'roles',
+    order: false,
+    limit: true,
+    defaultLimit: 100,
   },
 } as const satisfies Record<CompilableDataShape, ShapeControls>;
 
@@ -297,9 +363,53 @@ export function controlsFor(shape: CompilableDataShape): ShapeControls {
   return SHAPE_CONTROLS[shape];
 }
 
-/** Positional roles of a `calendar-events` projection, in descriptor order. */
-export const EVENT_SELECT_ROLES = ['date', 'title', 'category', 'end'] as const;
-export type EventSelectRole = (typeof EVENT_SELECT_ROLES)[number];
+/**
+ * One slot of a positional projection. `kind` narrows the column picker to what
+ * the SERVER will actually read the slot as — `real` exists because the
+ * shaper classifies a `geo-points` coordinate pair by logical type, so offering
+ * an integer column there would author a binding that silently reads as a
+ * region code.
+ */
+/**
+ * Every positional slot key in use. Closed and enumerable so the editor's label
+ * map is an exhaustive `Record` — a new slot without a label fails the build
+ * instead of rendering its raw key.
+ */
+export const SELECT_ROLE_KEYS = ['date', 'title', 'category', 'end', 'flagKey', 'flagValue'] as const;
+export type SelectRoleKey = (typeof SELECT_ROLE_KEYS)[number];
+
+export interface SelectRole {
+  /** Stable slot key — the label lookup and the React key hang off it. */
+  key: SelectRoleKey;
+  kind: 'any' | 'temporal' | 'numeric' | 'real';
+  /** A blank required slot makes the draft incomplete. */
+  required: boolean;
+}
+
+/**
+ * Positional projections, in descriptor order. Only the shapes whose `select`
+ * mode is `roles` appear; everything else selects nothing, one column, or a
+ * free list.
+ */
+export const SELECT_ROLES = {
+  'calendar-events': [
+    { key: 'date', kind: 'temporal', required: true },
+    { key: 'title', kind: 'any', required: true },
+    { key: 'category', kind: 'any', required: false },
+    { key: 'end', kind: 'temporal', required: false },
+  ],
+  'boolean-map': [
+    { key: 'flagKey', kind: 'any', required: true },
+    { key: 'flagValue', kind: 'any', required: true },
+  ],
+} as const satisfies Partial<Record<CompilableDataShape, readonly SelectRole[]>>;
+
+const NO_ROLES: readonly SelectRole[] = [];
+
+/** The positional slots a shape projects; empty unless its mode is `roles`. */
+export function rolesFor(shape: CompilableDataShape): readonly SelectRole[] {
+  return (SELECT_ROLES as Partial<Record<CompilableDataShape, readonly SelectRole[]>>)[shape] ?? NO_ROLES;
+}
 
 /**
  * Shapes a widget accepts beyond its declared contract.
@@ -481,11 +591,13 @@ function toFilter(filter: DraftFilter): QueryFilter {
 /**
  * The projection a shape stores, or `null` when the draft has not filled it in.
  *
- * `event` is positional, so a gap is a corruption rather than an omission: with
- * no category but an end column, the end lands in the category slot and the
- * calendar reads its own end date as a lane name. Hence the contiguity rule.
+ * A `roles` projection is positional, so a gap is a corruption rather than an
+ * omission: skip a `calendar-events` category but fill the end column and the
+ * end date lands in the category slot, where the calendar reads it as a lane
+ * name. Hence the contiguity rule — an optional slot may only be blank if every
+ * slot after it is blank too.
  */
-function projectionOf(draft: BindingDraft, mode: SelectMode): string[] | null {
+function projectionOf(draft: BindingDraft, shape: CompilableDataShape, mode: SelectMode): string[] | null {
   if (mode === 'none') return [];
   const chosen = draft.select.map((column) => column ?? '');
   if (mode === 'one') {
@@ -496,10 +608,16 @@ function projectionOf(draft: BindingDraft, mode: SelectMode): string[] | null {
     const columns = chosen.filter((entry) => entry !== '');
     return columns.length === 0 ? null : columns;
   }
-  const [date = '', title = '', category = '', end = ''] = chosen;
-  if (date === '' || title === '') return null;
-  if (category === '' && end !== '') return null;
-  return [date, title, category, end].filter((entry) => entry !== '');
+  const roles = rolesFor(shape);
+  const slots = roles.map((_role, index) => chosen[index] ?? '');
+  let blankSeen = false;
+  for (const [index, role] of roles.entries()) {
+    const filled = (slots[index] ?? '') !== '';
+    if (!filled && role.required) return null;
+    if (!filled) blankSeen = true;
+    else if (blankSeen) return null; // a filled slot after a blank one shifts roles
+  }
+  return slots.filter((entry) => entry !== '');
 }
 
 /**
@@ -512,7 +630,7 @@ export function descriptorFromDraft(draft: BindingDraft): BindingBuildResult {
   const issues: BindingIssue[] = [];
 
   const groupBy = draft.groupBy.slice(0, controls.groupBy.max).filter((column) => column !== '');
-  const projection = projectionOf(draft, controls.select);
+  const projection = projectionOf(draft, draft.shape, controls.select);
 
   if (draft.connectionId === '') issues.push('connection');
   if (draft.table === '') issues.push('table');
