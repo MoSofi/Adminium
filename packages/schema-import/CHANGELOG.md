@@ -1,5 +1,13 @@
 # @adminium/schema-import
 
+## 0.2.2-rc.0
+
+### Patch Changes
+
+- Updated dependencies [2684976]
+- Updated dependencies [ef1c300]
+  - @adminium/engine@0.2.2-rc.0
+
 ## 0.2.1
 
 ### Patch Changes
