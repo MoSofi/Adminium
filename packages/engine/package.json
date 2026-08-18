@@ -25,14 +25,17 @@
     "./adapter": {
       "types": "./dist/adapter.d.ts",
       "default": "./dist/adapter.js"
-    }
+    },
+    "./ir-v1.schema.json": "./ir-v1.schema.json"
   },
   "scripts": {
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ir-schema": "node scripts/ir-json-schema.mjs",
+    "ir-schema:check": "node scripts/ir-json-schema.mjs --check"
   },
   "dependencies": {
     "@adminium/widgets": "workspace:*",
@@ -45,6 +48,7 @@
     "vitest": "catalog:"
   },
   "files": [
-    "dist"
+    "dist",
+    "ir-v1.schema.json"
   ]
 }

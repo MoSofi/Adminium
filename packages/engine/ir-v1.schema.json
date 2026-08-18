@@ -1,0 +1,1148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.adminium.dev/schemas/ir-v1.json",
+  "title": "Adminium schema IR v1",
+  "description": "The intermediate representation every Adminium schema import converges on. Generated from packages/engine/src/schema-model.ts — do not edit by hand.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this schema. Adminium ignores it on import."
+    },
+    "irVersion": {
+      "default": 1,
+      "type": "number",
+      "const": 1
+    },
+    "dialect": {
+      "type": "string",
+      "enum": [
+        "postgres",
+        "mysql",
+        "sqlite",
+        "generic"
+      ]
+    },
+    "source": {
+      "default": {
+        "kind": "import",
+        "format": "json-ir"
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "live"
+            },
+            "connectionId": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "connectionId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "import"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "sql-ddl",
+                "prisma",
+                "drizzle",
+                "typeorm",
+                "sequelize",
+                "rails",
+                "django",
+                "json-ir"
+              ]
+            },
+            "fileName": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "kind",
+            "format"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "defaultSchema": {
+      "default": "public",
+      "type": "string",
+      "minLength": 1
+    },
+    "schemas": {
+      "default": [
+        "public"
+      ],
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "schema": {
+            "default": "public",
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "default": "table",
+            "type": "string",
+            "enum": [
+              "table",
+              "view",
+              "materialized-view"
+            ]
+          },
+          "comment": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "columns": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "ordinal": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "dbType": {
+                  "default": "text",
+                  "type": "string"
+                },
+                "logicalType": {
+                  "default": "text",
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "varchar",
+                    "integer",
+                    "bigint",
+                    "decimal",
+                    "float",
+                    "boolean",
+                    "date",
+                    "time",
+                    "timestamp",
+                    "timestamptz",
+                    "interval",
+                    "uuid",
+                    "json",
+                    "binary",
+                    "enum",
+                    "geometry",
+                    "inet",
+                    "unknown"
+                  ]
+                },
+                "nullable": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "default": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "literal",
+                                "expression"
+                              ]
+                            },
+                            "text": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "autoincrement",
+                                "now",
+                                "uuid"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "isPrimaryKey": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "isUnique": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "isGenerated": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "enumRef": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "maxLength": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "numericPrecision": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "numericScale": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "isArray": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "comment": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "references": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "tableId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "column": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "tableId",
+                        "column"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "semantics": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "enum": [
+                            "secret",
+                            "pk-id",
+                            "fk",
+                            "money",
+                            "percent",
+                            "score",
+                            "status-workflow",
+                            "category-enum",
+                            "created-at",
+                            "updated-at",
+                            "date-range",
+                            "event-timestamp",
+                            "duration",
+                            "geo-point",
+                            "geo-region",
+                            "person-name",
+                            "email",
+                            "phone",
+                            "image-url",
+                            "file-ref",
+                            "url",
+                            "boolean-flag",
+                            "color",
+                            "tags",
+                            "slug",
+                            "ip-address",
+                            "json-config",
+                            "external-id",
+                            "free-text",
+                            "plain"
+                          ]
+                        },
+                        "flags": {
+                          "type": "object",
+                          "properties": {
+                            "secret": {
+                              "default": false,
+                              "type": "boolean"
+                            },
+                            "pii": {
+                              "default": null,
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "email",
+                                    "phone",
+                                    "ip",
+                                    "person-name",
+                                    "address",
+                                    "dob",
+                                    "gov-id",
+                                    "payment-id",
+                                    "geo-precise"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "maskedByDefault": {
+                              "default": false,
+                              "type": "boolean"
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "format": {
+                          "default": null,
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "pair": {
+                          "default": null,
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "role": {
+                                  "type": "string",
+                                  "enum": [
+                                    "start",
+                                    "end",
+                                    "lat",
+                                    "lng",
+                                    "poly-type",
+                                    "poly-id"
+                                  ]
+                                },
+                                "partner": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "role",
+                                "partner"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "source": {
+                          "default": "heuristic",
+                          "type": "string",
+                          "enum": [
+                            "heuristic",
+                            "llm",
+                            "override"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "flags",
+                        "confidence"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "primaryKey": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "uniques": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "columns": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "columns"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "checks": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expression": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "name",
+                "expression"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "indexes": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "columns": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "expression": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "unique": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "primary": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "method": {
+                  "default": null,
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "partial": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rowCountEstimate": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rowCountExact": {
+            "default": false,
+            "type": "boolean"
+          },
+          "sizeBytes": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "activity": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "inserts": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "updates": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "deletes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "inserts",
+                  "updates",
+                  "deletes"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rls": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "forced": {
+                    "type": "boolean"
+                  },
+                  "policyCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "forced",
+                  "policyCount"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "system": {
+            "default": false,
+            "type": "boolean"
+          },
+          "semantics": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "entity",
+                      "join-table",
+                      "log",
+                      "people",
+                      "messages",
+                      "line-items",
+                      "system"
+                    ]
+                  },
+                  "hierarchy": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "parentColumn": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "parentColumn"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "polymorphic": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "typeColumn": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "idColumn": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "targets": {
+                          "default": [],
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "typeColumn",
+                        "idColumn"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "role"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "columns"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "enums": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "values": {
+            "minItems": 1,
+            "maxItems": 256,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "default": "import",
+            "type": "string",
+            "enum": [
+              "native",
+              "column-type",
+              "check",
+              "import"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "values"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "relations": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "declared-fk",
+              "inferred-name",
+              "inferred-join-table",
+              "override",
+              "manifest"
+            ]
+          },
+          "cardinality": {
+            "type": "string",
+            "enum": [
+              "one-to-one",
+              "one-to-many",
+              "many-to-many"
+            ]
+          },
+          "from": {
+            "type": "object",
+            "properties": {
+              "tableId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "columns": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "tableId",
+              "columns"
+            ],
+            "additionalProperties": false
+          },
+          "to": {
+            "type": "object",
+            "properties": {
+              "tableId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "columns": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "tableId",
+              "columns"
+            ],
+            "additionalProperties": false
+          },
+          "through": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "tableId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fromColumns": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "toColumns": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "required": [
+                  "tableId",
+                  "fromColumns",
+                  "toColumns"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "onDelete": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cascade",
+                  "restrict",
+                  "set-null",
+                  "set-default",
+                  "no-action"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "onUpdate": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "cascade",
+                  "restrict",
+                  "set-null",
+                  "set-default",
+                  "no-action"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selfReferential": {
+            "default": false,
+            "type": "boolean"
+          },
+          "confidence": {
+            "default": 1,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "cardinality",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "capabilities": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "hasEnums": {
+          "default": false,
+          "type": "boolean"
+        },
+        "hasFKs": {
+          "default": true,
+          "type": "boolean"
+        },
+        "hasSchemas": {
+          "default": false,
+          "type": "boolean"
+        },
+        "hasComments": {
+          "default": false,
+          "type": "boolean"
+        },
+        "hasChecks": {
+          "default": false,
+          "type": "boolean"
+        },
+        "hasRLS": {
+          "default": false,
+          "type": "boolean"
+        },
+        "hasMaterializedViews": {
+          "default": false,
+          "type": "boolean"
+        },
+        "hasRowEstimates": {
+          "default": false,
+          "type": "boolean"
+        },
+        "supportsStatementTimeout": {
+          "default": false,
+          "type": "boolean"
+        },
+        "supportsReturning": {
+          "default": false,
+          "type": "boolean"
+        },
+        "maxIdentifierLength": {
+          "default": 128,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": false
+    },
+    "introspectedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO 8601. Defaults to the moment of import when omitted."
+    },
+    "stats": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "tableCount": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "columnCount": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "relationCount": {
+          "default": 0,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "durationMs": {
+          "default": 0,
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "warnings": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tableId": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "dialect",
+    "name",
+    "tables"
+  ],
+  "additionalProperties": false
+}
