@@ -69,6 +69,46 @@ describe('json ir fixture', () => {
     );
   });
 
+  it('accepts the `$schema` pointer the docs tell you to write', () => {
+    // THE BUG THIS PINS. The JSON IR guide told readers to add
+    // `"$schema": ".../ir-v1.json"` so their editor validates while they type.
+    // Every IR object is a Zod strictObject, so that key made the document
+    // unimportable: the page's own recommended workflow produced a file
+    // Adminium rejected at `<root>: Unrecognized key: "$schema"`.
+    const withPointer = JSON.stringify({
+      $schema: 'https://docs.adminium.dev/schemas/ir-v1.json',
+      irVersion: 1,
+      dialect: 'generic',
+      name: 'tiny',
+      tables: [{ name: 't', columns: [{ name: 'id' }] }],
+    });
+    const { model } = parseSchemaFile(withPointer);
+    expect(model.name).toBe('tiny');
+    expect(model.tables).toHaveLength(1);
+  });
+
+  it('still rejects a non-string `$schema` — that is data, not editor metadata', () => {
+    const shady = JSON.stringify({
+      $schema: { tables: 'not a pointer' },
+      irVersion: 1,
+      dialect: 'generic',
+      name: 'tiny',
+      tables: [{ name: 't', columns: [{ name: 'id' }] }],
+    });
+    expect(() => parseSchemaFile(shady, { format: 'json' })).toThrowError(/\$schema/);
+  });
+
+  it('leaves every other unknown key failing loudly', () => {
+    const typo = JSON.stringify({
+      irVersion: 1,
+      dialect: 'generic',
+      name: 'tiny',
+      tabels: [],
+      tables: [{ name: 't', columns: [{ name: 'id' }] }],
+    });
+    expect(() => parseSchemaFile(typo, { format: 'json' })).toThrowError(/tabels/);
+  });
+
   it('opts.name overrides the document name', () => {
     const { model } = parseSchemaFile(loadFixture('northwind-ir.json'), { name: 'renamed' });
     expect(model.name).toBe('renamed');
