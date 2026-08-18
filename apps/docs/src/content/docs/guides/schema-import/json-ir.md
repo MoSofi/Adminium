@@ -14,60 +14,137 @@ and the rest of the pipeline works unchanged.
 
 ## Shape
 
-```json
+The IR is the `DatabaseModel` schema itself, and it is **strict**: an unknown
+key is an error, not a warning. Everything below except `dialect`, `name`,
+`tables`, and each table's `name`/`columns` has a default, so a hand-written
+document stays small.
+
+```json title="acme.json"
 {
+  "$schema": "https://docs.adminium.dev/schemas/ir-v1.json",
   "irVersion": 1,
+  "dialect": "postgres",
+  "name": "acme",
+  "enums": [
+    {
+      "id": "public.user_status",
+      "name": "user_status",
+      "values": ["active", "suspended"]
+    }
+  ],
   "tables": [
     {
-      "id": "public.users",
+      "schema": "public",
+      "name": "orgs",
+      "columns": [
+        {
+          "name": "id",
+          "dbType": "uuid",
+          "logicalType": "uuid",
+          "nullable": false,
+          "isPrimaryKey": true
+        }
+      ],
+      "primaryKey": ["id"]
+    },
+    {
       "schema": "public",
       "name": "users",
       "columns": [
         {
           "name": "id",
-          "type": "uuid",
+          "dbType": "uuid",
+          "logicalType": "uuid",
           "nullable": false,
-          "primaryKey": true
+          "isPrimaryKey": true
         },
         {
           "name": "email",
-          "type": "text",
+          "dbType": "text",
+          "logicalType": "text",
           "nullable": false,
-          "unique": true,
-          "description": "Login address"
+          "isUnique": true,
+          "comment": "Login address"
         },
         {
           "name": "status",
-          "type": "enum",
+          "dbType": "user_status",
+          "logicalType": "enum",
+          "enumRef": "public.user_status",
           "nullable": false,
-          "enumValues": ["active", "suspended"],
-          "default": "active"
+          "default": { "kind": "literal", "text": "active" }
+        },
+        {
+          "name": "org_id",
+          "dbType": "uuid",
+          "logicalType": "uuid",
+          "nullable": false,
+          "references": { "tableId": "public.orgs", "column": "id" }
         }
       ],
-      "foreignKeys": [
-        {
-          "columns": ["org_id"],
-          "referencesTable": "public.orgs",
-          "referencesColumns": ["id"]
-        }
-      ]
+      "primaryKey": ["id"]
+    }
+  ],
+  "relations": [
+    {
+      "id": "public.users.org_id->public.orgs.id",
+      "kind": "declared-fk",
+      "cardinality": "one-to-many",
+      "from": { "tableId": "public.users", "columns": ["org_id"] },
+      "to": { "tableId": "public.orgs", "columns": ["id"] },
+      "onDelete": "cascade"
     }
   ]
 }
 ```
 
-The authoritative schema is published as JSON Schema, so you can validate before
-importing and get editor completion while writing:
+Four things in there are easy to get wrong, and all four are hard errors:
+
+- **`dialect` and `name` are required.** Use `"generic"` when your source is not
+  a specific database.
+- **Column type lives in two fields.** `dbType` is the verbatim native type;
+  `logicalType` is one of the closed set Adminium reasons over (`text`,
+  `integer`, `uuid`, `timestamptz`, `enum`, …). There is no `type` key.
+- **`default` is an object**, not a bare value: `{ "kind": "literal", "text":
+  "active" }`, or `{ "kind": "expression", "text": "now()" }`, or one of the
+  shorthands `{ "kind": "autoincrement" | "now" | "uuid" }`.
+- **Foreign keys are stated on the column, and optionally as a relation.**
+  There is no `foreignKeys` array on a table. `references` is the mirror the
+  generator reads; a `relations` entry additionally carries cardinality and
+  referential actions. Both must point at a table and column that exist in the
+  same document — dangling references are rejected, so an IR file cannot
+  describe half a schema.
+
+The smallest document Adminium accepts is much shorter:
+
+```json title="tiny.json"
+{
+  "irVersion": 1,
+  "dialect": "generic",
+  "name": "tiny",
+  "tables": [{ "name": "users", "columns": [{ "name": "id" }] }]
+}
+```
+
+## Validate before you import
+
+The schema is published as JSON Schema, generated from the same Zod model that
+validates the import — so it cannot disagree with what Adminium accepts:
 
 ```
-https://adminium.dev/schemas/ir-v1.json
+https://docs.adminium.dev/schemas/ir-v1.json
 ```
+
+Reference it with `$schema` and your editor validates as you type. Adminium
+strips that one key on import; every *other* unknown key is still an error.
 
 ```json title="my-schema.json"
 {
-  "$schema": "https://adminium.dev/schemas/ir-v1.json",
+  "$schema": "https://docs.adminium.dev/schemas/ir-v1.json",
   "irVersion": 1,
-  "tables": []
+  "dialect": "generic",
+  "name": "my-schema",
+  "tables": [{ "name": "users", "columns": [{ "name": "id" }] }]
 }
 ```
 

@@ -139,6 +139,71 @@ describe('the docs describe the build that shipped', () => {
     );
   });
 
+  it('the REST reference names every operation the API actually serves', () => {
+    // THE BUG THIS PINS. The page's hand-written route-group table listed 18
+    // prefixes. The API has 31, over 161 operations — so 52 operations, a third
+    // of the surface, appeared NOWHERE: exports, imports, scheduled-reports,
+    // email-templates, search, i18n, users and permissions were unnamed, and
+    // three rows named prefixes no route has ever used (`/views/*`,
+    // `/generate/*`, `/schema/*` are all nested under other resources). A
+    // reference page missing a third of the API is worse than none, because it
+    // reads as complete. The page's two derived blocks are now written from this
+    // same document by `apps/docs/scripts/sync-rest-api.mjs`.
+    const spec = JSON.parse(
+      readFileSync(join(repoRoot, 'apps', 'server', 'openapi.json'), 'utf8'),
+    ) as { paths: Record<string, Record<string, unknown>> };
+    const page = read('apps/docs/src/content/docs/reference/rest-api.md');
+
+    const operations: string[] = [];
+    for (const [path, methods] of Object.entries(spec.paths)) {
+      for (const method of ['get', 'post', 'put', 'patch', 'delete']) {
+        if (methods[method] === undefined) continue;
+        operations.push(`${method.toUpperCase()} ${path}`);
+      }
+    }
+    expect(operations.length).toBeGreaterThan(150);
+
+    const missing = operations.filter((operation) => !page.includes(operation));
+    expect(
+      missing,
+      `rest-api.md omits ${String(missing.length)} of ${String(operations.length)} operations — ` +
+        'regenerate it: pnpm --filter @adminium/docs run rest-api',
+    ).toEqual([]);
+  });
+
+  it('the REST reference invents no route prefix', () => {
+    // The other half of the same defect: three rows pointed readers at
+    // namespaces that do not exist. Every `/api/v1/<prefix>` the page names must
+    // be one the spec serves.
+    const spec = JSON.parse(
+      readFileSync(join(repoRoot, 'apps', 'server', 'openapi.json'), 'utf8'),
+    ) as { paths: Record<string, unknown> };
+    const real = new Set(
+      Object.keys(spec.paths).map((path) => path.replace('/api/v1/', '').split('/')[0] as string),
+    );
+    const page = read('apps/docs/src/content/docs/reference/rest-api.md');
+
+    // Only the group table's own rows — prose deliberately names the three
+    // prefixes that do NOT exist, to say so.
+    const table = page.slice(
+      page.indexOf('<!-- BEGIN GENERATED: groups -->'),
+      page.indexOf('<!-- END GENERATED: groups -->'),
+    );
+    const named = [...table.matchAll(/`\/api\/v1\/([a-z0-9-]+)/g)].map((m) => m[1] as string);
+    expect(named.length).toBeGreaterThan(25);
+    for (const prefix of named) {
+      expect(real, `rest-api.md names /api/v1/${prefix}, which no route serves`).toContain(prefix);
+    }
+  });
+
+  it('points readers at the machine-readable spec, and the docs site serves it', () => {
+    // An accurate generated spec that the docs never link is a spec nobody
+    // reads. The endpoint is what makes the URL real rather than aspirational.
+    const page = read('apps/docs/src/content/docs/reference/rest-api.md');
+    expect(page).toContain('https://docs.adminium.dev/openapi.json');
+    expect(read('apps/docs/src/pages/openapi.json.ts')).toContain('server/openapi.json?raw');
+  });
+
   it('does not claim the update check is governed by the telemetry opt-in', () => {
     // THE BUG THIS PINS. The page said the update check "is governed by the same
     // opt-in", while update-check.ts states the opposite in a design note and a

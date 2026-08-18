@@ -124,6 +124,22 @@ jobs:
       - name: Check OpenAPI spec is current
         run: pnpm run openapi-check
 
+      # The two artifacts DERIVED from that spec and from the IR model. Both
+      # exist because the docs published contracts nobody generated: the REST
+      # reference omitted 52 of 161 operations under a heading that read as
+      # complete, and `guides/schema-import/json-ir.md` had advertised a
+      # `$schema` URL since it was written that 404'd. Generating them is half a
+      # fix — a derived artifact nobody re-derives is a stale contract published
+      # as a current one, which is the same failure `openapi-check` above exists
+      # for. `docs-contract.test.ts` and `engine/test/ir-json-schema.test.ts`
+      # assert the same things from the other side; these run here so the
+      # failure names the command that fixes it.
+      - name: Check the published IR JSON Schema is current
+        run: pnpm run ir-schema-check
+
+      - name: Check the REST reference covers the route tree
+        run: pnpm run rest-api-docs-check
+
       # 10-i18n-theming.md §3.5 / 23-runtime-translations.md §10. This gate has
       # existed as a package script since M8 and was never wired into CI, so
       # translation drift — a bundle whose en-US source moved under it — could
