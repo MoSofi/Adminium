@@ -318,7 +318,13 @@ describe('capabilities.exportPng → the kebab Download item', () => {
     // Put a graphic inside the frame the host owns.
     const frame = document.querySelector('[data-widget-frame]') as HTMLElement;
     const graphic = realCreate('div');
-    graphic.innerHTML = '<svg viewBox="0 0 200 100"><rect /></svg>';
+    // Parsed, not assigned as raw markup: packages/llm's injection.test.ts
+    // scans this tree for raw-HTML sinks and counts one wherever it appears,
+    // test file or not.
+    graphic.append(
+      new DOMParser().parseFromString('<svg viewBox="0 0 200 100"><rect /></svg>', 'image/svg+xml')
+        .documentElement,
+    );
     frame.append(graphic);
 
     await userEvent.click(screen.getByRole('button', { name: 'Widget menu' }));

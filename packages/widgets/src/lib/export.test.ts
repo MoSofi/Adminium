@@ -32,7 +32,7 @@ import {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  document.body.innerHTML = '';
+  document.body.replaceChildren();
 });
 
 describe('format vocabulary', () => {
@@ -307,9 +307,21 @@ describe('downloadRows', () => {
 
 // --- SVG → PNG ---------------------------------------------------------------
 
+/**
+ * Build fixture DOM without assigning `.innerHTML`. `packages/llm`'s
+ * `injection.test.ts` scans this tree for raw-HTML sinks and treats an
+ * ASSIGNMENT as one wherever it appears — a test file is not a render surface,
+ * but the guard is deliberately blunt and weakening it to buy test convenience
+ * is the wrong trade. `DOMParser` gives the same fixtures with no sink.
+ */
+function parseFixture(markup: string): Node[] {
+  const doc = new DOMParser().parseFromString(`<body>${markup}</body>`, 'text/html');
+  return [...doc.body.childNodes];
+}
+
 function mountSvg(markup: string): SVGSVGElement {
   const host = document.createElement('div');
-  host.innerHTML = markup;
+  host.append(...parseFixture(markup));
   document.body.append(host);
   return host.querySelector('svg') as SVGSVGElement;
 }
@@ -324,7 +336,7 @@ describe('findExportableGraphic', () => {
     expect(findExportableGraphic(null)).toBeNull();
     expect(findExportableGraphic(undefined)).toBeNull();
     const host = document.createElement('div');
-    host.innerHTML = '<p>a table, not a chart</p>';
+    host.replaceChildren(...parseFixture('<p>a table, not a chart</p>'));
     expect(findExportableGraphic(host)).toBeNull();
   });
 });
@@ -496,7 +508,7 @@ describe('rasterizeSvg', () => {
 describe('exportElementAsPng', () => {
   it('refuses a widget that has no graphic', async () => {
     const host = document.createElement('div');
-    host.innerHTML = '<table><tbody><tr><td>no chart here</td></tr></tbody></table>';
+    host.replaceChildren(...parseFixture('<table><tbody><tr><td>no chart here</td></tr></tbody></table>'));
     document.body.append(host);
     await expect(exportElementAsPng(host, 'Revenue')).rejects.toThrow(/no graphic to export/i);
   });
@@ -508,7 +520,7 @@ describe('exportElementAsPng', () => {
     const anchors: HTMLAnchorElement[] = [];
     const realCreate = document.createElement.bind(document);
     const host = realCreate('div');
-    host.innerHTML = '<svg viewBox="0 0 200 100"><rect /></svg>';
+    host.replaceChildren(...parseFixture('<svg viewBox="0 0 200 100"><rect /></svg>'));
     document.body.append(host);
 
     vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
