@@ -231,7 +231,13 @@ export function ShiftMatrix({
             className="grid items-stretch gap-1 border-b border-border/50 px-2 py-1.5 grid-cols-[var(--adm-cols)] hover:bg-surface-2/50"
             style={{ '--adm-cols': gridCols }}
           >
-            <div className="flex min-w-0 items-center gap-2">
+            {/* `role="rowheader"`. A `role="row"` may only contain cells,
+                gridcells, columnheaders and rowheaders — this div had no role,
+                so its Avatar's `role="img"` became a direct child of the row and
+                the whole table was invalid to assistive tech (axe
+                `aria-required-children`). Rowheader is what this column is: the
+                resource the row is about. */}
+            <div role="rowheader" className="flex min-w-0 items-center gap-2">
               <Avatar name={resource.label} size="sm" locale={tag} />
               <div className="min-w-0">
                 <p className="truncate text-caption font-semibold text-fg">{resource.label}</p>
@@ -309,7 +315,10 @@ export function ShiftMatrix({
             className="grid items-center gap-1 border-t border-border bg-surface-2/40 px-2 py-2 grid-cols-[var(--adm-cols)]"
             style={{ '--adm-cols': gridCols }}
           >
-            <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
+            {/* `rowheader`/`cell` for the same reason as the resource rows
+                above: a `role="row"` may only contain cells and headers, and
+                these carried no role at all. */}
+            <span role="rowheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
               {labels?.coverage ?? t('ui:widgets.calendar.scheduleMatrix.coverageLabel', 'Coverage')}
             </span>
             {days.map((day) => {
@@ -319,6 +328,7 @@ export function ShiftMatrix({
               return (
                 <div
                   key={day}
+                  role="cell"
                   data-part="coverage-day"
                   data-tone={tone}
                   className="flex flex-col items-center gap-1"

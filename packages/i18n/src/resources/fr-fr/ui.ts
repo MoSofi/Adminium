@@ -300,17 +300,20 @@ export default {
       },
       "cohortMatrix": {
         "chartLabel": "Rétention par cohorte",
-        "description": "Des lignes de cohortes face à des colonnes de périodes, chaque cellule étant teintée selon la rétention ou le chiffre d’affaires."
+        "description": "Des lignes de cohortes face à des colonnes de périodes, chaque cellule étant teintée selon la rétention ou le chiffre d’affaires.",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "Calendrier d’activité",
         "legendLessLabel": "Moins",
         "legendMoreLabel": "Plus",
-        "description": "Une année d’activité quotidienne sous forme de grille semaines × jours teintée selon l’intensité."
+        "description": "Une année d’activité quotidienne sous forme de grille semaines × jours teintée selon l’intensité.",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "Activité mensuelle",
-        "description": "Un mois calendaire sous forme de grille de jours teintée selon la valeur de chaque jour."
+        "description": "Un mois calendaire sous forme de grille de jours teintée selon la valeur de chaque jour.",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "Répartition régionale",
@@ -425,12 +428,14 @@ export default {
         "description": "Catégories d'événements avec compteur ; cocher filtre le calendrier voisin.",
         "emptyTitle": "Aucune catégorie",
         "emptyBody": "Les catégories d'événements apparaîtront ici dès qu'il y aura des événements.",
-        "uncategorizedLabel": "Sans catégorie"
+        "uncategorizedLabel": "Sans catégorie",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "Les prochains événements par ordre de date, avec responsable et statut.",
         "emptyTitle": "Rien à venir",
-        "emptyBody": "Les événements planifiés apparaîtront ici au fur et à mesure."
+        "emptyBody": "Les événements planifiés apparaîtront ici au fur et à mesure.",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "Une plage de dates avec raccourcis, qui filtre le reste de la page.",
@@ -452,7 +457,8 @@ export default {
         "emptyBody": "Les rapports et exports récurrents apparaîtront ici une fois planifiés.",
         "nextRunLabel": "Prochaine exécution",
         "toggleLabel": "Activer la planification",
-        "recipientsLabel": "Destinataires"
+        "recipientsLabel": "Destinataires",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -627,7 +633,8 @@ export default {
         "sendLabel": "Envoyer",
         "attachLabel": "Ajouter une pièce jointe",
         "typingLabel": "en train d'écrire…",
-        "composerLabel": "Message"
+        "composerLabel": "Message",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "Un panneau d'assistant pour poser des questions sur votre schéma et vos données.",
@@ -640,7 +647,8 @@ export default {
         "configureBody": "Ajoutez une clé Anthropic ou OpenAI — ou pointez Adminium vers votre propre point de terminaison — pour poser des questions sur votre schéma.",
         "configureCtaLabel": "Configurer un fournisseur",
         "assistantLabel": "Assistant",
-        "composerLabel": "Poser une question"
+        "composerLabel": "Poser une question",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "Un avatar et une ligne en italique « en train d’écrire… », liée à un booléen actif par conversation.",

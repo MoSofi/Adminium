@@ -291,17 +291,20 @@
       },
       "cohortMatrix": {
         "chartLabel": "同期群留存",
-        "description": "同期群为行、周期为列，每个单元格按留存率或收入着色。"
+        "description": "同期群为行、周期为列，每个单元格按留存率或收入着色。",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "活动日历",
         "legendLessLabel": "较少",
         "legendMoreLabel": "较多",
-        "description": "以周×日的网格呈现全年每日活动，按强度着色。"
+        "description": "以周×日的网格呈现全年每日活动，按强度着色。",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "每月活动",
-        "description": "将一个自然月呈现为日期网格，按每天的数值着色。"
+        "description": "将一个自然月呈现为日期网格，按每天的数值着色。",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "区域细分",
@@ -416,12 +419,14 @@
         "description": "带计数的事件类别；切换即可筛选旁边的日历。",
         "emptyTitle": "暂无类别",
         "emptyBody": "有事件后，事件类别将显示在这里。",
-        "uncategorizedLabel": "未分类"
+        "uncategorizedLabel": "未分类",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "按日期排列的近期事件，含负责人和状态。",
         "emptyTitle": "暂无即将开始的事件",
-        "emptyBody": "计划中的事件将陆续显示在这里。"
+        "emptyBody": "计划中的事件将陆续显示在这里。",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "带快捷选项的日期范围，可筛选页面其余内容。",
@@ -443,7 +448,8 @@
         "emptyBody": "计划周期性报表或导出后，将显示在这里。",
         "nextRunLabel": "下次运行",
         "toggleLabel": "启用计划",
-        "recipientsLabel": "接收人"
+        "recipientsLabel": "接收人",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -618,7 +624,8 @@
         "sendLabel": "发送",
         "attachLabel": "添加附件",
         "typingLabel": "正在输入…",
-        "composerLabel": "消息"
+        "composerLabel": "消息",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "用于询问数据库结构和数据的助手面板。",
@@ -631,7 +638,8 @@
         "configureBody": "添加 Anthropic 或 OpenAI 密钥，或将 Adminium 指向你自己的接口地址，即可询问数据库结构。",
         "configureCtaLabel": "配置提供方",
         "assistantLabel": "助手",
-        "composerLabel": "提出问题"
+        "composerLabel": "提出问题",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "头像加斜体“正在输入…”行，绑定到每个会话的实时布尔值。",

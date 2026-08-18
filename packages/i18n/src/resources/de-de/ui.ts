@@ -300,17 +300,20 @@ export default {
       },
       "cohortMatrix": {
         "chartLabel": "Kohortenbindung",
-        "description": "Kohortenzeilen gegen Zeitraumspalten; jede Zelle ist nach Bindung oder Umsatz eingefärbt."
+        "description": "Kohortenzeilen gegen Zeitraumspalten; jede Zelle ist nach Bindung oder Umsatz eingefärbt.",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "Aktivitätskalender",
         "legendLessLabel": "Weniger",
         "legendMoreLabel": "Mehr",
-        "description": "Ein Jahr täglicher Aktivität als Raster aus Wochen und Tagen, eingefärbt nach Intensität."
+        "description": "Ein Jahr täglicher Aktivität als Raster aus Wochen und Tagen, eingefärbt nach Intensität.",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "Monatsaktivität",
-        "description": "Ein Kalendermonat als Tagesraster, eingefärbt nach dem Wert des jeweiligen Tages."
+        "description": "Ein Kalendermonat als Tagesraster, eingefärbt nach dem Wert des jeweiligen Tages.",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "Regionale Aufschlüsselung",
@@ -425,12 +428,14 @@ export default {
         "description": "Ereigniskategorien mit Anzahl; ein Klick filtert den Kalender daneben.",
         "emptyTitle": "Noch keine Kategorien",
         "emptyBody": "Ereigniskategorien erscheinen hier, sobald Termine vorhanden sind.",
-        "uncategorizedLabel": "Ohne Kategorie"
+        "uncategorizedLabel": "Ohne Kategorie",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "Die nächsten Termine in zeitlicher Reihenfolge, mit Verantwortlichen und Status.",
         "emptyTitle": "Nichts anstehend",
-        "emptyBody": "Geplante Termine erscheinen hier, sobald sie angelegt werden."
+        "emptyBody": "Geplante Termine erscheinen hier, sobald sie angelegt werden.",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "Ein Datumsbereich mit Schnellauswahl, der die übrige Seite filtert.",
@@ -452,7 +457,8 @@ export default {
         "emptyBody": "Wiederkehrende Berichte und Exporte erscheinen hier, sobald sie geplant sind.",
         "nextRunLabel": "Nächste Ausführung",
         "toggleLabel": "Zeitplan aktivieren",
-        "recipientsLabel": "Empfänger"
+        "recipientsLabel": "Empfänger",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -627,7 +633,8 @@ export default {
         "sendLabel": "Senden",
         "attachLabel": "Anhang hinzufügen",
         "typingLabel": "tippt…",
-        "composerLabel": "Nachricht"
+        "composerLabel": "Nachricht",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "Ein Assistenz-Panel für Fragen zu Ihrem Schema und Ihren Daten.",
@@ -640,7 +647,8 @@ export default {
         "configureBody": "Fügen Sie einen Anthropic- oder OpenAI-Schlüssel hinzu — oder verweisen Sie Adminium auf Ihren eigenen Endpunkt —, um Fragen zu Ihrem Schema zu stellen.",
         "configureCtaLabel": "Anbieter konfigurieren",
         "assistantLabel": "Assistent",
-        "composerLabel": "Frage stellen"
+        "composerLabel": "Frage stellen",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "Ein Avatar und eine kursive Zeile „tippt …“, gebunden an einen Live-Status pro Unterhaltung.",

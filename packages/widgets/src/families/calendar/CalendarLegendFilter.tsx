@@ -84,10 +84,15 @@ export function CalendarLegendFilter({
   };
 
   return (
+    // `tabIndex={0}` for the same reason as UpcomingEventsList: the read-only
+    // variant has no focusable rows, so the scrollable overflow was
+    // mouse-only.
     <ul
       data-widget="calendar-legend-filter"
       data-testid={testId}
       data-variant={variant}
+      tabIndex={0}
+      aria-label={t('ui:widgets.calendar.calendarLegendFilter.listLabel', 'Categories')}
       className={
         variant === 'chips'
           ? 'flex h-full flex-wrap content-start gap-1.5 overflow-auto p-3'

@@ -131,10 +131,17 @@ export function ChipInput({
         'flex min-h-[34px] w-full min-w-0 cursor-text flex-wrap items-center gap-1.5 rounded-md border border-border-strong bg-surface-2 px-2 py-1.5',
         'transition-[border-color,box-shadow] duration-150',
         'focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent-soft',
+        // `opacity-40` on the WRAPPER dims the chips too, and a 10px mono chip
+        // at 40% measures 1.94:1. WCAG 1.4.3 exempts inactive components, but
+        // only when the component says it is inactive: the chips carry no
+        // disabled state of their own, so nothing (axe included) could tell.
+        // `aria-disabled` on the wrapper below states it once, for the whole
+        // composite, which is also what a screen reader needed.
         'has-[input:disabled]:pointer-events-none has-[input:disabled]:opacity-40',
         'data-[invalid]:border-danger data-[invalid]:focus-within:ring-danger-soft',
         className,
       )}
+      {...(disabled ? { 'aria-disabled': true as const } : {})}
     >
       {chips.map((chip) => (
         <Tag

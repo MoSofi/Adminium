@@ -300,17 +300,20 @@ export default {
       },
       "cohortMatrix": {
         "chartLabel": "Kohortefastholdelse",
-        "description": "Kohorterækker mod periodekolonner, hvor hver celle tones efter fastholdelse eller omsætning."
+        "description": "Kohorterækker mod periodekolonner, hvor hver celle tones efter fastholdelse eller omsætning.",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "Aktivitetskalender",
         "legendLessLabel": "Mindre",
         "legendMoreLabel": "Mere",
-        "description": "Et års daglige aktivitet som et gitter af uger og dage, tonet efter intensitet."
+        "description": "Et års daglige aktivitet som et gitter af uger og dage, tonet efter intensitet.",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "Månedlig aktivitet",
-        "description": "Én kalendermåned som et dagsgitter, tonet efter den enkelte dags værdi."
+        "description": "Én kalendermåned som et dagsgitter, tonet efter den enkelte dags værdi.",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "Regional fordeling",
@@ -425,12 +428,14 @@ export default {
         "description": "Begivenhedskategorier med antal; et klik filtrerer kalenderen ved siden af.",
         "emptyTitle": "Ingen kategorier endnu",
         "emptyBody": "Begivenhedskategorier vises her, når der er begivenheder.",
-        "uncategorizedLabel": "Uden kategori"
+        "uncategorizedLabel": "Uden kategori",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "De næste begivenheder i datorækkefølge, med ejer og status.",
         "emptyTitle": "Intet på vej",
-        "emptyBody": "Planlagte begivenheder vises her, efterhånden som de oprettes."
+        "emptyBody": "Planlagte begivenheder vises her, efterhånden som de oprettes.",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "Et datointerval med hurtigvalg, der filtrerer resten af siden.",
@@ -452,7 +457,8 @@ export default {
         "emptyBody": "Tilbagevendende rapporter og eksporter vises her, når de er planlagt.",
         "nextRunLabel": "Næste kørsel",
         "toggleLabel": "Aktivér tidsplan",
-        "recipientsLabel": "Modtagere"
+        "recipientsLabel": "Modtagere",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -627,7 +633,8 @@ export default {
         "sendLabel": "Send",
         "attachLabel": "Tilføj vedhæftning",
         "typingLabel": "skriver…",
-        "composerLabel": "Besked"
+        "composerLabel": "Besked",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "Et assistentpanel til at stille spørgsmål om dit skema og dine data.",
@@ -640,7 +647,8 @@ export default {
         "configureBody": "Tilføj en Anthropic- eller OpenAI-nøgle — eller peg Adminium mod dit eget endpoint — for at stille spørgsmål om dit skema.",
         "configureCtaLabel": "Konfigurér en udbyder",
         "assistantLabel": "Assistent",
-        "composerLabel": "Stil et spørgsmål"
+        "composerLabel": "Stil et spørgsmål",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "En avatar og en kursiv “skriver…”-række, bundet til en live-boolean pr. samtale.",

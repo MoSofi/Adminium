@@ -300,17 +300,20 @@ export default {
       },
       "cohortMatrix": {
         "chartLabel": "Cohort retention",
-        "description": "Cohort rows against period columns, each cell shaded by retention or revenue."
+        "description": "Cohort rows against period columns, each cell shaded by retention or revenue.",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "Activity calendar",
         "legendLessLabel": "Less",
         "legendMoreLabel": "More",
-        "description": "A year of daily activity as a week-by-day grid shaded by intensity."
+        "description": "A year of daily activity as a week-by-day grid shaded by intensity.",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "Monthly activity",
-        "description": "One calendar month as a day grid shaded by each day's value."
+        "description": "One calendar month as a day grid shaded by each day's value.",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "Regional breakdown",
@@ -425,12 +428,14 @@ export default {
         "description": "Event categories with counts; toggling one filters the calendar beside it.",
         "emptyTitle": "No categories yet",
         "emptyBody": "Event categories will appear here once events exist.",
-        "uncategorizedLabel": "Uncategorized"
+        "uncategorizedLabel": "Uncategorized",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "The next scheduled events, date-ascending, with owner and status.",
         "emptyTitle": "Nothing upcoming",
-        "emptyBody": "Scheduled events will appear here as they are planned."
+        "emptyBody": "Scheduled events will appear here as they are planned.",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "A start/end date range with quick presets that filters the rest of the page.",
@@ -452,7 +457,8 @@ export default {
         "emptyBody": "Recurring reports and exports will appear here once scheduled.",
         "nextRunLabel": "Next run",
         "toggleLabel": "Enable schedule",
-        "recipientsLabel": "Recipients"
+        "recipientsLabel": "Recipients",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -627,7 +633,8 @@ export default {
         "sendLabel": "Send",
         "attachLabel": "Add attachment",
         "typingLabel": "typing…",
-        "composerLabel": "Message"
+        "composerLabel": "Message",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "An assistant panel for asking questions about your schema and data.",
@@ -640,7 +647,8 @@ export default {
         "configureBody": "Add an Anthropic or OpenAI key — or point Adminium at your own endpoint — to ask questions about your schema.",
         "configureCtaLabel": "Configure a provider",
         "assistantLabel": "Assistant",
-        "composerLabel": "Ask a question"
+        "composerLabel": "Ask a question",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "An avatar and an italic “typing…” row, bound to a live per-conversation boolean.",

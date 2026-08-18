@@ -140,7 +140,18 @@ export function ChatThread({
           />
         </div>
       ) : (
-        <div data-part="thread-scroll" className="flex flex-1 flex-col gap-1 overflow-auto p-4">
+        // A scroll container whose content holds no focusable element is
+        // unreachable by keyboard — you can see there is more and cannot get to
+        // it (axe `scrollable-region-focusable`, WCAG 2.1.1). `tabIndex={0}`
+        // makes the region itself the scroll target; `role="log"` is what a
+        // transcript is, and gives the label somewhere to land.
+        <div
+          data-part="thread-scroll"
+          role="log"
+          tabIndex={0}
+          aria-label={t('ui:widgets.communication.chatThread.transcriptLabel', 'Conversation')}
+          className="flex flex-1 flex-col gap-1 overflow-auto p-4"
+        >
           {groups.map((group) => (
             <div key={group.key} data-part="day-group" data-day={group.key}>
               {daySeparators && (
@@ -272,8 +283,12 @@ function Bubble({
             dateTime={bubble.sentAt}
             title={formatAbsoluteTime(bubble.sentAt, locale)}
             data-part="message-time"
+            // No alpha on `text-accent-fg`. `--accent-fg` on `--accent` is
+            // gated at >= 4.5:1 by the token contrast check, and dimming it to
+            // 70% measured 3.89:1 — the alpha was the whole failure. Hierarchy
+            // comes from the 9.5px mono size, which it already had.
             className={`mt-1 block font-mono text-[9.5px] tabular-nums ${
-              own ? 'text-end text-accent-fg/70' : 'text-start text-fg-subtle'
+              own ? 'text-end text-accent-fg' : 'text-start text-fg-subtle'
             }`}
           >
             {fmtClock(locale, bubble.sentAt)}
@@ -293,7 +308,9 @@ function AttachmentChip({ file, own }: { file: ChatAttachment; own: boolean }) {
     >
       <Paperclip className="size-2.5" aria-hidden="true" />
       <span className="max-w-[10rem] truncate">{file.name}</span>
-      {file.size !== undefined && <span className="font-mono tabular-nums opacity-70">{file.size}</span>}
+      {/* `opacity-70` here dimmed 10px mono text below AA on the accent bubble.
+          The chip already reads as secondary from its size and font. */}
+      {file.size !== undefined && <span className="font-mono tabular-nums">{file.size}</span>}
     </Tag>
   );
 }

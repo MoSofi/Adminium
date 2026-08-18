@@ -240,7 +240,10 @@ export function CalendarMonth({
                           title={event.title}
                           className={`flex items-center gap-1 truncate rounded-e-sm border-s-2 px-1 py-px text-[10px] font-semibold leading-tight ${TONE_SOFT_BORDER[tone]}`}
                         >
-                          {time !== '' && <MonoText className="shrink-0 text-[9px] tabular-nums opacity-80">{time}</MonoText>}
+                          {/* No `opacity-80`: on a tone-soft event chip it took
+                              9px mono to 3.55:1. Size already carries the
+                              hierarchy against the event title beside it. */}
+                          {time !== '' && <MonoText className="shrink-0 text-[9px] tabular-nums">{time}</MonoText>}
                           <span className="truncate">{event.title}</span>
                         </span>
                       );

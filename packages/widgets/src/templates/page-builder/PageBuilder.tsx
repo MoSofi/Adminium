@@ -622,10 +622,17 @@ export function PageBuilder({
                   </dd>
                 </div>
               ))}
-              <p className="mt-1 text-caption text-fg-subtle">
-                {t('ui:templates.builder.summary.triggerLocked', 'The trigger step can’t be removed.')}
-              </p>
             </dl>
+          )}
+          {/* OUTSIDE the <dl>. A definition list may contain only dt/dd (in
+              div wrappers) — a direct <p> child made the whole list invalid to
+              assistive tech, which is what axe `definition-list` reports. The
+              note is about the list, not an entry in it, so it belongs after
+              it rather than inside. */}
+          {docType === 'automation' && (
+            <p className="text-caption text-fg-subtle">
+              {t('ui:templates.builder.summary.triggerLocked', 'The trigger step can’t be removed.')}
+            </p>
           )}
         </aside>
       </div>

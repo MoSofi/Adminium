@@ -300,17 +300,20 @@ export default {
       },
       "cohortMatrix": {
         "chartLabel": "Retence kohort",
-        "description": "Řádky kohort proti sloupcům období; každá buňka je odstíněna podle retence nebo tržeb."
+        "description": "Řádky kohort proti sloupcům období; každá buňka je odstíněna podle retence nebo tržeb.",
+        "regionLabel": "Cohort matrix"
       },
       "heatmapCalendar": {
         "chartLabel": "Kalendář aktivity",
         "legendLessLabel": "Méně",
         "legendMoreLabel": "Více",
-        "description": "Rok denní aktivity jako mřížka týdnů a dnů odstíněná podle intenzity."
+        "description": "Rok denní aktivity jako mřížka týdnů a dnů odstíněná podle intenzity.",
+        "regionLabel": "Activity calendar"
       },
       "heatMonth": {
         "chartLabel": "Měsíční aktivita",
-        "description": "Jeden kalendářní měsíc jako mřížka dnů odstíněná podle hodnoty každého dne."
+        "description": "Jeden kalendářní měsíc jako mřížka dnů odstíněná podle hodnoty každého dne.",
+        "regionLabel": "Monthly heat map"
       },
       "choroplethGrid": {
         "chartLabel": "Rozpad podle regionů",
@@ -425,12 +428,14 @@ export default {
         "description": "Kategorie událostí s počty; přepnutí filtruje sousední kalendář.",
         "emptyTitle": "Zatím žádné kategorie",
         "emptyBody": "Kategorie událostí se zobrazí, jakmile budou nějaké události.",
-        "uncategorizedLabel": "Bez kategorie"
+        "uncategorizedLabel": "Bez kategorie",
+        "listLabel": "Categories"
       },
       "upcomingEventsList": {
         "description": "Nejbližší události podle data, s vlastníkem a stavem.",
         "emptyTitle": "Nic nadcházejícího",
-        "emptyBody": "Naplánované události se zde zobrazí, jakmile vzniknou."
+        "emptyBody": "Naplánované události se zde zobrazí, jakmile vzniknou.",
+        "listLabel": "Upcoming events"
       },
       "dateRangePicker": {
         "description": "Rozsah dat s rychlými předvolbami, který filtruje zbytek stránky.",
@@ -452,7 +457,8 @@ export default {
         "emptyBody": "Opakované reporty a exporty se zobrazí po naplánování.",
         "nextRunLabel": "Další běh",
         "toggleLabel": "Povolit plán",
-        "recipientsLabel": "Příjemci"
+        "recipientsLabel": "Příjemci",
+        "listLabel": "Scheduled jobs"
       }
     },
     "tables": {
@@ -627,7 +633,8 @@ export default {
         "sendLabel": "Odeslat",
         "attachLabel": "Přidat přílohu",
         "typingLabel": "píše…",
-        "composerLabel": "Zpráva"
+        "composerLabel": "Zpráva",
+        "transcriptLabel": "Conversation"
       },
       "aiChatPanel": {
         "description": "Panel asistenta pro dotazy na vaše schéma a data.",
@@ -640,7 +647,8 @@ export default {
         "configureBody": "Přidejte klíč Anthropic nebo OpenAI — nebo nasměrujte Adminium na vlastní endpoint — a ptejte se na své schéma.",
         "configureCtaLabel": "Nastavit poskytovatele",
         "assistantLabel": "Asistent",
-        "composerLabel": "Položte otázku"
+        "composerLabel": "Položte otázku",
+        "transcriptLabel": "Assistant transcript"
       },
       "typingIndicator": {
         "description": "Avatar a kurzívní řádek „píše…“ navázaný na živou booleovskou hodnotu u každé konverzace.",

@@ -150,7 +150,16 @@ export function ChartCohortMatrixWidget({ config, data }: WidgetProps<ChartCohor
       ? `${Math.round(value)}%`
       : formatMetricValue(value, config.valueFormat, opts);
   return (
-    <div className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-cohort-matrix">
+    // `tabIndex={0}`: these matrices scroll horizontally and hold no
+    // focusable cell, so the overflow was mouse-only (axe
+    // `scrollable-region-focusable`, WCAG 2.1.1).
+    <div
+      className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
+      data-widget="chart-cohort-matrix"
+      role="region"
+      tabIndex={0}
+      aria-label={t('ui:widgets.charts.cohortMatrix.regionLabel', 'Cohort matrix')}
+    >
       <CohortMatrixChart
         rowKeys={matrix.rowKeys}
         colKeys={matrix.colKeys}
@@ -192,7 +201,16 @@ export function ChartHeatmapCalendarWidget({ config, data }: WidgetProps<ChartHe
   const opts = formatOptionsOf(config);
   const fmt = getFormatters(opts.locale ?? 'en-US');
   return (
-    <div className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-heatmap-calendar">
+    // `tabIndex={0}`: these matrices scroll horizontally and hold no
+    // focusable cell, so the overflow was mouse-only (axe
+    // `scrollable-region-focusable`, WCAG 2.1.1).
+    <div
+      className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
+      data-widget="chart-heatmap-calendar"
+      role="region"
+      tabIndex={0}
+      aria-label={t('ui:widgets.charts.heatmapCalendar.regionLabel', 'Activity calendar')}
+    >
       <HeatCalendarChart
         points={series.points}
         labels={{ label: config.title ?? t('ui:widgets.charts.heatmapCalendar.chartLabel', 'Activity calendar') }}
@@ -245,7 +263,16 @@ export function ChartHeatMonthWidget({ config, data }: WidgetProps<ChartHeatMont
   }
 
   return (
-    <div className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-heat-month">
+    // `tabIndex={0}`: these matrices scroll horizontally and hold no
+    // focusable cell, so the overflow was mouse-only (axe
+    // `scrollable-region-focusable`, WCAG 2.1.1).
+    <div
+      className="overflow-x-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
+      data-widget="chart-heat-month"
+      role="region"
+      tabIndex={0}
+      aria-label={t('ui:widgets.charts.heatMonth.regionLabel', 'Monthly heat map')}
+    >
       <HeatMonthChart
         year={year}
         month={month}
@@ -300,7 +327,14 @@ export function ChartChoroplethGridWidget({ config, data }: WidgetProps<ChartCho
 
   return (
     <div className="flex flex-wrap items-start gap-4 px-[var(--widget-pad)] pb-[var(--widget-pad)]" data-widget="chart-choropleth-grid">
-      <div className="overflow-x-auto">
+      {/* `tabIndex={0}` for the same reason as the three matrices above: the
+          grid scrolls horizontally and holds nothing focusable. */}
+      <div
+        className="overflow-x-auto"
+        role="region"
+        tabIndex={0}
+        aria-label={config.title ?? t('ui:widgets.charts.choroplethGrid.chartLabel', 'Regional breakdown')}
+      >
         <ChoroplethGridChart
           points={geo.points}
           metric={metric}
