@@ -8,9 +8,24 @@ import { cn } from '../../lib/cn.js';
  * Auth & Onboarding.dc.html: `linear-gradient(155deg, accent,
  * color-mix(accent 62%, black))`. A static class over token vars, so it
  * follows every accent palette at runtime.
+ *
+ * `--accent-light`, NOT `--accent`, and that is the fix for a contrast failure
+ * the axe sweep structurally could not see (the panel is `aria-hidden`, so axe
+ * skips the whole subtree — while a sighted low-vision user reads every word of
+ * it). `--accent` resolves to the DARK ramp under `data-theme="dark"`, and that
+ * ramp is built to be a foreground on dark surfaces: it is light. Painting it as
+ * a full-bleed panel and putting white on it measured **1.64–2.35:1** across the
+ * eight accents — worse than any violation in the baseline. `--accent-light` is
+ * the same variable in both themes, so the panel is one fixed dark brand surface
+ * whose white text measures 5.90–18.88:1, and the accent still switches with
+ * `data-accent`.
+ *
+ * `packages/tokens/scripts/contrast-check.mjs` now gates every pair on this
+ * panel, which is what stops it drifting back: the sweep cannot reach it, so
+ * something else has to.
  */
 const brandGradientClass =
-  'bg-accent bg-[linear-gradient(155deg,var(--accent),color-mix(in_srgb,var(--accent)_62%,#000))]';
+  'bg-[var(--accent-light)] bg-[linear-gradient(155deg,var(--accent-light),color-mix(in_srgb,var(--accent-light)_62%,#000))]';
 
 export interface AuthLayoutProps extends Omit<ComponentPropsWithRef<'div'>, 'style'> {
   /**
@@ -85,7 +100,7 @@ export function AuthLayout({
               </div>
             )}
             {description === undefined ? null : (
-              <div className="mt-4 max-w-[40ch] text-[15px] leading-relaxed text-white/80">
+              <div className="mt-4 max-w-[40ch] text-[15px] leading-relaxed text-white/90">
                 {description}
               </div>
             )}
@@ -101,7 +116,7 @@ export function AuthLayout({
           ) : (
             <div
               data-part="auth-trust-badges"
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-white/60"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-white/90"
             >
               {trustBadges}
             </div>
@@ -145,7 +160,7 @@ export interface AuthTestimonialProps
 
 /**
  * AuthTestimonial — the translucent testimonial card that lives on the
- * AuthLayout brand panel (Login.dc.html): white/10 card, quote,
+ * AuthLayout brand panel (Login.dc.html): translucent dark card, quote,
  * attribution line. Colors are fixed white alphas because the card always
  * sits on the accent gradient.
  */
@@ -161,7 +176,7 @@ export function AuthTestimonial({
     <figure
       data-part="auth-testimonial"
       className={cn(
-        'flex max-w-[40ch] items-center gap-3 rounded-lg border border-white/15 bg-white/10 p-4',
+        'flex max-w-[40ch] items-center gap-3 rounded-lg border border-white/20 bg-black/15 p-4',
         className,
       )}
       {...props}
@@ -169,7 +184,7 @@ export function AuthTestimonial({
       {avatar === undefined ? null : <div className="shrink-0">{avatar}</div>}
       <div className="min-w-0">
         <blockquote className="text-[12.5px] leading-normal text-white/90">{quote}</blockquote>
-        <figcaption className="mt-1 text-caption text-white/60">
+        <figcaption className="mt-1 text-caption text-white/75">
           {name}
           {role === undefined ? null : <> · {role}</>}
         </figcaption>
