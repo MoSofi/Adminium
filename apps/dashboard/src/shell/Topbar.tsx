@@ -281,19 +281,25 @@ export function Topbar({
             keep a fixed position at the end of the bar as pages change. */}
         <PageActionsSlot />
 
-        {/* Read-only affordance: clicking (or `/`) opens the ⌘K palette. */}
+        {/* Read-only affordance: clicking (or `/`) opens the ⌘K palette.
+            OUT OF THE TAB ORDER, and that is the fix for a keyboard trap
+            `apps/e2e/tests/keyboard.spec.ts` caught on its first run. This is a
+            decoy that blurs itself on focus and opens a MODAL, so tabbing into
+            it threw the user into the palette — and Escape returns focus here,
+            where the next Tab did it again. The bell and the account menu after
+            it were unreachable by keyboard. The keyboard equivalent of this
+            control is ⌘K, which is printed on its own face; the input is a
+            mouse affordance and belongs where mouse affordances go. */}
         <SearchInput
           kbd="⌘K"
           placeholder={t('topbar.search', 'Search…')}
           readOnly
+          tabIndex={-1}
+          aria-hidden="true"
           data-part="topbar-search"
           className="hidden w-[220px] cursor-pointer sm:flex"
           inputClassName="cursor-pointer"
           onClick={onOpenPalette}
-          onFocus={(event) => {
-            event.currentTarget.blur();
-            onOpenPalette();
-          }}
         />
 
         <NotificationBell />
