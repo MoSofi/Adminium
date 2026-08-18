@@ -1007,10 +1007,6 @@
     "status": "mt",
     "srcHash": "fb2517a2f8e1"
   },
-  "common.builder.binding.eventColumnsRequired": {
-    "status": "mt",
-    "srcHash": "a46ff51d726a"
-  },
   "common.builder.binding.filterColumn": {
     "status": "mt",
     "srcHash": "65ba00e95e60"
@@ -1187,6 +1183,18 @@
     "status": "mt",
     "srcHash": "97f6a406e58c"
   },
+  "common.builder.binding.role.flagKey": {
+    "status": "mt",
+    "srcHash": "eecb4b03b2c3"
+  },
+  "common.builder.binding.role.flagValue": {
+    "status": "mt",
+    "srcHash": "73595bd9f4d3"
+  },
+  "common.builder.binding.roleColumnsRequired": {
+    "status": "mt",
+    "srcHash": "33aa59315355"
+  },
   "common.builder.binding.save": {
     "status": "mt",
     "srcHash": "64a018c4800c"
@@ -1231,6 +1239,10 @@
     "status": "mt",
     "srcHash": "e73598361445"
   },
+  "common.builder.binding.shape.booleanMap": {
+    "status": "mt",
+    "srcHash": "6964664174bc"
+  },
   "common.builder.binding.shape.calendarEvents": {
     "status": "mt",
     "srcHash": "775dca4e56a2"
@@ -1243,6 +1255,14 @@
     "status": "mt",
     "srcHash": "b77a839c5b7f"
   },
+  "common.builder.binding.shape.flows": {
+    "status": "mt",
+    "srcHash": "fc4c1701a5bc"
+  },
+  "common.builder.binding.shape.geoPoints": {
+    "status": "mt",
+    "srcHash": "c5a93d79915c"
+  },
   "common.builder.binding.shape.matrix": {
     "status": "mt",
     "srcHash": "a5099c8091a6"
@@ -1254,6 +1274,10 @@
   "common.builder.binding.shape.multiTimeseries": {
     "status": "mt",
     "srcHash": "680c8739ae06"
+  },
+  "common.builder.binding.shape.ohlc": {
+    "status": "mt",
+    "srcHash": "6ab32bc46abe"
   },
   "common.builder.binding.shape.record": {
     "status": "mt",
@@ -1274,6 +1298,10 @@
   "common.builder.binding.shape.timeseries": {
     "status": "mt",
     "srcHash": "14789d238b35"
+  },
+  "common.builder.binding.shape.tree": {
+    "status": "mt",
+    "srcHash": "b1ce0ce9eaea"
   },
   "common.builder.binding.shapeHelper": {
     "status": "mt",
@@ -2602,6 +2630,74 @@
   "common.desktop.setup.title": {
     "srcHash": "d4b1a6d5c80c",
     "status": "mt"
+  },
+  "common.email.linkFallback": {
+    "status": "mt",
+    "srcHash": "458547886527"
+  },
+  "common.email.notification.action": {
+    "status": "mt",
+    "srcHash": "bb1f60338925"
+  },
+  "common.email.notification.footer": {
+    "status": "mt",
+    "srcHash": "65786a84fc26"
+  },
+  "common.email.notification.name": {
+    "status": "mt",
+    "srcHash": "c18f8f255ab9"
+  },
+  "common.email.passwordReset.action": {
+    "status": "mt",
+    "srcHash": "3f657f29e683"
+  },
+  "common.email.passwordReset.heading": {
+    "status": "mt",
+    "srcHash": "bf8804f07772"
+  },
+  "common.email.passwordReset.intro": {
+    "status": "mt",
+    "srcHash": "e994046cc86b"
+  },
+  "common.email.passwordReset.name": {
+    "status": "mt",
+    "srcHash": "591d7d05f9b3"
+  },
+  "common.email.passwordReset.notice": {
+    "status": "mt",
+    "srcHash": "2eb4b90ecfff"
+  },
+  "common.email.passwordReset.subject": {
+    "status": "mt",
+    "srcHash": "9a5b27fd45d5"
+  },
+  "common.email.userInvite.action": {
+    "status": "mt",
+    "srcHash": "51d102f43e81"
+  },
+  "common.email.userInvite.heading": {
+    "status": "mt",
+    "srcHash": "6cbca8857c70"
+  },
+  "common.email.userInvite.intro": {
+    "status": "mt",
+    "srcHash": "b7cbfa7b7e50"
+  },
+  "common.email.userInvite.inviterFallback": {
+    "status": "mt",
+    "srcHash": "7888a32edb60"
+  },
+  "common.email.userInvite.name": {
+    "status": "mt",
+    "srcHash": "ea6339dfe385"
+  },
+  "common.email.userInvite.notice": {
+    "status": "mt",
+    "srcHash": "f1ad1da0c57e"
+  },
+  "common.email.userInvite.subject": {
+    "status": "mt",
+    "srcHash": "19df8742962d"
   },
   "common.emailTemplates.disabled": {
     "srcHash": "f4f4473df8cb",
