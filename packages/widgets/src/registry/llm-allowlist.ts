@@ -40,8 +40,8 @@ function contractShapes(contract: DataShape | DataShape[]): readonly DataShape[]
 /**
  * Can the widget-data pipeline actually FEED this widget? A dashboard tile is
  * only useful if some query descriptor produces a payload its data contract
- * accepts, and the compiler implements eleven of the eighteen canonical shapes
- * (04 §5.2).
+ * accepts, and the compiler implements sixteen of the eighteen canonical
+ * shapes (04 §5.2).
  *
  * Without this test the prompt offered widgets no binding could ever satisfy —
  * every one guaranteed to render "Unexpected data shape" or reject with 422 the
@@ -50,8 +50,11 @@ function contractShapes(contract: DataShape | DataShape[]): readonly DataShape[]
  * `calendar-events`, twelve charts (chart-multiline, chart-stream, chart-bump,
  * the five matrix charts, chart-boxplot/violin/ridgeline, chart-timeline-lanes)
  * rejoined the prompt vocabulary automatically, because both sides read
- * `COMPILABLE_DATA_SHAPES`. `flows` (chart-sankey, chart-chord),
- * `hierarchy/tree`, `geo-points` and `ohlc` are what remains outside.
+ * `COMPILABLE_DATA_SHAPES`; `hierarchy/tree`, `geo-points`, `flows`, `ohlc` and
+ * `boolean-map` then brought chart-sunburst, chart-sankey, chart-chord,
+ * chart-choropleth-grid and chart-candlestick in the same way. Only `static`
+ * and `form-state` are left outside, and neither is a compiler gap — the first
+ * is config-only, the second is fed by the CRUD form path.
  */
 function isBindable(definition: WidgetDefinition): boolean {
   return contractShapes(definition.dataContract).some(isCompilableShape);

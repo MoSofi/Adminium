@@ -47,8 +47,10 @@ export type DataShape = z.infer<typeof dataShapeSchema>;
  *
  * Two of the eighteen are NOT compiler gaps and must never be listed here:
  * `static` is config-only with no server round trip (04 §3), and `form-state`
- * is fed by the CRUD form path, not by a query descriptor. Still outstanding:
- * `hierarchy/tree`, `geo-points`, `flows`, `boolean-map`, `ohlc`.
+ * is fed by the CRUD form path, not by a query descriptor. With the last five
+ * (`hierarchy/tree`, `geo-points`, `flows`, `boolean-map`, `ohlc`) compiled,
+ * those two are all that remain outside — the list below is the whole backlog,
+ * closed.
  */
 export const COMPILABLE_DATA_SHAPES = [
   'single-metric',
@@ -59,8 +61,13 @@ export const COMPILABLE_DATA_SHAPES = [
   'record-list',
   'record',
   'matrix',
+  'hierarchy/tree',
   'calendar-events',
+  'geo-points',
+  'flows',
+  'ohlc',
   'distribution',
+  'boolean-map',
   'stream',
 ] as const satisfies readonly DataShape[];
 
