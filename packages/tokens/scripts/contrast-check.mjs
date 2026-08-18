@@ -145,6 +145,18 @@ const GROUPS = {
     gated: true,
     label: 'neutral copy on the other translucent accent tints (--accent-selection, --accent-border)',
   },
+  /* The AuthLayout brand panel. It is measured HERE and nowhere else, because
+     nothing else can see it: the panel is `aria-hidden` (it is marketing copy
+     beside the sign-in form), so the axe sweep skips the entire subtree — while a
+     sighted low-vision user reads every word of it. A violation the gate cannot
+     see reads exactly like one that does not exist, and this one was real: the
+     panel painted `--accent`, which under `data-theme="dark"` is the LIGHT dark-
+     ramp hex, and white on it measured 1.64-2.35:1 across the eight accents. It
+     now paints `--accent-light` in both themes. */
+  'brand-panel': {
+    gated: true,
+    label: 'AuthLayout brand panel: white copy on the fixed --accent-light gradient',
+  },
 };
 
 const SKIPPED = [
@@ -152,7 +164,7 @@ const SKIPPED = [
   ['--accent-glow', 'shadow token; the ring it accompanies is checked via --accent at 3:1'],
   ['--scrim', 'modal dimmer; darkens the backdrop, carries no information'],
   ['--border, --border-strong', 'decorative separators; component state is carried by --accent (checked at 3:1)'],
-  ['--accent-light, --accent-dark', 'per-theme INPUTS; the theme selects one into --accent, which is measured'],
+  ['--accent-dark', 'per-theme INPUT; the theme selects it into --accent, which is measured'],
   ['viz-1..8 (viz.css)', 'series palette governed by the adjacency rules in 02-design-system.md §1.3'],
   ['density/motion/fonts/tailwind.css', 'declare no colour of their own — enforced by the sweep below, not assumed'],
 ];
@@ -667,6 +679,39 @@ function buildChecks(get, has, vocab) {
   }
   for (const tint of accentTints.filter((t) => t !== '--accent-soft')) {
     for (const fg of foregrounds) for (const s of surfaces) push('text-on-tint', fg, tint, AA_TEXT, { on: s });
+  }
+
+  // 8. The AuthLayout brand panel — see the `brand-panel` group comment.
+  //
+  // Literal colours rather than tokens, deliberately: the panel's copy is white
+  // at fixed alphas because it always sits on the accent, and the alphas are the
+  // thing that has to be right. They are read from the component so a change
+  // there cannot silently outrun this gate.
+  //
+  // The gradient runs `--accent-light` -> `color-mix(--accent-light 62%, #000)`,
+  // so its LIGHTEST point is `--accent-light` itself; measuring against that is
+  // the worst case for white text and covers every point along it.
+  if (has('--accent-light')) {
+    const panel = over(get('--accent-light'), [255, 255, 255, 1]);
+    const card = over([0, 0, 0, 0.15], panel); // bg-black/15 testimonial card
+    const white = (alpha) => [255, 255, 255, alpha];
+    const pushBrand = (label, alpha, bg, bgLabel) => {
+      const fg = over(white(alpha), bg);
+      checks.push({
+        group: 'brand-panel',
+        fg: `white/${String(Math.round(alpha * 100))} (${label})`,
+        bg: bgLabel,
+        min: AA_TEXT,
+        actual: ratio(fg, bg),
+        fgHex: toHex(fg),
+        bgHex: toHex(bg),
+      });
+    };
+    pushBrand('headline', 1, panel, '--accent-light');
+    pushBrand('description', 0.9, panel, '--accent-light');
+    pushBrand('trust badges', 0.9, panel, '--accent-light');
+    pushBrand('testimonial quote', 0.9, card, 'black/15 on --accent-light');
+    pushBrand('testimonial attribution', 0.75, card, 'black/15 on --accent-light');
   }
 
   return checks;

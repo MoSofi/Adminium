@@ -135,6 +135,10 @@ describe('the gate itself', () => {
         'accent-soft',
         'accent-soft-deep',
         'accent-text',
+        // The AuthLayout brand panel. It is here because nothing else can see
+        // it: the panel is `aria-hidden`, so the axe sweep skips the subtree
+        // while a sighted low-vision user reads all of it.
+        'brand-panel',
         'code-ink',
         'focus-ring',
         'semantic',
