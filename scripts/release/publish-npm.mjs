@@ -721,6 +721,18 @@ async function main() {
     // passed the X-ray above — nothing is re-packed here.
     if (!DRY_RUN && !interrupted) {
       for (const { w, publishName, tarball } of validated) {
+        // A PRERELEASE MUST NOT BECOME `latest`.
+        //
+        // `npm publish` with no `--tag` moves the `latest` dist-tag, so an
+        // rc rehearsal would hand every `npm i @adminiumjs/<pkg>` a release
+        // candidate across all 15 packages — and undoing it means restoring
+        // the tag on each one by hand. The release workflow is prerelease-
+        // aware everywhere else (docker leaves `:latest` alone, the GitHub
+        // release gets `--prerelease`); this is that rule for npm.
+        //
+        // Semver says any version carrying a `-` is a prerelease, which is the
+        // same test the workflow uses, so the two cannot disagree.
+        const distTag = w.pkg.version.includes('-') ? 'next' : 'latest';
         execFileSync(
           'npm',
           [
@@ -728,11 +740,13 @@ async function main() {
             tarball,
             '--access',
             'public',
+            '--tag',
+            distTag,
             ...(process.env.NPM_PROVENANCE === '1' ? ['--provenance'] : []),
           ],
           { cwd: w.dir, stdio: 'inherit' },
         );
-        results.push(`PUB   ${publishName}@${w.pkg.version}`);
+        results.push(`PUB   ${publishName}@${w.pkg.version} (dist-tag: ${distTag})`);
       }
     } else {
       for (const { publishName, w } of validated) {
