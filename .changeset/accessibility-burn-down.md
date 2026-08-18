@@ -7,7 +7,8 @@
 Fix the accessibility violations the axe sweep had been hiding, and the two
 harness defects that hid them.
 
-`a11y-baseline.json` held 162 fingerprints for four weeks. 121 were never real.
+`a11y-baseline.json` held 162 fingerprints for four weeks. 111 of them do not
+reproduce at all.
 The sweep runs over the Storybook build, and that build was measuring something
 the product does not look like: `storybook.css` `@source`d only `packages/ui`
 while `.storybook/main.ts` has loaded the widgets and charts stories since
@@ -17,8 +18,8 @@ foregrounds on Storybook's white body — axe resolves `color-contrast` against
 the nearest opaque ancestor, so the translucent tone tints composited over white
 and reported pairs the product never renders.
 
-Fixing both exposed 27 violations the unstyled build had concealed and left 128
-real ones, now fixed rather than baselined:
+Fixing both exposed violations the unstyled build had concealed. 128 were found
+and fixed rather than baselined:
 
 - alpha-dimmed small text on the accent bubble and calendar chips
   (`text-accent-fg/70`, `opacity-80`) measured 3.1–3.9:1 and went to full
@@ -47,7 +48,9 @@ the token contrast gate measures it, since nothing else can.
 
 Eight `ui.*` keys were added across all locales for the new region labels.
 
-One fingerprint remains, accepted with a measured rationale in the baseline: a
-tone chip on a selected row composites a soft tint over another soft tint, which
-fails 44 dark pairs (4.50 down to 3.54) and needs a palette decision rather than
-a spot fix.
+The baseline now holds 111, measured on the CI platform — the net of 111
+artifacts removed, 59 newly exposed and 51 that were real all along. It is
+LINUX-CANONICAL from here: a macOS sweep of the same commit reported 1 where CI
+reported 111, and since `nested-interactive` and `aria-valid-attr-value` are
+pure DOM-structure rules, that gap is not font metrics and is not yet
+understood.

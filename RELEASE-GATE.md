@@ -67,24 +67,33 @@ not deleting it.
       themes, strict (0 failures)
 - [x] axe sweep gated in CI by a grow-only fingerprint baseline (no new
       violation kinds can land)
-- [x] axe fingerprint baseline burned down to zero or each remaining
-      fingerprint individually accepted with rationale — **162 → 1, 2026-08-18.**
-      121 of the 162 were never real: the sweep's Storybook build had two
-      harness defects, so it was measuring something the product does not look
-      like. `storybook.css` `@source`d only `packages/ui` while `main.ts` has
-      loaded the widgets and charts stories since 04-T17, so every widget story
-      rendered unstyled; and nothing painted `--bg` on the preview body, so
-      dark-theme foregrounds sat on Storybook's white body and axe composited
-      the translucent tone tints over white. Fixing both exposed 27 violations
-      the unstyled build had HIDDEN and left 128 real ones, which were fixed
-      rather than baselined — alpha-dimmed small text, six keyboard-unreachable
-      scroll regions, `role="row"` containers with no cell children, a `<dl>`
-      with a `<p>` child, an `aria-expanded` row that should have been a button,
-      and two dimmed surfaces that never said `aria-disabled`. The single
-      remaining entry is accepted with a measured rationale in
-      `packages/ui/a11y-baseline.json` — a tone chip on a selected row, which is
-      a dark-palette decision (44 pairs, 4.50 down to 3.54) and not a component
-      bug
+- [ ] axe fingerprint baseline burned down to zero or each remaining
+      fingerprint individually accepted with rationale — **162 → 111 on the CI
+      platform, 2026-08-18.** Real progress, and less than it first looked:
+      this row was briefly checked at "162 → 1" on the strength of a macOS
+      sweep, and CI reported 111 on the same commit. The baseline is
+      LINUX-CANONICAL from here (see the `platform` note in the file); a local
+      PASS proves nothing.
+      What the reconciliation shows: 111 of the original 162 do not reproduce at
+      all — they were artifacts of two harness defects, a `storybook.css` that
+      `@source`d only `packages/ui` while `main.ts` loaded the widgets and charts
+      stories, and a preview body Storybook painted white so dark-theme
+      foregrounds were measured against it. 59 violations were newly EXPOSED by
+      fixing those, and 51 of the original entries were real all along.
+      The 128 found and fixed on macOS were fixed for real — alpha-dimmed small
+      text, six keyboard-unreachable scroll regions, `role="row"` containers with
+      no cell children, a `<dl>` with a `<p>` child, an `aria-expanded` row that
+      should have been a button, two dimmed surfaces that never said
+      `aria-disabled`. What remains is 111 entries dominated by
+      `scrollable-region-focusable` (38), `color-contrast` (32) and
+      `nested-interactive` (23), none of them individually accepted yet — which
+      is what this row asks for and why it is unchecked
+- [ ] Understand why a macOS axe sweep under-reports by ~110 against Linux.
+      `nested-interactive`, `aria-valid-attr-value` and `aria-allowed-attr` are
+      pure DOM-structure rules and cannot vary with font rendering, so this is
+      not simply platform metrics. Until it is understood, the sweep is only
+      trustworthy in CI, which makes the local feedback loop useless for the
+      burn-down above
 - [x] AuthLayout brand-panel contrast resolved — **it WAS a token swap, just not
       the one that had been tried.** The panel painted `--accent`, which resolves
       to the DARK ramp under `data-theme="dark"`; that ramp is a foreground
