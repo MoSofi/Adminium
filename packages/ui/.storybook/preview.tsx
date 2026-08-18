@@ -23,12 +23,80 @@ import '../src/styles/storybook.css';
 // reason the stories are: `@adminium/ui` does not depend on `@adminium/charts`.
 import '../../charts/src/styles.css';
 
-/** Signals the VRT runner that mount effects have settled (03 §10). */
+/**
+ * How long the DOM must stop changing before a story counts as rendered, and
+ * the ceiling on waiting for that.
+ *
+ * 120ms is comfortably longer than a React commit and a resolved dynamic
+ * import, and short enough that 1,093 axe runs do not become an hour. The hard
+ * stop exists for stories that never go quiet — a live clock, a spinner the
+ * motion gate cannot freeze — which must not hang the sweep.
+ */
+const SETTLE_MS = 120;
+const SETTLE_TIMEOUT_MS = 2_500;
+
+/**
+ * Signals the VRT runner and the axe sweep that the story has finished
+ * rendering (03 §10).
+ *
+ * THIS USED TO BE A BARE `useEffect(…, [])`, and that is a much bigger bug than
+ * it looks. A mount effect fires when the STORY COMPONENT mounts, which is not
+ * when the story has rendered: the widget registry loads component code through
+ * the definitions' lazy refs, one Vite chunk per family, so every widget story
+ * stamps `data-vrt-ready` while its frame is still an empty header. Measured on
+ * `widgets-forms--light-ltr`: **101 elements at the flag, 182 three seconds
+ * later** — the entire body of both widgets arrives afterwards.
+ *
+ * Both consumers then measure the empty frame. It is a RACE, not a platform
+ * difference, and it is why the same commit produced 1 violation on a fast
+ * laptop and 111 on a CI runner: the slower machine's mount effects take longer
+ * in wall-clock, so the lazy chunks land first and axe sees a real widget. That
+ * also makes it the likeliest explanation for the intermittent "0 KPI cards"
+ * failures this repo has been re-running past for weeks.
+ *
+ * So readiness is now QUIESCENCE, observed rather than assumed: the flag goes up
+ * once the story subtree has not mutated for {@link SETTLE_MS}, with a hard stop
+ * so a story that never settles cannot hang the run.
+ */
 function VrtReady({ children }: { children: ReactNode }) {
   useEffect(() => {
-    document.documentElement.setAttribute('data-vrt-ready', 'true');
+    const root = document.documentElement;
+    root.removeAttribute('data-vrt-ready');
+
+    // `#storybook-root` is the story's own subtree; observing it rather than
+    // <html> keeps the toolbar's own attribute writes out of the signal.
+    const target = document.getElementById('storybook-root') ?? document.body;
+    let settle: ReturnType<typeof setTimeout> | undefined;
+    let done = false;
+
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      observer.disconnect();
+      clearTimeout(deadline);
+      clearTimeout(settle);
+      root.setAttribute('data-vrt-ready', 'true');
+    };
+    const restart = (): void => {
+      clearTimeout(settle);
+      settle = setTimeout(finish, SETTLE_MS);
+    };
+
+    const observer = new MutationObserver(restart);
+    observer.observe(target, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+    const deadline = setTimeout(finish, SETTLE_TIMEOUT_MS);
+    restart();
+
     return () => {
-      document.documentElement.removeAttribute('data-vrt-ready');
+      observer.disconnect();
+      clearTimeout(settle);
+      clearTimeout(deadline);
+      root.removeAttribute('data-vrt-ready');
     };
   }, []);
   return children;

@@ -68,32 +68,33 @@ not deleting it.
 - [x] axe sweep gated in CI by a grow-only fingerprint baseline (no new
       violation kinds can land)
 - [ ] axe fingerprint baseline burned down to zero or each remaining
-      fingerprint individually accepted with rationale — **162 → 111 on the CI
-      platform, 2026-08-18.** Real progress, and less than it first looked:
-      this row was briefly checked at "162 → 1" on the strength of a macOS
-      sweep, and CI reported 111 on the same commit. The baseline is
-      LINUX-CANONICAL from here (see the `platform` note in the file); a local
-      PASS proves nothing.
-      What the reconciliation shows: 111 of the original 162 do not reproduce at
-      all — they were artifacts of two harness defects, a `storybook.css` that
-      `@source`d only `packages/ui` while `main.ts` loaded the widgets and charts
-      stories, and a preview body Storybook painted white so dark-theme
-      foregrounds were measured against it. 59 violations were newly EXPOSED by
-      fixing those, and 51 of the original entries were real all along.
-      The 128 found and fixed on macOS were fixed for real — alpha-dimmed small
-      text, six keyboard-unreachable scroll regions, `role="row"` containers with
-      no cell children, a `<dl>` with a `<p>` child, an `aria-expanded` row that
-      should have been a button, two dimmed surfaces that never said
-      `aria-disabled`. What remains is 111 entries dominated by
-      `scrollable-region-focusable` (38), `color-contrast` (32) and
-      `nested-interactive` (23), none of them individually accepted yet — which
-      is what this row asks for and why it is unchecked
-- [ ] Understand why a macOS axe sweep under-reports by ~110 against Linux.
-      `nested-interactive`, `aria-valid-attr-value` and `aria-allowed-attr` are
-      pure DOM-structure rules and cannot vary with font rendering, so this is
-      not simply platform metrics. Until it is understood, the sweep is only
-      trustworthy in CI, which makes the local feedback loop useless for the
-      burn-down above
+      fingerprint individually accepted with rationale — **162 → 112,
+      2026-08-18**, on a sweep that now measures the rendered product.
+      This row was claimed twice before the cause was understood, at "1" and
+      then at "111 (Linux-canonical)". Both were artifacts of a RACE, not of a
+      platform: `data-vrt-ready` was a bare mount effect, and the widget
+      registry loads component code through per-family lazy chunks, so the flag
+      rose while every widget body was still in flight — 101 elements at the
+      flag against 182 a moment later on `widgets-forms--light-ltr`, 30 against
+      124 on `widgets-tables-trackf--master-list-story`. A fast machine lost
+      that race and reported almost nothing; CI won it and reported almost
+      everything. The sweep now navigates with `networkidle` and the flag waits
+      for DOM quiescence, and a laptop and CI agree fingerprint-for-fingerprint.
+      Against the original 162: 111 do not reproduce (artifacts of an unstyled
+      Storybook painted white under dark theme), 51 were real all along, and 59
+      more were exposed once the stories rendered styled. 128 were found and
+      fixed rather than baselined. What remains is 112, dominated by
+      `scrollable-region-focusable`, `color-contrast` and `nested-interactive`,
+      none individually accepted yet — which is what this row asks for and why
+      it stays unchecked
+- [x] The axe sweep and the VRT matrix measure a story that has finished
+      rendering — `scripts/a11y-sweep.mjs` and `vrt/vrt.spec.ts` both navigate
+      with `networkidle`, and `.storybook/preview.tsx` stamps `data-vrt-ready`
+      only after the story subtree stops mutating. Before this the result
+      depended on machine speed, which is almost certainly the source of the
+      intermittent widget-render failures this repo has been re-running past —
+      and it means no VRT baseline captured earlier would have been worth
+      keeping
 - [x] AuthLayout brand-panel contrast resolved — **it WAS a token swap, just not
       the one that had been tried.** The panel painted `--accent`, which resolves
       to the DARK ramp under `data-theme="dark"`; that ramp is a foreground

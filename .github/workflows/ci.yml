@@ -183,7 +183,12 @@ jobs:
     runs-on: ubuntu-latest
     # Storybook build + ~1100 axe runs; slower than `verify`, hence its own job
     # so it neither blocks nor is blocked by the main gate.
-    timeout-minutes: 30
+    #
+    # 45, raised from 30: the sweep now navigates with `networkidle` so it waits
+    # for each widget family's lazily-imported body instead of scanning an empty
+    # frame (see scripts/a11y-sweep.mjs). That is worth up to ~0.5s per
+    # navigation across 1,096 runs, and the previous run took 11.5 minutes.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v7
