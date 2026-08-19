@@ -263,15 +263,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Set up Node 22
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
       # THE BASELINE CHECK RUNS FIRST, and that ordering is the point.
       #
       # It used to run last, after a dependency install, a browser install and a
@@ -293,6 +284,22 @@ jobs:
           baselines=(packages/ui/vrt/__screenshots__/*.png)
           echo "count=${#baselines[@]}" >> "$GITHUB_OUTPUT"
           echo "Found ${#baselines[@]} committed baseline(s)."
+
+      # The toolchain is set up ONLY if there is work. `actions/setup-node` with
+      # `cache: pnpm` registers a post-job step that saves the pnpm store — and
+      # with the install skipped there is no store, so that post step failed and
+      # took the whole job red. A job that short-circuits has to short-circuit
+      # BEFORE the thing with a post-action, not after it.
+      - name: Set up pnpm
+        if: steps.baselines.outputs.count != '0'
+        uses: pnpm/action-setup@v6
+
+      - name: Set up Node 22
+        if: steps.baselines.outputs.count != '0'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
 
       - name: Report the empty baseline set
         if: steps.baselines.outputs.count == '0'
@@ -401,7 +408,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload VRT report
-        if: failure()
+        if: failure() && steps.baselines.outputs.count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: vrt-report
