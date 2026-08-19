@@ -41,28 +41,42 @@ not deleting it.
       never a blind exact `COUNT(*)` (`apps/server/src/crud/list.ts`,
       proven live in `apps/server/test/crud-estimated-count.test.ts`)
 
-- [ ] Every package meets the coverage floor 15-quality.md §1 specifies —
-      **the harness now exists and runs in CI; the floors do not yet.** Until
-      2026-08-19 there was no `coverage` key in any of the 9 vitest configs and
-      no provider installed, so task 15-T01 was unbuilt and this row could not be
-      measured at all. Each package now carries `coverage.thresholds` set to
-      `max(§1 floor, measured rounded down)`, which is green on arrival and
-      ratchets upward only — a floor set at the §1 numbers would have been red on
-      arrival, which is how the VRT and axe gates died the first time.
-      **Above §1 already, pinned at the §1 number:** engine 94.2/88.7,
-      config 95.2/88.5, tokens 100/100, i18n 91.8/90.3, server 90.5/81.3.
-      **Short on branches only:** llm 84.7, meta 84.6 (§1 wants 85);
-      adapter-postgres 81.7, adapter-sqlite 79.3 (§1 wants 85).
-      **Short on both:** schema-import 85.7/72.6 and adapter-mysql 66.7/79.8
-      against §1's 90/85 — adapter-mysql's figure is understated locally because
-      its live suite is env-gated (proven on adapter-postgres, which drops
-      92.2 → 54.6 when its probe is denied), so re-measure it from a CI run
-      before treating that number as real. **apps/dashboard** is 72.7 against
-      §1's 75. `@adminium/ui`, `@adminium/widgets` and `@adminium/charts` collect
-      and report but assert nothing — §1 exempts them, because screenshots and
-      axe are the signal there.
-      Check this row when every package's threshold equals or exceeds its §1
-      floor on both axes.
+- [x] Every package meets the coverage floor 15-quality.md §1 specifies —
+      **closed 2026-08-19.** All 12 floored packages now configure a threshold at
+      or above their §1 number on both axes, and all 12 pass it. The three §1
+      exempts (`ui`, `widgets`, `charts`) collect and report without asserting,
+      which is what §1 prescribes — screenshots and axe are the signal there.
+      Configured floor / §1 / measured:
+      engine 94-88 / 90-85 · config 95-88 / 90-85 · i18n 91-90 / 90-85 ·
+      tokens 90-85 / 90-85 (100/100) · llm 94-86 / 90-85 (95.41/87.70) ·
+      meta 93-90 / 90-85 (94.37/91.60) · schema-import 97-90 / 90-85 (98.67/91.91) ·
+      adapter-sqlite 98-90 / 90-85 (99.91/91.95) · adapter-postgres 98-97 / 90-85
+      (99.82/98.86 live) · adapter-mysql 99-95 / 90-85 (100/96.22 offline) ·
+      server 88-80 / 85-80 (90.54/81.31) · dashboard 75-82 / 75-70 (75.47/84.25).
+      **Two structural defects closed with it.** `packages/tokens` declared a
+      90/85 floor and enforced nothing: its test script never passed
+      `--coverage`, and the shared helper sets `enabled: false` so that flag is
+      what turns it on — it was the one package whose floor equalled its §1
+      number on paper and could not fail. `packages/adapter-mysql` carried NO
+      floor unless `TEST_MYSQL_URL` was set, so a laptop run enforced nothing;
+      its floor is now unconditional, which became safe once every one of its 7
+      source files is executed offline (verified: zero placeholder-shaped files,
+      so the denominator is already in its fully-executed shape and the live leg
+      can only add covered branches).
+      **Floors carry deliberate margin rather than being rounded down from the
+      measurement.** v8's branch TOTAL is not stable run to run — the same
+      adapter-sqlite suite reported 582 and 584 total branches on consecutive
+      runs, ~0.3 of a point — so a floor a quarter-point under the reading is
+      decided by noise. Every floor here still clears §1 with room.
+      **The one number not measured in CI's own configuration** is `apps/server`
+      with the MySQL leg: re-measured here with a real pg16 and CI's
+      `TEST_POSTGRES_URL`/`PGUSER`/`PGPASSWORD` (1477 tests, 7 skipped) at
+      90.54/81.31, but this machine has no MySQL and no Docker. That leg is why
+      fb8b2ae lowered this floor to 79 off a CI reading. Server's denominator is
+      close to fully expanded — 4 of 211 files unexecuted, all four entrypoints
+      no database leg reaches — so MySQL should add covered branches rather than
+      expand the total. If `verify` reddens on coverage, that is the line to
+      re-check, and this row gets unchecked per the rule above.
 - [x] Performance budgets — **9 of the 10 rows in 15-quality.md §5 are WAIVED
       for v1.0** (owner decision 2026-08-19). The tenth is measured and gated and
       stays that way: the dashboard entry chunk, 321.4 KiB gz against 350, by
