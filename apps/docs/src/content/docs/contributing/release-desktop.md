@@ -40,9 +40,16 @@ To validate a build **without** cutting a tag, run the workflow manually
 
 Alongside the installers, the release carries the electron-updater feed files
 (`latest.yml`, `latest-mac.yml`, `latest-linux.yml`) and `SHA256SUMS.txt`. Only
-`desktop-v*` releases are allowed to carry `latest*.yml` files — the updater
-resolves the newest release that has them, so nothing else in the repo may
-attach a file with that name.
+`desktop-v*` releases are allowed to carry `latest*.yml` files, so nothing else
+in the repo may attach a file with that name.
+
+The app finds those files by reading the releases **list** and picking the newest
+`desktop-v*` entry itself, then pinning the updater to that one release's asset
+directory. It deliberately does not use GitHub's "latest release", because that
+is a single pointer for the whole repository and the `v*` npm series can hold it
+— which is what silently broke updates on every platform for 0.2.1. Installs
+already in the field cannot be changed, and they *do* resolve through that
+pointer, which is why publishing a desktop release must also claim it.
 
 ## Publishing the draft
 
@@ -54,7 +61,30 @@ attach a file with that name.
    ```bash
    spctl -a -vv /Applications/Adminium.app
    ```
-4. Press **Publish**. The auto-updater picks the release up on the next check.
+4. Publish it **and claim the Latest pointer, in one command**:
+   ```bash
+   gh release edit desktop-vX.Y.Z --repo MoSofi/Adminium --draft=false --latest
+   ```
+   The `--latest` is not decoration. Every install already in the field resolves
+   its update feed through GitHub's Latest pointer, so a published desktop
+   release that does not hold it is invisible to all of them. Publishing through
+   the web UI works too — tick **Set as the latest release** — but the two steps
+   are one command here so the release is never briefly public without it.
+
+   **Stable tags only.** For a release candidate (`desktop-vX.Y.Z-rc.N`) publish
+   with `--draft=false` and *no* `--latest`: GitHub refuses the pointer to a
+   prerelease, and handing it to an rc would point every stable install at a
+   release candidate. The draft's own checklist is generated with the right
+   command for the tag, so follow the one it gives you.
+5. Confirm the pointer actually moved, and that the feed file it now implies is
+   reachable:
+   ```bash
+   gh api repos/MoSofi/Adminium/releases/latest --jq .tag_name
+   curl -sIL -o /dev/null -w '%{http_code}\n' \
+     https://github.com/MoSofi/Adminium/releases/download/desktop-vX.Y.Z/latest-mac.yml
+   ```
+   Expect the tag you just published, then `200`. A `v*` tag here means
+   `release.yml` reclaimed the pointer and desktop updates are broken again.
 
 ## Signing and notarization checklist
 

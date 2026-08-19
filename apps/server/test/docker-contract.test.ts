@@ -342,6 +342,84 @@ describe('the release workflow cannot publish an untested image', () => {
     expect(promoteBlock).toContain(':latest');
   });
 
+  it('keeps composite actions to the keys the runner actually accepts', async () => {
+    // THE BUG THIS PINS. `timeout-minutes` is not a legal key on a step inside a
+    // composite action — GitHub's metadata syntax allows exactly the ten below,
+    // and the runner rejects the WHOLE manifest when it sees another, so one bad
+    // key breaks every workflow that uses the action rather than one step. A
+    // draft of `.github/actions/playwright-chromium` had it on two steps and
+    // would have hard-failed five required checks on the first push.
+    //
+    // Nothing caught it: `actionlint` does not visit `.github/actions/` at all,
+    // and pointed at an `action.yml` it parses the file as a WORKFLOW — emitting
+    // "jobs section is missing" and exiting 0. So the one genuinely new artifact
+    // in that change had zero lint coverage. This test is that coverage.
+    const { parse } = await import('yaml');
+    const { readdirSync, existsSync } = await import('node:fs');
+
+    const COMPOSITE_STEP_KEYS = new Set([
+      'run',
+      'shell',
+      'if',
+      'name',
+      'id',
+      'env',
+      'working-directory',
+      'uses',
+      'with',
+      'continue-on-error',
+    ]);
+
+    const dir = new URL('../../../.github/actions/', import.meta.url);
+    if (!existsSync(dir)) return;
+
+    const names = readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    expect(names.length, 'expected at least one composite action to check').toBeGreaterThan(0);
+
+    for (const name of names) {
+      const manifest = parse(read(`.github/actions/${name}/action.yml`)) as {
+        runs?: { using?: string; steps?: Array<Record<string, unknown>> };
+      };
+      if (manifest.runs?.using !== 'composite') continue;
+      for (const [index, step] of (manifest.runs.steps ?? []).entries()) {
+        for (const key of Object.keys(step)) {
+          expect(
+            COMPOSITE_STEP_KEYS.has(key),
+            `${name}/action.yml step ${index} ("${String(step.name ?? key)}") uses "${key}", which the runner rejects on a composite step. Bound the action from the CALLER instead.`,
+          ).toBe(true);
+        }
+        // A `run` step without a `shell` is the other manifest-load failure.
+        if ('run' in step) {
+          expect(step.shell, `${name}/action.yml step ${index} has run: but no shell:`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('never lets a v* Release claim the Latest pointer the desktop updater needs', () => {
+    // THE BUG THIS PINS. GitHub's "latest" is ONE stored pointer per repository,
+    // and this repo publishes two tag series. Desktop installs already in the
+    // field resolve their update feed through that pointer and cannot be
+    // changed, so if a `v*` Release takes it they resolve a release carrying no
+    // installers and 404. That happened: the pointer sat on v0.2.1 (zero assets)
+    // and every desktop install on all three platforms silently stopped
+    // updating. Only a comment stood between the pipeline and a repeat.
+    // Join backslash continuations first: the two calls are one logical shell
+    // line joined by `||`, so a line-by-line scan would see neither in full.
+    const logical = release.replace(/\\\r?\n\s*/g, ' ');
+    const invocations = logical
+      .split(/\|\||&&|;/)
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.includes('gh release create'));
+
+    expect(invocations.length, 'release.yml must still create a GitHub Release').toBe(2);
+    for (const call of invocations) {
+      expect(call, `must pass --latest=false: ${call.slice(0, 80)}`).toContain('--latest=false');
+    }
+  });
+
   it('exercises the with-meta Postgres topology, not just the SQLite fallback', () => {
     // THE BUG THIS PINS. Every smoke test booted with ADMINIUM_SECRET alone —
     // the embedded SQLite fallback §3.1 tells self-hosters NOT to use in
