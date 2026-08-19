@@ -189,6 +189,11 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
 
   const allowedTemplates = allowed.templates;
   const allowedWidgets = allowed.widgets;
+  // The icon manifest travels WITH the other vocabularies (`AllowedVocabularies`)
+  // because it reaches the server the same way — as data, since neither
+  // `@adminium/widgets` nor `@adminium/ui` may be imported here (01 §2.3). The
+  // explicit dep stays as the test seam it always was, and now wins over it.
+  const allowedIcons = deps.allowedIcons ?? allowed.icons;
 
   async function loadModelForRun(run: LlmRun): Promise<DatabaseModel> {
     const snapshot = await snapshots.findById(run.snapshotId);
@@ -413,7 +418,7 @@ export function llmRoutes(deps: LlmRoutesDeps): FastifyPluginAsyncZod {
             snapshot: model,
             allowedTemplates,
             allowedWidgets,
-            ...(deps.allowedIcons !== undefined ? { allowedIcons: deps.allowedIcons } : {}),
+            ...(allowedIcons === undefined ? {} : { allowedIcons }),
           });
           // Inside the `try`, after `receiveResponse` returned: an immutable or
           // out-of-order run throws below and must not read as a paste that

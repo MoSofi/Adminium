@@ -170,6 +170,10 @@ export const applyLlmResponseCommand: Command = {
           snapshot: model,
           allowedTemplates: allowed.templates,
           allowedWidgets: allowed.widgets,
+          // §7.3 unknown-icon check — present whenever the loaded vocabulary
+          // carries the icon manifest (`cli/allowlist.ts`), absent when it does
+          // not, which is exactly how the check is specified to degrade.
+          ...(allowed.icons === undefined ? {} : { allowedIcons: allowed.icons }),
           dryRun,
         });
 

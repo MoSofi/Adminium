@@ -60,6 +60,17 @@ export interface ReferentialContext {
    * The bundled lucide manifest (`@adminium/ui` `LUCIDE_ICON_NAMES`), injected
    * as data. When absent the icon check is skipped (Zod already guarantees
    * kebab-case); when present, an unknown icon is a warning + `table` fallback.
+   *
+   * Injected, not imported, for the usual reason: this package must not depend
+   * on `@adminium/ui` (01 §2.3). It reaches `apps/server` as a snapshot inside
+   * `AllowedVocabularies.icons` (`bundle-allowlists.mjs` → `cli/allowlist.ts`),
+   * and travels the same wiring as `allowedTemplates`/`allowedWidgets`.
+   *
+   * The names are the ones the dashboard can actually RESOLVE — lucide's own
+   * `iconNames` minus its deprecated aliases, which are legal named imports but
+   * are not keys of the `icons` map `icon-resolver.ts` looks a runtime name up
+   * in. Accepting `kanban-square` here would store a name that renders the
+   * fallback glyph after fetching the whole catalogue to discover it is dead.
    */
   allowedIcons?: ReadonlySet<string> | readonly string[];
   /**

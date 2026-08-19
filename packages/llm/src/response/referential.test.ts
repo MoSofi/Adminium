@@ -418,10 +418,11 @@ describe('§7.3 row 6 — nav groups', () => {
   });
 
   it('falls a nav group back to the table icon when its icon is not in the manifest', () => {
-    // NOTE: `allowedIcons` is an optional input that nothing in apps/server
-    // currently supplies, so this path does not run in the shipped product —
-    // see the package report. It is exercised here as the contract a caller
-    // gets when it does supply one.
+    // `allowedIcons` is optional, and for the whole of M6 nothing in apps/server
+    // supplied it — the manifest it names (`@adminium/ui` `LUCIDE_ICON_NAMES`)
+    // did not exist, so this path never ran in the shipped product. It does now:
+    // `compose.ts` and `cli/commands/apply-llm-response.ts` pass the snapshot
+    // `cli/allowlist.ts` loads. This still asserts the contract, not the wiring.
     const result = validateResponse(
       body({ navGroups: [navGroup({ icon: 'not-a-real-lucide-icon' })] }),
       { ...ctx, allowedIcons: ['shopping-cart', 'package', 'table'] },

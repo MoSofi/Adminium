@@ -18,11 +18,17 @@
  *    missing", hinting at a `pnpm --filter` command a container user cannot run;
  *  - a future `npx adminium` tarball ships `dist` + `dashboard` only.
  *
- * So the build SNAPSHOTS the two lists — pure JSON data, no code, no import edge
- * — into `<package>/vocabulary/`, which is on the `files` allow-list and is the
+ * So the build SNAPSHOTS the lists — pure JSON data, no code, no import edge —
+ * into `<package>/vocabulary/`, which is on the `files` allow-list and is the
  * first candidate `src/cli/allowlist.ts` probes. Same shape as
  * `bundle-dashboard.mjs`: the artifact carries what it needs, because the
  * workspace it was built from is not there at run time.
+ *
+ * `LUCIDE_ICON_NAMES` rides along for identical reasons, from `@adminium/ui`
+ * (which the server may not import either). Without it the §7.3 unknown-icon
+ * check has no manifest, silently skips, and a model can store any hallucinated
+ * string as a table's icon — which the dashboard then draws as a fallback glyph
+ * after fetching the whole icon catalogue to discover the name is dead.
  *
  * `--check` verifies the emitted file is present and well-formed without
  * writing, so the release pipeline can fail loudly rather than publish a tarball
@@ -43,6 +49,16 @@ const OUT_DIR = join(serverRoot, 'vocabulary');
 const OUT_FILE = join(OUT_DIR, 'llm-allowlist.json');
 
 const source = join(repoRoot, 'packages', 'widgets', 'dist', 'registry', 'llm-allowlist.js');
+/**
+ * `LUCIDE_ICON_NAMES` — same problem, different package. `@adminium/ui` is not
+ * a dependency of `@adminium/server` and never can be (01 §2.3 forbids the
+ * import edge outright), so the icon vocabulary the LLM validator checks a
+ * suggested `icon` against travels the same way the widget lists do: snapshotted
+ * here, read as data. The module it comes from is generated and carries NO
+ * imports at all — plain strings — so reading it costs nothing and drags no
+ * React into this script.
+ */
+const iconSource = join(repoRoot, 'packages', 'ui', 'dist', 'components', 'icon', 'icon-names.js');
 const check = process.argv.includes('--check');
 
 if (check) {
@@ -76,6 +92,14 @@ if (check) {
     ) {
       drifted.push('LLM_WIDGET_DATA_CONTRACTS');
     }
+    if (existsSync(iconSource)) {
+      const liveIcons = await import(pathToFileURL(iconSource).href);
+      if (
+        JSON.stringify(liveIcons.LUCIDE_ICON_NAMES) !== JSON.stringify(parsed.LUCIDE_ICON_NAMES)
+      ) {
+        drifted.push('LUCIDE_ICON_NAMES');
+      }
+    }
     if (drifted.length > 0) {
       console.error(
         `${OUT_FILE} is STALE — ${drifted.join(', ')} differ(s) from the built registry.\n` +
@@ -96,14 +120,19 @@ if (check) {
     typeof parsed.LLM_WIDGET_DATA_CONTRACTS === 'object' &&
     parsed.LLM_ALLOWED_WIDGETS.every((id) =>
       Array.isArray(parsed.LLM_WIDGET_DATA_CONTRACTS[id]),
-    );
+    ) &&
+    // Optional (an older snapshot predates it), but a present-and-empty list
+    // would silently reject EVERY icon a model suggests.
+    (parsed.LUCIDE_ICON_NAMES === undefined ||
+      (Array.isArray(parsed.LUCIDE_ICON_NAMES) && parsed.LUCIDE_ICON_NAMES.length > 100));
   if (!ok) {
     console.error(`${OUT_FILE} is present but carries no allow-lists.`);
     process.exit(1);
   }
   console.log(
     `ok — ${String(parsed.LLM_ALLOWED_TEMPLATES.length)} template(s), ` +
-      `${String(parsed.LLM_ALLOWED_WIDGETS.length)} widget(s) bundled`,
+      `${String(parsed.LLM_ALLOWED_WIDGETS.length)} widget(s), ` +
+      `${String(parsed.LUCIDE_ICON_NAMES?.length ?? 0)} icon name(s) bundled`,
   );
   process.exit(0);
 }
@@ -133,6 +162,23 @@ if (widgetContracts === null || typeof widgetContracts !== 'object') {
   process.exit(1);
 }
 
+// HARD, not best-effort. A snapshot written without the icon list loads fine and
+// turns the unknown-icon check silently OFF — the exact failure this bundling
+// exists to prevent for the widget lists.
+if (!existsSync(iconSource)) {
+  console.error(
+    `Icon manifest not found at ${iconSource}.\n` +
+      'Build it first: pnpm --filter @adminium/ui build',
+  );
+  process.exit(1);
+}
+const iconMod = await import(pathToFileURL(iconSource).href);
+const iconNames = iconMod.LUCIDE_ICON_NAMES;
+if (!Array.isArray(iconNames) || iconNames.length === 0) {
+  console.error(`${iconSource} does not export a non-empty LUCIDE_ICON_NAMES.`);
+  process.exit(1);
+}
+
 await mkdir(OUT_DIR, { recursive: true });
 await writeFile(
   OUT_FILE,
@@ -141,6 +187,7 @@ await writeFile(
       LLM_ALLOWED_TEMPLATES: templates,
       LLM_ALLOWED_WIDGETS: widgets,
       LLM_WIDGET_DATA_CONTRACTS: widgetContracts,
+      LUCIDE_ICON_NAMES: iconNames,
     },
     null,
     2,
@@ -149,5 +196,6 @@ await writeFile(
 );
 console.log(
   `Bundled LLM allow-lists → ${OUT_FILE} ` +
-    `(${String(templates.length)} templates, ${String(widgets.length)} widgets)`,
+    `(${String(templates.length)} templates, ${String(widgets.length)} widgets, ` +
+    `${String(iconNames.length)} icon names)`,
 );
