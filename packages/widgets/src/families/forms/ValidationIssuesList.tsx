@@ -76,6 +76,15 @@ export function ValidationIssuesListWidget({ config, data }: WidgetProps<Validat
   const issues = issuesOf(data, config);
   const locale = config.format?.locale;
 
+  // ABOVE the empty-state early return, not below it. Hooks must run in the same
+  // order on every render, and the empty branch returns before this point — so
+  // calling them after it threw "Rendered fewer hooks than expected" the moment a
+  // populated list went empty. Deliberately NO role on the list: an explicit one
+  // would override the <ul>'s implicit `role="list"` and destroy the
+  // "list, N items" announcement. The tab stop appears only while it overflows.
+  const headingId = useWidgetHeadingId();
+  const scroll = useScrollRegion({ labelledBy: headingId ?? undefined });
+
   if (issues.length === 0) {
     return (
       <EmptyState
@@ -86,11 +95,6 @@ export function ValidationIssuesListWidget({ config, data }: WidgetProps<Validat
       />
     );
   }
-
-  // Deliberately NO role: an explicit one would override the <ul>'s implicit
-  // `role="list"` and destroy the "list, N items" announcement. The tab stop
-  // plus the frame heading's name is enough, and only while it overflows.
-  const scroll = useScrollRegion({ labelledBy: useWidgetHeadingId() ?? undefined });
 
   return (
     <ul

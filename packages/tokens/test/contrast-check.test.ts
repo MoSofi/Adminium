@@ -145,6 +145,9 @@ describe('the gate itself', () => {
         'code-ink',
         'focus-ring',
         'semantic',
+        // ::selection, whose backdrop the USER picks by dragging — the extreme of the same
+        // composition problem as `chip-solid`, and the one axe can never witness.
+        'selection',
         'state-fill',
         'text',
         'text-on-soft',
@@ -312,6 +315,22 @@ describe('gate hardening', () => {
     // a light-theme grey left behind in the dark scope is 2.4:1 there, and is now caught
     const drifted = failures as { fg: string; scope: string }[];
     expect(drifted.some((f) => f.fg === '--fg-subtle' && f.scope === '.adm-always-dark')).toBe(true);
+  });
+
+  it('catches a translucent ::selection tint, including on the accent fill', () => {
+    // The regression this group exists for, restored exactly: --accent-selection as a WASH. Over a
+    // plain surface it looks fine, which is why it survived two passes; over the primary button's
+    // own fill — draggable text, not a page background — the theme --fg measured 2.78:1 on this
+    // fixture's indigo, and 1.080:1 on the monochrome accent the real palette also ships. axe
+    // cannot see any of it, because it does not evaluate ::selection at all.
+    const wash = base('--accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);');
+    const rows = runAudit({ css: wash }).failures as { group: string; bg: string; actual: number }[];
+    const onFill = rows.filter((r) => r.group === 'selection' && r.bg.endsWith('on --accent'));
+    expect(onFill.length).toBeGreaterThan(0);
+    expect(near(onFill[0]!.actual)).toBe(2.78);
+    // …and the pre-composited token that shipped instead passes the same check.
+    const solid = base('--accent-selection: color-mix(in srgb, var(--accent) 12%, var(--surface));');
+    expect((runAudit({ css: solid }).failures as unknown[]).length).toBe(0);
   });
 
   it('resolves a scope-inherited token against the value computed on the ROOT', () => {

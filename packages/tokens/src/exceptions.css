@@ -37,7 +37,10 @@
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-soft-solid: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --accent-hover: color-mix(in srgb, var(--accent) 88%, #fff);
-  --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* Pre-composited against THIS scope's --surface, not the root's (accents.css, THE SELECTION
+     PAIR). A selection tint left to the root would arrive mixed with the page's surface and
+     paint a light pill inside a dark code block. */
+  --accent-selection: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
   --pos: #3ecf8e;
   --pos-soft: rgba(62,207,142,.14);
@@ -89,7 +92,8 @@
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --accent-soft-solid: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --accent-hover: color-mix(in srgb, var(--accent) 82%, #000);
-  --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* Pre-composited against THIS scope's --surface — see the .adm-always-dark note above. */
+  --accent-selection: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
   --pos: #0b7d59;
   --pos-soft: #e6f5ee;

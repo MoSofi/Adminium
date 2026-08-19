@@ -117,39 +117,28 @@ not deleting it.
       themes, strict (0 failures)
 - [x] axe sweep gated in CI by a grow-only fingerprint baseline (no new
       violation kinds can land)
-- [ ] axe fingerprint baseline burned down to zero or each remaining
-      fingerprint individually accepted with rationale — **162 → 112 →
-      69**, the last step on 2026-08-19 being the first real BURN-DOWN.
-      All 43 removed there left because component code changed, each
-      verified gone by re-running the sweep against a freshly built
-      Storybook: 20 `nested-interactive` (DocumentCanvas wrapped every
-      block in `role="button"`, which is children-presentational, so the
-      line-item table and its inputs were stripped from the a11y tree),
-      12 `aria-valid-attr-value` (TabBar renders no TabsContent by design
-      while Radix emits `aria-controls` at a panel id unconditionally), and
-      11 `color-contrast` (three wrapper opacity utilities taking
-      informational text beside live controls to 2.2–3.3:1, plus the
-      loyalty banner off the accent tint). Two `qa-widget-states` entries
-      were deliberately NOT pruned — they did not reproduce before the
-      change either, so there is no evidence they are fixed.
-      The earlier 162 → 112 step was ~85% re-measurement, not burn-down.
-      This row was claimed twice before the cause was understood, at "1" and
-      then at "111 (Linux-canonical)". Both were artifacts of a RACE, not of a
-      platform: `data-vrt-ready` was a bare mount effect, and the widget
-      registry loads component code through per-family lazy chunks, so the flag
-      rose while every widget body was still in flight — 101 elements at the
-      flag against 182 a moment later on `widgets-forms--light-ltr`, 30 against
-      124 on `widgets-tables-trackf--master-list-story`. A fast machine lost
-      that race and reported almost nothing; CI won it and reported almost
-      everything. The sweep now navigates with `networkidle` and the flag waits
-      for DOM quiescence, and a laptop and CI agree fingerprint-for-fingerprint.
-      Against the original 162: 111 do not reproduce (artifacts of an unstyled
-      Storybook painted white under dark theme), 51 were real all along, and 59
-      more were exposed once the stories rendered styled. 128 were found and
-      fixed rather than baselined. What remains is 112, dominated by
-      `scrollable-region-focusable`, `color-contrast` and `nested-interactive`,
-      none individually accepted yet — which is what this row asks for and why
-      it stays unchecked
+- [x] axe fingerprint baseline burned down to zero — **162 → 0, 2026-08-19.**
+      The count is honest only with its composition, so: 92 of the original 162
+      were never real (artifacts of an unstyled, white-bodied Storybook), and the
+      remaining 70 were fixed in component code across seven passes — a wrapper
+      `role="button"` that stripped whole tables from the a11y tree, a tab strip
+      pointing `aria-controls` at panels that never existed, a phantom scroll
+      from one unclamped marker, wrapper opacity taking text beside live controls
+      to 2.2:1, a progress label at 1.01:1, table rows missing their header
+      roles, an interactive row that flattened its own controls, and a Radix
+      trigger rendered onto a `div`.
+      **Five of the last nine were never live.** They were already fixed and only
+      still reported because widget stories bundle `@adminium/ui` from its BUILT
+      `dist` while ui stories use `src`, and the Storybook build predated the dist
+      rebuild — one sweep measuring two different implementations of the same
+      component. Rebuild the package before rebuilding Storybook; it is recorded
+      in the baseline's `howToMeasure`.
+      **What the gate still cannot see**, recorded rather than left implied: it
+      does not model a soft tint composited over ANOTHER soft tint. Measured
+      across the full cross product, 2,969 of 28,224 such pairs fail with a floor
+      of 3.47:1, and `--fg-subtle` already sits at 4.557:1 on one tint over
+      `--surface-3` — so closing it is a palette decision, not a gate change.
+      `acceptedWithRationale` is empty: nothing is accepted, everything is fixed.
 - [x] The axe sweep and the VRT matrix measure a story that has finished
       rendering — `scripts/a11y-sweep.mjs` and `vrt/vrt.spec.ts` both navigate
       with `networkidle`, and `.storybook/preview.tsx` stamps `data-vrt-ready`
