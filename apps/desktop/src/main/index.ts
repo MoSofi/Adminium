@@ -1783,6 +1783,20 @@ export function electronBootDeps(): DesktopBootDeps {
         emit: (event) => emitUpdateEvent(event),
         canSelfUpdate: canSelfUpdate(process.platform, process.env),
         log: mainLog,
+        // Chromium's network stack, NOT Node's. electron-updater fetches the
+        // channel file and the installer through `electron.net`, which honours
+        // the system/PAC proxy, proxy authentication and the OS trust store;
+        // Node's global `fetch` (undici) honours none of those. Resolving the
+        // release on undici while downloading it on Chromium would mean that on
+        // any managed machine — corporate proxy, TLS-intercepting middlebox —
+        // every check fails at the resolve step even though the download would
+        // have worked. `net.fetch` is `fetch`-shaped, so the port's type is
+        // unchanged and the unit suite keeps its plain-`fetch` default.
+        fetchImpl: (input, init) =>
+          (requireFromMain('electron') as typeof import('electron')).net.fetch(
+            input as string,
+            init,
+          ),
       });
       return updateManager;
     },

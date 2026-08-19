@@ -8,22 +8,77 @@
  * autoUpdater events into the ONE §4 notification pipeline.
  */
 
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import type { DesktopUpdateEvent } from '../preload/api.js';
 import {
   canSelfUpdate,
+  compareDesktopTags,
   createUpdateManager,
+  DESKTOP_RELEASES_API_URL,
+  DESKTOP_TAG_PATTERN,
+  feedForTag,
+  FEED_REPO,
   LAUNCH_CHECK_GRACE_MS,
+  MAX_RELEASE_PAGES,
   PERIODIC_CHECK_MS,
   RELEASES_URL,
+  resolveDesktopRelease,
   resolveUpdateMode,
-  UPDATE_FEED,
   type CreateUpdateManagerOptions,
   type UpdaterCheckResult,
   type UpdaterEventName,
   type UpdaterPort,
 } from './updates.js';
+
+/**
+ * The REAL `GET /repos/MoSofi/Adminium/releases` payload, recorded 2026-08-18.
+ * It is the actual regression case, not a hand-built one: it contains
+ * `v0.2.1` — which is what `/releases/latest` answers and what the broken code
+ * resolved — and `v0.2.2-rc.0`, which is newer still and first in the array.
+ */
+const RELEASES_FIXTURE: unknown = JSON.parse(
+  readFileSync(new URL('../test/fixtures/github-releases.json', import.meta.url), 'utf8'),
+);
+
+/**
+ * A `fetch` that answers one payload and RECORDS its calls. The recording is
+ * the point: without asserting the URL, pointing the resolver back at
+ * `/releases/latest` — the exact bug — leaves this whole suite green.
+ */
+function fakeFetch(payload: unknown, ok = true): Mock {
+  return vi.fn(() =>
+    Promise.resolve({
+      ok,
+      json: () => Promise.resolve(payload),
+      headers: new Headers(),
+    } as unknown as Response),
+  );
+}
+
+/**
+ * A paginated `fetch`: each page answers with a `Link: rel="next"` pointing at
+ * the following one.
+ */
+function pagedFetch(pages: unknown[]): Mock {
+  let index = 0;
+  return vi.fn(() => {
+    const body = pages[index] ?? [];
+    index += 1;
+    const hasNext = index < pages.length;
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(body),
+      headers: new Headers(
+        hasNext
+          ? { link: `<https://api.github.com/repos/MoSofi/Adminium/releases?per_page=100&page=${index + 1}>; rel="next"` }
+          : {},
+      ),
+    } as unknown as Response);
+  });
+}
 
 // ─── Fakes ───────────────────────────────────────────────────────────────────
 
@@ -195,7 +250,7 @@ describe('disabled mode never initializes the updater', () => {
 // ─── notify vs manual: check timing (§11) ────────────────────────────────────
 
 describe('check scheduling', () => {
-  it('notify checks on launch after a 30 s grace and then every 24 h', () => {
+  it('notify checks on launch after a 30 s grace and then every 24 h', async () => {
     const fake = fakeUpdater(null);
     const { scheduler, afters, everies } = fakeScheduler();
 
@@ -205,6 +260,7 @@ describe('check scheduling', () => {
       emit: vi.fn(),
       canSelfUpdate: true,
       scheduler,
+      fetchImpl: fakeFetch(RELEASES_FIXTURE),
     });
 
     expect(afters).toHaveLength(1);
@@ -214,13 +270,15 @@ describe('check scheduling', () => {
 
     // Nothing has checked yet — the grace has not elapsed.
     expect(fake.checkForUpdates).not.toHaveBeenCalled();
-    // Firing the launch timer runs a check; the periodic one does too.
+    // Firing the launch timer runs a check; the periodic one does too. Each
+    // now resolves the release feed first, so the assertion has to await that
+    // — a scheduled check is fire-and-forget by design (§11).
     afters[0]?.fn();
     everies[0]?.fn();
-    expect(fake.checkForUpdates).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(fake.checkForUpdates).toHaveBeenCalledTimes(2));
   });
 
-  it('manual never schedules a check — Help → "Check for updates…" only', () => {
+  it('manual never schedules a check — Help → "Check for updates…" only', async () => {
     const fake = fakeUpdater(null);
     const { scheduler, afters, everies } = fakeScheduler();
 
@@ -230,6 +288,7 @@ describe('check scheduling', () => {
       emit: vi.fn(),
       canSelfUpdate: true,
       scheduler,
+      fetchImpl: fakeFetch(RELEASES_FIXTURE),
     });
 
     expect(afters).toHaveLength(0);
@@ -237,7 +296,7 @@ describe('check scheduling', () => {
     expect(fake.checkForUpdates).not.toHaveBeenCalled();
 
     // But an explicit check still works.
-    void manager?.checkForUpdates();
+    await manager?.checkForUpdates();
     expect(fake.checkForUpdates).toHaveBeenCalledOnce();
   });
 });
@@ -245,7 +304,7 @@ describe('check scheduling', () => {
 // ─── updater configuration (§11 verbatim) ────────────────────────────────────
 
 describe('the updater is configured per §11', () => {
-  it('disables auto-download / auto-install / prerelease / downgrade and sets the GitHub feed', () => {
+  it('disables auto-download / auto-install / prerelease / downgrade', () => {
     const fake = fakeUpdater(null);
     createUpdateManager({
       mode: 'notify',
@@ -259,13 +318,259 @@ describe('the updater is configured per §11', () => {
     expect(fake.updater.autoInstallOnAppQuit).toBe(false);
     expect(fake.updater.allowPrerelease).toBe(false);
     expect(fake.updater.allowDowngrade).toBe(false);
-    expect(fake.setFeedURL).toHaveBeenCalledWith(UPDATE_FEED);
     // Pinned to the REAL repository. `adminium/adminium` is an unrelated third
     // party's org+repo, and whatever is named here is trusted to serve a shipped
     // install its next installer (unsigned on Windows ⇒ no signature check), so
     // this assertion is a supply-chain guard, not a spelling test.
-    expect(UPDATE_FEED).toEqual({ provider: 'github', owner: 'MoSofi', repo: 'Adminium' });
+    expect(FEED_REPO).toEqual({ owner: 'MoSofi', repo: 'Adminium' });
     expect(RELEASES_URL).toBe('https://github.com/MoSofi/Adminium/releases');
+    expect(DESKTOP_RELEASES_API_URL).toBe(
+      'https://api.github.com/repos/MoSofi/Adminium/releases?per_page=100',
+    );
+  });
+
+  it('sets NO feed at construction — resolution is per-check and must not touch the network', () => {
+    const fake = fakeUpdater(null);
+    const fetchImpl = fakeFetch(RELEASES_FIXTURE);
+    createUpdateManager({
+      mode: 'manual',
+      getUpdater: () => fake.updater,
+      emit: vi.fn(),
+      canSelfUpdate: true,
+      scheduler: fakeScheduler().scheduler,
+      fetchImpl,
+    });
+
+    expect(fake.setFeedURL).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Release resolution: the bug this suite exists to prevent ────────────────
+
+/**
+ * THE REGRESSION. Every case below fails against the pre-2026-08-18 code, which
+ * let electron-updater resolve the tag from `/releases/latest` — a single stored
+ * pointer for the whole repository, which sat on the npm series' `v0.2.1` and
+ * carried no installers, so every shipped install 404'd on `latest-mac.yml`.
+ */
+describe('resolveDesktopRelease picks our tag series out of the real feed', () => {
+  it('picks desktop-v0.2.1 from the recorded payload, not v0.2.1 and not the rc', () => {
+    const release = resolveDesktopRelease(RELEASES_FIXTURE);
+
+    expect(release?.tag).toBe('desktop-v0.2.1');
+    expect(release?.version).toBe('0.2.1');
+    // The two traps, stated explicitly so a future reader knows they are the point:
+    // `v0.2.1` is what /releases/latest answers, and `v0.2.2-rc.0` is both newer
+    // and FIRST in the array.
+    expect(release?.tag).not.toBe('v0.2.1');
+    expect(release?.tag).not.toBe('v0.2.2-rc.0');
+    // Pinned on the pattern itself, not only on the selection outcome. Widening
+    // the pattern to admit the npm series still happens to select the desktop
+    // tag through the comparator, so selection alone does not prove exclusivity
+    // — these two assertions are what actually hold the series apart.
+    expect(DESKTOP_TAG_PATTERN.test('v0.2.1')).toBe(false);
+    expect(DESKTOP_TAG_PATTERN.test('v0.2.2-rc.0')).toBe(false);
+  });
+
+  it('builds a feed pinned to that release, with multi-range off', () => {
+    expect(feedForTag('desktop-v0.2.1')).toEqual({
+      provider: 'generic',
+      url: 'https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1',
+      // GitHub's asset CDN answers a multipart Range with 501; leaving this on
+      // silently degrades every delta download to a full one.
+      useMultipleRangeRequest: false,
+    });
+  });
+
+  it('selects by highest version, never by list position or publish date', () => {
+    const release = resolveDesktopRelease([
+      { tag_name: 'desktop-v0.9.0', draft: false, prerelease: false, body: 'older line' },
+      { tag_name: 'desktop-v0.10.0', draft: false, prerelease: false, body: 'newest' },
+      { tag_name: 'desktop-v0.9.1', draft: false, prerelease: false, body: 'patch, published last' },
+    ]);
+    expect(release?.tag).toBe('desktop-v0.10.0');
+    // The comparator must not be apps/server's, which parses every desktop tag
+    // to [0,0,0] and would leave all three tied.
+    expect(compareDesktopTags('desktop-v0.10.0', 'desktop-v0.9.0')).toBeGreaterThan(0);
+  });
+
+  it('skips drafts and prereleases, and refuses a release-candidate tag outright', () => {
+    expect(
+      resolveDesktopRelease([
+        { tag_name: 'desktop-v0.3.0', draft: true, prerelease: false },
+        { tag_name: 'desktop-v0.2.5', draft: false, prerelease: true },
+        { tag_name: 'desktop-v0.2.1', draft: false, prerelease: false },
+      ])?.tag,
+    ).toBe('desktop-v0.2.1');
+
+    // Belt as well as braces: desktop-release.yml derives --prerelease from the
+    // tag, but under the `generic` provider `allowPrerelease` is read by nothing,
+    // so the pattern is the only guard that cannot be forgotten at publish time.
+    expect(DESKTOP_TAG_PATTERN.test('desktop-v0.3.0-rc.1')).toBe(false);
+    expect(
+      resolveDesktopRelease([
+        { tag_name: 'desktop-v0.3.0-rc.1', draft: false, prerelease: false },
+      ]),
+    ).toBeNull();
+  });
+
+  it('rejects anything that could escape the download path when interpolated', () => {
+    for (const tag of ['desktop-v0.2.1/../../evil', 'desktop-v0.2.1%2F..', 'desktop-v../0.2.1']) {
+      expect(DESKTOP_TAG_PATTERN.test(tag)).toBe(false);
+    }
+    expect(resolveDesktopRelease([{ tag_name: '../../evil', draft: false, prerelease: false }])).toBeNull();
+  });
+
+  it('returns null for a payload that is not a release list', () => {
+    expect(resolveDesktopRelease(null)).toBeNull();
+    expect(resolveDesktopRelease({ message: 'API rate limit exceeded' })).toBeNull();
+    expect(resolveDesktopRelease([])).toBeNull();
+  });
+});
+
+describe('a check resolves the feed before every check', () => {
+  const build = (fetchImpl: Mock, result: UpdaterCheckResult | null = null) => {
+    const fake = fakeUpdater(result);
+    const manager = createUpdateManager({
+      mode: 'manual',
+      getUpdater: () => fake.updater,
+      emit: vi.fn(),
+      canSelfUpdate: true,
+      scheduler: fakeScheduler().scheduler,
+      fetchImpl,
+    });
+    return { fake, manager };
+  };
+
+  it('pins the feed to the resolved release, and re-resolves on the next check', async () => {
+    const fetchImpl = fakeFetch(RELEASES_FIXTURE);
+    const { fake, manager } = build(fetchImpl);
+
+    await manager?.checkForUpdates();
+
+    // WHICH URL. Without this, restoring the original bug — pointing resolution
+    // back at /releases/latest — leaves every other assertion in this file green.
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe(DESKTOP_RELEASES_API_URL);
+    expect(String(fetchImpl.mock.calls[0]?.[0])).not.toContain('/releases/latest');
+    expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({
+      headers: { accept: 'application/vnd.github+json' },
+    });
+
+    // The literal URL too, so a refactor of FEED_REPO cannot quietly retarget it.
+    expect(DESKTOP_RELEASES_API_URL).toBe(
+      'https://api.github.com/repos/MoSofi/Adminium/releases?per_page=100',
+    );
+    expect(fake.setFeedURL).toHaveBeenCalledWith({
+      provider: 'generic',
+      url: 'https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1',
+      useMultipleRangeRequest: false,
+    });
+
+    // ORDER. Swapping these two lines re-creates the production bug on the first
+    // check of every session, and nothing else in this file would notice.
+    expect(fake.setFeedURL.mock.invocationCallOrder[0]).toBeLessThan(
+      fake.checkForUpdates.mock.invocationCallOrder[0] as number,
+    );
+
+    // Re-resolved rather than cached: a long-running app must see a release
+    // published after launch. Asserted on the FETCH, not on setFeedURL — a
+    // caching implementation would still call setFeedURL twice.
+    await manager?.checkForUpdates();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('walks past a page full of the other tag series', async () => {
+    // The original bug in a second costume: the list is repository-wide and
+    // date-sorted, and `v*` is far denser than `desktop-v*`. A single page would
+    // resolve nothing here and every install would silently stop updating.
+    const npmPage = Array.from({ length: 100 }, (_, i) => ({
+      tag_name: `v9.${i}.0`,
+      draft: false,
+      prerelease: false,
+    }));
+    const fetchImpl = pagedFetch([
+      npmPage,
+      [{ tag_name: 'desktop-v0.2.1', draft: false, prerelease: false, body: 'notes' }],
+    ]);
+    const { fake, manager } = build(fetchImpl);
+
+    await manager?.checkForUpdates();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toContain('page=2');
+    expect(fake.setFeedURL).toHaveBeenCalledWith(feedForTag('desktop-v0.2.1'));
+  });
+
+  it('stops walking at the page cap rather than crawling forever', async () => {
+    const endless = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([{ tag_name: 'v1.0.0', draft: false, prerelease: false }]),
+        headers: new Headers({
+          link: '<https://api.github.com/repos/MoSofi/Adminium/releases?page=99>; rel="next"',
+        }),
+      } as unknown as Response),
+    );
+    const { manager } = build(endless as unknown as Mock);
+
+    expect(await manager?.checkForUpdates()).toEqual({ status: 'error' });
+    expect(endless).toHaveBeenCalledTimes(MAX_RELEASE_PAGES);
+  });
+
+  it('never follows a next link off api.github.com', async () => {
+    const offHost = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([{ tag_name: 'v1.0.0', draft: false, prerelease: false }]),
+        headers: new Headers({ link: '<https://evil.example/releases>; rel="next"' }),
+      } as unknown as Response),
+    );
+    const { manager } = build(offHost as unknown as Mock);
+
+    expect(await manager?.checkForUpdates()).toEqual({ status: 'error' });
+    // Followed once (the real endpoint) and stopped — the header is
+    // server-controlled and must never be able to walk us onto another origin.
+    expect(offHost).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports `error`, never `none`, when the feed cannot be read', async () => {
+    // A rate-limited API rendered as `none` would print "You are on the latest
+    // version." — the same lie in a new place.
+    const rateLimited = build(fakeFetch({ message: 'API rate limit exceeded' }, false));
+    expect(await rateLimited.manager?.checkForUpdates()).toEqual({ status: 'error' });
+    expect(rateLimited.fake.checkForUpdates).not.toHaveBeenCalled();
+
+    const noDesktopRelease = build(fakeFetch([{ tag_name: 'v0.2.1', draft: false, prerelease: false }]));
+    expect(await noDesktopRelease.manager?.checkForUpdates()).toEqual({ status: 'error' });
+
+    const offline = build(vi.fn(() => Promise.reject(new Error('getaddrinfo ENOTFOUND'))));
+    expect(await offline.manager?.checkForUpdates()).toEqual({ status: 'error' });
+  });
+
+  it('carries the release body into the available notification', async () => {
+    const fake = fakeUpdater(null);
+    const emitted: DesktopUpdateEvent[] = [];
+    const manager = createUpdateManager({
+      mode: 'manual',
+      getUpdater: () => fake.updater,
+      emit: (event) => emitted.push(event),
+      canSelfUpdate: true,
+      scheduler: fakeScheduler().scheduler,
+      fetchImpl: fakeFetch([
+        { tag_name: 'desktop-v9.9.9', draft: false, prerelease: false, body: 'Fixes the updater.' },
+      ]),
+    });
+
+    await manager?.checkForUpdates();
+    // electron-updater's `generic` provider parses the yml and nothing else: it
+    // back-fills neither `releaseNotes` nor `releaseName` (only `GitHubProvider`
+    // did, from the Atom feed), and our published latest*.yml carry neither key.
+    // So an event with an empty info object is exactly what the real provider
+    // emits, and the resolved body is the ONLY source of notes.
+    fake.fire('update-available', { version: '9.9.9' });
+
+    expect(emitted).toEqual([{ type: 'available', version: '9.9.9', message: 'Fixes the updater.' }]);
   });
 });
 
@@ -281,6 +586,10 @@ describe('checkForUpdates maps the autoUpdater result to §4', () => {
         emit: vi.fn(),
         canSelfUpdate: true,
         scheduler: fakeScheduler().scheduler,
+        // Not optional: a check resolves the release feed first, so without this
+        // seam these cases would reach api.github.com and pass or fail on
+        // whether the machine happens to be online.
+        fetchImpl: fakeFetch(RELEASES_FIXTURE),
       }),
     };
   };
@@ -310,6 +619,7 @@ describe('checkForUpdates maps the autoUpdater result to §4', () => {
       emit,
       canSelfUpdate: true,
       scheduler: fakeScheduler().scheduler,
+      fetchImpl: fakeFetch(RELEASES_FIXTURE),
     });
     expect(await manager?.checkForUpdates()).toEqual({ status: 'error' });
     // §11: a failed check does not raise a notification.
