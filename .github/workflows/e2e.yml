@@ -51,14 +51,13 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
       - name: Install Playwright chromium
-        run: pnpm --filter @adminium/e2e exec playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
+        # Bounds the WHOLE composite action. It cannot live inside the
+        # action — `timeout-minutes` is not a legal composite-step key.
+        timeout-minutes: 15
+        with:
+          filter: '@adminium/e2e'
 
       - name: Build + run e2e (sqlite)
         run: pnpm turbo run e2e --filter=@adminium/e2e
@@ -118,14 +117,13 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
       - name: Install Playwright chromium
-        run: pnpm --filter @adminium/e2e exec playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
+        # Bounds the WHOLE composite action. It cannot live inside the
+        # action — `timeout-minutes` is not a legal composite-step key.
+        timeout-minutes: 15
+        with:
+          filter: '@adminium/e2e'
 
       - name: Build + run e2e (postgres)
         run: pnpm turbo run e2e --filter=@adminium/e2e
@@ -184,14 +182,13 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
       - name: Install Playwright chromium
-        run: pnpm --filter @adminium/e2e exec playwright install --with-deps chromium
+        uses: ./.github/actions/playwright-chromium
+        # Bounds the WHOLE composite action. It cannot live inside the
+        # action — `timeout-minutes` is not a legal composite-step key.
+        timeout-minutes: 15
+        with:
+          filter: '@adminium/e2e'
 
       - name: Build + run e2e (mysql)
         run: pnpm turbo run e2e --filter=@adminium/e2e

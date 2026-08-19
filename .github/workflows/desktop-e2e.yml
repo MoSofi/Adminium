@@ -59,16 +59,17 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
+      # Electron needs the same shared libraries Chromium does to launch headless
+      # under xvfb, so this job wants the deps half as much as the browser half.
+      # The action installs them best-effort and bounded — see its header for why
+      # an unbounded `--with-deps` is what took two required checks down.
+      - name: Install Playwright chromium
+        uses: ./.github/actions/playwright-chromium
+        # Bounds the WHOLE composite action. It cannot live inside the
+        # action — `timeout-minutes` is not a legal composite-step key.
+        timeout-minutes: 15
         with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      # `--with-deps` installs the shared system libraries Chromium AND Electron
-      # need to launch headless under xvfb.
-      - name: Install Playwright + system deps
-        run: pnpm --filter @adminium/e2e exec playwright install --with-deps chromium
+          filter: '@adminium/e2e'
 
       # Builds the desktop app AND its full dependency graph (dashboard, server,
       # adapters) via the turbo edges.
