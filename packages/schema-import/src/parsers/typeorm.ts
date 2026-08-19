@@ -428,7 +428,7 @@ function scanEntities(source: string, warnings: WarningList): EntitySite[] {
     prevEnd = bodyEnd + 1;
     classRe.lastIndex = bodyEnd + 1;
 
-    const classDecorators = scanDecorators(before, true);
+    const classDecorators = scanDecorators(before);
     const entityDeco = classDecorators.find((d) => d.name === 'Entity');
     if (!entityDeco) continue;
 
@@ -452,9 +452,41 @@ function scanEntities(source: string, warnings: WarningList): EntitySite[] {
   return entities;
 }
 
-/** Scan decorators in `text`; when `tail` is true, only those after the last statement end. */
-function scanDecorators(text: string, tail: boolean): Decorator[] {
-  const region = tail ? text.slice(Math.max(text.lastIndexOf(';'), text.lastIndexOf('}')) + 1) : text;
+/**
+ * Index just past the last top-level `;` or `}` in `text` — where the
+ * statement preceding a class declaration ends, and therefore where that
+ * class's own decorators begin.
+ *
+ * A plain `lastIndexOf('}')` cannot answer this: the `}` of a decorator's own
+ * options object (`@Entity({ name: 'invoices' })` — the documented way to set
+ * a table name) is the last `}` in the text, so the decorator that owns it was
+ * cut out of its own region and every entity declared that way vanished. Only
+ * brackets at depth 0 close a statement, and strings/comments are opaque.
+ */
+function lastStatementEnd(text: string): number {
+  let depth = 0;
+  let end = 0;
+  let i = 0;
+  while (i < text.length) {
+    const next = skipJsAtom(text, i);
+    if (next !== i) {
+      i = next;
+      continue;
+    }
+    const ch = text[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth += 1;
+    else if (ch === ')' || ch === ']' || ch === '}') {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0 && ch === '}') end = i + 1;
+    } else if (ch === ';' && depth === 0) end = i + 1;
+    i += 1;
+  }
+  return end;
+}
+
+/** Scan the decorators that belong to the class declaration `text` precedes. */
+function scanDecorators(text: string): Decorator[] {
+  const region = text.slice(lastStatementEnd(text));
   const decorators: Decorator[] = [];
   const re = /@([A-Za-z_$][\w$]*)/g;
   let m: RegExpExecArray | null;

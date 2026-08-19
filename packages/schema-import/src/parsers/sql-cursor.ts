@@ -167,42 +167,4 @@ export class SqlCursor {
     this.pos = this.text.length;
     return out;
   }
-
-  /**
-   * Capture raw text until one of `stopWords` appears at paren depth 0 (or
-   * end of input). Used for DEFAULT expressions and type tails.
-   */
-  takeUntilWords(stopWords: readonly string[]): string {
-    this.skipWs();
-    const stops = new Set(stopWords.map((w) => w.toUpperCase()));
-    const start = this.pos;
-    while (this.pos < this.text.length) {
-      this.skipWs();
-      if (this.pos >= this.text.length) break;
-      const ch = this.text[this.pos] as string;
-      if (ch === '(') {
-        const end = findBalanced(this.text, this.pos);
-        this.pos = end === -1 ? this.text.length : end + 1;
-        continue;
-      }
-      if (ch === "'") {
-        this.takeStringLiteral();
-        continue;
-      }
-      if (ch === '"' || ch === '`' || ch === '[') {
-        this.takeIdentifier();
-        continue;
-      }
-      const m = WORD_RE.exec(this.text.slice(this.pos));
-      if (m) {
-        const word = (m[0] as string).toUpperCase();
-        // NOT only stops when followed by NULL (DEFAULT expr `x NOT LIKE…` is unlikely in DDL).
-        if (stops.has(word)) return this.text.slice(start, this.pos).trim();
-        this.pos += m[0].length;
-        continue;
-      }
-      this.pos += 1;
-    }
-    return this.text.slice(start).trim();
-  }
 }
