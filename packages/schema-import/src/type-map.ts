@@ -79,6 +79,10 @@ const BASE_TYPE_MAP: Readonly<Record<string, LogicalType>> = {
   binary: 'binary',
   varbinary: 'binary',
   bit: 'binary',
+  // `parseTypePhrase` builds the two-word spelling deliberately, exactly as it
+  // does for `character varying` / `double precision` — it must land somewhere.
+  'bit varying': 'binary',
+  varbit: 'binary',
   enum: 'enum',
   inet: 'inet',
   cidr: 'inet',

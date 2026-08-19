@@ -137,10 +137,6 @@ export class ModelBuilder {
     if (!this.enums.has(def.id)) this.enums.set(def.id, def);
   }
 
-  getEnum(id: string): EnumDef | undefined {
-    return this.enums.get(id);
-  }
-
   /** Explicit relation (composite FK, many-to-many). Column-level FKs are synthesized from `references` drafts instead. */
   addRelation(draft: RelationDraft): void {
     this.relationDrafts.push(draft);

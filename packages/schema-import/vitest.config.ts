@@ -12,5 +12,11 @@ import { coverage } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  test: { coverage: coverage({ statements: 85, branches: 72 }) },
+    // MARGIN, NOT A HIGH SCORE. This floor sits ~1-2 points under the measured
+    // value rather than rounded down from it. v8's branch TOTAL is not stable
+    // run to run — adapter-sqlite measured the same suite reporting 582 then
+    // 584 total branches on consecutive runs, ~0.3 of a point — so a floor a
+    // quarter-point under the measurement is decided by noise, not coverage.
+    // Every number here still clears 15-quality.md §1 with room.
+  test: { coverage: coverage({ statements: 97, branches: 90 }) },
 });

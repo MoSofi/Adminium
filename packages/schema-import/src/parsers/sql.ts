@@ -100,6 +100,29 @@ function sniffDialect(content: string): Dialect {
   return 'postgres';
 }
 
+/**
+ * Words that start a table constraint. `CONSTRAINT` may be followed directly
+ * by one of these — MySQL makes the constraint symbol optional
+ * (`CONSTRAINT FOREIGN KEY (a) REFERENCES b(id)`), and swallowing `FOREIGN` as
+ * the symbol turned the foreign key into an index named "FOREIGN".
+ */
+const CONSTRAINT_HEADS: ReadonlySet<string> = new Set([
+  'PRIMARY',
+  'FOREIGN',
+  'UNIQUE',
+  'CHECK',
+  'KEY',
+  'INDEX',
+  'FULLTEXT',
+  'SPATIAL',
+  'EXCLUDE',
+]);
+
+/** Consume the optional symbol after a `CONSTRAINT` keyword. */
+function takeConstraintSymbol(cur: SqlCursor): string | null {
+  return CONSTRAINT_HEADS.has(cur.peekWord() ?? '') ? null : cur.takeIdentifier();
+}
+
 const FK_ACTION_MAP: Readonly<Record<string, FkAction>> = {
   CASCADE: 'cascade',
   RESTRICT: 'restrict',
@@ -248,21 +271,10 @@ function parseCreateTable(cur: SqlCursor, stmt: Statement, state: SqlParseState)
 
 function parseTableItem(item: string, table: TableDraft, state: SqlParseState): void {
   const cur = new SqlCursor(item);
-  let constraintName: string | null = null;
-  if (cur.tryWords('CONSTRAINT')) constraintName = cur.takeIdentifier();
+  const constraintName = cur.tryWords('CONSTRAINT') ? takeConstraintSymbol(cur) : null;
 
   const head = cur.peekWord();
-  if (
-    head === 'PRIMARY' ||
-    head === 'FOREIGN' ||
-    head === 'UNIQUE' ||
-    head === 'CHECK' ||
-    head === 'KEY' ||
-    head === 'INDEX' ||
-    head === 'FULLTEXT' ||
-    head === 'SPATIAL' ||
-    head === 'EXCLUDE'
-  ) {
+  if (head !== null && CONSTRAINT_HEADS.has(head)) {
     parseTableConstraint(cur, table, constraintName, state);
     return;
   }
@@ -774,8 +786,7 @@ function parseAlterTable(cur: SqlCursor, stmt: Statement, state: SqlParseState):
   }
 
   if (cur.tryWords('ADD', 'CONSTRAINT')) {
-    const constraintName = cur.takeIdentifier();
-    parseTableConstraint(cur, table, constraintName, state);
+    parseTableConstraint(cur, table, takeConstraintSymbol(cur), state);
     return;
   }
   if (cur.tryWords('ADD')) {
