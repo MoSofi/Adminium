@@ -9,7 +9,7 @@ same network can open it.
 
 ## Turning it on
 
-**Settings → Desktop → Share on this network.** Pick a port — 4600 by default —
+**Settings → Desktop → Share on local network.** Pick a port — 4600 by default —
 and the app shows you the URLs that actually reach it, one per network interface:
 
 ```

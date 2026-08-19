@@ -47,9 +47,10 @@ portability — the bundle stands the same instance up anywhere Adminium runs.
 
 - **Source code.** See above.
 - **The Adminium runtime itself.** `package.json` pins the version; install that
-  version separately — [from source or Docker](/getting-started/quickstart/)
-  (npm publish is a release step that has not happened yet). The bundle carries
-  a reference, not a copy.
+  version separately — [from npm, Docker, or
+  source](/getting-started/quickstart/). The registry name is
+  `@adminiumjs/adminium`, so `npx @adminiumjs/adminium@<pinned>` is the shortest
+  way to match the bundle. The zip carries a reference, not a copy.
 - **Your rows.** No table data, ever. This is configuration.
 - **Your secrets** — unless you ask. Default is omitted.
 

@@ -8,13 +8,34 @@ take one whenever you want, and restoring never deletes what you already have.
 
 ## Automatic
 
-On by default, keeping **7** rotations in `<dataDir>/backups/`. Change the depth
-or turn it off in **Settings → Desktop**.
+On by default, keeping **7** rotations in `<dataDir>/backups/`.
+
+It runs daily at 03:00 **local** time — not UTC, because the whole point of the
+hour is that you are asleep — and then waits for the first moment you are not
+using the machine. If no idle moment turns up within four hours it backs up
+anyway: waiting is a courtesy, not a precondition. A tick that finds nobody
+signed in is skipped silently and retried tomorrow, because the archive is
+written through the server as a real user (see [By hand](#by-hand)) and 03:00 is
+not the time to put a login prompt on screen.
 
 A backup is a zip containing the meta store, every local SQLite database, and a
 manifest recording the app version, the meta-store migration version, and a
 checksum for each file. Live databases are snapshotted with SQLite's online
 backup API, so nothing is locked and nothing is half-written.
+
+:::note[There is no setting for this in the app yet]
+`autoBackup.enabled` and `autoBackup.keep` live in `config.json` (the table
+under [What is *not* in the archive](#what-is-not-in-the-archive) says where
+that file is), and **Settings → Desktop** carries no backup control — it holds
+the Sign-in, Share-on-local-network and App-permissions cards and nothing else.
+To change the rotation depth or turn auto-backup off, edit the file and
+relaunch: the config is read once at startup, so an edit made while the app is
+running is ignored and will be overwritten. `keep` accepts a whole number from
+1 to 365; the app refuses to start on anything else rather than guessing.
+
+**File → Back up now…** is unaffected either way, and so is
+[restoring](#restoring).
+:::
 
 ## By hand
 
@@ -61,8 +82,15 @@ is still sitting there. Nothing cleans that folder up but you.
 
 The app relaunches against the restored data.
 
-## Also available
+## Also available, but not a substitute
 
-The server's own [export and restore](/self-hosting/export-zip/) commands work
-on a desktop install too, against the same data directory — useful for scripted
-or scheduled backups outside the app.
+The server's own [`export-zip` and `import-zip`](/self-hosting/export-zip/)
+commands work on a desktop install too, against the same data directory.
+
+They are not a second backup, though, and it is worth being blunt about that
+because the file extension invites the assumption: an export bundle carries
+configuration — connections, pages, roles, views, overrides — and **none of your
+rows**, no audit log, and no job or session history. The zip on this page
+carries all of it. Reach for `export-zip` to move an instance or put its
+configuration in source control; reach for **File → Back up now…** to be able to
+get this install back.

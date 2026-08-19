@@ -55,16 +55,64 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 ## Updates
 
 The app checks for updates and tells you when one is available; it does not
-install anything behind your back. Three modes, in **Settings → Desktop**:
+install anything behind your back. Downloading is a button you press, and so is
+restarting into the new version.
+
+**Help → About Adminium** is the update screen. It prints the mode this install
+is running in and gives you **Check for updates**, then the Download and Restart
+controls once a release is found. **Help → Check for Updates…** in the native
+menu runs the same check without going through the window.
+
+Three modes:
 
 | Mode | What happens |
 |---|---|
-| `notify` (default) | Checks in the background, tells you when a release is out |
+| `notify` (default) | Checks at launch and once a day, and tells you when a release is out |
 | `manual` | Never checks on its own — **Help → Check for Updates…** does |
-| `disabled` | No checking at all |
+| `disabled` | Nothing is checked, and the update library is never even loaded |
+
+:::note[There is no setting for this in the app yet]
+The mode is `updates.mode` in `config.json` (see [Where everything
+lives](#where-everything-lives)), and the About screen shows it read-only —
+nothing in the app writes it. To change it, edit the file and relaunch; the
+config is loaded once at startup, so an edit made while the app is running is
+ignored and will be overwritten. **Settings → Desktop** does not carry an update
+control: that page holds the Sign-in, Share-on-local-network and App-permissions
+cards and nothing else.
+
+Managing a fleet? Set
+[`ADMINIUM_DISABLE_UPDATES=1`](/self-hosting/env-vars/#adminium_disable_updates)
+in the app's environment instead. It forces `disabled` whatever the file says,
+which is the one direction worth being able to enforce from outside.
+:::
+
+Two consequences of `disabled` worth stating plainly: it is a real air gap, not
+a quiet updater — the library is not loaded and no update-related request is
+made — and you are then responsible for noticing releases yourself.
+
+On Linux, only the `.AppImage` can replace itself. A `.deb` or `.rpm` install
+still gets the notice that a release exists — with a link to the
+[Releases page](https://github.com/MoSofi/Adminium/releases) in place of the
+release notes — but it cannot install one for you, and pressing Download says
+so rather than pretending. Replacing a package the system's package manager
+owns is not this app's business.
 
 The update check is separate from the [telemetry opt-in](/self-hosting/telemetry/)
 and is governed by its own setting.
+
+### Why the tag series matters
+
+The app resolves its own release: it reads the repository's release **list** and
+picks the newest entry tagged `desktop-v*`, then points the updater at that one
+release's files.
+
+It deliberately does not ask GitHub for the "latest release". That is a single
+pointer for the whole repository, and this repository publishes two interleaved
+tag series — `vX.Y.Z` for the npm and Docker builds, `desktop-vX.Y.Z` for this
+app. When the pointer sat on an npm release, which carries no installers, every
+desktop install on every platform resolved it and then failed to find a feed
+file. Reading the list and filtering to our own series is the only resolution
+that cannot make that mistake.
 
 ## Where everything lives
 
