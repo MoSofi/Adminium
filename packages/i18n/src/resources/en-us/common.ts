@@ -581,7 +581,8 @@ export default {
         "heading": "Security",
         "require2fa": {
           "label": "Require two-factor auth",
-          "desc": "Every member must enable 2FA to sign in."
+          "desc": "Every member must enable 2FA to sign in.",
+          "note": "Advisory, not a barrier: members without 2FA are sent to set it up and can no longer turn it off, but their sign-in is never blocked, and API keys are unaffected."
         },
         "allowSignup": {
           "label": "Allow self-signup",

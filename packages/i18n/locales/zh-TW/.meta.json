@@ -6515,6 +6515,10 @@
     "srcHash": "c85606e81776",
     "status": "mt"
   },
+  "common.studio.settingsHub.security.require2fa.note": {
+    "status": "mt",
+    "srcHash": "84876bd3c5e0"
+  },
   "common.studio.settingsHub.security.sessionTtl.error": {
     "srcHash": "4df7704a3dd1",
     "status": "mt"

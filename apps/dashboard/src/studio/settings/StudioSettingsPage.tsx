@@ -3,24 +3,29 @@
  * `/studio/settings` — the Studio settings hub (M5-T05, 09 §8.1), ported from
  * `Settings.dc.html` + `Workspace Settings.dc.html` per the
  * §5 checklist: workspace identity (what `adminium_settings` supports and the
- * app actually reads today — registry key `branding.appName`), the
+ * app actually reads today — registry key `branding.appName`), the three
+ * enforced `auth.*` security knobs (`PUT /settings/security`), the
  * review-then-confirm save modal (09 §7.10: changed fields as key/value
  * rows), one card of cross-links out of the hub (Pages, AI enrichment, Global
  * defaults, translations — one row each), and the danger zone with the
  * type-to-confirm connection delete (the comp's keeper interaction).
  *
- * Identity is a super-admin surface (`system:settings:manage` server-side);
+ * Identity and security are two cards of ONE form: separate section-puts on
+ * the wire, one Save button and one confirm modal on the screen.
+ *
+ * Both are a super-admin surface (`system:settings:manage` server-side);
  * admins still get the danger zone (`connections:manage`). The Global-defaults
  * cross-link is likewise super-admin-only — `/settings/defaults` returns the
  * forbidden state for everyone else — so it is hidden from plain admins.
  */
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Building2,
   Files,
   Globe2,
   Languages,
+  ShieldCheck,
   Sparkles,
   TriangleAlert,
   UploadCloud,
@@ -58,9 +63,13 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { connectionsQuery, DeleteConnectionModal } from '../hub/ConnectionsHub.js';
 import {
+  SECURITY_SETTINGS_QUERY_KEY,
   WORKSPACE_SETTINGS_QUERY_KEY,
+  putSecuritySettings,
   putWorkspaceBranding,
+  securitySettingsQuery,
   workspaceSettingsQuery,
+  type SecuritySettings,
   type WorkspaceSettingsData,
 } from './workspaceApi.js';
 
@@ -87,14 +96,48 @@ interface FormValues {
   appName: string;
   showVersion: boolean;
   logo: StagedLogo;
+  /**
+   * The two numbers are held as TYPED TEXT, not as numbers. A `number` state
+   * has no way to represent "the field is momentarily empty because someone is
+   * retyping it", so clearing 720 to type 24 would snap the box to 0 — a value
+   * the admin never typed and which is out of range besides.
+   */
+  sessionTtlHours: string;
+  passwordMinLength: string;
+  require2fa: boolean;
 }
 
-function toValues(data: WorkspaceSettingsData): FormValues {
+function toValues(data: WorkspaceSettingsData, security: SecuritySettings): FormValues {
   return {
     appName: data.branding.appName,
     showVersion: data.branding.showVersion,
     logo: KEEP,
+    sessionTtlHours: String(security.sessionTtlHours),
+    passwordMinLength: String(security.passwordMinLength),
+    require2fa: security.require2fa,
   };
+}
+
+// Client-side mirrors of `settingsSecurityPutBody` in the route's schema.ts —
+// same reason the logo cap is mirrored above: a 422 after a save that also
+// carried other edits is a worse way to learn a number is out of range.
+const SESSION_TTL_MIN = 1;
+/** 8760 hours = a year; the registry's own ceiling. */
+const SESSION_TTL_MAX = 8760;
+const PASSWORD_MIN_FLOOR = 8;
+const PASSWORD_MIN_CEILING = 128;
+
+/**
+ * The typed text as an in-range integer, or null when it is not one.
+ *
+ * Parsed with a digit test rather than `Number()`, which answers 0 for the
+ * empty string and happily accepts `1e3`, ` 24 ` and `24.5` — none of which is
+ * a thing a person means to have typed into an hours box.
+ */
+function boundedInt(raw: string, min: number, max: number): number | null {
+  if (!/^[0-9]+$/.test(raw.trim())) return null;
+  const value = Number(raw.trim());
+  return value >= min && value <= max ? value : null;
 }
 
 /** Client-side mirror of the route's cap — a 1 MiB refusal after a 4 MB upload is rude. */
@@ -262,14 +305,20 @@ function LogoField({
   );
 }
 
-function WorkspaceForm({ initial }: { initial: WorkspaceSettingsData }): ReactNode {
+function WorkspaceForm({
+  initial,
+  initialSecurity,
+}: {
+  initial: WorkspaceSettingsData;
+  initialSecurity: SecuritySettings;
+}): ReactNode {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
-  const [values, setValues] = useState<FormValues>(() => toValues(initial));
+  const [values, setValues] = useState<FormValues>(() => toValues(initial, initialSecurity));
   const [reviewOpen, setReviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const before = toValues(initial);
+  const before = toValues(initial, initialSecurity);
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]): void {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -293,10 +342,25 @@ function WorkspaceForm({ initial }: { initial: WorkspaceSettingsData }): ReactNo
   const nameDirty = values.appName.trim() !== before.appName;
   const versionDirty = values.showVersion !== before.showVersion;
   const logoDirty = values.logo.kind !== 'keep';
-  const dirty = nameDirty || versionDirty || logoDirty;
+
+  const sessionTtl = boundedInt(values.sessionTtlHours, SESSION_TTL_MIN, SESSION_TTL_MAX);
+  const passwordMin = boundedInt(
+    values.passwordMinLength,
+    PASSWORD_MIN_FLOOR,
+    PASSWORD_MIN_CEILING,
+  );
+  // Compared as the typed text, so a draft that does not parse still counts as
+  // an edit — otherwise an emptied box would read as pristine and the Save
+  // button would go quiet instead of telling the admin the field is wrong.
+  const ttlDirty = values.sessionTtlHours !== before.sessionTtlHours;
+  const passwordMinDirty = values.passwordMinLength !== before.passwordMinLength;
+  const require2faDirty = values.require2fa !== before.require2fa;
+  const securityDirty = ttlDirty || passwordMinDirty || require2faDirty;
+
+  const dirty = nameDirty || versionDirty || logoDirty || securityDirty;
 
   const appNameInvalid = values.appName.trim().length === 0 || values.appName.trim().length > 60;
-  const invalid = appNameInvalid;
+  const invalid = appNameInvalid || sessionTtl === null || passwordMin === null;
 
   // Review-then-confirm (09 §7.10): the modal lists exactly what changes.
   const change = (beforeValue: string, afterValue: string): string =>
@@ -306,6 +370,10 @@ function WorkspaceForm({ initial }: { initial: WorkspaceSettingsData }): ReactNo
     });
   const onOff = (on: boolean): string =>
     on ? t('studio.settingsHub.review.shown', 'Shown') : t('studio.settingsHub.review.hidden', 'Hidden');
+  // Shown/Hidden reads wrong for a policy switch — the version chip is or is
+  // not on screen, a 2FA requirement is or is not in force.
+  const onOffState = (on: boolean): string =>
+    on ? t('studio.settingsHub.review.on', 'On') : t('studio.settingsHub.review.off', 'Off');
   const changes: KeyValueItem[] = [];
   if (nameDirty) {
     changes.push({
@@ -331,6 +399,24 @@ function WorkspaceForm({ initial }: { initial: WorkspaceSettingsData }): ReactNo
       value: t('studio.settingsHub.identity.logo.remove', 'Remove'),
     });
   }
+  if (require2faDirty) {
+    changes.push({
+      label: t('studio.settingsHub.security.require2fa.label', 'Require two-factor auth'),
+      value: change(onOffState(before.require2fa), onOffState(values.require2fa)),
+    });
+  }
+  if (ttlDirty) {
+    changes.push({
+      label: t('studio.settingsHub.security.sessionTtl.label', 'Session lifetime (hours)'),
+      value: change(before.sessionTtlHours, values.sessionTtlHours.trim()),
+    });
+  }
+  if (passwordMinDirty) {
+    changes.push({
+      label: t('studio.settingsHub.security.passwordMin.label', 'Minimum password length'),
+      value: change(before.passwordMinLength, values.passwordMinLength.trim()),
+    });
+  }
 
   function save(): void {
     setSaving(true);
@@ -354,6 +440,19 @@ function WorkspaceForm({ initial }: { initial: WorkspaceSettingsData }): ReactNo
                 showVersion: values.showVersion,
               })
             : { branding: afterLogo ?? initial.branding };
+
+        // Last, and only when it changed: the security PUT is a separate
+        // section-put, so a failure here must not be able to roll back a logo
+        // that is already stored. Ordering it after the branding write keeps
+        // the partial-failure story the same one branding already had.
+        if (securityDirty && sessionTtl !== null && passwordMin !== null) {
+          const security = await putSecuritySettings({
+            sessionTtlHours: sessionTtl,
+            require2fa: values.require2fa,
+            passwordMinLength: passwordMin,
+          });
+          queryClient.setQueryData(SECURITY_SETTINGS_QUERY_KEY, security);
+        }
 
         queryClient.setQueryData(WORKSPACE_SETTINGS_QUERY_KEY, data);
         // The rail reads the branding query, not this one — without this the
@@ -433,6 +532,101 @@ function WorkspaceForm({ initial }: { initial: WorkspaceSettingsData }): ReactNo
         </CardBody>
       </Card>
 
+      {/* A second card, not a second form: `PUT /settings/security` is its own
+          section-put but it is the SAME admin doing the same sitting, so it
+          rides the one Save button and the one review modal above. Two save
+          buttons on one screen is how half a settings change gets shipped. */}
+      <Card>
+        <CardHeader className="flex items-center justify-start gap-3">
+          <IconTile tone="accent" size="md" icon={<ShieldCheck />} />
+          <h3 className="text-section text-fg">
+            {t('studio.settingsHub.security.heading', 'Security')}
+          </h3>
+        </CardHeader>
+        <CardBody>
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-body-sm font-bold text-fg">
+                {t('studio.settingsHub.security.require2fa.label', 'Require two-factor auth')}
+              </div>
+              {/* `require2fa.desc` — "Every member must enable 2FA to sign in." —
+                  is deliberately NOT rendered. It is false: the flag is advisory,
+                  and the note below says so. Showing both put two contradicting
+                  sentences three lines apart, which is worse than showing
+                  neither. The key stays in the bundles (removing it costs 8
+                  locales for nothing) and is simply unused here; the boundary
+                  note carries the explanation instead. */}
+            </div>
+            <Switch
+              checked={values.require2fa}
+              onCheckedChange={(checked) => set('require2fa', checked)}
+              aria-label={t(
+                'studio.settingsHub.security.require2fa.label',
+                'Require two-factor auth',
+              )}
+            />
+          </div>
+
+          {/* The setting's name overpromises and the line above it repeats the
+              promise, so the boundary is stated where the switch is thrown
+              rather than left in the registry docblock
+              (packages/meta/src/schema/settings-registry.ts, `auth.require2fa`):
+              the flag hardens ENROLMENT, not access. */}
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-border bg-surface-2 p-3">
+            <TriangleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
+            <p className="text-caption text-fg-muted">
+              {t(
+                'studio.settingsHub.security.require2fa.note',
+                'Advisory, not a barrier: members without 2FA are sent to set it up and can no longer turn it off, but their sign-in is never blocked, and API keys are unaffected.',
+              )}
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+            <FormField
+              label={t('studio.settingsHub.security.sessionTtl.label', 'Session lifetime (hours)')}
+              {...(sessionTtl === null
+                ? {
+                    error: t(
+                      'studio.settingsHub.security.sessionTtl.error',
+                      'Between {min, number} and {max, number} hours.',
+                      { min: SESSION_TTL_MIN, max: SESSION_TTL_MAX },
+                    ),
+                  }
+                : {})}
+            >
+              {/* `inputMode`, not `type="number"`: a number input silently
+                  swallows a scroll wheel over a focused field, and its spinner
+                  is a poor way to reach 8760. */}
+              <Input
+                inputMode="numeric"
+                value={values.sessionTtlHours}
+                onChange={(event) => set('sessionTtlHours', event.target.value)}
+              />
+            </FormField>
+
+            <FormField
+              label={t('studio.settingsHub.security.passwordMin.label', 'Minimum password length')}
+              {...(passwordMin === null
+                ? {
+                    error: t(
+                      'studio.settingsHub.security.passwordMin.error',
+                      'Between {min, number} and {max, number} characters.',
+                      { min: PASSWORD_MIN_FLOOR, max: PASSWORD_MIN_CEILING },
+                    ),
+                  }
+                : {})}
+            >
+              <Input
+                inputMode="numeric"
+                value={values.passwordMinLength}
+                onChange={(event) => set('passwordMinLength', event.target.value)}
+              />
+            </FormField>
+          </div>
+        </CardBody>
+      </Card>
+
       <div className="flex items-center justify-end gap-3">
         <Button disabled={!dirty || invalid} onClick={() => setReviewOpen(true)}>
           {t('studio.settingsHub.save', 'Save changes')}
@@ -468,16 +662,23 @@ function WorkspaceForm({ initial }: { initial: WorkspaceSettingsData }): ReactNo
 }
 
 function WorkspaceFormLoader(): ReactNode {
-  const { data } = useSuspenseQuery(workspaceSettingsQuery());
+  // One `useSuspenseQueries`, not two `useSuspenseQuery` calls: the second of
+  // those does not start until the first has resolved and the component has
+  // re-run, which turns two independent GETs into a waterfall.
+  const [{ data }, { data: security }] = useSuspenseQueries({
+    queries: [workspaceSettingsQuery(), securitySettingsQuery()],
+  });
   // Remount on server change so a realtime refetch resets the draft — every
   // field the form owns is in the key, or an edit made elsewhere would leave
   // this one showing a stale value it would then save back.
-  return (
-    <WorkspaceForm
-      key={`${data.branding.appName}|${String(data.branding.showVersion)}`}
-      initial={data}
-    />
-  );
+  const key = [
+    data.branding.appName,
+    String(data.branding.showVersion),
+    String(security.sessionTtlHours),
+    String(security.require2fa),
+    String(security.passwordMinLength),
+  ].join('|');
+  return <WorkspaceForm key={key} initial={data} initialSecurity={security} />;
 }
 
 // --- danger zone (admin+) -------------------------------------------------------

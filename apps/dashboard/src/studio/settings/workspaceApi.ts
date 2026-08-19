@@ -38,3 +38,34 @@ export async function putWorkspaceBranding(
 ): Promise<WorkspaceSettingsData> {
   return (await api.put<{ data: WorkspaceSettingsData }>('/api/v1/settings/branding', body)).data;
 }
+
+// --- security (auth.*) ----------------------------------------------------------
+
+/**
+ * `GET|PUT /settings/security` — the enforced `auth.*` policy. Symmetric, like
+ * branding: the GET returns exactly what the PUT takes, so the form binds the
+ * reply directly.
+ *
+ * `auth.allowSignup` is absent on purpose and not an oversight: the route does
+ * not accept it (there is no self-signup path to gate), so a fourth field here
+ * would be a control that saves nothing.
+ */
+export interface SecuritySettings {
+  sessionTtlHours: number;
+  require2fa: boolean;
+  passwordMinLength: number;
+}
+
+export const SECURITY_SETTINGS_QUERY_KEY = ['settings', 'security'] as const;
+
+export function securitySettingsQuery() {
+  return queryOptions({
+    queryKey: SECURITY_SETTINGS_QUERY_KEY,
+    queryFn: async () =>
+      (await api.get<{ data: SecuritySettings }>('/api/v1/settings/security')).data,
+  });
+}
+
+export async function putSecuritySettings(body: SecuritySettings): Promise<SecuritySettings> {
+  return (await api.put<{ data: SecuritySettings }>('/api/v1/settings/security', body)).data;
+}

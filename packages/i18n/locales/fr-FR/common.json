@@ -572,7 +572,8 @@
         "heading": "Sécurité",
         "require2fa": {
           "label": "Exiger l’authentification à deux facteurs",
-          "desc": "Chaque membre doit activer la 2FA pour se connecter."
+          "desc": "Chaque membre doit activer la 2FA pour se connecter.",
+          "note": "Indicatif, pas bloquant : les membres sans 2FA sont dirigés vers sa configuration et ne peuvent plus la désactiver, mais leur connexion n’est jamais bloquée, et les clés API ne sont pas concernées."
         },
         "allowSignup": {
           "label": "Autoriser l’auto-inscription",

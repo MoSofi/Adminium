@@ -12,7 +12,7 @@
  *   pnpm --filter @adminium/i18n gen:a11y-keys
  */
 
-/** `namespace:key` — 458 entries. */
+/** `namespace:key` — 461 entries. */
 export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:about.desktop.appVersion',
   'common:about.desktop.chromium',
@@ -350,6 +350,9 @@ export const A11Y_CRITICAL_KEYS: ReadonlySet<string> = new Set([
   'common:studio.settingsHub.review.title',
   'common:studio.settingsHub.saveFailed',
   'common:studio.settingsHub.saved',
+  'common:studio.settingsHub.security.passwordMin.label',
+  'common:studio.settingsHub.security.require2fa.label',
+  'common:studio.settingsHub.security.sessionTtl.label',
   'common:studio.settingsHub.superAdminOnlyTitle',
   'common:studio.source.dsn.label',
   'common:studio.source.dsn.quickFill',
