@@ -38,6 +38,7 @@ import { bootstrapRoutes } from './routes/bootstrap/index.js';
 import { meRoutes } from './routes/me/index.js';
 import { setupRoutes } from './routes/setup/index.js';
 import { APP_VERSION } from './version.js';
+import { scrubSecretFields } from './log-redaction.js';
 
 /** Pino deny-by-path redaction set (08-server-api.md §1.3 + ADMINIUM_SECRET). */
 export const REDACT_PATHS: readonly string[] = [
@@ -100,6 +101,12 @@ export function buildLogger(env: Env, opts: BuildLoggerOptions = {}): Logger {
   const options: LoggerOptions = {
     level: env.ADMINIUM_LOG_LEVEL,
     redact: { paths: [...REDACT_PATHS], censor: '[REDACTED]' },
+    // The path list above is kept — it is exact for `req.headers.*` and costs
+    // nothing — but it is NOT the guarantee. pino's `*` is exactly one level
+    // deep, so every `*.`-prefixed entry protects depth 2 and leaks at depth 1,
+    // depth 3+ and through arrays. `scrubSecretFields` is the rule that actually
+    // holds, at any depth; see log-redaction.ts for the measurements.
+    formatters: { log: scrubSecretFields },
     serializers: { req: serializeRequest },
     ...(pretty ? { transport: { target: 'pino-pretty', options: { colorize: true } } } : {}),
   };
