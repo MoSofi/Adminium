@@ -10,6 +10,8 @@
  */
 
 import { Badge, EmptyState, IconTile } from '@adminium/ui';
+import { useScrollRegion } from '../../lib/useScrollRegion.js';
+import { useWidgetHeadingId } from '../../frame/WidgetHeadingContext.js';
 import { useMaybeT } from '@adminium/i18n/react';
 
 import { severityIcon } from './forms-icons.js';
@@ -85,11 +87,17 @@ export function ValidationIssuesListWidget({ config, data }: WidgetProps<Validat
     );
   }
 
+  // Deliberately NO role: an explicit one would override the <ul>'s implicit
+  // `role="list"` and destroy the "list, N items" announcement. The tab stop
+  // plus the frame heading's name is enough, and only while it overflows.
+  const scroll = useScrollRegion({ labelledBy: useWidgetHeadingId() ?? undefined });
+
   return (
     <ul
       data-widget="validation-issues-list"
       data-testid={config.testId}
-      className="m-0 flex h-full list-none flex-col gap-0.5 overflow-auto p-2"
+      {...scroll}
+      className={`m-0 flex h-full list-none flex-col gap-0.5 overflow-auto p-2 ${scroll.className}`}
     >
       {issues.map((issue) => {
         const tone = toneOf(issue.severity, config.severityMap);
