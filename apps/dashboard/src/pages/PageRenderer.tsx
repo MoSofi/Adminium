@@ -81,7 +81,8 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
         title={t('page.tooNew.title', 'This page needs a newer Adminium')}
         body={t(
           'page.tooNew.body',
-          `This page was saved with config version ${String(result.v)}, but this build understands up to version ${String(result.latest)}. Upgrade Adminium to open it.`,
+          'This page was saved with config version {version}, but this build understands up to version {latest}. Upgrade Adminium to open it.',
+          { version: String(result.v), latest: String(result.latest) },
         )}
         detail={pageId}
       />

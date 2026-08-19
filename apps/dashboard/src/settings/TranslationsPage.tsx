@@ -314,12 +314,12 @@ function KeyBrowser({ locales }: { locales: LocaleManifestEntry[] }): ReactNode 
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
-              {t('settings.translations.prev', 'Previous')}
+              {t('ui:pagination.previous', 'Previous')}
             </Button>
             <span className="text-body-sm text-fg-muted">
-              {t('settings.translations.page', 'Page {page} of {pages}', {
-                page: String(page + 1),
-                pages: String(pages),
+              {t('ui:pagination.pageOf', 'Page {page, number} of {pages, number}', {
+                page: page + 1,
+                pages,
               })}
             </span>
             <Button
@@ -328,7 +328,7 @@ function KeyBrowser({ locales }: { locales: LocaleManifestEntry[] }): ReactNode 
               disabled={page + 1 >= pages}
               onClick={() => setPage((p) => p + 1)}
             >
-              {t('settings.translations.next', 'Next')}
+              {t('ui:pagination.next', 'Next')}
             </Button>
           </div>
         </div>
@@ -462,7 +462,7 @@ function AddLocaleForm({ onDone }: { onDone: () => void }): ReactNode {
           {t('settings.translations.locale.create', 'Add language')}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-          {t('action.cancel', 'Cancel')}
+          {t('common.cancel', 'Cancel')}
         </Button>
       </div>
     </div>
@@ -557,7 +557,7 @@ function LocaleManager({ locales, onChanged }: { locales: LocaleManifestEntry[];
                     disabled={remove.isPending}
                     onClick={() => remove.mutate(entry.locale)}
                   >
-                    {t('action.delete', 'Delete')}
+                    {t('settings.translations.locale.delete', 'Delete')}
                   </Button>
                 )}
               </div>

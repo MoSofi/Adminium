@@ -14,6 +14,7 @@
   },
   "auth": {
     "headline": "Forvandl enhver database til et dashboard.",
+    "description": "Forbind PostgreSQL, og Adminium genererer en admin-app med eget tema og styr på rettigheder — helt uden kode.",
     "trust": "AGPL-kerne · Selvhostet · Dine data forbliver dine",
     "signIn": {
       "title": "Velkommen tilbage",
@@ -235,6 +236,7 @@
   },
   "notFound": {
     "title": "Denne side er forsvundet",
+    "body": "Siden, du leder efter, findes ikke eller er blevet flyttet. Tjek adressen, eller gå tilbage til dit dashboard.",
     "errorLine": "Fejl 404",
     "searchPlaceholder": "Søg efter en side…",
     "matches": "Matchende sider",
@@ -252,10 +254,12 @@
       "title": "Denne side kunne ikke vises"
     },
     "tooNew": {
-      "title": "Denne side kræver et nyere Adminium"
+      "title": "Denne side kræver et nyere Adminium",
+      "body": "Denne side blev gemt med konfigurationsversion {version}, men dette build forstår højst version {latest}. Opdatér Adminium for at åbne den."
     },
     "unknownTemplate": {
-      "title": "Ukendt sideskabelon"
+      "title": "Ukendt sideskabelon",
+      "body": "Denne side bruger en skabelon, som dette build ikke kender. Den kan stamme fra et nyere Adminium eller fra en udvidelse, der ikke er installeret."
     }
   },
   "mutation": {
@@ -344,6 +348,70 @@
       "emptyTitle": "Intet at konfigurere endnu",
       "emptyBody": "Notifikationshændelser vises her, efterhånden som producenterne udgives.",
       "saveFailed": "Denne ændring kunne ikke gemmes."
+    },
+    "translations": {
+      "title": "Sprog og oversættelser",
+      "subtitle": "Ret enhver formulering i Adminium, vælg hvilke sprog folk kan vælge, og tilføj dine egne.",
+      "warning": "Fejlmeddelelser og login-tekster kan også redigeres. Det er dem, folk læser, når noget går galt, så ret dem med omtanke.",
+      "editor": {
+        "heading": "Rediger oversættelser"
+      },
+      "localeLabel": "Sprog",
+      "groupLabel": "Område",
+      "allAreas": "Alle områder",
+      "stateLabel": "Vis",
+      "state": {
+        "all": "Alt",
+        "overridden": "Kun tilpassede",
+        "untranslated": "Kun uoversatte",
+        "stale": "Engelsk ændret siden"
+      },
+      "searchLabel": "Søg",
+      "searchPlaceholder": "Nøgle eller engelsk tekst",
+      "loading": "Indlæser tekster…",
+      "noMatches": "Ingen tekster matcher de filtre.",
+      "count": "{total, plural, one {# tekst} other {# tekster}}",
+      "badge": {
+        "custom": "Tilpasset",
+        "stale": "Engelsk ændret",
+        "a11y": "Tilgængeligt navn"
+      },
+      "sourceLabel": "Engelsk original",
+      "valueLabel": "Oversættelse",
+      "save": "Gem",
+      "saved": "Oversættelse gemt",
+      "resetAction": "Nulstil til indbygget",
+      "reset": "Nulstillet til den indbyggede tekst",
+      "locales": {
+        "heading": "Tilgængelige sprog",
+        "help": "Slå et sprog fra for at fjerne det fra alle sprogvælgere. De, der allerede bruger det, beholder det, indtil de vælger et andet."
+      },
+      "locale": {
+        "builtin": "Indbygget",
+        "custom": "Brugerdefineret",
+        "overrides": "{count, plural, =0 {ingen tilpasset tekst} one {# tilpasset tekst} other {# tilpassede tekster}}",
+        "enable": "Slå til",
+        "disable": "Slå fra",
+        "delete": "Slet",
+        "deleted": "Sprog fjernet",
+        "deletedDetail": "{users, plural, one {# person} other {# personer}} er sat tilbage til arbejdsområdets standard; {strings, plural, one {# oversættelse} other {# oversættelser}} er slettet.",
+        "deleteFailed": "Sproget kunne ikke fjernes",
+        "add": "Tilføj et sprog",
+        "added": "Sprog tilføjet",
+        "create": "Tilføj sprog",
+        "id": "Sprogkode",
+        "intlTag": "Formatregler fra",
+        "native": "Navn på sproget selv",
+        "english": "Navn på engelsk",
+        "dir": "Tekstretning",
+        "ltr": "Venstre mod højre",
+        "rtl": "Højre mod venstre",
+        "font": "Skriftsystem",
+        "latin": "Latinsk",
+        "arabic": "Arabisk",
+        "cjk": "Kinesisk / japansk / koreansk",
+        "intlHelp": "Formatregler afgør, hvordan tal, datoer og flertalsformer opfører sig. Vælg det nærmeste sprog, der allerede har dem — det behøver ikke at matche din sprogkode."
+      }
     }
   },
   "studio": {
@@ -621,6 +689,11 @@
         "heading": "Sider",
         "body": "Tilføj, rediger og slet sider, skift hvad hver enkelt viser, og omarranger sidepanelet.",
         "cta": "Administrer sider"
+      },
+      "translationsCard": {
+        "heading": "Sprog og oversættelser",
+        "body": "Omformulér hvad som helst i Adminium, vælg hvilke sprog folk kan vælge, og tilføj dine egne.",
+        "cta": "Åbn oversættelser"
       }
     },
     "settingsAi": {
@@ -1154,7 +1227,8 @@
         "pii": "PII",
         "masked": "Maskeret"
       },
-      "unavailableTitle": "Editor til skema-ommapning ikke tilgængelig"
+      "unavailableTitle": "Editor til skema-ommapning ikke tilgængelig",
+      "unavailableBody": "Dette build indeholder endnu ikke ommapnings-editoren (09-T12). Kør genereringen igen, når den er kommet, for at ommappe etiketter, typer og relationer."
     }
   },
   "onboarding": {
