@@ -42,6 +42,8 @@ import {
   moveBlock,
 } from './block-lib.js';
 import {
+  BLOCK_LABEL_KEY,
+  humanizeBlockId,
   blockApprovalConfigSchema,
   blockAttachmentsConfigSchema,
   blockBarChartConfigSchema,
@@ -321,7 +323,8 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
       ) : (
         <ol data-part="block-list" aria-label={config.blockListLabel ?? t('ui:widgets.domain.documentCanvas.blockListLabel', 'Document blocks')} className="space-y-4">
           {blocks.map((instance, index) => {
-            const Block = BLOCK_COMPONENTS[instance.block as BlockId];
+            const blockId = instance.block as BlockId;
+            const Block = BLOCK_COMPONENTS[blockId];
             if (Block === undefined) return null; // unknown id: never resolve arbitrarily
             const isSelected = selected === instance.id;
             return (
@@ -339,28 +342,51 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
                 >
                   {config.selectable ? (
                     /*
-                      Click-to-select. A real <button> wrapper would nest the
-                      blocks' own inputs/buttons inside a button (invalid, and it
-                      swallows their keyboard events), so selection rides a
-                      focusable region with an explicit key handler instead.
+                      Click-to-select, WITHOUT an interactive role on the wrapper.
+
+                      This used to be `role="button" tabIndex={0} aria-pressed`
+                      with a key handler, on the reasoning that a real <button>
+                      would nest the blocks' own inputs inside a button. That
+                      reasoning was right about <button> and wrong about the
+                      remedy: `role="button"` nests them just the same, and it is
+                      worse than invalid markup — a screen reader announces the
+                      wrapper and may never expose the line-item table or the
+                      signature field inside it. That was 20 of the baseline's 24
+                      `nested-interactive` fingerprints.
+
+                      So the wrapper is now inert and selection rides the
+                      dedicated control below, which is a real <button> with no
+                      interactive descendants. Mouse click-to-select still works
+                      through onClick; text selection inside a block works again
+                      (it did not while the wrapper swallowed Space).
                     */
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      aria-pressed={isSelected}
-                      aria-label={instance.label ?? instance.block}
-                      onClick={() => setSelected(instance.id)}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return;
-                        if (event.target !== event.currentTarget) return; // let inputs keep their keys
-                        event.preventDefault();
-                        setSelected(instance.id);
-                      }}
-                      className="outline-none"
-                    >
-                      {instance.label !== undefined && (
-                        <h3 className="mb-2 text-micro uppercase text-fg-subtle">{instance.label}</h3>
-                      )}
+                    <div onClick={() => setSelected(instance.id)} className="outline-none">
+                      {/*
+                        The keyboard and AT path for selection, as a REAL button
+                        with no interactive descendants — the idiom
+                        GroupedSummaryTable already uses. It renders for every
+                        selectable block, not only labelled ones, because it is
+                        now the only way to select without a mouse.
+
+                        The name is the block's own visible heading, so a sighted
+                        keyboard user sees what they are about to select and a
+                        voice-control user can say it. `stopPropagation` keeps the
+                        wrapper's onClick from double-firing.
+                      */}
+                      <h3 className="mb-2 text-micro uppercase text-fg-subtle">
+                        <button
+                          type="button"
+                          data-part="block-select"
+                          aria-pressed={isSelected}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelected(instance.id);
+                          }}
+                          className="rounded-sm uppercase focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          {instance.label ?? t(BLOCK_LABEL_KEY[blockId], humanizeBlockId(blockId))}
+                        </button>
+                      </h3>
                       <Block base={blockBase} data={blockDataOf(instance.block, doc)} instanceId={`${instanceId}-${instance.id}`} onEvent={onEvent} />
                     </div>
                   ) : (

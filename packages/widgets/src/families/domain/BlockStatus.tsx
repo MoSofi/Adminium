@@ -92,8 +92,13 @@ export function BlockLoyaltyBannerWidget({ config, data }: WidgetProps<BlockLoya
   const balanceValues = { balance: formatBlockNumber(balance, locale), tier };
   const earnedValues = { earned: formatBlockNumber(earned, locale) };
 
+  // `pos`, not `accent`. "+44 earned" is the number this banner exists to show,
+  // and on the accent tint it was the least readable text in the block at
+  // 4.42:1 — under AA at 12.5px. The pos tint is the pair the light tones were
+  // deliberately darkened to clear, and it is gated on every surface, so it
+  // cannot drift when the accent ramp changes.
   return (
-    <BlockCallout block="block-loyalty-banner" tone="accent" testId={config.testId} icon={<Award className="size-4" />}>
+    <BlockCallout block="block-loyalty-banner" tone="pos" testId={config.testId} icon={<Award className="size-4" />}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-fg">
           {config.balanceLabel !== undefined

@@ -99,6 +99,10 @@ import {
   type DocType,
 } from './builder-config.js';
 import { rowOf } from '../../families/domain/block-lib.js';
+// Lives with `BlockId` in the families layer so DocumentCanvas can name its
+// selection control from the same keys. Templates import from families; the
+// reverse never happens.
+import { BLOCK_LABEL_KEY } from '../../families/domain/blocks-config.js';
 import { WidgetHost } from '../../frame/WidgetHost.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
@@ -167,36 +171,6 @@ const BLOCK_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   'square-dashed': SquareDashed,
 };
 
-/**
- * Literal bundle key per block / per starter. Indexed rather than assembled at
- * the render site so every key is visible to the extractor and to the
- * bundle-parity tests, and a 23rd block (or a 21st starter) is a compile error
- * instead of a raw dotted string in the palette (10 §2.5).
- */
-const BLOCK_LABEL_KEY = {
-  'block-totals-summary': 'ui:templates.builder.blocks.block-totals-summary',
-  'block-line-items': 'ui:templates.builder.blocks.block-line-items',
-  'block-kpi-row': 'ui:templates.builder.blocks.block-kpi-row',
-  'block-bar-chart': 'ui:templates.builder.blocks.block-bar-chart',
-  'block-line-chart': 'ui:templates.builder.blocks.block-line-chart',
-  'block-two-col-table': 'ui:templates.builder.blocks.block-two-col-table',
-  'block-tax-breakdown': 'ui:templates.builder.blocks.block-tax-breakdown',
-  'block-multi-currency': 'ui:templates.builder.blocks.block-multi-currency',
-  'block-payment-history': 'ui:templates.builder.blocks.block-payment-history',
-  'block-discount-codes': 'ui:templates.builder.blocks.block-discount-codes',
-  'block-loyalty-banner': 'ui:templates.builder.blocks.block-loyalty-banner',
-  'block-recurring-banner': 'ui:templates.builder.blocks.block-recurring-banner',
-  'block-qr-pay': 'ui:templates.builder.blocks.block-qr-pay',
-  'block-delivery-stepper': 'ui:templates.builder.blocks.block-delivery-stepper',
-  'block-signature': 'ui:templates.builder.blocks.block-signature',
-  'block-terms-checkbox': 'ui:templates.builder.blocks.block-terms-checkbox',
-  'block-approval': 'ui:templates.builder.blocks.block-approval',
-  'block-attachments': 'ui:templates.builder.blocks.block-attachments',
-  'block-late-fees': 'ui:templates.builder.blocks.block-late-fees',
-  'block-image-placeholder': 'ui:templates.builder.blocks.block-image-placeholder',
-  'block-contact': 'ui:templates.builder.blocks.block-contact',
-  'block-highlight-box': 'ui:templates.builder.blocks.block-highlight-box',
-} as const satisfies Record<BlockId, string>;
 
 const STARTER_TITLE_KEY = {
   'st-standard': 'ui:templates.builder.starters.titles.st-standard',

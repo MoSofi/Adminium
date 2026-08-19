@@ -98,7 +98,12 @@ export function PolicyListView({ policies, enableLabel, onToggle, testId }: Poli
           data-enabled={policy.enabled ? '' : undefined}
           className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 p-2.5"
         >
-          <div className={`flex min-w-0 flex-1 items-center gap-2 ${policy.enabled ? '' : 'opacity-50'}`}>
+          {/*
+            No `opacity-50` here — see OpsApi for the same decision. The wrapper
+            alpha dragged the policy NAME, plain `text-fg`, down to 3.29:1: the
+            product's primary text token failing AA purely from a container.
+          */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <Tag mono tone={CMD_TONE[policy.cmd] ?? 'neutral'} className="shrink-0" data-part="policy-cmd">
               {policy.cmd}
             </Tag>

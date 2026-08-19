@@ -689,15 +689,39 @@ describe('document-canvas', () => {
     expect(paper?.className).toContain('adm-always-light');
   });
 
+  /**
+   * Selection is a REAL <button>, not a `role="button"` wrapper around the whole
+   * block. The wrapper form made every descendant presentational (ARIA
+   * children-presentational), so the line-item table, its column headers and its
+   * inputs were stripped from the accessibility tree and the block announced as
+   * one flat string — 20 of the a11y baseline's 24 `nested-interactive`
+   * fingerprints. Querying `[role="button"]` here is what pinned that shape, so
+   * the selector moved to the part id.
+   */
   it('selects a block on click and marks it pressed', () => {
     const { container } = render(
       <DocumentCanvasWidget config={cfg(documentCanvasConfigSchema)} data={doc as never} instanceId="dc" onEvent={noop} />,
     );
     const first = container.querySelector('[data-part="block-instance"]');
-    const region = first?.querySelector('[role="button"]') as HTMLElement;
-    fireEvent.click(region);
+    const select = first?.querySelector('[data-part="block-select"]') as HTMLElement;
+    expect(select.tagName).toBe('BUTTON');
+    fireEvent.click(select);
     expect(container.querySelector('[data-part="block-instance"]')?.getAttribute('data-selected')).toBe('true');
-    expect(region.getAttribute('aria-pressed')).toBe('true');
+    expect(select.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('leaves the block body out of any interactive role, so its own controls stay reachable', () => {
+    const { container } = render(
+      <DocumentCanvasWidget config={cfg(documentCanvasConfigSchema)} data={doc as never} instanceId="dc" onEvent={noop} />,
+    );
+    // The regression this pins: nothing between a block instance and its content
+    // may carry an interactive role, or the content is flattened out of the a11y
+    // tree for screen-reader users.
+    for (const instance of container.querySelectorAll('[data-part="block-instance"]')) {
+      for (const node of instance.querySelectorAll('[role="button"]')) {
+        expect(node.querySelector('table, input, button, a[href]')).toBeNull();
+      }
+    }
   });
 
   /**
