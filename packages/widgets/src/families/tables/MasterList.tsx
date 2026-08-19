@@ -109,36 +109,42 @@ export function MasterList({
             const isSelected = selected === id;
             return (
               <li key={id}>
+                {/*
+                  The row is INERT. It used to carry role="button" + tabIndex +
+                  a key handler, which made every descendant presentational: a
+                  screen-reader user heard one flattened string and lost the
+                  StatusPill, the ProgressBar's value, and the Switch's role and
+                  on/off state entirely — the exact failure `nested-interactive`
+                  names. Selection now rides the title button below, whose
+                  ::after stretches the hit area back over the whole row, so the
+                  mouse target is unchanged. `has-[:focus-visible]` paints the
+                  ring around the row when that button is focused.
+                */}
                 <div
-                  role={config.selectable ? 'button' : undefined}
-                  tabIndex={config.selectable ? 0 : undefined}
-                  aria-current={isSelected ? true : undefined}
                   data-selected={isSelected}
-                  onClick={
-                    config.selectable
-                      ? () => {
-                          setLocalSelected(id);
-                          onSelect?.(id, row);
-                        }
-                      : undefined
-                  }
-                  onKeyDown={
-                    config.selectable
-                      ? (event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setLocalSelected(id);
-                            onSelect?.(id, row);
-                          }
-                        }
-                      : undefined
-                  }
-                  className="flex items-center gap-3 border-s-2 border-transparent px-3 py-2.5 data-[selected=true]:border-accent data-[selected=true]:bg-accent-soft/60 hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                  className="relative flex items-center gap-3 border-s-2 border-transparent px-3 py-2.5 data-[selected=true]:border-accent data-[selected=true]:bg-accent-soft/60 hover:bg-surface-2/60 has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-accent"
                 >
                   {owner !== undefined && <Avatar name={owner} size="sm" />}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-body-sm font-semibold text-fg">{title}</span>
+                      {config.selectable ? (
+                        // The accessible name IS the visible title, so no sr-only
+                        // duplicate and no new i18n key.
+                        <button
+                          type="button"
+                          data-part="master-list-select"
+                          aria-current={isSelected ? true : undefined}
+                          onClick={() => {
+                            setLocalSelected(id);
+                            onSelect?.(id, row);
+                          }}
+                          className="min-w-0 truncate text-start text-body-sm font-semibold text-fg after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+                        >
+                          {title}
+                        </button>
+                      ) : (
+                        <span className="truncate text-body-sm font-semibold text-fg">{title}</span>
+                      )}
                       {status !== undefined && <StatusPill status={status} />}
                     </div>
                     {subtitle !== undefined && <p className="truncate text-caption text-fg-muted">{subtitle}</p>}
@@ -163,7 +169,10 @@ export function MasterList({
                     <Switch
                       checked={toggleOn}
                       aria-label={t('ui:widgets.tables.masterList.toggleLabel', 'Toggle {title}', { title })}
-                      onClick={(event) => event.stopPropagation()}
+                      // `relative z-10` lifts it above the title button's ::after
+                      // hit area. The old stopPropagation is gone with the row's
+                      // onClick — there is no interactive ancestor left to stop.
+                      className="relative z-10"
                       onCheckedChange={(next) => onToggle?.(id, next, row)}
                     />
                   )}
