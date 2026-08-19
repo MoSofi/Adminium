@@ -535,10 +535,16 @@ export async function introspectSqlite(
     for (const check of scanCheckConstraints(ddl)) {
       table.checks.push({ name: check.name, expression: check.expression });
       const parsed = parseCheckEnum(check.expression);
-      if (parsed === null || !table.columns.some((c) => c.name === parsed.column)) continue;
-      const id = `${table.id}.${parsed.column}`;
-      const column = table.columns.find((c) => c.name === parsed.column);
+      if (parsed === null) continue;
+      // SQLite identifiers are case-insensitive, so `CHECK (STATUS IN …)`
+      // constrains the column declared `status`. Resolve the check's spelling
+      // to the DECLARED one: the enum id keys the column the UI renders, and a
+      // case difference used to drop the enum entirely.
+      const column = table.columns.find(
+        (c) => c.name.toLowerCase() === parsed.column.toLowerCase(),
+      );
       if (column === undefined || column.enumRef !== null) continue;
+      const id = `${table.id}.${column.name}`;
       let values = parsed.values;
       if (values.length > ENUM_VALUE_CAP) {
         warnings.push({
@@ -548,7 +554,7 @@ export async function introspectSqlite(
         });
         values = values.slice(0, ENUM_VALUE_CAP);
       }
-      checkEnums.set(id, { id, name: parsed.column, values, source: 'check' });
+      checkEnums.set(id, { id, name: column.name, values, source: 'check' });
       column.enumRef = id;
     }
   }

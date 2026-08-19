@@ -87,6 +87,29 @@ describe('toAdapterError — the rest of the §3 table', () => {
     expect(toAdapterError(original, 'ctx')).toBe(original);
   });
 
+  it.each([
+    ['a string', 'connection lost', 'connection lost'],
+    ['a number', 42, '42'],
+    ['null', null, 'null'],
+    ['a plain object', { toString: () => 'weird' }, 'weird'],
+  ] as const)('stringifies %s rejection instead of crashing the mapper', (_l, thrown, text) => {
+    // Drivers and the middleware around them do not always reject with an
+    // Error; reading `.message` off a string would give undefined and put
+    // "undefined" in front of the user.
+    const mapped = toAdapterError(thrown, 'ctx');
+
+    expect(mapped).toBeInstanceOf(AdapterError);
+    expect(mapped.code).toBe('UNKNOWN');
+    expect(mapped.message).toBe(`ctx: ${text}`);
+    expect(mapped.detail).toBe(text);
+  });
+
+  it('still classifies a non-Error that carries a code', () => {
+    expect(toAdapterError({ code: '42501', toString: () => 'denied' }, 'ctx').code).toBe(
+      'PERMISSION',
+    );
+  });
+
   it('falls back to UNKNOWN for a bare error with no code', () => {
     const mapped = toAdapterError(new Error('something broke'), 'ctx');
 
