@@ -10,6 +10,7 @@
  * dialect is used as both source and target, sqlite → sqlite included.
  */
 
+import { sql } from 'kysely';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -181,6 +182,57 @@ for (const source of available) {
 
       it('accepts a freshly migrated target', async () => {
         await expect(assertMetaStoreEmpty(to.meta)).resolves.toBeUndefined();
+      });
+
+      it('reports progress for every relocatable table, empty ones included', async () => {
+        // The wizard's status line is driven entirely by this callback. Firing
+        // it only for tables that had rows would leave it parked on whichever
+        // table happens to be populated while the other twenty-odd go by, and
+        // a relocation that looks stuck is a relocation an operator kills.
+        const seen: { table: string; rows: number }[] = [];
+        const result = await copyMetaStore({
+          from: from.meta,
+          to: to.meta,
+          onProgress: (table, rows) => seen.push({ table, rows }),
+        });
+
+        expect(seen.map((entry) => entry.table)).toEqual([...relocatableTables()]);
+        expect(seen).toEqual(result.tables);
+        // Both halves are represented, so this is not passing by vacuity.
+        expect(seen.some((entry) => entry.rows === 0)).toBe(true);
+        expect(seen.some((entry) => entry.rows > 0)).toBe(true);
+        expect(seen.reduce((sum, entry) => sum + entry.rows, 0)).toBe(result.totalRows);
+
+        // adminium_migrations is the target's OWN ledger, written by
+        // applyMigrations. Copying the source's over it is what would make the
+        // checksums describe a schema the target does not have.
+        expect(relocatableTables()).not.toContain('adminium_migrations');
+        const ledger = await to.meta.db
+          .selectFrom('adminium_migrations')
+          .selectAll()
+          .execute();
+        expect(ledger.length).toBeGreaterThan(0);
+      });
+
+      it('leaves tables that belong to another application alone', async () => {
+        // A self-hoster's target database is very often not empty — it is the
+        // app database, and Adminium is a guest in it. Introspection filters on
+        // the adminium_ prefix for exactly this reason, and `assertMetaStoreEmpty`
+        // counts adminium_ tables rather than "any table at all".
+        await to.meta.db.schema
+          .createTable('other_app_widgets')
+          .addColumn('id', 'integer')
+          .execute();
+        await sql`insert into other_app_widgets (id) values (7)`.execute(to.meta.db);
+
+        await expect(assertMetaStoreEmpty(to.meta)).resolves.toBeUndefined();
+        const result = await copyMetaStore({ from: from.meta, to: to.meta });
+        expect(result.totalRows).toBeGreaterThan(0);
+
+        const survivors = await sql<{ id: number }>`select id from other_app_widgets`.execute(
+          to.meta.db,
+        );
+        expect(survivors.rows.map((row) => Number(row.id))).toEqual([7]);
       });
     });
   }

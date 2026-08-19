@@ -464,3 +464,95 @@ describe('ReDoS hardening — CHECK (col IN (…)) parsing is linear', () => {
     expect(parseCheckEnum(`${illegal} in ('x')`)).toEqual({ column: legal, values: ['x'] });
   });
 });
+
+describe('mapMysqlType — modifier edge cases', () => {
+  it('reads bit(1) as boolean and a bare bit as boolean too', () => {
+    // `bit` with no modifier defaults to bit(1) in MySQL.
+    expect(mapMysqlType('bit(1)').logicalType).toBe('boolean');
+    expect(mapMysqlType('bit').logicalType).toBe('boolean');
+  });
+
+  it('does not read a wider bit as boolean', () => {
+    expect(mapMysqlType('bit(8)').logicalType).not.toBe('boolean');
+  });
+
+  it('does not read a wider tinyint as boolean', () => {
+    // tinyint(4) is an ordinary small integer; only the (1) display width is
+    // the boolean convention.
+    expect(mapMysqlType('tinyint(4)').logicalType).toBe('integer');
+    expect(mapMysqlType('tinyint').logicalType).toBe('integer');
+  });
+
+  it('leaves decimal precision/scale null when the modifier is absent', () => {
+    expect(mapMysqlType('decimal')).toMatchObject({
+      logicalType: 'decimal',
+      numericPrecision: null,
+      numericScale: null,
+    });
+  });
+
+  it('reads a decimal precision given without a scale', () => {
+    expect(mapMysqlType('decimal(10)')).toMatchObject({
+      logicalType: 'decimal',
+      numericPrecision: 10,
+      numericScale: null,
+    });
+  });
+
+  it('leaves varchar maxLength null when the modifier is absent', () => {
+    expect(mapMysqlType('varchar').maxLength).toBeNull();
+    expect(mapMysqlType('text').maxLength).toBeNull();
+  });
+});
+
+describe('parseEnumValues — escaping inside the value list', () => {
+  it('reads a doubled quote as one literal quote', () => {
+    expect(parseEnumValues("enum('it''s','fine')")).toEqual(["it's", 'fine']);
+  });
+
+  it('reads a backslash-escaped quote', () => {
+    expect(parseEnumValues("enum('it\\'s','fine')")).toEqual(["it's", 'fine']);
+  });
+
+  it('does not run past a trailing backslash with nothing after it', () => {
+    // A truncated/garbled COLUMN_TYPE must terminate the scan rather than
+    // reading off the end of the string.
+    expect(parseEnumValues("enum('a','b\\")).toBeNull();
+  });
+
+  it('stops at a newline inside an unterminated value', () => {
+    expect(parseEnumValues("enum('a','b\\\n")).toBeNull();
+  });
+
+  it('returns null for a non-enum type', () => {
+    expect(parseEnumValues('varchar(10)')).toBeNull();
+  });
+});
+
+describe('classifyMysqlDefault — expression defaults', () => {
+  it('classifies a parenthesised expression as an expression default', () => {
+    expect(classifyMysqlDefault('(`a` + `b`)', '')).toEqual({
+      kind: 'expression',
+      text: '(`a` + `b`)',
+    });
+  });
+
+  it('classifies a function call as an expression default', () => {
+    expect(classifyMysqlDefault("(concat(_utf8mb4'a',_utf8mb4'b'))", '')).toMatchObject({
+      kind: 'expression',
+    });
+  });
+
+  it('classifies a bare word as a literal — MySQL 8 strips the quotes', () => {
+    expect(classifyMysqlDefault('free', '')).toEqual({ kind: 'literal', text: 'free' });
+  });
+
+  it('treats an explicit NULL default as no default', () => {
+    expect(classifyMysqlDefault('NULL', '')).toBeNull();
+    expect(classifyMysqlDefault(null, '')).toBeNull();
+  });
+
+  it('lets auto_increment win over any default text', () => {
+    expect(classifyMysqlDefault('5', 'auto_increment')).toEqual({ kind: 'autoincrement' });
+  });
+});

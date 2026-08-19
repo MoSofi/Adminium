@@ -21,7 +21,15 @@ export default defineConfig({
     ],
   },
   test: {
-    coverage: coverage({ statements: 72, branches: 80 }),
+    // 15-quality.md §1 asks 75 / 70; measured 75.47 statements / 84.25 branches.
+    //
+    // The branch floor is 82, not the rounded-down 84, and the gap is deliberate.
+    // v8's branch TOTAL moves between identical runs — adapter-sqlite measured
+    // 582 then 584 on the same suite, about 0.3 of a point — so a floor a
+    // quarter-point under the measurement is decided by noise rather than by
+    // coverage. Statement totals are AST-derived and stable, so 75 keeps its
+    // narrow margin; it is also §1's number exactly and cannot go lower.
+    coverage: coverage({ statements: 75, branches: 82 }),
     environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],

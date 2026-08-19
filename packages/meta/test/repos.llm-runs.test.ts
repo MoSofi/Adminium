@@ -230,5 +230,152 @@ for (const dialect of TEST_DIALECTS) {
         repo.recordReview(run.id, { accepted: 'label:x' }),
       ).rejects.toThrow(/review/);
     });
+
+    it('rejects every builder payload the §4.1 schemas do not accept', async () => {
+      // These arrive from the run-builder UI and are echoed back into the
+      // prompt on a retry, so a payload that survives the write is a payload
+      // that reaches a provider. Each is refused before the INSERT.
+      const repo = llmRunsRepo(t.meta);
+      const base = {
+        connectionId,
+        snapshotId,
+        mode: 'byo',
+        promptVersion: 'adminium.prompt/v1',
+        promptHash: '8'.repeat(64),
+      } as const;
+
+      await expect(repo.create({ ...base, status: 'queued' as never })).rejects.toThrow(/status/);
+      await expect(
+        repo.create({ ...base, validationStatus: 'unknown' as never }),
+      ).rejects.toThrow(/validation status/);
+      await expect(repo.create({ ...base, sections: [1] as never })).rejects.toThrow(/sections/);
+      // `locales` is min(1): an empty array would build a prompt asking for
+      // translations into no language at all.
+      await expect(repo.create({ ...base, locales: [] })).rejects.toThrow(/locales/);
+      await expect(
+        repo.create({ ...base, sampling: { maxValuesPerColumn: 0 } }),
+      ).rejects.toThrow(/sampling/);
+
+      expect(await repo.listForConnection(connectionId)).toEqual([]);
+      // …and an id that was never written reads back as null rather than throwing.
+      expect(await repo.findById('run_missing')).toBeNull();
+    });
+
+    it('an explicit null clears a persisted response payload instead of stringifying it', async () => {
+      // A retry after a rejected response has to erase the previous
+      // `validationErrors`; leaving them would keep the run-history UI showing
+      // errors that no longer apply. `undefined` (key absent) is the "leave it
+      // alone" signal, so null has to mean something different.
+      const repo = llmRunsRepo(t.meta);
+      const run = await repo.create({
+        connectionId,
+        snapshotId,
+        mode: 'byo',
+        promptVersion: 'adminium.prompt/v1',
+        promptHash: '9'.repeat(64),
+      });
+
+      await repo.recordResponse(run.id, {
+        status: 'failed',
+        validationStatus: 'invalid',
+        responseJson: { suggestions: [] },
+        validationErrors: [{ path: 'suggestions[0]', message: 'unknown table' }],
+        tokensIn: 100,
+        tokensOut: 20,
+        durationMs: 950,
+        chunksReceived: 1,
+      });
+      expect(await repo.findById(run.id)).toMatchObject({
+        validationStatus: 'invalid',
+        tokensIn: 100,
+        tokensOut: 20,
+        durationMs: 950,
+      });
+
+      expect(
+        await repo.recordResponse(run.id, {
+          status: 'validated',
+          validationStatus: 'valid',
+          responseJson: null,
+          validationErrors: null,
+        }),
+      ).toBe(true);
+      const cleared = await repo.findById(run.id);
+      expect(cleared?.responseJson).toBeNull();
+      expect(cleared?.validationErrors).toBeNull();
+      // Fields the patch left out keep their values — this was not a full row
+      // replacement.
+      expect(cleared).toMatchObject({ tokensIn: 100, tokensOut: 20, durationMs: 950 });
+
+      // An unknown run reports "nothing changed" rather than pretending.
+      expect(
+        await repo.recordResponse('run_missing', { status: 'validated', validationStatus: 'valid' }),
+      ).toBe(false);
+    });
+
+    it('rejects a lifecycle status no state machine defines, on every write that takes one', async () => {
+      const repo = llmRunsRepo(t.meta);
+      const run = await repo.create({
+        connectionId,
+        snapshotId,
+        mode: 'byo',
+        promptVersion: 'adminium.prompt/v1',
+        promptHash: 'a'.repeat(64),
+      });
+
+      await expect(repo.updateStatus(run.id, 'cancelled' as never)).rejects.toThrow(/status/);
+      await expect(
+        repo.recordResponse(run.id, { status: 'cancelled' as never, validationStatus: 'valid' }),
+      ).rejects.toThrow(/status/);
+      await expect(
+        repo.recordResponse(run.id, { status: 'validated', validationStatus: 'ok' as never }),
+      ).rejects.toThrow(/validation status/);
+
+      // `markApplied` is narrower than the enum: it stamps applied_at, so a
+      // non-terminal status would record an apply that never happened.
+      await expect(repo.markApplied(run.id, { status: 'validated' as never })).rejects.toThrow(
+        /applied \| partially_applied/,
+      );
+      await expect(repo.markApplied(run.id, { status: 'nonsense' as never })).rejects.toThrow(
+        /applied \| partially_applied/,
+      );
+      await expect(
+        // @ts-expect-error — review must have accepted/rejected string arrays
+        repo.markApplied(run.id, { status: 'applied', review: { accepted: ['a'] } }),
+      ).rejects.toThrow(/review/);
+
+      const untouched = await repo.findById(run.id);
+      expect(untouched).toMatchObject({ status: 'draft', appliedAt: null, review: null });
+    });
+
+    it('markApplied persists the review in the same write and defaults an unknown actor to null', async () => {
+      // The apply can run from a job worker rather than a request, where there
+      // is no session user to attribute it to — and applied_by is FK'd to
+      // adminium_users, so inventing one would fail the insert.
+      const repo = llmRunsRepo(t.meta);
+      const run = await repo.create({
+        connectionId,
+        snapshotId,
+        mode: 'byo',
+        promptVersion: 'adminium.prompt/v1',
+        promptHash: 'b'.repeat(64),
+      });
+
+      expect(
+        await repo.markApplied(
+          run.id,
+          { status: 'applied', review: { accepted: ['label:customers'], rejected: ['desc:orders'] } },
+          7_000,
+        ),
+      ).toBe(true);
+      expect(await repo.findById(run.id)).toMatchObject({
+        status: 'applied',
+        appliedBy: null,
+        appliedAt: 7_000,
+        review: { accepted: ['label:customers'], rejected: ['desc:orders'] },
+      });
+
+      expect(await repo.markApplied('run_missing', { status: 'applied' })).toBe(false);
+    });
   });
 }

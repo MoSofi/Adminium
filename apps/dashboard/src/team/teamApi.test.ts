@@ -1,19 +1,33 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Pure helpers behind the team directory (no DOM, no fetch): the query-string
- * builder, the activation-link join, and the instant formatters that `audit/`
- * and `account/` also read.
+ * The team directory's data layer. The first half is the pure helpers (no DOM,
+ * no fetch): the query-string builder, the activation-link join, and the
+ * instant formatters that `audit/` and `account/` also read.
+ *
+ * The second half is the requests themselves, because the directory is a
+ * KEYSET list: the query key has to carry its filters (a page fetched under
+ * different filters describes a different result set, and appending it would
+ * interleave two lists), and the cursor has to come from the last reply and
+ * stop at `null`. Neither is visible from the screen until the list is wrong.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { jsonResponse } from '../test/fixtures.js';
 import {
   EMPTY_USER_FILTERS,
   activationLink,
   buildUsersPath,
+  createUser,
+  deleteUser,
   formatSince,
   formatStamp,
+  patchUser,
+  resendInvite,
+  setUserRoles,
   userDeletePath,
   userStatusTone,
+  usersQuery,
+  type UserFilters,
 } from './teamApi.js';
 
 describe('buildUsersPath', () => {
@@ -96,5 +110,115 @@ describe('instant formatting', () => {
   it('produces a localized absolute stamp', () => {
     // Only the shape is asserted — the exact wording is the platform's.
     expect(formatStamp(NOON, 'en-US')).toContain('2026');
+  });
+});
+
+describe('the request each call issues', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(body: unknown) {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, body));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function callOf(fetchMock: ReturnType<typeof vi.fn>) {
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    return {
+      url: String(url),
+      method: init?.method ?? 'GET',
+      body: init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as unknown),
+    };
+  }
+
+  const FILTERS: UserFilters = { q: '', status: '', roleId: '' };
+
+  it('keys the directory on its filters, so a filter change is a new list', () => {
+    // Not an append onto the old one: a keyset page fetched under different
+    // filters describes a different result set entirely.
+    const wide = usersQuery(FILTERS);
+    const narrow = usersQuery({ ...FILTERS, status: 'invited' });
+    expect(wide.queryKey).not.toEqual(narrow.queryKey);
+    expect(wide.initialPageParam).toBeNull();
+  });
+
+  it('walks the keyset with the cursor the last page returned', () => {
+    const options = usersQuery(FILTERS);
+    expect(options.getNextPageParam({ users: [], nextCursor: 'cur_2' } as never, [], null, [])).toBe('cur_2');
+    // A null cursor is the end of the list — the caller must stop, not loop.
+    expect(options.getNextPageParam({ users: [], nextCursor: null } as never, [], null, [])).toBeNull();
+  });
+
+  it('fetches a page through buildUsersPath', async () => {
+    const fetchMock = stubFetch({ users: [], nextCursor: null });
+    await usersQuery({ q: 'ava', status: 'active', roleId: 'role_1' }).queryFn?.({
+      pageParam: 'cur_1',
+    } as never);
+    const url = new URL(callOf(fetchMock).url, 'http://x');
+    expect(url.pathname).toBe('/api/v1/users');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      q: 'ava',
+      status: 'active',
+      roleId: 'role_1',
+      cursor: 'cur_1',
+    });
+  });
+
+  it('invites through POST /users and resends under the user id', async () => {
+    const invite = stubFetch({
+      user: { id: 'usr_1' },
+      invite: { token: 'tok', expiresAt: 2, activationPath: '/reset/tok' },
+      emailSent: false,
+    });
+    const created = await createUser({ email: 'ivo@x.io', name: 'Ivo', roleIds: [] } as never);
+    expect(callOf(invite)).toEqual({
+      url: '/api/v1/users',
+      method: 'POST',
+      body: { email: 'ivo@x.io', name: 'Ivo', roleIds: [] },
+    });
+    // The one-time link comes back on the reply and is never cached anywhere.
+    expect(created.invite.activationPath).toBe('/reset/tok');
+    // …and this install has no SMTP, so the copy banner is the only channel.
+    expect(created.emailSent).toBe(false);
+
+    const resend = stubFetch({
+      user: { id: 'usr_1' },
+      invite: { token: 'tok2', expiresAt: 3, activationPath: '/reset/tok2' },
+      emailSent: true,
+    });
+    await resendInvite('usr_1');
+    expect(callOf(resend)).toMatchObject({
+      url: '/api/v1/users/usr_1/invite/resend',
+      method: 'POST',
+    });
+  });
+
+  it('patches, deletes and re-roles one user', async () => {
+    const patch = stubFetch({ id: 'usr_1', status: 'suspended' });
+    await patchUser('usr_1', { status: 'suspended' });
+    expect(callOf(patch)).toEqual({
+      url: '/api/v1/users/usr_1',
+      method: 'PATCH',
+      body: { status: 'suspended' },
+    });
+
+    const soft = stubFetch({ deleted: true });
+    await deleteUser('usr_1', false);
+    expect(callOf(soft)).toMatchObject({ url: '/api/v1/users/usr_1', method: 'DELETE' });
+
+    const hard = stubFetch({ deleted: true });
+    await deleteUser('usr_1', true);
+    expect(callOf(hard).url).toBe('/api/v1/users/usr_1?permanent=true');
+
+    // A readonly list has to reach the wire as a plain JSON array.
+    const roles = stubFetch({ id: 'usr_1' });
+    await setUserRoles('usr_1', Object.freeze(['role_1', 'role_2']));
+    expect(callOf(roles)).toEqual({
+      url: '/api/v1/users/usr_1/roles',
+      method: 'PUT',
+      body: { roleIds: ['role_1', 'role_2'] },
+    });
   });
 });

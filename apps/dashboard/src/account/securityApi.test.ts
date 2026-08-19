@@ -5,9 +5,21 @@
  * wrong device name is how someone kills their own session and leaves an
  * attacker's alone.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { deviceLabel, sortSessions, type SessionDto } from './securityApi.js';
+import { jsonResponse } from '../test/fixtures.js';
+import {
+  SESSIONS_QUERY_KEY,
+  activate2fa,
+  changePassword,
+  deviceLabel,
+  disable2fa,
+  enroll2fa,
+  revokeSession,
+  sessionsQuery,
+  sortSessions,
+  type SessionDto,
+} from './securityApi.js';
 
 function session(overrides: Partial<SessionDto>): SessionDto {
   return {
@@ -75,5 +87,83 @@ describe('deviceLabel', () => {
   it('names the half it does know when only one side matches', () => {
     expect(deviceLabel('Mozilla/5.0 (X11; Linux x86_64)')).toBe('Linux');
     expect(deviceLabel('Firefox/130.0')).toBe('Firefox');
+  });
+});
+
+describe('the requests — and the two one-time secrets', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(body: unknown) {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, body));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function callOf(fetchMock: ReturnType<typeof vi.fn>) {
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    return {
+      url: String(url),
+      method: init?.method ?? 'GET',
+      body: init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as unknown),
+    };
+  }
+
+  it('unwraps the session list from the `/auth` envelope, which is one level deeper', async () => {
+    // Everything under `/auth` wraps in `{ data: … }`, unlike `/api-keys` and
+    // `/audit`. Unwrapping at the wrong depth here yields `undefined.sessions`.
+    const fetchMock = stubFetch({ data: { sessions: [session({ id: 'a' })] } });
+    await expect(sessionsQuery().queryFn?.({} as never)).resolves.toEqual([session({ id: 'a' })]);
+    expect(callOf(fetchMock)).toMatchObject({ url: '/api/v1/auth/sessions', method: 'GET' });
+    expect(sessionsQuery().queryKey).toEqual(SESSIONS_QUERY_KEY);
+  });
+
+  it('revokes one session by id', async () => {
+    const fetchMock = stubFetch({ data: { ok: true } });
+    await revokeSession('sess-2');
+    expect(callOf(fetchMock)).toMatchObject({ url: '/api/v1/auth/sessions/sess-2', method: 'DELETE' });
+  });
+
+  it('sends both passwords on a change, never just the new one', async () => {
+    const fetchMock = stubFetch({ data: { ok: true } });
+    await changePassword({ currentPassword: 'old-one', newPassword: 'a-newer-one' });
+    expect(callOf(fetchMock)).toEqual({
+      url: '/api/v1/auth/password/change',
+      method: 'POST',
+      body: { currentPassword: 'old-one', newPassword: 'a-newer-one' },
+    });
+  });
+
+  it('returns the TOTP secret — shown once, then unrecoverable', async () => {
+    // Encrypted at rest and never re-read, so a reader that dropped it would
+    // leave the user with an enrolment they can never complete.
+    const fetchMock = stubFetch({ data: { secret: 'JBSWY3DP', otpauthUrl: 'otpauth://totp/x' } });
+    expect(await enroll2fa()).toEqual({ secret: 'JBSWY3DP', otpauthUrl: 'otpauth://totp/x' });
+    expect(callOf(fetchMock)).toMatchObject({ url: '/api/v1/auth/2fa/enroll', method: 'POST' });
+  });
+
+  it('returns the recovery codes — also exactly once, stored hashed', async () => {
+    const fetchMock = stubFetch({ data: { recoveryCodes: ['aaa-111', 'bbb-222'] } });
+    expect(await activate2fa('123456')).toEqual(['aaa-111', 'bbb-222']);
+    expect(callOf(fetchMock)).toEqual({
+      url: '/api/v1/auth/2fa/activate',
+      method: 'POST',
+      body: { code: '123456' },
+    });
+  });
+
+  it('disables 2FA with the password, and optionally a code', async () => {
+    const withCode = stubFetch({ data: { ok: true } });
+    await disable2fa({ password: 'hunter2', code: '123456' });
+    expect(callOf(withCode)).toEqual({
+      url: '/api/v1/auth/2fa/disable',
+      method: 'POST',
+      body: { password: 'hunter2', code: '123456' },
+    });
+
+    const withoutCode = stubFetch({ data: { ok: true } });
+    await disable2fa({ password: 'hunter2' });
+    expect(callOf(withoutCode).body).toEqual({ password: 'hunter2' });
   });
 });
