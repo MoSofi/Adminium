@@ -190,15 +190,28 @@ linux:
 #
 # `adminium/adminium` — the value here until 2026-07-21 — is a REAL GitHub
 # organisation and repository owned by an unrelated third party. The real
-# repository is MoSofi/Adminium. KEEP THIS IN LOCKSTEP with
-# apps/desktop/src/main/updates.ts (UPDATE_FEED) and apps/desktop/dev-app-update.yml;
-# the generated app-update.yml is what wins in a packaged build, so this file
-# disagreeing with updates.ts means updates.ts loses.
+# repository is MoSofi/Adminium. Keep it in lockstep with
+# apps/desktop/src/main/updates.ts (FEED_REPO) and apps/desktop/dev-app-update.yml.
+#
+# WHICH FILE ACTUALLY WINS, corrected 2026-08-18: `updates.ts` does. This block
+# only makes electron-builder emit `app-update.yml` into the package, and
+# electron-updater reads that file ONLY when `setFeedURL` was never called —
+# `setFeedURL` assigns the provider eagerly. `updates.ts` calls it before every
+# check, so it always wins. The previous claim here said the opposite, and that
+# is a large part of why nobody looked at `setFeedURL` while desktop updates were
+# broken.
+#
+# The block still has to be present, just not for feed resolution: the packaged
+# `app-update.yml` is read at DOWNLOAD time, for `updaterCacheDirName` and (on
+# NSIS) `publisherName`. Nothing reads it at construction, so a missing file
+# breaks the download, never the check.
 publish:
   provider: github
   owner: MoSofi
   repo: Adminium
-  # Desktop tags are `desktop-vX.Y.Z` (§11), NOT `vX.Y.Z` — they interleave with
-  # the monorepo's npm/Docker releases. Without this the GitHub provider would
-  # look for a `v`-prefixed tag and never find the feed.
-  vPrefixedTagName: false
+  # NOTE: `vPrefixedTagName` used to be set false here, justified as making the
+  # GitHub provider find the `desktop-v*` feed. It never did anything of the
+  # kind — electron-updater reads that option nowhere (only builder-util-runtime's
+  # PUBLISHER path does, which `--publish never` makes unreachable), and if
+  # anything had read it, `false` yields the tag `0.2.1` rather than
+  # `desktop-v0.2.1`. Tag resolution lives in updates.ts. Do not re-add it.

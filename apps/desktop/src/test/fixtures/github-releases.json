@@ -1,0 +1,128 @@
+[
+  {
+    "assets": [],
+    "body": "## What's Changed\n* build(deps): bump the actions-all group across 1 directory with 15 updates by @dependabot[bot] in https://github.com/MoSofi/Adminium/pull/12\n* Sweep the dependency tree, and hold four sets deliberately by @MoSofi in https://github.com/MoSofi/Adminium/pull/24\n* docs(add-on-contrac",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-08-18T12:00:22Z",
+    "tag_name": "v0.2.2-rc.0"
+  },
+  {
+    "assets": [
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-linux-amd64.deb",
+        "name": "adminium-0.2.1-linux-amd64.deb",
+        "size": 124146572
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-linux-x86_64.AppImage",
+        "name": "adminium-0.2.1-linux-x86_64.AppImage",
+        "size": 163258434
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-linux-x86_64.rpm",
+        "name": "adminium-0.2.1-linux-x86_64.rpm",
+        "size": 107928797
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-arm64.dmg",
+        "name": "adminium-0.2.1-mac-arm64.dmg",
+        "size": 154838171
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-arm64.dmg.blockmap",
+        "name": "adminium-0.2.1-mac-arm64.dmg.blockmap",
+        "size": 163551
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-arm64.zip",
+        "name": "adminium-0.2.1-mac-arm64.zip",
+        "size": 154451494
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-arm64.zip.blockmap",
+        "name": "adminium-0.2.1-mac-arm64.zip.blockmap",
+        "size": 162228
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-x64.dmg",
+        "name": "adminium-0.2.1-mac-x64.dmg",
+        "size": 158674928
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-x64.dmg.blockmap",
+        "name": "adminium-0.2.1-mac-x64.dmg.blockmap",
+        "size": 166032
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-x64.zip",
+        "name": "adminium-0.2.1-mac-x64.zip",
+        "size": 158299229
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-mac-x64.zip.blockmap",
+        "name": "adminium-0.2.1-mac-x64.zip.blockmap",
+        "size": 165940
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-win-x64.exe",
+        "name": "adminium-0.2.1-win-x64.exe",
+        "size": 124617281
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/adminium-0.2.1-win-x64.exe.blockmap",
+        "name": "adminium-0.2.1-win-x64.exe.blockmap",
+        "size": 130994
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/latest-linux.yml",
+        "name": "latest-linux.yml",
+        "size": 717
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/latest-mac.yml",
+        "name": "latest-mac.yml",
+        "size": 824
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/latest.yml",
+        "name": "latest.yml",
+        "size": 349
+      },
+      {
+        "browser_download_url": "https://github.com/MoSofi/Adminium/releases/download/desktop-v0.2.1/SHA256SUMS.txt",
+        "name": "SHA256SUMS.txt",
+        "size": 767
+      }
+    ],
+    "body": "Draft — review before publishing.\n\nWindows installers are **unsigned** for v1: SmartScreen will warn on download (More info → Run anyway). Verify downloads against `SHA256SUMS.txt`.\n\n- [ ] Replace this body with real release notes.\n- [ ] Flag any meta-store migration (no downgrade path).\n- [ ] `spct",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-08-18T14:53:22Z",
+    "tag_name": "desktop-v0.2.1"
+  },
+  {
+    "assets": [],
+    "body": "## What's Changed\n* Meta int8 parsing, CLI wizard rework, and a modal timer leak by @MoSofi in https://github.com/MoSofi/Adminium/pull/16\n* test(ci): raise the wait budgets that flake on a cache-cold runner by @MoSofi in https://github.com/MoSofi/Adminium/pull/17\n* build(deps): bump fastify-plugin f",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-08-14T09:08:23Z",
+    "tag_name": "v0.2.1"
+  },
+  {
+    "assets": [],
+    "body": "**Full Changelog**: https://github.com/MoSofi/Adminium/compare/v0.1.0-rc.1...v0.1.2",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-08-13T13:58:22Z",
+    "tag_name": "v0.1.2"
+  },
+  {
+    "assets": [],
+    "body": "**Full Changelog**: https://github.com/MoSofi/Adminium/commits/v0.1.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-07-21T17:14:24Z",
+    "tag_name": "v0.1.0"
+  }
+]
