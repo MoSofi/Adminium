@@ -96,11 +96,18 @@ export function ConnectionStatusView({
         <div className="min-w-0 flex-1">
           <p className="truncate text-body-sm font-bold">{headline}</p>
           {host !== undefined && (
-            <MonoText data-part="connection-host" className="block truncate text-caption opacity-80">
+            <MonoText data-part="connection-host" className="block truncate text-caption">
               {host}
             </MonoText>
           )}
-          {detail !== undefined && <p className="truncate text-caption opacity-80">{detail}</p>}
+          {/*
+            `opacity-80` removed from both lines: over the tinted connected/failed
+            shells it took the host and detail — the only two data this widget
+            carries — to 3.25:1, against the 4.56:1 the token gate already
+            certifies for the untinted pair. Size and weight carry the hierarchy
+            against the headline. Same call as CalendarMonth.tsx:243.
+          */}
+          {detail !== undefined && <p className="truncate text-caption">{detail}</p>}
         </div>
 
         {/*

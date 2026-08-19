@@ -41,6 +41,7 @@ import {
   rowData,
   rowsData,
 } from './block-lib.js';
+import type { BlockId } from './block-lib.js';
 import type {
   BlockApproval,
   BlockAttachment,
@@ -92,6 +93,48 @@ const emptyCopy = {
  * a doc that could inject an arbitrary color string into the DOM would defeat
  * the theming contract. Unknown accents fall back to the app accent.
  */
+/**
+ * Literal bundle key per block. Indexed rather than assembled at
+ * the render site so every key is visible to the extractor and to the
+ * bundle-parity tests, and a 23rd block (or a 21st starter) is a compile error
+ * instead of a raw dotted string in the palette (10 §2.5).
+ */
+export const BLOCK_LABEL_KEY = {
+  'block-totals-summary': 'ui:templates.builder.blocks.block-totals-summary',
+  'block-line-items': 'ui:templates.builder.blocks.block-line-items',
+  'block-kpi-row': 'ui:templates.builder.blocks.block-kpi-row',
+  'block-bar-chart': 'ui:templates.builder.blocks.block-bar-chart',
+  'block-line-chart': 'ui:templates.builder.blocks.block-line-chart',
+  'block-two-col-table': 'ui:templates.builder.blocks.block-two-col-table',
+  'block-tax-breakdown': 'ui:templates.builder.blocks.block-tax-breakdown',
+  'block-multi-currency': 'ui:templates.builder.blocks.block-multi-currency',
+  'block-payment-history': 'ui:templates.builder.blocks.block-payment-history',
+  'block-discount-codes': 'ui:templates.builder.blocks.block-discount-codes',
+  'block-loyalty-banner': 'ui:templates.builder.blocks.block-loyalty-banner',
+  'block-recurring-banner': 'ui:templates.builder.blocks.block-recurring-banner',
+  'block-qr-pay': 'ui:templates.builder.blocks.block-qr-pay',
+  'block-delivery-stepper': 'ui:templates.builder.blocks.block-delivery-stepper',
+  'block-signature': 'ui:templates.builder.blocks.block-signature',
+  'block-terms-checkbox': 'ui:templates.builder.blocks.block-terms-checkbox',
+  'block-approval': 'ui:templates.builder.blocks.block-approval',
+  'block-attachments': 'ui:templates.builder.blocks.block-attachments',
+  'block-late-fees': 'ui:templates.builder.blocks.block-late-fees',
+  'block-image-placeholder': 'ui:templates.builder.blocks.block-image-placeholder',
+  'block-contact': 'ui:templates.builder.blocks.block-contact',
+  'block-highlight-box': 'ui:templates.builder.blocks.block-highlight-box',
+} as const satisfies Record<BlockId, string>;
+
+/**
+ * English fallback for {@link BLOCK_LABEL_KEY}, used only when a block renders
+ * outside an `I18nProvider` (bare stories, unit tests). Derived rather than
+ * spelled out so a 23rd block cannot ship with a missing entry — the bundle key
+ * above is the source of truth wherever a provider exists.
+ */
+export function humanizeBlockId(block: BlockId): string {
+  const bare = block.replace(/^block-/, '').replace(/-/g, ' ');
+  return bare.charAt(0).toUpperCase() + bare.slice(1);
+}
+
 export const documentCanvasConfigSchema = widgetSharedConfigSchema.extend({
   docType: z.enum(DOC_TYPES).default('invoice'),
   /** Block ids this canvas may render; absent → the doc type's default set. */

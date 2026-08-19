@@ -299,7 +299,16 @@ export function WebhookEndpointsListView({
               muted so a glance down the list separates live from dormant without
               reading a single toggle.
             */}
-            <div className={`flex min-w-0 flex-1 flex-col gap-1 ${hook.enabled ? '' : 'opacity-50'}`}>
+            {/*
+              No `opacity-50` on this subtree. The endpoint URL and "Last fired…"
+              are exactly what someone reads to decide whether to switch a
+              dormant webhook back on, and dimming them took the URL to 2.43:1
+              and the timestamp to 2.21:1 — below every AA threshold. WCAG's
+              inactive-component exemption does not apply: this is informational
+              text sitting beside a fully operable Switch, not a disabled
+              control. Dim the affordance, never the content.
+            */}
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
               {/* `Tag mono` is the schema/event-chip form (design-system §3 Tier 1) — `Badge` has no mono variant. */}
               <Tag mono tone="info" className="self-start" data-part="webhook-event">
                 {hook.event}

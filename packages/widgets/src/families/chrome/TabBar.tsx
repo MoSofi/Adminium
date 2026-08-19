@@ -83,6 +83,19 @@ export function TabBarWidget({ config, data, onEvent }: WidgetProps<TabBarConfig
                 key={tab.key}
                 value={tab.key}
                 data-part="tab"
+                // This strip renders no `TabsContent` by design (see the file
+                // header), but Radix's Trigger emits `aria-controls` pointing at
+                // a panel id unconditionally — so every selected tab advertised a
+                // relationship to an element that is never in the DOM. A screen
+                // reader following that reference lands on nothing.
+                //
+                // Deleting the attribute works because Radix sets it BEFORE
+                // spreading `...triggerProps`, and our `TabsTrigger` spreads
+                // `{...props}` last onto the primitive, so an explicit
+                // `undefined` wins. axe only flagged the SELECTED trigger per
+                // story (it skips a dangling IDREF on `aria-selected="false"`),
+                // which is why this is 12 fingerprints and not 60.
+                aria-controls={undefined}
                 {...(config.counts && tab.count !== undefined ? { count: tab.count } : {})}
               >
                 {icon !== undefined && (
