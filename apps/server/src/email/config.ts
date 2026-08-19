@@ -20,8 +20,17 @@
  * key. The purpose salt is what stops one leaked ciphertext from being readable
  * by another subsystem's key. The plaintext exists only inside
  * {@link SmtpConfig}, in memory, on its way to a socket: it is never in a reply
- * body (`routes/settings/schema.ts` returns `configured` and nothing else), and
- * pino redacts `email.smtp.passEncrypted` on the log side (`app.ts`).
+ * body (`routes/settings/schema.ts` returns `configured` and nothing else).
+ *
+ * THE LOG SIDE, corrected 2026-08-19: this used to claim "pino redacts
+ * `email.smtp.passEncrypted` on the log side (`app.ts`)". It did not. No such
+ * path was in `REDACT_PATHS`, and `*.password` does not match `pass` or
+ * `passEncrypted` — pino paths are field names, not substrings, which the
+ * `bootToken` comment in `app.ts` had already spelled out. A probe through the
+ * real logger printed BOTH the ciphertext and the decrypted plaintext in
+ * cleartext. Both field names are now covered at any depth by
+ * `log-redaction.ts`'s `scrubSecretFields`, which is a rule rather than a path
+ * list; `test/log-redaction.test.ts` asserts it through `buildLogger` itself.
  *
  * ── THE OUTBOUND CONNECTION IS ADMIN-CHOSEN, ON PURPOSE ─────────────────────
  * Whoever holds `system:settings:manage` can point this at any host:port and
