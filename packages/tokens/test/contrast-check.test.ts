@@ -139,6 +139,9 @@ describe('the gate itself', () => {
         // it: the panel is `aria-hidden`, so the axe sweep skips the subtree
         // while a sighted low-vision user reads all of it.
         'brand-panel',
+        // The pre-composited chip tints. A chip that gets re-parented onto a tinted row cannot
+        // be reasoned about surface-by-surface, so its tint is frozen into the token instead.
+        'chip-solid',
         'code-ink',
         'focus-ring',
         'semantic',
@@ -185,10 +188,19 @@ describe('the gate itself', () => {
           --fg: #191920; --fg-muted: #5a5a65; --fg-subtle: #9a9aa5; --accent-fg: #ffffff;
           --pos: #0b7d59; --pos-soft: #e6f5ee; --warn: #a95800; --warn-soft: #fbf0e2;
           --danger: #cf273c; --danger-soft: #fdecec; --info: #2260e8; --info-soft: #e7edfd;
+          /* Every wash owes a pre-composited twin (vocabulary() refuses an orphan), so the
+             fixture carries them too - it is meant to be the same SHAPE as the real files,
+             with one value regressed. NB: this CSS lives in a template literal, so no
+             backticks in here. */
+          --pos-soft-solid: var(--pos-soft); --warn-soft-solid: var(--warn-soft);
+          --danger-soft-solid: var(--danger-soft); --info-soft-solid: var(--info-soft);
         }
         [data-accent="indigo"] { --accent: #4f46e5; }
         [data-accent="black"]  { --accent: #111111; }
-        :root { --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent); }
+        :root {
+          --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+          --accent-soft-solid: color-mix(in srgb, var(--accent) 10%, var(--surface));
+        }
       `,
     });
     const plain = regressed.failures.filter(

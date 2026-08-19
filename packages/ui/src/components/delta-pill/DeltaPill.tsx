@@ -18,8 +18,8 @@ export const deltaPillVariants = cva(
   {
     variants: {
       tone: {
-        pos: 'bg-pos-soft text-pos',
-        danger: 'bg-danger-soft text-danger',
+        pos: 'bg-pos-soft-solid text-pos',
+        danger: 'bg-danger-soft-solid text-danger',
         muted: 'bg-surface-3 text-fg-muted',
       },
     },

@@ -145,6 +145,19 @@ const GROUPS = {
     gated: true,
     label: 'neutral copy on the other translucent accent tints (--accent-selection, --accent-border)',
   },
+  /* The PRE-COMPOSITED chip tints (tokens.css, THE OPAQUE CHIP TINTS). Every tone is pushed
+     against its `-soft-solid` on all four surfaces even though an opaque tint cannot vary with
+     what is under it — the redundancy IS the assertion. A chip's label is the one pair that has
+     to hold no matter where the chip is re-parented, and the translucent `-soft` tokens could
+     not promise that: the gate can enumerate the four surfaces a wash composites over, but not
+     the case where a component lands inside ANOTHER component's tint (a tag on a selected row,
+     a count badge on an active nav item), which is where the measured 4.36:1 and 4.41:1 came
+     from. Alpha is what re-opens that hole, so vocabulary() refuses a translucent `-soft-solid`
+     outright rather than letting these rows quietly start disagreeing with each other. */
+  'chip-solid': {
+    gated: true,
+    label: 'chip label on its pre-composited opaque tone tint (--<tone>-soft-solid)',
+  },
   /* The AuthLayout brand panel. It is measured HERE and nowhere else, because
      nothing else can see it: the panel is `aria-hidden` (it is marketing copy
      beside the sign-in form), so the axe sweep skips the entire subtree — while a
@@ -553,6 +566,50 @@ function vocabulary(resolved, where) {
   const codeInk = names.filter((n) => /^--code-[a-z0-9-]+$/.test(n));
   const softs = names.filter((n) => n.endsWith('-soft'));
   const tones = softs.map((s) => s.slice(0, -'-soft'.length)).filter((b) => names.includes(b) && b !== '--accent');
+  // `-soft-solid` is a distinct role, not a longer `-soft`: it is the tint PRE-COMPOSITED over
+  // --surface, and its whole value is that it does not layer. Three things are checked here
+  // rather than left to the pair matrix, because the matrix cannot see any of them.
+  const softSolids = names.filter((n) => n.endsWith('-soft-solid'));
+
+  // (1) Every wash owes a solid twin. Deleting one is silent in the worst way: the chip utility
+  //     (`bg-danger-soft-solid`) resolves to an undefined custom property and paints nothing,
+  //     while this gate simply stops emitting those rows and still reports OK. A missing pair is
+  //     an error, not four fewer passes.
+  const orphanWashes = [...tones, '--accent']
+    .filter((t) => names.includes(`${t}-soft`) && !names.includes(`${t}-soft-solid`))
+    .map((t) => `${t}-soft`);
+  if (orphanWashes.length) {
+    throw new Error(
+      `soft tint(s) with no pre-composited twin in ${where}: ${orphanWashes.join(', ')}\n` +
+        '  Every `-soft` wash needs a `-soft-solid` (the same tint mixed with var(--surface)),\n' +
+        '  because chips read the solid one and an undefined custom property paints nothing.\n' +
+        '  Exception scopes must re-declare BOTH — a solid left to the root arrives pre-mixed\n' +
+        "  with the root's surface."
+    );
+  }
+
+  for (const solid of softSolids) {
+    // (2) A tint of nothing.
+    const base = solid.slice(0, -'-soft-solid'.length);
+    if (!names.includes(base)) {
+      throw new Error(
+        `${solid} in ${where} has no base tone ${base}.\n` +
+          '  A `-soft-solid` is <tone> pre-composited over --surface; declare the tone it tints.'
+      );
+    }
+    // (3) A translucent one still produces a full set of PASSING rows — it composites over the
+    //     four surfaces exactly like a wash — while the NAME goes on promising the backdrop is
+    //     fixed. That is the defect these tokens exist to close, returning silently.
+    if (parseColor(resolved.get(solid))[3] < 1) {
+      throw new Error(
+        `${solid} in ${where} is translucent (${resolved.get(solid)}).\n` +
+          '  `-soft-solid` means PRE-COMPOSITED: mix the tone with var(--surface), not with\n' +
+          '  `transparent`. An alpha here puts the backdrop back into the chip\'s contrast while\n' +
+          '  the name says it is fixed. Use the translucent `-soft` wash if layering is what you\n' +
+          '  want.'
+      );
+    }
+  }
   const accentTints = ['--accent-soft', '--accent-selection', '--accent-border'].filter((n) => names.includes(n));
 
   // INK_ROLE_CANDIDATES are recognised NAMES with an unresolved role: inkRoleFor() raises on them
@@ -562,6 +619,7 @@ function vocabulary(resolved, where) {
     ...foregrounds,
     ...codeInk,
     ...softs,
+    ...softSolids,
     ...tones,
     ...ACCENT_ROLES,
     ...INK_ROLE_CANDIDATES,
@@ -579,7 +637,7 @@ function vocabulary(resolved, where) {
     );
   }
   if (!surfaces.length || !foregrounds.length) throw new Error(`no surfaces/foregrounds found in ${where}`);
-  return { surfaces, foregrounds, codeInk, softs, tones, accentTints };
+  return { surfaces, foregrounds, codeInk, softs, softSolids, tones, accentTints };
 }
 
 /* ------------------------------------------------------------------- the matrix */
@@ -620,7 +678,7 @@ function inkRoleFor(has) {
 function buildChecks(get, has, vocab) {
   const checks = [];
   const inkRole = inkRoleFor(has);
-  const { surfaces, foregrounds, codeInk, softs, tones, accentTints } = vocab;
+  const { surfaces, foregrounds, codeInk, softs, softSolids, tones, accentTints } = vocab;
   const push = (group, fgName, bgName, min, opts = {}) => {
     const bgBase = opts.on ? get(opts.on) : [255, 255, 255, 1];
     const bg = over(get(bgName), bgBase);
@@ -668,6 +726,16 @@ function buildChecks(get, has, vocab) {
 
   // 6. Semantic tone on its -soft partner, over every surface — 15-quality §7.4.
   for (const tone of tones) for (const s of surfaces) push('semantic', tone, `${tone}-soft`, AA_TEXT, { on: s });
+
+  // 6b. The same label on the OPAQUE chip tint. `on: s` is kept even though an opaque background
+  //     swallows the surface under it: the four rows per tone are supposed to be identical, and
+  //     printing them is what shows the invariance the token was added to buy. The accent tone
+  //     takes inkRole for the same reason every other accent group does.
+  for (const solid of softSolids) {
+    const tone = solid.slice(0, -'-soft-solid'.length);
+    const fg = tone === '--accent' ? inkRole : tone;
+    for (const s of surfaces) push('chip-solid', fg, solid, AA_TEXT, { on: s });
+  }
 
   // 7. Neutral copy ON a tint. Alert/Callout renders `text-fg` title + `text-fg-muted` body
   //    directly on `bg-{tone}-soft`; chips, active rows and sticky headers do the same on
@@ -720,7 +788,7 @@ function buildChecks(get, has, vocab) {
 /** Pairs that never touch --accent produce identical numbers for all 8 palettes. */
 const isAccentIndependent = (row) =>
   ['text', 'code-ink', 'semantic'].includes(row.group) ||
-  (row.group === 'text-on-soft' && !row.bg.includes('accent'));
+  ((row.group === 'text-on-soft' || row.group === 'chip-solid') && !row.bg.includes('accent'));
 
 /* ------------------------------------------------------------------------ audit */
 

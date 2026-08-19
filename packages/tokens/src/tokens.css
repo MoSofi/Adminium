@@ -60,6 +60,27 @@
   --danger-soft: #fdecec;
   --info: #1c59e0;
   --info-soft: #e7edfd;
+  /* THE OPAQUE CHIP TINTS. `-soft` is a WASH — row highlights, panel fills, callout backgrounds —
+     and stays translucent so it can layer. `-soft-solid` is that same tint PRE-COMPOSITED over
+     --surface, for the small tinted CHIPS whose own label has to clear 4.5:1 no matter where the
+     chip lands.
+     A translucent chip has no contrast of its own: it inherits whatever it was re-parented onto.
+     The same "Canceled" tag therefore measured one number on a plain table row and another on a
+     selected (already-tinted) one, and a nav count badge fell to 4.36:1 at the exact moment its
+     row went active — a tint over a tint. The pair matrix in scripts/contrast-check.mjs cannot
+     enumerate that case: it knows the four surfaces a tint can composite over, but not that a
+     component will be nested inside ANOTHER component's tint. Freezing the backdrop into the
+     token moves the chip's contrast out of the DOM and into a value, where the gate can prove it.
+     THE COST, accepted deliberately: a chip on a --surface-2 or --surface-3 card now paints a
+     --surface-based pill, so it reads a shade lighter than the card under it. That is the trade
+     for a number that cannot vary with nesting.
+     Light's semantic softs are ALREADY opaque hexes, so these alias them rather than deriving the
+     same colour a second way — two spellings of one colour is a drift bug waiting to happen. Only
+     dark has to composite; see the dark block. */
+  --pos-soft-solid: var(--pos-soft);
+  --warn-soft-solid: var(--warn-soft);
+  --danger-soft-solid: var(--danger-soft);
+  --info-soft-solid: var(--info-soft);
   --shadow: 0 1px 2px rgba(20,20,35,.04), 0 1px 3px rgba(20,20,35,.05);
   --shadow-md: 0 4px 14px rgba(20,20,35,.09);
   --shadow-lg: 0 12px 34px rgba(20,20,35,.13);
@@ -101,6 +122,14 @@
   --danger-soft: rgba(255,107,107,.14);
   --info: #6ea8ff;
   --info-soft: rgba(110,168,255,.14);
+  /* The opaque chip tints (see the light block for why they exist). Dark's semantic softs are
+     translucent, so these composite the SAME 14% over --surface that the wash reaches there —
+     a chip already sitting on --surface is byte-identical before and after; only chips on the
+     deeper greys change, which is the appearance cost named above. */
+  --pos-soft-solid: color-mix(in srgb, var(--pos) 14%, var(--surface));
+  --warn-soft-solid: color-mix(in srgb, var(--warn) 14%, var(--surface));
+  --danger-soft-solid: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  --info-soft-solid: color-mix(in srgb, var(--info) 14%, var(--surface));
   --shadow: 0 1px 2px rgba(0,0,0,.4);
   --shadow-md: 0 6px 20px rgba(0,0,0,.5);
   --shadow-lg: 0 16px 40px rgba(0,0,0,.6);

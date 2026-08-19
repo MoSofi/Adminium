@@ -15,14 +15,33 @@ export type Tone = 'neutral' | 'accent' | 'pos' | 'warn' | 'danger' | 'info';
 /** Every tone, in canonical display order (stories, matrices). */
 export const TONES: readonly Tone[] = ['neutral', 'accent', 'pos', 'warn', 'danger', 'info'];
 
-/** Tone → soft background + strong tone foreground utility pairs. */
+/**
+ * Tone → soft background + strong tone foreground utility pairs — the CHIP recipe
+ * (Badge, StatusPill, IconTile, RuntimeChip and anything else small and tinted).
+ *
+ * The backgrounds are the `-soft-solid` tokens, not the `-soft` washes, and that is the whole
+ * point: a translucent chip has no contrast of its own, only whatever it inherits from what it
+ * was re-parented onto. The same "Canceled" pill measured differently on a plain row and a
+ * selected one, and a nav count badge dropped to 4.36:1 the moment its row went active — a tint
+ * over a tint, which no component can reason about locally and which the token gate's
+ * surface-by-surface matrix cannot enumerate either. `-soft-solid` is the same tint
+ * pre-composited over `--surface`, so the pair below is fixed wherever the chip lands; the
+ * tokens/scripts/contrast-check.mjs `chip-solid` group measures it on every surface and proves
+ * the four rows agree. See tokens/src/tokens.css, THE OPAQUE CHIP TINTS, for the accepted cost
+ * (a chip on a --surface-2/-3 card paints a --surface-based pill, a shade lighter than the card).
+ *
+ * `-soft` is NOT deprecated: it is the layering wash for row highlights, active nav rows, panel
+ * fills and Alert/Banner backgrounds, which have to composite. Reach for it there, never here.
+ *
+ * `neutral` already used the opaque `--surface-3` and needs no solid twin.
+ */
 export const toneSoftClasses: Record<Tone, string> = {
   neutral: 'bg-surface-3 text-fg-muted',
-  accent: 'bg-accent-soft text-accent',
-  pos: 'bg-pos-soft text-pos',
-  warn: 'bg-warn-soft text-warn',
-  danger: 'bg-danger-soft text-danger',
-  info: 'bg-info-soft text-info',
+  accent: 'bg-accent-soft-solid text-accent',
+  pos: 'bg-pos-soft-solid text-pos',
+  warn: 'bg-warn-soft-solid text-warn',
+  danger: 'bg-danger-soft-solid text-danger',
+  info: 'bg-info-soft-solid text-info',
 };
 
 /**

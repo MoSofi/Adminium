@@ -15,12 +15,17 @@ import { cn } from '../../lib/cn.js';
 export const tagVariants = cva('inline-flex items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-[3px] text-[10px] font-bold leading-none', {
   variants: {
     tone: {
+      // Solid, not the translucent wash: a chip's contrast must be a property of
+      // the chip, not of whatever it was re-parented onto. SchemaTree nests
+      // <Tag tone="accent"> inside a `bg-accent-soft/60` selected row, which is
+      // exactly the tint-over-tint composition the opaque tokens exist to fix.
+      // Keep in step with `toneSoftClasses` in ../../lib/tones.ts.
       neutral: 'bg-surface-3 text-fg-muted',
-      accent: 'bg-accent-soft text-accent',
-      pos: 'bg-pos-soft text-pos',
-      warn: 'bg-warn-soft text-warn',
-      danger: 'bg-danger-soft text-danger',
-      info: 'bg-info-soft text-info',
+      accent: 'bg-accent-soft-solid text-accent',
+      pos: 'bg-pos-soft-solid text-pos',
+      warn: 'bg-warn-soft-solid text-warn',
+      danger: 'bg-danger-soft-solid text-danger',
+      info: 'bg-info-soft-solid text-info',
     },
     mono: {
       true: 'font-mono font-semibold tabular-nums',
