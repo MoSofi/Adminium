@@ -16,7 +16,9 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 25, not 20: collecting v8 coverage adds roughly 15% to the test leg, and a
+    # cache-cold verify is the run with no headroom.
+    timeout-minutes: 25
     services:
       # M9 wave-1 follow-up: TEST_MYSQL_URL un-skips the @adminium/adapter-mysql
       # live suite (packages/adapter-mysql/test/harness.ts env gate).
@@ -103,6 +105,22 @@ jobs:
           # to `psql -h 127.0.0.1` and authenticate from the ambient PG env.
           PGUSER: postgres
           PGPASSWORD: postgres
+
+      # The coverage floors live in each package's vitest.config.ts (15-quality.md
+      # §1). When one fails, vitest's error names the package and the axis but not
+      # the file that dropped — coverage-summary.json does, per file. Uploaded on
+      # failure only: a green run's report is restorable from the turbo cache and
+      # nobody reads it.
+      - name: Upload coverage summaries
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summaries
+          path: |
+            apps/*/coverage/
+            packages/*/coverage/
+          retention-days: 7
+          if-no-files-found: ignore
 
       # 11-electron.md §7: the desktop build must work with the network cable
       # unplugged, forever. `desktop#build` already chains this (see that
@@ -205,8 +223,13 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Install Chromium
-        run: pnpm --filter @adminium/ui exec playwright install --with-deps chromium
+      - name: Install Playwright chromium
+        uses: ./.github/actions/playwright-chromium
+        # Bounds the WHOLE composite action. It cannot live inside the
+        # action — `timeout-minutes` is not a legal composite-step key.
+        timeout-minutes: 15
+        with:
+          filter: '@adminium/ui'
 
       # Storybook's Vite resolves the workspace packages it imports
       # (@adminium/tokens, @adminium/widgets, …) from their built `dist`, which a
@@ -249,15 +272,65 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      # THE BASELINE CHECK RUNS FIRST, and that ordering is the point.
+      #
+      # It used to run last, after a dependency install, a browser install and a
+      # full workspace build — two to four minutes of work (measured across the
+      # green vrt jobs of 2026-08-18: 1m55s to 4m34s) to reach a step whose only
+      # action, at zero baselines, is to print a warning and exit 0. On
+      # 2026-08-18 the browser install stalled on an apt mirror and this job ran
+      # to its timeout, which set the WHOLE `ci` run's conclusion to `cancelled`
+      # while verify, a11y and dep-graph had all passed. A job that cannot detect
+      # anything was the only reason main had no green run — and `vrt` is not
+      # even a required check.
+      #
+      # Deciding whether there is anything to do costs one `ls`. Do that before
+      # spending anything.
+      - name: Look for committed baselines
+        id: baselines
+        run: |
+          shopt -s nullglob
+          baselines=(packages/ui/vrt/__screenshots__/*.png)
+          echo "count=${#baselines[@]}" >> "$GITHUB_OUTPUT"
+          echo "Found ${#baselines[@]} committed baseline(s)."
+
+      - name: Report the empty baseline set
+        if: steps.baselines.outputs.count == '0'
+        run: |
+          {
+            echo "### VRT: no baselines committed"
+            echo
+            echo "\`packages/ui/vrt/__screenshots__/\` is empty, so there is nothing to"
+            echo "compare against and this job cannot detect a visual regression."
+            echo
+            echo "Capture them by running the **vrt-baselines** workflow on this branch,"
+            echo "then commit the uploaded PNGs **as a complete set** — a partial set"
+            echo "fails this job on every story that still lacks one, by design."
+            echo "RELEASE-GATE.md's VRT row stays unchecked until that happens."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning title=VRT has no baselines::The visual-regression matrix has 0 committed screenshots, so it cannot detect a regression. See the job summary."
+
+      # `success() &&` is load-bearing: an explicit `if:` REPLACES the implicit
+      # `success()`, so without it a failure in the baseline step above would
+      # leave `count` unset, `'' != '0'` would evaluate true, and the expensive
+      # path would run anyway. Fail closed.
       - name: Install dependencies (frozen lockfile)
+        if: success() && steps.baselines.outputs.count != '0'
         run: pnpm install --frozen-lockfile
 
-      - name: Install Chromium
-        run: pnpm --filter @adminium/ui exec playwright install --with-deps chromium
+      - name: Install Playwright chromium
+        if: success() && steps.baselines.outputs.count != '0'
+        uses: ./.github/actions/playwright-chromium
+        # Bounds the WHOLE composite action. It cannot live inside the
+        # action — `timeout-minutes` is not a legal composite-step key.
+        timeout-minutes: 15
+        with:
+          filter: '@adminium/ui'
 
       # Same reason as the a11y job: storybook's Vite resolves the workspace
       # packages from their built `dist`.
       - name: Build workspace dists
+        if: success() && steps.baselines.outputs.count != '0'
         run: pnpm turbo run build
 
       # WHY THIS JOB EXISTS. The VRT harness — spec, config, profile matrix,
@@ -269,31 +342,63 @@ jobs:
       #
       # Baselines are LINUX-canonical (playwright.config.ts header) and there are
       # currently zero of them, deliberately: the audit's sequencing is to record
-      # them AFTER the token and accessibility work settles, or they get recorded
-      # twice. So this step reports the empty state loudly into the job summary
-      # instead of failing, and fails for real the moment a baseline exists and
-      # drifts. Capture them with the `vrt-baselines` workflow (workflow_dispatch),
-      # which runs on this same image and uploads the PNGs for review.
+      # them AFTER the accessibility burn-down settles, or the whole matrix gets
+      # recorded twice. Until then the steps above report the empty state and skip
+      # the expensive ones; from the first committed PNG this runs for real and
+      # fails on drift. Capture them with the `vrt-baselines` workflow
+      # (workflow_dispatch), which runs on this same image and uploads the PNGs
+      # for review.
+      #
+      # BASELINES MUST BE COMMITTED AS A COMPLETE SET, and that is not a policy
+      # choice — it is what Playwright does. Measured on 1.62.1 with CI=1:
+      #
+      #   no baselines,  plain run  -> writes the PNG and FAILS ("A snapshot
+      #                                doesn't exist ... writing actual")
+      #   no baselines, --update-snapshots=missing
+      #                             -> identical: writes AND fails. The flag does
+      #                                not rescue this; an earlier draft of this
+      #                                job used it and said otherwise.
+      #   partial set,   plain run  -> passes the stories that have one, fails
+      #                                every story that does not
+      #   complete set,  plain run  -> passes
+      #   any state,   --update-snapshots=all
+      #                             -> rewrites everything and passes
+      #   any state,   --update-snapshots
+      #                             -> same (preset "changed"); this is what
+      #                                `vrt:update` and the vrt-baselines
+      #                                workflow run, which is why capture is
+      #                                green while this job is not
+      #
+      # So committing "just the screenshots I have reviewed" turns this job red,
+      # and that is the correct behaviour rather than a rough edge: a baseline
+      # recorded silently is an unreviewed baseline, and a gate that accepts one
+      # is the fingerprint-baseline mistake in a second form.
+      #
+      # For a MISSING baseline the failure is also the capture mechanism:
+      # Playwright writes the actual PNG on the way to failing, and the step below
+      # uploads the screenshot directory, so a red run hands you the file to
+      # review and commit. That does NOT apply to DRIFT — a story whose committed
+      # baseline no longer matches fails without overwriting it, which is the
+      # whole point. For drift, read the HTML report artifact instead.
       - name: Visual regression matrix
+        if: success() && steps.baselines.outputs.count != '0'
         run: |
-          shopt -s nullglob
-          baselines=(packages/ui/vrt/__screenshots__/*.png)
-          if [ ${#baselines[@]} -eq 0 ]; then
-            {
-              echo "### VRT: no baselines committed"
-              echo
-              echo "\`packages/ui/vrt/__screenshots__/\` is empty, so there is nothing to"
-              echo "compare against and this job cannot detect a visual regression."
-              echo
-              echo "Capture them by running the **vrt-baselines** workflow on this branch,"
-              echo "then commit the uploaded PNGs. RELEASE-GATE.md's VRT row stays unchecked"
-              echo "until that happens."
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "::warning title=VRT has no baselines::The visual-regression matrix ran against 0 committed screenshots. See the job summary."
-            exit 0
-          fi
-          echo "Comparing against ${#baselines[@]} committed baselines."
+          echo "Comparing against ${{ steps.baselines.outputs.count }} committed baseline(s)."
           pnpm --filter @adminium/ui vrt
+
+      # Uploads the WHOLE screenshot directory — committed baselines plus any
+      # the run had to write — because that is what the step can cheaply do; it
+      # is not a diff of new files, and the name says so. Compare against the
+      # tree to find what changed. `if: always()` because this matters most on
+      # the run that also failed on a different story's drift.
+      - name: Upload the screenshot directory
+        if: always() && steps.baselines.outputs.count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vrt-new-baselines
+          path: packages/ui/vrt/__screenshots__/
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload VRT report
         if: failure()

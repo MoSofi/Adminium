@@ -1,0 +1,91 @@
+# Install Playwright's Chromium without letting apt take the job down with it.
+#
+# WHY THIS EXISTS. On 2026-08-18 `playwright install --with-deps chromium`
+# stalled on an unreachable Ubuntu mirror and ran to the 30-minute job timeout in
+# three jobs at once: `ci`'s vrt, and e2e's postgres and mysql legs — two of
+# which are REQUIRED status checks. The runs showed as `cancelled`, not `failed`,
+# which reads like "superseded by a newer push" and is easy to scroll past; main
+# sat with no green run at HEAD and nobody could tell from the summary why.
+#
+# Caching the browsers does not fix it, and e2e.yml proves that: it already
+# cached `~/.cache/ms-playwright` and hung anyway. `--with-deps` shells out to
+# `apt-get` on every run regardless of whether the browser binary is already
+# present, so the cache saves the download and leaves the failure mode untouched.
+#
+# So the two halves are separated and given different contracts:
+#
+#   * system libraries (apt)  — BEST EFFORT. One bounded attempt; a failure is a
+#     warning, not a job failure. The GitHub-hosted Ubuntu image already ships
+#     Chromium's shared libraries (Playwright's own CI guidance relies on this),
+#     so a mirror outage should be a non-event.
+#   * the browser itself      — REQUIRED, and deliberately NOT wrapped in a
+#     timeout. Playwright's downloader already retries five times across
+#     rotating mirrors with a 30s socket timeout per attempt, so a genuine CDN
+#     failure fails fast and RED on its own. A hand-rolled `timeout` around it
+#     would have to be generous enough for a cold download-and-unpack on a slow
+#     runner, which means it would mostly serve to turn slow-but-healthy runs
+#     into flakes.
+#
+# ONE attempt at the apt half, not three. A retry cannot help here: `timeout`
+# signals the process group, but `install-deps` reaches apt through `sudo`, which
+# modern defaults put in its own session — so the killed apt-get survives as an
+# orphan still holding the dpkg lock, and attempts 2 and 3 fail on the lock
+# rather than on the mirror. Three attempts bought nothing and cost six minutes.
+#
+# The result: a mirror outage costs ~3 minutes and a warning instead of half an
+# hour and a dead required check.
+#
+# NOTE FOR ANYONE ADDING A STEP HERE: `timeout-minutes` is NOT a legal key on a
+# composite-action step (GitHub's metadata syntax allows exactly run, shell, if,
+# name, id, env, working-directory, uses, with, continue-on-error — see
+# actions/runner#1979, still open). The runner rejects the whole manifest, so it
+# breaks every call site rather than the one step. A draft of this file had it
+# and would have hard-failed five required checks. Bound the action from the
+# CALLER instead — `timeout-minutes` on the outer `uses:` step does apply to the
+# whole composite action — which is what every call site does.
+name: Playwright Chromium
+description: Cache and install Playwright Chromium, with the apt half bounded so a mirror outage cannot consume the job timeout.
+
+inputs:
+  filter:
+    description: The pnpm workspace filter that owns the @playwright/test dependency (e.g. @adminium/e2e).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Cache Playwright browsers
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        # Keyed on the lockfile: the browser build Playwright wants is pinned by
+        # the @playwright/test version, which cannot change without the lockfile
+        # changing. `restore-keys` matters because all seven call sites share this
+        # key — without it a lockfile bump makes every job miss at once and
+        # cold-download simultaneously. A stale restore is harmless: Playwright
+        # installs into version-named directories, so it simply downloads the
+        # version it wants alongside.
+        key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          playwright-${{ runner.os }}-
+
+    - name: Install Chromium system libraries (best effort)
+      shell: bash
+      env:
+        FILTER: ${{ inputs.filter }}
+      run: |
+        set -uo pipefail
+        if timeout -k 30s 180s pnpm --filter "$FILTER" exec playwright install-deps chromium; then
+          echo "System libraries ready."
+          exit 0
+        fi
+        # Deliberately NOT a failure. See the header: the runner image already
+        # carries these libraries, so continuing is the right bet, and a genuine
+        # gap surfaces at browser launch rather than being masked here.
+        echo "::warning title=Playwright system deps::apt was unreachable within 180s — continuing, because the runner image normally already provides these libraries. If a browser fails to launch below, THIS is the cause."
+
+    - name: Install Chromium
+      shell: bash
+      env:
+        FILTER: ${{ inputs.filter }}
+      run: pnpm --filter "$FILTER" exec playwright install chromium

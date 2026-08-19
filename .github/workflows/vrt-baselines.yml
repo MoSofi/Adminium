@@ -46,8 +46,13 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Install Chromium
-        run: pnpm --filter @adminium/ui exec playwright install --with-deps chromium
+      - name: Install Playwright chromium
+        uses: ./.github/actions/playwright-chromium
+        # Bounds the WHOLE composite action. It cannot live inside the
+        # action — `timeout-minutes` is not a legal composite-step key.
+        timeout-minutes: 15
+        with:
+          filter: '@adminium/ui'
 
       - name: Build workspace dists
         run: pnpm turbo run build
@@ -66,9 +71,15 @@ jobs:
             echo "**${#shots[@]}** screenshots, recorded on \`ubuntu-latest\`."
             echo
             echo "Download the \`vrt-baselines\` artifact, review the images, and commit them"
-            echo "to \`packages/ui/vrt/__screenshots__/\`. The \`vrt\` job in \`ci.yml\` starts"
-            echo "comparing against them on the next push, and RELEASE-GATE.md's VRT row can"
-            echo "then be checked."
+            echo "to \`packages/ui/vrt/__screenshots__/\` **as a complete set**."
+            echo
+            echo "A partial commit turns \`ci\`'s vrt job red: Playwright writes a missing"
+            echo "snapshot and fails the test anyway, so every story without a baseline"
+            echo "fails. That is deliberate — a silently recorded baseline is an unreviewed"
+            echo "one. The measurements are in ci.yml's vrt job."
+            echo
+            echo "The \`vrt\` job in \`ci.yml\` starts comparing against them on the next push,"
+            echo "and RELEASE-GATE.md's VRT row can then be checked."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload baselines
