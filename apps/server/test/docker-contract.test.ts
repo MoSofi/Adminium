@@ -558,3 +558,101 @@ describe('the healthcheck says what it does', () => {
     }
   });
 });
+
+// ─── the desktop release's two documents ─────────────────────────────────────
+
+describe('the desktop release body is user-facing and the checklist is not', () => {
+  interface WorkflowStep {
+    name?: string;
+    run?: string;
+  }
+  const desktop = parse(read('.github/workflows/desktop-release.yml')) as {
+    jobs: Record<string, { steps: WorkflowStep[] }>;
+  };
+  const draftStep = desktop.jobs.release.steps.find(
+    (step) => step.name === 'Create or update draft Release',
+  );
+  const script = draftStep?.run ?? '';
+
+  /**
+   * The `{ … } > redirect` group ending in `terminator`, i.e. one of the two
+   * documents the step writes. Matched on the redirect rather than on prose so
+   * this keeps working when the wording changes — which it should be free to.
+   */
+  const documentEndingIn = (terminator: string): string => {
+    const end = script.indexOf(`\n${terminator}`);
+    expect(end, `desktop-release.yml no longer writes a block ending in ${terminator}`).toBeGreaterThan(-1);
+    const head = script.slice(0, end);
+    const start = head.lastIndexOf('\n{\n');
+    expect(start, `the ${terminator} block is not a { … } group`).toBeGreaterThan(-1);
+    return head.slice(start);
+  };
+
+  it('keeps every publisher instruction out of the release body', () => {
+    // THE BUG THIS PINS. The body and the publisher checklist used to be ONE
+    // `notes` string, so the body opened with "Draft — review before
+    // publishing" and continued into unticked TODOs, and the only way to remove
+    // them was to hand-write the real notes. desktop-v0.2.1 published with that
+    // string almost intact: the publisher deleted the one line they had just
+    // performed and nothing else, so the public download page's first line
+    // still reads "Draft — review before publishing" above three TODOs. A
+    // placeholder body that must be replaced by hand ships unreplaced sooner or
+    // later, and this one regenerates on every future desktop tag.
+    const body = documentEndingIn('} > "$notes_file"');
+    for (const publisherOnly of ['- [ ]', 'spctl', 'gh release edit', 'review before publishing']) {
+      expect(body, `the release body must not carry "${publisherOnly}"`).not.toContain(publisherOnly);
+    }
+    // And it must still say the things a user actually needs.
+    for (const userFacing of ['SmartScreen', 'SHA256SUMS.txt', '$version']) {
+      expect(body, `the release body must still carry "${userFacing}"`).toContain(userFacing);
+    }
+
+    const summary = documentEndingIn('} >> "$GITHUB_STEP_SUMMARY"');
+    expect(summary, 'the checklist must still verify the notarized app').toContain('spctl');
+    expect(summary, 'the checklist must still flag meta-store migrations').toMatch(/migration/i);
+    expect(summary, 'the checklist must still carry the publish command').toContain('$publish_step');
+    expect(
+      (summary.match(/- \[ \]/g) ?? []).length,
+      'the checklist lost an item',
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it('seeds the body from a file, never from an inline placeholder string', () => {
+    // `--notes` takes a literal string, which is what made one document out of
+    // two: prose long enough to be correct is unwritable inline, so it degraded
+    // into a checklist. `--notes-file` is the structural fix.
+    expect(script, 'the draft must be created with --notes-file').toContain(
+      '--notes-file "$notes_file"',
+    );
+    expect(script, 'no inline --notes string may come back').not.toMatch(/--notes\s+"/);
+    expect(script, 'the release is still created as a draft').toMatch(/gh release create[\s\S]*--draft/);
+  });
+
+  it('forks the publish command on prerelease, and only the stable one claims Latest', () => {
+    // THE BUG THIS PINS. GitHub refuses the Latest pointer to a prerelease, so
+    // `--latest` in an rc's checklist is a command that errors; and an rc must
+    // not hold the pointer anyway, because every desktop install in the field
+    // resolves its update feed through it and would be handed a release
+    // candidate. Conversely a STABLE desktop release that does not claim the
+    // pointer is invisible to all of them — that outage has already happened
+    // once (see release.yml's --latest=false test above).
+    // Indented: both assignments sit inside the `if [ -n "$PRERELEASE" ]` fork.
+    const publishSteps = [...script.matchAll(/^ *publish_step="(.+)"$/gm)].map((m) => m[1]);
+    expect(publishSteps, 'both arms of the prerelease fork must exist').toHaveLength(2);
+    const stable = publishSteps.filter((s) => s.includes('--draft=false --latest'));
+    const prerelease = publishSteps.filter((s) => !s.includes('--draft=false --latest'));
+    expect(stable, 'exactly one arm claims the Latest pointer').toHaveLength(1);
+    expect(prerelease, 'exactly one arm does not').toHaveLength(1);
+    expect(prerelease[0], 'the prerelease arm still publishes').toContain('--draft=false');
+    expect(prerelease[0], 'and says why it withholds --latest').toMatch(/prerelease/i);
+  });
+
+  it('still distinguishes "no such release" from "cannot reach the repository"', () => {
+    // Deliberate and load-bearing: `gh release view` exits non-zero for both,
+    // so a bare `>/dev/null 2>&1` turns an auth failure or an API outage into a
+    // `gh release create` attempt. Keep the stderr capture and the re-raise.
+    expect(script).toContain('view_err="$(gh release view "$tag" 2>&1 >/dev/null)"');
+    expect(script).toMatch(/grep -qi 'release not found'/);
+    expect(script).toContain('::error::gh release view $tag failed');
+  });
+});

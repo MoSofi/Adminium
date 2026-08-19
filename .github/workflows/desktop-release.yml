@@ -625,10 +625,37 @@ jobs:
           echo "SHA256SUMS.txt:"; cat SHA256SUMS.txt
 
       # Create the draft (or refresh assets on a re-run of the same tag). DRAFT is
-      # non-negotiable: §10 says a human publishes. The seeded body is a starting
-      # point — the release editor writes the real notes, which updates.ts renders
-      # in-app (§11), and MUST flag any migration-bearing version (07-meta-store.md
-      # forward-only policy: there is no downgrade path).
+      # non-negotiable: §10 says a human publishes.
+      #
+      # TWO DOCUMENTS, TWO AUDIENCES. Do not merge them back into one string.
+      #   * The release BODY is USER-FACING and nothing else. It is what the
+      #     Releases page shows the world, and what updates.ts already carries
+      #     into the in-app `available` event for whenever §11's in-app notes
+      #     get wired to a surface (nothing renders it yet — see the honest
+      #     caveat on DesktopRelease.notes; the comment this replaces claimed
+      #     otherwise). So it carries only what a user needs: the version, the
+      #     unsigned-Windows/SmartScreen warning, how to verify a download
+      #     against SHA256SUMS.txt, and the changelog link.
+      #   * The PUBLISHER CHECKLIST goes to $GITHUB_STEP_SUMMARY — the same place
+      #     vrt-baselines.yml puts its publisher instructions — where only the
+      #     person looking at the run will ever read it.
+      #
+      # WHY THE SPLIT (this is not tidying). The two used to be one `notes`
+      # string: the body opened with "Draft — review before publishing" and
+      # continued into unticked TODOs, so the ONLY way to remove the checklist
+      # was to hand-write the real notes. desktop-v0.2.1 shipped exactly that —
+      # the publisher deleted the single line they had just performed (the
+      # `gh release edit --latest` step), wrote nothing, and published, leaving
+      # "Draft — review before publishing" as the first line a user reads on the
+      # download page. A placeholder body that has to be replaced by hand will
+      # eventually ship unreplaced, and it regenerates on every future tag. So
+      # the generated body below must be CORRECT AND PUBLISHABLE AS IT STANDS;
+      # a human adding "what changed" on top is an improvement, never a
+      # prerequisite for the page being right.
+      #
+      # MUST FLAG any migration-bearing version (07-meta-store.md forward-only
+      # policy: there is no downgrade path) — that is a checklist item, because
+      # only a human knows whether this version carries one.
       #
       # GH_REPO IS LOAD-BEARING. This job deliberately has no `actions/checkout` —
       # its only input is the downloaded artifacts — and the gh CLI resolves its
@@ -663,7 +690,78 @@ jobs:
           else
             publish_step="- [ ] Publish with \`gh release edit $tag --draft=false --latest\` — the \`--latest\` is load-bearing: every install already in the field resolves its update feed through that pointer, so a desktop release without it is invisible to all of them."
           fi
-          notes=$'Draft — review before publishing.\n\nWindows installers are **unsigned** for v1: SmartScreen will warn on download (More info → Run anyway). Verify downloads against `SHA256SUMS.txt`.\n\n- [ ] Replace this body with real release notes.\n- [ ] Flag any meta-store migration (no downgrade path).\n- [ ] `spctl -a -vv` the macOS app on a clean machine before publishing.\n'"$publish_step"
+
+          # ---- (a) the user-facing body -------------------------------------
+          # Tag-pinned, so the link still resolves after the file moves on main.
+          # PROBED rather than assumed: a dead "full changelog" link on a public
+          # download page is the same class of bug as the placeholder body was,
+          # so if that path ever moves the line is dropped instead of shipped
+          # broken. No compare link — this job has no checkout, so finding the
+          # previous desktop tag would mean another API call plus a ruling on
+          # what an rc counts as; the tag-pinned changelog is per-version anyway.
+          changelog_url=""
+          if gh api "repos/$GH_REPO/contents/apps/desktop/CHANGELOG.md?ref=$tag" --silent 2>/dev/null; then
+            changelog_url="$GITHUB_SERVER_URL/$GH_REPO/blob/$tag/apps/desktop/CHANGELOG.md"
+          fi
+
+          # Name the installer the user actually has, rather than restating
+          # electron-builder's artifactName template from memory: the file is on
+          # disk right here, two steps after it was checksummed.
+          # (Globbed, not `ls`: shellcheck SC2012, and an unmatched glob here
+          # must fall back rather than expand to a literal.)
+          win_exe="adminium-$version-win-x64.exe"
+          for candidate in release/*.exe; do
+            [ -e "$candidate" ] || break
+            win_exe="$(basename "$candidate")"
+            break
+          done
+
+          notes_file="$RUNNER_TEMP/desktop-release-notes.md"
+          {
+            echo "Adminium Desktop **$version** for macOS, Windows, and Linux."
+            echo
+            if [ -n "$PRERELEASE" ]; then
+              echo "> **Pre-release.** The in-app updater only ever resolves stable \`desktop-vX.Y.Z\` releases, so installs already in the field are not offered this one — install it by hand to test it."
+              echo
+            fi
+            echo "## Downloads"
+            echo
+            echo "| Platform | File |"
+            echo "| --- | --- |"
+            echo "| macOS | \`.dmg\` — Apple silicon and Intel |"
+            echo "| Windows | \`.exe\` installer |"
+            echo "| Linux | \`.AppImage\`, \`.deb\`, or \`.rpm\` |"
+            echo
+            echo "The macOS \`.zip\`, the \`latest*.yml\` files and the \`.blockmap\` files are what the in-app updater consumes; you do not need to download them."
+            echo
+            echo "## Windows installers are unsigned"
+            echo
+            echo "Adminium does not own a Windows code-signing certificate yet, so Windows SmartScreen shows **\"Windows protected your PC\"** when you run the installer. Choose **More info → Run anyway** to continue. The warning is about the missing signature, not about this build — but because the installer is unsigned, the checksum below is its only integrity signal, so please check it."
+            echo
+            echo "## Verify your download"
+            echo
+            echo "\`SHA256SUMS.txt\` on this release covers every installer above."
+            echo
+            echo '```bash'
+            echo "# macOS"
+            echo "shasum -a 256 --ignore-missing -c SHA256SUMS.txt"
+            echo "# Linux"
+            echo "sha256sum --ignore-missing -c SHA256SUMS.txt"
+            echo '```'
+            echo
+            echo '```powershell'
+            echo "# Windows (PowerShell) — compare the hash against SHA256SUMS.txt"
+            echo "Get-FileHash .\\$win_exe -Algorithm SHA256"
+            echo '```'
+            if [ -n "$changelog_url" ]; then
+              echo
+              echo "## Changelog"
+              echo
+              echo "[Full changelog for $version]($changelog_url)"
+            fi
+          } > "$notes_file"
+          echo "Release body ($(wc -c < "$notes_file") bytes):"
+          cat "$notes_file"
 
           # Probe for an existing draft (a re-push of the same tag refreshes it).
           # `gh release view` exits non-zero for BOTH "this release does not exist
@@ -676,22 +774,59 @@ jobs:
           view_err="$(gh release view "$tag" 2>&1 >/dev/null)"
           view_status=$?
           set -e
+          refreshed=0
           if [ "$view_status" -eq 0 ]; then
             echo "Release $tag exists — refreshing assets"
             gh release upload "$tag" release/* --clobber
+            # Assets only, deliberately: by now a human may have written notes
+            # into the body, and re-seeding it would delete their work.
+            refreshed=1
           elif printf '%s' "$view_err" | grep -qi 'release not found'; then
             echo "No release for $tag yet — creating the draft"
             # NOTE: no `--latest` here, and it would not work if it were —
             # GitHub refuses the Latest pointer to a draft. The flag goes on the
-            # publish command instead (see the checklist in $notes and
+            # publish command instead (see the checklist in the job summary and
             # docs/contributing/release-desktop.md).
             gh release create "$tag" release/* \
               --draft \
               --title "$title" \
               $PRERELEASE \
-              --notes "$notes"
+              --notes-file "$notes_file"
           else
             echo "::error::gh release view $tag failed (exit $view_status): $view_err"
             exit 1
           fi
-          echo "Draft release ready: $tag (a human must publish it AND mark it Latest)"
+
+          # ---- (b) the publisher checklist ----------------------------------
+          # Job summary, never the body: everything below is an instruction to
+          # the person publishing, and a user reading the download page must
+          # never see one of these lines.
+          {
+            echo "### Publish \`$tag\`"
+            echo
+            if [ -n "$PRERELEASE" ]; then
+              flagged="**pre-release** (the version carries a hyphen)"
+            else
+              flagged="**stable**"
+            fi
+            echo "Draft release: $GITHUB_SERVER_URL/$GH_REPO/releases/tag/$tag — marked $flagged."
+            if [ "$refreshed" -eq 1 ]; then
+              echo
+              echo "This run REFRESHED an existing draft: assets were re-uploaded and the body was left exactly as it is, including any notes already written into it. Only the run that first creates the draft seeds a body."
+            fi
+            echo
+            echo "The release body is already written and is publishable as it stands — version, the unsigned-Windows/SmartScreen warning, how to verify a download, and the changelog link. It is never a placeholder, so an unedited body is a correct page rather than a broken one."
+            echo
+            echo "- [ ] Add a short summary of **what changed** to the top of the body if this version deserves one — an improvement, not a prerequisite."
+            echo "- [ ] Flag any meta-store migration **in the body**. Migrations are forward-only (07-meta-store.md): once a user updates there is no downgrade path, so they have to be told before they click."
+            echo "- [ ] \`spctl -a -vv\` the macOS app on a clean machine before publishing."
+            echo "$publish_step"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Same fork as the checklist, for whoever is reading the raw log rather
+          # than the summary: telling an rc to "mark it Latest" is the one
+          # instruction that would break every stable install in the field.
+          if [ -n "$PRERELEASE" ]; then
+            echo "Draft release ready: $tag (a human must publish it; it is a prerelease and must NOT take the Latest pointer)"
+          else
+            echo "Draft release ready: $tag (a human must publish it AND mark it Latest)"
+          fi
