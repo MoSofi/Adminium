@@ -130,6 +130,44 @@ export const SETTINGS_REGISTRY = {
   'branding.showVersion': def(z.boolean(), true, 'Show the app version in the sidebar', P),
   'branding.faviconFileId': def<string | null>(z.string().nullable(), null, 'Favicon file id', P),
   'auth.sessionTtlHours': def(z.number().int().min(1).max(8760), 720, 'Session lifetime in hours', P),
+  /**
+   * ADVISORY, NOT A PERIMETER — the name overpromises, so read this before
+   * relying on it. Exactly two things in the product read this flag:
+   *
+   * 1. `apps/server/src/routes/auth/handlers.ts` — `needsTwoFactorSetup` puts
+   *    `twoFactorSetupRequired` on the login reply and on `GET /auth/session`
+   *    when the account has no TOTP. That is a SIGNAL for the client to route
+   *    into the enroll flow, deliberately not a denial: `/auth/2fa/enroll` and
+   *    `/auth/2fa/activate` are themselves `requireAuth`, so refusing the
+   *    session would leave the user no door to enroll through.
+   * 2. Same file, `disable2faHandler` — `POST /auth/2fa/disable` throws
+   *    ForbiddenError while the flag is on, so an account that IS enrolled
+   *    cannot opt back out.
+   *
+   * NOTHING ELSE READS IT. In as many words: no server-side preHandler blocks
+   * an un-enrolled principal. A caller that simply ignores the signal — any
+   * API client that is not our dashboard — holds a full session and can call
+   * every route without ever enrolling. API-key principals are outside the
+   * question structurally: `apps/server/src/plugins/auth.ts` resolves an
+   * `Authorization: Bearer adm_…` key and returns before a session exists, so
+   * no session-conditioned gate could reach them even if one were added. What
+   * this flag hardens is enrollment (you cannot leave once in), not access.
+   *
+   * Marked `P`, so a config bundle carries it: `adminium import-zip` replays
+   * settings through `settingsRepo.set` (see the import service under
+   * `apps/server/src/export/`), which can land `true` on an instance where
+   * nobody has TOTP enrolled. Survivable precisely BECAUSE it is not a
+   * perimeter — everyone can still log in — so the recovery is to turn it off
+   * at Settings → Security (`PUT /settings/security`, needs `settings.manage`).
+   * If no admin UI is reachable, the floor is SQL; there is no
+   * `adminium settings` subcommand to do it with:
+   *
+   *     DELETE FROM adminium_settings WHERE key = 'auth.require2fa';
+   *
+   * Deleting the row suffices — `packages/meta/src/repos/settings.ts` `get()`
+   * returns the registry default when no row exists, and that default is
+   * `false`.
+   */
   'auth.require2fa': def(z.boolean(), false, 'Require TOTP for all users', P),
   'auth.allowSignup': def(z.boolean(), false, 'Allow self-signup (default invite-only)', P),
   'auth.passwordMinLength': def(z.number().int().min(8).max(128), 10, 'Minimum password length', P),
