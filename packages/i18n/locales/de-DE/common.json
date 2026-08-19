@@ -572,7 +572,8 @@
         "heading": "Sicherheit",
         "require2fa": {
           "label": "Zwei-Faktor-Authentifizierung verlangen",
-          "desc": "Jedes Mitglied muss 2FA aktivieren, um sich anzumelden."
+          "desc": "Jedes Mitglied muss 2FA aktivieren, um sich anzumelden.",
+          "note": "Hinweis, keine Sperre: Mitglieder ohne 2FA werden zur Einrichtung geleitet und können sie danach nicht mehr abschalten, ihre Anmeldung wird aber nie blockiert, und API-Schlüssel sind nicht betroffen."
         },
         "allowSignup": {
           "label": "Selbstregistrierung erlauben",

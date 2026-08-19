@@ -6,8 +6,11 @@
  * and the danger-zone type-to-confirm connection delete. Router-mounted like
  * the GlobalDefaultsPage suite.
  *
- * The `auth.*` security controls are not surfaced (no auth flow enforces them
- * yet), so there is no security section or /settings/security PUT to assert.
+ * The `auth.*` security section rides the SAME form: one Save button, one
+ * review modal, two section-puts. The 2FA toggle carries the advisory note
+ * (`require2fa.note`) because the switch's own label promises a perimeter the
+ * server does not enforce — see `auth.require2fa` in
+ * packages/meta/src/schema/settings-registry.ts.
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
@@ -20,7 +23,7 @@ import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
-import type { WorkspaceBranding, WorkspaceSettingsData } from './workspaceApi.js';
+import type { SecuritySettings, WorkspaceBranding, WorkspaceSettingsData } from './workspaceApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -37,6 +40,10 @@ function makeWorkspace(overrides: Partial<WorkspaceSettingsData> = {}): Workspac
     branding: { appName: 'Adminium', logoUrl: null, showVersion: true },
     ...overrides,
   };
+}
+
+function makeSecurity(overrides: Partial<SecuritySettings> = {}): SecuritySettings {
+  return { sessionTtlHours: 720, require2fa: false, passwordMinLength: 10, ...overrides };
 }
 
 function makeConnection(overrides: Partial<ConnectionDto> = {}): ConnectionDto {
@@ -71,6 +78,7 @@ function stubFetch(
   roles: string[],
   connections: ConnectionDto[] = [makeConnection()],
   branding: WorkspaceBranding = makeWorkspace().branding,
+  security: SecuritySettings = makeSecurity(),
 ) {
   const calls: Call[] = [];
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
@@ -91,6 +99,13 @@ function stubFetch(
           data: makeWorkspace({ branding: { ...put, logoUrl: null } }),
         }),
       );
+    }
+    if (url === '/api/v1/settings/security' && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, { data: security }));
+    }
+    if (url === '/api/v1/settings/security' && method === 'PUT') {
+      // The route is a full-object write, so the reply is the body.
+      return Promise.resolve(jsonResponse(200, { data: body }));
     }
     if (url === '/api/v1/branding' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, { data: branding }));
@@ -123,9 +138,10 @@ async function renderPage(
   roles: string[] = ['super-admin'],
   connections?: ConnectionDto[],
   branding?: WorkspaceBranding,
+  security?: SecuritySettings,
 ) {
   vi.stubGlobal('WebSocket', FakeWebSocket);
-  const stub = stubFetch(roles, connections, branding);
+  const stub = stubFetch(roles, connections, branding, security);
   const queryClient = createQueryClient();
   const router = createAppRouter(queryClient, {
     history: createMemoryHistory({ initialEntries: ['/studio/settings'] }),
@@ -155,11 +171,78 @@ describe('StudioSettingsPage', () => {
     expect(await screen.findByRole('heading', { name: 'Workspace settings' })).toBeDefined();
     expect(screen.getByRole('heading', { name: 'Workspace identity' })).toBeDefined();
     expect((screen.getByLabelText('Application name') as HTMLInputElement).value).toBe('Adminium');
-    // No inert security controls are surfaced.
-    expect(screen.queryByRole('switch', { name: 'Require two-factor auth' })).toBeNull();
-    expect(screen.queryByLabelText('Session lifetime (hours)')).toBeNull();
     // Pristine form — nothing to save yet.
     expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('renders the security section bound to /settings/security', async () => {
+    await renderPage(['super-admin'], undefined, undefined, {
+      sessionTtlHours: 24,
+      require2fa: true,
+      passwordMinLength: 16,
+    });
+    await screen.findByRole('heading', { name: 'Security' });
+
+    const toggle = screen.getByRole('switch', { name: 'Require two-factor auth' });
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByLabelText('Session lifetime (hours)') as HTMLInputElement).value).toBe('24');
+    expect((screen.getByLabelText('Minimum password length') as HTMLInputElement).value).toBe('16');
+  });
+
+  it('states the 2FA boundary beside the toggle, since the label overpromises', async () => {
+    await renderPage();
+    await screen.findByRole('heading', { name: 'Security' });
+    // The label and its description both read as a perimeter; the server only
+    // signals un-enrolled accounts and refuses `POST /auth/2fa/disable`. If
+    // this note ever disappears the screen is lying about what the switch does.
+    expect(
+      screen.getByText(/Advisory, not a barrier/, { exact: false }).textContent,
+    ).toContain('API keys are unaffected');
+  });
+
+  it('refuses an out-of-range number instead of PUTting it', async () => {
+    const user = userEvent.setup();
+    const { calls } = await renderPage();
+    await screen.findByRole('heading', { name: 'Security' });
+
+    const ttl = screen.getByLabelText('Session lifetime (hours)');
+    await user.clear(ttl);
+    await user.type(ttl, '9000');
+    // 8760 is the registry ceiling — the client mirrors it so the refusal
+    // lands on the field rather than as a 422 over the whole save.
+    expect(screen.getByText('Between 1 and 8,760 hours.')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+
+    // An emptied box is still an edit, so it must read as invalid, not pristine.
+    await user.clear(ttl);
+    expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+  });
+
+  it('saves security through the one shared review modal, as its own section-put', async () => {
+    const user = userEvent.setup();
+    const { calls } = await renderPage();
+    await screen.findByRole('heading', { name: 'Security' });
+
+    await user.click(screen.getByRole('switch', { name: 'Require two-factor auth' }));
+    const passwordMin = screen.getByLabelText('Minimum password length');
+    await user.clear(passwordMin);
+    await user.type(passwordMin, '14');
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Off → On')).toBeDefined();
+    expect(within(dialog).getByText('10 → 14')).toBeDefined();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await screen.findByText('Workspace settings updated');
+
+    const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/security'));
+    expect(put?.body).toEqual({ sessionTtlHours: 720, require2fa: true, passwordMinLength: 14 });
+    // Untouched sections stay untouched: one Save button, but still two puts.
+    expect(calls.some((c) => c.method === 'PUT' && c.url.endsWith('/settings/branding'))).toBe(
+      false,
+    );
   });
 
   it('review-then-confirm: lists exactly the changed field, then PUTs branding', async () => {
@@ -182,8 +265,10 @@ describe('StudioSettingsPage', () => {
 
     const brandingPut = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/branding'));
     expect(brandingPut?.body).toEqual({ appName: 'Acme Ops', showVersion: true });
-    // No security surface is ever hit.
-    expect(calls.some((c) => c.url.endsWith('/settings/security'))).toBe(false);
+    // …and the security section, being pristine, is read but never written.
+    expect(calls.some((c) => c.method === 'PUT' && c.url.endsWith('/settings/security'))).toBe(
+      false,
+    );
   });
 
   it('admins get the super-admin notice, no settings fetch, but keep the danger zone', async () => {

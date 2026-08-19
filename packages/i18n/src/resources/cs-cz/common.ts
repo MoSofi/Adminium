@@ -581,7 +581,8 @@ export default {
         "heading": "Zabezpečení",
         "require2fa": {
           "label": "Vyžadovat dvoufaktorové ověření",
-          "desc": "Každý člen musí mít pro přihlášení zapnuté 2FA."
+          "desc": "Každý člen musí mít pro přihlášení zapnuté 2FA.",
+          "note": "Jen doporučení, ne zábrana: členové bez 2FA jsou nasměrováni k jejímu nastavení a už ji nemohou vypnout, jejich přihlášení se ale nikdy neblokuje a klíčů API se to netýká."
         },
         "allowSignup": {
           "label": "Povolit samoregistraci",

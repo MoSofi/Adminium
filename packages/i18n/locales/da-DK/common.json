@@ -572,7 +572,8 @@
         "heading": "Sikkerhed",
         "require2fa": {
           "label": "Kræv tofaktorgodkendelse",
-          "desc": "Alle medlemmer skal aktivere 2FA for at logge ind."
+          "desc": "Alle medlemmer skal aktivere 2FA for at logge ind.",
+          "note": "Vejledende, ikke en spærring: medlemmer uden 2FA sendes til opsætningen og kan ikke slå den fra igen, men deres login blokeres aldrig, og API-nøgler er ikke omfattet."
         },
         "allowSignup": {
           "label": "Tillad selvregistrering",
