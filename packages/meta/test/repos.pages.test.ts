@@ -9,6 +9,7 @@ import {
   snapshotsRepo,
   type DsnCrypto,
   type GeneratedPageInput,
+  type Page,
 } from '../src/index.js';
 import { TEST_DIALECTS, type TestDb } from './helpers/db.js';
 
@@ -562,6 +563,336 @@ for (const dialect of TEST_DIALECTS) {
       const pages = await repo.listForConnection(connectionId);
       expect(pages.map((p) => p.slug)).toEqual(['alpha', 'zeta']);
       expect((pages[0]?.config as { config: { generatedHash: string } }).config.generatedHash).toBe('h1');
+    });
+
+    it('create rejects an unknown origin and an id past char(36), writing nothing', async () => {
+      const repo = pagesRepo(t.meta);
+      await expect(
+        repo.create({
+          connectionId,
+          slug: 'imported',
+          type: 'page-crud',
+          title: 'Imported',
+          config: { v: 1 },
+          // @ts-expect-error — not one of PAGE_ORIGINS
+          origin: 'imported',
+        }),
+      ).rejects.toThrow(/invalid page origin/);
+
+      // Rejected in the repo rather than at the column: MySQL would silently
+      // truncate a 41-char id and the row would then be unreachable by the id
+      // its caller holds.
+      await expect(
+        repo.create({
+          id: `page_${'x'.repeat(40)}`,
+          connectionId,
+          slug: 'long-id',
+          type: 'page-crud',
+          title: 'Long id',
+          config: { v: 1 },
+        }),
+      ).rejects.toThrow(/char\(36\)/);
+
+      expect(await repo.listForConnection(connectionId)).toEqual([]);
+    });
+
+    it('upsertGenerated defaults a missing icon/navGroup/navOrder and still compares equal', async () => {
+      const repo = pagesRepo(t.meta);
+      const bare: GeneratedPageInput = {
+        id: 'page_bare',
+        slug: 'bare',
+        type: 'page-crud',
+        title: 'Bare',
+        config: { v: 1, kind: 'page', id: 'page_bare', config: { generatedHash: 'b1' } },
+      };
+
+      expect(await repo.upsertGenerated(connectionId, [bare], { at: 1_000 })).toMatchObject({ created: 1 });
+      expect(await repo.findBySlug(connectionId, 'bare')).toMatchObject({
+        icon: null,
+        navGroup: null,
+        navOrder: 0,
+      });
+
+      // The defaults applied on the WRITE side have to be applied on the
+      // compare side too. If they were not, this input would read as changed on
+      // every run — an endless revision bump and a `configVersion` that never
+      // settles, for a generator that emitted the same thing twice.
+      expect(await repo.upsertGenerated(connectionId, [bare], { at: 2_000 })).toMatchObject({
+        unchanged: 1,
+        updated: 0,
+      });
+      expect((await repo.findBySlug(connectionId, 'bare'))?.updatedAt).toBe(1_000);
+
+      // Gaining nav metadata is a real change …
+      const dressed = { ...bare, icon: 'table', navGroup: 'library', navOrder: 7 };
+      expect(await repo.upsertGenerated(connectionId, [dressed], { at: 3_000 })).toMatchObject({ updated: 1 });
+      expect(await repo.findBySlug(connectionId, 'bare')).toMatchObject({
+        icon: 'table',
+        navGroup: 'library',
+        navOrder: 7,
+        revision: 2,
+      });
+
+      // … and so is losing it again: the update must write the defaults, not
+      // leave the previous icon/group standing.
+      expect(await repo.upsertGenerated(connectionId, [bare], { at: 4_000 })).toMatchObject({ updated: 1 });
+      expect(await repo.findBySlug(connectionId, 'bare')).toMatchObject({
+        icon: null,
+        navGroup: null,
+        navOrder: 0,
+        revision: 3,
+      });
+    });
+
+    it('the edited-page guard only fires on a document carrying a string hash', async () => {
+      // A false positive here is permanent: the row would be reported as
+      // human-edited by every future run and could never be regenerated again.
+      // Only the generator embeds `config.generatedHash`, so anything else —
+      // an llm seed, a hand-authored row, a pre-M5 document — is "not edited".
+      const repo = pagesRepo(t.meta);
+      const hashless: GeneratedPageInput[] = [
+        crudPage('no-config', { config: { v: 1, kind: 'page', id: 'page_no-config' } }),
+        crudPage('scalar-config', { config: { v: 1, kind: 'page', id: 'page_scalar-config', config: 'legacy' } }),
+        crudPage('number-hash', {
+          config: { v: 1, kind: 'page', id: 'page_number-hash', config: { generatedHash: 42 } },
+        }),
+        crudPage('not-an-object', { config: 'a bare string, not an envelope' }),
+      ];
+      await repo.upsertGenerated(connectionId, hashless, { at: 1_000, hashEnvelope: testHash });
+
+      const rewritten = hashless.map((page) =>
+        crudPage(page.slug, { config: { v: 2, kind: 'page', id: page.id, config: { marker: 'v2' } } }),
+      );
+      const result = await repo.upsertGenerated(connectionId, rewritten, {
+        at: 2_000,
+        hashEnvelope: testHash,
+      });
+      expect(result).toMatchObject({ updated: 4, skippedEdited: [], keptEdited: [] });
+
+      // And the prune half of the same guard: a hashless orphan is a plain
+      // orphan, so it deletes.
+      const pruned = await repo.upsertGenerated(connectionId, [], { at: 3_000, hashEnvelope: testHash });
+      expect(pruned).toMatchObject({ pruned: 4, keptEdited: [] });
+    });
+
+    it('updateMeta recomposes onto another template and connection in one write', async () => {
+      const repo = pagesRepo(t.meta);
+      const other = await connectionsRepo(t.meta, testCrypto).create({
+        name: 'reporting',
+        engine: 'postgres',
+        introspectDsn: 'postgres://ro@localhost/reporting',
+      });
+      const page = await repo.create({
+        connectionId,
+        slug: 'orders',
+        type: 'page-crud',
+        title: 'Orders',
+        navOrder: 5,
+        config: { v: 1, kind: 'page', id: 'page_orders', nav: { order: 5 }, config: { columns: [] } },
+      });
+
+      // No `title` in the patch: the row keeps the one it has. A recompose
+      // supplies the whole document because the per-template bodies are not
+      // mergeable — `{columns}` and `{lanes}` share no keys.
+      const moved = await repo.updateMeta(
+        page.id,
+        {
+          slug: 'orders-board',
+          icon: 'kanban',
+          type: 'page-kanban',
+          connectionId: other.id,
+          // A recomposed envelope arrives with whatever nav block the template
+          // producer emitted; the ROW is what the sidebar reads, so the mirror
+          // has to overwrite it rather than trust it.
+          envelope: { v: 1, kind: 'page', id: page.id, nav: { order: 99, group: 'stale' }, config: { lanes: [] } },
+        },
+        { at: 6_000 },
+      );
+      expect(moved).toMatchObject({
+        slug: 'orders-board',
+        title: 'Orders',
+        icon: 'kanban',
+        type: 'page-kanban',
+        connectionId: other.id,
+        revision: 2,
+        updatedAt: 6_000,
+      });
+
+      const stored = (moved as Page).config as { config: Record<string, unknown>; nav: Record<string, unknown> };
+      expect(stored.config).toEqual({ lanes: [] });
+      // The mirror wins over the supplied envelope's stale nav block — and
+      // `nav.group` is a `z.string().min(1)`, so a null row value is expressed
+      // by DROPPING the key, never by storing null.
+      expect(stored.nav).toEqual({ order: 5, slug: 'orders-board', icon: 'kanban' });
+
+      // It really moved connections — the old one no longer lists it.
+      expect(await repo.listForConnection(connectionId)).toEqual([]);
+      expect((await repo.listForConnection(other.id)).map((p) => p.slug)).toEqual(['orders-board']);
+    });
+
+    it('setTemplateConfig honours If-Match and reports an unknown page', async () => {
+      const repo = pagesRepo(t.meta);
+      expect(await repo.setTemplateConfig('page_nope', { columns: [] })).toBe('not-found');
+
+      const page = await repo.create({
+        connectionId,
+        slug: 'grid',
+        type: 'page-crud',
+        title: 'Grid',
+        config: { v: 1, kind: 'page', id: 'page_grid', config: { columns: [{ name: 'id' }] } },
+      });
+      expect(await repo.setTemplateConfig(page.id, { columns: [] }, { expectedRevision: 99 })).toBe('conflict');
+      // A refused write is a write that did not happen.
+      expect((await repo.findById(page.id))?.config).toEqual(page.config);
+      expect((await repo.findById(page.id))?.revision).toBe(page.revision);
+
+      const ok = await repo.setTemplateConfig(
+        page.id,
+        { columns: [{ name: 'id' }, { name: 'email' }] },
+        { expectedRevision: page.revision },
+      );
+      expect(ok).not.toBe('conflict');
+      expect((ok as Page).revision).toBe(page.revision + 1);
+    });
+
+    it('reorderNav does nothing for an empty list or for a group already in place', async () => {
+      const repo = pagesRepo(t.meta);
+      expect(await repo.reorderNav([])).toBe(0);
+
+      await repo.upsertGenerated(
+        connectionId,
+        [crudPage('a', { navOrder: 20 }), crudPage('b', { navOrder: 30 })],
+        { at: 1_000 },
+      );
+      const order = [
+        { id: 'page_a', navGroup: 'library' },
+        { id: 'page_b', navGroup: 'library' },
+      ];
+      expect(await repo.reorderNav(order, 2_000)).toBe(2);
+      const settled = await repo.listForConnection(connectionId);
+
+      // Re-sending the SAME order must not rewrite anything: every row it
+      // touched would bump `revision` and `updatedAt`, and `updatedAt` is the
+      // bootstrap `configVersion` every client re-fetches on.
+      expect(await repo.reorderNav(order, 3_000)).toBe(0);
+      expect(await repo.listForConnection(connectionId)).toEqual(settled);
+      expect(await repo.configVersion()).toBe(2_000);
+    });
+
+    it('setLayout returns null for an unknown page and copes with a non-envelope document', async () => {
+      const repo = pagesRepo(t.meta);
+      expect(await repo.setLayout('page_nope', { version: 1, items: [] })).toBeNull();
+
+      // `config` is opaque by contract (01 §6.1) — hand-authored and llm-seed
+      // rows are not envelopes yet, and the dashboard layout write must not
+      // throw on one.
+      const scalar = await repo.create({
+        connectionId,
+        slug: 'scalar',
+        type: 'page-dashboard',
+        title: 'Scalar',
+        config: 'a bare string, not an envelope',
+      });
+      const written = await repo.setLayout(scalar.id, { version: 1, items: [] }, 7_000);
+      expect(written?.config).toEqual({ config: { layout: { version: 1, items: [] } } });
+
+      // Same for an envelope whose `config` key is not an object: the layout
+      // replaces it instead of spreading a string across the document.
+      const odd = await repo.create({
+        connectionId,
+        slug: 'odd',
+        type: 'page-dashboard',
+        title: 'Odd',
+        config: { v: 1, kind: 'page', config: 'legacy' },
+      });
+      const written2 = await repo.setLayout(odd.id, { version: 1, items: ['w1'] }, 8_000);
+      expect(written2?.config).toEqual({
+        v: 1,
+        kind: 'page',
+        config: { layout: { version: 1, items: ['w1'] } },
+      });
+    });
+
+    it('replaceConfig syncs the nav projection an expanded llm page needs', async () => {
+      const repo = pagesRepo(t.meta);
+      expect(await repo.replaceConfig('page_nope', { v: 1 })).toBeNull();
+
+      const seeded = await repo.create({
+        connectionId,
+        slug: 'order-queue',
+        type: 'page-queue-inbox',
+        title: 'order_queue',
+        config: { source: { table: 'public.orders' }, llmRunId: 'run_1' },
+        origin: 'llm',
+      });
+      // The bootstrap tree reads the ROW columns and `/p/$slug` resolves from
+      // that tree, so an expansion that only rewrote the document would leave
+      // the page unreachable and outside the nav.
+      const expanded = await repo.replaceConfig(
+        seeded.id,
+        { v: 1, kind: 'page', id: seeded.id, config: {} },
+        { title: 'Order Queue', navGroup: 'workspace', at: 4_000 },
+      );
+      expect(expanded).toMatchObject({
+        title: 'Order Queue',
+        navGroup: 'workspace',
+        // No icon was offered, and none is invented.
+        icon: null,
+        revision: 2,
+        updatedAt: 4_000,
+      });
+      expect((await repo.navRows()).find((r) => r.id === seeded.id)).toMatchObject({
+        title: 'Order Queue',
+        navGroup: 'workspace',
+      });
+    });
+
+    it('setEnabled parks a page without touching its document or revision', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(connectionId, [crudPage('customers')], { at: 1_000 });
+      const before = await repo.findById('page_customers');
+
+      await repo.setEnabled('page_customers', false, 2_000);
+      const parked = await repo.findById('page_customers');
+      expect(parked?.isEnabled).toBe(false);
+      // `revision` counts changed DOCUMENTS; this changed none.
+      expect(parked?.revision).toBe(before?.revision);
+      expect(parked?.config).toEqual(before?.config);
+      // `updatedAt` still moves, or clients would keep serving the parked page
+      // from cache.
+      expect(parked?.updatedAt).toBe(2_000);
+      expect(await repo.configVersion()).toBe(2_000);
+
+      await repo.setEnabled('page_customers', true, 3_000);
+      expect((await repo.findById('page_customers'))?.isEnabled).toBe(true);
+      // The nav projection reads the raw column, so it has to coerce too.
+      expect((await repo.navRows()).find((r) => r.id === 'page_customers')?.isEnabled).toBeTruthy();
+    });
+
+    it('findBySlug treats a null connection as its own scope, not as a wildcard', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(connectionId, [crudPage('settings')], { at: 1_000 });
+      const systemPage = await repo.create({
+        connectionId: null,
+        slug: 'settings',
+        type: 'page-crud',
+        title: 'Global settings',
+        config: { v: 1 },
+        origin: 'system',
+      });
+
+      expect((await repo.findBySlug(connectionId, 'settings'))?.id).toBe('page_settings');
+      expect((await repo.findBySlug(null, 'settings'))?.id).toBe(systemPage.id);
+      expect(await repo.findBySlug(null, 'nope')).toBeNull();
+    });
+
+    it('configVersion and navRows are defined on a store with no pages at all', async () => {
+      // First boot: the bootstrap route stamps `configVersion` from this, and a
+      // NULL max() must not surface as NaN or null to a client's cache key.
+      const repo = pagesRepo(t.meta);
+      expect(await repo.configVersion()).toBe(0);
+      expect(await repo.navRows()).toEqual([]);
+      expect(await repo.countGeneratedByConnection()).toEqual({});
     });
   });
 }

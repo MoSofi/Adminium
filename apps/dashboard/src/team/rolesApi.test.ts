@@ -4,11 +4,19 @@
  * that matter: a reserved permission must never become a row, and a save must
  * only ever touch the roles the admin actually edited.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PermissionGrant } from '@adminium/ui';
 
+import { jsonResponse } from '../test/fixtures.js';
 import {
   RESERVED_GRANTS,
+  createRole,
+  deleteRole,
+  permissionCatalogQuery,
+  putRoleGrants,
+  renameRole,
+  roleGrantsQuery,
+  rolesQuery,
   catalogPermissions,
   changedRoleIds,
   isPermissionGrant,
@@ -167,5 +175,87 @@ describe('roleDeletePath', () => {
 
   it('escapes the target id', () => {
     expect(roleDeletePath('role-1', 'a b')).toBe('/api/v1/roles/role-1?reassignTo=a%20b');
+  });
+});
+
+describe('the request each call issues', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(body: unknown) {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, body));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function callOf(fetchMock: ReturnType<typeof vi.fn>) {
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    return {
+      url: String(url),
+      method: init?.method ?? 'GET',
+      body: init?.body === undefined ? undefined : (JSON.parse(String(init.body)) as unknown),
+    };
+  }
+
+  it('unwraps the role list, and the grants of one role, out of their envelopes', async () => {
+    const list = stubFetch({ roles: [{ id: 'role-1', name: 'Ops' }] });
+    await expect(rolesQuery().queryFn?.({} as never)).resolves.toEqual([{ id: 'role-1', name: 'Ops' }]);
+    expect(callOf(list).url).toBe('/api/v1/roles');
+
+    const grants = stubFetch({ roleId: 'role-1', grants: ['system:audit:read'] });
+    await expect(roleGrantsQuery('role-1').queryFn?.({} as never)).resolves.toEqual([
+      'system:audit:read',
+    ]);
+    expect(callOf(grants).url).toBe('/api/v1/roles/role-1/permissions');
+  });
+
+  it('caches the permission catalogue — it changes with a deploy, not a navigation', () => {
+    const options = permissionCatalogQuery();
+    expect(options.queryKey).toEqual(['permissions', 'catalog']);
+    expect(options.staleTime).toBe(5 * 60_000);
+  });
+
+  it('keys each role’s grants separately so two roles never share a cache entry', () => {
+    expect(roleGrantsQuery('role-1').queryKey).not.toEqual(roleGrantsQuery('role-2').queryKey);
+  });
+
+  it('creates and renames a role', async () => {
+    const created = stubFetch({ id: 'role-2' });
+    await createRole({ name: 'Support', description: 'Read-only' });
+    expect(callOf(created)).toEqual({
+      url: '/api/v1/roles',
+      method: 'POST',
+      body: { name: 'Support', description: 'Read-only' },
+    });
+
+    const renamed = stubFetch({ id: 'role-2' });
+    await renameRole('role-2', { name: 'Support desk' });
+    expect(callOf(renamed)).toEqual({
+      url: '/api/v1/roles/role-2',
+      method: 'PATCH',
+      body: { name: 'Support desk' },
+    });
+  });
+
+  it('deletes through roleDeletePath, so the reassignment target rides along', async () => {
+    const bare = stubFetch({ ok: true });
+    await deleteRole('role-2', null);
+    expect(callOf(bare)).toMatchObject({ url: '/api/v1/roles/role-2', method: 'DELETE' });
+
+    const reassigned = stubFetch({ ok: true });
+    await deleteRole('role-2', 'role-1');
+    expect(callOf(reassigned).url).toBe('/api/v1/roles/role-2?reassignTo=role-1');
+  });
+
+  it('writes a role’s grants as a plain array, whatever the matrix handed it', async () => {
+    // The matrix holds readonly arrays; `PUT` has to serialize a JSON array.
+    const fetchMock = stubFetch({ ok: true });
+    await putRoleGrants('role-1', Object.freeze(['system:audit:read']) as readonly PermissionGrant[]);
+    expect(callOf(fetchMock)).toEqual({
+      url: '/api/v1/roles/role-1/permissions',
+      method: 'PUT',
+      body: { grants: ['system:audit:read'] },
+    });
   });
 });

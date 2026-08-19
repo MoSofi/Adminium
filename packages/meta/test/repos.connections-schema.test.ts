@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   MetaValidationError,
   connectionsRepo,
+  filesRepo,
   firstRun,
   overridesRepo,
   snapshotsRepo,
@@ -123,6 +124,164 @@ for (const dialect of TEST_DIALECTS) {
         expect(await repo.delete(a.id)).toBe(true);
         expect(await repo.findById(a.id)).toBeNull();
         expect(await repo.delete(a.id)).toBe(false);
+      });
+
+      it('rejects every §3.13 discriminator it does not recognise, before writing', async () => {
+        const repo = connectionsRepo(t.meta, testCrypto);
+        const base = { name: 'x', engine: 'postgres', introspectDsn: 'postgres://a@b/c' } as const;
+
+        await expect(repo.create({ ...base, sourceKind: 'yaml' })).rejects.toThrow(/source_kind/);
+        await expect(repo.create({ ...base, status: 'degraded' })).rejects.toThrow(/status/);
+        await expect(
+          // @ts-expect-error — `mode` is a fixed three-value enum
+          repo.create({ ...base, ssl: { mode: 'prefer' } }),
+        ).rejects.toThrow(/ssl/);
+
+        // Each half of the source-kind contract: `dsn` needs a DSN and
+        // `schema-file` needs a file, and neither substitutes for the other.
+        await expect(repo.create({ name: 'x', engine: 'postgres', sourceKind: 'dsn' })).rejects.toThrow(
+          /introspectDsn is required/,
+        );
+        await expect(
+          repo.create({ name: 'x', engine: 'postgres', sourceKind: 'schema-file' }),
+        ).rejects.toThrow(/schemaFileId is required/);
+        // A DSN does not satisfy a schema-file connection either.
+        await expect(repo.create({ ...base, sourceKind: 'schema-file' })).rejects.toThrow(
+          /schemaFileId is required/,
+        );
+
+        // Every one of those was a refusal, not a half-written row.
+        expect(await repo.list()).toEqual([]);
+      });
+
+      it('stores a schema-file connection that never had a DSN to decrypt', async () => {
+        const repo = connectionsRepo(t.meta, testCrypto);
+        const schemaFile = await filesRepo(t.meta).create({
+          filename: 'northwind.sql',
+          mime: 'application/sql',
+          sizeBytes: 2048,
+          sha256: 'a'.repeat(64),
+          kind: 'schema',
+        });
+        const created = await repo.create({
+          name: 'offline',
+          engine: 'postgres',
+          sourceKind: 'schema-file',
+          schemaFileId: schemaFile.id,
+          ssl: { mode: 'verify-full', caFileId: null },
+          status: 'connected',
+        });
+
+        expect(created).toMatchObject({
+          sourceKind: 'schema-file',
+          schemaFileId: schemaFile.id,
+          introspectDsnEncrypted: null,
+          dataDsnEncrypted: null,
+          status: 'connected',
+        });
+        expect(created.ssl).toEqual({ mode: 'verify-full', caFileId: null });
+
+        // `getDsns` must not hand an empty string to the AES closure — there is
+        // nothing to decrypt, and the fallback has nothing to fall back to.
+        expect(await repo.getDsns(created.id)).toEqual({ introspectDsn: null, dataDsn: null });
+        // …and an id that does not exist is null, not a throw.
+        expect(await repo.getDsns('conn_missing')).toBeNull();
+      });
+
+      it('an empty-string DSN is stored as NULL, not as encrypted emptiness', async () => {
+        // The Studio form posts '' for a cleared field. Encrypting it would
+        // produce a non-null ciphertext, and `getDsns` would then decrypt it to
+        // '' — a DSN-shaped value the connector would actually try to dial.
+        const repo = connectionsRepo(t.meta, testCrypto);
+        const created = await repo.create({
+          name: 'cleared',
+          engine: 'postgres',
+          introspectDsn: 'postgres://ro@h/d',
+          dataDsn: '',
+        });
+        expect(created.dataDsnEncrypted).toBeNull();
+        expect((await repo.getDsns(created.id))?.dataDsn).toBe('postgres://ro@h/d');
+      });
+
+      it('update validates each payload it is given and leaves the row alone when it refuses', async () => {
+        const repo = connectionsRepo(t.meta, testCrypto);
+        const conn = await repo.create(
+          {
+            name: 'prod',
+            engine: 'postgres',
+            introspectDsn: 'postgres://ro@h/d',
+            ssl: { mode: 'require' },
+            settings: { intent: 'crud' },
+          },
+          1_000,
+        );
+        expect(conn.ssl).toEqual({ mode: 'require', caFileId: undefined });
+
+        // @ts-expect-error — not a member of the ssl mode enum
+        await expect(repo.update(conn.id, { ssl: { mode: 'prefer' } })).rejects.toThrow(/ssl/);
+        // @ts-expect-error — not a member of the intent enum
+        await expect(repo.update(conn.id, { settings: { intent: 'nope' } })).rejects.toThrow(/settings/);
+        await expect(repo.update(conn.id, { status: 'degraded' })).rejects.toThrow(/status/);
+
+        const untouched = await repo.findById(conn.id);
+        expect(untouched?.ssl).toEqual({ mode: 'require', caFileId: undefined });
+        expect(untouched?.settings).toEqual({ intent: 'crud' });
+        expect(untouched?.updatedAt).toBe(1_000);
+
+        // The accepting path: DSNs are re-encrypted, `ssl: null` clears the
+        // column rather than storing the string "null", and the failure fields
+        // are writable so an operator can clear a resolved error by hand.
+        const updated = await repo.update(
+          conn.id,
+          {
+            introspectDsn: 'postgres://ro@h2/d',
+            dataDsn: 'postgres://rw@h2/d',
+            ssl: null,
+            settings: { intent: 'read-only-analytics', includedTables: ['public.orders'] },
+            status: 'connected',
+            lastError: null,
+            lastErrorHint: null,
+          },
+          2_000,
+        );
+        expect(updated?.ssl).toBeNull();
+        expect(updated?.settings).toEqual({
+          intent: 'read-only-analytics',
+          includedTables: ['public.orders'],
+        });
+        expect(updated?.status).toBe('connected');
+        expect(updated?.lastError).toBeNull();
+        expect(updated?.updatedAt).toBe(2_000);
+        expect(await repo.getDsns(conn.id)).toEqual({
+          introspectDsn: 'postgres://ro@h2/d',
+          dataDsn: 'postgres://rw@h2/d',
+        });
+
+        // An unknown id updates nothing and reports it as such.
+        expect(await repo.update('conn_missing', { name: 'x' })).toBeNull();
+      });
+
+      it('recordTestResult always leaves an operator-readable failure, even for a bare {ok:false}', async () => {
+        // Adapters do not all produce a message — a socket timeout surfaces as
+        // a rejected promise with nothing quotable. An `error: null` next to
+        // `status: 'error'` renders as an empty health chip, so the repo
+        // supplies the fallback rather than the five call sites.
+        const repo = connectionsRepo(t.meta, testCrypto);
+        const conn = await repo.create(
+          { name: 'flaky', engine: 'postgres', introspectDsn: 'postgres://ro@h/d' },
+          1_000,
+        );
+
+        await repo.recordTestResult(conn.id, { ok: false }, 2_000);
+        expect(await repo.findById(conn.id)).toMatchObject({
+          status: 'error',
+          lastError: 'connection test failed',
+          lastErrorHint: null,
+          lastLatencyMs: null,
+          lastTestedAt: 2_000,
+          // Not part of the outcome, so the probed value stands.
+          readOnly: false,
+        });
       });
     });
 

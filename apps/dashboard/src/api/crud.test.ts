@@ -144,3 +144,135 @@ describe('crudListQuery cache discipline (09 §4)', () => {
     expect(options.placeholderData).toBeTypeOf('function'); // keepPreviousData
   });
 });
+
+/**
+ * `bulk`, `lookup` and `listRelated` are OPTIONAL on `CrudApi` — the templates
+ * degrade without them (a plain input instead of an FK combobox, counts instead
+ * of related rows). The bound client implements all three; these aliases pin
+ * that and keep the calls below readable.
+ */
+describe('the optional half of CrudApi', () => {
+  it('is implemented by the bound client, so nothing degrades', () => {
+    expect(crud.bulk).toBeTypeOf('function');
+    expect(crud.lookup).toBeTypeOf('function');
+    expect(crud.listRelated).toBeTypeOf('function');
+  });
+});
+
+const bulk = crud.bulk!;
+const lookup = crud.lookup!;
+const listRelated = crud.listRelated!;
+
+describe('the relation reads', () => {
+  it('counts inbound references under the record path', async () => {
+    const fetchMock = captureFetch(() =>
+      jsonResponse(200, { references: [{ table: 'public.orders', column: 'customer_id', count: 3 }] }),
+    );
+    expect(await crud.references('cus 1')).toEqual([
+      { table: 'public.orders', column: 'customer_id', count: 3 },
+    ]);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      '/api/v1/data/conn_1/public.customers/cus%201/references',
+    );
+  });
+
+  it('asks for inbound counts on a record read only when the caller wants them', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { data: {} }));
+    await crud.get('cus_1');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('/api/v1/data/conn_1/public.customers/cus_1');
+    await crud.get('cus_1', { include: 'inboundCounts' });
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+      '/api/v1/data/conn_1/public.customers/cus_1?include=inboundCounts',
+    );
+  });
+
+  it('reads a child list off the RELATED table, not the bound one', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { data: [{ id: 1 }] }));
+    expect(await listRelated({ table: 'public.orders', column: 'customer_id', value: 'cus_1' })).toEqual(
+      [{ id: 1 }],
+    );
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost');
+    expect(url.pathname).toBe('/api/v1/data/conn_1/public.orders');
+    expect(JSON.parse(String(url.searchParams.get('where')))).toEqual({
+      column: 'customer_id',
+      op: 'eq',
+      value: 'cus_1',
+    });
+    // A drawer's related list is capped so one hot record cannot pull a table.
+    expect(url.searchParams.get('limit')).toBe('50');
+  });
+
+  it('honours an explicit related-list cap', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { data: [] }));
+    await listRelated({ table: 'public.orders', column: 'customer_id', value: 'cus_1', limit: 5 });
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost').searchParams.get('limit')).toBe(
+      '5',
+    );
+  });
+});
+
+describe('bulk', () => {
+  it('sends the action and a plain id array', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { updated: 2 }));
+    await bulk('delete', ['a', 'b']);
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('/api/v1/data/conn_1/public.customers/bulk');
+    expect(JSON.parse(String(init.body))).toEqual({ action: 'delete', ids: ['a', 'b'] });
+  });
+
+  it('carries values only for the actions that patch', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { updated: 2 }));
+    await bulk('update', ['a'], { status: 'archived' });
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toEqual({
+      action: 'update',
+      ids: ['a'],
+      values: { status: 'archived' },
+    });
+  });
+});
+
+describe('lookup labels', () => {
+  /** The FK picker's options, from one page of the referenced table. */
+  async function optionsFor(rows: Record<string, unknown>[]) {
+    captureFetch(() => jsonResponse(200, { data: rows }));
+    return lookup({ table: 'public.customers', column: 'id' }, 'av');
+  }
+
+  it('searches the referenced table with a capped page', async () => {
+    const fetchMock = captureFetch(() => jsonResponse(200, { data: [] }));
+    await lookup({ table: 'public.orders', column: 'id' }, 'av');
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]), 'http://localhost');
+    expect(url.pathname).toBe('/api/v1/data/conn_1/public.orders');
+    expect(url.searchParams.get('q')).toBe('av');
+    expect(url.searchParams.get('limit')).toBe('20');
+  });
+
+  it('prefers the conventional display columns, in order', async () => {
+    // The client knows no schema, so the preference list is the whole rule.
+    expect(await optionsFor([{ id: 1, email: 'ava@x.io', name: 'Ava Reyes' }])).toEqual([
+      { value: '1', label: 'Ava Reyes' },
+    ]);
+    expect(await optionsFor([{ id: 1, email: 'ava@x.io' }])).toEqual([
+      { value: '1', label: 'ava@x.io' },
+    ]);
+  });
+
+  it('falls back to any other non-empty text column before giving up', async () => {
+    expect(await optionsFor([{ id: 7, sku: 'SKU-9' }])).toEqual([{ value: '7', label: 'SKU-9' }]);
+  });
+
+  it('never labels a row with its own key column by accident', async () => {
+    // `id` is the value; using it as the label too would render "7 — 7".
+    expect(await optionsFor([{ id: '7' }])).toEqual([{ value: '7', label: '7' }]);
+  });
+
+  it('skips empty strings rather than showing a blank option', async () => {
+    expect(await optionsFor([{ id: 3, name: '', title: 'Ops lead' }])).toEqual([
+      { value: '3', label: 'Ops lead' },
+    ]);
+  });
+
+  it('renders a missing key as an empty value rather than "undefined"', async () => {
+    expect(await optionsFor([{ name: 'Ava' }])).toEqual([{ value: '', label: 'Ava' }]);
+  });
+});

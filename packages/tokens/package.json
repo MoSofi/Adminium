@@ -47,7 +47,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "contrast": "node scripts/contrast-check.mjs --strict",
-    "test": "pnpm run contrast && vitest run"
+    "test": "pnpm run contrast && vitest run --coverage"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
