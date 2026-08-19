@@ -124,10 +124,27 @@ if (!existsSync(indexPath)) {
             `html[data-theme="${globals.theme}"][data-accent="${globals.accent}"][dir="${globals.dir}"]`,
             { timeout: 5_000 },
           );
+          // A capture stamped on the deadline rather than on quiescence is a
+          // picture of a page mid-render. Recording one as a baseline makes
+          // every later run compare against a state nobody chose, so say so
+          // loudly instead of banking it.
+          const settle = await page.getAttribute('html', 'data-vrt-settle');
+          if (settle === 'deadline') {
+            test.info().annotations.push({
+              type: 'warning',
+              description: `${story.id} hit SETTLE_TIMEOUT_MS — captured mid-render, not settled`,
+            });
+          }
           await expect(page).toHaveScreenshot(`${story.id}--${name}.png`, {
             fullPage: true,
             // known-dynamic regions opt in via data-vrt-mask
             mask: [page.locator('[data-vrt-mask]')],
+            // Playwright's default 5s must cover TWO full-page captures plus the
+            // diff between them. The tallest story in this matrix is 16,053px —
+            // a single capture there is not a 5s-budget operation on a CI runner,
+            // which is why the only two failures in a 315-shot matrix were its
+            // dark profiles. Sized for the worst page, not the median one.
+            timeout: 30_000,
           });
         });
       }

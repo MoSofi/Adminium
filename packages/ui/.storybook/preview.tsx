@@ -33,7 +33,20 @@ import '../../charts/src/styles.css';
  * motion gate cannot freeze — which must not hang the sweep.
  */
 const SETTLE_MS = 120;
-const SETTLE_TIMEOUT_MS = 2_500;
+/**
+ * The ceiling was 2,500ms and that number silently produced an unreviewable
+ * baseline. `qa-widget-states--charts-states` renders the whole charts family
+ * in four states — a 16,053px page — and settles in 1,291ms on a dev box but
+ * NOT within 2,500ms on `ubuntu-latest`. The deadline fired, the flag went up
+ * mid-render, and VRT captured 15,914px then 16,053px: "failed to take two
+ * consecutive stable screenshots", the only two failures in a 315-shot matrix.
+ *
+ * This is a CEILING, not a wait: a story that quiesces still stamps at
+ * SETTLE_MS after its last mutation, so raising it costs nothing for the 313
+ * stories that were already fine. It only spends longer on stories that never
+ * go quiet — which is exactly where spending longer is correct.
+ */
+const SETTLE_TIMEOUT_MS = 8_000;
 
 /**
  * Signals the VRT runner and the axe sweep that the story has finished
@@ -62,6 +75,7 @@ function VrtReady({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
     root.removeAttribute('data-vrt-ready');
+    root.removeAttribute('data-vrt-settle');
 
     // `#storybook-root` is the story's own subtree; observing it rather than
     // <html> keeps the toolbar's own attribute writes out of the signal.
@@ -69,17 +83,24 @@ function VrtReady({ children }: { children: ReactNode }) {
     let settle: ReturnType<typeof setTimeout> | undefined;
     let done = false;
 
-    const finish = (): void => {
+    // WHY THE REASON IS PUBLISHED. `data-vrt-ready="true"` means two different
+    // things — "the DOM went quiet" and "we gave up waiting" — and a consumer
+    // that cannot tell them apart records whatever was on screen at the ceiling
+    // as if it were settled. That is how a mid-render page became a baseline.
+    // Consumers still wait on `data-vrt-ready="true"`; `data-vrt-settle` is the
+    // provenance, so a capture taken on a deadline can be reported as one.
+    const finish = (reason: 'settled' | 'deadline'): void => {
       if (done) return;
       done = true;
       observer.disconnect();
       clearTimeout(deadline);
       clearTimeout(settle);
+      root.setAttribute('data-vrt-settle', reason);
       root.setAttribute('data-vrt-ready', 'true');
     };
     const restart = (): void => {
       clearTimeout(settle);
-      settle = setTimeout(finish, SETTLE_MS);
+      settle = setTimeout(() => finish('settled'), SETTLE_MS);
     };
 
     const observer = new MutationObserver(restart);
@@ -89,7 +110,7 @@ function VrtReady({ children }: { children: ReactNode }) {
       attributes: true,
       characterData: true,
     });
-    const deadline = setTimeout(finish, SETTLE_TIMEOUT_MS);
+    const deadline = setTimeout(() => finish('deadline'), SETTLE_TIMEOUT_MS);
     restart();
 
     return () => {
@@ -97,6 +118,7 @@ function VrtReady({ children }: { children: ReactNode }) {
       clearTimeout(settle);
       clearTimeout(deadline);
       root.removeAttribute('data-vrt-ready');
+      root.removeAttribute('data-vrt-settle');
     };
   }, []);
   return children;
