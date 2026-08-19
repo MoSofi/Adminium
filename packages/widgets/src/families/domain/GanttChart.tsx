@@ -24,10 +24,10 @@ import type { WidgetProps } from '../../registry/types.js';
 
 /**
  * `gantt-chart` (annex §13) — percent-positioned task bars over a week-column
- * grid: phase group summary bars, per-task progress fill with a
- * contrast-switching % label, a today line, 45°-diamond milestones, owner
- * initials, and a legend footer. Built from start/end date columns + a progress
- * column + a phase FK — which is also the auto-instantiation trigger (annex §13:
+ * grid: phase group summary bars, per-task progress fill with a plated % label,
+ * a today line, 45°-diamond milestones, owner initials, and a legend footer.
+ * Built from start/end date columns + a progress column + a phase FK — which is
+ * also the auto-instantiation trigger (annex §13:
  * "start+end dates + phase FK → `gantt-chart`").
  *
  * DIRECTION — THE LTR ISLAND (10-i18n-theming.md §5.5, verbatim): "The timeline
@@ -281,7 +281,17 @@ function GanttTaskRow({ task, tone, model, todayPct, formatPercent }: GanttTaskR
             role="img"
             data-testid={`gantt-milestone-${task.id}`}
             className={`absolute top-1/2 start-[var(--bar-x)] size-2.5 -translate-y-1/2 rotate-45 ${TONE_SOLID_BG[tone]}`}
-            style={{ '--bar-x': `${startPct}%` }}
+            /*
+              CLAMPED so the diamond's box cannot leave the track. A milestone at
+              100% put 12px of it past the right edge, which made the canvas
+              horizontally scrollable — and a scrollable region with no focusable
+              content is unreachable by keyboard, which is what axe reports. The
+              timeline itself was never clipped: at the sweep's viewport the
+              canvas measured 746 against 734. So the fix is to stop creating the
+              phantom overflow, NOT to add a tab stop to a region with nothing in
+              it to reach. 14px is the rotated 10px square's bounding box.
+            */
+            style={{ '--bar-x': `min(${startPct}%, calc(100% - 14px))` }}
           />
         ) : (
           <div
@@ -297,28 +307,42 @@ function GanttTaskRow({ task, tone, model, todayPct, formatPercent }: GanttTaskR
               style={{ '--fill-w': `${task.pct}%` }}
             />
             {/*
-              Contrast-switching % label (annex §13): above ~55% fill the label
-              sits ON the tone-colored fill → invert to the tone's foreground.
+              THE % LABEL CARRIES ITS OWN PLATE (annex §13's "contrast-switching
+              label", implemented as a plate rather than a switch).
 
-              That inverted colour is `text-accent-fg`, the theme's single
-              on-filled-surface token, NOT `text-white`: the fill is
-              TONE_SOLID_BG[tone], which is themed, so a literal white loses the
-              theme flip (white on the dark --pos is 2.00:1 and on the dark
-              --accent 2.29:1, under the 4.5:1 AA floor for this 10px label).
-              text-accent-fg measures >=5.68:1 on every TONE_SOLID_BG value in
-              both themes (worst case: #0f0f14 on the dark --fg-subtle).
+              The switch this replaces was `task.pct > 55 ? 'text-accent-fg' :
+              'text-fg-muted'` — a PERCENTAGE standing in for a PIXEL question.
+              The label is pinned 6px from the bar's start edge, so on any bar
+              more than a few dozen pixels wide it is sitting on the FILL long
+              before the fill reaches 55%, and it took `text-fg-muted` — a token
+              sized for the grey TRACK — onto solid tone: measured 1.01–2.16:1
+              across the tones and all 8 accents (worst: --fg-muted on the dark
+              --pos), against a 4.5:1 floor. It is the densest datum in the
+              widget and it was effectively invisible.
 
-              adminium/no-literal-color-on-token-bg cannot flag this pairing —
-              the background arrives through a lookup table in another module,
-              which the rule does not resolve.
+              No smarter threshold fixes that. The fill width is a percentage of
+              a flex-sized bar, so the component cannot know where the label
+              actually lands without measuring at runtime.
+
+              So the label stops depending on what is behind it: an OPAQUE
+              `bg-surface` chip under the text makes its backdrop one known
+              token regardless of tone, accent, fill percentage or bar width.
+              --fg-muted on --surface measures 8.75:1 light / 9.25:1 dark, the
+              same number in every accent. On an unfilled stretch the chip is
+              1.13:1 light / 1.19:1 dark against the --surface-3 track, i.e. all but invisible —
+              which is why narrow bars look unchanged and only the label over
+              the fill gains a visible chip.
+
+              The chip is decorative: the bar itself is role="img" with an
+              aria-label carrying the same "label · pct" string, so nothing here
+              is the accessible name and no 1.4.11 floor attaches to
+              plate-against-fill.
             */}
-            <span
-              className={`absolute inset-y-0 start-1.5 flex items-center text-[10px] font-bold tabular-nums ${
-                task.pct > 55 ? 'text-accent-fg' : 'text-fg-muted'
-              }`}
-            >
-              {task.pct > 0 ? formatPercent(task.pct) : ''}
-            </span>
+            {task.pct > 0 ? (
+              <span className="absolute inset-y-0 start-1.5 flex items-center text-[10px] font-bold tabular-nums text-fg-muted">
+                <span className="rounded-sm bg-surface px-1">{formatPercent(task.pct)}</span>
+              </span>
+            ) : null}
             {task.owner === undefined ? null : (
               <span className="absolute inset-y-0 end-1.5 flex items-center text-[9.5px] font-bold text-fg-subtle">
                 {task.owner}
@@ -339,7 +363,9 @@ function TodayLine({ pct }: { pct: number | null }) {
       data-testid="gantt-today-line"
       aria-hidden="true"
       className="absolute inset-y-0 z-[2] w-0.5 start-[var(--today-x)] bg-danger/55"
-      style={{ '--today-x': `${pct}%` }}
+      // Same clamp, same reason: a project whose today marker lands on the last
+      // day would otherwise reintroduce the identical phantom scroll. w-0.5 = 2px.
+      style={{ '--today-x': `min(${pct}%, calc(100% - 2px))` }}
     />
   );
 }
