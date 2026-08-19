@@ -684,11 +684,22 @@ jobs:
         with:
           fetch-depth: 0 # --generate-notes diffs against the previous tag
 
-      # WHY THIS JOB EXISTS. `apps/server/src/telemetry/update-check.ts` polls
-      # /releases/latest, and the in-app Changelog's "all releases" link points
-      # at the Releases page. With no Release published, the opt-in update check
-      # 404s forever and the link opens an empty page — the feature silently
-      # never works. v0.1.0 shipped to npm and ghcr with no Release at all.
+      # WHY THIS JOB EXISTS. `apps/server/src/telemetry/update-check.ts` reads the
+      # releases LIST endpoint, and the in-app Changelog's "all releases" link
+      # points at the Releases page. With no Release published, the opt-in update
+      # check finds nothing in the `v*` series and the link opens an empty page —
+      # the feature silently never works. v0.1.0 shipped to npm and ghcr with no
+      # Release at all.
+      #
+      # WHY `--latest=false`, and do not remove it. GitHub's "latest" is ONE
+      # stored pointer per repository, and this repository publishes two tag
+      # series: `v*` here, and `desktop-v*` from desktop-release.yml. The shipped
+      # desktop updater resolves its feed through that pointer, so a `v*` Release
+      # holding it points every desktop install at a Release carrying no
+      # installers — which is exactly what broke updates for every 0.2.1 install
+      # (the pointer sat on v0.2.1, whose asset list is empty). The pointer
+      # belongs to the desktop series; nothing here needs it, because the server
+      # update check reads the list and filters by tag pattern.
       - name: Publish the Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -706,7 +717,8 @@ jobs:
             --title "$VERSION" \
             --generate-notes \
             --verify-tag \
+            --latest=false \
             $PRERELEASE \
             --notes-start-tag "$(git tag -l 'v*' --sort=-v:refname | grep -v "^$TAG$" | head -1 || true)" \
-            || gh release create "$TAG" --title "$VERSION" --generate-notes --verify-tag $PRERELEASE
-          echo "Published Release $TAG"
+            || gh release create "$TAG" --title "$VERSION" --generate-notes --verify-tag --latest=false $PRERELEASE
+          echo "Published Release $TAG (not marked Latest — that pointer belongs to desktop-v*)"

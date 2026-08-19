@@ -12,12 +12,23 @@ name: desktop-release
 # WHY the tag is `desktop-v*` and not `v*`: the monorepo also ships as an npm
 # package and a Docker image, released under `v*` (release.yml). Desktop builds
 # interleave on their own `desktop-vX.Y.Z` tags so a docs typo release never
-# drags an Electron matrix along, and — critically for §11 — so the
-# electron-updater GitHub provider can resolve "the newest release that carries
-# feed files" unambiguously. THIS WORKFLOW IS THE ONLY THING IN THE REPO ALLOWED
-# TO UPLOAD FILES NAMED latest*.yml. If any other job ever attaches one, the
-# provider would resolve the wrong release and ship a bad update to every desktop
-# install. The `assert feed-file discipline` step below is the tripwire.
+# drags an Electron matrix along. THIS WORKFLOW IS THE ONLY THING IN THE REPO
+# ALLOWED TO UPLOAD FILES NAMED latest*.yml. If any other job ever attaches one,
+# the updater could resolve the wrong release and ship a bad update to every
+# desktop install. The `assert feed-file discipline` step below is the tripwire.
+#
+# HOW THE SHIPPED APP FINDS THIS RELEASE — and the trap that broke it once.
+# The separate tag series does NOT by itself let electron-updater find us: its
+# GitHub provider resolves through /releases/latest, which is a single stored
+# pointer for the WHOLE repository and which a `v*` release can hold. It did,
+# and every 0.2.1 install 404'd on latest-mac.yml for four days. Two things fix
+# it, and both must stay true:
+#   1. apps/desktop/src/main/updates.ts resolves `desktop-v*` itself, from the
+#      releases LIST endpoint, and pins a `generic` feed to that one release.
+#   2. The desktop release must OWN the Latest pointer anyway, because installs
+#      already in the field have (1) frozen into their binary and can only ever
+#      ask /releases/latest. release.yml therefore creates `v*` releases with
+#      `--latest=false`, and the publish step here is `--draft=false --latest`.
 #
 # WHAT DEPENDS ON A SIBLING TRACK: the `electron-builder` invocations read
 # apps/desktop/electron-builder.yml, and packaging (icons, and the historical
@@ -637,7 +648,22 @@ jobs:
           tag="$GITHUB_REF_NAME"
           version="${tag#desktop-v}"
           title="Adminium Desktop $version"
-          notes=$'Draft — review before publishing.\n\nWindows installers are **unsigned** for v1: SmartScreen will warn on download (More info → Run anyway). Verify downloads against `SHA256SUMS.txt`.\n\n- [ ] Replace this body with real release notes.\n- [ ] Flag any meta-store migration (no downgrade path).\n- [ ] `spctl -a -vv` the macOS app on a clean machine before publishing.'
+          # A hyphen in the version means a prerelease (desktop-v0.3.0-rc.1).
+          # The updater's tag pattern is stable-only and would skip it anyway;
+          # this makes the GitHub flag agree, so the release never reads as a
+          # stable one on the Releases page.
+          case "$version" in *-*) PRERELEASE=--prerelease ;; *) PRERELEASE= ;; esac
+          # The publish instruction FORKS on prerelease. GitHub refuses the
+          # Latest pointer to a prerelease, so seeding `--latest` into an rc's
+          # checklist would hand the publisher a command that errors — and an rc
+          # must not claim the pointer anyway, or every stable install in the
+          # field would resolve a release candidate.
+          if [ -n "$PRERELEASE" ]; then
+            publish_step="- [ ] Publish with \`gh release edit $tag --draft=false\`. Do NOT pass \`--latest\`: this is a prerelease, GitHub refuses the Latest pointer to one, and stable installs in the field resolve through that pointer."
+          else
+            publish_step="- [ ] Publish with \`gh release edit $tag --draft=false --latest\` — the \`--latest\` is load-bearing: every install already in the field resolves its update feed through that pointer, so a desktop release without it is invisible to all of them."
+          fi
+          notes=$'Draft — review before publishing.\n\nWindows installers are **unsigned** for v1: SmartScreen will warn on download (More info → Run anyway). Verify downloads against `SHA256SUMS.txt`.\n\n- [ ] Replace this body with real release notes.\n- [ ] Flag any meta-store migration (no downgrade path).\n- [ ] `spctl -a -vv` the macOS app on a clean machine before publishing.\n'"$publish_step"
 
           # Probe for an existing draft (a re-push of the same tag refreshes it).
           # `gh release view` exits non-zero for BOTH "this release does not exist
@@ -655,12 +681,17 @@ jobs:
             gh release upload "$tag" release/* --clobber
           elif printf '%s' "$view_err" | grep -qi 'release not found'; then
             echo "No release for $tag yet — creating the draft"
+            # NOTE: no `--latest` here, and it would not work if it were —
+            # GitHub refuses the Latest pointer to a draft. The flag goes on the
+            # publish command instead (see the checklist in $notes and
+            # docs/contributing/release-desktop.md).
             gh release create "$tag" release/* \
               --draft \
               --title "$title" \
+              $PRERELEASE \
               --notes "$notes"
           else
             echo "::error::gh release view $tag failed (exit $view_status): $view_err"
             exit 1
           fi
-          echo "Draft release ready: $tag (a human must press Publish)"
+          echo "Draft release ready: $tag (a human must publish it AND mark it Latest)"
