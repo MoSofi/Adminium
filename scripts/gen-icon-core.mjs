@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Emit `packages/ui/src/components/icon/icon-core.ts` — the lucide icons the
- * product itself renders, as named imports.
+ * Emit the two generated halves of `packages/ui/src/components/icon/`:
+ *
+ *   icon-core.ts   the lucide icons the product renders, as named imports
+ *   icon-names.ts  every lucide name, as data (`LUCIDE_ICON_NAMES`)
  *
  *   node scripts/gen-icon-core.mjs [--check]
  *
@@ -17,24 +19,45 @@
  * that a bundler CAN shake, and the full catalogue moves behind a dynamic
  * import that only an icon outside this set pulls in (`icon-resolver.ts`).
  *
+ * `icon-names.ts` is the other half of the same idea: the validators that need
+ * to know whether a string IS an icon (the LLM referential check, §7.3) need the
+ * NAMES, never the components. Emitting them as data keeps that question
+ * answerable without a single icon module being reachable from the importer.
+ *
  * WHAT IS COLLECTED, and why each source is one:
  *
  *  - `<Icon name="X" />` literals — the design-system component's own callers;
  *  - `lucideByName('x')` literals — the same, by kebab name;
  *  - the two icon pickers' curated lists — everything an admin can choose
  *    WITHOUT searching, which is the common path and must not fetch a chunk;
- *  - the engine's archetype nav icons — what a freshly generated app renders
- *    before anyone has chosen anything.
+ *  - the engine's + the LLM normalizer's nav icons — what a freshly generated
+ *    app renders before anyone has chosen anything.
  *
  * Anything else an admin picks by searching the full catalogue still works: it
  * misses this set, `icon-resolver.ts` loads lucide lazily, and the icon appears.
  * That is a chunk fetch on a page whose icon was hand-picked, not on boot.
  *
- * Names that are not real lucide icons are dropped rather than emitted — several
- * unrelated vocabularies in this repo also have an `icon:` field (activity-feed
- * kinds, widget config), and a fabricated import would not compile.
+ * ─── THE SCAN OVER-COLLECTS, AND THAT USED TO HIDE BUGS ─────────────────────
  *
- * `--check` fails when the committed file differs, same shape as
+ * Several unrelated vocabularies in this repo also have an `icon:` field
+ * (activity-feed kinds, KPI tones, the page-builder's own local glyph map), so
+ * a name that is not in lucide's catalogue is dropped rather than emitted — a
+ * fabricated import would not compile. That drop was SILENT: the count appeared
+ * in the write-mode log and nowhere else, never in `--check`, and never by name.
+ *
+ * `kanban-square` sat in the engine's nav vocabulary for the whole of M5 because
+ * of it. lucide renamed that icon to `square-kanban`, and the old name survives
+ * only as a deprecated named EXPORT — it is absent from the `icons` map, which
+ * is the map `lucideByName`/`useLucideIcon` resolve through. So every generated
+ * app with a workflow-shaped table drew the `File` fallback AND paid a 133.6 KiB
+ * gzipped catalogue fetch on first paint to discover the name was dead.
+ *
+ * Hence {@link STRICT_SOURCES}: the sources whose every name is DECLARED to be a
+ * lucide icon. A miss there is a bug and fails this script — by name, with the
+ * file it came from, and with the canonical rename when lucide still carries the
+ * old name as an alias. Everything else stays best-effort, as it must.
+ *
+ * `--check` fails when either committed file differs, same shape as
  * `openapi.mjs --check`. `packages/ui`'s `icon-core.test.ts` asserts the same
  * completeness from the other side.
  */
@@ -45,7 +68,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT_FILE = join(repoRoot, 'packages', 'ui', 'src', 'components', 'icon', 'icon-core.ts');
+const ICON_DIR = join(repoRoot, 'packages', 'ui', 'src', 'components', 'icon');
+const OUT_FILE = join(ICON_DIR, 'icon-core.ts');
+const NAMES_FILE = join(ICON_DIR, 'icon-names.ts');
 
 const check = process.argv.includes('--check');
 
@@ -64,6 +89,73 @@ const LIST_SOURCES = [
   ['apps/dashboard/src/studio/remap/IconPicker.tsx', /ICON_SUBSET[\s\S]*?\n\];/],
   ['packages/engine/src/generate/archetype.ts', /[\s\S]*/],
   ['packages/engine/src/generate/dashboard.ts', /[\s\S]*/],
+];
+
+/**
+ * The vocabularies that are lucide names BY CONTRACT — every entry is fed to
+ * `lucideByName`/`useLucideIcon`, which resolve through lucide's `icons` map and
+ * fall back to a neutral `File` glyph on a miss. A name here that the catalogue
+ * does not carry is therefore a wrong glyph plus a catalogue fetch, forever, and
+ * this script is the only thing in the repo positioned to see it.
+ *
+ * Each entry is `[relative path, block regex, value regex]`. The block narrows
+ * the file to the declaration (so neighbouring prose and non-icon literals are
+ * out of scope) and the value regex picks the names out of it. Both must match,
+ * and the pair must yield at least one name — a renamed constant that quietly
+ * stops matching would turn this gate off, which is the one failure mode a gate
+ * like this must not have.
+ *
+ * NOT strict, deliberately: every other `icon:` field the scan above sweeps up.
+ * `packages/widgets/src/families/feeds` keys activity kinds (`created`,
+ * `deployed`), `kpi` keys tones (`trend-up`), and the page-builder resolves its
+ * `icon:` slugs through a LOCAL map of static imports (`PageBuilder.tsx`
+ * `BLOCK_ICONS`) — deprecated lucide aliases are legal named imports, so those
+ * render correctly and must not be forced onto the catalogue's spelling.
+ */
+const STRICT_SOURCES = [
+  // The page-icon picker's grid: what an admin sees before typing anything.
+  [
+    'apps/dashboard/src/studio/pages/IconPicker.tsx',
+    /ICON_SHORTLIST[\s\S]*?\n\];/,
+    /'([a-z][a-z0-9-]*)'/g,
+  ],
+  // The remap picker's grid — same contract, separate list.
+  [
+    'apps/dashboard/src/studio/remap/IconPicker.tsx',
+    /ICON_SUBSET[\s\S]*?\n\];/,
+    /'([a-z][a-z0-9-]*)'/g,
+  ],
+  // The generated app's nav icon per table shape (09 §2.2) — first paint.
+  [
+    'packages/engine/src/generate/index.ts',
+    /const SHAPE_ICONS[\s\S]*?\n\};/,
+    /:\s*'([a-z][a-z0-9-]*)'/g,
+  ],
+  // The LLM normalizer's mirror of the same map: it writes the icon that ends up
+  // on the table, so a typo here reaches the nav by a different road.
+  [
+    'packages/llm/src/apply/normalize.ts',
+    /const SHAPE_ICONS[\s\S]*?\n\};/,
+    /:\s*'([a-z][a-z0-9-]*)'/g,
+  ],
+  // The §14 archetype nav placements.
+  [
+    'packages/engine/src/generate/archetype.ts',
+    /const ARCHETYPE_NAV[\s\S]*?\n\};/,
+    /\bicon:\s*'([a-z][a-z0-9-]*)'/g,
+  ],
+  // The generated domain dashboards' nav icon.
+  [
+    'packages/engine/src/generate/dashboard.ts',
+    /[\s\S]*/,
+    /\bicon:\s*'([a-z][a-z0-9-]*)'/g,
+  ],
+  // The LLM review drawer's group headers, rendered by `CategorySection`.
+  [
+    'apps/dashboard/src/studio/llm-runs/model.ts',
+    /REVIEW_GROUPS[\s\S]*?\n\];/,
+    /\bicon:\s*'([a-z][a-z0-9-]*)'/g,
+  ],
 ];
 
 function sourceFiles(dir) {
@@ -85,6 +177,21 @@ function pascalCase(kebab) {
     .split('-')
     .map((part) => (part.length === 0 ? part : part[0].toUpperCase() + part.slice(1)))
     .join('');
+}
+
+/**
+ * `SquareKanban` → `square-kanban`, but only when the answer round-trips
+ * through {@link pascalCase} — lucide has names (`Grid2x2`) no simple rule
+ * recovers, and a wrong suggestion is worse than none. Used for MESSAGES only;
+ * the emitted manifest takes lucide's own spellings (`iconNames`).
+ */
+function kebabCase(pascal) {
+  const kebab = pascal
+    .replace(/([A-Z])(?=[A-Z])/g, '$1-')
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/([a-zA-Z])(\d)/g, '$1-$2')
+    .toLowerCase();
+  return pascalCase(kebab) === pascal ? kebab : null;
 }
 
 /**
@@ -111,14 +218,24 @@ const ALWAYS_CORE = [
 ];
 
 const names = new Set(ALWAYS_CORE);
+/** PascalCase name → the declared vocabularies that spelled it, for the report. */
+const strict = new Map();
+const declare = (pascal, origin) => {
+  names.add(pascal);
+  const seen = strict.get(pascal);
+  if (seen === undefined) strict.set(pascal, new Set([origin]));
+  else seen.add(origin);
+};
 
 for (const root of SCAN_ROOTS) {
   for (const file of sourceFiles(join(repoRoot, root))) {
+    const relative = file.slice(repoRoot.length + 1);
     const source = readFileSync(file, 'utf8');
     // `<Icon name="X" />`, `<Icon name={'X'} />`, `<Icon name={c ? 'A' : 'B'} />`
     for (const tag of source.matchAll(/<Icon\b[^>]*?\bname=(?:"([A-Za-z0-9]+)"|\{([^}]*)\})/g)) {
-      if (tag[1] !== undefined) names.add(tag[1]);
-      for (const literal of (tag[2] ?? '').matchAll(/'([A-Za-z0-9]+)'/g)) names.add(literal[1]);
+      if (tag[1] !== undefined) declare(tag[1], `<Icon name> in ${relative}`);
+      for (const literal of (tag[2] ?? '').matchAll(/'([A-Za-z0-9]+)'/g))
+        declare(literal[1], `<Icon name> in ${relative}`);
     }
     // `icon: 'Database'` (an `IconName` field) and `icon: 'bar-chart-3'` (kebab,
     // resolved through `lucideByName`). Both shapes appear; both are filtered
@@ -128,7 +245,7 @@ for (const root of SCAN_ROOTS) {
       names.add(pascalCase(match[1]));
     }
     for (const match of source.matchAll(/lucideByName\(\s*'([a-z0-9-]+)'/g))
-      names.add(pascalCase(match[1]));
+      declare(pascalCase(match[1]), `lucideByName() in ${relative}`);
   }
 }
 
@@ -138,6 +255,32 @@ for (const [relative, section] of LIST_SOURCES) {
   const block = section.exec(readFileSync(file, 'utf8'))?.[0] ?? '';
   for (const match of block.matchAll(/'([a-z][a-z0-9]*(?:-[a-z0-9]+)*)'/g))
     names.add(pascalCase(match[1]));
+}
+
+/** A strict source that matches nothing has been renamed out from under us. */
+const blindSources = [];
+for (const [relative, block, value] of STRICT_SOURCES) {
+  const file = join(repoRoot, relative);
+  if (!existsSync(file)) {
+    blindSources.push(`${relative} (file is gone)`);
+    continue;
+  }
+  const section = block.exec(readFileSync(file, 'utf8'))?.[0] ?? '';
+  let found = 0;
+  for (const match of section.matchAll(value)) {
+    declare(pascalCase(match[1]), relative);
+    found += 1;
+  }
+  if (found === 0) blindSources.push(`${relative} (declaration matched, 0 names)`);
+}
+
+if (blindSources.length > 0) {
+  console.error(
+    'The icon-vocabulary gate has gone blind — a declared source yielded no names:\n' +
+      blindSources.map((line) => `  - ${line}`).join('\n') +
+      '\nFix the STRICT_SOURCES entry in scripts/gen-icon-core.mjs, or the gate is off.',
+  );
+  process.exit(1);
 }
 
 // Resolve against the real export list — the scans above deliberately over-collect.
@@ -151,9 +294,62 @@ const isIcon = (name) => Object.hasOwn(catalogue, name) && catalogue[name] != nu
 const real = [...names].filter(isIcon).sort();
 const dropped = [...names].filter((name) => !isIcon(name)).sort();
 
+// Every catalogue name in kebab — the form every runtime vocabulary in the
+// product stores (09 §2.2) and the form the LLM contract validates. Taken from
+// lucide's own `iconNames` rather than back-derived from the PascalCase keys,
+// because a name like `grid-2x2` is not recoverable by any casing rule.
+//
+// FILTERED to the names that actually RESOLVE: `iconNames` also carries the
+// deprecated aliases (211 of its 1,826, `kanban-square` among them), and an
+// alias is a legal named import but NOT a key of the `icons` map — which is the
+// map `icon-resolver.ts` looks a runtime name up in. Listing one would tell the
+// LLM validator that a name it can never draw is fine.
+const dynamic = await import(
+  pathToFileURL(requireFromUi.resolve('lucide-react/dynamic.mjs')).href
+);
+const iconNames = dynamic.iconNames ?? dynamic.default?.iconNames;
+if (!Array.isArray(iconNames)) {
+  console.error(
+    "lucide-react no longer exports `iconNames` from ./dynamic.mjs — icon-names.ts has no source.\n" +
+      'Point this script at whatever replaced it before regenerating.',
+  );
+  process.exit(1);
+}
+const allKebab = [...new Set(iconNames.filter((name) => isIcon(pascalCase(name))))].sort();
+
+/* ------------------------------------------------- the declared-name gate */
+
+const invalid = [...strict.keys()].filter((name) => !isIcon(name)).sort();
+if (invalid.length > 0) {
+  console.error(
+    `${String(invalid.length)} declared icon name(s) are not in lucide's catalogue.\n` +
+      'Each one renders the neutral `File` fallback AND makes the first paint that\n' +
+      'draws it fetch the whole icon catalogue to discover the name is dead.\n',
+  );
+  for (const name of invalid) {
+    // lucide keeps renamed icons as deprecated named exports, so an alias tells
+    // us exactly what the name became. `displayName` is the canonical spelling.
+    const alias = lucide[name] ?? lucide.default?.[name];
+    const canonical = typeof alias?.displayName === 'string' ? alias.displayName : null;
+    const suggestion =
+      canonical === null
+        ? ''
+        : ` — renamed to '${kebabCase(canonical) ?? canonical}' (${canonical})`;
+    console.error(`  ${kebabCase(name) ?? name} (${name})${suggestion}`);
+    for (const origin of [...strict.get(name)].sort()) console.error(`      ${origin}`);
+  }
+  process.exit(1);
+}
+
 if (real.length < 60) {
   console.error(
     `Only ${String(real.length)} icons collected — the scan is broken, not the product. Refusing to write.`,
+  );
+  process.exit(1);
+}
+if (allKebab.length < 1000) {
+  console.error(
+    `Only ${String(allKebab.length)} catalogue names read from lucide — refusing to write a truncated manifest.`,
   );
   process.exit(1);
 }
@@ -177,21 +373,55 @@ ${real.map((name) => `  ${name},`).join('\n')}
 };
 `;
 
+const serializedNames = `// SPDX-License-Identifier: AGPL-3.0-only
+// GENERATED by scripts/gen-icon-core.mjs — do not edit.
+//
+// Every lucide icon name, kebab-cased — DATA, with no import of lucide at all,
+// so asking "is this string an icon?" costs a string array and never reaches an
+// icon module. That question has one production caller today: the LLM response
+// validator (06-llm-assist.md §7.3), which warns and falls back to \`table\` when
+// a model invents a name. It reaches the server as a snapshot of this list,
+// because the server tree may not import @adminium/ui (01 §2.3).
+//
+// Deprecated lucide aliases are deliberately absent (${String(iconNames.length - allKebab.length)} of lucide's ${String(iconNames.length)}
+// names — \`kanban-square\`, \`bar-chart-3\`, \`sort-desc\`, …). They are legal named
+// imports, but they are NOT keys of the \`icons\` map, which is what
+// \`icon-resolver.ts\` resolves a runtime name through: a nav row carrying one
+// draws the neutral fallback and fetches the whole catalogue to find that out.
+export const LUCIDE_ICON_NAMES: readonly string[] = [
+${allKebab.map((name) => `  '${name}',`).join('\n')}
+];
+`;
+
 if (check) {
-  if (!existsSync(OUT_FILE)) {
-    console.error(`${OUT_FILE} is missing.\nGenerate it: pnpm run icon-core`);
-    process.exit(1);
+  const stale = [];
+  for (const [path, want, label] of [
+    [OUT_FILE, serialized, 'icon-core.ts'],
+    [NAMES_FILE, serializedNames, 'icon-names.ts'],
+  ]) {
+    if (!existsSync(path)) stale.push(`${label} is missing`);
+    else if (readFileSync(path, 'utf8') !== want) stale.push(`${label} is STALE`);
   }
-  if (readFileSync(OUT_FILE, 'utf8') !== serialized) {
+  if (stale.length > 0) {
     console.error(
-      'packages/ui/src/components/icon/icon-core.ts is STALE — the product renders icons it does not statically import.\n' +
-        'Re-generate it: pnpm run icon-core',
+      `packages/ui/src/components/icon: ${stale.join(', ')} — the product renders icons it does not statically import.\n` +
+        'Re-generate: pnpm run icon-core',
     );
     process.exit(1);
   }
-  console.log(`ok — icon-core.ts covers all ${String(real.length)} product icons`);
+  console.log(
+    `ok — icon-core.ts covers all ${String(real.length)} product icons ` +
+      `(${String(strict.size)} declared by contract); ` +
+      `icon-names.ts carries ${String(allKebab.length)} catalogue names`,
+  );
   process.exit(0);
 }
 
 writeFileSync(OUT_FILE, serialized, 'utf8');
-console.log(`Wrote ${OUT_FILE} (${String(real.length)} icons; dropped ${String(dropped.length)} non-lucide names)`);
+writeFileSync(NAMES_FILE, serializedNames, 'utf8');
+console.log(
+  `Wrote ${OUT_FILE} (${String(real.length)} icons; ` +
+    `${String(strict.size)} declared by contract, all valid; ` +
+    `dropped ${String(dropped.length)} non-lucide names from the best-effort scan)`,
+);
+console.log(`Wrote ${NAMES_FILE} (${String(allKebab.length)} catalogue names)`);

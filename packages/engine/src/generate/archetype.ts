@@ -50,14 +50,20 @@ import { ID_SLUG_BUDGET, humanize, pageIdFor } from './util.js';
  * fixed; `icon` is a lucide name). `slugSuffix` keeps the archetype page's slug
  * distinct from its table's `page-crud` slug — the two are siblings in the nav.
  */
-interface ArchetypeNav {
+export interface ArchetypeNav {
   group: 'workspace' | 'library' | 'planning' | 'people' | 'account';
   icon: string;
   slugSuffix: string;
 }
 
-const ARCHETYPE_NAV: Readonly<Record<string, ArchetypeNav>> = {
-  'page-board': { group: 'planning', icon: 'kanban-square', slugSuffix: 'board' },
+/**
+ * Exported for the same reason as `generate/index.ts`'s `SHAPE_ICONS`: these
+ * icons are what a freshly generated app paints before an admin has chosen
+ * anything, and an `icon` lucide cannot resolve costs a wrong glyph plus a
+ * catalogue fetch on that first paint (`test/generate-nav-icons.test.ts`).
+ */
+export const ARCHETYPE_NAV: Readonly<Record<string, ArchetypeNav>> = {
+  'page-board': { group: 'planning', icon: 'square-kanban', slugSuffix: 'board' },
   'page-calendar': { group: 'planning', icon: 'calendar', slugSuffix: 'calendar' },
   'page-scheduler': { group: 'planning', icon: 'calendar-clock', slugSuffix: 'schedule' },
   'page-directory': { group: 'people', icon: 'users', slugSuffix: 'directory' },

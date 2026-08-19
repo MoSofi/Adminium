@@ -157,10 +157,17 @@ export interface GenerateResult {
   warnings: string[];
 }
 
-/** Nav icon per table shape (lucide names, 09 §2.2). */
-const SHAPE_ICONS: Record<string, string> = {
+/**
+ * Nav icon per table shape (lucide names, 09 §2.2).
+ *
+ * Exported so it can be checked against lucide's real catalogue — every value
+ * is resolved at runtime through `lucideByName`, which falls back to a neutral
+ * glyph AND fetches the whole icon catalogue when a name is not a key of
+ * lucide's `icons` map (`test/generate-nav-icons.test.ts`).
+ */
+export const SHAPE_ICONS: Readonly<Record<string, string>> = {
   people: 'users',
-  workflow: 'kanban-square',
+  workflow: 'square-kanban',
   events: 'calendar',
   catalog: 'package',
   log: 'scroll-text',

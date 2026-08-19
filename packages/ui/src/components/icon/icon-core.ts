@@ -3,7 +3,7 @@
 //
 // The lucide icons this product renders, as NAMED imports so a bundler can
 // shake the other ~1,520. Importing lucide's `icons` map instead put all 1,611
-// into the dashboard's entry chunk: 112.6 KiB gzipped, measured, for these 136.
+// into the dashboard's entry chunk: 112.6 KiB gzipped, measured, for these 138.
 //
 // An icon outside this set still resolves — `icon-resolver.ts` loads the full
 // catalogue on demand — it just costs a chunk fetch the first time.
@@ -28,6 +28,7 @@ import {
   CalendarDays,
   Camera,
   ChartBar,
+  ChartColumn,
   ChartLine,
   ChartPie,
   Check,
@@ -120,6 +121,7 @@ import {
   Sparkles,
   SquareCheckBig,
   SquareDashed,
+  SquareKanban,
   Star,
   Store,
   Table,
@@ -168,6 +170,7 @@ export const CORE_ICONS: Readonly<Record<string, LucideIcon>> = {
   CalendarDays,
   Camera,
   ChartBar,
+  ChartColumn,
   ChartLine,
   ChartPie,
   Check,
@@ -260,6 +263,7 @@ export const CORE_ICONS: Readonly<Record<string, LucideIcon>> = {
   Sparkles,
   SquareCheckBig,
   SquareDashed,
+  SquareKanban,
   Star,
   Store,
   Table,

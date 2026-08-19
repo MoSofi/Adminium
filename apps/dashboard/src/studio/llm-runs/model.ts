@@ -95,7 +95,7 @@ export const REVIEW_GROUPS: readonly ReviewGroupDef[] = [
   {
     id: 'dashboards',
     categories: ['dashboard', 'widget'],
-    icon: 'bar-chart-3',
+    icon: 'chart-column',
     labelKey: 'studio.llmRuns.review.group.dashboards',
     labelDefault: 'Dashboards & widgets',
   },

@@ -33,7 +33,7 @@ export const ICON_SUBSET: readonly string[] = [
   'globe',
   'database',
   'layers',
-  'bar-chart-3',
+  'chart-column',
   'book-open',
 ];
 
