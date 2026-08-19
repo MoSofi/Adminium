@@ -6,11 +6,13 @@
  * permissions, PRAGMA query_only), role guards, error mapping, registration,
  * and CRUD through the Kysely query engine with instance injection.
  */
-import { chmodSync } from 'node:fs';
+import { chmodSync, unlinkSync } from 'node:fs';
 
+import type { Dialect as KyselyDialect } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  adapterRegistry,
   AdapterError,
   AdapterRegistry,
   type AdapterProvider,
@@ -222,11 +224,98 @@ describe.skipIf(!driverReady)('SqliteAdapter (better-sqlite3 driver)', () => {
     await adapter.close();
   });
 
+  it('every row-touching method is guarded, not silently stubbed', async () => {
+    const asData = introspectAdapter as unknown as DatabaseAdapter<'data'>;
+    const table = { schema: null, name: 'orders' };
+    await expect(asData.count(table)).rejects.toMatchObject({ code: 'PERMISSION' });
+    // `sampleColumn` is optional in the contract — this adapter implements it.
+    expect(asData.sampleColumn).toBeDefined();
+    await expect(
+      asData.sampleColumn?.(table, 'order_id', { optIn: true, purpose: 'preview' }),
+    ).rejects.toMatchObject({ code: 'PERMISSION' });
+    await expect(
+      asData.mutate({ kind: 'insert', table, values: {} }),
+    ).rejects.toMatchObject({ code: 'PERMISSION' });
+  });
+
+  it('on the data role those methods report UNSUPPORTED, pointing at the query engine', async () => {
+    const adapter = new mod.SqliteAdapter<'data'>('data');
+    await adapter.connect({ role: 'data', file });
+    const table = { schema: null, name: 'orders' };
+    try {
+      const data = adapter as DatabaseAdapter<'data'>;
+      await expect(data.count(table)).rejects.toMatchObject({ code: 'UNSUPPORTED' });
+      await expect(
+        data.sampleColumn?.(table, 'order_id', { optIn: true, purpose: 'preview' }),
+      ).rejects.toMatchObject({ code: 'UNSUPPORTED' });
+      await expect(data.mutate({ kind: 'insert', table, values: {} })).rejects.toMatchObject({
+        code: 'UNSUPPORTED',
+        hint: expect.stringContaining('createQueryEngine') as string,
+      });
+    } finally {
+      await adapter.close();
+    }
+  });
+
+  it('introspect() before connect() fails loudly instead of reading :memory:', async () => {
+    // The un-connected instance defaults its file to ':memory:', which would
+    // otherwise introspect an empty database and report a schema of nothing.
+    const adapter = new mod.SqliteAdapter<'introspect'>('introspect');
+    await expect(adapter.introspect()).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      message: expect.stringContaining('not connected') as string,
+    });
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'a file removed mid-session still introspects, without inventing row counts',
+    async () => {
+      // POSIX keeps the open handle valid after unlink, so the catalog is still
+      // readable while `statSync` is not: an unknown file size must mean NO
+      // counts (the 100 MB exception cannot be evaluated), not a guess.
+      const doomed = await createTestDatabase(dir, false, 'CREATE TABLE t (id INTEGER)');
+      const adapter = new mod.SqliteAdapter<'introspect'>('introspect');
+      await adapter.connect({ role: 'introspect', file: doomed });
+      try {
+        await adapter.test(); // opens the handle
+        unlinkSync(doomed);
+        const model = await adapter.introspect();
+        expect(model.tables.map((t) => t.name)).toEqual(['t']);
+        expect(model.tables[0]?.rowCountEstimate).toBeNull();
+        expect(model.warnings).toEqual([]);
+      } finally {
+        await adapter.close();
+      }
+    },
+  );
+
   it('register() wires the provider into a registry', () => {
     const registry = new AdapterRegistry<AdapterProvider>();
     mod.register(registry);
     expect(registry.get('sqlite')).toBe(mod.sqliteAdapter);
     expect(registry.list()).toEqual(['sqlite']);
+  });
+
+  it('register() with no argument registers into the process-wide registry', () => {
+    expect(adapterRegistry.has('sqlite')).toBe(false);
+    try {
+      mod.register();
+      expect(adapterRegistry.get('sqlite')).toBe(mod.sqliteAdapter);
+    } finally {
+      adapterRegistry.unregister('sqlite');
+    }
+  });
+
+  it('the provider factory connects the adapter it hands back', async () => {
+    const adapter = await mod.sqliteAdapter.create({ role: 'data', file });
+    try {
+      expect(adapter.role).toBe('data');
+      expect(adapter.dialect).toBe('sqlite');
+      // Already connected: a statement runs without a further connect() call.
+      expect((await adapter.test()).ok).toBe(true);
+    } finally {
+      await adapter.close();
+    }
   });
 });
 
@@ -313,6 +402,56 @@ describe.skipIf(!driverReady)('query engine (Kysely SqliteDialect CRUD)', () => 
       expect(db.open).toBe(true);
     } finally {
       db.close();
+    }
+  });
+
+  it('accepts a bare path or DSN string, not just the branded config', async () => {
+    const { Kysely } = await import('kysely');
+    const engine = mod.createQueryEngine(file);
+    try {
+      const kysely = new Kysely<{ shippers: Shipper }>({
+        dialect: engine.dialect as KyselyDialect,
+      });
+      expect((await kysely.selectFrom('shippers').selectAll().execute()).length).toBeGreaterThan(
+        0,
+      );
+    } finally {
+      await engine.destroy();
+    }
+  });
+
+  it.each([
+    ['a config with no file at all', { role: 'data' as const }],
+    ['a DSN whose path is empty', 'file:'],
+  ])('%s is rejected when the first query opens the handle', async (_label, config) => {
+    const { Kysely } = await import('kysely');
+    const engine = mod.createQueryEngine(config as Parameters<typeof mod.createQueryEngine>[0]);
+    try {
+      const kysely = new Kysely<{ shippers: Shipper }>({
+        dialect: engine.dialect as KyselyDialect,
+      });
+      await expect(kysely.selectFrom('shippers').selectAll().execute()).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        message: expect.stringContaining('requires a file path') as string,
+      });
+    } finally {
+      await engine.destroy();
+    }
+  });
+
+  it('an unopenable file surfaces as a typed HOST_UNREACHABLE, not a raw driver error', async () => {
+    const { Kysely } = await import('kysely');
+    const engine = mod.createQueryEngine({ role: 'data', file: testDatabasePath(dir) });
+    try {
+      const kysely = new Kysely<{ shippers: Shipper }>({
+        dialect: engine.dialect as KyselyDialect,
+      });
+      await expect(kysely.selectFrom('shippers').selectAll().execute()).rejects.toMatchObject({
+        name: 'AdapterError',
+        code: 'HOST_UNREACHABLE',
+      });
+    } finally {
+      await engine.destroy();
     }
   });
 

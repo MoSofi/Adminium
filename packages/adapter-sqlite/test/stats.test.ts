@@ -8,7 +8,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { StatsColumnInput } from '@adminium/engine/adapter';
+import {
+  STATS_DEFAULT_SAMPLE_VALUES,
+  STATS_SAMPLE_VALUE_MAX_CHARS,
+  type StatsColumnInput,
+} from '@adminium/engine/adapter';
 
 import { collectSqliteStats } from '../src/stats.js';
 
@@ -123,5 +127,112 @@ describe('collectSqliteStats — privacy', () => {
       (c) => (c.includes('GROUP BY') || /min\(/.test(c)) && c.includes('"email"'),
     );
     expect(sampledEmail).toBe(false);
+  });
+});
+
+describe('collectSqliteStats — degrading instead of guessing', () => {
+  it('an EMPTY table reports nullFraction 0, never NaN', async () => {
+    // 0 nulls / 0 rows is a division by zero: the contract is a real 0, and a
+    // NaN would not even survive JSON serialization.
+    const exec = sqliteMock({
+      count: 0,
+      scan: { row_total: 0, nf_0: 0, dc_0: 0, nf_1: 0, dc_1: 0, nf_2: 0, dc_2: 0 },
+    });
+    const stats = await collectSqliteStats(exec, table, { columns });
+    expect(stats.rowCountEstimate).toBe(0);
+    for (const c of stats.columns) {
+      expect(c.nullFraction).toBe(0);
+      expect(c.distinctCount).toBe(0);
+    }
+    expect(JSON.stringify(stats)).not.toContain('null,"distinctCount":null');
+  });
+
+  it('a count that is not a number is null, and no scan is attempted', async () => {
+    // "an unavailable estimate returns null, never a wrong number" (06 §4.2).
+    const exec = sqliteMock({ count: Number.NaN });
+    const stats = await collectSqliteStats(exec, table, { columns });
+    expect(stats.rowCountEstimate).toBeNull();
+    expect(stats.rowCountExact).toBe(false);
+    expect(exec.calls.some((c) => c.includes('row_total'))).toBe(false);
+    expect(stats.warnings?.length).toBeGreaterThan(0);
+  });
+
+  it('a scan that returns no row leaves every column null rather than throwing', async () => {
+    const exec = async (sql: string): Promise<Record<string, unknown>[]> =>
+      sql.includes('row_total') ? [] : [{ n: 3 }];
+    const stats = await collectSqliteStats(exec, table, { columns });
+    expect(stats.rowCountEstimate).toBe(3);
+    for (const c of stats.columns) {
+      expect(c.nullFraction).toBeNull();
+      expect(c.distinctCount).toBeNull();
+    }
+  });
+
+  it('with no options at all it issues exactly one statement — the count', async () => {
+    const exec = sqliteMock({ count: 5 });
+    const stats = await collectSqliteStats(exec, table);
+    expect(stats).toMatchObject({ rowCountEstimate: 5, rowCountExact: true, columns: [] });
+    expect(exec.calls).toHaveLength(1);
+    expect(exec.calls[0]).toBe('SELECT count(*) AS n FROM "people"');
+  });
+});
+
+describe('collectSqliteStats — qualification and sampling limits', () => {
+  it('qualifies a non-main schema, and leaves main/public bare', async () => {
+    // SQLite has no schema layer in v1, but an ATTACHed database is addressed
+    // by name — and both halves have to be quoted.
+    const attached = sqliteMock({ count: 1 });
+    await collectSqliteStats(attached, { schema: 'analytics', name: 'events' });
+    expect(attached.calls[0]).toBe('SELECT count(*) AS n FROM "analytics"."events"');
+
+    for (const schema of ['main', 'public', null]) {
+      const exec = sqliteMock({ count: 1 });
+      await collectSqliteStats(exec, { schema, name: 'people' });
+      expect(exec.calls[0]).toBe('SELECT count(*) AS n FROM "people"');
+    }
+  });
+
+  it('a non-positive maxValuesPerColumn falls back to the default LIMIT', async () => {
+    const exec = sqliteMock({ count: 1, scan: { row_total: 1, nf_0: 0, dc_0: 1 } });
+    await collectSqliteStats(exec, table, {
+      columns: [{ name: 'city', logicalType: 'text' }],
+      sampling: { maxValuesPerColumn: 0 },
+    });
+    const mcv = exec.calls.find((c) => c.includes('GROUP BY')) ?? '';
+    expect(mcv).toContain(`LIMIT ${STATS_DEFAULT_SAMPLE_VALUES}`);
+    expect(mcv).not.toContain('LIMIT 0');
+  });
+
+  it('coerces every driver value shape into a JSON-safe scalar', async () => {
+    // better-sqlite3 hands back bigints (safe-integer mode), Buffers for BLOBs
+    // and, through other layers, Dates — none of which may reach the LLM
+    // payload as-is. A BLOB is redacted outright.
+    const exec = sqliteMock({
+      count: 1,
+      scan: { row_total: 1, nf_0: 0, dc_0: 5 },
+      mcv: {
+        note: [
+          9007199254740993n,
+          Uint8Array.from([1, 2, 3]),
+          new Date(Date.UTC(2026, 0, 2, 3, 4, 5)),
+          { toString: () => 'custom' },
+          'x'.repeat(STATS_SAMPLE_VALUE_MAX_CHARS + 50),
+          null,
+        ],
+      },
+    });
+    const stats = await collectSqliteStats(exec, table, {
+      columns: [{ name: 'note', logicalType: 'text' }],
+      sampling: { maxValuesPerColumn: 10 },
+    });
+    const values = stats.columns[0]?.sampleValues ?? [];
+    expect(values.slice(0, 4)).toEqual([
+      '9007199254740993',
+      '[binary]',
+      '2026-01-02T03:04:05.000Z',
+      'custom',
+    ]);
+    expect(values[4]).toHaveLength(STATS_SAMPLE_VALUE_MAX_CHARS);
+    expect(values[5]).toBeNull();
   });
 });

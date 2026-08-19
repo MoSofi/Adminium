@@ -502,8 +502,29 @@ export async function introspectPostgres(
       });
       values = values.slice(0, ENUM_VALUE_CAP);
     }
+    // `CREATE TYPE x AS ENUM ()` is legal Postgres, and the IR requires an
+    // EnumDef to carry at least one value (05 §2.1). Emitting the empty def
+    // made `parseDatabaseModel` reject the whole model, so a database holding
+    // one empty enum could not be introspected at all. A valueless enum has
+    // nothing to render anyway: drop the def and say so.
+    if (values.length === 0) {
+      warnings.push({
+        code: 'enum-empty',
+        message: `enum "${id}" has no values; omitted from the model`,
+        tableId: null,
+      });
+      continue;
+    }
     nativeEnums.set(id, { id, name, values, source: 'native' });
   }
+
+  /**
+   * A column may only point at an enum the model actually carries — the IR
+   * cross-checks every `enumRef` and rejects a dangling one. Covers both the
+   * empty enum dropped above and a type living in a schema `ENUMS_SQL` never
+   * returned (a reserved schema, say).
+   */
+  const resolveEnumRef = (id: string): string | null => (nativeEnums.has(id) ? id : null);
 
   // -- tables -----------------------------------------------------------------
   const tablesByOid = new Map<number, MutableTable>();
@@ -578,13 +599,15 @@ export async function introspectPostgres(
     let enumRef: string | null = null;
     if (typtype === 'e') {
       mapped = { logicalType: 'enum', maxLength: null, numericPrecision: null, numericScale: null };
-      enumRef = `${str(row['type_schema']) ?? ''}.${str(row['type_name']) ?? ''}`;
+      enumRef = resolveEnumRef(`${str(row['type_schema']) ?? ''}.${str(row['type_name']) ?? ''}`);
     } else if (typtype === 'd') {
       // Domain: logical type from the base, domain name kept in dbType (05 §4.1).
       mapped = mapPostgresType(str(row['base_db_type']) ?? dbType);
       if (str(row['base_typtype']) === 'e') {
         mapped = { ...mapped, logicalType: 'enum' };
-        enumRef = `${str(row['base_type_schema']) ?? ''}.${str(row['base_type_name']) ?? ''}`;
+        enumRef = resolveEnumRef(
+          `${str(row['base_type_schema']) ?? ''}.${str(row['base_type_name']) ?? ''}`,
+        );
       }
     } else if (isArray) {
       // Array: isArray set, element logicalType (05 §4.1); dbType stays 'type[]'.
@@ -595,7 +618,9 @@ export async function introspectPostgres(
           numericPrecision: null,
           numericScale: null,
         };
-        enumRef = `${str(row['elem_type_schema']) ?? ''}.${str(row['elem_type_name']) ?? ''}`;
+        enumRef = resolveEnumRef(
+          `${str(row['elem_type_schema']) ?? ''}.${str(row['elem_type_name']) ?? ''}`,
+        );
       } else {
         mapped = mapPostgresType(str(row['elem_db_type']) ?? dbType);
       }

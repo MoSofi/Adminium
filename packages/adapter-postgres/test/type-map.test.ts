@@ -81,6 +81,23 @@ describe('mapPostgresType — the §2.2 Postgres column', () => {
       maxLength: 30,
     });
   });
+
+  it('strips every dimension of a multi-dimensional array', () => {
+    // `format_type` reports a 2-D column as `integer[][]`. Stripping only the
+    // last `[]` would leave `integer[]`, which is not in the base-type map and
+    // would render a perfectly ordinary int matrix as `unknown`.
+    expect(mapPostgresType('integer[][]').logicalType).toBe('integer');
+    expect(mapPostgresType('integer[][][]').logicalType).toBe('integer');
+    expect(mapPostgresType('numeric(10,2)[][]')).toMatchObject({
+      logicalType: 'decimal',
+      numericPrecision: 10,
+      numericScale: 2,
+    });
+  });
+
+  it('tolerates whitespace inside the array suffix', () => {
+    expect(mapPostgresType('integer[ ][ ]').logicalType).toBe('integer');
+  });
 });
 
 describe('classifyDefault — 05 §4.1', () => {
@@ -276,6 +293,11 @@ describe('ReDoS hardening — CHECK bodies parse linearly (CodeQL js/polynomial-
     // An empty list must not stop the search: the one-piece pattern retried at
     // the next offset and found the second CHECK, and so must the split one.
     ["CHECK (a IN ()) CHECK (b IN ('z'))", { column: 'b', values: ['z'] }],
+    // A NUMERIC value list parses as a delimited list but yields no string
+    // literals. Synthesizing a zero-value enum here would produce a select
+    // input with nothing in it, so it must stay null.
+    ['CHECK ((level = ANY (ARRAY[1, 2, 3])))', null],
+    ['CHECK (level IN (1, 2))', null],
   ] as const)('parseCheckEnum keeps its grammar: %s', (definition, expected) => {
     expect(parseCheckEnum(definition)).toEqual(expected);
   });

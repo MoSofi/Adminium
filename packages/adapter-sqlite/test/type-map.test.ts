@@ -183,6 +183,11 @@ describe('normalizeSqliteFile — the accepted DSN spellings (05 §4.3)', () => 
     [{ dsn: 'file:abs/path.db' }, 'abs/path.db'],
     [{ dsn: 'file:///abs/path.db' }, '/abs/path.db'],
     [{ dsn: 'file:/abs/path.db?mode=ro' }, '/abs/path.db'],
+    // Two slashes is an authority, not a root: the path is relative.
+    [{ dsn: 'sqlite://relative.db' }, 'relative.db'],
+    [{ dsn: 'file://relative.db' }, 'relative.db'],
+    // …and no slashes at all is the same relative path.
+    [{ dsn: 'sqlite:relative.db' }, 'relative.db'],
     [{ dsn: '/plain/path.db' }, '/plain/path.db'],
     [{ file: '/wins.db', dsn: 'sqlite:///loses.db' }, '/wins.db'],
   ] as const)('%o → %s', (config, expected) => {
@@ -229,6 +234,31 @@ describe('identifier quoting + serialization policy', () => {
     expect(json?.toDb({ a: 1 })).toBe('{"a":1}');
     expect(json?.fromDb('{"a":1}')).toEqual({ a: 1 });
     expect(json?.fromDb('not json')).toBe('not json');
+  });
+
+  it('a value that is already a string is never converted twice', () => {
+    // The CRUD layer may hand back a value that has been through a serializer
+    // already (or a NULL); re-stringifying would turn null into "null".
+    expect(sqliteSerializers.bigint?.toDb('9007199254740993')).toBe('9007199254740993');
+    expect(sqliteSerializers.bigint?.toDb(null)).toBeNull();
+    expect(sqliteSerializers.decimal?.toDb(19.99)).toBe('19.99');
+    expect(sqliteSerializers.decimal?.fromDb('19.99')).toBe('19.99');
+    expect(sqliteSerializers.decimal?.fromDb(null)).toBeNull();
+  });
+
+  it('boolean: false is 0, and anything that is not 0/1 is left alone', () => {
+    const boolean = sqliteSerializers.boolean;
+    expect(boolean?.toDb(false)).toBe(0);
+    expect(boolean?.toDb(null)).toBeNull(); // NULL is not `false`
+    expect(boolean?.fromDb(null)).toBeNull();
+    expect(boolean?.fromDb(2)).toBe(2); // a legacy 0/1/2 column stays readable
+  });
+
+  it('json: pre-encoded text is stored verbatim, and NULL stays NULL', () => {
+    const json = sqliteSerializers.json;
+    expect(json?.toDb('{"a":1}')).toBe('{"a":1}');
+    expect(json?.fromDb(null)).toBeNull();
+    expect(json?.fromDb(42)).toBe(42);
   });
 
   it('timestamps pass through (storage format is a runtime concern)', () => {
@@ -302,5 +332,26 @@ describe('ReDoS hardening — declared types and CHECK bodies parse linearly', (
     ["a in () b in ('z')", { column: 'b', values: ['z'] }],
   ] as const)('parseCheckEnum keeps its grammar: %s', (expression, expected) => {
     expect(parseCheckEnum(expression)).toEqual(expected);
+  });
+});
+
+describe('scanCheckConstraints — truncated DDL must terminate, not misparse', () => {
+  // `sqlite_master.sql` is free text and this scanner walks it character by
+  // character; every early-exit below is a shape where an unbalanced construct
+  // could otherwise run off the end (or loop forever).
+  it('an unterminated string literal ends the scan with no phantom check', () => {
+    expect(scanCheckConstraints("CREATE TABLE t (a TEXT DEFAULT 'CHECK (x IN (''y''))")).toEqual(
+      [],
+    );
+  });
+
+  it('a `--` comment that runs to the end of the text ends the scan', () => {
+    expect(scanCheckConstraints('CREATE TABLE t (a TEXT -- CHECK (x IN (\'y\'))')).toEqual([]);
+  });
+
+  it('an unterminated CHECK recovers the partial expression instead of throwing', () => {
+    expect(scanCheckConstraints('CREATE TABLE t (a TEXT CHECK (a > 1')).toEqual([
+      { name: null, expression: 'a > 1' },
+    ]);
   });
 });
