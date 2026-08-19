@@ -11,33 +11,52 @@ Every package is versioned together — changesets is configured with a single
 `fixed` group, so a patch to one moves all twenty workspaces. Source names are
 `@adminium/*`; published names are `@adminiumjs/*`.
 
-Sizes below count hand-written source under `src/`, excluding tests and stories.
+Sizes below count hand-written source under each package's `src/`, excluding
+tests and stories. Tests are counted wherever the package keeps them, which is
+not uniform: some put them next to the source, some in a sibling `test/`.
+
+**These are a snapshot, not a contract.** Nothing in CI checks them, so read
+them as an order of magnitude and recompute if a number is load-bearing for you:
+
+```bash
+# source files (their line count is what the Source column reports)
+git ls-tree -r --name-only HEAD -- packages/<pkg>/src \
+  | grep -E '\.tsx?$' | grep -v '\.test\.' | grep -v '\.stories\.'
+
+# test files, wherever they live in the package
+git ls-tree -r --name-only HEAD -- packages/<pkg> | grep -E '\.test\.(ts|tsx|js)$'
+```
+
+Two rows do not fit that shape, and say so in place: `tokens` is mostly CSS, and
+`config` is an ESLint plugin written in plain `.js`. Figures below were taken
+from `HEAD` on 2026-08-19.
 
 | Package | Source | Tests | Depends on |
 |---|--:|--:|---|
-| [tokens](#adminiumtokens) | 727 CSS + 143 TS | 3 | — |
-| [i18n](#adminiumi18n) | 58 files, 33.7k | 10 | — |
-| [meta](#adminiummeta) | 54 files, 9.3k | 21 | — |
+| [tokens](#adminiumtokens) | 772 CSS + 145 TS | 3 | — |
+| [i18n](#adminiumi18n) | 58 files, 39.2k | 10 | — |
+| [meta](#adminiummeta) | 56 files, 10.3k | 22 | — |
 | [add-on-contracts](#adminiumadd-on-contracts) | 9 files, 1.1k | 1 | — |
-| [config](#adminiumconfig) | ESLint plugin + configs | — | — |
-| [ui](#adminiumui) | 152 files, 8.9k | 73 | tokens |
-| [charts](#adminiumcharts) | 83 files, 9.7k | 15 | i18n, tokens |
-| [manifest](#adminiummanifest) | 3 files, 701 | 2 | add-on-contracts |
-| [widgets](#adminiumwidgets) | 335 files, 67k | 82 | charts, i18n, tokens, ui |
-| [engine](#adminiumengine) | 23 files, 4.5k | 14 | widgets |
-| [adapter-postgres](#the-three-adapters) | 7 files, 1.8k | 6 | engine |
-| [adapter-mysql](#the-three-adapters) | 7 files, 1.8k | 4 | engine |
-| [adapter-sqlite](#the-three-adapters) | 8 files, 1.7k | 4 | engine |
-| [schema-import](#adminiumschema-import) | 19 files, 5k | 9 | engine |
-| [llm](#adminiumllm) | 31 files, 7k | 21 | engine |
+| [config](#adminiumconfig) | 7 JS files, 935 | 6 | — |
+| [ui](#adminiumui) | 155 files, 9.6k | 76 | tokens |
+| [charts](#adminiumcharts) | 83 files, 9.8k | 15 | i18n, tokens |
+| [manifest](#adminiummanifest) | 3 files, 704 | 2 | add-on-contracts |
+| [widgets](#adminiumwidgets) | 336 files, 68.1k | 84 | charts, i18n, tokens, ui |
+| [engine](#adminiumengine) | 28 files, 5.5k | 17 | widgets |
+| [adapter-postgres](#the-three-adapters) | 7 files, 1.8k | 8 | engine |
+| [adapter-mysql](#the-three-adapters) | 7 files, 1.9k | 4 | engine |
+| [adapter-sqlite](#the-three-adapters) | 8 files, 1.8k | 4 | engine |
+| [schema-import](#adminiumschema-import) | 19 files, 5.2k | 11 | engine |
+| [llm](#adminiumllm) | 31 files, 7.0k | 23 | engine |
 
 ---
 
 ## @adminium/tokens
 
 **Every design decision, as a CSS custom property.** Zero dependencies — not
-even on other Adminium packages. Mostly CSS: 727 lines across seven files, plus
-143 lines of TypeScript for the values JavaScript needs.
+even on other Adminium packages. Mostly CSS: 772 lines across nine files — the
+seven axis stylesheets below (687 lines), plus a Tailwind bridge and a barrel —
+and 145 lines of TypeScript for the values JavaScript needs.
 
 Seven stylesheets, each owning one axis:
 
@@ -100,8 +119,8 @@ still clears 4.5:1.
 ## @adminium/i18n
 
 **Eight locales, ICU messages, and the formatting layer.** A leaf: no internal
-dependencies. Its 33.7k lines are mostly generated — 31.5k of that is the
-compiled resource mirrors.
+dependencies. Its 39.2k lines are mostly generated — 36.9k of that is
+`src/resources`, the compiled mirrors.
 
 The eight compiled locales are `en_US`, `de_DE`, `fr_FR`, `cs_CZ`, `da_DK`,
 `zh_CN`, `zh_TW`, `ar_EG`. Ids are stored with underscores and converted to
@@ -243,8 +262,8 @@ rules**, five of which exist because of a specific past bug:
 
 ## @adminium/ui
 
-**The component library.** 66 component directories, 152 source files, backed by
-73 test files and 71 Storybook stories. Its only internal dependency is tokens.
+**The component library.** 66 component directories, 155 source files, backed by
+76 test files and 71 Storybook stories. Its only internal dependency is tokens.
 
 Components are organised into tiers, visible in Storybook titles. The tier is a
 component's **scope**, not its complexity:
@@ -288,13 +307,24 @@ scale and an `rtlMirror` prop for directional glyphs.
 :::note[The a11y ratchet]
 `pnpm a11y` runs axe over every built Storybook story in **both** themes with
 reduced motion, failing on any critical or serious violation. It is a
-fingerprint ratchet against a checked-in baseline — currently 162 entries — so
-only *new* violation fingerprints fail the gate.
+fingerprint ratchet against `packages/ui/a11y-baseline.json`, keyed
+`story|theme|rule`: a fingerprint already in the file is a known exception, and
+only a fingerprint the file has never seen fails the gate. The run's log prints
+*every* blocking violation it finds, baselined or not, so a red job and a long
+log are not the same thing — diff the fingerprints before concluding anything.
+
+This page used to quote the baseline's size. It no longer does, and that is the
+point of this paragraph: the number is a debt counter, not a fact about the
+product. It moves every time someone fixes a violation or records one, no CI
+check holds it to any figure, and the number printed here had drifted well past
+the file's actual contents before anyone noticed. Open
+`packages/ui/a11y-baseline.json` for the current entries — its own header
+documents how they are added and removed.
 :::
 
 ## @adminium/charts
 
-**SVG chart primitives.** 83 source files, 9.7k lines, and **no charting
+**SVG chart primitives.** 83 source files, 9.8k lines, and **no charting
 library of any kind**.
 
 "d3 math only" is literal. The package imports exactly two things from d3:
@@ -328,7 +358,7 @@ widgets package bridges it in.
 
 ## @adminium/manifest
 
-**The micro-SaaS manifest spec.** Three files, 701 lines, one internal
+**The micro-SaaS manifest spec.** Three files, 704 lines, one internal
 dependency (add-on-contracts).
 
 A manifest is a `manifestVersion: 1` document validated by a Zod discriminated
@@ -351,7 +381,7 @@ v1), rejects reserved keys, and appends add-on issues such as
 
 ## @adminium/widgets
 
-**The biggest package in the repo** — 335 source files, 67k lines, 82 test
+**The biggest package in the repo** — 336 source files, 68.1k lines, 84 test
 files. It owns the widget registry, the page templates and the dashboard grid.
 
 ### The registry
@@ -447,7 +477,7 @@ be suggested.
 
 ## @adminium/engine
 
-**The brain**, and it holds no database drivers. 23 files, 4.5k lines — small
+**The brain**, and it holds no database drivers. 28 files, 5.5k lines — small
 for what it does, because it is pure logic over one IR.
 
 Covered end to end in [How Adminium works §5](/anatomy/#5-schema-to-app). The
@@ -540,7 +570,7 @@ CRUD goes through `createQueryEngine()` instead.
 
 ## @adminium/schema-import
 
-**Eight schema-file parsers, one IR.** 19 files, 5k lines. This is what lets you
+**Eight schema-file parsers, one IR.** 19 files, 5.2k lines. This is what lets you
 generate a dashboard with no live database connection at all.
 
 One entry point, `parseSchemaFile(content, opts)`, over eight formats: `sql`
@@ -580,7 +610,7 @@ the round trip.
 
 ## @adminium/llm
 
-**LLM assist as a headless library.** 31 files, 7k lines, 21 test files — the
+**LLM assist as a headless library.** 31 files, 7k lines, 23 test files — the
 most heavily tested package relative to its size, because it treats model output
 as untrusted input.
 
