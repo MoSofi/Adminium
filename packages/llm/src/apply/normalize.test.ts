@@ -114,7 +114,7 @@ describe('normalizeHeuristicBaseline', () => {
 
   it('humanizes labels, maps shape icons, and selects display/natural keys', () => {
     expect(set.tables['public.orders']?.label).toEqual({ en_US: 'Orders' });
-    expect(set.tables['public.orders']?.icon).toBe('kanban-square');
+    expect(set.tables['public.orders']?.icon).toBe('square-kanban');
     expect(set.tables['public.customers']?.icon).toBe('users');
     expect(set.tables['public.products']?.icon).toBe('package');
     expect(set.tables['public.customers']?.displayColumn).toBe('full_name');

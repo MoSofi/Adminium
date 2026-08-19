@@ -237,10 +237,18 @@ function enumTones(values: readonly string[]): Record<string, Tone> {
   return tones;
 }
 
-/** Mirror of the generator's nav-icon-per-shape map (09 §2.2 / generate/index.ts). */
-const SHAPE_ICONS: Record<string, string> = {
+/**
+ * Mirror of the generator's nav-icon-per-shape map (09 §2.2 / generate/index.ts).
+ *
+ * Exported so `normalize-icons.test.ts` can hold it against BOTH lucide's real
+ * catalogue and the engine map it claims to mirror. It was neither, and the two
+ * drifted together on `kanban-square` — a name lucide renamed to `square-kanban`
+ * and kept only as a deprecated export, so it is absent from the `icons` map the
+ * dashboard resolves nav rows through.
+ */
+export const SHAPE_ICONS: Readonly<Record<string, string>> = {
   people: 'users',
-  workflow: 'kanban-square',
+  workflow: 'square-kanban',
   events: 'calendar',
   catalog: 'package',
   log: 'scroll-text',
