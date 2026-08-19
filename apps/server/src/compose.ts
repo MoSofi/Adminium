@@ -324,6 +324,13 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
               keyCrypto,
               allowedTemplates: allowed.templates,
               allowedWidgets: allowed.widgets,
+              // §7.3's unknown-icon check. Documented since M6 as fed by
+              // `@adminium/ui`'s `LUCIDE_ICON_NAMES`, and until now fed by
+              // nothing: the symbol did not exist and this call never passed the
+              // option, so the check silently skipped and a model could store any
+              // string it liked as a table's icon. `loadAllowedVocabularies`
+              // carries the manifest now, as data (the server may not import ui).
+              ...(allowed.icons === undefined ? {} : { allowedIcons: allowed.icons }),
             }),
           };
         })();

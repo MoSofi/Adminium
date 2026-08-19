@@ -37,6 +37,14 @@ import { CliError } from './exit.js';
 const ALLOWLIST_SUBPATH = join('dist', 'registry', 'llm-allowlist.js');
 
 /**
+ * Path inside `@adminium/ui` that exports `LUCIDE_ICON_NAMES` — the generated
+ * manifest of every icon name the dashboard can actually resolve. Same import
+ * ban, same treatment: read as data, never imported. The module is plain
+ * strings with no imports of its own, so loading it drags in no React.
+ */
+const ICON_NAMES_SUBPATH = join('dist', 'components', 'icon', 'icon-names.js');
+
+/**
  * The build-emitted snapshot inside the published package. Kept next to the
  * resolver so `scripts/bundle-allowlists.mjs` and this lookup share one path.
  */
@@ -64,10 +72,28 @@ export function allowlistCandidates(moduleUrl: string = import.meta.url): string
   ].map((candidate) => resolve(candidate));
 }
 
+/**
+ * Icon-manifest candidates, same precedence logic as {@link allowlistCandidates}
+ * and same reason for the order. Separate from it because the two lists come
+ * from two packages: in a dev checkout the widget lists resolve from
+ * `packages/widgets/dist` while the icons resolve from `packages/ui/dist`, and
+ * either may be built without the other. In a published artifact both are in the
+ * one bundled JSON, which is why that file is first in both lists.
+ */
+export function iconManifestCandidates(moduleUrl: string = import.meta.url): string[] {
+  const root = packageRoot(moduleUrl);
+  return [
+    join(root, BUNDLED_VOCABULARY_FILE),
+    join(root, '..', '..', 'packages', 'ui', ICON_NAMES_SUBPATH),
+    join(root, 'node_modules', '@adminium', 'ui', ICON_NAMES_SUBPATH),
+  ].map((candidate) => resolve(candidate));
+}
+
 interface AllowlistModule {
   LLM_ALLOWED_TEMPLATES?: readonly string[];
   LLM_ALLOWED_WIDGETS?: readonly string[];
   LLM_WIDGET_DATA_CONTRACTS?: Readonly<Record<string, readonly string[]>>;
+  LUCIDE_ICON_NAMES?: readonly string[];
 }
 
 /** Read one candidate; `null` when it is absent or does not carry both lists. */
@@ -87,13 +113,45 @@ async function readCandidate(candidate: string): Promise<AllowedVocabularies | n
   const templates = mod.LLM_ALLOWED_TEMPLATES;
   const widgets = mod.LLM_ALLOWED_WIDGETS;
   if (templates === undefined || widgets === undefined) return null;
+  const icons = mod.LUCIDE_ICON_NAMES;
   // Optional on purpose: a snapshot bundled before widget contracts existed
   // still satisfies this loader, and the apply planner degrades to choosing a
   // binding shape from the bound columns rather than refusing to load.
   const widgetContracts = mod.LLM_WIDGET_DATA_CONTRACTS;
-  return widgetContracts === undefined
-    ? { templates, widgets }
-    : { templates, widgets, widgetContracts };
+  return {
+    templates,
+    widgets,
+    ...(widgetContracts === undefined ? {} : { widgetContracts }),
+    ...(icons === undefined ? {} : { icons }),
+  };
+}
+
+/**
+ * Read `LUCIDE_ICON_NAMES` from the first candidate that carries it. `null` when
+ * none does — the referential icon check then stays off, which is what it did
+ * before this list existed. It is NOT an error: the widget vocabularies are what
+ * the prompt cannot be built without, and refusing to run the whole AI assist
+ * because an icon manifest is missing would be a worse trade than skipping one
+ * warning.
+ */
+async function readIconManifest(moduleUrl: string): Promise<readonly string[] | null> {
+  for (const candidate of iconManifestCandidates(moduleUrl)) {
+    if (!existsSync(candidate)) continue;
+    let mod: AllowlistModule;
+    if (candidate.endsWith('.json')) {
+      try {
+        mod = JSON.parse(readFileSync(candidate, 'utf8')) as AllowlistModule;
+      } catch {
+        continue;
+      }
+    } else {
+      // Computed specifier: a file URL, never a package name — no static edge.
+      mod = (await import(pathToFileURL(candidate).href)) as AllowlistModule;
+    }
+    const icons = mod.LUCIDE_ICON_NAMES;
+    if (icons !== undefined && icons.length > 0) return icons;
+  }
+  return null;
 }
 
 /**
@@ -108,7 +166,14 @@ export async function loadAllowedVocabularies(
 ): Promise<AllowedVocabularies> {
   for (const candidate of allowlistCandidates(moduleUrl)) {
     const loaded = await readCandidate(candidate);
-    if (loaded !== null) return loaded;
+    if (loaded === null) continue;
+    if (loaded.icons !== undefined) return loaded;
+    // The widget lists resolved from a source that carries no icon manifest (a
+    // dev checkout reading `packages/widgets/dist`, or a snapshot bundled before
+    // icons rode along). Look for the manifest on its own rather than dropping
+    // the icon check for the whole of a source checkout.
+    const icons = await readIconManifest(moduleUrl);
+    return icons === null ? loaded : { ...loaded, icons };
   }
   throw new CliError('The widget vocabulary is missing, so no AI prompt can be built.', {
     hint:
