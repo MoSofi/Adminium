@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { fileURLToPath } from 'node:url';
 
+import { coverage } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -24,6 +25,7 @@ export default defineConfig({
     alias: [{ find: /^electron$/, replacement: electronStub }],
   },
   test: {
+    coverage: coverage({ statements: 76, branches: 89 }),
     environment: 'node',
     include: ['src/**/*.test.ts'],
   },

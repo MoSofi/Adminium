@@ -33,7 +33,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "ir-schema": "node scripts/ir-json-schema.mjs",
     "ir-schema:check": "node scripts/ir-json-schema.mjs --check"
   },

@@ -4,14 +4,14 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "description": "React SPA: Studio + Generated App (app shell, router, system states — 09-generated-app.md)",
+  "description": "React SPA: Studio + Generated App (app shell, router, system states \u2014 09-generated-app.md)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/check-entry-budget.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@adminium/charts": "workspace:*",
