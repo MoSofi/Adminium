@@ -23,6 +23,7 @@ export default {
   },
   "auth": {
     "headline": "Machen Sie aus jeder Datenbank ein Dashboard.",
+    "description": "Verbinden Sie PostgreSQL, und Adminium erzeugt eine gestaltbare, rechtebewusste Admin-App — ganz ohne Code.",
     "trust": "AGPL-Kern · Selbst gehostet · Ihre Daten bleiben Ihre",
     "signIn": {
       "title": "Willkommen zurück",
@@ -244,6 +245,7 @@ export default {
   },
   "notFound": {
     "title": "Diese Seite ist verschwunden",
+    "body": "Die gesuchte Seite existiert nicht oder wurde verschoben. Prüfen Sie die URL oder kehren Sie zu Ihrem Dashboard zurück.",
     "errorLine": "Fehler 404",
     "searchPlaceholder": "Nach einer Seite suchen…",
     "matches": "Passende Seiten",
@@ -261,10 +263,12 @@ export default {
       "title": "Diese Seite konnte nicht dargestellt werden"
     },
     "tooNew": {
-      "title": "Diese Seite benötigt ein neueres Adminium"
+      "title": "Diese Seite benötigt ein neueres Adminium",
+      "body": "Diese Seite wurde mit Konfigurationsversion {version} gespeichert, dieser Build versteht aber höchstens Version {latest}. Aktualisieren Sie Adminium, um sie zu öffnen."
     },
     "unknownTemplate": {
-      "title": "Unbekannte Seitenvorlage"
+      "title": "Unbekannte Seitenvorlage",
+      "body": "Diese Seite verwendet eine Vorlage, die dieser Build nicht kennt. Sie stammt womöglich aus einem neueren Adminium oder aus einer nicht installierten Erweiterung."
     }
   },
   "mutation": {
@@ -353,6 +357,70 @@ export default {
       "emptyTitle": "Noch nichts zu konfigurieren",
       "emptyBody": "Benachrichtigungsereignisse erscheinen hier, sobald ihre Produzenten ausgeliefert werden.",
       "saveFailed": "Diese Änderung konnte nicht gespeichert werden."
+    },
+    "translations": {
+      "title": "Sprachen & Übersetzungen",
+      "subtitle": "Ändern Sie jede Formulierung in Adminium, legen Sie fest, welche Sprachen zur Auswahl stehen, und fügen Sie eigene hinzu.",
+      "warning": "Fehlermeldungen und Anmeldetexte lassen sich ebenfalls bearbeiten. Genau die liest man, wenn etwas schiefgeht — ändern Sie sie also mit Bedacht.",
+      "editor": {
+        "heading": "Übersetzungen bearbeiten"
+      },
+      "localeLabel": "Sprache",
+      "groupLabel": "Bereich",
+      "allAreas": "Alle Bereiche",
+      "stateLabel": "Anzeigen",
+      "state": {
+        "all": "Alles",
+        "overridden": "Nur angepasste",
+        "untranslated": "Nur unübersetzte",
+        "stale": "Englisch seitdem geändert"
+      },
+      "searchLabel": "Suchen",
+      "searchPlaceholder": "Schlüssel oder englischer Text",
+      "loading": "Texte werden geladen…",
+      "noMatches": "Keine Texte entsprechen diesen Filtern.",
+      "count": "{total, plural, one {# Text} other {# Texte}}",
+      "badge": {
+        "custom": "Angepasst",
+        "stale": "Englisch geändert",
+        "a11y": "Barrierefreier Name"
+      },
+      "sourceLabel": "Englisches Original",
+      "valueLabel": "Übersetzung",
+      "save": "Speichern",
+      "saved": "Übersetzung gespeichert",
+      "resetAction": "Auf eingebauten Text zurücksetzen",
+      "reset": "Auf den eingebauten Text zurückgesetzt",
+      "locales": {
+        "heading": "Verfügbare Sprachen",
+        "help": "Schalten Sie eine Sprache aus, um sie aus allen Sprachauswahlen zu entfernen. Wer sie bereits nutzt, behält sie, bis er eine andere wählt."
+      },
+      "locale": {
+        "builtin": "Eingebaut",
+        "custom": "Eigene",
+        "overrides": "{count, plural, =0 {kein eigener Text} one {# eigener Text} other {# eigene Texte}}",
+        "enable": "Einschalten",
+        "disable": "Ausschalten",
+        "delete": "Löschen",
+        "deleted": "Sprache entfernt",
+        "deletedDetail": "{users, plural, one {# Person wurde} other {# Personen wurden}} auf den Workspace-Standard zurückgesetzt; {strings, plural, one {# Übersetzung} other {# Übersetzungen}} gelöscht.",
+        "deleteFailed": "Diese Sprache konnte nicht entfernt werden",
+        "add": "Sprache hinzufügen",
+        "added": "Sprache hinzugefügt",
+        "create": "Sprache anlegen",
+        "id": "Sprachcode",
+        "intlTag": "Formatierungsregeln von",
+        "native": "Name in der Sprache selbst",
+        "english": "Name auf Englisch",
+        "dir": "Textrichtung",
+        "ltr": "Links nach rechts",
+        "rtl": "Rechts nach links",
+        "font": "Schrift",
+        "latin": "Lateinisch",
+        "arabic": "Arabisch",
+        "cjk": "Chinesisch / Japanisch / Koreanisch",
+        "intlHelp": "Die Formatierungsregeln bestimmen, wie Zahlen, Datumsangaben und Pluralformen behandelt werden. Wählen Sie die nächstliegende Sprache, die sie bereits hat — sie muss nicht zu Ihrem Sprachcode passen."
+      }
     }
   },
   "studio": {
@@ -630,6 +698,11 @@ export default {
         "heading": "Seiten",
         "body": "Seiten hinzufügen, bearbeiten und löschen, ihre Inhalte ändern und die Seitenleiste neu ordnen.",
         "cta": "Seiten verwalten"
+      },
+      "translationsCard": {
+        "heading": "Sprachen & Übersetzungen",
+        "body": "Formulieren Sie beliebige Texte in Adminium neu, legen Sie fest, welche Sprachen zur Auswahl stehen, und fügen Sie eigene hinzu.",
+        "cta": "Übersetzungen öffnen"
       }
     },
     "settingsAi": {
@@ -1163,7 +1236,8 @@ export default {
         "pii": "PII",
         "masked": "Maskiert"
       },
-      "unavailableTitle": "Editor zum Neuzuordnen des Schemas nicht verfügbar"
+      "unavailableTitle": "Editor zum Neuzuordnen des Schemas nicht verfügbar",
+      "unavailableBody": "Dieser Build enthält den Editor zum Neuzuordnen noch nicht (09-T12). Führen Sie die Generierung erneut aus, sobald er da ist, um Bezeichnungen, Typen und Beziehungen neu zuzuordnen."
     }
   },
   "onboarding": {

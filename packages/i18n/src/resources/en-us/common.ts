@@ -23,6 +23,7 @@ export default {
   },
   "auth": {
     "headline": "Turn any database into a dashboard.",
+    "description": "Connect PostgreSQL and Adminium generates a themeable, permission-aware admin app — no code required.",
     "trust": "AGPL core · Self-hosted · Your data stays yours",
     "signIn": {
       "title": "Welcome back",
@@ -244,6 +245,7 @@ export default {
   },
   "notFound": {
     "title": "This page went missing",
+    "body": "The page you're looking for doesn't exist or was moved. Check the URL, or head back to your dashboard.",
     "errorLine": "Error 404",
     "searchPlaceholder": "Search for a page…",
     "matches": "Matching pages",
@@ -261,10 +263,12 @@ export default {
       "title": "This page failed to render"
     },
     "tooNew": {
-      "title": "This page needs a newer Adminium"
+      "title": "This page needs a newer Adminium",
+      "body": "This page was saved with config version {version}, but this build understands up to version {latest}. Upgrade Adminium to open it."
     },
     "unknownTemplate": {
-      "title": "Unknown page template"
+      "title": "Unknown page template",
+      "body": "This page uses a template this build doesn’t recognize. It may come from a newer Adminium or an extension that isn’t installed."
     }
   },
   "mutation": {
@@ -353,6 +357,70 @@ export default {
       "emptyTitle": "Nothing to configure yet",
       "emptyBody": "Notification events appear here as producers ship.",
       "saveFailed": "Could not save this change."
+    },
+    "translations": {
+      "title": "Languages & translations",
+      "subtitle": "Change any wording in Adminium, choose which languages people can pick, and add languages of your own.",
+      "warning": "Error messages and sign-in text are editable too. Those are what people read when something goes wrong, so change them carefully.",
+      "editor": {
+        "heading": "Edit translations"
+      },
+      "localeLabel": "Language",
+      "groupLabel": "Area",
+      "allAreas": "All areas",
+      "stateLabel": "Show",
+      "state": {
+        "all": "Everything",
+        "overridden": "Customised only",
+        "untranslated": "Untranslated only",
+        "stale": "English changed since"
+      },
+      "searchLabel": "Search",
+      "searchPlaceholder": "Key or English text",
+      "loading": "Loading strings…",
+      "noMatches": "No strings match those filters.",
+      "count": "{total, plural, one {# string} other {# strings}}",
+      "badge": {
+        "custom": "Customised",
+        "stale": "English changed",
+        "a11y": "Accessible name"
+      },
+      "sourceLabel": "English source",
+      "valueLabel": "Translation",
+      "save": "Save",
+      "saved": "Translation saved",
+      "resetAction": "Reset to built-in",
+      "reset": "Reset to the built-in text",
+      "locales": {
+        "heading": "Available languages",
+        "help": "Turn a language off to remove it from every language picker. Anyone already using it keeps it until they choose another."
+      },
+      "locale": {
+        "builtin": "Built in",
+        "custom": "Custom",
+        "overrides": "{count, plural, =0 {no custom text} one {# custom string} other {# custom strings}}",
+        "enable": "Turn on",
+        "disable": "Turn off",
+        "delete": "Delete",
+        "deleted": "Language removed",
+        "deletedDetail": "{users, plural, one {# person} other {# people}} moved back to the workspace default; {strings, plural, one {# translation} other {# translations}} deleted.",
+        "deleteFailed": "Could not remove that language",
+        "add": "Add a language",
+        "added": "Language added",
+        "create": "Add language",
+        "id": "Language code",
+        "intlTag": "Formatting rules from",
+        "native": "Name in the language itself",
+        "english": "Name in English",
+        "dir": "Text direction",
+        "ltr": "Left to right",
+        "rtl": "Right to left",
+        "font": "Script",
+        "latin": "Latin",
+        "arabic": "Arabic",
+        "cjk": "Chinese / Japanese / Korean",
+        "intlHelp": "Formatting rules decide how numbers, dates and plurals behave. Pick the closest language that already has them — it does not have to match your language code."
+      }
     }
   },
   "studio": {
@@ -630,6 +698,11 @@ export default {
         "heading": "Pages",
         "body": "Add, edit and delete pages, change what each one shows, and reorder the sidebar.",
         "cta": "Manage pages"
+      },
+      "translationsCard": {
+        "heading": "Languages & translations",
+        "body": "Reword anything in Adminium, choose which languages people can pick, and add your own.",
+        "cta": "Open translations"
       }
     },
     "settingsAi": {
@@ -1163,7 +1236,8 @@ export default {
         "pii": "PII",
         "masked": "Masked"
       },
-      "unavailableTitle": "Schema remap editor not available"
+      "unavailableTitle": "Schema remap editor not available",
+      "unavailableBody": "This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations."
     }
   },
   "onboarding": {

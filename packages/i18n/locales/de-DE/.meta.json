@@ -707,6 +707,10 @@
     "status": "mt",
     "srcHash": "3cfc5f1cc987"
   },
+  "common.auth.description": {
+    "status": "mt",
+    "srcHash": "e666ee2347ba"
+  },
   "common.auth.forgot.back": {
     "srcHash": "4da821676b2f",
     "status": "mt"
@@ -3075,6 +3079,10 @@
     "srcHash": "b3963db5ead8",
     "status": "mt"
   },
+  "common.notFound.body": {
+    "status": "mt",
+    "srcHash": "e1944ea11d84"
+  },
   "common.notFound.errorLine": {
     "srcHash": "157fc042e91a",
     "status": "mt"
@@ -3267,9 +3275,17 @@
     "srcHash": "a3fa115d48fd",
     "status": "mt"
   },
+  "common.page.tooNew.body": {
+    "status": "mt",
+    "srcHash": "31a3de69dbbb"
+  },
   "common.page.tooNew.title": {
     "srcHash": "4640d97bb72d",
     "status": "mt"
+  },
+  "common.page.unknownTemplate.body": {
+    "status": "mt",
+    "srcHash": "312d1894c0a6"
   },
   "common.page.unknownTemplate.title": {
     "srcHash": "1fc42fecab50",
@@ -4106,6 +4122,214 @@
   "common.settings.notifications.unavailable": {
     "srcHash": "a1db9d598b40",
     "status": "mt"
+  },
+  "common.settings.translations.allAreas": {
+    "status": "mt",
+    "srcHash": "7d89e864b502"
+  },
+  "common.settings.translations.badge.a11y": {
+    "status": "mt",
+    "srcHash": "f07619cb27c8"
+  },
+  "common.settings.translations.badge.custom": {
+    "status": "mt",
+    "srcHash": "65436edfd3be"
+  },
+  "common.settings.translations.badge.stale": {
+    "status": "mt",
+    "srcHash": "191dfe694630"
+  },
+  "common.settings.translations.count": {
+    "status": "mt",
+    "srcHash": "de3a27d1e525"
+  },
+  "common.settings.translations.editor.heading": {
+    "status": "mt",
+    "srcHash": "00caae3d7182"
+  },
+  "common.settings.translations.groupLabel": {
+    "status": "mt",
+    "srcHash": "2745debaa64a"
+  },
+  "common.settings.translations.loading": {
+    "status": "mt",
+    "srcHash": "947597c99646"
+  },
+  "common.settings.translations.locale.add": {
+    "status": "mt",
+    "srcHash": "8960674be5c7"
+  },
+  "common.settings.translations.locale.added": {
+    "status": "mt",
+    "srcHash": "a241e6e6062a"
+  },
+  "common.settings.translations.locale.arabic": {
+    "status": "mt",
+    "srcHash": "af4f4762f9bd"
+  },
+  "common.settings.translations.locale.builtin": {
+    "status": "mt",
+    "srcHash": "6b0c36de2782"
+  },
+  "common.settings.translations.locale.cjk": {
+    "status": "mt",
+    "srcHash": "08729186ba51"
+  },
+  "common.settings.translations.locale.create": {
+    "status": "mt",
+    "srcHash": "cb78db4bbad6"
+  },
+  "common.settings.translations.locale.custom": {
+    "status": "mt",
+    "srcHash": "081ae3fdc403"
+  },
+  "common.settings.translations.locale.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "common.settings.translations.locale.deleteFailed": {
+    "status": "mt",
+    "srcHash": "66ff09cdc4c9"
+  },
+  "common.settings.translations.locale.deleted": {
+    "status": "mt",
+    "srcHash": "d21fead45992"
+  },
+  "common.settings.translations.locale.deletedDetail": {
+    "status": "mt",
+    "srcHash": "29c061372ec1"
+  },
+  "common.settings.translations.locale.dir": {
+    "status": "mt",
+    "srcHash": "917862472be9"
+  },
+  "common.settings.translations.locale.disable": {
+    "status": "mt",
+    "srcHash": "8807c2b3fd0f"
+  },
+  "common.settings.translations.locale.enable": {
+    "status": "mt",
+    "srcHash": "26563efc2a04"
+  },
+  "common.settings.translations.locale.english": {
+    "status": "mt",
+    "srcHash": "0bbbb0f0164d"
+  },
+  "common.settings.translations.locale.font": {
+    "status": "mt",
+    "srcHash": "ee6d6afa9f3a"
+  },
+  "common.settings.translations.locale.id": {
+    "status": "mt",
+    "srcHash": "96fb5a03276f"
+  },
+  "common.settings.translations.locale.intlHelp": {
+    "status": "mt",
+    "srcHash": "a2a0187dd632"
+  },
+  "common.settings.translations.locale.intlTag": {
+    "status": "mt",
+    "srcHash": "183a87863fa7"
+  },
+  "common.settings.translations.locale.latin": {
+    "status": "mt",
+    "srcHash": "9bde795b72be"
+  },
+  "common.settings.translations.locale.ltr": {
+    "status": "mt",
+    "srcHash": "34ce14772451"
+  },
+  "common.settings.translations.locale.native": {
+    "status": "mt",
+    "srcHash": "25e7a031671d"
+  },
+  "common.settings.translations.locale.overrides": {
+    "status": "mt",
+    "srcHash": "2a62fd462b06"
+  },
+  "common.settings.translations.locale.rtl": {
+    "status": "mt",
+    "srcHash": "da502a644e54"
+  },
+  "common.settings.translations.localeLabel": {
+    "status": "mt",
+    "srcHash": "89b86ab0e66f"
+  },
+  "common.settings.translations.locales.heading": {
+    "status": "mt",
+    "srcHash": "0221ac1f3d54"
+  },
+  "common.settings.translations.locales.help": {
+    "status": "mt",
+    "srcHash": "f4e5274b95fd"
+  },
+  "common.settings.translations.noMatches": {
+    "status": "mt",
+    "srcHash": "98e68b1ef7cd"
+  },
+  "common.settings.translations.reset": {
+    "status": "mt",
+    "srcHash": "44a39d7fc5df"
+  },
+  "common.settings.translations.resetAction": {
+    "status": "mt",
+    "srcHash": "88302ebef3af"
+  },
+  "common.settings.translations.save": {
+    "status": "mt",
+    "srcHash": "efc007a393f6"
+  },
+  "common.settings.translations.saved": {
+    "status": "mt",
+    "srcHash": "c7154a24c118"
+  },
+  "common.settings.translations.searchLabel": {
+    "status": "mt",
+    "srcHash": "bce06414177f"
+  },
+  "common.settings.translations.searchPlaceholder": {
+    "status": "mt",
+    "srcHash": "b7f06dbac9f0"
+  },
+  "common.settings.translations.sourceLabel": {
+    "status": "mt",
+    "srcHash": "3515415763a9"
+  },
+  "common.settings.translations.state.all": {
+    "status": "mt",
+    "srcHash": "4a66d1480779"
+  },
+  "common.settings.translations.state.overridden": {
+    "status": "mt",
+    "srcHash": "6936f4909181"
+  },
+  "common.settings.translations.state.stale": {
+    "status": "mt",
+    "srcHash": "60b6216d0c9b"
+  },
+  "common.settings.translations.state.untranslated": {
+    "status": "mt",
+    "srcHash": "bf2e4a3206ef"
+  },
+  "common.settings.translations.stateLabel": {
+    "status": "mt",
+    "srcHash": "d97d1ee339e4"
+  },
+  "common.settings.translations.subtitle": {
+    "status": "mt",
+    "srcHash": "7ec0d45407b4"
+  },
+  "common.settings.translations.title": {
+    "status": "mt",
+    "srcHash": "8a85cce88b15"
+  },
+  "common.settings.translations.valueLabel": {
+    "status": "mt",
+    "srcHash": "ac26a7a94ea2"
+  },
+  "common.settings.translations.warning": {
+    "status": "mt",
+    "srcHash": "95224eec73c6"
   },
   "common.setup.account.confirm": {
     "srcHash": "4a7c565d4c44",
@@ -5987,6 +6211,10 @@
     "srcHash": "c0f8d0feea79",
     "status": "mt"
   },
+  "common.studio.remap.unavailableBody": {
+    "status": "mt",
+    "srcHash": "2881a6030e52"
+  },
   "common.studio.remap.unavailableTitle": {
     "srcHash": "4f05f9d6948a",
     "status": "mt"
@@ -6542,6 +6770,18 @@
   "common.studio.settingsHub.title": {
     "srcHash": "432fa10a36a6",
     "status": "mt"
+  },
+  "common.studio.settingsHub.translationsCard.body": {
+    "status": "mt",
+    "srcHash": "6d57338757f9"
+  },
+  "common.studio.settingsHub.translationsCard.cta": {
+    "status": "mt",
+    "srcHash": "e1b9cce83c53"
+  },
+  "common.studio.settingsHub.translationsCard.heading": {
+    "status": "mt",
+    "srcHash": "8a85cce88b15"
   },
   "common.studio.source.dsn.helper": {
     "srcHash": "4de3a937fe87",

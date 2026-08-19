@@ -147,6 +147,43 @@ describe('studio.enrich is present and genuinely translated in all locales (acce
   }
 });
 
+describe('the translation editor\u2019s own chrome is translated in every locale', () => {
+  // `settings.translations.*` draws /settings/translations itself, and it closes
+  // a loop the other suites cannot see: the editor refuses to override a key
+  // that is absent from the compiled bundle, so English leaking onto THIS
+  // surface is the one case a super-admin cannot repair from inside the product
+  // (23-runtime-translations.md §7). Key-set parity proves the keys are
+  // present in all 8 bundles; `key-coverage.test.ts` proves the page's `t()`
+  // calls resolve. Neither can tell a translation from English pasted into
+  // `ar-EG` and marked `mt` — which has happened here before (eight aria-label
+  // keys shipped as literal English) — so this asserts the text actually moved.
+  const SURFACE_KEYS = [
+    'settings.translations.title',
+    'settings.translations.subtitle',
+    'settings.translations.warning',
+    'settings.translations.editor.heading',
+    'settings.translations.locales.heading',
+    'settings.translations.valueLabel',
+    'settings.translations.locale.intlHelp',
+  ] as const;
+
+  it('en-US carries the editor surface', () => {
+    const en = flatten(EN_US_RESOURCES.common);
+    for (const key of SURFACE_KEYS) expect(en.get(key), key).toBeTypeOf('string');
+  });
+
+  for (const locale of TARGET_LOCALES) {
+    it(`${locale.id} translates the editor chrome (not the English fallback)`, () => {
+      const en = flatten(EN_US_RESOURCES.common);
+      const target = flatten(readJson(locale.tag, 'common'));
+      for (const key of SURFACE_KEYS) {
+        expect(target.get(key), `${locale.tag}:${key}`).toBeTypeOf('string');
+        expect(target.get(key), `${locale.tag}:${key} must be translated, not English`).not.toBe(en.get(key));
+      }
+    });
+  }
+});
+
 describe('ICU validity, argument parity, and plural categories', () => {
   for (const locale of TARGET_LOCALES) {
     it(`${locale.id}: every message parses with en-US argument names and locale-valid plural categories`, () => {

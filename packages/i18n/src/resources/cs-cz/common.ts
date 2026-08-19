@@ -23,6 +23,7 @@ export default {
   },
   "auth": {
     "headline": "Proměňte jakoukoli databázi v přehledový panel.",
+    "description": "Připojte PostgreSQL a Adminium vygeneruje přizpůsobitelnou administrátorskou aplikaci, která respektuje oprávnění — bez psaní kódu.",
     "trust": "Jádro pod licencí AGPL · Vlastní hosting · Vaše data zůstávají vaše",
     "signIn": {
       "title": "Vítejte zpět",
@@ -244,6 +245,7 @@ export default {
   },
   "notFound": {
     "title": "Tato stránka se ztratila",
+    "body": "Stránka, kterou hledáte, neexistuje nebo byla přesunuta. Zkontrolujte adresu, nebo se vraťte na svůj přehled.",
     "errorLine": "Chyba 404",
     "searchPlaceholder": "Hledat stránku…",
     "matches": "Odpovídající stránky",
@@ -261,10 +263,12 @@ export default {
       "title": "Tuto stránku se nepodařilo vykreslit"
     },
     "tooNew": {
-      "title": "Tato stránka vyžaduje novější Adminium"
+      "title": "Tato stránka vyžaduje novější Adminium",
+      "body": "Tato stránka byla uložena s verzí konfigurace {version}, ale tento build rozumí nejvýše verzi {latest}. Aktualizujte Adminium, abyste ji otevřeli."
     },
     "unknownTemplate": {
-      "title": "Neznámá šablona stránky"
+      "title": "Neznámá šablona stránky",
+      "body": "Tato stránka používá šablonu, kterou tento build nezná. Může pocházet z novějšího Adminia nebo z rozšíření, které není nainstalované."
     }
   },
   "mutation": {
@@ -353,6 +357,70 @@ export default {
       "emptyTitle": "Zatím není co nastavovat",
       "emptyBody": "Události oznámení se zde objeví, jakmile budou jejich producenti nasazeni.",
       "saveFailed": "Tuto změnu se nepodařilo uložit."
+    },
+    "translations": {
+      "title": "Jazyky a překlady",
+      "subtitle": "Změňte v Adminiu jakoukoli formulaci, vyberte, které jazyky si lidé mohou zvolit, a přidejte vlastní.",
+      "warning": "Upravovat lze i chybové hlášky a texty přihlášení. Právě ty lidé čtou, když se něco pokazí, takže je měňte obezřetně.",
+      "editor": {
+        "heading": "Upravit překlady"
+      },
+      "localeLabel": "Jazyk",
+      "groupLabel": "Oblast",
+      "allAreas": "Všechny oblasti",
+      "stateLabel": "Zobrazit",
+      "state": {
+        "all": "Vše",
+        "overridden": "Jen upravené",
+        "untranslated": "Jen nepřeložené",
+        "stale": "Angličtina se od té doby změnila"
+      },
+      "searchLabel": "Hledat",
+      "searchPlaceholder": "Klíč nebo anglický text",
+      "loading": "Načítání textů…",
+      "noMatches": "Těmto filtrům neodpovídají žádné texty.",
+      "count": "{total, plural, one {# text} few {# texty} many {# textu} other {# textů}}",
+      "badge": {
+        "custom": "Upraveno",
+        "stale": "Angličtina se změnila",
+        "a11y": "Přístupný název"
+      },
+      "sourceLabel": "Anglický originál",
+      "valueLabel": "Překlad",
+      "save": "Uložit",
+      "saved": "Překlad uložen",
+      "resetAction": "Obnovit vestavěný text",
+      "reset": "Vestavěný text obnoven",
+      "locales": {
+        "heading": "Dostupné jazyky",
+        "help": "Vypnutím jazyka jej odeberete ze všech nabídek jazyků. Komu je už nastavený, tomu zůstane, dokud si nezvolí jiný."
+      },
+      "locale": {
+        "builtin": "Vestavěný",
+        "custom": "Vlastní",
+        "overrides": "{count, plural, =0 {žádný vlastní text} one {# vlastní text} few {# vlastní texty} many {# vlastního textu} other {# vlastních textů}}",
+        "enable": "Zapnout",
+        "disable": "Vypnout",
+        "delete": "Smazat",
+        "deleted": "Jazyk odebrán",
+        "deletedDetail": "{users, plural, one {# člověk se vrátil} few {# lidé se vrátili} many {# člověka se vrátilo} other {# lidí se vrátilo}} k výchozímu jazyku pracovního prostoru; {strings, plural, one {smazán # překlad} few {smazány # překlady} many {smazáno # překladu} other {smazáno # překladů}}.",
+        "deleteFailed": "Tento jazyk se nepodařilo odebrat",
+        "add": "Přidat jazyk",
+        "added": "Jazyk přidán",
+        "create": "Přidat",
+        "id": "Kód jazyka",
+        "intlTag": "Pravidla formátování podle",
+        "native": "Název v daném jazyce",
+        "english": "Název anglicky",
+        "dir": "Směr textu",
+        "ltr": "Zleva doprava",
+        "rtl": "Zprava doleva",
+        "font": "Písmo",
+        "latin": "Latinka",
+        "arabic": "Arabské",
+        "cjk": "Čínské / japonské / korejské",
+        "intlHelp": "Pravidla formátování určují, jak se chovají čísla, data a množná čísla. Vyberte nejbližší jazyk, který je už má — nemusí odpovídat vašemu kódu jazyka."
+      }
     }
   },
   "studio": {
@@ -630,6 +698,11 @@ export default {
         "heading": "Stránky",
         "body": "Přidávejte, upravujte a mažte stránky, měňte jejich obsah a přeuspořádejte postranní panel.",
         "cta": "Spravovat stránky"
+      },
+      "translationsCard": {
+        "heading": "Jazyky a překlady",
+        "body": "Přeformulujte v Adminiu cokoli, vyberte, které jazyky si lidé mohou zvolit, a přidejte vlastní.",
+        "cta": "Otevřít překlady"
       }
     },
     "settingsAi": {
@@ -1163,7 +1236,8 @@ export default {
         "pii": "PII",
         "masked": "Maskováno"
       },
-      "unavailableTitle": "Editor přemapování schématu není k dispozici"
+      "unavailableTitle": "Editor přemapování schématu není k dispozici",
+      "unavailableBody": "Tento build zatím editor přemapování neobsahuje (09-T12). Až přibude, spusťte generování znovu a přemapujte popisky, typy a vztahy."
     }
   },
   "onboarding": {

@@ -23,6 +23,7 @@ export default {
   },
   "auth": {
     "headline": "把任何資料庫變成儀表板。",
+    "description": "連上 PostgreSQL，Adminium 就會產生一套可換佈景、懂權限的管理後台——完全不必寫程式。",
     "trust": "AGPL 核心 · 自行架設 · 資料永遠屬於你",
     "signIn": {
       "title": "歡迎回來",
@@ -244,6 +245,7 @@ export default {
   },
   "notFound": {
     "title": "找不到這個頁面",
+    "body": "你要找的頁面不存在或已被移動。請檢查網址，或回到你的儀表板。",
     "errorLine": "錯誤 404",
     "searchPlaceholder": "搜尋頁面…",
     "matches": "符合的頁面",
@@ -261,10 +263,12 @@ export default {
       "title": "此頁面無法呈現"
     },
     "tooNew": {
-      "title": "此頁面需要較新版本的 Adminium"
+      "title": "此頁面需要較新版本的 Adminium",
+      "body": "此頁面儲存時使用的組態版本是 {version}，但目前的組建最高只支援到版本 {latest}。請先更新 Adminium 再開啟。"
     },
     "unknownTemplate": {
-      "title": "未知的頁面範本"
+      "title": "未知的頁面範本",
+      "body": "此頁面使用了目前組建無法辨識的範本。它可能來自較新版本的 Adminium，或來自尚未安裝的擴充功能。"
     }
   },
   "mutation": {
@@ -353,6 +357,70 @@ export default {
       "emptyTitle": "尚無可設定項目",
       "emptyBody": "隨著功能推出，通知事件會顯示在這裡。",
       "saveFailed": "無法儲存此變更。"
+    },
+    "translations": {
+      "title": "語言與翻譯",
+      "subtitle": "修改 Adminium 中的任何文字，決定使用者可以選哪些語言，並加入你自己的語言。",
+      "warning": "錯誤訊息與登入文字同樣可以編輯。出狀況時使用者讀到的正是這些內容，請謹慎修改。",
+      "editor": {
+        "heading": "編輯翻譯"
+      },
+      "localeLabel": "語言",
+      "groupLabel": "區域",
+      "allAreas": "所有區域",
+      "stateLabel": "顯示",
+      "state": {
+        "all": "全部",
+        "overridden": "僅已自訂",
+        "untranslated": "僅未翻譯",
+        "stale": "之後英文有變更"
+      },
+      "searchLabel": "搜尋",
+      "searchPlaceholder": "鍵名或英文原文",
+      "loading": "正在載入文字…",
+      "noMatches": "沒有符合這些篩選條件的文字。",
+      "count": "{total, plural, other {# 則文字}}",
+      "badge": {
+        "custom": "已自訂",
+        "stale": "英文已變更",
+        "a11y": "無障礙名稱"
+      },
+      "sourceLabel": "英文原文",
+      "valueLabel": "翻譯",
+      "save": "儲存",
+      "saved": "翻譯已儲存",
+      "resetAction": "還原為內建文字",
+      "reset": "已還原為內建文字",
+      "locales": {
+        "heading": "可用語言",
+        "help": "關閉某個語言後，它會從所有語言選單中消失。已經在使用的人會繼續沿用，直到自己改選其他語言。"
+      },
+      "locale": {
+        "builtin": "內建",
+        "custom": "自訂",
+        "overrides": "{count, plural, =0 {尚無自訂文字} other {# 則自訂文字}}",
+        "enable": "開啟",
+        "disable": "關閉",
+        "delete": "刪除",
+        "deleted": "已移除語言",
+        "deletedDetail": "{users, plural, other {# 位使用者}}已改回工作區預設語言；已刪除 {strings, plural, other {# 則翻譯}}。",
+        "deleteFailed": "無法移除該語言",
+        "add": "新增語言",
+        "added": "已新增語言",
+        "create": "確認新增",
+        "id": "語言代碼",
+        "intlTag": "格式規則參照",
+        "native": "該語言中的名稱",
+        "english": "英文名稱",
+        "dir": "文字方向",
+        "ltr": "由左至右",
+        "rtl": "由右至左",
+        "font": "文字系統",
+        "latin": "拉丁文",
+        "arabic": "阿拉伯文",
+        "cjk": "中文 / 日文 / 韓文",
+        "intlHelp": "格式規則決定數字、日期與複數的呈現方式。請挑選最接近且已具備這些規則的語言——它不必和你的語言代碼一致。"
+      }
     }
   },
   "studio": {
@@ -630,6 +698,11 @@ export default {
         "heading": "頁面",
         "body": "新增、編輯與刪除頁面，變更每個頁面的內容，並重新排列側邊欄。",
         "cta": "管理頁面"
+      },
+      "translationsCard": {
+        "heading": "語言與翻譯",
+        "body": "重寫 Adminium 中的任何文字，決定使用者可以選哪些語言，並加入你自己的語言。",
+        "cta": "開啟翻譯"
       }
     },
     "settingsAi": {
@@ -1163,7 +1236,8 @@ export default {
         "pii": "PII",
         "masked": "已遮罩"
       },
-      "unavailableTitle": "結構描述重新對應編輯器無法使用"
+      "unavailableTitle": "結構描述重新對應編輯器無法使用",
+      "unavailableBody": "目前的組建尚未包含重新對應編輯器（09-T12）。等它推出後重新執行產生流程，即可重新對應標籤、型別與關聯。"
     }
   },
   "onboarding": {

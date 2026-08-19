@@ -23,6 +23,7 @@ export default {
   },
   "auth": {
     "headline": "Transformez n’importe quelle base de données en tableau de bord.",
+    "description": "Connectez PostgreSQL et Adminium génère une application d’administration personnalisable et respectueuse des permissions — sans écrire une ligne de code.",
     "trust": "Cœur AGPL · Auto-hébergé · Vos données restent les vôtres",
     "signIn": {
       "title": "Bon retour",
@@ -244,6 +245,7 @@ export default {
   },
   "notFound": {
     "title": "Cette page a disparu",
+    "body": "La page que vous cherchez n’existe pas ou a été déplacée. Vérifiez l’URL, ou revenez à votre tableau de bord.",
     "errorLine": "Erreur 404",
     "searchPlaceholder": "Rechercher une page…",
     "matches": "Pages correspondantes",
@@ -261,10 +263,12 @@ export default {
       "title": "Cette page n’a pas pu s’afficher"
     },
     "tooNew": {
-      "title": "Cette page nécessite une version plus récente d’Adminium"
+      "title": "Cette page nécessite une version plus récente d’Adminium",
+      "body": "Cette page a été enregistrée avec la version de configuration {version}, mais cette version d’Adminium ne comprend que jusqu’à la version {latest}. Mettez Adminium à jour pour l’ouvrir."
     },
     "unknownTemplate": {
-      "title": "Modèle de page inconnu"
+      "title": "Modèle de page inconnu",
+      "body": "Cette page utilise un modèle que cette version ne reconnaît pas. Il provient peut-être d’un Adminium plus récent ou d’une extension qui n’est pas installée."
     }
   },
   "mutation": {
@@ -353,6 +357,70 @@ export default {
       "emptyTitle": "Rien à configurer pour l’instant",
       "emptyBody": "Les événements de notification apparaissent ici à mesure que leurs producteurs sont livrés.",
       "saveFailed": "Impossible d’enregistrer cette modification."
+    },
+    "translations": {
+      "title": "Langues et traductions",
+      "subtitle": "Modifiez n’importe quelle formulation d’Adminium, choisissez les langues proposées et ajoutez les vôtres.",
+      "warning": "Les messages d’erreur et les textes de connexion sont modifiables eux aussi. Ce sont eux que l’on lit quand quelque chose ne va pas : modifiez-les avec précaution.",
+      "editor": {
+        "heading": "Modifier les traductions"
+      },
+      "localeLabel": "Langue",
+      "groupLabel": "Section",
+      "allAreas": "Toutes les sections",
+      "stateLabel": "Afficher",
+      "state": {
+        "all": "Tout",
+        "overridden": "Personnalisés uniquement",
+        "untranslated": "Non traduits uniquement",
+        "stale": "Anglais modifié depuis"
+      },
+      "searchLabel": "Rechercher",
+      "searchPlaceholder": "Clé ou texte anglais",
+      "loading": "Chargement des textes…",
+      "noMatches": "Aucun texte ne correspond à ces filtres.",
+      "count": "{total, plural, one {# texte} other {# textes}}",
+      "badge": {
+        "custom": "Personnalisé",
+        "stale": "Anglais modifié",
+        "a11y": "Nom accessible"
+      },
+      "sourceLabel": "Source anglaise",
+      "valueLabel": "Traduction",
+      "save": "Enregistrer",
+      "saved": "Traduction enregistrée",
+      "resetAction": "Rétablir le texte d’origine",
+      "reset": "Texte d’origine rétabli",
+      "locales": {
+        "heading": "Langues disponibles",
+        "help": "Désactivez une langue pour la retirer de tous les sélecteurs de langue. Les personnes qui l’utilisent déjà la conservent jusqu’à ce qu’elles en choisissent une autre."
+      },
+      "locale": {
+        "builtin": "Intégrée",
+        "custom": "Personnalisée",
+        "overrides": "{count, plural, =0 {aucun texte personnalisé} one {# texte personnalisé} other {# textes personnalisés}}",
+        "enable": "Activer",
+        "disable": "Désactiver",
+        "delete": "Supprimer",
+        "deleted": "Langue supprimée",
+        "deletedDetail": "{users, plural, one {# personne est revenue} other {# personnes sont revenues}} à la langue par défaut de l’espace de travail ; {strings, plural, one {# traduction supprimée} other {# traductions supprimées}}.",
+        "deleteFailed": "Impossible de supprimer cette langue",
+        "add": "Ajouter une langue",
+        "added": "Langue ajoutée",
+        "create": "Ajouter la langue",
+        "id": "Code de langue",
+        "intlTag": "Règles de format issues de",
+        "native": "Nom dans la langue elle-même",
+        "english": "Nom en anglais",
+        "dir": "Sens du texte",
+        "ltr": "De gauche à droite",
+        "rtl": "De droite à gauche",
+        "font": "Écriture",
+        "latin": "Latine",
+        "arabic": "Arabe",
+        "cjk": "Chinois / japonais / coréen",
+        "intlHelp": "Les règles de format déterminent le comportement des nombres, des dates et des pluriels. Choisissez la langue la plus proche qui les possède déjà — elle n’a pas à correspondre à votre code de langue."
+      }
     }
   },
   "studio": {
@@ -630,6 +698,11 @@ export default {
         "heading": "Pages",
         "body": "Ajoutez, modifiez et supprimez des pages, changez leur contenu et réordonnez la barre latérale.",
         "cta": "Gérer les pages"
+      },
+      "translationsCard": {
+        "heading": "Langues et traductions",
+        "body": "Reformulez n’importe quel texte d’Adminium, choisissez les langues proposées et ajoutez les vôtres.",
+        "cta": "Ouvrir les traductions"
       }
     },
     "settingsAi": {
@@ -1163,7 +1236,8 @@ export default {
         "pii": "PII",
         "masked": "Masquée"
       },
-      "unavailableTitle": "Éditeur de remappage du schéma indisponible"
+      "unavailableTitle": "Éditeur de remappage du schéma indisponible",
+      "unavailableBody": "Cette version n’inclut pas encore l’éditeur de remappage (09-T12). Relancez la génération une fois qu’il sera disponible pour remapper les libellés, les types et les relations."
     }
   },
   "onboarding": {
