@@ -10,6 +10,8 @@
  */
 
 import { KeyValueRow, MonoText, cn } from '@adminium/ui';
+import { useScrollRegion } from '../../lib/useScrollRegion.js';
+import { useWidgetHeadingId } from '../../frame/WidgetHeadingContext.js';
 import { useMaybeT } from '@adminium/i18n/react';
 
 import { formatStamp, numberField, recordRowOf, stringField } from './system-lib.js';
@@ -87,13 +89,20 @@ export function DiagnosticsReadoutView({
   const stamp = formatStamp(checkedAt, locale);
   // Only render checks the payload actually answered — a readout that lists
   // every configured probe as blank reads as "broken", not "not run".
+  // The DNS/TCP/TLS/auth rows below the fold were unreachable without a mouse:
+  // a keyboard-only operator could read the first four checks of a failing
+  // connection and not the one that failed. `group` rather than `region` — a
+  // dashboard of thirteen widgets must not contribute thirteen landmarks.
+  const scroll = useScrollRegion({ role: 'group', labelledBy: useWidgetHeadingId() ?? undefined });
+
   const present = checks.filter((check) => values[check.key] !== undefined);
 
   return (
     <div
       data-widget="diagnostics-readout"
       data-testid={testId}
-      className="flex h-full flex-col gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)]"
+      {...scroll}
+      className={`flex h-full flex-col gap-2 overflow-auto px-[var(--widget-pad)] pb-[var(--widget-pad)] ${scroll.className}`}
     >
       <div className="rounded-lg border border-border bg-surface-2 px-3 py-1.5">
         {present.map((check) => {

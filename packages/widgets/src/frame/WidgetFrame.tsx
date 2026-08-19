@@ -14,7 +14,10 @@ import {
   Spinner,
 } from '@adminium/ui';
 import { AlertTriangle, EllipsisVertical, Info, RotateCcw } from 'lucide-react';
+import { useId } from 'react';
 import type { ReactNode, Ref } from 'react';
+
+import { WidgetHeadingProvider } from './WidgetHeadingContext.js';
 import { useMaybeT } from '@adminium/i18n/react';
 
 import { SkeletonSilhouette } from './SkeletonSilhouette.js';
@@ -208,8 +211,14 @@ export function WidgetFrame({
     }
   })();
 
+  // Published so a scrollable region inside the widget can be named by the
+  // heading the user can actually see, instead of an invented string.
+  const headingId = useId();
+
+  // `null` when there is no titled header — a frameless or header-less frame
+  // must not hand descendants an id that points at nothing.
   const content = (
-    <>
+    <WidgetHeadingProvider id={hasHeader ? headingId : null}>
       {/* The comp's card header is part of the card body, not a fixed chrome
           band: `align-items: flex-start`, no min-height, and the title stacked
           over an 11.5px subtitle. `--widget-pad` carries density, so the old
@@ -218,7 +227,7 @@ export function WidgetFrame({
         <header className="flex items-start gap-1.5 px-[var(--widget-pad)] pb-2 pt-[var(--widget-pad)]">
           {grip}
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-card-title text-fg">{title}</h3>
+            <h3 id={headingId} className="truncate text-card-title text-fg">{title}</h3>
             {subtitle === undefined ? null : (
               <p className="mt-0.5 truncate text-caption text-fg-subtle">{subtitle}</p>
             )}
@@ -263,7 +272,7 @@ export function WidgetFrame({
       <div className="min-h-0 flex-1" style={{ '--widget-pad': bleed ? '0px' : undefined }}>
         {body}
       </div>
-    </>
+    </WidgetHeadingProvider>
   );
 
   if (frameless) {
