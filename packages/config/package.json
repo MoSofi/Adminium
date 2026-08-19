@@ -9,13 +9,17 @@
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./eslint": "./eslint/index.js",
     "./eslint-plugin": "./src/eslint-plugin/index.js",
+    "./vitest": {
+      "types": "./vitest/index.d.ts",
+      "default": "./vitest/index.js"
+    },
     "./prettier": "./prettier.json"
   },
   "scripts": {
     "build": "echo 'config package: nothing to build'",
     "lint": "echo 'self-lint skipped'",
     "typecheck": "echo 'no ts sources'",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "devDependencies": {
     "@eslint/js": "9.39.0",

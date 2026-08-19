@@ -52,6 +52,9 @@
         "ADMINIUM_TEST_*",
         "PGUSER",
         "PGPASSWORD"
+      ],
+      "outputs": [
+        "coverage/**"
       ]
     },
     "e2e": {

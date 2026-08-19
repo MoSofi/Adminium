@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { coverage } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -18,6 +19,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
+    coverage: coverage({ statements: 93, branches: 84 }),
     hookTimeout: 60_000,
     testTimeout: 30_000,
   },

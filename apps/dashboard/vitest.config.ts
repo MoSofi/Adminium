@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
+import { coverage } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 const i18nSrc = (rel: string): string =>
@@ -20,6 +21,7 @@ export default defineConfig({
     ],
   },
   test: {
+    coverage: coverage({ statements: 72, branches: 80 }),
     environment: 'happy-dom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],

@@ -28,7 +28,7 @@
     "build": "node scripts/gen-barrel.mjs && tsc -p tsconfig.build.json",
     "typecheck": "node scripts/gen-barrel.mjs && tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "a11y": "node scripts/a11y-sweep.mjs",
