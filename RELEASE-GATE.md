@@ -187,15 +187,33 @@ not deleting it.
       keyboard alone, no `.click()` and no `.focus()`. axe cannot supply any of
       it: it reads a snapshot, so it cannot tell you that tabbing never reaches
       something or that Escape strands you
-- [ ] VRT baselines regenerated on the CI platform after the token changes.
-      **2026-08-18: the harness is now wired** — `vrt` is a turbo task and a job
-      in `ci.yml`, after being complete-but-unreferenced (no workflow, no turbo
-      task, never executed once) for the whole of M1–M11. It currently reports
-      **0 committed baselines** loudly into the job summary rather than passing
-      silently. Capture them with the `vrt-baselines` workflow
-      (`workflow_dispatch`, runs on the same image, uploads the PNGs as an
-      artifact to review and commit) — deliberately AFTER the accessibility
-      burn-down below, or the whole matrix gets recorded twice
+- [x] VRT baselines regenerated on the CI platform after the token changes —
+      **closed 2026-08-19. 315 baselines committed, captured on `ubuntu-latest`
+      by the `vrt-baselines` workflow** (run 32291675405, 6m06s): 76 vrt-tagged
+      stories x 4 core profiles, plus 11 accent-subset stories at accent-black.
+      Captured AFTER the accessibility burn-down reached zero, per the sequencing
+      this row asked for, so the matrix records once rather than twice.
+      **The first capture attempt failed, and it earned its keep immediately.**
+      313 of 315 passed in 4.5 minutes; `qa-widget-states--charts-states` failed
+      on both dark profiles with "failed to take two consecutive stable
+      screenshots", 15,914px then 16,053px. The cause was not flake. Storybook's
+      `data-vrt-ready` flag is quiescence-based with a hard 2,500ms stop, and
+      when that stop fired the flag went up anyway with nothing marking it as a
+      giveaway — so VRT photographed a page mid-render. That story settles in
+      1,291ms on a dev box and does not on a CI runner. Fixed in 30bc528: the
+      ceiling is 8,000ms (a ceiling, not a wait — the 313 stories that already
+      settled are unaffected), readiness now publishes its provenance as
+      `data-vrt-settle="settled|deadline"` so a deadline capture can be reported
+      rather than banked, and `toHaveScreenshot` gets 30s because Playwright's
+      default 5s has to cover two full-page captures of a 16,053px page plus the
+      diff between them. The re-capture took all 315, and all four
+      `charts-states` profiles landed at 16,053px — the settled height, not the
+      mid-render one.
+      **What this row still does NOT buy.** `vrt` is not in the required-checks
+      list (verify, a11y, dep-graph, sqlite, postgres, mysql, desktop, analyze,
+      audit), so a regression shows as a red X on the run page and blocks
+      nothing. The comparison job's own 30-minute timeout is now measured rather
+      than assumed: the full matrix captures in 4.5 minutes.
 
 ## i18n / RTL
 
