@@ -19,7 +19,10 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
-    coverage: coverage({ statements: 93, branches: 84 }),
+    // Headroom below the local reading on purpose: pg + mysql dialects are skipped locally, so the local
+    // number is not the one CI measures. adapter-mysql proved that gap can go
+    // DOWN as well as up. Tighten from a green CI run.
+    coverage: coverage({ statements: 91, branches: 82 }),
     hookTimeout: 60_000,
     testTimeout: 30_000,
   },

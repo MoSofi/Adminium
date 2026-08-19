@@ -12,7 +12,10 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
-    coverage: coverage({ statements: 92, branches: 81 }),
+    // Headroom below the local reading on purpose: the live probe is env-gated, so the local
+    // number is not the one CI measures. adapter-mysql proved that gap can go
+    // DOWN as well as up. Tighten from a green CI run.
+    coverage: coverage({ statements: 90, branches: 79 }),
     hookTimeout: 60_000,
     testTimeout: 30_000,
   },
