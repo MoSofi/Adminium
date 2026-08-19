@@ -22,12 +22,20 @@
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-solid: var(--accent-soft-solid);
   --color-accent-hover: var(--accent-hover);
   --color-accent-border: var(--accent-border);
   --color-pos: var(--pos);         --color-pos-soft: var(--pos-soft);
   --color-warn: var(--warn);       --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);       --color-info-soft: var(--info-soft);
+  /* `bg-*-soft-solid` — the pre-composited chip tints (tokens.css, THE OPAQUE CHIP TINTS).
+     Mapped alongside the washes, not instead of them: `bg-*-soft` still paints the translucent
+     row/panel wash, and a chip that must clear 4.5:1 wherever it lands takes the solid one. */
+  --color-pos-soft-solid: var(--pos-soft-solid);
+  --color-warn-soft-solid: var(--warn-soft-solid);
+  --color-danger-soft-solid: var(--danger-soft-solid);
+  --color-info-soft-solid: var(--info-soft-solid);
   --color-viz-1: var(--viz-1); --color-viz-2: var(--viz-2); --color-viz-3: var(--viz-3);
   --color-viz-4: var(--viz-4); --color-viz-5: var(--viz-5); --color-viz-6: var(--viz-6);
   --color-viz-7: var(--viz-7); --color-viz-8: var(--viz-8);

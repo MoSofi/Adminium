@@ -35,6 +35,7 @@
   --accent: var(--accent-dark);
   --accent-fg: #0f0f14;
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-soft-solid: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --accent-hover: color-mix(in srgb, var(--accent) 88%, #fff);
   --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -46,6 +47,13 @@
   --danger-soft: rgba(255,107,107,.14);
   --info: #6ea8ff;
   --info-soft: rgba(110,168,255,.14);
+  /* The `-soft-solid` chip tints are PRE-COMPOSITED over --surface, so they must be re-declared
+     here for the same reason --accent-soft is: a value left to the root would arrive already
+     mixed with the ROOT's --surface — a near-white pill inside a #0f0f14 code block. */
+  --pos-soft-solid: color-mix(in srgb, var(--pos) 14%, var(--surface));
+  --warn-soft-solid: color-mix(in srgb, var(--warn) 14%, var(--surface));
+  --danger-soft-solid: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  --info-soft-solid: color-mix(in srgb, var(--info) 14%, var(--surface));
   --shadow: 0 1px 2px rgba(0,0,0,.4);
   --shadow-md: 0 6px 20px rgba(0,0,0,.5);
   --shadow-lg: 0 16px 40px rgba(0,0,0,.6);
@@ -79,6 +87,7 @@
   --accent: var(--accent-light);
   --accent-fg: #ffffff;
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-soft-solid: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --accent-hover: color-mix(in srgb, var(--accent) 82%, #000);
   --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -90,6 +99,13 @@
   --danger-soft: #fdecec;
   --info: #1c59e0;
   --info-soft: #e7edfd;
+  /* Opaque already (light's semantic softs are hexes), so these alias rather than re-derive —
+     but they still have to be DECLARED here, or the scope would inherit the root's, which under
+     a dark root are 14% mixes over #141419. */
+  --pos-soft-solid: var(--pos-soft);
+  --warn-soft-solid: var(--warn-soft);
+  --danger-soft-solid: var(--danger-soft);
+  --info-soft-solid: var(--info-soft);
   --shadow: 0 1px 2px rgba(20,20,35,.04), 0 1px 3px rgba(20,20,35,.05);
   --shadow-md: 0 4px 14px rgba(20,20,35,.09);
   --shadow-lg: 0 12px 34px rgba(20,20,35,.13);

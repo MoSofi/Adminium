@@ -4,20 +4,31 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { RuntimeChip, type RuntimeChipState } from './RuntimeChip.js';
+import { toneSoftClasses, type Tone } from '../../lib/tones.js';
 
-/** 11-electron.md §8.1's table, as data — every row is asserted below. */
-const ROWS: ReadonlyArray<{ state: RuntimeChipState; tint: string }> = [
-  { state: 'local', tint: 'bg-surface-3' },
-  { state: 'lan-share', tint: 'bg-accent-soft' },
-  { state: 'remote-db', tint: 'bg-surface-3' },
-  { state: 'remote-db-offline', tint: 'bg-warn-soft' },
+/**
+ * 11-electron.md §8.1's table, as data — every row is asserted below.
+ *
+ * The tone column is §8.1's own ("muted" → neutral, "accent-soft" → accent, "warn" → warn); the
+ * utilities behind it come from the shared chip recipe rather than being spelled out here, which
+ * is the point of the recipe. The previous version hardcoded `bg-accent-soft` and matched it with
+ * `className.toContain` — a substring test that went on passing after the chip tints became
+ * `bg-accent-soft-solid`, so it asserted the tone's NAME and nothing about the tint.
+ */
+const ROWS: ReadonlyArray<{ state: RuntimeChipState; tone: Tone }> = [
+  { state: 'local', tone: 'neutral' },
+  { state: 'lan-share', tone: 'accent' },
+  { state: 'remote-db', tone: 'neutral' },
+  { state: 'remote-db-offline', tone: 'warn' },
 ];
 
 describe('RuntimeChip', () => {
-  it.each(ROWS)('renders the §8.1 tone for $state', ({ state, tint }) => {
+  it.each(ROWS)('renders the §8.1 tone for $state', ({ state, tone }) => {
     render(<RuntimeChip state={state} label="Chip" />);
     const chip = screen.getByText('Chip');
-    expect(chip.className).toContain(tint);
+    for (const cls of toneSoftClasses[tone].split(' ')) {
+      expect(chip.classList.contains(cls), cls).toBe(true);
+    }
     expect(chip.getAttribute('data-state')).toBe(state);
   });
 

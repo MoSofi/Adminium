@@ -100,6 +100,12 @@
 :root {
   --accent: var(--accent-light);
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  /* The accent half of THE OPAQUE CHIP TINTS (tokens.css states the reasoning once, for all five
+     tones). Same 10% as the wash above, but mixed with --surface instead of `transparent`, so an
+     accent chip's contrast is a property of the token rather than of whatever it was re-parented
+     onto. --accent-soft itself is UNCHANGED and still translucent: active nav rows, selected table
+     rows and panel washes have to layer, and layering is exactly what a chip must not do. */
+  --accent-soft-solid: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --accent-hover: color-mix(in srgb, var(--accent) 82%, #000);
   --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -121,5 +127,7 @@
 [data-theme="dark"] {
   --accent: var(--accent-dark);
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* 12% here too, matching the dark wash — a chip on --surface is byte-identical to before. */
+  --accent-soft-solid: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --accent-hover: color-mix(in srgb, var(--accent) 88%, #fff);
 }

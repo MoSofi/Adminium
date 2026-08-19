@@ -15,12 +15,24 @@ describe('Button', () => {
   it('defaults to primary/md with accent bg and glow shadow', () => {
     render(<Button>Save</Button>);
     const button = screen.getByRole('button', { name: 'Save' });
-    expect(button.className).toContain('bg-accent');
-    expect(button.className).toContain('text-accent-fg');
-    expect(button.className).toContain('shadow-glow');
-    expect(button.className).toContain('h-[34px]');
+    expect(button.classList.contains('bg-accent')).toBe(true);
+    expect(button.classList.contains('text-accent-fg')).toBe(true);
+    expect(button.classList.contains('shadow-glow')).toBe(true);
+    expect(button.classList.contains('h-[34px]')).toBe(true);
   });
 
+  /**
+   * `classList.contains`, not `className.toContain`: the substring form cannot tell `bg-accent`
+   * from `bg-accent-soft` or `bg-accent-soft-solid`, so it passes for a fill this file never
+   * meant to accept. Every tinted-chip assertion in the library shared that blind spot and rode
+   * straight through the translucent → pre-composited tint change without noticing.
+   *
+   * The two soft variants below still name the TRANSLUCENT `-soft` wash, and deliberately so —
+   * Button keeps its own variant map rather than importing `toneSoftClasses`, so it did not move
+   * with the chips. If it is ever pointed at the opaque `-soft-solid` tints (which is what a
+   * soft button on a tinted card would need — see tokens.css, THE OPAQUE CHIP TINTS), these two
+   * rows fail, which is the intended way to find out.
+   */
   it.each([
     ['secondary', 'bg-surface'],
     ['ghost', 'hover:bg-surface-3'],
@@ -32,7 +44,7 @@ describe('Button', () => {
     ['inverse', 'bg-fg'],
   ] as const)('applies the %s variant classes', (variant, cls) => {
     render(<Button variant={variant}>x</Button>);
-    expect(screen.getByRole('button', { name: 'x' }).className).toContain(cls);
+    expect(screen.getByRole('button', { name: 'x' }).classList.contains(cls), cls).toBe(true);
   });
 
   it.each([
@@ -114,6 +126,6 @@ describe('Button', () => {
     );
     const link = screen.getByRole('link', { name: 'Docs' });
     expect(link.getAttribute('href')).toBe('/docs');
-    expect(link.className).toContain('bg-accent-soft');
+    expect(link.classList.contains('bg-accent-soft')).toBe(true);
   });
 });
