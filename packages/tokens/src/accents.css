@@ -83,7 +83,9 @@
        --surface-3, both live in the axe sweep (active nav rows, sticky headers, chips).
      --accent-selection was 22% — an earlier note here claimed it "keeps --fg at >=9.9:1", which
        is true and beside the point: ::selection paints over WHATEVER text the user drags across,
-       including secondary and tertiary copy, which measured 4.36:1 and 3.33:1.
+       including secondary and tertiary copy, which measured 4.36:1 and 3.33:1. Lowering it to 12%
+       fixed that ON A PLAIN SURFACE and nowhere else — see THE SELECTION PAIR below, which is why
+       the token is no longer translucent at all.
      --accent-border was 25% — and the note here asserted it "has no consumer … so no WCAG
        obligation attaches". The first half is still literally true of the TOKEN (no `bg-`/
        `border-accent-border` utility and no var(--accent-border) read outside tailwind.css), but
@@ -107,7 +109,20 @@
      rows and panel washes have to layer, and layering is exactly what a chip must not do. */
   --accent-soft-solid: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --accent-hover: color-mix(in srgb, var(--accent) 82%, #000);
-  --accent-selection: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* THE SELECTION PAIR — the same pre-composition as the chip tints, for the same reason, plus a
+     pinned foreground. tokens.css `::selection` sets BOTH halves; read the note there first.
+     A translucent selection tint is the worst case of "contrast depends on what it lands on",
+     because the user chooses the backdrop by dragging: 12% over --surface is the number this
+     comment used to quote, but the same wash over an ALREADY tinted row (a selected table row or
+     an active nav item, both --accent-soft) measured 3.474:1 for --fg-subtle and 3.892:1 for
+     --accent, and over a primary button's fill it put --fg at 1.080:1 (monochrome accent; 2.78:1 on
+     indigo). Freezing the backdrop into
+     the token, exactly as the chips do, makes the pair a property of the palette: --fg on it now
+     measures >=13.038:1 in every theme x accent x scope, on every surface AND on --accent itself.
+     The `selection` group in scripts/contrast-check.mjs measures all of it, including the
+     button-fill backdrop no other group covers. 12% is unchanged, and over a plain --surface the
+     colour is byte-identical to the translucent version — only the layered cases move. */
+  --accent-selection: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --accent-border: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-glow: 0 2px 8px color-mix(in srgb, var(--accent) 36%, transparent);
 }

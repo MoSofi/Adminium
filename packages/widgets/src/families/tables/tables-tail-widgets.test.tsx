@@ -172,6 +172,72 @@ describe('top-movers-list (annex §3)', () => {
     const deltas = data.map((row) => Math.abs(row.delta));
     expect(deltas).toEqual([...deltas].sort((a, b) => b - a));
   });
+
+  /**
+   * The width-budget fix. happy-dom has no layout engine, so the numbers behind
+   * this live in the component's doc block and were taken in headless Chromium
+   * against the built Storybook: in the QA gallery's 252px column the row
+   * overflowed by 14px and two of the five metric names rendered at ZERO width;
+   * with the sparkline dropped the overflow is 0 and the narrowest name is
+   * 40.5px. What CAN be asserted here is that both halves of the mechanism are
+   * still wired, because either one alone is inert — the query needs the
+   * container, and the container does nothing without a query on a child.
+   */
+  it('drops the sparkline, not the metric name, once the column is too narrow', () => {
+    render(<TopMoversList rows={moverRowsOf(topMoversListDemoData(3))} />);
+    const list = document.querySelector('[data-widget="top-movers-list"]')!;
+    expect(list.className).toContain('@container');
+    const spark = list.querySelector('svg.adm-spark');
+    expect(spark?.getAttribute('class')).toContain('@max-xs:hidden');
+  });
+
+  it('titles the name so a truncated metric is still readable on hover', () => {
+    render(<TopMoversList rows={[{ id: 'a', name: 'Enterprise plan renewals', value: 1, delta: 2 }]} />);
+    expect(screen.getByTitle('Enterprise plan renewals').textContent).toBe('Enterprise plan renewals');
+  });
+
+  describe('the scroll region is earned, never assumed', () => {
+    /** happy-dom reports 0 for every layout metric, so overflow is simulated. */
+    function withClippedList(run: () => void): void {
+      const sh = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight');
+      const ch = Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight');
+      Object.defineProperty(Element.prototype, 'scrollHeight', { configurable: true, get: () => 400 });
+      Object.defineProperty(Element.prototype, 'clientHeight', { configurable: true, get: () => 120 });
+      try {
+        run();
+      } finally {
+        if (sh) Object.defineProperty(Element.prototype, 'scrollHeight', sh);
+        else Reflect.deleteProperty(Element.prototype, 'scrollHeight');
+        if (ch) Object.defineProperty(Element.prototype, 'clientHeight', ch);
+        else Reflect.deleteProperty(Element.prototype, 'clientHeight');
+      }
+    }
+
+    it('adds no tab stop while every row is visible', () => {
+      render(<TopMoversList rows={moverRowsOf(topMoversListDemoData(3))} />);
+      expect(document.querySelector('[data-widget="top-movers-list"]')?.hasAttribute('tabindex')).toBe(false);
+    });
+
+    it('makes a clipped read-only list keyboard-reachable', () => {
+      withClippedList(() => {
+        render(<TopMoversList rows={moverRowsOf(topMoversListDemoData(3))} n={9} />);
+        const list = document.querySelector('[data-widget="top-movers-list"]')!;
+        expect(list.getAttribute('tabindex')).toBe('0');
+        // No explicit role: one here would REPLACE the <ul>'s implicit
+        // `role="list"` and with it the "list, 9 items" announcement.
+        expect(list.hasAttribute('role')).toBe(false);
+      });
+    });
+
+    it('leaves a clipped drill-through list alone, since its rows are already buttons', () => {
+      withClippedList(() => {
+        render(<TopMoversList rows={moverRowsOf(topMoversListDemoData(3))} n={9} onSelect={() => {}} />);
+        const list = document.querySelector('[data-widget="top-movers-list"]')!;
+        expect(list.hasAttribute('tabindex')).toBe(false);
+        expect(list.querySelectorAll('[data-part="mover-row"] button')).toHaveLength(9);
+      });
+    });
+  });
 });
 
 // ── ranked-entity-list ──────────────────────────────────────────────────────

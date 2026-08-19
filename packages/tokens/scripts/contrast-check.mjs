@@ -145,6 +145,18 @@ const GROUPS = {
     gated: true,
     label: 'neutral copy on the other translucent accent tints (--accent-selection, --accent-border)',
   },
+  /* THE SELECTION PAIR (accents.css). ::selection is the one pair whose BACKDROP the user picks,
+     by dragging — so it is the extreme case of the composition this gate could not enumerate, and
+     the only fix that makes it enumerable is the one tokens.css took: pin both halves. This group
+     exists to hold that shut. It measures --fg on --accent-selection over every surface AND over
+     --accent, which is the backdrop no other group covers: a primary button's fill is not a
+     surface, yet its label is draggable text, and with a translucent selection tint --fg measured
+     1.080:1 there. Adding --accent to the surface list of the generic groups would be wrong (it is
+     not a page background); naming it here, where the rule genuinely applies, is not. */
+  selection: {
+    gated: true,
+    label: '::selection — the theme --fg on the pre-composited --accent-selection, incl. over --accent',
+  },
   /* The PRE-COMPOSITED chip tints (tokens.css, THE OPAQUE CHIP TINTS). Every tone is pushed
      against its `-soft-solid` on all four surfaces even though an opaque tint cannot vary with
      what is under it — the redundancy IS the assertion. A chip's label is the one pair that has
@@ -747,6 +759,13 @@ function buildChecks(get, has, vocab) {
   }
   for (const tint of accentTints.filter((t) => t !== '--accent-soft')) {
     for (const fg of foregrounds) for (const s of surfaces) push('text-on-tint', fg, tint, AA_TEXT, { on: s });
+  }
+
+  // 7b. ::selection, both halves (see the `selection` group comment). `--accent` joins the surface
+  //     list here and ONLY here: text on a solid accent fill is draggable, so the selection tint
+  //     can land on it, while nothing else in this file paints body copy on a fill.
+  if (has('--accent-selection')) {
+    for (const s of [...surfaces, '--accent']) push('selection', '--fg', '--accent-selection', AA_TEXT, { on: s });
   }
 
   // 8. The AuthLayout brand panel — see the `brand-panel` group comment.

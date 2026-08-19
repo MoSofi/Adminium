@@ -20,6 +20,8 @@ import {
   trendOf,
 } from './tables-tail-lib.js';
 import type { MoverRow } from './tables-tail-types.js';
+import { useWidgetHeadingId } from '../../frame/WidgetHeadingContext.js';
+import { useScrollRegion } from '../../lib/useScrollRegion.js';
 import type { WidgetProps } from '../../registry/types.js';
 
 export { topMoversListConfigSchema, topMoversListDemoData };
@@ -38,6 +40,30 @@ export type { TopMoversListConfig, MoverRow };
  * The rows arrive pre-ranked by the binding (annex: "record-list ranked by
  * |delta|"); the widget re-ranks defensively so a hand-written binding that
  * forgets the ORDER BY still shows the actual movers.
+ *
+ * WIDTH BUDGET, and why the sparkline is the column that yields. Four of the
+ * five columns are `shrink-0` — icon tile, sparkline, value, delta pill — so the
+ * only flexible one is the NAME, and flexbox spends it first. Measured in the QA
+ * gallery's 4-up row (252px of content) that is not a near miss: three metric
+ * names rendered 18px wide and TWO rendered at literally zero, and the row still
+ * overflowed by 14px, so "Refunds · $3,202.00 · −18.9%" showed as an anonymous
+ * icon, a sparkline and two numbers with no way to tell which metric it was.
+ *
+ * The fixed columns need 204px (12 padding + 4×12 gap + 28 tile + 48 spark + 68
+ * pill) before a single character of name or value; a currency value with cents
+ * measures ~68px, which leaves ~48px of name only from 320px up. So below 20rem
+ * the sparkline is dropped — with its gap, 60px back, enough for the name AND
+ * the whole value. It is the right column to lose: its information (direction
+ * and size of the move) is already carried twice over by the tone-tinted trend
+ * glyph and the delta pill, while the name is the only thing in the row that
+ * says WHICH metric moved.
+ *
+ * A CONTAINER query, not a media query: this widget's width comes from the
+ * dashboard grid cell it lands in, not from the viewport. At one 1280px viewport
+ * it renders at 1230px full-bleed and at 252px in a 4-up row, and only the
+ * container knows which. `@max-xs` measures the container's CONTENT box
+ * (verified in Chromium: the sparkline returns at exactly 320px of content, not
+ * of border box), which is the same width the budget above is computed against.
  */
 
 export interface TopMoversListProps {
@@ -67,6 +93,15 @@ export function TopMoversList({
 }: TopMoversListProps) {
   const t = useMaybeT();
   const tag = resolveLocale(locale);
+  // The layout above keeps the ROW from clipping; this covers what layout
+  // cannot — a list taller than its frame, where the rows below the fold are
+  // unreachable without a mouse. Conditional by construction: `useScrollRegion`
+  // attaches the stop only while the container really overflows, so a frame tall
+  // enough for every row gets no dead tab stop. It is applied only to the
+  // READ-ONLY variant below, because when `onSelect` is supplied every row is
+  // already a <button> and a container stop would just be a silent extra one in
+  // front of N real ones.
+  const scroll = useScrollRegion({ labelledBy: useWidgetHeadingId() ?? undefined });
   const ranked = [...rows].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, Math.max(1, n));
 
   if (ranked.length === 0) {
@@ -81,7 +116,12 @@ export function TopMoversList({
   }
 
   return (
-    <ul data-widget="top-movers-list" data-testid={testId} className="h-full overflow-auto px-2 py-1">
+    <ul
+      data-widget="top-movers-list"
+      data-testid={testId}
+      {...(onSelect === undefined ? scroll : {})}
+      className={`@container h-full overflow-auto px-2 py-1 ${scroll.className}`}
+    >
       {ranked.map((row) => {
         const good = goodDirectionFor(row.name, row.goodDirection, goodDirectionByMetric);
         const bad = isBadMove(row.delta, good);
@@ -99,7 +139,12 @@ export function TopMoversList({
               tone={moverTone(row.tone, row.delta, good)}
               icon={<Glyph className="rtl:-scale-x-100" />}
             />
-            <span className="min-w-0 flex-1 truncate text-body-sm text-fg">{row.name}</span>
+            {/* `title` so a name the row is too narrow to spell out is still
+                readable on hover — the text is in the DOM either way, so screen
+                readers always had it; this is for the sighted mouse user. */}
+            <span className="min-w-0 flex-1 truncate text-body-sm text-fg" title={row.name}>
+              {row.name}
+            </span>
             {showSparkline && row.spark !== undefined && row.spark.length > 0 && (
               <Sparkline
                 data={row.spark}
@@ -107,7 +152,7 @@ export function TopMoversList({
                 width={sparkWidth}
                 height={20}
                 tone={bad ? 'danger' : 'positive'}
-                className="shrink-0"
+                className="shrink-0 @max-xs:hidden"
               />
             )}
             <MonoText className="shrink-0 text-body-sm font-bold text-fg">{value}</MonoText>

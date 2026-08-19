@@ -135,6 +135,21 @@
   --shadow-lg: 0 16px 40px rgba(0,0,0,.6);
 }
 
+/* ::selection SETS BOTH HALVES OF THE PAIR, and that is the whole point.
+   Left to the browser, only the background was ours and the foreground was "whatever text the
+   user happened to drag across" — so the selection pair was undefined by construction and no gate
+   could state it. Measured on the palette before this: --fg-subtle on the selection wash over a
+   selected table row 3.474:1, --accent on it over an active sidebar row 3.892:1, and --fg over a
+   primary button's accent fill 1.080:1 (monochrome accent; 2.78:1 on indigo — near-invisible either way). axe never sees any of that: it does not
+   evaluate ::selection, so none of it appeared in the sweep — a real low-vision failure with no
+   automated witness, which is exactly the kind this palette keeps having to find by measuring.
+   With --accent-selection pre-composited (accents.css, THE SELECTION PAIR) and the colour pinned
+   to the theme's own --fg, the pair is fixed at >=13.038:1 everywhere, including inside the
+   .adm-always-dark / .adm-always-light scopes, which re-declare both tokens together.
+   THE COST, accepted: selected text loses its own colour for as long as it is selected — an
+   accent link or a --pos status reads as body text under the highlight. That is what every
+   browser's default selection does, and it is the price of a pair that cannot be composed away. */
 ::selection {
   background: var(--accent-selection);
+  color: var(--fg);
 }

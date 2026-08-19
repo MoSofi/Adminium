@@ -394,6 +394,124 @@ describe('GlobalSearchWidget', () => {
     fireEvent.click(document.querySelector('[data-part="search-result"]') as Element, { button: 0 });
     expect(onEvent).toHaveBeenCalledWith({ type: 'drill-through', href: '/orders/10248' });
   });
+
+  /**
+   * The dropdown variant is a combobox with a listbox popup, and every claim
+   * below is a real keyboard behaviour rather than an attribute: the field used
+   * to be a `PopoverTrigger` on a `<div>` (a dialog trigger by announcement,
+   * activatable by nothing) whose panel could not be dismissed, whose rows
+   * could not be reached with the arrow keys, and whose only tab stops sat
+   * inside Radix's LOOPING FocusScope — i.e. a Tab trap.
+   */
+  describe('dropdown variant — combobox semantics', () => {
+    // "o" hits both rows: the label "Order #10248" and Ana's snippet "Owner".
+    const openWith = async (text = 'o', onEvent: (event: unknown) => void = noop) => {
+      render(
+        <GlobalSearchWidget
+          config={cfg(globalSearchConfigSchema, { variant: 'dropdown' })}
+          instanceId="t"
+          onEvent={onEvent as never}
+          data={data}
+        />,
+      );
+      const input = screen.getByRole('combobox') as HTMLInputElement;
+      await userEvent.click(input);
+      await userEvent.keyboard(text);
+      return input;
+    };
+
+    it('names the field a combobox and stamps no dialog-trigger attributes on a div', () => {
+      render(
+        <GlobalSearchWidget
+          config={cfg(globalSearchConfigSchema, { variant: 'dropdown' })}
+          instanceId="t"
+          onEvent={noop}
+          data={data}
+        />,
+      );
+      expect(screen.getByRole('combobox').tagName).toBe('INPUT');
+      // The old PopoverTrigger put both of these on the wrapper <div>.
+      expect(document.querySelector('[aria-haspopup]')).toBeNull();
+      expect(document.querySelector('div[type="button"]')).toBeNull();
+    });
+
+    it('opens a listbox the field points at, and closes it again on Escape', async () => {
+      const input = await openWith();
+      const listbox = screen.getByRole('listbox');
+      expect(input.getAttribute('aria-expanded')).toBe('true');
+      expect(input.getAttribute('aria-controls')).toBe(listbox.id);
+      expect(screen.getAllByRole('option')).toHaveLength(2);
+
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('listbox')).toBeNull();
+      expect(input.getAttribute('aria-expanded')).toBe('false');
+      // Escape dismisses the panel WITHOUT throwing the query away…
+      expect(input.value).toBe('o');
+      // …and an arrow key brings it back, so the dismiss is never a dead end.
+      await userEvent.keyboard('{ArrowDown}');
+      expect(screen.getByRole('listbox')).toBeTruthy();
+    });
+
+    it('clears the field on a second Escape (APG)', async () => {
+      const input = await openWith();
+      await userEvent.keyboard('{Escape}{Escape}');
+      expect(input.value).toBe('');
+    });
+
+    it('moves the active option with the arrow keys, wrapping at the ends', async () => {
+      const input = await openWith();
+      const ids = screen.getAllByRole('option').map((option) => option.id);
+      expect(input.getAttribute('aria-activedescendant')).toBe(ids[0]);
+      expect(screen.getAllByRole('option')[0]?.getAttribute('aria-selected')).toBe('true');
+
+      await userEvent.keyboard('{ArrowDown}');
+      expect(input.getAttribute('aria-activedescendant')).toBe(ids[1]);
+      expect(screen.getAllByRole('option')[1]?.getAttribute('aria-selected')).toBe('true');
+
+      await userEvent.keyboard('{ArrowDown}');
+      expect(input.getAttribute('aria-activedescendant')).toBe(ids[0]);
+      await userEvent.keyboard('{ArrowUp}');
+      expect(input.getAttribute('aria-activedescendant')).toBe(ids[1]);
+    });
+
+    it('opens the row under the cursor on Enter', async () => {
+      const onEvent = vi.fn();
+      await openWith('o', onEvent);
+      await userEvent.keyboard('{ArrowDown}{Enter}');
+      expect(onEvent).toHaveBeenCalledWith({ type: 'drill-through', href: '/people/2' });
+      // Choosing closes the panel — the result page is what the user is now on.
+      expect(screen.queryByRole('listbox')).toBeNull();
+    });
+
+    it('keeps focus in the field and leaves no tab stop inside the panel', async () => {
+      const input = await openWith();
+      // Radix would otherwise autofocus the panel's first tabbable on open,
+      // pulling the caret out of the field on the FIRST keystroke.
+      expect(document.activeElement).toBe(input);
+      // Rows are reached by aria-activedescendant, never by Tab: a tabbable row
+      // inside a `loop: true` FocusScope can never be Tabbed back out of.
+      for (const option of screen.getAllByRole('option')) expect(option.tabIndex).toBe(-1);
+    });
+
+    it('survives a click back into the field', async () => {
+      const input = await openWith();
+      // Radix treats the anchor as "outside" (only a Trigger is exempt), so
+      // without the guard, clicking into your own query to fix a typo would
+      // dismiss the results you were reading.
+      await userEvent.click(input);
+      expect(screen.getByRole('listbox')).toBeTruthy();
+    });
+
+    it('announces "no results" as a status rather than an empty listbox', async () => {
+      const input = await openWith('zzz');
+      expect(screen.queryByRole('listbox')).toBeNull();
+      // A listbox may own nothing but options, so the empty-state card lives in
+      // a status region and the combobox reports itself collapsed.
+      expect(screen.getByRole('status')).toBeTruthy();
+      expect(input.getAttribute('aria-expanded')).toBe('false');
+      expect(input.getAttribute('aria-activedescendant')).toBeNull();
+    });
+  });
 });
 
 // ── tab-bar ────────────────────────────────────────────────────────────────
