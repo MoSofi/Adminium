@@ -41,6 +41,56 @@ not deleting it.
       never a blind exact `COUNT(*)` (`apps/server/src/crud/list.ts`,
       proven live in `apps/server/test/crud-estimated-count.test.ts`)
 
+- [ ] Every package meets the coverage floor 15-quality.md §1 specifies —
+      **the harness now exists and runs in CI; the floors do not yet.** Until
+      2026-08-19 there was no `coverage` key in any of the 9 vitest configs and
+      no provider installed, so task 15-T01 was unbuilt and this row could not be
+      measured at all. Each package now carries `coverage.thresholds` set to
+      `max(§1 floor, measured rounded down)`, which is green on arrival and
+      ratchets upward only — a floor set at the §1 numbers would have been red on
+      arrival, which is how the VRT and axe gates died the first time.
+      **Above §1 already, pinned at the §1 number:** engine 94.2/88.7,
+      config 95.2/88.5, tokens 100/100, i18n 91.8/90.3, server 90.5/81.3.
+      **Short on branches only:** llm 84.7, meta 84.6 (§1 wants 85);
+      adapter-postgres 81.7, adapter-sqlite 79.3 (§1 wants 85).
+      **Short on both:** schema-import 85.7/72.6 and adapter-mysql 66.7/79.8
+      against §1's 90/85 — adapter-mysql's figure is understated locally because
+      its live suite is env-gated (proven on adapter-postgres, which drops
+      92.2 → 54.6 when its probe is denied), so re-measure it from a CI run
+      before treating that number as real. **apps/dashboard** is 72.7 against
+      §1's 75. `@adminium/ui`, `@adminium/widgets` and `@adminium/charts` collect
+      and report but assert nothing — §1 exempts them, because screenshots and
+      axe are the signal there.
+      Check this row when every package's threshold equals or exceeds its §1
+      floor on both axes.
+- [x] Performance budgets — **9 of the 10 rows in 15-quality.md §5 are WAIVED
+      for v1.0** (owner decision 2026-08-19). The tenth is measured and gated and
+      stays that way: the dashboard entry chunk, 321.4 KiB gz against 350, by
+      `apps/dashboard/scripts/check-entry-budget.mjs` at the end of the dashboard
+      build.
+      **Rationale.** v1 is a free, self-hosted, source-available admin tool with
+      no hosted multi-tenant surface, so there is no fleet whose p95 anyone is
+      accountable for; an operator runs it against their own database at their
+      own scale. Building nine benchmark harnesses to confirm limits that nothing
+      suggests are being exceeded is not the best use of the remaining v1 time.
+      Same shape as the external-pentest waiver above, and for the same reason.
+      **What the waiver rests on, stated honestly, because two of these are
+      different in kind.** Spot-measured and NOT violated today: the per-family
+      widget chunk ceiling (largest real family chunk 61.5 KiB gz against 120)
+      and the per-locale ceiling (31.8–36.4 KiB). Genuinely UNKNOWN, with no
+      measurement of any kind ever taken: 500-table introspection on sqlite,
+      postgres and mysql (3 rows), peak engine memory under 256 MB, record-list
+      p95 at 1M rows, and deep-offset degradation. A spot measurement is not a
+      gate, and "unknown" is not "fine" — this waiver says those five are not
+      worth measuring BEFORE v1, not that they pass.
+      **Un-deferral triggers.** Revisit before any hosted/Cloud GA (where the p95
+      becomes someone's SLO); on the first user report of slowness at scale; or
+      if `DataGrid` gains virtualization, since the 1M-row row exists precisely
+      because it renders unwindowed today and every shipped call site caps it at
+      200–1,000 rows.
+      Do not read this row as "performance is handled". Read it as "one budget is
+      enforced, two are spot-checked, five are unknown, and that was a decision".
+
 ## Security
 
 - [x] CodeQL (js/ts) analysis runs on push, PR, and weekly schedule
@@ -68,8 +118,21 @@ not deleting it.
 - [x] axe sweep gated in CI by a grow-only fingerprint baseline (no new
       violation kinds can land)
 - [ ] axe fingerprint baseline burned down to zero or each remaining
-      fingerprint individually accepted with rationale — **162 → 112,
-      2026-08-18**, on a sweep that now measures the rendered product.
+      fingerprint individually accepted with rationale — **162 → 112 →
+      69**, the last step on 2026-08-19 being the first real BURN-DOWN.
+      All 43 removed there left because component code changed, each
+      verified gone by re-running the sweep against a freshly built
+      Storybook: 20 `nested-interactive` (DocumentCanvas wrapped every
+      block in `role="button"`, which is children-presentational, so the
+      line-item table and its inputs were stripped from the a11y tree),
+      12 `aria-valid-attr-value` (TabBar renders no TabsContent by design
+      while Radix emits `aria-controls` at a panel id unconditionally), and
+      11 `color-contrast` (three wrapper opacity utilities taking
+      informational text beside live controls to 2.2–3.3:1, plus the
+      loyalty banner off the accent tint). Two `qa-widget-states` entries
+      were deliberately NOT pruned — they did not reproduce before the
+      change either, so there is no evidence they are fixed.
+      The earlier 162 → 112 step was ~85% re-measurement, not burn-down.
       This row was claimed twice before the cause was understood, at "1" and
       then at "111 (Linux-canonical)". Both were artifacts of a RACE, not of a
       platform: `data-vrt-ready` was a bare mount effect, and the widget
@@ -134,10 +197,24 @@ not deleting it.
 ## i18n / RTL
 
 - [x] 8 locale bundles with parity tests; RTL audit and numeral policy done
-- [ ] Final locale/RTL audit pass over v1 surfaces — **scheduled after the
-      2026-08-03 translation pass** (all chrome is wired; ~520 new keys carry
-      English placeholders in the 7 non-en locales until then; worklist in the
-      owner's planning docs)
+- [x] Native locale review — **WAIVED for v1.0** (owner decision 2026-08-18):
+      "I don't have the capacity to do that, so we don't want this to be a
+      blocker." Native review of the machine-translated strings across the seven
+      non-English locales is external work measured in weeks, not engineering
+      days. What makes the waiver defensible rather than a shrug: the product
+      already ships an honest unreviewed-locale affordance, so a user is told
+      what they are looking at rather than being shown a machine translation
+      presented as a reviewed one. Revisit per-locale as reviewers become
+      available (un-deferral).
+      **This waiver covers TRANSLATION ONLY.** The engineering half of the same
+      area is NOT waived and is tracked as ordinary work, because none of it
+      needs a native speaker: key parity across all 8 locales (test-enforced),
+      the 62 product keys that exist in no bundle at all and render hardcoded
+      English in every locale including ar-EG, the 8 aria-label keys that shipped
+      as literal English into seven locales while labelled machine-translated,
+      the stale generated accessible-name list (458 entries against a regenerated
+      669), the 34 outdated keys, and RTL layout correctness. Do not let this
+      checked row imply those are done.
 - [x] Translated-but-unwired widget-chrome keys wired or removed — **RESOLVED
       2026-07-28: WIRED (owner decision: full localization).** All 605
       `ui.widgets.*` keys plus every hardcoded chrome string in widget
@@ -182,11 +259,25 @@ not deleting it.
       an ad-hoc build, trips the check, and starves the release job.
       **Windows stays unsigned by the original waiver** — a SmartScreen
       trade-off, recorded in `docs/contributing/release-desktop.md`.
-      **Still owed, and not a code change: the `desktop-v0.2.1` GitHub Release
-      is a DRAFT.** The signed artifacts exist and nobody can download them
-      until a human presses Publish, which is the policy (`CI never makes a
-      release public`) working as intended — but it means the proven build is
-      not yet shipped.
+      **`desktop-v0.2.1` is PUBLISHED** (2026-08-18T14:53:22Z, 17 assets). The
+      text here said it was still a draft for several hours after it went
+      public; corrected 2026-08-18.
+- [x] The desktop auto-updater resolves a release that carries installers —
+      **it did not, for every shipped install on all three platforms, until
+      2026-08-19.** electron-updater's GitHub provider resolves through
+      `/releases/latest`, which is ONE stored pointer for the whole repository;
+      it sat on `v0.2.1`, an npm release with zero assets, so every install
+      404'd on `latest-mac.yml`. The failure was in TAG resolution, before a
+      platform channel file is chosen, so Windows and Linux failed identically.
+      Closed on three fronts: `apps/desktop/src/main/updates.ts` now resolves
+      `desktop-v*` itself from the paginated releases LIST endpoint and pins a
+      `generic` feed to that one release; `release.yml` creates `v*` releases
+      with `--latest=false` so they cannot reclaim the pointer, pinned by
+      `docker-contract.test.ts`; and the pointer was moved to `desktop-v0.2.1`,
+      which rescues installs already in the field — their resolution is frozen
+      in the binary and only the pointer can reach them. Verified:
+      `gh api repos/MoSofi/Adminium/releases/latest --jq .tag_name` →
+      `desktop-v0.2.1`, and all three channel files answer 200 under it.
 - [x] An rc rehearsal ran the full npm + ghcr + Releases pipeline green before
       the final tag — **`v0.2.2-rc.0`, 2026-08-18, run 32132761130**, all four
       jobs green. 15/15 packages published under the `next` dist-tag with
