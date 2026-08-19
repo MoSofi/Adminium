@@ -54,9 +54,18 @@ pointer, which is why publishing a desktop release must also claim it.
 ## Publishing the draft
 
 1. Open the draft Release CI created for the tag.
-2. Replace the seeded body with real release notes. **Flag any version that
-   carries a meta-store migration** — migrations are forward-only, so there is no
-   downgrade path once a user updates.
+2. Read the body CI seeded. It is already real release notes — the version, the
+   unsigned-Windows/SmartScreen warning, how to verify a download against
+   `SHA256SUMS.txt`, and a link to the changelog — so publishing it untouched
+   gives users a correct page rather than a placeholder. Add a short summary of
+   *what changed* above it if the version deserves one, and **flag any version
+   that carries a meta-store migration** — migrations are forward-only, so there
+   is no downgrade path once a user updates.
+
+   Your checklist is **not** in the body; it is in the workflow run's job
+   summary. That split is deliberate: while the two were one string the body
+   opened with "Draft — review before publishing" and a list of TODOs, and
+   desktop-v0.2.1 was published with them still there.
 3. On a clean Mac, confirm the signed app passes Gatekeeper before publishing:
    ```bash
    spctl -a -vv /Applications/Adminium.app
@@ -74,8 +83,8 @@ pointer, which is why publishing a desktop release must also claim it.
    **Stable tags only.** For a release candidate (`desktop-vX.Y.Z-rc.N`) publish
    with `--draft=false` and *no* `--latest`: GitHub refuses the pointer to a
    prerelease, and handing it to an rc would point every stable install at a
-   release candidate. The draft's own checklist is generated with the right
-   command for the tag, so follow the one it gives you.
+   release candidate. The job summary on the run that built the draft prints the
+   right command for the tag, so follow the one it gives you.
 5. Confirm the pointer actually moved, and that the feed file it now implies is
    reachable:
    ```bash
