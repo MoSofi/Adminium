@@ -143,7 +143,13 @@ export function ScheduleMatrix({
           className="sticky top-0 z-[1] grid items-end gap-1 border-b border-border bg-surface-2 px-2 py-2 grid-cols-[var(--adm-cols)]"
           style={{ '--adm-cols': gridCols }}
         >
-          <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
+          {/*
+            `role="table"` makes this a real table to AT, and a table's rows must
+            contain header/cell roles — a bare <span> in column 1 left the row
+            with a missing required child, which is what axe reports and what
+            makes the first column announce as nothing.
+          */}
+          <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
             {t('ui:widgets.calendar.scheduleMatrix.resourceLabel', 'Resource')}
           </span>
           {days.map((day) => {
@@ -164,8 +170,14 @@ export function ScheduleMatrix({
             className="grid items-stretch gap-1 border-b border-border/50 px-2 py-1.5 grid-cols-[var(--adm-cols)] hover:bg-surface-2/50"
             style={{ '--adm-cols': gridCols }}
           >
-            <div className="flex min-w-0 items-center gap-2">
-              <Avatar name={resource.name} size="sm" locale={tag} />
+            <div role="rowheader" className="flex min-w-0 items-center gap-2">
+              {/*
+                aria-hidden, or the rowheader's name becomes "Ana Trujillo Ana
+                Trujillo, Manager · 32h" — the avatar's own aria-label repeats the
+                text beside it. Avatar spreads {...props} after its role/aria-label,
+                so this lands.
+              */}
+              <Avatar name={resource.name} size="sm" locale={tag} aria-hidden="true" />
               <div className="min-w-0">
                 <p className="truncate text-caption font-semibold text-fg">{resource.name}</p>
                 <p className="truncate text-[10px] text-fg-subtle">
@@ -210,7 +222,7 @@ export function ScheduleMatrix({
             className="grid items-center gap-1 border-t border-border bg-surface-2/40 px-2 py-2 grid-cols-[var(--adm-cols)]"
             style={{ '--adm-cols': gridCols }}
           >
-            <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
+            <span role="rowheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
               {t('ui:widgets.calendar.scheduleMatrix.coverageLabel', 'Coverage')}
             </span>
             {days.map((day) => {
@@ -218,7 +230,7 @@ export function ScheduleMatrix({
               const pct = Math.min(100, Math.round((count / target) * 100));
               const tone: Tone = count === 0 ? 'danger' : count >= target ? 'pos' : 'warn';
               return (
-                <div key={day} className="flex flex-col items-center gap-1" title={`${count}/${target}`}>
+                <div key={day} role="cell" className="flex flex-col items-center gap-1" title={`${count}/${target}`}>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
                     <div className={`h-full w-[var(--cov)] rounded-full ${TONE_SOLID_BG[tone]}`} style={{ '--cov': `${pct}%` }} />
                   </div>

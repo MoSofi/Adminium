@@ -198,12 +198,21 @@ describe('schedule-matrix', () => {
   });
 
   it('weekStart reorders the day columns (config is no longer dead)', () => {
+    // The FIRST columnheader is the "Resource" label — column 1 of a role="table"
+    // row needs a header role or the row has a missing required child, which is
+    // what axe reported. The DAY headers start at index 1.
+    const firstDayHeader = (c: HTMLElement): string | null =>
+      c.querySelectorAll('[role="columnheader"]')[1]!.textContent;
+
     const data = scheduleMatrixDemoData(7); // demo week starts on Sunday
     const base = render(<ScheduleMatrix data={data} locale="en-US" />);
-    const firstBase = base.container.querySelectorAll('[role="columnheader"]')[0]!.textContent;
+    const firstBase = firstDayHeader(base.container);
+    // Guard the index this test now depends on — before the unmount, or the
+    // container is empty.
+    expect(base.container.querySelectorAll('[role="columnheader"]')[0]?.textContent).toBe('Resource');
     base.unmount();
     const monday = render(<ScheduleMatrix data={data} weekStart={1} locale="en-US" />);
-    const firstMonday = monday.container.querySelectorAll('[role="columnheader"]')[0]!.textContent;
+    const firstMonday = firstDayHeader(monday.container);
     expect(firstMonday).not.toBe(firstBase);
   });
 });
