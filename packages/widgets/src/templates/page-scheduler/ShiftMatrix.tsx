@@ -210,7 +210,9 @@ export function ShiftMatrix({
           className="sticky top-0 z-[1] grid items-end gap-1 border-b border-border bg-surface-2 px-2 py-2 grid-cols-[var(--adm-cols)]"
           style={{ '--adm-cols': gridCols }}
         >
-          <span className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
+          {/* columnheader: a role="table" row must contain header/cell roles, and
+              column 1 was a bare span — same gap its twin ScheduleMatrix had. */}
+          <span role="columnheader" className="text-caption font-bold uppercase tracking-wide text-fg-subtle">
             {labels?.resource ?? t('ui:widgets.calendar.scheduleMatrix.resourceLabel', 'Resource')}
           </span>
           {days.map((day) => {
@@ -238,7 +240,9 @@ export function ShiftMatrix({
                 `aria-required-children`). Rowheader is what this column is: the
                 resource the row is about. */}
             <div role="rowheader" className="flex min-w-0 items-center gap-2">
-              <Avatar name={resource.label} size="sm" locale={tag} />
+              {/* aria-hidden: the avatar's aria-label otherwise repeats the name
+                  beside it, doubling the rowheader's accessible name. */}
+              <Avatar name={resource.label} size="sm" locale={tag} aria-hidden="true" />
               <div className="min-w-0">
                 <p className="truncate text-caption font-semibold text-fg">{resource.label}</p>
                 <p className="truncate text-[10px] text-fg-subtle">
