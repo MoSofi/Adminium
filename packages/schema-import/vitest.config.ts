@@ -8,7 +8,7 @@
  * v8 totals are not bit-stable between identical runs (~0.03pt), which whole
  * percents absorb.
  */
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -18,5 +18,8 @@ export default defineConfig({
     // 584 total branches on consecutive runs, ~0.3 of a point — so a floor a
     // quarter-point under the measurement is decided by noise, not coverage.
     // Every number here still clears 15-quality.md §1 with room.
-  test: { coverage: coverage({ statements: 97, branches: 90 }) },
+  test: {
+    ...workers(),
+    coverage: coverage({ statements: 97, branches: 90 }),
+  },
 });

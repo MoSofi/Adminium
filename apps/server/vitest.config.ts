@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -13,6 +13,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
+    ...workers(),
     // 15-quality.md §1 asks 85 statements / 80 branches. The statements floor
     // keeps its existing 88 ratchet; branches move 79 -> 80 because 79 was the
     // one configured floor in the repo sitting BELOW its §1 number, which is

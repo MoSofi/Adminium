@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   esbuild: { jsx: 'automatic' },
   test: {
+    ...workers(),
     coverage: coverage({ statements: 91, branches: 90 }),
     // Node by default (framework-free core); React tests opt into happy-dom
     // via `// @vitest-environment happy-dom` per the repo convention.

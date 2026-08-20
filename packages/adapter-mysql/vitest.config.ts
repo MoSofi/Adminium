@@ -37,11 +37,12 @@
  * measurable, gained coverage under the live leg rather than losing it.
  * Tighten to the rounded-down CI number from the first green run.
  */
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    ...workers(),
     coverage: coverage({ statements: 99, branches: 95 }),
   },
 });
