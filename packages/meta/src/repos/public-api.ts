@@ -37,6 +37,29 @@ export interface CreatePublicScopeInput {
   createdBy?: string | null;
 }
 
+/**
+ * A `json` column does not come back the same shape on every store.
+ *
+ * postgres and mysql hand back a PARSED value; sqlite hands back the text it
+ * stored. `PublicScope.document` is declared `string` and every caller treats
+ * it as one — `resolve.ts` calls `JSON.parse` on it, and the admin route
+ * returns it under a `z.string()` response schema — so on the two production
+ * stores that parse threw and that response failed validation, while the whole
+ * suite stayed green on sqlite. Found by CI, which runs all three; the local
+ * run skipped 334 store-gated tests.
+ *
+ * Normalising here rather than at each caller is the point of a repo layer:
+ * the driver difference is this file's business and nobody else's.
+ */
+function jsonText(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/** One scope row, with its document normalised to text whatever the store did. */
+function scopeRow(row: PublicScope): PublicScope {
+  return { ...row, document: jsonText(row.document) };
+}
+
 export function publicScopesRepo(meta: MetaDb) {
   const { db } = meta;
   return {
@@ -63,20 +86,26 @@ export function publicScopesRepo(meta: MetaDb) {
         .selectAll()
         .where('id', '=', id)
         .executeTakeFirst();
-      return row ?? null;
+      return row === undefined ? null : scopeRow(row);
     },
 
     async list(): Promise<PublicScope[]> {
-      return db.selectFrom('adminium_public_scopes').selectAll().orderBy('createdAt', 'desc').execute();
+      const rows = await db
+        .selectFrom('adminium_public_scopes')
+        .selectAll()
+        .orderBy('createdAt', 'desc')
+        .execute();
+      return rows.map(scopeRow);
     },
 
     async listByConnection(connectionId: string): Promise<PublicScope[]> {
-      return db
+      const rows = await db
         .selectFrom('adminium_public_scopes')
         .selectAll()
         .where('connectionId', '=', connectionId)
         .orderBy('createdAt', 'desc')
         .execute();
+      return rows.map(scopeRow);
     },
 
     async update(

@@ -93,7 +93,17 @@ for (const dialect of TEST_DIALECTS) {
       expect(scope.proposedFromManifest).toBeNull();
 
       const found = await publicScopesRepo(t.meta).findById(scope.id);
-      expect(found?.document).toBe(DOC);
+      // COMPARED AS JSON, NOT AS TEXT, and the difference is the storage's to
+      // make. `document` is a `json` column, which postgres stores as `jsonb` —
+      // it keeps the VALUE and not the bytes, so the keys come back ordered by
+      // length rather than as authored. Asserting the original string passed on
+      // sqlite (which stores the text) and failed on postgres and mysql. What
+      // every caller actually needs is that it parses to the same document, and
+      // that it arrives as a STRING at all: `resolve.ts` calls `JSON.parse` on
+      // it and the admin route returns it under a `z.string()` schema, both of
+      // which broke on the two production stores until the repo normalised it.
+      expect(typeof found?.document).toBe('string');
+      expect(JSON.parse(found?.document ?? 'null')).toEqual(JSON.parse(DOC));
       expect(await publicScopesRepo(t.meta).findById('psc_nope')).toBeNull();
     });
 
