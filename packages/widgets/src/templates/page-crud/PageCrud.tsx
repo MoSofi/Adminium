@@ -248,15 +248,29 @@ export function PageCrud({
     [pageSize, cursor, q, filters, sort],
   );
 
-  // Debounced search → q.
+  /**
+   * Debounced search → q, AND ONLY WHEN THERE IS SOMETHING TO DEBOUNCE.
+   *
+   * Without the guard this effect also runs on mount, and 250ms later it fired
+   * `setCursor('')` on a table nobody had searched — snapping the grid back to
+   * page one under anyone who had paged forward inside that window, and
+   * unmounting the rows they were looking at. Rare by hand, reliable on a busy
+   * machine where the timer lands late: it is what made the cross-page export
+   * test fail one run in three, by detaching the checkbox mid-click.
+   *
+   * `search === q` is exactly "the live query already says this" — true on
+   * mount, and true again the moment the timer below has fired, which is what
+   * keeps this from re-arming itself.
+   */
   useEffect(() => {
+    if (search === q) return;
     const timer = setTimeout(() => {
       setQ(search);
       setCursor('');
       setCursorStack([]);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, q]);
 
   // Report the saved-view-relevant query state so the host can persist a view
   // from the current grid (M5-T06). Pagination cursor is intentionally excluded

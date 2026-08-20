@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { PageCrud } from './PageCrud.js';
+import { PageCrud, SEARCH_DEBOUNCE_MS } from './PageCrud.js';
 import type {
   CrudApi,
   CrudExportRequest,
@@ -399,6 +399,48 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     expect(api.remove).not.toHaveBeenCalled();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  /**
+   * The mount debounce used to reset pagination under the user.
+   *
+   * `useEffect(..., [search])` runs on mount too, so 250ms after a table opened
+   * — with nothing typed and nothing to debounce — it fired `setCursor('')`.
+   * Anyone who had paged forward inside that window was snapped back to page
+   * one and the rows they were looking at were unmounted. That is also what
+   * made the cross-page export test below fail one run in three under load: the
+   * checkbox it had just resolved was detached before the click landed on it,
+   * so no handler ran and the selection silently did not change.
+   */
+  it('does not reset pagination when the mount debounce fires', async () => {
+    const user = userEvent.setup();
+    const pageTwo: CrudRow[] = [
+      { id: 3, name: 'Wonka Industries', email: 'ops@wonka.example', status: 'active', mrr: '4200' },
+    ];
+    const listFn = vi.fn(async (params: CrudListParams) => {
+      if (params.offset !== undefined) {
+        return { data: rows.slice(0, 1), page: { limit: params.limit ?? 1, offset: 0, total: 3 } };
+      }
+      return params.cursor === 'page-2'
+        ? { data: pageTwo, cursor: { next: null } }
+        : { data: rows, cursor: { next: 'page-2' } };
+    });
+    renderPage({ ...makeApi(rows), list: listFn });
+    await screen.findByText('Initech');
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    await screen.findByText('Wonka Industries');
+    const callsAfterPaging = listFn.mock.calls.length;
+
+    // Past the debounce window, with nothing typed.
+    await new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 150));
+
+    // Still on page two, and no query was reissued behind the user's back.
+    expect(screen.getByText('Wonka Industries')).toBeDefined();
+    expect(screen.queryByText('Initech')).toBeNull();
+    const keyset = listFn.mock.calls.filter(([params]) => params.offset === undefined);
+    expect(keyset.every(([params]) => params.cursor === '' || params.cursor === 'page-2')).toBe(true);
+    expect(listFn.mock.calls.length).toBe(callsAfterPaging);
   });
 
   /**
