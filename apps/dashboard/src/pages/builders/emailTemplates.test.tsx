@@ -12,7 +12,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createQueryClient } from '../../app/query.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
-import { EmailTemplatesPage } from './EmailTemplatesPage.js';
+import { EMAIL_AUTOSAVE_DEBOUNCE_MS, EmailTemplatesPage } from './EmailTemplatesPage.js';
 
 const LIST_ITEM = {
   id: 'emt_1',
@@ -143,6 +143,33 @@ describe('EmailTemplatesPage', () => {
       'block-highlight-box',
       'block-contact',
     ]);
+  });
+
+  it('flushes a pending autosave when Back closes the editor mid-debounce', async () => {
+    const calls = installFetchMock();
+    renderPage();
+    fireEvent.click(await screen.findByTestId('email-template-welcome-en-US'));
+    await screen.findByTestId('email-editor-subject');
+
+    fireEvent.change(screen.getByTestId('email-editor-subject'), {
+      target: { value: 'Saved on the way out' },
+    });
+    // Still inside the 900 ms window: nothing is written yet.
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(0);
+
+    // Back unmounts the editor mid-debounce. The edit must be persisted right
+    // there — not dropped, and not left to an orphaned timer 900 ms later.
+    fireEvent.click(screen.getByTestId('email-editor-back'));
+    const puts = calls.filter((call) => call.method === 'PUT');
+    expect(puts).toHaveLength(1);
+    expect(puts[0]?.path).toBe('/api/v1/email-templates/welcome/en-US');
+    expect((puts[0]?.body as { subject: string }).subject).toBe('Saved on the way out');
+
+    // …and no timer outlived the editor: idling past the debounce writes nothing
+    // more, so nothing can touch state or the API after the tree is gone.
+    await new Promise((resolve) => setTimeout(resolve, EMAIL_AUTOSAVE_DEBOUNCE_MS + 600));
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
+    expect(screen.getByTestId('email-templates-manager')).toBeDefined();
   });
 
   it('toggling Enabled autosaves the flag through the same PUT', async () => {

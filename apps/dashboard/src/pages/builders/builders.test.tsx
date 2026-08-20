@@ -17,7 +17,7 @@ import { createQueryClient } from '../../app/query.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { PageTemplateAdapters } from '../template-types.js';
-import { PageBuilderBinding } from './PageBuilderBinding.js';
+import { BUILDER_AUTOSAVE_DEBOUNCE_MS, PageBuilderBinding } from './PageBuilderBinding.js';
 import {
   builderPageStateOf,
   builderVersionConfigOf,
@@ -148,7 +148,7 @@ function installFetchMock(views: unknown[] = []): FetchCall[] {
 function renderBinding(options: { canEditLayout?: boolean; adapters?: PageTemplateAdapters } = {}) {
   const client = createQueryClient();
   const adapters = options.adapters ?? makeAdapters();
-  render(
+  const { unmount } = render(
     <QueryClientProvider client={client}>
       <PageBuilderBinding
         page={builderEnvelope()}
@@ -157,7 +157,7 @@ function renderBinding(options: { canEditLayout?: boolean; adapters?: PageTempla
       />
     </QueryClientProvider>,
   );
-  return { adapters };
+  return { adapters, unmount };
 }
 
 let restoreI18n: () => void;
@@ -312,6 +312,42 @@ describe('PageBuilderBinding', () => {
     // A canvas reorder emits a mutate intent addressed to the draft document.
     fireEvent.click(document.querySelector('[data-part="block-move-down"]') as Element);
     expect(adapters.onEvent).not.toHaveBeenCalled();
+  });
+
+  it('flushes the pending autosave when the tree unmounts mid-debounce', async () => {
+    installFetchMock();
+    const { unmount } = renderBinding({ canEditLayout: true });
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-part="block-instance"]').length).toBe(2);
+    });
+
+    // Arm the 900 ms debounce, then take the tree away before it elapses — a
+    // navigation mid-edit, and equally the `cleanup()` every test ends with.
+    fireEvent.click(document.querySelector('[data-part="block-move-down"]') as Element);
+    expect(persist.sharedSave).not.toHaveBeenCalled();
+
+    unmount();
+
+    // The reorder is written at unmount: not dropped, and not left to a timer
+    // that would fire into a dead tree 900 ms later.
+    expect(persist.sharedSave).toHaveBeenCalledTimes(1);
+    expect(persist.sharedFlush).toHaveBeenCalledTimes(1);
+    const layout = persist.sharedSave.mock.calls[0]?.[0] as {
+      items: { i: string; config: Record<string, unknown> }[];
+    };
+    const savedDoc = layout.items.find((item) => item.i === 'slot-canvas')?.config[
+      'doc'
+    ] as DocRecord;
+    expect(savedDoc.blockOrder?.map((instance) => instance.block)).toEqual([
+      'block-totals-summary',
+      'block-line-items',
+    ]);
+
+    // …and nothing outlived the tree: idling well past the debounce writes no
+    // more, so nothing can reach `.flush().then(...)` after the component is gone.
+    await new Promise((resolve) => setTimeout(resolve, BUILDER_AUTOSAVE_DEBOUNCE_MS + 600));
+    expect(persist.sharedSave).toHaveBeenCalledTimes(1);
+    expect(persist.sharedFlush).toHaveBeenCalledTimes(1);
   });
 
   it('saves a named version through POST /pages/:id/views with the builderDoc marker', async () => {

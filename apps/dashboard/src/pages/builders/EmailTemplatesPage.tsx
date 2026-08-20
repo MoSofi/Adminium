@@ -16,7 +16,7 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Mail } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   EmptyState,
@@ -205,12 +205,14 @@ function LoadedEmailEditor({
   const [autosave, setAutosave] = useState<AutosaveStatus>('idle');
   const [savedAt, setSavedAt] = useState<number | undefined>(undefined);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alive = useRef(true);
   // The latest field values, so a trailing save never persists stale state.
   const latest = useRef({ name, subject, enabled, doc });
   latest.current = { name, subject, enabled, doc };
 
   const save = useCallback((): void => {
-    setAutosave('saving');
+    timer.current = null;
+    if (alive.current) setAutosave('saving');
     const current = latest.current;
     emailTemplatesApi
       .put(detail.key, detail.locale, {
@@ -220,12 +222,41 @@ function LoadedEmailEditor({
         blocks: docToEmailBlocks(current.doc, initial.unknown),
       })
       .then(() => {
-        setAutosave('saved');
-        setSavedAt(Date.now());
+        if (alive.current) {
+          setAutosave('saved');
+          setSavedAt(Date.now());
+        }
+        // Fires even when this editor is already gone: `onSaved` refreshes the
+        // manager list, which outlives the editor and must show the new subject.
         onSaved();
       })
-      .catch(() => setAutosave('error'));
+      .catch(() => {
+        if (alive.current) setAutosave('error');
+      });
   }, [detail.key, detail.locale, initial.unknown, onSaved]);
+
+  // `save` is re-created whenever the template identity changes; the unmount
+  // effect below must call the CURRENT one without re-subscribing (a dep on
+  // `save` would run the cleanup — and so flush — on every such change).
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  // "Back" sits next to the subject field, so the 900 ms debounce is routinely
+  // still armed when this editor unmounts. Leaving the timer to fire writes a
+  // template the user has already left and resolves state into a dead tree;
+  // simply cancelling it would instead throw away what they just typed. Flush:
+  // the pending edit is persisted NOW, and no timer outlives the component.
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      if (timer.current !== null) {
+        clearTimeout(timer.current);
+        timer.current = null;
+        saveRef.current();
+      }
+    };
+  }, []);
 
   const markDirty = useCallback((): void => {
     setAutosave('dirty');

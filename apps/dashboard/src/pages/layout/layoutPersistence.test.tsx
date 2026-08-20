@@ -16,6 +16,7 @@ import { createQueryClient } from '../../app/query.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import { layoutApi } from './layoutApi.js';
 import {
+  LAYOUT_SAVE_DEBOUNCE_MS,
   resolvedLayoutFromDocument,
   useResetLayout,
   useSavePersonalLayout,
@@ -116,6 +117,32 @@ describe('useSaveSharedLayout', () => {
     const patches = calls.filter((c) => c.method === 'PATCH');
     expect(patches).toHaveLength(1);
     expect(patches[0]?.body).toEqual(layout('c'));
+  });
+
+  it('a save+flush issued after unmount writes once and re-arms no timer', async () => {
+    const calls = stubFetch();
+    const { result, unmount } = renderHook(() => useSaveSharedLayout('page_dash'), {
+      wrapper: wrapper(),
+    });
+
+    // PageBuilderBinding flushes its own 900 ms debounce from an unmount
+    // cleanup, which React runs AFTER this hook's cleanup has already cancelled
+    // the hook's trailing timer. The save+flush pair must therefore still write,
+    // and `save`'s freshly-armed timer must be cleared by the `flush` that
+    // follows it — otherwise the binding trades its leaked timer for this one.
+    unmount();
+    await act(async () => {
+      result.current.save(layout('on-the-way-out'));
+      await result.current.flush();
+    });
+
+    const patches = calls.filter((c) => c.method === 'PATCH');
+    expect(patches).toHaveLength(1);
+    expect(patches[0]?.body).toEqual(layout('on-the-way-out'));
+
+    // Past the hook's own debounce: nothing was left armed to fire a second time.
+    await new Promise((resolve) => setTimeout(resolve, LAYOUT_SAVE_DEBOUNCE_MS + 400));
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1);
   });
 
   it('flush with nothing pending is a no-op', async () => {
