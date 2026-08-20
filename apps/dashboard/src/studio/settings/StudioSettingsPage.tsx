@@ -10,10 +10,11 @@
  * defaults, translations — one row each), and the danger zone with the
  * type-to-confirm connection delete (the comp's keeper interaction).
  *
- * Identity and security are two cards of ONE form: separate section-puts on
- * the wire, one Save button and one confirm modal on the screen.
+ * Identity, security and the SMTP transport are three cards of ONE form:
+ * separate section-puts on the wire, one Save button and one confirm modal on
+ * the screen.
  *
- * Both are a super-admin surface (`system:settings:manage` server-side);
+ * All three are a super-admin surface (`system:settings:manage` server-side);
  * admins still get the danger zone (`connections:manage`). The Global-defaults
  * cross-link is likewise super-admin-only — `/settings/defaults` returns the
  * forbidden state for everyone else — so it is hidden from plain admins.
@@ -25,6 +26,7 @@ import {
   Files,
   Globe2,
   Languages,
+  Mail,
   ShieldCheck,
   Sparkles,
   TriangleAlert,
@@ -63,12 +65,17 @@ import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { connectionsQuery, DeleteConnectionModal } from '../hub/ConnectionsHub.js';
 import {
+  EMAIL_SETTINGS_QUERY_KEY,
   SECURITY_SETTINGS_QUERY_KEY,
   WORKSPACE_SETTINGS_QUERY_KEY,
+  emailSettingsQuery,
+  putEmailSettings,
   putSecuritySettings,
   putWorkspaceBranding,
   securitySettingsQuery,
   workspaceSettingsQuery,
+  type EmailSettings,
+  type EmailSettingsInput,
   type SecuritySettings,
   type WorkspaceSettingsData,
 } from './workspaceApi.js';
@@ -105,9 +112,31 @@ interface FormValues {
   sessionTtlHours: string;
   passwordMinLength: string;
   require2fa: boolean;
+  /**
+   * SMTP, held as typed text for the same reason as the two numbers above. The
+   * password is the odd one: it starts empty on EVERY load, because the server
+   * never sends one back, so empty means "keep what is stored" rather than
+   * "there is none". The field's helper says so, and `save` below turns it into
+   * a wire decision — omit the key, or send an empty string to clear it.
+   */
+  smtpHost: string;
+  smtpPort: string;
+  smtpUser: string;
+  smtpPass: string;
+  smtpFrom: string;
+  smtpSecure: boolean;
+  /** Staged clear of a configured transport, like the logo's `remove`. */
+  smtpRemove: boolean;
 }
 
-function toValues(data: WorkspaceSettingsData, security: SecuritySettings): FormValues {
+/** Submission port for a cleartext relay — what a first-time form should suggest. */
+const SMTP_DEFAULT_PORT = '587';
+
+function toValues(
+  data: WorkspaceSettingsData,
+  security: SecuritySettings,
+  email: EmailSettings,
+): FormValues {
   return {
     appName: data.branding.appName,
     showVersion: data.branding.showVersion,
@@ -115,6 +144,13 @@ function toValues(data: WorkspaceSettingsData, security: SecuritySettings): Form
     sessionTtlHours: String(security.sessionTtlHours),
     passwordMinLength: String(security.passwordMinLength),
     require2fa: security.require2fa,
+    smtpHost: email.host ?? '',
+    smtpPort: email.port === null ? SMTP_DEFAULT_PORT : String(email.port),
+    smtpUser: email.user ?? '',
+    smtpPass: '',
+    smtpFrom: email.from ?? '',
+    smtpSecure: email.secure ?? false,
+    smtpRemove: false,
   };
 }
 
@@ -126,6 +162,17 @@ const SESSION_TTL_MIN = 1;
 const SESSION_TTL_MAX = 8760;
 const PASSWORD_MIN_FLOOR = 8;
 const PASSWORD_MIN_CEILING = 128;
+const SMTP_PORT_MIN = 1;
+const SMTP_PORT_MAX = 65535;
+/**
+ * `assertSmtpHostAllowed` in apps/server/src/email/config.ts, mirrored: a bare
+ * hostname or IP, optionally bracketed for IPv6. It exists because SMTP is
+ * line-oriented — a scheme, a credential or a newline pasted into this box is
+ * an injection primitive, not a typo — and mirroring it puts the refusal under
+ * the field rather than on a save that also carried other sections.
+ */
+const SMTP_HOST_RE = /^\[?[A-Za-z0-9.:_-]+]?$/;
+const SMTP_HOST_MAX = 255;
 
 /**
  * The typed text as an in-range integer, or null when it is not one.
@@ -308,17 +355,21 @@ function LogoField({
 function WorkspaceForm({
   initial,
   initialSecurity,
+  initialEmail,
 }: {
   initial: WorkspaceSettingsData;
   initialSecurity: SecuritySettings;
+  initialEmail: EmailSettings;
 }): ReactNode {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
-  const [values, setValues] = useState<FormValues>(() => toValues(initial, initialSecurity));
+  const [values, setValues] = useState<FormValues>(() =>
+    toValues(initial, initialSecurity, initialEmail),
+  );
   const [reviewOpen, setReviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const before = toValues(initial, initialSecurity);
+  const before = toValues(initial, initialSecurity, initialEmail);
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]): void {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -357,10 +408,49 @@ function WorkspaceForm({
   const require2faDirty = values.require2fa !== before.require2fa;
   const securityDirty = ttlDirty || passwordMinDirty || require2faDirty;
 
-  const dirty = nameDirty || versionDirty || logoDirty || securityDirty;
+  // --- smtp ------------------------------------------------------------------
+  const smtpHost = values.smtpHost.trim();
+  const smtpUser = values.smtpUser.trim();
+  const smtpFrom = values.smtpFrom.trim();
+  const smtpPort = boundedInt(values.smtpPort, SMTP_PORT_MIN, SMTP_PORT_MAX);
+  /**
+   * Whether this card describes a relay at all. An unconfigured workspace opens
+   * with every box empty and a suggested port, and must stay pristine and
+   * error-free until someone types into it — a settings screen that greets a
+   * first-time admin with three red fields is telling them they broke
+   * something.
+   */
+  const smtpFilled = smtpHost !== '' || smtpFrom !== '' || smtpUser !== '' || values.smtpPass !== '';
+  const smtpInUse = !values.smtpRemove && (initialEmail.configured || smtpFilled);
+  const smtpDirty =
+    values.smtpRemove ||
+    (smtpInUse &&
+      (values.smtpHost !== before.smtpHost ||
+        values.smtpPort !== before.smtpPort ||
+        values.smtpUser !== before.smtpUser ||
+        values.smtpPass !== '' ||
+        values.smtpFrom !== before.smtpFrom ||
+        values.smtpSecure !== before.smtpSecure));
+  const smtpHostInvalid =
+    smtpInUse && (smtpHost.length === 0 || smtpHost.length > SMTP_HOST_MAX || !SMTP_HOST_RE.test(smtpHost));
+  const smtpFromInvalid = smtpInUse && !smtpFrom.includes('@');
+  // The server refuses a username with no password (`buildSmtpValue`), and on a
+  // workspace with nothing stored an empty box cannot mean "keep the stored
+  // one". Where a password IS stored, only the server knows, so that case is
+  // left to its 422 rather than guessed at here.
+  const smtpPassMissing = smtpInUse && smtpUser !== '' && values.smtpPass === '' && !initialEmail.configured;
+
+  const dirty = nameDirty || versionDirty || logoDirty || securityDirty || smtpDirty;
 
   const appNameInvalid = values.appName.trim().length === 0 || values.appName.trim().length > 60;
-  const invalid = appNameInvalid || sessionTtl === null || passwordMin === null;
+  const invalid =
+    appNameInvalid ||
+    sessionTtl === null ||
+    passwordMin === null ||
+    smtpHostInvalid ||
+    smtpFromInvalid ||
+    smtpPassMissing ||
+    (smtpInUse && smtpPort === null);
 
   // Review-then-confirm (09 §7.10): the modal lists exactly what changes.
   const change = (beforeValue: string, afterValue: string): string =>
@@ -417,6 +507,51 @@ function WorkspaceForm({
       value: change(before.passwordMinLength, values.passwordMinLength.trim()),
     });
   }
+  if (values.smtpRemove) {
+    changes.push({
+      label: t('studio.settingsHub.email.heading', 'Email (SMTP)'),
+      value: t('studio.settingsHub.email.review.removed', 'Removed'),
+    });
+  } else if (smtpDirty) {
+    // One row per changed field, like every other section — except the
+    // password, which has no before and whose after must never be shown.
+    if (values.smtpHost !== before.smtpHost) {
+      changes.push({
+        label: t('studio.settingsHub.email.host.label', 'SMTP host'),
+        value: change(before.smtpHost === '' ? '—' : before.smtpHost, smtpHost),
+      });
+    }
+    if (values.smtpPort !== before.smtpPort) {
+      changes.push({
+        label: t('studio.settingsHub.email.port.label', 'Port'),
+        value: change(before.smtpPort, values.smtpPort.trim()),
+      });
+    }
+    if (values.smtpSecure !== before.smtpSecure) {
+      changes.push({
+        label: t('studio.settingsHub.email.secure.label', 'Implicit TLS'),
+        value: change(onOffState(before.smtpSecure), onOffState(values.smtpSecure)),
+      });
+    }
+    if (values.smtpUser !== before.smtpUser) {
+      changes.push({
+        label: t('studio.settingsHub.email.user.label', 'Username'),
+        value: change(before.smtpUser === '' ? '—' : before.smtpUser, smtpUser === '' ? '—' : smtpUser),
+      });
+    }
+    if (values.smtpPass !== '') {
+      changes.push({
+        label: t('studio.settingsHub.email.pass.label', 'Password'),
+        value: t('studio.settingsHub.email.review.password', 'Replaced'),
+      });
+    }
+    if (values.smtpFrom !== before.smtpFrom) {
+      changes.push({
+        label: t('studio.settingsHub.email.from.label', 'From address'),
+        value: change(before.smtpFrom === '' ? '—' : before.smtpFrom, smtpFrom),
+      });
+    }
+  }
 
   function save(): void {
     setSaving(true);
@@ -452,6 +587,33 @@ function WorkspaceForm({
             passwordMinLength: passwordMin,
           });
           queryClient.setQueryData(SECURITY_SETTINGS_QUERY_KEY, security);
+        }
+
+        // Third section-put, same partial-failure story: last, and only when it
+        // changed. This one carries a secret, so it is also the only one whose
+        // reply cannot be reconstructed from what was sent.
+        if (values.smtpRemove) {
+          queryClient.setQueryData(EMAIL_SETTINGS_QUERY_KEY, await putEmailSettings(null));
+        } else if (smtpDirty && smtpPort !== null) {
+          const next: EmailSettingsInput = {
+            host: smtpHost,
+            port: smtpPort,
+            user: smtpUser,
+            from: smtpFrom,
+            secure: values.smtpSecure,
+            // Typed ⇒ send it. Not typed and no username ⇒ send the empty
+            // string, which CLEARS any stored secret: an open relay has no use
+            // for one, and a password nobody can see and nothing can send with
+            // is not worth keeping encrypted at rest. Not typed WITH a username
+            // ⇒ omit the field, which keeps the stored password — the whole
+            // reason it is optional on the wire.
+            ...(values.smtpPass !== ''
+              ? { pass: values.smtpPass }
+              : smtpUser === ''
+                ? { pass: '' }
+                : {}),
+          };
+          queryClient.setQueryData(EMAIL_SETTINGS_QUERY_KEY, await putEmailSettings(next));
         }
 
         queryClient.setQueryData(WORKSPACE_SETTINGS_QUERY_KEY, data);
@@ -627,6 +789,175 @@ function WorkspaceForm({
         </CardBody>
       </Card>
 
+      {/* A third card of the same form, for the same reason as Security: one
+          admin, one sitting, one Save. It is here at all because the transport
+          that gates password reset, user invites and scheduled reports had no
+          surface anywhere in the product — `PUT /api/v1/settings/email` by hand
+          or a config-bundle import were the only ways to set it. */}
+      <Card>
+        <CardHeader className="flex items-center justify-start gap-3">
+          <IconTile tone="accent" size="md" icon={<Mail />} />
+          <h3 className="text-section text-fg">
+            {t('studio.settingsHub.email.heading', 'Email (SMTP)')}
+          </h3>
+        </CardHeader>
+        <CardBody>
+          {initialEmail.configured ? null : (
+            <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-surface-2 p-3">
+              <TriangleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
+              <p className="text-caption text-fg-muted">
+                {t(
+                  'studio.settingsHub.email.unconfigured',
+                  'No mail server is set, so Adminium cannot send password resets, user invites or scheduled reports.',
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Staged removal, like the logo's: nothing is cleared until Save, and
+              the review modal names it. */}
+          <fieldset disabled={values.smtpRemove} className="contents">
+            <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+              <FormField
+                label={t('studio.settingsHub.email.host.label', 'SMTP host')}
+                {...(smtpHostInvalid
+                  ? {
+                      error: t(
+                        'studio.settingsHub.email.host.error',
+                        'A bare hostname or IP address — no scheme, port or credentials.',
+                      ),
+                    }
+                  : {})}
+              >
+                <Input
+                  value={values.smtpHost}
+                  autoComplete="off"
+                  onChange={(event) => set('smtpHost', event.target.value)}
+                />
+              </FormField>
+
+              <FormField
+                label={t('studio.settingsHub.email.port.label', 'Port')}
+                {...(smtpInUse && smtpPort === null
+                  ? {
+                      error: t(
+                        'studio.settingsHub.email.port.error',
+                        'Between {min, number} and {max, number}.',
+                        { min: SMTP_PORT_MIN, max: SMTP_PORT_MAX },
+                      ),
+                    }
+                  : {})}
+              >
+                <Input
+                  inputMode="numeric"
+                  value={values.smtpPort}
+                  onChange={(event) => set('smtpPort', event.target.value)}
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <FormField
+                label={t('studio.settingsHub.email.user.label', 'Username')}
+                helper={t(
+                  'studio.settingsHub.email.user.helper',
+                  'Leave empty for a relay that does not authenticate.',
+                )}
+              >
+                <Input
+                  value={values.smtpUser}
+                  autoComplete="off"
+                  onChange={(event) => set('smtpUser', event.target.value)}
+                />
+              </FormField>
+
+              <FormField
+                label={t('studio.settingsHub.email.pass.label', 'Password')}
+                helper={t(
+                  'studio.settingsHub.email.pass.helper',
+                  'Stored encrypted and never shown again. Leave blank to keep the current one.',
+                )}
+                {...(smtpPassMissing
+                  ? {
+                      error: t(
+                        'studio.settingsHub.email.pass.error',
+                        'This username needs a password.',
+                      ),
+                    }
+                  : {})}
+              >
+                {/* `new-password`, not `current-password`: this is not the
+                    admin's own credential, and a manager offering to fill it
+                    would put someone else's saved password on the wire. */}
+                <Input
+                  type="password"
+                  value={values.smtpPass}
+                  autoComplete="new-password"
+                  spellCheck={false}
+                  onChange={(event) => set('smtpPass', event.target.value)}
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-4">
+              <FormField
+                label={t('studio.settingsHub.email.from.label', 'From address')}
+                helper={t(
+                  'studio.settingsHub.email.from.helper',
+                  'A bare address, or a display name in front of one.',
+                )}
+                {...(smtpFromInvalid
+                  ? { error: t('studio.settingsHub.email.from.error', 'Enter an email address.') }
+                  : {})}
+              >
+                <Input
+                  value={values.smtpFrom}
+                  autoComplete="off"
+                  onChange={(event) => set('smtpFrom', event.target.value)}
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+              <div className="min-w-0 flex-1">
+                <div className="text-body-sm font-bold text-fg">
+                  {t('studio.settingsHub.email.secure.label', 'Implicit TLS')}
+                </div>
+                <p className="mt-0.5 text-caption text-fg-subtle">
+                  {t(
+                    'studio.settingsHub.email.secure.helper',
+                    'On for port 465. Off starts in cleartext and upgrades with STARTTLS, which is what port 587 expects.',
+                  )}
+                </p>
+              </div>
+              <Switch
+                checked={values.smtpSecure}
+                onCheckedChange={(checked) => set('smtpSecure', checked)}
+                aria-label={t('studio.settingsHub.email.secure.label', 'Implicit TLS')}
+              />
+            </div>
+          </fieldset>
+
+          {initialEmail.configured ? (
+            <div className="mt-4 flex items-center justify-end border-t border-border pt-4">
+              {values.smtpRemove ? (
+                <Button variant="ghost" size="sm" onClick={() => set('smtpRemove', false)}>
+                  {t('common.undo', 'Undo')}
+                </Button>
+              ) : (
+                <Button
+                  variant="destructiveSoft"
+                  size="sm"
+                  onClick={() => set('smtpRemove', true)}
+                >
+                  {t('studio.settingsHub.email.remove', 'Remove mail server')}
+                </Button>
+              )}
+            </div>
+          ) : null}
+        </CardBody>
+      </Card>
+
       <div className="flex items-center justify-end gap-3">
         <Button disabled={!dirty || invalid} onClick={() => setReviewOpen(true)}>
           {t('studio.settingsHub.save', 'Save changes')}
@@ -662,23 +993,33 @@ function WorkspaceForm({
 }
 
 function WorkspaceFormLoader(): ReactNode {
-  // One `useSuspenseQueries`, not two `useSuspenseQuery` calls: the second of
+  // One `useSuspenseQueries`, not three `useSuspenseQuery` calls: the second of
   // those does not start until the first has resolved and the component has
-  // re-run, which turns two independent GETs into a waterfall.
-  const [{ data }, { data: security }] = useSuspenseQueries({
-    queries: [workspaceSettingsQuery(), securitySettingsQuery()],
+  // re-run, which turns independent GETs into a waterfall.
+  const [{ data }, { data: security }, { data: email }] = useSuspenseQueries({
+    queries: [workspaceSettingsQuery(), securitySettingsQuery(), emailSettingsQuery()],
   });
   // Remount on server change so a realtime refetch resets the draft — every
   // field the form owns is in the key, or an edit made elsewhere would leave
-  // this one showing a stale value it would then save back.
+  // this one showing a stale value it would then save back. The SMTP password
+  // is the one field with nothing to put here, and needs nothing: it is write
+  // -only, so there is no stale copy of it to show.
   const key = [
     data.branding.appName,
     String(data.branding.showVersion),
     String(security.sessionTtlHours),
     String(security.require2fa),
     String(security.passwordMinLength),
+    String(email.configured),
+    email.host ?? '',
+    String(email.port ?? ''),
+    email.user ?? '',
+    email.from ?? '',
+    String(email.secure ?? ''),
   ].join('|');
-  return <WorkspaceForm key={key} initial={data} initialSecurity={security} />;
+  return (
+    <WorkspaceForm key={key} initial={data} initialSecurity={security} initialEmail={email} />
+  );
 }
 
 // --- danger zone (admin+) -------------------------------------------------------

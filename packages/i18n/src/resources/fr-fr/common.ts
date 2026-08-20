@@ -665,6 +665,41 @@ export default {
           "error": "Entre {min, number} et {max, number} caractères."
         }
       },
+      "email": {
+        "heading": "E-mail (SMTP)",
+        "unconfigured": "Aucun serveur de messagerie n’est configuré, donc Adminium ne peut envoyer ni réinitialisation de mot de passe, ni invitation, ni rapport planifié.",
+        "host": {
+          "label": "Hôte SMTP",
+          "error": "Un nom d’hôte ou une adresse IP uniquement — sans schéma, port ni identifiants."
+        },
+        "port": {
+          "label": "Port",
+          "error": "Entre {min, number} et {max, number}."
+        },
+        "user": {
+          "label": "Nom d’utilisateur",
+          "helper": "Laissez vide si le relais ne demande pas d’authentification."
+        },
+        "pass": {
+          "label": "Mot de passe",
+          "helper": "Chiffré au stockage et jamais réaffiché. Laissez vide pour conserver l’actuel.",
+          "error": "Ce nom d’utilisateur exige un mot de passe."
+        },
+        "from": {
+          "label": "Adresse d’expéditeur",
+          "helper": "Une adresse seule, ou un nom d’affichage devant.",
+          "error": "Saisissez une adresse e-mail."
+        },
+        "secure": {
+          "label": "TLS implicite",
+          "helper": "Activé pour le port 465. Désactivé démarre en clair puis passe à STARTTLS, ce qu’attend le port 587."
+        },
+        "remove": "Supprimer le serveur de messagerie",
+        "review": {
+          "removed": "Supprimé",
+          "password": "Remplacé"
+        }
+      },
       "review": {
         "title": "Enregistrer les paramètres de l’espace de travail",
         "subtitle": "Vérifiez vos modifications avant d’enregistrer.",

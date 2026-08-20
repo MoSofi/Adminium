@@ -6583,6 +6583,82 @@
     "srcHash": "1fcdd80c7dbe",
     "status": "mt"
   },
+  "common.studio.settingsHub.email.from.error": {
+    "status": "mt",
+    "srcHash": "9ec694d9a487"
+  },
+  "common.studio.settingsHub.email.from.helper": {
+    "status": "mt",
+    "srcHash": "d9b5385f2335"
+  },
+  "common.studio.settingsHub.email.from.label": {
+    "status": "mt",
+    "srcHash": "19683459156b"
+  },
+  "common.studio.settingsHub.email.heading": {
+    "status": "mt",
+    "srcHash": "0b543bf87207"
+  },
+  "common.studio.settingsHub.email.host.error": {
+    "status": "mt",
+    "srcHash": "dc813ee6b756"
+  },
+  "common.studio.settingsHub.email.host.label": {
+    "status": "mt",
+    "srcHash": "2d4a434baeea"
+  },
+  "common.studio.settingsHub.email.pass.error": {
+    "status": "mt",
+    "srcHash": "7fa056e148c4"
+  },
+  "common.studio.settingsHub.email.pass.helper": {
+    "status": "mt",
+    "srcHash": "2bde8447238e"
+  },
+  "common.studio.settingsHub.email.pass.label": {
+    "status": "mt",
+    "srcHash": "8be3c943b160"
+  },
+  "common.studio.settingsHub.email.port.error": {
+    "status": "mt",
+    "srcHash": "d3d6069bd06d"
+  },
+  "common.studio.settingsHub.email.port.label": {
+    "status": "mt",
+    "srcHash": "fe035157cda2"
+  },
+  "common.studio.settingsHub.email.remove": {
+    "status": "mt",
+    "srcHash": "b2eee53cd2c2"
+  },
+  "common.studio.settingsHub.email.review.password": {
+    "status": "mt",
+    "srcHash": "05033aaac5d0"
+  },
+  "common.studio.settingsHub.email.review.removed": {
+    "status": "mt",
+    "srcHash": "b5e77c5c02a9"
+  },
+  "common.studio.settingsHub.email.secure.helper": {
+    "status": "mt",
+    "srcHash": "f19eb1bd7864"
+  },
+  "common.studio.settingsHub.email.secure.label": {
+    "status": "mt",
+    "srcHash": "5997dcf4f413"
+  },
+  "common.studio.settingsHub.email.unconfigured": {
+    "status": "mt",
+    "srcHash": "f4048c64c261"
+  },
+  "common.studio.settingsHub.email.user.helper": {
+    "status": "mt",
+    "srcHash": "7eed6395cef4"
+  },
+  "common.studio.settingsHub.email.user.label": {
+    "status": "mt",
+    "srcHash": "84c29015de33"
+  },
   "common.studio.settingsHub.identity.appName.error": {
     "srcHash": "7345c5191aa6",
     "status": "mt"

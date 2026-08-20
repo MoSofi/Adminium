@@ -656,6 +656,41 @@
           "error": "Between {min, number} and {max, number} characters."
         }
       },
+      "email": {
+        "heading": "Email (SMTP)",
+        "unconfigured": "No mail server is set, so Adminium cannot send password resets, user invites or scheduled reports.",
+        "host": {
+          "label": "SMTP host",
+          "error": "A bare hostname or IP address — no scheme, port or credentials."
+        },
+        "port": {
+          "label": "Port",
+          "error": "Between {min, number} and {max, number}."
+        },
+        "user": {
+          "label": "Username",
+          "helper": "Leave empty for a relay that does not authenticate."
+        },
+        "pass": {
+          "label": "Password",
+          "helper": "Stored encrypted and never shown again. Leave blank to keep the current one.",
+          "error": "This username needs a password."
+        },
+        "from": {
+          "label": "From address",
+          "helper": "A bare address, or a display name in front of one.",
+          "error": "Enter an email address."
+        },
+        "secure": {
+          "label": "Implicit TLS",
+          "helper": "On for port 465. Off starts in cleartext and upgrades with STARTTLS, which is what port 587 expects."
+        },
+        "remove": "Remove mail server",
+        "review": {
+          "removed": "Removed",
+          "password": "Replaced"
+        }
+      },
       "review": {
         "title": "Save workspace settings",
         "subtitle": "Review your changes before saving.",
