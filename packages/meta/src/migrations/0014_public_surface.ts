@@ -92,7 +92,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
 
   await db.schema
     .createIndex('ix_adminium_public_scopes_connection')
-    .ifNotExists()
     .on(metaTable('public_scopes'))
     .columns(['connection_id'])
     .execute();
@@ -152,7 +151,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
   /* Lookup is by prefix on every public request — the hot path of this wave. */
   await db.schema
     .createIndex('ix_adminium_public_keys_prefix')
-    .ifNotExists()
     .on(metaTable('public_keys'))
     .columns(['prefix'])
     .execute();
@@ -190,7 +188,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
 
   await db.schema
     .createIndex('ix_adminium_public_sessions_token_hash')
-    .ifNotExists()
     .on(metaTable('public_sessions'))
     .columns(['token_hash'])
     .execute();
@@ -230,7 +227,6 @@ export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
 
   await db.schema
     .createIndex('ix_adminium_public_challenges_key_ref')
-    .ifNotExists()
     .on(metaTable('public_challenges'))
     .columns(['key_id', 'ref'])
     .execute();
