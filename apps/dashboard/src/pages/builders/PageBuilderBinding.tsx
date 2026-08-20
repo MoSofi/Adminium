@@ -20,7 +20,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock3, Save } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   DropdownMenu,
@@ -68,26 +68,74 @@ export function PageBuilderBinding({ page, adapters, canEditLayout }: PageTempla
   const [autosave, setAutosave] = useState<AutosaveStatus>('idle');
   const [savedAt, setSavedAt] = useState<number | undefined>(undefined);
   const dirtyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alive = useRef(true);
+  /** The doc an armed debounce is holding, so a flush writes what it would have. */
+  const pendingDoc = useRef<DocRecord | null>(null);
 
-  const persistDoc = useCallback(
+  /** The layout write itself — the debounce and the unmount flush share it. */
+  const commit = useCallback(
     (next: DocRecord): void => {
-      setDoc(next);
-      setAutosave('dirty');
-      if (dirtyTimer.current !== null) clearTimeout(dirtyTimer.current);
-      dirtyTimer.current = setTimeout(() => {
-        setAutosave('saving');
-        target.save(layoutWithDoc(state, next));
-        void target
-          .flush()
-          .then(() => {
-            setAutosave('saved');
-            setSavedAt(Date.now());
-          })
-          .catch(() => setAutosave('error'));
-      }, BUILDER_AUTOSAVE_DEBOUNCE_MS);
+      if (alive.current) setAutosave('saving');
+      // `save` arms the hook's own 800 ms trailing timer and `flush` immediately
+      // clears it and fires the request (04 §6.3), so this leaves nothing
+      // pending even though the hook's unmount cleanup has already run — its
+      // effect is declared before ours, so it is cancelled by the time we call.
+      target.save(layoutWithDoc(state, next));
+      void target
+        .flush()
+        .then(() => {
+          if (!alive.current) return;
+          setAutosave('saved');
+          setSavedAt(Date.now());
+        })
+        .catch(() => {
+          if (alive.current) setAutosave('error');
+        });
     },
     [state, target],
   );
+
+  // Read through a ref so both callers get the CURRENT `state`/`target` rather
+  // than whatever they were when the debounce was armed, and so the unmount
+  // effect can stay on empty deps — a dep on `commit` would run its cleanup,
+  // and so flush, on every page or capability change.
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+
+  // The 900 ms debounce easily outlives the tree that armed it — navigating
+  // away mid-edit, or a test unmounting between assertions — and a timer nobody
+  // owns then writes the layout of a page the user has left and resolves its
+  // state updates into a dead component. Flush rather than cancel: the edit the
+  // user just made is persisted now, and no timer outlives the component.
+  //
+  // `alive` covers what neither can — a flush already in flight when the
+  // unmount lands, whose `.then` would otherwise still set state.
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      if (dirtyTimer.current !== null) {
+        clearTimeout(dirtyTimer.current);
+        dirtyTimer.current = null;
+        const next = pendingDoc.current;
+        pendingDoc.current = null;
+        if (next !== null) commitRef.current(next);
+      }
+    };
+  }, []);
+
+  const persistDoc = useCallback((next: DocRecord): void => {
+    setDoc(next);
+    setAutosave('dirty');
+    pendingDoc.current = next;
+    if (dirtyTimer.current !== null) clearTimeout(dirtyTimer.current);
+    dirtyTimer.current = setTimeout(() => {
+      dirtyTimer.current = null;
+      const armed = pendingDoc.current;
+      pendingDoc.current = null;
+      if (armed !== null) commitRef.current(armed);
+    }, BUILDER_AUTOSAVE_DEBOUNCE_MS);
+  }, []);
 
   // ── versions (saved-views rows with the builderDoc marker) ────────────────
   const versionsQuery = useQuery({
