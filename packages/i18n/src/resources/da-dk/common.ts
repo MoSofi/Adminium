@@ -665,6 +665,41 @@ export default {
           "error": "Mellem {min, number} og {max, number} tegn."
         }
       },
+      "email": {
+        "heading": "E-mail (SMTP)",
+        "unconfigured": "Der er ikke opsat nogen mailserver, så Adminium kan ikke sende nulstilling af adgangskode, invitationer eller planlagte rapporter.",
+        "host": {
+          "label": "SMTP-vært",
+          "error": "Kun et værtsnavn eller en IP-adresse — uden skema, port eller loginoplysninger."
+        },
+        "port": {
+          "label": "Port",
+          "error": "Mellem {min, number} og {max, number}."
+        },
+        "user": {
+          "label": "Brugernavn",
+          "helper": "Lad feltet stå tomt, hvis relayet ikke kræver login."
+        },
+        "pass": {
+          "label": "Adgangskode",
+          "helper": "Gemmes krypteret og vises aldrig igen. Lad feltet stå tomt for at beholde den nuværende.",
+          "error": "Dette brugernavn kræver en adgangskode."
+        },
+        "from": {
+          "label": "Afsenderadresse",
+          "helper": "Kun adressen, eller et visningsnavn foran den.",
+          "error": "Indtast en e-mailadresse."
+        },
+        "secure": {
+          "label": "Implicit TLS",
+          "helper": "Til på port 465. Fra starter i klartekst og skifter med STARTTLS, som port 587 forventer."
+        },
+        "remove": "Fjern mailserver",
+        "review": {
+          "removed": "Fjernet",
+          "password": "Erstattet"
+        }
+      },
       "review": {
         "title": "Gem arbejdsområdeindstillinger",
         "subtitle": "Gennemgå dine ændringer, før du gemmer.",

@@ -656,6 +656,41 @@
           "error": "Zwischen {min, number} und {max, number} Zeichen."
         }
       },
+      "email": {
+        "heading": "E-Mail (SMTP)",
+        "unconfigured": "Es ist kein Mailserver eingerichtet, daher kann Adminium keine Passwort-Zurücksetzungen, Einladungen oder geplanten Berichte versenden.",
+        "host": {
+          "label": "SMTP-Host",
+          "error": "Nur ein Hostname oder eine IP-Adresse — ohne Schema, Port oder Zugangsdaten."
+        },
+        "port": {
+          "label": "Port",
+          "error": "Zwischen {min, number} und {max, number}."
+        },
+        "user": {
+          "label": "Benutzername",
+          "helper": "Leer lassen, wenn das Relay keine Anmeldung verlangt."
+        },
+        "pass": {
+          "label": "Passwort",
+          "helper": "Verschlüsselt gespeichert und nie wieder angezeigt. Leer lassen, um das aktuelle zu behalten.",
+          "error": "Zu diesem Benutzernamen gehört ein Passwort."
+        },
+        "from": {
+          "label": "Absenderadresse",
+          "helper": "Nur die Adresse oder ein Anzeigename davor.",
+          "error": "Geben Sie eine E-Mail-Adresse ein."
+        },
+        "secure": {
+          "label": "Implizites TLS",
+          "helper": "An für Port 465. Aus beginnt unverschlüsselt und wechselt per STARTTLS — so erwartet es Port 587."
+        },
+        "remove": "Mailserver entfernen",
+        "review": {
+          "removed": "Entfernt",
+          "password": "Ersetzt"
+        }
+      },
       "review": {
         "title": "Workspace-Einstellungen speichern",
         "subtitle": "Prüfen Sie Ihre Änderungen vor dem Speichern.",

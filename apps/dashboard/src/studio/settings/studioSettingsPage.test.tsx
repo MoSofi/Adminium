@@ -23,7 +23,12 @@ import { createAppRouter } from '../../app/router.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
 import type { ConnectionDto } from '../api.js';
-import type { SecuritySettings, WorkspaceBranding, WorkspaceSettingsData } from './workspaceApi.js';
+import type {
+  EmailSettings,
+  SecuritySettings,
+  WorkspaceBranding,
+  WorkspaceSettingsData,
+} from './workspaceApi.js';
 
 class FakeWebSocket {
   onopen: (() => void) | null = null;
@@ -44,6 +49,11 @@ function makeWorkspace(overrides: Partial<WorkspaceSettingsData> = {}): Workspac
 
 function makeSecurity(overrides: Partial<SecuritySettings> = {}): SecuritySettings {
   return { sessionTtlHours: 720, require2fa: false, passwordMinLength: 10, ...overrides };
+}
+
+/** Unconfigured is the DEFAULT here because it is the state every fresh install is in. */
+function makeEmail(overrides: Partial<EmailSettings> = {}): EmailSettings {
+  return { configured: false, host: null, port: null, user: null, from: null, secure: null, ...overrides };
 }
 
 function makeConnection(overrides: Partial<ConnectionDto> = {}): ConnectionDto {
@@ -79,6 +89,7 @@ function stubFetch(
   connections: ConnectionDto[] = [makeConnection()],
   branding: WorkspaceBranding = makeWorkspace().branding,
   security: SecuritySettings = makeSecurity(),
+  email: EmailSettings = makeEmail(),
 ) {
   const calls: Call[] = [];
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
@@ -106,6 +117,28 @@ function stubFetch(
     if (url === '/api/v1/settings/security' && method === 'PUT') {
       // The route is a full-object write, so the reply is the body.
       return Promise.resolve(jsonResponse(200, { data: body }));
+    }
+    if (url === '/api/v1/settings/email' && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, { data: email }));
+    }
+    if (url === '/api/v1/settings/email' && method === 'PUT') {
+      // Mirrors the route: the reply is the password-free view of what landed.
+      const smtp = (body as { smtp: Record<string, unknown> | null }).smtp;
+      return Promise.resolve(
+        jsonResponse(200, {
+          data:
+            smtp === null
+              ? makeEmail()
+              : {
+                  configured: true,
+                  host: smtp['host'],
+                  port: smtp['port'],
+                  user: smtp['user'],
+                  from: smtp['from'],
+                  secure: smtp['secure'],
+                },
+        }),
+      );
     }
     if (url === '/api/v1/branding' && method === 'GET') {
       return Promise.resolve(jsonResponse(200, { data: branding }));
@@ -139,9 +172,10 @@ async function renderPage(
   connections?: ConnectionDto[],
   branding?: WorkspaceBranding,
   security?: SecuritySettings,
+  email?: EmailSettings,
 ) {
   vi.stubGlobal('WebSocket', FakeWebSocket);
-  const stub = stubFetch(roles, connections, branding, security);
+  const stub = stubFetch(roles, connections, branding, security, email);
   const queryClient = createQueryClient();
   const router = createAppRouter(queryClient, {
     history: createMemoryHistory({ initialEntries: ['/studio/settings'] }),
@@ -269,6 +303,212 @@ describe('StudioSettingsPage', () => {
     expect(calls.some((c) => c.method === 'PUT' && c.url.endsWith('/settings/security'))).toBe(
       false,
     );
+  });
+
+  /**
+   * The SMTP card. Before it existed the transport behind password reset, user
+   * invites and scheduled reports could only be set by hand-writing
+   * `PUT /api/v1/settings/email` or importing a config bundle.
+   */
+  describe('email (SMTP)', () => {
+    it('says what an unconfigured workspace cannot do, and starts pristine', async () => {
+      await renderPage();
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+      expect(
+        screen.getByText(/cannot send password resets, user invites or scheduled reports/),
+      ).toBeDefined();
+      // Empty boxes and a suggested port are not an error state — a first-time
+      // admin must not be greeted by three red fields.
+      expect((screen.getByLabelText('Port') as HTMLInputElement).value).toBe('587');
+      expect(screen.queryByText('Enter an email address.')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+    });
+
+    it('binds a configured transport, and never renders the password', async () => {
+      await renderPage(['super-admin'], undefined, undefined, undefined, {
+        configured: true,
+        host: 'smtp.acme.io',
+        port: 465,
+        user: 'postmaster@acme.io',
+        from: 'Adminium <ops@acme.io>',
+        secure: true,
+      });
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+      expect((screen.getByLabelText('SMTP host') as HTMLInputElement).value).toBe('smtp.acme.io');
+      expect((screen.getByLabelText('Port') as HTMLInputElement).value).toBe('465');
+      expect((screen.getByLabelText('Username') as HTMLInputElement).value).toBe('postmaster@acme.io');
+      expect((screen.getByLabelText('From address') as HTMLInputElement).value).toBe('Adminium <ops@acme.io>');
+      expect(screen.getByRole('switch', { name: 'Implicit TLS' }).getAttribute('aria-checked')).toBe('true');
+      // The GET carries no password in any form, so the box is empty and means
+      // "keep the stored one".
+      expect((screen.getByLabelText('Password') as HTMLInputElement).value).toBe('');
+      expect(screen.queryByText(/cannot send password resets/)).toBeNull();
+    });
+
+    it('saves a first configuration through the shared review modal', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage();
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+
+      await user.type(screen.getByLabelText('SMTP host'), 'smtp.acme.io');
+      await user.type(screen.getByLabelText('Username'), 'postmaster@acme.io');
+      await user.type(screen.getByLabelText('Password'), 'hunter2');
+      await user.type(screen.getByLabelText('From address'), 'ops@acme.io');
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('— → smtp.acme.io')).toBeDefined();
+      // The password has no before, and its after must never be on screen.
+      expect(within(dialog).getByText('Replaced')).toBeDefined();
+      expect(within(dialog).queryByText(/hunter2/)).toBeNull();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      await screen.findByText('Workspace settings updated');
+
+      const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
+      expect(put?.body).toEqual({
+        smtp: {
+          host: 'smtp.acme.io',
+          port: 587,
+          user: 'postmaster@acme.io',
+          from: 'ops@acme.io',
+          secure: false,
+          pass: 'hunter2',
+        },
+      });
+      // Untouched sections stay untouched — three section-puts, one Save.
+      expect(calls.some((c) => c.method === 'PUT' && c.url.endsWith('/settings/branding'))).toBe(false);
+      expect(calls.some((c) => c.method === 'PUT' && c.url.endsWith('/settings/security'))).toBe(false);
+    });
+
+    it('omits the password when it was not retyped, so a port change keeps the secret', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, {
+        configured: true,
+        host: 'smtp.acme.io',
+        port: 587,
+        user: 'postmaster@acme.io',
+        from: 'ops@acme.io',
+        secure: false,
+      });
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+
+      const port = screen.getByLabelText('Port');
+      await user.clear(port);
+      await user.type(port, '465');
+      await user.click(screen.getByRole('switch', { name: 'Implicit TLS' }));
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('587 → 465')).toBeDefined();
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      await screen.findByText('Workspace settings updated');
+
+      const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
+      // No `pass` key at all: absent means "keep the stored one", which is what
+      // stops a port change from making someone retype a production secret.
+      expect(put?.body).toEqual({
+        smtp: {
+          host: 'smtp.acme.io',
+          port: 465,
+          user: 'postmaster@acme.io',
+          from: 'ops@acme.io',
+          secure: true,
+        },
+      });
+    });
+
+    it('refuses a pasted URL, a bad port and a from without an @ before any PUT', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage();
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+
+      // The exact paste this guard exists for — a scheme and a port in the host
+      // box. SMTP is line-oriented, so this is a server-side refusal too.
+      await user.type(screen.getByLabelText('SMTP host'), 'smtp://smtp.acme.io:587');
+      expect(screen.getByText(/no scheme, port or credentials/)).toBeDefined();
+      expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+
+      await user.clear(screen.getByLabelText('SMTP host'));
+      await user.type(screen.getByLabelText('SMTP host'), 'smtp.acme.io');
+      await user.clear(screen.getByLabelText('Port'));
+      await user.type(screen.getByLabelText('Port'), '70000');
+      expect(screen.getByText('Between 1 and 65,535.')).toBeDefined();
+
+      await user.clear(screen.getByLabelText('Port'));
+      await user.type(screen.getByLabelText('Port'), '587');
+      await user.type(screen.getByLabelText('From address'), 'ops-at-acme.io');
+      expect(screen.getByText('Enter an email address.')).toBeDefined();
+      expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+      expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+    });
+
+    it('mirrors the server rule that a username needs a password', async () => {
+      const user = userEvent.setup();
+      await renderPage();
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+
+      await user.type(screen.getByLabelText('SMTP host'), 'smtp.acme.io');
+      await user.type(screen.getByLabelText('From address'), 'ops@acme.io');
+      await user.type(screen.getByLabelText('Username'), 'postmaster');
+      expect(screen.getByText('This username needs a password.')).toBeDefined();
+      expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+
+      await user.type(screen.getByLabelText('Password'), 'hunter2');
+      expect(screen.queryByText('This username needs a password.')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(false);
+    });
+
+    it('clears a stored password when the username is emptied', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, {
+        configured: true,
+        host: 'smtp.acme.io',
+        port: 587,
+        user: 'postmaster@acme.io',
+        from: 'ops@acme.io',
+        secure: false,
+      });
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+
+      // Switching to an unauthenticated relay: an encrypted secret nothing can
+      // use any more is one nobody will remember to revoke.
+      await user.clear(screen.getByLabelText('Username'));
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      await screen.findByText('Workspace settings updated');
+
+      const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
+      expect((put?.body as { smtp: { pass: string; user: string } }).smtp.user).toBe('');
+      expect((put?.body as { smtp: { pass: string } }).smtp.pass).toBe('');
+    });
+
+    it('stages a removal and sends the null the route defines for it', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, {
+        configured: true,
+        host: 'smtp.acme.io',
+        port: 587,
+        user: '',
+        from: 'ops@acme.io',
+        secure: false,
+      });
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+
+      await user.click(screen.getByRole('button', { name: 'Remove mail server' }));
+      // Staged, like the logo: nothing has left the browser yet.
+      expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Removed')).toBeDefined();
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      await screen.findByText('Workspace settings updated');
+
+      const put = calls.find((c) => c.method === 'PUT' && c.url.endsWith('/settings/email'));
+      expect(put?.body).toEqual({ smtp: null });
+    });
   });
 
   it('admins get the super-admin notice, no settings fetch, but keep the danger zone', async () => {

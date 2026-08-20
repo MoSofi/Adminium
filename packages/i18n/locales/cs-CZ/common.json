@@ -656,6 +656,41 @@
           "error": "Mezi {min, number} a {max, number} znaky."
         }
       },
+      "email": {
+        "heading": "E-mail (SMTP)",
+        "unconfigured": "Není nastaven žádný poštovní server, takže Adminium nemůže odesílat obnovení hesla, pozvánky ani naplánované reporty.",
+        "host": {
+          "label": "Server SMTP",
+          "error": "Pouze název hostitele nebo IP adresa — bez schématu, portu a přihlašovacích údajů."
+        },
+        "port": {
+          "label": "Port",
+          "error": "Mezi {min, number} a {max, number}."
+        },
+        "user": {
+          "label": "Uživatelské jméno",
+          "helper": "Nechte prázdné, pokud relay nevyžaduje přihlášení."
+        },
+        "pass": {
+          "label": "Heslo",
+          "helper": "Uloženo šifrovaně a už se nikdy nezobrazí. Ponechte prázdné, chcete-li zachovat stávající.",
+          "error": "K tomuto uživatelskému jménu patří heslo."
+        },
+        "from": {
+          "label": "Adresa odesílatele",
+          "helper": "Samotná adresa, nebo zobrazované jméno před ní.",
+          "error": "Zadejte e-mailovou adresu."
+        },
+        "secure": {
+          "label": "Implicitní TLS",
+          "helper": "Zapnuto pro port 465. Vypnuto začíná nešifrovaně a přejde na STARTTLS, což očekává port 587."
+        },
+        "remove": "Odebrat poštovní server",
+        "review": {
+          "removed": "Odebráno",
+          "password": "Nahrazeno"
+        }
+      },
       "review": {
         "title": "Uložit nastavení workspace",
         "subtitle": "Před uložením zkontrolujte změny.",

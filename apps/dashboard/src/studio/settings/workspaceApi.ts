@@ -69,3 +69,50 @@ export function securitySettingsQuery() {
 export async function putSecuritySettings(body: SecuritySettings): Promise<SecuritySettings> {
   return (await api.put<{ data: SecuritySettings }>('/api/v1/settings/security', body)).data;
 }
+
+// --- email / SMTP (email.smtp) --------------------------------------------------
+
+/**
+ * `GET|PUT /settings/email` — the transport password resets, user invites, the
+ * notification `email` channel and scheduled reports all dial. The ONE
+ * asymmetric pair in this file: the GET never returns a password in any form
+ * (not masked, not a last-4), so the read shape and the write shape are
+ * different types rather than one reused interface.
+ */
+export interface EmailSettings {
+  /** `email.smtp` is set. The other fields are null exactly when this is false. */
+  configured: boolean;
+  host: string | null;
+  port: number | null;
+  user: string | null;
+  from: string | null;
+  secure: boolean | null;
+}
+
+/**
+ * What `PUT /settings/email` takes as `{ smtp }`. `pass` is OPTIONAL and that
+ * is the feature: absent keeps the stored password, so changing a port does not
+ * make an admin retype a production secret; an empty string clears it.
+ */
+export interface EmailSettingsInput {
+  host: string;
+  port: number;
+  user: string;
+  pass?: string;
+  from: string;
+  secure: boolean;
+}
+
+export const EMAIL_SETTINGS_QUERY_KEY = ['settings', 'email'] as const;
+
+export function emailSettingsQuery() {
+  return queryOptions({
+    queryKey: EMAIL_SETTINGS_QUERY_KEY,
+    queryFn: async () => (await api.get<{ data: EmailSettings }>('/api/v1/settings/email')).data,
+  });
+}
+
+/** `null` clears the configuration — the route's own way of spelling "no relay". */
+export async function putEmailSettings(smtp: EmailSettingsInput | null): Promise<EmailSettings> {
+  return (await api.put<{ data: EmailSettings }>('/api/v1/settings/email', { smtp })).data;
+}

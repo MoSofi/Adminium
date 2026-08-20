@@ -652,16 +652,16 @@ An honest anatomy includes the absences.
 - **No code generation.** There is no emitted codebase to own or maintain, and
   `export-zip` gives you the server plus its configuration bundle — never
   something that looks like a generated app.
-- **No email *provider* integrations, and no settings screen for SMTP.** This
-  bullet used to say the broader thing — that nothing in the repository sends
-  mail — and that was wrong end to end. Mail ships: `email.smtp` resolves to a
-  real nodemailer transport (lazily imported, so a process that never sends
-  never loads it), `email.send` is a registered job kind on `adminium_jobs`, and
-  password resets, user invitations, notification emails and the
-  template-editor's test send all queue through it. What is genuinely absent is
-  the two ends. There is no SES/Postmark/Resend adapter — SMTP or nothing — and
-  there is no `/settings/email` page in the dashboard, so the transport is
-  configured through `PUT /api/v1/settings/email` or a config-bundle import.
+- **No email *provider* integrations.** This bullet used to say the broader
+  thing — that nothing in the repository sends mail — and that was wrong end to
+  end. Mail ships: `email.smtp` resolves to a real nodemailer transport (lazily
+  imported, so a process that never sends never loads it), `email.send` is a
+  registered job kind on `adminium_jobs`, and password resets, user invitations,
+  notification emails and the template-editor's test send all queue through it.
+  What is genuinely absent is one end of it: there is no SES/Postmark/Resend
+  adapter — SMTP or nothing. The transport itself is configured on
+  **/studio/settings** (the "Email (SMTP)" card, super admin only), which writes
+  `PUT /api/v1/settings/email`; a config-bundle import sets the same key.
   `smtpConfigured` is a read-only *consequence* of that setting rather than the
   whole of it: it exists so the UI can grey out a Send button instead of
   offering one that would queue nothing.
