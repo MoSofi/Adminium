@@ -57,12 +57,34 @@ const waiters = new Set<() => void>();
  */
 export async function loadFullIconSet(): Promise<Record<string, LucideIcon>> {
   if (fullSet !== null) return fullSet;
-  pending ??= import('lucide-react').then((module) => {
-    fullSet = module.icons as unknown as Record<string, LucideIcon>;
-    for (const notify of waiters) notify();
-    waiters.clear();
-    return fullSet;
-  });
+  pending ??= import('lucide-react')
+    .then((module) => {
+      fullSet = module.icons as unknown as Record<string, LucideIcon>;
+      for (const notify of waiters) notify();
+      waiters.clear();
+      return fullSet;
+    })
+    // `.catch` AFTER the handler, not `.then(onOk, onErr)`: the two-argument
+    // form cannot see a throw from its own success handler, so a catalogue that
+    // arrives unusable would memoize the same poisoned promise this exists to
+    // prevent.
+    .catch((reason: unknown) => {
+      // A FAILED CHUNK MUST NOT POISON THE CATALOGUE FOR THE SESSION. Without
+      // this eviction the rejected promise stays memoized and every later call
+      // re-returns it, so one stale-deploy 404 or one network blip leaves every
+      // icon outside the core set wrong until the tab is reloaded — a
+      // placeholder here, the neutral `File` glyph in the dashboard, which is
+      // worse because it looks like an answer. The dashboard's sibling template
+      // loader already evicts a failed id for the same reason
+      // (apps/dashboard/src/pages/templates.tsx).
+      //
+      // The next MISS retries: any icon mounting after the failure calls this
+      // again, and `waiters` is deliberately not cleared on the error path, so
+      // the icons already on screen when the fetch failed are notified by
+      // whichever later attempt succeeds.
+      pending = null;
+      throw reason;
+    });
   return await pending;
 }
 
