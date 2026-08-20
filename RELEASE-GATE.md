@@ -18,11 +18,15 @@ not deleting it.
 
 ## Performance
 
-- [x] Dashboard entry chunk meets its budget — **321.3 KiB gz (329,014 bytes)
-      against the 350 KiB target, 2026-08-18.** Down from 655.1 KiB, a 51%
-      reduction, in three changes: the fourteen page-template bindings are lazy
-      (`pages/templates.tsx`, −97.0 KiB — a page renders one template and
-      downloaded all fourteen); the lucide catalogue is no longer imported as a
+- [x] Dashboard entry chunk meets its budget — **308.3 KiB gz (315,684 bytes)
+      against the 350 KiB target, measured 2026-08-20.** Down from 655.1 KiB, a
+      52% reduction, in four changes: the fourteen page-template bindings are
+      lazy (`pages/templates.tsx`, −97.0 KiB — a page renders one template and
+      downloaded all fourteen); the two data-io route bodies are lazy
+      (`data-io/routes.tsx`, −14.9 KiB — and `ImportWizardPage` is the
+      `page-wizard` template body, so until this landed that binding's "lazy"
+      chunk held a 22-line wrapper while the body shipped on boot anyway); the
+      lucide catalogue is no longer imported as a
       map (`scripts/gen-icon-core.mjs` + `packages/ui/.../icon-resolver.ts`,
       −112.6 KiB — all 1,611 icon modules were in the entry for the ~136 the
       product draws); and eleven route components are lazy (`app/router.tsx`,
@@ -79,9 +83,13 @@ not deleting it.
       re-check, and this row gets unchecked per the rule above.
 - [x] Performance budgets — **9 of the 10 rows in 15-quality.md §5 are WAIVED
       for v1.0** (owner decision 2026-08-19). The tenth is measured and gated and
-      stays that way: the dashboard entry chunk, 321.4 KiB gz against 350, by
+      stays that way: the dashboard entry chunk, 308.3 KiB gz against 350, by
       `apps/dashboard/scripts/check-entry-budget.mjs` at the end of the dashboard
-      build.
+      build. (Same measurement as the Performance row above — the two lines said
+      321.3 and 321.4 for one number, and both were stale besides.) That gate
+      counts JS only: the entry stylesheet blocks paint and is uncounted, and at
+      20,955 bytes gz it puts the real blocking payload at 336,639 against
+      358,400.
       **Rationale.** v1 is a free, self-hosted, source-available admin tool with
       no hosted multi-tenant surface, so there is no fleet whose p95 anyone is
       accountable for; an operator runs it against their own database at their

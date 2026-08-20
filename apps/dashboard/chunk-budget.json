@@ -1,8 +1,23 @@
 {
-  "entryJsGzBytes": 331000,
+  "entryJsGzBytes": 317700,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
   "loweredOn": {
+    "when": "2026-08-20",
+    "by": "deferring the two data-io route bodies, which is what finally made the page-wizard template split real",
+    "from": 331000,
+    "measured": "315,684 bytes (308.3 KiB gz), down from 330,905 on the same build inputs — 14.9 KiB gz out of the entry, and 42.7 KiB under the 350 KiB v1.0 target.",
+    "why": "`app/router.tsx` imports `data-io/routes.tsx` statically — it has to, the routes are built at module scope — and that module imported `ImportWizardPage` and `DataExportsPage` statically, so both route bodies were in the synchronously-loaded set for every user on every route. `ImportWizardPage` is ALSO the `page-wizard` template body, so the lazy binding `pages/templates.tsx` registers for `page-wizard` was a NO-OP: its chunk held a 22-line wrapper while the body shipped on boot regardless. Thirteen of the fourteen template bindings were genuinely deferred and the accounting said fourteen. Both are deferred now, so both are what they claim to be.",
+    "whatMoved": {
+      "ImportWizardPage": "the bulk of it: the wizard pulls @adminium/widgets' PageWizard, UploadDropzone, ColumnMappingTableWidget and ValidationIssuesListWidget along with their zod config schemas.",
+      "DataExportsPage": "the exports manager, a route body with no second life as a template."
+    },
+    "headroom": "2,016 bytes — the same margin the click below left, and for the same reason: enough to absorb minifier drift, not enough to hide growth.",
+    "cost": "One chunk fetch the first time /imports or /exports is opened. The page surface and its topbar title stay outside the Suspense boundary, so the frame paints on the first frame and only the body waits behind a centered spinner.",
+    "whatThisNumberIsNot": "The gate builds its asset list from two regexes that both hardcode `\\.js`, so the entry STYLESHEET is uncounted: `index.css` is a plain <link> in <head> with no media trick and blocks paint. Measured on this build it is 20,955 bytes gz, which puts the real blocking payload at 336,639 against the 358,400 target — 21,761 bytes of room, not 42,716. Widening the gate to count CSS (and the self-hosted woff2 faces, also uncounted) is a separate change; recording the number here is so the JS figure is not read as the whole story.",
+    "drift": "The 331,000 this came down from was already loose: a fresh build measured 330,905 before this change, against the 329,014 the record below pinned. Nothing raised the ratchet — ordinary additions spent the margin (60 locale keys and two now-static icons on 2026-08-19, then 20 SMTP + export strings on 2026-08-20, ~1.4 KiB gz between them), which is exactly the drift a ratchet is meant to make visible and a stale one hides. RELEASE-GATE.md now states this measurement in both places it records the entry chunk."
+  },
+  "previouslyLoweredOn": {
     "when": "2026-08-18",
     "by": "lazy-loading the page templates and the non-first-paint routes, and removing the lucide barrel",
     "from": 671000,
