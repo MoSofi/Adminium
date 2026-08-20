@@ -272,7 +272,82 @@ export const envSchema = z.object({
         return origins;
       }),
   ),
-});
+
+  /**
+   * Exact origins allowed to reach `/api/v1/public/*` (28-public-surface.md
+   * §3.5 level 1, §3.6).
+   *
+   * UNSET ⇒ the public routes are NEVER REGISTERED. Not registered-and-
+   * refusing: an instance that never opted in has no door to probe, which is
+   * the `ADMINIUM_BRIDGE_ORIGINS` pattern above and the same argument.
+   *
+   * SEPARATE FROM `ADMINIUM_CORS_ORIGINS` on purpose, and the two must be
+   * DISJOINT. That list rejects wildcards *because its responses are
+   * credentialed* — widening it makes the cookie-authenticated admin session
+   * reachable cross-origin from every storefront domain. This list is for
+   * uncredentialed responses and never emits `Allow-Credentials`. If one origin
+   * appeared in both, `@fastify/cors` and the hand-rolled handler would each
+   * emit `Access-Control-Allow-Origin` and the browser would reject the
+   * duplicate — so overlap is refused here, at parse time, rather than
+   * debugged later from a CORS error that names neither variable.
+   */
+  ADMINIUM_PUBLIC_API_ORIGINS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .optional()
+      .transform((value, ctx) => {
+        if (value === undefined) return undefined;
+        const origins = value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter((origin) => origin.length > 0);
+        if (origins.length === 0) return undefined;
+        for (const origin of origins) {
+          if (origin === '*') {
+            ctx.addIssue({
+              code: 'custom',
+              message:
+                'wildcard origin is not allowed for the public API — name each origin exactly',
+            });
+            return z.NEVER;
+          }
+          try {
+            if (new URL(origin).origin !== origin) {
+              ctx.addIssue({
+                code: 'custom',
+                message: `"${origin}" must be an exact origin, e.g. https://shop.example.com`,
+              });
+              return z.NEVER;
+            }
+          } catch {
+            ctx.addIssue({ code: 'custom', message: `"${origin}" is not a valid origin` });
+            return z.NEVER;
+          }
+        }
+        return origins;
+      }),
+  ),
+})
+  .superRefine((env, ctx) => {
+    // The disjointness rule from ADMINIUM_PUBLIC_API_ORIGINS' comment. Checked
+    // across the two fields, so it belongs on the object rather than either one.
+    const admin = env.ADMINIUM_CORS_ORIGINS;
+    const pub = env.ADMINIUM_PUBLIC_API_ORIGINS;
+    if (admin === undefined || pub === undefined) return;
+    const overlap = pub.filter((origin) => admin.includes(origin));
+    if (overlap.length > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ADMINIUM_PUBLIC_API_ORIGINS'],
+        message:
+          `${overlap.join(', ')} appears in both ADMINIUM_CORS_ORIGINS and ` +
+          'ADMINIUM_PUBLIC_API_ORIGINS. They must be disjoint: the admin list is credentialed and ' +
+          'the public list is not, and a browser rejects the duplicate Access-Control-Allow-Origin ' +
+          'header the overlap would produce.',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
@@ -295,6 +370,8 @@ const ENV_HINTS: Record<string, string> = {
     'CSV of exact origins for split deployments, e.g. https://admin.acme.io — no wildcard',
   ADMINIUM_BRIDGE_ORIGINS:
     'CSV of exact origins allowed to hand this instance a connection string, e.g. https://adminium.dev — unset disables the bridge entirely',
+  ADMINIUM_PUBLIC_API_ORIGINS:
+    'CSV of exact origins allowed to reach /api/v1/public — unset means the public API is not registered at all; must be disjoint from ADMINIUM_CORS_ORIGINS',
 };
 
 export class EnvValidationError extends Error {

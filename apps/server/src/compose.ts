@@ -102,6 +102,9 @@ import { viewsRoutes } from './routes/views/index.js';
 import { widgetDataRoutes } from './routes/widget-data/index.js';
 import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
+import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
+import { publicAdminRoutes } from './routes/public-admin/index.js';
+import { createPublicApiGate } from './public-api/enabled.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
 
@@ -483,6 +486,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       ? null
       : { origins: env.ADMINIUM_BRIDGE_ORIGINS, pairingCode: createPairingCode(), store: createBridgeStore() };
 
+  /*
+   * The public API's runtime gate, created here rather than beside the public
+   * routes because BOTH namespaces need it: `routes/public` reads it on every
+   * request, and `routes/public-admin` must be able to invalidate it the moment
+   * an operator flips the toggle — otherwise the control appears not to work
+   * for a cache TTL and invites a second click.
+   */
+  const publicGate = createPublicApiGate({
+    read: async () => (await settingsRepo(meta).get('publicApi.enabled')) === true,
+  });
+
   await app.register(
     async (api) => {
       if (desktopSession !== null) {
@@ -579,6 +593,20 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(viewsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
       await api.register(onboardingRoutes({ meta }));
+      // Managing the public surface (28 §3.3). Always registered, even when the
+      // public namespace itself is not: an operator must be able to author a
+      // scope and see WHY the surface is off, and the page reports level 1 as a
+      // read-only fact rather than a toggle that would silently do nothing.
+      await api.register(
+        publicAdminRoutes({
+          meta,
+          env,
+          crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
+          invalidateGate: () => {
+            publicGate.invalidate();
+          },
+        }),
+      );
       await api.register(rolesRoutes);
       await api.register(usersRoutes);
       await api.register(permissionsRoutes);
@@ -599,6 +627,41 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     },
     { prefix: API_PREFIX },
   );
+
+  /*
+   * The public namespace (28-public-surface.md §3.1, D8).
+   *
+   * A SIBLING of the block above, not a child. Three reasons, all of which bite
+   * if it moves inside:
+   *  - it needs a different CORS posture (uncredentialed, its own origin list),
+   *    and the `/api/v1` block inherits the credentialed admin one;
+   *  - it needs its own limiter, keyed on things `principalKey` cannot see (D9);
+   *  - its prefix is what the off switch and the isolation test both key on.
+   * It still starts `/api/`, which is what the boot-time schema contract keys
+   * on, so every route here is schema-checked like any other.
+   *
+   * `publicApiRegistrationBlocked` is the level-1 + D21 gate. When it refuses,
+   * NOTHING is registered — no door to probe — and the reason is logged once at
+   * boot, because an operator who set the env var and got nothing needs to be
+   * told why rather than left to guess.
+   */
+  const publicBlocked = publicApiRegistrationBlocked(env);
+  if (publicBlocked === null) {
+    await app.register(
+      async (api) => {
+        await api.register(publicRoutes({ env, meta, manager, isEnabled: publicGate.isEnabled }));
+      },
+      { prefix: API_PREFIX },
+    );
+    app.log.info(
+      { origins: env.ADMINIUM_PUBLIC_API_ORIGINS },
+      'public API namespace registered (still gated by the publicApi.enabled setting)',
+    );
+  } else if (env.ADMINIUM_PUBLIC_API_ORIGINS !== undefined) {
+    // Only warn when the operator ASKED for it. An instance that never set the
+    // variable is not misconfigured and should not be told it is.
+    app.log.warn({ reason: publicBlocked }, 'public API not registered');
+  }
 
   // Telemetry (M10-T04). OPT-IN: `report()` reads `telemetry.enabled` FIRST and
   // returns before building a payload, so an instance that has not consented

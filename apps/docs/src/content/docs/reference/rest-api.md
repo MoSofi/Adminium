@@ -104,6 +104,10 @@ Thirty-one namespaces. Counts are operations, not paths.
 | `/api/v1/onboarding/*` | 2 | The first-run checklist |
 | `/api/v1/pages/*` | 13 | Pages and dashboards — layout, config, nav order, shared views |
 | `/api/v1/permissions` | 1 | The permission catalog every role is built from |
+| `/api/v1/public/*` | 6 | The scoped public API for customer- and staff-facing pages (off by default) |
+| `/api/v1/public-api/*` | 2 | Turn the public API on or off, and see whether this instance opted in |
+| `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
+| `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
 | `/api/v1/readyz` | 1 | Readiness — per-dependency verdicts, 503 when a dependency is down |
 | `/api/v1/roles/*` | 6 | RBAC roles and their permission sets |
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
@@ -361,6 +365,43 @@ DELETE /api/v1/pages/{pageId}/views/{viewId}
 
 ```http
 GET /api/v1/permissions/catalog
+```
+
+### `/public`
+
+```http
+GET /api/v1/public/config
+GET /api/v1/public/records/{ref}
+POST /api/v1/public/records/{ref}
+PATCH /api/v1/public/records/{ref}/{id}
+POST /api/v1/public/claim
+DELETE /api/v1/public/session
+```
+
+### `/public-api`
+
+```http
+GET /api/v1/public-api
+PUT /api/v1/public-api
+```
+
+### `/public-keys`
+
+```http
+GET /api/v1/public-keys
+POST /api/v1/public-keys
+GET /api/v1/public-keys/{id}/reveal
+POST /api/v1/public-keys/{id}/rotate
+DELETE /api/v1/public-keys/{id}
+```
+
+### `/public-scopes`
+
+```http
+GET /api/v1/public-scopes
+POST /api/v1/public-scopes
+PATCH /api/v1/public-scopes/{id}
+DELETE /api/v1/public-scopes/{id}
 ```
 
 ### `/readyz`

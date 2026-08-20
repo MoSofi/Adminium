@@ -32,6 +32,7 @@ import {
   resolveSessionByToken,
 } from '../auth/sessions.js';
 import { totpEncryptionKey } from '../auth/totp.js';
+import { API_KEY_PREFIX } from '../rbac/api-keys.js';
 
 /** Payload handed to the reset-delivery hook (email transport lands later). */
 export interface PasswordResetDelivery {
@@ -57,8 +58,22 @@ export interface AuthPluginOptions {
   deliverResetToken?: ((delivery: PasswordResetDelivery) => void) | undefined;
 }
 
-/** API keys are Stripe-style `adm_…` bearer tokens (07-meta-store.md §3.7). */
-const API_KEY_PREFIX = 'adm_';
+/*
+ * The API-key prefix is `adm_sk_`, IMPORTED from `rbac/api-keys.ts` rather than
+ * redeclared here (28-public-surface.md D4).
+ *
+ * This file used to carry its own looser copy — `const API_KEY_PREFIX = 'adm_'`
+ * — which drifted from the real one and cost two things. First, ANY bearer
+ * beginning `adm_` bought an unconditional `adminium_api_keys` lookup, in an
+ * instance `onRequest` hook that runs BEFORE route-level rate limiting: an
+ * unauthenticated caller could spend the meta store a query at a time with
+ * `adm_x`. Second, and the reason it blocks this wave, an `adm_pub_` token
+ * would fall into this branch and be resolved against the wrong table —
+ * defeating the property that makes a publishable key inert everywhere else
+ * (D3), which is the whole basis of the off switch.
+ *
+ * One constant, one meaning. `parseBearerApiKey` gates on the same import.
+ */
 
 declare module 'fastify' {
   interface FastifyRequest {

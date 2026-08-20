@@ -257,6 +257,19 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'POST /api/v1/api-keys': audited('rbac'), // api-key.create
   'DELETE /api/v1/api-keys/:id': audited('rbac'), // api-key.revoke
 
+  // The public surface's management routes (28-public-surface.md §3.3). Every
+  // one of these changes what an anonymous caller can reach, so all of them are
+  // audited via `app.rbac.audit` (hence the `rbac` WRITE PATH, not the `system`
+  // category the rows carry) — including `reveal`, which is a READ. Re-reading a publishable
+  // secret is the whole difference from `adm_sk_` and it should leave a trail.
+  'PUT /api/v1/public-api': audited('rbac'), // public-api.toggle
+  'POST /api/v1/public-scopes': audited('rbac'), // public-scope.create
+  'PATCH /api/v1/public-scopes/:id': audited('rbac'), // public-scope.update
+  'DELETE /api/v1/public-scopes/:id': audited('rbac'), // public-scope.delete
+  'POST /api/v1/public-keys': audited('rbac'), // public-key.create
+  'POST /api/v1/public-keys/:id/rotate': audited('rbac'), // public-key.rotate
+  'DELETE /api/v1/public-keys/:id': audited('rbac'), // public-key.revoke
+
   // ── Desktop-only doors (11-electron.md). Registered only under
   // ADMINIUM_RUNTIME=desktop, so most topologies never see these keys — an
   // unused entry is harmless, a missing one fails the desktop boot's coverage.

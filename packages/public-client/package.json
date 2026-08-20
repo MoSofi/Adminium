@@ -1,0 +1,38 @@
+{
+  "name": "@adminium/public-client",
+  "version": "0.2.2-rc.0",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MoSofi/Adminium.git",
+    "directory": "packages/public-client"
+  },
+  "homepage": "https://adminium.dev",
+  "bugs": "https://github.com/MoSofi/Adminium/issues",
+  "type": "module",
+  "description": "Browser client for the Adminium scoped public API",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@adminium/config": "workspace:*",
+    "typescript": "catalog:",
+    "eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false
+}

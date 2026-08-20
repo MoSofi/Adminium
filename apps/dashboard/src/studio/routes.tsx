@@ -7,6 +7,8 @@
  * - `/studio/connect`                → connect wizard (M5-T01/02/03)
  * - `/studio/pages`                  → page manager (08 §2.6 lifecycle surface)
  * - `/studio/settings`               → workspace settings hub (M5-T05)
+ * - `/studio/public-api`             → the scoped public API: switch, scopes, keys
+ *   (28-public-surface.md §3, 28-T13). LAZY like its siblings — see the note below.
  * - `/studio/remap/$connectionId`    → schema remap editor — OWNED BY THE
  *   REMAP AGENT. Contract: `./remap/RemapEditor.tsx` exports
  *   `RemapEditor({ connectionId }: { connectionId: string })`. Loaded
@@ -50,6 +52,11 @@ const ConnectionsHubLazy = lazy(async () => {
 const StudioSettingsPageLazy = lazy(async () => {
   const mod = await import('./settings/StudioSettingsPage.js');
   return { default: mod.StudioSettingsPage };
+});
+
+const PublicApiPageLazy = lazy(async () => {
+  const mod = await import('./public-api/PublicApiPage.js');
+  return { default: mod.PublicApiPage };
 });
 
 const StudioAiPageLazy = lazy(async () => {
@@ -219,6 +226,16 @@ function SettingsRouteComponent() {
   );
 }
 
+function PublicApiRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={<CenteredSpinner />}>
+        <PublicApiPageLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
 function AiSettingsRouteComponent() {
   const navigate = useNavigate();
   return (
@@ -331,6 +348,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     );
   }
 
+  const publicApiRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/public-api',
+    component: PublicApiRouteComponent,
+  });
+
   return [
     studioIndexRoute,
     connectRoute,
@@ -339,6 +362,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     editPageRoute,
     settingsRoute,
     aiSettingsRoute,
+    publicApiRoute,
     reviewRoute,
     remapRoute,
   ];

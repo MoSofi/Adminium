@@ -36,6 +36,7 @@ import { up as up0010 } from './0010_llm_prompt_version_width.js';
 import { up as up0011 } from './0011_i18n_runtime.js';
 import { up as up0012 } from './0012_locale_width.js';
 import { up as up0013 } from './0013_connection_last_error_hint.js';
+import { up as up0014 } from './0014_public_surface.js';
 
 export interface MetaMigration {
   /** Basename, e.g. `0001_core_auth` — the ledger PK. */
@@ -57,4 +58,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0011_i18n_runtime', up: up0011 },
   { name: '0012_locale_width', up: up0012 },
   { name: '0013_connection_last_error_hint', up: up0013 },
+  { name: '0014_public_surface', up: up0014 },
 ];

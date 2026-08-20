@@ -237,6 +237,21 @@ export const RATE_BUCKETS = {
   'data-io': { max: 10, timeWindowMs: 3_600_000, keyBy: 'principal' },
   llm: { max: 20, timeWindowMs: 3_600_000, keyBy: 'principal' },
   'file-bytes': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  /*
+   * A BACKSTOP, not the real limit (28-public-surface.md D9).
+   *
+   * The public namespace runs its own counters — per session, then per key,
+   * then per IP — because `principalKey` below cannot see a publishable key:
+   * its own comment forbids reading a decoration that `plugins/rbac.ts`
+   * registers later, and an `adm_pub_` token never becomes an rbac principal at
+   * all. A `keyBy: 'public'` branch here would silently fall through to
+   * `ip:`, which behind the shipped Caddy is ONE bucket for every anonymous
+   * caller on earth.
+   *
+   * This entry exists so the boot-time bucket check accepts the marker, and it
+   * is deliberately looser than any per-route limit the public plugin applies.
+   */
+  public: { max: 600, timeWindowMs: 60_000, keyBy: 'ip' },
 } as const satisfies Readonly<Record<string, RateBucket>>;
 
 /**

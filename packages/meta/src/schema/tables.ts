@@ -639,6 +639,94 @@ export interface AdminiumChangelogSeenTable {
   seenAt: Ts;
 }
 
+/**
+ * 28-public-surface.md §3.2 — the scope document.
+ *
+ * One row per (connection, side) the operator publishes. `document` holds the
+ * resources, their logical refs, the `expose` allow-list and the mandatory
+ * predicate; it is re-validated by `compileScope` on every read from disk and
+ * never trusted.
+ */
+export interface AdminiumPublicScopesTable {
+  id: Id;
+  connectionId: Id;
+  /** `staff` | `customer` — the `frontends[]` side this scope serves (§4). */
+  side: string;
+  name: string;
+  /**
+   * IANA zone. A COLUMN rather than a `document` field because the serializer
+   * needs it without parsing the whole document first (28 D20).
+   */
+  timezone: string;
+  document: string;
+  /** Manifest key this was seeded from, or null when authored in Studio (O2). */
+  proposedFromManifest: string | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/**
+ * 28-public-surface.md §3.3 — the publishable key.
+ *
+ * Separate from `adminium_api_keys` on two load-bearing properties: the secret
+ * is re-readable (it lives in a public bundle and must survive a rebuild), and
+ * a token from this table is never an `RbacPrincipal` (28 D3), which is what
+ * makes it inert on every other route by construction.
+ */
+export interface AdminiumPublicKeysTable {
+  id: Id;
+  name: string;
+  /** Display fragment, e.g. `adm_pub_4f2a91cd`. */
+  prefix: string;
+  tokenHash: string;
+  /** AES-GCM envelope — the re-readable copy. Never leaves the server as-is. */
+  tokenEncrypted: string;
+  scopeId: Id;
+  side: string;
+  /** JSON string array narrowing `ADMINIUM_PUBLIC_API_ORIGINS`; `[]` = no narrowing. */
+  origins: string;
+  expiresAt: Ts | null;
+  revokedAt: Ts | null;
+  lastUsedAt: Ts | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/**
+ * 28-public-surface.md §3.4 — the end-customer session.
+ *
+ * There is deliberately no `userId`: an end customer is not an
+ * `adminium_users` row, and this table is the whole of what a claimed customer
+ * is. `grants` is stored RESOLVED so editing a scope cannot retroactively widen
+ * a session already in someone's browser.
+ */
+export interface AdminiumPublicSessionsTable {
+  id: Id;
+  keyId: Id;
+  tokenHash: string;
+  grants: string;
+  expiresAt: Ts;
+  createdAt: Ts;
+  lastSeenAt: Ts | null;
+}
+
+/** 28-public-surface.md §3.4 — one-time challenge for the `email-code` tier. */
+export interface AdminiumPublicChallengesTable {
+  id: Id;
+  keyId: Id;
+  ref: string;
+  /** Hashed, not stored plain — a challenge table is otherwise a customer address list. */
+  destinationHash: string;
+  codeHash: string;
+  /** On the row, not in the in-process limiter, so the bound survives a restart. */
+  attempts: number;
+  consumedAt: Ts | null;
+  expiresAt: Ts;
+  createdAt: Ts;
+}
+
 // ---------------------------------------------------------------------------
 
 /** The full meta-store database — every adminium_* table (BRIEF §6). */
@@ -677,6 +765,10 @@ export interface MetaDB {
   adminium_changelog_seen: AdminiumChangelogSeenTable;
   adminium_locales: AdminiumLocalesTable;
   adminium_translations: AdminiumTranslationsTable;
+  adminium_public_scopes: AdminiumPublicScopesTable;
+  adminium_public_keys: AdminiumPublicKeysTable;
+  adminium_public_sessions: AdminiumPublicSessionsTable;
+  adminium_public_challenges: AdminiumPublicChallengesTable;
 }
 
 /** Every physical table name, in dependency-safe creation order. */
@@ -715,4 +807,8 @@ export const META_TABLE_NAMES = [
   'adminium_changelog_seen',
   'adminium_locales',
   'adminium_translations',
+  'adminium_public_scopes',
+  'adminium_public_keys',
+  'adminium_public_sessions',
+  'adminium_public_challenges',
 ] as const satisfies readonly (keyof MetaDB)[];
