@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { parseSchemaFile } from '../src/index.js';
+import { detectFormat, parseSchemaFile } from '../src/index.js';
 import { column, loadFixture, relationBetween, table } from './helpers.js';
 
 describe('pg_dump fixture', () => {
@@ -195,5 +195,109 @@ describe('sql adversarial cases', () => {
         `CREATE TABLE t (id int PRIMARY KEY, note text DEFAULT 'a;b');`,
     );
     expect(column(model, 't', 'note').default).toEqual({ kind: 'literal', text: 'a;b' });
+  });
+});
+
+/**
+ * Every case here parsed to LESS than what was pasted before the fix, silently:
+ * the head word of a table item was taken as decisive, so a column whose name
+ * happens to spell a constraint keyword was routed into the constraint parser
+ * and fell out of the model. `key` is the one that matters — it is half of
+ * every key/value table and is not reserved in SQLite or Postgres.
+ */
+describe('a column named like a constraint keyword', () => {
+  it('keeps `key` in the classic key/value table', () => {
+    const { model } = parseSchemaFile('CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT);');
+    expect(model.tables.map((t) => t.name)).toEqual(['kv']);
+    expect(table(model, 'kv').columns.map((c) => c.name)).toEqual(['key', 'value']);
+    expect(column(model, 'kv', 'key').logicalType).toBe('text');
+    expect(column(model, 'kv', 'key').isPrimaryKey).toBe(true);
+  });
+
+  it('keeps a parameterized type, which has the same shape as an index name + column list', () => {
+    // `key VARCHAR(255)` and `KEY idx_kv (val)` are the same three tokens —
+    // word, word, paren group — and only the type table separates them. Before
+    // the fix this lost the column AND invented an index called "VARCHAR" on a
+    // column called "255".
+    const { model } = parseSchemaFile('CREATE TABLE kv (key VARCHAR(255), val TEXT);');
+    expect(table(model, 'kv').columns.map((c) => c.name)).toEqual(['key', 'val']);
+    expect(column(model, 'kv', 'key').maxLength).toBe(255);
+    expect(table(model, 'kv').indexes).toEqual([]);
+  });
+
+  it('still reads a quoted `key` column beside a real mysql KEY index', () => {
+    const { model } = parseSchemaFile(
+      'CREATE TABLE kv (`key` VARCHAR(255), val VARCHAR(255), KEY idx_kv (val)) ENGINE=InnoDB;',
+    );
+    expect(model.dialect).toBe('mysql');
+    expect(table(model, 'kv').columns.map((c) => c.name)).toEqual(['key', 'val']);
+    expect(table(model, 'kv').indexes.map((i) => i.name)).toEqual(['idx_kv']);
+  });
+
+  it.each([
+    ['key', 'key TEXT NOT NULL'],
+    ['check', 'check BOOLEAN DEFAULT false'],
+    ['index', 'index INTEGER'],
+    ['unique', 'unique BOOLEAN'],
+    ['primary', 'primary BOOLEAN'],
+    ['spatial', 'spatial GEOMETRY'],
+  ] as const)('keeps `%s`', (name, definition) => {
+    const { model } = parseSchemaFile(`CREATE TABLE t (id INT PRIMARY KEY, ${definition});`);
+    expect(table(model, 't').columns.map((c) => c.name)).toEqual(['id', name]);
+  });
+
+  it('keeps a column whose type this parser does not know', () => {
+    // No type-table hit, so the fallback decides structurally: a table
+    // constraint always ends in a parenthesised column list and this has none.
+    const { model } = parseSchemaFile('CREATE TABLE t (id INT PRIMARY KEY, key user_status NOT NULL);');
+    expect(table(model, 't').columns.map((c) => c.name)).toEqual(['id', 'key']);
+  });
+
+  it('keeps reading real table constraints', () => {
+    const { model } = parseSchemaFile(
+      'CREATE TABLE t (\n' +
+        '  a INT,\n' +
+        '  b INT,\n' +
+        '  key TEXT,\n' +
+        '  PRIMARY KEY (a, b),\n' +
+        '  UNIQUE (a),\n' +
+        '  KEY idx_b (b),\n' +
+        '  CONSTRAINT ck_a CHECK (a > 0)\n' +
+        ');',
+    );
+    expect(table(model, 't').columns.map((c) => c.name)).toEqual(['a', 'b', 'key']);
+    expect(table(model, 't').primaryKey).toEqual(['a', 'b']);
+    expect(table(model, 't').uniques.map((u) => u.columns)).toEqual([['a']]);
+    expect(table(model, 't').indexes.map((i) => i.name)).toEqual(['idx_b']);
+    expect(table(model, 't').checks.map((c) => c.name)).toEqual(['ck_a']);
+  });
+
+  it('tells `ALTER TABLE … ADD key TEXT` from `ADD KEY idx (col)`', () => {
+    const { model } = parseSchemaFile(
+      'CREATE TABLE t (id INT PRIMARY KEY);\nALTER TABLE t ADD key TEXT;\nALTER TABLE t ADD KEY idx_key (key);',
+    );
+    expect(table(model, 't').columns.map((c) => c.name)).toEqual(['id', 'key']);
+    expect(table(model, 't').indexes.map((i) => i.name)).toEqual(['idx_key']);
+  });
+});
+
+describe('CREATE TABLE spellings the detector used to miss', () => {
+  it.each([
+    'CREATE UNLOGGED TABLE events (id int PRIMARY KEY, body text);',
+    'CREATE TEMPORARY TABLE events (id int PRIMARY KEY, body text);',
+    'CREATE TEMP TABLE events (id int PRIMARY KEY, body text);',
+    'CREATE GLOBAL TEMPORARY TABLE events (id int PRIMARY KEY, body text);',
+  ])('auto-detects and parses %s', (sql) => {
+    // The PARSER always understood these — it skips the same qualifier list —
+    // so the file could be imported only by naming the format by hand.
+    expect(detectFormat(sql)).toBe('sql');
+    const { model } = parseSchemaFile(sql);
+    expect(model.tables.map((t) => t.name)).toEqual(['events']);
+    expect(table(model, 'events').columns.map((c) => c.name)).toEqual(['id', 'body']);
+  });
+
+  it('still says nothing about prose that merely contains the word CREATE', () => {
+    expect(detectFormat('We had to create tables for the report.')).toBeNull();
+    expect(detectFormat('CREATE INDEX idx ON t (a);')).toBeNull();
   });
 });

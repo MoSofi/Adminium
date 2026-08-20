@@ -16,7 +16,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { parseSchemaFile } from '../src/index.js';
+import { detectFormat, parseSchemaFile } from '../src/index.js';
 import { snakeCase } from '../src/text.js';
 
 /** ~120 KB of spaces. At 20 KB every matcher below already cost ~0.6s. */
@@ -276,5 +276,34 @@ describe('rails `default: -> { … }` — cubic lambda matcher (not a CodeQL ale
   ] as const)('lambda grammar is unchanged: %s', (defaultExpr, expected) => {
     const { model } = parseSchemaFile(table(defaultExpr), { format: 'rails' });
     expect(model.tables[0]?.columns[1]?.default).toEqual(expected);
+  });
+});
+
+describe('the SQL format probe — widened to the qualifier list, kept linear', () => {
+  /**
+   * `/CREATE\s+TABLE/` could not see `CREATE UNLOGGED TABLE`, and the obvious
+   * widening — `(?:\w+\s+)*TABLE` — is the polynomial shape this file exists
+   * for: an unbounded repetition of "word then whitespace" in front of a
+   * literal that never arrives. The shipped pattern bounds the repetition at
+   * three instead. Measured on the shipped one: every case below is under a
+   * millisecond at 160 KB, and growth is linear across 10 KB → 160 KB.
+   */
+  it.each([
+    ['a CREATE that never reaches TABLE', `CREATE${PAD}x`],
+    ['a qualifier that never reaches TABLE', `CREATE TEMPORARY${PAD}x`],
+    ['many CREATE starts', `${'CREATE '.repeat(8_000)}x`],
+    ['stacked qualifiers, repeated', `${`CREATE GLOBAL TEMPORARY UNLOGGED${' '.repeat(20)}`.repeat(300)}x`],
+  ] as const)('stays linear on %s', (_label, content) => {
+    const { ms, value } = timed(() => detectFormat(content));
+    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(value).toBeNull();
+  });
+
+  it('still detects the spellings the widening was for', () => {
+    const { ms, value } = timed(() =>
+      detectFormat(`${PAD}CREATE UNLOGGED TABLE events (id int PRIMARY KEY);`),
+    );
+    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(value).toBe('sql');
   });
 });

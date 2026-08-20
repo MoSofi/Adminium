@@ -18,7 +18,7 @@ import { ModelBuilder, type ColumnDraft, type TableDraft } from '../builder.js';
 import { extractCheckEnum } from '../check-enum.js';
 import { SchemaImportError } from '../errors.js';
 import { collectStrings, splitTopLevel, stripComments } from '../text.js';
-import { classifySqlDefault, isSerialType, mapSqlType } from '../type-map.js';
+import { classifySqlDefault, isSerialType, isTypeHeadWord, mapSqlType } from '../type-map.js';
 import type { WarningList } from '../warnings.js';
 import { SqlCursor } from './sql-cursor.js';
 
@@ -121,6 +121,38 @@ const CONSTRAINT_HEADS: ReadonlySet<string> = new Set([
 /** Consume the optional symbol after a `CONSTRAINT` keyword. */
 function takeConstraintSymbol(cur: SqlCursor): string | null {
   return CONSTRAINT_HEADS.has(cur.peekWord() ?? '') ? null : cur.takeIdentifier();
+}
+
+/**
+ * A CONSTRAINT_HEADS word also spells a perfectly ordinary COLUMN NAME, and
+ * treating the head word as decisive dropped the column: `CREATE TABLE kv (key
+ * TEXT PRIMARY KEY, value TEXT)` lost `key` entirely — `key` is not reserved in
+ * SQLite and is a very common name for one half of a key/value table.
+ *
+ * Only the SECOND word separates the two grammars, so this looks at it on a
+ * throwaway cursor (`rest()` peeks; it does not consume):
+ *
+ * - not a bare word — `KEY (a)`, `CHECK (x > 0)`, `` KEY `idx` (a) `` — is a
+ *   constraint. A column named `key` with no type is not a column definition.
+ * - another constraint word — `PRIMARY KEY`, `UNIQUE KEY`, `FULLTEXT INDEX` —
+ *   is a constraint.
+ * - a type head word — `key TEXT`, `check BOOLEAN`, `index INT`, `key
+ *   VARCHAR(255)` — is a column. This is the whole fix: `VARCHAR(255)` and an
+ *   index's `idx_kv (key)` are the same SHAPE, and only the type table tells
+ *   them apart.
+ * - anything else falls back to the structural test: every table constraint
+ *   here ends in a parenthesised column list, so an item without one is a
+ *   column whose type this parser does not know (`key user_status NOT NULL`,
+ *   a user-defined enum) rather than a constraint.
+ */
+function tableItemIsColumnDef(cur: SqlCursor): boolean {
+  const lookahead = new SqlCursor(cur.rest());
+  lookahead.takeWord();
+  const second = lookahead.peekWord();
+  if (second === null) return false;
+  if (CONSTRAINT_HEADS.has(second)) return false;
+  if (isTypeHeadWord(second)) return true;
+  return !lookahead.rest().includes('(');
 }
 
 const FK_ACTION_MAP: Readonly<Record<string, FkAction>> = {
@@ -274,7 +306,8 @@ function parseTableItem(item: string, table: TableDraft, state: SqlParseState): 
   const constraintName = cur.tryWords('CONSTRAINT') ? takeConstraintSymbol(cur) : null;
 
   const head = cur.peekWord();
-  if (head !== null && CONSTRAINT_HEADS.has(head)) {
+  // A `CONSTRAINT x …` prefix settles it — nothing names a column that way.
+  if (head !== null && CONSTRAINT_HEADS.has(head) && (constraintName !== null || !tableItemIsColumnDef(cur))) {
     parseTableConstraint(cur, table, constraintName, state);
     return;
   }
@@ -791,10 +824,14 @@ function parseAlterTable(cur: SqlCursor, stmt: Statement, state: SqlParseState):
   }
   if (cur.tryWords('ADD')) {
     const head = cur.peekWord();
+    // `ADD key TEXT` is a column, `ADD KEY idx_kv (key)` an index — the same
+    // lookahead the CREATE TABLE body uses (see `tableItemIsColumnDef`).
     if (head === 'PRIMARY' || head === 'FOREIGN' || head === 'UNIQUE' || head === 'CHECK' ||
         head === 'KEY' || head === 'INDEX') {
-      parseTableConstraint(cur, table, null, state);
-      return;
+      if (!tableItemIsColumnDef(cur)) {
+        parseTableConstraint(cur, table, null, state);
+        return;
+      }
     }
     cur.tryWords('COLUMN');
     cur.tryWords('IF', 'NOT', 'EXISTS');

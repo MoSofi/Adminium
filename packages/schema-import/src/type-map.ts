@@ -92,6 +92,22 @@ const BASE_TYPE_MAP: Readonly<Record<string, LogicalType>> = {
   point: 'geometry',
 };
 
+/**
+ * The FIRST word of every spelling above (`character varying` contributes
+ * `character`). A DDL parser needs this as lookahead, not as a mapping: a bare
+ * `key`, `check` or `index` is a legal column name in SQLite and Postgres AND
+ * the first word of a table constraint, and the only thing that tells the two
+ * apart is whether a type name follows (`key TEXT` vs `KEY idx_kv (key)`).
+ */
+const TYPE_HEAD_WORDS: ReadonlySet<string> = new Set(
+  Object.keys(BASE_TYPE_MAP).map((spelling) => spelling.split(' ')[0] as string),
+);
+
+/** True when `word` opens a type phrase this module knows how to map. */
+export function isTypeHeadWord(word: string): boolean {
+  return TYPE_HEAD_WORDS.has(word.toLowerCase());
+}
+
 export interface MappedSqlType {
   logicalType: LogicalType;
   maxLength: number | null;
