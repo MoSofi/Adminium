@@ -113,8 +113,14 @@ async function runExport(
   if (row.format === 'xlsx') {
     throw new Error('xlsx exports are not available in this build — use csv or json.');
   }
-  if (row.source.kind !== 'table' || typeof row.source.table !== 'string' || row.connectionId === null) {
-    throw new Error(`export source kind ${JSON.stringify(row.source.kind)} is not supported yet.`);
+  // The ROUTE resolves every accepted kind down to a table before the row is
+  // written — a `view` through its page's binding — so the only question left
+  // here is which table, not which kind. Keying off the kind is what made this
+  // throw on a `view` row the route had already resolved and authorized.
+  if (typeof row.source.table !== 'string' || row.source.table.length === 0 || row.connectionId === null) {
+    throw new Error(
+      `export ${row.id} has no resolved source table (kind ${JSON.stringify(row.source.kind)}).`,
+    );
   }
 
   const view = await loadSnapshotView(deps.meta, row.connectionId);

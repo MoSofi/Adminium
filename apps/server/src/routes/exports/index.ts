@@ -21,6 +21,8 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   exportsRepo,
   filesRepo,
+  pagesRepo,
+  viewsRepo,
   type DataExport,
   type EnqueueJobInput,
   type Job,
@@ -64,6 +66,104 @@ export interface ExportsRoutesDeps {
   storage: FileStorage;
   /** `app.jobs.enqueue` in compose; a jobsRepo-backed stub in tests. */
   enqueue: (input: EnqueueJobInput) => Promise<Job>;
+}
+
+/**
+ * `config.source.table` off a page envelope, which `pagesRepo` stores opaquely.
+ * Same narrowing the generate and llm-apply paths do against the same field.
+ */
+function pageSourceTable(config: unknown): string | null {
+  const source = (config as { source?: { table?: unknown } } | null)?.source;
+  return typeof source?.table === 'string' && source.table.length > 0 ? source.table : null;
+}
+
+/** The saved grid state a `filters` view stores (routes/views/schema.ts). */
+interface ViewQuery {
+  search?: unknown;
+  sort?: unknown;
+  filters?: unknown[];
+}
+
+/**
+ * What an export actually reads, resolved BEFORE the grant check — §5.2's
+ * "identifier resolution first, then RBAC on the resolved name".
+ *
+ * A `table` source names its table. A `view` source does NOT: it names a saved
+ * grid state, which belongs to a PAGE, and the page carries the binding. So the
+ * resolution is view → page → `config.source.table`, and the view's own filters
+ * ride along as the query. The grant is then checked on the resolved table
+ * exactly as for a direct table export — a saved view is a shortcut through the
+ * same door, never a way around it.
+ *
+ * `page` resolves to nothing and never can: `exportSourceSchema` carries
+ * `table`, `viewId` and `filters`, and no field that identifies a page. It is a
+ * kind the vocabulary advertises and the payload cannot express.
+ */
+async function resolveSource(
+  meta: MetaDb,
+  source: { kind: 'table' | 'view' | 'page'; table?: string | null | undefined; viewId?: string | null | undefined; filters?: unknown[] | undefined },
+  connectionId: string,
+  userId: string,
+): Promise<{ table: string; filters: unknown[] | undefined }> {
+  if (source.kind === 'page') {
+    throw new ValidationFailedError(
+      '`source.kind = "page"` cannot be exported: an export source carries no page id. Export the page\'s table, or a saved view of it.',
+      { kind: source.kind },
+    );
+  }
+
+  if (source.kind === 'table') {
+    if (typeof source.table !== 'string' || source.table.length === 0) {
+      throw new ValidationFailedError('`source.table` is required for a table export.', {
+        kind: source.kind,
+      });
+    }
+    return { table: source.table, filters: source.filters };
+  }
+
+  if (typeof source.viewId !== 'string' || source.viewId.length === 0) {
+    throw new ValidationFailedError('`source.viewId` is required for a view export.', {
+      kind: source.kind,
+    });
+  }
+  const saved = await viewsRepo(meta).findById(source.viewId);
+  // A view the caller cannot see is reported as absent rather than forbidden:
+  // whether a private view exists is itself the owner's business.
+  if (saved === null || saved.kind !== 'filters' || (saved.userId !== null && saved.userId !== userId)) {
+    throw new NotFoundError(`View ${source.viewId} not found.`);
+  }
+
+  const page = await pagesRepo(meta).findById(saved.pageId);
+  const table = page === null ? null : pageSourceTable(page.config);
+  if (page === null || table === null) {
+    throw new ValidationFailedError('That saved view is not bound to a table.', {
+      viewId: source.viewId,
+    });
+  }
+  if (page.connectionId !== null && page.connectionId !== connectionId) {
+    throw new ValidationFailedError('That saved view belongs to a different connection.', {
+      viewId: source.viewId,
+    });
+  }
+
+  const query = (saved.config ?? {}) as ViewQuery;
+  // REFUSED RATHER THAN IGNORED. A view's search narrows what it shows, and an
+  // export source has nowhere to carry one — exporting the view without it would
+  // hand back MORE rows than the view displays and call the file by the view's
+  // name. Sort is dropped silently by contrast, because ordering changes how the
+  // same rows are arranged, not which rows they are.
+  if (typeof query.search === 'string' && query.search.length > 0) {
+    throw new ValidationFailedError(
+      'That saved view has a search term, and an export cannot carry one yet — the file would contain more rows than the view shows.',
+      { viewId: source.viewId },
+    );
+  }
+
+  const viewFilters = Array.isArray(query.filters) ? query.filters : undefined;
+  const extra = source.filters;
+  const filters =
+    viewFilters === undefined ? extra : extra === undefined ? viewFilters : [...viewFilters, ...extra];
+  return { table, filters };
 }
 
 function requireUserId(request: FastifyRequest): string {
@@ -123,16 +223,12 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
             { format },
           );
         }
-        if (source.kind !== 'table' || typeof source.table !== 'string' || source.table.length === 0) {
-          throw new ValidationFailedError('Only `source.kind = "table"` exports are supported.', {
-            kind: source.kind,
-          });
-        }
+        const resolved = await resolveSource(meta, source, connectionId, userId);
 
         await manager.mustFind(connectionId);
         const view = await loadSnapshotView(meta, connectionId);
         // Identifier resolution FIRST, then RBAC on the resolved name (§5.2).
-        const table = view.table(source.table);
+        const table = view.table(resolved.table);
         const permission = `table:${connectionId}:${table.id}:export`;
         if (!(await request.can(permission))) {
           throw new ForbiddenError('You do not have export access to this table.', 'TABLE_FORBIDDEN', {
@@ -143,7 +239,14 @@ export function exportsRoutes(deps: ExportsRoutesDeps): FastifyPluginAsyncZod {
         const row = await exports.create({
           connectionId,
           requestedBy: userId,
-          source: { ...source, table: table.id },
+          // The resolved table and the resolved query are what gets STORED, so
+          // `export-run` reads one shape whatever kind was asked for and never
+          // re-derives a binding the grant check was made against.
+          source: {
+            ...source,
+            table: table.id,
+            ...(resolved.filters === undefined ? {} : { filters: resolved.filters }),
+          },
           format,
         });
         const job = await deps.enqueue({

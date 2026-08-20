@@ -23,7 +23,7 @@ import {
   type DatabaseAdapter,
   type DatabaseModel,
 } from '@adminium/engine/adapter';
-import { jobsRepo, type Job, type JobsRepo, type User } from '@adminium/meta';
+import { jobsRepo, newId, pagesRepo, viewsRepo, type Job, type JobsRepo, type User } from '@adminium/meta';
 
 import { parseCsv } from '../src/data-io/csv.js';
 import { createFileStorage, type FileStorage } from '../src/files/storage.js';
@@ -499,6 +499,112 @@ describe('data-io routes + jobs (fake adapter)', () => {
     expect(byId.get('ALFKI')?.[1]).toBe('Alfreds Renamed');
     expect(byId.get('ANATR')?.[1]).toBe('Ana, Trujillo'); // comma survived quoting
     expect(byId.get('ALFKI')?.[2]).toBe('030-0074321'); // admin exports unmasked PII
+  });
+
+  /**
+   * A saved view names no table of its own — it names the PAGE it was saved on,
+   * and the page carries the binding. The route resolves that before the grant
+   * check and stores the resolved table, which is also what stopped
+   * `export-run` throwing "source kind \"view\" is not supported yet" on a row
+   * the route had already accepted.
+   */
+  describe('view sources', () => {
+    async function seedView(config: unknown, opts: { userId?: string | null } = {}) {
+      const page = await pagesRepo(t.meta).create({
+        connectionId: connId,
+        slug: `customers-${newId('page')}`,
+        type: 'page-crud',
+        title: 'Customers',
+        config: { source: { connectionId: connId, table: 'main.customers' } },
+        origin: 'generated',
+      });
+      const view = await viewsRepo(t.meta).create({
+        pageId: page.id,
+        userId: opts.userId === undefined ? null : opts.userId,
+        kind: 'filters',
+        name: 'Active only',
+        config,
+      });
+      return { page, view };
+    }
+
+    it('resolves the view to its page\'s table, runs the job, and applies the view filters', async () => {
+      const { view } = await seedView({
+        filters: [{ column: 'is_active', op: 'eq', value: 1 }],
+      });
+      const res = await t.app.inject({
+        method: 'POST',
+        url: '/api/v1/exports',
+        headers: asUser(t.users.admin),
+        payload: { connectionId: connId, source: { kind: 'view', viewId: view.id }, format: 'csv' },
+      });
+      expect(res.statusCode).toBe(202);
+      const created = res.json().data as { id: string; source: { table: string; kind: string } };
+      // Stored resolved: the job never re-derives the binding RBAC ran against.
+      expect(created.source.kind).toBe('view');
+      expect(created.source.table).toBe('main.customers');
+
+      const job = await runNextJob(jobs, registry);
+      expect(job.status).toBe('succeeded');
+
+      const download = await t.app.inject({
+        method: 'GET',
+        url: `/api/v1/exports/${created.id}/download`,
+        headers: asUser(t.users.admin),
+      });
+      expect(download.statusCode).toBe(200);
+      const rows = parseCsv(download.body);
+      // Fewer than the four the unfiltered table export returned: the view's
+      // own filter reached the query rather than being dropped on the way.
+      expect(rows.length - 1).toBeLessThan(4);
+      expect(rows.length - 1).toBeGreaterThan(0);
+    });
+
+    it('refuses a view whose search it cannot carry, rather than over-exporting', async () => {
+      const { view } = await seedView({ search: 'Alfreds' });
+      const res = await t.app.inject({
+        method: 'POST',
+        url: '/api/v1/exports',
+        headers: asUser(t.users.admin),
+        payload: { connectionId: connId, source: { kind: 'view', viewId: view.id }, format: 'csv' },
+      });
+      expect(res.statusCode).toBe(422);
+      expect(res.body).toContain('search term');
+    });
+
+    it('still checks the per-table grant on the RESOLVED table', async () => {
+      const { view } = await seedView({ filters: [] });
+      const res = await t.app.inject({
+        method: 'POST',
+        url: '/api/v1/exports',
+        headers: asUser(t.users.editor),
+        payload: { connectionId: connId, source: { kind: 'view', viewId: view.id }, format: 'csv' },
+      });
+      expect(res.statusCode).toBe(403);
+      expect((res.json() as { error: { code: string } }).error.code).toBe('TABLE_FORBIDDEN');
+    });
+
+    it("reports someone else's private view as absent, not forbidden", async () => {
+      const { view } = await seedView({ filters: [] }, { userId: t.users.viewer.id });
+      const res = await t.app.inject({
+        method: 'POST',
+        url: '/api/v1/exports',
+        headers: asUser(t.users.admin),
+        payload: { connectionId: connId, source: { kind: 'view', viewId: view.id }, format: 'csv' },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('rejects `page`, which no source shape can identify', async () => {
+      const res = await t.app.inject({
+        method: 'POST',
+        url: '/api/v1/exports',
+        headers: asUser(t.users.admin),
+        payload: { connectionId: connId, source: { kind: 'page', table: 'main.customers' }, format: 'csv' },
+      });
+      expect(res.statusCode).toBe(422);
+      expect(res.body).toContain('no page id');
+    });
   });
 
   it('exports JSON-lines with PII masked for a non-privileged caller', async () => {
