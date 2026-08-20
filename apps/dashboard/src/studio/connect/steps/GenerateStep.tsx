@@ -10,7 +10,7 @@
  * not creatable server-side yet (M9) — the step says so instead of faking it.
  */
 import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, MonoText, SuccessState } from '@adminium/ui';
 
 import { ApiError } from '../../../app/api.js';
@@ -37,8 +37,30 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const nextId = useRef(0);
+  /**
+   * `run()` is a click-started async chain with two awaits in it — a staged
+   * delay and the generate POST — so the step can be gone by the time it
+   * resolves: the wizard advances, or the user leaves mid-generate. Without
+   * this every line it narrates lands on a tree that is no longer mounted.
+   *
+   * The same ref, for the same reason, as `TestStep` and `EnrichDirectProgress`;
+   * this step was the one of the three that never got it.
+   */
+  const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    // Re-armed on every setup, not just initialised once: React.StrictMode's
+    // setup→cleanup→setup double-invoke (main.tsx) would otherwise leave this
+    // stuck `true` from the simulated cleanup, and the first real generate
+    // would narrate into a ref that says it has been cancelled.
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, []);
 
   const push = (kind: LogLine['kind'], text: string) => {
+    if (cancelledRef.current) return;
     nextId.current += 1;
     const id = `gen_${nextId.current}`;
     setLines((current) => [
@@ -65,11 +87,17 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
           'ok',
           t('studio.generate.log.done', '{pages} pages generated across {groups} nav groups', { pages: String(generated.pages), groups: String(generated.navGroups.length) }),
         );
-        setResult(generated);
-        setPhase('done');
-        // The nav tree changed — the next bootstrap read must be fresh.
+        if (!cancelledRef.current) {
+          setResult(generated);
+          setPhase('done');
+        }
+        // The nav tree changed — the next bootstrap read must be fresh. This one
+        // is deliberately NOT guarded: the pages exist on the server whether or
+        // not this step is still on screen, so a stale bootstrap would outlive
+        // the component that could have refreshed it.
         await queryClient.invalidateQueries({ queryKey: ['bootstrap'] });
       } catch (cause) {
+        if (cancelledRef.current) return;
         setPhase('error');
         setError(
           cause instanceof ApiError
