@@ -45,7 +45,43 @@ const GATE_STRICT = ['common', 'ui', 'errors'];
 /** …and these need ≥95%. */
 const GATE_RELAXED = { studio: 0.95, generated: 0.95 };
 
-const STATUSES = new Set(['mt', 'reviewed', 'outdated']);
+/*
+ * `src` (28-public-surface.md §7A / 28-T14) — the target value is BYTE-IDENTICAL
+ * to en-US, i.e. English standing in for a translation that has not been made.
+ *
+ * It existed as a gap rather than a state: `reconcile` seeded every untracked
+ * key as `mt`, and nothing here ever compared a target value to its source, so
+ * pasted English was indistinguishable in the tracker from a genuine draft.
+ * That is how a few hundred English-identical entries accumulated while the
+ * table reported them as machine translation. `10-i18n-theming.md §3.5`
+ * specified this state ("tracked as untranslated, never silently") and it was
+ * never built.
+ *
+ * It is NOT a fourth quality tier. For the §3.3 gate it counts exactly like
+ * `mt` — not reviewed, not done. The only thing it changes is that the debt is
+ * now countable and honest.
+ */
+/*
+ * ── AND `deferred`, FOR A KEY THAT IS NOT IN THE BUNDLE AT ALL (28-T32) ─────
+ *
+ * `src` is English standing in for a translation: the key is THERE and its
+ * value happens to equal the source. `deferred` is the honest alternative — the
+ * key is absent from this locale's bundle, i18next falls back to en-US
+ * (`create-i18n.ts` sets `fallbackLng`), and the screen renders exactly what a
+ * pasted English value would have rendered.
+ *
+ * The difference is that nothing has to guess. A pasted value is
+ * indistinguishable from a real translation that coincides with English; an
+ * absent key is not. The editor was already built for this state and needs no
+ * change: a row carries `builtin: null`, and "Untranslated only" is literally
+ * `override === null && builtin === null` (`routes/i18n/index.ts`). Until now
+ * that filter could never match, because `parity.test.ts` required every locale
+ * to carry every key.
+ *
+ * Like `mt` and `src` this is NOT a quality tier — for the §3.3 gate it is not
+ * reviewed and not done.
+ */
+const STATUSES = new Set(['mt', 'src', 'reviewed', 'outdated', 'deferred']);
 
 const hash = (s) => crypto.createHash('sha1').update(s, 'utf8').digest('hex').slice(0, 12);
 
@@ -67,6 +103,15 @@ function sourceStrings() {
   const out = {};
   for (const ns of NAMESPACES) {
     for (const [k, v] of Object.entries(bundle(SOURCE, ns))) out[`${ns}.${k}`] = String(v);
+  }
+  return out;
+}
+
+/** `{ "<ns>.<key>": "<value in `tag`>" }` — the target side of the comparison. */
+function localeStrings(tag) {
+  const out = {};
+  for (const ns of NAMESPACES) {
+    for (const [k, v] of Object.entries(bundle(tag, ns))) out[`${ns}.${k}`] = String(v);
   }
   return out;
 }
@@ -93,16 +138,50 @@ function writeMeta(tag, meta) {
  */
 function reconcile(tag, src) {
   const meta = readMeta(tag);
+  const target = localeStrings(tag);
   const added = [];
   const invalidated = [];
   const removed = [];
 
+  /* English standing in for a translation — see the note on STATUSES. */
+  const isSourceText = (key, en) => target[key] === en;
+
+  /* Not in this locale's bundle at all — the deferred state, see STATUSES. */
+  const isAbsent = (key) => !(key in target);
+
   for (const [key, en] of Object.entries(src)) {
     const entry = meta[key];
+
+    if (isAbsent(key)) {
+      // Whatever it used to be, it is not translated now. Before this existed
+      // an absent key was recorded as `mt`, which claimed a machine translation
+      // that was not in the bundle — debt the table could not see.
+      if (entry === undefined) {
+        meta[key] = { status: 'deferred', srcHash: hash(en) };
+        added.push(key);
+      } else if (entry.status !== 'deferred') {
+        meta[key] = { status: 'deferred', srcHash: entry.srcHash };
+      }
+      continue;
+    }
+
+    if (entry !== undefined && entry.status === 'deferred') {
+      // It arrived. Drafted or English-identical, but no longer deferred.
+      meta[key] = { status: isSourceText(key, en) ? 'src' : 'mt', srcHash: entry.srcHash };
+      continue;
+    }
+
     if (entry === undefined) {
       // In en-US but untracked here: an untranslated or freshly-drafted string.
-      meta[key] = { status: 'mt', srcHash: hash(en) };
+      meta[key] = { status: isSourceText(key, en) ? 'src' : 'mt', srcHash: hash(en) };
       added.push(key);
+    } else if (entry.status === 'mt' && isSourceText(key, en)) {
+      // Reclassify the existing residue ONCE. An `mt` entry whose value is
+      // byte-identical to English was never machine output; it was a paste.
+      meta[key] = { status: 'src', srcHash: entry.srcHash };
+    } else if (entry.status === 'src' && !isSourceText(key, en)) {
+      // Somebody actually translated it. Back to `mt` — drafted, not reviewed.
+      meta[key] = { status: 'mt', srcHash: entry.srcHash };
     } else if (entry.status === 'outdated') {
       // Migrate the older three-state shape: `outdated` was a derived fact
       // stored as if it were intent, which made it unrecoverable.
@@ -129,7 +208,7 @@ function coverage(meta, src) {
   const per = {};
   for (const [key, entry] of Object.entries(meta)) {
     const ns = key.slice(0, key.indexOf('.'));
-    per[ns] ??= { reviewed: 0, mt: 0, outdated: 0, total: 0 };
+    per[ns] ??= { reviewed: 0, mt: 0, src: 0, outdated: 0, deferred: 0, total: 0 };
     const stale = src[key] !== undefined && isStale(entry, src[key]);
     // A stale entry counts as neither reviewed nor freshly drafted: it is work
     // to redo, and the §3.3 gate must not treat it as done.
@@ -152,21 +231,27 @@ function reportTable(src) {
     const total = Object.values(per).reduce((a, b) => a + b.total, 0);
     const reviewed = Object.values(per).reduce((a, b) => a + b.reviewed, 0);
     const outdated = Object.values(per).reduce((a, b) => a + b.outdated, 0);
-    rows.push({ tag, total, reviewed, outdated, per });
+    const srcOnly = Object.values(per).reduce((a, b) => a + (b.src ?? 0), 0);
+    const deferred = Object.values(per).reduce((a, b) => a + (b.deferred ?? 0), 0);
+    rows.push({ tag, total, reviewed, outdated, srcOnly, deferred, per });
     worst = Math.max(worst, outdated);
   }
   const w = (s, n) => String(s).padEnd(n);
-  console.log(`\n${w('locale', 9)}${w('tracked', 9)}${w('reviewed', 10)}${w('mt', 8)}${w('outdated', 9)}gate`);
-  console.log('-'.repeat(60));
+  // `src` sits beside `mt` rather than inside it: both are "not done", but only
+  // one of them is somebody's English showing through on a translated screen.
+  console.log(
+    `\n${w('locale', 9)}${w('tracked', 9)}${w('reviewed', 10)}${w('mt', 8)}${w('src', 8)}${w('defer', 8)}${w('outdated', 9)}gate`,
+  );
+  console.log('-'.repeat(76));
   for (const r of rows) {
-    const mt = r.total - r.reviewed - r.outdated;
+    const mt = r.total - r.reviewed - r.outdated - r.srcOnly - r.deferred;
     const strictOk = GATE_STRICT.every((ns) => (r.per[ns]?.total ?? 0) === (r.per[ns]?.reviewed ?? 0));
     const relaxedOk = Object.entries(GATE_RELAXED).every(
       ([ns, need]) => pct(r.per[ns]?.reviewed ?? 0, r.per[ns]?.total ?? 0) >= need,
     );
     const gate = strictOk && relaxedOk ? 'v1.0 ready' : 'community draft';
     console.log(
-      `${w(r.tag, 9)}${w(r.total, 9)}${w(`${r.reviewed} (${Math.round(pct(r.reviewed, r.total) * 100)}%)`, 10)}${w(mt, 8)}${w(r.outdated, 9)}${gate}`,
+      `${w(r.tag, 9)}${w(r.total, 9)}${w(`${r.reviewed} (${Math.round(pct(r.reviewed, r.total) * 100)}%)`, 10)}${w(mt, 8)}${w(r.srcOnly, 8)}${w(r.deferred, 8)}${w(r.outdated, 9)}${gate}`,
     );
   }
   console.log(
@@ -236,7 +321,9 @@ if (cmd === 'init') {
     const { meta, added, outdated, removed } = reconcile(tag, src);
     writeMeta(tag, meta);
     if (added.length > 0) {
-      console.log(`${tag}: ${added.length} untracked key(s) seeded as "mt" — e.g. ${added.slice(0, 3).join(', ')}`);
+      console.log(
+        `${tag}: ${added.length} untracked key(s) tracked — e.g. ${added.slice(0, 3).join(', ')}`,
+      );
       problems += added.length;
     }
     if (outdated.length > 0) {

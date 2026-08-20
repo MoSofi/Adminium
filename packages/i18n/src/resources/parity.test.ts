@@ -100,14 +100,78 @@ describe('canonical JSON ↔ TS mirror parity (all 8 locales)', () => {
   }
 });
 
+/** `${ns}.${key} → { status }` — the per-locale ledger `scripts/meta.mjs` writes. */
+function readLedger(tag: string): Record<string, { status?: string }> {
+  return JSON.parse(readFileSync(join(localesDir, tag, '.meta.json'), 'utf8')) as Record<
+    string,
+    { status?: string }
+  >;
+}
+
+/**
+ * ── KEY-SET PARITY, AND THE ONE WAY A KEY MAY BE MISSING (28-T32) ──────────
+ *
+ * This used to require every locale to carry EXACTLY the en-US key set, which
+ * left one way to ship an untranslated string: paste the English in. That paste
+ * is indistinguishable from a translation that legitimately equals its source,
+ * so the debt went invisible — a few hundred entries accumulated while the
+ * coverage table called them machine translation.
+ *
+ * A key may now be ABSENT instead, on one condition: the ledger says so, with
+ * `status: "deferred"`. Behaviour is unchanged (i18next falls back to en-US),
+ * the debt is countable, and the translation editor can already find it —
+ * "Untranslated only" is `override === null && builtin === null`, which nothing
+ * could match while parity was exact.
+ *
+ * TWO THINGS STAY STRICT, and they are what keep this from being a hole:
+ *
+ *   AN EXTRA KEY IS STILL A HARD FAILURE. A locale may be a subset of en-US
+ *   and never a superset — a key nobody authored in the source is a typo or a
+ *   merge artefact, and no ledger entry excuses it.
+ *
+ *   THE LEDGER MAY NOT ROT IN EITHER DIRECTION. A key missing from the bundle
+ *   with no `deferred` entry fails, and a key PRESENT in the bundle that is
+ *   still marked `deferred` fails too. Without the second half the ledger
+ *   would drift into a list of things that used to be true, which is the
+ *   failure mode `outdated` was already migrated away from.
+ */
 describe('key-set parity with en-US', () => {
   for (const locale of TARGET_LOCALES) {
-    it(`${locale.id} carries exactly the en-US keys in every namespace`, () => {
+    it(`${locale.id} carries no key en-US does not`, () => {
       for (const ns of NAMESPACES) {
-        const source = [...flatten(EN_US_RESOURCES[ns]).keys()].sort();
-        const target = [...flatten(readJson(locale.tag, ns)).keys()].sort();
-        expect(target, `${locale.tag}/${ns}`).toEqual(source);
+        const source = new Set(flatten(EN_US_RESOURCES[ns]).keys());
+        const extra = [...flatten(readJson(locale.tag, ns)).keys()].filter((k) => !source.has(k));
+        expect(extra, `${locale.tag}/${ns} has keys en-US does not`).toEqual([]);
       }
+    });
+
+    it(`${locale.id} ledgers every key it does not carry as deferred`, () => {
+      const ledger = readLedger(locale.tag);
+      const unledgered: string[] = [];
+      for (const ns of NAMESPACES) {
+        const target = new Set(flatten(readJson(locale.tag, ns)).keys());
+        for (const key of flatten(EN_US_RESOURCES[ns]).keys()) {
+          if (target.has(key)) continue;
+          if (ledger[`${ns}.${key}`]?.status !== 'deferred') unledgered.push(`${ns}.${key}`);
+        }
+      }
+      expect(
+        unledgered,
+        `${locale.tag}: missing from the bundle and not marked deferred in .meta.json — ` +
+          `run \`node scripts/meta.mjs init\``,
+      ).toEqual([]);
+    });
+
+    it(`${locale.id} marks nothing deferred that it actually carries`, () => {
+      const ledger = readLedger(locale.tag);
+      const present = new Set<string>();
+      for (const ns of NAMESPACES) {
+        for (const key of flatten(readJson(locale.tag, ns)).keys()) present.add(`${ns}.${key}`);
+      }
+      const stale = Object.entries(ledger)
+        .filter(([key, entry]) => entry.status === 'deferred' && present.has(key))
+        .map(([key]) => key);
+      expect(stale, `${locale.tag}: marked deferred but present in the bundle`).toEqual([]);
     });
   }
 });
@@ -149,10 +213,18 @@ describe('studio.enrich is present and genuinely translated in all locales (acce
 
 describe('the translation editor\u2019s own chrome is translated in every locale', () => {
   // `settings.translations.*` draws /settings/translations itself, and it closes
-  // a loop the other suites cannot see: the editor refuses to override a key
-  // that is absent from the compiled bundle, so English leaking onto THIS
-  // surface is the one case a super-admin cannot repair from inside the product
-  // (23-runtime-translations.md §7). Key-set parity proves the keys are
+  // a loop the other suites cannot see: English leaking onto THIS surface is
+  // the one case a super-admin has to repair through the very screen that is
+  // broken (23-runtime-translations.md §7).
+  //
+  // [Corrected 2026-08-20, 28-T32.] This used to say the editor "refuses to
+  // override a key that is absent from the compiled bundle", which is not what
+  // the code does and would have made the deferred state above unrepairable.
+  // `rejectReason` calls `sourceMessage`, and `sourceMessage` reads
+  // EN_US_RESOURCES — the English source index, never the target locale's
+  // bundle (`routes/i18n/index.ts`, `packages/i18n/src/keys.ts`). A key that
+  // exists in en-US and is absent from de-DE is editable; only a key that
+  // exists in NO bundle is rejected. Key-set parity proves the keys are
   // present in all 8 bundles; `key-coverage.test.ts` proves the page's `t()`
   // calls resolve. Neither can tell a translation from English pasted into
   // `ar-EG` and marked `mt` — which has happened here before (eight aria-label
@@ -195,7 +267,11 @@ describe('ICU validity, argument parity, and plural categories', () => {
         const target = flatten(readJson(locale.tag, ns));
         for (const [key, sourceMessage] of source) {
           const targetMessage = target.get(key);
-          expect(targetMessage, `${locale.tag}/${ns}:${key}`).toBeTypeOf('string');
+          // A DEFERRED key has no message to parse, which is the point of it —
+          // en-US renders instead. Presence is the key-set suite's rule and it
+          // is checked there against the ledger; asserting it again here would
+          // make that relaxation unreachable (28-T32).
+          if (targetMessage === undefined) continue;
           if (targetMessage === undefined) continue;
           const sourceShape = icuShape(sourceMessage, 'en-US', `${ns}:${key}`);
           const targetShape = icuShape(targetMessage, locale.tag, `${ns}:${key}`);
