@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -19,6 +19,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
+    ...workers(),
     /**
      * Floors are the WEAKEST configuration's reading, rounded down.
      *

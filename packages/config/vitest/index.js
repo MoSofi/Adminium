@@ -64,3 +64,37 @@ export function coverage({ statements, branches, exclude = [] } = {}) {
     ...(statements === undefined ? {} : { thresholds: { statements, branches } }),
   };
 }
+
+/**
+ * Worker cap — `turbo run test` runs these suites CONCURRENTLY, and vitest sizes
+ * its pool to the whole machine.
+ *
+ * Measured on an 8-core box during one `pnpm turbo run test --force`: up to 49
+ * vitest processes alive at once, commonly 26–34. Eighteen packages have a
+ * vitest `test` script and turbo's default concurrency is 10, so the machine
+ * runs several full-size pools at the same time and every one of them believes
+ * it has the whole CPU.
+ *
+ * What that costs is not just speed. `apps/dashboard/src/test/setup.ts` records
+ * renders measured at ~380ms standalone taking ~3,400ms under this load, which
+ * is why its `asyncUtilTimeout` was already raised 1,000 → 5,000ms — and CI
+ * still lost a `verify` run to a lazily-mounted screen missing that raised
+ * budget (`studioPages.test.tsx`, run 32377319647, green on a no-change re-run).
+ * A timeout raised to outrun the scheduler stops measuring the thing it was
+ * written to measure.
+ *
+ * `maxWorkers` rather than `poolOptions.{forks,threads}.max*`: it is
+ * pool-agnostic, and vitest's default pool (`forks`) is deliberately not changed
+ * here. A PERCENTAGE rather than a count so the cap follows the machine — CI's
+ * runner and a dev laptop do not have the same core count, and a hardcoded 2
+ * would be a throttle on one and a no-op on the other.
+ */
+export function workers(share = '50%') {
+  // `ADMINIUM_TEST_WORKERS` is already inside turbo's `env` allowlist for the
+  // test task, so overriding it busts the cache the way it should. It exists
+  // because the right number is a property of the MACHINE: a 32-core CI box
+  // wants a different share than a 4-core hosted runner, and neither should
+  // need a commit to say so.
+  const override = process.env.ADMINIUM_TEST_WORKERS;
+  return { maxWorkers: override === undefined || override === '' ? share : override, minWorkers: 1 };
+}

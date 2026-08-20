@@ -8,9 +8,12 @@
  * v8 totals are not bit-stable between identical runs (~0.03pt), which whole
  * percents absorb.
  */
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  test: { coverage: coverage({ statements: 94, branches: 88 }) },
+  test: {
+    ...workers(),
+    coverage: coverage({ statements: 94, branches: 88 }),
+  },
 });

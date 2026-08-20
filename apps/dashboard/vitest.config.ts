@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 const i18nSrc = (rel: string): string =>
@@ -21,6 +21,7 @@ export default defineConfig({
     ],
   },
   test: {
+    ...workers(),
     // 15-quality.md §1 asks 75 / 70; measured 75.47 statements / 84.25 branches.
     //
     // The branch floor is 82, not the rounded-down 84, and the gap is deliberate.

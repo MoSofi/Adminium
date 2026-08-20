@@ -18,3 +18,10 @@ export interface CoverageOptions {
 
 /** Build a package's `test.coverage` block. See index.js for the policy. */
 export function coverage(options?: CoverageOptions): Record<string, unknown>;
+
+/**
+ * Build a package's worker cap. `share` is a vitest `maxWorkers` value — a
+ * percentage string is preferred so the cap scales with the machine. See
+ * index.js for why this exists at all.
+ */
+export function workers(share?: string | number): { maxWorkers: string | number; minWorkers: number };

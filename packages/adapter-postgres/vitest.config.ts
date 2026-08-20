@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { coverage } from '@adminium/config/vitest';
+import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -12,6 +12,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
+    ...workers(),
     /**
      * Measured in BOTH modes, because the live suites are probe-gated and the
      * previous floor was set blind to that (15-quality.md §1 asks 90/85):
