@@ -1461,6 +1461,7 @@ export default {
         "deleteFailed": "Löschen fehlgeschlagen.",
         "bulkDeleted": "{count, plural, one {{n} Zeile gelöscht.} other {{n} Zeilen gelöscht.}}",
         "bulkDeleteFailed": "Sammellöschung fehlgeschlagen.",
+        "exportIncomplete": "{written, number} von {selected, number} ausgewählten Zeilen exportiert — neu laden und erneut versuchen.",
         "undone": "Änderung rückgängig gemacht.",
         "undoFailed": "Rückgängig machen fehlgeschlagen."
       },

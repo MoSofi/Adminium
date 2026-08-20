@@ -1461,6 +1461,7 @@ export default {
         "deleteFailed": "Sletningen mislykkedes.",
         "bulkDeleted": "{count, plural, one {{n} række slettet.} other {{n} rækker slettet.}}",
         "bulkDeleteFailed": "Massesletningen mislykkedes.",
+        "exportIncomplete": "Eksporterede {written, number} af {selected, number} valgte rækker — genindlæs, og prøv igen.",
         "undone": "Ændring fortrudt.",
         "undoFailed": "Fortrydelsen mislykkedes."
       },

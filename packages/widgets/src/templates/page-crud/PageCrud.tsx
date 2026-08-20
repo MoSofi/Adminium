@@ -22,7 +22,7 @@ import {
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeT } from '@adminium/i18n/react';
 import { Plus } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { RecordDetail } from './RecordDetail.js';
 import { RecordForm } from './RecordForm.js';
@@ -211,6 +211,31 @@ export function PageCrud({
   const [list, setList] = useState<ListState>({ rows: [], nextCursor: null, loading: true, error: null });
   const [total, setTotal] = useState<number | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * THE SELECTED ROWS THEMSELVES, kept because the selection outlives the page
+   * it was made on. Paging forward replaces `list.rows`, and the browser-side
+   * export used to filter that array by the selected ids — so selecting on page
+   * one, paging forward, selecting again and exporting silently wrote a file
+   * with only the second page's rows in it. Nothing said so; the file just had
+   * fewer rows than the toolbar's count.
+   *
+   * A row must be ON SCREEN to be selected, so this can be filled as pages
+   * arrive: the effect below adds the selected rows of whatever page is loaded
+   * and drops whatever has been deselected. Held in a ref rather than state
+   * because nothing renders from it — writing it during render would be a
+   * second source of truth for the same selection.
+   */
+  const selectedRows = useRef(new Map<string, CrudRow>());
+  useEffect(() => {
+    const snapshot = selectedRows.current;
+    // Re-snapshotting the current page also keeps an edited row's own export
+    // current: the list refetches after a mutation, and this overwrites it.
+    for (const row of list.rows) {
+      const id = rowIdOf(columns, row);
+      if (selected.has(id)) snapshot.set(id, row);
+    }
+    for (const id of snapshot.keys()) if (!selected.has(id)) snapshot.delete(id);
+  }, [columns, list.rows, selected]);
 
   const listParams = useMemo<CrudListParams>(
     () => ({
@@ -439,6 +464,17 @@ export function PageCrud({
       const result = await api.remove(recordId, { confirm: true });
       setDeleteTarget(null);
       if (detailId === recordId) setDetailId(null);
+      // A deleted row cannot stay SELECTED. The bulk bar would go on counting
+      // it, and — now that the export carries the whole selection rather than
+      // whatever the loaded page happens to hold — the file would carry a row
+      // the table no longer has. The bulk-delete path already clears the whole
+      // selection; this is the same rule for the single-row path.
+      setSelected((current) => {
+        if (!current.has(recordId)) return current;
+        const next = new Set(current);
+        next.delete(recordId);
+        return next;
+      });
       pushUndoToast(
         t('ui:templates.crud.toast.deleted', '{name} deleted.', { name: displayValueOf(columns, deleteTarget.record) }),
         isDeletePreview(result) ? null : result.undoToken,
@@ -510,11 +546,31 @@ export function PageCrud({
         // Dynamic: DOM-only serialization behind a click, and `/p/$slug` is in
         // the dashboard's entry chunk (scripts/check-entry-budget.mjs).
         const { downloadRows } = await import('../../lib/export.js');
-        const selection = new Set(ids);
-        const rows = list.rows.filter((row) => selection.has(rowIdOf(columns, row)));
+        // From the SNAPSHOT, not from `list.rows` — the selection spans pages
+        // and the loaded page is only the last of them. In `ids` order, which
+        // is the order the rows were selected in.
+        const snapshot = selectedRows.current;
+        const rows = ids.flatMap((id) => {
+          const row = snapshot.get(id);
+          return row === undefined ? [] : [row];
+        });
         downloadRows(format, columns.map((column) => column.name), rows, source.table);
-        // No toast: the file lands in the browser's own download UI, which is
-        // the confirmation. A toast would just restate it.
+        // No toast on the whole-selection path: the file lands in the browser's
+        // own download UI, which is the confirmation. A toast would restate it.
+        if (rows.length < ids.length) {
+          // Unreachable by design — every id in `ids` was selected from a row
+          // that had been rendered, which is what fills the snapshot. It is
+          // here so that this export can never again be quietly short: an
+          // incomplete file has to say the number it wrote.
+          queue.push({
+            variant: 'warning',
+            title: t(
+              'ui:templates.crud.toast.exportIncomplete',
+              'Exported {written, number} of {selected, number} selected rows — reload and try again.',
+              { written: rows.length, selected: ids.length },
+            ),
+          });
+        }
       }
       // The selection SURVIVES an export: it is not destructive, and the rows
       // are usually still wanted afterwards.

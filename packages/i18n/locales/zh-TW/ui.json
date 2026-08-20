@@ -1452,6 +1452,7 @@
         "deleteFailed": "刪除失敗。",
         "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
         "bulkDeleteFailed": "批次刪除失敗。",
+        "exportIncomplete": "已匯出 {selected, number} 個所選列中的 {written, number} 個 — 請重新載入後再試一次。",
         "undone": "已復原變更。",
         "undoFailed": "復原失敗。"
       },
