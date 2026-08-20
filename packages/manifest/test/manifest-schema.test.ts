@@ -47,14 +47,20 @@ function validManifest(): Record<string, unknown> {
       { key: 'currency', type: 'enum', enum: ['usd', 'eur'], default: 'usd' },
     ],
     capabilities: ['realtime', 'payments'],
-    frontend: {
-      kind: 'spa',
-      entry: 'index.html',
-      env: {
-        ADMINIUM_API_BASE_URL: { required: true, example: 'https://x.adminium.app/api/v1' },
-        ADMINIUM_PUBLISHABLE_KEY: { required: true },
+    frontends: [
+      {
+        side: 'customer',
+        kind: 'spa',
+        entry: 'index.html',
+        // VITE_-prefixed: only those reach browser code under Vite, which is
+        // why 13 §2.12.1's "frozen" bare names were unimplementable as written.
+        env: {
+          VITE_ADMINIUM_API_BASE_URL: { required: true, example: 'https://x.adminium.app/api/v1' },
+          VITE_ADMINIUM_PUBLISHABLE_KEY: { required: true },
+        },
+        routes: { shop: 'Shop', cart: 'Cart' },
       },
-    },
+    ],
   };
 }
 
@@ -123,6 +129,71 @@ describe('validateManifest — requiredSchema', () => {
     const dupCol = structuredClone(validManifest());
     (dupCol.requiredSchema as any).tables[0].columns.push({ ref: 'name', type: 'text' });
     expect(validateManifest(dupCol).ok).toBe(false);
+  });
+});
+
+describe('the three-sides rule (28 §4, D12)', () => {
+  const withFrontends = (frontends: unknown) => ({ ...validManifest(), frontends });
+
+  it('accepts a staff-only app', () => {
+    expect(validateManifest(withFrontends([{ side: 'staff', kind: 'spa' }])).ok).toBe(true);
+  });
+
+  it('accepts a customer-only app', () => {
+    expect(validateManifest(withFrontends([{ side: 'customer', kind: 'spa' }])).ok).toBe(true);
+  });
+
+  it('accepts both sides — the clinic-desk shape', () => {
+    expect(
+      validateManifest(
+        withFrontends([
+          { side: 'staff', kind: 'spa', routes: { desk: 'Desk' } },
+          { side: 'customer', kind: 'spa', routes: { book: 'Book' } },
+        ]),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it('REFUSES an app with no side at all', () => {
+    // This is the gate. Without it "at least one of staff/customer" is prose,
+    // and a repo with neither is indistinguishable from a micro-SaaS.
+    expect(validateManifest(withFrontends([])).ok).toBe(false);
+  });
+
+  it('REFUSES a missing frontends key', () => {
+    const { frontends: _dropped, ...rest } = validManifest();
+    expect(validateManifest(rest).ok).toBe(false);
+  });
+
+  it('refuses a frontend with no side', () => {
+    expect(validateManifest(withFrontends([{ kind: 'spa' }])).ok).toBe(false);
+  });
+
+  it('refuses the same side twice', () => {
+    // A key is minted against ONE side; two entries claiming it leave nothing
+    // able to say which bundle the key belongs to.
+    expect(
+      validateManifest(
+        withFrontends([
+          { side: 'customer', kind: 'spa' },
+          { side: 'customer', kind: 'electron' },
+        ]),
+      ).ok,
+    ).toBe(false);
+  });
+
+  it('keeps `routes` — the only machine-readable record of the split', () => {
+    // Eleven shipped manifests carry it and the old strict schema rejected all
+    // of them. Deleting it during normalization would have made §4 uncheckable.
+    const out = validateManifest(
+      withFrontends([{ side: 'customer', kind: 'spa', routes: { book: 'Book a visit' } }]),
+    );
+    expect(out.ok).toBe(true);
+  });
+
+  it('still refuses the OLD singular `frontend`', () => {
+    const { frontends: _dropped, ...rest } = validManifest();
+    expect(validateManifest({ ...rest, frontend: { kind: 'spa' } }).ok).toBe(false);
   });
 });
 
