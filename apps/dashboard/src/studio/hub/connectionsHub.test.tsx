@@ -254,6 +254,47 @@ describe('ConnectionsHub', () => {
     expect(jobPolls).toBeGreaterThanOrEqual(2);
   });
 
+  /**
+   * The poll used to outlive the card that started it: `awaitIntrospectJob` runs
+   * up to 100 iterations, so leaving the hub mid-introspection kept fetching
+   * `/jobs/:id` for as much as two minutes and ended in a toast about a screen
+   * the user had left. It now takes an `AbortSignal` the card aborts on unmount.
+   *
+   * `pollIntervalMs` is 0 here (see `renderHub`), so the loop is only ever one
+   * microtask from its next fetch — which is the honest way to test this: if the
+   * abort did not land, the count would keep climbing while the assertion waits.
+   */
+  it('stops polling the introspect job when the hub unmounts, and says nothing', async () => {
+    let jobPolls = 0;
+    installFetch(() => [makeConnection()], {
+      'POST /api/v1/connections/conn_1/introspect': () => jsonResponse(202, { jobId: 'job_9' }),
+      'GET /api/v1/jobs/job_9': () => {
+        jobPolls += 1;
+        // Never terminal: only the abort can end this loop.
+        return jsonResponse(200, {
+          data: { id: 'job_9', kind: 'introspect', status: 'running', progress: null, lastError: null },
+        });
+      },
+    });
+    const { unmount } = renderHub();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Re-introspect' }));
+    await waitFor(() => {
+      expect(jobPolls).toBeGreaterThanOrEqual(1);
+    });
+
+    unmount();
+    const atUnmount = jobPolls;
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    // At most the one request already in flight when the abort landed.
+    expect(jobPolls).toBeLessThanOrEqual(atUnmount + 1);
+    // And no toast claiming an outcome — least of all a failure, which is what
+    // the old exhausted-loop path would eventually have reported.
+    expect(screen.queryByText('Introspection failed. Try again.')).toBeNull();
+    expect(screen.queryByText('Schema re-introspected')).toBeNull();
+  });
+
   it('delete is gated on typing the exact connection name and sends confirmName', async () => {
     const { calls } = installFetch(() => [makeConnection()], {
       'DELETE /api/v1/connections/conn_1': () => jsonResponse(200, { ok: true }),
