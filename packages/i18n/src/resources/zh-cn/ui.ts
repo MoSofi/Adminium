@@ -1461,6 +1461,7 @@ export default {
         "deleteFailed": "删除失败。",
         "bulkDeleted": "{count, plural, other {{n} rows deleted.}}",
         "bulkDeleteFailed": "批量删除失败。",
+        "exportIncomplete": "已导出 {selected, number} 个所选行中的 {written, number} 个 — 请重新加载后重试。",
         "undone": "更改已撤销。",
         "undoFailed": "撤销失败。"
       },

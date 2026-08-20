@@ -1461,6 +1461,7 @@ export default {
         "deleteFailed": "Smazání se nezdařilo.",
         "bulkDeleted": "{count, plural, one {Smazán {n} řádek.} few {Smazány {n} řádky.} many {Smazáno {n} řádku.} other {Smazáno {n} řádků.}}",
         "bulkDeleteFailed": "Hromadné smazání se nezdařilo.",
+        "exportIncomplete": "Exportováno {written, number} z {selected, number} vybraných řádků — načtěte stránku znovu a zkuste to znovu.",
         "undone": "Změna vrácena zpět.",
         "undoFailed": "Vrácení zpět se nezdařilo."
       },

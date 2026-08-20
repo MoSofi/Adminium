@@ -1461,6 +1461,7 @@ export default {
         "deleteFailed": "Delete failed.",
         "bulkDeleted": "{count, plural, one {{n} row deleted.} other {{n} rows deleted.}}",
         "bulkDeleteFailed": "Bulk delete failed.",
+        "exportIncomplete": "Exported {written, number} of {selected, number} selected rows — reload and try again.",
         "undone": "Change undone.",
         "undoFailed": "Undo failed."
       },

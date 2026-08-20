@@ -1461,6 +1461,7 @@ export default {
         "deleteFailed": "Échec de la suppression.",
         "bulkDeleted": "{count, plural, one {{n} ligne supprimée.} other {{n} lignes supprimées.}}",
         "bulkDeleteFailed": "Échec de la suppression groupée.",
+        "exportIncomplete": "Export de {written, number} lignes sur {selected, number} sélectionnées — rechargez la page et réessayez.",
         "undone": "Modification annulée.",
         "undoFailed": "Échec de l’annulation."
       },

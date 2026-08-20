@@ -401,6 +401,125 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     vi.unstubAllGlobals();
   });
 
+  /**
+   * The selection deliberately survives paging, so an export has to as well.
+   * The browser fallback used to filter the CURRENTLY LOADED page by the
+   * selected ids, which meant everything selected on an earlier page fell out
+   * of the file with nothing on screen to say so.
+   */
+  it('exports rows selected on an earlier page, not just the loaded one', async () => {
+    const user = userEvent.setup();
+    const pageTwo: CrudRow[] = [
+      { id: 3, name: 'Wonka Industries', email: 'ops@wonka.example', status: 'active', mrr: '4200' },
+      { id: 4, name: 'Cyberdyne', email: 'ar@cyberdyne.example', status: 'active', mrr: '7300' },
+    ];
+    const api: CrudApi = {
+      ...makeApi(rows),
+      list: vi.fn(async (params: CrudListParams) => {
+        if (params.offset !== undefined) {
+          return { data: rows.slice(0, 1), page: { limit: params.limit ?? 1, offset: 0, total: 4 } };
+        }
+        return params.cursor === 'page-2'
+          ? { data: pageTwo, cursor: { next: null } }
+          : { data: rows, cursor: { next: 'page-2' } };
+      }),
+    };
+    renderPage(api);
+    await screen.findByText('Initech');
+    const { blobs } = captureDownloads();
+
+    // Page one: select Initech. The count is awaited rather than asserted
+    // synchronously — this file runs alongside 83 others under one CPU budget,
+    // and a sync read here is a load-sensitive flake, not a stricter test.
+    const firstPage = screen.getAllByRole('row').slice(1);
+    await user.click(within(firstPage[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+    await within(await screen.findByRole('toolbar', { name: 'Bulk actions' })).findByText('1');
+
+    // Page two: select Wonka. Initech is no longer rendered anywhere.
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    await screen.findByText('Wonka Industries');
+    expect(screen.queryByText('Initech')).toBeNull();
+    const secondPage = screen.getAllByRole('row').slice(1);
+    await user.click(within(secondPage[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+
+    // Two rows selected, one of them no longer on screen — the whole point.
+    const toolbar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
+    await within(toolbar).findByText('2');
+    await user.click(within(toolbar).getByText('Export'));
+
+    await waitFor(() => {
+      expect(blobs.length).toBeGreaterThan(0);
+    });
+    const text = await (blobs[0] as Blob).text();
+    expect(text).toContain('Initech');
+    expect(text).toContain('Wonka Industries');
+    // …and still only what was selected.
+    expect(text).not.toContain('Stark Industries');
+    expect(text).not.toContain('Cyberdyne');
+    // Nothing was dropped, so nothing warns about a short file.
+    expect(screen.queryByText(/selected rows/)).toBeNull();
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('drops a deleted row from the selection, so the export cannot carry it', async () => {
+    const user = userEvent.setup();
+    const api = makeApi(rows);
+    renderPage(api);
+    await screen.findByText('Initech');
+
+    const bodyRows = screen.getAllByRole('row').slice(1);
+    await user.click(within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+    await user.click(within(bodyRows[1] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+    await within(await screen.findByRole('toolbar', { name: 'Bulk actions' })).findByText('2');
+
+    // Delete the first one through its own row action, not through the bulk bar.
+    await user.click(screen.getByText('Initech'));
+    const detailDialog = await screen.findByRole('dialog');
+    await within(detailDialog).findByText('Fields');
+    await user.click(within(detailDialog).getByRole('button', { name: 'Delete' }));
+    const confirmInput = (await waitFor(() => {
+      const input = document.querySelector('[data-part="confirm-input"]');
+      expect(input).not.toBeNull();
+      return input;
+    })) as HTMLInputElement;
+    const confirmDialog = confirmInput.closest('[role="dialog"]') as HTMLElement;
+    await user.type(confirmInput, 'Initech');
+    await user.click(within(confirmDialog).getByRole('button', { name: 'Delete' }));
+
+    // One left selected, and it is the one that still exists.
+    const toolbar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
+    await within(toolbar).findByText('1');
+  });
+
+  it('drops a row from the snapshot when it is deselected', async () => {
+    const user = userEvent.setup();
+    renderPage(makeApi(rows));
+    await screen.findByText('Initech');
+    const { blobs } = captureDownloads();
+
+    const bodyRows = screen.getAllByRole('row').slice(1);
+    const first = within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' });
+    await user.click(first);
+    await user.click(within(bodyRows[1] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+    await user.click(first);
+
+    const toolbar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
+    await within(toolbar).findByText('1');
+    await user.click(within(toolbar).getByText('Export'));
+
+    await waitFor(() => {
+      expect(blobs.length).toBeGreaterThan(0);
+    });
+    const text = await (blobs[0] as Blob).text();
+    expect(text).toContain('Stark Industries');
+    expect(text).not.toContain('Initech');
+
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('surfaces a failed export as an error toast rather than an unhandled rejection', async () => {
     const user = userEvent.setup();
     const api = makeApi(rows);

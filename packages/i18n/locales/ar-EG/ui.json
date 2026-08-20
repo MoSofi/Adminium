@@ -1452,6 +1452,7 @@
         "deleteFailed": "فشل الحذف.",
         "bulkDeleted": "{count, plural, zero {تم حذف {n} صف.} one {تم حذف صف واحد.} two {تم حذف صفين.} few {تم حذف {n} صفوف.} many {تم حذف {n} صفًا.} other {تم حذف {n} صف.}}",
         "bulkDeleteFailed": "فشل الحذف الجماعي.",
+        "exportIncomplete": "تم تصدير {written, number} من أصل {selected, number} صفًا محددًا — أعد التحميل وحاول مرة أخرى.",
         "undone": "تم التراجع عن التغيير.",
         "undoFailed": "فشل التراجع."
       },
