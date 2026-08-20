@@ -39,7 +39,7 @@ const LEGACY_APP = {
       nav: { group: 'Works', icon: 'printer', order: 1 },
     },
   ],
-  frontend: { kind: 'spa' },
+  frontends: [{ side: 'customer', kind: 'spa' }],
 };
 
 const DHL = {
@@ -133,7 +133,9 @@ describe('the add-on branch', () => {
 
   it('makes it IMPOSSIBLE for an add-on to declare pages or a frontend (§5.7)', () => {
     expect(addOnManifestSchema.safeParse({ ...DHL, pages: [] }).success).toBe(false);
-    expect(addOnManifestSchema.safeParse({ ...DHL, frontend: { kind: 'spa' } }).success).toBe(false);
+    expect(
+      addOnManifestSchema.safeParse({ ...DHL, frontends: [{ side: 'customer', kind: 'spa' }] }).success,
+    ).toBe(false);
     expect(addOnManifestSchema.safeParse({ ...DHL, roles: [] }).success).toBe(false);
   });
 
