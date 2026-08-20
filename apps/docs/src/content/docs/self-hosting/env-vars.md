@@ -24,6 +24,7 @@ half-configured and fail later.
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
 | `ADMINIUM_BRIDGE_ORIGINS` | No | *(off)* | CSV of exact origins allowed to hand this instance a connection string. **No wildcard.** |
+| `ADMINIUM_PUBLIC_API_ORIGINS` | No | *(off)* | CSV of exact origins allowed to reach the scoped public API. Unset means those routes are not registered at all. **No wildcard.** Must not overlap `ADMINIUM_CORS_ORIGINS`. |
 | `ADMINIUM_RUNTIME` | No | `self-host` | `self-host` · `desktop`. **Set by the Electron shell only** — see below. |
 | `ADMINIUM_BOOT_TOKEN` | No | *(unset)* | 64 hex characters. **Desktop shell only** — see below. |
 | `ADMINIUM_DESKTOP_SINGLE_USER` | No | *(unset)* | **Desktop shell only.** Mirrors the app's "skip login on this computer" answer. |
@@ -115,6 +116,34 @@ ADMINIUM_TRUST_PROXY=on
 ```
 
 → [Behind a reverse proxy](/self-hosting/reverse-proxy/)
+
+## `ADMINIUM_PUBLIC_API_ORIGINS`
+
+Turns on the **public API** — a scoped, read-mostly surface at `/api/v1/public` that your own
+customer-facing or staff-facing pages can call from a browser. It is off by default and stays off
+until you name the origins allowed to use it.
+
+```bash
+ADMINIUM_PUBLIC_API_ORIGINS='https://shop.example.com'
+```
+
+Three things about it are deliberate, and each one has bitten somebody:
+
+- **Unset means the routes do not exist.** Not "exist and refuse" — there is nothing there to probe.
+- **It must not overlap `ADMINIUM_CORS_ORIGINS`.** That list is for your admin dashboard and its
+  responses carry credentials; this one never does. An origin in both would make Adminium send two
+  conflicting `Access-Control-Allow-Origin` headers and the browser would reject the response. The
+  server refuses to start rather than let you find that out from a CORS error naming neither
+  variable.
+- **It needs `ADMINIUM_TRUST_PROXY=1` unless you bind to `127.0.0.1`.** Behind a reverse proxy
+  without it, every anonymous visitor looks like the same IP address, so they all share one
+  rate-limit bucket and a single scraper can lock out your real customers while the limiter appears
+  to be working. Adminium refuses to register the public API in that combination and logs why.
+
+Naming an origin here is still not enough on its own: the public API also has a runtime switch
+(**Settings → Public API**) that is off until you turn it on, and every key you issue is limited to
+one scope you define. Turning the switch back off is instant and destroys nothing — keys, scopes and
+data all survive.
 
 ## `ADMINIUM_CORS_ORIGINS`
 

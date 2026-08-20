@@ -170,6 +170,22 @@ export const SETTINGS_REGISTRY = {
    */
   'auth.require2fa': def(z.boolean(), false, 'Require TOTP for all users', P),
   'auth.allowSignup': def(z.boolean(), false, 'Allow self-signup (default invite-only)', P),
+
+  /*
+   * The public API's runtime off switch (28-public-surface.md §3.5 level 2).
+   *
+   * DEFAULT FALSE, and deliberately NOT `portable`. It is an instance-level
+   * decision about whether this database is reachable from the internet, and
+   * carrying it in a config bundle would turn "I replayed my setup on a new
+   * box" into "I published a database I had not scoped yet". That is the same
+   * class of mistake as `system.superAdminCreatedAt` travelling in a bundle,
+   * which is the incident this file's `portable` comment was written for.
+   *
+   * Level 1 (`ADMINIUM_PUBLIC_API_ORIGINS`) still gates registration, so this
+   * key does nothing on an instance that never opted in — two independent
+   * switches, both of which must be on.
+   */
+  'publicApi.enabled': def(z.boolean(), false, 'Serve the scoped public API at /api/v1/public'),
   'auth.passwordMinLength': def(z.number().int().min(8).max(128), 10, 'Minimum password length', P),
   'email.smtp': def<z.infer<typeof smtpSchema>>(smtpSchema, null, 'SMTP transport; email features degrade gracefully when unset', { secret: true, portable: true }),
   'llm.provider': def<z.infer<typeof llmProviderSchema>>(llmProviderSchema, null, 'LLM provider (06-llm-assist.md §3.1)', P),

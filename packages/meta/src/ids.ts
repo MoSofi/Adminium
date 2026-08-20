@@ -55,6 +55,13 @@ export const ID_PREFIXES = {
   mft: 'adminium_manifests',
   loc: 'adminium_locales',
   trn: 'adminium_translations',
+  // 28-public-surface.md §3.3 — the public surface. `pbk` is deliberately not
+  // `key`: a publishable key is never an RbacPrincipal (28 D3) and sharing an
+  // id space with `adminium_api_keys` would blur exactly that boundary.
+  pbk: 'adminium_public_keys',
+  psc: 'adminium_public_scopes',
+  pss: 'adminium_public_sessions',
+  pch: 'adminium_public_challenges',
 } as const;
 
 export type IdPrefix = keyof typeof ID_PREFIXES;

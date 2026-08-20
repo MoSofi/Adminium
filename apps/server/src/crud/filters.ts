@@ -213,10 +213,28 @@ export function compileQuickSearch(
   eb: Eb,
   ctx: CompileFilterContext,
   q: string,
+  /**
+   * Restrict the search to these columns (28-public-surface.md D5 b).
+   *
+   * WITHOUT it this ORs `ILIKE '%q%'` across every text-ish column on the
+   * table, INDEPENDENTLY of `select`. For an authenticated caller who was
+   * granted table-read that is the intended convenience. For an anonymous one
+   * it is a character-extraction oracle: row presence answers "does any hidden
+   * column contain this substring?", one character at a time, for columns the
+   * caller can never see. The public layer therefore passes an explicit
+   * allow-list or refuses `q=` outright; the dashboard passes nothing and is
+   * unchanged.
+   */
+  searchable?: readonly string[],
 ): Expression<SqlBool> | null {
   const pattern = `%${escapeLike(q)}%`;
+  const allow = searchable === undefined ? null : new Set(searchable);
   const targets = [...ctx.table.columns.values()].filter(
-    (column) => column.textish && !column.secret && (ctx.canReadPii || !column.masked),
+    (column) =>
+      column.textish &&
+      !column.secret &&
+      (ctx.canReadPii || !column.masked) &&
+      (allow === null || allow.has(column.name)),
   );
   if (targets.length === 0) return null;
   return eb.or(targets.map((column) => compileILike(eb, ctx.dialect, ctx.dynamic.ref(column.name), pattern)));

@@ -6,7 +6,7 @@
  * ── WHY THIS IS NOT `export-zip` / `import-zip` ─────────────────────────────
  * The export bundle carries CONFIGURATION — settings, roles, rolePermissions,
  * connections, snapshots, overrides, pages, views. Eight resources out of the
- * thirty-four tables in {@link META_TABLE_NAMES}. That is the right content for
+ * tables in {@link META_TABLE_NAMES}. That is the right content for
  * "replay this instance's setup somewhere else", and exactly the wrong content
  * for "this instance is now living in a different database": it carries no
  * users, no sessions and no user_roles, so a relocation built on it would log

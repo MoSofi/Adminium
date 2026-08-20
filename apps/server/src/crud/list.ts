@@ -151,10 +151,33 @@ export interface RunListOptions {
   params: ListParams;
   canReadPii: boolean;
   dialect: Dialect;
+  /**
+   * A predicate the CALLER CANNOT SEE OR REMOVE (28-public-surface.md §3.2).
+   *
+   * ANDed first and unconditionally, before the caller's own `where` and before
+   * quick search, so no combination of query parameters can widen the row set
+   * past it. The dashboard passes `undefined` and nothing about its behaviour
+   * changes; the public layer compiles it from the scope document.
+   */
+  mandatory?: RecordFilter | undefined;
+  /**
+   * The COMPLETE column set to return, replacing both `params.select` and the
+   * default (28 D5 a / a′).
+   *
+   * Two things this does that a `select` string cannot. It is not a validator
+   * the caller can sidestep by OMITTING `select` — which defaults to every
+   * non-secret column. And it suppresses the primary-key ride-along below, so a
+   * resource that does not list its PK does not return it; passing `select`
+   * upstream returns `{name, id}` for `select=name`, which for the sequential
+   * integer PKs these schemas use is an enumeration aid.
+   */
+  exposeColumns?: readonly string[] | undefined;
+  /** Columns `q=` may search; see `compileQuickSearch` (28 D5 b). */
+  searchColumns?: readonly string[] | undefined;
 }
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
-  const { db, view, table, params, canReadPii, dialect } = opts;
+  const { db, view, table, params, canReadPii, dialect, mandatory, exposeColumns, searchColumns } = opts;
   const dynamic = db.dynamic;
   const ctx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
@@ -168,25 +191,43 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   // as null + `_masked` marker (§5.3 rule 1); explicitly selecting a masked
   // column without the grant → 403 COLUMN_FORBIDDEN (§2.7.1).
   let selected: ResolvedColumn[];
-  if (params.select !== undefined && params.select.length > 0) {
+  if (exposeColumns !== undefined) {
+    // Fixed by the caller's policy, not by the request. `params.select` is
+    // ignored rather than merged: merging would let a request widen the set.
+    selected = exposeColumns.map((name) => view.readableColumn(table, name, canReadPii));
+  } else if (params.select !== undefined && params.select.length > 0) {
     selected = params.select.split(',').map((name) => view.readableColumn(table, name.trim(), canReadPii));
   } else {
     selected = view.selectableColumns(table);
   }
-  // PK columns ride along for cursors/refs even when not selected.
   const selectNames = new Set(selected.map((column) => column.name));
-  for (const pk of table.primaryKey) selectNames.add(pk);
+  // PK columns ride along for cursors/refs even when not selected — EXCEPT
+  // under `exposeColumns`, where the whole point is that the set is complete
+  // (D5 a′). Keyset pagination is refused below when the PK is absent, which is
+  // the price of that and is paid deliberately.
+  if (exposeColumns === undefined) {
+    for (const pk of table.primaryKey) selectNames.add(pk);
+  }
 
   const filter: RecordFilter | null = params.where === undefined ? null : parseWhereParam(params.where);
   const sortKeys = parseOrder(view, table, params.order, canReadPii);
 
   const applyFilters = (qb: Qb): Qb => {
     let out = qb;
+    // FIRST, and outside every conditional below. Every later clause narrows.
+    if (mandatory !== undefined) out = out.where((eb) => compileFilter(eb as never, ctx, mandatory));
     if (filter !== null) out = out.where((eb) => compileFilter(eb as never, ctx, filter));
     if (params.q !== undefined && params.q.length > 0) {
       out = out.where((eb) => {
-        const search = compileQuickSearch(eb as never, ctx, params.q as string);
-        return search ?? eb(eb.val(1), '=', 1);
+        const search = compileQuickSearch(eb as never, ctx, params.q as string, searchColumns);
+        // No searchable column ⇒ match NOTHING. The dashboard's `1=1` fallback
+        // is right when the table simply has no text columns; here an empty
+        // allow-list means "q is not permitted", and widening to every row
+        // would turn a refusal into a full listing.
+        if (search === null) {
+          return searchColumns === undefined ? eb(eb.val(1), '=', 1) : eb(eb.val(1), '=', 0);
+        }
+        return search;
       });
     }
     return out;
@@ -212,6 +253,23 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
       throw new ValidationFailedError(
         'Keyset pagination is unavailable because a sort or key column is masked for your role; use offset pagination.',
         { column: masked.column },
+      );
+    }
+  }
+  /*
+   * Keyset pagination encodes the sort tuple — including the PK tiebreaker
+   * `parseOrder` always appends — into the cursor and hands it to the caller.
+   * Under `exposeColumns` a PK that was deliberately not exposed would be
+   * readable straight out of that cursor, which is the same leak the masked-PK
+   * refusal above closes, arrived at from the other direction. Offset paging
+   * stays available and emits no cursor.
+   */
+  if (cursorMode && exposeColumns !== undefined) {
+    const hidden = sortKeys.find((key) => !selectNames.has(key.column));
+    if (hidden !== undefined) {
+      throw new ValidationFailedError(
+        'Keyset pagination is unavailable because a sort or key column is not exposed by this scope; use offset pagination.',
+        { column: hidden.column },
       );
     }
   }
@@ -252,11 +310,25 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     // table-level statistics cannot see filters or quick search — and only
     // above the shared threshold; every refusal falls through to the exact
     // count this endpoint always ran.
-    const unfiltered = filter === null && (params.q === undefined || params.q.length === 0);
+    const unfiltered =
+      mandatory === undefined && filter === null && (params.q === undefined || params.q.length === 0);
     if (params.count === 'estimated' && unfiltered) {
       total = await estimatedTotal(db, table, dialect);
     }
-    if (total === null) {
+    /*
+     * The fall-through to an exact COUNT(*) is right for the dashboard — the
+     * endpoint has always produced a real total — but it is a free
+     * amplification primitive on an anonymous surface, and `estimated` is
+     * exactly the setting that looks cheap while reaching it. A mandatory
+     * predicate makes every public list filtered by construction, so this
+     * branch would fire on EVERY public request. `count` never leaves `none`
+     * on the public path (D5 d); this guard states the same rule where the
+     * cost actually is, so a future caller that does pass one cannot buy the
+     * COUNT by asking for an estimate.
+     */
+    if (total === null && mandatory !== undefined) {
+      total = null;
+    } else if (total === null) {
       const countRow = await applyFilters(db.selectFrom(table.id) as unknown as Qb)
         .select((eb) => eb.fn.countAll().as('total'))
         .executeTakeFirst();

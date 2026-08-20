@@ -32,6 +32,14 @@
  *  - `/meta/*` needs a relocation host, which `adminium start` always supplies
  *    (`cli/relocation-host.ts`) — so it IS in the documented surface.
  *
+ * `/public/*` is conditional too, on `ADMINIUM_PUBLIC_API_ORIGINS`, and it IS
+ * documented — the opposite call from the bridge, for the opposite reason. The
+ * bridge is Electron-shell IPC that happens to travel over HTTP; the public
+ * namespace is the most externally-consumed surface in the product, and the
+ * people who need its reference are exactly the ones writing a client against
+ * it. A public API missing from the API reference is the inverse of the
+ * documented-but-unimplemented problem, and just as expensive.
+ *
  * The result is the API a normal self-hosted instance serves.
  *
  * `--check` regenerates into memory and fails when it differs from the committed
@@ -98,6 +106,11 @@ const env = envSchema.parse({
   // Long enough for the §1.2 cookie signer and the DSN/LLM key crypto. It signs
   // nothing that outlives this process.
   ADMINIUM_SECRET: 'openapi-spec-generation-placeholder-secret',
+  // INCLUDED, unlike the other conditional resources — see the topology note
+  // above. Loopback host so D21's TRUST_PROXY requirement is satisfied without
+  // asserting a proxy that is not there.
+  ADMINIUM_PUBLIC_API_ORIGINS: 'https://example.com',
+  HOST: '127.0.0.1',
 });
 
 const metaStore = {
