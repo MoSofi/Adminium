@@ -12,9 +12,13 @@ Select on page one, page forward, select again, export: page one's rows were
 gone from the file, with nothing on screen to say so. The toolbar still counted
 them.
 
-The template now snapshots the selected rows as pages arrive (a row has to be on
-screen to be selected, so the snapshot can only be complete) and exports from
-that, in selection order. Deselecting drops a row from the snapshot; deleting a
+The template now snapshots each selected row as it is selected — from the rows
+the grid was rendering when the click happened, so a row that could be clicked
+can never be missed — and exports from that, in selection order. Membership is
+captured in the selection handler rather than in an effect keyed on the loaded
+page: an effect can only record rows that happen to be loaded when it runs,
+which would have made the snapshot depend on effect ordering against the list,
+the same class of bug as the one it exists to fix. Deselecting drops a row from the snapshot; deleting a
 row drops it from the SELECTION too, on the single-row path as well as the bulk
 one — a deleted row must not keep being counted, and must not turn up in a file.
 

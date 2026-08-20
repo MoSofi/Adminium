@@ -219,23 +219,52 @@ export function PageCrud({
    * with only the second page's rows in it. Nothing said so; the file just had
    * fewer rows than the toolbar's count.
    *
-   * A row must be ON SCREEN to be selected, so this can be filled as pages
-   * arrive: the effect below adds the selected rows of whatever page is loaded
-   * and drops whatever has been deselected. Held in a ref rather than state
-   * because nothing renders from it — writing it during render would be a
-   * second source of truth for the same selection.
+   * A row must be ON SCREEN to be selected, which is what makes the snapshot
+   * fillable at all — and what decides where each half of it is maintained:
+   * membership on selection, removal on state, freshness on the list. Held in a
+   * ref rather than state because nothing renders from it — writing it during
+   * render would be a second source of truth for the same selection.
    */
   const selectedRows = useRef(new Map<string, CrudRow>());
+
+  /**
+   * Membership is captured HERE, in the handler, from the rows the grid was
+   * rendering when the click happened — not in an effect keyed on `list.rows`.
+   * An effect can only add rows that are loaded when it runs, so it made
+   * membership depend on effect ordering against the list, which is the same
+   * class of bug as the one this snapshot exists to fix. The handler cannot
+   * miss: the row was on screen, or it could not have been clicked.
+   */
+  const changeSelection = useCallback(
+    (next: ReadonlySet<string>) => {
+      const snapshot = selectedRows.current;
+      for (const row of list.rows) {
+        const id = rowIdOf(columns, row);
+        if (next.has(id)) snapshot.set(id, row);
+      }
+      setSelected(next);
+    },
+    [columns, list.rows],
+  );
+
+  // REMOVAL is derived from state instead, because several paths drop a
+  // selection without going through the grid at all — Clear, bulk delete, and
+  // the single-row delete. Deriving it means none of them can forget.
   useEffect(() => {
     const snapshot = selectedRows.current;
-    // Re-snapshotting the current page also keeps an edited row's own export
-    // current: the list refetches after a mutation, and this overwrites it.
+    for (const id of snapshot.keys()) if (!selected.has(id)) snapshot.delete(id);
+  }, [selected]);
+
+  // FRESHNESS, and nothing else: a row that is already in the snapshot takes
+  // the newer copy when the list reloads, so an edited row exports what it
+  // says on screen. This cannot add or drop membership.
+  useEffect(() => {
+    const snapshot = selectedRows.current;
     for (const row of list.rows) {
       const id = rowIdOf(columns, row);
-      if (selected.has(id)) snapshot.set(id, row);
+      if (snapshot.has(id)) snapshot.set(id, row);
     }
-    for (const id of snapshot.keys()) if (!selected.has(id)) snapshot.delete(id);
-  }, [columns, list.rows, selected]);
+  }, [columns, list.rows]);
 
   const listParams = useMemo<CrudListParams>(
     () => ({
@@ -750,7 +779,7 @@ export function PageCrud({
               }}
               selectable
               selected={selected}
-              onSelectedChange={setSelected}
+              onSelectedChange={changeSelection}
               onRowOpen={(row) => setDetailId(rowIdOf(columns, row))}
               cellContext={cellContext}
             />
