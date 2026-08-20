@@ -297,6 +297,32 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     return { anchors, blobs };
   }
 
+  /**
+   * Click a row's checkbox, resolved FROM THE DOM AT CLICK TIME.
+   *
+   * The obvious form — capture `getAllByRole('row')` once, then click into the
+   * captured element — is a load-sensitive flake, and it is the one that
+   * reddened CI. A re-render between the query and the click replaces the row's
+   * nodes, `user.click` then lands on a detached checkbox, no React handler
+   * runs, and the selection silently does not change. Under load that is a
+   * reproducible failure, not a rare one: it took three full-suite runs.
+   */
+  async function selectRowByName(user: ReturnType<typeof userEvent.setup>, name: string) {
+    const row = screen.getByText(name).closest('[role="row"]');
+    expect(row).not.toBeNull();
+    const box = within(row as HTMLElement).getByRole('checkbox', { name: 'Select row' });
+    expect(box.isConnected).toBe(true);
+    await user.click(box);
+  }
+
+  /** The live toolbar count — re-queried each poll, never a held reference. */
+  async function expectSelectedCount(count: number) {
+    await waitFor(() => {
+      const toolbar = screen.getByRole('toolbar', { name: 'Bulk actions' });
+      expect(within(toolbar).getByText(String(count))).toBeDefined();
+    });
+  }
+
   async function selectFirstRowAndExport(user: ReturnType<typeof userEvent.setup>) {
     const bodyRows = screen.getAllByRole('row').slice(1);
     await user.click(within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
@@ -470,24 +496,20 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     await screen.findByText('Initech');
     const { blobs } = captureDownloads();
 
-    // Page one: select Initech. The count is awaited rather than asserted
-    // synchronously — this file runs alongside 83 others under one CPU budget,
-    // and a sync read here is a load-sensitive flake, not a stricter test.
-    const firstPage = screen.getAllByRole('row').slice(1);
-    await user.click(within(firstPage[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
-    await within(await screen.findByRole('toolbar', { name: 'Bulk actions' })).findByText('1');
+    // Page one: select Initech, and wait for the count rather than reading it
+    // synchronously.
+    await selectRowByName(user, 'Initech');
+    await expectSelectedCount(1);
 
     // Page two: select Wonka. Initech is no longer rendered anywhere.
     await user.click(screen.getByRole('button', { name: 'Next page' }));
     await screen.findByText('Wonka Industries');
     expect(screen.queryByText('Initech')).toBeNull();
-    const secondPage = screen.getAllByRole('row').slice(1);
-    await user.click(within(secondPage[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
+    await selectRowByName(user, 'Wonka Industries');
 
     // Two rows selected, one of them no longer on screen — the whole point.
-    const toolbar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
-    await within(toolbar).findByText('2');
-    await user.click(within(toolbar).getByText('Export'));
+    await expectSelectedCount(2);
+    await user.click(within(screen.getByRole('toolbar', { name: 'Bulk actions' })).getByText('Export'));
 
     await waitFor(() => {
       expect(blobs.length).toBeGreaterThan(0);
@@ -511,10 +533,9 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     renderPage(api);
     await screen.findByText('Initech');
 
-    const bodyRows = screen.getAllByRole('row').slice(1);
-    await user.click(within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
-    await user.click(within(bodyRows[1] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
-    await within(await screen.findByRole('toolbar', { name: 'Bulk actions' })).findByText('2');
+    await selectRowByName(user, 'Initech');
+    await selectRowByName(user, 'Stark Industries');
+    await expectSelectedCount(2);
 
     // Delete the first one through its own row action, not through the bulk bar.
     await user.click(screen.getByText('Initech'));
@@ -541,15 +562,14 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     await screen.findByText('Initech');
     const { blobs } = captureDownloads();
 
-    const bodyRows = screen.getAllByRole('row').slice(1);
-    const first = within(bodyRows[0] as HTMLElement).getByRole('checkbox', { name: 'Select row' });
-    await user.click(first);
-    await user.click(within(bodyRows[1] as HTMLElement).getByRole('checkbox', { name: 'Select row' }));
-    await user.click(first);
+    await selectRowByName(user, 'Initech');
+    await expectSelectedCount(1);
+    await selectRowByName(user, 'Stark Industries');
+    await expectSelectedCount(2);
+    await selectRowByName(user, 'Initech');
+    await expectSelectedCount(1);
 
-    const toolbar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
-    await within(toolbar).findByText('1');
-    await user.click(within(toolbar).getByText('Export'));
+    await user.click(within(screen.getByRole('toolbar', { name: 'Bulk actions' })).getByText('Export'));
 
     await waitFor(() => {
       expect(blobs.length).toBeGreaterThan(0);
