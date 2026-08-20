@@ -9,7 +9,7 @@
  * type-to-confirm delete (server re-enforces `confirmName`, §2.4).
  */
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { CircleCheckBig, Database, FileCode2, LayoutGrid, Plus, RefreshCw, Table2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 import {
@@ -66,14 +66,48 @@ function statusLabel(status: string): string {
   }
 }
 
-/** Terminal poll of an async introspection job (202 path). */
-async function awaitIntrospectJob(jobId: string, intervalMs: number): Promise<'succeeded' | 'failed'> {
+/** An `intervalMs` sleep that gives up the moment `signal` aborts. */
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort(): void {
+      clearTimeout(timer);
+      resolve();
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Terminal poll of an async introspection job (202 path).
+ *
+ * `signal` is checked at the top of every iteration and inside the sleep, the
+ * same shape `waitForHealth` uses in studio/api.ts — the flag is read at the
+ * loop boundary rather than threaded into `fetch`, because `app/api.ts` takes
+ * no signal and one in-flight GET is not what this is about. What it is about:
+ * without it the loop kept polling for up to ~2 minutes after the hub was gone,
+ * ending in a toast about a screen the user had left.
+ *
+ * `aborted` is a THIRD outcome, not folded into `failed`. The job it was
+ * watching is a server job and carries on; only the watching stopped. Calling
+ * that a failure would put "Introspection failed. Try again." in front of
+ * someone whose introspection is, at that moment, succeeding.
+ */
+async function awaitIntrospectJob(
+  jobId: string,
+  intervalMs: number,
+  signal: AbortSignal,
+): Promise<'succeeded' | 'failed' | 'aborted'> {
   // Bounded: ~2 min at the default interval — introspection budget (05 §10).
   for (let i = 0; i < 100; i += 1) {
+    if (signal.aborted) return 'aborted';
     const job = await studioApi.getJob(jobId);
     if (job.status === 'succeeded') return 'succeeded';
     if (job.status === 'failed' || job.status === 'cancelled') return 'failed';
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    await sleep(intervalMs, signal);
   }
   return 'failed';
 }
@@ -197,16 +231,37 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
     },
   });
 
+  /**
+   * Aborted when this card unmounts, which stops the 202-path poll below.
+   * Created per run rather than once: an `AbortController` is single-use, so a
+   * second introspect after a first was cancelled needs its own.
+   */
+  const pollAbort = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      pollAbort.current?.abort();
+    },
+    [],
+  );
+
   const introspect = useMutation({
-    mutationFn: async (): Promise<{ outcome: 'noop' | 'updated' | 'failed'; masks: number }> => {
+    mutationFn: async (): Promise<{ outcome: 'noop' | 'updated' | 'failed' | 'aborted'; masks: number }> => {
       const result: IntrospectResult = await studioApi.introspect(connection.id);
       if (result.kind === 'done') {
         return { outcome: result.noop ? 'noop' : 'updated', masks: result.proposedMasks };
       }
-      const status = await awaitIntrospectJob(result.jobId, pollIntervalMs);
+      pollAbort.current?.abort();
+      const controller = new AbortController();
+      pollAbort.current = controller;
+      const status = await awaitIntrospectJob(result.jobId, pollIntervalMs, controller.signal);
+      if (status === 'aborted') return { outcome: 'aborted', masks: 0 };
       return { outcome: status === 'succeeded' ? 'updated' : 'failed', masks: 0 };
     },
     onSuccess: ({ outcome, masks }) => {
+      // Nobody is watching: the card that started this is gone, and a toast for
+      // it would arrive with no context. `onSettled` still invalidates the
+      // connections query, so the snapshot is fresh the next time the hub opens.
+      if (outcome === 'aborted') return;
       // Diff feedback (§8.2 analyze step): no-op vs a new snapshot (+ masks).
       if (outcome === 'noop') {
         toasts.push({
