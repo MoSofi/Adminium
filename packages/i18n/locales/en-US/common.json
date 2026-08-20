@@ -1264,6 +1264,62 @@
       },
       "unavailableTitle": "Schema remap editor not available",
       "unavailableBody": "This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations."
+    },
+    "publicApi": {
+      "error": "Something went wrong",
+      "scopes": {
+        "deleteTitle": "Delete this scope",
+        "deleteBody": "Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.",
+        "deletePrompt": "Type the scope name to confirm",
+        "deleteConfirm": "Delete scope",
+        "issuesTitle": "This scope did not compile",
+        "title": "Scopes",
+        "subtitle": "A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.",
+        "emptyTitle": "No scopes yet",
+        "emptyBody": "Create one below. It is checked against your live schema before it is saved.",
+        "keyCount": "{count, plural, =0 {no keys} one {# key} other {# keys}}",
+        "delete": "Delete",
+        "nameLabel": "Name",
+        "connectionLabel": "Connection ID",
+        "documentLabel": "Scope document",
+        "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.",
+        "create": "Create scope",
+        "formLabel": "Create a scope"
+      },
+      "cancel": "Cancel",
+      "close": "Close",
+      "title": "Public API",
+      "subtitle": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
+      "notRegistered": {
+        "title": "Not enabled on this server",
+        "body": "Set ADMINIUM_PUBLIC_API_ORIGINS to the exact origins allowed to call it, then restart. Until then these routes are not served at all."
+      },
+      "toggle": {
+        "label": "Serve the public API",
+        "hint": "Turning this off stops every public request immediately. Nothing is deleted — keys, scopes and data all survive."
+      },
+      "origins": {
+        "label": "Origins allowed to call it"
+      },
+      "keys": {
+        "title": "Keys",
+        "subtitle": "These go in your page’s JavaScript, so anyone can read them. That is expected — a key can only ever do what its scope allows.",
+        "emptyTitle": "No keys yet",
+        "emptyBody": "Create a scope first, then mint a key for it.",
+        "reveal": "Show key",
+        "rotate": "Rotate",
+        "revoke": "Revoke",
+        "nameLabel": "Name",
+        "scopeLabel": "Scope",
+        "scopePlaceholder": "Choose a scope",
+        "create": "Create key",
+        "formLabel": "Create a key",
+        "scopeIsAuthTitle": "The scope is the only permission",
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+      },
+      "status": {
+        "heading": "Status"
+      }
     }
   },
   "onboarding": {

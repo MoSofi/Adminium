@@ -64,7 +64,18 @@ describe('translation review status', () => {
 
   it.each(TARGETS.map((l) => l.tag))('%s stores only real statuses and hashes', (tag) => {
     for (const [key, entry] of Object.entries(meta(tag))) {
-      expect(['mt', 'reviewed'], `${tag}:${key}`).toContain(entry.status);
+      // `src` joined the vocabulary with 28-T14: the target value is
+      // byte-identical to en-US, i.e. English standing in for a translation
+      // nobody has made. It is NOT a quality tier — the §3.3 gate counts it
+      // exactly like `mt` — it just makes that debt countable instead of
+      // hiding inside the machine-translation bucket.
+      // `deferred` joined with 28-T32: the key is ABSENT from this locale's
+      // bundle and i18next falls back to en-US. `src` is the neighbouring
+      // state where the key is present and its value equals English. Both are
+      // untranslated; only one of them can be told apart from a translation
+      // that legitimately coincides with its source, which is why the absent
+      // form is now allowed. Also not a quality tier.
+      expect(['mt', 'src', 'reviewed', 'deferred'], `${tag}:${key}`).toContain(entry.status);
       // `outdated` is DERIVED (srcHash vs the live English), never stored —
       // storing it loses what the translator actually read.
       expect(entry.srcHash, `${tag}:${key}`).toMatch(/^[0-9a-f]{12}$/);
