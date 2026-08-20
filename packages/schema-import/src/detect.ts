@@ -24,6 +24,22 @@ function looksLikeJsonIr(content: string): boolean {
   }
 }
 
+/**
+ * `CREATE [OR REPLACE] [GLOBAL|LOCAL] [TEMPORARY|TEMP|UNLOGGED] TABLE` — the
+ * same qualifier vocabulary `parsers/sql.ts` already skips before it reads
+ * `TABLE`. A bare `/CREATE\s+TABLE/` made a file of `CREATE UNLOGGED TABLE`
+ * (a pg_dump of an unlogged table) or `CREATE TEMPORARY TABLE` undetectable,
+ * so it could only be imported by naming the format by hand — while the parser
+ * behind it would have read it perfectly.
+ *
+ * The repetition is BOUNDED on purpose. This package has a CodeQL ReDoS
+ * history (`exportFilename` in @adminium/widgets carries the same scar), and
+ * `(?:\w+\s+)*` in front of a literal is the classic polynomial shape; three
+ * is one more qualifier than any dialect stacks (`GLOBAL TEMPORARY` is two).
+ */
+const CREATE_TABLE_RE =
+  /\bCREATE\s+(?:(?:OR\s+REPLACE|GLOBAL|LOCAL|TEMPORARY|TEMP|UNLOGGED)\s+){0,3}TABLE\b/i;
+
 const PROBES: readonly [Format, (content: string) => boolean][] = [
   ['json', looksLikeJsonIr],
   [
@@ -47,7 +63,7 @@ const PROBES: readonly [Format, (content: string) => boolean][] = [
       /\bDataTypes\.\w+/.test(c) ||
       (/\bextends\s+Model\b/.test(c) && /\.init\s*\(/.test(c)),
   ],
-  ['sql', (c) => /\bCREATE\s+TABLE\b/i.test(c)],
+  ['sql', (c) => CREATE_TABLE_RE.test(c)],
 ];
 
 /** All formats whose heuristic fires, in priority order. */
