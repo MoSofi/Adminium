@@ -1,5 +1,7 @@
 # @adminium/add-on-contracts
 
+## 0.2.2
+
 ## 0.2.2-rc.0
 
 ## 0.2.1
