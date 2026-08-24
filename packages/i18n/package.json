@@ -53,8 +53,8 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "i18next": "^26.3.6",
-    "intl-messageformat": "^11.2.13"
+    "i18next": "^26.4.0",
+    "intl-messageformat": "^11.2.14"
   },
   "peerDependencies": {
     "react": "^19.1.0"

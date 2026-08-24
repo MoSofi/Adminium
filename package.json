@@ -29,10 +29,10 @@
     "changeset": "changeset"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.0",
+    "@changesets/cli": "^3.0.1",
     "@vitest/coverage-v8": "3.2.7",
     "dependency-cruiser": "^18.2.0",
-    "turbo": "^2.10.9"
+    "turbo": "^2.10.11"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
