@@ -23,7 +23,9 @@
  *
  * `width` is an independent knob layered on top: `content` (900px) is the
  * reading column for screens that are a short stack of controls rather than a
- * grid — import, settings, account.
+ * grid — import, settings, account. For a tenant page it is resolved the same
+ * way padding is — template default, overridden by the envelope's stored
+ * `width` when an admin picks one (`resolvePageWidth`).
  */
 import type { ReactNode } from 'react';
 import { cn } from '@adminium/ui';
@@ -110,6 +112,22 @@ export function PageSurface({
       {children}
     </div>
   );
+}
+
+const WIDTH_NAMES = new Set<string>(['full', 'narrow', 'content', 'page', 'dash', 'wide']);
+
+/**
+ * Resolves a page envelope's stored `width` against the template's default.
+ *
+ * Membership-checked rather than cast, for the same reason
+ * {@link resolvePagePadding} range-checks its pair: a hand-edited or
+ * newer-version document must degrade to the template's column, not render a
+ * page with no `max-w` class at all (09 §3.1 never-crash).
+ */
+export function resolvePageWidth(stored: unknown, templateDefault: PageSurfaceWidth): PageSurfaceWidth {
+  return typeof stored === 'string' && WIDTH_NAMES.has(stored)
+    ? (stored as PageSurfaceWidth)
+    : templateDefault;
 }
 
 /**

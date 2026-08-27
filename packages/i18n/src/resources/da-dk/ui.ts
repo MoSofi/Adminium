@@ -550,7 +550,8 @@ export default {
         "selectAllLabel": "Vælg alle rækker",
         "selectRowLabel": "Vælg række",
         "sortByLabel": "Sortér efter {column}",
-        "description": "Standardgitteret til CRUD med sorterbare kolonner, rækkemarkering og typebevidste celler."
+        "description": "Standardgitteret til CRUD med sorterbare kolonner, rækkemarkering og typebevidste celler.",
+        "rowActionsLabel": "Rækkehandlinger"
       },
       "paginationFooter": {
         "emptyLabel": "0 rækker",
@@ -1470,7 +1471,9 @@ export default {
         "inboundReferences": "indgående referencer",
         "relatedCount": "{count, plural, one {{n} relateret post i {table}} other {{n} relaterede poster i {table}}}",
         "loadError": "Posten kunne ikke indlæses."
-      }
+      },
+      "peekAction": "Forhåndsvisning",
+      "openPage": "Åbn side"
     },
     "queue": {
       "allSegment": "Alle",
@@ -1597,7 +1600,8 @@ export default {
       "clearFilters": "Ryd filtre",
       "noMatchesBody": "Prøv en anden søgning, eller fjern et filter.",
       "detailLabel": "Detaljer",
-      "loadingRecord": "Indlæser post"
+      "loadingRecord": "Indlæser post",
+      "connectionPaused": "Denne forbindelse er sat på pause"
     },
     "directory": {
       "invalidConfig": "Dette kartoteks gemte konfiguration er ugyldig. Generér siden igen for at gendanne den.",
@@ -1737,6 +1741,25 @@ export default {
     },
     "pageSettings": {
       "description": "En matrix over notifikationspræferencer med kontakter pr. kanal og automatisk lagring."
+    },
+    "record": {
+      "relatedEmptyTitle": "Ingen relaterede poster",
+      "loadError": "Posten kunne ikke indlæses.",
+      "loadingActivity": "Indlæser aktivitet",
+      "activityTab": "Aktivitet",
+      "activityEmptyTitle": "Ingen aktivitet registreret",
+      "activityEmptyBody": "Ændringer foretaget gennem Adminium vises her.",
+      "activityLoadOlder": "Indlæs ældre aktivitet",
+      "activity": {
+        "created": "{actor} oprettede denne post",
+        "updated": "{actor} opdaterede denne post",
+        "deleted": "{actor} slettede denne post",
+        "undone": "{actor} fortrød en ændring",
+        "changedFields": "{count, plural, one {{n} felt ændret} other {{n} felter ændret}}"
+      }
+    },
+    "pageRecord": {
+      "description": "En enkelt post som en hel side: dens felter, relaterede poster med løbende antal og dens ændringsaktivitet."
     }
   },
   "frame": {

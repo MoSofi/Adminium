@@ -40,7 +40,11 @@ import {
   isTableBoundTemplate,
   parseDatabaseModel,
 } from '@adminium/engine';
-import { pageEnvelopeSchema, type PagePaddingConfig } from '@adminium/engine/config';
+import {
+  pageEnvelopeSchema,
+  type PagePaddingConfig,
+  type PageWidthConfig,
+} from '@adminium/engine/config';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyRequest, preHandlerHookHandler } from 'fastify';
 import {
@@ -59,6 +63,7 @@ import {
   NotFoundError,
   ValidationFailedError,
 } from '../../errors.js';
+import { canReadPii } from '../../crud/mask.js';
 import { buildUserPageEnvelope, defaultIconFor, reidentifyEnvelope } from './envelope.js';
 import { pageLayoutSchema } from './layout-schema.js';
 import {
@@ -282,21 +287,40 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         : {};
     }
 
+    /** The envelope's `source` binding, when it names both a connection and a table. */
+    function sourceBinding(page: Page): { connectionId: string; table: string } | null {
+      const source = currentEnvelope(page)['source'];
+      if (typeof source !== 'object' || source === null) return null;
+      const { connectionId, table } = source as Record<string, unknown>;
+      return typeof connectionId === 'string' &&
+        connectionId !== '' &&
+        typeof table === 'string' &&
+        table !== ''
+        ? { connectionId, table }
+        : null;
+    }
+
     /**
-     * Sets or clears the envelope's page-gutter override. Null deletes the key
-     * rather than storing a null, so a cleared page is byte-identical to one
-     * that never had an override and reads as the template default everywhere.
+     * Sets or clears one of the envelope's page-chrome overrides (`padding`,
+     * `width`). Null DELETES the key rather than storing a null, so a cleared
+     * page is byte-identical to one that never had an override and reads as
+     * the template default everywhere.
+     *
+     * One function over the two keys because the contract is identical and a
+     * second copy is where the two quietly diverge — the null-deletes rule is
+     * the whole reason a cleared page round-trips clean.
      */
-    function applyPadding(
+    function applyChrome(
       envelope: Record<string, unknown>,
-      padding: PagePaddingConfig | null,
+      key: 'padding' | 'width',
+      value: PagePaddingConfig | PageWidthConfig | null,
     ): Record<string, unknown> {
-      if (padding === null) {
+      if (value === null) {
         const rest = { ...envelope };
-        delete rest['padding'];
+        delete rest[key];
         return rest;
       }
-      return { ...envelope, padding };
+      return { ...envelope, [key]: value };
     }
 
     async function recomposeIfRequested(
@@ -450,6 +474,27 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         const canEditLayout =
           typeof request.can === 'function' ? await request.can(`page:${page.id}:edit`) : false;
 
+        // Per-table write capabilities (30-record-pages.md D4 follow-up): the
+        // SAME `table:<connectionId>:<table>:<action>` permissions the data
+        // routes enforce, checked against the envelope's `source` — exactly
+        // the connection and table the client's CrudApi will call, so a false
+        // here is precisely a 403 there. Only table-bound envelopes read under
+        // RBAC carry them; when absent the client keeps its permissive default
+        // (absent means "not computed", never "denied").
+        const source = sourceBinding(page);
+        const tableCapabilities =
+          source !== null && typeof request.can === 'function'
+            ? {
+                canCreate: await request.can(`table:${source.connectionId}:${source.table}:create`),
+                canUpdate: await request.can(`table:${source.connectionId}:${source.table}:update`),
+                canDelete: await request.can(`table:${source.connectionId}:${source.table}:delete`),
+                // The SAME unmask check the data routes mask rows with — when
+                // true the caller's reads carry PII in clear, so the grid may
+                // render its reveal affordance (schema.ts pageReply).
+                canUnmask: await canReadPii(request),
+              }
+            : {};
+
         // Layout resolution (§6.3): a per-user override wins over the shared
         // default baked into the envelope's `config.layout`. Only applies when
         // the caller is a session user and their override parses as a valid
@@ -476,12 +521,13 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
               return {
                 data: { ...envelope, config: { ...templateConfig, layout: parsed.data } },
                 canEditLayout,
+                ...tableCapabilities,
                 ...(layoutStale ? { layoutStale: true } : {}),
               };
             }
           }
         }
-        return { data: page.config, canEditLayout };
+        return { data: page.config, canEditLayout, ...tableCapabilities };
       },
     );
 
@@ -622,12 +668,16 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
               table: body.table ?? null,
             });
 
-        // A gutter chosen on the New page screen. `null` and absent both mean
+        // Chrome chosen on the New page screen. `null` and absent both mean
         // "template default", so neither writes a key.
-        const envelope =
+        const withGutter =
           body.padding === undefined || body.padding === null
             ? composedEnvelope
-            : applyPadding(composedEnvelope, body.padding);
+            : applyChrome(composedEnvelope, 'padding', body.padding);
+        const envelope =
+          body.width === undefined || body.width === null
+            ? withGutter
+            : applyChrome(withGutter, 'width', body.width);
 
         const page = await pages.create(
           {
@@ -713,7 +763,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           await assertSlugFree(patch.slug, pageId);
         }
 
-        const { template, table, connectionId, padding, ...meta } = patch;
+        const { template, table, connectionId, padding, width, ...meta } = patch;
         const recomposed = await recomposeIfRequested(page, {
           ...(template === undefined ? {} : { template }),
           ...(table === undefined ? {} : { table }),
@@ -724,17 +774,26 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           ...(meta.icon === undefined ? {} : { icon: meta.icon }),
         });
 
-        // `padding` is a TOP-LEVEL envelope field (page chrome, not the
-        // per-template body), so it rides the same replacement-envelope channel
-        // a recompose uses — layered on top of the recomposed document when
-        // both change in one patch, so neither write drops the other. An
+        // `padding` and `width` are TOP-LEVEL envelope fields (page chrome, not
+        // the per-template body), so they ride the same replacement-envelope
+        // channel a recompose uses — layered on top of the recomposed document
+        // when several change in one patch, so no write drops another. An
         // explicit null deletes the key, restoring the template's default.
+        //
+        // Threaded through ONE envelope rather than computed side by side:
+        // two independent `recomposed.envelope ?? current` expressions would
+        // each start from the pre-patch document, so a patch carrying both
+        // padding and width would keep only whichever landed last.
         const withPadding =
           padding === undefined
             ? recomposed
-            : { ...recomposed, envelope: applyPadding(recomposed.envelope ?? currentEnvelope(page), padding) };
+            : { ...recomposed, envelope: applyChrome(recomposed.envelope ?? currentEnvelope(page), 'padding', padding) };
+        const withChrome =
+          width === undefined
+            ? withPadding
+            : { ...withPadding, envelope: applyChrome(withPadding.envelope ?? currentEnvelope(page), 'width', width) };
 
-        const result = await pages.updateMeta(pageId, { ...meta, ...withPadding }, {
+        const result = await pages.updateMeta(pageId, { ...meta, ...withChrome }, {
           ...(expectedRevision === undefined ? {} : { expectedRevision }),
           at: app.rbac.now(),
         });

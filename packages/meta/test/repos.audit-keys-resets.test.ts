@@ -50,6 +50,53 @@ for (const dialect of TEST_DIALECTS) {
       expect(listed[0]?.changes).toEqual({ before: { status: 'draft' }, after: { status: 'paid' } });
     });
 
+    it('denormalizes entity keys at append (30 WS-A): single, composite, and none', async () => {
+      const audit = auditRepo(t.meta);
+      const single = await audit.append(
+        {
+          actorKind: 'user',
+          actorLabel: 'Ava Reyes',
+          category: 'data',
+          action: 'record.update',
+          entity: { connectionId: 'conn_x', table: 'public.orders', pk: { id: 4213 }, label: 'Order #4213' },
+        },
+        T0,
+      );
+      const composite = await audit.append(
+        {
+          actorKind: 'user',
+          actorLabel: 'Ava Reyes',
+          category: 'data',
+          action: 'record.update',
+          entity: {
+            connectionId: 'conn_x',
+            table: 'public.order_items',
+            pk: { order_id: 4213, product_id: 7 },
+            label: '[4213,7]',
+          },
+        },
+        T0 + 1,
+      );
+      const none = await audit.append(
+        { actorKind: 'user', actorLabel: 'Ava Reyes', category: 'auth', action: 'session.create' },
+        T0 + 2,
+      );
+
+      const rows = await t.meta.db
+        .selectFrom('adminium_audit_log')
+        .select(['id', 'entityTable', 'entityId'])
+        .execute();
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      // The canonical `:recordId` forms: stringified single PK, JSON value
+      // tuple for a composite — the same strings pkLabel/rowIdOf produce.
+      expect(byId.get(single.id)).toMatchObject({ entityTable: 'public.orders', entityId: '4213' });
+      expect(byId.get(composite.id)).toMatchObject({
+        entityTable: 'public.order_items',
+        entityId: '[4213,7]',
+      });
+      expect(byId.get(none.id)).toMatchObject({ entityTable: null, entityId: null });
+    });
+
     it('rejects invalid categories/actor kinds and malformed RecordRefs', async () => {
       const audit = auditRepo(t.meta);
       await expect(

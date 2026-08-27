@@ -1,0 +1,19 @@
+{
+  "id": "page-record",
+  "version": 1,
+  "titleKey": "templates.record.title",
+  "slots": [
+    { "slot": "fields", "accepts": { "shapes": ["record"], "widgets": ["detail-key-value"] },
+      "area": { "x": 0, "y": 0, "w": 8, "h": 10 }, "required": true },
+    { "slot": "stats", "accepts": { "widgets": ["stat-pair-card"] },
+      "area": { "x": 8, "y": 0, "w": 4, "h": 4 }, "fallback": "omit" },
+    { "slot": "activity", "accepts": { "widgets": ["timeline-vertical", "activity-feed"] },
+      "area": { "x": 8, "y": 4, "w": 4, "h": 8 } },
+    { "slot": "related", "accepts": { "widgets": ["data-grid"] },
+      "area": { "x": 0, "y": 12, "w": 12, "h": 8 }, "repeat": { "max": 6, "flow": "column" } }
+  ],
+  "chrome": {
+    "toolbar": ["tab-bar"],
+    "overlays": ["modal-wizard", "toast-stack"]
+  }
+}

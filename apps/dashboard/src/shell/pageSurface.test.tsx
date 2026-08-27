@@ -11,7 +11,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { PageSurface, resolvePagePadding } from './PageSurface.js';
+import { PageSurface, resolvePagePadding, resolvePageWidth } from './PageSurface.js';
 
 function surfaceOf(): HTMLElement {
   return screen.getByTestId('subject');
@@ -129,5 +129,27 @@ describe('no page hand-rolls its own outer gutter', () => {
     // The token is the gutter. If anything but PageSurface reads it, two
     // components decide the same padding and they will drift.
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('resolvePageWidth', () => {
+  it('falls back to the template default when nothing is stored', () => {
+    expect(resolvePageWidth(undefined, 'wide')).toBe('wide');
+    expect(resolvePageWidth(null, 'full')).toBe('full');
+  });
+
+  it('honours a stored choice over the template default', () => {
+    expect(resolvePageWidth('narrow', 'wide')).toBe('narrow');
+    expect(resolvePageWidth('full', 'content')).toBe('full');
+  });
+
+  it('degrades an unknown stored width to the template default', () => {
+    // A hand-edited document, or one written by a newer build that grew a
+    // seventh name. Passing it through would reach `WIDTH_CLASS[width]` as
+    // `undefined` and render `mx-auto undefined` — a centred, uncapped column
+    // that looks like a layout bug rather than an unreadable config.
+    for (const bad of ['huge', '', 'Content', 900, {}, []]) {
+      expect(resolvePageWidth(bad, 'content')).toBe('content');
+    }
   });
 });

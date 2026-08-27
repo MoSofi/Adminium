@@ -550,7 +550,8 @@ export default {
         "selectAllLabel": "تحديد كل الصفوف",
         "selectRowLabel": "تحديد الصف",
         "sortByLabel": "الترتيب حسب {column}",
-        "description": "شبكة CRUD الأساسية بأعمدة قابلة للترتيب وتحديد للصفوف وخلايا تراعي نوع البيانات."
+        "description": "شبكة CRUD الأساسية بأعمدة قابلة للترتيب وتحديد للصفوف وخلايا تراعي نوع البيانات.",
+        "rowActionsLabel": "إجراءات الصف"
       },
       "paginationFooter": {
         "emptyLabel": "0 صف",
@@ -1470,7 +1471,9 @@ export default {
         "inboundReferences": "مراجع واردة",
         "relatedCount": "{count, plural, zero {{n} سجل مرتبط في {table}} one {سجل واحد مرتبط في {table}} two {سجلان مرتبطان في {table}} few {{n} سجلات مرتبطة في {table}} many {{n} سجلًا مرتبطًا في {table}} other {{n} سجل مرتبط في {table}}}",
         "loadError": "تعذّر تحميل السجل."
-      }
+      },
+      "peekAction": "معاينة",
+      "openPage": "فتح الصفحة"
     },
     "queue": {
       "allSegment": "الكل",
@@ -1597,7 +1600,8 @@ export default {
       "clearFilters": "مسح عوامل التصفية",
       "noMatchesBody": "جرّب بحثًا مختلفًا أو أزل أحد عوامل التصفية.",
       "detailLabel": "التفاصيل",
-      "loadingRecord": "جارٍ تحميل السجل"
+      "loadingRecord": "جارٍ تحميل السجل",
+      "connectionPaused": "هذا الاتصال متوقّف مؤقتًا"
     },
     "directory": {
       "invalidConfig": "الإعدادات المخزَّنة لهذا الدليل غير صالحة. أعد توليد الصفحة لاستعادتها.",
@@ -1737,6 +1741,25 @@ export default {
     },
     "pageSettings": {
       "description": "مصفوفة تفضيلات إشعارات مع مفاتيح لكل قناة وحفظ تلقائي."
+    },
+    "record": {
+      "relatedEmptyTitle": "لا توجد سجلات مرتبطة",
+      "loadError": "تعذّر تحميل السجل.",
+      "loadingActivity": "جارٍ تحميل النشاط",
+      "activityTab": "النشاط",
+      "activityEmptyTitle": "لا يوجد نشاط مسجّل",
+      "activityEmptyBody": "ستظهر هنا التغييرات التي تتم عبر Adminium.",
+      "activityLoadOlder": "تحميل نشاط أقدم",
+      "activity": {
+        "created": "أنشأ {actor} هذا السجل",
+        "updated": "حدّث {actor} هذا السجل",
+        "deleted": "حذف {actor} هذا السجل",
+        "undone": "تراجع {actor} عن تغيير",
+        "changedFields": "{count, plural, zero {لم يتغيّر أي حقل} one {تغيّر حقل واحد} two {تغيّر حقلان} few {تغيّرت {n} حقول} many {تغيّر {n} حقلًا} other {تغيّر {n} حقل}}"
+      }
+    },
+    "pageRecord": {
+      "description": "سجل واحد كصفحة كاملة: حقوله، والسجلات المرتبطة به مع عدادات مباشرة، ونشاط تغييراته."
     }
   },
   "frame": {

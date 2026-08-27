@@ -2,11 +2,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { PAGE_CRUD_TEMPLATE_ID as CRUD_TEMPLATE_COMPONENT_ID } from '../templates/page-crud/index.js';
+import { PAGE_RECORD_TEMPLATE_ID as RECORD_TEMPLATE_COMPONENT_ID } from '../templates/page-record/index.js';
 import { ARCHETYPE_TEMPLATE_IDS } from './archetypes.js';
 import {
   DuplicatePageTemplateIdError,
   PAGE_CRUD_TEMPLATE_ID,
   PAGE_DASHBOARD_TEMPLATE_ID,
+  PAGE_RECORD_TEMPLATE_ID,
   buildPageTemplateRegistry,
   getPageTemplate,
   pageTemplateDefinitions,
@@ -30,10 +32,11 @@ const M7_RECOMMENDABLE = [
 const M7_TOOL_SURFACES = ['page-builder', 'page-wizard', 'page-settings'] as const;
 
 describe('pageTemplateRegistry', () => {
-  it('registers exactly the fourteen templates the runtime ships today', () => {
+  it('registers exactly the fifteen templates the runtime ships today', () => {
     expect([...pageTemplateRegistry.keys()].sort()).toEqual(
       [
         'page-crud',
+        'page-record',
         'page-dashboard',
         ...M7_RECOMMENDABLE,
         ...M7_TOOL_SURFACES,
@@ -43,6 +46,20 @@ describe('pageTemplateRegistry', () => {
 
   it('page-crud is renderable but never recommendable (06 §5 decision 6)', () => {
     expect(getPageTemplate(PAGE_CRUD_TEMPLATE_ID)?.recommendable).toBe(false);
+  });
+
+  it('page-record is neither recommendable nor standalone (30 D3)', () => {
+    // The record page is the crud page's child route; the LLM must not place
+    // it per table and the Studio picker must not offer dead-end shells.
+    const record = getPageTemplate(PAGE_RECORD_TEMPLATE_ID);
+    expect(record?.recommendable).toBe(false);
+    expect(record?.standalone).toBe(false);
+  });
+
+  it('every template except page-record is standalone-creatable', () => {
+    for (const template of pageTemplateDefinitions) {
+      expect(template.standalone !== false, template.id).toBe(template.id !== 'page-record');
+    }
   });
 
   it('page-dashboard is a recommendable candidate', () => {
@@ -93,5 +110,9 @@ describe('pageTemplateRegistry', () => {
     // If templates/page-crud renames its template id, this fails so the registry
     // (and every LLM allow-list derived from it) cannot silently diverge.
     expect(PAGE_CRUD_TEMPLATE_ID).toBe(CRUD_TEMPLATE_COMPONENT_ID);
+  });
+
+  it('the page-record id matches the template component constant (drift guard)', () => {
+    expect(PAGE_RECORD_TEMPLATE_ID).toBe(RECORD_TEMPLATE_COMPONENT_ID);
   });
 });

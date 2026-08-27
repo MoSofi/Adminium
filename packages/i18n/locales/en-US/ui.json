@@ -541,7 +541,8 @@
         "selectAllLabel": "Select all rows",
         "selectRowLabel": "Select row",
         "sortByLabel": "Sort by {column}",
-        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells."
+        "description": "The canonical CRUD grid with sortable columns, row selection, and type-aware cells.",
+        "rowActionsLabel": "Row actions"
       },
       "paginationFooter": {
         "emptyLabel": "0 rows",
@@ -1461,7 +1462,9 @@
         "inboundReferences": "inbound references",
         "relatedCount": "{count, plural, one {{n} related record in {table}} other {{n} related records in {table}}}",
         "loadError": "Failed to load the record."
-      }
+      },
+      "peekAction": "Peek",
+      "openPage": "Open page"
     },
     "queue": {
       "allSegment": "All",
@@ -1588,7 +1591,8 @@
       "clearFilters": "Clear filters",
       "noMatchesBody": "Try a different search or remove a filter.",
       "detailLabel": "Detail",
-      "loadingRecord": "Loading record"
+      "loadingRecord": "Loading record",
+      "connectionPaused": "This connection is paused"
     },
     "directory": {
       "invalidConfig": "This directory’s stored configuration is invalid. Regenerate the page to restore it.",
@@ -1728,6 +1732,25 @@
     },
     "pageSettings": {
       "description": "A notification-preferences matrix with per-channel toggles and autosave."
+    },
+    "record": {
+      "relatedEmptyTitle": "No related records",
+      "loadError": "Failed to load the record.",
+      "loadingActivity": "Loading activity",
+      "activityTab": "Activity",
+      "activityEmptyTitle": "No activity recorded",
+      "activityEmptyBody": "Changes made through Adminium will appear here.",
+      "activityLoadOlder": "Load older activity",
+      "activity": {
+        "created": "{actor} created this record",
+        "updated": "{actor} updated this record",
+        "deleted": "{actor} deleted this record",
+        "undone": "{actor} undid a change",
+        "changedFields": "{count, plural, one {{n} field changed} other {{n} fields changed}}"
+      }
+    },
+    "pageRecord": {
+      "description": "One record as a full page: its fields, related records with live counts, and its change activity."
     }
   },
   "frame": {

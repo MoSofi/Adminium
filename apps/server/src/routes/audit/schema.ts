@@ -30,12 +30,25 @@ export const auditListQuery = z.object({
   category: auditCategorySchema.optional(),
   /** Resource-type filter matched against the dotted action verb prefix. */
   resource: z.string().max(80).optional(),
+  /**
+   * Per-record entity filter (30-record-pages.md WS-A): the ref's owning
+   * connection, qualified table, and canonical record-id string — matched
+   * against the denormalized indexed columns the write path maintains.
+   * `entityId` requires `entityTable` (an id alone is meaningless across
+   * tables); each part is clamped exactly as the write side clamps it.
+   */
+  connectionId: z.string().max(64).optional(),
+  entityTable: z.string().min(1).max(512).optional(),
+  entityId: z.string().min(1).max(512).optional(),
   /** Epoch-ms range bounds (inclusive `from`, inclusive `to`). */
   from: z.coerce.number().int().nonnegative().optional(),
   to: z.coerce.number().int().nonnegative().optional(),
   /** Opaque keyset cursor from a previous reply. */
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
+}).refine((query) => query.entityId === undefined || query.entityTable !== undefined, {
+  message: '`entityId` requires `entityTable`.',
+  path: ['entityId'],
 });
 export type AuditListQuery = z.infer<typeof auditListQuery>;
 

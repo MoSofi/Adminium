@@ -550,7 +550,8 @@ export default {
         "selectAllLabel": "選取所有列",
         "selectRowLabel": "選取此列",
         "sortByLabel": "依 {column} 排序",
-        "description": "標準的 CRUD 資料格線，支援欄位排序、列選取與依型別呈現的儲存格。"
+        "description": "標準的 CRUD 資料格線，支援欄位排序、列選取與依型別呈現的儲存格。",
+        "rowActionsLabel": "列操作"
       },
       "paginationFooter": {
         "emptyLabel": "0 列",
@@ -1470,7 +1471,9 @@ export default {
         "inboundReferences": "個傳入參照",
         "relatedCount": "{count, plural, other {{n} related records in {table}}}",
         "loadError": "無法載入此記錄。"
-      }
+      },
+      "peekAction": "快速檢視",
+      "openPage": "開啟頁面"
     },
     "queue": {
       "allSegment": "全部",
@@ -1597,7 +1600,8 @@ export default {
       "clearFilters": "清除篩選",
       "noMatchesBody": "試試其他搜尋詞或移除篩選。",
       "detailLabel": "詳細資料",
-      "loadingRecord": "正在載入記錄"
+      "loadingRecord": "正在載入記錄",
+      "connectionPaused": "此連線已暫停"
     },
     "directory": {
       "invalidConfig": "此通訊錄儲存的設定無效。請重新產生頁面以還原。",
@@ -1737,6 +1741,25 @@ export default {
     },
     "pageSettings": {
       "description": "通知偏好設定矩陣，含各管道開關與自動儲存。"
+    },
+    "record": {
+      "relatedEmptyTitle": "沒有相關記錄",
+      "loadError": "無法載入此記錄。",
+      "loadingActivity": "正在載入活動",
+      "activityTab": "活動",
+      "activityEmptyTitle": "沒有記錄到任何活動",
+      "activityEmptyBody": "透過 Adminium 所做的變更會顯示在這裡。",
+      "activityLoadOlder": "載入更早的活動",
+      "activity": {
+        "created": "{actor} 建立了此記錄",
+        "updated": "{actor} 更新了此記錄",
+        "deleted": "{actor} 刪除了此記錄",
+        "undone": "{actor} 復原了一次變更",
+        "changedFields": "{count, plural, other {已變更 {n} 個欄位}}"
+      }
+    },
+    "pageRecord": {
+      "description": "以完整頁面顯示單筆記錄：欄位、附即時計數的相關記錄，以及變更活動。"
     }
   },
   "frame": {

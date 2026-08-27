@@ -60,13 +60,20 @@ const FILLS = new Set([
  */
 const WIDTHS: Record<string, PageSurfaceWidth> = {
   'page-crud': 'wide',
+  // The crud page's record route (30 D4) — same column as the list it is a
+  // child of, so list ↔ record navigation does not reflow the content box.
+  'page-record': 'wide',
   // Widest column in the app: a 12-column widget grid at `--container-page`
   // (1080px) squeezed each column to ~76px, which is what `dash` exists to fix.
   'page-dashboard': 'dash',
   'page-builder': 'page',
-  // The import wizard's own column, `max-w-4xl` (896px) before this, rounded to
-  // the 900px reading column — the one width the padding spec asks for.
-  'page-wizard': 'content',
+  // The shared platform column. This was `content` (900px) — "the one width the
+  // padding spec asks for" — back when the dashboard's own import wizard, its
+  // settings screens and its account pages all sat there. They have since been
+  // unified on `page`, so 900px stopped being the house reading column and
+  // became just a narrower page. An admin who wants it back can still pick
+  // "Content (900px)" per page in the Appearance card.
+  'page-wizard': 'page',
 };
 
 /**

@@ -122,6 +122,50 @@ describe('GET /audit', () => {
     expect(res.statusCode).toBe(422);
   });
 
+  it('filters to one record via connectionId + entityTable + entityId (30 WS-A)', async () => {
+    const audit = auditRepo(ctx.meta);
+    const mkRef = (table: string, id: number) => ({
+      connectionId: 'conn_a',
+      table,
+      pk: { id },
+      label: String(id),
+    });
+    // Two records on the same table, one on another table, one ref-less row.
+    await audit.append(
+      { actorKind: 'user', actorLabel: 'A', category: 'data', action: 'record.update', connectionId: 'conn_a', entity: mkRef('public.invoices', 7) },
+      BASE,
+    );
+    await audit.append(
+      { actorKind: 'user', actorLabel: 'A', category: 'data', action: 'record.delete', connectionId: 'conn_a', entity: mkRef('public.invoices', 7) },
+      BASE + 1000,
+    );
+    await audit.append(
+      { actorKind: 'user', actorLabel: 'A', category: 'data', action: 'record.update', connectionId: 'conn_a', entity: mkRef('public.invoices', 8) },
+      BASE + 2000,
+    );
+    await audit.append(
+      { actorKind: 'user', actorLabel: 'A', category: 'data', action: 'record.update', connectionId: 'conn_a', entity: mkRef('public.clients', 7) },
+      BASE + 3000,
+    );
+    await audit.append(
+      { actorKind: 'user', actorLabel: 'A', category: 'auth', action: 'session.create', connectionId: 'conn_a' },
+      BASE + 4000,
+    );
+
+    const headers = asUser(ctx.users.superAdmin);
+    const url = `/api/v1/audit?connectionId=conn_a&entityTable=${encodeURIComponent('public.invoices')}&entityId=7`;
+    const res = await ctx.app.inject({ method: 'GET', url, headers });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { entries: { action: string; createdAt: number }[]; nextCursor: string | null };
+    // Exactly invoice 7's two entries — invoice 8, clients/7 and the ref-less
+    // row are out; newest first.
+    expect(body.entries.map((entry) => entry.action)).toEqual(['record.delete', 'record.update']);
+
+    // entityId without entityTable is meaningless across tables → 422.
+    const bare = await ctx.app.inject({ method: 'GET', url: '/api/v1/audit?entityId=7', headers });
+    expect(bare.statusCode).toBe(422);
+  });
+
   it('GET /audit/:id returns the structured entry; unknown id → 404', async () => {
     const [first] = await seedEntries();
     const headers = asUser(ctx.users.superAdmin);

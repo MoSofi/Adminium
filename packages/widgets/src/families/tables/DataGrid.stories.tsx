@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { IconButton } from '@adminium/ui';
+import { Eye } from 'lucide-react';
 import { useState } from 'react';
 
 import { BulkActionToolbar } from './BulkActionToolbar.js';
@@ -94,6 +96,26 @@ export const CompactDensity = {
   render: () => (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <DataGrid columns={demoCustomerColumns} rows={rows} density="compact" />
+    </div>
+  ),
+};
+
+export const RowActions = {
+  name: 'Row actions (peek eye)',
+  render: () => (
+    <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      {/* The 30 §3.3 slot: openable rows + an end-pinned action per row. The
+          action must be reachable without triggering the row's own open. */}
+      <DataGrid
+        columns={demoCustomerColumns}
+        rows={rows}
+        onRowOpen={() => {}}
+        rowEnd={() => (
+          <IconButton size="sm" variant="ghost" label="Peek">
+            <Eye className="size-3.5" />
+          </IconButton>
+        )}
+      />
     </div>
   ),
 };

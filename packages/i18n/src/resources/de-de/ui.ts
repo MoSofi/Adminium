@@ -550,7 +550,8 @@ export default {
         "selectAllLabel": "Alle Zeilen auswählen",
         "selectRowLabel": "Zeile auswählen",
         "sortByLabel": "Nach {column} sortieren",
-        "description": "Das kanonische CRUD-Raster mit sortierbaren Spalten, Zeilenauswahl und typbewussten Zellen."
+        "description": "Das kanonische CRUD-Raster mit sortierbaren Spalten, Zeilenauswahl und typbewussten Zellen.",
+        "rowActionsLabel": "Zeilenaktionen"
       },
       "paginationFooter": {
         "emptyLabel": "0 Zeilen",
@@ -1470,7 +1471,9 @@ export default {
         "inboundReferences": "eingehende Verweise",
         "relatedCount": "{count, plural, one {{n} verknüpfter Datensatz in {table}} other {{n} verknüpfte Datensätze in {table}}}",
         "loadError": "Der Datensatz konnte nicht geladen werden."
-      }
+      },
+      "peekAction": "Vorschau",
+      "openPage": "Seite öffnen"
     },
     "queue": {
       "allSegment": "Alle",
@@ -1597,7 +1600,8 @@ export default {
       "clearFilters": "Filter zurücksetzen",
       "noMatchesBody": "Versuchen Sie eine andere Suche oder entfernen Sie einen Filter.",
       "detailLabel": "Detail",
-      "loadingRecord": "Datensatz wird geladen"
+      "loadingRecord": "Datensatz wird geladen",
+      "connectionPaused": "Diese Verbindung ist pausiert"
     },
     "directory": {
       "invalidConfig": "Die gespeicherte Konfiguration dieses Verzeichnisses ist ungültig. Generieren Sie die Seite neu, um sie wiederherzustellen.",
@@ -1737,6 +1741,25 @@ export default {
     },
     "pageSettings": {
       "description": "Eine Matrix für Benachrichtigungseinstellungen mit Schaltern je Kanal und automatischem Speichern."
+    },
+    "record": {
+      "relatedEmptyTitle": "Keine verknüpften Datensätze",
+      "loadError": "Der Datensatz konnte nicht geladen werden.",
+      "loadingActivity": "Aktivität wird geladen",
+      "activityTab": "Aktivität",
+      "activityEmptyTitle": "Keine Aktivität aufgezeichnet",
+      "activityEmptyBody": "Änderungen über Adminium erscheinen hier.",
+      "activityLoadOlder": "Ältere Aktivität laden",
+      "activity": {
+        "created": "{actor} hat diesen Datensatz erstellt",
+        "updated": "{actor} hat diesen Datensatz aktualisiert",
+        "deleted": "{actor} hat diesen Datensatz gelöscht",
+        "undone": "{actor} hat eine Änderung rückgängig gemacht",
+        "changedFields": "{count, plural, one {{n} Feld geändert} other {{n} Felder geändert}}"
+      }
+    },
+    "pageRecord": {
+      "description": "Ein Datensatz als eigene Seite: seine Felder, verknüpfte Datensätze mit Live-Zählern und seine Änderungshistorie."
     }
   },
   "frame": {

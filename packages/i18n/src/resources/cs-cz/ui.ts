@@ -550,7 +550,8 @@ export default {
         "selectAllLabel": "Vybrat všechny řádky",
         "selectRowLabel": "Vybrat řádek",
         "sortByLabel": "Seřadit podle {column}",
-        "description": "Základní mřížka CRUD s řaditelnými sloupci, výběrem řádků a buňkami podle typu."
+        "description": "Základní mřížka CRUD s řaditelnými sloupci, výběrem řádků a buňkami podle typu.",
+        "rowActionsLabel": "Akce řádku"
       },
       "paginationFooter": {
         "emptyLabel": "0 řádků",
@@ -1470,7 +1471,9 @@ export default {
         "inboundReferences": "příchozí odkazy",
         "relatedCount": "{count, plural, one {{n} související záznam v {table}} few {{n} související záznamy v {table}} many {{n} souvisejícího záznamu v {table}} other {{n} souvisejících záznamů v {table}}}",
         "loadError": "Záznam se nepodařilo načíst."
-      }
+      },
+      "peekAction": "Náhled",
+      "openPage": "Otevřít stránku"
     },
     "queue": {
       "allSegment": "Vše",
@@ -1597,7 +1600,8 @@ export default {
       "clearFilters": "Vymazat filtry",
       "noMatchesBody": "Zkuste jiný výraz nebo odeberte filtr.",
       "detailLabel": "Detail",
-      "loadingRecord": "Načítání záznamu"
+      "loadingRecord": "Načítání záznamu",
+      "connectionPaused": "Toto připojení je pozastavené"
     },
     "directory": {
       "invalidConfig": "Uložená konfigurace tohoto adresáře je neplatná. Obnovte ji opětovným vygenerováním stránky.",
@@ -1737,6 +1741,25 @@ export default {
     },
     "pageSettings": {
       "description": "Matice předvoleb oznámení s přepínači pro každý kanál a automatickým ukládáním."
+    },
+    "record": {
+      "relatedEmptyTitle": "Žádné související záznamy",
+      "loadError": "Záznam se nepodařilo načíst.",
+      "loadingActivity": "Načítání aktivity",
+      "activityTab": "Aktivita",
+      "activityEmptyTitle": "Žádná zaznamenaná aktivita",
+      "activityEmptyBody": "Změny provedené přes Adminium se zobrazí zde.",
+      "activityLoadOlder": "Načíst starší aktivitu",
+      "activity": {
+        "created": "{actor} vytvořil(a) tento záznam",
+        "updated": "{actor} aktualizoval(a) tento záznam",
+        "deleted": "{actor} smazal(a) tento záznam",
+        "undone": "{actor} vrátil(a) změnu zpět",
+        "changedFields": "{count, plural, one {{n} pole změněno} few {{n} pole změněna} many {{n} pole změněno} other {{n} polí změněno}}"
+      }
+    },
+    "pageRecord": {
+      "description": "Jeden záznam jako samostatná stránka: jeho pole, související záznamy s živými počty a historie změn."
     }
   },
   "frame": {

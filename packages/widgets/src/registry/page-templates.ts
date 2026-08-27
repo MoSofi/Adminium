@@ -54,6 +54,14 @@ export interface PageTemplateDefinition {
    * widget `descriptionKey`s — or add the catalog entries when it lands.
    */
   descriptionKey: string;
+  /**
+   * Whether the template makes sense as a page of its own — what the Studio
+   * "create page" picker offers. `page-record` is the one `false` today
+   * (30-record-pages.md D1/D3): it renders the `/p/$slug/r/$recordId` child
+   * route of a crud page and has nothing to show without a record id, so
+   * offering it standalone would create dead-end pages. Absent ⇒ true.
+   */
+  standalone?: boolean;
 }
 
 /**
@@ -65,6 +73,13 @@ export interface PageTemplateDefinition {
  */
 export const PAGE_CRUD_TEMPLATE_ID = 'page-crud';
 
+/**
+ * Registry id of the record detail template (30-record-pages.md D3) — same
+ * literal-here discipline as `PAGE_CRUD_TEMPLATE_ID` (the component module
+ * exports its own constant; a page-templates.test pin keeps them together).
+ */
+export const PAGE_RECORD_TEMPLATE_ID = 'page-record';
+
 /** Registry id of the dashboard widget-grid template. */
 export const PAGE_DASHBOARD_TEMPLATE_ID = 'page-dashboard';
 
@@ -74,6 +89,16 @@ export const PAGE_DASHBOARD_TEMPLATE_ID = 'page-dashboard';
  */
 export const pageTemplateDefinitions: readonly PageTemplateDefinition[] = [
   { id: PAGE_CRUD_TEMPLATE_ID, recommendable: false, descriptionKey: 'templates.pageCrud.description' },
+  // The record detail page (30-record-pages.md D3): rendered on the crud
+  // page's `/r/$recordId` child route via `config.detail.template`. Never
+  // LLM-recommended (it is not a per-table archetype choice) and never
+  // offered standalone (a record page without a record id is a dead end).
+  {
+    id: PAGE_RECORD_TEMPLATE_ID,
+    recommendable: false,
+    standalone: false,
+    descriptionKey: 'templates.pageRecord.description',
+  },
   {
     id: PAGE_DASHBOARD_TEMPLATE_ID,
     recommendable: true,

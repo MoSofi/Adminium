@@ -110,6 +110,40 @@ describe('DataGrid', () => {
     expect(onRowOpen).toHaveBeenCalledTimes(1); // checkbox click must not open
   });
 
+  it('row-actions slot (30 §3.3): labeled header, action click never opens the row', async () => {
+    const user = userEvent.setup();
+    const onRowOpen = vi.fn();
+    const onAction = vi.fn();
+    render(
+      <DataGrid
+        columns={columns}
+        rows={rows}
+        onRowOpen={onRowOpen}
+        rowEnd={(row) => (
+          <button type="button" aria-label={`Peek ${String(row['name'])}`} onClick={() => onAction(row)}>
+            👁
+          </button>
+        )}
+      />,
+    );
+    // The extra column carries a screen-reader name (default key fallback).
+    expect(screen.getByText('Row actions')).toBeDefined();
+
+    await user.click(screen.getByRole('button', { name: 'Peek Initech' }));
+    expect(onAction).toHaveBeenCalledWith(rows[0]);
+    expect(onRowOpen).not.toHaveBeenCalled(); // propagation stopped at the cell
+
+    // Keyboard: Enter on the focused action activates the action, not the row.
+    screen.getByRole('button', { name: 'Peek Stark' }).focus();
+    await user.keyboard('{Enter}');
+    expect(onAction).toHaveBeenCalledWith(rows[1]);
+    expect(onRowOpen).not.toHaveBeenCalled();
+
+    // The row itself still opens on click.
+    await user.click(screen.getByText('Umbrella'));
+    expect(onRowOpen).toHaveBeenCalledWith(rows[2]);
+  });
+
   it('select-all header checkbox selects every row id', async () => {
     const user = userEvent.setup();
     const onSelectedChange = vi.fn();

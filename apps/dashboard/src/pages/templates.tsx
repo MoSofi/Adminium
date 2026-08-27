@@ -47,6 +47,10 @@ type TemplateLoader = () => Promise<PageTemplateComponent>;
 /** Templates with a first-class binding in this app, one chunk each. */
 const builtinTemplates: Record<string, TemplateLoader> = {
   'page-crud': async () => (await import('./PageCrudBinding.js')).PageCrudBinding,
+  // The record detail page (30-record-pages.md D1/D3) — resolved by
+  // TemplateMount from the envelope's `config.detail.template` when the
+  // `/r/$recordId` child route is active.
+  'page-record': async () => (await import('./PageRecordBinding.js')).PageRecordBinding,
   'page-dashboard': async () => (await import('./PageDashboardBinding.js')).PageDashboardBinding,
   // M7 wave 2 — planning archetypes (09 §7.5/§7.6).
   'page-board': async () => (await import('./PageBoardBinding.js')).PageBoardBinding,

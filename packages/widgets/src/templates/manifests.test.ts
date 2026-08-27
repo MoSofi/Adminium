@@ -33,6 +33,9 @@ const manifestFiles = readdirSync(TEMPLATES_DIR)
  */
 const EXPECTED_IDS = [
   'page-crud',
+  // The crud detail page (30-record-pages.md D3) — the id every generated
+  // crud body stores in `config.detail.template`.
+  'page-record',
   'page-dashboard',
   'page-master-detail',
   'page-queue-inbox',
@@ -49,7 +52,7 @@ const EXPECTED_IDS = [
 ];
 
 describe('shipped page-template manifests', () => {
-  it('ships exactly the 14 expected archetypes', () => {
+  it('ships exactly the 15 expected archetypes', () => {
     expect([...PAGE_TEMPLATE_IDS].sort()).toEqual([...EXPECTED_IDS].sort());
     expect(manifestFiles).toHaveLength(EXPECTED_IDS.length);
   });

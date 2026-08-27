@@ -55,7 +55,13 @@ export interface DataGridProps {
   /** Cell context: FK `record-open` events, PII unmask, format overrides. */
   cellContext?: CellContext | undefined;
   density?: 'comfortable' | 'compact' | undefined;
-  /** Trailing per-row slot (kebab menu). */
+  /**
+   * End-pinned row-actions slot (30-record-pages.md §3.3): a fixed-width cell
+   * after the data columns (mirrored under RTL by the flex row itself).
+   * Content is interactive — both the cell's click and its keydown stop at the
+   * cell, so an action never also triggers `onRowOpen`. Give the header cell a
+   * name via `labels.rowActions`.
+   */
   rowEnd?: ((row: GridRow) => ReactNode) | undefined;
   /** Accessible labels (i18n). */
   labels?:
@@ -63,6 +69,8 @@ export interface DataGridProps {
         selectAll?: string | undefined;
         selectRow?: string | undefined;
         sortBy?: string | undefined;
+        /** Screen-reader name of the row-actions column (`rowEnd`). */
+        rowActions?: string | undefined;
       }
     | undefined;
   testId?: string | undefined;
@@ -239,7 +247,13 @@ export function DataGrid({
               </div>
             );
           })}
-          {rowEnd !== undefined && <div role="columnheader" className="w-11 shrink-0" />}
+          {rowEnd !== undefined && (
+            <div role="columnheader" className="w-11 shrink-0">
+              <span className="sr-only">
+                {labels?.rowActions ?? t('ui:widgets.tables.dataGrid.rowActionsLabel', 'Row actions')}
+              </span>
+            </div>
+          )}
         </div>
       ))}
 
@@ -301,7 +315,14 @@ export function DataGrid({
                 );
               })}
               {rowEnd !== undefined && (
-                <div role="cell" className="flex w-11 shrink-0 items-center justify-center" onClick={(event) => event.stopPropagation()}>
+                <div
+                  role="cell"
+                  className="flex w-11 shrink-0 items-center justify-center"
+                  onClick={(event) => event.stopPropagation()}
+                  // A row is openable via Enter (see the row's onKeyDown); keys
+                  // pressed on an action must stay the action's.
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
                   {rowEnd(row.original)}
                 </div>
               )}
