@@ -374,7 +374,7 @@ export function StudioPagesPage() {
   const rows = pages.data ?? [];
 
   return (
-    <PageSurface className="mx-auto flex max-w-[1000px] flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       {/*
         Heading, subtitle and primary action all go to the TOPBAR — the shell
         renders an <h1> for every route regardless, so a second one here said

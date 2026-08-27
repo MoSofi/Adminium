@@ -14,7 +14,7 @@
  */
 
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
-import type { PagePaddingConfig } from '@adminium/engine/config';
+import type { PagePaddingConfig, PageWidthConfig } from '@adminium/engine/config';
 
 import { api } from '../../app/api.js';
 
@@ -66,6 +66,8 @@ export interface CreatePageInput {
   table?: string | null;
   /** Page gutter; omit for the template's own default. */
   padding?: PagePaddingConfig | null;
+  /** Content column; omit for the template's own default. */
+  width?: PageWidthConfig | null;
 }
 
 export interface UpdatePageInput {
@@ -80,6 +82,8 @@ export interface UpdatePageInput {
    * omitting the key leaves whatever is stored untouched.
    */
   padding?: PagePaddingConfig | null;
+  /** Content column, on the same "null clears" contract as `padding`. */
+  width?: PageWidthConfig | null;
   /** 08 §2.6 optimistic concurrency — the revision this client last read. */
   expectedRevision?: number;
 }

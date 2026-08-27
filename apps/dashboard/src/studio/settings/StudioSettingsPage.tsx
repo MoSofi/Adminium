@@ -1135,7 +1135,7 @@ export function StudioSettingsPage({
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
 
   return (
-    <PageSurface width="content" className="flex flex-col gap-4">
+    <PageSurface width="page" className="flex flex-col gap-4">
       {/* Inside the surface, not a sibling of it: as a fragment peer this
           banner was the first child of <main>, so it ran edge-to-edge above a
           page that starts 28px in — the one screen where the gutter visibly

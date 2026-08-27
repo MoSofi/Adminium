@@ -10,10 +10,14 @@
  * needs a picture — plus the page's contents editor under the form.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { isTableBoundTemplate, type PagePaddingConfig } from '@adminium/engine/config';
+import {
+  isTableBoundTemplate,
+  type PagePaddingConfig,
+  type PageWidthConfig,
+} from '@adminium/engine/config';
 import {
   Alert,
   Button,
@@ -33,11 +37,12 @@ import { pageTemplateDefinitions } from '@adminium/widgets';
 import { pageQuery } from '../../api/pages.js';
 import { t } from '../../i18n/t.js';
 import { studioApi } from '../api.js';
-import { ColumnManager } from './ColumnManager.js';
+import { ColumnManager, type ColumnsDraft } from './ColumnManager.js';
 import { IconPicker } from './IconPicker.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { PageEditorLayout, templateTitle } from './PageEditorLayout.js';
 import { PaddingField } from './PaddingField.js';
+import { WidthField } from './WidthField.js';
 import {
   NAV_GROUPS,
   PAGE_URL_PREFIX,
@@ -120,6 +125,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   // list row, so it is unknown until `pageQuery` resolves. `null` inside the
   // edited state means a deliberate "back to the template default".
   const [padding, setPadding] = useState<PagePaddingConfig | null | undefined>(undefined);
+  const [width, setWidth] = useState<PageWidthConfig | null | undefined>(undefined);
 
   const document = useQuery(pageQuery(page.id));
   const connections = useQuery({
@@ -145,6 +151,12 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
   // identity would mark the form dirty even after typing the stored number back.
   const paddingChanged =
     padding !== undefined && JSON.stringify(padding) !== JSON.stringify(storedPadding);
+  const storedWidth =
+    document.data?.status === 'ok' ? (document.data.page.width ?? null) : null;
+  const effectiveWidth = width === undefined ? storedWidth : width;
+  // A plain `!==` here, unlike padding above: width is a string union, so there
+  // is no fresh-object-per-keystroke problem to compare around.
+  const widthChanged = width !== undefined && width !== storedWidth;
   const finalSlug = slugify(slug);
   const slugChanged = finalSlug !== page.slug;
 
@@ -153,9 +165,34 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
     connectionId !== page.connectionId ||
     (table !== undefined && table !== storedTable);
 
+  // The columns draft the ColumnManager reports (null = clean). ONE "Save
+  // changes" persists both halves — the old per-card "Save columns" next to
+  // this button silently discarded whichever draft the other one didn't cover.
+  const [columnsDraft, setColumnsDraft] = useState<ColumnsDraft | null>(null);
+  // Revision already advanced by a columns save whose identity half then
+  // failed — the retry must If-Match the moved revision, not the stale row's.
+  const savedRevision = useRef<number | null>(null);
+
+  const identityDirty =
+    title.trim() !== page.title ||
+    finalSlug !== page.slug ||
+    (icon.trim() === '' ? null : icon.trim()) !== (page.icon ?? null) ||
+    navGroup !== (isNavGroup(page.navGroup) ? page.navGroup : 'workspace') ||
+    isEnabled !== page.isEnabled ||
+    sourceChanged ||
+    paddingChanged ||
+    widthChanged;
+
   const save = useMutation({
-    mutationFn: () =>
-      updatePage(page.id, {
+    mutationFn: async () => {
+      let expectedRevision = savedRevision.current ?? page.revision;
+      if (columnsDraft !== null) {
+        const updated = await columnsDraft.save(expectedRevision);
+        savedRevision.current = updated.revision;
+        expectedRevision = updated.revision;
+      }
+      if (!identityDirty && columnsDraft !== null) return;
+      await updatePage(page.id, {
         title: title.trim(),
         slug: finalSlug,
         icon: icon.trim() === '' ? null : icon.trim(),
@@ -167,8 +204,10 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
         // Sent only when touched: an untouched page must keep following its
         // template default rather than having today's default frozen into it.
         ...(paddingChanged ? { padding: effectivePadding } : {}),
-        expectedRevision: page.revision,
-      }),
+        ...(widthChanged ? { width: effectiveWidth } : {}),
+        expectedRevision,
+      });
+    },
     onSuccess: async () => {
       await invalidatePages(client);
       await navigate({ to: '/studio/pages' });
@@ -209,7 +248,11 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
             <Button
               onClick={() => save.mutate()}
               loading={save.isPending}
-              disabled={title.trim().length === 0 || finalSlug.length === 0}
+              disabled={
+                title.trim().length === 0 ||
+                finalSlug.length === 0 ||
+                (!identityDirty && columnsDraft === null)
+              }
               data-testid="studio-pages-save"
             >
               {t('studioPages.editor.save', 'Save changes')}
@@ -241,11 +284,15 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               onChange={(event) => setTemplate(event.target.value)}
               data-testid="studio-pages-template"
             >
-              {pageTemplateDefinitions.map((definition) => (
-                <option key={definition.id} value={definition.id}>
-                  {templateTitle(definition.id)}
-                </option>
-              ))}
+              {/* Same filter as NewPageScreen: page-record is a crud page's
+                  child route, never a standalone template choice (30 D3). */}
+              {pageTemplateDefinitions
+                .filter((definition) => definition.standalone !== false)
+                .map((definition) => (
+                  <option key={definition.id} value={definition.id}>
+                    {templateTitle(definition.id)}
+                  </option>
+                ))}
             </Select>
           </FormField>
 
@@ -416,6 +463,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
             value={effectivePadding}
             onChange={setPadding}
           />
+          <WidthField value={effectiveWidth} onChange={setWidth} />
         </CardBody>
       </Card>
 
@@ -476,8 +524,12 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               ) : (
                 <ColumnManager
                   pageId={page.id}
-                  revision={page.revision}
                   config={document.data.page.config}
+                  source={{
+                    connectionId: document.data.page.source.connectionId,
+                    table: document.data.page.source.table ?? null,
+                  }}
+                  onDraft={setColumnsDraft}
                 />
               )
             ) : null}

@@ -192,7 +192,7 @@ export function GlobalDefaultsPage(): ReactNode {
 function GlobalDefaultsBody(): ReactNode {
   const { data } = useSuspenseQuery(settingsDefaultsQuery());
   return (
-    <PageSurface width="narrow">
+    <PageSurface width="page">
       <PageActions
         title={t('settings.defaults.title', 'Global defaults')}
         subtitle={t('settings.defaults.subtitle', 'Workspace-wide appearance and language defaults.')}

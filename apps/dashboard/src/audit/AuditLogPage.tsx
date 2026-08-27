@@ -115,14 +115,14 @@ export function AuditLogPage(): ReactNode {
     filters.category !== '' || filters.actorId !== '' || filters.from !== '' || filters.to !== '';
 
   return (
-    <PageSurface className="mx-auto flex max-w-[1100px] flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
         title={t('audit.title', 'Audit log')}
         subtitle={t('audit.subtitle', 'Every change made in this workspace, who made it, and what it changed.')}
       />
 
       <Card padded={false}>
-        <CardHeader className="flex flex-wrap items-end gap-3">
+        <CardHeader className="justify-between flex flex-wrap items-end gap-3">
           <Select
             wrapperClassName="w-52"
             value={filters.category}

@@ -123,7 +123,7 @@ function InviteBanner({ result, onDismiss }: { result: InviteResult; onDismiss: 
 
   return (
     <Card data-testid="team-invite-banner">
-      <CardHeader className="flex items-start gap-3">
+      <CardHeader className="justify-between flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="text-section text-fg">{t('team.invite.created.title', 'Invitation created')}</h2>
           <p className="text-body-sm text-fg-muted">
@@ -502,7 +502,7 @@ export function TeamPage(): ReactNode {
   const filtered = filters.q !== '' || filters.status !== '' || filters.roleId !== '';
 
   return (
-    <PageSurface className="mx-auto flex max-w-[1100px] flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
         title={t('team.title', 'Team')}
         subtitle={t('team.subtitle', 'Who has an account on this Adminium, and what each of them can do.')}
@@ -519,7 +519,7 @@ export function TeamPage(): ReactNode {
       {invite === null ? null : <InviteBanner result={invite} onDismiss={() => setInvite(null)} />}
 
       <Card padded={false}>
-        <CardHeader className="flex flex-wrap items-center gap-3">
+        <CardHeader className="justify-between flex flex-wrap items-center gap-3">
           <SearchInput
             className="min-w-52 flex-1"
             value={filters.q}

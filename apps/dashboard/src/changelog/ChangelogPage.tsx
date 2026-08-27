@@ -151,7 +151,7 @@ export function ChangelogPage(): ReactNode {
   );
 
   return (
-    <PageSurface className="mx-auto flex max-w-[760px] flex-col gap-6">
+    <PageSurface width="page" className="flex flex-col gap-6">
       <PageActions
         title={t('changelog.title', 'Changelog')}
         subtitle={t('changelog.subtitle', 'Product updates & releases.')}

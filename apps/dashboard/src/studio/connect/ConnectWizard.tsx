@@ -266,7 +266,7 @@ export function ConnectWizard({
   };
 
   return (
-    <PageSurface className="mx-auto flex min-h-full max-w-[760px] flex-col gap-6">
+    <PageSurface width="page" className="flex min-h-full flex-col gap-6">
       <PageActions title={t('studio.wizard.title', 'New connection')} />
       <header className="flex flex-col gap-4">
         <Stepper

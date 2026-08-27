@@ -351,7 +351,7 @@ export function ApiKeysPage(): ReactNode {
   const rolesUnavailable = roles.isError;
 
   return (
-    <PageSurface className="mx-auto flex max-w-[1000px] flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
         title={t('apiKeys.title', 'API keys & tokens')}
         subtitle={t('apiKeys.subtitle', 'Manage programmatic access to your workspace.')}

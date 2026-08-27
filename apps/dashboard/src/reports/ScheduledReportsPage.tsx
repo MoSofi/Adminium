@@ -195,7 +195,7 @@ export function ScheduledReportsPage() {
   );
 
   return (
-    <PageSurface width="content" fill className="gap-5">
+    <PageSurface width="page" fill className="gap-5">
       <PageActions
         title={t('reports.title', 'Scheduled reports')}
         subtitle={t(
