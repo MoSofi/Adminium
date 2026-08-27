@@ -132,6 +132,95 @@ export class MetaDriverMissingError extends Error {
   }
 }
 
+/** Docs entry for the placement decision — the one page this error is short for. */
+const META_STORE_DOCS = 'https://docs.adminium.dev/self-hosting/meta-store/';
+
+/** The two supported placements, spelled as copy-pasteable DSNs. */
+const PLACEMENT_CHOICES =
+  '  • a separate database — recommended\n' +
+  "      ADMINIUM_META_URL='postgres://adminium:pass@meta-host:5432/adminium_meta'\n" +
+  '  • or your source database, with a dedicated schema\n' +
+  "      ADMINIUM_META_URL='postgres://adminium_rw:pass@your-db:5432/mydb'";
+
+/** Where a configured (non-fallback) SQLite path came from, so the fix names a knob. */
+function configuredOrigin(source: Exclude<MetaUrlSource, 'embedded'>): string {
+  return source === 'env'
+    ? 'That path came from ADMINIUM_META_URL.'
+    : 'That path came from the metaUrl remembered in adminium.json under ADMINIUM_DATA_DIR.\n' +
+        'ADMINIUM_META_URL overrides it — the environment always wins (§7.2).';
+}
+
+/**
+ * The SQLite meta store's file could not be created or opened: a read-only
+ * container mount, a serverless filesystem (Vercel, Lambda), a volume the
+ * process user cannot write — or, rarely, a full disk.
+ *
+ * WHY THIS DESERVES ITS OWN ERROR. Same charge as {@link MetaSecretMismatchError},
+ * and this path never got the same treatment. The raw failure is a bare
+ * `EACCES: permission denied, mkdir '/var/task/data'` from the mkdir, or — when
+ * the directory exists but is not writable, so the recursive mkdir no-ops —
+ * better-sqlite3's even barer `unable to open database file`. Both are true and
+ * unactionable: neither names the meta store, ADMINIUM_META_URL, or the fact
+ * that two supported placements exist.
+ *
+ * It is also the one failure {@link embeddedMetaWarning} cannot reach. That
+ * warning — "set ADMINIUM_META_URL for production" — prints only when the
+ * fallback SUCCEEDS, so in the single environment where the fallback is
+ * impossible, the sentence that resolves it never fires.
+ *
+ * Worth stating precisely because the fix is so cheap: with ADMINIUM_META_URL
+ * pointed at Postgres or MySQL, an unwritable ADMINIUM_DATA_DIR does not block
+ * boot at all. Nothing writes there eagerly — `writeBootstrap` runs only from
+ * `init`/`relocate`, and file storage mkdirs lazily on first write. This error is
+ * the only thing standing between a read-only filesystem and a working server.
+ *
+ * The OS reason is quoted verbatim rather than paraphrased: the catch is broad
+ * enough to see ENOSPC or ENOTDIR too, and the headline must not out-claim it.
+ */
+export class MetaStoreUnwritableError extends Error {
+  override readonly name = 'MetaStoreUnwritableError';
+  constructor(
+    /**
+     * ABSOLUTE. ADMINIUM_DATA_DIR defaults to a relative `./data`, and this
+     * message is typically read from a container log on another machine — see
+     * the same note on {@link MetaSecretMismatchError}.
+     */
+    readonly file: string,
+    readonly source: MetaUrlSource,
+    cause?: unknown,
+  ) {
+    const reason = cause instanceof Error ? cause.message : String(cause ?? 'unknown error');
+    super(
+      `Could not open Adminium's meta store at ${file}.\n` +
+        `The filesystem said: ${reason}\n` +
+        '\n' +
+        "The meta store is where Adminium keeps its OWN tables (adminium_*: users, roles,\n" +
+        'connections, page config, saved views, the audit log). It is not the database you\n' +
+        'are building an admin panel for.\n' +
+        '\n' +
+        (source === 'embedded'
+          ? 'Nothing configured one, so Adminium fell back to a SQLite file under\n' +
+            'ADMINIUM_DATA_DIR, and this filesystem will not take it. Read-only container\n' +
+            'mounts, serverless filesystems (Vercel, Lambda), and volumes the process user\n' +
+            'cannot write all land here.\n' +
+            '\n' +
+            'Set ADMINIUM_META_URL to a real database instead:\n' +
+            PLACEMENT_CHOICES +
+            '\n\n' +
+            'With either set, Adminium starts without a writable ADMINIUM_DATA_DIR — nothing\n' +
+            'is written there at boot. (File storage and backups still need one when used.)\n'
+          : configuredOrigin(source) +
+            '\n\n' +
+            'Point it at a writable path, or at a database that needs no local disk:\n' +
+            PLACEMENT_CHOICES +
+            '\n') +
+        '\n' +
+        META_STORE_DOCS,
+      cause === undefined ? undefined : { cause },
+    );
+  }
+}
+
 /** `sqlite:./data/meta.db`, `sqlite::memory:`, `file:./meta.db` → the file path. */
 export function sqlitePathFromUrl(url: string): string {
   const withoutScheme = url.replace(/^(sqlite3?|file):(\/\/)?/, '');
@@ -300,10 +389,24 @@ export async function connectMetaStore(
       const mod = await importDriver('better-sqlite3', 'sqlite');
       const Database = defaultExport<new (path: string) => never>(mod);
       const file = sqlitePathFromUrl(resolved.url);
-      // A first `adminium start` points at <dataDir>/meta.db before <dataDir>
-      // exists; better-sqlite3 will not create the parent directory itself.
-      if (file !== ':memory:') mkdirSync(dirname(resolve(file)), { recursive: true });
-      meta = createSqliteMetaDb({ database: new Database(file) });
+      // Split out so a `:memory:` store can never be described with a path.
+      if (file === ':memory:') {
+        meta = createSqliteMetaDb({ database: new Database(file) });
+        break;
+      }
+      try {
+        // A first `adminium start` points at <dataDir>/meta.db before <dataDir>
+        // exists; better-sqlite3 will not create the parent directory itself.
+        mkdirSync(dirname(resolve(file)), { recursive: true });
+        // The open is inside the try on purpose: when <dataDir> already exists
+        // but is not writable, the recursive mkdir succeeds as a no-op and the
+        // failure moves here, as `unable to open database file`.
+        meta = createSqliteMetaDb({ database: new Database(file) });
+      } catch (error) {
+        // Neither raw error names the meta store, the variable that replaces
+        // it, or the two placements that work — see MetaStoreUnwritableError.
+        throw new MetaStoreUnwritableError(resolve(file), resolved.source, error);
+      }
       break;
     }
   }

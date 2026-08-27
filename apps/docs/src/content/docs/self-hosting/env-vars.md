@@ -17,14 +17,16 @@ half-configured and fail later.
 | `PORT` | No | `4600` | Listen port. Integer 1–65535. |
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
+| `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
 | `ADMINIUM_DATA_DIR` | No | `./data` | Writable directory for files, exports, backups, and the embedded meta store. |
 | `ADMINIUM_LOG_LEVEL` | No | `info` | `fatal` · `error` · `warn` · `info` · `debug` · `trace` |
+| `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |
 | `ADMINIUM_NETWORK_FEATURES` | No | `on` | `off` on air-gapped installs — the UI stops offering webhooks, OAuth, and provider-API AI. |
 | `ADMINIUM_TRUST_PROXY` | No | `off` | `on` when behind a reverse proxy. |
 | `ADMINIUM_CORS_ORIGINS` | No | *(off)* | CSV of exact origins for split deployments. **No wildcard.** |
 | `ADMINIUM_BRIDGE_ORIGINS` | No | *(off)* | CSV of exact origins allowed to hand this instance a connection string. **No wildcard.** |
-| `ADMINIUM_PUBLIC_API_ORIGINS` | No | *(off)* | CSV of exact origins allowed to reach the scoped public API. Unset means those routes are not registered at all. **No wildcard.** Must not overlap `ADMINIUM_CORS_ORIGINS`. |
+| `ADMINIUM_PUBLIC_API_ORIGINS` | No | *(off)* | CSV of exact origins allowed to reach the scoped public API — plus the sentinel `self` for pages Adminium hosts itself. Unset means those routes are not registered at all. **No wildcard.** Must not overlap `ADMINIUM_CORS_ORIGINS`. |
 | `ADMINIUM_RUNTIME` | No | `self-host` | `self-host` · `desktop`. **Set by the Electron shell only** — see below. |
 | `ADMINIUM_BOOT_TOKEN` | No | *(unset)* | 64 hex characters. **Desktop shell only** — see below. |
 | `ADMINIUM_DESKTOP_SINGLE_USER` | No | *(unset)* | **Desktop shell only.** Mirrors the app's "skip login on this computer" answer. |
@@ -92,16 +94,63 @@ The meta store's engine is independent of your source database's.
 
 → [Where to put the meta store](/self-hosting/meta-store/)
 
-:::note[There is no `DATABASE_URL`]
-Adminium has no environment variable for the database you want an admin panel
-**for**. It is not configuration — it is a connection you create in the first-run
-wizard, or through `POST /api/v1/connections`, and it is stored encrypted in the
-meta store like every other one.
-
-Earlier builds accepted a `DATABASE_URL` and described it here as a first-boot
-seed. Nothing ever read it, so setting it did nothing at all; it has been removed
-rather than left as a variable that looks like a control.
+:::note[The other database]
+`ADMINIUM_META_URL` is where Adminium keeps its **own** state. The database you
+want an admin panel **for** is a different thing, and it has its own variable —
+`ADMINIUM_SOURCE_URL`, below.
 :::
+
+## `ADMINIUM_SOURCE_URL`
+
+The database the back office is generated **from**. Set it and the first boot
+connects it, introspects the schema, and generates the pages, so a container
+comes up with a working dashboard instead of an empty one:
+
+```yaml
+ADMINIUM_SOURCE_URL: postgres://app:secret@db:5432/app
+```
+
+Leave it unset and nothing changes: you connect your database in the first-run
+wizard, which is how every non-Docker install starts. Either way you still finish
+setup in the browser — this seeds the connection, never the super admin.
+
+**It runs once.** After one successful connection the seed is claimed and never
+runs again, so a connection you delete later stays deleted rather than
+reappearing on the next `docker compose up`. An instance that already has
+connections ignores the variable entirely and says so in the boot log.
+
+**A DSN that does not work does not stop the boot.** The server starts, the
+connection is recorded with the driver's own error where Studio shows it, and the
+next boot tries again with whatever the variable says then — so a typo is fixed
+where you wrote it, not in the database. That retry is the reason the failure is
+not claimed: a stored DSN cannot be edited through the API, only replaced.
+
+:::caution[It is not `DATABASE_URL`]
+Earlier builds accepted a `DATABASE_URL` and described it here as exactly this
+feature. Nothing ever read it, so setting it did nothing at all. The name did not
+come back with the feature — an unrecognised variable is ignored rather than
+rejected, and a name with that history is worth not reusing. A container still
+setting it gets a line on stderr at boot telling it what to rename.
+:::
+
+## `ADMINIUM_STATIC_ROOT`
+
+The directory the dashboard build is served from — the one holding the build's
+`index.html`. Unset, Adminium finds it automatically: the copy bundled into the
+published package, else `apps/dashboard/dist` in a monorepo checkout. That is
+right for every normal install, so most deployments never set this.
+
+Set it when the automatic pick is wrong — a dashboard built to a custom
+location, or a development checkout where a stale bundled copy is shadowing a
+fresh build:
+
+```bash
+ADMINIUM_STATIC_ROOT=/srv/adminium/dashboard adminium start
+```
+
+If the directory has no `index.html`, Adminium logs a warning naming the path,
+then falls back to the automatic candidates (or serves the API alone) rather
+than refusing to boot.
 
 ## `ADMINIUM_TRUST_PROXY`
 
@@ -126,6 +175,19 @@ until you name the origins allowed to use it.
 ```bash
 ADMINIUM_PUBLIC_API_ORIGINS='https://shop.example.com'
 ```
+
+**`self` is the one value that is not an origin.** It admits the pages this instance serves
+*itself* — hosted app surfaces at `/apps/…`, and any domain you attach to one of them. A same-origin
+page cannot appear in a cross-origin allow-list (its requests carry no `Origin` header at all), so
+without the sentinel a customer surface Adminium hosts could never call its own API. An instance
+whose only public consumers are its own hosted surfaces needs exactly this and nothing more:
+
+```bash
+ADMINIUM_PUBLIC_API_ORIGINS='self'
+```
+
+Combine it with real origins (`self,https://shop.example.com`) when standalone pages call in from
+elsewhere too.
 
 Three things about it are deliberate, and each one has bitten somebody:
 
@@ -289,6 +351,7 @@ PORT=4600 adminium start --port 8080   # listens on 8080
 | `--meta-url` | `ADMINIUM_META_URL` |
 | `--data-dir` | `ADMINIUM_DATA_DIR` |
 | `--log-level` | `ADMINIUM_LOG_LEVEL` |
+| `--static-root` | `ADMINIUM_STATIC_ROOT` |
 
 → [CLI reference](/reference/cli/)
 

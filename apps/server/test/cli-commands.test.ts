@@ -46,6 +46,14 @@ describe('loadCliEnv — flags override the environment (01 §7.1)', () => {
     expect(env.ADMINIUM_META_URL).toBe('postgres://flag/db');
   });
 
+  it('lets --static-root beat ADMINIUM_STATIC_ROOT', () => {
+    const env = loadCliEnv(
+      { ...ENV, ADMINIUM_STATIC_ROOT: '/from-env' },
+      { staticRoot: '/from-flag' },
+    );
+    expect(env.ADMINIUM_STATIC_ROOT).toBe('/from-flag');
+  });
+
   it('fails fast and actionably when ADMINIUM_SECRET is absent', () => {
     expect(() => loadCliEnv({})).toThrow(/ADMINIUM_SECRET is required/);
     try {
@@ -108,6 +116,21 @@ describe('adminium start', () => {
     expect(deps.openRuntime.mock.calls[0]?.[0]).toMatchObject({ PORT: 8080 });
   });
 
+  it('passes --static-root through to the env the runtime is opened with', async () => {
+    // `startServer` derives its `resolveStaticRoot` override from this env —
+    // the resolver's docblock always named the override, but nothing in
+    // production passed it, so a stale gitignored apps/server/dashboard/
+    // bundle shadowed a fresh apps/dashboard/dist with no way to point past it.
+    const deps = fakeDeps({ env: ENV });
+    await runCli(['start', '--static-root', '/srv/dash', '--skip-migrate'], {
+      io: fakeIo(),
+      deps,
+    });
+    expect(deps.openRuntime.mock.calls[0]?.[0]).toMatchObject({
+      ADMINIUM_STATIC_ROOT: '/srv/dash',
+    });
+  });
+
   it('warns on stderr when it falls back to the embedded SQLite meta store (§3.1 OD-1)', async () => {
     const io = fakeIo();
     const deps = fakeDeps({ env: ENV });
@@ -131,6 +154,49 @@ describe('adminium start', () => {
     await expect(runCli(['start', '--port', 'banana'], { io, deps })).resolves.toBe(1);
     expect(io.stderr()).toContain('--port must be a number');
     expect(deps.openRuntime).not.toHaveBeenCalled();
+  });
+
+  // ── the first-boot source seed (28-T31) ──────────────────────────────────
+  // Behaviour lives in source-seed*.test.ts; what belongs here is the wiring
+  // decision — which branch a given environment takes.
+
+  it('runs the seed with ADMINIUM_SOURCE_URL, and reports a DSN it cannot use', async () => {
+    const io = fakeIo();
+    const deps = fakeDeps({ env: { ...ENV, ADMINIUM_SOURCE_URL: 'mongodb://host/db' } });
+    await expect(runCli(['start', '--skip-migrate'], { io, deps })).resolves.toBe(0);
+    expect(io.stderr()).toContain('Unsupported DSN scheme');
+    // And the boot still finished — the seed never decides whether to serve.
+    expect(deps.startServer).toHaveBeenCalledOnce();
+  });
+
+  it('does not seed when ADMINIUM_SOURCE_URL is unset', async () => {
+    const io = fakeIo();
+    const deps = fakeDeps({ env: ENV });
+    await runCli(['start', '--skip-migrate'], { io, deps });
+    expect(io.stderr()).not.toContain('source connection');
+    expect(io.stdout()).not.toContain('Seeding');
+  });
+
+  it('tells a container still setting DATABASE_URL what to rename it to', async () => {
+    // An unknown key is STRIPPED by Zod, not rejected, so without this line an
+    // old compose file gets exactly the silence this feature exists to end —
+    // and every compose file in the marketplace fleet shipped that name.
+    const io = fakeIo();
+    const deps = fakeDeps({
+      env: { ...ENV, DATABASE_URL: 'postgres://app@db:5432/shop' },
+    });
+    await expect(runCli(['start', '--skip-migrate'], { io, deps })).resolves.toBe(0);
+    expect(io.stderr()).toContain('DATABASE_URL is set and Adminium does not read it');
+    expect(io.stderr()).toContain('ADMINIUM_SOURCE_URL');
+  });
+
+  it('says nothing about DATABASE_URL once the rename is done', async () => {
+    const io = fakeIo();
+    const deps = fakeDeps({
+      env: { ...ENV, DATABASE_URL: 'postgres://app@db:5432/shop', ADMINIUM_SOURCE_URL: 'mongodb://h/d' },
+    });
+    await runCli(['start', '--skip-migrate'], { io, deps });
+    expect(io.stderr()).not.toContain('does not read it');
   });
 });
 

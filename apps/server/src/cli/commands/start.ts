@@ -40,6 +40,7 @@ import {
   guardPreMigration,
   snapshotFailureRefusal,
 } from '../../backup/pre-migration.js';
+import { seedSourceConnection } from '../../connections/seed.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
 import { numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
@@ -88,6 +89,12 @@ export const startCommand: Command = {
       describe: 'fatal|error|warn|info|debug|trace',
       defaultDescription: 'ADMINIUM_LOG_LEVEL or info',
     },
+    'static-root': {
+      type: 'string',
+      placeholder: '<path>',
+      describe: 'Serve the dashboard build from this directory',
+      defaultDescription: 'ADMINIUM_STATIC_ROOT, else the bundled build',
+    },
     'skip-migrate': {
       type: 'boolean',
       describe: 'Do not bootstrap (migrate + seed built-in roles) the meta store on boot',
@@ -101,6 +108,7 @@ export const startCommand: Command = {
     const dataDir = stringFlag(values['data-dir']);
     const metaUrl = stringFlag(values['meta-url']);
     const logLevel = stringFlag(values['log-level']);
+    const staticRoot = stringFlag(values['static-root']);
 
     const env = loadCliEnv(deps.env, {
       ...(port === undefined ? {} : { port }),
@@ -108,6 +116,7 @@ export const startCommand: Command = {
       ...(dataDir === undefined ? {} : { dataDir }),
       ...(metaUrl === undefined ? {} : { metaUrl }),
       ...(logLevel === undefined ? {} : { logLevel }),
+      ...(staticRoot === undefined ? {} : { staticRoot }),
     });
 
     const runtime = await deps.openRuntime(env);
@@ -149,6 +158,42 @@ export const startCommand: Command = {
       if (appliedMigrations.length > 0) {
         io.out(`Applied ${String(appliedMigrations.length)} pending meta migration(s).`);
       }
+    }
+
+    // The first-boot source seed (28-T31), AFTER `firstRun` because it reads and
+    // writes `adminium_settings` and that table arrives with the migrations.
+    // Before the server starts, so a container that seeds successfully is
+    // already serving the generated pages on its first request rather than an
+    // empty dashboard that fills in a moment later.
+    //
+    // Not inside the `--skip-migrate` branch. That flag means "do not touch the
+    // schema", not "ignore my configuration" — and on an already-migrated store,
+    // which is the only kind that flag is used against, the seed is exactly as
+    // valid as it is on any other boot. It fails soft if the store really is
+    // unmigrated.
+    if (env.ADMINIUM_SOURCE_URL !== undefined) {
+      await seedSourceConnection({
+        manager: runtime.manager,
+        meta: runtime.metaStore.meta,
+        sourceUrl: env.ADMINIUM_SOURCE_URL,
+        log: (message) => {
+          io.out(message);
+        },
+        warn: (message) => {
+          io.err(message);
+        },
+      });
+    } else if ((deps.env.DATABASE_URL ?? '') !== '') {
+      // The rename's migration path, and the one thing the schema cannot do for
+      // us: an unknown key is STRIPPED by Zod, not rejected, so a container
+      // still carrying the old name would get exactly the silence this whole
+      // feature exists to end — for the third time. Every compose file in the
+      // marketplace fleet shipped `DATABASE_URL`, so this is the line their
+      // operators will see after pulling an image that finally implements it.
+      io.err(
+        'DATABASE_URL is set and Adminium does not read it — the first-boot source seed is ADMINIUM_SOURCE_URL.\n' +
+          'Rename the variable to connect that database on boot, or connect it in the first-run wizard.',
+      );
     }
 
     // Through the host, not `startServer` directly: the Docker image's CMD is

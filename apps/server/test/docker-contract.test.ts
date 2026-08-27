@@ -116,6 +116,15 @@ describe('docker-compose.yml — 01-architecture.md §4.2', () => {
     expect(env.ADMINIUM_META_URL).toBe('${ADMINIUM_META_URL:-}');
   });
 
+  it('forwards the first-boot source seed, and still not under its old name', () => {
+    // 28-T31. The variable the quickstart tells you to set has to arrive in the
+    // container, and it is the one thing here whose predecessor was forwarded
+    // for a whole release while nothing read it — hence both halves.
+    const env = compose.services.adminium!.environment!;
+    expect(env.ADMINIUM_SOURCE_URL).toBe('${ADMINIUM_SOURCE_URL:-}');
+    expect(env).not.toHaveProperty('DATABASE_URL');
+  });
+
   it('passes through no variable the server does not validate', () => {
     // THE BUG THIS PINS. The file forwarded `DATABASE_URL: ${DATABASE_URL:-}`,
     // documented in-file and on two docs pages as a first-boot connection seed
