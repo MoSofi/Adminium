@@ -212,6 +212,32 @@ export interface AdminiumConnectionsTable {
   lastError: string | null;
   /** Adapter remediation hint for {@link lastError} (05 §3) — never a secret. */
   lastErrorHint: string | null;
+  /**
+   * The BUSINESS's IANA zone (28-T34, D20) — never the READER's. A
+   * `timestamptz` rendered through the reader's zone puts a 15:00 booking at
+   * 16:00 with no error anywhere, so a browser zone is never written here.
+   *
+   * `null` means "not configured". New rows rarely carry it: `create` seeds the
+   * server's own zone so a hosted surface has something to render (0018), and
+   * {@link timezoneSource} is what separates that seed from a real decision.
+   */
+  timezone: string | null;
+  /**
+   * Who chose {@link timezone}: `'operator'`, `'host'` (seeded from the server's
+   * zone), or `null` for unknown — every row predating wave 0018 — which must
+   * render as no claim rather than as a guess (see the migration).
+   */
+  timezoneSource: string | null;
+  /** ISO-4217. Null when this business's data carries no money. */
+  currency: string | null;
+  /**
+   * When an operator PAUSED this source (wave 0019); null while it is serving.
+   *
+   * Deliberately not a {@link status} value: status is a probe's reading and is
+   * overwritten by the next test, whereas a pause is an intent that has to
+   * survive one — see the migration.
+   */
+  disabledAt: Ts | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
@@ -346,6 +372,14 @@ export interface AdminiumAuditLogTable {
   connectionId: string | null;
   /** RecordRef. */
   entity: JsonColumn | null;
+  /**
+   * Denormalized from `entity` at write time (30-record-pages.md WS-A) so the
+   * per-record activity feed is an indexed lookup, not a JSON scan: the ref's
+   * qualified table and its canonical record-id string (`pkLabel` form), both
+   * clamped by `auditEntityKeyPart`. Null when the entry has no record entity.
+   */
+  entityTable: string | null;
+  entityId: string | null;
   /** { before, after }; capped at 16 KB serialized. */
   changes: JsonColumn | null;
   ip: string | null;
@@ -684,6 +718,13 @@ export interface AdminiumPublicKeysTable {
   tokenEncrypted: string;
   scopeId: Id;
   side: string;
+  /**
+   * Manifest key of the hosted app surface this key is bound to, or null for a
+   * key that serves no hosted surface (standalone builds, integrations). Read
+   * by the `surface-config.json` route (29-app-surfaces.md D10) to pick the
+   * newest live customer key for an app; never a principal, like the key itself.
+   */
+  appKey: string | null;
   /** JSON string array narrowing `ADMINIUM_PUBLIC_API_ORIGINS`; `[]` = no narrowing. */
   origins: string;
   expiresAt: Ts | null;

@@ -25,6 +25,39 @@ export const recordRefSchema = z.object({
 });
 export type RecordRef = z.infer<typeof recordRefSchema>;
 
+/**
+ * Width of the denormalized `adminium_audit_log.entity_table` / `entity_id`
+ * columns (30-record-pages.md WS-A). 200 chars keeps the composite index
+ * inside MySQL's 3072-byte InnoDB cap under utf8mb4 (2 × 200 × 4 + 8).
+ */
+export const AUDIT_ENTITY_KEY_MAX = 200;
+
+/**
+ * Canonical clamp for one audit entity key part. Applied on the WRITE side
+ * (append + backfill) and again on the QUERY side, so an over-long id still
+ * matches the row it wrote — truncation is consistent, never one-sided.
+ */
+export function auditEntityKeyPart(value: string): string {
+  return value.length > AUDIT_ENTITY_KEY_MAX ? value.slice(0, AUDIT_ENTITY_KEY_MAX) : value;
+}
+
+/**
+ * The denormalized per-record audit key derived from a RecordRef (30 WS-A).
+ *
+ * `entityId` reproduces the canonical `:recordId` string both sides already
+ * use — `pkLabel` on the server, `rowIdOf` in the grid: a single-column PK is
+ * its stringified value, a composite PK is the JSON tuple of its values in pk
+ * insertion order (the order both writers build the map in).
+ */
+export function auditEntityKeyOf(ref: Pick<RecordRef, 'table' | 'pk'>): {
+  entityTable: string;
+  entityId: string;
+} {
+  const values = Object.values(ref.pk);
+  const id = values.length === 1 ? String(values[0]) : JSON.stringify(values);
+  return { entityTable: auditEntityKeyPart(ref.table), entityId: auditEntityKeyPart(id) };
+}
+
 /** The eight COMPILED locales. Still a closed set — see `builtinLocaleSchema`. */
 export const LOCALES = ['en_US', 'de_DE', 'ar_EG', 'zh_CN', 'zh_TW', 'cs_CZ', 'da_DK', 'fr_FR'] as const;
 export const builtinLocaleSchema = z.enum(LOCALES);
