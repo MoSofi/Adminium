@@ -75,4 +75,29 @@ describe('Modal', () => {
     const footer = screen.getByRole('button', { name: 'Send invite' }).parentElement as HTMLElement;
     expect(footer.classList.contains('bg-surface-2')).toBe(true);
   });
+
+  it('describes the dialog with the subtitle, and hosts block content outside a <p>', () => {
+    // `subtitle` is a ReactNode and callers pass block content through it (the
+    // delete-preflight consequence list). Radix's default <p> made that invalid
+    // HTML: the browser auto-closes the <p>, so the DOM stops matching the React
+    // tree. The description must stay wired to aria-describedby either way.
+    render(
+      <Modal size="sm" defaultOpen>
+        <ModalHeader
+          title="Delete customer"
+          subtitle={
+            <div data-testid="subtitle-block">
+              <span>Deleting this row also affects 3 rows.</span>
+            </div>
+          }
+          closeLabel="Close dialog"
+        />
+        <ModalBody>Body content</ModalBody>
+      </Modal>,
+    );
+    const describedBy = screen.getByRole('dialog').getAttribute('aria-describedby') ?? '';
+    const description = document.getElementById(describedBy);
+    expect(description?.textContent).toBe('Deleting this row also affects 3 rows.');
+    expect(screen.getByTestId('subtitle-block').closest('p')).toBeNull();
+  });
 });
