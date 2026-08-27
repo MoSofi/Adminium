@@ -590,7 +590,7 @@ export function TranslationsPage(): ReactNode {
   const locales = manifest.data?.locales ?? [];
 
   return (
-    <PageSurface className="flex flex-col gap-4">
+    <PageSurface width="page" className="flex flex-col gap-4">
       <PageActions
         title={t('settings.translations.title', 'Languages & translations')}
         subtitle={t(

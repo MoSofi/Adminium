@@ -43,11 +43,15 @@ const adapters: PageTemplateAdapters = {
 
 export function NotificationSettingsPage() {
   // Mounts the `page-settings` template directly rather than through
-  // PageRenderer, so it has to supply the surface PageRenderer would have —
-  // the same one `surfaceDefaults` gives that template. Without it this route
-  // was the one settings screen with no gutter at all.
+  // PageRenderer, so it has to supply the surface PageRenderer would have.
+  // Without it this route was the one settings screen with no gutter at all.
+  //
+  // The column is `page` rather than the template's own (uncapped) default,
+  // matching its siblings `/account` and `/account/preferences`: this route is
+  // a fixed personal-settings screen, not a tenant page an admin can retune,
+  // so it states its width instead of inheriting one it can never override.
   return (
-    <PageSurface>
+    <PageSurface width="page">
       {/* The shell derives "Account" for every /account/* path; this route is
           its own screen and says so. */}
       <PageActions title={t('nav.notificationSettings', 'Notification settings')} />

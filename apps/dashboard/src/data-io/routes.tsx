@@ -53,10 +53,13 @@ function CenteredSpinner() {
   );
 }
 
-// Both are a short stack of controls rather than a grid, so they take the
-// 900px reading column inside the standard gutter. `ImportWizardPage` is also
-// the `page-wizard` template body, which is why the surface is here and not in
-// the component — that mount gets its own from PageRenderer.
+// Both take the shared `--container-page` column inside the standard gutter,
+// the same as every other platform screen. They sat at the 900px reading
+// column until the settings surfaces were unified on `page`, at which point
+// being 180px narrower than their neighbours was the only thing distinguishing
+// them. `ImportWizardPage` is also the `page-wizard` template body, which is
+// why the surface is here and not in the component — that mount gets its own
+// from PageRenderer, and still uses the template's own `content` column.
 //
 // The surface and its title stay OUTSIDE the Suspense boundary: the page names
 // itself in the topbar on the first frame, and only the body waits for its
@@ -64,7 +67,7 @@ function CenteredSpinner() {
 // navigation that did not happen.
 function ImportsRouteComponent() {
   return (
-    <PageSurface width="content" fill>
+    <PageSurface width="page" fill>
       <PageActions title={t('dataio.import.title', 'Import data')} />
       <Suspense fallback={<CenteredSpinner />}>
         <ImportWizardPageLazy />
@@ -75,7 +78,7 @@ function ImportsRouteComponent() {
 
 function ExportsRouteComponent() {
   return (
-    <PageSurface width="content" fill>
+    <PageSurface width="page" fill>
       <PageActions title={t('dataio.exports.title', 'Data exports')} />
       <Suspense fallback={<CenteredSpinner />}>
         <DataExportsPageLazy />

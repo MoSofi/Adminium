@@ -14,7 +14,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -312,6 +312,35 @@ describe('StudioPagesPage', () => {
     await waitFor(() => {
       const post = calls.find((call) => call.method === 'POST');
       expect(post?.body).toMatchObject({ slug: 'weekly-reports', title: 'Weekly reports' });
+    });
+  });
+
+  it('sends a chosen content width, and sends nothing when left on the default', async () => {
+    // The Appearance card had only a padding control; width was template-owned
+    // and unreachable from the UI. What matters on the wire is the ABSENT case:
+    // an untouched page must keep following its template's column rather than
+    // having today's default frozen into its envelope on create.
+    const untouched = renderAt('/studio/pages', { pages: [] });
+    await untouched.user.click(await screen.findByTestId('studio-pages-create'));
+    await untouched.user.type(await screen.findByTestId('studio-pages-title'), 'Ops');
+    await untouched.user.click(screen.getByTestId('studio-pages-create-submit'));
+    await waitFor(() => {
+      expect(untouched.calls.find((call) => call.method === 'POST')).toBeDefined();
+    });
+    expect(untouched.calls.find((call) => call.method === 'POST')?.body).not.toHaveProperty('width');
+
+    cleanup();
+    vi.unstubAllGlobals();
+
+    const chosen = renderAt('/studio/pages', { pages: [] });
+    await chosen.user.click(await screen.findByTestId('studio-pages-create'));
+    await chosen.user.type(await screen.findByTestId('studio-pages-title'), 'Ops');
+    await chosen.user.selectOptions(screen.getByTestId('studio-pages-width'), 'narrow');
+    await chosen.user.click(screen.getByTestId('studio-pages-create-submit'));
+    await waitFor(() => {
+      expect(chosen.calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+        width: 'narrow',
+      });
     });
   });
 

@@ -847,7 +847,7 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
   const provider = <ProviderConfigForm key="provider" config={config} networkAllowed={providerApi.enabled} />;
 
   return (
-    <PageSurface width="narrow" className="flex flex-col gap-6">
+    <PageSurface width="page" className="flex flex-col gap-6">
       <PageActions
         title={t('studio.settingsAi.title', 'AI enrichment')}
         subtitle={t(

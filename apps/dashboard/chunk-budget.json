@@ -1,8 +1,27 @@
 {
-  "entryJsGzBytes": 317700,
+  "entryJsGzBytes": 311727,
   "targetGzBytes": 358400,
   "note": "Ratchet for scripts/check-entry-budget.mjs. entryJsGzBytes pins the current entry weight and may only go DOWN; targetGzBytes is the 350 KiB v1.0 budget from RELEASE-GATE.md.",
   "loweredOn": {
+    "when": "2026-08-27",
+    "by": "lazy-loading the self-host first-run wizard off the /setup route",
+    "from": 313400,
+    "measured": "309,727 bytes (302.5 KiB gz), down from 313,583 measured on the same inputs — 3.8 KiB gz out of the entry, 47.5 KiB under the 350 KiB v1.0 target.",
+    "why": "The connection-pause wave added ~0.2 KiB gz of genuinely entry-resident weight (18 en-US strings in the eagerly-bundled `common` catalogue, and the 13th system state) and the gate went red by 183 bytes — the 1,956-byte margin left on 2026-08-24 had already been spent by ordinary additions since. Attributing the entry source map (the 2026-08-18 lesson: attribute, never infer from the changelog) found `app/router.tsx` importing `SetupPage` statically, which put `FirstRunWizard` and `TelemetryConsent` (3,869 + 3,171 raw attributed bytes) in the synchronous set for every user on every route. That wizard runs ONCE per instance, before anybody has an account, and its own route guard redirects to /login the moment a super admin exists — so on a configured install it is the one screen a returning user provably cannot reach, and everybody was downloading it anyway. Its desktop twin `/desktop/setup` was already lazy; this is the same click.",
+    "headroom": "2,000 bytes — the usual minifier-drift margin, not growth room.",
+    "cost": "One chunk fetch on the single visit to /setup a given instance ever makes — behind the same Suspense-null fallback the other deferred routes use, and overlapping the `setupStateQuery()` round trip the route guard already awaits before the component renders.",
+    "notAnException": "The static set is deliberately the FIRST PAINT — auth screens, AppShell, HomePage, PageRenderer, the system states, the 404 (see the note above `lazyRoute` in app/router.tsx). /setup is not first paint for a returning user; it is unreachable for one."
+  },
+  "previousLoweredOn": {
+    "when": "2026-08-24",
+    "by": "lazy-loading ScheduledReportsPage out of the reports route factory (30-record-pages.md D8)",
+    "from": 317700,
+    "measured": "311,444 bytes (304.1 KiB gz), down from 317,993 measured on the same inputs — 6.4 KiB gz out of the entry, 45.9 KiB under the 350 KiB v1.0 target.",
+    "why": "The record-pages wave added ~0.4 KiB gz of genuinely entry-resident code (TemplateMount's detail-template resolution, the table→slug resolver, the record-open routing) and the gate went red — the 2,016-byte margin left on 2026-08-20 had already been spent by ordinary additions since. Attributing the entry source map (the 2026-08-18 lesson: attribute, never infer from the changelog) found `reports/routes.tsx` importing `ScheduledReportsPage` statically, which put the manager AND the `ScheduledJobsList` calendar family from @adminium/widgets in the synchronous set for every user on every route — the exact shape the 2026-08-18/20 lazifications removed everywhere else. The route body now loads on first open of /reports, behind the same Suspense-null fallback the other admin screens use.",
+    "headroom": "1,956 bytes — the usual minifier-drift margin, not growth room.",
+    "cost": "One chunk fetch the first time /reports is opened."
+  },
+  "previouslyLoweredOn": {
     "when": "2026-08-20",
     "by": "deferring the two data-io route bodies, which is what finally made the page-wizard template split real",
     "from": 331000,
@@ -17,7 +36,7 @@
     "whatThisNumberIsNot": "The gate builds its asset list from two regexes that both hardcode `\\.js`, so the entry STYLESHEET is uncounted: `index.css` is a plain <link> in <head> with no media trick and blocks paint. Measured on this build it is 20,955 bytes gz, which puts the real blocking payload at 336,639 against the 358,400 target — 21,761 bytes of room, not 42,716. Widening the gate to count CSS (and the self-hosted woff2 faces, also uncounted) is a separate change; recording the number here is so the JS figure is not read as the whole story.",
     "drift": "The 331,000 this came down from was already loose: a fresh build measured 330,905 before this change, against the 329,014 the record below pinned. Nothing raised the ratchet — ordinary additions spent the margin (60 locale keys and two now-static icons on 2026-08-19, then 20 SMTP + export strings on 2026-08-20, ~1.4 KiB gz between them), which is exactly the drift a ratchet is meant to make visible and a stale one hides. RELEASE-GATE.md now states this measurement in both places it records the entry chunk."
   },
-  "previouslyLoweredOn": {
+  "priorLoweredOn": {
     "when": "2026-08-18",
     "by": "lazy-loading the page templates and the non-first-paint routes, and removing the lucide barrel",
     "from": 671000,

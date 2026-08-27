@@ -127,7 +127,7 @@ export function PreferencesPage(): ReactNode {
   }
 
   return (
-    <PageSurface width="narrow">
+    <PageSurface width="page">
       <PageActions
         title={t('account.preferences.title', 'Preferences')}
         subtitle={t(

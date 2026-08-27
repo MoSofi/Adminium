@@ -111,7 +111,7 @@ export function AboutPage(): ReactNode {
   const desktop = isDesktopRuntime();
 
   return (
-    <PageSurface width="narrow" className="flex flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       {/* Heading and subtitle live in the TOPBAR, not the body: the shell
           renders an <h1> for every route regardless, so a second one here said
           the same thing twice while the shell's copy said "Home". */}

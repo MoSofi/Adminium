@@ -235,7 +235,7 @@ export function RolesPage(): ReactNode {
   });
 
   return (
-    <PageSurface className="mx-auto flex max-w-[1100px] flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
         title={t('roles.title', 'Roles & permissions')}
         subtitle={t('roles.subtitle', 'What each role may do. A user gets the union of every role they hold.')}
@@ -263,7 +263,7 @@ export function RolesPage(): ReactNode {
       ) : null}
 
       <Card padded={false}>
-        <CardHeader className="flex flex-wrap items-center gap-3">
+        <CardHeader className="justify-between flex flex-wrap items-center gap-3">
           <h2 className="text-section flex-1 text-fg">{t('roles.matrix.title', 'Permissions')}</h2>
           <span className="text-body-sm text-fg-subtle" data-testid="roles-pending">
             {pending === 0

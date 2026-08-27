@@ -12,7 +12,11 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { isTableBoundTemplate, type PagePaddingConfig } from '@adminium/engine/config';
+import {
+  isTableBoundTemplate,
+  type PagePaddingConfig,
+  type PageWidthConfig,
+} from '@adminium/engine/config';
 import { Alert, Button, Card, CardBody, FormField, Input, InputGroup, Select } from '@adminium/ui';
 import { pageTemplateDefinitions } from '@adminium/widgets';
 
@@ -21,6 +25,7 @@ import { studioApi } from '../api.js';
 import { IconPicker } from './IconPicker.js';
 import { PageEditorLayout, templateTitle } from './PageEditorLayout.js';
 import { PaddingField } from './PaddingField.js';
+import { WidthField } from './WidthField.js';
 import {
   NAV_GROUPS,
   PAGE_URL_PREFIX,
@@ -65,6 +70,7 @@ export function NewPageScreen() {
   const [table, setTable] = useState<string | null>(null);
   // `null` = no override: the new page follows its template's gutter.
   const [padding, setPadding] = useState<PagePaddingConfig | null>(null);
+  const [width, setWidth] = useState<PageWidthConfig | null>(null);
 
   // Existing pages, for the duplicate-address check. Already cached by the list
   // screen the admin arrived from, so this is normally free.
@@ -101,6 +107,7 @@ export function NewPageScreen() {
         ...(icon === '' ? {} : { icon }),
         ...(bindable && table !== null ? { connectionId: effectiveConnectionId, table } : {}),
         ...(padding === null ? {} : { padding }),
+        ...(width === null ? {} : { width }),
       }),
     onSuccess: async () => {
       await invalidatePages(client);
@@ -169,11 +176,16 @@ export function NewPageScreen() {
                 onChange={(event) => setTemplate(event.target.value)}
                 data-testid="studio-pages-template"
               >
-                {pageTemplateDefinitions.map((definition) => (
-                  <option key={definition.id} value={definition.id}>
-                    {templateTitle(definition.id)}
-                  </option>
-                ))}
+                {/* page-record is a crud page's child route, not a page of
+                    its own — offering it here would create dead-end shells
+                    (30 D3, `standalone: false`). */}
+                {pageTemplateDefinitions
+                  .filter((definition) => definition.standalone !== false)
+                  .map((definition) => (
+                    <option key={definition.id} value={definition.id}>
+                      {templateTitle(definition.id)}
+                    </option>
+                  ))}
               </Select>
             </FormField>
 
@@ -298,6 +310,7 @@ export function NewPageScreen() {
               value={padding}
               onChange={setPadding}
             />
+            <WidthField value={width} onChange={setWidth} />
           </form>
         </CardBody>
       </Card>
