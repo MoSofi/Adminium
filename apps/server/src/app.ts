@@ -21,14 +21,17 @@ import {
 import type { MetaDb } from '@adminium/meta';
 
 import { createAuditCoverageRegistry } from './audit/coverage.js';
+import type { HostedSurface } from './cli/surfaces-root.js';
 import { hashPassword } from './auth/passwords.js';
 import { SESSION_COOKIE } from './auth/sessions.js';
 import { loadEnv, type Env } from './config/env.js';
 import { AppError, errorEnvelope } from './errors.js';
 import { scrubUrlForLog } from './log-scrub.js';
+import { dsnCryptoFromSecret } from './connections/crypto.js';
 import { authPlugin, type PasswordResetDelivery } from './plugins/auth.js';
 import { corePlugin } from './plugins/core.js';
 import { staticPlugin } from './plugins/static.js';
+import { isHostReservedPath, surfacesPlugin } from './plugins/surfaces.js';
 import { createSetupService } from './setup/service.js';
 import { createUpdateCheckService } from './telemetry/update-check.js';
 import { API_PREFIX, registerRoutes } from './routes/index.js';
@@ -179,6 +182,12 @@ export interface BuildServerOptions {
    * fallback when present; cleanly skipped when absent (dashboard ships M4).
    */
   staticRoot?: string | undefined;
+  /**
+   * Hosted app surfaces (`plugins/surfaces.ts`) — an app's own `frontends[]`
+   * builds, served at this origin under `/apps/<key>/<side>/`. Omitted or empty
+   * ⇒ none are mounted and nothing about the boot changes.
+   */
+  surfaces?: readonly HostedSurface[] | undefined;
   /**
    * Include real messages in 500 envelopes. Default: `NODE_ENV !== 'production'`.
    * In production the message is generic; the stack goes to the log under the
@@ -384,21 +393,61 @@ export async function buildServer(opts: BuildServerOptions = {}) {
     metaDb: opts.metaDb ?? null,
     deliverResetToken: opts.onPasswordResetToken,
   });
+  // Surfaces before the dashboard: `/apps/<key>/<side>/*` is more specific than
+  // the dashboard's root wildcard either way, but registering in this order
+  // makes the precedence a property of the file rather than of find-my-way.
+  await app.register(surfacesPlugin, {
+    ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
+    ...(opts.metaDb === undefined ? {} : { metaDb: opts.metaDb }),
+    // For the `surface-config.json` route (29 D10) — the same envelope
+    // connection DSNs use, so the publishable key is re-readable here exactly
+    // as it is on the Studio reveal path.
+    crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET),
+  });
   await app.register(staticPlugin, { root: opts.staticRoot });
 
   // Unknown route → 404 envelope; non-API GET/HEAD falls back to the SPA
   // index when a dashboard build is being served (05/09 request lifecycle).
-  app.setNotFoundHandler((request, reply) => {
+  app.setNotFoundHandler(async (request, reply) => {
     const isApi = request.url.startsWith('/api/');
-    if (
-      !isApi &&
-      app.spaRoot !== null &&
-      (request.method === 'GET' || request.method === 'HEAD')
-    ) {
-      void reply.sendFile('index.html');
-      return;
+    const isDocument = request.method === 'GET' || request.method === 'HEAD';
+
+    // A MAPPED host's fallback is the mapped surface's index (29 D3), ahead of
+    // every other branch. Normally the root-level serve hook in
+    // plugins/surfaces.ts has already answered these requests; this branch is
+    // the same decision restated where the other two fallbacks live, so that a
+    // request reaching this handler by any path an onRequest hook did not
+    // cover still cannot fall through to the dashboard's index on a host the
+    // operator pointed at an app.
+    if (!isApi && isDocument && !isHostReservedPath(request.url.split('?')[0] ?? request.url)) {
+      const mapped = await app.surfaceForHost(request);
+      if (mapped !== null) {
+        if (await app.surfaceGate(mapped, request, reply)) return reply;
+        return reply.sendFile('index.html', mapped.root);
+      }
     }
-    void reply
+
+    // A deep link INTO a hosted surface falls back to that surface's own
+    // index, never the dashboard's — otherwise every client-side route in a
+    // hosted app paints the dashboard shell instead. The gate runs here too:
+    // this path is reached WITHOUT the static route's hooks (a prefix with no
+    // trailing slash matches no route at all), so skipping it would serve a
+    // staff bundle to anyone who trimmed a character off the URL.
+    const surface = isApi ? null : app.surfaceForUrl(request.url);
+    if (surface !== null && isDocument) {
+      if (await app.surfaceGate(surface, request, reply)) return reply;
+      return reply.sendFile('index.html', surface.root);
+    }
+
+    // NOTE: this handler is `async` (the surface gate awaits), so every branch
+    // must RETURN the reply. The `void reply.sendFile(); return;` form that
+    // stood here works only in a sync handler — under async, Fastify resolves
+    // the handler's undefined before the file stream attaches and answers 200
+    // with an empty body. Caught by the pre-existing fallback tests.
+    if (!isApi && app.spaRoot !== null && isDocument) {
+      return reply.sendFile('index.html');
+    }
+    return reply
       .status(404)
       .send(
         errorEnvelope('NOT_FOUND', `Route ${request.method}:${request.url} not found.`, request.id),

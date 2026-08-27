@@ -155,7 +155,7 @@ function hostOf(value: string): string | null {
  * whatever the client or the proxy wrote — and a proxy that appends the
  * explicit port would otherwise 403 the whole product.
  */
-function normalizeHost(host: string): string {
+export function normalizeHost(host: string): string {
   const lower = host.toLowerCase();
   return lower.endsWith(':80') || lower.endsWith(':443')
     ? lower.slice(0, lower.lastIndexOf(':'))
@@ -219,6 +219,52 @@ export function classifyOrigin(probe: OriginProbe, allowed: ReadonlySet<string>)
 /** `undefined` (header not sent) passes — the Origin comparison is the gate. */
 function isSameOriginFetch(fetchSite: string | undefined): boolean {
   return fetchSite === undefined || fetchSite === 'same-origin' || fetchSite === 'none';
+}
+
+/**
+ * Did this request come from a page THIS instance served? — the public API's
+ * same-origin test (29-app-surfaces.md D2).
+ *
+ * Deliberately NOT `classifyOrigin(probe, new Set())`, though it reuses the
+ * same comparison, and the two differences are the point:
+ *
+ *  - no allow-list. A CORS-allowed cross-origin caller is trusted for CSRF
+ *    (the operator opted it in, credentialed); it is not "same-origin" here.
+ *    The public gate's own allow-list is checked separately, beside this.
+ *  - no `Referer` fallback, and `Sec-Fetch-Site` is REQUIRED when `Origin` is
+ *    absent. `classifyOrigin` honours `Referer` because a session cookie is
+ *    already riding along and any provenance is better than none; here there is
+ *    no cookie, and widening the same-origin path to a header servers have
+ *    sent wrong for twenty years buys nothing.
+ *
+ * The two branches, and why both are needed:
+ *
+ *  (a) `Origin` PRESENT and its host equals `Host`. This is the same-origin
+ *      POST/PATCH case — the Fetch spec appends `Origin` to every non-GET/HEAD
+ *      request, same-origin included. The fetch-metadata veto still applies, so
+ *      `http://host` cannot pose as `https://host`.
+ *  (b) `Origin` ABSENT and `Sec-Fetch-Site: same-origin`. This is the case that
+ *      no allow-list could ever express and the reason the sentinel exists: a
+ *      same-origin `GET` sends no `Origin` header at all.
+ *
+ * HONESTY CLAUSE (28-public-surface.md §3.6, restated because someone will read
+ * this as a boundary): both headers are trivially forged by a non-browser. This
+ * is POLICY — it keeps other people's PAGES out — and the publishable KEY
+ * remains the credential. Hardening this into a boundary is not possible and
+ * attempting it would only break real browsers.
+ */
+export function isSameOriginRequest(probe: OriginProbe): boolean {
+  const host = normalizeHost(header(probe, 'host') ?? '');
+  if (host === '') return false;
+  const fetchSite = header(probe, 'sec-fetch-site');
+  const origin = header(probe, 'origin');
+
+  if (origin !== undefined) {
+    const originHost = hostOf(origin);
+    if (originHost === null || originHost !== host) return false;
+    return isSameOriginFetch(fetchSite);
+  }
+  return fetchSite === 'same-origin';
 }
 
 /** True when any header proves a browser built this request. */

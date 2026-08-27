@@ -105,6 +105,11 @@
     "audit": "Journal d’audit",
     "security": "Mot de passe et sessions"
   },
+  "apps": {
+    "frame": {
+      "noFrames": "Cette application nécessite un navigateur prenant en charge les cadres."
+    }
+  },
   "topbar": {
     "search": "Rechercher…",
     "notifications": "Notifications",
@@ -232,6 +237,11 @@
       "body": "Cet espace de travail a été suspendu par un administrateur. Vos données sont conservées — contactez le propriétaire de l’espace de travail pour rétablir l’accès.",
       "primary": "Contacter le propriétaire",
       "secondary": "Retour"
+    },
+    "connectionPaused": {
+      "title": "Cette connexion est en pause",
+      "body": "Un administrateur a mis en pause la base de données derrière cette page, qui ne charge donc aucune donnée pour le moment. Rien n’a été supprimé — tout revient dès que la connexion est reprise dans Studio → Connexions de données.",
+      "secondary": "Retour"
     }
   },
   "notFound": {
@@ -311,6 +321,20 @@
     "twoFactor": "Double authentification",
     "on": "Activée",
     "off": "Désactivée",
+    "nameRequired": "Saisissez votre nom.",
+    "emailHelper": "Sert à vous connecter. La modifier requiert votre mot de passe.",
+    "confirmPassword": "Mot de passe actuel",
+    "confirmPasswordHelper": "Confirmez votre identité avant que votre adresse de connexion ne change.",
+    "save": "Enregistrer les modifications",
+    "saveFailed": "Impossible d’enregistrer votre profil",
+    "saved": "Profil mis à jour",
+    "savedBody": "Vos nouvelles informations s’appliquent à tout l’espace de travail. Si vous avez changé d’e-mail, connectez-vous désormais avec la nouvelle adresse.",
+    "accessTitle": "Accès",
+    "accessSubtitle": "Ce que ce compte peut faire, et comment il prouve son identité.",
+    "rolesHelper": "Les rôles sont attribués par un administrateur et ne peuvent pas être modifiés depuis votre propre compte.",
+    "manageTwoFactor": "Gérer",
+    "setUpTwoFactor": "Configurer",
+    "securityLink": "Mot de passe et sessions",
     "preferences": {
       "title": "Préférences",
       "subtitle": "L’apparence et la langue d’Adminium pour vous — sur cet appareil et tous ceux où vous vous connectez.",
@@ -559,7 +583,8 @@
         "connected": "Connectée",
         "error": "Erreur",
         "unconfigured": "Brouillon",
-        "testing": "Test en cours…"
+        "testing": "Test en cours…",
+        "paused": "En pause"
       },
       "card": {
         "readOnly": "Lecture seule",
@@ -568,14 +593,41 @@
         "latency": "Latence",
         "latencyMs": "{latency, number} ms",
         "lastIntrospected": "Dernière introspection",
-        "never": "Jamais"
+        "never": "Jamais",
+        "timezone": "Fuseau horaire",
+        "timezoneGuessed": "depuis ce serveur",
+        "paused": "Adminium ne se connecte pas à cette base de données. Ses pages se chargeront de nouveau dès que vous la reprendrez.",
+        "pausedSince": "En pause {when} — Adminium ne se connecte pas à cette base de données. Ses pages se chargeront de nouveau dès que vous la reprendrez."
       },
       "action": {
         "test": "Tester",
         "reintrospect": "Réintrospecter",
         "reintrospectFile": "Les sources de type fichier de schéma n’ont pas de base de données active — téléversez à nouveau le fichier.",
         "remap": "Remapper le schéma",
-        "delete": "Supprimer"
+        "delete": "Supprimer",
+        "regional": "Paramètres régionaux",
+        "pause": "Mettre en pause",
+        "resume": "Reprendre",
+        "pausedHint": "Cette connexion est en pause — reprenez-la pour atteindre la base de données.",
+        "rename": "Renommer"
+      },
+      "regional": {
+        "title": "Paramètres régionaux",
+        "intro": "Ils décrivent l'entreprise à laquelle appartient cette base de données, et non la personne qui la consulte. Les applications servies par Adminium les lisent ici.",
+        "timezone": "Fuseau horaire",
+        "timezoneHelper": "Les dates et heures s'affichent dans ce fuseau. Sans fuseau, les applications hébergées par Adminium basculent en UTC et l'indiquent à l'écran.",
+        "guessedTitle": "Ce fuseau vient du serveur",
+        "guessedBody": "Adminium l'a repris de la machine sur laquelle il tourne ; personne ne l'a choisi ici. Enregistrez pour le confirmer, ou choisissez le fuseau dans lequel cette entreprise travaille réellement.",
+        "timezonePlaceholder": "Région/Ville",
+        "currency": "Devise",
+        "currencyHelper": "Sert à formater les montants. Facultatif : ne pas la définir n'affecte que le formatage.",
+        "currencyPlaceholder": "Code ISO-4217",
+        "notSet": "Non défini",
+        "noMatch": "Aucun fuseau correspondant",
+        "noMatchCurrency": "Aucune devise correspondante",
+        "save": "Enregistrer",
+        "failed": "Impossible d'enregistrer les paramètres régionaux",
+        "saved": "Paramètres régionaux mis à jour"
       },
       "test": {
         "ok": "Connexion en bonne santé · {latency, number} ms",
@@ -601,6 +653,26 @@
         "title": "Aucune source de données",
         "body": "Connectez une base de données : Adminium génère votre panneau d’administration à partir de son schéma.",
         "cta": "Connecter une base de données"
+      },
+      "hostedApps": "Apps hébergées",
+      "subtitlePaused": "{healthy, number} sur {total, plural, one {# connexion} other {# connexions}} en bonne santé · {paused, number} en pause",
+      "pause": {
+        "title": "Mettre cette connexion en pause ?",
+        "body": "Adminium n’ouvre plus aucune connexion vers « {name} ». Ses {pages, plural, one {# page} other {# pages}}, ses rapports planifiés et ses applications hébergées cessent de charger des données jusqu’à ce que vous la repreniez.",
+        "keeps": "Rien n’est supprimé — la connexion, son schéma et ses {pages, plural, one {# page} other {# pages}} sont conservés, et un clic les ramène.",
+        "confirm": "Mettre la connexion en pause",
+        "pausedToast": "Connexion « {name} » mise en pause",
+        "resumedToast": "Connexion « {name} » reprise",
+        "pauseFailed": "Impossible de mettre la connexion en pause. Réessayez.",
+        "resumeFailed": "Impossible de reprendre la connexion. Réessayez."
+      },
+      "rename": {
+        "title": "Renommer la connexion",
+        "label": "Nom",
+        "helper": "Le nom de cette base partout dans Adminium — la carte, le groupe de la barre latérale au-dessus de ses pages, et chaque sélecteur qui la propose. La base elle-même n'est pas renommée.",
+        "save": "Renommer",
+        "saved": "Connexion renommée",
+        "failed": "La connexion n'a pas pu être renommée"
       }
     },
     "settingsHub": {
@@ -1315,10 +1387,62 @@
         "create": "Create key",
         "formLabel": "Create a key",
         "scopeIsAuthTitle": "The scope is the only permission",
-        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+        "appLabel": "Lier à une surface d’app hébergée (facultatif)",
+        "appHint": "La surface client de l’app sert alors cette clé elle-même — la faire tourner n’exige aucune recompilation.",
+        "appNone": "Non liée"
       },
       "status": {
         "heading": "Status"
+      }
+    },
+    "hostedApps": {
+      "title": "Apps hébergées",
+      "subtitle": "Les surfaces d’app que cette instance sert — où chacune apparaît, et les domaines qui pointent vers elles.",
+      "error": "Un problème est survenu",
+      "emptyTitle": "Aucune surface d’app n’est servie",
+      "emptyBody": "Pointez ADMINIUM_SURFACES_DIR vers un répertoire de surfaces compilées — un dossier par app et par côté, chacun avec son index.html — puis redémarrez. Elles sont alors servies sous /apps/ et apparaissent ici.",
+      "surfaces": {
+        "title": "Surfaces",
+        "subtitle": "Une surface équipe peut se fondre dans la barre latérale de ce tableau de bord ou rester autonome ; une surface client est publique et lit via sa clé liée.",
+        "staff": "Équipe",
+        "customer": "Client",
+        "noNav": "Placement interne indisponible — recompilez cette surface avec le toolkit actuel pour qu’elle émette surface.json.",
+        "noKey": "Aucune clé liée — cette surface ne peut pas lire de données tant qu’une clé n’est pas créée pour elle.",
+        "mintLink": "En créer une sous API publique",
+        "boundKey": "Sert la clé",
+        "placementLabel": "Placement",
+        "placementInternal": "Dans la barre latérale (fondue)",
+        "placementExternal": "Externe (URL propre uniquement)",
+        "connectionLabel": "Lit",
+        "connectionUnset": "Celle qui est active"
+      },
+      "domains": {
+        "title": "Domaines",
+        "subtitle": "Pointez le DNS d’un domaine vers votre proxy, transmettez l’en-tête Host à Adminium, puis attachez-le ici — cet hôte sert alors la surface au lieu de ce tableau de bord. Les certificats restent sur votre proxy.",
+        "issuesTitle": "La carte des domaines a été refusée",
+        "savedTitle": "Enregistré",
+        "savedBody": "Les attributions prennent effet en quelques secondes. Un hôte ne répond que lorsque son DNS et votre proxy atteignent réellement cette instance.",
+        "none": "Aucun domaine attaché.",
+        "hostLabel": "Hôte",
+        "surfaceLabel": "Surface",
+        "remove": "Retirer",
+        "add": "Attacher un domaine",
+        "save": "Enregistrer les domaines",
+        "instanceLabel": "Instance",
+        "instanceOwn": "L'application elle-même"
+      },
+      "instances": {
+        "title": "Instances",
+        "body": "Servir la même application sur plusieurs bases. Chaque instance est accessible à /apps/<app>/<segment>/<côté>/ et ne lit que la connexion que vous lui donnez.",
+        "appLabel": "Application",
+        "slugLabel": "Segment d'URL",
+        "readsLabel": "Lit",
+        "add": "Ajouter une instance",
+        "save": "Enregistrer les instances",
+        "remove": "Retirer",
+        "empty": "Aucune instance supplémentaire.",
+        "failed": "Les instances n'ont pas été enregistrées"
       }
     }
   },
@@ -2500,7 +2624,9 @@
       "connection": "Source de données",
       "connectionNone": "Aucune",
       "iconPick": "Choisir l’icône de la page",
-      "padding": "Marge de la page"
+      "padding": "Marge de la page",
+      "width": "Largeur du contenu",
+      "widthHint": "Largeur maximale de la colonne de contenu de la page sur un grand écran."
     },
     "editor": {
       "title": "Modifier la page",
@@ -2544,18 +2670,33 @@
       }
     },
     "columns": {
-      "help": "Réordonnez les colonnes, renommez leurs en-têtes et choisissez celles qui apparaissent dans le tableau.",
-      "discard": "Abandonner",
-      "save": "Enregistrer les colonnes",
-      "saveFailed": "Impossible d’enregistrer les colonnes",
+      "help": "Glissez pour réordonner les colonnes, renommez leurs en-têtes et choisissez celles qui apparaissent dans le tableau.",
+      "empty": "Pas encore de colonnes — ajoutez-en ci-dessous.",
       "pk": "Clé",
       "pii": "PII",
       "header": "En-tête de {name}",
       "shown": "Affichée",
       "toggle": "Afficher {name} dans le tableau",
-      "moveUp": "Monter {name}",
-      "moveDown": "Descendre {name}",
+      "dragHandle": "Réordonner {name}",
       "remove": "Retirer {name}",
+      "addOpen": "Ajouter une colonne",
+      "addTitle": "Ajouter une colonne",
+      "addSearch": "Rechercher des colonnes…",
+      "addFromTable": "Depuis {table}",
+      "addFromLinked": "Depuis les tables liées",
+      "addLinkedHelp": "Affiche une valeur de la table vers laquelle pointe une colonne de liaison.",
+      "addVia": "via {column}",
+      "addNoMatches": "Aucune colonne ne correspond à « {query} ».",
+      "followColumn": "Suivre {name}",
+      "addLinkedFrom": "Tables qui pointent ici",
+      "addLinkedFromHelp": "Ajoute le nombre de lignes qui pointent vers chaque enregistrement.",
+      "countBadge": "Nombre",
+      "lookupBadge": "Liée",
+      "lookupBack": "Retour",
+      "lookupBrowse": "Choisissez quoi afficher depuis {table}",
+      "lookupBroken": "Ce lien ne se résout plus",
+      "lookupBrokenBody": "Le schéma a changé pendant votre navigation. Recommencez le lien.",
+      "schemaUnavailable": "Les colonnes de la base n’ont pas pu être listées ; impossible d’ajouter des colonnes ici.",
       "none": {
         "title": "Cette page n’a pas encore de colonnes",
         "body": "Les colonnes sont lues dans la table lors de la génération de la page. Liez cette page à une table puis régénérez pour les renseigner."
@@ -2577,6 +2718,15 @@
       "custom": "Personnalisée…",
       "x": "Côtés (px)",
       "y": "Haut et bas (px)"
+    },
+    "width": {
+      "default": "Valeur par défaut de ce modèle",
+      "narrow": "Étroite (720 px)",
+      "content": "Contenu (900 px)",
+      "page": "Page (1080 px)",
+      "dash": "Tableau de bord (1320 px)",
+      "wide": "Large (1800 px)",
+      "full": "Pleine largeur (sans limite)"
     }
   },
   "audit": {
@@ -2731,7 +2881,7 @@
   },
   "security": {
     "password": {
-      "changedBody": "Utilisez le nouveau mot de passe à votre prochaine connexion. Les sessions sur vos autres appareils ne sont pas affectées — révoquez-les ci-dessous si vous voulez les déconnecter.",
+      "changedBody": "Utilisez le nouveau mot de passe à votre prochaine connexion. Vos autres appareils restent connectés — mettez fin à ces sessions si vous souhaitez les déconnecter.",
       "changed": "Mot de passe modifié",
       "confirm": "Confirmer le nouveau mot de passe",
       "current": "Mot de passe actuel",

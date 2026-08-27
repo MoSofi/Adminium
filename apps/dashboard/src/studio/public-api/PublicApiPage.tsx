@@ -28,7 +28,7 @@
  * textarea, compiled and refused loudly, keeps the document the thing they are
  * looking at. A builder is a later decision, not a shortcut.
  */
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Globe2, KeyRound, ShieldAlert, TriangleAlert } from 'lucide-react';
 import {
@@ -51,6 +51,7 @@ import {
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { t } from '../../i18n/t.js';
+import { customerAppKeys, surfacesQuery } from '../apps/hostedAppsApi.js';
 import {
   PUBLIC_API_QUERY_KEY,
   PUBLIC_KEYS_QUERY_KEY,
@@ -106,6 +107,17 @@ export function PublicApiPage() {
   const byScope = keysByScope(keys);
   const now = Date.now();
 
+  /*
+   * Hosted customer surfaces, for the optional app binding on the mint form
+   * (29 D10). NOT part of the suspense set: the surfaces namespace sits behind
+   * `system:settings:manage`, and a caller who can manage keys but not
+   * settings must still get this whole page — with the binding select simply
+   * absent, which is also the state of an instance serving no surfaces.
+   */
+  const surfacesLookup = useQuery({ ...surfacesQuery(), retry: false, throwOnError: false });
+  const appOptions =
+    surfacesLookup.data === undefined ? [] : customerAppKeys(surfacesLookup.data);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<ScopeIssue[]>([]);
@@ -145,7 +157,7 @@ export function PublicApiPage() {
      * here: the shell renders one for every route regardless, and a second said
      * the name twice on other pages before they were fixed.
      */
-    <PageSurface className="mx-auto flex max-w-[1000px] flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
         title={t('studio.publicApi.title', 'Public API')}
         subtitle={t(
@@ -183,6 +195,7 @@ export function PublicApiPage() {
       <KeysCard
         keys={sortKeys(keys, now)}
         scopes={scopes}
+        appOptions={appOptions}
         now={now}
         busy={busy}
         revealed={revealed}
@@ -462,6 +475,7 @@ function ScopesCard({
 function KeysCard({
   keys,
   scopes,
+  appOptions,
   now,
   busy,
   revealed,
@@ -472,16 +486,19 @@ function KeysCard({
 }: {
   keys: PublicKeyDto[];
   scopes: PublicScopeDto[];
+  /** Hosted customer surfaces a key may be bound to; empty hides the select. */
+  appOptions: string[];
   now: number;
   busy: boolean;
   revealed: { id: string; token: string } | null;
-  onCreate: (body: { name: string; scopeId: string }) => void;
+  onCreate: (body: { name: string; scopeId: string; appKey?: string }) => void;
   onReveal: (id: string) => void;
   onRotate: (id: string) => void;
   onRevoke: (id: string) => void;
 }) {
   const [name, setName] = useState('');
   const [scopeId, setScopeId] = useState('');
+  const [appKey, setAppKey] = useState('');
 
   return (
     <Card>
@@ -561,7 +578,7 @@ function KeysCard({
           className="mt-6 flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            onCreate({ name, scopeId });
+            onCreate({ name, scopeId, ...(appKey === '' ? {} : { appKey }) });
           }}
         >
           <FormField label={t('studio.publicApi.keys.nameLabel', 'Name')}>
@@ -591,6 +608,29 @@ function KeysCard({
               ))}
             </Select>
           </FormField>
+          {appOptions.length > 0 && (
+            <FormField
+              label={t('studio.publicApi.keys.appLabel', 'Bind to a hosted app surface (optional)')}
+              helper={t(
+                'studio.publicApi.keys.appHint',
+                'The app’s customer surface then serves this key itself — rotating it needs no rebuild.',
+              )}
+            >
+              <Select
+                value={appKey}
+                onChange={(event) => {
+                  setAppKey(event.target.value);
+                }}
+              >
+                <option value="">{t('studio.publicApi.keys.appNone', 'Not bound')}</option>
+                {appOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          )}
           <div>
             <Button type="submit" disabled={busy || scopes.length === 0}>
               {t('studio.publicApi.keys.create', 'Create key')}

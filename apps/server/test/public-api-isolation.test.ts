@@ -34,7 +34,7 @@
  */
 
 import BetterSqlite3 from 'better-sqlite3';
-import { createSqliteMetaDb, firstRun, type MetaDb } from '@adminium/meta';
+import { createSqliteMetaDb, firstRun, settingsRepo, type MetaDb } from '@adminium/meta';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { composeServer, type ComposedServer } from '../src/compose.js';
@@ -66,14 +66,17 @@ function memoryStore(meta: MetaDb): MetaStoreHandle {
  * `ADMINIUM_TRUST_PROXY` (D21) — the point is to prove the key is refused
  * everywhere ELSE while the public routes are genuinely present.
  */
-async function composeWidest(meta: MetaDb): Promise<ComposedServer> {
+async function composeWidest(
+  meta: MetaDb,
+  publicOrigins = 'https://shop.example.com',
+): Promise<ComposedServer> {
   const runService = createRunService({ meta });
   const composed = await composeServer({
     env: makeEnv({
       ADMINIUM_RUNTIME: 'desktop',
       ADMINIUM_BOOT_TOKEN: 'a'.repeat(64),
       ADMINIUM_BRIDGE_ORIGINS: 'https://adminium.dev',
-      ADMINIUM_PUBLIC_API_ORIGINS: 'https://shop.example.com',
+      ADMINIUM_PUBLIC_API_ORIGINS: publicOrigins,
       HOST: '127.0.0.1',
     }),
     metaStore: memoryStore(meta),
@@ -123,6 +126,104 @@ afterEach(async () => {
   open = undefined;
 });
 
+/**
+ * Present an `adm_pub_` token to EVERY registered route and report the ones
+ * where it changed the outcome.
+ *
+ * Extracted so the sweep can be driven twice — once as a plain caller, once
+ * wearing same-origin provenance with the `self` sentinel set (29-T03). The
+ * concern there is narrow and worth naming: `self` widens what the PUBLIC
+ * namespace accepts, and the question is whether it widened anything else. It
+ * cannot, because `parseBearerApiKey` gates on `adm_sk_` and an `adm_pub_`
+ * token never becomes a principal — but "cannot by construction" is the exact
+ * claim 28 §3.5 made while a competing design shipped a route allow-list, so it
+ * is asserted rather than argued.
+ */
+async function sweepWithToken(
+  app: ComposedServer['app'],
+  extraHeaders: Record<string, string> = {},
+): Promise<string[]> {
+  const { token } = generatePublishableKey();
+
+  /*
+   * The route tree as the SERVER sees it. `printRoutes` is the registration
+   * list; parsing it is what makes this test enumerate rather than assume.
+   */
+  const tree = app.printRoutes({ commonPrefix: false });
+  const urls = new Set<string>();
+  for (const line of tree.split('\n')) {
+    const match = /^[^a-zA-Z/]*(\/\S*)\s+\((.+)\)\s*$/.exec(line);
+    if (match === null) continue;
+    const [, url, methods] = match;
+    if (url === undefined || methods === undefined) continue;
+    for (const method of methods.split(',').map((m) => m.trim())) {
+      if (method === 'HEAD' || method === 'OPTIONS') continue;
+      urls.add(`${method} ${url}`);
+    }
+  }
+
+  // The sweep must actually have seen a real tree; an empty parse would pass
+  // every assertion below and prove nothing.
+  expect(urls.size).toBeGreaterThan(80);
+
+  const acted: string[] = [];
+  let probe = 0;
+  for (const entry of urls) {
+    /*
+     * A FRESH SOURCE ADDRESS PER PAIR.
+     *
+     * Several routes share the `auth-login` bucket (login, the password
+     * routes, `setup/super-admin`), and it is keyed by IP with max 5. Sweeping
+     * the whole tree twice from one address exhausts it partway through, so
+     * `/auth/login` answered 422 to the first call of its pair and 429 to the
+     * second — a difference caused entirely by the limiter's state, not by the
+     * token. Both calls in a pair share an address so the pair stays
+     * comparable; pairs do not, so no bucket carries across routes.
+     */
+    probe += 1;
+    const remoteAddress = `10.1.${String(Math.floor(probe / 250))}.${String(probe % 250)}`;
+    const [method, url] = entry.split(' ') as [string, string];
+    // EXACT namespace, not a loose prefix. `/api/v1/public-keys` starts with
+    // `/api/v1/public` and is an ADMIN route — skipping it here would stop
+    // this test checking that a publishable key cannot mint another one.
+    if (isPublicNamespacePath(url)) continue; // the one namespace it MAY reach
+
+    const body =
+      method === 'GET' || method === 'DELETE'
+        ? {}
+        : { headers: { 'content-type': 'application/json' }, payload: {} };
+
+    const withKey = await app.inject({
+      method: method as 'GET',
+      url: concreteUrl(url),
+      remoteAddress,
+      ...body,
+      headers: { ...extraHeaders, ...(body.headers ?? {}), authorization: `Bearer ${token}` },
+    });
+    const without = await app.inject({
+      method: method as 'GET',
+      url: concreteUrl(url),
+      remoteAddress,
+      ...body,
+      headers: { ...extraHeaders, ...(body.headers ?? {}) },
+    });
+
+    // The token must change NOTHING. A route that is public stays public; a
+    // route that refuses keeps refusing, with the same status.
+    if (withKey.statusCode !== without.statusCode) {
+      acted.push(
+        `${entry} -> ${String(without.statusCode)} without the key, ${String(withKey.statusCode)} with it`,
+      );
+    }
+    // And it must never make a route fall over — a 500 means the token
+    // reached a handler that then choked on it.
+    if (withKey.statusCode >= 500 && without.statusCode < 500) {
+      acted.push(`${entry} -> 500 only when the key is present`);
+    }
+  }
+  return acted;
+}
+
 describe('28-T09 — publishable keys are inert outside /api/v1/public', () => {
   it('is refused by every registered route in the whole tree', async () => {
     const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
@@ -135,85 +236,67 @@ describe('28-T09 — publishable keys are inert outside /api/v1/public', () => {
       },
     };
 
-    const { token } = generatePublishableKey();
-
-    /*
-     * The route tree as the SERVER sees it. `printRoutes` is the registration
-     * list; parsing it is what makes this test enumerate rather than assume.
-     */
-    const tree = composed.app.printRoutes({ commonPrefix: false });
-    const urls = new Set<string>();
-    for (const line of tree.split('\n')) {
-      const match = /^[^a-zA-Z/]*(\/\S*)\s+\((.+)\)\s*$/.exec(line);
-      if (match === null) continue;
-      const [, url, methods] = match;
-      if (url === undefined || methods === undefined) continue;
-      for (const method of methods.split(',').map((m) => m.trim())) {
-        if (method === 'HEAD' || method === 'OPTIONS') continue;
-        urls.add(`${method} ${url}`);
-      }
-    }
-
-    // The sweep must actually have seen a real tree; an empty parse would pass
-    // every assertion below and prove nothing.
-    expect(urls.size).toBeGreaterThan(80);
-
-    const acted: string[] = [];
-    let probe = 0;
-    for (const entry of urls) {
-      /*
-       * A FRESH SOURCE ADDRESS PER PAIR.
-       *
-       * Several routes share the `auth-login` bucket (login, the password
-       * routes, `setup/super-admin`), and it is keyed by IP with max 5. Sweeping
-       * the whole tree twice from one address exhausts it partway through, so
-       * `/auth/login` answered 422 to the first call of its pair and 429 to the
-       * second — a difference caused entirely by the limiter's state, not by the
-       * token. Both calls in a pair share an address so the pair stays
-       * comparable; pairs do not, so no bucket carries across routes.
-       */
-      probe += 1;
-      const remoteAddress = `10.1.${String(Math.floor(probe / 250))}.${String(probe % 250)}`;
-      const [method, url] = entry.split(' ') as [string, string];
-      // EXACT namespace, not a loose prefix. `/api/v1/public-keys` starts with
-      // `/api/v1/public` and is an ADMIN route — skipping it here would stop
-      // this test checking that a publishable key cannot mint another one.
-      if (isPublicNamespacePath(url)) continue; // the one namespace it MAY reach
-
-      const body =
-        method === 'GET' || method === 'DELETE'
-          ? {}
-          : { headers: { 'content-type': 'application/json' }, payload: {} };
-
-      const withKey = await composed.app.inject({
-        method: method as 'GET',
-        url: concreteUrl(url),
-        remoteAddress,
-        ...body,
-        headers: { ...(body.headers ?? {}), authorization: `Bearer ${token}` },
-      });
-      const without = await composed.app.inject({
-        method: method as 'GET',
-        url: concreteUrl(url),
-        remoteAddress,
-        ...body,
-      });
-
-      // The token must change NOTHING. A route that is public stays public; a
-      // route that refuses keeps refusing, with the same status.
-      if (withKey.statusCode !== without.statusCode) {
-        acted.push(
-          `${entry} -> ${String(without.statusCode)} without the key, ${String(withKey.statusCode)} with it`,
-        );
-      }
-      // And it must never make a route fall over — a 500 means the token
-      // reached a handler that then choked on it.
-      if (withKey.statusCode >= 500 && without.statusCode < 500) {
-        acted.push(`${entry} -> 500 only when the key is present`);
-      }
-    }
-
+    const acted = await sweepWithToken(composed.app);
     expect(acted, `an adm_pub_ token CHANGED the outcome on these routes:\n${acted.join('\n')}`).toEqual([]);
+  }, 60_000);
+
+  it('is still inert with `self` set and same-origin provenance (29-T03)', async () => {
+    /*
+     * The sentinel's blast radius, measured rather than reasoned about.
+     *
+     * With `self` in the list, EVERY same-origin request now satisfies the
+     * public namespace's level-1 check. This drives the whole tree wearing
+     * exactly that provenance and asserts the differential still holds: the
+     * widening reached the public gate and nowhere else.
+     */
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    const composed = await composeWidest(meta, 'self,https://shop.example.com');
+    open = {
+      close: async () => {
+        await composed.app.close();
+        await meta.db.destroy();
+      },
+    };
+
+    const acted = await sweepWithToken(composed.app, {
+      host: 'admin.myshop.test',
+      'sec-fetch-site': 'same-origin',
+    });
+    expect(
+      acted,
+      `with \`self\` set, an adm_pub_ token CHANGED the outcome on these routes:\n${acted.join('\n')}`,
+    ).toEqual([]);
+  }, 60_000);
+
+  it('still refuses a foreign origin on the public namespace with `self` set', async () => {
+    // The converse of the sweep: `self` must not read as "and everyone else".
+    const meta = createSqliteMetaDb({ database: new BetterSqlite3(':memory:') });
+    await firstRun(meta);
+    // Two INDEPENDENT switches, and the gate checks the off switch first — so
+    // without this row the assertion below reads 503 and proves nothing.
+    await settingsRepo(meta).set('publicApi.enabled', true);
+    const composed = await composeWidest(meta, 'self');
+    open = {
+      close: async () => {
+        await composed.app.close();
+        await meta.db.destroy();
+      },
+    };
+
+    const res = await composed.app.inject({
+      method: 'GET',
+      url: '/api/v1/public/config',
+      headers: {
+        host: 'admin.myshop.test',
+        origin: 'https://evil.example.com',
+        'sec-fetch-site': 'cross-site',
+        authorization: `Bearer ${generatePublishableKey().token}`,
+      },
+    });
+    // 503 would mean `publicApi.enabled` refused first and this proved nothing.
+    expect(res.statusCode).toBe(403);
+    expect((res.json() as { error?: { code?: string } }).error?.code).toBe('PUBLIC_ORIGIN_REFUSED');
   }, 60_000);
 
   it('registers the public namespace it is allowed to reach', async () => {

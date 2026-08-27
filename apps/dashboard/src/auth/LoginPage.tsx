@@ -15,13 +15,24 @@ import { login, storeChallenge } from './authApi.js';
 
 export function LoginPage() {
   const router = useRouter();
-  const { returnTo } = useSearch({ from: '/login' });
+  const { returnTo, next } = useSearch({ from: '/login' });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const finish = (to: string | undefined) => {
     // A new session means every cached query is another principal's data.
     router.options.context.queryClient.clear();
+    /*
+     * `next` is the SURFACE gate's target (29 D4): on a mapped staff domain
+     * every non-reserved path is served by the SERVER as the app surface, so
+     * re-entering it must be a document navigation — a client-side push would
+     * paint this SPA's shell over a URL it does not own. The router's
+     * validateSearch already pinned it to a path (never `//host`).
+     */
+    if (next !== undefined) {
+      window.location.assign(next);
+      return;
+    }
     // `returnTo` is a runtime string — go through history, not typed links.
     router.history.push(to ?? '/');
   };
@@ -51,7 +62,7 @@ export function LoginPage() {
           login(values.email, values.password)
             .then((result) => {
               if (result.kind === 'challenge') {
-                storeChallenge(result.challengeToken, returnTo);
+                storeChallenge(result.challengeToken, returnTo, next);
                 void router.navigate({ to: '/otp' });
                 return;
               }

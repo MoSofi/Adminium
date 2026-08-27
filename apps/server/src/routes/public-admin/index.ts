@@ -30,6 +30,7 @@ import {
   type MetaDb,
   type PublicKey,
   type PublicScope,
+  connectionTenantConfig,
 } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 import type { DsnCrypto } from '@adminium/meta';
@@ -104,6 +105,7 @@ function keyToDto(row: PublicKey): PublicKeyDto {
     prefix: row.prefix,
     scopeId: row.scopeId,
     side: row.side === 'staff' ? 'staff' : 'customer',
+    appKey: row.appKey,
     origins,
     expiresAt: row.expiresAt,
     revokedAt: row.revokedAt,
@@ -146,7 +148,16 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
       throw new ValidationFailedError('The scope document is not valid JSON.', {});
     }
     try {
-      const compiled = compileScope(parsed, await columnsFor(connectionId));
+      /*
+       * The connection's tenant config is passed here for the same reason it
+       * is passed at resolve time (28-T34): a scope that omits `timezone`
+       * INHERITS it. Without this, authoring refused every such scope with
+       * "no time zone is configured" while the connection plainly had one —
+       * inheritance that works at read time and not at write time is a feature
+       * an operator can never actually use.
+       */
+      const inherited = (await connectionTenantConfig(meta, connectionId)) ?? undefined;
+      const compiled = compileScope(parsed, await columnsFor(connectionId), inherited);
       return { timezone: compiled.timezone };
     } catch (error) {
       if (error instanceof ScopeCompileError) {
@@ -342,6 +353,10 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
           // The key inherits the SCOPE's side; it is not separately settable,
           // because a key whose side disagrees with its scope is meaningless.
           side: scope.side,
+          // The app binding is what `surface-config.json` serves the key by
+          // (29 D10). Stored as given: a binding may be minted before the
+          // surface's first build lands in the surfaces directory.
+          ...(request.body.appKey === undefined ? {} : { appKey: request.body.appKey }),
           ...(request.body.origins === undefined ? {} : { origins: request.body.origins }),
           createdBy: (request as unknown as { user?: { id?: string } }).user?.id ?? null,
           expiresAt: request.body.expiresAt ?? null,
@@ -349,7 +364,15 @@ export function publicAdminRoutes(deps: PublicAdminRoutesDeps): FastifyPluginAsy
         await app.rbac.audit(request, {
           category: 'system',
           action: 'public-key.create',
-          changes: { after: { keyId: row.id, name: row.name, prefix: row.prefix, scopeId: scope.id } },
+          changes: {
+            after: {
+              keyId: row.id,
+              name: row.name,
+              prefix: row.prefix,
+              scopeId: scope.id,
+              ...(row.appKey === null ? {} : { appKey: row.appKey }),
+            },
+          },
         });
         return reply.status(201).send({ key: keyToDto(row), token: generated.token });
       },

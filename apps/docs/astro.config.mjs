@@ -165,6 +165,7 @@ export default defineConfig({
             { label: 'Environment variables', link: '/self-hosting/env-vars/' },
             { label: 'Where to put the meta store', link: '/self-hosting/meta-store/' },
             { label: 'Behind a reverse proxy', link: '/self-hosting/reverse-proxy/' },
+            { label: 'An app surface on its own domain', link: '/self-hosting/app-domains/' },
             { label: 'Upgrading', link: '/self-hosting/upgrades/' },
             { label: 'Security hardening', link: '/self-hosting/security/' },
             { label: 'Telemetry', link: '/self-hosting/telemetry/' },

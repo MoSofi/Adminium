@@ -2068,6 +2068,16 @@
                                               "type": "null"
                                             }
                                           ]
+                                        },
+                                        "sourceTable": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -2078,7 +2088,8 @@
                                         "icon",
                                         "order",
                                         "connectionId",
-                                        "connectionName"
+                                        "connectionName",
+                                        "sourceTable"
                                       ],
                                       "additionalProperties": false
                                     }
@@ -2117,6 +2128,208 @@
                         },
                         "csrfToken": {
                           "type": "string"
+                        },
+                        "hostedApps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "appKey": {
+                                "type": "string"
+                              },
+                              "instance": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "path": {
+                                      "type": "string"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "icon": {
+                                      "type": "string"
+                                    },
+                                    "persona": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "path",
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "appKey",
+                              "label",
+                              "items"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "hiddenPages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "pageId": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "labelKey": {
+                                "type": "string"
+                              },
+                              "fallback": {
+                                "type": "string"
+                              },
+                              "icon": {
+                                "type": "string"
+                              },
+                              "badge": {
+                                "type": "string",
+                                "enum": [
+                                  "unread-count",
+                                  "pending-count"
+                                ]
+                              },
+                              "order": {
+                                "type": "number"
+                              },
+                              "connectionId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "connectionName": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "sourceTable": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "pageId",
+                              "slug",
+                              "labelKey",
+                              "fallback",
+                              "icon",
+                              "order",
+                              "connectionId",
+                              "connectionName",
+                              "sourceTable"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "pausedPages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "pageId": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              },
+                              "labelKey": {
+                                "type": "string"
+                              },
+                              "fallback": {
+                                "type": "string"
+                              },
+                              "icon": {
+                                "type": "string"
+                              },
+                              "badge": {
+                                "type": "string",
+                                "enum": [
+                                  "unread-count",
+                                  "pending-count"
+                                ]
+                              },
+                              "order": {
+                                "type": "number"
+                              },
+                              "connectionId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "connectionName": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "sourceTable": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "pageId",
+                              "slug",
+                              "labelKey",
+                              "fallback",
+                              "icon",
+                              "order",
+                              "connectionId",
+                              "connectionName",
+                              "sourceTable"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
@@ -2127,7 +2340,10 @@
                         "version",
                         "configVersion",
                         "llm",
-                        "csrfToken"
+                        "csrfToken",
+                        "hostedApps",
+                        "hiddenPages",
+                        "pausedPages"
                       ],
                       "additionalProperties": false
                     }
@@ -3432,6 +3648,53 @@
                               }
                             ]
                           },
+                          "timezone": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "timezoneSource": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "host",
+                                  "operator"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "currency": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "disabled": {
+                            "type": "boolean"
+                          },
+                          "disabledAt": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "snapshot": {
                             "anyOf": [
                               {
@@ -3495,6 +3758,11 @@
                           "lastLatencyMs",
                           "lastError",
                           "lastErrorHint",
+                          "timezone",
+                          "timezoneSource",
+                          "currency",
+                          "disabled",
+                          "disabledAt",
                           "snapshot",
                           "tableCount",
                           "pageCount",
@@ -3658,6 +3926,53 @@
                         }
                       ]
                     },
+                    "timezone": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "timezoneSource": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "host",
+                            "operator"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "currency": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    },
+                    "disabledAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "snapshot": {
                       "anyOf": [
                         {
@@ -3721,6 +4036,11 @@
                     "lastLatencyMs",
                     "lastError",
                     "lastErrorHint",
+                    "timezone",
+                    "timezoneSource",
+                    "currency",
+                    "disabled",
+                    "disabledAt",
                     "snapshot",
                     "tableCount",
                     "pageCount",
@@ -3963,6 +4283,53 @@
                         }
                       ]
                     },
+                    "timezone": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "timezoneSource": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "host",
+                            "operator"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "currency": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    },
+                    "disabledAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "snapshot": {
                       "anyOf": [
                         {
@@ -4026,6 +4393,11 @@
                     "lastLatencyMs",
                     "lastError",
                     "lastErrorHint",
+                    "timezone",
+                    "timezoneSource",
+                    "currency",
+                    "disabled",
+                    "disabledAt",
                     "snapshot",
                     "tableCount",
                     "pageCount",
@@ -4071,6 +4443,34 @@
                         ]
                       }
                     }
+                  },
+                  "timezone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3,
+                        "pattern": "^[A-Z]{3}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "disabled": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -4164,6 +4564,53 @@
                         }
                       ]
                     },
+                    "timezone": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "timezoneSource": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "host",
+                            "operator"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "currency": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    },
+                    "disabledAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "snapshot": {
                       "anyOf": [
                         {
@@ -4227,6 +4674,11 @@
                     "lastLatencyMs",
                     "lastError",
                     "lastErrorHint",
+                    "timezone",
+                    "timezoneSource",
+                    "currency",
+                    "disabled",
+                    "disabledAt",
                     "snapshot",
                     "tableCount",
                     "pageCount",
@@ -5338,6 +5790,42 @@
           },
           {
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "lookup",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "agg",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "integer",
               "minimum": 1,
               "maximum": 200
@@ -5795,6 +6283,42 @@
             },
             "in": "query",
             "name": "include",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "lookup",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "in": "query",
+            "name": "agg",
             "required": false
           },
           {
@@ -9847,6 +10371,18 @@
                     "canEditLayout": {
                       "type": "boolean"
                     },
+                    "canCreate": {
+                      "type": "boolean"
+                    },
+                    "canUpdate": {
+                      "type": "boolean"
+                    },
+                    "canDelete": {
+                      "type": "boolean"
+                    },
+                    "canUnmask": {
+                      "type": "boolean"
+                    },
                     "layoutStale": {
                       "type": "boolean"
                     }
@@ -9922,6 +10458,7 @@
                     "type": "string",
                     "enum": [
                       "page-crud",
+                      "page-record",
                       "page-dashboard",
                       "page-master-detail",
                       "page-queue-inbox",
@@ -9994,6 +10531,24 @@
                               "y"
                             ]
                           }
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "width": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "full",
+                          "narrow",
+                          "content",
+                          "page",
+                          "dash",
+                          "wide"
                         ]
                       },
                       {
@@ -10506,6 +11061,7 @@
                     "type": "string",
                     "enum": [
                       "page-crud",
+                      "page-record",
                       "page-dashboard",
                       "page-master-detail",
                       "page-queue-inbox",
@@ -10600,6 +11156,24 @@
                               "y"
                             ]
                           }
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "width": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "full",
+                          "narrow",
+                          "content",
+                          "page",
+                          "dash",
+                          "wide"
                         ]
                       },
                       {
@@ -16014,6 +16588,16 @@
                               "customer"
                             ]
                           },
+                          "appKey": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "origins": {
                             "type": "array",
                             "items": {
@@ -16073,6 +16657,7 @@
                           "prefix",
                           "scopeId",
                           "side",
+                          "appKey",
                           "origins",
                           "expiresAt",
                           "revokedAt",
@@ -16111,6 +16696,12 @@
                   "scopeId": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "appKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9][a-z0-9_-]*$"
                   },
                   "origins": {
                     "maxItems": 32,
@@ -16163,6 +16754,16 @@
                           "enum": [
                             "staff",
                             "customer"
+                          ]
+                        },
+                        "appKey": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
                         "origins": {
@@ -16224,6 +16825,7 @@
                         "prefix",
                         "scopeId",
                         "side",
+                        "appKey",
                         "origins",
                         "expiresAt",
                         "revokedAt",
@@ -16329,6 +16931,16 @@
                             "customer"
                           ]
                         },
+                        "appKey": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "origins": {
                           "type": "array",
                           "items": {
@@ -16388,6 +17000,7 @@
                         "prefix",
                         "scopeId",
                         "side",
+                        "appKey",
                         "origins",
                         "expiresAt",
                         "revokedAt",
@@ -16444,6 +17057,523 @@
                   },
                   "required": [
                     "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/surfaces": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "surfaces": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "appKey": {
+                            "type": "string"
+                          },
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "staff",
+                              "customer"
+                            ]
+                          },
+                          "prefix": {
+                            "type": "string"
+                          },
+                          "navAvailable": {
+                            "type": "boolean"
+                          },
+                          "navItems": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "staffPlacement": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "internal",
+                                  "external"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "boundKey": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "prefix": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "prefix"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "connectionId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "domains": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "appKey",
+                          "side",
+                          "prefix",
+                          "navAvailable",
+                          "navItems",
+                          "staffPlacement",
+                          "boundKey",
+                          "connectionId",
+                          "domains"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "domains": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "appKey": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "staff",
+                              "customer"
+                            ]
+                          },
+                          "instance": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 32
+                          }
+                        },
+                        "required": [
+                          "appKey",
+                          "side"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "instances": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "connectionId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "connectionId"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "surfaces",
+                    "domains",
+                    "instances"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/surfaces/{appKey}/placement": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "staff": {
+                    "type": "string",
+                    "enum": [
+                      "internal",
+                      "external"
+                    ]
+                  }
+                },
+                "required": [
+                  "staff"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "appKey",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "appKey": {
+                      "type": "string"
+                    },
+                    "staff": {
+                      "type": "string",
+                      "enum": [
+                        "internal",
+                        "external"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "appKey",
+                    "staff"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/surfaces/{appKey}/connection": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectionId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "connectionId"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "appKey",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "appKey": {
+                      "type": "string"
+                    },
+                    "connectionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "appKey",
+                    "connectionId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/surfaces/instances": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instances": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "additionalProperties": {
+                      "maxItems": 32,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 32
+                          },
+                          "connectionId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "connectionId"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "instances"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "instances": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "connectionId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "connectionId"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "instances"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/surfaces/domains": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "domains": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255
+                    },
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "appKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "side": {
+                          "type": "string",
+                          "enum": [
+                            "staff",
+                            "customer"
+                          ]
+                        },
+                        "instance": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 32
+                        }
+                      },
+                      "required": [
+                        "appKey",
+                        "side"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "domains"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "domains": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "appKey": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          "side": {
+                            "type": "string",
+                            "enum": [
+                              "staff",
+                              "customer"
+                            ]
+                          },
+                          "instance": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 32
+                          }
+                        },
+                        "required": [
+                          "appKey",
+                          "side"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "domains"
                   ],
                   "additionalProperties": false
                 }
@@ -18281,6 +19411,35 @@
             },
             "in": "query",
             "name": "resource",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "connectionId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "in": "query",
+            "name": "entityTable",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "in": "query",
+            "name": "entityId",
             "required": false
           },
           {

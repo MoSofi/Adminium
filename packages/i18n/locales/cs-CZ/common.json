@@ -105,6 +105,11 @@
     "audit": "Auditní log",
     "security": "Heslo a relace"
   },
+  "apps": {
+    "frame": {
+      "noFrames": "Tato aplikace vyžaduje prohlížeč s podporou rámců."
+    }
+  },
   "topbar": {
     "search": "Hledat…",
     "notifications": "Oznámení",
@@ -232,6 +237,11 @@
       "body": "Tento pracovní prostor pozastavil správce. Vaše data zůstávají zachována — o obnovení přístupu požádejte vlastníka prostoru.",
       "primary": "Kontaktovat vlastníka",
       "secondary": "Zpět"
+    },
+    "connectionPaused": {
+      "title": "Toto připojení je pozastavené",
+      "body": "Správce pozastavil databázi, ze které tato stránka čte, takže se teď nenačítají žádná data. Nic se nesmazalo – vše se vrátí, jakmile se připojení obnoví ve Studiu → Datová připojení.",
+      "secondary": "Zpět"
     }
   },
   "notFound": {
@@ -311,6 +321,20 @@
     "twoFactor": "Dvoufázové ověření",
     "on": "Zapnuto",
     "off": "Vypnuto",
+    "nameRequired": "Zadejte své jméno.",
+    "emailHelper": "Slouží k přihlášení. Ke změně je potřeba vaše heslo.",
+    "confirmPassword": "Současné heslo",
+    "confirmPasswordHelper": "Potvrďte svou totožnost, než se změní vaše přihlašovací adresa.",
+    "save": "Uložit změny",
+    "saveFailed": "Váš profil se nepodařilo uložit",
+    "saved": "Profil aktualizován",
+    "savedBody": "Vaše nové údaje platí v celém pracovním prostoru. Pokud jste změnili e-mail, přihlašujte se od teď novou adresou.",
+    "accessTitle": "Přístup",
+    "accessSubtitle": "Co tento účet smí a jak prokazuje svou totožnost.",
+    "rolesHelper": "Role uděluje správce a z vlastního účtu je nelze změnit.",
+    "manageTwoFactor": "Spravovat",
+    "setUpTwoFactor": "Nastavit",
+    "securityLink": "Heslo a relace",
     "preferences": {
       "title": "Předvolby",
       "subtitle": "Jak Adminium vypadá a v jakém jazyce se vám zobrazuje — na tomto i na každém dalším zařízení, kde se přihlásíte.",
@@ -559,7 +583,8 @@
         "connected": "Připojeno",
         "error": "Chyba",
         "unconfigured": "Koncept",
-        "testing": "Testuje se…"
+        "testing": "Testuje se…",
+        "paused": "Pozastaveno"
       },
       "card": {
         "readOnly": "Jen pro čtení",
@@ -568,14 +593,41 @@
         "latency": "Latence",
         "latencyMs": "{latency, number} ms",
         "lastIntrospected": "Poslední introspekce",
-        "never": "Nikdy"
+        "never": "Nikdy",
+        "timezone": "Časové pásmo",
+        "timezoneGuessed": "z tohoto serveru",
+        "paused": "Adminium se k této databázi nepřipojuje. Její stránky se znovu načtou, jakmile ji obnovíte.",
+        "pausedSince": "Pozastaveno {when} – Adminium se k této databázi nepřipojuje. Její stránky se znovu načtou, jakmile ji obnovíte."
       },
       "action": {
         "test": "Otestovat",
         "reintrospect": "Znovu introspektovat",
         "reintrospectFile": "Zdroje ze souboru se schématem nemají živou databázi — nahrajte soubor znovu.",
         "remap": "Přemapovat schéma",
-        "delete": "Smazat"
+        "delete": "Smazat",
+        "regional": "Místní nastavení",
+        "pause": "Pozastavit",
+        "resume": "Obnovit",
+        "pausedHint": "Toto připojení je pozastavené – obnovte ho, abyste se dostali k databázi.",
+        "rename": "Přejmenovat"
+      },
+      "regional": {
+        "title": "Místní nastavení",
+        "intro": "Popisují firmu, které tato databáze patří, nikoli toho, kdo ji čte. Aplikace servírované Adminiem je čtou odsud.",
+        "timezone": "Časové pásmo",
+        "timezoneHelper": "Datum a čas se zobrazují v tomto pásmu. Bez něj aplikace hostované Adminiem přejdou na UTC a napíší to na obrazovku.",
+        "guessedTitle": "Toto pásmo pochází ze serveru",
+        "guessedBody": "Adminium je převzalo ze stroje, na kterém běží — nikdo je zde nezvolil. Uložením ho potvrdíte, nebo vyberte pásmo, ve kterém firma skutečně pracuje.",
+        "timezonePlaceholder": "Oblast/Město",
+        "currency": "Měna",
+        "currencyHelper": "Slouží k formátování částek. Nepovinné — bez ní se změní jen formátování.",
+        "currencyPlaceholder": "Kód ISO-4217",
+        "notSet": "Nenastaveno",
+        "noMatch": "Žádné odpovídající pásmo",
+        "noMatchCurrency": "Žádná odpovídající měna",
+        "save": "Uložit",
+        "failed": "Místní nastavení se nepodařilo uložit",
+        "saved": "Místní nastavení bylo aktualizováno"
       },
       "test": {
         "ok": "Připojení v pořádku · {latency, number} ms",
@@ -601,6 +653,26 @@
         "title": "Zatím žádné zdroje dat",
         "body": "Připojte databázi a Adminium z jejího schématu vygeneruje váš administrační panel.",
         "cta": "Připojit databázi"
+      },
+      "hostedApps": "Hostované aplikace",
+      "subtitlePaused": "{healthy, number} z {total, plural, one {# připojení} few {# připojení} other {# připojení}} v pořádku · {paused, number} pozastaveno",
+      "pause": {
+        "title": "Pozastavit toto připojení?",
+        "body": "Adminium přestane otevírat jakékoli připojení k „{name}“. {pages, plural, one {# stránka} few {# stránky} many {# stránky} other {# stránek}}, naplánované reporty a hostované aplikace přestanou načítat data, dokud připojení neobnovíte.",
+        "keeps": "Nic se nemaže – připojení, jeho schéma i {pages, plural, one {jeho # stránka} few {jeho # stránky} many {jeho # stránky} other {jeho # stránek}} zůstávají zachovány a jedním kliknutím je vrátíte zpět.",
+        "confirm": "Pozastavit připojení",
+        "pausedToast": "Připojení „{name}“ pozastaveno",
+        "resumedToast": "Připojení „{name}“ obnoveno",
+        "pauseFailed": "Připojení se nepodařilo pozastavit. Zkuste to znovu.",
+        "resumeFailed": "Připojení se nepodařilo obnovit. Zkuste to znovu."
+      },
+      "rename": {
+        "title": "Přejmenovat připojení",
+        "label": "Název",
+        "helper": "Jak se tato databáze jmenuje v celém Adminiu — karta, skupina v postranním panelu nad jejími stránkami a každý výběr, který ji nabízí. Samotná databáze se nepřejmenuje.",
+        "save": "Přejmenovat",
+        "saved": "Připojení přejmenováno",
+        "failed": "Připojení se nepodařilo přejmenovat"
       }
     },
     "settingsHub": {
@@ -1315,10 +1387,62 @@
         "create": "Create key",
         "formLabel": "Create a key",
         "scopeIsAuthTitle": "The scope is the only permission",
-        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+        "appLabel": "Navázat na hostovanou aplikační plochu (volitelné)",
+        "appHint": "Zákaznická plocha aplikace pak tento klíč obsluhuje sama — jeho rotace nevyžaduje rebuild.",
+        "appNone": "Nenavázán"
       },
       "status": {
         "heading": "Status"
+      }
+    },
+    "hostedApps": {
+      "title": "Hostované aplikace",
+      "subtitle": "Aplikační plochy, které tato instance obsluhuje — kde se každá zobrazuje a které domény na ně míří.",
+      "error": "Něco se pokazilo",
+      "emptyTitle": "Žádné aplikační plochy se neobsluhují",
+      "emptyBody": "Nasměrujte ADMINIUM_SURFACES_DIR na adresář sestavených ploch — složka pro každou aplikaci a stranu, každá se svým index.html — a restartujte. Poté se obsluhují pod /apps/ a objeví se zde.",
+      "surfaces": {
+        "title": "Plochy",
+        "subtitle": "Plocha pro tým se může vsadit do bočního panelu tohoto dashboardu, nebo stát samostatně; zákaznická plocha je veřejná a čte přes svůj navázaný klíč.",
+        "staff": "Tým",
+        "customer": "Zákazník",
+        "noNav": "Interní umístění není dostupné — sestavte tuto plochu znovu aktuálním toolkitem, aby vydávala surface.json.",
+        "noKey": "Není navázán žádný klíč — dokud se pro tuto plochu nevytvoří, nemůže číst data.",
+        "mintLink": "Vytvořit ve Veřejném API",
+        "boundKey": "Obsluhuje klíč",
+        "placementLabel": "Umístění",
+        "placementInternal": "V bočním panelu (vsazená)",
+        "placementExternal": "Externí (jen vlastní URL)",
+        "connectionLabel": "Čte",
+        "connectionUnset": "Kterékoli aktivní"
+      },
+      "domains": {
+        "title": "Domény",
+        "subtitle": "Nasměrujte DNS domény na svůj proxy server, předávejte hlavičku Host do Adminia a připojte ji zde — tento host pak obsluhuje plochu místo tohoto dashboardu. Certifikáty zůstávají na vašem proxy serveru.",
+        "issuesTitle": "Mapa domén byla odmítnuta",
+        "savedTitle": "Uloženo",
+        "savedBody": "Přiřazení se projeví během několika sekund. Host odpovídá, až když jeho DNS a váš proxy server tuto instanci skutečně dosáhnou.",
+        "none": "Žádné domény nejsou připojeny.",
+        "hostLabel": "Host",
+        "surfaceLabel": "Plocha",
+        "remove": "Odebrat",
+        "add": "Připojit doménu",
+        "save": "Uložit domény",
+        "instanceLabel": "Instance",
+        "instanceOwn": "Samotná aplikace"
+      },
+      "instances": {
+        "title": "Instance",
+        "body": "Poskytujte stejnou aplikaci nad více databázemi. Každá instance je dostupná na /apps/<app>/<segment>/<strana>/ a čte jen připojení, které jí dáte.",
+        "appLabel": "Aplikace",
+        "slugLabel": "Segment URL",
+        "readsLabel": "Čte",
+        "add": "Přidat instanci",
+        "save": "Uložit instance",
+        "remove": "Odebrat",
+        "empty": "Žádné další instance.",
+        "failed": "Instance se nepodařilo uložit"
       }
     }
   },
@@ -2500,7 +2624,9 @@
       "connection": "Zdroj dat",
       "connectionNone": "Žádný",
       "iconPick": "Vyberte ikonu stránky",
-      "padding": "Okraje stránky"
+      "padding": "Okraje stránky",
+      "width": "Šířka obsahu",
+      "widthHint": "Jak široký může být sloupec s obsahem stránky na velké obrazovce."
     },
     "editor": {
       "title": "Upravit stránku",
@@ -2544,18 +2670,33 @@
       }
     },
     "columns": {
-      "help": "Změňte pořadí sloupců, přejmenujte jejich záhlaví a vyberte, které se v tabulce zobrazí.",
-      "discard": "Zahodit",
-      "save": "Uložit sloupce",
-      "saveFailed": "Sloupce se nepodařilo uložit",
+      "help": "Přetažením změňte pořadí sloupců, přejmenujte jejich záhlaví a vyberte, které se v tabulce zobrazí.",
+      "empty": "Zatím žádné sloupce — přidejte je níže.",
       "pk": "Klíč",
       "pii": "PII",
       "header": "Záhlaví pro {name}",
       "shown": "Zobrazeno",
       "toggle": "Zobrazit {name} v tabulce",
-      "moveUp": "Posunout {name} nahoru",
-      "moveDown": "Posunout {name} dolů",
+      "dragHandle": "Přesunout {name}",
       "remove": "Odebrat {name}",
+      "addOpen": "Přidat sloupec",
+      "addTitle": "Přidat sloupec",
+      "addSearch": "Hledat sloupce…",
+      "addFromTable": "Z tabulky {table}",
+      "addFromLinked": "Z propojených tabulek",
+      "addLinkedHelp": "Zobrazí hodnotu z tabulky, na kterou odkazuje propojovací sloupec.",
+      "addVia": "přes {column}",
+      "addNoMatches": "Dotazu „{query}“ neodpovídají žádné sloupce.",
+      "followColumn": "Sledovat {name}",
+      "addLinkedFrom": "Tabulky, které sem odkazují",
+      "addLinkedFromHelp": "Přidá počet řádků, které na jednotlivé záznamy odkazují.",
+      "countBadge": "Počet",
+      "lookupBadge": "Propojený",
+      "lookupBack": "Zpět",
+      "lookupBrowse": "Vyberte, co zobrazit z tabulky {table}",
+      "lookupBroken": "Toto propojení už nelze vyhodnotit",
+      "lookupBrokenBody": "Schéma se mezitím změnilo. Začněte propojení znovu.",
+      "schemaUnavailable": "Sloupce databáze se nepodařilo načíst, takže zde nelze sloupce přidat.",
       "none": {
         "title": "Tato stránka zatím nemá sloupce",
         "body": "Sloupce se při generování stránky načtou z tabulky. Připojte tuto stránku k tabulce a vygenerujte ji znovu."
@@ -2577,6 +2718,15 @@
       "custom": "Vlastní…",
       "x": "Po stranách (px)",
       "y": "Nahoře a dole (px)"
+    },
+    "width": {
+      "default": "Výchozí pro tuto šablonu",
+      "narrow": "Úzká (720 px)",
+      "content": "Obsah (900 px)",
+      "page": "Stránka (1080 px)",
+      "dash": "Dashboard (1320 px)",
+      "wide": "Široká (1800 px)",
+      "full": "Celá šířka (bez omezení)"
     }
   },
   "audit": {
@@ -2731,7 +2881,7 @@
   },
   "security": {
     "password": {
-      "changedBody": "Při příštím přihlášení použijte nové heslo. Relací na jiných zařízeních se to nedotkne — pokud je chcete odhlásit, odvolejte je níže.",
+      "changedBody": "Při příštím přihlášení použijte nové heslo. Ostatní zařízení zůstanou přihlášená — pokud je chcete odhlásit, ukončete tyto relace.",
       "changed": "Heslo změněno",
       "confirm": "Potvrzení nového hesla",
       "current": "Současné heslo",

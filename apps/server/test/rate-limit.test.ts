@@ -209,7 +209,14 @@ describe('security headers (08 §7 item 5)', () => {
 
     const csp = String(res.headers['content-security-policy']);
     expect(csp).toContain("default-src 'self'");
-    expect(csp).toContain("frame-ancestors 'none'");
+    /*
+     * 'self', not 'none' (29-T09). The dashboard frames its own hosted staff
+     * surfaces to blend them into the shell; cross-origin framing — the whole
+     * clickjacking threat — is still refused. Pinned in both spellings below
+     * because a browser honouring `X-Frame-Options: DENY` ignores this
+     * directive outright, so the two must never drift apart.
+     */
+    expect(csp).toContain("frame-ancestors 'self'");
     expect(csp).toContain("object-src 'none'");
     // Basemap tiles (packages/widgets geo-lib CARTO_TILES) must be loadable.
     expect(csp).toContain("img-src 'self' data: blob: https://*.basemaps.cartocdn.com");
@@ -220,7 +227,7 @@ describe('security headers (08 §7 item 5)', () => {
     // http:// loopback and §8.3 LAN origins must keep working.
     expect(csp).not.toContain('upgrade-insecure-requests');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
-    expect(res.headers['x-frame-options']).toBe('DENY');
+    expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
     expect(res.headers['strict-transport-security']).toBeUndefined();
   });
 

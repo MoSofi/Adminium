@@ -52,23 +52,41 @@ export async function resetPassword(token: string, newPassword: string): Promise
  */
 const CHALLENGE_KEY = 'adminium-2fa-challenge';
 
-export function storeChallenge(challengeToken: string, returnTo: string | undefined): void {
+export function storeChallenge(
+  challengeToken: string,
+  returnTo: string | undefined,
+  /** The surface gate's document-navigation target (29 D4) — see LoginPage. */
+  next?: string | undefined,
+): void {
   try {
-    sessionStorage.setItem(CHALLENGE_KEY, JSON.stringify({ challengeToken, returnTo: returnTo ?? null }));
+    sessionStorage.setItem(
+      CHALLENGE_KEY,
+      JSON.stringify({ challengeToken, returnTo: returnTo ?? null, next: next ?? null }),
+    );
   } catch {
     // Private mode: /otp will bounce back to /login.
   }
 }
 
-export function readChallenge(): { challengeToken: string; returnTo: string | null } | null {
+export function readChallenge(): {
+  challengeToken: string;
+  returnTo: string | null;
+  next: string | null;
+} | null {
   try {
     const raw = sessionStorage.getItem(CHALLENGE_KEY);
     if (raw === null) return null;
-    const parsed = JSON.parse(raw) as { challengeToken?: unknown; returnTo?: unknown };
+    const parsed = JSON.parse(raw) as { challengeToken?: unknown; returnTo?: unknown; next?: unknown };
     if (typeof parsed.challengeToken !== 'string') return null;
     return {
       challengeToken: parsed.challengeToken,
       returnTo: typeof parsed.returnTo === 'string' ? parsed.returnTo : null,
+      // Re-guarded on read: sessionStorage is same-origin-writable, and the
+      // document navigation below it must stay path-only whatever is stored.
+      next:
+        typeof parsed.next === 'string' && parsed.next.startsWith('/') && !parsed.next.startsWith('//')
+          ? parsed.next
+          : null,
     };
   } catch {
     return null;

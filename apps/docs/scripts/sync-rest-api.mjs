@@ -70,6 +70,7 @@ const DESCRIPTIONS = {
   'scheduled-reports': 'Recurring exports delivered on a schedule',
   'schema-import': 'Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR',
   search: 'Cross-resource search for the command palette',
+  surfaces: 'Hosted app surfaces — placement in the dashboard, and attaching your own domains',
   settings: 'Instance settings — defaults, branding, email, security, telemetry, workspace',
   setup: 'First-boot super-admin creation, and whether setup is still open',
   system: 'Version and instance information',

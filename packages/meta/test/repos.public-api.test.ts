@@ -84,6 +84,82 @@ for (const dialect of TEST_DIALECTS) {
       );
     }
 
+    /** A key bound to a hosted app surface (0017, 29 D10). */
+    async function seedBoundKey(
+      scopeId: string,
+      opts: { prefix: string; appKey?: string; expiresAt?: number | null; at?: number },
+    ) {
+      return publicKeysRepo(t.meta).create(
+        {
+          name: `bound ${opts.prefix}`,
+          prefix: opts.prefix,
+          tokenHash: 'h'.repeat(64),
+          tokenEncrypted: `sealed:${opts.prefix}`,
+          scopeId,
+          side: 'customer',
+          appKey: opts.appKey ?? 'clients',
+          expiresAt: opts.expiresAt ?? null,
+        },
+        opts.at ?? T0,
+      );
+    }
+
+    it('stores the app binding and defaults it to null (0017)', async () => {
+      const scope = await seedScope();
+      const unbound = await seedKey(scope.id);
+      expect(unbound.appKey).toBeNull();
+      const bound = await seedBoundKey(scope.id, { prefix: 'adm_pub_bound001' });
+      expect((await publicKeysRepo(t.meta).findById(bound.id))?.appKey).toBe('clients');
+    });
+
+    it('newestLiveByApp picks the newest key that is neither revoked nor expired', async () => {
+      const scope = await seedScope();
+      const repo = publicKeysRepo(t.meta);
+      const older = await seedBoundKey(scope.id, { prefix: 'adm_pub_older000', at: T0 });
+      const newer = await seedBoundKey(scope.id, { prefix: 'adm_pub_newer000', at: T0 + 1000 });
+      // Wrong side, wrong app, expired, revoked — none of these may ever win.
+      await repo.create(
+        {
+          name: 'staff-side',
+          prefix: 'adm_pub_staffkey',
+          tokenHash: 'h'.repeat(64),
+          tokenEncrypted: 'sealed',
+          scopeId: scope.id,
+          side: 'staff',
+          appKey: 'clients',
+        },
+        T0 + 5000,
+      );
+      await seedBoundKey(scope.id, { prefix: 'adm_pub_otherapp', appKey: 'clinic', at: T0 + 5000 });
+      await seedBoundKey(scope.id, {
+        prefix: 'adm_pub_expired0',
+        expiresAt: T0 + 1,
+        at: T0 + 5000,
+      });
+
+      expect((await repo.newestLiveByApp('clients', 'customer', T0 + 9000))?.id).toBe(newer.id);
+      // Revoking the newest falls back to the next live key — the staged-
+      // replacement order the repo comment promises.
+      await repo.revoke(newer.id, T0 + 9000);
+      expect((await repo.newestLiveByApp('clients', 'customer', T0 + 9000))?.id).toBe(older.id);
+      await repo.revoke(older.id, T0 + 9000);
+      expect(await repo.newestLiveByApp('clients', 'customer', T0 + 9000)).toBeNull();
+      expect(await repo.newestLiveByApp('unknown', 'customer', T0 + 9000)).toBeNull();
+    });
+
+    it('rotation keeps the app binding (29 acceptance criterion 9)', async () => {
+      const scope = await seedScope();
+      const key = await seedBoundKey(scope.id, { prefix: 'adm_pub_rotate00' });
+      await publicKeysRepo(t.meta).rotate(key.id, {
+        prefix: 'adm_pub_rotate11',
+        tokenHash: 'i'.repeat(64),
+        tokenEncrypted: 'sealed:next',
+      });
+      const after = await publicKeysRepo(t.meta).findById(key.id);
+      expect(after?.appKey).toBe('clients');
+      expect(after?.prefix).toBe('adm_pub_rotate11');
+    });
+
     it('creates and reads a scope, stamping both timestamps', async () => {
       const scope = await seedScope();
       expect(scope.id).toMatch(/^psc_/);
