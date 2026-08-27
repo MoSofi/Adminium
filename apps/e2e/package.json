@@ -23,11 +23,11 @@
     "@adminium/server": "workspace:*",
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
-    "@types/node": "22.15.3",
+    "@types/node": "22.20.1",
     "better-sqlite3": "^13.0.3",
-    "electron": "^43.4.0",
+    "electron": "^43.4.1",
     "eslint": "catalog:",
-    "mysql2": "^3.23.3",
+    "mysql2": "^3.24.2",
     "pg": "^8.23.0",
     "typescript": "catalog:"
   }

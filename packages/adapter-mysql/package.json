@@ -28,7 +28,7 @@
   "dependencies": {
     "@adminium/engine": "workspace:*",
     "kysely": "^0.29.5",
-    "mysql2": "^3.23.3"
+    "mysql2": "^3.24.2"
   },
   "devDependencies": {
     "@adminium/config": "workspace:*",
