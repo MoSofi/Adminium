@@ -9,7 +9,7 @@ import type {
   ClassifiedColumnInput,
   ClassifiedTableInput,
 } from '../registry/candidates.js';
-import { composeCrudBody, enumTones, type CrudBodyContext } from './crud-body.js';
+import { composeCrudBody, crudDisplayColumns, enumTones, type CrudBodyContext } from './crud-body.js';
 
 /**
  * `composeCrudBody` parity tests — the body-building rules ported verbatim
@@ -181,6 +181,29 @@ describe('composeCrudBody — column selection (05 §7.1)', () => {
     const names = composeCrudBody(table, classified, ctx()).columns.map((c) => c.name);
     expect(names).toEqual(['label', 'id']); // id only as the hidden pk re-append
   });
+
+  it('re-appends REQUIRED excluded columns as hidden specs — a form must express every NOT NULL input', () => {
+    /*
+     * The invoice_items lesson: a NOT NULL, no-default free-text `description`
+     * ranked out of the visible set, so every generated create — the page's
+     * own New row and the record page's in-tab add — failed on a constraint
+     * the form never showed. Required columns survive the cap as `hidden`
+     * (grids skip them; forms do not). A required SECRET stays excluded
+     * absolutely — it never leaves the server, whatever the schema demands.
+     */
+    const { table, classified } = build('public.invoice_items', [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true, nullable: false, defaultKind: 'autoincrement' },
+      { name: 'description', logicalType: 'text', semantic: 'free-text', nullable: false },
+      { name: 'notes', logicalType: 'text', semantic: 'free-text' }, // nullable → still dropped
+      { name: 'signing_key', logicalType: 'text', semantic: 'plain', secret: true, nullable: false },
+      { name: 'qty', logicalType: 'decimal', semantic: 'plain', nullable: false },
+    ]);
+    const columns = composeCrudBody(table, classified, ctx()).columns;
+    const description = columns.find((c) => c.name === 'description');
+    expect(description).toMatchObject({ hidden: true, nullable: false });
+    expect(columns.some((c) => c.name === 'notes')).toBe(false);
+    expect(columns.some((c) => c.name === 'signing_key')).toBe(false);
+  });
 });
 
 describe('composeCrudBody — sort, key field, read-only derivation', () => {
@@ -296,6 +319,114 @@ describe('composeCrudBody — form fields (09 §7.1)', () => {
     const strictFields = composeCrudBody(strict.table, strict.classified, ctx()).form?.fields ?? [];
     expect(strictFields.find((f) => f.column === 'email')).toMatchObject({ required: true, unique: true });
     expect(strictFields.find((f) => f.column === 'bio')).toMatchObject({ required: false });
+  });
+});
+
+describe('composeCrudBody — fk.display stamping (FK chips show names, not ids)', () => {
+  const displayColumns = new Map([['public.customers', 'company_name']]);
+
+  it('stamps the referenced display column when the context knows it', () => {
+    const body = composeCrudBody(orders.table, orders.classified, ctx({ displayColumns }));
+    const fk = body.columns.find((c) => c.name === 'customer_id');
+    expect(fk?.fk).toEqual({
+      table: 'public.customers',
+      column: 'customer_id',
+      display: 'company_name',
+    });
+    // Still parses — the field is optional vocabulary, not a new requirement.
+    expect(gridColumnSpecSchema.safeParse(fk).success).toBe(true);
+  });
+
+  it('leaves fk bare without the map (stored-config compatibility path)', () => {
+    const body = composeCrudBody(orders.table, orders.classified, ctx());
+    expect(body.columns.find((c) => c.name === 'customer_id')?.fk).toEqual({
+      table: 'public.customers',
+      column: 'customer_id',
+    });
+  });
+
+  it('skips the stamp when the display column IS the referenced column', () => {
+    // Joining the referenced pk back in would show the raw id anyway.
+    const body = composeCrudBody(
+      orders.table,
+      orders.classified,
+      ctx({ displayColumns: new Map([['public.customers', 'customer_id']]) }),
+    );
+    expect(body.columns.find((c) => c.name === 'customer_id')?.fk).toEqual({
+      table: 'public.customers',
+      column: 'customer_id',
+    });
+  });
+
+  it('skips the stamp when the derived alias would shadow a real source column (server 422)', () => {
+    const { table, classified } = build(
+      'public.orders',
+      [
+        { name: 'order_id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true, nullable: false, defaultKind: 'autoincrement' },
+        {
+          name: 'customer_id',
+          logicalType: 'integer',
+          semantic: 'fk',
+          references: { tableId: 'public.customers', column: 'customer_id' },
+        },
+        // A real column named exactly like the would-be alias.
+        { name: 'customer_id__display', logicalType: 'varchar', semantic: 'plain' },
+      ],
+    );
+    const body = composeCrudBody(table, classified, ctx({ displayColumns }));
+    expect(body.columns.find((c) => c.name === 'customer_id')?.fk).toEqual({
+      table: 'public.customers',
+      column: 'customer_id',
+    });
+  });
+
+  it('stamps hidden re-appended FK specs too — the record page renders them', () => {
+    // A required FK the visible ranking excluded (classified free-text) comes
+    // back through the hidden re-append, and the stamp rides along.
+    const { table, classified } = build('public.line_items', [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true, nullable: false, defaultKind: 'autoincrement' },
+      {
+        name: 'customer_id',
+        logicalType: 'integer',
+        semantic: 'free-text',
+        nullable: false,
+        references: { tableId: 'public.customers', column: 'customer_id' },
+      },
+      { name: 'label', logicalType: 'varchar', semantic: 'plain' },
+    ]);
+    const body = composeCrudBody(table, classified, ctx({ displayColumns }));
+    const hiddenFk = body.columns.find((c) => c.name === 'customer_id');
+    expect(hiddenFk).toMatchObject({
+      hidden: true,
+      fk: { table: 'public.customers', column: 'customer_id', display: 'company_name' },
+    });
+  });
+});
+
+describe('crudDisplayColumns — the fk.display source map', () => {
+  it('maps classified display columns, skipping null and secret ones', () => {
+    const named = build(
+      'public.customers',
+      [
+        { name: 'customer_id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+        { name: 'company_name', logicalType: 'varchar', semantic: 'plain' },
+      ],
+      { displayColumn: 'company_name' },
+    );
+    const bare = build('public.audit_rows', [
+      { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+    ]);
+    const secretive = build(
+      'public.vaults',
+      [
+        { name: 'id', logicalType: 'integer', semantic: 'pk-id', isPrimaryKey: true },
+        { name: 'access_code', logicalType: 'varchar', semantic: 'plain', secret: true },
+      ],
+      { displayColumn: 'access_code' },
+    );
+    expect(crudDisplayColumns([named, bare, secretive])).toEqual(
+      new Map([['public.customers', 'company_name']]),
+    );
   });
 });
 

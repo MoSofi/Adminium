@@ -21,7 +21,19 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFaile
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
+import {
+  applyAggregateMask,
+  fetchAggregateValues,
+  resolveAggregates,
+  type ResolvedAggregate,
+} from '../../crud/aggregates.js';
 import { runList } from '../../crud/list.js';
+import {
+  applyLookupMask,
+  fetchLookupValues,
+  resolveLookups,
+  type ResolvedLookup,
+} from '../../crud/lookups.js';
 import { canReadPii, maskRow, type Row } from '../../crud/mask.js';
 import {
   fetchByPk,
@@ -31,6 +43,7 @@ import {
   type ReferenceCount,
 } from '../../crud/records.js';
 import { rowsEqual, UndoStore, type UndoAction, type UndoEntry } from '../../crud/undo.js';
+import { normalizeWriteValue } from '../../crud/write-values.js';
 import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import {
   dataRecordParams,
@@ -220,7 +233,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           );
         }
       }
-      const { db, dialect } = await manager.data(connectionId);
+      // The row is already in hand from `mustFind` above — passing it spares
+      // this path a second primary-key read on every CRUD request.
+      const { db, dialect } = await manager.data(connection);
       return { connectionId, view, table, db, dialect, unmasked: await canReadPii(request) };
     }
 
@@ -233,7 +248,10 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       const out: Row = {};
       for (const [key, value] of entries) {
         const column = ctx.view.column(ctx.table, key); // 422 unknown/secret
-        out[column.name] = value;
+        // Zoned instants aimed at naive timestamp columns re-encode to the
+        // server-local wall clock — see crud/write-values.ts for the drift
+        // this prevents. (Undo binds driver Date objects and is unaffected.)
+        out[column.name] = normalizeWriteValue(column, value);
       }
       return out;
     }
@@ -321,6 +339,51 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return token;
     }
 
+    /**
+     * Resolve the request's `lookup=` params (crud/lookups.ts): identifier
+     * errors 422 here; per-caller refusals (masking, missing read grant on a
+     * reached table) degrade to `null` + `_masked` instead of failing the
+     * whole read for low-privilege callers.
+     */
+    async function lookupsFor(
+      request: FastifyRequest,
+      ctx: DataContext,
+      raw: string | string[] | undefined,
+    ): Promise<ResolvedLookup[]> {
+      const list = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
+      if (list.length === 0) return [];
+      return resolveLookups({
+        view: ctx.view,
+        table: ctx.table,
+        raw: list,
+        canReadPii: ctx.unmasked,
+        canReadTable: (tableId) => request.can(`table:${ctx.connectionId}:${tableId}:read`),
+      });
+    }
+
+    /**
+     * Resolve the request's `agg=` params (crud/aggregates.ts) — same error
+     * split as `lookupsFor`, with the lookups' aliases passed in so one
+     * request cannot claim a row key twice across the two param families.
+     */
+    async function aggregatesFor(
+      request: FastifyRequest,
+      ctx: DataContext,
+      raw: string | string[] | undefined,
+      lookups: readonly ResolvedLookup[],
+    ): Promise<ResolvedAggregate[]> {
+      const list = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
+      if (list.length === 0) return [];
+      return resolveAggregates({
+        view: ctx.view,
+        table: ctx.table,
+        raw: list,
+        canReadPii: ctx.unmasked,
+        canReadTable: (tableId) => request.can(`table:${ctx.connectionId}:${tableId}:read`),
+        takenAliases: new Set(lookups.map((lookup) => lookup.alias)),
+      });
+    }
+
     // --- list -----------------------------------------------------------------
 
     app.get(
@@ -328,6 +391,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       { schema: { params: dataTableParams, querystring: recordListQuery, response: { 200: recordListReply } } },
       async (request) => {
         const ctx = await contextFor(request, 'read');
+        const lookups = await lookupsFor(request, ctx, request.query.lookup);
+        const aggregates = await aggregatesFor(request, ctx, request.query.agg, lookups);
         return runList({
           db: ctx.db,
           view: ctx.view,
@@ -335,6 +400,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           params: request.query,
           canReadPii: ctx.unmasked,
           dialect: ctx.dialect,
+          lookups,
+          aggregates,
         });
       },
     );
@@ -548,7 +615,17 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const row = await fetchByPk(ctx.db, ctx.table, pk);
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
-        const data = maskRow(row, ctx.table, ctx.unmasked);
+        let data = maskRow(row, ctx.table, ctx.unmasked);
+        const lookups = await lookupsFor(request, ctx, request.query.lookup);
+        if (lookups.length > 0) {
+          const values = await fetchLookupValues(ctx.db, ctx.table, pk, lookups);
+          data = applyLookupMask([{ ...data, ...values }], lookups)[0] as Row;
+        }
+        const aggregates = await aggregatesFor(request, ctx, request.query.agg, lookups);
+        if (aggregates.length > 0) {
+          const values = await fetchAggregateValues(ctx.db, ctx.table, pk, aggregates);
+          data = applyAggregateMask([{ ...data, ...values }], aggregates)[0] as Row;
+        }
         if (request.query.include === 'inboundCounts') {
           return { data, inboundCounts: await referenceCounts(ctx.db, ctx.view, ctx.table, pk) };
         }

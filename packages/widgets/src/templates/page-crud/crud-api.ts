@@ -68,6 +68,19 @@ export interface CrudListParams {
   q?: string | undefined;
   /** ≤ 3 sort keys — serialized `col.desc,col2.asc`. */
   order?: readonly CrudSort[] | undefined;
+  /**
+   * Cross-table lookup specs, `alias:fkColumn[.fkColumn…].targetColumn` —
+   * each aliases one referenced-table column into every row (the host derives
+   * these from the page's lookup column specs). Repeatable `lookup=` params.
+   */
+  lookup?: readonly string[] | undefined;
+  /**
+   * Reverse-link aggregate specs, `alias:table.fkColumn:count` — each counts
+   * the rows of a table whose FK points at this one, aliased into every row
+   * (the host derives these from the page's reverse column specs).
+   * Repeatable `agg=` params.
+   */
+  agg?: readonly string[] | undefined;
   limit?: number | undefined;
   /** Offset mode — mutually exclusive with `cursor`. */
   offset?: number | undefined;
@@ -156,7 +169,14 @@ export interface CrudLookupOption {
 export interface CrudApi {
   list(params: CrudListParams): Promise<CrudListResult>;
   /** `recordId`: single PK value, or JSON tuple/object for composite PKs. */
-  get(recordId: string, options?: { include?: 'inboundCounts' | undefined }): Promise<CrudGetResult>;
+  get(
+    recordId: string,
+    options?: {
+      include?: 'inboundCounts' | undefined;
+      lookup?: readonly string[] | undefined;
+      agg?: readonly string[] | undefined;
+    },
+  ): Promise<CrudGetResult>;
   create(values: CrudRow): Promise<CrudMutationResult>;
   update(recordId: string, patch: CrudRow): Promise<CrudMutationResult>;
   /**

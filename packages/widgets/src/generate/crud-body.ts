@@ -26,12 +26,13 @@
  * resolve row identity and generate the create/edit form's key field.
  */
 
-import type { GridColumnSpecInput } from '../page-config/grid-column-spec.js';
+import { fkDisplayAliasOf, type GridColumnSpecInput } from '../page-config/grid-column-spec.js';
 import {
   humanize,
   type CandidateColumn,
   type CandidateRelation,
   type CandidateTable,
+  type CandidateTableInput,
   type ClassifiedColumnInput,
   type ClassifiedTableInput,
 } from '../registry/candidates.js';
@@ -132,6 +133,63 @@ export interface CrudBodyContext {
   includedTableIds: ReadonlySet<string>;
   /** Every model relation — detail tabs derive from the inbound ones. */
   relations: readonly CandidateRelation[];
+  /**
+   * Referenced-table display columns (tableId → column name) — the
+   * generation-time fact `fk.display` is stamped from, so FK chips can show
+   * "Drift & Fern" instead of the raw id ({@link crudDisplayColumns} builds
+   * it from the included candidate model). Optional: absent ⇔ no stamping,
+   * chips keep their raw-value fallback.
+   */
+  displayColumns?: ReadonlyMap<string, string> | undefined;
+}
+
+/**
+ * The `fk.display` source map for {@link CrudBodyContext.displayColumns}: each
+ * included table's classified display column. Secret display columns are
+ * skipped — the server hard-422s a lookup that targets a secret identifier,
+ * which would break every read of the page (a MASKED display column stays in:
+ * the server nulls it per caller and the chip falls back to the raw id).
+ * Included tables only, deliberately: an FK onto an excluded table has no page
+ * to open and no guarantee the snapshot serves lookups against it.
+ */
+export function crudDisplayColumns(
+  model: readonly CandidateTableInput[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const entry of model) {
+    const display = entry.classified.displayColumn ?? null;
+    if (display === null) continue;
+    const semantics = entry.classified.columns.find((c) => c.column === display);
+    if (semantics?.secret ?? false) continue;
+    map.set(entry.table.id, display);
+  }
+  return map;
+}
+
+/**
+ * The referenced table's display column for one FK column — null unless the
+ * chip's display lookup would actually work: the referenced table must have a
+ * known (non-secret) display column that is not the referenced column itself
+ * (joining the pk back in shows the raw id anyway), and the derived alias must
+ * be servable — inside the server's alias grammar and not shadowing a REAL
+ * column of the source table, which the server refuses with a hard 422 on
+ * every read. The source-table check lives here, at generation time, because
+ * only the generator sees the full column list; the interpreter re-checks only
+ * against the specs it has.
+ */
+function fkDisplayFor(
+  table: CandidateTable,
+  column: CandidateColumn,
+  displayColumns: ReadonlyMap<string, string> | undefined,
+): string | null {
+  const ref = column.references;
+  if (ref === null || ref === undefined || displayColumns === undefined) return null;
+  const display = displayColumns.get(ref.tableId);
+  if (display === undefined || display === ref.column) return null;
+  const alias = fkDisplayAliasOf(column.name);
+  if (alias === null) return null;
+  if (table.columns.some((c) => c.name === alias)) return null;
+  return display;
 }
 
 /** Detail-tab entry (09 §7.1 — `tab-bar` with live count pills). */
@@ -203,10 +261,24 @@ function ordinalOf(column: CandidateColumn): number {
  * page-crud template's column contract ({name, logicalType, semantic, …}); the
  * renderers derive the cell treatment from logicalType+semantic, so no widget
  * id is stored per column.
+ *
+ * Exported (as well as used by `listColumns`) for the Studio column manager:
+ * re-adding a removed column, or composing a lookup column's presentation
+ * from the referenced table's model, must produce exactly the spec a
+ * regeneration would — one composer, two callers.
  */
-function buildColumnDef(
+export function buildColumnDef(
   column: CandidateColumn,
   semantics: ClassifiedColumnInput,
+  /**
+   * The referenced table's display column, when the caller knows it (the
+   * generator via {@link crudDisplayColumns}; the Studio column manager's
+   * schema reply does not carry it, so re-added FK columns stay unstamped
+   * until the next regeneration — the chip's raw-value fallback, never a
+   * crash). Pre-checked by the caller ({@link fkDisplayFor}); stamped as
+   * `fk.display` verbatim.
+   */
+  fkDisplay?: string | null,
 ): GridColumnSpecInput {
   const def: GridColumnSpecInput = {
     name: column.name,
@@ -228,7 +300,11 @@ function buildColumnDef(
     def.mono = true;
   }
   if (column.references !== null && column.references !== undefined) {
-    def.fk = { table: column.references.tableId, column: column.references.column };
+    def.fk = {
+      table: column.references.tableId,
+      column: column.references.column,
+      ...(fkDisplay === null || fkDisplay === undefined ? {} : { display: fkDisplay }),
+    };
   }
   const values = enumValuesFor(column);
   if (values !== null) {
@@ -255,6 +331,7 @@ function buildColumnDef(
 function listColumns(
   table: CandidateTable,
   classified: ClassifiedTableInput,
+  ctx: CrudBodyContext,
 ): GridColumnSpecInput[] {
   const byName = new Map(classified.columns.map((c) => [c.column, c]));
   const displayColumn = classified.displayColumn ?? null;
@@ -271,22 +348,42 @@ function listColumns(
 
   const defs = ranked
     .slice(0, LIST_COLUMN_CAP)
-    .map(({ column, semantics }) => buildColumnDef(column, semantics));
+    .map(({ column, semantics }) =>
+      buildColumnDef(column, semantics, fkDisplayFor(table, column, ctx.displayColumns)),
+    );
 
-  // Every PK column needs a spec even when rankColumn() drops it from the
-  // visible set (pk-id, rule 2): the page-crud template derives row identity
-  // (rowIdOf → the record-route `:recordId`) and the create/edit form fields
-  // from `config.columns`, and a natural PK with no DB default is a *required*
-  // create input. Append the still-missing PK columns as `hidden` — DataGrid
-  // filters hidden specs out of the grid, so the list stays pk-free while
-  // forms/detail and row ids resolve (gridColumnSpecSchema: "Hidden from the
-  // grid but still available to forms/detail").
+  // Every PK column — and every REQUIRED column — needs a spec even when the
+  // ranking drops it from the visible set. Two reasons, one mechanism:
+  //
+  //   - PKs (pk-id, rule 2): the page-crud template derives row identity
+  //     (rowIdOf → the record-route `:recordId`) from `config.columns`.
+  //   - Required columns (NOT NULL, no default, not server-managed): the
+  //     create form is built from `config.columns` too, so a required column
+  //     the ~8 cap dropped (a NOT NULL free-text `description`) made every
+  //     generated create — the page's own "New row" and the record page's
+  //     in-tab add — fail on a constraint the form never showed. A form that
+  //     cannot express a required input is structurally broken, not merely
+  //     terse.
+  //
+  // Both append as `hidden` — DataGrid filters hidden specs out of the grid,
+  // so the list stays capped while forms/detail and row ids resolve
+  // (gridColumnSpecSchema: "Hidden from the grid but still available to
+  // forms/detail"). Secrets stay excluded ABSOLUTELY: they never leave the
+  // server, whatever their constraints — a required secret column is a schema
+  // the generated form cannot serve, and silently emitting its spec would
+  // trade a visible failure for a masking hole.
   const present = new Set(defs.map((def) => def.name));
   for (const column of table.columns) {
-    if (!(column.isPrimaryKey ?? false) || present.has(column.name)) continue;
+    if (present.has(column.name)) continue;
     const semantics = byName.get(column.name);
-    if (semantics === undefined) continue;
-    defs.push({ ...buildColumnDef(column, semantics), hidden: true });
+    if (semantics === undefined || (semantics.secret ?? false)) continue;
+    // Hidden FK specs stamp `fk.display` too: hidden columns still render on
+    // the record page ("available to forms/detail"), where the chip benefits
+    // the same way.
+    const def = buildColumnDef(column, semantics, fkDisplayFor(table, column, ctx.displayColumns));
+    const required = def.nullable === false && def.hasDefault !== true && def.readOnly !== true;
+    if (!(column.isPrimaryKey ?? false) && !required) continue;
+    defs.push({ ...def, hidden: true });
   }
 
   return defs;
@@ -392,7 +489,7 @@ export function composeCrudBody(
     ctx.readOnly || (table.primaryKey ?? []).length === 0 || (table.kind ?? 'table') !== 'table';
 
   const body: CrudPageBody = {
-    columns: listColumns(table, classified),
+    columns: listColumns(table, classified, ctx),
     defaultSort: defaultSort(table, classified),
     pageSize: DEFAULT_PAGE_SIZE,
     keyField: classified.displayColumn ?? (table.primaryKey ?? [])[0] ?? null,

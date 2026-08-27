@@ -120,11 +120,53 @@ export const gridColumnSpecSchema = z.object({
       /** Referenced column (usually its PK). */
       column: z.string().min(1),
       /**
+       * The referenced table's display COLUMN name ("company_name") — a
+       * generation-time fact the crud composer stamps from the classifier's
+       * display-column pick. The interpreter derives a `lookup=` param and a
+       * `displayKey` from it ({@link fkDisplayAliasOf}), so the chip shows
+       * "Drift & Fern" instead of the raw id. Optional: stored pages predate
+       * it and simply keep the raw-value fallback until regenerated.
+       */
+      display: z.string().min(1).optional(),
+      /**
        * Row key carrying the pre-joined display value for the chip
        * (interpreter aliases the joined display column into the row).
        * Falls back to the raw FK value when absent.
        */
       displayKey: z.string().optional(),
+    })
+    .optional(),
+  /**
+   * Cross-table lookup — this column's value is read from ANOTHER table by
+   * following an outbound FK chain from the page's source table (the server's
+   * `lookup=` param, apps/server/src/crud/lookups.ts). `name` is then a
+   * synthetic alias the interpreter asks the server to project the value
+   * under, not a source-table column: `path` is the FK column chain (each hop
+   * a single-column FK of the table reached so far) and `select` the column of
+   * the final referenced table to show. Lookup columns are projections —
+   * never sortable server-side, never form fields.
+   */
+  lookup: z
+    .object({
+      path: z.array(z.string().min(1)).min(1).max(3),
+      select: z.string().min(1),
+    })
+    .optional(),
+  /**
+   * Reverse-link aggregate — this column's value is computed over the rows of
+   * ANOTHER table whose FK points at the page's source table (the server's
+   * `agg=` param, apps/server/src/crud/aggregates.ts). `name` is a synthetic
+   * alias the interpreter asks the server to project the value under:
+   * `table` is the referencing table (qualified), `fkColumn` its FK onto the
+   * source table, and `agg` the aggregate — `count` today, an open string so
+   * future aggregates (`sum` …) never break stored configs. Reverse columns
+   * are projections — never sortable server-side, never form fields.
+   */
+  reverse: z
+    .object({
+      table: z.string().min(1),
+      fkColumn: z.string().min(1),
+      agg: z.string().min(1),
     })
     .optional(),
   /** PII column — masked-by-default treatment ('•••' + unmask affordance). */
@@ -153,3 +195,26 @@ export type GridColumnSpec = z.infer<typeof gridColumnSpecSchema>;
 export type GridColumnSpecInput = z.input<typeof gridColumnSpecSchema>;
 
 export type GridRow = Record<string, unknown>;
+
+/**
+ * The server's `lookup=` alias grammar (apps/server/src/crud/lookups.ts
+ * ALIAS_PATTERN) — aliases are row keys AND SQL aliases, so they stay boring.
+ * Mirrored here because the FK-display derivation must refuse an alias the
+ * server would 422 on, and the browser bundle cannot import server code.
+ */
+const LOOKUP_ALIAS_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+
+/**
+ * The `displayKey` row alias for an FK column's pre-joined display value —
+ * `client_id` → `client_id__display`. ONE derivation shared by the crud
+ * composer (whose stamping pre-checks the alias against the source table's
+ * real columns — a colliding alias is a hard 422 on every read) and the
+ * dashboard interpreter (which turns `fk.display` into the actual `lookup=`
+ * param). Returns null when the alias would break the server's grammar
+ * (a 64-byte column name, exotic identifier characters) — callers skip the
+ * display lookup and the chip keeps its raw-value fallback.
+ */
+export function fkDisplayAliasOf(columnName: string): string | null {
+  const alias = `${columnName}__display`;
+  return LOOKUP_ALIAS_PATTERN.test(alias) ? alias : null;
+}

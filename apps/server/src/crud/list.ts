@@ -20,6 +20,8 @@ import {
   type RecordFilter,
 } from './filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
+import { applyAggregateMask, aggregateSelections, type ResolvedAggregate } from './aggregates.js';
+import { applyLookupMask, lookupSelections, type ResolvedLookup } from './lookups.js';
 import { maskRows, type Row } from './mask.js';
 
 export const LIST_LIMIT_MAX = 200;
@@ -174,10 +176,27 @@ export interface RunListOptions {
   exposeColumns?: readonly string[] | undefined;
   /** Columns `q=` may search; see `compileQuickSearch` (28 D5 b). */
   searchColumns?: readonly string[] | undefined;
+  /**
+   * Resolved cross-table lookups (`crud/lookups.ts`) — each compiles to a
+   * correlated scalar subquery aliased into the SELECT list, so filters,
+   * search, sort, cursors and the count query keep their single-table
+   * semantics. Resolution (and its per-table RBAC) happens in the route, not
+   * here — the public path never passes any.
+   */
+  lookups?: readonly ResolvedLookup[] | undefined;
+  /**
+   * Resolved reverse-link aggregates (`crud/aggregates.ts`) — correlated
+   * scalar COUNT subqueries, same single-table-semantics guarantee as
+   * `lookups`. Resolution (and its per-table RBAC) happens in the route, not
+   * here — the public path never passes any.
+   */
+  aggregates?: readonly ResolvedAggregate[] | undefined;
 }
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
   const { db, view, table, params, canReadPii, dialect, mandatory, exposeColumns, searchColumns } = opts;
+  const lookups = opts.lookups ?? [];
+  const aggregates = opts.aggregates ?? [];
   const dynamic = db.dynamic;
   const ctx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
@@ -236,6 +255,15 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   let qb = applyFilters(
     db.selectFrom(table.id).select([...selectNames].map((name) => dynamic.ref(name))) as unknown as Qb,
   );
+  if (lookups.length > 0) {
+    // Refused lookups compile to nothing — applyLookupMask() nulls + marks
+    // them after the fetch, so refused data never leaves the database.
+    qb = qb.select((eb) => lookupSelections(eb as never, db, table, lookups)) as Qb;
+  }
+  if (aggregates.length > 0) {
+    // Same contract: refused aggregates never reach SQL.
+    qb = qb.select((eb) => aggregateSelections(eb as never, db, table, aggregates)) as Qb;
+  }
   for (const key of sortKeys) qb = qb.orderBy(dynamic.ref(key.column), key.dir);
 
   const cursorMode = params.cursor !== undefined;
@@ -300,7 +328,10 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     const last = pageRows.at(-1);
     const next =
       hasMore && last !== undefined ? encodeCursor(sortKeys.map((key) => last[key.column])) : null;
-    return { data: maskRows(pageRows, table, canReadPii), cursor: { next } };
+    return {
+      data: applyAggregateMask(applyLookupMask(maskRows(pageRows, table, canReadPii), lookups), aggregates),
+      cursor: { next },
+    };
   }
 
   const rows = (await qb.limit(limit).offset(offset).execute()) as Row[];
@@ -335,5 +366,8 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
       total = Number((countRow as { total?: unknown } | undefined)?.total ?? 0);
     }
   }
-  return { data: maskRows(rows, table, canReadPii), page: { limit, offset, total } };
+  return {
+    data: applyAggregateMask(applyLookupMask(maskRows(rows, table, canReadPii), lookups), aggregates),
+    page: { limit, offset, total },
+  };
 }
