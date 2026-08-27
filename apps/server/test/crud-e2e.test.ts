@@ -672,5 +672,17 @@ describe('CRUD API end-to-end (fake adapter)', () => {
     expect(entity.connectionId).toBe(connId);
     expect(entity.table).toBe('main.products');
     expect(entity.pk).toBeDefined();
+
+    // 30 WS-A: the REAL write path denormalizes the per-record lookup keys,
+    // and `entityId` is exactly the `:recordId` string the routes address the
+    // record by — which is what makes the activity feed's equality filter
+    // land on the same rows the URLs name.
+    for (const row of rows) {
+      if (row.entity === null) continue;
+      const ref = JSON.parse(String(row.entity)) as { table: string; pk: Record<string, unknown> };
+      expect(row.entityTable).toBe(ref.table);
+      const values = Object.values(ref.pk);
+      expect(row.entityId).toBe(values.length === 1 ? String(values[0]) : JSON.stringify(values));
+    }
   });
 });

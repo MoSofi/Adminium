@@ -13,6 +13,7 @@ import {
   AUDIT_CHANGES_MAX_BYTES,
   actorKindSchema,
   auditCategorySchema,
+  auditEntityKeyOf,
   recordRefSchema,
   type ActorKind,
   type AuditCategory,
@@ -82,6 +83,10 @@ export function auditRepo(meta: MetaDb) {
   const { db } = meta;
   return {
     async append(input: AuditEntryInput, at: number = Date.now()): Promise<AuditEntry> {
+      const entity = input.entity === null || input.entity === undefined ? null : recordRefSchema.parse(input.entity);
+      // Denormalized per-record lookup keys (30-record-pages.md WS-A): the
+      // indexed columns the activity feed filters on, derived once at write.
+      const entityKeys = entity === null ? null : auditEntityKeyOf(entity);
       const row = {
         id: newId('aud'),
         createdAt: at,
@@ -91,7 +96,9 @@ export function auditRepo(meta: MetaDb) {
         category: auditCategorySchema.parse(input.category),
         action: input.action,
         connectionId: input.connectionId ?? null,
-        entity: input.entity === null || input.entity === undefined ? null : packJson(recordRefSchema.parse(input.entity)),
+        entity: entity === null ? null : packJson(entity),
+        entityTable: entityKeys?.entityTable ?? null,
+        entityId: entityKeys?.entityId ?? null,
         changes: packChanges(input.changes),
         ip: input.ip ?? null,
         userAgent: input.userAgent ?? null,

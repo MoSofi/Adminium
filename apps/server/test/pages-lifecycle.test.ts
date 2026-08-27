@@ -349,6 +349,68 @@ describe('page lifecycle routes', () => {
       expect(await envelopeOf()).not.toHaveProperty('padding');
     });
 
+    /**
+     * `width` rides the same envelope channel as `padding` and carries the same
+     * absent/null contract, so it gets the same three checks — plus the one
+     * padding could not have: BOTH chrome fields in a single PATCH.
+     *
+     * That last case is the regression this test exists for. The two used to be
+     * layered by two separate expressions, each starting from
+     * `recomposed.envelope ?? currentEnvelope(page)` — i.e. both from the
+     * PRE-patch document — so a patch carrying padding and width together kept
+     * only whichever was spread last and silently dropped the other.
+     */
+    it('stores a content-width override, clears it, and survives a joint patch', async () => {
+      const id = await seed();
+      const envelopeOf = async (): Promise<Record<string, unknown>> =>
+        ((await pagesRepo(t.meta).findById(id))?.config ?? {}) as Record<string, unknown>;
+
+      expect(await envelopeOf()).not.toHaveProperty('width');
+
+      const set = await t.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/pages/${id}`,
+        headers: asUser(t.superAdmin),
+        payload: { width: 'narrow' },
+      });
+      expect(set.statusCode).toBe(200);
+      expect((await envelopeOf())['width']).toBe('narrow');
+
+      // Both at once — neither may drop the other.
+      const both = await t.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/pages/${id}`,
+        headers: asUser(t.superAdmin),
+        payload: { width: 'dash', padding: { x: 40, y: 12 } },
+      });
+      expect(both.statusCode).toBe(200);
+      const after = await envelopeOf();
+      expect(after['width']).toBe('dash');
+      expect(after['padding']).toEqual({ x: 40, y: 12 });
+
+      const cleared = await t.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/pages/${id}`,
+        headers: asUser(t.superAdmin),
+        payload: { width: null },
+      });
+      expect(cleared.statusCode).toBe(200);
+      expect(await envelopeOf()).not.toHaveProperty('width');
+      // Clearing one must not clear the other.
+      expect((await envelopeOf())['padding']).toEqual({ x: 40, y: 12 });
+    });
+
+    it('rejects a width that is not one of the named columns', async () => {
+      const id = await seed();
+      const res = await t.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/pages/${id}`,
+        headers: asUser(t.superAdmin),
+        payload: { width: '1000px' },
+      });
+      expect(res.statusCode).toBe(422);
+    });
+
     it('rejects a padding pair the renderer would refuse', async () => {
       const id = await seed();
       const res = await t.app.inject({

@@ -35,6 +35,20 @@ export interface PageTemplateProps {
    *  the dashboard builder routes edits to the shared default vs. a personal
    *  override on this, never on role slugs. */
   canEditLayout?: boolean | undefined;
+  /** Per-caller write capabilities for the envelope's source table, resolved
+   *  by the server from the same `table:<connectionId>:<table>:<action>`
+   *  grants the data routes enforce (30-record-pages.md D4) — bindings hide
+   *  the matching affordances when false so a read-only caller never sees a
+   *  New row / Edit / Delete that would 403. Absent (undefined) means "not
+   *  computed": keep the widget's permissive default. */
+  canCreate?: boolean | undefined;
+  canUpdate?: boolean | undefined;
+  canDelete?: boolean | undefined;
+  /** Caller holds the server's PII unmask permission — the templates render
+   *  the reveal affordance on PII cells. Unlike the write capabilities this
+   *  defaults CLOSED when absent: a reveal control is only honest when the
+   *  server said it sent the values in clear. */
+  canUnmask?: boolean | undefined;
 }
 
 export type PageTemplateComponent = ComponentType<PageTemplateProps>;

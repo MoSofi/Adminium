@@ -56,6 +56,7 @@ import pageFiles from './page-files.json' with { type: 'json' };
 import pageLogViewer from './page-log-viewer.json' with { type: 'json' };
 import pageMasterDetail from './page-master-detail.json' with { type: 'json' };
 import pageQueueInbox from './page-queue-inbox.json' with { type: 'json' };
+import pageRecord from './page-record.json' with { type: 'json' };
 import pageScheduler from './page-scheduler.json' with { type: 'json' };
 import pageSettings from './page-settings.json' with { type: 'json' };
 import pageWizard from './page-wizard.json' with { type: 'json' };
@@ -69,6 +70,13 @@ import { parsePageTemplate, type PageTemplate } from './template-schema.js';
  */
 const MANIFEST_JSON: readonly unknown[] = [
   pageCrud,
+  // The record detail page every crud body names in `config.detail.template`
+  // (30-record-pages.md D3). A TYPED-BODY template like `page-crud` itself:
+  // the slot list records the §7.1/Customer-360 composition the hand-built
+  // component implements (fields + stats + activity + related grids); do not
+  // feed it through `composeTemplate` expecting the renderer to honour the
+  // result. The `stats` slot ships declared-and-empty (30 D4).
+  pageRecord,
   pageDashboard,
   pageMasterDetail,
   pageQueueInbox,

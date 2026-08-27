@@ -30,6 +30,13 @@ export {
 } from './query-descriptor.js';
 export { layoutItemSchema, pageLayoutSchema, type LayoutItem, type PageLayout } from './layout.js';
 export {
+  crudDetailConfigSchema,
+  crudDetailTabSchema,
+  parseCrudDetailConfig,
+  type CrudDetailConfig,
+  type CrudDetailTabConfig,
+} from './detail-config.js';
+export {
   GRID_LOGICAL_TYPES,
   GRID_SEMANTICS,
   gridColumnSpecSchema,

@@ -2,7 +2,7 @@
 /** Zod request/response schemas for `routes/pages/` (08-server-api.md §2.6). */
 
 import { PAGE_TEMPLATE_IDS } from '@adminium/engine';
-import { pagePaddingSchema } from '@adminium/engine/config';
+import { pagePaddingSchema, pageWidthSchema } from '@adminium/engine/config';
 import { z } from 'zod';
 
 import { pageLayoutSchema } from './layout-schema.js';
@@ -67,6 +67,8 @@ export const pageCreateBody = z.object({
   table: z.string().min(1).nullish(),
   /** Page gutter override; omitted ⇒ the template's own default. */
   padding: pagePaddingSchema.nullish(),
+  /** Content-column override; omitted ⇒ the template's own default. */
+  width: pageWidthSchema.nullish(),
 });
 
 /**
@@ -99,6 +101,8 @@ export const pagePatchBody = z
      * different writes.
      */
     padding: pagePaddingSchema.nullish(),
+    /** Content column, on the same "null clears" contract as `padding`. */
+    width: pageWidthSchema.nullish(),
     /** 08 §2.6 optimistic concurrency — the revision the client last read. */
     expectedRevision: z.number().int().min(1).optional(),
   })
@@ -155,6 +159,29 @@ export const pageReply = z.object({
   /** Whether the caller holds `page:<id>:edit` — the dashboard builder routes
    *  edits to the shared default (true) vs. a personal override (false). */
   canEditLayout: z.boolean(),
+  /**
+   * Per-caller write capabilities for the envelope's source table — the same
+   * `table:<connectionId>:<table>:<create|update|delete>` grants the data
+   * routes enforce, so the client only renders affordances that will not 403
+   * (30-record-pages.md D4). Present only for table-bound envelopes read under
+   * RBAC; absent means "not computed" (the client keeps its permissive
+   * default), never "denied".
+   */
+  canCreate: z.boolean().optional(),
+  canUpdate: z.boolean().optional(),
+  canDelete: z.boolean().optional(),
+  /**
+   * Whether the caller holds the PII unmask permission (crud/mask.ts
+   * UNMASK_PERMISSION — the same check the data routes run before sending
+   * masked columns in clear). The grid renders PII cells with a reveal
+   * affordance only when true; when false the server nulls those values
+   * anyway, so the client's masked treatment is not just cosmetic. Absent
+   * means "not computed" and the client keeps cells masked (closed default —
+   * the opposite polarity of the write capabilities above, because a stray
+   * reveal button on data the server DID send in clear would be a leak, not
+   * a 403).
+   */
+  canUnmask: z.boolean().optional(),
   /**
    * Present (true) only when the served layout is the caller's per-user
    * override AND the shared document's revision moved past the one stamped on

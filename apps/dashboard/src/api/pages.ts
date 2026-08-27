@@ -27,7 +27,21 @@ import { api } from '../app/api.js';
 export type { PageEnvelope } from '@adminium/engine/config';
 
 export type PageDocumentResult =
-  | { status: 'ok'; page: PageEnvelope; canEditLayout: boolean }
+  | {
+      status: 'ok';
+      page: PageEnvelope;
+      canEditLayout: boolean;
+      /** Per-caller write capabilities for the envelope's source table (the
+       *  same `table:` grants the data routes enforce) — false hides the
+       *  matching affordance so a viewer never sees a button that 403s. */
+      canCreate: boolean;
+      canUpdate: boolean;
+      canDelete: boolean;
+      /** Caller holds the server's PII unmask permission — PII cells render a
+       *  reveal affordance. Defaults CLOSED (false) when absent: the reveal is
+       *  only honest when the server actually sent values in clear. */
+      canUnmask: boolean;
+    }
   | { status: 'too-new'; v: number; latest: number }
   | { status: 'invalid'; issues: string[] };
 
@@ -79,9 +93,23 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
       ),
     };
   }
-  // `canEditLayout` is a per-caller server capability, not part of the stored
-  // document — the query wrapper fills it from the response; default false.
-  return { status: 'ok', page: parsed.data, canEditLayout: false };
+  // The per-caller server capabilities are not part of the stored document —
+  // the query wrapper fills them from the response. `canEditLayout` defaults
+  // closed (false routes builder saves to the personal override); the write
+  // capabilities default OPEN, because absent means "not computed" (a
+  // source-less page, or a server predating the field), and hiding every
+  // write affordance there would be a regression, not honesty.
+  return {
+    status: 'ok',
+    page: parsed.data,
+    canEditLayout: false,
+    canCreate: true,
+    canUpdate: true,
+    canDelete: true,
+    // Closed default, unlike the write capabilities: a reveal button is only
+    // honest when the server said it sent PII in clear.
+    canUnmask: false,
+  };
 }
 
 /** Page documents change on regeneration/edits, both WS-invalidated — 5 min. */
@@ -92,12 +120,27 @@ export function pageQuery(pageId: string) {
     queryKey: ['page', pageId] as const,
     staleTime: PAGE_STALE_TIME_MS,
     queryFn: async (): Promise<PageDocumentResult> => {
-      const reply = await api.get<{ data: unknown; canEditLayout?: boolean }>(
-        `/api/v1/pages/${encodeURIComponent(pageId)}`,
-      );
+      const reply = await api.get<{
+        data: unknown;
+        canEditLayout?: boolean;
+        canCreate?: boolean;
+        canUpdate?: boolean;
+        canDelete?: boolean;
+        canUnmask?: boolean;
+      }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = parsePageDocument(reply.data);
       return result.status === 'ok'
-        ? { ...result, canEditLayout: reply.canEditLayout === true }
+        ? {
+            ...result,
+            canEditLayout: reply.canEditLayout === true,
+            // `!== false`: only an explicit server denial hides an affordance
+            // (absent = not computed, keep the permissive default).
+            canCreate: reply.canCreate !== false,
+            canUpdate: reply.canUpdate !== false,
+            canDelete: reply.canDelete !== false,
+            // `=== true`: opposite polarity — absent means keep cells masked.
+            canUnmask: reply.canUnmask === true,
+          }
         : result;
     },
   });

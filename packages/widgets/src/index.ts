@@ -194,6 +194,8 @@ export type { ApiKeyRecord } from './families/domain/domain-ops-types.js';
 
 // Page templates — page-crud (09 §7.1): template component + CrudApi contract.
 export * from './templates/page-crud/index.js';
+// page-record (30-record-pages.md D4): the record detail page + host seams.
+export * from './templates/page-record/index.js';
 
 // Page templates — planning archetypes (09 §7.5/§7.6): board, calendar, scheduler.
 export * from './templates/page-board/index.js';

@@ -16,12 +16,14 @@ export {
   navConfigSchema,
   pageEnvelopeSchema,
   pagePaddingSchema,
+  pageWidthSchema,
   widgetConfigSchema,
   type ConfigKind,
   type NavConfig,
   type PageConfig,
   type PageEnvelope,
   type PagePaddingConfig,
+  type PageWidthConfig,
   type WidgetConfig,
 } from './envelope.js';
 export {
@@ -70,4 +72,15 @@ export {
   type GridColumnSpecInput,
   type GridLogicalType,
   type GridTone,
+} from '@adminium/widgets/page-config';
+// `page-crud`'s stored `config.detail` block (30-record-pages.md D1/D3): the
+// record-page contract every generated body already carries. Same sharing
+// rationale as the column spec above — one schema on both sides of the
+// boundary, absence tolerated.
+export {
+  crudDetailConfigSchema,
+  crudDetailTabSchema,
+  parseCrudDetailConfig,
+  type CrudDetailConfig,
+  type CrudDetailTabConfig,
 } from '@adminium/widgets/page-config';

@@ -7,6 +7,7 @@ import {
   DrawerHeader,
   EmptyState,
   FilterChip,
+  IconButton,
   KeyValueList,
   KeyValueRow,
   ModalBody,
@@ -21,7 +22,7 @@ import {
 } from '@adminium/ui';
 import { getFormatters } from '@adminium/i18n';
 import { useMaybeT } from '@adminium/i18n/react';
-import { Plus } from 'lucide-react';
+import { ArrowUpRight, Eye, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { RecordDetail } from './RecordDetail.js';
@@ -43,21 +44,28 @@ import type { CellContext } from '../../families/tables/cells.js';
 import { displayValueOf, rowIdOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { describeDataError } from '../../lib/data-error.js';
 
 /**
  * `page-crud` — the per-table resource template (09-generated-app.md §7.1;
  * annex §14): toolbar (search + filter chips + "New row" — DB framing) that
  * morphs into `bulk-action-toolbar` on selection (CSV export + cascade
- * delete), type-aware `data-grid`
- * over the CRUD API, keyset `pagination-footer`, detail panel
- * (`detail-key-value` + inbound-FK tabs) for `/p/$slug/r/$recordId`,
- * generated create/edit forms (TwoPhaseModal create — domain framing),
- * references-preflight type-to-confirm cascade delete, and undo toasts on
- * every mutation.
+ * delete), type-aware `data-grid` over the CRUD API, keyset
+ * `pagination-footer`, generated create/edit forms (TwoPhaseModal create —
+ * domain framing), references-preflight type-to-confirm cascade delete, and
+ * undo toasts on every mutation.
+ *
+ * ROW SEMANTICS (30-record-pages.md D1/§3.3): a row is a LINK — click/Enter
+ * emit `record-open` and the host navigates to the record PAGE
+ * (`/p/$slug/r/$recordId`, rendered by `page-record`). The old
+ * route-controlled detail drawer survives as an ephemeral PEEK behind the eye
+ * action in the row-actions column: plain component state, no URL write, and
+ * an "Open page" affordance in its header so the peek is a step toward the
+ * page, never a dead end.
  *
  * All data access flows through the injected `CrudApi` — the dashboard
- * interpreter implements it against `/api/v1/data/:connectionId/:table` and
- * owns routing (detail id in/out via `detailRecordId`/`onDetailRecordChange`).
+ * interpreter implements it against `/api/v1/data/:connectionId/:table`; the
+ * host owns all navigation through the `record-open` events.
  */
 
 export const PAGE_CRUD_TEMPLATE_ID = 'page-crud';
@@ -85,6 +93,8 @@ export interface PageCrudLabels {
   undo?: string | undefined;
   editTitle?: string | undefined;
   close?: string | undefined;
+  /** Accessible name of the row's eye action (30 D1). */
+  peek?: string | undefined;
 }
 
 /**
@@ -121,10 +131,8 @@ export interface PageCrudProps {
   canDelete?: boolean | undefined;
   /** Caller may reveal PII cells (server sends them unmasked). */
   canUnmask?: boolean | undefined;
-  /** Route-controlled detail record (child route `/r/$recordId`). */
-  detailRecordId?: string | null | undefined;
-  onDetailRecordChange?: ((recordId: string | null) => void) | undefined;
-  /** Host event sink (FK chips open other tables' records, drill-through). */
+  /** Host event sink: row click/Enter and FK chips emit `record-open` here
+   *  (the host navigates to the record page, 30 D1), drill-through, mutate. */
   onEvent?: ((event: WidgetEvent) => void) | undefined;
   locale?: string | undefined;
   currency?: string | undefined;
@@ -139,7 +147,15 @@ interface ListState {
   rows: CrudRow[];
   nextCursor: string | null;
   loading: boolean;
-  error: string | null;
+  /**
+   * The REJECTION, not its message.
+   *
+   * This was a flattened string, which threw away the server's error code
+   * before anything could read it — so a connection an operator had paused
+   * (meta wave 0019) rendered as "Query failed" under a Retry button that
+   * could never work. `describeDataError` needs the object.
+   */
+  error: unknown;
 }
 
 interface DeleteTarget {
@@ -184,8 +200,6 @@ export function PageCrud({
   canUpdate = true,
   canDelete = true,
   canUnmask = false,
-  detailRecordId,
-  onDetailRecordChange,
   onEvent,
   locale,
   currency,
@@ -320,12 +334,7 @@ export function PageCrud({
       })
       .catch((reason: unknown) => {
         if (!alive) return;
-        setList({
-          rows: [],
-          nextCursor: null,
-          loading: false,
-          error: reason instanceof Error ? reason.message : t('ui:templates.crud.queryFailed', 'Query failed'),
-        });
+        setList({ rows: [], nextCursor: null, loading: false, error: reason });
       });
     return () => {
       alive = false;
@@ -353,15 +362,38 @@ export function PageCrud({
     setReloadTick((tick) => tick + 1);
   }, []);
 
-  // --- detail ----------------------------------------------------------------
-  const [internalDetailId, setInternalDetailId] = useState<string | null>(null);
-  const detailId = detailRecordId !== undefined ? detailRecordId : internalDetailId;
-  const setDetailId = useCallback(
-    (next: string | null) => {
-      setInternalDetailId(next);
-      onDetailRecordChange?.(next);
+  /**
+   * The error panel's contents, or null while the list is fine.
+   *
+   * Split out because a PAUSED connection is not a failed query: it gets its
+   * own title, a calmer tone and no Retry (`lib/data-error.ts`).
+   */
+  const listError =
+    list.error == null
+      ? null
+      : describeDataError(
+          list.error,
+          t('ui:templates.crud.queryFailed', 'Query failed'),
+          t('ui:templates.common.connectionPaused', 'This connection is paused'),
+        );
+
+  // --- peek (30 D1) ----------------------------------------------------------
+  // EPHEMERAL local state, deliberately: the record URL now means the record
+  // PAGE, so the peek writes nothing to the URL — closing it leaves search,
+  // sort, filters and pagination exactly as they were.
+  const [peekId, setPeekId] = useState<string | null>(null);
+
+  /** Row click/Enter → the host navigates to the record page (30 §3.3). */
+  const openRecordPage = useCallback(
+    (recordId: string) => {
+      onEvent?.({
+        type: 'record-open',
+        ...(source.connectionId === null ? {} : { connectionId: source.connectionId }),
+        table: source.table,
+        recordId,
+      });
     },
-    [onDetailRecordChange],
+    [onEvent, source.connectionId, source.table],
   );
 
   // --- create ----------------------------------------------------------------
@@ -506,7 +538,7 @@ export function PageCrud({
     try {
       const result = await api.remove(recordId, { confirm: true });
       setDeleteTarget(null);
-      if (detailId === recordId) setDetailId(null);
+      if (peekId === recordId) setPeekId(null);
       // A deleted row cannot stay SELECTED. The bulk bar would go on counting
       // it, and — now that the export carries the whole selection rather than
       // whatever the loaded page happens to hold — the file would carry a row
@@ -655,8 +687,17 @@ export function PageCrud({
           CRUD Admin.dc.html are identical on this point). The toolbar used to
           float above a separate card, which read as two unrelated slabs and
           left the grid's card without the elevation every other surface has.
-          `shadow-card` is `--shadow`, the token the comps set on this box. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card">
+          `shadow-card` is `--shadow`, the token the comps set on this box.
+
+          Height is content-driven and only CAPPED by the viewport
+          (`max-h-full`, not `flex-1`): a page holding ten rows draws a card
+          that ends just under its footer instead of one stretched to the
+          bottom of the window with a band of empty surface between the last
+          row and the pagination bar. Past the cap the card stops growing and
+          the grid region below scrolls inside it, so the toolbar and footer
+          stay pinned exactly as before. The outer `h-full` is what
+          `max-h-full` resolves against, so both are load-bearing. */}
+      <div className="flex max-h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-card">
         {/* Toolbar. Search first, then the views/filter control, then the
             active filter chips; only the END slot swaps on selection (09 §7.1
             "morphs"). Selecting rows used to replace the WHOLE rail, which took
@@ -724,15 +765,18 @@ export function PageCrud({
           )}
         </div>
 
-        {list.error !== null ? (
+        {listError !== null ? (
           <EmptyState
-            tone="danger"
-            title={t('ui:templates.crud.queryFailed', 'Query failed')}
-            body={list.error}
+            tone={listError.tone}
+            title={listError.title}
+            body={listError.body}
             actions={
-              <Button size="sm" variant="secondary" onClick={refetch}>
-                {t('ui:action.retry', 'Retry')}
-              </Button>
+              // A paused connection offers no Retry: see `describeDataError`.
+              listError.retryable ? (
+                <Button size="sm" variant="secondary" onClick={refetch}>
+                  {t('ui:action.retry', 'Retry')}
+                </Button>
+              ) : undefined
             }
           />
         ) : list.loading && list.rows.length === 0 ? (
@@ -780,7 +824,18 @@ export function PageCrud({
               selectable
               selected={selected}
               onSelectedChange={changeSelection}
-              onRowOpen={(row) => setDetailId(rowIdOf(columns, row))}
+              onRowOpen={(row) => openRecordPage(rowIdOf(columns, row))}
+              rowEnd={(row) => (
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  label={labels?.peek ?? t('ui:templates.crud.peekAction', 'Peek')}
+                  onClick={() => setPeekId(rowIdOf(columns, row))}
+                >
+                  <Eye className="size-3.5" />
+                </IconButton>
+              )}
+              labels={{ rowActions: t('ui:widgets.tables.dataGrid.rowActionsLabel', 'Row actions') }}
               cellContext={cellContext}
             />
           </div>
@@ -864,15 +919,31 @@ export function PageCrud({
         </ModalBody>
       </TwoPhaseModal>
 
-      {/* Detail panel — `/p/$slug/r/$recordId` (09 §7.1). */}
-      <Drawer open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)} size="md">
-        <DrawerHeader title={entity} closeLabel={labels?.close ?? t('ui:action.close', 'Close')} />
+      {/* Peek — ephemeral row preview behind the eye action (30 D1). The
+          header's "Open page" lands on the record page, so the peek is a step
+          toward it, never a dead end. */}
+      <Drawer open={peekId !== null} onOpenChange={(open) => !open && setPeekId(null)} size="md">
+        <DrawerHeader title={entity} closeLabel={labels?.close ?? t('ui:action.close', 'Close')}>
+          <button
+            type="button"
+            data-part="peek-open-page"
+            className="mt-0.5 inline-flex items-center gap-1 text-body-sm font-semibold text-accent hover:underline"
+            onClick={() => {
+              const target = peekId;
+              setPeekId(null);
+              if (target !== null) openRecordPage(target);
+            }}
+          >
+            {t('ui:templates.crud.openPage', 'Open page')}
+            <ArrowUpRight className="size-3.5 rtl:-scale-x-100" aria-hidden="true" />
+          </button>
+        </DrawerHeader>
         <DrawerBody>
-          {detailId !== null && (
+          {peekId !== null && (
             <RecordDetail
               api={api}
               columns={columns}
-              recordId={detailId}
+              recordId={peekId}
               cellContext={cellContext}
               {...(canUpdate ? { onEdit: (record: CrudRow) => setEditRecord(record) } : {})}
               {...(canDelete ? { onDelete: (record: CrudRow) => openDeleteFor(record) } : {})}

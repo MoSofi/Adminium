@@ -5,6 +5,7 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PageCrud, SEARCH_DEBOUNCE_MS } from './PageCrud.js';
+import { RecordForm } from './RecordForm.js';
 import type {
   CrudApi,
   CrudExportRequest,
@@ -139,13 +140,49 @@ describe('PageCrud template (09 §7.1)', () => {
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeDefined();
   });
 
+  it('row click emits record-open with the page table; the eye opens the PEEK (30 D1)', async () => {
+    const user = userEvent.setup();
+    const api = makeApi(rows);
+    const onEvent = vi.fn();
+    renderPage(api, { onEvent });
+    await screen.findByText('Initech');
+
+    // Row click → host navigation event, NOT a drawer.
+    await user.click(screen.getByText('Initech'));
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'record-open',
+      connectionId: 'conn_1',
+      table: 'public.customers',
+      recordId: '1',
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // The eye action opens the ephemeral peek; its header carries Open page.
+    const firstRow = screen.getAllByRole('row')[1] as HTMLElement;
+    await user.click(within(firstRow).getByRole('button', { name: 'Peek' }));
+    const peek = await screen.findByRole('dialog');
+    await within(peek).findByText('Fields');
+
+    // "Open page" in the peek header emits the same navigation event.
+    onEvent.mockClear();
+    await user.click(within(peek).getByRole('button', { name: /Open page/ }));
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'record-open',
+      connectionId: 'conn_1',
+      table: 'public.customers',
+      recordId: '1',
+    });
+  });
+
   it('delete flow: references preflight renders consequences and gates on type-to-confirm', async () => {
     const user = userEvent.setup();
     const api = makeApi(rows);
     renderPage(api);
 
-    // open the detail panel via row click
-    await user.click(await screen.findByText('Initech'));
+    // open the PEEK via the row's eye action (30 D1 — rows navigate now)
+    await screen.findByText('Initech');
+    const firstRow = screen.getAllByRole('row')[1] as HTMLElement;
+    await user.click(within(firstRow).getByRole('button', { name: 'Peek' }));
     const detailDialog = await screen.findByRole('dialog');
     await within(detailDialog).findByText('Fields');
 
@@ -220,6 +257,30 @@ describe('PageCrud template (09 §7.1)', () => {
     expect(await screen.findByText('Query failed')).toBeDefined();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText('Initech')).toBeDefined();
+  });
+
+  /**
+   * A connection an operator PAUSED (meta wave 0019) is not a failed query, and
+   * the difference has to reach the screen: "Query failed" over a Retry button
+   * describes an incident that is not happening and offers a control that
+   * cannot work — nothing will change until a person resumes the connection.
+   */
+  it('a paused connection reads as paused, and offers no Retry', async () => {
+    const api = makeApi(rows);
+    const paused = Object.assign(new Error('The connection “prod” is paused.'), {
+      code: 'CONNECTION_DISABLED',
+    });
+    (api.list as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(paused)
+      .mockRejectedValueOnce(paused); // count probe
+    renderPage(api);
+
+    expect(await screen.findByText('This connection is paused')).toBeDefined();
+    // The server's sentence still carries the specifics (which connection,
+    // where to resume it) — only the headline and the dead button change.
+    expect(screen.getByText('The connection “prod” is paused.')).toBeDefined();
+    expect(screen.queryByText('Query failed')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 });
 
@@ -537,8 +598,9 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     await selectRowByName(user, 'Stark Industries');
     await expectSelectedCount(2);
 
-    // Delete the first one through its own row action, not through the bulk bar.
-    await user.click(screen.getByText('Initech'));
+    // Delete the first one through its own row's peek, not through the bulk bar.
+    const initechRow = screen.getByText('Initech').closest('[role="row"]') as HTMLElement;
+    await user.click(within(initechRow).getByRole('button', { name: 'Peek' }));
     const detailDialog = await screen.findByRole('dialog');
     await within(detailDialog).findByText('Fields');
     await user.click(within(detailDialog).getByRole('button', { name: 'Delete' }));
@@ -591,5 +653,44 @@ describe('page-crud bulk Export (09 §11.2)', () => {
     await selectFirstRowAndExport(user);
 
     expect(await screen.findByText('Export quota exceeded')).toBeDefined();
+  });
+});
+
+describe('RecordForm date round-trip (client-portal audit repro, 2026-08-24)', () => {
+  it('an untouched postgres DATE saves back the same calendar day under a non-UTC TZ', async () => {
+    const tzBefore = process.env.TZ;
+    process.env.TZ = 'Europe/Berlin';
+    try {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      const invoiceColumns = [
+        spec({ name: 'number', label: 'Number', logicalType: 'varchar', nullable: false, isDisplay: true }),
+        spec({ name: 'issued_on', label: 'Issued on', logicalType: 'date', nullable: true }),
+      ];
+      render(
+        <RecordForm
+          columns={invoiceColumns}
+          mode="edit"
+          // The pg wire shape for `date '2026-05-29'` read on a UTC+2 host.
+          initialValues={{ number: 'INV-1007', issued_on: '2026-05-28T22:00:00.000Z' }}
+          onSubmit={onSubmit}
+          footer={<button type="submit">Save changes</button>}
+        />,
+      );
+
+      // The native date input needs YYYY-MM-DD: the instant must render as
+      // the writer's calendar day — not blank, not the UTC day before.
+      const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+      expect(dateInput.value).toBe('2026-05-29');
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      // Saving without touching the field submits the same day — the audit
+      // images showed issued_on drifting 22:00Z of the 28th → the 27th here.
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ issued_on: '2026-05-29' }));
+    } finally {
+      if (tzBefore === undefined) delete process.env.TZ;
+      else process.env.TZ = tzBefore;
+    }
   });
 });

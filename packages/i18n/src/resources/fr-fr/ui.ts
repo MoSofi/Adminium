@@ -550,7 +550,8 @@ export default {
         "selectAllLabel": "Sélectionner toutes les lignes",
         "selectRowLabel": "Sélectionner la ligne",
         "sortByLabel": "Trier par {column}",
-        "description": "La grille CRUD de référence, avec colonnes triables, sélection de lignes et cellules adaptées au type."
+        "description": "La grille CRUD de référence, avec colonnes triables, sélection de lignes et cellules adaptées au type.",
+        "rowActionsLabel": "Actions de ligne"
       },
       "paginationFooter": {
         "emptyLabel": "0 ligne",
@@ -1470,7 +1471,9 @@ export default {
         "inboundReferences": "références entrantes",
         "relatedCount": "{count, plural, one {{n} enregistrement lié dans {table}} other {{n} enregistrements liés dans {table}}}",
         "loadError": "Impossible de charger l’enregistrement."
-      }
+      },
+      "peekAction": "Aperçu",
+      "openPage": "Ouvrir la page"
     },
     "queue": {
       "allSegment": "Tout",
@@ -1597,7 +1600,8 @@ export default {
       "clearFilters": "Effacer les filtres",
       "noMatchesBody": "Essayez une autre recherche ou supprimez un filtre.",
       "detailLabel": "Détail",
-      "loadingRecord": "Chargement de l’enregistrement"
+      "loadingRecord": "Chargement de l’enregistrement",
+      "connectionPaused": "Cette connexion est en pause"
     },
     "directory": {
       "invalidConfig": "La configuration enregistrée de cet annuaire est invalide. Régénérez la page pour la restaurer.",
@@ -1737,6 +1741,25 @@ export default {
     },
     "pageSettings": {
       "description": "Une matrice de préférences de notification avec interrupteurs par canal et enregistrement automatique."
+    },
+    "record": {
+      "relatedEmptyTitle": "Aucun enregistrement lié",
+      "loadError": "Impossible de charger l’enregistrement.",
+      "loadingActivity": "Chargement de l’activité",
+      "activityTab": "Activité",
+      "activityEmptyTitle": "Aucune activité enregistrée",
+      "activityEmptyBody": "Les modifications effectuées via Adminium apparaîtront ici.",
+      "activityLoadOlder": "Charger l’activité plus ancienne",
+      "activity": {
+        "created": "{actor} a créé cet enregistrement",
+        "updated": "{actor} a mis à jour cet enregistrement",
+        "deleted": "{actor} a supprimé cet enregistrement",
+        "undone": "{actor} a annulé une modification",
+        "changedFields": "{count, plural, one {{n} champ modifié} other {{n} champs modifiés}}"
+      }
+    },
+    "pageRecord": {
+      "description": "Un enregistrement en pleine page : ses champs, ses enregistrements liés avec compteurs en direct et son activité."
     }
   },
   "frame": {

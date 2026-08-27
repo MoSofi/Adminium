@@ -550,7 +550,8 @@ export default {
         "selectAllLabel": "选择所有行",
         "selectRowLabel": "选择此行",
         "sortByLabel": "按{column}排序",
-        "description": "标准的增删改查表格，含可排序列、行选择和类型感知单元格。"
+        "description": "标准的增删改查表格，含可排序列、行选择和类型感知单元格。",
+        "rowActionsLabel": "行操作"
       },
       "paginationFooter": {
         "emptyLabel": "0 行",
@@ -1470,7 +1471,9 @@ export default {
         "inboundReferences": "入站引用",
         "relatedCount": "{count, plural, other {{n} related records in {table}}}",
         "loadError": "无法加载该记录。"
-      }
+      },
+      "peekAction": "快速查看",
+      "openPage": "打开页面"
     },
     "queue": {
       "allSegment": "全部",
@@ -1597,7 +1600,8 @@ export default {
       "clearFilters": "清除筛选",
       "noMatchesBody": "试试其他搜索词或移除筛选。",
       "detailLabel": "详情",
-      "loadingRecord": "正在加载记录"
+      "loadingRecord": "正在加载记录",
+      "connectionPaused": "此连接已暂停"
     },
     "directory": {
       "invalidConfig": "此通讯录保存的配置无效。请重新生成页面以恢复。",
@@ -1737,6 +1741,25 @@ export default {
     },
     "pageSettings": {
       "description": "通知偏好矩阵，含按渠道的开关和自动保存。"
+    },
+    "record": {
+      "relatedEmptyTitle": "暂无关联记录",
+      "loadError": "无法加载该记录。",
+      "loadingActivity": "正在加载活动",
+      "activityTab": "活动",
+      "activityEmptyTitle": "没有记录到活动",
+      "activityEmptyBody": "通过 Adminium 所做的更改会显示在这里。",
+      "activityLoadOlder": "加载更早的活动",
+      "activity": {
+        "created": "{actor} 创建了此记录",
+        "updated": "{actor} 更新了此记录",
+        "deleted": "{actor} 删除了此记录",
+        "undone": "{actor} 撤销了一次更改",
+        "changedFields": "{count, plural, other {已更改 {n} 个字段}}"
+      }
+    },
+    "pageRecord": {
+      "description": "以完整页面展示单条记录：字段、带实时计数的关联记录，以及变更活动。"
     }
   },
   "frame": {

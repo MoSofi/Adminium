@@ -7,6 +7,7 @@
  *
  * Requires `system:audit:read` (meta closed-set key `audit.read`).
  */
+import { auditEntityKeyPart } from '@adminium/meta';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
@@ -101,11 +102,18 @@ export const auditRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: { querystring: auditListQuery, response: { 200: auditListReply } },
     },
     async (request) => {
-      const { actorId, category, resource, from, to, cursor, limit } = request.query;
+      const { actorId, category, resource, connectionId, entityTable, entityId, from, to, cursor, limit } =
+        request.query;
 
       let q = meta.db.selectFrom('adminium_audit_log').selectAll();
       if (actorId !== undefined) q = q.where('actorId', '=', actorId);
       if (category !== undefined) q = q.where('category', '=', category);
+      // Per-record filter (30 WS-A): equality on the denormalized indexed
+      // columns. Clamped through the same helper the write side uses, so an
+      // over-long key still matches the truncated form it was stored as.
+      if (connectionId !== undefined) q = q.where('connectionId', '=', connectionId);
+      if (entityTable !== undefined) q = q.where('entityTable', '=', auditEntityKeyPart(entityTable));
+      if (entityId !== undefined) q = q.where('entityId', '=', auditEntityKeyPart(entityId));
       if (from !== undefined) q = q.where('createdAt', '>=', from);
       if (to !== undefined) q = q.where('createdAt', '<=', to);
       if (resource !== undefined && resource.length > 0) {
