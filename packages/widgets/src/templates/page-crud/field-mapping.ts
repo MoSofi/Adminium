@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { dateOnlyValue } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 
 /**
@@ -31,6 +32,9 @@ export const SEGMENTED_MAX_ARITY = 4;
 const SERVER_MANAGED_SEMANTICS = new Set(['created-at', 'updated-at']);
 
 export function fieldKindFor(column: GridColumnSpec): FieldKind {
+  // Lookup columns are cross-table projections — there is nothing on this
+  // table to write, so they never appear in forms at all.
+  if (column.lookup !== undefined || column.reverse !== undefined) return 'hidden';
   // Server-managed columns never render as inputs (09 §7.1 form keeper).
   if (column.primaryKey && column.hasDefault) return 'hidden';
   if (column.semantic !== null && SERVER_MANAGED_SEMANTICS.has(column.semantic)) return 'hidden';
@@ -98,10 +102,18 @@ export function fieldTypeTag(column: GridColumnSpec): string {
   return column.logicalType;
 }
 
+// The wire-instant decode moved to the tables family (column-spec.ts): the
+// cell renderer needs the same recovery and families/tables cannot import
+// from templates/. Re-exported so form-side consumers keep this surface.
+export { dateOnlyValue };
+
 /** Coerce a raw input string back to the column's wire type for the API. */
 export function coerceFieldValue(column: GridColumnSpec, raw: unknown): unknown {
   if (raw === '' || raw === undefined) return column.nullable ? null : raw === '' ? '' : raw;
   const kind = fieldKindFor(column);
+  // Untouched edit fields still hold the wire instant at submit time — send
+  // the calendar day, never the instant the server would re-truncate in UTC.
+  if (kind === 'date' && raw !== null) return dateOnlyValue(raw);
   if (kind === 'number' && typeof raw === 'string') {
     const parsed = Number(raw);
     return Number.isFinite(parsed) ? parsed : raw;

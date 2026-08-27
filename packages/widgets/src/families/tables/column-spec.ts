@@ -23,6 +23,7 @@ import type {
 export {
   GRID_LOGICAL_TYPES,
   GRID_SEMANTICS,
+  fkDisplayAliasOf,
   gridColumnSpecSchema,
   gridLogicalTypeSchema,
   type GridColumnSpec,
@@ -162,6 +163,43 @@ export function formatAbsoluteTime(value: unknown, locale?: string): string {
   if (Number.isNaN(time.getTime())) return String(value ?? '');
   // Data context (latn digits + gregorian, §4.2) via the format layer.
   return getFormatters(locale ?? 'en-US').dateTime(time);
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Normalize a `date` column value to its `YYYY-MM-DD` calendar day — the
+ * shape the native date input, the server's write path (apps/server
+ * data-io/coerce.ts stores dates as plain date strings), and
+ * `formatCalendarDate` below all want.
+ *
+ * A postgres DATE crosses the wire as the driver's server-local-midnight
+ * Date, JSON-serialized to a UTC instant: `date '2026-05-29'` read on a
+ * UTC+2 host arrives as '2026-05-28T22:00:00.000Z'. Slicing that instant
+ * (or reading it with local getters) lands one day off whenever reader
+ * midnight and writer midnight straddle the instant — the audit-visible
+ * −1-day shift on untouched edit saves. Reading the instant at +12h
+ * recovers the writer's calendar day for any writer offset in (−12, +12]
+ * without knowing the writer's zone. Plain date strings (sqlite rows, csv
+ * imports, user-picked input values) pass through, and unparseable values
+ * pass through for the database to reject.
+ */
+export function dateOnlyValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'string' && DATE_ONLY.test(value)) return value;
+  const parsed = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return new Date(parsed.getTime() + 12 * 3_600_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Locale calendar day for `date` cells — decoded via `dateOnlyValue`, then
+ * formatted AT UTC so no viewer zone can re-shift the recovered day.
+ */
+export function formatCalendarDate(value: unknown, locale?: string): string {
+  const day = dateOnlyValue(value);
+  if (!DATE_ONLY.test(day)) return day; // '' and unparseable values fall through raw
+  return getFormatters(locale ?? 'en-US').date(new Date(`${day}T00:00:00Z`), 'medium', { timeZone: 'UTC' });
 }
 
 /** Stable row id from the spec's PK columns (composite → JSON tuple, §2.7.2). */

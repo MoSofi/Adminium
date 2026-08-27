@@ -75,6 +75,25 @@ describe('CellValue — type-aware cell renderers (09 §7.1)', () => {
     });
   });
 
+  it('FK chip falls back to the raw id when the display lookup is refused (masked), never blank', () => {
+    // A PII display column the caller may not read: the server nulls the
+    // alias and lists it in `_masked` (crud/lookups.ts applyLookupMask). The
+    // chip must show the raw FK value — a blank chip would lie about the row.
+    render(
+      <CellValue
+        column={spec({
+          name: 'owner_id',
+          label: 'Owner',
+          logicalType: 'integer',
+          semantic: 'fk',
+          fk: { table: 'public.team_members', column: 'id', display: 'full_name', displayKey: 'owner_id__display' },
+        })}
+        row={{ owner_id: 3, owner_id__display: null, _masked: ['owner_id__display'] }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /3/ })).toBeDefined();
+  });
+
   it('boolean → check / x glyphs', () => {
     const column = spec({ name: 'ok', label: 'OK', logicalType: 'boolean' });
     const { container, rerender } = render(<CellValue column={column} row={{ ok: true }} />);
@@ -93,6 +112,19 @@ describe('CellValue — type-aware cell renderers (09 §7.1)', () => {
     const cell = container.querySelector('[data-part="cell-timestamp"]');
     expect(cell?.textContent).toMatch(/ago/);
     expect(cell?.getAttribute('title')).toMatch(/\d{4}|20\d\d|,/);
+  });
+
+  it('date → the writer calendar day, never the raw wire instant (UTC+2 audit repro)', () => {
+    const column = spec({ name: 'issued_on', label: 'Issued on', logicalType: 'date' });
+    // pg wire shape for `date '2026-05-29'` read on a UTC+2 host.
+    const { container } = render(<CellValue column={column} row={{ issued_on: '2026-05-28T22:00:00.000Z' }} />);
+    const cell = container.querySelector('[data-part="cell-date"]');
+    expect(cell?.textContent).toBe('May 29, 2026');
+    expect(cell?.getAttribute('title')).toBe('2026-05-29');
+
+    // Plain-string rows (sqlite) render identically — the two wire shapes converge.
+    const { container: plain } = render(<CellValue column={column} row={{ issued_on: '2026-05-29' }} />);
+    expect(plain.querySelector('[data-part="cell-date"]')?.textContent).toBe('May 29, 2026');
   });
 
   it('email → mono; url → external link', () => {

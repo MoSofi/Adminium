@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it } from 'vitest';
 
-import { SEGMENTED_MAX_ARITY, coerceFieldValue, fieldKindFor, fieldTypeTag, formColumns, isRequired } from './field-mapping.js';
+import { SEGMENTED_MAX_ARITY, coerceFieldValue, dateOnlyValue, fieldKindFor, fieldTypeTag, formColumns, isRequired } from './field-mapping.js';
 import { gridColumnSpecSchema } from '../../families/tables/column-spec.js';
 import type { GridColumnSpecInput } from '../../families/tables/column-spec.js';
 
@@ -12,6 +12,22 @@ describe('fieldKindFor — generated form mapping (09 §7.1)', () => {
     expect(fieldKindFor(spec({ name: 'id', label: 'ID', primaryKey: true, hasDefault: true }))).toBe('hidden');
     expect(fieldKindFor(spec({ name: 'created_at', label: 'Created', logicalType: 'timestamptz', semantic: 'created-at' }))).toBe('hidden');
     expect(fieldKindFor(spec({ name: 'updated_at', label: 'Updated', logicalType: 'timestamptz', semantic: 'updated-at' }))).toBe('hidden');
+  });
+
+  it('cross-table projections (lookup + reverse aggregate) never become form fields', () => {
+    expect(
+      fieldKindFor(spec({ name: 'client_id__name', label: 'Client Name', lookup: { path: ['client_id'], select: 'name' } })),
+    ).toBe('hidden');
+    expect(
+      fieldKindFor(
+        spec({
+          name: 'items__count',
+          label: 'Items Count',
+          logicalType: 'integer',
+          reverse: { table: 'public.invoice_items', fkColumn: 'invoice_id', agg: 'count' },
+        }),
+      ),
+    ).toBe('hidden');
   });
 
   it('read-only columns render as readonly, natural pks stay editable', () => {
@@ -99,5 +115,43 @@ describe('form helpers', () => {
     expect(coerceFieldValue(meta, '{"a":1}')).toEqual({ a: 1 });
     const note = spec({ name: 'note', label: 'Note', nullable: true });
     expect(coerceFieldValue(note, '')).toBeNull();
+  });
+});
+
+describe('date columns — wire-instant round-trip (client-portal audit repro)', () => {
+  const issuedOn = spec({ name: 'issued_on', label: 'Issued on', logicalType: 'date', nullable: true });
+
+  it('recovers the calendar day from a server-local-midnight instant in any browser TZ', () => {
+    const tzBefore = process.env.TZ;
+    try {
+      // Ahead of UTC (the reproduced Europe/Berlin −1-day audit shift) and
+      // behind it — a regression to local-time getters or a bare
+      // toISOString().slice() fails in at least one of the two zones.
+      for (const tz of ['Europe/Berlin', 'America/New_York']) {
+        process.env.TZ = tz;
+        // pg serializes date '2026-05-29' on a UTC+2 host as 22:00Z the day before.
+        expect(dateOnlyValue('2026-05-28T22:00:00.000Z')).toBe('2026-05-29');
+        // The same calendar day served by UTC and UTC−4 hosts.
+        expect(dateOnlyValue('2026-05-29T00:00:00.000Z')).toBe('2026-05-29');
+        expect(dateOnlyValue('2026-05-29T04:00:00.000Z')).toBe('2026-05-29');
+        expect(dateOnlyValue(new Date('2026-05-28T22:00:00.000Z'))).toBe('2026-05-29');
+        // Untouched edit fields still hold the wire instant at submit time —
+        // the audit repro was issued_on '2026-05-28T22:00:00.000Z' saved back
+        // unchanged and coming out a day earlier.
+        expect(coerceFieldValue(issuedOn, '2026-05-28T22:00:00.000Z')).toBe('2026-05-29');
+      }
+    } finally {
+      if (tzBefore === undefined) delete process.env.TZ;
+      else process.env.TZ = tzBefore;
+    }
+  });
+
+  it('plain date strings, empties, and garbage pass through', () => {
+    expect(dateOnlyValue('2026-06-01')).toBe('2026-06-01');
+    expect(coerceFieldValue(issuedOn, '2026-06-01')).toBe('2026-06-01');
+    expect(coerceFieldValue(issuedOn, '')).toBeNull();
+    expect(coerceFieldValue(issuedOn, null)).toBeNull();
+    // Unparseable values reach the database untouched — its error is the signal.
+    expect(dateOnlyValue('not-a-date')).toBe('not-a-date');
   });
 });

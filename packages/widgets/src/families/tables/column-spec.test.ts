@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   compareCellValues,
+  dateOnlyValue,
   displayValueOf,
+  formatCalendarDate,
   formatMoney,
   formatRelativeTime,
   gridColumnSpecSchema,
@@ -72,6 +74,26 @@ describe('formatMoney / formatRelativeTime', () => {
   it('renders relative time', () => {
     const now = Date.UTC(2026, 5, 1, 12, 0, 0);
     expect(formatRelativeTime('2026-06-01T09:00:00Z', { now })).toMatch(/3\s?hr?\.? ago/i);
+  });
+});
+
+describe('dateOnlyValue / formatCalendarDate — DATE wire decode', () => {
+  it('recovers the writer calendar day from a server-local-midnight instant', () => {
+    expect(dateOnlyValue('2026-05-28T22:00:00.000Z')).toBe('2026-05-29'); // UTC+2 writer (audit repro)
+    expect(dateOnlyValue('2026-05-29T00:00:00.000Z')).toBe('2026-05-29'); // UTC writer
+    expect(dateOnlyValue('2026-05-29T04:00:00.000Z')).toBe('2026-05-29'); // UTC−4 writer
+    expect(dateOnlyValue('2026-05-29')).toBe('2026-05-29'); // sqlite/plain passthrough
+  });
+
+  it('formats the recovered day at UTC so no viewer zone re-shifts it', () => {
+    expect(formatCalendarDate('2026-05-28T22:00:00.000Z')).toBe('May 29, 2026');
+    // Locale plumbing: any rendering carries day 29, never the UTC day 28.
+    const de = formatCalendarDate('2026-05-28T22:00:00.000Z', 'de');
+    expect(de).toContain('29');
+    expect(de).not.toContain('28');
+    // Raw fallback for non-dates, like formatMoney; empties stay empty.
+    expect(formatCalendarDate('n/a')).toBe('n/a');
+    expect(formatCalendarDate(null)).toBe('');
   });
 });
 
