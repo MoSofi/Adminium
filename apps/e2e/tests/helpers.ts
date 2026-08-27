@@ -44,3 +44,16 @@ export function gridRows(page: Page) {
 export function gridSearch(page: Page, table: string | RegExp) {
   return page.getByRole('searchbox', { name: table });
 }
+
+/**
+ * Root of the `page-record` detail template (30-record-pages.md D1).
+ *
+ * The record used to open in a drawer over the list, so these assertions were
+ * once `getByRole('dialog')`. It is its own route now — row click, the
+ * /r/$recordId URL and a palette record hit all navigate here, unmounting the
+ * list behind them — and the only dialogs the page owns are its create and
+ * edit drawers.
+ */
+export function recordPage(page: Page) {
+  return page.locator('[data-part="page-record"]');
+}

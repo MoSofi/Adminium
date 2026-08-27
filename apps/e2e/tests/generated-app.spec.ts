@@ -14,7 +14,7 @@
  */
 import { expect, test } from '@playwright/test';
 
-import { gridRows, gridSearch, navLink, signIn } from './helpers.js';
+import { gridRows, gridSearch, navLink, recordPage, signIn } from './helpers.js';
 
 test.describe('generated app on the seeded Northwind connection', () => {
   test('(a) seeded super admin signs in and lands in the generated app', async ({ page }) => {
@@ -87,17 +87,19 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await navLink(page, /Customers/).first().click();
     await expect(gridRows(page)).toHaveCount(12);
 
-    // Route-controlled detail (09 §7.1): /p/customers/r/ALFKI drives the drawer.
+    // Route-controlled detail (09 §7.1; 30 D1): /p/customers/r/ALFKI renders
+    // the record PAGE. It drove a drawer over the list until the record got a
+    // route of its own, so the list now unmounts behind it.
     await page.goto('/p/customers/r/ALFKI');
-    const drawer = page.getByRole('dialog');
-    await expect(drawer).toBeVisible();
-    await expect(drawer).toContainText('Alfreds Futterkiste');
+    const record = recordPage(page);
+    await expect(record).toBeVisible();
+    await expect(record).toContainText('Alfreds Futterkiste');
     // A second, un-masked field proves the record's data rendered. Assert the
     // contact name, NOT the city: city is masked-by-default PII (••• like
     // phone/fax/address). Pre-fix, masked values leaked anyway because the
     // pk-less rowIdOf() fell back to JSON.stringify(row) as the drawer title;
     // now the title is the clean PK ("ALFKI") and masked fields stay masked.
-    await expect(drawer).toContainText('Maria Anders');
+    await expect(record).toContainText('Maria Anders');
   });
 
   // The generator now emits the pk-id column as a *hidden* column spec
@@ -134,13 +136,13 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await expect(gridRows(page)).toHaveCount(1);
   });
 
-  test('(c6) row click opens the record detail drawer', async ({ page }) => {
+  test('(c6) row click opens the record page', async ({ page }) => {
     await signIn(page);
     await navLink(page, /Customers/).first().click();
 
     await gridRows(page).filter({ hasText: 'Alfreds Futterkiste' }).click();
     await expect(page).toHaveURL(/\/p\/customers\/r\//);
-    await expect(page.getByRole('dialog')).toContainText('Alfreds Futterkiste');
+    await expect(recordPage(page)).toContainText('Alfreds Futterkiste');
   });
 
   // M4-T06 (the last v1 feature): the ⌘K palette's async Records group hits
@@ -164,7 +166,7 @@ test.describe('generated app on the seeded Northwind connection', () => {
     await hit.click();
 
     await expect(page).toHaveURL(/\/p\/customers\/r\/CACTU/);
-    await expect(page.getByRole('dialog')).toContainText('Cactus Comidas para llevar');
+    await expect(recordPage(page)).toContainText('Cactus Comidas para llevar');
 
     // The visit lands in the palette's Recent group (09 §5.2 localStorage).
     await page.keyboard.press('ControlOrMeta+k');
