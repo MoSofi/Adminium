@@ -16,7 +16,7 @@ import { useMaybeT } from '@adminium/i18n/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import { coerceFieldValue, fieldKindFor, fieldTypeTag, formColumns, isRequired } from './field-mapping.js';
+import { coerceFieldValue, dateOnlyValue, fieldKindFor, fieldTypeTag, formColumns, isRequired } from './field-mapping.js';
 import type { CrudApi, CrudLookupOption, CrudRow } from './crud-api.js';
 import { uiToneOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
@@ -239,7 +239,7 @@ export function RecordForm({
             <FormField key={column.name} {...common}>
               <DateInput
                 type={kind === 'datetime' ? 'datetime-local' : kind}
-                value={kind === 'datetime' ? datetimeLocalValue(value) : stringValue(value)}
+                value={kind === 'datetime' ? datetimeLocalValue(value) : kind === 'date' ? dateOnlyValue(value) : stringValue(value)}
                 onChange={(event) => setField(column.name, event.target.value)}
               />
             </FormField>
@@ -262,6 +262,10 @@ export function RecordForm({
               type={kind === 'number' ? 'number' : kind === 'email' ? 'email' : kind === 'url' ? 'url' : 'text'}
               value={stringValue(value)}
               {...(column.maxLength !== null ? { maxLength: column.maxLength } : {})}
+              // Without this, number inputs default to step=1 and any
+              // fractional decimal/money value (412.50) is step-invalid —
+              // native validation then silently blocks the form's submit.
+              {...(kind === 'number' ? { step: 'any' } : {})}
               onChange={(event) => setField(column.name, event.target.value)}
             />
           </FormField>

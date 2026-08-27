@@ -7,7 +7,9 @@ import type { ReactNode } from 'react';
 
 import {
   columnAlign,
+  dateOnlyValue,
   formatAbsoluteTime,
+  formatCalendarDate,
   formatMoney,
   formatRelativeTime,
   maskedColumnsOf,
@@ -21,6 +23,7 @@ import type { WidgetEvent } from '../../registry/types.js';
  * 09-generated-app.md §7.1 list keepers): money → mono end-aligned Intl
  * currency, status/category enum → pill/badge, FK → avatar chip firing
  * `record-open`, boolean → ✓/✕ glyph, timestamp → relative + absolute title,
+ * date → locale calendar day (wire-instant decoded, ISO-day title),
  * email/url → mono/link, PII → '•••' with an unmask affordance when the
  * caller may reveal.
  */
@@ -198,6 +201,17 @@ export function CellValue({
     return (
       <span data-part="cell-timestamp" title={formatAbsoluteTime(value, context.locale)} className="truncate whitespace-nowrap text-fg-muted">
         {formatRelativeTime(value, { locale: context.locale })}
+      </span>
+    );
+  }
+
+  if (column.logicalType === 'date') {
+    // Calendar day, never the raw wire instant — pg DATE arrives as the
+    // writer's local midnight in UTC, the wrong day for any viewer ahead of
+    // the writer (dateOnlyValue in column-spec.ts holds the decode contract).
+    return (
+      <span data-part="cell-date" title={dateOnlyValue(value)} className="truncate whitespace-nowrap">
+        {formatCalendarDate(value, context.locale)}
       </span>
     );
   }
