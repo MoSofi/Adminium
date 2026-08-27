@@ -36,7 +36,12 @@ import { up as up0010 } from './0010_llm_prompt_version_width.js';
 import { up as up0011 } from './0011_i18n_runtime.js';
 import { up as up0012 } from './0012_locale_width.js';
 import { up as up0013 } from './0013_connection_last_error_hint.js';
+import { up as up0015 } from './0015_connection_tenant_config.js';
 import { up as up0014 } from './0014_public_surface.js';
+import { up as up0016 } from './0016_audit_entity.js';
+import { up as up0017 } from './0017_surface_binding.js';
+import { up as up0018 } from './0018_connection_timezone_source.js';
+import { up as up0019 } from './0019_connection_disabled.js';
 
 export interface MetaMigration {
   /** Basename, e.g. `0001_core_auth` — the ledger PK. */
@@ -59,4 +64,9 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0012_locale_width', up: up0012 },
   { name: '0013_connection_last_error_hint', up: up0013 },
   { name: '0014_public_surface', up: up0014 },
+  { name: '0015_connection_tenant_config', up: up0015 },
+  { name: '0016_audit_entity', up: up0016 },
+  { name: '0017_surface_binding', up: up0017 },
+  { name: '0018_connection_timezone_source', up: up0018 },
+  { name: '0019_connection_disabled', up: up0019 },
 ];
