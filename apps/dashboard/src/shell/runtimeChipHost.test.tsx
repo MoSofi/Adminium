@@ -79,6 +79,7 @@ function renderTopbar() {
               onOpenPalette={() => {}}
               onSignOut={() => {}}
               onOpenAccount={() => {}}
+              onOpenPreferences={() => {}}
               onOpenStudio={() => {}}
               onOpenStudioSettings={() => {}}
             />

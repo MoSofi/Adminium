@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * `/account/security` — password, active sessions, and two-factor.
+ * `/account/security` — password, two-factor, and active sessions.
+ *
+ * The password form is `account/PasswordCard.tsx`, SHARED with `/account`:
+ * one implementation, deliberately mounted on both pages, because both are
+ * places a user reasonably looks for it. That is why its success copy names
+ * no location — the same string has to be true here, with the session list
+ * directly below it, and there, with no session list on the page at all.
  *
  * The 2FA calls (`/auth/2fa/enroll`, `/activate`, `/disable`) have existed in
  * `routes/auth` since M2 with no screen behind them: an account could be forced
@@ -26,7 +32,7 @@
  * that misclick happens, and `/auth/logout` is one click away in the topbar.
  */
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { KeyRound, Monitor, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Monitor, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -48,6 +54,7 @@ import {
 import { tagForLocale, type LocaleId } from '@adminium/i18n';
 
 import { bootstrapQuery } from '../app/bootstrap.js';
+import { PasswordCard } from './PasswordCard.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { t } from '../i18n/t.js';
@@ -55,7 +62,6 @@ import { CopyButton } from '../studio/connect/CopyButton.js';
 import {
   SESSIONS_QUERY_KEY,
   activate2fa,
-  changePassword,
   deviceLabel,
   disable2fa,
   enroll2fa,
@@ -74,7 +80,7 @@ export function SecurityPage(): ReactNode {
   const [now] = useState(() => Date.now());
 
   return (
-    <PageSurface width="content" className="flex flex-col gap-5">
+    <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
         title={t('security.title', 'Security')}
         subtitle={t('security.subtitle', 'Your password, your second factor, and everywhere you are signed in.')}
@@ -84,110 +90,6 @@ export function SecurityPage(): ReactNode {
       <TwoFactorCard enabled={bootstrap.user.totpEnabled} />
       <SessionsCard localeTag={localeTag} now={now} />
     </PageSurface>
-  );
-}
-
-// --- password ----------------------------------------------------------------
-
-function PasswordCard(): ReactNode {
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [confirm, setConfirm] = useState('');
-
-  const change = useMutation({
-    mutationFn: changePassword,
-    onSuccess: () => {
-      setCurrent('');
-      setNext('');
-      setConfirm('');
-    },
-  });
-
-  // The mismatch is caught here rather than by the server because the server
-  // never sees the confirmation field — it is a typing check, not a rule.
-  const mismatch = confirm !== '' && next !== confirm;
-  const canSubmit = current !== '' && next !== '' && !mismatch && next === confirm && !change.isPending;
-
-  return (
-    <Card>
-      <CardHeader className="flex items-center gap-3">
-        <IconTile tone="accent" size="md" icon={<KeyRound />} />
-        <h2 className="text-section text-fg">{t('security.password.title', 'Password')}</h2>
-      </CardHeader>
-      <CardBody>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!canSubmit) return;
-            change.mutate({ currentPassword: current, newPassword: next });
-          }}
-        >
-          <FormField label={t('security.password.current', 'Current password')} required>
-            <Input
-              type="password"
-              autoComplete="current-password"
-              value={current}
-              onChange={(event) => setCurrent(event.target.value)}
-            />
-          </FormField>
-          <FormField
-            label={t('security.password.new', 'New password')}
-            required
-            helper={t('security.password.helper', 'At least 8 characters.')}
-          >
-            <Input
-              type="password"
-              autoComplete="new-password"
-              value={next}
-              onChange={(event) => setNext(event.target.value)}
-            />
-          </FormField>
-          <FormField
-            label={t('security.password.confirm', 'Confirm new password')}
-            required
-            {...(mismatch
-              ? { error: t('security.password.mismatch', 'The two passwords do not match.') }
-              : {})}
-          >
-            <Input
-              type="password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
-            />
-          </FormField>
-
-          {change.error === null ? null : (
-            <Alert
-              role="alert"
-              tone="danger"
-              title={t('security.password.failed', 'Could not change your password')}
-              body={change.error.message}
-              data-testid="security-password-error"
-            />
-          )}
-          {change.isSuccess ? (
-            <Alert
-              role="status"
-              tone="pos"
-              title={t('security.password.changed', 'Password changed')}
-              body={t(
-                'security.password.changedBody',
-                'Use the new password the next time you sign in. Sessions on other devices are unaffected — revoke them below if you want them signed out.',
-              )}
-              data-testid="security-password-ok"
-            />
-          ) : null}
-
-          <div className="flex justify-end">
-            <Button type="submit" disabled={!canSubmit} loading={change.isPending}>
-              {t('security.password.submit', 'Change password')}
-            </Button>
-          </div>
-        </form>
-      </CardBody>
-    </Card>
   );
 }
 
@@ -233,7 +135,7 @@ function TwoFactorCard({ enabled }: { enabled: boolean }): ReactNode {
 
   return (
     <Card>
-      <CardHeader className="flex items-center gap-3">
+      <CardHeader className="justify-between flex items-center gap-3">
         <IconTile tone="accent" size="md" icon={<ShieldCheck />} />
         <h2 className="text-section flex-1 text-fg">
           {t('security.twoFactor.title', 'Two-factor authentication')}
