@@ -323,7 +323,30 @@ for (const dialect of TEST_DIALECTS) {
       expect(dashboard?.navOrder).toBe(10);
       // Owning connection rides along (multi-connection nav labels, M5-T05).
       expect(dashboard?.connectionId).toBe(connectionId);
+      // No `source` in this fixture's envelope → null, never a throw (30 D5).
+      expect(dashboard?.sourceTable).toBeNull();
       expect(await repo.configVersion()).toBe(5_000);
+    });
+
+    it('navRows extracts source.table from the stored envelope (30 D5)', async () => {
+      const repo = pagesRepo(t.meta);
+      await repo.upsertGenerated(
+        connectionId,
+        [
+          crudPage('orders', {
+            config: {
+              v: 1,
+              kind: 'page',
+              id: 'page_orders',
+              source: { connectionId, table: 'public.orders' },
+              config: { generatedHash: 'h1' },
+            },
+          }),
+        ],
+        { at: 1_000 },
+      );
+      const rows = await repo.navRows();
+      expect(rows.find((r) => r.slug === 'orders')?.sourceTable).toBe('public.orders');
     });
 
     it('countGeneratedByConnection groups generated rows, skipping user pages', async () => {
@@ -443,6 +466,43 @@ for (const dialect of TEST_DIALECTS) {
       );
       expect(result.skippedEdited).toEqual(['page_customers']);
       expect((await repo.findById('page_customers'))?.title).toBe('Accounts');
+    });
+
+    it('hide keeps the envelope group and writes nav.hidden; show restores (30 follow-up)', async () => {
+      /*
+       * The old behavior DELETED `nav.group` on hide, which left the stored
+       * document failing the client's envelope validation — the record page's
+       * related tabs silently degraded to derived columns because of it. The
+       * document now remembers its placement while the ROW's null group stays
+       * the single hidden predicate.
+       */
+      const repo = pagesRepo(t.meta);
+      const envelope: Record<string, unknown> = {
+        v: 1,
+        kind: 'page',
+        id: 'page_items',
+        title: { key: 'nav.items', fallback: 'Invoice Items' },
+        nav: { group: 'library', icon: 'table', order: 30 },
+        config: {},
+      };
+      (envelope['config'] as Record<string, unknown>)['generatedHash'] = testHash(envelope);
+      await repo.upsertGenerated(connectionId, [crudPage('items', { config: envelope })], {
+        at: 1_000,
+        hashEnvelope: testHash,
+      });
+
+      await repo.updateMeta('page_items', { navGroup: null }, { at: 2_000 });
+      const hiddenRow = await repo.findById('page_items');
+      expect(hiddenRow?.navGroup).toBeNull();
+      const hiddenNav = (hiddenRow?.config as { nav: Record<string, unknown> }).nav;
+      expect(hiddenNav).toMatchObject({ group: 'library', hidden: true });
+
+      await repo.updateMeta('page_items', { navGroup: 'workspace' }, { at: 3_000 });
+      const shownRow = await repo.findById('page_items');
+      expect(shownRow?.navGroup).toBe('workspace');
+      const shownNav = (shownRow?.config as { nav: Record<string, unknown> }).nav;
+      expect(shownNav['group']).toBe('workspace');
+      expect(shownNav['hidden']).toBeUndefined();
     });
 
     it('updateMeta honours If-Match and reports a stale revision as a conflict', async () => {
@@ -720,10 +780,18 @@ for (const dialect of TEST_DIALECTS) {
 
       const stored = (moved as Page).config as { config: Record<string, unknown>; nav: Record<string, unknown> };
       expect(stored.config).toEqual({ lanes: [] });
-      // The mirror wins over the supplied envelope's stale nav block — and
-      // `nav.group` is a `z.string().min(1)`, so a null row value is expressed
-      // by DROPPING the key, never by storing null.
-      expect(stored.nav).toEqual({ order: 5, slug: 'orders-board', icon: 'kanban' });
+      // The mirror wins over the supplied envelope's stale nav block. A null
+      // row group is expressed as `hidden: true` — the document KEEPS a group
+      // (its would-be placement) rather than dropping the key, because a
+      // group-less document used to fail the client's envelope validation and
+      // silently degrade every consumer of it (30 follow-up).
+      expect(stored.nav).toEqual({
+        order: 5,
+        slug: 'orders-board',
+        icon: 'kanban',
+        group: 'stale',
+        hidden: true,
+      });
 
       // It really moved connections — the old one no longer lists it.
       expect(await repo.listForConnection(connectionId)).toEqual([]);

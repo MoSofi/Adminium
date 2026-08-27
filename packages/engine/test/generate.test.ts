@@ -192,11 +192,17 @@ describe('generatePages on Northwind (full-admin)', () => {
     const columns = orders.config['columns'] as {
       name: string;
       semantic: string;
-      fk?: { table: string; column: string };
+      fk?: { table: string; column: string; display?: string };
     }[];
     const customerFk = columns.find((c) => c.name === 'customer_id');
     expect(customerFk?.semantic).toBe('fk');
-    expect(customerFk?.fk).toEqual({ table: 'public.customers', column: 'customer_id' });
+    // `display` is the referenced table's classified display column — the
+    // FK-chip display lookup derives from it (chips read names, not ids).
+    expect(customerFk?.fk).toEqual({
+      table: 'public.customers',
+      column: 'customer_id',
+      display: 'company_name',
+    });
   });
 
   it('products crud page renders money as cell-money and forms carry field defs', () => {

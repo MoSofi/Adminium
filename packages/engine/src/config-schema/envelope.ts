@@ -24,11 +24,30 @@ const kebabCasePattern = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
 /** Nav placement block (01-architecture.md §6.1). */
 export const navConfigSchema = z.object({
-  group: z.string().min(1),
+  /**
+   * OPTIONAL for one reason only: Studio's pre-2026-08-24 "Hide from sidebar"
+   * DELETED this key from stored documents (`mergeEnvelopeMeta` expressed the
+   * row's null group by omission), so group-less envelopes exist in every
+   * install that ever hid a page — and a validator that refuses them fails
+   * the whole document for a field only nav-building reads. Generation always
+   * writes it, and today's hide keeps it (`hidden` below carries the state);
+   * absence means "hidden, placement not remembered".
+   */
+  group: z.string().min(1).optional(),
   icon: z.string().min(1), // lucide-react icon name
   order: z.number().int(),
   slug: z.string().regex(kebabCasePattern, 'must be kebab-case').optional(),
   badge: z.string().min(1).optional(),
+  /**
+   * Generated hidden-from-sidebar default (30-record-pages.md follow-up):
+   * cascade-owned child tables (invoice items, proposal items, …) get a page —
+   * routable, palette-searchable, and the source of their parent's record-page
+   * tab specs — but not a sidebar row; their home is the parent's record page.
+   * `group` stays REQUIRED beside it on purpose: the document remembers where
+   * the page belongs, so un-hiding in Studio restores the right group. The row
+   * projection (`adminium_pages.nav_group = null`) is what nav-building reads.
+   */
+  hidden: z.boolean().optional(),
 });
 export type NavConfig = z.infer<typeof navConfigSchema>;
 
@@ -53,6 +72,23 @@ export const pagePaddingSchema = z.union([
 ]);
 export type PagePaddingConfig = z.infer<typeof pagePaddingSchema>;
 
+/**
+ * The page's content column, named after the container tokens
+ * (`apps/dashboard/src/shell/PageSurface.tsx` holds the px values).
+ *
+ * A CLOSED UNION rather than a free length: these are the caps the design
+ * system defines, and the control that writes it is a select. Absent ⇒ the
+ * template's own column, exactly as `padding` works — so every document
+ * written before this field still validates and still renders unchanged.
+ *
+ * `fill` is deliberately NOT joined to this. Width is a taste decision an
+ * admin can reasonably make; whether a template resolves its own `h-full`
+ * chain is a fact about how that template is built, and an admin toggling it
+ * would simply break the page.
+ */
+export const pageWidthSchema = z.enum(['full', 'narrow', 'content', 'page', 'dash', 'wide']);
+export type PageWidthConfig = z.infer<typeof pageWidthSchema>;
+
 const envelopeShape = z.object({
   v: z.literal(1), // config schema version (integer, 01-architecture.md §8.2)
   kind: configKindSchema,
@@ -72,6 +108,9 @@ const envelopeShape = z.object({
   // key inside it. Optional so every stored document predating it still
   // validates and keeps rendering with its template's own gutter.
   padding: pagePaddingSchema.optional(),
+  // Same contract as `padding` above: page chrome, optional, absent ⇒ the
+  // template's own column from `pages/surfaceDefaults.ts`.
+  width: pageWidthSchema.optional(),
   // Per-template body. Unknown fields are preserved on round-trip
   // (forward compatibility, 01-architecture.md §6.2); per-template schemas
   // live in @adminium/widgets/page-config and are applied by kind below.

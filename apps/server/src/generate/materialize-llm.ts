@@ -185,7 +185,9 @@ export async function materializeLlmPages(opts: {
     await repo.replaceConfig(page.id, parsed.data, {
       icon: typeof icon === 'string' ? icon : null,
       title: parsed.data.title.fallback,
-      navGroup: parsed.data.nav.group,
+      // A group-less document (a page hidden without a remembered placement)
+      // projects to the null row group, same as everywhere else.
+      navGroup: parsed.data.nav.group ?? null,
       ...(opts.at === undefined ? {} : { at: opts.at }),
     });
     if (!page.isEnabled) {

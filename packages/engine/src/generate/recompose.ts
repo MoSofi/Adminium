@@ -25,6 +25,7 @@
  */
 
 import {
+  crudDisplayColumns,
   emitCandidates,
   isRegisteredWidgetId,
   type CandidateContext,
@@ -111,6 +112,7 @@ export function composeRequestedPage(
       // page-crud for each — so the full set is the honest allowlist here.
       includedTableIds: new Set(tables.map((t) => t.id)),
       relations: model.relations,
+      displayColumns: crudDisplayColumns(candidateModel),
     });
     // `CrudBuildContext` has no `id`: the generator derives one with
     // `pageIdFor(connectionId, slug)` because it is MINTING pages. Here the
