@@ -12,9 +12,9 @@ import { StateHero } from './StateHero.js';
 import { SYSTEM_STATES } from './stateMap.js';
 
 describe('SYSTEM_STATES map', () => {
-  it('covers all 12 state ids', () => {
+  it('covers all 13 state ids', () => {
     expect(Object.keys(SYSTEM_STATES).sort()).toEqual([...SYSTEM_STATE_IDS].sort());
-    expect(SYSTEM_STATE_IDS).toHaveLength(12);
+    expect(SYSTEM_STATE_IDS).toHaveLength(13);
   });
 
   it('keeps the comp copy for the 11 designed states', () => {
@@ -26,7 +26,7 @@ describe('SYSTEM_STATES map', () => {
   });
 
   it('routes every user-visible string through a bundle key', () => {
-    // The whole point of the Msg shape: these 12 states are the 404/500/offline
+    // The whole point of the Msg shape: these 13 states are the 404/500/offline
     // pages, so English leaking here is English on the worst possible screen.
     const msgs = Object.values(SYSTEM_STATES).flatMap((spec) => [
       spec.title,
@@ -36,7 +36,7 @@ describe('SYSTEM_STATES map', () => {
       ...(spec.banner === undefined ? [] : [spec.banner]),
       ...(spec.diagnostics === undefined ? [] : [spec.diagnostics.status, spec.diagnostics.hint]),
     ]);
-    expect(msgs).toHaveLength(47);
+    expect(msgs).toHaveLength(50);
     for (const m of msgs) {
       expect(m.key).toMatch(/^states\.[a-zA-Z]+\.(title|body|primary|secondary|banner|diag\.(status|hint))$/);
       expect(m.en.length).toBeGreaterThan(0);
@@ -61,6 +61,22 @@ describe('SYSTEM_STATES map', () => {
     // Free-launch pivot (17-deferred-monetization.md): suspension is an
     // administrative state, never a billing state — no payment language anywhere.
     expect(JSON.stringify(SYSTEM_STATES.suspended)).not.toMatch(/billing|payment|past due/i);
+  });
+
+  it('adds connection-paused as a deliberate state, not a failure', () => {
+    const spec = SYSTEM_STATES['connection-paused'];
+    // Nothing broke and nothing is lost — closer to `read-only` than to a 500.
+    expect(spec.tone).toBe('accent');
+    expect(spec.code).toBeUndefined();
+    expect(spec.body.en).toContain('Nothing has been deleted');
+    // Where the switch is, because the reader is rarely the person who flipped it.
+    expect(spec.body.en).toContain('Data connections');
+    // NO primary. "Retry" is the reflex and it is exactly wrong here: the
+    // answer cannot change until a human resumes the connection, so the button
+    // would be a control that eats the click — the dead-CTA bug this map's
+    // `primary`-is-optional shape exists to prevent.
+    expect(spec.primary).toBeUndefined();
+    expect(spec.secondary?.en).toBe('Go back');
   });
 });
 
@@ -166,6 +182,14 @@ describe('stateIdForError mapping (§2.3 errorComponent)', () => {
     expect(stateIdForError(err(503, 'MAINTENANCE'))).toBe('maintenance');
     expect(stateIdForError(err(503, 'DB_UNREACHABLE'))).toBe('db-unreachable');
     expect(stateIdForError(err(500, 'INTERNAL'))).toBe('error');
+  });
+
+  it('separates a PAUSED source from an unreachable one (both 503)', () => {
+    // Same status, opposite stories: `db-unreachable` says something broke and
+    // offers "Retry connection", which here would be a button that cannot
+    // work in front of a reader who has done nothing wrong.
+    expect(stateIdForError(err(503, 'CONNECTION_DISABLED'))).toBe('connection-paused');
+    expect(stateIdForError(err(503, 'SOURCE_DB_UNREACHABLE'))).toBe('db-unreachable');
   });
 
   it('maps network failures to offline', () => {

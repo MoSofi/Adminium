@@ -52,9 +52,50 @@ export interface Connection {
   lastError: string | null;
   /** Remediation copy for {@link lastError}, from the adapter (05 §3). */
   lastErrorHint: string | null;
+  /** Tenant configuration (28-T34, D20). Null = not configured. */
+  timezone: string | null;
+  /**
+   * Who chose {@link timezone} (0018). `null` is "no claim" — an unattributed
+   * pre-0018 row, or no zone to attribute — and is NOT the same as `'host'`.
+   */
+  timezoneSource: TimezoneSource | null;
+  currency: string | null;
+  /**
+   * When an operator paused this source (0019); `null` while it is serving.
+   *
+   * Separate from {@link status} on purpose: status is what a probe last
+   * observed and every test overwrites it, while a pause is a decision that has
+   * to outlive one. Read it through {@link Connection.disabled} rather than
+   * comparing to null at each call site.
+   */
+  disabledAt: number | null;
+  /** Convenience mirror of `disabledAt !== null` — the question callers ask. */
+  disabled: boolean;
   createdBy: string | null;
   createdAt: number;
   updatedAt: number;
+}
+
+/**
+ * Where a stored `timezone` came from (0018).
+ *
+ * `'host'` is the zone of the machine running Adminium, seeded by {@link
+ * connectionsRepo}'s `create` so a hosted surface has something to render. It
+ * is a plausible value and an unverified one, which is the whole reason it is
+ * labelled rather than left to pass as `'operator'`.
+ */
+export type TimezoneSource = 'host' | 'operator';
+
+/**
+ * Narrow a stored source, treating anything unrecognised as "no claim".
+ *
+ * The column is free text at the storage layer, and a value this code does not
+ * know — a hand-edited row, or a source added by a newer version and rolled
+ * back — must degrade to silence. Rendering an unknown provenance as `'host'`
+ * would accuse an operator's own choice of being a guess.
+ */
+function readTimezoneSource(value: string | null): TimezoneSource | null {
+  return value === 'host' || value === 'operator' ? value : null;
 }
 
 /** Decrypted per-role DSNs (01-architecture.md §3 privilege model). */
@@ -76,6 +117,11 @@ export interface CreateConnectionInput {
   ssl?: ConnectionSsl | null;
   settings?: ConnectionSettings;
   status?: string;
+  /**
+   * The tenant's zone. Omitted ⇒ seeded from the SERVER's zone (see `create`);
+   * pass `null` explicitly to create one with no zone at all.
+   */
+  timezone?: string | null;
   createdBy?: string | null;
 }
 
@@ -89,6 +135,8 @@ export interface UpdateConnectionInput {
   status?: string;
   lastError?: string | null;
   lastErrorHint?: string | null;
+  timezone?: string | null;
+  currency?: string | null;
 }
 
 export interface ConnectionTestOutcome {
@@ -118,10 +166,35 @@ function decode(row: Selectable<AdminiumConnectionsTable>): Connection {
     lastLatencyMs: row.lastLatencyMs,
     lastError: row.lastError,
     lastErrorHint: row.lastErrorHint,
+    timezone: row.timezone,
+    timezoneSource: readTimezoneSource(row.timezoneSource),
+    currency: row.currency,
+    disabledAt: row.disabledAt,
+    disabled: row.disabledAt !== null,
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/**
+ * The connection's tenant facts, with NO DSN crypto involved (28-T34).
+ *
+ * `connectionsRepo` needs a `DsnCrypto` because it decrypts connection
+ * strings. Reading a timezone does not, and the public-API route that wants
+ * one has no business holding the key that opens every DSN on the instance.
+ * Two columns, one query, no secrets in reach.
+ */
+export async function connectionTenantConfig(
+  meta: MetaDb,
+  connectionId: string,
+): Promise<{ timezone: string | null; currency: string | null } | null> {
+  const row = await meta.db
+    .selectFrom('adminium_connections')
+    .select(['timezone', 'currency'])
+    .where('id', '=', connectionId)
+    .executeTakeFirst();
+  return row === undefined ? null : { timezone: row.timezone, currency: row.currency };
 }
 
 export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
@@ -193,6 +266,41 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
         lastLatencyMs: null,
         lastError: null,
         lastErrorHint: null,
+        /*
+         * Seeded from the SERVER's zone, not left null.
+         *
+         * This was `null` on the reasoning that "a guessed zone is worse than an
+         * absent one". That was wrong in practice, and an operator found out the
+         * hard way: an absent zone made a hosted app surface refuse to render at
+         * all, so the cost of the missing value landed as total unavailability
+         * rather than as an hour's drift.
+         *
+         * The server's own zone is a real signal — it is the machine the
+         * operator chose to deploy on — and unlike the BROWSER's zone it is one
+         * value for the tenant rather than a different one per reader. It is
+         * also written down and editable, so a wrong guess is visible in the UI
+         * and fixable, which an invisible per-request default never is.
+         *
+         * `PATCH /connections/:id` may still set it to `null` deliberately.
+         *
+         * The seed is LABELLED (`timezoneSource`, wave 0018) so Studio can tell
+         * an operator this zone came from the server rather than from them.
+         * Storing the guess unlabelled is what would make it indistinguishable
+         * from a decision — the failure this default was accused of causing.
+         */
+        timezone:
+          input.timezone === undefined
+            ? Intl.DateTimeFormat().resolvedOptions().timeZone
+            : input.timezone,
+        /*
+         * An explicit `null` timezone gets a `null` source: there is no choice
+         * to attribute, and `timezone` already records "none" by itself.
+         */
+        timezoneSource:
+          input.timezone === undefined ? 'host' : input.timezone === null ? null : 'operator',
+        currency: null,
+        // New sources serve immediately — pausing is always a later decision.
+        disabledAt: null,
         createdBy: input.createdBy ?? null,
         createdAt: at,
         updatedAt: at,
@@ -235,6 +343,17 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
       if (patch.readOnly !== undefined) set.readOnly = writeBool(meta, patch.readOnly);
       if (patch.lastError !== undefined) set.lastError = patch.lastError;
       if (patch.lastErrorHint !== undefined) set.lastErrorHint = patch.lastErrorHint;
+      /*
+       * A zone arriving through an update came from a person — the only caller
+       * that patches this field is `PATCH /connections/:id`, and the probe and
+       * health writers below never touch it. So the seed's label is replaced
+       * rather than left to outlive the guess it described.
+       */
+      if (patch.timezone !== undefined) {
+        set.timezone = patch.timezone;
+        set.timezoneSource = patch.timezone === null ? null : 'operator';
+      }
+      if (patch.currency !== undefined) set.currency = patch.currency;
       if (patch.ssl !== undefined) {
         if (patch.ssl === null) {
           set.ssl = null;
@@ -282,6 +401,32 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
         .set(set as never)
         .where('id', '=', id)
         .execute();
+    },
+
+    /**
+     * Pause or resume the source (0019).
+     *
+     * Its own writer rather than a field on {@link UpdateConnectionInput}
+     * because the column stores WHEN and the caller only ever knows WHETHER —
+     * letting routes pass their own timestamp is how one of them ends up
+     * writing a zero and rendering "paused 56 years ago". Idempotent: pausing
+     * an already-paused connection leaves the original instant alone, so the
+     * age on the card is the age of the pause and not of the last click.
+     *
+     * NOTHING here touches `status`. A connection that was failing when it was
+     * paused is still failing, and saying so on resume is more useful than a
+     * clean slate nobody earned.
+     */
+    async setDisabled(id: string, disabled: boolean, at: number = Date.now()): Promise<Connection | null> {
+      const current = await this.findById(id);
+      if (current === null) return null;
+      if (current.disabled === disabled) return current;
+      await db
+        .updateTable('adminium_connections')
+        .set({ disabledAt: disabled ? at : null, updatedAt: at } as never)
+        .where('id', '=', id)
+        .execute();
+      return this.findById(id);
     },
 
     /** FK CASCADE removes the connection's snapshots and overrides. */

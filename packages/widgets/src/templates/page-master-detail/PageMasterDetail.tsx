@@ -9,6 +9,7 @@ import type { WidgetDataState } from '../../frame/WidgetHost.js';
 import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { formatRelativeTime, uiToneOf } from '../../families/tables/column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { describeDataError } from '../../lib/data-error.js';
 import {
   useDashboardData,
   type DashboardDataAdapter,
@@ -70,6 +71,8 @@ export interface PageMasterDetailLabels {
   noMatchesTitle?: string | undefined;
   noMatchesBody?: string | undefined;
   errorTitle?: string | undefined;
+  /** Shown instead of `errorTitle` when the connection is paused (0019). */
+  connectionPausedTitle?: string | undefined;
   retry?: string | undefined;
   loading?: string | undefined;
   selectPrompt?: string | undefined;
@@ -170,6 +173,16 @@ export function PageMasterDetail({
   );
 
   const masterState = stateFor(masterItem);
+  /**
+   * What the error panel should say — a PAUSED connection is not a failed
+   * load (meta wave 0019): its own title, a calmer tone, and no Retry,
+   * because retrying cannot change the answer until a person resumes it.
+   */
+  const dataError = describeDataError(
+    masterState.status === 'error' ? masterState.error : null,
+    labels?.errorTitle ?? t('ui:templates.masterDetail.errorTitle', 'This list failed to load'),
+    labels?.connectionPausedTitle ?? t('ui:templates.common.connectionPaused', 'This connection is paused'),
+  );
   const rows = useMemo(() => recordRowsOf(masterState.data), [masterState.data]);
   const fields = useMemo(() => masterFieldsOf(masterItem, rows), [masterItem, rows]);
 
@@ -343,11 +356,12 @@ export function PageMasterDetail({
           {masterState.status === 'error' ? (
             <EmptyState
               compact
-              tone="danger"
-              title={labels?.errorTitle ?? t('ui:templates.masterDetail.errorTitle', 'This list failed to load')}
-              body={masterState.error instanceof Error ? masterState.error.message : undefined}
+              tone={dataError.tone}
+              title={dataError.title}
+              body={dataError.body}
               actions={
-                masterState.refetch === undefined ? undefined : (
+                // A paused connection offers no Retry: see `describeDataError`.
+                masterState.refetch === undefined || !dataError.retryable ? undefined : (
                   <Button size="sm" variant="secondary" onClick={masterState.refetch}>
                     {labels?.retry ?? t('ui:action.retry', 'Retry')}
                   </Button>

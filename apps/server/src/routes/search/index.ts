@@ -283,11 +283,23 @@ export function searchRoutes(deps: SearchRoutesDeps): FastifyPluginAsyncZod {
         async function collectCandidates(req: FastifyRequest): Promise<RecordCandidate[]> {
           const connectionRows = await meta.db
             .selectFrom('adminium_connections')
-            .select(['id'])
+            .select(['id', 'disabledAt'])
             .orderBy('createdAt', 'asc')
             .orderBy('id', 'asc')
             .execute();
           const connectionIds = connectionRows
+            /*
+             * A PAUSED connection contributes no candidates at all (meta wave
+             * 0019) — dropped here rather than left to fail downstream.
+             *
+             * `manager.data` would refuse it anyway, but §2.9 turns a failed
+             * per-table query into a `partial: true` group, so every table of a
+             * paused source came back as an empty-but-present result: a row of
+             * "no matches" headings for a database nobody is querying, once per
+             * search. Not searching it is both the correct answer and the
+             * cheaper one — no dial, no timeout, no group.
+             */
+            .filter((row) => row.disabledAt === null)
             .map((row) => row.id)
             .filter((id) => request.query.connectionId === undefined || id === request.query.connectionId);
 

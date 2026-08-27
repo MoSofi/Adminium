@@ -32,7 +32,7 @@ import {
 import type { Dialect } from '@adminium/engine';
 import { connectionsRepo, type Connection, type DsnCrypto, type MetaDb } from '@adminium/meta';
 
-import { AppError, NotFoundError, ValidationFailedError } from '../errors.js';
+import { AppError, ConnectionDisabledError, NotFoundError, ValidationFailedError } from '../errors.js';
 import { guardDsn, maskDsn, MetaPlacementError, MetaPrefixCollisionError, sameDatabase } from './dsn.js';
 
 /** Every meta table is `adminium_`-prefixed (07-meta-store.md §2.1). */
@@ -250,11 +250,33 @@ export class ConnectionManager {
   }
 
   /**
+   * The paused-source refusal (meta wave 0019).
+   *
+   * Every path that would TOUCH the source database goes through it —
+   * {@link data}, {@link dataAdapter}, {@link introspectAdapter} — because a
+   * pause that only greys out buttons in Studio is not a pause: scheduled
+   * reports, export/import jobs, quick search, widget refreshes and the public
+   * API all reach the source without a person in the loop, and none of them
+   * would ever see that UI.
+   *
+   * Callers holding the row already (route handlers that just did `mustFind`)
+   * pass it in; the rest let the manager load it. `mustFind` itself does NOT
+   * refuse — Studio has to be able to read, rename and RESUME a paused
+   * connection, and a find that threw would lock the door from the inside.
+   */
+  assertEnabled(connection: Connection): void {
+    if (connection.disabled) {
+      throw new ConnectionDisabledError(connection.id, connection.name);
+    }
+  }
+
+  /**
    * Short-lived introspect-role adapter for one run. The caller owns the
    * lifecycle and must `close()` it (runIntrospection does).
    */
   async introspectAdapter(connectionId: string): Promise<DatabaseAdapter<'introspect'>> {
     const connection = await this.mustFind(connectionId);
+    this.assertEnabled(connection);
     if (connection.sourceKind !== 'dsn') {
       throw new ValidationFailedError('Schema-file connections have no live database to introspect.', {
         connectionId,
@@ -282,6 +304,7 @@ export class ConnectionManager {
    */
   async dataAdapter(connectionId: string): Promise<DatabaseAdapter<'data'>> {
     const connection = await this.mustFind(connectionId);
+    this.assertEnabled(connection);
     if (connection.sourceKind !== 'dsn') {
       throw new ValidationFailedError('Schema-file connections have no live database to read.', {
         connectionId,
@@ -296,22 +319,36 @@ export class ConnectionManager {
     return provider.create({ role: 'data', dsn: dsns.dataDsn });
   }
 
-  /** Pooled data handle (dynamic Kysely over the data DSN); lazy + cached. */
-  async data(connectionId: string): Promise<DataHandle> {
-    const cached = this.#dataHandles.get(connectionId);
+  /**
+   * Pooled data handle (dynamic Kysely over the data DSN); lazy + cached.
+   *
+   * Accepts an already-loaded row so the request paths that just called
+   * {@link mustFind} — `routes/data`, the CRUD hot path — do not read the same
+   * primary key twice. Callers that only hold an id pass the id.
+   *
+   * The paused check runs on EVERY call, ahead of the cache, and that ordering
+   * is the point. The pool is process-local; a pause is a row in the meta
+   * store. Checking only on a cold open would leave a warm handle in a second
+   * server process happily serving a source somebody switched off — and would
+   * make the pause's meaning depend on which worker answered the request.
+   */
+  async data(connection: string | Connection): Promise<DataHandle> {
+    const row = typeof connection === 'string' ? await this.mustFind(connection) : connection;
+    this.assertEnabled(row);
+    const cached = this.#dataHandles.get(row.id);
     if (cached !== undefined) return cached;
-    const pending = this.#openDataHandle(connectionId);
-    this.#dataHandles.set(connectionId, pending);
+    const pending = this.#openDataHandle(row);
+    this.#dataHandles.set(row.id, pending);
     try {
       return await pending;
     } catch (error) {
-      this.#dataHandles.delete(connectionId);
+      this.#dataHandles.delete(row.id);
       throw error;
     }
   }
 
-  async #openDataHandle(connectionId: string): Promise<DataHandle> {
-    const connection = await this.mustFind(connectionId);
+  async #openDataHandle(connection: Connection): Promise<DataHandle> {
+    const connectionId = connection.id;
     const dsns = await this.connections.getDsns(connectionId);
     if (dsns?.dataDsn == null) {
       throw new ValidationFailedError('Connection has no data DSN.', { connectionId });

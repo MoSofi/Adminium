@@ -27,6 +27,14 @@ export type ErrorCode =
   | 'UNKNOWN_IDENTIFIER'
   | 'RATE_LIMITED'
   | 'SOURCE_DB_UNREACHABLE'
+  /**
+   * The operator PAUSED this connection (meta wave 0019). 503 and not 403: the
+   * caller did nothing wrong and nothing about them needs to change — the
+   * source is administratively unavailable and will answer again when somebody
+   * resumes it. Distinct from `SOURCE_DB_UNREACHABLE`, which reports a database
+   * that failed to answer; this one never dialled.
+   */
+  | 'CONNECTION_DISABLED'
   // The two meta-store placement refusals (01-architecture.md §3.1). Both are
   // thrown by `connections/dsn.ts` subclasses and both were missing from this
   // union while already travelling the wire — `META_PLACEMENT_INVALID` has been
@@ -140,6 +148,29 @@ export class ConflictError extends AppError {
     details?: unknown,
   ) {
     super(409, code, message, details);
+  }
+}
+
+/**
+ * 503 — the connection is paused by an operator (meta wave 0019).
+ *
+ * Thrown by `ConnectionManager` before any dial, so it is the one connection
+ * failure that costs the source database nothing. `Retry-After` is deliberately
+ * NOT set: nobody knows when a human will resume it, and a made-up number turns
+ * a deliberate pause into a promise.
+ */
+export class ConnectionDisabledError extends AppError {
+  override readonly name = 'ConnectionDisabledError';
+
+  constructor(connectionId: string, connectionName?: string) {
+    super(
+      503,
+      'CONNECTION_DISABLED',
+      connectionName === undefined
+        ? 'This connection is paused. Resume it in Studio → Data connections to load data again.'
+        : `The connection “${connectionName}” is paused. Resume it in Studio → Data connections to load data again.`,
+      { connectionId },
+    );
   }
 }
 

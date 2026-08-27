@@ -18,6 +18,7 @@ import type { GalleryCard } from '../../families/tables/CardGallery.js';
 import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { OrgChart } from '../../families/domain/OrgChart.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { describeDataError } from '../../lib/data-error.js';
 import {
   useDashboardData,
   type DashboardDataAdapter,
@@ -73,6 +74,8 @@ export interface PageDirectoryLabels {
   noMatchesTitle?: string | undefined;
   noMatchesBody?: string | undefined;
   errorTitle?: string | undefined;
+  /** Shown instead of `errorTitle` when the connection is paused (0019). */
+  connectionPausedTitle?: string | undefined;
   retry?: string | undefined;
   loading?: string | undefined;
   /** "{count}" placeholder — plain substitution, widgets carry no ICU. */
@@ -152,6 +155,16 @@ export function PageDirectory({
   const summaryItem = useMemo(() => slotItemOf(body.layout, 'summary', ['micro-kpi-subtitle']), [body.layout]);
   const directoryItem = useMemo(() => slotItemOf(body.layout, 'directory', DIRECTORY_WIDGETS), [body.layout]);
   const directoryState = stateFor(directoryItem);
+  /**
+   * What the error panel should say — a PAUSED connection is not a failed
+   * load (meta wave 0019): its own title, a calmer tone, and no Retry,
+   * because retrying cannot change the answer until a person resumes it.
+   */
+  const dataError = describeDataError(
+    directoryState.status === 'error' ? directoryState.error : null,
+    labels?.errorTitle ?? t('ui:templates.directory.errorTitle', 'This directory failed to load'),
+    labels?.connectionPausedTitle ?? t('ui:templates.common.connectionPaused', 'This connection is paused'),
+  );
   const rows = useMemo(() => recordRowsOf(directoryState.data), [directoryState.data]);
   const isOrgChart = directoryItem?.widget === 'org-chart';
   const itemConfig = directoryItem?.config ?? {};
@@ -317,11 +330,12 @@ export function PageDirectory({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
         {directoryState.status === 'error' ? (
           <EmptyState
-            tone="danger"
-            title={labels?.errorTitle ?? t('ui:templates.directory.errorTitle', 'This directory failed to load')}
-            body={directoryState.error instanceof Error ? directoryState.error.message : undefined}
+            tone={dataError.tone}
+            title={dataError.title}
+            body={dataError.body}
             actions={
-              directoryState.refetch === undefined ? undefined : (
+              // A paused connection offers no Retry: see `describeDataError`.
+              directoryState.refetch === undefined || !dataError.retryable ? undefined : (
                 <Button size="sm" variant="secondary" onClick={directoryState.refetch}>
                   {labels?.retry ?? t('ui:action.retry', 'Retry')}
                 </Button>
