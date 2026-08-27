@@ -138,12 +138,22 @@ export const publicScopeDocumentSchema = z
     version: z.literal(1),
     side: z.enum(PUBLIC_SIDES),
     /**
-     * IANA zone (28 D20). Required, and the reason is in the pilot: a
-     * `timestamptz` rendered through the READER's zone put a 15:00 booking at
-     * 16:00 with no error anywhere. There is no defensible default — a wrong
-     * timezone is worse than a missing one, because it looks like data.
+     * IANA zone (28 D20). OPTIONAL since 28-T34, and an OVERRIDE rather than
+     * the home: the zone belongs to the connection, and a scope that omits it
+     * inherits from there.
+     *
+     * Optional is not lax. `compileScope` still refuses when NEITHER source
+     * yields a canonical zone, so D20's boot-fatal guarantee is unchanged — the
+     * reason is in the pilot: a `timestamptz` rendered through the READER's
+     * zone put a 15:00 booking at 16:00 with no error anywhere. There is no
+     * defensible default; a wrong timezone is worse than a missing one because
+     * it looks like data.
+     *
+     * It stays overridable because one connection can legitimately be read by
+     * two scopes for businesses in different places — a franchise database, a
+     * shared tenant — and that is D20's own argument for not making it global.
      */
-    timezone: z.string().min(1).max(64),
+    timezone: z.string().min(1).max(64).optional(),
     /**
      * ISO-4217 currency, when this scope serves money (28-T34).
      *
@@ -305,7 +315,21 @@ export function canonicalTimeZone(tz: string): string | null {
  * before a connection is reachable (Studio authoring, unit tests). When it is
  * supplied, every named column is additionally checked to EXIST.
  */
-export function compileScope(input: unknown, columnsOf?: TableColumnLookup): CompiledScope {
+/**
+ * Tenant facts the CONNECTION carries, which a scope inherits when it does not
+ * state its own (28-T34). Absent in Studio authoring, where no connection has
+ * been chosen yet — which is exactly why they are optional here.
+ */
+export interface InheritedTenantConfig {
+  timezone?: string | null;
+  currency?: string | null;
+}
+
+export function compileScope(
+  input: unknown,
+  columnsOf?: TableColumnLookup,
+  inherited?: InheritedTenantConfig,
+): CompiledScope {
   const parsed = publicScopeDocumentSchema.safeParse(input);
   if (!parsed.success) {
     throw new ScopeCompileError(
@@ -323,14 +347,26 @@ export function compileScope(input: unknown, columnsOf?: TableColumnLookup): Com
   const doc = parsed.data;
   const issues: ScopeIssue[] = [];
 
-  const timezone = canonicalTimeZone(doc.timezone);
+  /*
+   * Scope first, connection second. The scope is the narrower statement and the
+   * operator wrote it more recently; inheritance is the default, not a
+   * fallback that silently wins.
+   */
+  const declaredZone = doc.timezone ?? inherited?.timezone ?? null;
+  const timezone = declaredZone === null ? null : canonicalTimeZone(declaredZone);
   if (timezone === null) {
     issues.push({
       code: 'SCOPE_TIMEZONE_INVALID',
       message:
-        `"${doc.timezone}" is not a canonical IANA time zone. Use a Region/City name such as ` +
-        `"Europe/London". Abbreviations are refused because they are ambiguous: "BST" resolves to ` +
-        `Asia/Dhaka, and "EST" to a zone that never observes daylight saving.`,
+        declaredZone === null
+          ? // Naming both places matters: an operator told only "the scope has
+            // no timezone" will add one to every scope instead of setting it
+            // once on the connection, which is the whole point of 28-T34.
+            'no time zone is configured. Set one on the connection, or state a ' +
+            '`timezone` on this scope to override it.'
+          : `"${declaredZone}" is not a canonical IANA time zone. Use a Region/City name such as ` +
+            `"Europe/London". Abbreviations are refused because they are ambiguous: "BST" resolves ` +
+            `to Asia/Dhaka, and "EST" to a zone that never observes daylight saving.`,
     });
   }
 
@@ -578,7 +614,10 @@ export function compileScope(input: unknown, columnsOf?: TableColumnLookup): Com
     side: doc.side,
     // The CANONICAL spelling, not what was written — see `canonicalTimeZone`.
     timezone: timezone,
-    currency: doc.currency ?? null,
+    // Same inheritance as the zone, same order: the scope overrides, the
+    // connection supplies. Null only when neither has one, which is legitimate
+    // — a scope exposing no money needs no currency.
+    currency: doc.currency ?? inherited?.currency ?? null,
     claim: doc.claim ?? null,
     byRef,
   };

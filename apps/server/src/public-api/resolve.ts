@@ -20,7 +20,7 @@
  * having any route to the response.
  */
 
-import { compileScope, ScopeCompileError, type CompiledScope, type TableColumnLookup } from './scope.js';
+import { compileScope, type InheritedTenantConfig, ScopeCompileError, type CompiledScope, type TableColumnLookup } from './scope.js';
 import { hashPublishableKey, keyIsLive, tokenHashEquals, PUBLISHABLE_DISPLAY_PREFIX_LENGTH } from './keys.js';
 
 export interface ResolvedKey {
@@ -63,6 +63,12 @@ export interface ResolverDeps {
   findScopeById: (id: string) => Promise<PublicScopeRow | null>;
   /** Column existence per physical table, from the connection's snapshot. */
   columnsOf?: (connectionId: string) => Promise<TableColumnLookup | undefined>;
+  /**
+   * The connection's tenant configuration (28-T34) — the zone and currency a
+   * scope inherits when it does not state its own. Optional so tests and the
+   * Studio authoring path can compile a scope with no connection behind it.
+   */
+  tenantConfigOf?: (connectionId: string) => Promise<InheritedTenantConfig | undefined>;
   /** Server-side only. Never reaches a response. */
   onFailure?: (reason: ResolveFailure, detail: Record<string, unknown>) => void;
   ttlMs?: number;
@@ -133,7 +139,14 @@ export function createPublicKeyResolver(deps: ResolverDeps): PublicKeyResolver {
       let scope: CompiledScope;
       try {
         const columnsOf = await deps.columnsOf?.(scopeRow.connectionId);
-        scope = compileScope(JSON.parse(scopeRow.document) as unknown, columnsOf);
+        // 28-T34: the connection carries the tenant's zone and currency; the
+        // scope overrides them when it states its own.
+        const inherited = await deps.tenantConfigOf?.(scopeRow.connectionId);
+        scope = compileScope(
+          JSON.parse(scopeRow.document) as unknown,
+          columnsOf,
+          inherited,
+        );
       } catch (error) {
         /*
          * A stored scope that no longer compiles means the schema moved under
