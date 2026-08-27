@@ -64,7 +64,9 @@ export {
 
 /* -------------------------- generated-page bodies: crud + domain dashboards */
 export {
+  buildColumnDef,
   composeCrudBody,
+  crudDisplayColumns,
   enumTones,
   type CrudBodyContext,
   type CrudDetailTab,
@@ -83,6 +85,7 @@ export {
 
 /* ------------------------------------- page-crud config-body column contract */
 export {
+  fkDisplayAliasOf,
   gridColumnSpecSchema,
   type GridColumnSpec,
   type GridColumnSpecInput,

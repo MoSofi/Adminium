@@ -23,6 +23,20 @@ export const dataRecordParams = dataTableParams.extend({
   recordId: z.string().min(1),
 });
 
+/**
+ * Repeatable cross-table lookup spec:
+ * `alias:fkColumn[.fkColumn…].targetColumn` (crud/lookups.ts). Fastify hands
+ * a repeated query key over as an array, a single one as a string.
+ */
+const lookupParam = z.union([z.string(), z.array(z.string())]).optional();
+
+/**
+ * Repeatable reverse-link aggregate spec:
+ * `alias:table.fkColumn:count` (crud/aggregates.ts) — counts rows of a table
+ * whose FK points at this one, aliased into each row.
+ */
+const aggParam = z.union([z.string(), z.array(z.string())]).optional();
+
 export const recordListQuery = z.object({
   select: z.string().optional(),
   /** URL-encoded JSON filter tree (§2.7.1 grammar). */
@@ -30,6 +44,8 @@ export const recordListQuery = z.object({
   q: z.string().optional(),
   /** `col.desc,col2.asc` — ≤ 3 keys. */
   order: z.string().optional(),
+  lookup: lookupParam,
+  agg: aggParam,
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   /** Keyset cursor; empty string = first keyset page. */
@@ -47,6 +63,8 @@ export const recordListReply = z.object({
 
 export const recordGetQuery = z.object({
   include: z.enum(['inboundCounts']).optional(),
+  lookup: lookupParam,
+  agg: aggParam,
 });
 
 export const referenceCountSchema = z.object({
