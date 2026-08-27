@@ -106,8 +106,14 @@ export function ModalHeader({
       <div className="min-w-0 flex-1">
         <DialogPrimitive.Title className="text-modal text-fg">{title}</DialogPrimitive.Title>
         {subtitle === undefined || subtitle === null ? null : (
-          <DialogPrimitive.Description className="mt-0.5 text-body-sm text-fg-muted">
-            {subtitle}
+          // asChild over a <div>, not Radix's default <p>: `subtitle` is a
+          // ReactNode and real callers pass block content (the delete-preflight
+          // consequence list is a KeyValueList of divs). A <div> inside a <p> is
+          // invalid HTML — the browser auto-closes the <p>, so the rendered DOM
+          // stops matching the React tree. The description id rides on the div,
+          // so the aria-describedby wiring is unchanged.
+          <DialogPrimitive.Description asChild>
+            <div className="mt-0.5 text-body-sm text-fg-muted">{subtitle}</div>
           </DialogPrimitive.Description>
         )}
         {children}

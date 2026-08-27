@@ -99,8 +99,12 @@ export function DrawerHeader({
       <div className="min-w-0 flex-1">
         <DialogPrimitive.Title className="text-section text-fg">{title}</DialogPrimitive.Title>
         {subtitle === undefined || subtitle === null ? null : (
-          <DialogPrimitive.Description className="mt-0.5 text-body-sm text-fg-muted">
-            {subtitle}
+          // asChild over a <div> — same reason as ModalHeader: `subtitle` is a
+          // ReactNode, and block content inside Radix's default <p> is invalid
+          // HTML. The description id rides on the div, so aria-describedby is
+          // unchanged.
+          <DialogPrimitive.Description asChild>
+            <div className="mt-0.5 text-body-sm text-fg-muted">{subtitle}</div>
           </DialogPrimitive.Description>
         )}
         {children}

@@ -50,12 +50,26 @@ export function Card({ asChild, hoverable, raise, selected, padded, className, .
 
 export type CardHeaderProps = ComponentPropsWithRef<'div'>;
 
-/** Card header slot: `--card-pad` padding + bottom hairline. Use with `padded={false}` on Card. */
+/**
+ * Card header slot: `--card-pad` padding + bottom hairline. Use with
+ * `padded={false}` on Card.
+ *
+ * PACKS TO THE START, and does not spread its children. The slot defaulted to
+ * `justify-between` on the theory that a header is "title left, action right",
+ * but that is the minority case: across the dashboard 18 headers were an icon
+ * beside its own heading and only 5 ended in a real action. On a narrow column
+ * nobody noticed; widening the settings pages to `--container-page` flung
+ * icons up to 500px from the titles they belong to.
+ *
+ * A header that DOES want its last child pushed right says so —
+ * `className="justify-between"` — or gives its first child `flex-1`, which
+ * several already do and which is why they were unaffected either way.
+ */
 export function CardHeader({ className, ...props }: CardHeaderProps) {
   return (
     <div
       className={cn(
-        'flex items-start justify-between gap-3 border-b border-border px-[var(--card-pad)] py-[calc(var(--card-pad)*0.7)]',
+        'flex items-start justify-start gap-3 border-b border-border px-[var(--card-pad)] py-[calc(var(--card-pad)*0.7)]',
         className,
       )}
       {...props}

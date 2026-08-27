@@ -73,10 +73,13 @@
   --spacing-sidebar: 256px;
   --container-form: 640px; --container-narrow: 720px; --container-page: 1080px;
   --container-marketing: 1160px; --container-wide: 1200px; --container-max: 1360px; --container-widest: 1800px;
-  /* The reading column for pages whose content is a short stack of controls
-     rather than a grid — import, settings, account. Wide enough for a two-up
-     field row, narrow enough that a lone label does not run the full monitor.
-     `--container-narrow` (720px) is a text measure and squeezes those rows. */
+  /* A reading column for a short stack of controls rather than a grid. Wide
+     enough for a two-up field row, narrow enough that a lone label does not run
+     the full monitor; `--container-narrow` (720px) is a text measure and
+     squeezes those rows. It used to be the default for import, settings and
+     account, which is what the comment here used to say — those are all on
+     `--container-page` now, so this is an option a page can choose rather than
+     any screen's default. */
   --container-content: 900px;
   /* Dashboard column. Deliberately NOT --container-page (1080px), which form and
      settings pages depend on staying narrow. */
