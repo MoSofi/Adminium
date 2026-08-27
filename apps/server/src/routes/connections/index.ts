@@ -40,6 +40,12 @@ import {
 
 export const CONNECTIONS_MANAGE = 'system:connections:manage';
 
+/**
+ * Realtime event type on the `config-changed` channel (meta wave 0019): a
+ * connection was paused or resumed, so every session's nav is now wrong.
+ */
+export const CONNECTION_AVAILABILITY_CHANGED = 'connection.availability.changed';
+
 export interface ConnectionsRoutesDeps {
   manager: ConnectionManager;
   meta: MetaDb;
@@ -106,6 +112,13 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         // message replaces that, the hint describes a failure the card is no
         // longer reporting, so it goes with it.
         lastErrorHint: secretMismatch === null ? connection.lastErrorHint : null,
+        // Not a secret and not derived from one: a business's timezone is the
+        // same fact its customers see on every page.
+        timezone: connection.timezone,
+        timezoneSource: connection.timezoneSource,
+        currency: connection.currency,
+        disabled: connection.disabled,
+        disabledAt: connection.disabledAt,
         snapshot:
           latest === null
             ? null
@@ -228,16 +241,78 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request) => {
         const connection = await manager.mustFind(request.params.id);
+        /*
+         * Pause/resume is applied through its own repo writer BEFORE the field
+         * patch, and audited under its own action.
+         *
+         * Its own writer because the column stores an instant and the request
+         * carries a boolean — the repo owns the clock. Its own audit action
+         * because "someone paused production" and "someone renamed a
+         * connection" are not the same event, and a reader scanning
+         * `connection.update` rows for the former would never find it.
+         *
+         * `undefined` means the field was omitted: a rename must never resume
+         * a paused source as a side effect.
+         */
+        if (request.body.disabled !== undefined && request.body.disabled !== connection.disabled) {
+          await manager.connections.setDisabled(connection.id, request.body.disabled);
+          /*
+           * Release the pooled handle on the way down. `manager.data` re-checks
+           * the row on every call, so this is not what makes the pause take
+           * effect — it is what stops a paused connection from holding open
+           * sockets against a database an operator has just declared
+           * off-limits, which is half of why anyone pauses one.
+           */
+          if (request.body.disabled) await manager.dispose(connection.id);
+          await app.rbac.audit(request, {
+            category: 'connection',
+            action: request.body.disabled ? 'connection.disable' : 'connection.enable',
+            connectionId: connection.id,
+            changes: {
+              before: { disabled: connection.disabled },
+              after: { disabled: request.body.disabled },
+            },
+          });
+          /*
+           * Every signed-in session drops its bootstrap cache.
+           *
+           * A pause adds and removes SIDEBAR ENTRIES, and the operator who
+           * flipped it is rarely the only person looking at one. Without this
+           * everyone else keeps a nav full of pages that no longer load until
+           * they happen to reload the tab — the stale half of a change that is
+           * supposed to be total. Same `config-changed` channel a branding or
+           * defaults edit uses, and the shell already maps it to invalidating
+           * `['bootstrap']` and `['page']`.
+           */
+          if (app.hasDecorator('realtime')) {
+            app.realtime.publish('config-changed', CONNECTION_AVAILABILITY_CHANGED, {
+              connectionId: connection.id,
+              disabled: request.body.disabled,
+            });
+          }
+        }
         const updated = await manager.connections.update(connection.id, {
           ...(request.body.name !== undefined ? { name: request.body.name } : {}),
           ...(request.body.settings !== undefined ? { settings: request.body.settings } : {}),
+          // `exactOptionalPropertyTypes` is on, so an absent field must be
+          // SPREAD AWAY rather than written as `undefined` — and the
+          // distinction is load-bearing here: omitted means "leave it", `null`
+          // means "clear it".
+          ...(request.body.timezone !== undefined ? { timezone: request.body.timezone } : {}),
+          ...(request.body.currency !== undefined ? { currency: request.body.currency } : {}),
         });
-        await app.rbac.audit(request, {
-          category: 'connection',
-          action: 'connection.update',
-          connectionId: connection.id,
-          changes: { before: { name: connection.name }, after: { name: updated?.name ?? connection.name } },
-        });
+        // A pause-only PATCH is already audited above under its own action;
+        // adding a second `connection.update` row for it would report an edit
+        // that did not happen and bury the one that did.
+        const { disabled: _disabled, ...fields } = request.body;
+        if (Object.values(fields).some((value) => value !== undefined)) {
+          await app.rbac.audit(request, {
+            category: 'connection',
+            action: 'connection.update',
+            connectionId: connection.id,
+            changes: { before: { name: connection.name }, after: { name: updated?.name ?? connection.name } },
+          });
+        }
         return toDto(updated ?? connection);
       },
     );
@@ -280,6 +355,14 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request) => {
         const connection = await manager.mustFind(request.params.id);
+        /*
+         * A paused connection is not tested. `testDsn` dials the source
+         * directly rather than going through the manager's pooled path, so
+         * without this line the one button on the card that reaches the
+         * database would be the one the pause did not cover — and its result
+         * would be written straight onto the health fields the card is showing.
+         */
+        manager.assertEnabled(connection);
         const dsns = await manager.connections.getDsns(connection.id);
         if (dsns?.dataDsn == null) {
           throw new ValidationFailedError('Connection has no DSN to test.', { connectionId: connection.id });
@@ -307,6 +390,13 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
       },
       async (request, reply) => {
         const connection = await manager.mustFind(request.params.id);
+        /*
+         * Refused here rather than left to `introspectAdapter`: on the 202 path
+         * the adapter is not opened until a worker picks the job up, so the
+         * operator would get an accepted job that fails minutes later out of
+         * sight. Same refusal, delivered while somebody is still looking.
+         */
+        manager.assertEnabled(connection);
         const actorId =
           request.apiKeyPrincipal === null
             ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)

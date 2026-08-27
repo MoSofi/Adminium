@@ -50,6 +50,35 @@ export interface ConnectionDto {
   /** Remediation copy for `lastError`, from the adapter (05 §3). */
   lastErrorHint: string | null;
   snapshot: { id: string; createdAt: number; checksum: string } | null;
+  /**
+   * Tenant configuration (28-T34) — properties of the BUSINESS the database
+   * belongs to, not of any one front end. Carried on the connection because a
+   * hosted surface has no scope and no publishable key, so this is the only
+   * place it can read them from.
+   *
+   * Both nullable. A null zone no longer stops a surface rendering — apps fall
+   * back to UTC and say so on screen — but it is still the value every date
+   * there is drawn through, so a wrong one is off by hours and looks like data.
+   */
+  timezone: string | null;
+  /**
+   * Who chose {@link timezone} (meta wave 0018). `'host'` means the server
+   * seeded its own zone and nobody has confirmed it; `null` is no claim, which
+   * must render as nothing rather than as a guess.
+   */
+  timezoneSource: 'host' | 'operator' | null;
+  currency: string | null;
+  /**
+   * Paused by an operator (meta wave 0019) — Adminium opens no connection to
+   * this source until it is resumed.
+   *
+   * Reported alongside `status` rather than folded into it: `status` is the
+   * last probe's reading, so a connection that was failing when it was paused
+   * still says `error`, and the card can be honest about both at once.
+   */
+  disabled: boolean;
+  /** When it was paused; null while it is serving. */
+  disabledAt: number | null;
   /** Included tables (allowlist, else last snapshot); null before introspection. */
   tableCount: number | null;
   /** Generated pages owned by this connection. */
@@ -70,12 +99,32 @@ export interface JobView {
   lastError: string | null;
 }
 
-/** Subset of the engine `DatabaseModel` the wizard reads (schema GET reply). */
+/**
+ * Subset of the engine `DatabaseModel` the wizard and the page-column manager
+ * read (schema GET reply). The manager needs enough of each column to compose
+ * a `gridColumnSpecSchema` entry exactly as regeneration would
+ * (`buildColumnDef` in @adminium/widgets/generate) — hence the
+ * form/classifier facts beyond the wizard's needs.
+ */
 export interface SchemaColumn {
   name: string;
+  ordinal?: number;
   logicalType: string;
+  nullable?: boolean;
+  isPrimaryKey?: boolean;
+  isUnique?: boolean;
+  isGenerated?: boolean;
+  /** `ColumnDefault` — the manager only reads `kind`. */
+  default?: { kind: string } | null;
+  maxLength?: number | null;
+  /** `EnumDef.id` when logicalType='enum'. */
+  enumRef?: string | null;
+  /** Outbound FK mirror — drives the lookup-column browser. */
+  references?: { tableId: string; column: string } | null;
   semantics?: {
-    flags?: { pii?: string | null; maskedByDefault?: boolean };
+    primary?: string;
+    format?: string | null;
+    flags?: { secret?: boolean; pii?: string | null; maskedByDefault?: boolean };
   } | null;
 }
 
@@ -83,7 +132,9 @@ export interface SchemaTable {
   id: string;
   schema: string;
   name: string;
+  label?: string;
   columns: SchemaColumn[];
+  primaryKey?: string[];
   rowCountEstimate: number | null;
   system?: boolean;
   semantics?: { role?: string } | null;
@@ -95,7 +146,7 @@ export interface SchemaReply {
   checksum: string;
   createdAt: number;
   source: string;
-  model: { tables: SchemaTable[] };
+  model: { tables: SchemaTable[]; enums?: { id: string; values: string[] }[] };
   appliedOverrides: number;
 }
 
@@ -180,8 +231,22 @@ export const studioApi = {
     settings?: ConnectionSettings;
   }) => api.post<ConnectionDto>('/api/v1/connections', input),
 
-  patchConnection: (id: string, patch: { name?: string; settings?: ConnectionSettings }) =>
-    api.patch<ConnectionDto>(`/api/v1/connections/${encodeURIComponent(id)}`, patch),
+  /**
+   * `timezone`/`currency` are explicitly `| null`, not merely optional: the
+   * server distinguishes "leave it alone" (omitted) from "clear it" (null),
+   * and an operator has to be able to undo a zone they set by mistake.
+   */
+  patchConnection: (
+    id: string,
+    patch: {
+      name?: string;
+      settings?: ConnectionSettings;
+      timezone?: string | null;
+      currency?: string | null;
+      /** Pause (`true`) / resume (`false`). Omitted leaves the pause alone. */
+      disabled?: boolean;
+    },
+  ) => api.patch<ConnectionDto>(`/api/v1/connections/${encodeURIComponent(id)}`, patch),
 
   /** 200 sync result or 202 `{ jobId }` when the jobs worker is wired. */
   introspect: async (id: string): Promise<IntrospectResult> => {

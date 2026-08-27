@@ -17,6 +17,7 @@ import {
   LogIn,
   LogOut,
   Mail,
+  PauseCircle,
   Plus,
   RefreshCw,
   ServerCrash,
@@ -188,5 +189,30 @@ export const SYSTEM_STATES: Record<SystemStateId, SystemStateSpec> = {
     body: { key: 'states.suspended.body', en: 'This workspace has been suspended by an administrator. Your data is preserved — contact the workspace owner to restore access.' },
     primary: { label: { key: 'states.suspended.primary', en: 'Contact owner' }, icon: Mail },
     secondary: { key: 'states.suspended.secondary', en: 'Go back' },
+  },
+  /**
+   * An admin PAUSED the connection this page reads from (meta wave 0019).
+   *
+   * Tone `accent`, not `danger`: nothing failed and nothing is lost — somebody
+   * switched the source off on purpose, which is closer to `read-only` than to
+   * `db-unreachable`. The copy says so, and says where the switch is, because
+   * the reader is usually not the person who flipped it.
+   *
+   * No `primary`. "Retry" is the reflex here and it is exactly wrong: the
+   * answer will not change until a human resumes the connection, so a retry
+   * button would be a control that cannot work. `secondary` goes back, which
+   * is the only move the reader actually has. (`StateHero` omits a button that
+   * is absent from `StatePage`'s action maps — see the `suspended` note there.)
+   */
+  'connection-paused': {
+    id: 'connection-paused',
+    icon: PauseCircle,
+    tone: 'accent',
+    title: { key: 'states.connectionPaused.title', en: 'This connection is paused' },
+    body: {
+      key: 'states.connectionPaused.body',
+      en: 'An admin paused the database behind this page, so it is not loading data right now. Nothing has been deleted — it comes back as soon as the connection is resumed in Studio → Data connections.',
+    },
+    secondary: { key: 'states.connectionPaused.secondary', en: 'Go back' },
   },
 };

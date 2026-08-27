@@ -119,4 +119,37 @@ describe('unreachableRemotes', () => {
   it('is empty when everything is fine', () => {
     expect(unreachableRemotes([local, remote])).toEqual([]);
   });
+
+  /**
+   * A PAUSED remote (meta wave 0019) is neither reachable nor offline: nobody
+   * is dialling it. Calling it offline would report a decision as a failure —
+   * and it is the one that would print `remote-db-offline` over an operator's
+   * own deliberate pause.
+   */
+  it('does not call a paused remote unreachable, whatever its last reading said', () => {
+    expect(unreachableRemotes([{ ...remoteDown, disabled: true }])).toEqual([]);
+    expect(unreachableRemotes([{ ...remoteDown, disabled: true }, remoteDown]).map((c) => c.name)).toEqual([
+      'prod-db',
+    ]);
+  });
+});
+
+describe('runtimeChipState — a paused remote is not a remote', () => {
+  it('falls back to Local when the only remote is paused', () => {
+    // Not `remote-db` either: that claims a reachable source, and this one is
+    // serving nothing at all.
+    expect(
+      runtimeChipState({
+        runtime: 'desktop',
+        connections: [local, { ...remote, disabled: true }],
+        lanShare: false,
+      }),
+    ).toBe('local');
+  });
+
+  it('does not report a pause as an outage', () => {
+    expect(
+      runtimeChipState({ runtime: 'desktop', connections: [{ ...remoteDown, disabled: true }], lanShare: false }),
+    ).toBe('local');
+  });
 });

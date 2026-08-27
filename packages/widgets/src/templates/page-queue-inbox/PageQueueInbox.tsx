@@ -25,6 +25,7 @@ import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { LoadOlderPaginator } from '../../families/feeds/LoadOlderPaginator.js';
 import { formatRelativeTime, uiToneOf } from '../../families/tables/column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
+import { describeDataError } from '../../lib/data-error.js';
 import {
   useDashboardData,
   type DashboardDataAdapter,
@@ -106,6 +107,8 @@ export interface PageQueueInboxLabels {
   caughtUpTitle?: string | undefined;
   caughtUpBody?: string | undefined;
   errorTitle?: string | undefined;
+  /** Shown instead of `errorTitle` when the connection is paused (0019). */
+  connectionPausedTitle?: string | undefined;
   retry?: string | undefined;
   loading?: string | undefined;
   selectPrompt?: string | undefined;
@@ -211,6 +214,16 @@ export function PageQueueInbox({
 
   const queue = useToastQueue();
   const t = useMaybeT();
+  /**
+   * What the error panel should say — a PAUSED connection is not a failed
+   * load (meta wave 0019): its own title, a calmer tone, and no Retry,
+   * because retrying cannot change the answer until a person resumes it.
+   */
+  const dataError = describeDataError(
+    queueState.status === 'error' ? queueState.error : null,
+    labels?.errorTitle ?? t('ui:templates.queue.errorTitle', 'This queue failed to load'),
+    labels?.connectionPausedTitle ?? t('ui:templates.common.connectionPaused', 'This connection is paused'),
+  );
   const formatters = useMemo(() => getFormatters(locale ?? 'en-US'), [locale]);
 
   // --- optimistic overlay (undo-first bulk decisions, §4.1) --------------------
@@ -537,11 +550,12 @@ export function PageQueueInbox({
 
             {queueState.status === 'error' ? (
               <EmptyState
-                tone="danger"
-                title={labels?.errorTitle ?? t('ui:templates.queue.errorTitle', 'This queue failed to load')}
-                body={queueState.error instanceof Error ? queueState.error.message : undefined}
+                tone={dataError.tone}
+                title={dataError.title}
+                body={dataError.body}
                 actions={
-                  queueState.refetch === undefined ? undefined : (
+                  // A paused connection offers no Retry: see `describeDataError`.
+                  queueState.refetch === undefined || !dataError.retryable ? undefined : (
                     <Button size="sm" variant="secondary" onClick={queueState.refetch}>
                       {labels?.retry ?? t('ui:action.retry', 'Retry')}
                     </Button>

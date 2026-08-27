@@ -55,6 +55,9 @@ export function StatePage({ stateId, requestId, fullPage = true, onRetry }: Stat
     'rate-limited': () => window.history.back(),
     'expired-link': toLogin,
     'read-only': () => window.history.back(),
+    // No primary for `connection-paused`: retrying cannot change the answer
+    // until a person resumes the connection (see its note in stateMap.ts).
+    'connection-paused': () => window.history.back(),
   };
 
   return (

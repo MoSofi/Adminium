@@ -127,6 +127,37 @@ describe.skipIf(!AVAILABLE)('connections manager (live PG)', () => {
     expect(denied.statusCode).toBe(403);
   });
 
+  it('carries timezone provenance on the wire, and a PATCH retires the guess', async () => {
+    /*
+     * Studio's only way to tell a seeded zone from a chosen one is this field
+     * (wave 0018). If it stops crossing the wire, the badge silently vanishes
+     * and every guess starts reading as a decision again — a regression with
+     * no visible symptom in the dashboard, which is why it is asserted here
+     * rather than left to the repo test alone.
+     */
+    const id = await createConnectionViaApi(t, pg.dsn, 'provenance');
+
+    const seeded = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/connections/${id}`,
+      headers: asUser(t.users.admin),
+    });
+    const before = seeded.json() as { timezone: string | null; timezoneSource: string | null };
+    expect(before.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(before.timezoneSource).toBe('host');
+
+    const patched = await t.app.inject({
+      method: 'PATCH',
+      url: `/api/v1/connections/${id}`,
+      headers: asUser(t.users.admin),
+      payload: { timezone: 'Europe/Lisbon' },
+    });
+    expect(patched.statusCode).toBe(200);
+    const after = patched.json() as { timezone: string | null; timezoneSource: string | null };
+    expect(after.timezone).toBe('Europe/Lisbon');
+    expect(after.timezoneSource).toBe('operator');
+  });
+
   it('introspects into a classified snapshot with auto-proposed PII masks; re-run is a no-op', async () => {
     const connections = await t.manager.connections.list();
     const id = connections[0]!.id;

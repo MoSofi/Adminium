@@ -15,6 +15,15 @@ export const connectionRolesSchema = z.object({
   data: z.string().min(1).optional(),
 });
 
+/**
+ * IANA zone. Validated as a shape here and canonicalised downstream — a
+ * `Region/City` name, never an abbreviation: "BST" resolves to Asia/Dhaka and
+ * "EST" to a zone that never observes daylight saving.
+ */
+const tenantTimezone = z.string().min(1).max(64);
+/** ISO-4217, upper case. */
+const tenantCurrency = z.string().length(3).regex(/^[A-Z]{3}$/, 'must be an ISO-4217 code');
+
 export const connectionCreateBody = z.object({
   name: z.string().min(1).max(80),
   engine: connectionEngineSchema,
@@ -36,6 +45,23 @@ export const connectionIdParams = z.object({ id: z.string().min(1) });
 export const connectionPatchBody = z.object({
   name: z.string().min(1).max(80).optional(),
   settings: connectionCreateBody.shape.settings,
+  /*
+   * Explicitly nullable, not merely optional: an operator must be able to
+   * UNSET a zone they set by mistake. Omitted leaves it alone; `null` clears
+   * it, and clearing it is what makes every scope over this connection refuse
+   * until one is set again — which is the correct loud failure, not a
+   * regression.
+   */
+  timezone: tenantTimezone.nullable().optional(),
+  currency: tenantCurrency.nullable().optional(),
+  /**
+   * Pause (`true`) or resume (`false`) the source — meta wave 0019.
+   *
+   * A boolean rather than a timestamp: the caller knows WHETHER, the repo
+   * decides WHEN. Idempotent, and omitted leaves the pause exactly as it is,
+   * so a rename never resumes a connection by accident.
+   */
+  disabled: z.boolean().optional(),
 });
 
 export const connectionDeleteBody = z.object({
@@ -82,6 +108,28 @@ export const connectionDto = z.object({
   lastError: z.string().nullable(),
   /** Remediation copy for `lastError`, from the adapter (05 §3). */
   lastErrorHint: z.string().nullable(),
+  /**
+   * Tenant configuration (28-T34). Carried on the connection because it
+   * describes the BUSINESS, and a hosted surface — which has no scope and no
+   * key — can reach it here and nowhere else.
+   */
+  timezone: z.string().nullable(),
+  /**
+   * Who chose `timezone` (0018): `operator`, `host` when the server seeded its
+   * own zone so a hosted surface had something to render, or null for no claim.
+   * Studio needs it to keep a guess from reading as a decision.
+   */
+  timezoneSource: z.enum(['host', 'operator']).nullable(),
+  currency: z.string().nullable(),
+  /**
+   * Paused by an operator (meta wave 0019) — Adminium opens no connection to
+   * this source until it is resumed. Reported ALONGSIDE `status` rather than
+   * folded into it: `status` is what the last probe saw, and a card that says
+   * "paused, and it was failing when you paused it" is the honest one.
+   */
+  disabled: z.boolean(),
+  /** When it was paused; null while it is serving. */
+  disabledAt: z.number().nullable(),
   /** Health-card snapshot age (§2.4). */
   snapshot: z
     .object({ id: z.string(), createdAt: z.number(), checksum: z.string() })

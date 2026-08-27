@@ -28,6 +28,12 @@ export interface ConnectionHealth {
   sourceKind: string;
   /** `unconfigured` | `connected` | `error`, from the persisted test results. */
   status: string;
+  /**
+   * Paused by an operator (meta wave 0019). Optional so the callers that
+   * predate the field keep type-checking, and because `undefined` and `false`
+   * mean the same thing here — a connection nobody switched off.
+   */
+  disabled?: boolean | undefined;
 }
 
 export interface RuntimeChipInput {
@@ -74,6 +80,14 @@ export interface RuntimeChipInput {
  * Postgres/MySQL server that may or may not be reachable.
  */
 function isRemote(connection: ConnectionHealth): boolean {
+  // A PAUSED source is not remote for the chip's purposes, and this is the
+  // single place that has to know it. The chip answers "where is your data and
+  // can you reach it?", and a connection nobody is dialling answers neither
+  // half: `remote-db-offline` would report a failure that is a decision, and
+  // `remote-db` would claim a reachable source that is serving nothing. Drop
+  // it from both sets and the chip falls through to what is still true about
+  // the connections that ARE live.
+  if (connection.disabled === true) return false;
   return connection.sourceKind === 'dsn' && connection.engine !== 'sqlite';
 }
 

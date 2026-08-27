@@ -7,7 +7,10 @@ import { QueryClient } from '@tanstack/react-query';
 
 import { ApiError } from './api.js';
 
-/** The 12 system states (09-generated-app.md §6.1, incl. the new `suspended`). */
+/**
+ * The 13 system states (09-generated-app.md §6.1, incl. `suspended` and
+ * `connection-paused`).
+ */
 export const SYSTEM_STATE_IDS = [
   'not-found',
   'forbidden',
@@ -21,6 +24,15 @@ export const SYSTEM_STATE_IDS = [
   'empty-no-sources',
   'read-only',
   'suspended',
+  /**
+   * The source database is PAUSED by an operator (meta wave 0019).
+   *
+   * Its own state rather than `db-unreachable`: that screen says a database
+   * could not be reached and offers "Retry connection", which here would be a
+   * button that cannot work in front of a reader who has done nothing wrong.
+   * Nothing is broken, nothing is lost, and the fix is a person resuming it.
+   */
+  'connection-paused',
 ] as const;
 export type SystemStateId = (typeof SYSTEM_STATE_IDS)[number];
 
@@ -50,6 +62,7 @@ export function stateIdForError(error: unknown): SystemStateId {
         return 'rate-limited';
       case 503:
         if (error.code === 'MAINTENANCE') return 'maintenance';
+        if (error.code === 'CONNECTION_DISABLED') return 'connection-paused';
         if (
           error.code === 'DB_UNREACHABLE' ||
           error.code === 'SOURCE_DB_UNREACHABLE' ||
@@ -79,6 +92,10 @@ export function createQueryClient(): QueryClient {
         // 4xx are decisions, not flakes; retry only transient failures.
         retry: (failureCount, error) => {
           if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
+          // A paused connection is a 5xx by status and a DECISION by nature —
+          // it will answer exactly the same way until a human resumes it, so
+          // retrying only spends the reader's time before the same screen.
+          if (error instanceof ApiError && error.code === 'CONNECTION_DISABLED') return false;
           return failureCount < 2;
         },
         refetchOnWindowFocus: false,

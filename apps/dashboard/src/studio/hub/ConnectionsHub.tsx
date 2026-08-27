@@ -5,12 +5,13 @@
  * the fleet, one health card per connection (engine badge, status pill driven
  * by the persisted test-connection results, last-introspected relative time,
  * included-table + generated-page counts) and the manage actions — test,
- * re-introspect (with diff feedback), open the remap editor, and the
- * type-to-confirm delete (server re-enforces `confirmName`, §2.4).
+ * re-introspect (with diff feedback), open the remap editor, pause/resume
+ * (meta wave 0019), and the type-to-confirm delete (server re-enforces
+ * `confirmName`, §2.4).
  */
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { CircleCheckBig, Database, FileCode2, LayoutGrid, Plus, RefreshCw, Table2 } from 'lucide-react';
+import { CircleCheckBig, Database, FileCode2, LayoutGrid, Pause, Play, Plus, RefreshCw, Table2 } from 'lucide-react';
 import { getFormatters } from '@adminium/i18n';
 import {
   Badge,
@@ -19,6 +20,10 @@ import {
   ConfirmModal,
   EmptyState,
   IconTile,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   MonoText,
   StatusPill,
   Tooltip,
@@ -29,6 +34,8 @@ import { useAppToasts } from '../../pages/toasts.js';
 import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { studioApi, type ConnectionDto, type IntrospectResult } from '../api.js';
+import { RegionalSettingsModal } from './RegionalSettingsModal.js';
+import { RenameConnectionModal } from './RenameConnectionModal.js';
 
 export function connectionsQuery() {
   return queryOptions({
@@ -172,6 +179,123 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
   );
 }
 
+// --- pause / resume ------------------------------------------------------------
+
+/**
+ * The consequence dialog shown before a PAUSE — never before a resume.
+ *
+ * Not `ConfirmModal`: that component gates on typing the connection's name,
+ * which is the right friction for a delete and the wrong friction here. A
+ * pause is undone by one click, and making it as ceremonious as deletion is
+ * how an operator ends up deleting a connection they only meant to switch off
+ * for an afternoon.
+ *
+ * It is still a dialog rather than a bare button, because the blast radius is
+ * not visible from the button: every generated page over this source stops
+ * loading, and so do its scheduled reports, exports and hosted app surfaces —
+ * none of which are on this screen.
+ */
+function PauseConnectionModal({
+  connection,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  connection: ConnectionDto;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      open
+      size="sm"
+      onOpenChange={(next) => {
+        if (!next && !busy) onCancel();
+      }}
+    >
+      <ModalHeader
+        icon={<Pause />}
+        tone="warn"
+        title={t('studio.hub.pause.title', 'Pause this connection?')}
+        closeLabel={t('common.close', 'Close')}
+      />
+      <ModalBody>
+        <p className="text-body-sm text-fg-muted">
+          {t(
+            'studio.hub.pause.body',
+            'Adminium stops opening any connection to “{name}”. Its {pages, plural, one {# page} other {# pages}}, scheduled reports and hosted apps stop loading data until you resume it.',
+            { name: connection.name, pages: connection.pageCount },
+          )}
+        </p>
+        <p className="mt-2 text-body-sm text-fg-muted">
+          {/* The reassurance that makes this the alternative to Delete rather
+              than a milder version of it. */}
+          {t(
+            'studio.hub.pause.keeps',
+            'Nothing is deleted — the connection, its schema and its {pages, plural, one {# page} other {# pages}} are all kept, and one click brings them back.',
+            { pages: connection.pageCount },
+          )}
+        </p>
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
+          {t('common.cancel', 'Cancel')}
+        </Button>
+        <Button variant="primary" loading={busy} onClick={onConfirm}>
+          {t('studio.hub.pause.confirm', 'Pause connection')}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+}
+
+/**
+ * A secondary action that reaches the source database — disabled, with the
+ * reason attached, while the connection is paused.
+ *
+ * The disabled `<Button>` is wrapped in a `<span>` for the same reason the
+ * schema-file case above is: a disabled button fires no pointer events, so the
+ * tooltip would never open on the one control that needs to explain itself.
+ */
+function PausableAction({
+  paused,
+  label,
+  icon,
+  loading,
+  onClick,
+}: {
+  paused: boolean;
+  label: string;
+  icon?: ReactNode;
+  loading: boolean;
+  onClick: () => void;
+}) {
+  if (paused) {
+    return (
+      <Tooltip
+        content={t(
+          'studio.hub.action.pausedHint',
+          'This connection is paused — resume it to reach the database.',
+        )}
+      >
+        <span className="inline-flex">
+          <Button size="sm" variant="secondary" disabled>
+            {icon}
+            {label}
+          </Button>
+        </span>
+      </Tooltip>
+    );
+  }
+  return (
+    <Button size="sm" variant="secondary" loading={loading} onClick={onClick}>
+      {icon}
+      {label}
+    </Button>
+  );
+}
+
 // --- per-connection card -------------------------------------------------------
 
 interface ConnectionCardProps {
@@ -300,15 +424,57 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
     },
   });
 
+  const [editingRegional, setEditingRegional] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [confirmingPause, setConfirmingPause] = useState(false);
+
+  const setDisabled = useMutation({
+    mutationFn: (disabled: boolean) => studioApi.patchConnection(connection.id, { disabled }),
+    onSuccess: (updated) => {
+      setConfirmingPause(false);
+      toasts.push({
+        variant: 'success',
+        title: updated.disabled
+          ? t('studio.hub.pause.pausedToast', 'Connection “{name}” paused', { name: connection.name })
+          : t('studio.hub.pause.resumedToast', 'Connection “{name}” resumed', { name: connection.name }),
+      });
+    },
+    onError: () => {
+      toasts.push({
+        variant: 'error',
+        title: connection.disabled
+          ? t('studio.hub.pause.resumeFailed', 'Could not resume the connection. Try again.')
+          : t('studio.hub.pause.pauseFailed', 'Could not pause the connection. Try again.'),
+      });
+    },
+    onSettled: async () => {
+      // The nav shrinks and grows with what a paused source can serve, so the
+      // bootstrap cache is invalidated alongside the hub's own.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['studio', 'connections'] }),
+        queryClient.invalidateQueries({ queryKey: ['bootstrap'] }),
+      ]);
+    },
+  });
+
   const numbers = fmt();
   const lastIntrospected =
     connection.snapshot === null
       ? t('studio.hub.card.never', 'Never')
       : numbers.relative(connection.snapshot.createdAt);
   const isFile = connection.sourceKind === 'schema-file';
+  const pausedAt = connection.disabledAt === null ? null : numbers.relative(connection.disabledAt);
+  const pillStatus = test.isPending ? 'syncing' : connection.disabled ? 'paused' : connection.status;
 
   return (
-    <Card padded data-testid={`connection-card-${connection.id}`} className="flex flex-col gap-3.5">
+    <Card
+      padded
+      data-testid={`connection-card-${connection.id}`}
+      data-paused={connection.disabled ? 'true' : undefined}
+      // Dimmed, not hidden: a paused source is still yours to see, and a card
+      // that looked identical to a live one is how a pause gets forgotten.
+      className={`flex flex-col gap-3.5${connection.disabled ? ' opacity-70' : ''}`}
+    >
       <div className="flex items-start gap-3">
         <IconTile tone="accent" size="lg" icon={isFile ? <FileCode2 /> : <Database />} />
         <div className="min-w-0 flex-1">
@@ -325,10 +491,34 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             </MonoText>
           )}
         </div>
-        <StatusPill status={test.isPending ? 'syncing' : connection.status}>
-          {test.isPending ? t('studio.hub.status.testing', 'Testing…') : statusLabel(connection.status)}
+        {/* The pause OUTRANKS the health reading in the pill, because it is
+            what decides whether anything is being served right now — but it
+            does not replace it: the stored `status` is still rendered below
+            when it says `error`, so "paused, and it was failing when you
+            paused it" stays visible in one glance. */}
+        <StatusPill status={pillStatus}>
+          {test.isPending
+            ? t('studio.hub.status.testing', 'Testing…')
+            : connection.disabled
+              ? t('studio.hub.status.paused', 'Paused')
+              : statusLabel(connection.status)}
         </StatusPill>
       </div>
+
+      {connection.disabled ? (
+        <p role="status" className="text-caption text-fg-muted">
+          {pausedAt === null
+            ? t(
+                'studio.hub.card.paused',
+                'Adminium is not connecting to this database. Its pages load again when you resume it.',
+              )
+            : t(
+                'studio.hub.card.pausedSince',
+                'Paused {when} — Adminium is not connecting to this database. Its pages load again when you resume it.',
+                { when: pausedAt },
+              )}
+        </p>
+      ) : null}
 
       {connection.status === 'error' && connection.lastError !== null ? (
         <div role="alert" className="flex flex-col gap-1">
@@ -357,13 +547,37 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
         <MetaCell label={t('studio.hub.card.lastIntrospected', 'Last introspected')} mono={false}>
           {lastIntrospected}
         </MetaCell>
+        {/* Shown on the card because every date a hosted app surface renders
+            is drawn through it, and because it is the one field here that can
+            be a value nobody chose; currency only affects formatting and lives
+            in the modal alone. */}
+        <MetaCell label={t('studio.hub.card.timezone', 'Timezone')}>
+          {connection.timezone ?? '—'}
+          {connection.timezone !== null && connection.timezoneSource === 'host' ? (
+            <>
+              {' · '}
+              <span className="text-fg-muted">
+                {t('studio.hub.card.timezoneGuessed', 'from this server')}
+              </span>
+            </>
+          ) : null}
+        </MetaCell>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        {/* Test and Re-introspect are the two actions that DIAL the source, so
+            the pause takes them away — the server refuses both anyway (503
+            CONNECTION_DISABLED), and a button that only produces an error is
+            worse than one that explains itself. Remap and Regional settings
+            read nothing but the meta store and stay available: a pause is for
+            the database, not for the mapping work you can still do offline. */}
         {isFile ? null : (
-          <Button size="sm" variant="secondary" loading={test.isPending} onClick={() => test.mutate()}>
-            {t('studio.hub.action.test', 'Test')}
-          </Button>
+          <PausableAction
+            paused={connection.disabled}
+            label={t('studio.hub.action.test', 'Test')}
+            loading={test.isPending}
+            onClick={() => test.mutate()}
+          />
         )}
         {isFile ? (
           <Tooltip
@@ -380,28 +594,95 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             </span>
           </Tooltip>
         ) : (
-          <Button
-            size="sm"
-            variant="secondary"
+          <PausableAction
+            paused={connection.disabled}
+            label={t('studio.hub.action.reintrospect', 'Re-introspect')}
+            icon={<RefreshCw aria-hidden className="size-3.5" />}
             loading={introspect.isPending}
             onClick={() => introspect.mutate()}
-          >
-            <RefreshCw aria-hidden className="size-3.5" />
-            {t('studio.hub.action.reintrospect', 'Re-introspect')}
-          </Button>
+          />
         )}
         <Button size="sm" variant="secondary" onClick={() => onOpenRemap(connection.id)}>
           {t('studio.hub.action.remap', 'Remap schema')}
         </Button>
+        <Button size="sm" variant="secondary" onClick={() => setRenaming(true)}>
+          {t('studio.hub.action.rename', 'Rename')}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => setEditingRegional(true)}>
+          {t('studio.hub.action.regional', 'Regional settings')}
+        </Button>
+        {/* Resume is immediate; pausing asks first (see PauseConnectionModal). */}
         <Button
           size="sm"
-          variant="ghost"
-          className="ms-auto text-danger"
-          onClick={() => onDelete(connection)}
+          variant="secondary"
+          className="ms-auto"
+          loading={setDisabled.isPending}
+          onClick={() => {
+            if (connection.disabled) setDisabled.mutate(false);
+            else setConfirmingPause(true);
+          }}
         >
+          {connection.disabled ? (
+            <Play aria-hidden className="size-3.5" />
+          ) : (
+            <Pause aria-hidden className="size-3.5" />
+          )}
+          {connection.disabled
+            ? t('studio.hub.action.resume', 'Resume')
+            : t('studio.hub.action.pause', 'Pause')}
+        </Button>
+        <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(connection)}>
           {t('studio.hub.action.delete', 'Delete')}
         </Button>
       </div>
+
+      {confirmingPause ? (
+        <PauseConnectionModal
+          connection={connection}
+          busy={setDisabled.isPending}
+          onCancel={() => setConfirmingPause(false)}
+          onConfirm={() => setDisabled.mutate(true)}
+        />
+      ) : null}
+
+      {renaming ? (
+        <RenameConnectionModal
+          connection={connection}
+          onClose={() => setRenaming(false)}
+          onSaved={async () => {
+            /*
+             * BOTH caches. The card reads the connections query; the sidebar
+             * group over this connection's pages reads `bootstrap`. Refreshing
+             * one leaves the other showing the old name, which reads as the
+             * rename having failed.
+             */
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['studio', 'connections'] }),
+              queryClient.invalidateQueries({ queryKey: ['bootstrap'] }),
+            ]);
+            setRenaming(false);
+            toasts.push({
+              variant: 'success',
+              title: t('studio.hub.rename.saved', 'Connection renamed'),
+            });
+          }}
+        />
+      ) : null}
+
+      {editingRegional ? (
+        <RegionalSettingsModal
+          connection={connection}
+          onClose={() => setEditingRegional(false)}
+          onSaved={async () => {
+            await queryClient.invalidateQueries({ queryKey: ['studio', 'connections'] });
+            setEditingRegional(false);
+            toasts.push({
+              variant: 'success',
+              title: t('studio.hub.regional.saved', 'Regional settings updated'),
+            });
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -428,16 +709,27 @@ export interface ConnectionsHubProps {
   /** Router-injected navigation (routes.tsx wires useNavigate). */
   onConnectNew: () => void;
   onOpenRemap: (connectionId: string) => void;
+  /** Opens `/studio/apps` (29-T17); optional so bare mounts stay valid. */
+  onOpenHostedApps?: (() => void) | undefined;
   /** Introspection-job poll interval; tests pass 0. */
   pollIntervalMs?: number | undefined;
 }
 
-export function ConnectionsHub({ onConnectNew, onOpenRemap, pollIntervalMs = 1200 }: ConnectionsHubProps) {
+export function ConnectionsHub({
+  onConnectNew,
+  onOpenRemap,
+  onOpenHostedApps,
+  pollIntervalMs = 1200,
+}: ConnectionsHubProps) {
   const { data: connections } = useSuspenseQuery(connectionsQuery());
   const [deleting, setDeleting] = useState<ConnectionDto | null>(null);
 
   const numbers = fmt();
-  const healthy = connections.filter((c) => c.status === 'connected').length;
+  // A paused source is not healthy — it is serving nothing at all — so it
+  // leaves the numerator. Counting it would put "3 of 3 healthy" above three
+  // cards one of which says Paused.
+  const healthy = connections.filter((c) => c.status === 'connected' && !c.disabled).length;
+  const paused = connections.filter((c) => c.disabled).length;
   const tables = connections.reduce((sum, c) => sum + (c.tableCount ?? 0), 0);
   const pages = connections.reduce((sum, c) => sum + c.pageCount, 0);
 
@@ -445,12 +737,28 @@ export function ConnectionsHub({ onConnectNew, onOpenRemap, pollIntervalMs = 120
     <PageSurface width="page" className="flex flex-col gap-4">
       <PageActions
         title={t('studio.hub.title', 'Data connections')}
-        subtitle={t(
-          'studio.hub.subtitle',
-          '{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy',
-          { healthy, total: connections.length },
-        )}
+        subtitle={
+          // The paused count only appears when there IS one: a permanent
+          // "· 0 paused" trains people to stop reading the line that will one
+          // day be the only warning that production has been off for a week.
+          paused === 0
+            ? t(
+                'studio.hub.subtitle',
+                '{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy',
+                { healthy, total: connections.length },
+              )
+            : t(
+                'studio.hub.subtitlePaused',
+                '{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy · {paused, number} paused',
+                { healthy, total: connections.length, paused },
+              )
+        }
       >
+        {onOpenHostedApps !== undefined && (
+          <Button variant="secondary" onClick={onOpenHostedApps}>
+            {t('studio.hub.hostedApps', 'Hosted apps')}
+          </Button>
+        )}
         <Button onClick={onConnectNew}>
           <Plus aria-hidden className="size-4" />
           {t('studio.hub.connectNew', 'New connection')}
@@ -499,7 +807,7 @@ export function ConnectionsHub({ onConnectNew, onOpenRemap, pollIntervalMs = 120
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4">
             {connections.map((connection) => (
               <ConnectionCard
                 key={connection.id}
