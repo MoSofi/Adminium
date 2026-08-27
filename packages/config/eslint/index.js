@@ -21,6 +21,23 @@ export default tseslint.config(
   tseslint.configs.recommended,
   {
     rules: {
+      /*
+       * Omitting a key by rest-destructure is not an unused variable.
+       *
+       * `const { secret, ...rest } = payload` is the idiomatic way to build a
+       * value WITHOUT one field, and the binding it names is the whole point —
+       * it exists to be discarded. typescript-eslint's recommended defaults
+       * leave `ignoreRestSiblings` off, so every such omit was an error and the
+       * workarounds were worse than the thing being forbidden: an
+       * `Object.entries(...).filter(...)` rebuild, or a second list of field
+       * names kept in sync by hand.
+       *
+       * `^_` is deliberately NOT also exempted. A leading underscore is a
+       * comment, not a fact — it silences the rule for genuinely dead bindings
+       * too, which is the case worth keeping loud. The rest-sibling case is
+       * different: the syntax itself proves the binding is an omission.
+       */
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
       // CSS-in-JS libraries are banned everywhere; styling is Tailwind
       // utilities + CVA backed by @adminium/tokens (02-design-system.md §7).
       'no-restricted-imports': [
