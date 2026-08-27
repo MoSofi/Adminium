@@ -50,6 +50,16 @@ function issuesOf(input: unknown): string[] {
   }
 }
 
+function issuesOf2(input: unknown, inherited: { timezone?: string | null; currency?: string | null }): string[] {
+  try {
+    compileScope(input, columnsOf, inherited);
+    return [];
+  } catch (e) {
+    if (e instanceof ScopeCompileError) return e.issues.map((i) => i.code);
+    throw e;
+  }
+}
+
 describe('compileScope — shape', () => {
   it('compiles a minimal valid customer scope', () => {
     const scope = compileScope(doc(), columnsOf);
@@ -69,11 +79,80 @@ describe('compileScope — shape', () => {
   });
 });
 
-describe('compileScope — the timezone requirement (D20)', () => {
-  it('refuses a missing timezone', () => {
+describe('compileScope — tenant config inherited from the connection (28-T34)', () => {
+  const noZone = (): Record<string, unknown> => {
     const d = doc();
     delete (d as Record<string, unknown>)['timezone'];
-    expect(issuesOf(d)).toContain('SCOPE_SHAPE_INVALID');
+    return d;
+  };
+
+  it('inherits the connection zone when the scope states none', () => {
+    const scope = compileScope(noZone(), columnsOf, { timezone: 'Europe/Lisbon' });
+    expect(scope.timezone).toBe('Europe/Lisbon');
+  });
+
+  it('the SCOPE wins when both are set', () => {
+    // Inheritance is a default, never an override. One connection can be read
+    // by two scopes for businesses in different places — a franchise, a shared
+    // tenant — which is D20's own argument for not making this global.
+    const scope = compileScope(doc({ timezone: 'Europe/London' }), columnsOf, {
+      timezone: 'Europe/Lisbon',
+    });
+    expect(scope.timezone).toBe('Europe/London');
+  });
+
+  it('refuses an inherited zone that is not canonical', () => {
+    // Inheriting must not launder a bad value. The same canonicalisation runs
+    // whichever source supplied it.
+    expect(issuesOf2(noZone(), { timezone: 'BST' })).toContain('SCOPE_TIMEZONE_INVALID');
+  });
+
+  it('inherits currency, and the scope still overrides it', () => {
+    const inherited = compileScope(noZone(), columnsOf, {
+      timezone: 'Europe/Lisbon',
+      currency: 'EUR',
+    });
+    expect(inherited.currency).toBe('EUR');
+
+    const overridden = compileScope(doc({ currency: 'GBP' }), columnsOf, {
+      timezone: 'Europe/Lisbon',
+      currency: 'EUR',
+    });
+    expect(overridden.currency).toBe('GBP');
+  });
+
+  it('leaves currency null when neither has one', () => {
+    // Legitimate, unlike a missing zone: a scope exposing no money needs none.
+    const scope = compileScope(noZone(), columnsOf, { timezone: 'Europe/Lisbon' });
+    expect(scope.currency).toBeNull();
+  });
+});
+
+describe('compileScope — the timezone requirement (D20)', () => {
+  it('refuses a missing timezone when the connection has none either', () => {
+    // 28-T34 made the field OPTIONAL so it can be inherited. The refusal is
+    // unchanged in force and better in kind: it used to be a Zod shape error
+    // naming a missing key, and is now a timezone error that says where to
+    // put one.
+    const d = doc();
+    delete (d as Record<string, unknown>)['timezone'];
+    expect(issuesOf(d)).toContain('SCOPE_TIMEZONE_INVALID');
+  });
+
+  it('tells the operator about BOTH places, not just the scope', () => {
+    // An operator told only "this scope has no timezone" adds one to every
+    // scope. The connection is where it belongs, and the message has to say so
+    // or 28-T34 buys nothing.
+    const d = doc();
+    delete (d as Record<string, unknown>)['timezone'];
+    let message = '';
+    try {
+      compileScope(d, columnsOf);
+    } catch (e) {
+      if (e instanceof ScopeCompileError) message = e.issues.map((i) => i.message).join(' ');
+    }
+    expect(message).toContain('connection');
+    expect(message).toContain('override');
   });
 
   it('refuses a plausible-but-wrong zone', () => {
