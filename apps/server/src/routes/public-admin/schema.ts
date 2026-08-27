@@ -77,6 +77,8 @@ export const publicKeyDto = z.object({
   prefix: z.string(),
   scopeId: z.string(),
   side: z.enum(['staff', 'customer']),
+  /** Hosted app surface this key is bound to (29 D10), or null. */
+  appKey: z.string().nullable(),
   origins: z.array(z.string()),
   expiresAt: z.number().nullable(),
   revokedAt: z.number().nullable(),
@@ -92,6 +94,17 @@ export const publicKeyListReply = z.object({ keys: z.array(publicKeyDto) });
 export const publicKeyCreateBody = z.object({
   name: z.string().min(1).max(80),
   scopeId: z.string().min(1),
+  /**
+   * Bind the key to a hosted app surface (29 D10): the app's manifest key, the
+   * same vocabulary as the surfaces directory. Optional — a key for a
+   * standalone build or an integration is bound to nothing.
+   */
+  appKey: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9][a-z0-9_-]*$/, 'an app key is lowercase: letters, digits, - and _')
+    .optional(),
   origins: z.array(z.string().min(1).max(256)).max(32).optional(),
   expiresAt: z.number().int().positive().optional(),
 });

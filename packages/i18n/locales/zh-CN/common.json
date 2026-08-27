@@ -105,6 +105,11 @@
     "audit": "审计日志",
     "security": "密码与会话"
   },
+  "apps": {
+    "frame": {
+      "noFrames": "此应用需要支持框架的浏览器。"
+    }
+  },
   "topbar": {
     "search": "搜索…",
     "notifications": "通知",
@@ -232,6 +237,11 @@
       "body": "管理员已暂停此工作区。你的数据仍完整保留——请联系工作区所有者以恢复访问权限。",
       "primary": "联系所有者",
       "secondary": "返回"
+    },
+    "connectionPaused": {
+      "title": "此连接已暂停",
+      "body": "管理员暂停了此页面所用的数据库，因此当前不会加载数据。没有任何内容被删除 — 在 Studio → 数据连接中恢复该连接后即可恢复正常。",
+      "secondary": "返回"
     }
   },
   "notFound": {
@@ -311,6 +321,20 @@
     "twoFactor": "双重验证",
     "on": "已启用",
     "off": "未启用",
+    "nameRequired": "请输入你的姓名。",
+    "emailHelper": "用于登录。修改需要输入密码。",
+    "confirmPassword": "当前密码",
+    "confirmPasswordHelper": "在更改登录地址前，请确认是你本人。",
+    "save": "保存更改",
+    "saveFailed": "无法保存你的个人资料",
+    "saved": "个人资料已更新",
+    "savedBody": "新的信息已在整个工作区生效。如果你更改了邮箱，今后请使用新地址登录。",
+    "accessTitle": "访问权限",
+    "accessSubtitle": "此账户可以做什么，以及它如何证明身份。",
+    "rolesHelper": "角色由管理员授予，无法在自己的账户中更改。",
+    "manageTwoFactor": "管理",
+    "setUpTwoFactor": "设置",
+    "securityLink": "密码与会话",
     "preferences": {
       "title": "偏好设置",
       "subtitle": "Adminium 在你这里的外观与语言——在这台设备和你登录的每台设备上生效。",
@@ -559,7 +583,8 @@
         "connected": "已连接",
         "error": "错误",
         "unconfigured": "草稿",
-        "testing": "测试中…"
+        "testing": "测试中…",
+        "paused": "已暂停"
       },
       "card": {
         "readOnly": "只读",
@@ -568,14 +593,41 @@
         "latency": "延迟",
         "latencyMs": "{latency, number} 毫秒",
         "lastIntrospected": "上次内省",
-        "never": "从未"
+        "never": "从未",
+        "timezone": "时区",
+        "timezoneGuessed": "来自此服务器",
+        "paused": "Adminium 不会连接此数据库。恢复后，其页面会重新加载数据。",
+        "pausedSince": "已于{when}暂停 — Adminium 不会连接此数据库。恢复后，其页面会重新加载数据。"
       },
       "action": {
         "test": "测试",
         "reintrospect": "重新内省",
         "reintrospectFile": "架构文件来源没有在线数据库——请改为重新上传文件。",
         "remap": "重映射架构",
-        "delete": "删除"
+        "delete": "删除",
+        "regional": "区域设置",
+        "pause": "暂停",
+        "resume": "恢复",
+        "pausedHint": "此连接已暂停 — 恢复后才能访问数据库。",
+        "rename": "重命名"
+      },
+      "regional": {
+        "title": "区域设置",
+        "intro": "这些设置描述该数据库所属的业务，而非阅读者本人。由 Adminium 提供服务的应用会从这里读取。",
+        "timezone": "时区",
+        "timezoneHelper": "日期和时间以此时区显示。若未设置，由 Adminium 托管的应用将回退到 UTC，并在界面上说明。",
+        "guessedTitle": "此时区来自服务器",
+        "guessedBody": "Adminium 从其运行的机器上取得该时区，并非有人在此选择。保存即可确认，或选择该商家实际所在的时区。",
+        "timezonePlaceholder": "地区/城市",
+        "currency": "货币",
+        "currencyHelper": "用于格式化金额。可选——不设置仅影响格式。",
+        "currencyPlaceholder": "ISO-4217 代码",
+        "notSet": "未设置",
+        "noMatch": "没有匹配的时区",
+        "noMatchCurrency": "没有匹配的货币",
+        "save": "保存",
+        "failed": "无法保存区域设置",
+        "saved": "区域设置已更新"
       },
       "test": {
         "ok": "连接正常 · {latency, number} 毫秒",
@@ -601,6 +653,26 @@
         "title": "还没有数据源",
         "body": "连接数据库后，Adminium 会根据其架构生成您的管理面板。",
         "cta": "连接数据库"
+      },
+      "hostedApps": "托管应用",
+      "subtitlePaused": "{total, plural, other {# 个连接中 {healthy, number} 个}}状态正常 · {paused, number} 个已暂停",
+      "pause": {
+        "title": "暂停此连接？",
+        "body": "Adminium 将不再打开到“{name}”的任何连接。在你恢复之前，{pages, plural, other {它的 # 个页面}}、计划报告和托管应用都会停止加载数据。",
+        "keeps": "不会删除任何内容 — 连接、它的结构和{pages, plural, other {它的 # 个页面}}都会保留，一键即可恢复。",
+        "confirm": "暂停连接",
+        "pausedToast": "已暂停连接“{name}”",
+        "resumedToast": "已恢复连接“{name}”",
+        "pauseFailed": "无法暂停该连接。请重试。",
+        "resumeFailed": "无法恢复该连接。请重试。"
+      },
+      "rename": {
+        "title": "重命名连接",
+        "label": "名称",
+        "helper": "该数据库在整个 Adminium 中的显示名称——卡片、其页面上方的侧边栏分组，以及每个提供它的选择器。数据库本身不会被重命名。",
+        "save": "重命名",
+        "saved": "连接已重命名",
+        "failed": "无法重命名该连接"
       }
     },
     "settingsHub": {
@@ -1315,10 +1387,62 @@
         "create": "Create key",
         "formLabel": "Create a key",
         "scopeIsAuthTitle": "The scope is the only permission",
-        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+        "appLabel": "绑定到托管应用界面（可选）",
+        "appHint": "应用的客户界面随后会自行提供此密钥——轮换密钥无需重新构建。",
+        "appNone": "未绑定"
       },
       "status": {
         "heading": "Status"
+      }
+    },
+    "hostedApps": {
+      "title": "托管应用",
+      "subtitle": "此实例所服务的应用界面——每个界面出现的位置，以及指向它们的域名。",
+      "error": "出了点问题",
+      "emptyTitle": "当前没有提供任何应用界面",
+      "emptyBody": "将 ADMINIUM_SURFACES_DIR 指向存放已构建界面的目录——每个应用和端各一个文件夹，各含其 index.html——然后重启。之后它们将在 /apps/ 下提供，并显示在这里。",
+      "surfaces": {
+        "title": "界面",
+        "subtitle": "员工界面可以融入此仪表盘的侧边栏，也可以独立存在；客户界面是公开的，通过其绑定的密钥读取数据。",
+        "staff": "员工",
+        "customer": "客户",
+        "noNav": "内嵌位置不可用——请用当前工具链重新构建此界面，使其生成 surface.json。",
+        "noKey": "未绑定密钥——为其创建密钥之前，此界面无法读取数据。",
+        "mintLink": "在“公开 API”中创建",
+        "boundKey": "提供密钥",
+        "placementLabel": "位置",
+        "placementInternal": "在侧边栏中（内嵌）",
+        "placementExternal": "外部（仅自有网址）",
+        "connectionLabel": "读取",
+        "connectionUnset": "当前提供服务的连接"
+      },
+      "domains": {
+        "title": "域名",
+        "subtitle": "将域名的 DNS 指向你的代理，把 Host 标头透传给 Adminium，然后在此附加——该主机随后将提供此界面而非本仪表盘。证书保留在你的代理上。",
+        "issuesTitle": "域名映射被拒绝",
+        "savedTitle": "已保存",
+        "savedBody": "映射会在几秒内生效。只有当其 DNS 和你的代理真正到达此实例时，主机才会响应。",
+        "none": "未附加任何域名。",
+        "hostLabel": "主机",
+        "surfaceLabel": "界面",
+        "remove": "移除",
+        "add": "附加域名",
+        "save": "保存域名",
+        "instanceLabel": "实例",
+        "instanceOwn": "应用自身"
+      },
+      "instances": {
+        "title": "实例",
+        "body": "让同一个应用服务于多个数据库。每个实例可通过 /apps/<app>/<segment>/<side>/ 访问，且只读取你指定的连接。",
+        "appLabel": "应用",
+        "slugLabel": "URL 片段",
+        "readsLabel": "读取",
+        "add": "添加实例",
+        "save": "保存实例",
+        "remove": "移除",
+        "empty": "没有额外实例。",
+        "failed": "实例未保存"
       }
     }
   },
@@ -2500,7 +2624,9 @@
       "connection": "数据源",
       "connectionNone": "无",
       "iconPick": "选择页面图标",
-      "padding": "页面内边距"
+      "padding": "页面内边距",
+      "width": "内容宽度",
+      "widthHint": "在大屏幕上，页面内容列最多可以有多宽。"
     },
     "editor": {
       "title": "编辑页面",
@@ -2544,18 +2670,33 @@
       }
     },
     "columns": {
-      "help": "重新排序列、重命名列标题，并选择哪些列显示在表格中。",
-      "discard": "放弃",
-      "save": "保存列",
-      "saveFailed": "无法保存列",
+      "help": "拖动以重新排序列、重命名列标题，并选择哪些列显示在表格中。",
+      "empty": "还没有列——在下方添加。",
       "pk": "主键",
       "pii": "个人信息",
       "header": "{name} 的列标题",
       "shown": "显示",
       "toggle": "在表格中显示 {name}",
-      "moveUp": "将 {name} 上移",
-      "moveDown": "将 {name} 下移",
+      "dragHandle": "调整 {name} 的顺序",
       "remove": "移除 {name}",
+      "addOpen": "添加列",
+      "addTitle": "添加列",
+      "addSearch": "搜索列…",
+      "addFromTable": "来自 {table}",
+      "addFromLinked": "来自关联表",
+      "addLinkedHelp": "显示链接列所指向表中的值。",
+      "addVia": "通过 {column}",
+      "addNoMatches": "没有与“{query}”匹配的列。",
+      "followColumn": "跟随 {name}",
+      "addLinkedFrom": "链接到此表的表",
+      "addLinkedFromHelp": "添加指向每条记录的行数。",
+      "countBadge": "计数",
+      "lookupBadge": "关联",
+      "lookupBack": "返回",
+      "lookupBrowse": "选择要从 {table} 显示的内容",
+      "lookupBroken": "该关联已无法解析",
+      "lookupBrokenBody": "浏览期间架构发生了变化。请重新开始关联。",
+      "schemaUnavailable": "无法列出数据库的列，因此这里无法重新添加列。",
       "none": {
         "title": "此页面还没有列",
         "body": "生成页面时会从数据表读取列。请将此页面绑定到数据表后重新生成。"
@@ -2577,6 +2718,15 @@
       "custom": "自定义…",
       "x": "左右 (px)",
       "y": "上下 (px)"
+    },
+    "width": {
+      "default": "此模板的默认值",
+      "narrow": "窄（720px）",
+      "content": "内容（900px）",
+      "page": "页面（1080px）",
+      "dash": "仪表板（1320px）",
+      "wide": "宽（1800px）",
+      "full": "全宽（不限制）"
     }
   },
   "audit": {
@@ -2731,7 +2881,7 @@
   },
   "security": {
     "password": {
-      "changedBody": "下次登录时请使用新密码。其他设备上的会话不受影响——如果希望它们退出登录，请在下方结束这些会话。",
+      "changedBody": "下次登录时请使用新密码。其他设备仍保持登录——如果希望它们退出，请结束这些会话。",
       "changed": "密码已更改",
       "confirm": "确认新密码",
       "current": "当前密码",

@@ -64,6 +64,8 @@ export interface PublicKeyDto {
   prefix: string;
   scopeId: string;
   side: PublicSide;
+  /** Hosted app surface this key is bound to (29 D10), or null. */
+  appKey: string | null;
   origins: string[];
   expiresAt: number | null;
   revokedAt: number | null;
@@ -76,6 +78,11 @@ export interface PublicKeyDto {
 export interface PublicKeyCreateBody {
   name: string;
   scopeId: string;
+  /**
+   * Bind the key to a hosted app surface (29 D10): its customer side then
+   * serves this key at `surface-config.json`, so rotation needs no rebuild.
+   */
+  appKey?: string | undefined;
   origins?: string[] | undefined;
   expiresAt?: number | undefined;
 }

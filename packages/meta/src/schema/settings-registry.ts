@@ -60,6 +60,24 @@ function def<T>(
 /** Shorthand for the common case: operator-authored config that a bundle carries. */
 const P: DefOptions = { portable: true };
 
+/**
+ * An app-instance slug: the URL segment naming ONE tenant of a hosted app.
+ *
+ * Lowercase kebab, because it is typed into a URL bar and read back off one.
+ * `staff` and `customer` are refused by name — the slug sits in the same
+ * position as the SIDE, and a slug called `staff` would make
+ * `/apps/clients/staff/` mean two things at once. Refusing them here is the
+ * whole reason that ambiguity cannot occur rather than merely being unlikely.
+ */
+export const surfaceInstanceSlug = z
+  .string()
+  .min(1)
+  .max(32)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'must be lowercase letters, digits and single hyphens')
+  .refine((v) => v !== 'staff' && v !== 'customer', {
+    message: '`staff` and `customer` are reserved — they name a side, not an instance',
+  });
+
 const smtpSchema = z
   .object({
     host: z.string(),
@@ -186,6 +204,110 @@ export const SETTINGS_REGISTRY = {
    * switches, both of which must be on.
    */
   'publicApi.enabled': def(z.boolean(), false, 'Serve the scoped public API at /api/v1/public'),
+
+  /*
+   * WHERE a hosted app's surfaces appear (29-app-surfaces.md D9).
+   *
+   * `surfaces.apps` — per app key, whether the STAFF surface is blended into
+   * this dashboard (`internal`, the default whenever a staff surface exists) or
+   * left as its own thing (`external`). Hosted is the normal case (28 D25) and
+   * "we do not need another surface" is the point of the whole wave, so
+   * external is the OPT-OUT, not the default.
+   *
+   * `connectionId` on the same record is WHICH DATABASE that staff surface
+   * reads. A customer surface already answers this: its publishable key names a
+   * scope and a scope names a connection, `NOT NULL` since wave 0014. The staff
+   * side has no key by design — it reads through the operator's session — and
+   * the key was also the thing carrying that identity, so nothing replaced it.
+   * The app was left to infer its database from "the only one serving", which
+   * is a guess that holds until an instance has two connections and then fails
+   * as a schema mismatch against somebody else's tables.
+   *
+   * Optional, and absent keeps the old inference: a single-connection instance
+   * — nearly all of them — needs no answer here, and demanding one would make
+   * every existing surface stop booting on upgrade.
+   *
+   * `instances` serves the SAME app over MORE THAN ONE database — the shape the
+   * dashboard's own generated pages have always had, where every page carries a
+   * `connectionId` and two connections simply produce two sets. Each entry adds
+   * a mount at `/apps/<appKey>/<slug>/<side>/` reading its own connection; the
+   * unslugged `/apps/<appKey>/<side>/` stays exactly where it is, reading
+   * `connectionId` above, so no existing URL moves.
+   *
+   * THE SLUG GOES BEFORE THE SIDE, and that is not cosmetic. After it —
+   * `/apps/clients/staff/<slug>` — the segment collides with the app's own
+   * routes, and `/apps/clients/staff/invoices` becomes a question with two
+   * answers. Before it, the only values in that position are `staff`, `customer`
+   * and slugs, so refusing those two names as slugs makes the ambiguity
+   * impossible rather than merely unlikely.
+   *
+   * `surfaces.domains` — `host → {appKey, side}`. A request whose `Host`
+   * matches serves that surface at `/` instead of the dashboard.
+   *
+   * NEITHER IS PORTABLE, and a domain map is the clearest case in this file.
+   * It names one instance's DNS. Carrying it in a config bundle would point a
+   * fresh install at a domain it does not own and take the dashboard away from
+   * whoever restored the bundle — the `system.superAdminCreatedAt` lesson in
+   * this file's own header, with a worse blast radius.
+   *
+   * Both are read on a HOT path (Host routing runs per request), so both go
+   * through the same short-TTL cache as `publicApi.enabled` rather than a
+   * meta-store SELECT per request.
+   */
+  'surfaces.apps': def<
+    Record<
+      string,
+      {
+        staff?: 'internal' | 'external' | undefined;
+        connectionId?: string | undefined;
+        instances?: { slug: string; connectionId: string }[] | undefined;
+      }
+    >
+  >(
+    z.record(
+      z.string(),
+      z.object({
+        staff: z.enum(['internal', 'external']).optional(),
+        connectionId: z.string().min(1).optional(),
+        instances: z
+          .array(
+            z.object({
+              slug: surfaceInstanceSlug,
+              connectionId: z.string().min(1),
+            }),
+          )
+          .max(32)
+          .refine(
+            (list) => new Set(list.map((i) => i.slug)).size === list.length,
+            { message: 'instance slugs must be unique within an app' },
+          )
+          .optional(),
+      }),
+    ),
+    {},
+    'Per-app surface placement, connection binding and extra instances (29 D9)',
+  ),
+  'surfaces.domains': def<
+    Record<string, { appKey: string; side: 'staff' | 'customer'; instance?: string | undefined }>
+  >(
+    z.record(
+      z.string(),
+      z.object({
+        appKey: z.string().min(1),
+        side: z.enum(['staff', 'customer']),
+        /*
+         * Which INSTANCE this host serves (29 D9). Absent is the app's own
+         * mount, which is what every existing mapping means and keeps meaning.
+         * A host is the only signal a mapped domain has — the app cannot read
+         * the mapping — so the server has to answer with it rather than expect
+         * the bundle to work it out.
+         */
+        instance: surfaceInstanceSlug.optional(),
+      }),
+    ),
+    {},
+    'Host → app surface mapping; the operator points DNS and their proxy at this instance',
+  ),
   'auth.passwordMinLength': def(z.number().int().min(8).max(128), 10, 'Minimum password length', P),
   'email.smtp': def<z.infer<typeof smtpSchema>>(smtpSchema, null, 'SMTP transport; email features degrade gracefully when unset', { secret: true, portable: true }),
   'llm.provider': def<z.infer<typeof llmProviderSchema>>(llmProviderSchema, null, 'LLM provider (06-llm-assist.md §3.1)', P),
@@ -284,6 +406,38 @@ export const SETTINGS_REGISTRY = {
    * admin can be created and nobody can log in. The instance is scrap.
    */
   'system.superAdminCreatedAt': def<number | null>(z.number().nullable(), null, 'First-super-admin bootstrap claim (epoch ms)'),
+  /*
+   * The first-boot source-connection seed (28-public-surface.md 28-T31), in two
+   * keys because the seed has two distinct facts to remember and collapsing
+   * them into one produces a dead end.
+   *
+   * `system.sourceConnectionId` — WHICH row the seed made. Written on the first
+   * attempt whether it worked or not, so a retry updates that row instead of
+   * inserting a second one every time the container restarts.
+   *
+   * `system.sourceSeededAt` — that a HEALTHY seed happened. Written only after
+   * the DSN probes OK, and it is the once-only gate: set, the seed never runs
+   * again, so a connection the operator later deletes STAYS deleted rather than
+   * reappearing on the next `docker compose up`.
+   *
+   * Why not one key. A single claim written on failure too would strand the
+   * common mistake — a typo in `ADMINIUM_SOURCE_URL`. `PATCH /connections/:id`
+   * takes `name` and `settings` and NOT a DSN (routes/connections/schema.ts),
+   * so a stored bad DSN cannot be corrected anywhere in the product; the
+   * operator's fix is to correct compose, which the seed must therefore still
+   * be listening for. Split, the retry path is "no healthy seed yet" and the
+   * once-only path is "there was one" — neither borrows the other's meaning.
+   *
+   * Neither is portable (the default). Both mean "something already happened
+   * here", which is the exact bar the `portable` comment above sets, and
+   * `system.superAdminCreatedAt` is the incident it was written for: a bundle
+   * carrying `sourceConnectionId` would name a connection row that does not
+   * exist in the target, and one carrying `sourceSeededAt` would suppress the
+   * new instance's own seed — booting it to an empty dashboard with no
+   * indication why.
+   */
+  'system.sourceConnectionId': def<string | null>(z.string().nullable(), null, 'Connection id the first-boot source seed created (28-T31)'),
+  'system.sourceSeededAt': def<number | null>(z.number().nullable(), null, 'First-boot source-connection seed claim, healthy probes only (epoch ms)'),
   /**
    * The bundle FORMAT version of this store. Not portable: the target records
    * its own, and the version a bundle was written at already travels in the

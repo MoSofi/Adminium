@@ -65,6 +65,7 @@ function makeKey(over: Partial<PublicKeyDto> = {}): PublicKeyDto {
     prefix: 'adm_pub_4f2a91cd',
     scopeId: 'psc_1',
     side: 'customer',
+    appKey: null,
     origins: [],
     expiresAt: null,
     revokedAt: null,

@@ -114,6 +114,11 @@ export default {
     "audit": "稽核紀錄",
     "security": "密碼與工作階段"
   },
+  "apps": {
+    "frame": {
+      "noFrames": "此應用程式需要支援框架的瀏覽器。"
+    }
+  },
   "topbar": {
     "search": "搜尋…",
     "notifications": "通知",
@@ -241,6 +246,11 @@ export default {
       "body": "這個工作區已被管理員停權。你的資料仍完整保留——請聯絡工作區擁有者以恢復存取權限。",
       "primary": "聯絡擁有者",
       "secondary": "返回上頁"
+    },
+    "connectionPaused": {
+      "title": "此連線已暫停",
+      "body": "管理員暫停了此頁面所用的資料庫，因此目前不會載入資料。沒有任何內容被刪除 — 在 Studio → 資料連線中恢復該連線後即可恢復正常。",
+      "secondary": "返回"
     }
   },
   "notFound": {
@@ -320,6 +330,20 @@ export default {
     "twoFactor": "兩步驟驗證",
     "on": "已啟用",
     "off": "未啟用",
+    "nameRequired": "請輸入你的姓名。",
+    "emailHelper": "用於登入。變更時需要輸入密碼。",
+    "confirmPassword": "目前密碼",
+    "confirmPasswordHelper": "在變更登入地址前，請確認是你本人。",
+    "save": "儲存變更",
+    "saveFailed": "無法儲存你的個人資料",
+    "saved": "個人資料已更新",
+    "savedBody": "新的資訊已在整個工作區生效。若你變更了電子郵件，日後請使用新地址登入。",
+    "accessTitle": "存取權限",
+    "accessSubtitle": "此帳戶可以做什麼，以及它如何證明身分。",
+    "rolesHelper": "角色由管理員授予，無法在自己的帳戶中變更。",
+    "manageTwoFactor": "管理",
+    "setUpTwoFactor": "設定",
+    "securityLink": "密碼與工作階段",
     "preferences": {
       "title": "偏好設定",
       "subtitle": "Adminium 為你呈現的外觀與語言——在這部裝置以及你登入的每部裝置上都適用。",
@@ -568,7 +592,8 @@ export default {
         "connected": "已連線",
         "error": "錯誤",
         "unconfigured": "草稿",
-        "testing": "測試中…"
+        "testing": "測試中…",
+        "paused": "已暫停"
       },
       "card": {
         "readOnly": "唯讀",
@@ -577,14 +602,41 @@ export default {
         "latency": "延遲",
         "latencyMs": "{latency, number} 毫秒",
         "lastIntrospected": "上次內省",
-        "never": "從未"
+        "never": "從未",
+        "timezone": "時區",
+        "timezoneGuessed": "來自此伺服器",
+        "paused": "Adminium 不會連線至此資料庫。恢復後，其頁面會重新載入資料。",
+        "pausedSince": "已於{when}暫停 — Adminium 不會連線至此資料庫。恢復後，其頁面會重新載入資料。"
       },
       "action": {
         "test": "測試",
         "reintrospect": "重新內省",
         "reintrospectFile": "結構檔案來源沒有線上資料庫——請改為重新上傳檔案。",
         "remap": "重新對應結構",
-        "delete": "刪除"
+        "delete": "刪除",
+        "regional": "區域設定",
+        "pause": "暫停",
+        "resume": "恢復",
+        "pausedHint": "此連線已暫停 — 恢復後才能存取資料庫。",
+        "rename": "重新命名"
+      },
+      "regional": {
+        "title": "區域設定",
+        "intro": "這些設定描述該資料庫所屬的業務，而非閱讀者本人。由 Adminium 提供服務的應用程式會從這裡讀取。",
+        "timezone": "時區",
+        "timezoneHelper": "日期和時間以此時區顯示。若未設定，由 Adminium 代管的應用會退回 UTC，並在畫面上說明。",
+        "guessedTitle": "此時區來自伺服器",
+        "guessedBody": "Adminium 從其執行所在的機器取得該時區，並非有人在此選擇。儲存即可確認，或選擇該商家實際所在的時區。",
+        "timezonePlaceholder": "地區/城市",
+        "currency": "貨幣",
+        "currencyHelper": "用於格式化金額。選填——未設定僅影響格式。",
+        "currencyPlaceholder": "ISO-4217 代碼",
+        "notSet": "未設定",
+        "noMatch": "沒有相符的時區",
+        "noMatchCurrency": "沒有相符的貨幣",
+        "save": "儲存",
+        "failed": "無法儲存區域設定",
+        "saved": "區域設定已更新"
       },
       "test": {
         "ok": "連線正常 · {latency, number} 毫秒",
@@ -610,6 +662,26 @@ export default {
         "title": "尚無資料來源",
         "body": "連接資料庫後，Adminium 會根據其結構產生您的管理面板。",
         "cta": "連接資料庫"
+      },
+      "hostedApps": "託管應用程式",
+      "subtitlePaused": "{total, plural, other {# 個連線中 {healthy, number} 個}}狀態正常 · {paused, number} 個已暫停",
+      "pause": {
+        "title": "暫停此連線？",
+        "body": "Adminium 將不再開啟到「{name}」的任何連線。在你恢復之前，{pages, plural, other {它的 # 個頁面}}、排程報表與託管應用程式都會停止載入資料。",
+        "keeps": "不會刪除任何內容 — 連線、它的結構和{pages, plural, other {它的 # 個頁面}}都會保留，一鍵即可恢復。",
+        "confirm": "暫停連線",
+        "pausedToast": "已暫停連線「{name}」",
+        "resumedToast": "已恢復連線「{name}」",
+        "pauseFailed": "無法暫停該連線。請重試。",
+        "resumeFailed": "無法恢復該連線。請重試。"
+      },
+      "rename": {
+        "title": "重新命名連線",
+        "label": "名稱",
+        "helper": "該資料庫在整個 Adminium 中的顯示名稱——卡片、其頁面上方的側邊欄群組，以及每個提供它的選擇器。資料庫本身不會被重新命名。",
+        "save": "重新命名",
+        "saved": "連線已重新命名",
+        "failed": "無法重新命名該連線"
       }
     },
     "settingsHub": {
@@ -1324,10 +1396,62 @@ export default {
         "create": "Create key",
         "formLabel": "Create a key",
         "scopeIsAuthTitle": "The scope is the only permission",
-        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+        "appLabel": "綁定到託管應用介面（選填）",
+        "appHint": "應用程式的客戶介面隨後會自行提供此金鑰——輪換金鑰無需重新建置。",
+        "appNone": "未綁定"
       },
       "status": {
         "heading": "Status"
+      }
+    },
+    "hostedApps": {
+      "title": "託管應用程式",
+      "subtitle": "此執行個體所提供的應用介面——每個介面出現的位置，以及指向它們的網域。",
+      "error": "發生了一些問題",
+      "emptyTitle": "目前沒有提供任何應用介面",
+      "emptyBody": "將 ADMINIUM_SURFACES_DIR 指向存放已建置介面的目錄——每個應用程式和端各一個資料夾，各含其 index.html——然後重新啟動。之後它們會在 /apps/ 下提供，並顯示在這裡。",
+      "surfaces": {
+        "title": "介面",
+        "subtitle": "員工介面可以融入此儀表板的側邊欄，也可以獨立存在；客戶介面是公開的，透過其綁定的金鑰讀取資料。",
+        "staff": "員工",
+        "customer": "客戶",
+        "noNav": "內嵌位置無法使用——請用目前的工具鏈重新建置此介面，使其產生 surface.json。",
+        "noKey": "未綁定金鑰——為其建立金鑰之前，此介面無法讀取資料。",
+        "mintLink": "在「公開 API」中建立",
+        "boundKey": "提供金鑰",
+        "placementLabel": "位置",
+        "placementInternal": "在側邊欄中（內嵌）",
+        "placementExternal": "外部（僅自有網址）",
+        "connectionLabel": "讀取",
+        "connectionUnset": "目前提供服務的連線"
+      },
+      "domains": {
+        "title": "網域",
+        "subtitle": "將網域的 DNS 指向你的代理伺服器，把 Host 標頭透傳給 Adminium，然後在此附加——該主機隨後會提供此介面而非本儀表板。憑證保留在你的代理伺服器上。",
+        "issuesTitle": "網域對應遭拒",
+        "savedTitle": "已儲存",
+        "savedBody": "對應會在數秒內生效。只有當其 DNS 與你的代理伺服器真正到達此執行個體時，主機才會回應。",
+        "none": "未附加任何網域。",
+        "hostLabel": "主機",
+        "surfaceLabel": "介面",
+        "remove": "移除",
+        "add": "附加網域",
+        "save": "儲存網域",
+        "instanceLabel": "執行個體",
+        "instanceOwn": "應用本身"
+      },
+      "instances": {
+        "title": "執行個體",
+        "body": "讓同一個應用服務於多個資料庫。每個執行個體可透過 /apps/<app>/<segment>/<side>/ 存取，且只讀取你指定的連線。",
+        "appLabel": "應用",
+        "slugLabel": "URL 片段",
+        "readsLabel": "讀取",
+        "add": "新增執行個體",
+        "save": "儲存執行個體",
+        "remove": "移除",
+        "empty": "沒有額外的執行個體。",
+        "failed": "執行個體未儲存"
       }
     }
   },
@@ -2509,7 +2633,9 @@ export default {
       "connection": "資料來源",
       "connectionNone": "無",
       "iconPick": "選擇頁面圖示",
-      "padding": "頁面內距"
+      "padding": "頁面內距",
+      "width": "內容寬度",
+      "widthHint": "在大螢幕上，頁面內容欄最多可以有多寬。"
     },
     "editor": {
       "title": "編輯頁面",
@@ -2553,18 +2679,33 @@ export default {
       }
     },
     "columns": {
-      "help": "重新排序欄位、重新命名欄位標題，並選擇哪些欄位顯示在表格中。",
-      "discard": "捨棄",
-      "save": "儲存欄位",
-      "saveFailed": "無法儲存欄位",
+      "help": "拖曳以重新排序欄位、重新命名欄位標題，並選擇哪些欄位顯示在表格中。",
+      "empty": "尚無欄位——請在下方新增。",
       "pk": "主鍵",
       "pii": "個人資料",
       "header": "{name} 的欄位標題",
       "shown": "顯示",
       "toggle": "在表格中顯示 {name}",
-      "moveUp": "將 {name} 上移",
-      "moveDown": "將 {name} 下移",
+      "dragHandle": "調整 {name} 的順序",
       "remove": "移除 {name}",
+      "addOpen": "新增欄位",
+      "addTitle": "新增欄位",
+      "addSearch": "搜尋欄位…",
+      "addFromTable": "來自 {table}",
+      "addFromLinked": "來自連結資料表",
+      "addLinkedHelp": "顯示連結欄位所指向資料表中的值。",
+      "addVia": "透過 {column}",
+      "addNoMatches": "沒有符合「{query}」的欄位。",
+      "followColumn": "跟隨 {name}",
+      "addLinkedFrom": "連結到此資料表的資料表",
+      "addLinkedFromHelp": "新增指向每筆記錄的資料列數。",
+      "countBadge": "計數",
+      "lookupBadge": "關聯",
+      "lookupBack": "返回",
+      "lookupBrowse": "選擇要從 {table} 顯示的內容",
+      "lookupBroken": "該關聯已無法解析",
+      "lookupBrokenBody": "瀏覽期間結構已變更。請重新開始關聯。",
+      "schemaUnavailable": "無法列出資料庫的欄位，因此這裡無法重新加入欄位。",
       "none": {
         "title": "此頁面尚無欄位",
         "body": "產生頁面時會從資料表讀取欄位。請將此頁面繫結至資料表後重新產生。"
@@ -2586,6 +2727,15 @@ export default {
       "custom": "自訂…",
       "x": "左右 (px)",
       "y": "上下 (px)"
+    },
+    "width": {
+      "default": "此範本的預設值",
+      "narrow": "窄（720px）",
+      "content": "內容（900px）",
+      "page": "頁面（1080px）",
+      "dash": "儀表板（1320px）",
+      "wide": "寬（1800px）",
+      "full": "全寬（不限制）"
     }
   },
   "audit": {
@@ -2740,7 +2890,7 @@ export default {
   },
   "security": {
     "password": {
-      "changedBody": "下次登入時請使用新密碼。其他裝置上的工作階段不受影響——若你希望它們登出，請在下方撤銷。",
+      "changedBody": "下次登入時請使用新密碼。其他裝置仍保持登入——若你希望它們登出，請結束這些工作階段。",
       "changed": "密碼已變更",
       "confirm": "確認新密碼",
       "current": "目前的密碼",

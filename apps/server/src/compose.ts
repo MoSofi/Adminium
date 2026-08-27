@@ -42,6 +42,7 @@ import {
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from './app.js';
+import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
@@ -104,6 +105,7 @@ import { createTelemetryService } from './telemetry/service.js';
 import { APP_VERSION } from './version.js';
 import { publicApiRegistrationBlocked, publicRoutes } from './routes/public/index.js';
 import { publicAdminRoutes } from './routes/public-admin/index.js';
+import { surfacesAdminRoutes } from './routes/surfaces-admin/index.js';
 import { createPublicApiGate } from './public-api/enabled.js';
 import type { OnMetaRelocated } from './meta/relocate.js';
 import { sqlitePathFromUrl, type MetaStoreHandle } from './meta/store.js';
@@ -172,6 +174,8 @@ export interface ComposeServerOptions {
   collectStats?: CollectRunStats | undefined;
   /** Dashboard build directory; omitted ⇒ API only. */
   staticRoot?: string | undefined;
+  /** Hosted app surfaces (`plugins/surfaces.ts`); omitted ⇒ none mounted. */
+  surfaces?: readonly HostedSurface[] | undefined;
   /** Passed through to {@link buildServer} (tests silence it with `false`). */
   logger?: boolean | undefined;
   /**
@@ -278,6 +282,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     env,
     metaDb: meta,
     ...(opts.staticRoot === undefined ? {} : { staticRoot: opts.staticRoot }),
+    ...(opts.surfaces === undefined ? {} : { surfaces: opts.surfaces }),
     ...(opts.logger === undefined ? {} : { logger: opts.logger }),
     ...(opts.openapi === undefined ? {} : { openapi: opts.openapi }),
   });
@@ -607,6 +612,11 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           },
         }),
       );
+      // Hosted app surfaces (29-app-surfaces.md §3.1): placement + domain
+      // attachment. Registered whenever a meta store exists — with no surfaces
+      // discovered the list is empty and the page says how to add some, which
+      // beats a namespace that 404s only on some instances.
+      await api.register(surfacesAdminRoutes({ meta }));
       await api.register(rolesRoutes);
       await api.register(usersRoutes);
       await api.register(permissionsRoutes);

@@ -29,6 +29,7 @@ import type { MetaDb } from '@adminium/meta';
 import {
   auditRepo,
   overridesRepo,
+  connectionTenantConfig,
   publicKeysRepo,
   publicScopesRepo,
   publicSessionsRepo,
@@ -36,7 +37,9 @@ import {
 } from '@adminium/meta';
 import type { DatabaseModel } from '@adminium/engine';
 
-import type { Env } from '../../config/env.js';
+import { SELF_ORIGIN_SENTINEL, type Env } from '../../config/env.js';
+import { ConnectionDisabledError } from '../../errors.js';
+import { isSameOriginRequest } from '../../security/csrf.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
 import { SnapshotView } from '../../crud/identifiers.js';
@@ -166,7 +169,15 @@ function fail(reply: FastifyReply, status: number, code: PublicErrorCode, messag
 export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
   const { env, meta, manager, isEnabled } = deps;
   const limiter = deps.limiter ?? createPublicRateLimiter();
-  const allowed = new Set(env.ADMINIUM_PUBLIC_API_ORIGINS ?? []);
+  const configured = env.ADMINIUM_PUBLIC_API_ORIGINS ?? [];
+  /*
+   * The sentinel is NOT in this set. It is not an origin, nothing is ever
+   * compared against it, and leaving it in would mean a caller sending the
+   * literal header `Origin: self` matched the allow-list.
+   */
+  const allowed = new Set(configured.filter((origin) => origin !== SELF_ORIGIN_SENTINEL));
+  /** Does `self` appear in the list? — whether same-origin callers are allowed (D2). */
+  const sameOriginAllowed = configured.includes(SELF_ORIGIN_SENTINEL);
   const snapshots = snapshotsRepo(meta);
   const overrides = overridesRepo(meta);
   const keys = publicKeysRepo(meta);
@@ -209,6 +220,17 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         }
       };
     },
+    /*
+     * 28-T34: the tenant's zone and currency live on the CONNECTION, and a
+     * scope inherits them when it does not state its own. Read here rather
+     * than baked into the scope document so that changing a business's zone is
+     * one edit, not one edit per scope — and so a surface with no scope at all
+     * (one Adminium hosts itself) can reach the same value.
+     */
+    tenantConfigOf: async (connectionId) => {
+      const row = await connectionTenantConfig(meta, connectionId);
+      return row === null ? undefined : row;
+    },
   });
 
   /**
@@ -216,6 +238,10 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
    * `Access-Control-Allow-Credentials` (§3.6). A browser therefore strips
    * cookies from anything sent here, which is what keeps an admin session from
    * riding along on a storefront's request.
+   *
+   * Returns whether CORS headers were emitted — i.e. whether this is an
+   * allow-listed CROSS-ORIGIN caller. Same-origin callers are decided
+   * separately in {@link originVerdict} and get no headers at all.
    */
   const applyCors = (request: FastifyRequest, reply: FastifyReply): boolean => {
     const origin = request.headers.origin;
@@ -223,6 +249,23 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     if (typeof origin !== 'string' || !allowed.has(origin)) return false;
     reply.header('Access-Control-Allow-Origin', origin);
     return true;
+  };
+
+  /**
+   * May this caller reach the namespace at all? — level 1, both halves.
+   *
+   * Emits CORS headers as a side effect for the cross-origin half, which is why
+   * it takes the reply and why the gate calls it BEFORE any refusal (see the
+   * ordering note there).
+   *
+   * The same-origin half is what makes a surface Adminium hosts itself able to
+   * call this API — see {@link isSameOriginRequest} and D2. It emits nothing:
+   * a same-origin response needs no `Access-Control-Allow-Origin`, and adding
+   * one would mean echoing a header the request never sent.
+   */
+  const originVerdict = (request: FastifyRequest, reply: FastifyReply): boolean => {
+    if (applyCors(request, reply)) return true;
+    return sameOriginAllowed && isSameOriginRequest(request);
   };
 
   const preflight = async (request: FastifyRequest, reply: FastifyReply): Promise<null> => {
@@ -260,7 +303,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * I/O — so the "a disabled instance must not spend a meta-store read to say
      * no" property below is untouched.
      */
-    const originAllowed = applyCors(request, reply);
+    const originAllowed = originVerdict(request, reply);
 
     if (!(await isEnabled())) {
       fail(reply, 503, 'PUBLIC_API_DISABLED', 'The public API is turned off for this instance.');
@@ -311,6 +354,14 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
      * Per-key origin narrowing, applied on top of the instance allow-list. An
      * empty list means "not narrowed further" — never "any origin", because the
      * env list is always the outer bound and was already checked above.
+     *
+     * NOT sentinel-aware, and deliberately: a key narrowed to origins refuses a
+     * same-origin call, because a same-origin GET carries no `Origin` to match
+     * (D2's premise, one level down). A key bound to a surface Adminium hosts
+     * itself is minted with NO origins — the instance-level `self` is its
+     * bound — which is what 29-T15's mint flow does. Teaching this list the
+     * sentinel would mean teaching the mint schema and Studio to accept a
+     * non-URL, and that belongs with the binding work, not here.
      */
     if (key.origins.length > 0) {
       const origin = request.headers.origin;
@@ -397,7 +448,23 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The resource is unavailable.');
       return null;
     }
-    const { db, dialect } = await manager.data(ok.key.connectionId);
+    /*
+     * A paused connection answers this surface the same way an unreachable one
+     * does. The refusal `manager.data` throws is written for an OPERATOR
+     * ("resume it in Studio"), and this surface's callers are the tenant's own
+     * customers — they cannot resume anything, and telling them the source was
+     * switched off deliberately hands them a fact about the operator's
+     * infrastructure that no other failure here leaks.
+     */
+    let handle;
+    try {
+      handle = await manager.data(ok.key.connectionId);
+    } catch (error) {
+      if (!(error instanceof ConnectionDisabledError)) throw error;
+      fail(reply, 503, 'PUBLIC_UPSTREAM_UNAVAILABLE', 'The resource is unavailable.');
+      return null;
+    }
+    const { db, dialect } = handle;
     return {
       resource,
       view,

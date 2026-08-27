@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { EnvValidationError, formatEnvErrorTable, loadEnv } from '../src/config/env.js';
+import {
+  EnvValidationError,
+  formatEnvErrorTable,
+  loadEnv,
+  SELF_ORIGIN_SENTINEL,
+} from '../src/config/env.js';
 
 const SECRET = 'a-sufficiently-long-dev-secret';
 
@@ -134,6 +139,20 @@ describe('loadEnv — valid input', () => {
     expect(env.ADMINIUM_META_URL).toBeUndefined();
   });
 
+  it('accepts ADMINIUM_STATIC_ROOT, empty meaning unset (auto-detect the build)', () => {
+    // The desktop shell has set this name since 11-electron §3; validating it
+    // here is what lets `adminium start` honor the same override instead of a
+    // stale bundled dashboard/ silently shadowing a fresh build.
+    expect(
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_STATIC_ROOT: '/srv/dash' }, makeStderr())
+        .ADMINIUM_STATIC_ROOT,
+    ).toBe('/srv/dash');
+    expect(
+      loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_STATIC_ROOT: '' }, makeStderr())
+        .ADMINIUM_STATIC_ROOT,
+    ).toBeUndefined();
+  });
+
   it('does not accept DATABASE_URL — it was documented and read by nothing', () => {
     // THE BUG THIS PINS. `DATABASE_URL` was validated here, plumbed through
     // docker-compose.yml, and documented on two self-hosting pages as the
@@ -187,6 +206,75 @@ describe('loadEnv — valid input', () => {
   it('ignores unrelated environment variables', () => {
     const env = loadEnv({ ADMINIUM_SECRET: SECRET, PATH: '/usr/bin' }, makeStderr());
     expect(env).not.toHaveProperty('PATH');
+  });
+});
+
+describe('loadEnv — the `self` sentinel (29-app-surfaces.md D2, 29-T01)', () => {
+  it('accepts `self` as the sole value, without URL-parsing it', () => {
+    // A bare `self` does not parse as a URL. It has to be special-cased BEFORE
+    // the parse or the whole opt-in is rejected at boot — which is the one way
+    // this feature could fail with a clear message and still be shipped broken.
+    const env = loadEnv(
+      { ADMINIUM_SECRET: SECRET, ADMINIUM_PUBLIC_API_ORIGINS: 'self' },
+      makeStderr(),
+    );
+    expect(env.ADMINIUM_PUBLIC_API_ORIGINS).toEqual([SELF_ORIGIN_SENTINEL]);
+  });
+
+  it('accepts the sentinel beside real origins, in either position', () => {
+    const first = loadEnv(
+      {
+        ADMINIUM_SECRET: SECRET,
+        ADMINIUM_PUBLIC_API_ORIGINS: ' self , https://shop.example.com ',
+      },
+      makeStderr(),
+    );
+    expect(first.ADMINIUM_PUBLIC_API_ORIGINS).toEqual(['self', 'https://shop.example.com']);
+    const last = loadEnv(
+      { ADMINIUM_SECRET: SECRET, ADMINIUM_PUBLIC_API_ORIGINS: 'https://shop.example.com,self' },
+      makeStderr(),
+    );
+    expect(last.ADMINIUM_PUBLIC_API_ORIGINS).toEqual(['https://shop.example.com', 'self']);
+  });
+
+  it('still rejects everything it rejected before', () => {
+    // The sentinel is ONE exact string. Nothing near it is waved through, and
+    // the wildcard refusal is untouched.
+    for (const value of ['self,*', 'selfish', 'https://a.io,self.example', 'SELF', 'not-a-url']) {
+      expect(
+        () => loadEnv({ ADMINIUM_SECRET: SECRET, ADMINIUM_PUBLIC_API_ORIGINS: value }, makeStderr()),
+        value,
+      ).toThrow(EnvValidationError);
+    }
+  });
+
+  it('is not rejected as an overlap with ADMINIUM_CORS_ORIGINS', () => {
+    // The disjointness rule exists because two allow-lists naming one origin
+    // emit two `Access-Control-Allow-Origin` headers. The sentinel emits none,
+    // so it cannot collide — and the admin list rejects non-URLs anyway, which
+    // is why this is a regression guard rather than a live hazard.
+    const env = loadEnv(
+      {
+        ADMINIUM_SECRET: SECRET,
+        ADMINIUM_CORS_ORIGINS: 'https://admin.acme.io',
+        ADMINIUM_PUBLIC_API_ORIGINS: 'self',
+      },
+      makeStderr(),
+    );
+    expect(env.ADMINIUM_PUBLIC_API_ORIGINS).toEqual(['self']);
+  });
+
+  it('still refuses a real origin that appears in both lists', () => {
+    expect(() =>
+      loadEnv(
+        {
+          ADMINIUM_SECRET: SECRET,
+          ADMINIUM_CORS_ORIGINS: 'https://admin.acme.io',
+          ADMINIUM_PUBLIC_API_ORIGINS: 'self,https://admin.acme.io',
+        },
+        makeStderr(),
+      ),
+    ).toThrow(EnvValidationError);
   });
 });
 

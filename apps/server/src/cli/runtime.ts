@@ -16,6 +16,8 @@
  * socket.
  */
 
+import { resolve } from 'node:path';
+
 import { adapterRegistry } from '@adminium/engine/adapter';
 import type { AllowedVocabularies } from '@adminium/llm';
 
@@ -38,6 +40,7 @@ import { openMetaStore, type MetaStoreHandle } from '../meta/store.js';
 import { loadAllowedVocabularies } from './allowlist.js';
 import { CliError } from './exit.js';
 import { resolveStaticRoot } from './static-root.js';
+import { discoverSurfaces, resolveSurfacesDir } from './surfaces-root.js';
 
 // ─── Env ─────────────────────────────────────────────────────────────────────
 
@@ -53,6 +56,8 @@ export interface EnvOverrides {
   dataDir?: string | undefined;
   metaUrl?: string | undefined;
   logLevel?: string | undefined;
+  /** Directory to serve the dashboard build from — `start --static-root`. */
+  staticRoot?: string | undefined;
   /** CSV of origins allowed to hand this instance a DSN — `init --bridge`. */
   bridgeOrigins?: string | undefined;
 }
@@ -74,6 +79,7 @@ export function loadCliEnv(
     ...(overrides.dataDir === undefined ? {} : { ADMINIUM_DATA_DIR: overrides.dataDir }),
     ...(overrides.metaUrl === undefined ? {} : { ADMINIUM_META_URL: overrides.metaUrl }),
     ...(overrides.logLevel === undefined ? {} : { ADMINIUM_LOG_LEVEL: overrides.logLevel }),
+    ...(overrides.staticRoot === undefined ? {} : { ADMINIUM_STATIC_ROOT: overrides.staticRoot }),
     ...(overrides.bridgeOrigins === undefined
       ? {}
       : { ADMINIUM_BRIDGE_ORIGINS: overrides.bridgeOrigins }),
@@ -263,7 +269,14 @@ export function displayUrl(host: string, port: number): string {
  */
 export const startServer: StartServer = async (runtime, opts = {}) => {
   const { env } = runtime;
-  const staticRoot = resolveStaticRoot();
+  // The override the resolver's docblock has always named. Passing it is what
+  // makes it real: without this, a stale gitignored `apps/server/dashboard/`
+  // (bundle-dashboard.mjs output) shadowed a fresh `apps/dashboard/dist` in a
+  // dev checkout with no way to point past it.
+  const staticRoot = resolveStaticRoot({ override: env.ADMINIUM_STATIC_ROOT });
+  // Hosted app surfaces: an operator-pointed directory, discovered once at
+  // boot. Absent ⇒ empty list ⇒ nothing about this boot changes.
+  const surfaces = discoverSurfaces(resolveSurfacesDir());
   const { app, bridgePairingCode } = await composeServer({
     env,
     metaStore: runtime.metaStore,
@@ -273,8 +286,19 @@ export const startServer: StartServer = async (runtime, opts = {}) => {
     allowed: runtime.allowed,
     collectStats: runtime.collectStats,
     ...(staticRoot === undefined ? {} : { staticRoot }),
+    ...(surfaces.length === 0 ? {} : { surfaces }),
     ...(opts.onMetaRelocated === undefined ? {} : { onMetaRelocated: opts.onMetaRelocated }),
   });
+  // Falling through on a missed override is the resolver's contract (the
+  // implicit candidates degrade the same way), but a path the operator WROTE
+  // deserves a line when it is not the one being served — that silence is the
+  // stale-bundle problem the variable exists to end.
+  if (env.ADMINIUM_STATIC_ROOT !== undefined && staticRoot !== resolve(env.ADMINIUM_STATIC_ROOT)) {
+    app.log.warn(
+      { override: env.ADMINIUM_STATIC_ROOT, serving: staticRoot ?? null },
+      'ADMINIUM_STATIC_ROOT has no index.html — it was ignored',
+    );
+  }
   await app.listen({ port: env.PORT, host: env.HOST });
   installSignalShutdown(app);
   return {

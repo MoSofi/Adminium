@@ -105,6 +105,11 @@
     "audit": "Audit-Log",
     "security": "Passwort & Sitzungen"
   },
+  "apps": {
+    "frame": {
+      "noFrames": "Diese App benötigt einen Browser, der Frames unterstützt."
+    }
+  },
   "topbar": {
     "search": "Suchen…",
     "notifications": "Benachrichtigungen",
@@ -232,6 +237,11 @@
       "body": "Dieser Workspace wurde von einer Administratorin oder einem Administrator gesperrt. Ihre Daten bleiben erhalten — wenden Sie sich an die Inhaberin oder den Inhaber des Workspace, um den Zugriff wiederherzustellen.",
       "primary": "Inhaber kontaktieren",
       "secondary": "Zurück"
+    },
+    "connectionPaused": {
+      "title": "Diese Verbindung ist pausiert",
+      "body": "Ein Administrator hat die Datenbank hinter dieser Seite pausiert, deshalb werden gerade keine Daten geladen. Es wurde nichts gelöscht – alles ist wieder da, sobald die Verbindung unter Studio → Datenverbindungen fortgesetzt wird.",
+      "secondary": "Zurück"
     }
   },
   "notFound": {
@@ -311,6 +321,20 @@
     "twoFactor": "Zwei-Faktor",
     "on": "Aktiviert",
     "off": "Aus",
+    "nameRequired": "Geben Sie Ihren Namen ein.",
+    "emailHelper": "Dient zur Anmeldung. Für eine Änderung ist Ihr Passwort erforderlich.",
+    "confirmPassword": "Aktuelles Passwort",
+    "confirmPasswordHelper": "Bestätigen Sie, dass Sie es sind, bevor sich Ihre Anmeldeadresse ändert.",
+    "save": "Änderungen speichern",
+    "saveFailed": "Ihr Profil konnte nicht gespeichert werden",
+    "saved": "Profil aktualisiert",
+    "savedBody": "Ihre neuen Angaben gelten ab sofort im gesamten Workspace. Wenn Sie Ihre E-Mail-Adresse geändert haben, melden Sie sich künftig mit der neuen Adresse an.",
+    "accessTitle": "Zugriff",
+    "accessSubtitle": "Was dieses Konto darf und wie es seine Identität nachweist.",
+    "rolesHelper": "Rollen werden von einer Administratorin oder einem Administrator vergeben und lassen sich nicht im eigenen Konto ändern.",
+    "manageTwoFactor": "Verwalten",
+    "setUpTwoFactor": "Einrichten",
+    "securityLink": "Passwort & Sitzungen",
     "preferences": {
       "title": "Einstellungen",
       "subtitle": "Wie Adminium für Sie aussieht und sich liest — auf diesem und jedem anderen Gerät, an dem Sie sich anmelden.",
@@ -559,7 +583,8 @@
         "connected": "Verbunden",
         "error": "Fehler",
         "unconfigured": "Entwurf",
-        "testing": "Wird getestet…"
+        "testing": "Wird getestet…",
+        "paused": "Pausiert"
       },
       "card": {
         "readOnly": "Schreibgeschützt",
@@ -568,14 +593,41 @@
         "latency": "Latenz",
         "latencyMs": "{latency, number} ms",
         "lastIntrospected": "Zuletzt introspiziert",
-        "never": "Nie"
+        "never": "Nie",
+        "timezone": "Zeitzone",
+        "timezoneGuessed": "von diesem Server",
+        "paused": "Adminium stellt keine Verbindung zu dieser Datenbank her. Ihre Seiten laden wieder, sobald Sie sie fortsetzen.",
+        "pausedSince": "Pausiert {when} – Adminium stellt keine Verbindung zu dieser Datenbank her. Ihre Seiten laden wieder, sobald Sie sie fortsetzen."
       },
       "action": {
         "test": "Testen",
         "reintrospect": "Neu introspizieren",
         "reintrospectFile": "Schemadatei-Quellen haben keine Live-Datenbank — laden Sie stattdessen die Datei erneut hoch.",
         "remap": "Schema neu zuordnen",
-        "delete": "Löschen"
+        "delete": "Löschen",
+        "regional": "Regionale Einstellungen",
+        "pause": "Pausieren",
+        "resume": "Fortsetzen",
+        "pausedHint": "Diese Verbindung ist pausiert – setzen Sie sie fort, um die Datenbank zu erreichen.",
+        "rename": "Umbenennen"
+      },
+      "regional": {
+        "title": "Regionale Einstellungen",
+        "intro": "Sie beschreiben das Unternehmen, zu dem diese Datenbank gehört, nicht die lesende Person. Von Adminium ausgelieferte Apps lesen sie hier.",
+        "timezone": "Zeitzone",
+        "timezoneHelper": "Datum und Uhrzeit werden in dieser Zeitzone dargestellt. Von Adminium gehostete Apps weichen ohne Angabe auf UTC aus und weisen im Bildschirm darauf hin.",
+        "guessedTitle": "Diese Zeitzone stammt vom Server",
+        "guessedBody": "Adminium hat sie von der Maschine übernommen, auf der es läuft — niemand hier hat sie gewählt. Zum Bestätigen speichern oder die Zeitzone wählen, in der dieses Unternehmen tatsächlich arbeitet.",
+        "timezonePlaceholder": "Region/Stadt",
+        "currency": "Währung",
+        "currencyHelper": "Dient der Formatierung von Beträgen. Optional – ohne Angabe ändert sich nur die Formatierung.",
+        "currencyPlaceholder": "ISO-4217-Code",
+        "notSet": "Nicht gesetzt",
+        "noMatch": "Keine passende Zone",
+        "noMatchCurrency": "Keine passende Währung",
+        "save": "Speichern",
+        "failed": "Regionale Einstellungen konnten nicht gespeichert werden",
+        "saved": "Regionale Einstellungen aktualisiert"
       },
       "test": {
         "ok": "Verbindung fehlerfrei · {latency, number} ms",
@@ -601,6 +653,26 @@
         "title": "Noch keine Datenquellen",
         "body": "Verbinden Sie eine Datenbank — Adminium generiert Ihr Admin-Panel aus deren Schema.",
         "cta": "Datenbank verbinden"
+      },
+      "hostedApps": "Gehostete Apps",
+      "subtitlePaused": "{healthy, number} von {total, plural, one {# Verbindung} other {# Verbindungen}} fehlerfrei · {paused, number} pausiert",
+      "pause": {
+        "title": "Diese Verbindung pausieren?",
+        "body": "Adminium baut keine Verbindung mehr zu „{name}“ auf. {pages, plural, one {# Seite} other {# Seiten}}, geplante Berichte und gehostete Apps laden keine Daten mehr, bis Sie sie fortsetzen.",
+        "keeps": "Nichts wird gelöscht – die Verbindung, ihr Schema und {pages, plural, one {ihre # Seite} other {ihre # Seiten}} bleiben erhalten, und ein Klick holt sie zurück.",
+        "confirm": "Verbindung pausieren",
+        "pausedToast": "Verbindung „{name}“ pausiert",
+        "resumedToast": "Verbindung „{name}“ fortgesetzt",
+        "pauseFailed": "Die Verbindung konnte nicht pausiert werden. Versuchen Sie es erneut.",
+        "resumeFailed": "Die Verbindung konnte nicht fortgesetzt werden. Versuchen Sie es erneut."
+      },
+      "rename": {
+        "title": "Verbindung umbenennen",
+        "label": "Name",
+        "helper": "Wie diese Datenbank in Adminium überall heißt — die Karte, die Seitenleisten-Gruppe über ihren Seiten und jede Auswahl, die sie anbietet. Die Datenbank selbst wird nicht umbenannt.",
+        "save": "Umbenennen",
+        "saved": "Verbindung umbenannt",
+        "failed": "Die Verbindung konnte nicht umbenannt werden"
       }
     },
     "settingsHub": {
@@ -1315,10 +1387,62 @@
         "create": "Create key",
         "formLabel": "Create a key",
         "scopeIsAuthTitle": "The scope is the only permission",
-        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+        "appLabel": "An eine gehostete App-Oberfläche binden (optional)",
+        "appHint": "Die Kunden-Oberfläche der App liefert diesen Schlüssel dann selbst aus — eine Rotation braucht keinen Rebuild.",
+        "appNone": "Nicht gebunden"
       },
       "status": {
         "heading": "Status"
+      }
+    },
+    "hostedApps": {
+      "title": "Gehostete Apps",
+      "subtitle": "Die App-Oberflächen, die diese Instanz ausliefert — wo jede erscheint und welche Domains auf sie zeigen.",
+      "error": "Etwas ist schiefgelaufen",
+      "emptyTitle": "Es werden keine App-Oberflächen ausgeliefert",
+      "emptyBody": "Setzen Sie ADMINIUM_SURFACES_DIR auf ein Verzeichnis gebauter Oberflächen — ein Ordner je App und Seite, jeweils mit index.html — und starten Sie neu. Sie werden dann unter /apps/ ausgeliefert und erscheinen hier.",
+      "surfaces": {
+        "title": "Oberflächen",
+        "subtitle": "Eine Mitarbeiter-Oberfläche kann sich in die Seitenleiste dieses Dashboards einfügen oder für sich stehen; eine Kunden-Oberfläche ist öffentlich und liest über ihren gebundenen Schlüssel.",
+        "staff": "Mitarbeiter",
+        "customer": "Kunden",
+        "noNav": "Interne Platzierung nicht verfügbar — bauen Sie diese Oberfläche mit dem aktuellen Toolkit neu, damit sie surface.json ausgibt.",
+        "noKey": "Kein Schlüssel gebunden — diese Oberfläche kann keine Daten lesen, bis einer für sie erstellt wird.",
+        "mintLink": "Unter „Öffentliche API“ erstellen",
+        "boundKey": "Liefert Schlüssel",
+        "placementLabel": "Platzierung",
+        "placementInternal": "In der Seitenleiste (eingebettet)",
+        "placementExternal": "Extern (nur eigene URL)",
+        "connectionLabel": "Liest",
+        "connectionUnset": "Was gerade bedient"
+      },
+      "domains": {
+        "title": "Domains",
+        "subtitle": "Richten Sie das DNS einer Domain auf Ihren Proxy, reichen Sie den Host-Header an Adminium durch und hängen Sie sie hier an — dieser Host liefert dann die Oberfläche statt dieses Dashboards. Zertifikate bleiben auf Ihrem Proxy.",
+        "issuesTitle": "Die Domain-Zuordnung wurde abgelehnt",
+        "savedTitle": "Gespeichert",
+        "savedBody": "Zuordnungen greifen innerhalb weniger Sekunden. Ein Host antwortet erst, wenn sein DNS und Ihr Proxy diese Instanz tatsächlich erreichen.",
+        "none": "Keine Domains angehängt.",
+        "hostLabel": "Host",
+        "surfaceLabel": "Oberfläche",
+        "remove": "Entfernen",
+        "add": "Domain anhängen",
+        "save": "Domains speichern",
+        "instanceLabel": "Instanz",
+        "instanceOwn": "Die App selbst"
+      },
+      "instances": {
+        "title": "Instanzen",
+        "body": "Dieselbe App über mehrere Datenbanken bereitstellen. Jede Instanz ist unter /apps/<app>/<segment>/<seite>/ erreichbar und liest nur die Verbindung, die Sie ihr geben.",
+        "appLabel": "App",
+        "slugLabel": "URL-Segment",
+        "readsLabel": "Liest",
+        "add": "Instanz hinzufügen",
+        "save": "Instanzen speichern",
+        "remove": "Entfernen",
+        "empty": "Keine weiteren Instanzen.",
+        "failed": "Instanzen wurden nicht gespeichert"
       }
     }
   },
@@ -2500,7 +2624,9 @@
       "connection": "Datenquelle",
       "connectionNone": "Keine",
       "iconPick": "Seitensymbol auswählen",
-      "padding": "Seitenabstand"
+      "padding": "Seitenabstand",
+      "width": "Inhaltsbreite",
+      "widthHint": "Wie breit die Inhaltsspalte der Seite auf einem großen Bildschirm werden darf."
     },
     "editor": {
       "title": "Seite bearbeiten",
@@ -2544,18 +2670,33 @@
       }
     },
     "columns": {
-      "help": "Spalten umsortieren, ihre Überschriften umbenennen und auswählen, welche in der Tabelle erscheinen.",
-      "discard": "Verwerfen",
-      "save": "Spalten speichern",
-      "saveFailed": "Spalten konnten nicht gespeichert werden",
+      "help": "Spalten per Ziehen umsortieren, ihre Überschriften umbenennen und auswählen, welche in der Tabelle erscheinen.",
+      "empty": "Noch keine Spalten — fügen Sie unten welche hinzu.",
       "pk": "Schlüssel",
       "pii": "PII",
       "header": "Überschrift für {name}",
       "shown": "Sichtbar",
       "toggle": "{name} in der Tabelle anzeigen",
-      "moveUp": "{name} nach oben verschieben",
-      "moveDown": "{name} nach unten verschieben",
+      "dragHandle": "{name} verschieben",
       "remove": "{name} entfernen",
+      "addOpen": "Spalte hinzufügen",
+      "addTitle": "Spalte hinzufügen",
+      "addSearch": "Spalten durchsuchen…",
+      "addFromTable": "Aus {table}",
+      "addFromLinked": "Aus verknüpften Tabellen",
+      "addLinkedHelp": "Zeigt einen Wert aus der Tabelle, auf die eine Verknüpfungsspalte verweist.",
+      "addVia": "über {column}",
+      "addNoMatches": "Keine Spalten passen zu „{query}“.",
+      "followColumn": "{name} folgen",
+      "addLinkedFrom": "Tabellen, die hierher verweisen",
+      "addLinkedFromHelp": "Fügt die Anzahl der Zeilen hinzu, die auf jeden Datensatz verweisen.",
+      "countBadge": "Anzahl",
+      "lookupBadge": "Verknüpft",
+      "lookupBack": "Zurück",
+      "lookupBrowse": "Wählen Sie, was aus {table} angezeigt wird",
+      "lookupBroken": "Diese Verknüpfung lässt sich nicht mehr auflösen",
+      "lookupBrokenBody": "Das Schema hat sich währenddessen geändert. Beginnen Sie die Verknüpfung erneut.",
+      "schemaUnavailable": "Die Datenbankspalten konnten nicht geladen werden, daher lassen sich hier keine Spalten hinzufügen.",
       "none": {
         "title": "Diese Seite hat noch keine Spalten",
         "body": "Spalten werden bei der Generierung aus der Tabelle gelesen. Binden Sie diese Seite an eine Tabelle und generieren Sie neu, um sie zu füllen."
@@ -2577,6 +2718,15 @@
       "custom": "Benutzerdefiniert …",
       "x": "Seiten (px)",
       "y": "Oben und unten (px)"
+    },
+    "width": {
+      "default": "Standard für diese Vorlage",
+      "narrow": "Schmal (720 px)",
+      "content": "Inhalt (900 px)",
+      "page": "Seite (1080 px)",
+      "dash": "Dashboard (1320 px)",
+      "wide": "Breit (1800 px)",
+      "full": "Volle Breite (kein Limit)"
     }
   },
   "audit": {
@@ -2731,7 +2881,7 @@
   },
   "security": {
     "password": {
-      "changedBody": "Verwenden Sie das neue Passwort bei Ihrer nächsten Anmeldung. Sitzungen auf anderen Geräten sind nicht betroffen — widerrufen Sie sie unten, wenn diese abgemeldet werden sollen.",
+      "changedBody": "Verwenden Sie das neue Passwort bei Ihrer nächsten Anmeldung. Andere Geräte bleiben angemeldet — beenden Sie diese Sitzungen, wenn Sie das nicht möchten.",
       "changed": "Passwort geändert",
       "confirm": "Neues Passwort bestätigen",
       "current": "Aktuelles Passwort",

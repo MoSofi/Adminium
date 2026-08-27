@@ -114,6 +114,11 @@ export default {
     "audit": "Audit log",
     "security": "Password & sessions"
   },
+  "apps": {
+    "frame": {
+      "noFrames": "This app needs a browser that supports frames."
+    }
+  },
   "topbar": {
     "search": "Search…",
     "notifications": "Notifications",
@@ -241,6 +246,11 @@ export default {
       "body": "This workspace has been suspended by an administrator. Your data is preserved — contact the workspace owner to restore access.",
       "primary": "Contact owner",
       "secondary": "Go back"
+    },
+    "connectionPaused": {
+      "title": "This connection is paused",
+      "body": "An admin paused the database behind this page, so it is not loading data right now. Nothing has been deleted — it comes back as soon as the connection is resumed in Studio → Data connections.",
+      "secondary": "Go back"
     }
   },
   "notFound": {
@@ -320,6 +330,20 @@ export default {
     "twoFactor": "Two-factor",
     "on": "Enabled",
     "off": "Off",
+    "nameRequired": "Enter your name.",
+    "emailHelper": "Used to sign in. Changing it needs your password.",
+    "confirmPassword": "Current password",
+    "confirmPasswordHelper": "Confirm it is you before your sign-in address changes.",
+    "save": "Save changes",
+    "saveFailed": "Could not save your profile",
+    "saved": "Profile updated",
+    "savedBody": "Your new details are in use across this workspace. If you changed your email, sign in with the new address from now on.",
+    "accessTitle": "Access",
+    "accessSubtitle": "What this account may do, and how it proves who it is.",
+    "rolesHelper": "Roles are granted by an administrator and cannot be changed from your own account.",
+    "manageTwoFactor": "Manage",
+    "setUpTwoFactor": "Set up",
+    "securityLink": "Password & sessions",
     "preferences": {
       "title": "Preferences",
       "subtitle": "How Adminium looks and reads for you — on this and every device you sign in from.",
@@ -568,7 +592,8 @@ export default {
         "connected": "Connected",
         "error": "Error",
         "unconfigured": "Draft",
-        "testing": "Testing…"
+        "testing": "Testing…",
+        "paused": "Paused"
       },
       "card": {
         "readOnly": "Read-only",
@@ -577,14 +602,41 @@ export default {
         "latency": "Latency",
         "latencyMs": "{latency, number} ms",
         "lastIntrospected": "Last introspected",
-        "never": "Never"
+        "never": "Never",
+        "timezone": "Timezone",
+        "timezoneGuessed": "from this server",
+        "paused": "Adminium is not connecting to this database. Its pages load again when you resume it.",
+        "pausedSince": "Paused {when} — Adminium is not connecting to this database. Its pages load again when you resume it."
       },
       "action": {
         "test": "Test",
         "reintrospect": "Re-introspect",
         "reintrospectFile": "Schema-file sources have no live database — re-upload the file instead.",
         "remap": "Remap schema",
-        "delete": "Delete"
+        "delete": "Delete",
+        "regional": "Regional settings",
+        "pause": "Pause",
+        "resume": "Resume",
+        "pausedHint": "This connection is paused — resume it to reach the database.",
+        "rename": "Rename"
+      },
+      "regional": {
+        "title": "Regional settings",
+        "intro": "These describe the business this database belongs to, not the person reading it. Apps served from Adminium read them from here.",
+        "timezone": "Timezone",
+        "timezoneHelper": "Dates and times render in this zone. Apps hosted by Adminium fall back to UTC without one, and say on screen that they are doing it.",
+        "guessedTitle": "This zone came from the server",
+        "guessedBody": "Adminium filled it in from the machine it runs on, not from anyone here. Save to confirm it, or pick the zone this business actually keeps.",
+        "timezonePlaceholder": "Region/City",
+        "currency": "Currency",
+        "currencyHelper": "Used to format money. Optional — leaving it unset affects formatting only.",
+        "currencyPlaceholder": "ISO-4217 code",
+        "notSet": "Not set",
+        "noMatch": "No matching zone",
+        "noMatchCurrency": "No matching currency",
+        "save": "Save",
+        "failed": "Regional settings could not be saved",
+        "saved": "Regional settings updated"
       },
       "test": {
         "ok": "Connection healthy · {latency, number} ms",
@@ -610,6 +662,26 @@ export default {
         "title": "No data sources yet",
         "body": "Connect a database and Adminium generates your admin panel from its schema.",
         "cta": "Connect a database"
+      },
+      "hostedApps": "Hosted apps",
+      "subtitlePaused": "{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy · {paused, number} paused",
+      "pause": {
+        "title": "Pause this connection?",
+        "body": "Adminium stops opening any connection to “{name}”. Its {pages, plural, one {# page} other {# pages}}, scheduled reports and hosted apps stop loading data until you resume it.",
+        "keeps": "Nothing is deleted — the connection, its schema and its {pages, plural, one {# page} other {# pages}} are all kept, and one click brings them back.",
+        "confirm": "Pause connection",
+        "pausedToast": "Connection “{name}” paused",
+        "resumedToast": "Connection “{name}” resumed",
+        "pauseFailed": "Could not pause the connection. Try again.",
+        "resumeFailed": "Could not resume the connection. Try again."
+      },
+      "rename": {
+        "title": "Rename connection",
+        "label": "Name",
+        "helper": "What this database is called throughout Adminium — the card, the sidebar group over its pages, and every picker that offers it. The database itself is not renamed.",
+        "save": "Rename",
+        "saved": "Connection renamed",
+        "failed": "The connection could not be renamed"
       }
     },
     "settingsHub": {
@@ -1324,10 +1396,62 @@ export default {
         "create": "Create key",
         "formLabel": "Create a key",
         "scopeIsAuthTitle": "The scope is the only permission",
-        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+        "appLabel": "Bind to a hosted app surface (optional)",
+        "appHint": "The app’s customer surface then serves this key itself — rotating it needs no rebuild.",
+        "appNone": "Not bound"
       },
       "status": {
         "heading": "Status"
+      }
+    },
+    "hostedApps": {
+      "title": "Hosted apps",
+      "subtitle": "The app surfaces this instance serves — where each one appears, and the domains pointed at them.",
+      "error": "Something went wrong",
+      "emptyTitle": "No app surfaces are being served",
+      "emptyBody": "Point ADMINIUM_SURFACES_DIR at a directory of built surfaces — one folder per app and side, each with its index.html — and restart. They are then served under /apps/ and appear here.",
+      "surfaces": {
+        "title": "Surfaces",
+        "subtitle": "A staff surface can blend into this dashboard’s sidebar or stand on its own; a customer surface is public and reads through its bound key.",
+        "staff": "Staff",
+        "customer": "Customer",
+        "noNav": "Internal placement unavailable — rebuild this surface with the current toolkit so it emits surface.json.",
+        "noKey": "No key bound — this surface cannot read data until one is minted for it.",
+        "mintLink": "Mint one under Public API",
+        "boundKey": "Serves key",
+        "placementLabel": "Placement",
+        "placementInternal": "In the sidebar (blended)",
+        "placementExternal": "External (own URL only)",
+        "connectionLabel": "Reads",
+        "connectionUnset": "Whichever is serving"
+      },
+      "domains": {
+        "title": "Domains",
+        "subtitle": "Point a domain’s DNS at your proxy, pass the Host header through to Adminium, and attach it here — that host then serves the surface instead of this dashboard. Certificates stay on your proxy.",
+        "issuesTitle": "The domain map was refused",
+        "savedTitle": "Saved",
+        "savedBody": "Mappings take effect within a few seconds. A host only answers once its DNS and your proxy actually reach this instance.",
+        "none": "No domains are attached.",
+        "hostLabel": "Host",
+        "surfaceLabel": "Surface",
+        "remove": "Remove",
+        "add": "Attach a domain",
+        "save": "Save domains",
+        "instanceLabel": "Instance",
+        "instanceOwn": "The app's own"
+      },
+      "instances": {
+        "title": "Instances",
+        "body": "Serve the same app over more than one database. Each instance is reachable at /apps/<app>/<segment>/<side>/ and reads only the connection you give it.",
+        "appLabel": "App",
+        "slugLabel": "URL segment",
+        "readsLabel": "Reads",
+        "add": "Add an instance",
+        "save": "Save instances",
+        "remove": "Remove",
+        "empty": "No extra instances.",
+        "failed": "Instances were not saved"
       }
     }
   },
@@ -2509,7 +2633,9 @@ export default {
       "connection": "Data source",
       "connectionNone": "None",
       "iconPick": "Choose the page icon",
-      "padding": "Page padding"
+      "padding": "Page padding",
+      "width": "Content width",
+      "widthHint": "How wide the page’s content column may grow on a large screen."
     },
     "editor": {
       "title": "Edit page",
@@ -2553,18 +2679,33 @@ export default {
       }
     },
     "columns": {
-      "help": "Reorder columns, rename their headers, and choose which are shown in the table.",
-      "discard": "Discard",
-      "save": "Save columns",
-      "saveFailed": "Columns could not be saved",
+      "help": "Drag to reorder columns, rename their headers, and choose which are shown in the table.",
+      "empty": "No columns yet — add them below.",
       "pk": "Key",
       "pii": "PII",
       "header": "Header for {name}",
       "shown": "Shown",
       "toggle": "Show {name} in the table",
-      "moveUp": "Move {name} up",
-      "moveDown": "Move {name} down",
+      "dragHandle": "Reorder {name}",
       "remove": "Remove {name}",
+      "addOpen": "Add column",
+      "addTitle": "Add a column",
+      "addSearch": "Search columns…",
+      "addFromTable": "From {table}",
+      "addFromLinked": "From linked tables",
+      "addLinkedHelp": "Show a value from the table a link column points to.",
+      "addVia": "via {column}",
+      "addNoMatches": "No columns match “{query}”.",
+      "followColumn": "Follow {name}",
+      "addLinkedFrom": "Tables that link here",
+      "addLinkedFromHelp": "Add a count of the rows that point at each record.",
+      "countBadge": "Count",
+      "lookupBadge": "Linked",
+      "lookupBack": "Back",
+      "lookupBrowse": "Pick what to show from {table}",
+      "lookupBroken": "That link no longer resolves",
+      "lookupBrokenBody": "The schema changed while you were browsing. Start the link again.",
+      "schemaUnavailable": "Database columns could not be listed, so columns cannot be added back here.",
       "none": {
         "title": "This page has no columns yet",
         "body": "Columns are read from the table when the page is generated. Bind this page to a table and regenerate to fill them in."
@@ -2586,6 +2727,15 @@ export default {
       "custom": "Custom…",
       "x": "Sides (px)",
       "y": "Top and bottom (px)"
+    },
+    "width": {
+      "default": "Default for this template",
+      "narrow": "Narrow (720px)",
+      "content": "Content (900px)",
+      "page": "Page (1080px)",
+      "dash": "Dashboard (1320px)",
+      "wide": "Wide (1800px)",
+      "full": "Full width (no limit)"
     }
   },
   "audit": {
@@ -2740,7 +2890,7 @@ export default {
   },
   "security": {
     "password": {
-      "changedBody": "Use the new password the next time you sign in. Sessions on other devices are unaffected — revoke them below if you want them signed out.",
+      "changedBody": "Use the new password the next time you sign in. Other devices stay signed in — end those sessions if you want them out.",
       "changed": "Password changed",
       "confirm": "Confirm new password",
       "current": "Current password",

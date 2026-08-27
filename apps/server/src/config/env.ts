@@ -31,6 +31,24 @@ const BOOLEANISH = ['on', 'off', 'true', 'false', '1', '0'] as const;
 /** Treat empty strings as unset so `FOO= adminium start` behaves like unset FOO. */
 const emptyToUndefined = (value: unknown): unknown => (value === '' ? undefined : value);
 
+/**
+ * The one non-URL value `ADMINIUM_PUBLIC_API_ORIGINS` accepts: "this instance
+ * itself" (29-app-surfaces.md D2).
+ *
+ * It exists because an origin allow-list CANNOT express same-origin. A
+ * same-origin `GET` sends NO `Origin` header at all — the Fetch spec appends
+ * one only for non-GET/HEAD methods and for cross-origin CORS requests — and a
+ * page cannot add one, `Origin` being a forbidden header name. So no value
+ * naming the instance's own origin could ever match, and a hosted customer
+ * surface calling `/api/v1/public/*` from the page Adminium itself served was
+ * refused with no way to allow it. `self` is a sentinel the GATE understands,
+ * not an origin the header is compared against.
+ *
+ * Special-cased BEFORE the URL parse below: a bare `self` does not parse as a
+ * URL and would otherwise be rejected at env-parse time.
+ */
+export const SELF_ORIGIN_SENTINEL = 'self';
+
 export const envSchema = z.object({
   ADMINIUM_SECRET: z
     .string({ error: 'is required' })
@@ -45,25 +63,53 @@ export const envSchema = z.object({
       .default(4600),
   ),
   HOST: z.preprocess(emptyToUndefined, z.string().default('0.0.0.0')),
-  /*
-   * NO `DATABASE_URL`. It was validated here, passed through docker-compose.yml,
-   * and documented on two self-hosting pages as "imported as the first source
-   * connection on the first boot only" — and read by ZERO lines of product code.
-   * A Docker user who followed our own quickstart set it, saw no connection, and
-   * had nothing to debug, because there was nothing there to fail.
+  /**
+   * The first-boot source-connection seed (28-public-surface.md 28-T31): the
+   * database Adminium generates the back office FROM, as opposed to
+   * {@link ADMINIUM_META_URL}, the store it keeps its own state in.
    *
-   * Removed rather than implemented: a first-boot connection seed is a real
-   * feature (validate + probe the DSN, decide what a bad one does to the boot,
-   * stay idempotent across restarts, and say what happens when the row is later
-   * deleted), and it belongs behind a decision about that behavior — not
-   * retrofitted to make an already-documented variable true. The wizard and
-   * `POST /connections` create connections today. If the seed is wanted later it
-   * arrives with those answers, and this comment is the note that its NAME was
-   * once taken.
+   * STILL NO `DATABASE_URL`, and the test that says so stays. That name was
+   * validated here, passed through docker-compose.yml, and documented on two
+   * self-hosting pages as "imported as the first source connection on the first
+   * boot only" — while ZERO lines of product code read it. A Docker user who
+   * followed our own quickstart set it, saw no connection, and had nothing to
+   * debug, because there was nothing there to fail. It was removed rather than
+   * retrofitted, on the grounds that a real seed has to answer four questions
+   * first. It now does, in `connections/seed.ts`: it validates and probes the
+   * DSN before storing it; a bad one leaves a connection row in `error` and does
+   * NOT stop the boot; the healthy-seed claim makes it idempotent across
+   * restarts; and a row deleted afterwards stays deleted.
+   *
+   * The name is new anyway. `ADMINIUM_*` is what every other variable this
+   * schema validates is called, and the pair reads as what it is next to
+   * `ADMINIUM_META_URL`. The generic spelling is also part of why the old one
+   * looked plausible for so long while being dead — a `DATABASE_URL` in a
+   * compose file next to a Postgres service reads as that service's own
+   * variable, not as an instruction to us.
+   *
+   * Optional: an instance with no source configured is the normal first-run
+   * wizard path, which is how every non-Docker install starts.
    */
+  ADMINIUM_SOURCE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_META_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_DATA_DIR: z.preprocess(emptyToUndefined, z.string().default('./data')),
   ADMINIUM_LOG_LEVEL: z.preprocess(emptyToUndefined, z.enum(LOG_LEVELS).default('info')),
+  /**
+   * Explicit dashboard-build directory — `resolveStaticRoot`'s override, ahead
+   * of the bundled-tarball and monorepo candidates (`cli/static-root.ts`).
+   *
+   * It is validated here because the implicit candidates can pick the WRONG
+   * build: in a dev checkout a stale `apps/server/dashboard/` (a
+   * `scripts/bundle-dashboard.mjs` leftover — gitignored, so invisible in
+   * `git status`) shadows a fresh `apps/dashboard/dist`, and the resolver's
+   * docblock named an override that no production caller actually passed. The
+   * desktop shell already sets this exact variable to point its child server at
+   * the packaged `resources/` copy (`apps/desktop/src/server/env.ts`); parsing
+   * it here makes the same name work for `adminium start`. A directory without
+   * `index.html` degrades the way an absent build always has — fall through,
+   * else API-only — and `startServer` logs that the override missed.
+   */
+  ADMINIUM_STATIC_ROOT: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   /**
    * ─── The desktop block (11-electron.md §2.2 step 5) ───────────────────────
    *
@@ -290,6 +336,12 @@ export const envSchema = z.object({
    * emit `Access-Control-Allow-Origin` and the browser would reject the
    * duplicate — so overlap is refused here, at parse time, rather than
    * debugged later from a CORS error that names neither variable.
+   *
+   * THE ONE NON-ORIGIN VALUE is `self` — see {@link SELF_ORIGIN_SENTINEL}. It
+   * registers the namespace for same-origin callers only, which is exactly the
+   * posture of an instance whose only public consumers are the surfaces it
+   * hosts itself. Cross-origin operators append real origins beside it:
+   * `self,https://shop.example.com`.
    */
   ADMINIUM_PUBLIC_API_ORIGINS: z.preprocess(
     emptyToUndefined,
@@ -312,6 +364,9 @@ export const envSchema = z.object({
             });
             return z.NEVER;
           }
+          // BEFORE the URL parse, deliberately: `self` is a sentinel the gate
+          // reads (D2), not an origin, and `new URL('self')` throws.
+          if (origin === SELF_ORIGIN_SENTINEL) continue;
           try {
             if (new URL(origin).origin !== origin) {
               ctx.addIssue({
@@ -335,7 +390,11 @@ export const envSchema = z.object({
     const admin = env.ADMINIUM_CORS_ORIGINS;
     const pub = env.ADMINIUM_PUBLIC_API_ORIGINS;
     if (admin === undefined || pub === undefined) return;
-    const overlap = pub.filter((origin) => admin.includes(origin));
+    // The sentinel is not an origin, so it cannot produce a duplicate
+    // `Access-Control-Allow-Origin` — and it never emits one at all (D2).
+    const overlap = pub.filter(
+      (origin) => origin !== SELF_ORIGIN_SENTINEL && admin.includes(origin),
+    );
     if (overlap.length > 0) {
       ctx.addIssue({
         code: 'custom',
@@ -358,6 +417,8 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_META_URL: 'optional meta-store DSN: postgres://, mysql://, or sqlite:<path>',
   ADMINIUM_DATA_DIR: 'writable directory for files, exports, and backups (default ./data)',
   ADMINIUM_LOG_LEVEL: `one of ${LOG_LEVELS.join(', ')} (default info)`,
+  ADMINIUM_STATIC_ROOT:
+    'directory holding a dashboard build (its index.html) — overrides the bundled copy',
   ADMINIUM_RUNTIME: `one of ${RUNTIMES.join(', ')} (default self-host; set to desktop only by the Electron shell)`,
   ADMINIUM_BOOT_TOKEN: `${String(BOOT_TOKEN_HEX_LENGTH)} hex characters, generated per boot by the desktop shell`,
   ADMINIUM_DESKTOP_SINGLE_USER: `one of ${BOOLEANISH.join(', ')} (desktop only; mirrors config.json's singleUser)`,
@@ -371,7 +432,7 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_BRIDGE_ORIGINS:
     'CSV of exact origins allowed to hand this instance a connection string, e.g. https://adminium.dev — unset disables the bridge entirely',
   ADMINIUM_PUBLIC_API_ORIGINS:
-    'CSV of exact origins allowed to reach /api/v1/public — unset means the public API is not registered at all; must be disjoint from ADMINIUM_CORS_ORIGINS',
+    'CSV of exact origins allowed to reach /api/v1/public, plus the literal `self` for surfaces this instance hosts itself — unset means the public API is not registered at all; must be disjoint from ADMINIUM_CORS_ORIGINS',
 };
 
 export class EnvValidationError extends Error {

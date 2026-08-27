@@ -152,6 +152,8 @@ export interface CreatePublicKeyInput {
   tokenEncrypted: string;
   scopeId: string;
   side: string;
+  /** Hosted app surface this key is bound to (29 D10), or absent/null. */
+  appKey?: string | null;
   /** JSON array narrowing the instance origin list; `[]` = no narrowing. */
   origins?: string[];
   createdBy?: string | null;
@@ -170,6 +172,7 @@ export function publicKeysRepo(meta: MetaDb) {
         tokenEncrypted: input.tokenEncrypted,
         scopeId: input.scopeId,
         side: input.side,
+        appKey: input.appKey ?? null,
         origins: JSON.stringify(input.origins ?? []),
         expiresAt: input.expiresAt ?? null,
         revokedAt: null,
@@ -218,6 +221,72 @@ export function publicKeysRepo(meta: MetaDb) {
         .where('scopeId', '=', scopeId)
         .orderBy('createdAt', 'desc')
         .execute();
+    },
+
+    /**
+     * The `surface-config.json` lookup (29 D10): the newest key for this app's
+     * side that is neither revoked nor expired. Rotation keeps the row (and so
+     * the binding); revoking the newest key falls back to the next live one, so
+     * an operator can stage a replacement before killing the old key.
+     */
+    /**
+     * The newest live key for an app whose SCOPE points at one connection.
+     *
+     * What `newestLiveByApp` answers once per app, this answers once per
+     * database — the customer half of app instances (29 D9). A customer surface
+     * has never named its connection directly and does not start now: its key
+     * names a scope and the scope names the connection, so selecting the right
+     * key IS selecting the right database, and nothing new has to be kept in
+     * sync with anything.
+     *
+     * A join, not two queries: the pair "newest, and belonging to this
+     * connection" has to be decided together, or a scope moved between
+     * connections could hand back a key that was newest but no longer relevant.
+     */
+    async newestLiveByAppAndConnection(
+      appKey: string,
+      side: string,
+      connectionId: string,
+      at: number = Date.now(),
+    ): Promise<PublicKey | null> {
+      const row = await db
+        .selectFrom('adminium_public_keys')
+        .innerJoin(
+          'adminium_public_scopes',
+          'adminium_public_scopes.id',
+          'adminium_public_keys.scopeId',
+        )
+        .selectAll('adminium_public_keys')
+        .where('adminium_public_keys.appKey', '=', appKey)
+        .where('adminium_public_keys.side', '=', side)
+        .where('adminium_public_scopes.connectionId', '=', connectionId)
+        .where('adminium_public_keys.revokedAt', 'is', null)
+        .where((eb) =>
+          eb.or([
+            eb('adminium_public_keys.expiresAt', 'is', null),
+            eb('adminium_public_keys.expiresAt', '>', at),
+          ]),
+        )
+        .orderBy('adminium_public_keys.createdAt', 'desc')
+        .executeTakeFirst();
+      return row ?? null;
+    },
+
+    async newestLiveByApp(
+      appKey: string,
+      side: string,
+      at: number = Date.now(),
+    ): Promise<PublicKey | null> {
+      const row = await db
+        .selectFrom('adminium_public_keys')
+        .selectAll()
+        .where('appKey', '=', appKey)
+        .where('side', '=', side)
+        .where('revokedAt', 'is', null)
+        .where((eb) => eb.or([eb('expiresAt', 'is', null), eb('expiresAt', '>', at)]))
+        .orderBy('createdAt', 'desc')
+        .executeTakeFirst();
+      return row ?? null;
     },
 
     async list(): Promise<PublicKey[]> {

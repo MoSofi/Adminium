@@ -9,6 +9,8 @@
  * - `/studio/settings`               → workspace settings hub (M5-T05)
  * - `/studio/public-api`             → the scoped public API: switch, scopes, keys
  *   (28-public-surface.md §3, 28-T13). LAZY like its siblings — see the note below.
+ * - `/studio/apps`                   → hosted app surfaces: placement + domain
+ *   attachment (29-app-surfaces.md §3.1, 29-T17). LAZY like its siblings.
  * - `/studio/remap/$connectionId`    → schema remap editor — OWNED BY THE
  *   REMAP AGENT. Contract: `./remap/RemapEditor.tsx` exports
  *   `RemapEditor({ connectionId }: { connectionId: string })`. Loaded
@@ -57,6 +59,11 @@ const StudioSettingsPageLazy = lazy(async () => {
 const PublicApiPageLazy = lazy(async () => {
   const mod = await import('./public-api/PublicApiPage.js');
   return { default: mod.PublicApiPage };
+});
+
+const HostedAppsPageLazy = lazy(async () => {
+  const mod = await import('./apps/HostedAppsPage.js');
+  return { default: mod.HostedAppsPage };
 });
 
 const StudioAiPageLazy = lazy(async () => {
@@ -184,6 +191,7 @@ function HubRouteComponent() {
           onOpenRemap={(connectionId) =>
             void navigate({ to: '/studio/remap/$connectionId', params: { connectionId } })
           }
+          onOpenHostedApps={() => void navigate({ to: '/studio/apps' })}
         />
       </Suspense>
     </StudioGuard>
@@ -231,6 +239,16 @@ function PublicApiRouteComponent() {
     <StudioGuard>
       <Suspense fallback={<CenteredSpinner />}>
         <PublicApiPageLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
+function HostedAppsRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={<CenteredSpinner />}>
+        <HostedAppsPageLazy />
       </Suspense>
     </StudioGuard>
   );
@@ -354,6 +372,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: PublicApiRouteComponent,
   });
 
+  const hostedAppsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/apps',
+    component: HostedAppsRouteComponent,
+  });
+
   return [
     studioIndexRoute,
     connectRoute,
@@ -363,6 +387,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     settingsRoute,
     aiSettingsRoute,
     publicApiRoute,
+    hostedAppsRoute,
     reviewRoute,
     remapRoute,
   ];

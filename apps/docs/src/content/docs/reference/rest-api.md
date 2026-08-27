@@ -115,6 +115,7 @@ Thirty-one namespaces. Counts are operations, not paths.
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
 | `/api/v1/settings/*` | 10 | Instance settings — defaults, branding, email, security, telemetry, workspace |
 | `/api/v1/setup/*` | 2 | First-boot super-admin creation, and whether setup is still open |
+| `/api/v1/surfaces/*` | 5 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system` | 1 | Version and instance information |
 | `/api/v1/users/*` | 9 | People in the workspace — invite, suspend, delete, assign roles |
 | `/api/v1/widget-data/*` | 2 | The queries widgets run, singly and in batches |
@@ -462,6 +463,16 @@ PUT /api/v1/settings/email
 ```http
 GET /api/v1/setup/state
 POST /api/v1/setup/super-admin
+```
+
+### `/surfaces`
+
+```http
+GET /api/v1/surfaces
+PUT /api/v1/surfaces/{appKey}/placement
+PUT /api/v1/surfaces/{appKey}/connection
+PUT /api/v1/surfaces/instances
+PUT /api/v1/surfaces/domains
 ```
 
 ### `/system`

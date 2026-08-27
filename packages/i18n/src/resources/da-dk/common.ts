@@ -114,6 +114,11 @@ export default {
     "audit": "Auditlog",
     "security": "Adgangskode og sessioner"
   },
+  "apps": {
+    "frame": {
+      "noFrames": "Denne app kræver en browser, der understøtter rammer."
+    }
+  },
   "topbar": {
     "search": "Søg…",
     "notifications": "Notifikationer",
@@ -241,6 +246,11 @@ export default {
       "body": "Dette arbejdsområde er suspenderet af en administrator. Dine data er bevaret — kontakt ejeren af arbejdsområdet for at få adgang igen.",
       "primary": "Kontakt ejeren",
       "secondary": "Gå tilbage"
+    },
+    "connectionPaused": {
+      "title": "Denne forbindelse er sat på pause",
+      "body": "En administrator har sat databasen bag denne side på pause, så den indlæser ikke data lige nu. Intet er slettet – det hele er tilbage, så snart forbindelsen genoptages under Studio → Dataforbindelser.",
+      "secondary": "Gå tilbage"
     }
   },
   "notFound": {
@@ -320,6 +330,20 @@ export default {
     "twoFactor": "Tofaktor",
     "on": "Slået til",
     "off": "Slået fra",
+    "nameRequired": "Angiv dit navn.",
+    "emailHelper": "Bruges til at logge ind. Ændring kræver din adgangskode.",
+    "confirmPassword": "Nuværende adgangskode",
+    "confirmPasswordHelper": "Bekræft, at det er dig, før din login-adresse ændres.",
+    "save": "Gem ændringer",
+    "saveFailed": "Din profil kunne ikke gemmes",
+    "saved": "Profil opdateret",
+    "savedBody": "Dine nye oplysninger gælder i hele arbejdsområdet. Hvis du har ændret din e-mail, skal du fremover logge ind med den nye adresse.",
+    "accessTitle": "Adgang",
+    "accessSubtitle": "Hvad denne konto må, og hvordan den beviser, hvem den er.",
+    "rolesHelper": "Roller tildeles af en administrator og kan ikke ændres fra din egen konto.",
+    "manageTwoFactor": "Administrer",
+    "setUpTwoFactor": "Konfigurer",
+    "securityLink": "Adgangskode og sessioner",
     "preferences": {
       "title": "Præferencer",
       "subtitle": "Hvordan Adminium ser ud og læses for dig — på denne og alle andre enheder, du logger ind fra.",
@@ -568,7 +592,8 @@ export default {
         "connected": "Forbundet",
         "error": "Fejl",
         "unconfigured": "Kladde",
-        "testing": "Tester…"
+        "testing": "Tester…",
+        "paused": "Sat på pause"
       },
       "card": {
         "readOnly": "Skrivebeskyttet",
@@ -577,14 +602,41 @@ export default {
         "latency": "Latenstid",
         "latencyMs": "{latency, number} ms",
         "lastIntrospected": "Senest introspiceret",
-        "never": "Aldrig"
+        "never": "Aldrig",
+        "timezone": "Tidszone",
+        "timezoneGuessed": "fra denne server",
+        "paused": "Adminium opretter ikke forbindelse til denne database. Dens sider indlæses igen, når du genoptager den.",
+        "pausedSince": "Sat på pause {when} – Adminium opretter ikke forbindelse til denne database. Dens sider indlæses igen, når du genoptager den."
       },
       "action": {
         "test": "Test",
         "reintrospect": "Introspicer igen",
         "reintrospectFile": "Skemafil-kilder har ingen aktiv database — upload filen igen i stedet.",
         "remap": "Ommap skema",
-        "delete": "Slet"
+        "delete": "Slet",
+        "regional": "Regionale indstillinger",
+        "pause": "Sæt på pause",
+        "resume": "Genoptag",
+        "pausedHint": "Denne forbindelse er sat på pause – genoptag den for at nå databasen.",
+        "rename": "Omdøb"
+      },
+      "regional": {
+        "title": "Regionale indstillinger",
+        "intro": "De beskriver den virksomhed, databasen tilhører — ikke den, der læser. Apps, der leveres af Adminium, henter dem her.",
+        "timezone": "Tidszone",
+        "timezoneHelper": "Datoer og klokkeslæt vises i denne tidszone. Uden en falder Adminium-hostede apps tilbage til UTC og skriver det på skærmen.",
+        "guessedTitle": "Denne tidszone kom fra serveren",
+        "guessedBody": "Adminium hentede den fra den maskine, det kører på — ingen her har valgt den. Gem for at bekræfte den, eller vælg den tidszone, virksomheden faktisk arbejder i.",
+        "timezonePlaceholder": "Region/By",
+        "currency": "Valuta",
+        "currencyHelper": "Bruges til at formatere beløb. Valgfri — undlader du den, påvirker det kun formateringen.",
+        "currencyPlaceholder": "ISO-4217-kode",
+        "notSet": "Ikke angivet",
+        "noMatch": "Ingen matchende zone",
+        "noMatchCurrency": "Ingen matchende valuta",
+        "save": "Gem",
+        "failed": "De regionale indstillinger kunne ikke gemmes",
+        "saved": "Regionale indstillinger opdateret"
       },
       "test": {
         "ok": "Forbindelsen er sund · {latency, number} ms",
@@ -610,6 +662,26 @@ export default {
         "title": "Ingen datakilder endnu",
         "body": "Forbind en database, så genererer Adminium dit adminpanel ud fra dens skema.",
         "cta": "Forbind en database"
+      },
+      "hostedApps": "Hostede apps",
+      "subtitlePaused": "{healthy, number} af {total, plural, one {# forbindelse} other {# forbindelser}} sunde · {paused, number} sat på pause",
+      "pause": {
+        "title": "Sæt denne forbindelse på pause?",
+        "body": "Adminium åbner ikke længere nogen forbindelse til “{name}”. {pages, plural, one {# side} other {# sider}}, planlagte rapporter og hostede apps holder op med at indlæse data, indtil du genoptager den.",
+        "keeps": "Intet slettes – forbindelsen, dens skema og {pages, plural, one {dens # side} other {dens # sider}} bevares alle, og ét klik henter dem tilbage.",
+        "confirm": "Sæt forbindelsen på pause",
+        "pausedToast": "Forbindelsen “{name}” er sat på pause",
+        "resumedToast": "Forbindelsen “{name}” er genoptaget",
+        "pauseFailed": "Forbindelsen kunne ikke sættes på pause. Prøv igen.",
+        "resumeFailed": "Forbindelsen kunne ikke genoptages. Prøv igen."
+      },
+      "rename": {
+        "title": "Omdøb forbindelse",
+        "label": "Navn",
+        "helper": "Hvad denne database hedder i hele Adminium — kortet, sidepanelgruppen over dens sider og hver vælger, der tilbyder den. Selve databasen omdøbes ikke.",
+        "save": "Omdøb",
+        "saved": "Forbindelse omdøbt",
+        "failed": "Forbindelsen kunne ikke omdøbes"
       }
     },
     "settingsHub": {
@@ -1324,10 +1396,62 @@ export default {
         "create": "Create key",
         "formLabel": "Create a key",
         "scopeIsAuthTitle": "The scope is the only permission",
-        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API."
+        "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+        "appLabel": "Tilknyt en hostet app-flade (valgfrit)",
+        "appHint": "Appens kundeflade serverer så selv denne nøgle — rotation kræver ingen ny build.",
+        "appNone": "Ikke tilknyttet"
       },
       "status": {
         "heading": "Status"
+      }
+    },
+    "hostedApps": {
+      "title": "Hostede apps",
+      "subtitle": "De app-flader denne instans serverer — hvor hver enkelt vises, og hvilke domæner der peger på dem.",
+      "error": "Noget gik galt",
+      "emptyTitle": "Der serveres ingen app-flader",
+      "emptyBody": "Peg ADMINIUM_SURFACES_DIR på en mappe med byggede flader — én mappe pr. app og side, hver med sin index.html — og genstart. De serveres derefter under /apps/ og vises her.",
+      "surfaces": {
+        "title": "Flader",
+        "subtitle": "En medarbejderflade kan glide ind i dette dashboards sidepanel eller stå for sig selv; en kundeflade er offentlig og læser gennem sin tilknyttede nøgle.",
+        "staff": "Medarbejder",
+        "customer": "Kunde",
+        "noNav": "Intern placering utilgængelig — byg denne flade igen med det aktuelle toolkit, så den udsender surface.json.",
+        "noKey": "Ingen nøgle tilknyttet — denne flade kan ikke læse data, før der oprettes en til den.",
+        "mintLink": "Opret en under Offentligt API",
+        "boundKey": "Serverer nøgle",
+        "placementLabel": "Placering",
+        "placementInternal": "I sidepanelet (indlejret)",
+        "placementExternal": "Ekstern (kun egen URL)",
+        "connectionLabel": "Læser",
+        "connectionUnset": "Den der kører"
+      },
+      "domains": {
+        "title": "Domæner",
+        "subtitle": "Peg et domænes DNS på din proxy, send Host-headeren videre til Adminium, og tilknyt det her — værten serverer så fladen i stedet for dette dashboard. Certifikater bliver på din proxy.",
+        "issuesTitle": "Domænekortet blev afvist",
+        "savedTitle": "Gemt",
+        "savedBody": "Tilknytninger træder i kraft inden for få sekunder. En vært svarer først, når dens DNS og din proxy faktisk når denne instans.",
+        "none": "Ingen domæner er tilknyttet.",
+        "hostLabel": "Vært",
+        "surfaceLabel": "Flade",
+        "remove": "Fjern",
+        "add": "Tilknyt et domæne",
+        "save": "Gem domæner",
+        "instanceLabel": "Instans",
+        "instanceOwn": "Appens egen"
+      },
+      "instances": {
+        "title": "Instanser",
+        "body": "Server den samme app over flere databaser. Hver instans er tilgængelig på /apps/<app>/<segment>/<side>/ og læser kun den forbindelse, du giver den.",
+        "appLabel": "App",
+        "slugLabel": "URL-segment",
+        "readsLabel": "Læser",
+        "add": "Tilføj en instans",
+        "save": "Gem instanser",
+        "remove": "Fjern",
+        "empty": "Ingen ekstra instanser.",
+        "failed": "Instanserne blev ikke gemt"
       }
     }
   },
@@ -2509,7 +2633,9 @@ export default {
       "connection": "Datakilde",
       "connectionNone": "Ingen",
       "iconPick": "Vælg sidens ikon",
-      "padding": "Sidemargen"
+      "padding": "Sidemargen",
+      "width": "Indholdsbredde",
+      "widthHint": "Hvor bred sidens indholdskolonne må blive på en stor skærm."
     },
     "editor": {
       "title": "Rediger side",
@@ -2553,18 +2679,33 @@ export default {
       }
     },
     "columns": {
-      "help": "Omarranger kolonner, omdøb deres overskrifter, og vælg hvilke der vises i tabellen.",
-      "discard": "Kassér",
-      "save": "Gem kolonner",
-      "saveFailed": "Kolonnerne kunne ikke gemmes",
+      "help": "Træk for at omarrangere kolonner, omdøb deres overskrifter, og vælg hvilke der vises i tabellen.",
+      "empty": "Ingen kolonner endnu — tilføj dem nedenfor.",
       "pk": "Nøgle",
       "pii": "PII",
       "header": "Overskrift for {name}",
       "shown": "Vist",
       "toggle": "Vis {name} i tabellen",
-      "moveUp": "Flyt {name} op",
-      "moveDown": "Flyt {name} ned",
+      "dragHandle": "Flyt {name}",
       "remove": "Fjern {name}",
+      "addOpen": "Tilføj kolonne",
+      "addTitle": "Tilføj en kolonne",
+      "addSearch": "Søg i kolonner…",
+      "addFromTable": "Fra {table}",
+      "addFromLinked": "Fra linkede tabeller",
+      "addLinkedHelp": "Vis en værdi fra den tabel, som en linkkolonne peger på.",
+      "addVia": "via {column}",
+      "addNoMatches": "Ingen kolonner matcher “{query}”.",
+      "followColumn": "Følg {name}",
+      "addLinkedFrom": "Tabeller, der linker hertil",
+      "addLinkedFromHelp": "Tilføj et antal af de rækker, der peger på hver post.",
+      "countBadge": "Antal",
+      "lookupBadge": "Sammenkædet",
+      "lookupBack": "Tilbage",
+      "lookupBrowse": "Vælg hvad der skal vises fra {table}",
+      "lookupBroken": "Kæden kan ikke længere følges",
+      "lookupBrokenBody": "Skemaet ændrede sig undervejs. Start kæden forfra.",
+      "schemaUnavailable": "Databasens kolonner kunne ikke hentes, så kolonner kan ikke tilføjes her.",
       "none": {
         "title": "Denne side har ingen kolonner endnu",
         "body": "Kolonner læses fra tabellen, når siden genereres. Knyt siden til en tabel og generer igen for at udfylde dem."
@@ -2586,6 +2727,15 @@ export default {
       "custom": "Tilpasset…",
       "x": "Sider (px)",
       "y": "Top og bund (px)"
+    },
+    "width": {
+      "default": "Standard for denne skabelon",
+      "narrow": "Smal (720 px)",
+      "content": "Indhold (900 px)",
+      "page": "Side (1080 px)",
+      "dash": "Dashboard (1320 px)",
+      "wide": "Bred (1800 px)",
+      "full": "Fuld bredde (ingen grænse)"
     }
   },
   "audit": {
@@ -2740,7 +2890,7 @@ export default {
   },
   "security": {
     "password": {
-      "changedBody": "Brug den nye adgangskode, næste gang du logger ind. Sessioner på andre enheder påvirkes ikke — tilbagekald dem nedenfor, hvis du vil have dem logget ud.",
+      "changedBody": "Brug den nye adgangskode, næste gang du logger ind. Andre enheder forbliver logget ind — afslut de sessioner, hvis du vil have dem ud.",
       "changed": "Adgangskoden er skiftet",
       "confirm": "Bekræft ny adgangskode",
       "current": "Nuværende adgangskode",

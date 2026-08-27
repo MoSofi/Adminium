@@ -16,7 +16,8 @@
  * same-named tables from different sources stay unambiguous; with a single
  * connection the rail renders flat (no redundant label).
  */
-import { Link } from '@tanstack/react-router';
+import { Fragment } from 'react';
+import { Link, useMatchRoute } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
@@ -34,7 +35,14 @@ import { cn } from '@adminium/ui';
 
 import { unreadCountQuery } from '../api/notifications.js';
 import { BrandMark, useBranding } from './BrandMark.js';
-import type { BootstrapData, NavGroupKey, NavItem } from '../app/bootstrap.js';
+import {
+  activeHostedItem,
+  hostedAppsOf,
+  type BootstrapData,
+  type HostedApp,
+  type NavGroupKey,
+  type NavItem,
+} from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { lucideByName } from '../lib/lucide.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
@@ -219,6 +227,80 @@ function NavItemList({ items }: { items: readonly NavItem[] }) {
   );
 }
 
+/**
+ * One blended app's section (29-app-surfaces.md D7).
+ *
+ * Same visual grammar as the five fixed groups — uppercase header, the same
+ * row class — and deliberately NOT a sixth group. `NAV_GROUP_KEYS` is a closed
+ * set with a `satisfies` that makes a sixth a compile error, and it should stay
+ * closed: the five are the product's information architecture, while these are
+ * whatever the operator happens to have installed.
+ *
+ * Active state is computed here rather than left to `Link`'s own matching, and
+ * the reason is that neither of its modes is right. Exact matching would drop
+ * the highlight the moment the app navigated to a screen it does not list (a
+ * detail view); prefix matching would light up EVERY row, because an item whose
+ * path is `''` — a surface whose only screen is its root — is a prefix of
+ * everything. `activeHostedItem` is the app's own longest-match rule, shared with
+ * the frame, so the highlight and the rendered screen cannot disagree.
+ */
+/**
+ * The `$appKey` route param for a hosted section: the app key, or
+ * `<appKey>~<instance>` for an extra tenant (29 D9).
+ *
+ * ONE param rather than a second route segment, deliberately. A segment
+ * (`/a/clients/berlin/…`) would sit exactly where the app's own paths live, so
+ * `/a/clients/invoices` would mean two things; `~` cannot appear in an app key
+ * or a slug, both of which are `[a-z0-9-]`, so this split is unambiguous.
+ */
+export function appKeyParam(app: Pick<HostedApp, 'appKey' | 'instance'>): string {
+  return app.instance === undefined ? app.appKey : `${app.appKey}~${app.instance}`;
+}
+
+/** `<appKey>~<instance>` → its parts. The instance is null on the app's own section. */
+export function splitAppKeyParam(param: string): { appKey: string; instance: string | null } {
+  const at = param.indexOf('~');
+  if (at === -1) return { appKey: param, instance: null };
+  return { appKey: param.slice(0, at), instance: param.slice(at + 1) };
+}
+
+function HostedAppSection({ app }: { app: HostedApp }) {
+  const matchRoute = useMatchRoute();
+  const match = matchRoute({ to: '/a/$appKey/$', fuzzy: true });
+  const here =
+    match !== false && match.appKey === app.appKey
+      ? (match._splat ?? '').replace(/^\/+|\/+$/g, '')
+      : null;
+  const active = here === null ? null : activeHostedItem(app, here);
+
+  return (
+    <div className="mb-1" data-part="nav-hosted-app">
+      <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
+        {app.label}
+      </div>
+      <ul className="m-0 flex list-none flex-col gap-1 p-0">
+        {app.items.map((item) => {
+          const Icon = lucideByName(item.icon ?? 'file');
+          return (
+            <li key={item.id}>
+              <Link
+                to="/a/$appKey/$"
+                params={{ appKey: appKeyParam(app), _splat: item.path }}
+                className={NAV_LINK_CLASS}
+                // The row's own `data-status`, not the router's — see above.
+                data-status={active?.id === item.id ? 'active' : undefined}
+              >
+                <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
   const { nav, version } = bootstrap;
   const { showVersion } = useBranding();
@@ -232,6 +314,22 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
   // §2A groups with only platform links (no generated pages yet) still render.
   const navGroupKeys = new Set(nav.groups.map((group) => group.key));
   const platformOnlyGroups = PLATFORM_NAV.filter((entry) => !navGroupKeys.has(entry.group));
+
+  /*
+   * Blended apps sit AFTER `workspace` (D7): they are the operator's daily
+   * work, so burying them under Library/Planning/People/Account would put the
+   * thing this wave exists to surface at the bottom of the rail.
+   *
+   * When there is no `workspace` group at all — a fresh instance with no
+   * connection — they render first instead of vanishing, which is the case
+   * that matters most: an operator whose ONLY installed thing is an app.
+   */
+  const hostedApps = hostedAppsOf(bootstrap);
+  const hostedSections =
+    hostedApps.length === 0
+      ? null
+      : hostedApps.map((app) => <HostedAppSection key={app.appKey} app={app} />);
+  const hostedAfter = nav.groups.some((group) => group.key === 'workspace') ? 'workspace' : null;
 
   return (
     <aside
@@ -264,13 +362,19 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
       {/* Nav groups */}
       <nav aria-label={t('nav.primary', 'Primary')} className="nb-scroll min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
         {nav.groups.length === 0 ? (
-          <p className="px-2 py-3 text-body-sm text-fg-subtle">
-            {t('nav.empty', 'Pages appear here once a database is connected.')}
-          </p>
+          // A hosted app is a real destination; the "connect a database" prompt
+          // is only the whole answer when there is genuinely nothing here.
+          (hostedSections ?? (
+            <p className="px-2 py-3 text-body-sm text-fg-subtle">
+              {t('nav.empty', 'Pages appear here once a database is connected.')}
+            </p>
+          ))
         ) : (
           <>
+            {hostedAfter === null ? hostedSections : null}
             {nav.groups.map((group) => (
-              <div key={group.key} className="mb-1">
+              <Fragment key={group.key}>
+              <div className="mb-1">
                 <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
                   {t(GROUP_LABEL_KEY[group.key], GROUP_LABELS[group.key])}
                 </div>
@@ -297,6 +401,8 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
                 )}
                 <PlatformLinkList links={platformLinksFor(group.key)} />
               </div>
+              {hostedAfter === group.key ? hostedSections : null}
+              </Fragment>
             ))}
             {platformOnlyGroups.map((entry) => {
               const links = platformLinksFor(entry.group);

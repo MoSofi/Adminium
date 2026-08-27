@@ -140,12 +140,29 @@ describe('the rest of the auth calls', () => {
 describe('the 2FA challenge in sessionStorage', () => {
   it('round-trips the token and the return path across a reload', () => {
     storeChallenge('chal_1', '/orders');
-    expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: '/orders' });
+    expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: '/orders', next: null });
   });
 
   it('stores an absent return path as null rather than dropping the key', () => {
     storeChallenge('chal_1', undefined);
-    expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: null });
+    expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: null, next: null });
+  });
+
+  it('round-trips the surface gate’s next target, path-only (29 D4)', () => {
+    storeChallenge('chal_1', undefined, '/schedule');
+    expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: null, next: '/schedule' });
+    // A stored non-path is dropped on READ — sessionStorage is same-origin
+    // writable, and the document navigation must never leave this origin.
+    sessionStorage.setItem(
+      'adminium-2fa-challenge',
+      JSON.stringify({ challengeToken: 'chal_1', next: '//evil.example/x' }),
+    );
+    expect(readChallenge()?.next).toBeNull();
+    sessionStorage.setItem(
+      'adminium-2fa-challenge',
+      JSON.stringify({ challengeToken: 'chal_1', next: 'https://evil.example/x' }),
+    );
+    expect(readChallenge()?.next).toBeNull();
   });
 
   it('is empty before any challenge, and after it is cleared', () => {
@@ -167,7 +184,7 @@ describe('the 2FA challenge in sessionStorage', () => {
       'adminium-2fa-challenge',
       JSON.stringify({ challengeToken: 'chal_1', returnTo: { href: 'https://evil.example' } }),
     );
-    expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: null });
+    expect(readChallenge()).toEqual({ challengeToken: 'chal_1', returnTo: null, next: null });
   });
 
   it('survives a storage that throws — private mode must not crash /login', () => {

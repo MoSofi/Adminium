@@ -45,9 +45,31 @@ function installMatchMedia(): void {
   window.matchMedia = mql as typeof window.matchMedia;
 }
 
+/**
+ * Stop happy-dom from actually FETCHING an `<iframe src>` (29-T10).
+ *
+ * happy-dom does not stub iframe loading the way jsdom does — it issues a real
+ * request. `AppFrame` renders `<iframe src="/apps/<key>/staff/…">`, which
+ * resolved against happy-dom's default `http://localhost:3000` and produced
+ * `ECONNREFUSED` a few hundred milliseconds later, in whatever test happened to
+ * be running by then. The symptom was seven unrelated failures downstream of
+ * two that passed, which is a very expensive way to learn that a unit suite was
+ * opening sockets.
+ *
+ * Nothing under test depends on the frame's CONTENT — the child half of the
+ * bridge is proven in the app repos' own suites — so the element is all this
+ * environment needs to provide.
+ */
+function disableIframeLoading(): void {
+  const happy = (window as unknown as { happyDOM?: { settings?: Record<string, unknown> } })
+    .happyDOM;
+  if (happy?.settings !== undefined) happy.settings['disableIframePageLoading'] = true;
+}
+
 beforeEach(() => {
   // Files pinned to `// @vitest-environment node` (e.g. prehydration.test.ts) have no DOM.
   if (typeof window === 'undefined') return;
+  disableIframeLoading();
   installMatchMedia();
   window.localStorage.clear();
   window.sessionStorage.clear();

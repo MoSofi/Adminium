@@ -24,7 +24,6 @@ import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
 import { dataIoRoutes } from '../data-io/routes.js';
 import { reportsRoutes } from '../reports/routes.js';
-import { SetupPage } from '../setup/SetupPage.js';
 import { setupStateQuery } from '../setup/setupApi.js';
 import { HomePage } from '../pages/HomePage.js';
 import { PageRenderer } from '../pages/PageRenderer.js';
@@ -42,7 +41,7 @@ import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
 import { widgetRuntimeEnv } from '../lib/widget-runtime.js';
 import { api, ApiError } from './api.js';
-import { bootstrapQuery, defaultPageSlug, findNavItemBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
+import { bootstrapQuery, defaultPageSlug, findPageBySlug, type BootstrapData, type ResolvedPrefs } from './bootstrap.js';
 import { isHostedPlanSurface } from './capabilities.js';
 import { requestIdForError, stateIdForError } from './query.js';
 
@@ -76,6 +75,9 @@ function lazyRoute(load: () => Promise<ComponentType>): () => ReactElement {
 }
 
 const AboutPageLazy = lazyRoute(async () => (await import('../about/AboutPage.js')).AboutPage);
+const AppSurfacePageLazy = lazyRoute(
+  async () => (await import('../apps/AppSurfacePage.js')).AppSurfacePage,
+);
 const ApiKeysPageLazy = lazyRoute(async () => (await import('../api-keys/ApiKeysPage.js')).ApiKeysPage);
 const ChangelogPageLazy = lazyRoute(async () => (await import('../changelog/ChangelogPage.js')).ChangelogPage);
 const KnowledgeBasePageLazy = lazyRoute(async () => (await import('../kb/KnowledgeBasePage.js')).KnowledgeBasePage);
@@ -84,6 +86,24 @@ const NotificationSettingsPageLazy = lazyRoute(async () => (await import('../acc
 const PreferencesPageLazy = lazyRoute(async () => (await import('../account/PreferencesPage.js')).PreferencesPage);
 const DesktopSettingsPageLazy = lazyRoute(async () => (await import('../desktop/DesktopSettingsPage.js')).DesktopSettingsPage);
 const DesktopSetupHostLazy = lazyRoute(async () => (await import('../desktop/setup/desktopSetupHost.js')).DesktopSetupHost);
+/*
+ * `/setup` joins its desktop twin below in being lazy (2026-08-27).
+ *
+ * The self-host first-run wizard runs ONCE per instance, before anybody has an
+ * account, and its route guard redirects to `/login` the moment a super admin
+ * exists — so on a configured install nobody can reach it and everybody was
+ * downloading it anyway, on every cold load, forever. It pulls `FirstRunWizard`
+ * and `TelemetryConsent` (7.0 KiB raw, attributed in the entry source map)
+ * into the synchronously-loaded set to render a screen almost no session will
+ * ever see: the same shape as the route bodies deferred on 2026-08-18/20/24.
+ *
+ * It is NOT one of the first-paint exceptions listed above. Those are the
+ * screens a RETURNING user lands on; this is the one screen a returning user
+ * provably cannot land on. And the guard already awaits `setupStateQuery()`
+ * before the component renders, so the chunk fetch overlaps a round trip that
+ * was happening regardless — on the one visit where it is fetched at all.
+ */
+const SetupPageLazy = lazyRoute(async () => (await import('../setup/SetupPage.js')).SetupPage);
 const GlobalDefaultsPageLazy = lazyRoute(async () => (await import('../settings/GlobalDefaultsPage.js')).GlobalDefaultsPage);
 const OnboardingChecklistLazy = lazyRoute(async () => (await import('../onboarding/OnboardingChecklist.js')).OnboardingChecklist);
 
@@ -200,10 +220,27 @@ async function redirectIfSetupRequired(queryClient: QueryClient): Promise<void> 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  validateSearch: (search: Record<string, unknown>): { returnTo?: string } =>
-    typeof search.returnTo === 'string' && search.returnTo.startsWith('/')
+  /*
+   * Two return channels, deliberately distinct (29-app-surfaces.md D4):
+   * `returnTo` is the dashboard's own — a client-side push after login.
+   * `next` is what the SURFACE gate appends — the target may be a hosted
+   * app path this SPA cannot render (on a mapped staff domain, EVERY
+   * non-reserved path is surface-owned), so honoring it must be a DOCUMENT
+   * navigation, which only LoginPage/OtpPage can perform. Both accept
+   * paths only — `//host` and absolute URLs are dropped, never followed.
+   */
+  validateSearch: (search: Record<string, unknown>): { returnTo?: string; next?: string } => ({
+    ...(typeof search.returnTo === 'string' &&
+    search.returnTo.startsWith('/') &&
+    !search.returnTo.startsWith('//')
       ? { returnTo: search.returnTo }
-      : {},
+      : {}),
+    ...(typeof search.next === 'string' &&
+    search.next.startsWith('/') &&
+    !search.next.startsWith('//')
+      ? { next: search.next }
+      : {}),
+  }),
   beforeLoad: async ({ context }) => {
     redirectIfAuthed(context.queryClient);
     await redirectIfSetupRequired(context.queryClient);
@@ -224,7 +261,7 @@ const setupRoute = createRoute({
     const state = await context.queryClient.ensureQueryData(setupStateQuery());
     if (!state.required) throw redirect({ to: '/login' });
   },
-  component: SetupPage,
+  component: SetupPageLazy,
 });
 
 /**
@@ -362,7 +399,9 @@ async function loadPageDocument(
   bootstrap: BootstrapData,
   slug: string,
 ): Promise<void> {
-  const item = findNavItemBySlug(bootstrap.nav, slug);
+  // Hidden pages resolve too (30 follow-up) — hidden is a sidebar fact, not
+  // an existence fact; deep links and record cross-links land here.
+  const item = findPageBySlug(bootstrap, slug);
   if (item === null) return; // PageRenderer renders the branded 404.
   await queryClient.ensureQueryData(pageQuery(item.pageId));
 }
@@ -389,6 +428,33 @@ const pageRecordRoute = createRoute({
   loader: ({ context, params }) => loadPageDocument(context.queryClient, context.bootstrap, params.slug),
   errorComponent: PageRouteErrorComponent,
   component: PageRenderer,
+});
+
+/**
+ * Hosted app surfaces, blended into the shell (29-app-surfaces.md D5).
+ *
+ * TWO routes for one screen because TanStack's splat does not match the empty
+ * remainder: `/a/clients` alone would fall through to `notFoundComponent`
+ * while `/a/clients/home` matched, which is the shape of bug that only shows up
+ * when someone types the section root by hand. The bare form redirects into the
+ * splat form so exactly one URL shape reaches the component.
+ *
+ * `/a/` rather than a bare `/<appKey>/` is D5, and acceptance criterion 7 pins
+ * it: a bare app key stays a 404 forever, so an installed app can never shadow
+ * a dashboard route and a new dashboard route can never shadow an app.
+ */
+const appSurfaceRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/a/$appKey/$',
+  component: AppSurfacePageLazy,
+});
+
+const appSurfaceRootRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/a/$appKey',
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: '/a/$appKey/$', params: { appKey: params.appKey, _splat: '' } });
+  },
 });
 
 const accountRoute = createRoute({
@@ -670,6 +736,8 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     pageRoute,
     pageRecordRoute,
+    appSurfaceRoute,
+    appSurfaceRootRoute,
     accountRoute,
     welcomeRoute,
     accountPreferencesRoute,

@@ -452,7 +452,25 @@ export const corePlugin = fp<CorePluginOptions>(
           'default-src': ["'self'"],
           'base-uri': ["'self'"],
           'object-src': ["'none'"],
-          'frame-ancestors': ["'none'"],
+          /*
+           * SAME-ORIGIN framing is permitted; everything else is not
+           * (29-app-surfaces.md D6, 29-T09).
+           *
+           * This was `'none'`, and `'none'` would have made the internal
+           * placement impossible: the dashboard blends a hosted staff surface
+           * by framing `/apps/<key>/staff/` — Adminium's OWN bundle, at
+           * Adminium's OWN origin — inside `/a/<key>/…`. The frame would have
+           * rendered blank with a console line and no server-side symptom.
+           *
+           * What the narrowing from `'none'` to `'self'` actually costs: an
+           * attacker who can already run script at this origin. Clickjacking a
+           * page from a page that is already same-origin buys nothing that
+           * direct DOM access does not already buy, and cross-origin framing —
+           * the entire clickjacking threat — stays refused. This is the reason
+           * the amendment is scoped to this ONE directive: `script-src` is
+           * where a loosening would matter and it is untouched.
+           */
+          'frame-ancestors': ["'self'"],
           'form-action': ["'self'"],
           'script-src': ["'self'", ...(await inlineScriptHashes(staticRoot))],
           // Runtime style injection (chart/table libraries set style attrs).
@@ -480,8 +498,11 @@ export const corePlugin = fp<CorePluginOptions>(
           'manifest-src': ["'self'"],
         },
       },
-      // frame-ancestors 'none' is the modern half; X-Frame-Options must agree.
-      frameguard: { action: 'deny' },
+      // The legacy half of the directive above, and it MUST agree: a browser
+      // that honours `X-Frame-Options: DENY` ignores `frame-ancestors`
+      // entirely, so leaving this at `deny` would block the same-origin frame
+      // in exactly the browsers that read the older header first.
+      frameguard: { action: 'sameorigin' },
       // HSTS only behind TLS (§7 item 5); on the desktop shell's loopback and
       // §8.3's LAN origins it would pin browsers to an https that isn't there.
       ...(env.ADMINIUM_TRUST_PROXY ? {} : { hsts: false }),
