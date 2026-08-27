@@ -17,7 +17,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useTheme, useThemePrefs } from '@adminium/ui';
 
 import { invalidateForRealtimeEvent } from '../api/realtime.js';
-import { bootstrapQuery, findNavItemBySlug, flattenNav } from '../app/bootstrap.js';
+import { bootstrapQuery, findPageBySlug, flattenNav } from '../app/bootstrap.js';
 import { CommandPaletteHost } from '../app/palette/CommandPaletteHost.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
@@ -57,12 +57,13 @@ export function AppShell() {
   const title = useMemo(() => {
     const slugMatch = /^\/p\/([^/]+)/.exec(pathname);
     if (slugMatch !== null) {
-      const item = findNavItemBySlug(bootstrap.nav, slugMatch[1] ?? '');
+      // Hidden pages title their tab like any other (30 follow-up).
+      const item = findPageBySlug(bootstrap, slugMatch[1] ?? '');
       if (item !== null) return t(item.labelKey, item.fallback);
     }
     if (pathname.startsWith('/account')) return t('nav.account', 'Account');
     return t('nav.home', 'Home');
-  }, [pathname, bootstrap.nav]);
+  }, [pathname, bootstrap]);
 
   // --- ⌘K Recent tracking (09 §5.2): every page navigation / record open ----
   // lands in localStorage['adminium-recent:<userId>'] (app/palette/recent.ts),
@@ -72,7 +73,7 @@ export function AppShell() {
     const match = record ?? /^\/p\/([^/]+)$/.exec(pathname);
     if (match === null) return;
     const slug = decodeURIComponent(match[1] as string);
-    const item = findNavItemBySlug(bootstrap.nav, slug);
+    const item = findPageBySlug(bootstrap, slug);
     const pageLabel = item === null ? slug : t(item.labelKey, item.fallback);
     if (record !== null) {
       const recordId = decodeURIComponent(record[2] as string);
@@ -251,6 +252,7 @@ export function AppShell() {
             onOpenPalette={() => setPaletteOpen(true)}
             onSignOut={signOut}
             onOpenAccount={() => void navigate({ to: '/account' })}
+            onOpenPreferences={() => void navigate({ to: '/account/preferences' })}
             onOpenStudio={() => void navigate({ to: '/studio' })}
             onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
           />

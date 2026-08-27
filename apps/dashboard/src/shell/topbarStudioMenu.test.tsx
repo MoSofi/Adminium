@@ -70,6 +70,7 @@ function renderTopbar(roles: string[]) {
               onOpenPalette={() => {}}
               onSignOut={() => {}}
               onOpenAccount={() => {}}
+              onOpenPreferences={() => {}}
               onOpenStudio={onOpenStudio}
               onOpenStudioSettings={onOpenStudioSettings}
             />

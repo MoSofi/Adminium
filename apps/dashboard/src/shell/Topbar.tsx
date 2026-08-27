@@ -69,6 +69,12 @@ export interface TopbarProps {
   onSignOut: () => void;
   onOpenAccount: () => void;
   /**
+   * `/account/preferences`. Separate from {@link onOpenAccount} because both
+   * menu items used to call that one handler, so "Preferences" landed on the
+   * account page and the preferences screen was reachable only by URL.
+   */
+  onOpenPreferences: () => void;
+  /**
    * Studio entry points (09 §8: "a Studio section appears in the user menu").
    * Rendered only for role ≥ Admin — `StudioGuard` and the server both
    * re-enforce, so this gates discovery, not access.
@@ -209,6 +215,7 @@ export function Topbar({
   onOpenPalette,
   onSignOut,
   onOpenAccount,
+  onOpenPreferences,
   onOpenStudio,
   onOpenStudioSettings,
 }: TopbarProps) {
@@ -323,7 +330,7 @@ export function Topbar({
             <DropdownMenuItem icon={<User />} onSelect={onOpenAccount}>
               {t('topbar.profile', 'Profile')}
             </DropdownMenuItem>
-            <DropdownMenuItem icon={<Settings />} onSelect={onOpenAccount}>
+            <DropdownMenuItem icon={<Settings />} onSelect={onOpenPreferences}>
               {t('topbar.preferences', 'Preferences')}
             </DropdownMenuItem>
             {/* Verb label, not a checkbox item: the icon and the wording already
