@@ -28,6 +28,18 @@ describe('parsePageDocument', () => {
     expect(result).toEqual({ status: 'too-new', v: 99, latest: 1 });
   });
 
+  it('tolerates hidden-page nav shapes: nav.hidden, and the legacy group-less document (30 follow-up)', () => {
+    const base = makeCrudEnvelope();
+    const nav = base.nav as Record<string, unknown>;
+    // Today's hide: group kept + hidden flag.
+    expect(parsePageDocument({ ...base, nav: { ...nav, hidden: true } }).status).toBe('ok');
+    // Pre-fix Studio hides DELETED the group — those documents exist in every
+    // install that ever hid a page, and refusing them failed the whole
+    // document (which is how record-page related tabs silently degraded).
+    const { group: _group, ...withoutGroup } = nav;
+    expect(parsePageDocument({ ...base, nav: withoutGroup }).status).toBe('ok');
+  });
+
   it('maps versionless / non-object documents to invalid, never a throw', () => {
     expect(parsePageDocument(null).status).toBe('invalid');
     expect(parsePageDocument({ hello: 'world' }).status).toBe('invalid');

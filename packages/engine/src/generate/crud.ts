@@ -34,12 +34,24 @@ export interface CrudBuildContext {
   navGroup: 'workspace' | 'library' | 'planning' | 'people' | 'account';
   navIcon: string;
   navOrder: number;
+  /**
+   * Emit `nav.hidden` — the cascade-owned-child default (see
+   * `isCascadeOwnedChild` in generate/index.ts). `navGroup` is still required:
+   * hidden is a sidebar fact, not a homelessness fact.
+   */
+  navHidden?: boolean;
   /** read-only-analytics intent, no-PK tables, and views render read-only. */
   readOnly: boolean;
   /** Tables included in this generation run (detail tabs only link these). */
   includedTableIds: ReadonlySet<string>;
   /** Every model relation — the leaf derives detail tabs from the inbound ones. */
   relations: readonly CandidateRelation[];
+  /**
+   * Referenced-table display columns (tableId → column name) — the leaf stamps
+   * `fk.display` from it so FK chips show names, not raw ids
+   * (`crudDisplayColumns` over the included candidate model builds it).
+   */
+  displayColumns?: ReadonlyMap<string, string> | undefined;
 }
 
 /** Build the (unhashed, unvalidated) `page-crud` envelope for one table. */
@@ -52,6 +64,7 @@ export function buildCrudEnvelope(
     readOnly: ctx.readOnly,
     includedTableIds: ctx.includedTableIds,
     relations: ctx.relations,
+    displayColumns: ctx.displayColumns,
   });
 
   return {
@@ -61,7 +74,13 @@ export function buildCrudEnvelope(
     template: 'page-crud',
     title: { key: `nav.${ctx.slug}`, fallback: table.label ?? humanize(table.name) },
     source: { connectionId: ctx.connectionId, table: table.id },
-    nav: { group: ctx.navGroup, icon: ctx.navIcon, order: ctx.navOrder, slug: ctx.slug },
+    nav: {
+      group: ctx.navGroup,
+      icon: ctx.navIcon,
+      order: ctx.navOrder,
+      slug: ctx.slug,
+      ...(ctx.navHidden === true ? { hidden: true } : {}),
+    },
     access: {
       minRole: 'viewer',
       permissions: [`table:${table.id}:read`],

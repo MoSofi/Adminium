@@ -76,6 +76,27 @@ export interface PageNavRow {
   navOrder: number;
   isEnabled: boolean | 0 | 1;
   updatedAt: number;
+  /**
+   * The envelope's `source.table` (30-record-pages.md D5): lets clients build
+   * the (connectionId, table) → slug map that record pages cross-link
+   * through. Null for source-less pages and for envelopes this reader cannot
+   * parse — absence degrades a link, never the nav.
+   */
+  sourceTable: string | null;
+}
+
+/** `source.table` off a stored envelope, tolerantly — nav must never throw. */
+function sourceTableOf(config: unknown): string | null {
+  try {
+    const parsed: unknown = typeof config === 'string' ? JSON.parse(config) : config;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const source = (parsed as { source?: unknown }).source;
+    if (typeof source !== 'object' || source === null) return null;
+    const table = (source as { table?: unknown }).table;
+    return typeof table === 'string' && table.length > 0 ? table : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Row projection for the Studio page manager — every column but `config`. */
@@ -259,11 +280,23 @@ function mergeEnvelopeMeta(
       order: next.navOrder,
       slug: next.slug,
     };
-    // `nav.group` and `nav.icon` are `z.string().min(1)` — a null row value
-    // means "unset", which the envelope expresses by omitting the key rather
-    // than by storing null.
-    if (next.navGroup === null) delete navOut['group'];
-    else navOut['group'] = next.navGroup;
+    /*
+     * A null row group means HIDDEN, and the document expresses that as
+     * `hidden: true` while KEEPING its `group` — the remembered placement
+     * "Show in sidebar" restores, and the same vocabulary generation's
+     * cascade-child default writes (30-record-pages.md follow-up). This used
+     * to DELETE `group`, which left every hidden page's document failing the
+     * client's envelope validation — the record page's related tabs silently
+     * degraded to derived columns because of it.
+     */
+    if (next.navGroup === null) {
+      navOut['hidden'] = true;
+    } else {
+      navOut['group'] = next.navGroup;
+      delete navOut['hidden'];
+    }
+    // `nav.icon` is `z.string().min(1)` — a null row value means "unset",
+    // which the envelope expresses by omitting the key.
     if (next.icon === null) delete navOut['icon'];
     else navOut['icon'] = next.icon;
     out['nav'] = navOut;
@@ -868,10 +901,14 @@ export function pagesRepo(meta: MetaDb) {
      * groups and derives `configVersion` from max updatedAt).
      */
     async navRows(): Promise<PageNavRow[]> {
-      return db
+      // `config` rides along ONLY to extract `source.table` (30 D5) — the nav
+      // projection stays a projection: the raw envelope never leaves this
+      // function, and the parse tolerates anything (null on failure).
+      const rows = await db
         .selectFrom('adminium_pages')
-        .select(['id', 'connectionId', 'slug', 'title', 'icon', 'navGroup', 'navOrder', 'isEnabled', 'updatedAt'])
+        .select(['id', 'connectionId', 'slug', 'title', 'icon', 'navGroup', 'navOrder', 'isEnabled', 'updatedAt', 'config'])
         .execute();
+      return rows.map(({ config, ...row }) => ({ ...row, sourceTable: sourceTableOf(config) }));
     },
 
     /** Generated-page counts per connection (connections-hub cards, 09 §8.1). */

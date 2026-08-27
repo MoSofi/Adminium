@@ -688,7 +688,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.employees",
-                "column": "employee_id"
+                "column": "employee_id",
+                "display": "title"
               }
             },
             {
@@ -888,7 +889,7 @@
               }
             ]
           },
-          "generatedHash": "b2bc078da2d7a0b123aa9b443fe5145f57882a80f28d50542f09a6ea22b38825"
+          "generatedHash": "387447b433901b321bb6db37aef148e8b611e907bafdd1b0707e68d0fc13fa52"
         }
       },
       {
@@ -955,7 +956,8 @@
               "mono": true,
               "fk": {
                 "table": "public.orders",
-                "column": "order_id"
+                "column": "order_id",
+                "display": "ship_name"
               },
               "primaryKey": true,
               "nullable": false,
@@ -971,7 +973,8 @@
               "mono": true,
               "fk": {
                 "table": "public.products",
-                "column": "product_id"
+                "column": "product_id",
+                "display": "product_name"
               },
               "primaryKey": true,
               "nullable": false,
@@ -1027,7 +1030,7 @@
               }
             ]
           },
-          "generatedHash": "b1f5bd43dad6968360f39e008d4d30399a94dcf333ca0607e69bf38070480519"
+          "generatedHash": "4728a4853ddd4d1653c2f802371a7c65538cb704022dfe523384d06611ecf580"
         }
       },
       {
@@ -1094,7 +1097,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.customers",
-                "column": "customer_id"
+                "column": "customer_id",
+                "display": "company_name"
               },
               "maxLength": 5
             },
@@ -1106,7 +1110,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.employees",
-                "column": "employee_id"
+                "column": "employee_id",
+                "display": "title"
               }
             },
             {
@@ -1117,7 +1122,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.shippers",
-                "column": "shipper_id"
+                "column": "shipper_id",
+                "display": "company_name"
               }
             },
             {
@@ -1258,7 +1264,7 @@
               }
             ]
           },
-          "generatedHash": "44b9e682b4bae229cc75664fe44ff7b69c607a4d27be89c12ce2f5d5254c9639"
+          "generatedHash": "9bb8ea2f82c15fa813397d172489ee09b2152e705b48eb0dca7636c224f5f7e6"
         }
       },
       {
@@ -1314,7 +1320,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.suppliers",
-                "column": "supplier_id"
+                "column": "supplier_id",
+                "display": "company_name"
               }
             },
             {
@@ -1325,7 +1332,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.categories",
-                "column": "category_id"
+                "column": "category_id",
+                "display": "category_name"
               }
             },
             {
@@ -1368,6 +1376,15 @@
               "primaryKey": true,
               "nullable": false,
               "unique": true,
+              "hidden": true
+            },
+            {
+              "name": "discontinued",
+              "label": "Discontinued",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
               "hidden": true
             }
           ],
@@ -1460,7 +1477,7 @@
               }
             ]
           },
-          "generatedHash": "82e53358dcababc8f3ee91b785a08d7a9413d302b4dec8e19395d76137566158"
+          "generatedHash": "56bed09994456c97c5cd23b15e5f5199b8053089b821ece73a4c1c8cece1c720"
         }
       },
       {
@@ -1924,7 +1941,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.region",
-                "column": "region_id"
+                "column": "region_id",
+                "display": "region_description"
               },
               "nullable": false
             },
@@ -1982,7 +2000,7 @@
               }
             ]
           },
-          "generatedHash": "354531200a8db5fb4efca898c86421c1234a7dc655a09ab8ac76a436c323a9c4"
+          "generatedHash": "0de218bc67e9dff8ec1481b00da3bbbff84d1e3aa7f89de7427481bdb692d347"
         }
       },
       {
@@ -2667,7 +2685,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.employees",
-                "column": "employee_id"
+                "column": "employee_id",
+                "display": "title"
               }
             },
             {
@@ -2742,7 +2761,7 @@
               }
             ]
           },
-          "generatedHash": "2b9f3d127f9dc77308fab6ee3bda41580a35972b0b436a4827945716c39501af"
+          "generatedHash": "46cb0134b21bcf1ecb201b8ac9cb666bc7fcc3af050a709c84a390e63b4dcbbc"
         }
       },
       {
@@ -2809,7 +2828,8 @@
               "mono": true,
               "fk": {
                 "table": "public.orders",
-                "column": "order_id"
+                "column": "order_id",
+                "display": "ship_name"
               },
               "primaryKey": true,
               "nullable": false,
@@ -2825,7 +2845,8 @@
               "mono": true,
               "fk": {
                 "table": "public.products",
-                "column": "product_id"
+                "column": "product_id",
+                "display": "product_name"
               },
               "primaryKey": true,
               "nullable": false,
@@ -2846,7 +2867,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "generatedHash": "222e55ba6d52ac165a6242365d0ee3ce1ff02ab6674186932d9bdb443ffeef73"
+          "generatedHash": "45c165142195da37da9b770686359c177cabae9b2a4b6f9155a5873cacf4cdac"
         }
       },
       {
@@ -2913,7 +2934,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.customers",
-                "column": "customer_id"
+                "column": "customer_id",
+                "display": "company_name"
               },
               "maxLength": 5
             },
@@ -2925,7 +2947,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.employees",
-                "column": "employee_id"
+                "column": "employee_id",
+                "display": "title"
               }
             },
             {
@@ -2936,7 +2959,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.shippers",
-                "column": "shipper_id"
+                "column": "shipper_id",
+                "display": "company_name"
               }
             },
             {
@@ -2980,7 +3004,7 @@
               }
             ]
           },
-          "generatedHash": "fc3c533b0935cfb47c5eed4eed66c549b41a18d25bddf16eb60bdede289b8717"
+          "generatedHash": "6377b073d872fa73bb017dde28df38e9290a5676ba3d22b4de170341584addae"
         }
       },
       {
@@ -3036,7 +3060,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.suppliers",
-                "column": "supplier_id"
+                "column": "supplier_id",
+                "display": "company_name"
               }
             },
             {
@@ -3047,7 +3072,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.categories",
-                "column": "category_id"
+                "column": "category_id",
+                "display": "category_name"
               }
             },
             {
@@ -3091,6 +3117,15 @@
               "nullable": false,
               "unique": true,
               "hidden": true
+            },
+            {
+              "name": "discontinued",
+              "label": "Discontinued",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
+              "hidden": true
             }
           ],
           "defaultSort": [
@@ -3113,7 +3148,7 @@
               }
             ]
           },
-          "generatedHash": "0d4d1712c797fac5d97bbc8918876ae8b7d05e8dbb543c1733d800c6073d1433"
+          "generatedHash": "47f9c0d63b98827c3f92a05f5ca802fa70ead69dda61fa92d6d8ccb740d03fcc"
         }
       },
       {
@@ -3450,7 +3485,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.region",
-                "column": "region_id"
+                "column": "region_id",
+                "display": "region_description"
               },
               "nullable": false
             },
@@ -3483,7 +3519,7 @@
             "tabsFromInboundFks": true,
             "tabs": []
           },
-          "generatedHash": "fef2e34cc377ec4481af1a8c84fa1162e06fa631c90356a3c4cecd826a315883"
+          "generatedHash": "91f993b92f7b916ce2c1bc5a4d7ed431cc8013c0bad6f535a03d459eb1daaaa9"
         }
       },
       {
@@ -4030,7 +4066,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.employees",
-                "column": "employee_id"
+                "column": "employee_id",
+                "display": "title"
               }
             },
             {
@@ -4230,7 +4267,7 @@
               }
             ]
           },
-          "generatedHash": "b2bc078da2d7a0b123aa9b443fe5145f57882a80f28d50542f09a6ea22b38825"
+          "generatedHash": "387447b433901b321bb6db37aef148e8b611e907bafdd1b0707e68d0fc13fa52"
         }
       },
       {
@@ -4297,7 +4334,8 @@
               "mono": true,
               "fk": {
                 "table": "public.orders",
-                "column": "order_id"
+                "column": "order_id",
+                "display": "ship_name"
               },
               "primaryKey": true,
               "nullable": false,
@@ -4313,7 +4351,8 @@
               "mono": true,
               "fk": {
                 "table": "public.products",
-                "column": "product_id"
+                "column": "product_id",
+                "display": "product_name"
               },
               "primaryKey": true,
               "nullable": false,
@@ -4369,7 +4408,7 @@
               }
             ]
           },
-          "generatedHash": "b1f5bd43dad6968360f39e008d4d30399a94dcf333ca0607e69bf38070480519"
+          "generatedHash": "4728a4853ddd4d1653c2f802371a7c65538cb704022dfe523384d06611ecf580"
         }
       },
       {
@@ -4436,7 +4475,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.customers",
-                "column": "customer_id"
+                "column": "customer_id",
+                "display": "company_name"
               },
               "maxLength": 5
             },
@@ -4448,7 +4488,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.employees",
-                "column": "employee_id"
+                "column": "employee_id",
+                "display": "title"
               }
             },
             {
@@ -4459,7 +4500,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.shippers",
-                "column": "shipper_id"
+                "column": "shipper_id",
+                "display": "company_name"
               }
             },
             {
@@ -4600,7 +4642,7 @@
               }
             ]
           },
-          "generatedHash": "44b9e682b4bae229cc75664fe44ff7b69c607a4d27be89c12ce2f5d5254c9639"
+          "generatedHash": "9bb8ea2f82c15fa813397d172489ee09b2152e705b48eb0dca7636c224f5f7e6"
         }
       },
       {
@@ -4656,7 +4698,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.suppliers",
-                "column": "supplier_id"
+                "column": "supplier_id",
+                "display": "company_name"
               }
             },
             {
@@ -4667,7 +4710,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.categories",
-                "column": "category_id"
+                "column": "category_id",
+                "display": "category_name"
               }
             },
             {
@@ -4710,6 +4754,15 @@
               "primaryKey": true,
               "nullable": false,
               "unique": true,
+              "hidden": true
+            },
+            {
+              "name": "discontinued",
+              "label": "Discontinued",
+              "logicalType": "integer",
+              "semantic": "plain",
+              "sortable": true,
+              "nullable": false,
               "hidden": true
             }
           ],
@@ -4802,7 +4855,7 @@
               }
             ]
           },
-          "generatedHash": "82e53358dcababc8f3ee91b785a08d7a9413d302b4dec8e19395d76137566158"
+          "generatedHash": "56bed09994456c97c5cd23b15e5f5199b8053089b821ece73a4c1c8cece1c720"
         }
       },
       {
@@ -5266,7 +5319,8 @@
               "sortable": true,
               "fk": {
                 "table": "public.region",
-                "column": "region_id"
+                "column": "region_id",
+                "display": "region_description"
               },
               "nullable": false
             },
@@ -5324,7 +5378,7 @@
               }
             ]
           },
-          "generatedHash": "354531200a8db5fb4efca898c86421c1234a7dc655a09ab8ac76a436c323a9c4"
+          "generatedHash": "0de218bc67e9dff8ec1481b00da3bbbff84d1e3aa7f89de7427481bdb692d347"
         }
       },
       {

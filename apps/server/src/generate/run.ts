@@ -184,7 +184,12 @@ export function toGeneratedPageInput(envelope: PageEnvelope): GeneratedPageInput
     type: envelope.template,
     title: envelope.title.fallback,
     icon: envelope.nav.icon,
-    navGroup: envelope.nav.group,
+    // `nav.hidden` (cascade-owned children, 30 follow-up) projects to the row
+    // as a NULL group — the same state Studio's "Hide from sidebar" writes, so
+    // one predicate serves both. The envelope keeps its `group` either way;
+    // that is what "Show in sidebar" restores. A group-less document (hidden
+    // by a pre-fix Studio build) stays hidden.
+    navGroup: envelope.nav.hidden === true ? null : (envelope.nav.group ?? null),
     navOrder: envelope.nav.order,
     config: envelope,
   };
@@ -302,7 +307,9 @@ export async function runGeneration(opts: RunGenerationOptions): Promise<Generat
   const llm = await materializeLlmPages({ meta, model, connectionId });
   warnings.push(...llm.warnings);
 
-  const navGroups = [...new Set(emitted.map((page) => page.nav.group))];
+  const navGroups = [
+    ...new Set(emitted.map((page) => page.nav.group).filter((group) => group !== undefined)),
+  ];
   return {
     snapshotId: snapshot.id,
     introspected,

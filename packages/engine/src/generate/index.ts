@@ -12,6 +12,7 @@
  */
 
 import {
+  crudDisplayColumns,
   domainHasDashboardSignal,
   emitCandidates,
   isRegisteredWidgetId,
@@ -27,7 +28,7 @@ import {
   widgetConfigSchema,
   type PageEnvelope,
 } from '../config-schema/envelope.js';
-import type { DatabaseModel, TableModel } from '../schema-model.js';
+import type { DatabaseModel, Relation, TableModel } from '../schema-model.js';
 import { archetypeSlug, buildArchetypeEnvelope, toCandidateModel } from './archetype.js';
 import { buildCrudEnvelope, type CrudBuildContext } from './crud.js';
 import { buildDashboardEnvelope } from './dashboard.js';
@@ -300,6 +301,52 @@ function archetypePages(
 }
 
 /**
+ * Is this table a CASCADE-OWNED CHILD — rows that the schema itself declares
+ * cannot outlive their parent (30-record-pages.md follow-up, 2026-08-24)?
+ *
+ * With record pages, such a table's home is its parent's record-page tab
+ * (invoice items on the invoice, proposal items on the proposal), so its
+ * generated crud page defaults to `nav.hidden` — still routable, still
+ * palette-searchable, still the source of the parent tab's column specs and
+ * cross-links; just not a sidebar row. Reversible per page in Studio → Pages.
+ *
+ * Every clause is load-bearing, and each one refuses a case where hiding
+ * would be a lie:
+ *
+ *   declared (confidence 1)   an INFERRED relation is a guess; a guess must
+ *                             not remove navigation.
+ *   onDelete === 'cascade'    the schema's own composition claim. RESTRICT /
+ *                             SET NULL children (an invoice's client) are
+ *                             associations and keep their page.
+ *   from-columns NOT NULL     a nullable FK means orphan rows are legal, and
+ *                             orphans are unreachable through any parent tab.
+ *   parent included           the parent gets a page this run, so the child
+ *                             rows are actually reachable through it. An
+ *                             excluded parent leaves the child visible.
+ *   not self / not M2M        a tree table must not hide itself; a join
+ *                             table's "page" question is the M2M machinery's.
+ */
+function isCascadeOwnedChild(
+  table: TableModel,
+  relations: readonly Relation[],
+  includedIds: ReadonlySet<string>,
+): boolean {
+  return relations.some(
+    (relation) =>
+      relation.from.tableId === table.id &&
+      relation.to.tableId !== table.id &&
+      relation.through === null &&
+      relation.confidence === 1 &&
+      relation.onDelete === 'cascade' &&
+      includedIds.has(relation.to.tableId) &&
+      relation.from.columns.every((name) => {
+        const column = table.columns.find((candidate) => candidate.name === name);
+        return column !== undefined && !column.nullable;
+      }),
+  );
+}
+
+/**
  * Generate the v1 page set for a classified model: one `page-crud` per
  * included table plus one `page-dashboard` per FK-cluster domain (cap
  * {@link DASHBOARD_CAP}), honoring the 09 §8.4 intent. The model should come
@@ -395,6 +442,9 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
   // -- one page-crud per included table (research/widget-registry.md §14) --
   const readOnly = intent === 'read-only-analytics';
   const includedIds: ReadonlySet<string> = includedIdSet;
+  // FK-chip display columns (tableId → the referenced table's display column):
+  // the crud bodies stamp `fk.display` from this so chips show names.
+  const displayColumns = crudDisplayColumns(candidateModel);
   const counters = { library: 0, people: 0 };
   /** Each table's page-crud slug + nav order — the archetype pass sits beside them. */
   const crudPlacement = new Map<string, { slug: string; navOrder: number }>();
@@ -410,9 +460,14 @@ export function generatePages(model: DatabaseModel, opts: GenerateOptions = {}):
       navGroup: group,
       navIcon: SHAPE_ICONS[info.shape.kind] ?? 'table',
       navOrder: order,
+      // Cascade-owned children default OUT of the sidebar — their home is the
+      // parent's record-page tab. Only the crud page; a table's archetype
+      // pages (calendars, boards) are cross-record views and stay visible.
+      ...(isCascadeOwnedChild(table, model.relations, includedIds) ? { navHidden: true } : {}),
       readOnly,
       includedTableIds: includedIds,
       relations: model.relations,
+      displayColumns,
     };
     crudPlacement.set(table.id, { slug: ctx.slug, navOrder: order });
     rawPages.push(buildCrudEnvelope(entry, ctx));
