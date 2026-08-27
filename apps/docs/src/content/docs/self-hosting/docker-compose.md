@@ -63,6 +63,7 @@ derives one from the other.
 | `ADMINIUM_SECRET` | **required — fails fast** | Derives every encryption key |
 | `ADMINIUM_VERSION` | `latest` | Image tag. Pin it in production. |
 | `ADMINIUM_META_URL` | *(unset)* | Meta DSN. Unset → embedded SQLite in the volume. |
+| `ADMINIUM_SOURCE_URL` | *(unset)* | Your own database. Connected and generated on the first boot. |
 | `META_DB_USER` | `adminium` | `with-meta` Postgres user |
 | `META_DB_PASSWORD` | `adminium` | `with-meta` Postgres password |
 | `META_DB_NAME` | `adminium` | `with-meta` Postgres database |
@@ -74,10 +75,17 @@ Adminium reads more variables than the compose file passes through — logging,
 proxy trust, CORS, telemetry. Add them to the `environment:` block as needed:
 [Environment variables](/self-hosting/env-vars/).
 
-:::note[There is no variable for your source database]
-Earlier builds passed a `DATABASE_URL` through this file, described as a
-first-boot connection seed. No code ever read it, so a container that set it got
-silence — it has been removed. Connect your database in the first-run wizard.
+:::note[Your source database is `ADMINIUM_SOURCE_URL`]
+Set it and the first boot connects that database, introspects it, and generates
+the pages; leave it unset and you connect it in the first-run wizard. It runs
+once, and a DSN that does not work leaves the connection in `error` without
+stopping the boot — details in
+[Environment variables](/self-hosting/env-vars/#adminium_source_url).
+
+Earlier builds passed a `DATABASE_URL` through this file, described as exactly
+this. No code ever read it, so a container that set it got silence. The name was
+not reused: a container still setting it now gets a line on stderr telling it
+what to rename.
 :::
 
 ## Volumes

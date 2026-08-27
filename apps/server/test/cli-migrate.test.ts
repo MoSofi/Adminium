@@ -7,7 +7,7 @@
  * tell you whether it is. No server is booted; only the store is opened.
  */
 import { mkdtemp, rm } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 
@@ -17,9 +17,11 @@ import { writeBootstrap } from '../src/config/bootstrap.js';
 import { runCli } from '../src/cli/run.js';
 import { defaultCliDeps } from '../src/cli/runtime.js';
 import {
+  connectMetaStore,
   embeddedMetaWarning,
   metaEngineFromUrl,
   metaUrlCryptoFromSecret,
+  MetaStoreUnwritableError,
   MetaUrlError,
   resolveMetaUrl,
   sqlitePathFromUrl,
@@ -267,5 +269,109 @@ describe('embeddedMetaWarning', () => {
     const warning = embeddedMetaWarning('sqlite:/data/meta.db');
     expect(warning).toContain('/data/meta.db');
     expect(warning).toContain('ADMINIUM_META_URL');
+  });
+});
+
+/**
+ * chmod is meaningless to root, which ignores the permission bits entirely, so
+ * these would fail as "expected a throw" inside a root container. CI runs as
+ * the unprivileged `runner`, so they really do execute there.
+ */
+const CAN_DROP_WRITE = process.getuid === undefined || process.getuid() !== 0;
+
+describe.skipIf(!CAN_DROP_WRITE)('connectMetaStore — an unwritable data dir', () => {
+  /** chmod back before the afterEach rm, or the temp dir cannot be cleaned up. */
+  async function withUnwritable(target: string, run: () => Promise<Error | null>) {
+    chmodSync(target, 0o555);
+    try {
+      return await run();
+    } finally {
+      chmodSync(target, 0o755);
+    }
+  }
+
+  const failureOf = (promise: Promise<unknown>) =>
+    promise.then(() => null).catch((error: unknown) => error as Error);
+
+  it('the embedded fallback names the meta store, the knob, and both placements', async () => {
+    // The §3.1 OD-1 fallback on a read-only filesystem — a read-only container
+    // mount, Vercel/Lambda, a volume the process user cannot write. What used
+    // to reach the operator was the whole of:
+    //     EACCES: permission denied, mkdir '/var/task/data'
+    // which names no product concept, no variable, and no way out. That is the
+    // exact charge MetaSecretMismatchError was created to answer, and this path
+    // never got the same treatment — while embeddedMetaWarning, the sentence
+    // that would resolve it, prints only when the fallback SUCCEEDS.
+    const dataDir = join(dir, 'nested', 'data');
+    const resolved = await resolveMetaUrl({ dataDir, secret: TEST_SECRET });
+    expect(resolved.source).toBe('embedded');
+
+    const failure = await withUnwritable(dir, () => failureOf(connectMetaStore(resolved)));
+
+    expect(failure).toBeInstanceOf(MetaStoreUnwritableError);
+    const message = failure?.message ?? '';
+    expect(message).toContain(join(dataDir, 'meta.db')); // which file
+    expect(isAbsolute(join(dataDir, 'meta.db'))).toBe(true); // readable from a container log
+    expect(message).toContain('meta store'); // which product concept
+    expect(message).toContain('adminium_*'); // what is actually in it
+    expect(message).toContain('ADMINIUM_META_URL'); // which knob
+    expect(message).toContain('postgres://'); // way out 1: a separate database
+    expect(message).toContain('dedicated schema'); // way out 2: the source database
+    expect(message).toContain('https://docs.adminium.dev/self-hosting/meta-store/');
+    // The OS reason is kept, not swallowed — the catch is broad enough to see
+    // ENOSPC too, so the headline must never be the only thing reported.
+    expect(message).toContain('permission denied');
+    // ...but it is no longer the WHOLE message, which was the complaint.
+    expect(message.split('\n').length).toBeGreaterThan(5);
+  });
+
+  it('covers the open, not just the mkdir, when the data dir already exists', async () => {
+    // A writable parent with an unwritable data dir inside it: the recursive
+    // mkdir succeeds as a no-op and the failure moves to `new Database(file)`,
+    // whose error — a bare `unable to open database file` — is barer still. A
+    // try/catch around the mkdir alone would have missed this entirely.
+    const dataDir = join(dir, 'data');
+    mkdirSync(dataDir);
+    const resolved = await resolveMetaUrl({ dataDir, secret: TEST_SECRET });
+
+    const failure = await withUnwritable(dataDir, () => failureOf(connectMetaStore(resolved)));
+
+    expect(failure).toBeInstanceOf(MetaStoreUnwritableError);
+    expect(failure?.message).toContain('unable to open database file'); // the raw cause, kept
+    expect(failure?.message).toContain('ADMINIUM_META_URL'); // the way out, added
+  });
+
+  it('does not tell you to set ADMINIUM_META_URL when you already did', async () => {
+    // The same wrapper covers a CONFIGURED sqlite DSN, where "set
+    // ADMINIUM_META_URL" would be advice the operator has already taken. It
+    // names where the path came from instead.
+    const dataDir = join(dir, 'data');
+    mkdirSync(dataDir);
+    const resolved = await resolveMetaUrl({
+      metaUrl: `sqlite:${join(dataDir, 'custom.db')}`,
+      dataDir,
+      secret: TEST_SECRET,
+    });
+    expect(resolved.source).toBe('env');
+
+    const failure = await withUnwritable(dataDir, () => failureOf(connectMetaStore(resolved)));
+
+    expect(failure).toBeInstanceOf(MetaStoreUnwritableError);
+    const message = failure?.message ?? '';
+    expect(message).toContain('came from ADMINIUM_META_URL');
+    expect(message).not.toContain('Set ADMINIUM_META_URL to a real database');
+    expect(message).not.toContain('fell back'); // it did not fall back; it was told
+  });
+
+  it('still opens a :memory: store, and never describes it with a path', async () => {
+    // Guards the restructure: `:memory:` skips the mkdir/open try entirely, so
+    // it can never be reported as an unwritable file path.
+    const handle = await connectMetaStore({
+      url: 'sqlite::memory:',
+      engine: 'sqlite',
+      source: 'env',
+    });
+    expect(handle.engine).toBe('sqlite');
+    await handle.close();
   });
 });

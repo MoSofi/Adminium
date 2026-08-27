@@ -40,6 +40,19 @@ describe('staticRootCandidates', () => {
     expect(candidates[0]).toBe('/custom/build');
     expect(candidates).toHaveLength(3);
   });
+
+  it('resolves a relative override against the working directory', () => {
+    // `adminium start --static-root ../dashboard/dist` — the CLI's actual
+    // shape. The candidate must be absolute or the index.html probe would
+    // depend on where the static plugin later resolves it from.
+    expect(staticRootCandidates({ override: 'my/build' })[0]).toBe(resolve('my/build'));
+  });
+
+  it('ignores an empty override — an unset variable must not add a candidate', () => {
+    // `ADMINIUM_STATIC_ROOT=` in a compose file means unset, per the env
+    // schema's own empty-string rule; the resolver agrees for direct callers.
+    expect(staticRootCandidates({ override: '' })).toHaveLength(2);
+  });
 });
 
 describe('resolveStaticRoot', () => {
@@ -70,6 +83,20 @@ describe('resolveStaticRoot', () => {
       exists: (path) => path === join('/custom/build', 'index.html'),
     });
     expect(found).toBe('/custom/build');
+  });
+
+  it('lets the override beat a stale bundled copy — the shadowing it exists to end', () => {
+    // A dev checkout with a `scripts/bundle-dashboard.mjs` leftover: BOTH the
+    // bundled dir and the override hold an index.html. The override must win,
+    // or the gitignored leftover keeps serving over the fresh build with
+    // nothing in `git status` to explain it.
+    const found = resolveStaticRoot({
+      override: '/fresh/build',
+      exists: (path) =>
+        path === join(serverRoot, BUNDLED_DASHBOARD_DIR, 'index.html') ||
+        path === join('/fresh/build', 'index.html'),
+    });
+    expect(found).toBe('/fresh/build');
   });
 });
 

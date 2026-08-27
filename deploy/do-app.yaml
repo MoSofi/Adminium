@@ -2,9 +2,11 @@
 # the meta store. App Platform containers have no persistent local disk, so the
 # embedded SQLite store would be wiped on every deploy (workplan 17 §7.3); the
 # managed database's connection string is bound to ADMINIUM_META_URL natively via
-# ${adminium-meta.DATABASE_URL}. Note DATABASE_URL (the optional source-connection
-# seed) is deliberately NOT set, so the meta database is never also imported as a
-# source connection.
+# ${adminium-meta.DATABASE_URL} — DigitalOcean's own binding token for that
+# database, not an Adminium variable. ADMINIUM_SOURCE_URL, which IS one (the
+# first-boot source-connection seed), is deliberately NOT set: the meta database
+# must never also be imported as a source connection. Set it only if you have a
+# separate application database you want a back office for.
 #
 # App Platform declares the listening port with `http_port` and sets PORT to
 # match; Adminium honors PORT. ADMINIUM_SECRET must be set as an encrypted

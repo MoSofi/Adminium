@@ -95,6 +95,7 @@ meta store under the data directory and says so.
 | `--meta-url <dsn>` | `ADMINIUM_META_URL`, else embedded SQLite | Meta store DSN |
 | `--data-dir <path>` | `ADMINIUM_DATA_DIR` or `./data` | Data directory |
 | `--log-level <level>` | `ADMINIUM_LOG_LEVEL` or `info` | `fatal`\|`error`\|`warn`\|`info`\|`debug`\|`trace` |
+| `--static-root <path>` | `ADMINIUM_STATIC_ROOT`, else the bundled build | Serve the dashboard build from this directory |
 | `--skip-migrate` | off | Do not apply pending meta migrations on boot |
 
 ```bash

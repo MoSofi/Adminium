@@ -48,10 +48,25 @@ services:
       # SQLite in ADMINIUM_DATA_DIR. With --profile with-meta, use:
       #   ADMINIUM_META_URL=postgres://adminium:adminium@meta-db:5432/adminium
       ADMINIUM_META_URL: ${ADMINIUM_META_URL:-}
-      # NO DATABASE_URL. It was passed through here and documented as a
-      # first-boot source-connection seed while no code read it — a container
-      # that set it got silence and nothing to debug. Connect your source
-      # database in the first-run wizard instead.
+      # Your OWN database — the one the back office is generated FROM, as
+      # opposed to ADMINIUM_META_URL above, which is where Adminium keeps its
+      # own state. Set it and the first boot connects it, introspects it, and
+      # generates the pages; leave it unset and you connect it in the first-run
+      # wizard instead. Either way you finish setup in the browser: this seeds
+      # the connection, never the super admin.
+      #
+      # It runs ONCE. A connection you delete later is not rebuilt on the next
+      # `up`, and an instance that already has connections ignores this. If the
+      # DSN is wrong the server still starts, records the error where Studio
+      # shows it, and retries on the next boot — so you fix it here, not in the
+      # database.
+      #
+      # NOT `DATABASE_URL`. That name was passed through here and documented as
+      # this exact feature while no code read it — a container that set it got
+      # silence and nothing to debug. A container still carrying the old name
+      # now says so on stderr at boot, because an unrecognised variable is
+      # ignored, not rejected, and silence is the bug being fixed.
+      ADMINIUM_SOURCE_URL: ${ADMINIUM_SOURCE_URL:-}
       # Matches the volume mount below; also the image default.
       ADMINIUM_DATA_DIR: /data
     volumes:
