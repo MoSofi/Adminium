@@ -235,7 +235,7 @@ surface, its internal decisions, and the rules that keep it in its lane — see
 | `tokens` | Design tokens as CSS custom properties: theme, 8 accents, density, viz palette, motion, self-hosted fonts, and the Tailwind v4 mapping. Zero dependencies. |
 | `i18n` | 8 locales × 5 namespaces, ICU messages, RTL derived from the locale registry, split into framework-free / React / Node entry points. |
 | `manifest` | The micro-SaaS manifest schema, validator and installer. |
-| `add-on-contracts` | The add-on slot registry (11 slots) and provider contracts (3), each shipping a conformance suite an implementation must pass. |
+| `add-on-contracts` | The add-on slot registry (12 slots) and provider contracts (3), each shipping a conformance suite an implementation must pass. |
 | `config` | Shared tsconfig, Prettier, and the flat ESLint config — including a six-rule in-house plugin. |
 
 ### Apps
