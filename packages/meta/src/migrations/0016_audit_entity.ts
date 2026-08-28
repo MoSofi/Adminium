@@ -13,7 +13,9 @@
  *   entity_table  the ref's qualified table ("public.invoices")
  *   entity_id     the canonical record-id string — `pkLabel` form: a single
  *                 PK stringified, a composite PK as the JSON value tuple —
- *                 the same string the record route and `rowIdOf` use
+ *                 the same string the record route and `rowIdOf` use. See
+ *                 `keysOf` for why a BACKFILLED composite reads the ref's
+ *                 `label` rather than re-deriving from `pk`.
  *
  * Both are clamped by `auditEntityKeyPart` (write AND query side, so a
  * truncated key still matches itself), written by `auditRepo.append` from
@@ -31,7 +33,12 @@ import type { Kysely } from 'kysely';
 
 import type { ColumnHelpers } from '../columns.js';
 import { metaTable } from '../prefix.js';
-import { AUDIT_ENTITY_KEY_MAX, auditEntityKeyOf, recordRefSchema } from '../schema/json-payloads.js';
+import {
+  AUDIT_ENTITY_KEY_MAX,
+  auditEntityKeyOf,
+  auditEntityKeyPart,
+  recordRefSchema,
+} from '../schema/json-payloads.js';
 
 const BACKFILL_BATCH = 500;
 
@@ -44,6 +51,31 @@ interface AuditBackfillTable {
 }
 type BackfillDb = Kysely<Record<string, AuditBackfillTable>>;
 
+/**
+ * A STORED ref has lost the one thing `auditEntityKeyOf` reads for a composite
+ * key: the order of `pk`.
+ *
+ * `entity` is `jsonb` on postgres and `json` on mysql, and both normalise
+ * object keys on the way in — jsonb by key length then bytes, mysql likewise.
+ * So `{invoice_id, line}` comes back as `{line, invoice_id}` and
+ * `Object.values()` yields the tuple backwards, producing an id that matches no
+ * record. Only sqlite, which stores the column as text, keeps the written
+ * order, which is why deriving from `pk` passed there and failed on the other
+ * two. There is no recovering the order from the stored value: jsonb and mysql
+ * json are parsed forms, so even casting back to text returns the normalised
+ * key order rather than the original.
+ *
+ * A single-column key has no order to lose, so it still derives from `pk`.
+ *
+ * A composite one falls back to the ref's `label`, which the only writer of a
+ * record ref (`routes/data`) sets to `pkLabel(table, pk)` — the same tuple, in
+ * the table's primary-key order, as a plain string no store reorders. `label`
+ * is display text by contract and NOT guaranteed to be that tuple, so it is
+ * used only when it still parses as a JSON array of the right arity; anything
+ * else leaves the row NULL. A legacy row that opts out of the feed is the
+ * documented outcome for a ref this reader cannot trust — a confidently wrong
+ * key that silently attaches one record's history to another is not.
+ */
 function keysOf(entity: unknown): { entityTable: string; entityId: string } | null {
   // Postgres `jsonb` columns come back as objects; sqlite/mysql as text.
   let candidate: unknown = entity;
@@ -55,7 +87,19 @@ function keysOf(entity: unknown): { entityTable: string; entityId: string } | nu
     }
   }
   const parsed = recordRefSchema.safeParse(candidate);
-  return parsed.success ? auditEntityKeyOf(parsed.data) : null;
+  if (!parsed.success) return null;
+  const ref = parsed.data;
+  const arity = Object.keys(ref.pk).length;
+  if (arity <= 1) return auditEntityKeyOf(ref);
+
+  let tuple: unknown;
+  try {
+    tuple = JSON.parse(ref.label);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(tuple) || tuple.length !== arity) return null;
+  return { entityTable: auditEntityKeyPart(ref.table), entityId: auditEntityKeyPart(ref.label) };
 }
 
 export async function up(db: Kysely<unknown>, c: ColumnHelpers): Promise<void> {
