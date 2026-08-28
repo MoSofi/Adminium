@@ -211,10 +211,11 @@ teeth: 9 files, 1.1k lines.
 
 Two closed registries:
 
-- **11 UI slots** — `artwork.sources`, `checkout.delivery.methods`,
+- **12 UI slots** — `artwork.sources`, `checkout.delivery.methods`,
   `order.dispatch.panel`, `order.dispatch.actions`, `settings.add-on.panel`,
   `nav.add-on.routes`, `product.options.personalize`, `cart.line.preview`,
-  `product.admin.panel`, `order.line.actions`, `record.editor.panel`. Each
+  `product.admin.panel`, `order.line.actions`, `record.editor.panel`,
+  `record.actions`. Each
   declares a surface (`customer`/`staff`/`admin`/`both`) and a fill rule. `multi`
   renders every enabled fill in order; `single` takes the lowest order and
   records a conflict warning naming the loser rather than silently overriding.
