@@ -20,13 +20,54 @@ import {
 } from '../src/index.js';
 
 describe('slot registry', () => {
-  it('holds exactly eleven slots', () => {
-    expect(SLOT_REGISTRY).toHaveLength(11);
-    expect(SLOT_IDS).toHaveLength(11);
+  it('holds exactly twelve slots', () => {
+    // Eleven from wave 4, plus `record.actions` bought on 2026-08-28 (31 O1).
+    // Moving this number is the deliberate act; a slot appearing without it is
+    // the accident the ratchet exists to catch.
+    expect(SLOT_REGISTRY).toHaveLength(12);
+    expect(SLOT_IDS).toHaveLength(12);
   });
 
   it('has no duplicate ids', () => {
     expect(new Set(SLOT_IDS).size).toBe(SLOT_IDS.length);
+  });
+
+  it('carries the one slot bought since wave 4, and nothing else new', () => {
+    /*
+     * Named rather than counted, because a count alone would let a DIFFERENT
+     * twelfth slide in behind the same number. The purchase was for this id.
+     */
+    const waveFour = [
+      'artwork.sources',
+      'cart.line.preview',
+      'checkout.delivery.methods',
+      'nav.add-on.routes',
+      'order.dispatch.actions',
+      'order.dispatch.panel',
+      'order.line.actions',
+      'product.admin.panel',
+      'product.options.personalize',
+      'record.editor.panel',
+      'settings.add-on.panel',
+    ];
+    expect([...SLOT_IDS].sort()).toEqual([...waveFour, 'record.actions'].sort());
+  });
+
+  it('rules record.actions `both`, so a customer-facing render moment can mount it', () => {
+    /*
+     * Two of the dossier's seven exhibits are the reader's OWN record — a
+     * student's certificate sheet and a ticket-holder's pass — so a `staff`
+     * ruling would have excluded the two moments the purchase is most wanted
+     * for. Asserted rather than left to the literal, because the surface is the
+     * half of this entry a later edit is most likely to "tidy".
+     */
+    expect(slotDefinition('record.actions').surface).toBe('both');
+    expect(slotDefinition('record.actions').fill).toBe('multi');
+  });
+
+  it('still refuses the twelfth an earlier draft guessed at', () => {
+    // Buying one slot on seven exhibits does not reopen the registry to ideas.
+    expect(isSlotId('job.timeline.entries')).toBe(false);
   });
 
   it('carries the renamed dispatch-actions id, not the print-shop-specific one', () => {
