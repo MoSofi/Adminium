@@ -24,13 +24,8 @@ import {
 import {
   blockAttachmentsDemoData,
   blockBarChartDemoData,
-  blockContactDemoData,
-  blockDeliveryStepperDemoData,
-  blockDiscountCodesDemoData,
-  blockHighlightBoxDemoData,
   blockKpiRowDemoData,
   blockLineChartDemoData,
-  blockLoyaltyBannerDemoData,
   blockSignatureDemoData,
   blockTwoColTableDemoData,
   documentCanvasDemoData,
@@ -197,6 +192,12 @@ export const BLOCK_KIND_META: Readonly<Record<BlockId, BlockKindMeta>> = {
   'block-image-placeholder': { label: 'Image', icon: 'image' },
   'block-contact': { label: 'Contact', icon: 'life-buoy' },
   'block-highlight-box': { label: 'Highlight box', icon: 'square-dashed' },
+  'email.heading': { label: 'Heading', icon: 'heading' },
+  'email.text': { label: 'Paragraph', icon: 'text' },
+  'email.button': { label: 'Call-to-action', icon: 'mouse-pointer-click' },
+  'email.divider': { label: 'Divider', icon: 'minus' },
+  'email.spacer': { label: 'Spacer', icon: 'move-vertical' },
+  'email.footer': { label: 'Footer', icon: 'panel-bottom' },
 };
 
 /**
@@ -239,7 +240,18 @@ export const DOC_TYPE_PALETTE: Readonly<Record<DocType, readonly BlockId[]>> = {
     'block-terms-checkbox',
     'block-contact',
   ],
+  /*
+    The comp's palette, in its order: the message itself first (Heading, Body
+    paragraphs, Call-to-action, Footer text — the only blocks the mail renderer
+    can send), then the optional "Add …" module rail below it.
+  */
   email: [
+    'email.heading',
+    'email.text',
+    'email.button',
+    'email.divider',
+    'email.spacer',
+    'email.footer',
     'block-highlight-box',
     'block-discount-codes',
     'block-loyalty-banner',
@@ -315,8 +327,16 @@ export function reorderDocByBlockIds(
   const pool = [...docBlockInstancesOf(doc, docType)];
   const next: DocBlockInstance[] = [];
   for (const raw of emittedOrder) {
-    if (!isBlockId(raw)) continue;
-    const at = pool.findIndex((instance) => instance.block === raw);
+    if (typeof raw !== 'string') continue;
+    /*
+      Instance id first, block id second. A doc with two instances of one kind
+      (both paragraphs of any email template) cannot express "swap them" in
+      block ids alone — the emitted sequence is identical either way — so the
+      canvas now sends `blockInstanceOrder` too and it resolves here. Bare block
+      ids keep working for every host and doc that never had a duplicate.
+    */
+    const byInstance = pool.findIndex((instance) => instance.id === raw);
+    const at = byInstance === -1 ? (isBlockId(raw) ? pool.findIndex((i) => i.block === raw) : -1) : byInstance;
     if (at === -1) continue;
     const [taken] = pool.splice(at, 1);
     if (taken !== undefined) next.push(taken);
@@ -572,21 +592,35 @@ export function builderDemoDoc(docType: DocType, seed: number): DocRecord {
       },
     };
   }
-  const blocks = DOC_TYPE_BLOCKS.email;
+  /*
+    A transactional message, keyed BY INSTANCE — two paragraphs of different
+    text is the ordinary case (every seeded built-in has one), and a
+    block-keyed payload can only hold one of them. `blockDataForInstance`
+    reads the instance id first for exactly this reason.
+  */
+  const order: readonly { id: string; block: BlockId }[] = [
+    { id: 'heading', block: 'email.heading' },
+    { id: 'intro', block: 'email.text' },
+    { id: 'action', block: 'email.button' },
+    { id: 'notice', block: 'email.text' },
+    { id: 'rule', block: 'email.divider' },
+    { id: 'footer', block: 'email.footer' },
+  ];
+  const expiresInDays = 1 + Math.floor(random() * 6);
   return {
     docType: 'email',
     title: 'Welcome to Adminium',
     issuedAt: isoDayAfterDemoEpoch(0),
     fromLines: ['Adminium', 'no-reply@adminium.io'],
     toLines: ['{{first_name}} <{{email}}>'],
-    blockOrder: blocks.map((block, index) => ({ id: `${block}-${index}`, block })),
-    flags: Object.fromEntries(blocks.map((block) => [block, true])),
+    blockOrder: order.map((entry) => ({ ...entry })),
+    flags: Object.fromEntries(order.map((entry) => [entry.block, true])),
     blocks: {
-      'block-highlight-box': blockHighlightBoxDemoData(seed),
-      'block-discount-codes': blockDiscountCodesDemoData(seed),
-      'block-loyalty-banner': blockLoyaltyBannerDemoData(seed),
-      'block-delivery-stepper': blockDeliveryStepperDemoData(seed),
-      'block-contact': blockContactDemoData(seed),
+      heading: { text: 'Welcome to {{appName}}', level: 1 },
+      intro: { text: 'Hi {{first_name}}, your workspace is ready. Everything you connected is waiting for you.' },
+      action: { label: 'Open your dashboard', url: '{{actionUrl}}' },
+      notice: { text: `This link expires in ${String(expiresInDays)} days.` },
+      footer: { text: 'You are receiving this because you created an {{appName}} workspace.' },
     },
   };
 }

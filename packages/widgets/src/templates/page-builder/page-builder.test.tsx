@@ -24,6 +24,7 @@ import {
   BLOCK_IDS,
   BLOCK_KIND_META,
   BUILDER_DRAFT_CONNECTION_ID,
+  DOC_TYPE_PALETTE,
   addBlockToDoc,
   builderDemoDoc,
   canvasItemOf,
@@ -62,6 +63,47 @@ describe('BLOCK_KIND_META (kindMeta swap regression)', () => {
       expect(KEBAB_SLUG.test(meta.label), `${id} label must not be a slug`).toBe(false);
       // Icons are kebab lucide slugs — human copy here is the other half.
       expect(meta.icon, `${id} icon`).toMatch(KEBAB_SLUG);
+    }
+  });
+
+  it('resolves every palette slug to a real glyph, never the placeholder', () => {
+    // The registry's `icon` is a slug; `PageBuilder`'s BLOCK_ICONS maps it to a
+    // component, and an UNMAPPED slug silently falls through to a
+    // `SquareDashed` placeholder. Nothing used to notice: the test above checks
+    // only that the slug is kebab-shaped, VRT skips this template (no `vrt`
+    // story tag), and axe cannot see a glyph BlockIcon marks `aria-hidden`. So
+    // the six `email.*` blocks shipped drawing the same dashed square as each
+    // other at the top of the email palette.
+    //
+    // The assertion is `square-dashed IFF declared`, not "the rendered class
+    // matches the slug", and that is deliberate. Some slugs name a DEPRECATED
+    // lucide alias: `bar-chart-3` is a legal named import that renders
+    // `class="lucide lucide-chart-column"`, because lucide renamed the icon and
+    // kept the old export. The glyph is right and the spelling is history — a
+    // class-equality check fails on it and teaches the next person to "correct"
+    // a name that is fine.
+    // The palette record, not BUILDER_DOC_TYPES: `survey` and `automation` are
+    // builder doc types with no block rail at all (they mount the question
+    // builder and the flow canvas), so they have no entry here.
+    const palettes = Object.entries(DOC_TYPE_PALETTE);
+    expect(palettes.length, 'doc types with a palette').toBe(3);
+
+    for (const [docType, palette] of palettes) {
+      const { container, unmount } = render(<PageBuilder config={{ docType }} />);
+      // A doc type whose palette stopped rendering would pass everything below
+      // by iterating nothing.
+      expect(palette.length, `${docType} palette`).toBeGreaterThan(0);
+      for (const block of palette) {
+        const row = container.querySelector(`[data-part="builder-add-block"][data-block="${block}"]`);
+        expect(row, `${docType}: no palette row for ${block}`).not.toBeNull();
+        const glyph = row?.querySelector('svg')?.getAttribute('class') ?? '';
+        const slug = BLOCK_KIND_META[block].icon;
+        expect(
+          glyph.includes('lucide-square-dashed'),
+          `${docType}/${block} declares '${slug}' and drew the placeholder — add it to BLOCK_ICONS`,
+        ).toBe(slug === 'square-dashed');
+      }
+      unmount();
     }
   });
 

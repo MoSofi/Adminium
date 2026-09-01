@@ -50,10 +50,15 @@ import {
   Coins,
   FileText,
   GitBranch,
+  Heading,
   History,
   Image,
   LayoutGrid,
   LifeBuoy,
+  Minus,
+  MousePointerClick,
+  MoveVertical,
+  PanelBottom,
   Paperclip,
   PenLine,
   Percent,
@@ -66,6 +71,7 @@ import {
   SquareCheckBig,
   SquareDashed,
   Table2,
+  Text,
   TicketPercent,
   TrendingUp,
   Truck,
@@ -169,6 +175,16 @@ const BLOCK_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   image: Image,
   'life-buoy': LifeBuoy,
   'square-dashed': SquareDashed,
+  // The email flavour's message rail. Added late, and for a while every one of
+  // them resolved to the `SquareDashed` default below — six adjacent rows at the
+  // top of the email palette drawing the same glyph. `page-builder.test.tsx`
+  // now fails on an unmapped slug.
+  heading: Heading,
+  text: Text,
+  'mouse-pointer-click': MousePointerClick,
+  minus: Minus,
+  'move-vertical': MoveVertical,
+  'panel-bottom': PanelBottom,
 };
 
 
@@ -303,7 +319,10 @@ export function PageBuilder({
   const handleCanvasEvent = (event: WidgetEvent): void | Promise<unknown> => {
     let forwarded = event;
     if (event.type === 'mutate' && isDocument) {
-      const order = event.values?.['blockOrder'];
+      // Instance ids when the canvas sent them (they survive duplicate kinds),
+      // else the historical bare block ids.
+      const instanceOrder = event.values?.['blockInstanceOrder'];
+      const order = Array.isArray(instanceOrder) ? instanceOrder : event.values?.['blockOrder'];
       if (Array.isArray(order)) commitDoc(reorderDocByBlockIds(doc, order, canvasDocType));
     } else if (event.type === 'mutate' && docType === 'survey') {
       setMirror(event.values ?? null);
