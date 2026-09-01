@@ -1,5 +1,16 @@
 # @adminium/dashboard
 
+## 0.2.5
+
+### Patch Changes
+
+- @adminium/charts@0.2.5
+  - @adminium/engine@0.2.5
+  - @adminium/i18n@0.2.5
+  - @adminium/tokens@0.2.5
+  - @adminium/ui@0.2.5
+  - @adminium/widgets@0.2.5
+
 ## 0.2.4
 
 ### Patch Changes
