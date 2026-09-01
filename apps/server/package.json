@@ -30,7 +30,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "node scripts/dev.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
@@ -46,9 +46,11 @@
     "@adminium/adapter-mysql": "workspace:*",
     "@adminium/adapter-postgres": "workspace:*",
     "@adminium/adapter-sqlite": "workspace:*",
+    "@adminium/add-on-contracts": "workspace:*",
     "@adminium/engine": "workspace:*",
     "@adminium/i18n": "workspace:*",
     "@adminium/llm": "workspace:*",
+    "@adminium/manifest": "workspace:*",
     "@adminium/meta": "workspace:*",
     "@adminium/schema-import": "workspace:*",
     "@fastify/cookie": "^11.1.2",
@@ -72,7 +74,7 @@
     "zod": "catalog:"
   },
   "//optionalDependencies": [
-    "The META-STORE drivers (07-meta-store.md; 01-architecture.md \u00a74.2).",
+    "The META-STORE drivers (07-meta-store.md; 01-architecture.md §4.2).",
     "src/meta/store.ts opens the meta store with a bare `await import('pg')` /",
     "`import('mysql2')`. They are declared HERE, on the server, and not merely",
     "reached through @adminium/adapter-postgres / -mysql, because a bare",
@@ -80,8 +82,8 @@
     "Dockerfile's `pnpm deploy --filter=@adminium/server --prod` produces an",
     "isolated tree where an adapter's own dependency lands under .pnpm and is",
     "unreachable from /app/dist. Without these the published image can run only",
-    "the embedded SQLite fallback that \u00a73.1 tells people not to use in",
-    "production, while docker-compose.yml documents a postgres meta store \u2014 a",
+    "the embedded SQLite fallback that §3.1 tells people not to use in",
+    "production, while docker-compose.yml documents a postgres meta store — a",
     "crash-loop under `restart: unless-stopped`, with the printed remedy",
     "(`npm install pg`) impossible inside a non-root image.",
     "OPTIONAL, not required: both are pure JS so they always install in",
@@ -97,6 +99,7 @@
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "22.15.3",
     "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.21.0",
     "@types/ws": "^8.18.1",
     "eslint": "catalog:",
     "pino-pretty": "^13.1.3",

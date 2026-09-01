@@ -657,12 +657,59 @@ export interface AdminiumManifestsTable {
   /** marketplace | file */
   source: string;
   manifest: JsonColumn;
+  /**
+   * 17 defers licences BY NAME, so nothing reads or writes this. Shipped in
+   * 0006 and left in place by 0020 rather than dropped: it is empty, and
+   * dropping a column is the one thing a migration cannot take back.
+   */
   licenseKeyEncrypted: string | null;
   connectionId: Id | null;
   /** installed | disabled | error */
   status: string;
+  /** app | add-on (`@adminium/manifest` MANIFEST_KINDS). Added by 0020. */
+  kind: string;
   installedBy: Id | null;
   installedAt: Ts;
+  updatedAt: Ts;
+}
+
+/**
+ * Which host apps an installed add-on is attached to, and whether it is on for
+ * each (26 §4 as amended, O3 resolved to a join table — see `0020`'s header).
+ *
+ * `attached_to` holds the HOST's `manifest_key` by value rather than by FK: a
+ * generated app is not necessarily a row in `adminium_manifests` (only an
+ * INSTALLED micro-SaaS is), so an FK here would refuse the ordinary case.
+ */
+export interface AdminiumManifestAttachmentsTable {
+  id: Id;
+  manifestId: Id;
+  /** The host app's `manifest_key` (24 §5.7). */
+  attachedTo: string;
+  /** NULL = enabled on this host; epoch ms when it was switched off. */
+  disabledAt: Ts | null;
+  createdAt: Ts;
+}
+
+/**
+ * The secret a connected add-on was given — one row per connected add-on, never
+ * per attachment (26 D2/D5; see `0021`'s header).
+ *
+ * `payload` is AES-256-GCM ciphertext over the whole envelope; `expiresAt` and
+ * `scopes` sit outside it because deciding whether to refresh must not require
+ * decrypting a token. Deleted on disconnect, which keeps every table the add-on
+ * brought (24 D16).
+ */
+export interface AdminiumAddOnCredentialsTable {
+  id: Id;
+  manifestId: Id;
+  /** api-key | oauth2 */
+  kind: string;
+  /** AES-256-GCM ciphertext. Never logged, never served to a browser. */
+  payload: string;
+  expiresAt: Ts | null;
+  scopes: JsonColumn | null;
+  createdAt: Ts;
   updatedAt: Ts;
 }
 
@@ -803,6 +850,8 @@ export interface MetaDB {
   adminium_webhook_deliveries: AdminiumWebhookDeliveriesTable;
   adminium_feature_flags: AdminiumFeatureFlagsTable;
   adminium_manifests: AdminiumManifestsTable;
+  adminium_manifest_attachments: AdminiumManifestAttachmentsTable;
+  adminium_add_on_credentials: AdminiumAddOnCredentialsTable;
   adminium_changelog_seen: AdminiumChangelogSeenTable;
   adminium_locales: AdminiumLocalesTable;
   adminium_translations: AdminiumTranslationsTable;
@@ -845,6 +894,8 @@ export const META_TABLE_NAMES = [
   'adminium_webhook_deliveries',
   'adminium_feature_flags',
   'adminium_manifests',
+  'adminium_manifest_attachments',
+  'adminium_add_on_credentials',
   'adminium_changelog_seen',
   'adminium_locales',
   'adminium_translations',

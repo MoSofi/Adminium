@@ -18,7 +18,7 @@ half-configured and fail later.
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
-| `ADMINIUM_DATA_DIR` | No | `./data` | Writable directory for files, exports, backups, and the embedded meta store. |
+| `ADMINIUM_DATA_DIR` | No | `./data` | Writable directory for files, exports, backups, add-on packages, and the embedded meta store. |
 | `ADMINIUM_LOG_LEVEL` | No | `info` | `fatal` · `error` · `warn` · `info` · `debug` · `trace` |
 | `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
 | `ADMINIUM_TELEMETRY` | No | *(unset)* | Overrides the consent screen's answer. Unset = let it stand; telemetry is opt-in either way. |

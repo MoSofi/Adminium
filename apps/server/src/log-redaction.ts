@@ -87,6 +87,17 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   'secretEncrypted',
   'apiKey',
   'apiKeyEncrypted',
+  // `adminium_add_on_credentials.payload` — the AES-256-GCM envelope holding a
+  // connected add-on's API key or OAuth token pair (26 §4). The column is named
+  // for what it IS rather than for what it holds, so none of the `*Encrypted` /
+  // `*Key` / `*token` patterns above catch it, and a credential row logged
+  // anywhere would print the whole envelope. Generic enough to be worth the
+  // false positives it will cause on innocent `payload` fields: a redacted job
+  // payload in a log line costs a debugging session, an un-redacted credential
+  // costs the credential.
+  'payload',
+  'refreshToken',
+  'accessToken',
   'dsn',
   'dsnEncrypted',
   'connectionString',

@@ -284,7 +284,24 @@ const AUTO_BUCKETS: readonly {
       /\/(?:bootstrap|branding|system\/info|i18n\/manifest|i18n\/bundle\/:locale\/:namespace|me\/notifications)$/,
     bucket: 'app-shell',
   },
-  { methods: ['POST'], pattern: /\/(?:branding\/logo|imports\/upload)$/, bucket: 'file-bytes' },
+  /*
+   * `add-ons/upload` is the THIRD byte-moving POST and was in none of these.
+   *
+   * [Added 2026-08-31.] It carries a 32 MB `bodyLimit` — the largest in the
+   * server — and body parsing happens BEFORE `preValidation` and `preHandler`,
+   * so the route's own `manifests.manage` guard and the CSRF check both run
+   * after the bytes are already in the heap. The rate limiter is an
+   * `onRequest` hook and is therefore the only bound that applies before them;
+   * falling through to the general `api` bucket gave the biggest upload in the
+   * server the loosest budget in it, at 300/min keyed by IP for an anonymous
+   * caller. The `file-bytes` docblock above enumerates "the surfaces that
+   * actually move file bytes" at 30/hour; this is one of them.
+   */
+  {
+    methods: ['POST'],
+    pattern: /\/(?:branding\/logo|imports\/upload|add-ons\/upload)$/,
+    bucket: 'file-bytes',
+  },
   {
     methods: ['GET'],
     pattern: /\/(?:imports\/:id\/error-report|exports\/:id\/download)$/,

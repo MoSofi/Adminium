@@ -415,7 +415,8 @@ const ENV_HINTS: Record<string, string> = {
   PORT: 'integer between 1 and 65535 (default 4600)',
   HOST: 'bind address, e.g. 0.0.0.0 or 127.0.0.1',
   ADMINIUM_META_URL: 'optional meta-store DSN: postgres://, mysql://, or sqlite:<path>',
-  ADMINIUM_DATA_DIR: 'writable directory for files, exports, and backups (default ./data)',
+  ADMINIUM_DATA_DIR:
+    'writable directory for files, exports, backups, and add-on packages (default ./data)',
   ADMINIUM_LOG_LEVEL: `one of ${LOG_LEVELS.join(', ')} (default info)`,
   ADMINIUM_STATIC_ROOT:
     'directory holding a dashboard build (its index.html) — overrides the bundled copy',

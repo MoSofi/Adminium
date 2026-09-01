@@ -73,6 +73,11 @@ const SYSTEM_PERMISSION_META: Record<
   'llm.run': { label: 'Run AI assist', category: 'operations' },
   'jobs.read': { label: 'See all background jobs', category: 'operations' },
   'jobs.manage': { label: 'Start and cancel background jobs', category: 'operations' },
+  // 26-T05. `operations` rather than `workspace`: installing an add-on runs its
+  // server half in this process (24 D13), which is closer to "start a job" than
+  // to "change a setting" — and 26 D3 exists precisely to stop it riding on
+  // `settings.manage`.
+  'manifests.manage': { label: 'Install and connect add-ons', category: 'operations' },
 };
 
 /** `users.manage` → `system:users:manage` (§5.1 spells the dot as a colon). */

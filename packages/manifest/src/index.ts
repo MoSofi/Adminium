@@ -48,6 +48,8 @@ export {
   type Capability,
   type Publisher,
   type I18nMessage,
+  type RequiredTable,
+  type RequiredColumn,
 } from './schema.js';
 
 export {
@@ -57,3 +59,14 @@ export {
   type ValidateManifestOptions,
   type ManifestIssue,
 } from './validate.js';
+
+export {
+  planInstall,
+  type InstallPlan,
+  type PlannedTable,
+  type PlannedColumn,
+  type PlannedReference,
+  type PlanProblem,
+  type SchemaModelView,
+  type TableAction,
+} from './plan.js';

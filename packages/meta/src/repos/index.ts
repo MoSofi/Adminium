@@ -28,3 +28,4 @@ export * from './email-templates.js';
 export * from './i18n-version.js';
 export * from './locales.js';
 export * from './translations.js';
+export * from './manifests.js';
