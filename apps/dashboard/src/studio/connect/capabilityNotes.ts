@@ -43,32 +43,32 @@ export function capabilityNoteCopy(code: CapabilityNoteCode): string {
   switch (code) {
     case 'mysql-approximate-row-estimates':
       return t(
-        'studio.capability.mysqlApproxRows',
+        'studio:capability.mysqlApproxRows',
         'MySQL row counts are storage-engine estimates (they can drift up to ±40%) — shown with ≈.',
       );
     case 'mysql-weaker-fk-enum-metadata':
       return t(
-        'studio.capability.mysqlFkEnum',
+        'studio:capability.mysqlFkEnum',
         'MySQL FK/enum metadata is weaker: MyISAM tables declare no foreign keys, enums are per-column enum(…) types, and CHECK constraints need MySQL 8.0.16+ / MariaDB 10.2+.',
       );
     case 'sqlite-check-enum-synthesis':
       return t(
-        'studio.capability.sqliteCheckEnums',
+        'studio:capability.sqliteCheckEnums',
         'SQLite has no native enum type — enums are synthesized from CHECK (col IN (…)) constraints.',
       );
     case 'sqlite-no-comments':
       return t(
-        'studio.capability.sqliteNoComments',
+        'studio:capability.sqliteNoComments',
         'SQLite has no column comments — use the schema remap editor to add labels.',
       );
     case 'import-no-row-counts':
       return t(
-        'studio.capability.importNoRowCounts',
+        'studio:capability.importNoRowCounts',
         'Schema files carry no row counts — the tables list shows — instead of made-up numbers.',
       );
     case 'import-no-live-health':
       return t(
-        'studio.capability.importNoLiveHealth',
+        'studio:capability.importNoLiveHealth',
         'No live database connection — health checks and schema-drift detection are unavailable for this source.',
       );
   }
@@ -96,18 +96,18 @@ export function rowEstimateTooltip(
   const quality = rowEstimateQualityForSource(source);
   if (quality === 'none') {
     return t(
-      'studio.capability.rowsUnavailable',
+      'studio:capability.rowsUnavailable',
       'Schema files have no live database — row counts are unknown until you connect one.',
     );
   }
   if (estimate === null) {
     if (source.kind === 'live' && source.engine === 'sqlite') {
-      return t('studio.capability.rowsRunAnalyze', 'No estimate yet — run ANALYZE on the database for row counts.');
+      return t('studio:capability.rowsRunAnalyze', 'No estimate yet — run ANALYZE on the database for row counts.');
     }
-    return t('studio.capability.rowsNoEstimate', 'The engine reported no estimate for this table.');
+    return t('studio:capability.rowsNoEstimate', 'The engine reported no estimate for this table.');
   }
   if (quality === 'approximate') {
-    return t('studio.capability.rowsApproximate', 'Storage-engine estimate — can drift up to ±40% on InnoDB.');
+    return t('studio:capability.rowsApproximate', 'Storage-engine estimate — can drift up to ±40% on InnoDB.');
   }
   return null;
 }

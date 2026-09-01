@@ -60,19 +60,19 @@ export type WizardStepId = (typeof WIZARD_STEP_IDS)[number];
 export function wizardStepLabel(id: WizardStepId): string {
   switch (id) {
     case 'intent':
-      return t('studio.wizard.step.intent', 'Intent');
+      return t('studio:wizard.step.intent', 'Intent');
     case 'source':
-      return t('studio.wizard.step.source', 'Source');
+      return t('studio:wizard.step.source', 'Source');
     case 'test':
-      return t('studio.wizard.step.test', 'Analyze');
+      return t('studio:wizard.step.test', 'Analyze');
     case 'tables':
-      return t('studio.wizard.step.tables', 'Tables');
+      return t('studio:wizard.step.tables', 'Tables');
     case 'meta':
-      return t('studio.wizard.step.meta', 'Meta storage');
+      return t('studio:wizard.step.meta', 'Meta storage');
     case 'enrich':
-      return t('studio.wizard.step.enrich', 'Enrich');
+      return t('studio:wizard.step.enrich', 'Enrich');
     case 'generate':
-      return t('studio.wizard.step.generate', 'Generate');
+      return t('studio:wizard.step.generate', 'Generate');
   }
 }
 
@@ -87,11 +87,11 @@ export const SOURCE_ENGINES: readonly ConnectionEngine[] = ['postgres', 'mysql',
 export function engineLabel(engine: ConnectionEngine): string {
   switch (engine) {
     case 'postgres':
-      return t('studio.source.engine.postgres', 'PostgreSQL');
+      return t('studio:source.engine.postgres', 'PostgreSQL');
     case 'mysql':
-      return t('studio.source.engine.mysql', 'MySQL / MariaDB');
+      return t('studio:source.engine.mysql', 'MySQL / MariaDB');
     case 'sqlite':
-      return t('studio.source.engine.sqlite', 'SQLite');
+      return t('studio:source.engine.sqlite', 'SQLite');
   }
 }
 
@@ -160,18 +160,18 @@ export function dsnValidationError(dsn: string): string | null {
   const code = dsnValidationCode(dsn, SOURCE_ENGINES);
   if (code === null) return null;
   return code === 'invalid-scheme'
-    ? t('studio.source.dsn.invalidScheme', 'Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:')
-    : t('studio.source.dsn.incomplete', 'Add host and database, e.g. postgres://user@host:5432/db');
+    ? t('studio:source.dsn.invalidScheme', 'Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:')
+    : t('studio:source.dsn.incomplete', 'Add host and database, e.g. postgres://user@host:5432/db');
 }
 
 /** The translated copy the lifted `ConnectionStringField` renders per code. */
 export function dsnErrorText(): Record<'invalid-scheme' | 'incomplete', string> {
   return {
     'invalid-scheme': t(
-      'studio.source.dsn.invalidScheme',
+      'studio:source.dsn.invalidScheme',
       'Unrecognized scheme — expected postgres://, mysql://, mariadb:// or sqlite:',
     ),
-    incomplete: t('studio.source.dsn.incomplete', 'Add host and database, e.g. postgres://user@host:5432/db'),
+    incomplete: t('studio:source.dsn.incomplete', 'Add host and database, e.g. postgres://user@host:5432/db'),
   };
 }
 
@@ -248,21 +248,21 @@ export function fileFormatFromImportFormat(format: string): FileFormat | null {
 export function fileFormatLabel(format: FileFormat): string {
   switch (format) {
     case 'sql':
-      return t('studio.source.format.sql', 'SQL DDL / pg_dump');
+      return t('studio:source.format.sql', 'SQL DDL / pg_dump');
     case 'prisma':
-      return t('studio.source.format.prisma', 'Prisma schema');
+      return t('studio:source.format.prisma', 'Prisma schema');
     case 'drizzle':
-      return t('studio.source.format.drizzle', 'Drizzle ORM');
+      return t('studio:source.format.drizzle', 'Drizzle ORM');
     case 'typeorm':
-      return t('studio.source.format.typeorm', 'TypeORM entities');
+      return t('studio:source.format.typeorm', 'TypeORM entities');
     case 'sequelize':
-      return t('studio.source.format.sequelize', 'Sequelize models');
+      return t('studio:source.format.sequelize', 'Sequelize models');
     case 'rails':
-      return t('studio.source.format.rails', 'Rails schema.rb');
+      return t('studio:source.format.rails', 'Rails schema.rb');
     case 'django':
-      return t('studio.source.format.django', 'Django models.py');
+      return t('studio:source.format.django', 'Django models.py');
     case 'json':
-      return t('studio.source.format.json', 'Adminium JSON');
+      return t('studio:source.format.json', 'Adminium JSON');
   }
 }
 
@@ -330,19 +330,19 @@ export function sameDbDisabledReason(input: {
 }): string | null {
   if (input.sourceIsFile) {
     return t(
-      'studio.meta.sameDb.disabledFile',
+      'studio:meta.sameDb.disabledFile',
       'A schema file has no live database — choose a separate database for Adminium’s own tables.',
     );
   }
   if (input.readOnly || input.privileges?.canWrite === false) {
     return t(
-      'studio.meta.sameDb.disabledReadOnly',
+      'studio:meta.sameDb.disabledReadOnly',
       'Your role is read-only — Adminium never writes to this database. Choose a separate database for Adminium’s own tables.',
     );
   }
   if (input.privileges !== null && !input.privileges.canDDL) {
     return t(
-      'studio.meta.sameDb.disabledNoDdl',
+      'studio:meta.sameDb.disabledNoDdl',
       'This role cannot run DDL — Adminium migrations need CREATE TABLE. Choose a separate database for Adminium’s own tables.',
     );
   }
@@ -355,31 +355,31 @@ export function sameDbDisabledReason(input: {
 export function hintForErrorCode(code: string): string {
   switch (code) {
     case 'AUTH':
-      return t('studio.test.hint.auth', 'Authentication failed — check the user name and password in your DSN.');
+      return t('studio:test.hint.auth', 'Authentication failed — check the user name and password in your DSN.');
     case 'HOST_UNREACHABLE':
       return t(
-        'studio.test.hint.hostUnreachable',
+        'studio:test.hint.hostUnreachable',
         'Host unreachable — check the hostname and port, and that the database accepts connections from this machine (allowlist our IPs).',
       );
     case 'TLS':
       return t(
-        'studio.test.hint.tls',
+        'studio:test.hint.tls',
         'TLS negotiation failed — try sslmode=require, or upload the CA certificate your server expects.',
       );
     case 'PERMISSION':
       return t(
-        'studio.test.hint.permission',
+        'studio:test.hint.permission',
         'The role connected but lacks schema-read privileges — grant USAGE on the schema to your introspection role.',
       );
     case 'TIMEOUT':
-      return t('studio.test.hint.timeout', 'The database did not answer in time — check network path and load, then retry.');
+      return t('studio:test.hint.timeout', 'The database did not answer in time — check network path and load, then retry.');
     case 'META_PLACEMENT_INVALID':
       return t(
-        'studio.test.hint.metaPlacement',
+        'studio:test.hint.metaPlacement',
         'This source cannot host Adminium’s meta tables — continue with a separate meta database.',
       );
     default:
-      return t('studio.test.hint.unknown', 'Connection failed — verify the DSN and retry.');
+      return t('studio:test.hint.unknown', 'Connection failed — verify the DSN and retry.');
   }
 }
 

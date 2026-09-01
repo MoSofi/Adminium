@@ -27,7 +27,7 @@
 import { createI18n, type CreateI18nOptions, type I18nInstance } from './create-i18n.js';
 import { tagForLocale, type LocaleId } from './locales.js';
 import { bumpI18nRevision } from './revision.js';
-import type { Namespace, ResourceBundle } from './resources/index.js';
+import type { Namespace, ResourceBundle } from './resources/namespaces.js';
 
 /** `tag → namespace → flat dotted key → message`. Sparse: only overrides. */
 export type OverrideMap = Readonly<

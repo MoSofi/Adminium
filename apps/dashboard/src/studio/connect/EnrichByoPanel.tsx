@@ -43,7 +43,7 @@ export interface EnrichByoPanelProps {
 function tokenLabel(tokenEstimate: number): string {
   const tag = getI18nInstance()?.language ?? 'en-US';
   const formatted = getFormatters(tag).number(tokenEstimate);
-  return t('studio.enrich.byo.tokenChip', '≈ {tokens} tokens', { tokens: formatted });
+  return t('studio:enrich.byo.tokenChip', '≈ {tokens} tokens', { tokens: formatted });
 }
 
 export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview }: EnrichByoPanelProps) {
@@ -85,7 +85,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
             message:
               cause instanceof Error
                 ? cause.message
-                : t('studio.enrich.byo.requestFailed', 'Could not reach the server to validate — retry.'),
+                : t('studio:enrich.byo.requestFailed', 'Could not reach the server to validate — retry.'),
           },
         ],
         warnings: [],
@@ -104,8 +104,8 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
     if (chunk === undefined) return null;
     const state = ui[index] ?? EMPTY_CHUNK;
     const viewerLabel = chunked
-      ? t('studio.enrich.byo.promptLabelN', 'Enrichment prompt {index} of {total}', { index: String(chunk.index), total: String(chunk.total) })
-      : t('studio.enrich.byo.promptLabel', 'Enrichment prompt');
+      ? t('studio:enrich.byo.promptLabelN', 'Enrichment prompt {index} of {total}', { index: String(chunk.index), total: String(chunk.total) })
+      : t('studio:enrich.byo.promptLabel', 'Enrichment prompt');
 
     return (
       <div className="flex flex-col gap-3">
@@ -114,8 +114,8 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
           <div className="ms-auto flex items-center gap-2">
             <CopyButton
               value={chunk.byo}
-              label={t('studio.enrich.byo.copyPrompt', 'Copy prompt')}
-              copiedLabel={t('studio.enrich.byo.copyPromptDone', 'Prompt copied')}
+              label={t('studio:enrich.byo.copyPrompt', 'Copy prompt')}
+              copiedLabel={t('studio:enrich.byo.copyPromptDone', 'Prompt copied')}
             />
             <Button
               type="button"
@@ -125,7 +125,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
             >
               <span className="flex items-center gap-1.5">
                 <Download aria-hidden="true" className="size-3.5" />
-                {t('studio.enrich.byo.download', 'Download .md')}
+                {t('studio:enrich.byo.download', 'Download .md')}
               </span>
             </Button>
           </div>
@@ -135,7 +135,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
 
         <p className="text-body-sm text-fg-muted">
           {t(
-            'studio.enrich.byo.guidance',
+            'studio:enrich.byo.guidance',
             'Run this in any AI tool — Claude Code, ChatGPT, anything. Paste the JSON it returns below.',
           )}
         </p>
@@ -145,8 +145,8 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
           rows={6}
           value={state.text}
           onChange={(event) => setText(index, event.currentTarget.value)}
-          aria-label={t('studio.enrich.byo.pasteLabel', 'Paste the JSON response')}
-          placeholder={t('studio.enrich.byo.pastePlaceholder', 'Paste the JSON response here…')}
+          aria-label={t('studio:enrich.byo.pasteLabel', 'Paste the JSON response')}
+          placeholder={t('studio:enrich.byo.pastePlaceholder', 'Paste the JSON response here…')}
           error={state.status === 'error'}
         />
         <Dropzone accept=".json,application/json" onFile={(file) => readDropped(index, file)} />
@@ -160,14 +160,14 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
             disabled={state.text.trim().length === 0}
             onClick={() => void validateChunk(index)}
           >
-            {t('studio.enrich.byo.validate', 'Validate')}
+            {t('studio:enrich.byo.validate', 'Validate')}
           </Button>
           {state.status === 'valid' ? (
             <span className="flex items-center gap-1.5 text-body-sm font-semibold text-pos">
               <CheckCircle2 aria-hidden="true" className="size-4" />
               {chunked
-                ? t('studio.enrich.byo.chunkValid', 'Chunk {index} validated', { index: String(chunk.index) })
-                : t('studio.enrich.byo.valid', 'Response validated')}
+                ? t('studio:enrich.byo.chunkValid', 'Chunk {index} validated', { index: String(chunk.index) })
+                : t('studio:enrich.byo.valid', 'Response validated')}
             </span>
           ) : null}
         </div>
@@ -178,7 +178,7 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
 
         {state.status === 'valid' && state.warnings.length > 0 ? (
           <p className="text-caption text-fg-muted">
-            {t('studio.enrich.byo.droppedItems', '{count} suggestions were dropped during validation — review shows the rest.', { count: String(state.warnings.length) })}
+            {t('studio:enrich.byo.droppedItems', '{count} suggestions were dropped during validation — review shows the rest.', { count: String(state.warnings.length) })}
           </p>
         ) : null}
       </div>
@@ -189,13 +189,13 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
     <div className="flex flex-col gap-4">
       {chunked ? (
         <Tabs value={String(active)} onValueChange={(value) => setActive(Number(value))}>
-          <TabsList aria-label={t('studio.enrich.byo.chunkTabs', 'Prompt chunks')}>
+          <TabsList aria-label={t('studio:enrich.byo.chunkTabs', 'Prompt chunks')}>
             {chunks.map((chunk, index) => (
               <TabsTrigger key={chunk.index} value={String(index)}>
                 {ui[index]?.status === 'valid' ? (
                   <CheckCircle2 aria-hidden="true" className="me-1.5 size-3.5 text-pos" />
                 ) : null}
-                {t('studio.enrich.byo.chunkTab', 'Prompt {index}', { index: String(chunk.index) })}
+                {t('studio:enrich.byo.chunkTab', 'Prompt {index}', { index: String(chunk.index) })}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -216,31 +216,31 @@ export function EnrichByoPanel({ runId, chunks, tokenEstimate, onContinueReview 
             <div className="flex flex-col gap-0.5">
               <p className="text-body-sm font-semibold text-fg">
                 {chunked
-                  ? t('studio.enrich.byo.mergedTitle', 'All {count} chunks validated and merged', { count: String(chunks.length) })
-                  : t('studio.enrich.byo.mergedTitleSingle', 'Response validated')}
+                  ? t('studio:enrich.byo.mergedTitle', 'All {count} chunks validated and merged', { count: String(chunks.length) })
+                  : t('studio:enrich.byo.mergedTitleSingle', 'Response validated')}
               </p>
               <p className="text-caption text-fg-muted">
-                {t('studio.enrich.byo.mergedBody', 'Suggestions are ready to review against the heuristic baseline.')}
+                {t('studio:enrich.byo.mergedBody', 'Suggestions are ready to review against the heuristic baseline.')}
               </p>
             </div>
           </div>
           <div>
             <Button type="button" onClick={() => onContinueReview(runId)}>
-              {t('studio.enrich.byo.continueReview', 'Continue to review')}
+              {t('studio:enrich.byo.continueReview', 'Continue to review')}
             </Button>
           </div>
         </div>
       ) : (
         <Alert
           tone="info"
-          title={t('studio.enrich.byo.pendingTitle', 'Validate every prompt to continue')}
+          title={t('studio:enrich.byo.pendingTitle', 'Validate every prompt to continue')}
           body={
             chunked
               ? t(
-                  'studio.enrich.byo.pendingBodyChunked',
+                  'studio:enrich.byo.pendingBodyChunked',
                   'Each chunk must validate before the suggestions merge. Paste and validate every prompt above.',
                 )
-              : t('studio.enrich.byo.pendingBody', 'Paste the JSON response above and validate it to continue to review.')
+              : t('studio:enrich.byo.pendingBody', 'Paste the JSON response above and validate it to continue to review.')
           }
         />
       )}

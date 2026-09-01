@@ -51,18 +51,18 @@ import type { WizardState } from '../wizardState.js';
 function providerDescription(input: { providerAvailable: boolean; networkAllowed: boolean }): string {
   if (input.providerAvailable) {
     return t(
-      'studio.enrich.provider.description',
+      'studio:enrich.provider.description',
       'Run enrichment now against your configured provider. You review every suggestion as a diff.',
     );
   }
   if (!input.networkAllowed) {
     return t(
-      'studio.enrich.provider.networkDisabled',
+      'studio:enrich.provider.networkDisabled',
       'This Adminium has no outbound internet access, so it cannot reach a provider API. Use the copy-paste round-trip instead — same prompt, same review.',
     );
   }
   return t(
-    'studio.enrich.provider.unconfigured',
+    'studio:enrich.provider.unconfigured',
     'No AI provider is configured yet — copy a prompt to your own tool below, or configure a provider first.',
   );
 }
@@ -160,7 +160,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
       setCreated({
         runId: result.run.id,
         path,
-        provider: result.run.provider ?? t('studio.enrich.providerFallback', 'your AI provider'),
+        provider: result.run.provider ?? t('studio:enrich.providerFallback', 'your AI provider'),
         model: result.run.model ?? '',
         chunks: result.prompt.chunks,
         tokenEstimate: result.prompt.tokenEstimate,
@@ -169,7 +169,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
       setCreateError(
         cause instanceof ApiError
           ? cause.message
-          : t('studio.enrich.createFailed', 'Could not build the enrichment prompt — retry.'),
+          : t('studio:enrich.createFailed', 'Could not build the enrichment prompt — retry.'),
       );
     } finally {
       setCreating(false);
@@ -183,10 +183,10 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
 
   const header = (
     <div>
-      <h2 className="text-section text-fg">{t('studio.enrich.title', 'Enrich with AI')}</h2>
+      <h2 className="text-section text-fg">{t('studio:enrich.title', 'Enrich with AI')}</h2>
       <p className="mt-1 text-body-sm text-fg-muted">
         {t(
-          'studio.enrich.subtitle',
+          'studio:enrich.subtitle',
           'Optionally refine the generated labels, groups, enums and dashboards with an LLM. The heuristic baseline works without it — this only adds suggestions you review before anything applies.',
         )}
       </p>
@@ -196,13 +196,13 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
   // --- schema-file / no live connection: enrichment needs a snapshot ---------
   if (sourceIsFile || connectionId === null) {
     return (
-      <section aria-label={t('studio.enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
+      <section aria-label={t('studio:enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
         {header}
         <Alert
           tone="info"
-          title={t('studio.enrich.fileTitle', 'AI enrichment needs a live database')}
+          title={t('studio:enrich.fileTitle', 'AI enrichment needs a live database')}
           body={t(
-            'studio.enrich.fileBody',
+            'studio:enrich.fileBody',
             'Schema-file sources have no snapshot to enrich yet. Connect a live database to use AI enrichment, or continue — the heuristic baseline still generates a complete app.',
           )}
         />
@@ -213,7 +213,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
   // --- direct-path progress --------------------------------------------------
   if (created !== null && created.path === 'provider') {
     return (
-      <section aria-label={t('studio.enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
+      <section aria-label={t('studio:enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
         <EnrichDirectProgress
           runId={created.runId}
           provider={created.provider}
@@ -229,11 +229,11 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
   // --- BYO round-trip --------------------------------------------------------
   if (created !== null && created.path === 'byo') {
     return (
-      <section aria-label={t('studio.enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
+      <section aria-label={t('studio:enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           {header}
           <Button type="button" variant="ghost" size="sm" onClick={startOver}>
-            {t('studio.enrich.startOver', 'Start over')}
+            {t('studio:enrich.startOver', 'Start over')}
           </Button>
         </div>
         <EnrichByoPanel
@@ -248,11 +248,11 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
 
   // --- choose intent + shared options ----------------------------------------
   return (
-    <section aria-label={t('studio.enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
+    <section aria-label={t('studio:enrich.title', 'Enrich with AI')} className="flex flex-col gap-4">
       {header}
 
       <RadioGroup
-        aria-label={t('studio.enrich.intentLabel', 'How would you like to enrich?')}
+        aria-label={t('studio:enrich.intentLabel', 'How would you like to enrich?')}
         value={intent ?? ''}
         onValueChange={(value) => chooseIntent(value as EnrichIntent)}
         className="grid gap-2.5"
@@ -267,7 +267,7 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
               key="provider"
               value="provider"
               disabled={!providerAvailable}
-              title={t('studio.enrich.provider.title', 'Use my AI provider')}
+              title={t('studio:enrich.provider.title', 'Use my AI provider')}
               description={providerDescription({ providerAvailable, networkAllowed: providerApi.enabled })}
               icon={<Sparkles />}
             />
@@ -277,11 +277,11 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
               value="byo"
               title={
                 byoFirst
-                  ? t('studio.enrich.byo.cardTitleRecommended', 'Copy a prompt to my own AI tool — recommended')
-                  : t('studio.enrich.byo.cardTitle', 'Copy a prompt to my own AI tool')
+                  ? t('studio:enrich.byo.cardTitleRecommended', 'Copy a prompt to my own AI tool — recommended')
+                  : t('studio:enrich.byo.cardTitle', 'Copy a prompt to my own AI tool')
               }
               description={t(
-                'studio.enrich.byo.cardDescription',
+                'studio:enrich.byo.cardDescription',
                 'Copy a self-contained prompt into Claude Code, ChatGPT, anything — then paste the JSON back. No key needed, nothing leaves this machine automatically.',
               )}
               icon={<ClipboardCopy />}
@@ -290,9 +290,9 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
             <RadioCard
               key="skip"
               value="skip"
-              title={t('studio.enrich.skip.title', 'Skip — use heuristics only')}
+              title={t('studio:enrich.skip.title', 'Skip — use heuristics only')}
               description={t(
-                'studio.enrich.skip.description',
+                'studio:enrich.skip.description',
                 'Generate from the heuristic baseline. You can enrich later from Settings → AI — skipping is never penalized.',
               )}
               icon={<CircleSlash />}
@@ -307,9 +307,9 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
           is right there. */}
       {!providerAvailable && providerApi.enabled ? (
         <p className="text-caption text-fg-muted">
-          {t('studio.enrich.provider.settingsHint', 'Want to run it directly?')}{' '}
+          {t('studio:enrich.provider.settingsHint', 'Want to run it directly?')}{' '}
           <a className="font-semibold text-accent underline" href="/studio/settings/ai">
-            {t('studio.enrich.provider.settingsLink', 'Configure a provider in Settings → AI')}
+            {t('studio:enrich.provider.settingsLink', 'Configure a provider in Settings → AI')}
           </a>
         </p>
       ) : null}
@@ -328,16 +328,16 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
       {intent === 'skip' ? (
         <Alert
           tone="info"
-          title={t('studio.enrich.skip.confirmTitle', 'Continuing with heuristics')}
+          title={t('studio:enrich.skip.confirmTitle', 'Continuing with heuristics')}
           body={t(
-            'studio.enrich.skip.confirmBody',
+            'studio:enrich.skip.confirmBody',
             'The generated app will use the heuristic labels, groups and dashboards. Continue to generate — you can run AI enrichment any time from Settings → AI.',
           )}
         />
       ) : null}
 
       {createError !== null ? (
-        <Alert tone="danger" role="alert" title={t('studio.enrich.createFailedTitle', 'Could not start')} body={createError} />
+        <Alert tone="danger" role="alert" title={t('studio:enrich.createFailedTitle', 'Could not start')} body={createError} />
       ) : null}
 
       {intent === 'provider' || intent === 'byo' ? (
@@ -349,12 +349,12 @@ export function EnrichStep({ state, onPatch, onOpenReview, pollIntervalMs }: Enr
             onClick={() => void startRun(intent)}
           >
             {intent === 'provider'
-              ? t('studio.enrich.startProvider', 'Start enrichment')
-              : t('studio.enrich.generatePrompt', 'Generate prompt')}
+              ? t('studio:enrich.startProvider', 'Start enrichment')
+              : t('studio:enrich.generatePrompt', 'Generate prompt')}
           </Button>
           {sections.length === 0 ? (
             <p className="mt-2 text-caption text-danger">
-              {t('studio.enrich.noSections', 'Select at least one decision group to enrich.')}
+              {t('studio:enrich.noSections', 'Select at least one decision group to enrich.')}
             </p>
           ) : null}
         </div>
@@ -382,7 +382,7 @@ function SharedOptions({ sections, locales, sampling, onToggleSection, onToggleL
     <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface-2 p-3.5">
       <fieldset className="flex flex-col gap-2">
         <legend className="text-body-sm font-semibold text-fg">
-          {t('studio.enrich.sectionsLegend', 'What should the AI decide?')}
+          {t('studio:enrich.sectionsLegend', 'What should the AI decide?')}
         </legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {ENRICH_SECTIONS.map((section) => (
@@ -402,7 +402,7 @@ function SharedOptions({ sections, locales, sampling, onToggleSection, onToggleL
 
       <fieldset className="flex flex-col gap-2">
         <legend className="text-body-sm font-semibold text-fg">
-          {t('studio.enrich.localesLegend', 'Translate labels into')}
+          {t('studio:enrich.localesLegend', 'Translate labels into')}
         </legend>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {ENRICH_LOCALES.map((locale) => {
@@ -419,7 +419,7 @@ function SharedOptions({ sections, locales, sampling, onToggleSection, onToggleL
                   {localeLabel(locale)}
                   {locked ? (
                     <span className="ms-1 text-caption text-fg-subtle">
-                      {t('studio.enrich.localeLocked', '(required)')}
+                      {t('studio:enrich.localeLocked', '(required)')}
                     </span>
                   ) : null}
                 </Label>
@@ -438,19 +438,19 @@ function SharedOptions({ sections, locales, sampling, onToggleSection, onToggleL
           />
           <Label htmlFor="enrich-sampling" className="flex flex-col gap-0.5">
             <span className="text-body-sm font-semibold text-fg">
-              {t('studio.enrich.samplingTitle', 'Include sample values')}
+              {t('studio:enrich.samplingTitle', 'Include sample values')}
             </span>
             <span className="text-caption text-fg-muted">
-              {t('studio.enrich.samplingHint', 'Includes up to 20 real values per non-PII column in the prompt.')}
+              {t('studio:enrich.samplingHint', 'Includes up to 20 real values per non-PII column in the prompt.')}
             </span>
           </Label>
         </div>
         {sampling ? (
           <Alert
             tone="warn"
-            title={t('studio.enrich.samplingPreviewTitle', 'What leaves this machine')}
+            title={t('studio:enrich.samplingPreviewTitle', 'What leaves this machine')}
             body={t(
-              'studio.enrich.samplingPreviewBody',
+              'studio:enrich.samplingPreviewBody',
               'Up to 20 most-common values per non-PII column, plus min/max for numeric and date columns. PII-flagged columns are never sampled. Everything else stays aggregate-only. Review the exact prompt before copying (BYO) — nothing is sent without your action.',
             )}
           />

@@ -2,18 +2,24 @@
 /**
  * i18next factory (10-i18n-theming.md §2.3): i18next + IcuFormat (ICU
  * MessageFormat for every message — i18next's own plural-suffix system is
- * disabled by the ICU format plugin) + an inline lazy backend. The bundled
- * en-US namespaces ship synchronously (they are the fallback text and must
- * never be async); every other locale/namespace pair is fetched through
- * `loadBundle` — the dashboard passes a Vite dynamic-import loader so each
- * locale becomes its own chunk.
+ * disabled by the ICU format plugin) + an inline lazy backend.
+ *
+ * The instance starts with the EAGER namespaces only: en-US's ship
+ * synchronously (they are the fallback text and must never be async) and the
+ * active locale's are fetched through `loadBundle` before `init` resolves —
+ * the dashboard passes a Vite dynamic-import loader, so each locale becomes
+ * its own chunk. A DEFERRED namespace (`studio`) is in neither set: the
+ * surface that owns it calls `instance.loadNamespaces()` and waits, which is
+ * what keeps the admin console's text out of every user's first load. See
+ * ./resources/namespaces.ts.
  */
 import i18next, { type BackendModule, type i18n, type ReadCallback, type Resource } from 'i18next';
 import { IcuFormat } from './icu-format.js';
 
 import { localeEntry, tagForLocale, type LocaleId } from './locales.js';
 import { bumpI18nRevision } from './revision.js';
-import { EN_US_RESOURCES, NAMESPACES, type Namespace, type ResourceBundle } from './resources/index.js';
+import { EN_US_EAGER } from './resources/eager.js';
+import { EAGER_NAMESPACES, type Namespace, type ResourceBundle } from './resources/namespaces.js';
 
 /** The concrete i18next instance type consumers hold (re-exported so callers never import i18next directly). */
 export type I18nInstance = i18n;
@@ -86,7 +92,7 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
   const tag = tagForLocale(opts.locale);
 
   // DEEP clone, not a spread (23-T01). A shallow spread leaves
-  // `resources['en-US'].common === EN_US_RESOURCES.common`, and i18next's
+  // `resources['en-US'].common === EN_US_EAGER.common`, and i18next's
   // ResourceStore takes `this.data = data` with no copy of its own — so the
   // store would alias the compiled ES-module singletons. Any later merge of
   // runtime overrides (23 §4.3) would then permanently rewrite the compiled
@@ -94,7 +100,7 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
   // reset-to-built-in has nothing to restore, and on the server every
   // subsequently created instance inherits another caller's overrides.
   const resources: Resource = {
-    'en-US': structuredClone(EN_US_RESOURCES) as Resource[string],
+    'en-US': structuredClone(EN_US_EAGER) as Resource[string],
   };
   for (const [resourceTag, byNs] of Object.entries(opts.resources ?? {})) {
     if (byNs === undefined) continue;
@@ -113,7 +119,10 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
   await instance.init({
     lng: tag,
     fallbackLng: 'en-US',
-    ns: [...NAMESPACES],
+    // EAGER only. `studio` joins `options.ns` the first time something calls
+    // `loadNamespaces('studio')`, which is also what makes a later
+    // `switchLocale` load the new language's copy of it.
+    ns: [...EAGER_NAMESPACES],
     defaultNS: 'common',
     resources,
     // Bundled en-US coexists with the lazy backend for other locales.
@@ -155,6 +164,11 @@ export async function createI18n(opts: CreateI18nOptions): Promise<I18nInstance>
  * Preloaded live locale switch (§7.4): the target locale's namespaces load
  * BEFORE `changeLanguage` fires, so the UI never renders a half-translated
  * frame while `dir`/`lang` flip.
+ *
+ * `loadLanguages` covers whatever is in `options.ns` at the time, which is the
+ * eager set plus any deferred namespace already pulled in — so switching
+ * locale inside the Studio reloads the Studio's text, and switching locale
+ * outside it does not fetch a console the user has not opened.
  */
 export async function switchLocale(instance: I18nInstance, locale: LocaleId): Promise<void> {
   const { tag } = localeEntry(locale);

@@ -159,9 +159,9 @@ export function PublicApiPage() {
      */
     <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
-        title={t('studio.publicApi.title', 'Public API')}
+        title={t('studio:publicApi.title', 'Public API')}
         subtitle={t(
-          'studio.publicApi.subtitle',
+          'studio:publicApi.subtitle',
           'Let your own customer- or staff-facing pages read this database, through a scope you define.',
         )}
       />
@@ -175,7 +175,7 @@ export function PublicApiPage() {
       />
 
       {error !== null && (
-        <Alert tone="danger" title={t('studio.publicApi.error', 'Something went wrong')}>
+        <Alert tone="danger" title={t('studio:publicApi.error', 'Something went wrong')}>
           {error}
         </Alert>
       )}
@@ -228,16 +228,16 @@ export function PublicApiPage() {
           onOpenChange={(next) => {
             if (!next) setPendingDelete(null);
           }}
-          title={t('studio.publicApi.scopes.deleteTitle', 'Delete this scope')}
+          title={t('studio:publicApi.scopes.deleteTitle', 'Delete this scope')}
           body={t(
-            'studio.publicApi.scopes.deleteBody',
+            'studio:publicApi.scopes.deleteBody',
             'Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.',
           )}
           confirmWord={pendingDelete.name}
-          promptLabel={t('studio.publicApi.scopes.deletePrompt', 'Type the scope name to confirm')}
-          confirmLabel={t('studio.publicApi.scopes.deleteConfirm', 'Delete scope')}
-          cancelLabel={t('studio.publicApi.cancel', 'Cancel')}
-          closeLabel={t('studio.publicApi.close', 'Close')}
+          promptLabel={t('studio:publicApi.scopes.deletePrompt', 'Type the scope name to confirm')}
+          confirmLabel={t('studio:publicApi.scopes.deleteConfirm', 'Delete scope')}
+          cancelLabel={t('studio:publicApi.cancel', 'Cancel')}
+          closeLabel={t('studio:publicApi.close', 'Close')}
           onConfirm={async () => {
             const target = pendingDelete;
             setPendingDelete(null);
@@ -267,7 +267,7 @@ function SurfaceCard({
       <CardHeader className="flex items-start justify-start gap-3">
         <IconTile tone="accent" size="md" icon={<Globe2 />} />
         <h2 className="text-section text-fg">
-          {t('studio.publicApi.status.heading', 'Status')}
+          {t('studio:publicApi.status.heading', 'Status')}
         </h2>
       </CardHeader>
       <CardBody>
@@ -278,19 +278,19 @@ function SurfaceCard({
            */
           <Alert
             tone="info"
-            title={t('studio.publicApi.notRegistered.title', 'Not enabled on this server')}
+            title={t('studio:publicApi.notRegistered.title', 'Not enabled on this server')}
           >
             {t(
-              'studio.publicApi.notRegistered.body',
+              'studio:publicApi.notRegistered.body',
               'Set ADMINIUM_PUBLIC_API_ORIGINS to the exact origins allowed to call it, then restart. Until then these routes are not served at all.',
             )}
           </Alert>
         ) : (
           <div className="flex flex-col gap-4">
             <FormField
-              label={t('studio.publicApi.toggle.label', 'Serve the public API')}
+              label={t('studio:publicApi.toggle.label', 'Serve the public API')}
               helper={t(
-                'studio.publicApi.toggle.hint',
+                'studio:publicApi.toggle.hint',
                 'Turning this off stops every public request immediately. Nothing is deleted — keys, scopes and data all survive.',
               )}
             >
@@ -298,12 +298,12 @@ function SurfaceCard({
                 checked={surface === 'live'}
                 disabled={busy}
                 onCheckedChange={onToggle}
-                aria-label={t('studio.publicApi.toggle.label', 'Serve the public API')}
+                aria-label={t('studio:publicApi.toggle.label', 'Serve the public API')}
               />
             </FormField>
             <div>
               <p className="text-sm text-fg-muted">
-                {t('studio.publicApi.origins.label', 'Origins allowed to call it')}
+                {t('studio:publicApi.origins.label', 'Origins allowed to call it')}
               </p>
               <ul className="mt-1 flex flex-wrap gap-2">
                 {origins.map((origin) => (
@@ -326,7 +326,7 @@ function ScopeIssues({ issues }: { issues: ScopeIssue[] }) {
   return (
     <Alert
       tone="danger"
-      title={t('studio.publicApi.scopes.issuesTitle', 'This scope did not compile')}
+      title={t('studio:publicApi.scopes.issuesTitle', 'This scope did not compile')}
     >
       <ul className="flex flex-col gap-1">
         {issues.map((issue, i) => (
@@ -370,10 +370,10 @@ function ScopesCard({
       <CardHeader className="flex items-start justify-start gap-3">
         <IconTile tone="accent" size="md" icon={<ShieldAlert />} />
         <div>
-          <h2 className="text-section text-fg">{t('studio.publicApi.scopes.title', 'Scopes')}</h2>
+          <h2 className="text-section text-fg">{t('studio:publicApi.scopes.title', 'Scopes')}</h2>
           <p className="text-sm text-fg-muted">
             {t(
-              'studio.publicApi.scopes.subtitle',
+              'studio:publicApi.scopes.subtitle',
               'A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.',
             )}
           </p>
@@ -383,9 +383,9 @@ function ScopesCard({
         {scopes.length === 0 ? (
           <EmptyState
             compact
-            title={t('studio.publicApi.scopes.emptyTitle', 'No scopes yet')}
+            title={t('studio:publicApi.scopes.emptyTitle', 'No scopes yet')}
             body={t(
-              'studio.publicApi.scopes.emptyBody',
+              'studio:publicApi.scopes.emptyBody',
               'Create one below. It is checked against your live schema before it is saved.',
             )}
           />
@@ -397,7 +397,7 @@ function ScopesCard({
                   <p className="font-medium">{scope.name}</p>
                   <p className="text-sm text-fg-muted">
                     {scope.side} · {scope.timezone} ·{' '}
-                    {t('studio.publicApi.scopes.keyCount', '{count, plural, =0 {no keys} one {# key} other {# keys}}', {
+                    {t('studio:publicApi.scopes.keyCount', '{count, plural, =0 {no keys} one {# key} other {# keys}}', {
                       count: byScope.get(scope.id)?.length ?? 0,
                     })}
                   </p>
@@ -409,7 +409,7 @@ function ScopesCard({
                     onDelete(scope);
                   }}
                 >
-                  {t('studio.publicApi.scopes.delete', 'Delete')}
+                  {t('studio:publicApi.scopes.delete', 'Delete')}
                 </Button>
               </li>
             ))}
@@ -417,14 +417,14 @@ function ScopesCard({
         )}
 
         <form
-          aria-label={t('studio.publicApi.scopes.formLabel', 'Create a scope')}
+          aria-label={t('studio:publicApi.scopes.formLabel', 'Create a scope')}
           className="mt-6 flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             onCreate({ connectionId, side: 'customer', name, document });
           }}
         >
-          <FormField label={t('studio.publicApi.scopes.nameLabel', 'Name')}>
+          <FormField label={t('studio:publicApi.scopes.nameLabel', 'Name')}>
             <Input
               value={name}
               required
@@ -433,7 +433,7 @@ function ScopesCard({
               }}
             />
           </FormField>
-          <FormField label={t('studio.publicApi.scopes.connectionLabel', 'Connection ID')}>
+          <FormField label={t('studio:publicApi.scopes.connectionLabel', 'Connection ID')}>
             <Input
               value={connectionId}
               required
@@ -443,9 +443,9 @@ function ScopesCard({
             />
           </FormField>
           <FormField
-            label={t('studio.publicApi.scopes.documentLabel', 'Scope document')}
+            label={t('studio:publicApi.scopes.documentLabel', 'Scope document')}
             helper={t(
-              'studio.publicApi.scopes.documentHint',
+              'studio:publicApi.scopes.documentHint',
               'Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.',
             )}
           >
@@ -461,7 +461,7 @@ function ScopesCard({
           </FormField>
           <div>
             <Button type="submit" disabled={busy}>
-              {t('studio.publicApi.scopes.create', 'Create scope')}
+              {t('studio:publicApi.scopes.create', 'Create scope')}
             </Button>
           </div>
         </form>
@@ -505,10 +505,10 @@ function KeysCard({
       <CardHeader className="flex items-start justify-start gap-3">
         <IconTile tone="accent" size="md" icon={<KeyRound />} />
         <div>
-          <h2 className="text-section text-fg">{t('studio.publicApi.keys.title', 'Keys')}</h2>
+          <h2 className="text-section text-fg">{t('studio:publicApi.keys.title', 'Keys')}</h2>
           <p className="text-sm text-fg-muted">
             {t(
-              'studio.publicApi.keys.subtitle',
+              'studio:publicApi.keys.subtitle',
               'These go in your page’s JavaScript, so anyone can read them. That is expected — a key can only ever do what its scope allows.',
             )}
           </p>
@@ -518,8 +518,8 @@ function KeysCard({
         {keys.length === 0 ? (
           <EmptyState
             compact
-            title={t('studio.publicApi.keys.emptyTitle', 'No keys yet')}
-            body={t('studio.publicApi.keys.emptyBody', 'Create a scope first, then mint a key for it.')}
+            title={t('studio:publicApi.keys.emptyTitle', 'No keys yet')}
+            body={t('studio:publicApi.keys.emptyBody', 'Create a scope first, then mint a key for it.')}
           />
         ) : (
           <ul className="flex flex-col gap-3">
@@ -546,7 +546,7 @@ function KeysCard({
                         onReveal(key.id);
                       }}
                     >
-                      {t('studio.publicApi.keys.reveal', 'Show key')}
+                      {t('studio:publicApi.keys.reveal', 'Show key')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -555,7 +555,7 @@ function KeysCard({
                         onRotate(key.id);
                       }}
                     >
-                      {t('studio.publicApi.keys.rotate', 'Rotate')}
+                      {t('studio:publicApi.keys.rotate', 'Rotate')}
                     </Button>
                     <Button
                       variant="destructiveSoft"
@@ -564,7 +564,7 @@ function KeysCard({
                         onRevoke(key.id);
                       }}
                     >
-                      {t('studio.publicApi.keys.revoke', 'Revoke')}
+                      {t('studio:publicApi.keys.revoke', 'Revoke')}
                     </Button>
                   </div>
                 </li>
@@ -574,14 +574,14 @@ function KeysCard({
         )}
 
         <form
-          aria-label={t('studio.publicApi.keys.formLabel', 'Create a key')}
+          aria-label={t('studio:publicApi.keys.formLabel', 'Create a key')}
           className="mt-6 flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             onCreate({ name, scopeId, ...(appKey === '' ? {} : { appKey }) });
           }}
         >
-          <FormField label={t('studio.publicApi.keys.nameLabel', 'Name')}>
+          <FormField label={t('studio:publicApi.keys.nameLabel', 'Name')}>
             <Input
               value={name}
               required
@@ -590,7 +590,7 @@ function KeysCard({
               }}
             />
           </FormField>
-          <FormField label={t('studio.publicApi.keys.scopeLabel', 'Scope')}>
+          <FormField label={t('studio:publicApi.keys.scopeLabel', 'Scope')}>
             <Select
               value={scopeId}
               required
@@ -599,7 +599,7 @@ function KeysCard({
               }}
             >
               <option value="">
-                {t('studio.publicApi.keys.scopePlaceholder', 'Choose a scope')}
+                {t('studio:publicApi.keys.scopePlaceholder', 'Choose a scope')}
               </option>
               {scopes.map((scope) => (
                 <option key={scope.id} value={scope.id}>
@@ -610,9 +610,9 @@ function KeysCard({
           </FormField>
           {appOptions.length > 0 && (
             <FormField
-              label={t('studio.publicApi.keys.appLabel', 'Bind to a hosted app surface (optional)')}
+              label={t('studio:publicApi.keys.appLabel', 'Bind to a hosted app surface (optional)')}
               helper={t(
-                'studio.publicApi.keys.appHint',
+                'studio:publicApi.keys.appHint',
                 'The app’s customer surface then serves this key itself — rotating it needs no rebuild.',
               )}
             >
@@ -622,7 +622,7 @@ function KeysCard({
                   setAppKey(event.target.value);
                 }}
               >
-                <option value="">{t('studio.publicApi.keys.appNone', 'Not bound')}</option>
+                <option value="">{t('studio:publicApi.keys.appNone', 'Not bound')}</option>
                 {appOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -633,7 +633,7 @@ function KeysCard({
           )}
           <div>
             <Button type="submit" disabled={busy || scopes.length === 0}>
-              {t('studio.publicApi.keys.create', 'Create key')}
+              {t('studio:publicApi.keys.create', 'Create key')}
             </Button>
           </div>
         </form>
@@ -655,11 +655,11 @@ function KeysCard({
         <Alert
           className="mt-6"
           tone="info"
-          title={t('studio.publicApi.keys.scopeIsAuthTitle', 'The scope is the only permission')}
+          title={t('studio:publicApi.keys.scopeIsAuthTitle', 'The scope is the only permission')}
           icon={<TriangleAlert aria-hidden />}
         >
           {t(
-            'studio.publicApi.keys.scopeIsAuthBody',
+            'studio:publicApi.keys.scopeIsAuthBody',
             'A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.',
           )}
         </Alert>

@@ -31,7 +31,7 @@ export function CopyButton({ value, label, copiedLabel, variant = 'secondary', s
     if (timer.current !== null) clearTimeout(timer.current);
   }, []);
 
-  const done = copiedLabel ?? t('studio.enrich.copied', 'Copied');
+  const done = copiedLabel ?? t('studio:enrich.copied', 'Copied');
 
   const onClick = () => {
     const text = typeof value === 'function' ? value() : value;

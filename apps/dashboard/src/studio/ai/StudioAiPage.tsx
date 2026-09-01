@@ -87,29 +87,29 @@ function fmt() {
 function providerLabel(id: ConfigurableProvider): string {
   switch (id) {
     case 'anthropic':
-      return t('studio.settingsAi.provider.anthropic.label', 'Anthropic');
+      return t('studio:settingsAi.provider.anthropic.label', 'Anthropic');
     case 'openai':
-      return t('studio.settingsAi.provider.openai.label', 'OpenAI');
+      return t('studio:settingsAi.provider.openai.label', 'OpenAI');
     case 'openai-compatible':
-      return t('studio.settingsAi.provider.openaiCompatible.label', 'OpenAI-compatible');
+      return t('studio:settingsAi.provider.openaiCompatible.label', 'OpenAI-compatible');
     case 'ollama':
-      return t('studio.settingsAi.provider.ollama.label', 'Ollama (local)');
+      return t('studio:settingsAi.provider.ollama.label', 'Ollama (local)');
   }
 }
 
 function providerDescription(id: ConfigurableProvider): string {
   switch (id) {
     case 'anthropic':
-      return t('studio.settingsAi.provider.anthropic.desc', 'Claude models via the Anthropic API.');
+      return t('studio:settingsAi.provider.anthropic.desc', 'Claude models via the Anthropic API.');
     case 'openai':
-      return t('studio.settingsAi.provider.openai.desc', 'GPT models via the OpenAI API.');
+      return t('studio:settingsAi.provider.openai.desc', 'GPT models via the OpenAI API.');
     case 'openai-compatible':
       return t(
-        'studio.settingsAi.provider.openaiCompatible.desc',
+        'studio:settingsAi.provider.openaiCompatible.desc',
         'Any endpoint that speaks the OpenAI wire format — Groq, Together, vLLM, LM Studio.',
       );
     case 'ollama':
-      return t('studio.settingsAi.provider.ollama.desc', 'Models running locally through Ollama — no key, no cloud.');
+      return t('studio:settingsAi.provider.ollama.desc', 'Models running locally through Ollama — no key, no cloud.');
   }
 }
 
@@ -129,21 +129,21 @@ const RUN_STATUS_TONE: Record<LlmRunStatus, Tone> = {
 function runStatusLabel(status: LlmRunStatus): string {
   switch (status) {
     case 'draft':
-      return t('studio.settingsAi.runStatus.draft', 'Draft');
+      return t('studio:settingsAi.runStatus.draft', 'Draft');
     case 'running':
-      return t('studio.settingsAi.runStatus.running', 'Running');
+      return t('studio:settingsAi.runStatus.running', 'Running');
     case 'awaiting_response':
-      return t('studio.settingsAi.runStatus.awaitingResponse', 'Awaiting response');
+      return t('studio:settingsAi.runStatus.awaitingResponse', 'Awaiting response');
     case 'validated':
-      return t('studio.settingsAi.runStatus.validated', 'Validated');
+      return t('studio:settingsAi.runStatus.validated', 'Validated');
     case 'applied':
-      return t('studio.settingsAi.runStatus.applied', 'Applied');
+      return t('studio:settingsAi.runStatus.applied', 'Applied');
     case 'partially_applied':
-      return t('studio.settingsAi.runStatus.partiallyApplied', 'Partially applied');
+      return t('studio:settingsAi.runStatus.partiallyApplied', 'Partially applied');
     case 'failed':
-      return t('studio.settingsAi.runStatus.failed', 'Failed');
+      return t('studio:settingsAi.runStatus.failed', 'Failed');
     case 'discarded':
-      return t('studio.settingsAi.runStatus.discarded', 'Discarded');
+      return t('studio:settingsAi.runStatus.discarded', 'Discarded');
   }
 }
 
@@ -211,12 +211,12 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
       void queryClient.invalidateQueries({ queryKey: ['llm', 'models'] });
       // Drop the raw key from local state the instant it is stored (§3.2).
       setDraft((prev) => (prev === null ? prev : { ...prev, keyDraft: '', replacingKey: false }));
-      toasts.push({ variant: 'success', title: t('studio.settingsAi.saved', 'AI provider saved') });
+      toasts.push({ variant: 'success', title: t('studio:settingsAi.saved', 'AI provider saved') });
     },
     onError: () => {
       toasts.push({
         variant: 'error',
-        title: t('studio.settingsAi.saveFailed', 'Could not save the AI provider. Try again.'),
+        title: t('studio:settingsAi.saveFailed', 'Could not save the AI provider. Try again.'),
       });
     },
   });
@@ -258,17 +258,17 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
     <div className="flex flex-col gap-4">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-section text-fg">{t('studio.settingsAi.provider.heading', 'AI provider')}</h2>
+          <h2 className="text-section text-fg">{t('studio:settingsAi.provider.heading', 'AI provider')}</h2>
           {/* 11-electron.md §8.2, LLM row: provider-API mode is "Available,
               LABELED". §6 step 4 gives the label its words. It rides beside the
               heading in every runtime, not just desktop — the direct path needs
               the internet on a self-host too, and a self-host admin choosing
               between the two paths deserves the same fact. */}
-          <Tag>{t('studio.settingsAi.provider.requiresNetwork', 'Requires internet & an API key')}</Tag>
+          <Tag>{t('studio:settingsAi.provider.requiresNetwork', 'Requires internet & an API key')}</Tag>
         </div>
         <p className="mt-0.5 text-body-sm text-fg-muted">
           {t(
-            'studio.settingsAi.provider.subtitle',
+            'studio:settingsAi.provider.subtitle',
             'Choose how Adminium reaches a model to enrich your schema. Keys are stored encrypted and never shown again.',
           )}
         </p>
@@ -281,16 +281,16 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
       {networkAllowed ? null : (
         <Alert
           tone="info"
-          title={t('studio.settingsAi.provider.networkDisabledTitle', 'Direct AI providers are turned off on this install')}
+          title={t('studio:settingsAi.provider.networkDisabledTitle', 'Direct AI providers are turned off on this install')}
           body={t(
-            'studio.settingsAi.provider.networkDisabledBody',
+            'studio:settingsAi.provider.networkDisabledBody',
             'This Adminium is configured with no outbound internet access, so it cannot reach a provider API. Use the copy-paste round-trip below — it needs no key and no network.',
           )}
         />
       )}
 
       <RadioGroup
-        aria-label={t('studio.settingsAi.provider.heading', 'AI provider')}
+        aria-label={t('studio:settingsAi.provider.heading', 'AI provider')}
         value={draft?.provider ?? ''}
         onValueChange={(next) => selectProvider(next as ConfigurableProvider)}
         className="grid gap-2.5 sm:grid-cols-2"
@@ -309,7 +309,7 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
               {...(isActive
                 ? {
                     trailing: (
-                      <Badge tone="pos">{t('studio.settingsAi.provider.active', 'Active')}</Badge>
+                      <Badge tone="pos">{t('studio:settingsAi.provider.active', 'Active')}</Badge>
                     ),
                   }
                 : {})}
@@ -324,7 +324,7 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
             <IconTile tone="accent" size="md" icon={<PlugZap />} />
             <div className="min-w-0 flex-1">
               <h3 className="text-section text-fg">
-                {t('studio.settingsAi.configure.heading', 'Configure {provider}', {
+                {t('studio:settingsAi.configure.heading', 'Configure {provider}', {
                   provider: providerLabel(draft.provider),
                 })}
               </h3>
@@ -336,12 +336,12 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
           <CardBody className="flex flex-col gap-4">
             {entry.baseUrl !== 'none' ? (
               <FormField
-                label={t('studio.settingsAi.field.baseUrl', 'Base URL')}
+                label={t('studio:settingsAi.field.baseUrl', 'Base URL')}
                 required={entry.baseUrl === 'required'}
                 helper={
                   entry.baseUrl === 'optional'
-                    ? t('studio.settingsAi.field.baseUrlOptional', 'Leave as-is unless Ollama runs on another host.')
-                    : t('studio.settingsAi.field.baseUrlHelper', 'The endpoint root that serves /chat/completions.')
+                    ? t('studio:settingsAi.field.baseUrlOptional', 'Leave as-is unless Ollama runs on another host.')
+                    : t('studio:settingsAi.field.baseUrlHelper', 'The endpoint root that serves /chat/completions.')
                 }
               >
                 <Input
@@ -376,8 +376,8 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
             ) : (
               <Alert
                 tone="info"
-                title={t('studio.settingsAi.field.noKeyTitle', 'No API key needed')}
-                body={t('studio.settingsAi.field.noKeyBody', 'Ollama runs locally, so nothing leaves this machine.')}
+                title={t('studio:settingsAi.field.noKeyTitle', 'No API key needed')}
+                body={t('studio:settingsAi.field.noKeyBody', 'Ollama runs locally, so nothing leaves this machine.')}
               />
             )}
 
@@ -387,7 +387,7 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
                 loading={saveMutation.isPending}
                 onClick={() => draft !== null && saveMutation.mutate(draft)}
               >
-                {t('studio.settingsAi.save', 'Save provider')}
+                {t('studio:settingsAi.save', 'Save provider')}
               </Button>
               <Button
                 variant="secondary"
@@ -395,11 +395,11 @@ function ProviderConfigForm({ config, networkAllowed }: { config: LlmConfig; net
                 loading={testMutation.isPending}
                 onClick={() => testMutation.mutate()}
               >
-                {t('studio.settingsAi.test', 'Test connection')}
+                {t('studio:settingsAi.test', 'Test connection')}
               </Button>
               {!canTest && draft.provider === config.provider ? (
                 <span className="text-caption text-fg-subtle">
-                  {t('studio.settingsAi.testHintDirty', 'Save your changes before testing.')}
+                  {t('studio:settingsAi.testHintDirty', 'Save your changes before testing.')}
                 </span>
               ) : null}
             </div>
@@ -442,25 +442,25 @@ function ModelField({
 
   return (
     <FormField
-      label={t('studio.settingsAi.field.model', 'Model')}
+      label={t('studio:settingsAi.field.model', 'Model')}
       required
       helper={
         entry.freeTextModel
-          ? t('studio.settingsAi.field.modelFreeText', 'Enter the exact model id your endpoint serves.')
+          ? t('studio:settingsAi.field.modelFreeText', 'Enter the exact model id your endpoint serves.')
           : useSelect && savedForSelected && liveSource === 'live'
-            ? t('studio.settingsAi.field.modelLive', 'Loaded live from the provider.')
-            : t('studio.settingsAi.field.modelStatic', 'A known-good list; type a custom id after saving to refresh it.')
+            ? t('studio:settingsAi.field.modelLive', 'Loaded live from the provider.')
+            : t('studio:settingsAi.field.modelStatic', 'A known-good list; type a custom id after saving to refresh it.')
       }
-      {...(loadingModels ? { tag: <Tag>{t('studio.settingsAi.field.modelLoading', 'Loading…')}</Tag> } : {})}
+      {...(loadingModels ? { tag: <Tag>{t('studio:settingsAi.field.modelLoading', 'Loading…')}</Tag> } : {})}
     >
       {useSelect ? (
         <Select
           mono
           value={draft.model}
           onChange={(event) => onChange(event.currentTarget.value)}
-          aria-label={t('studio.settingsAi.field.model', 'Model')}
+          aria-label={t('studio:settingsAi.field.model', 'Model')}
         >
-          <option value="">{t('studio.settingsAi.field.modelPlaceholder', 'Select a model…')}</option>
+          <option value="">{t('studio:settingsAi.field.modelPlaceholder', 'Select a model…')}</option>
           {[...extra, ...options].map((model) => (
             <option key={model.id} value={model.id}>
               {model.label}
@@ -503,18 +503,18 @@ function KeyField({
   if (hasStoredKey && !draft.replacingKey) {
     return (
       <FormField
-        label={t('studio.settingsAi.field.key', 'API key')}
-        helper={t('studio.settingsAi.field.keyStored', 'Stored encrypted. Replace it to use a different key.')}
+        label={t('studio:settingsAi.field.key', 'API key')}
+        helper={t('studio:settingsAi.field.keyStored', 'Stored encrypted. Replace it to use a different key.')}
       >
         <div className="flex items-center gap-2">
           <MonoText
             data-testid="stored-key-mask"
             className="rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-body-sm text-fg"
           >
-            {t('studio.settingsAi.field.keyMask', 'sk-…{last4}', { last4: config.apiKeyLast4 ?? '' })}
+            {t('studio:settingsAi.field.keyMask', 'sk-…{last4}', { last4: config.apiKeyLast4 ?? '' })}
           </MonoText>
           <Button variant="secondary" size="sm" onClick={onEnterReplace}>
-            {t('studio.settingsAi.field.keyReplace', 'Replace key')}
+            {t('studio:settingsAi.field.keyReplace', 'Replace key')}
           </Button>
         </div>
       </FormField>
@@ -523,12 +523,12 @@ function KeyField({
 
   return (
     <FormField
-      label={t('studio.settingsAi.field.key', 'API key')}
+      label={t('studio:settingsAi.field.key', 'API key')}
       required={!optional}
       helper={
         optional
-          ? t('studio.settingsAi.field.keyOptional', 'Optional — some endpoints need no key.')
-          : t('studio.settingsAi.field.keyWriteOnly', 'Write-only: once saved it is never shown again.')
+          ? t('studio:settingsAi.field.keyOptional', 'Optional — some endpoints need no key.')
+          : t('studio:settingsAi.field.keyWriteOnly', 'Write-only: once saved it is never shown again.')
       }
     >
       <Input
@@ -554,7 +554,7 @@ function TestResult({
     return (
       <div className="flex items-center gap-2 text-body-sm text-fg-muted" role="status">
         <Spinner size="sm" />
-        {t('studio.settingsAi.testing', 'Pinging the provider…')}
+        {t('studio:settingsAi.testing', 'Pinging the provider…')}
       </div>
     );
   }
@@ -563,8 +563,8 @@ function TestResult({
       <Alert
         tone="danger"
         role="alert"
-        title={t('studio.settingsAi.testError', 'Test failed')}
-        body={t('studio.settingsAi.testErrorBody', 'Could not reach the provider. Check the key and base URL.')}
+        title={t('studio:settingsAi.testError', 'Test failed')}
+        body={t('studio:settingsAi.testErrorBody', 'Could not reach the provider. Check the key and base URL.')}
       />
     );
   }
@@ -580,8 +580,8 @@ function TestResult({
       >
         <CheckCircle2 className="size-4 shrink-0 text-pos" aria-hidden="true" />
         <span>
-          {t('studio.settingsAi.testOk', 'Connected to {model} in {latency} ms', {
-            model: result.model ?? t('studio.settingsAi.testUnknownModel', 'the provider'),
+          {t('studio:settingsAi.testOk', 'Connected to {model} in {latency} ms', {
+            model: result.model ?? t('studio:settingsAi.testUnknownModel', 'the provider'),
             latency,
           })}
         </span>
@@ -593,8 +593,8 @@ function TestResult({
     <Alert
       tone="danger"
       role="alert"
-      title={t('studio.settingsAi.testError', 'Test failed')}
-      body={result.error?.message ?? t('studio.settingsAi.testErrorBody', 'Could not reach the provider. Check the key and base URL.')}
+      title={t('studio:settingsAi.testError', 'Test failed')}
+      body={result.error?.message ?? t('studio:settingsAi.testErrorBody', 'Could not reach the provider. Check the key and base URL.')}
     />
   );
 }
@@ -616,40 +616,40 @@ function ByoPanel({ highlighted = false }: { highlighted?: boolean }): ReactNode
         <div className="min-w-0 flex-1">
           <h3 className="text-section text-fg">
             {highlighted
-              ? t('studio.settingsAi.byo.headingRecommended', 'Use your own AI tool — no key needed')
-              : t('studio.settingsAi.byo.heading', 'No key? Use your own AI tool')}
+              ? t('studio:settingsAi.byo.headingRecommended', 'Use your own AI tool — no key needed')
+              : t('studio:settingsAi.byo.heading', 'No key? Use your own AI tool')}
           </h3>
           <p className="text-caption text-fg-subtle">
-            {t('studio.settingsAi.byo.subtitle', 'The copy-paste round-trip — nothing leaves this machine.')}
+            {t('studio:settingsAi.byo.subtitle', 'The copy-paste round-trip — nothing leaves this machine.')}
           </p>
         </div>
         {highlighted ? (
-          <Badge tone="accent">{t('studio.settingsAi.byo.recommended', 'Recommended')}</Badge>
+          <Badge tone="accent">{t('studio:settingsAi.byo.recommended', 'Recommended')}</Badge>
         ) : null}
       </CardHeader>
       <CardBody className="flex flex-col gap-3">
         <p className="text-body-sm text-fg-muted">
           {t(
-            'studio.settingsAi.byo.body',
+            'studio:settingsAi.byo.body',
             'Studio can generate a self-contained prompt from your schema. Run it in Claude Code, ChatGPT, or any tool you like, then paste the JSON it returns back into the connect wizard. Same validation, same review, same result as the direct path.',
           )}
         </p>
         <div>
           <p className="text-caption font-bold text-fg">
-            {t('studio.settingsAi.byo.guaranteeTitle', 'Telemetry-free guarantee')}
+            {t('studio:settingsAi.byo.guaranteeTitle', 'Telemetry-free guarantee')}
           </p>
           <ul className="mt-1 flex list-none flex-col gap-1 p-0 text-caption text-fg-muted">
-            <li>{t('studio.settingsAi.byo.guarantee1', 'The prompt carries only your schema and aggregate stats — never row data by default.')}</li>
-            <li>{t('studio.settingsAi.byo.guarantee2', 'No credentials, instance URL, or identifiers are embedded.')}</li>
-            <li>{t('studio.settingsAi.byo.guarantee3', 'BYO runs make zero network calls.')}</li>
+            <li>{t('studio:settingsAi.byo.guarantee1', 'The prompt carries only your schema and aggregate stats — never row data by default.')}</li>
+            <li>{t('studio:settingsAi.byo.guarantee2', 'No credentials, instance URL, or identifiers are embedded.')}</li>
+            <li>{t('studio:settingsAi.byo.guarantee3', 'BYO runs make zero network calls.')}</li>
           </ul>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Tag>
-            {t('studio.settingsAi.byo.promptVersion', 'Prompt {version}', { version: PROMPT_VERSION })}
+            {t('studio:settingsAi.byo.promptVersion', 'Prompt {version}', { version: PROMPT_VERSION })}
           </Tag>
           <Tag>
-            {t('studio.settingsAi.byo.schemaVersion', 'Schema {version}', { version: SCHEMA_VERSION })}
+            {t('studio:settingsAi.byo.schemaVersion', 'Schema {version}', { version: SCHEMA_VERSION })}
           </Tag>
         </div>
       </CardBody>
@@ -661,9 +661,9 @@ function ByoPanel({ highlighted = false }: { highlighted?: boolean }): ReactNode
 
 function RunSourceCell({ run }: { run: LlmRunDto }): ReactNode {
   if (run.mode === 'byo') {
-    return <Badge tone="neutral">{t('studio.settingsAi.history.byo', 'BYO')}</Badge>;
+    return <Badge tone="neutral">{t('studio:settingsAi.history.byo', 'BYO')}</Badge>;
   }
-  const provider = run.provider ?? t('studio.settingsAi.history.directPath', 'Direct');
+  const provider = run.provider ?? t('studio:settingsAi.history.directPath', 'Direct');
   return (
     <span className="min-w-0 truncate text-body-sm text-fg">
       <span className="font-semibold">{provider}</span>
@@ -692,10 +692,10 @@ function RunHistoryTable({
         aria-hidden="true"
         className="grid grid-cols-[1.4fr_1.6fr_1fr_0.8fr] gap-3 border-b border-border px-3 pb-2 text-micro uppercase text-fg-subtle"
       >
-        <span>{t('studio.settingsAi.history.colDate', 'Date')}</span>
-        <span>{t('studio.settingsAi.history.colSource', 'Source')}</span>
-        <span>{t('studio.settingsAi.history.colStatus', 'Status')}</span>
-        <span className="text-end">{t('studio.settingsAi.history.colChunks', 'Chunks')}</span>
+        <span>{t('studio:settingsAi.history.colDate', 'Date')}</span>
+        <span>{t('studio:settingsAi.history.colSource', 'Source')}</span>
+        <span>{t('studio:settingsAi.history.colStatus', 'Status')}</span>
+        <span className="text-end">{t('studio:settingsAi.history.colChunks', 'Chunks')}</span>
       </div>
       <div className="divide-y divide-border/70">
         {runs.map((run) => (
@@ -703,7 +703,7 @@ function RunHistoryTable({
             key={run.id}
             type="button"
             onClick={() => onOpenReview(run.id)}
-            aria-label={t('studio.settingsAi.history.openReview', 'Open review for the run from {date}', {
+            aria-label={t('studio:settingsAi.history.openReview', 'Open review for the run from {date}', {
               date: numbers.dateTime(run.createdAt),
             })}
             className="grid w-full grid-cols-[1.4fr_1.6fr_1fr_0.8fr] items-center gap-3 px-3 py-2.5 text-start transition-colors hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
@@ -752,8 +752,8 @@ function RunHistoryForConnection({
       <Alert
         tone="danger"
         role="alert"
-        title={t('studio.settingsAi.history.errorTitle', 'Could not load runs')}
-        body={t('studio.settingsAi.history.errorBody', 'Refresh the page to try again.')}
+        title={t('studio:settingsAi.history.errorTitle', 'Could not load runs')}
+        body={t('studio:settingsAi.history.errorBody', 'Refresh the page to try again.')}
       />
     );
   }
@@ -761,7 +761,7 @@ function RunHistoryForConnection({
   if (runs.length === 0) {
     return (
       <p className="py-6 text-center text-body-sm text-fg-muted">
-        {t('studio.settingsAi.history.empty', 'No enrichment runs yet. Enrich a schema from the connect wizard to see history here.')}
+        {t('studio:settingsAi.history.empty', 'No enrichment runs yet. Enrich a schema from the connect wizard to see history here.')}
       </p>
     );
   }
@@ -783,18 +783,18 @@ function RunHistorySection({
       <CardHeader className="flex flex-wrap items-center gap-3">
         <IconTile tone="accent" size="md" icon={<ScrollText />} />
         <div className="min-w-0 flex-1">
-          <h3 className="text-section text-fg">{t('studio.settingsAi.history.heading', 'Run history')}</h3>
+          <h3 className="text-section text-fg">{t('studio:settingsAi.history.heading', 'Run history')}</h3>
           <p className="text-caption text-fg-subtle">
-            {t('studio.settingsAi.history.subtitle', 'Past enrichment runs. Open one to review its suggestions.')}
+            {t('studio:settingsAi.history.subtitle', 'Past enrichment runs. Open one to review its suggestions.')}
           </p>
         </div>
         {connections.length > 1 && selected !== null ? (
           <label className="flex items-center gap-2 text-caption text-fg-muted">
-            <span>{t('studio.settingsAi.history.connection', 'Connection')}</span>
+            <span>{t('studio:settingsAi.history.connection', 'Connection')}</span>
             <Select
               value={selected.id}
               onChange={(event) => setConnectionId(event.currentTarget.value)}
-              aria-label={t('studio.settingsAi.history.connection', 'Connection')}
+              aria-label={t('studio:settingsAi.history.connection', 'Connection')}
               wrapperClassName="w-[200px]"
             >
               {connections.map((connection) => (
@@ -809,7 +809,7 @@ function RunHistorySection({
       <CardBody>
         {selected === null ? (
           <p className="py-6 text-center text-body-sm text-fg-muted">
-            {t('studio.settingsAi.history.noConnections', 'Connect a database first — enrichment runs are recorded per connection.')}
+            {t('studio:settingsAi.history.noConnections', 'Connect a database first — enrichment runs are recorded per connection.')}
           </p>
         ) : (
           <RunHistoryForConnection connectionId={selected.id} onOpenReview={onOpenReview} />
@@ -849,9 +849,9 @@ export function StudioAiPage({ onOpenReview }: StudioAiPageProps): ReactNode {
   return (
     <PageSurface width="page" className="flex flex-col gap-6">
       <PageActions
-        title={t('studio.settingsAi.title', 'AI enrichment')}
+        title={t('studio:settingsAi.title', 'AI enrichment')}
         subtitle={t(
-          'studio.settingsAi.subtitle',
+          'studio:settingsAi.subtitle',
           'Connect a model to let Adminium suggest labels, groups, relations and more — always reviewed as a diff before anything applies.',
         )}
       />

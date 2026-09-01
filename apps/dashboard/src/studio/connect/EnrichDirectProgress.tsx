@@ -70,10 +70,10 @@ export function EnrichDirectProgress({
     const run = await aiApi.getRun(runId);
     if (run.status === 'failed') {
       const first = run.validationErrors?.find((issue) => issue.severity === 'fatal');
-      fail(first?.message ?? t('studio.enrich.direct.failed', 'The provider run failed. Check your AI settings and retry.'));
+      fail(first?.message ?? t('studio:enrich.direct.failed', 'The provider run failed. Check your AI settings and retry.'));
       return;
     }
-    push('ok', t('studio.enrich.direct.done', 'Enrichment complete — review the suggestions.'));
+    push('ok', t('studio:enrich.direct.done', 'Enrichment complete — review the suggestions.'));
     setPhase('done');
   }
 
@@ -92,7 +92,7 @@ export function EnrichDirectProgress({
         return;
       }
       if (job.status === 'failed' || job.status === 'cancelled') {
-        fail(job.lastError ?? t('studio.enrich.direct.jobFailed', 'The enrichment run did not finish.'));
+        fail(job.lastError ?? t('studio:enrich.direct.jobFailed', 'The enrichment run did not finish.'));
         return;
       }
       await wait(pollIntervalMs);
@@ -103,13 +103,13 @@ export function EnrichDirectProgress({
     setPhase('running');
     setError(null);
     setLines([]);
-    push('running', t('studio.enrich.direct.building', 'Building prompt…'));
+    push('running', t('studio:enrich.direct.building', 'Building prompt…'));
     try {
       const { jobId } = await aiApi.executeRun(runId);
       jobIdRef.current = jobId;
       await pollJob(jobId);
     } catch (cause) {
-      fail(cause instanceof Error ? cause.message : t('studio.enrich.direct.startFailed', 'Could not start the run — retry.'));
+      fail(cause instanceof Error ? cause.message : t('studio:enrich.direct.startFailed', 'Could not start the run — retry.'));
     }
   }
 
@@ -139,41 +139,41 @@ export function EnrichDirectProgress({
   };
 
   return (
-    <section aria-label={t('studio.enrich.direct.title', 'Enriching with AI')} className="flex flex-col gap-4">
+    <section aria-label={t('studio:enrich.direct.title', 'Enriching with AI')} className="flex flex-col gap-4">
       <div>
-        <h2 className="text-section text-fg">{t('studio.enrich.direct.title', 'Enriching with AI')}</h2>
+        <h2 className="text-section text-fg">{t('studio:enrich.direct.title', 'Enriching with AI')}</h2>
         <p className="mt-1 text-body-sm text-fg-muted">
-          {t('studio.enrich.direct.subtitle', 'Sending your schema to')}{' '}
+          {t('studio:enrich.direct.subtitle', 'Sending your schema to')}{' '}
           <MonoText>
             {provider}/{model}
           </MonoText>
         </p>
       </div>
 
-      <LogConsole lines={lines} label={t('studio.enrich.direct.logLabel', 'Enrichment log')} />
+      <LogConsole lines={lines} label={t('studio:enrich.direct.logLabel', 'Enrichment log')} />
 
       {error !== null ? (
-        <Alert tone="danger" role="alert" title={t('studio.enrich.direct.errorTitle', 'Enrichment failed')} body={error} />
+        <Alert tone="danger" role="alert" title={t('studio:enrich.direct.errorTitle', 'Enrichment failed')} body={error} />
       ) : null}
 
       <div className="flex items-center gap-2">
         {phase === 'running' ? (
           <Button type="button" variant="secondary" onClick={cancel}>
-            {t('studio.enrich.direct.cancel', 'Cancel')}
+            {t('studio:enrich.direct.cancel', 'Cancel')}
           </Button>
         ) : null}
         {phase === 'done' ? (
           <Button type="button" onClick={() => onContinueReview(runId)}>
-            {t('studio.enrich.direct.continueReview', 'Continue to review')}
+            {t('studio:enrich.direct.continueReview', 'Continue to review')}
           </Button>
         ) : null}
         {phase === 'error' ? (
           <>
             <Button type="button" variant="secondary" onClick={() => void run()}>
-              {t('studio.enrich.direct.retry', 'Retry')}
+              {t('studio:enrich.direct.retry', 'Retry')}
             </Button>
             <Button type="button" variant="ghost" onClick={onCancel}>
-              {t('studio.enrich.direct.back', 'Back to options')}
+              {t('studio:enrich.direct.back', 'Back to options')}
             </Button>
           </>
         ) : null}

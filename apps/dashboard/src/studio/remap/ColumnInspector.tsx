@@ -95,12 +95,12 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
           {table.id}.{column.name}
         </MonoText>
         <Tag mono>{column.dbType}</Tag>
-        {column.nullable ? <Badge tone="neutral">{t('studio.remap.column.nullable', 'nullable')}</Badge> : null}
+        {column.nullable ? <Badge tone="neutral">{t('studio:remap.column.nullable', 'nullable')}</Badge> : null}
       </header>
 
       <FormField
-        label={t('studio.remap.column.labelOverride', 'Display label')}
-        helper={t('studio.remap.column.labelHelper', 'Inferred: {name}', { name: titleCase(column.name), })}
+        label={t('studio:remap.column.labelOverride', 'Display label')}
+        helper={t('studio:remap.column.labelHelper', 'Inferred: {name}', { name: titleCase(column.name), })}
         {...(fieldError === undefined ? {} : { error: fieldError })}
       >
         <Input
@@ -115,8 +115,8 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
       </FormField>
 
       <FormField
-        label={t('studio.remap.column.logicalType', 'Logical type')}
-        helper={t('studio.remap.column.logicalTypeHelper', 'Inferred: {type} (from {dbType}) — mapped by the adapter; not overridable in v1.', { type: column.logicalType, dbType: column.dbType })}
+        label={t('studio:remap.column.logicalType', 'Logical type')}
+        helper={t('studio:remap.column.logicalTypeHelper', 'Inferred: {type} (from {dbType}) — mapped by the adapter; not overridable in v1.', { type: column.logicalType, dbType: column.dbType })}
         tag={<Tag mono>{column.logicalType}</Tag>}
       >
         <Select disabled value={column.logicalType} onChange={() => undefined} mono>
@@ -129,11 +129,11 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
       </FormField>
 
       <FormField
-        label={t('studio.remap.column.semantic', 'Semantic type')}
+        label={t('studio:remap.column.semantic', 'Semantic type')}
         helper={
           semantics === null
-            ? t('studio.remap.column.unclassified', 'Not classified yet.')
-            : t('studio.remap.column.semanticHelper', 'Classifier: {tag} · {confidence}% confidence · source: {source}', { tag: semantics.primary, confidence: String(confidencePct), source: semantics.source })
+            ? t('studio:remap.column.unclassified', 'Not classified yet.')
+            : t('studio:remap.column.semanticHelper', 'Classifier: {tag} · {confidence}% confidence · source: {source}', { tag: semantics.primary, confidence: String(confidencePct), source: semantics.source })
         }
       >
         <Select
@@ -145,7 +145,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
           }}
         >
           <option value="">
-            {t('studio.remap.column.semanticInferred', 'inferred: {tag}', { tag: inferredTag })}
+            {t('studio:remap.column.semanticInferred', 'inferred: {tag}', { tag: inferredTag })}
           </option>
           {SEMANTIC_TAGS.map((tag) => (
             <option key={tag} value={tag}>
@@ -157,8 +157,8 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
 
       {stagedSemantic?.semanticType === 'money' ? (
         <FormField
-          label={t('studio.remap.column.currency', 'Currency')}
-          helper={t('studio.remap.column.currencyHelper', 'ISO 4217 code applied to money formatting.')}
+          label={t('studio:remap.column.currency', 'Currency')}
+          helper={t('studio:remap.column.currencyHelper', 'ISO 4217 code applied to money formatting.')}
         >
           <Input
             mono
@@ -179,19 +179,19 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
       <label className="flex items-center justify-between gap-3">
         <span className="flex flex-col">
           <span className="flex items-center gap-1.5 text-body-sm font-medium text-fg">
-            {t('studio.remap.column.pii', 'Mask by default')}
+            {t('studio:remap.column.pii', 'Mask by default')}
             {piiKind !== null ? <Badge tone="warn">{piiKind}</Badge> : null}
           </span>
           <span className="text-[11.5px] text-fg-muted">
             {t(
-              'studio.remap.column.piiHelper',
+              'studio:remap.column.piiHelper',
               'Masked values render redacted; unmasking requires the data.unmask_pii permission and is audit-logged.',
             )}
           </span>
         </span>
         <Switch
           checked={masked}
-          aria-label={t('studio.remap.column.pii', 'Mask by default')}
+          aria-label={t('studio:remap.column.pii', 'Mask by default')}
           onCheckedChange={stagePii}
         />
       </label>
@@ -199,19 +199,19 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
       {isEnum ? (
         <section className="flex flex-col gap-3" data-testid="enum-editor">
           <h4 className="text-body-sm font-semibold text-fg">
-            {t('studio.remap.column.enum', 'Enum semantics')}
+            {t('studio:remap.column.enum', 'Enum semantics')}
           </h4>
           <SegmentedControl
-            aria-label={t('studio.remap.column.enumKind', 'Enum kind')}
+            aria-label={t('studio:remap.column.enumKind', 'Enum kind')}
             options={[
               {
                 value: 'status-workflow',
-                label: t('studio.remap.column.enumWorkflow', 'Workflow'),
+                label: t('studio:remap.column.enumWorkflow', 'Workflow'),
                 dot: 'accent',
               },
               {
                 value: 'category-enum',
-                label: t('studio.remap.column.enumCategory', 'Category'),
+                label: t('studio:remap.column.enumCategory', 'Category'),
               },
             ]}
             value={currentEnumSemantic === 'status-workflow' ? 'status-workflow' : 'category-enum'}
@@ -225,7 +225,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
               <li key={value} className="grid grid-cols-[minmax(4rem,1fr)_minmax(6rem,1.4fr)_auto] items-center gap-2">
                 <MonoText className="truncate text-[12px]">{value}</MonoText>
                 <Input
-                  aria-label={t('studio.remap.column.enumLabelFor', 'Label for {value}', { value: value })}
+                  aria-label={t('studio:remap.column.enumLabelFor', 'Label for {value}', { value: value })}
                   value={enumLabels[value] ?? ''}
                   placeholder={titleCase(value)}
                   onChange={(event) => {
@@ -236,7 +236,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                   }}
                 />
                 <Select
-                  aria-label={t('studio.remap.column.enumToneFor', 'Tone for {value}', { value: value })}
+                  aria-label={t('studio:remap.column.enumToneFor', 'Tone for {value}', { value: value })}
                   value={enumTones[value] ?? ''}
                   onChange={(event) => {
                     const tones = { ...enumTones };
@@ -245,7 +245,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
                     stageEnum(enumLabels, tones);
                   }}
                 >
-                  <option value="">{t('studio.remap.column.enumToneAuto', 'auto')}</option>
+                  <option value="">{t('studio:remap.column.enumToneAuto', 'auto')}</option>
                   {ENUM_TONES.map((tone) => (
                     <option key={tone} value={tone}>
                       {tone}
@@ -257,7 +257,7 @@ export function ColumnInspector({ model, table, column, buffer, fieldError }: Co
           </ul>
           <p className="text-[11.5px] text-fg-muted">
             {t(
-              'studio.remap.column.enumHelper',
+              'studio:remap.column.enumHelper',
               'Workflow enums drive status pills and board columns; tones map values onto the semantic tint scale.',
             )}
           </p>

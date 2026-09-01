@@ -89,9 +89,9 @@ export function EditPageScreen({ pageId }: { pageId: string }) {
         <Alert
           tone="warn"
           data-testid="studio-pages-missing"
-          title={t('studioPages.editor.missing', 'That page no longer exists')}
+          title={t('studio:pages.editor.missing', 'That page no longer exists')}
           body={t(
-            'studioPages.editor.missingBody',
+            'studio:pages.editor.missingBody',
             'It may have been deleted, or removed by a regeneration run.',
           )}
         />
@@ -218,7 +218,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
 
   return (
     <PageEditorLayout
-      heading={t('studioPages.editor.title', 'Edit page')}
+      heading={t('studio:pages.editor.title', 'Edit page')}
       subheading={page.title}
       template={template}
       previewTitle={title}
@@ -227,7 +227,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
       previewAction={
         <Button variant="secondary" size="sm" iconLeft={<ExternalLink className="size-4" />} asChild>
           <Link to="/p/$slug" params={{ slug: page.slug }}>
-            {t('studioPages.editor.openPage', 'Open page')}
+            {t('studio:pages.editor.openPage', 'Open page')}
           </Link>
         </Button>
       }
@@ -237,7 +237,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
             <Alert
               tone="danger"
               data-testid="studio-pages-save-error"
-              title={t('studioPages.editor.saveFailed', 'Changes could not be saved')}
+              title={t('studio:pages.editor.saveFailed', 'Changes could not be saved')}
               body={save.error instanceof Error ? save.error.message : ''}
             />
           ) : null}
@@ -255,7 +255,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               }
               data-testid="studio-pages-save"
             >
-              {t('studioPages.editor.save', 'Save changes')}
+              {t('studio:pages.editor.save', 'Save changes')}
             </Button>
           </div>
         </>
@@ -265,9 +265,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
         <Alert
           tone="info"
           data-testid="studio-pages-generated-note"
-          title={t('studioPages.editor.generated.title', 'This page was generated from your schema')}
+          title={t('studio:pages.editor.generated.title', 'This page was generated from your schema')}
           body={t(
-            'studioPages.editor.generated.body',
+            'studio:pages.editor.generated.body',
             'Your changes survive regeneration. Deleting only lasts until the next run recreates it.',
           )}
         />
@@ -275,10 +275,10 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
 
       <Card padded={false}>
         <CardHeader>
-          <h2 className="text-section text-fg">{t('studioPages.editor.data', 'Data')}</h2>
+          <h2 className="text-section text-fg">{t('studio:pages.editor.data', 'Data')}</h2>
         </CardHeader>
         <CardBody className="flex flex-col gap-4">
-          <FormField label={t('studioPages.field.template', 'Template')}>
+          <FormField label={t('studio:pages.field.template', 'Template')}>
             <Select
               value={template}
               onChange={(event) => setTemplate(event.target.value)}
@@ -299,7 +299,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
           {bindable ? (
             <>
               {(connections.data ?? []).length > 1 ? (
-                <FormField label={t('studioPages.field.connection', 'Data source')}>
+                <FormField label={t('studio:pages.field.connection', 'Data source')}>
                   <Select
                     value={connectionId ?? ''}
                     onChange={(event) => {
@@ -307,7 +307,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
                       setTable(null);
                     }}
                   >
-                    <option value="">{t('studioPages.field.connectionNone', 'None')}</option>
+                    <option value="">{t('studio:pages.field.connectionNone', 'None')}</option>
                     {(connections.data ?? []).map((connection) => (
                       <option key={connection.id} value={connection.id}>
                         {connection.name}
@@ -318,11 +318,11 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               ) : null}
 
               <FormField
-                label={t('studioPages.field.table', 'Table')}
+                label={t('studio:pages.field.table', 'Table')}
                 {...(connectionId === null
                   ? {
                       helper: t(
-                        'studioPages.field.tableNeedsConnection',
+                        'studio:pages.field.tableNeedsConnection',
                         'Pick a data source first.',
                       ),
                     }
@@ -336,7 +336,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
                   }
                   data-testid="studio-pages-table"
                 >
-                  <option value="">{t('studioPages.field.tableNone', 'Not bound')}</option>
+                  <option value="">{t('studio:pages.field.tableNone', 'Not bound')}</option>
                   {(schema.data?.model.tables ?? [])
                     .filter((candidate) => candidate.system !== true)
                     .map((candidate) => (
@@ -350,9 +350,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               {schema.isError ? (
                 <Alert
                   tone="warn"
-                  title={t('studioPages.editor.schemaFailed', 'Tables could not be listed')}
+                  title={t('studio:pages.editor.schemaFailed', 'Tables could not be listed')}
                   body={t(
-                    'studioPages.editor.schemaFailedBody',
+                    'studio:pages.editor.schemaFailedBody',
                     'This connection may not have been analysed yet. Run introspection from Studio → Data connections.',
                   )}
                 />
@@ -362,9 +362,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
             <Alert
               tone="info"
               data-testid="studio-pages-not-bindable"
-              title={t('studioPages.editor.notBindable', 'This template is not bound to one table')}
+              title={t('studio:pages.editor.notBindable', 'This template is not bound to one table')}
               body={t(
-                'studioPages.editor.notBindableBody',
+                'studio:pages.editor.notBindableBody',
                 'Its contents are built widget by widget instead. Open the page and use Edit to add them.',
               )}
             />
@@ -374,9 +374,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
             <Alert
               tone="warn"
               data-testid="studio-pages-recompose-warning"
-              title={t('studioPages.editor.recompose', 'This page will be rebuilt')}
+              title={t('studio:pages.editor.recompose', 'This page will be rebuilt')}
               body={t(
-                'studioPages.editor.recomposeBody',
+                'studio:pages.editor.recomposeBody',
                 'Saving rebuilds the contents. Column and widget edits here are lost.',
               )}
             />
@@ -386,19 +386,19 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
 
       <Card padded={false}>
         <CardHeader>
-          <h2 className="text-section text-fg">{t('studioPages.editor.details', 'Details')}</h2>
+          <h2 className="text-section text-fg">{t('studio:pages.editor.details', 'Details')}</h2>
         </CardHeader>
         <CardBody className="flex flex-col gap-4">
-          <FormField label={t('studioPages.field.title', 'Title')}>
+          <FormField label={t('studio:pages.field.title', 'Title')}>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} />
           </FormField>
 
           <FormField
-            label={t('studioPages.field.slug', 'Page address')}
+            label={t('studio:pages.field.slug', 'Page address')}
             {...(slugChanged
               ? {
                   error: t(
-                    'studioPages.field.slugWarning',
+                    'studio:pages.field.slugWarning',
                     'Changing the address breaks existing links and bookmarks to this page.',
                   ),
                 }
@@ -415,18 +415,18 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
           </FormField>
 
           <FormField
-            label={t('studioPages.field.icon', 'Icon')}
-            helper={t('studioPages.field.iconHint', 'Shown beside the page name in the sidebar.')}
+            label={t('studio:pages.field.icon', 'Icon')}
+            helper={t('studio:pages.field.iconHint', 'Shown beside the page name in the sidebar.')}
           >
             <IconPicker
               value={icon}
               onChange={setIcon}
-              label={t('studioPages.field.iconPick', 'Choose the page icon')}
+              label={t('studio:pages.field.iconPick', 'Choose the page icon')}
               testId="studio-pages-icon"
             />
           </FormField>
 
-          <FormField label={t('studioPages.field.group', 'Sidebar group')}>
+          <FormField label={t('studio:pages.field.group', 'Sidebar group')}>
             <Select
               value={navGroup}
               onChange={(event) => setNavGroup(event.target.value as NavGroup)}
@@ -441,9 +441,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
           </FormField>
 
           <FormField
-            label={t('studioPages.field.visible', 'Show in sidebar')}
+            label={t('studio:pages.field.visible', 'Show in sidebar')}
             helper={t(
-              'studioPages.field.visibleHint',
+              'studio:pages.field.visibleHint',
               'A hidden page stays reachable at its URL for anyone who has the link.',
             )}
           >
@@ -455,7 +455,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
       <Card padded={false}>
         <CardHeader>
           <h2 className="text-section text-fg">
-            {t('studioPages.editor.appearance', 'Appearance')}
+            {t('studio:pages.editor.appearance', 'Appearance')}
           </h2>
         </CardHeader>
         <CardBody className="flex flex-col gap-4">
@@ -477,7 +477,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
       {isCrud ? (
         <Card padded={false}>
           <CardHeader>
-            <h2 className="text-section text-fg">{t('studioPages.editor.columns', 'Columns')}</h2>
+            <h2 className="text-section text-fg">{t('studio:pages.editor.columns', 'Columns')}</h2>
           </CardHeader>
           <CardBody>
             {document.isPending ? (
@@ -489,9 +489,9 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
             {document.isError ? (
               <Alert
                 tone="warn"
-                title={t('studioPages.editor.contentUnavailable', 'Page contents could not be loaded')}
+                title={t('studio:pages.editor.contentUnavailable', 'Page contents could not be loaded')}
                 body={t(
-                  'studioPages.editor.contentUnavailableBody',
+                  'studio:pages.editor.contentUnavailableBody',
                   'The details above can still be saved.',
                 )}
               />
@@ -501,11 +501,11 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
               <Alert
                 tone="warn"
                 title={t(
-                  'studioPages.editor.contentInvalid',
+                  'studio:pages.editor.contentInvalid',
                   'This page\u2019s configuration is not readable',
                 )}
                 body={t(
-                  'studioPages.editor.contentInvalidBody',
+                  'studio:pages.editor.contentInvalidBody',
                   'It was written by a newer version, or it is malformed. Regenerate the page or delete it.',
                 )}
               />
@@ -517,7 +517,7 @@ function EditPageForm({ page }: { page: PageSummaryDto }) {
                 // work thrown out by the save the admin already has pending.
                 <p className="text-body-sm text-fg-muted">
                   {t(
-                    'studioPages.editor.itemsPending',
+                    'studio:pages.editor.itemsPending',
                     'Save the change above first \u2014 the contents are rebuilt from it.',
                   )}
                 </p>

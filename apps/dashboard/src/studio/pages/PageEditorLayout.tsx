@@ -108,7 +108,7 @@ export function PageEditorLayout({
             <div className="flex min-w-0 flex-1 flex-col">
               <h2 className="text-section truncate text-fg">
                 {previewTitle.trim() === ''
-                  ? t('studioPages.preview.untitled', 'Untitled page')
+                  ? t('studio:pages.preview.untitled', 'Untitled page')
                   : previewTitle}
               </h2>
               <p className="text-body-sm truncate text-fg-subtle">
@@ -129,7 +129,7 @@ export function PageEditorLayout({
             </div>
             <p className="text-body-sm text-fg-subtle">
               {t(
-                'studioPages.preview.note',
+                'studio:pages.preview.note',
                 'An illustration of the layout, not your data.',
               )}
             </p>

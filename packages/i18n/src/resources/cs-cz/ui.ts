@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/cs-CZ/ui.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -1024,6 +1025,25 @@ export default {
         "description": "Zásady zabezpečení na úrovni řádků pro tabulku s příkazem, rolí a přepínačem aktivace.",
         "emptyTitle": "Žádné zásady",
         "emptyBody": "Tato tabulka zatím nemá žádné zásady zabezpečení na úrovni řádků."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "Žádný nadpis",
+        "emptyBody": "Přidejte text nadpisu tohoto e-mailu."
+      },
+      "blockEmailText": {
+        "emptyTitle": "Žádný text",
+        "emptyBody": "Přidejte do tohoto e-mailu odstavec."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "Neúplné tlačítko",
+        "emptyBody": "Aby šlo tlačítko odeslat, potřebuje text i odkaz."
+      },
+      "blockEmailSpacer": {
+        "label": "Mezera {size} px"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "Žádné zápatí",
+        "emptyBody": "Sem patří právní text, adresa a odhlášení z odběru."
       }
     },
     "media": {
@@ -1560,7 +1580,13 @@ export default {
         "block-late-fees": "Penále z prodlení",
         "block-image-placeholder": "Obrázek",
         "block-contact": "Kontakt",
-        "block-highlight-box": "Zvýrazněný rámeček"
+        "block-highlight-box": "Zvýrazněný rámeček",
+        "email-heading": "Nadpis",
+        "email-text": "Odstavec",
+        "email-button": "Výzva k akci",
+        "email-divider": "Oddělovač",
+        "email-spacer": "Mezera",
+        "email-footer": "Zápatí"
       },
       "starters": {
         "titles": {

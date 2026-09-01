@@ -51,7 +51,7 @@ export function CategorySection({
         {readOnly ? null : (
           <Checkbox
             checked={state === 'all' ? true : state === 'some' ? 'indeterminate' : false}
-            aria-label={t('studio.llmRuns.review.section.selectAllAria', 'Select all in {group}', { group: label })}
+            aria-label={t('studio:llmRuns.review.section.selectAllAria', 'Select all in {group}', { group: label })}
             onCheckedChange={(next) => onSelectAll(group.rows, next === true)}
           />
         )}
@@ -71,7 +71,7 @@ export function CategorySection({
           <CountBadge>{group.rows.length}</CountBadge>
           {accepted > 0 ? (
             <Badge tone="pos">
-              {t('studio.llmRuns.review.section.acceptedCount', '{n} accepted', { n: accepted })}
+              {t('studio:llmRuns.review.section.acceptedCount', '{n} accepted', { n: accepted })}
             </Badge>
           ) : null}
         </button>

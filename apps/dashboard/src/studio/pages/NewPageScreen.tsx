@@ -125,9 +125,9 @@ export function NewPageScreen() {
 
   return (
     <PageEditorLayout
-      heading={t('studioPages.create.title', 'New page')}
+      heading={t('studio:pages.create.title', 'New page')}
       subheading={t(
-        'studioPages.create.subtitle',
+        'studio:pages.create.subtitle',
         'Pick what this page shows and how it looks.',
       )}
       template={template}
@@ -140,7 +140,7 @@ export function NewPageScreen() {
             <Alert
               tone="danger"
               data-testid="studio-pages-create-error"
-              title={t('studioPages.create.failed', 'The page could not be created')}
+              title={t('studio:pages.create.failed', 'The page could not be created')}
               body={create.error instanceof Error ? create.error.message : ''}
             />
           ) : null}
@@ -155,7 +155,7 @@ export function NewPageScreen() {
               loading={create.isPending}
               data-testid="studio-pages-create-submit"
             >
-              {t('studioPages.create.submit', 'Create page')}
+              {t('studio:pages.create.submit', 'Create page')}
             </Button>
           </div>
         </>
@@ -165,9 +165,9 @@ export function NewPageScreen() {
         <CardBody>
           <form id="studio-page-create" className="flex flex-col gap-4" onSubmit={submit}>
             <FormField
-              label={t('studioPages.field.template', 'Template')}
+              label={t('studio:pages.field.template', 'Template')}
               helper={t(
-                'studioPages.field.templateHint',
+                'studio:pages.field.templateHint',
                 'Decides what the page can hold. You can change it later.',
               )}
             >
@@ -191,9 +191,9 @@ export function NewPageScreen() {
 
             {bindable ? (
               <FormField
-                label={t('studioPages.field.table', 'Table')}
+                label={t('studio:pages.field.table', 'Table')}
                 helper={t(
-                  'studioPages.field.tableCreateHint',
+                  'studio:pages.field.tableCreateHint',
                   'The table this page reads. You can bind it later.',
                 )}
               >
@@ -206,7 +206,7 @@ export function NewPageScreen() {
                   }}
                   data-testid="studio-pages-create-table"
                 >
-                  <option value="">{t('studioPages.field.tableNone', 'Not bound')}</option>
+                  <option value="">{t('studio:pages.field.tableNone', 'Not bound')}</option>
                   {(schema.data?.model.tables ?? [])
                     .filter((candidate) => candidate.system !== true)
                     .map((candidate) => (
@@ -219,7 +219,7 @@ export function NewPageScreen() {
             ) : null}
 
             {bindable && rows.length > 1 ? (
-              <FormField label={t('studioPages.field.connection', 'Data source')}>
+              <FormField label={t('studio:pages.field.connection', 'Data source')}>
                 <Select
                   value={effectiveConnectionId ?? ''}
                   onChange={(event) => {
@@ -227,7 +227,7 @@ export function NewPageScreen() {
                     setTable(null);
                   }}
                 >
-                  <option value="">{t('studioPages.field.connectionNone', 'None')}</option>
+                  <option value="">{t('studio:pages.field.connectionNone', 'None')}</option>
                   {rows.map((connection) => (
                     <option key={connection.id} value={connection.id}>
                       {connection.name}
@@ -238,8 +238,8 @@ export function NewPageScreen() {
             ) : null}
 
             <FormField
-              label={t('studioPages.field.title', 'Title')}
-              helper={t('studioPages.field.titleHint', 'Shown in the sidebar and the page header.')}
+              label={t('studio:pages.field.title', 'Title')}
+              helper={t('studio:pages.field.titleHint', 'Shown in the sidebar and the page header.')}
             >
               <Input
                 value={title}
@@ -250,15 +250,15 @@ export function NewPageScreen() {
             </FormField>
 
             <FormField
-              label={t('studioPages.field.slug', 'Page address')}
+              label={t('studio:pages.field.slug', 'Page address')}
               helper={t(
-                'studioPages.field.slugHint',
+                'studio:pages.field.slugHint',
                 'Lowercase letters, numbers and dashes. Just the last part — the rest of the address is added for you.',
               )}
               {...(slugTaken
                 ? {
                     error: t(
-                      'studioPages.field.slugTaken',
+                      'studio:pages.field.slugTaken',
                       'Another page already uses this address.',
                     ),
                   }
@@ -278,20 +278,20 @@ export function NewPageScreen() {
             </FormField>
 
             <FormField
-              label={t('studioPages.field.icon', 'Icon')}
-              helper={t('studioPages.field.iconHint', 'Shown beside the page name in the sidebar.')}
+              label={t('studio:pages.field.icon', 'Icon')}
+              helper={t('studio:pages.field.iconHint', 'Shown beside the page name in the sidebar.')}
             >
               <IconPicker
                 value={icon}
                 onChange={setIcon}
-                label={t('studioPages.field.iconPick', 'Choose the page icon')}
+                label={t('studio:pages.field.iconPick', 'Choose the page icon')}
                 testId="studio-pages-create-icon"
               />
             </FormField>
 
             <FormField
-              label={t('studioPages.field.group', 'Sidebar group')}
-              helper={t('studioPages.field.groupHint', 'Which section of the sidebar it appears in.')}
+              label={t('studio:pages.field.group', 'Sidebar group')}
+              helper={t('studio:pages.field.groupHint', 'Which section of the sidebar it appears in.')}
             >
               <Select
                 value={navGroup}

@@ -21,12 +21,12 @@ import { t } from '../../i18n/t.js';
 
 /** Order is narrow → wide, so the select reads as a scale rather than a set. */
 const WIDTHS: readonly { value: PageWidthConfig; key: string; fallback: string }[] = [
-  { value: 'narrow', key: 'studioPages.width.narrow', fallback: 'Narrow (720px)' },
-  { value: 'content', key: 'studioPages.width.content', fallback: 'Content (900px)' },
-  { value: 'page', key: 'studioPages.width.page', fallback: 'Page (1080px)' },
-  { value: 'dash', key: 'studioPages.width.dash', fallback: 'Dashboard (1320px)' },
-  { value: 'wide', key: 'studioPages.width.wide', fallback: 'Wide (1800px)' },
-  { value: 'full', key: 'studioPages.width.full', fallback: 'Full width (no limit)' },
+  { value: 'narrow', key: 'studio:pages.width.narrow', fallback: 'Narrow (720px)' },
+  { value: 'content', key: 'studio:pages.width.content', fallback: 'Content (900px)' },
+  { value: 'page', key: 'studio:pages.width.page', fallback: 'Page (1080px)' },
+  { value: 'dash', key: 'studio:pages.width.dash', fallback: 'Dashboard (1320px)' },
+  { value: 'wide', key: 'studio:pages.width.wide', fallback: 'Wide (1800px)' },
+  { value: 'full', key: 'studio:pages.width.full', fallback: 'Full width (no limit)' },
 ];
 
 export interface WidthFieldProps {
@@ -38,9 +38,9 @@ export interface WidthFieldProps {
 export function WidthField({ value, onChange }: WidthFieldProps) {
   return (
     <FormField
-      label={t('studioPages.field.width', 'Content width')}
+      label={t('studio:pages.field.width', 'Content width')}
       helper={t(
-        'studioPages.field.widthHint',
+        'studio:pages.field.widthHint',
         'How wide the page’s content column may grow on a large screen.',
       )}
     >
@@ -53,7 +53,7 @@ export function WidthField({ value, onChange }: WidthFieldProps) {
         data-testid="studio-pages-width"
       >
         <option value="default">
-          {t('studioPages.width.default', 'Default for this template')}
+          {t('studio:pages.width.default', 'Default for this template')}
         </option>
         {WIDTHS.map((w) => (
           <option key={w.value} value={w.value}>

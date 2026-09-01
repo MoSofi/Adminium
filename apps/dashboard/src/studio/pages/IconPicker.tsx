@@ -192,7 +192,7 @@ export function IconPicker({ value, onChange, label, testId }: IconPickerProps) 
         >
           <Current className="size-4 shrink-0 text-fg-muted" aria-hidden />
           <span className="truncate font-mono text-body-sm">
-            {value === '' ? t('studioPages.icon.none', 'Choose an icon') : value}
+            {value === '' ? t('studio:pages.icon.none', 'Choose an icon') : value}
           </span>
         </Button>
       </PopoverTrigger>
@@ -201,13 +201,13 @@ export function IconPicker({ value, onChange, label, testId }: IconPickerProps) 
           <SearchInput
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('studioPages.icon.search', 'Search icons')}
-            aria-label={t('studioPages.icon.search', 'Search icons')}
+            placeholder={t('studio:pages.icon.search', 'Search icons')}
+            aria-label={t('studio:pages.icon.search', 'Search icons')}
             data-testid="studio-pages-icon-search"
           />
           {results.length === 0 ? (
             <p className="text-body-sm px-1 py-6 text-center text-fg-subtle">
-              {t('studioPages.icon.noMatches', 'No icons match that search.')}
+              {t('studio:pages.icon.noMatches', 'No icons match that search.')}
             </p>
           ) : (
             <div

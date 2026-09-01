@@ -29,7 +29,7 @@ import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { RealtimeHub, type RealtimeEvent } from '../src/realtime/hub.js';
 import { i18nRoutes, I18N_CHANGED } from '../src/routes/i18n/index.js';
-import { makeEnv } from './helpers.js';
+import { makeEnv, type InjectPayload } from './helpers.js';
 
 interface Harness {
   app: AdminiumServer;
@@ -112,7 +112,7 @@ describe('i18n routes', () => {
     resetRuntimeLocales();
   });
 
-  const put = async (body: unknown, user = t.superAdmin) =>
+  const put = async (body: InjectPayload, user = t.superAdmin) =>
     t.app.inject({ method: 'PUT', url: '/api/v1/i18n/keys', headers: asUser(user), payload: body });
 
   it('manifest lists the compiled eight, all enabled, with a zero version', async () => {
@@ -170,11 +170,11 @@ describe('i18n routes', () => {
   });
 
   it('rejects placeholder drift and a changed placeholder type', async () => {
-    // `studio.remap.diff.count` is `{count} changes` in en-US.
+    // `studio:remap.diff.count` is `{count} changes` in en-US.
     const drift = await put({
       locale: 'de_DE',
-      namespace: 'common',
-      key: 'studio.remap.diff.count',
+      namespace: 'studio',
+      key: 'remap.diff.count',
       value: 'Änderungen',
     });
     expect(drift.statusCode).toBe(422);
@@ -182,16 +182,16 @@ describe('i18n routes', () => {
     // Type change is the literal-token hazard (23 §4.6).
     const typed = await put({
       locale: 'de_DE',
-      namespace: 'common',
-      key: 'studio.remap.diff.count',
+      namespace: 'studio',
+      key: 'remap.diff.count',
       value: '{count, number} Änderungen',
     });
     expect(typed.statusCode).toBe(422);
 
     const ok = await put({
       locale: 'de_DE',
-      namespace: 'common',
-      key: 'studio.remap.diff.count',
+      namespace: 'studio',
+      key: 'remap.diff.count',
       value: '{count} Änderungen',
     });
     expect(ok.statusCode).toBe(200);
@@ -392,7 +392,7 @@ describe('i18n transfer (23 §3.6)', () => {
       headers: asUser(t.superAdmin),
     });
 
-  const importLocale = async (locale: string, payload: unknown, includeSensitive = false) =>
+  const importLocale = async (locale: string, payload: InjectPayload, includeSensitive = false) =>
     t.app.inject({
       method: 'POST',
       url: `/api/v1/i18n/import/${locale}?includeSensitive=${String(includeSensitive)}`,
@@ -446,7 +446,7 @@ describe('i18n transfer (23 §3.6)', () => {
   it('applies the same message validation an editor write gets', async () => {
     const res = await importLocale('de_DE', {
       formatVersion: 1,
-      entries: { common: { 'studio.remap.diff.count': '{count, number} Änderungen' } },
+      entries: { studio: { 'remap.diff.count': '{count, number} Änderungen' } },
     });
     expect(res.json().written).toBe(0);
     expect(res.json().rejected[0].reason).toMatch(/placeholder/i);

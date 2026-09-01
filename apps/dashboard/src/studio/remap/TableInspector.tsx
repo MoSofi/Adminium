@@ -64,12 +64,12 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
       <header className="flex items-center gap-2">
         <h3 className="text-section text-fg">{tableDisplayLabel(table)}</h3>
         <MonoText className="text-[11px] text-fg-subtle">{table.id}</MonoText>
-        {table.system ? <Badge tone="neutral">{t('studio.remap.table.system', 'System')}</Badge> : null}
+        {table.system ? <Badge tone="neutral">{t('studio:remap.table.system', 'System')}</Badge> : null}
       </header>
 
       <FormField
-        label={t('studio.remap.table.labelOverride', 'Display label')}
-        helper={t('studio.remap.table.labelHelper', 'Inferred: {name}', { name: titleCase(table.name), })}
+        label={t('studio:remap.table.labelOverride', 'Display label')}
+        helper={t('studio:remap.table.labelHelper', 'Inferred: {name}', { name: titleCase(table.name), })}
         {...(fieldError === undefined ? {} : { error: fieldError })}
       >
         <Input
@@ -80,7 +80,7 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
       </FormField>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-body-sm font-medium text-fg">{t('studio.remap.table.icon', 'Icon')}</span>
+        <span className="text-body-sm font-medium text-fg">{t('studio:remap.table.icon', 'Icon')}</span>
         <IconPicker
           value={stagedIcon ?? table.icon ?? null}
           onChange={(icon) => stageLabelOp(stagedLabel !== '' ? stagedLabel : (table.label ?? ''), icon)}
@@ -88,9 +88,9 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
       </div>
 
       <FormField
-        label={t('studio.remap.table.navGroup', 'Nav group')}
+        label={t('studio:remap.table.navGroup', 'Nav group')}
         helper={t(
-          'studio.remap.table.navGroupHelper',
+          'studio:remap.table.navGroupHelper',
           'Nav placement is decided by the generator — a table.navGroup override is not in the v1 vocabulary.',
         )}
       >
@@ -106,15 +106,15 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
       <label className="flex items-center justify-between gap-3">
         <span className="flex flex-col">
           <span className="text-body-sm font-medium text-fg">
-            {t('studio.remap.table.include', 'Include in generated app')}
+            {t('studio:remap.table.include', 'Include in generated app')}
           </span>
           <span className="text-[11.5px] text-fg-muted">
-            {t('studio.remap.table.includeHelper', 'Excluded tables get no pages and disappear from nav.')}
+            {t('studio:remap.table.includeHelper', 'Excluded tables get no pages and disappear from nav.')}
           </span>
         </span>
         <Switch
           checked={!excluded}
-          aria-label={t('studio.remap.table.include', 'Include in generated app')}
+          aria-label={t('studio:remap.table.include', 'Include in generated app')}
           onCheckedChange={(checked) => {
             if (checked) buffer.drop(excludeKey);
             else buffer.stage({ op: 'table.exclude', tableName: table.id, value: { excluded: true } });
@@ -124,41 +124,41 @@ export function TableInspector({ table, buffer, fieldError }: TableInspectorProp
 
       <section className="flex flex-col gap-2">
         <h4 className="text-body-sm font-semibold text-fg">
-          {t('studio.remap.table.shape', 'Table shape (classified)')}
+          {t('studio:remap.table.shape', 'Table shape (classified)')}
         </h4>
         <KeyValueList
           items={[
             {
-              label: t('studio.remap.table.role', 'Role'),
-              value: semantics === null ? t('studio.remap.table.unclassified', 'Not classified') : semantics.role,
+              label: t('studio:remap.table.role', 'Role'),
+              value: semantics === null ? t('studio:remap.table.unclassified', 'Not classified') : semantics.role,
             },
             {
-              label: t('studio.remap.table.kind', 'Kind'),
+              label: t('studio:remap.table.kind', 'Kind'),
               value: table.kind,
             },
             {
-              label: t('studio.remap.table.hierarchy', 'Hierarchy'),
+              label: t('studio:remap.table.hierarchy', 'Hierarchy'),
               value:
                 semantics?.hierarchy == null
                   ? '—'
-                  : t('studio.remap.table.selfFk', 'Self-reference via {column}', { column: semantics.hierarchy.parentColumn, }),
+                  : t('studio:remap.table.selfFk', 'Self-reference via {column}', { column: semantics.hierarchy.parentColumn, }),
             },
             {
-              label: t('studio.remap.table.polymorphic', 'Polymorphic pairs'),
+              label: t('studio:remap.table.polymorphic', 'Polymorphic pairs'),
               value:
                 semantics === null || semantics.polymorphic.length === 0
                   ? '—'
                   : semantics.polymorphic.map((p) => `${p.typeColumn}/${p.idColumn}`).join(', '),
             },
             {
-              label: t('studio.remap.table.rows', 'Row estimate'),
+              label: t('studio:remap.table.rows', 'Row estimate'),
               value: table.rowCountEstimate === null ? '—' : String(table.rowCountEstimate),
             },
           ]}
         />
         <p className="text-[11.5px] text-fg-muted">
           {t(
-            'studio.remap.table.shapeHelper',
+            'studio:remap.table.shapeHelper',
             'Classification is recomputed on every introspection; overrides layer on top and survive regeneration.',
           )}
         </p>

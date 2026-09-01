@@ -1015,6 +1015,25 @@
         "description": "سياسات الأمان على مستوى الصفوف لكل جدول، مع الأمر والدور ومفتاح للتفعيل.",
         "emptyTitle": "لا توجد سياسات",
         "emptyBody": "لا يحتوي هذا الجدول على سياسات أمان على مستوى الصفوف بعد."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "لا يوجد عنوان",
+        "emptyBody": "أضف نص العنوان لهذه الرسالة."
+      },
+      "blockEmailText": {
+        "emptyTitle": "لا يوجد نص",
+        "emptyBody": "أضف فقرة إلى هذه الرسالة."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "زر غير مكتمل",
+        "emptyBody": "يحتاج الزر إلى نص ورابط معًا حتى يُرسَل."
+      },
+      "blockEmailSpacer": {
+        "label": "مسافة {size} بكسل"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "لا يوجد تذييل",
+        "emptyBody": "النص القانوني والعنوان ورابط إلغاء الاشتراك تُوضَع هنا."
       }
     },
     "media": {
@@ -1551,7 +1570,13 @@
         "block-late-fees": "رسوم التأخير",
         "block-image-placeholder": "صورة",
         "block-contact": "جهة الاتصال",
-        "block-highlight-box": "مربع تمييز"
+        "block-highlight-box": "مربع تمييز",
+        "email-heading": "عنوان",
+        "email-text": "فقرة",
+        "email-button": "زر إجراء",
+        "email-divider": "فاصل",
+        "email-spacer": "مسافة",
+        "email-footer": "تذييل"
       },
       "starters": {
         "titles": {

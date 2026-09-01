@@ -10,6 +10,13 @@
  * Keys are bare (no `ns:` prefix) and resolve in the `common` namespace by
  * default; `ui:`/`studio:`/`generated:`/`errors:` prefixes address the other
  * bundles (§2.4/§2.5). ICU args ride the third parameter.
+ *
+ * `studio:` is the one DEFERRED namespace (10-T06): it is not in the bundle
+ * and not preloaded, so until the Studio has loaded it a `studio:` key
+ * resolves to the `fallback` argument. That is fine inside the Studio, which
+ * waits (`studio/studioMessages.ts`), and wrong everywhere else — a key read
+ * outside it renders English to every locale. `i18n/studioNamespace.test.ts`
+ * fails the build on one.
  */
 import { formatFallback, type I18nInstance } from '@adminium/i18n';
 

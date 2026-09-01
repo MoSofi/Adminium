@@ -73,10 +73,12 @@ export function sourceKeyCount(): number {
 /**
  * The first segment of a key (`widgets.charts.foo` → `widgets`).
  *
- * The editor groups by this rather than by namespace, because the namespace
- * axis is badly unbalanced in practice — `common` and `ui` hold effectively
- * every key while `studio` and `generated` hold a handful each — so namespace
- * is a poor primary navigation and a fine secondary filter.
+ * The editor groups by this rather than by namespace. The namespace axis was
+ * badly unbalanced when this was written — `common` and `ui` held effectively
+ * every key — and 10-T06 evened it out somewhat by moving the console's 971
+ * messages into `studio` where they belonged. It is still the wrong primary
+ * navigation and a fine secondary filter: an admin looking for a string knows
+ * which SCREEN it was on, not which bundle it ships in.
  */
 export function keyGroup(key: string): string {
   const dot = key.indexOf('.');

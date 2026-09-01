@@ -352,13 +352,13 @@ export function Topbar({
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>{t('topbar.studio', 'Studio')}</DropdownMenuLabel>
                 <DropdownMenuItem icon={<Database />} onSelect={onOpenStudio}>
-                  {t('studio.hub.title', 'Data connections')}
+                  {t('topbar.dataConnections', 'Data connections')}
                 </DropdownMenuItem>
                 {/* Pages is deliberately absent: Workspace settings owns the
                     entry point ("Manage pages"), so the menu lists one door per
                     destination instead of two paths to the same surface. */}
                 <DropdownMenuItem icon={<SlidersHorizontal />} onSelect={onOpenStudioSettings}>
-                  {t('studio.settingsHub.title', 'Workspace settings')}
+                  {t('topbar.workspaceSettings', 'Workspace settings')}
                 </DropdownMenuItem>
               </>
             ) : null}

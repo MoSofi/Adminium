@@ -213,3 +213,51 @@ describe('real locale bundles through loadLocaleBundle', () => {
     expect(tw.t('ui:action.save')).toBe('儲存');
   });
 });
+
+// The `studio` namespace is in neither the bundled en-US set nor the initial
+// `ns` list (./resources/namespaces.ts, 10-T06). These assert the whole shape
+// of that trade: what a caller gets before it asks, what asking gives it, and
+// the one non-obvious consequence — that a namespace pulled in on demand has
+// to survive a later locale switch, or the Studio would keep rendering the
+// language the user just left.
+describe('the deferred `studio` namespace', () => {
+  it('is absent until asked for, and the caller sees its fallback meanwhile', async () => {
+    const i18n = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
+    expect(i18n.hasResourceBundle('en-US', 'studio')).toBe(false);
+    expect(i18n.t('studio:hub.title', { defaultValue: 'Data connections' })).toBe('Data connections');
+  });
+
+  it('resolves from the catalogue once loaded', async () => {
+    const i18n = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
+    await i18n.loadNamespaces('studio');
+    expect(i18n.hasResourceBundle('en-US', 'studio')).toBe(true);
+    // Resolved from the bundle, not from the defaultValue — a deliberately
+    // wrong fallback proves which one answered.
+    expect(i18n.t('studio:hub.title', { defaultValue: 'WRONG' })).toBe('Data connections');
+    expect(i18n.t('studio:pages.title', { defaultValue: 'WRONG' })).toBe('Pages');
+  });
+
+  it('loads the active locale AND the en-US fallback behind it', async () => {
+    const i18n = await createI18n({ locale: 'de_DE', loadBundle: loadLocaleBundle });
+    await i18n.loadNamespaces('studio');
+    expect(i18n.hasResourceBundle('de-DE', 'studio')).toBe(true);
+    expect(i18n.hasResourceBundle('en-US', 'studio')).toBe(true);
+    expect(i18n.t('studio:hub.title')).toBe('Datenverbindungen');
+  });
+
+  it('follows a later locale switch, having joined `options.ns` on first load', async () => {
+    const i18n = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
+    await i18n.loadNamespaces('studio');
+    await switchLocale(i18n, 'fr_FR');
+    // `switchLocale` preloads `options.ns` for the target language before
+    // `changeLanguage` fires. If loading a namespace on demand did not add it
+    // to that list, this would still read the English loaded a moment ago.
+    expect(i18n.t('studio:hub.title')).toBe('Connexions de données');
+  });
+
+  it('is not fetched by a locale switch nobody asked for it in', async () => {
+    const i18n = await createI18n({ locale: 'en_US', loadBundle: loadLocaleBundle });
+    await switchLocale(i18n, 'de_DE');
+    expect(i18n.hasResourceBundle('de-DE', 'studio')).toBe(false);
+  });
+});

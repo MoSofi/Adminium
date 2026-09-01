@@ -68,10 +68,10 @@ export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreePro
   };
 
   return (
-    <nav aria-label={t('studio.remap.tree.label', 'Schema')} className="flex min-h-0 flex-col gap-2">
+    <nav aria-label={t('studio:remap.tree.label', 'Schema')} className="flex min-h-0 flex-col gap-2">
       <SearchInput
-        aria-label={t('studio.remap.tree.search', 'Search tables and columns')}
-        placeholder={t('studio.remap.tree.searchPlaceholder', 'Search tables…')}
+        aria-label={t('studio:remap.tree.search', 'Search tables and columns')}
+        placeholder={t('studio:remap.tree.searchPlaceholder', 'Search tables…')}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onClear={() => setQuery('')}
@@ -80,7 +80,7 @@ export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreePro
       <ul className="min-h-0 flex-1 overflow-y-auto pe-1" data-testid="remap-tree">
         {visible.length === 0 ? (
           <li className="p-3 text-body-sm text-fg-muted">
-            {t('studio.remap.tree.noMatches', 'No tables match your search.')}
+            {t('studio:remap.tree.noMatches', 'No tables match your search.')}
           </li>
         ) : null}
         {visible.map((table) => {
@@ -103,8 +103,8 @@ export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreePro
                   type="button"
                   aria-label={
                     isOpen
-                      ? t('studio.remap.tree.collapse', 'Collapse table')
-                      : t('studio.remap.tree.expand', 'Expand table')
+                      ? t('studio:remap.tree.collapse', 'Collapse table')
+                      : t('studio:remap.tree.expand', 'Expand table')
                   }
                   aria-expanded={isOpen}
                   className="rounded-sm p-1 text-fg-muted hover:text-fg"
@@ -129,12 +129,12 @@ export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreePro
                   <span className="truncate font-medium">{label}</span>
                   {staged !== null ? (
                     <span
-                      aria-label={t('studio.remap.tree.unsaved', 'Unsaved change')}
+                      aria-label={t('studio:remap.tree.unsaved', 'Unsaved change')}
                       className="size-1.5 shrink-0 rounded-full bg-accent"
                     />
                   ) : null}
                   <MonoText className="ms-auto truncate text-[11px] text-fg-subtle">{table.name}</MonoText>
-                  {excluded ? <Badge tone="neutral">{t('studio.remap.tree.excluded', 'Excluded')}</Badge> : null}
+                  {excluded ? <Badge tone="neutral">{t('studio:remap.tree.excluded', 'Excluded')}</Badge> : null}
                 </button>
               </div>
               {isOpen ? (
@@ -159,7 +159,7 @@ export function SchemaTree({ model, buffer, selection, onSelect }: SchemaTreePro
                           <span className="truncate">{stagedLabel ?? columnDisplayLabel(column)}</span>
                           {stagedLabel !== null ? (
                             <span
-                              aria-label={t('studio.remap.tree.unsaved', 'Unsaved change')}
+                              aria-label={t('studio:remap.tree.unsaved', 'Unsaved change')}
                               className="size-1.5 shrink-0 rounded-full bg-accent"
                             />
                           ) : null}

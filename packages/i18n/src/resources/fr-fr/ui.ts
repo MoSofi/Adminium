@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/fr-FR/ui.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -1024,6 +1025,25 @@ export default {
         "description": "Politiques de sécurité au niveau des lignes par table, avec leur commande, leur rôle et un interrupteur d'activation.",
         "emptyTitle": "Aucune politique",
         "emptyBody": "Cette table n'a pas encore de politiques de sécurité au niveau des lignes."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "Aucun titre",
+        "emptyBody": "Ajoutez le texte du titre de cet e-mail."
+      },
+      "blockEmailText": {
+        "emptyTitle": "Aucun texte",
+        "emptyBody": "Ajoutez un paragraphe à cet e-mail."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "Bouton incomplet",
+        "emptyBody": "Un bouton doit avoir un texte et un lien pour être envoyé."
+      },
+      "blockEmailSpacer": {
+        "label": "Espace de {size} px"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "Aucun pied de page",
+        "emptyBody": "Mentions légales, adresse et lien de désabonnement."
       }
     },
     "media": {
@@ -1560,7 +1580,13 @@ export default {
         "block-late-fees": "Pénalités de retard",
         "block-image-placeholder": "Image",
         "block-contact": "Contact",
-        "block-highlight-box": "Encadré"
+        "block-highlight-box": "Encadré",
+        "email-heading": "Titre",
+        "email-text": "Paragraphe",
+        "email-button": "Appel à l'action",
+        "email-divider": "Séparateur",
+        "email-spacer": "Espacement",
+        "email-footer": "Pied de page"
       },
       "starters": {
         "titles": {

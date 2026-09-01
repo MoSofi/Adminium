@@ -90,13 +90,13 @@ export function TestStep({
   async function runFileScript(): Promise<void> {
     const preview = state.filePreview;
     if (preview === null) return;
-    push('running', t('studio.test.log.readingFile', 'Reading uploaded schema file…'));
+    push('running', t('studio:test.log.readingFile', 'Reading uploaded schema file…'));
     await wait(lineDelayMs);
-    push('info', t('studio.test.log.parsingFile', 'Parsing {file}…', { file: preview.fileName }));
+    push('info', t('studio:test.log.parsingFile', 'Parsing {file}…', { file: preview.fileName }));
     await wait(lineDelayMs);
     push(
       'ok',
-      t('studio.test.log.detected', 'Detected {tables} tables · {columns} columns', { tables: String(preview.tables), columns: String(preview.columns) }),
+      t('studio:test.log.detected', 'Detected {tables} tables · {columns} columns', { tables: String(preview.tables), columns: String(preview.columns) }),
     );
     await wait(lineDelayMs);
     for (const warning of preview.warnings.slice(0, MAX_WARNING_LINES)) {
@@ -105,11 +105,11 @@ export function TestStep({
     if (preview.warnings.length > MAX_WARNING_LINES) {
       push(
         'warn',
-        t('studio.test.log.moreWarnings', '+{count} more parser warnings', { count: String(preview.warnings.length - MAX_WARNING_LINES), }),
+        t('studio:test.log.moreWarnings', '+{count} more parser warnings', { count: String(preview.warnings.length - MAX_WARNING_LINES), }),
       );
     }
     pushCapabilityNotes();
-    push('ok', t('studio.test.log.ready', 'Ready'));
+    push('ok', t('studio:test.log.ready', 'Ready'));
     onStatus('done');
   }
 
@@ -119,23 +119,23 @@ export function TestStep({
     const columns = tables.reduce((sum, table) => sum + table.columns.length, 0);
     push(
       'ok',
-      t('studio.test.log.found', 'Found {tables} tables · {columns} columns', { tables: String(tables.length), columns: String(columns) }),
+      t('studio:test.log.found', 'Found {tables} tables · {columns} columns', { tables: String(tables.length), columns: String(columns) }),
     );
     await wait(lineDelayMs);
-    push('info', t('studio.test.log.mapping', 'Mapping column types → input widgets'));
+    push('info', t('studio:test.log.mapping', 'Mapping column types → input widgets'));
     await wait(lineDelayMs);
-    push('info', t('studio.test.log.relations', 'Detecting relations…'));
+    push('info', t('studio:test.log.relations', 'Detecting relations…'));
     await wait(lineDelayMs);
-    push('running', t('studio.test.log.piiScan', 'Scanning for PII columns…'));
+    push('running', t('studio:test.log.piiScan', 'Scanning for PII columns…'));
     await wait(lineDelayMs);
     push(
       'ok',
       proposedMasks === null
-        ? t('studio.test.log.piiDoneUnknown', 'PII scan complete')
-        : t('studio.test.log.piiDone', 'PII scan complete — {count} columns masked by default', { count: String(proposedMasks), }),
+        ? t('studio:test.log.piiDoneUnknown', 'PII scan complete')
+        : t('studio:test.log.piiDone', 'PII scan complete — {count} columns masked by default', { count: String(proposedMasks), }),
     );
     pushCapabilityNotes();
-    push('ok', t('studio.test.log.ready', 'Ready'));
+    push('ok', t('studio:test.log.ready', 'Ready'));
     onStatus('done');
   }
 
@@ -154,7 +154,7 @@ export function TestStep({
         return;
       }
       if (job.status === 'failed' || job.status === 'cancelled') {
-        fail(job.lastError ?? t('studio.test.log.jobFailed', 'Introspection failed.'), null);
+        fail(job.lastError ?? t('studio:test.log.jobFailed', 'Introspection failed.'), null);
         return;
       }
       await wait(pollIntervalMs);
@@ -174,11 +174,11 @@ export function TestStep({
     const engine = effectiveEngine(state) ?? 'postgres';
     const dsn = effectiveDsn(state);
     try {
-      push('running', t('studio.test.log.connecting', 'Establishing secure connection…'));
+      push('running', t('studio:test.log.connecting', 'Establishing secure connection…'));
       const probe = await studioApi.testDsn(engine, dsn);
       if (!probe.ok) {
         fail(
-          probe.error?.message ?? t('studio.test.log.connectFailed', 'Connection failed.'),
+          probe.error?.message ?? t('studio:test.log.connectFailed', 'Connection failed.'),
           probe.error?.code ?? 'UNKNOWN',
           probe.error?.hint,
         );
@@ -187,7 +187,7 @@ export function TestStep({
       onPatch({ readOnly: probe.readOnly, privileges: probe.privileges });
       push(
         'ok',
-        t('studio.test.log.connected', 'Connected ({latency} ms) · read-only introspection', { latency: String(Math.round(probe.latencyMs)), }),
+        t('studio:test.log.connected', 'Connected ({latency} ms) · read-only introspection', { latency: String(Math.round(probe.latencyMs)), }),
       );
       await wait(lineDelayMs);
 
@@ -203,7 +203,7 @@ export function TestStep({
         onPatch({ connectionId, readOnly: created.readOnly });
       }
 
-      push('running', t('studio.test.log.readingSchema', 'Reading schema: public'));
+      push('running', t('studio:test.log.readingSchema', 'Reading schema: public'));
       const result = await studioApi.introspect(connectionId);
       if (result.kind === 'job') {
         await pollJob(connectionId, result.jobId);
@@ -215,7 +215,7 @@ export function TestStep({
         fail(cause.message, cause.code);
         return;
       }
-      fail(t('studio.test.log.networkFailed', 'Request failed — check your connection and retry.'), null);
+      fail(t('studio:test.log.networkFailed', 'Request failed — check your connection and retry.'), null);
     }
   }
 
@@ -234,19 +234,19 @@ export function TestStep({
   }, []);
 
   return (
-    <section aria-label={t('studio.test.title', 'Analyzing your schema')} className="flex flex-col gap-4">
+    <section aria-label={t('studio:test.title', 'Analyzing your schema')} className="flex flex-col gap-4">
       <div>
-        <h2 className="text-section text-fg">{t('studio.test.title', 'Analyzing your schema')}</h2>
+        <h2 className="text-section text-fg">{t('studio:test.title', 'Analyzing your schema')}</h2>
         <p className="mt-1 text-body-sm text-fg-muted">
-          {t('studio.test.subtitle', 'Introspecting tables, columns, and relationships. This takes a few seconds.')}
+          {t('studio:test.subtitle', 'Introspecting tables, columns, and relationships. This takes a few seconds.')}
         </p>
       </div>
-      <LogConsole lines={lines} label={t('studio.test.logLabel', 'Introspection log')} />
+      <LogConsole lines={lines} label={t('studio:test.logLabel', 'Introspection log')} />
       {status === 'error' ? (
         <Alert
           tone="danger"
           role="alert"
-          title={t('studio.test.errorTitle', 'Connection failed')}
+          title={t('studio:test.errorTitle', 'Connection failed')}
           {...(errorHint === null ? {} : { body: errorHint })}
           action={
             <Button
@@ -261,13 +261,13 @@ export function TestStep({
                 }
               }}
             >
-              {t('studio.test.retry', 'Retry')}
+              {t('studio:test.retry', 'Retry')}
             </Button>
           }
         />
       ) : null}
       <p className="text-caption text-fg-subtle">
-        {t('studio.test.trust', 'We only read your schema and data. Nothing is modified.')}
+        {t('studio:test.trust', 'We only read your schema and data. Nothing is modified.')}
       </p>
     </section>
   );

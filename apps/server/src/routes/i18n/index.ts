@@ -94,13 +94,25 @@ import {
 /** Realtime event type carried on the `config-changed` channel. */
 export const I18N_CHANGED = 'i18n.changed';
 
-/** Namespaces that ship eagerly — the budget in §6.4 is measured over these. */
-const EAGER_NAMESPACES: readonly Namespace[] = ['common', 'ui', 'errors'];
+/**
+ * Namespaces a browser downloads overrides for — what the budget in §6.4 is
+ * measured over.
+ *
+ * `studio` joined the list in 10-T06 without changing what the number means.
+ * Its 975 messages used to live under `common.studio.*` and were counted
+ * here; they are their own namespace now, fetched when the Studio opens
+ * rather than at boot. LATER is not FREE — the bytes still cross the wire to
+ * the same browser — so dropping them out of the cap would have quietly
+ * doubled what one locale can be made to carry.
+ *
+ * `generated` is still out, and correctly: nothing fetches overrides for it.
+ */
+const BUDGETED_NAMESPACES: readonly Namespace[] = ['common', 'ui', 'errors', 'studio'];
 
 /**
- * 256 KiB per locale across the eager namespaces. Measured, not guessed: the
- * whole eager en-US surface is ~163 KB / 2,770 keys, so this is ~1.5x a
- * complete re-authoring and only ever fires on abuse.
+ * 256 KiB per locale across the budgeted namespaces. Measured, not guessed:
+ * the whole en-US surface those namespaces cover is ~163 KB / 2,770 keys, so
+ * this is ~1.5x a complete re-authoring and only ever fires on abuse.
  */
 const MAX_OVERRIDE_BYTES_PER_LOCALE = 256 * 1024;
 
@@ -240,7 +252,7 @@ export function i18nRoutes(deps: I18nRoutesDeps): FastifyPluginAsyncZod {
   }
 
   async function assertBudget(locale: string, addedBytes: number): Promise<void> {
-    const current = await translations.byteSize(locale, EAGER_NAMESPACES);
+    const current = await translations.byteSize(locale, BUDGETED_NAMESPACES);
     if (current + addedBytes > MAX_OVERRIDE_BYTES_PER_LOCALE) {
       throw new AppError(
         422,

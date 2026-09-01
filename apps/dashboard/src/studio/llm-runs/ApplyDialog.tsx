@@ -56,14 +56,14 @@ export function ApplyDialog({ open, summary, applying, onConfirm, onOpenChange }
       <ModalHeader
         tone="accent"
         icon={<Sparkles />}
-        title={t('studio.llmRuns.review.apply.title', 'Apply {n} suggestions', { n: summary.total })}
-        subtitle={t('studio.llmRuns.review.apply.subtitle', 'These changes are written in one transaction and can be undone.')}
+        title={t('studio:llmRuns.review.apply.title', 'Apply {n} suggestions', { n: summary.total })}
+        subtitle={t('studio:llmRuns.review.apply.subtitle', 'These changes are written in one transaction and can be undone.')}
         closeLabel={t('common.dismiss', 'Dismiss')}
       />
       <ModalBody>
         {lines.length === 0 ? (
           <p className="text-body-sm text-fg-muted">
-            {t('studio.llmRuns.review.apply.empty', 'Nothing selected to apply.')}
+            {t('studio:llmRuns.review.apply.empty', 'Nothing selected to apply.')}
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
@@ -81,7 +81,7 @@ export function ApplyDialog({ open, summary, applying, onConfirm, onOpenChange }
           {t('common.cancel', 'Cancel')}
         </Button>
         <Button loading={applying} disabled={summary.total === 0} onClick={onConfirm}>
-          {t('studio.llmRuns.review.apply.confirm', 'Apply changes')}
+          {t('studio:llmRuns.review.apply.confirm', 'Apply changes')}
         </Button>
       </ModalFooter>
     </Modal>

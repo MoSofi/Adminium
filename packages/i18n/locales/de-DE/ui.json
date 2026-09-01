@@ -1015,6 +1015,25 @@
         "description": "Sicherheitsrichtlinien auf Zeilenebene je Tabelle mit Befehl, Rolle und Aktivierungsschalter.",
         "emptyTitle": "Keine Richtlinien",
         "emptyBody": "Diese Tabelle hat noch keine Sicherheitsrichtlinien auf Zeilenebene."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "Keine Überschrift",
+        "emptyBody": "Fügen Sie einen Überschriftentext für diese E-Mail hinzu."
+      },
+      "blockEmailText": {
+        "emptyTitle": "Kein Text",
+        "emptyBody": "Fügen Sie einen Absatz für diese E-Mail hinzu."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "Unvollständige Schaltfläche",
+        "emptyBody": "Eine Schaltfläche benötigt Text und einen Link, um versendet zu werden."
+      },
+      "blockEmailSpacer": {
+        "label": "{size} px Abstand"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "Keine Fußzeile",
+        "emptyBody": "Rechtstexte, Adresse und Abmeldelink gehören hierher."
       }
     },
     "media": {
@@ -1551,7 +1570,13 @@
         "block-late-fees": "Mahngebühren",
         "block-image-placeholder": "Bild",
         "block-contact": "Kontakt",
-        "block-highlight-box": "Hinweisfeld"
+        "block-highlight-box": "Hinweisfeld",
+        "email-heading": "Überschrift",
+        "email-text": "Absatz",
+        "email-button": "Handlungsaufruf",
+        "email-divider": "Trennlinie",
+        "email-spacer": "Abstand",
+        "email-footer": "Fußzeile"
       },
       "starters": {
         "titles": {

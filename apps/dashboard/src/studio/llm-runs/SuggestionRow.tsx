@@ -24,17 +24,17 @@ interface StatusMeta {
 function statusMeta(status: SuggestionStatus): StatusMeta {
   switch (status) {
     case 'agree':
-      return { tone: 'pos', label: t('studio.llmRuns.review.status.agree', 'Agrees') };
+      return { tone: 'pos', label: t('studio:llmRuns.review.status.agree', 'Agrees') };
     case 'conflict':
-      return { tone: 'warn', label: t('studio.llmRuns.review.status.conflict', 'Conflict') };
+      return { tone: 'warn', label: t('studio:llmRuns.review.status.conflict', 'Conflict') };
     case 'llm-new':
-      return { tone: 'accent', label: t('studio.llmRuns.review.status.new', 'New') };
+      return { tone: 'accent', label: t('studio:llmRuns.review.status.new', 'New') };
     case 'heuristic-only':
-      return { tone: 'neutral', label: t('studio.llmRuns.review.status.heuristicOnly', 'Heuristic only') };
+      return { tone: 'neutral', label: t('studio:llmRuns.review.status.heuristicOnly', 'Heuristic only') };
     case 'rejects-heuristic':
-      return { tone: 'danger', label: t('studio.llmRuns.review.status.rejects', 'Rejects heuristic') };
+      return { tone: 'danger', label: t('studio:llmRuns.review.status.rejects', 'Rejects heuristic') };
     case 'user-locked':
-      return { tone: 'info', label: t('studio.llmRuns.review.status.locked', 'Locked') };
+      return { tone: 'info', label: t('studio:llmRuns.review.status.locked', 'Locked') };
   }
 }
 
@@ -53,25 +53,25 @@ function confidenceTone(confidence: number): Tone {
 function categoryNoun(category: string): string {
   switch (category) {
     case 'label':
-      return t('studio.llmRuns.review.cat.label', 'label');
+      return t('studio:llmRuns.review.cat.label', 'label');
     case 'key':
-      return t('studio.llmRuns.review.cat.key', 'key columns');
+      return t('studio:llmRuns.review.cat.key', 'key columns');
     case 'enum':
-      return t('studio.llmRuns.review.cat.enum', 'enum');
+      return t('studio:llmRuns.review.cat.enum', 'enum');
     case 'relation':
-      return t('studio.llmRuns.review.cat.relation', 'relation');
+      return t('studio:llmRuns.review.cat.relation', 'relation');
     case 'pii':
-      return t('studio.llmRuns.review.cat.pii', 'PII');
+      return t('studio:llmRuns.review.cat.pii', 'PII');
     case 'template':
-      return t('studio.llmRuns.review.cat.template', 'page template');
+      return t('studio:llmRuns.review.cat.template', 'page template');
     case 'group':
-      return t('studio.llmRuns.review.cat.group', 'navigation group');
+      return t('studio:llmRuns.review.cat.group', 'navigation group');
     case 'dashboard':
-      return t('studio.llmRuns.review.cat.dashboard', 'dashboard');
+      return t('studio:llmRuns.review.cat.dashboard', 'dashboard');
     case 'widget':
-      return t('studio.llmRuns.review.cat.widget', 'widget');
+      return t('studio:llmRuns.review.cat.widget', 'widget');
     case 'copy':
-      return t('studio.llmRuns.review.cat.copy', 'micro-copy');
+      return t('studio:llmRuns.review.cat.copy', 'micro-copy');
     default:
       return category;
   }
@@ -114,7 +114,7 @@ export function SuggestionRow({ diff, checked, readOnly, onToggle }: SuggestionR
           className="mt-0.5"
           checked={checked}
           disabled={!checkable}
-          aria-label={t('studio.llmRuns.review.row.acceptAria', 'Accept {noun} suggestion for {target}', {
+          aria-label={t('studio:llmRuns.review.row.acceptAria', 'Accept {noun} suggestion for {target}', {
             noun: categoryNoun(diff.category),
             target: identifier,
           })}
@@ -130,7 +130,7 @@ export function SuggestionRow({ diff, checked, readOnly, onToggle }: SuggestionR
             {locked ? (
               <Badge tone="info">
                 <Lock aria-hidden className="me-1 size-3" />
-                {t('studio.llmRuns.review.row.keptEdited', 'kept — edited by you')}
+                {t('studio:llmRuns.review.row.keptEdited', 'kept — edited by you')}
               </Badge>
             ) : null}
           </div>
@@ -149,7 +149,7 @@ export function SuggestionRow({ diff, checked, readOnly, onToggle }: SuggestionR
           {rejects ? (
             <p className="flex items-start gap-1.5 text-body-sm text-warn">
               <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              <span>{t('studio.llmRuns.review.row.rejectsCallout', 'The AI rejects a heuristic decision — confirm before accepting.')}</span>
+              <span>{t('studio:llmRuns.review.row.rejectsCallout', 'The AI rejects a heuristic decision — confirm before accepting.')}</span>
             </p>
           ) : null}
 
@@ -172,8 +172,8 @@ export function SuggestionRow({ diff, checked, readOnly, onToggle }: SuggestionR
                   className={cn('size-3 transition-transform rtl:-scale-x-100', expanded && 'rotate-90')}
                 />
                 {expanded
-                  ? t('studio.llmRuns.review.row.hideTranslations', 'Hide translations')
-                  : t('studio.llmRuns.review.row.showTranslations', 'Show translations')}
+                  ? t('studio:llmRuns.review.row.hideTranslations', 'Hide translations')
+                  : t('studio:llmRuns.review.row.showTranslations', 'Show translations')}
               </button>
               {expanded ? (
                 <div className="mt-2 flex flex-col gap-2 rounded-md border border-border bg-surface-2 p-2">
@@ -196,13 +196,13 @@ export function SuggestionRow({ diff, checked, readOnly, onToggle }: SuggestionR
               tone={confidenceTone(diff.confidence)}
               size="sm"
               animated={false}
-              label={t('studio.llmRuns.review.row.confidenceAria', 'Confidence {pct}%', {
+              label={t('studio:llmRuns.review.row.confidenceAria', 'Confidence {pct}%', {
                 pct: Math.round(diff.confidence * 100),
               })}
             />
           </div>
         ) : (
-          <Tag className="shrink-0">{t('studio.llmRuns.review.row.noAi', 'No AI suggestion')}</Tag>
+          <Tag className="shrink-0">{t('studio:llmRuns.review.row.noAi', 'No AI suggestion')}</Tag>
         )}
       </div>
     </li>

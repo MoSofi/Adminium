@@ -90,6 +90,12 @@ function formatPlaceable(body: string, args: Record<string, unknown>): string {
 export function installTestI18n(): () => void {
   const fake = {
     language: 'en-US',
+    // The stand-in reads the COMPLETE en-US catalogue below, deferred
+    // namespaces included, so every namespace is already resolvable and there
+    // is nothing to fetch. It still has to exist: the Studio waits on it
+    // before rendering (studio/studioMessages.ts), and a stand-in that is
+    // missing it fails those pages with a TypeError rather than a diff.
+    loadNamespaces: async (): Promise<void> => undefined,
     t: (key: string, options?: Record<string, unknown>): string => {
       const { defaultValue, ...args } = options ?? {};
       const message = lookup(key) ?? (typeof defaultValue === 'string' ? defaultValue : key);

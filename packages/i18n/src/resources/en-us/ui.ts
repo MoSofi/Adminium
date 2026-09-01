@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/en-US/ui.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -1024,6 +1025,25 @@ export default {
         "description": "Row-level security policies per table with their command, role, and an enable toggle.",
         "emptyTitle": "No policies",
         "emptyBody": "This table has no row-level security policies yet."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "No heading",
+        "emptyBody": "Add heading text for this email."
+      },
+      "blockEmailText": {
+        "emptyTitle": "No text",
+        "emptyBody": "Add a paragraph for this email."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "Incomplete button",
+        "emptyBody": "A button needs both text and a link to be sent."
+      },
+      "blockEmailSpacer": {
+        "label": "{size}px space"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "No footer",
+        "emptyBody": "Legal text, address and unsubscribe copy go here."
       }
     },
     "media": {
@@ -1560,7 +1580,13 @@ export default {
         "block-late-fees": "Late fees",
         "block-image-placeholder": "Image",
         "block-contact": "Contact",
-        "block-highlight-box": "Highlight box"
+        "block-highlight-box": "Highlight box",
+        "email-heading": "Heading",
+        "email-text": "Paragraph",
+        "email-button": "Call-to-action",
+        "email-divider": "Divider",
+        "email-spacer": "Spacer",
+        "email-footer": "Footer"
       },
       "starters": {
         "titles": {

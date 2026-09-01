@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/zh-TW/ui.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -1024,6 +1025,25 @@ export default {
         "description": "依資料表顯示的資料列層級安全性原則，含指令、角色與啟用開關。",
         "emptyTitle": "尚無原則",
         "emptyBody": "此資料表尚未設定資料列層級安全性原則。"
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "沒有標題",
+        "emptyBody": "為這封郵件加入標題文字。"
+      },
+      "blockEmailText": {
+        "emptyTitle": "沒有文字",
+        "emptyBody": "為這封郵件加入一個段落。"
+      },
+      "blockEmailButton": {
+        "emptyTitle": "按鈕不完整",
+        "emptyBody": "按鈕需要同時具備文字與連結才能寄送。"
+      },
+      "blockEmailSpacer": {
+        "label": "{size} 像素間距"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "沒有頁尾",
+        "emptyBody": "法律條款、地址與取消訂閱資訊放在這裡。"
       }
     },
     "media": {
@@ -1560,7 +1580,13 @@ export default {
         "block-late-fees": "逾期費用",
         "block-image-placeholder": "圖片",
         "block-contact": "聯絡人",
-        "block-highlight-box": "重點提示框"
+        "block-highlight-box": "重點提示框",
+        "email-heading": "標題",
+        "email-text": "段落",
+        "email-button": "行動呼籲",
+        "email-divider": "分隔線",
+        "email-spacer": "間距",
+        "email-footer": "頁尾"
       },
       "starters": {
         "titles": {

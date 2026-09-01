@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/ar-EG/ui.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -1024,6 +1025,25 @@ export default {
         "description": "سياسات الأمان على مستوى الصفوف لكل جدول، مع الأمر والدور ومفتاح للتفعيل.",
         "emptyTitle": "لا توجد سياسات",
         "emptyBody": "لا يحتوي هذا الجدول على سياسات أمان على مستوى الصفوف بعد."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "لا يوجد عنوان",
+        "emptyBody": "أضف نص العنوان لهذه الرسالة."
+      },
+      "blockEmailText": {
+        "emptyTitle": "لا يوجد نص",
+        "emptyBody": "أضف فقرة إلى هذه الرسالة."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "زر غير مكتمل",
+        "emptyBody": "يحتاج الزر إلى نص ورابط معًا حتى يُرسَل."
+      },
+      "blockEmailSpacer": {
+        "label": "مسافة {size} بكسل"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "لا يوجد تذييل",
+        "emptyBody": "النص القانوني والعنوان ورابط إلغاء الاشتراك تُوضَع هنا."
       }
     },
     "media": {
@@ -1560,7 +1580,13 @@ export default {
         "block-late-fees": "رسوم التأخير",
         "block-image-placeholder": "صورة",
         "block-contact": "جهة الاتصال",
-        "block-highlight-box": "مربع تمييز"
+        "block-highlight-box": "مربع تمييز",
+        "email-heading": "عنوان",
+        "email-text": "فقرة",
+        "email-button": "زر إجراء",
+        "email-divider": "فاصل",
+        "email-spacer": "مسافة",
+        "email-footer": "تذييل"
       },
       "starters": {
         "titles": {

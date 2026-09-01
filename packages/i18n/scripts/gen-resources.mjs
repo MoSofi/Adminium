@@ -29,7 +29,7 @@ for (const tag of localeTags) {
     // adds afterwards: this generator rewrites all 40 mirrors from scratch, so an
     // externally-inserted header would be deleted on the next `gen:resources` run
     // and the licence gate would go red with no diff anyone made.
-    const src = `// SPDX-License-Identifier: AGPL-3.0-only\n/**\n * GENERATED MIRROR of ../../../locales/${tag}/${ns}.json — do not edit by hand.\n * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);\n * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits\n * the other locales) without JSON import attributes (browser + NodeNext safe).\n * Parity is enforced by src/resources/parity.test.ts. Regenerate with\n * scripts/gen-resources.mjs.\n */\nexport default ${body} as const;\n`;
+    const src = `// SPDX-License-Identifier: AGPL-3.0-only\n/**\n * GENERATED MIRROR of ../../../locales/${tag}/${ns}.json — do not edit by hand.\n * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);\n * this TS mirror exists so the runtime can bundle a namespace (en-US's eager\n * ones) or chunk-split it (every other locale, and en-US's deferred \`studio\`)\n * without JSON import attributes (browser + NodeNext safe).\n * Parity is enforced by src/resources/parity.test.ts. Regenerate with\n * scripts/gen-resources.mjs.\n */\nexport default ${body} as const;\n`;
     fs.writeFileSync(path.join(outDir, `${ns}.ts`), src);
     count += 1;
   }

@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/zh-CN/ui.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -1024,6 +1025,25 @@ export default {
         "description": "按数据表显示的行级安全策略，含命令、角色和启用开关。",
         "emptyTitle": "暂无策略",
         "emptyBody": "该数据表尚未设置行级安全策略。"
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "没有标题",
+        "emptyBody": "为这封邮件添加标题文字。"
+      },
+      "blockEmailText": {
+        "emptyTitle": "没有文字",
+        "emptyBody": "为这封邮件添加一个段落。"
+      },
+      "blockEmailButton": {
+        "emptyTitle": "按钮不完整",
+        "emptyBody": "按钮需要同时具备文字和链接才能发送。"
+      },
+      "blockEmailSpacer": {
+        "label": "{size} 像素间距"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "没有页脚",
+        "emptyBody": "法律条款、地址和退订信息放在这里。"
       }
     },
     "media": {
@@ -1560,7 +1580,13 @@ export default {
         "block-late-fees": "滞纳金",
         "block-image-placeholder": "图片",
         "block-contact": "联系人",
-        "block-highlight-box": "重点提示框"
+        "block-highlight-box": "重点提示框",
+        "email-heading": "标题",
+        "email-text": "段落",
+        "email-button": "行动号召",
+        "email-divider": "分隔线",
+        "email-spacer": "间距",
+        "email-footer": "页脚"
       },
       "starters": {
         "titles": {

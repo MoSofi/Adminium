@@ -71,15 +71,15 @@ export function RenameConnectionModal({ connection, onClose, onSaved }: RenameCo
       size="sm"
     >
       <ModalHeader
-        title={t('studio.hub.rename.title', 'Rename connection')}
+        title={t('studio:hub.rename.title', 'Rename connection')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
         <form id="studio-rename-connection" className="flex flex-col gap-4" onSubmit={submit}>
           <FormField
-            label={t('studio.hub.rename.label', 'Name')}
+            label={t('studio:hub.rename.label', 'Name')}
             helper={t(
-              'studio.hub.rename.helper',
+              'studio:hub.rename.helper',
               'What this database is called throughout Adminium — the card, the sidebar group over its pages, and every picker that offers it. The database itself is not renamed.',
             )}
           >
@@ -95,7 +95,7 @@ export function RenameConnectionModal({ connection, onClose, onSaved }: RenameCo
           {save.isError ? (
             <Alert
               tone="danger"
-              title={t('studio.hub.rename.failed', 'The connection could not be renamed')}
+              title={t('studio:hub.rename.failed', 'The connection could not be renamed')}
               body={save.error instanceof Error ? save.error.message : ''}
             />
           ) : null}
@@ -112,7 +112,7 @@ export function RenameConnectionModal({ connection, onClose, onSaved }: RenameCo
           loading={save.isPending}
           data-testid="rename-save"
         >
-          {t('studio.hub.rename.save', 'Rename')}
+          {t('studio:hub.rename.save', 'Rename')}
         </Button>
       </ModalFooter>
     </Modal>

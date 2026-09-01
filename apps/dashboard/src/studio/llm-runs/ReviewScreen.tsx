@@ -122,7 +122,7 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
     onError: (error: unknown) => {
       toasts.push({
         variant: 'error',
-        title: t('studio.llmRuns.review.toast.applyFailed', 'Could not apply suggestions'),
+        title: t('studio:llmRuns.review.toast.applyFailed', 'Could not apply suggestions'),
         description: error instanceof Error ? error.message : undefined,
       });
     },
@@ -131,10 +131,10 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
   function pushUndoToast(result: RunApplyResult) {
     const token = undoTokenOf(result);
     const title = result.partial
-      ? t('studio.llmRuns.review.toast.appliedPartial', 'Applied {n} suggestions (some skipped)', {
+      ? t('studio:llmRuns.review.toast.appliedPartial', 'Applied {n} suggestions (some skipped)', {
           n: result.review.accepted.length,
         })
-      : t('studio.llmRuns.review.toast.applied', 'Applied {n} suggestions', {
+      : t('studio:llmRuns.review.toast.applied', 'Applied {n} suggestions', {
           n: result.review.accepted.length,
         });
     toasts.push({
@@ -156,7 +156,7 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
                   .catch((error: unknown) => {
                     toasts.push({
                       variant: 'error',
-                      title: t('studio.llmRuns.review.toast.undoFailed', 'Could not undo this change'),
+                      title: t('studio:llmRuns.review.toast.undoFailed', 'Could not undo this change'),
                       description: error instanceof Error ? error.message : undefined,
                     });
                   });
@@ -204,7 +204,7 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
       <PageSurface width="narrow">
         <Alert
           tone="danger"
-          title={t('studio.llmRuns.review.error.title', 'Could not load this run')}
+          title={t('studio:llmRuns.review.error.title', 'Could not load this run')}
           body={runResult.error instanceof Error ? runResult.error.message : undefined}
         />
       </PageSurface>
@@ -216,9 +216,9 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
       <PageSurface width="narrow">
         <Alert
           tone="info"
-          title={t('studio.llmRuns.review.notReady.title', 'This run has no suggestions to review yet')}
+          title={t('studio:llmRuns.review.notReady.title', 'This run has no suggestions to review yet')}
           body={t(
-            'studio.llmRuns.review.notReady.body',
+            'studio:llmRuns.review.notReady.body',
             'A run must be validated before its suggestions can be reviewed. Generate or paste a response first.',
           )}
         />
@@ -243,15 +243,15 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
       {isApplied ? (
         <Alert
           tone="pos"
-          title={t('studio.llmRuns.review.applied.title', 'This run has been applied')}
-          body={t('studio.llmRuns.review.applied.body', 'The accepted suggestions below are read-only.')}
+          title={t('studio:llmRuns.review.applied.title', 'This run has been applied')}
+          body={t('studio:llmRuns.review.applied.body', 'The accepted suggestions below are read-only.')}
         />
       ) : null}
 
       {groups.length === 0 ? (
         <EmptyState
-          title={t('studio.llmRuns.review.empty.title', 'No suggestions')}
-          body={t('studio.llmRuns.review.empty.body', 'This run produced no suggestions to review.')}
+          title={t('studio:llmRuns.review.empty.title', 'No suggestions')}
+          body={t('studio:llmRuns.review.empty.body', 'This run produced no suggestions to review.')}
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -273,14 +273,14 @@ export function ReviewScreen({ runId }: ReviewScreenProps) {
         <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur md:px-6">
           <div className="mx-auto flex max-w-wide items-center justify-between gap-3">
             <span className="text-body-sm text-fg-muted">
-              {t('studio.llmRuns.review.footer.count', '{n} suggestions selected', { n: nAccepted })}
+              {t('studio:llmRuns.review.footer.count', '{n} suggestions selected', { n: nAccepted })}
             </span>
             <div className="flex items-center gap-2">
               {applyMutation.isError ? (
-                <Badge tone="danger">{t('studio.llmRuns.review.footer.failed', 'Apply failed')}</Badge>
+                <Badge tone="danger">{t('studio:llmRuns.review.footer.failed', 'Apply failed')}</Badge>
               ) : null}
               <Button disabled={nAccepted === 0} onClick={() => setApplyOpen(true)}>
-                {t('studio.llmRuns.review.footer.apply', 'Apply {n} accepted suggestions', { n: nAccepted })}
+                {t('studio:llmRuns.review.footer.apply', 'Apply {n} accepted suggestions', { n: nAccepted })}
               </Button>
             </div>
           </div>
