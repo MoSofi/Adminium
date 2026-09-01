@@ -36,11 +36,50 @@ import type {
 // --- the block vocabulary -----------------------------------------------------
 
 /**
- * The 22 `block-*` registry ids, in annex §13 bullet order. `document-canvas`
- * validates `blockOrder[]` against this set, so a doc row carrying a typo'd or
- * hostile block id renders nothing rather than resolving an arbitrary widget.
+ * The SIX transactional-email block kinds, mirroring the mail renderer's
+ * closed vocabulary (`apps/server/src/email/render.ts` EMAIL_BLOCK_KINDS).
+ *
+ * WHY THEY ARE MIRRORED RATHER THAN IMPORTED. These kinds are the wire format
+ * of `adminium_email_templates.blocks`: the server seeds them at every boot and
+ * `renderEmail` turns them into MIME. The canvas has to speak the SAME strings
+ * or a stored template loads as an empty document and a canvas-authored block
+ * never reaches an inbox. But `apps/server` may not import `@adminium/widgets`
+ * and this package may not import the server (01 §2.3, enforced by
+ * `.dependency-cruiser.cjs` `server-no-ui-widgets-charts` /
+ * `widgets-no-meta-adapters-server`), and there is no runtime package both
+ * sides depend on — so the vocabulary crosses the boundary the way the LLM
+ * allow-lists already do: declared on each side, and held identical by
+ * `scripts/check-email-block-vocab.mjs` in CI. Change one list and the guard
+ * fails until you change the other.
+ *
+ * These are NOT `block-*` ids. The 22 document blocks below are invoice- and
+ * report-shaped (line items, tax breakdown, QR pay) and contain no heading,
+ * paragraph, button, divider, spacer or footer, so a transactional email
+ * cannot be expressed in them and no mapping between the two sets exists.
  */
-export const BLOCK_IDS = [
+export const EMAIL_BLOCK_KINDS = [
+  'email.heading',
+  'email.text',
+  'email.button',
+  'email.divider',
+  'email.spacer',
+  'email.footer',
+] as const;
+
+export type EmailBlockKind = (typeof EMAIL_BLOCK_KINDS)[number];
+
+const EMAIL_BLOCK_KIND_SET: ReadonlySet<string> = new Set(EMAIL_BLOCK_KINDS);
+
+/** Is this one of the six mail-renderer block kinds? */
+export function isEmailBlockKind(value: unknown): value is EmailBlockKind {
+  return typeof value === 'string' && EMAIL_BLOCK_KIND_SET.has(value);
+}
+
+/**
+ * The 22 `block-*` registry ids, in annex §13 bullet order — the INVOICE and
+ * REPORT vocabulary. `BLOCK_IDS` below adds the email kinds to them.
+ */
+export const DOCUMENT_BLOCK_IDS = [
   'block-totals-summary',
   'block-line-items',
   'block-kpi-row',
@@ -65,11 +104,21 @@ export const BLOCK_IDS = [
   'block-highlight-box',
 ] as const;
 
+export type DocumentBlockId = (typeof DOCUMENT_BLOCK_IDS)[number];
+
+/**
+ * The canvas's whole block vocabulary: the 22 document blocks plus the six
+ * transactional-email kinds. `document-canvas` validates `blockOrder[]` against
+ * this set, so a doc row carrying a typo'd or hostile block id renders nothing
+ * rather than resolving an arbitrary widget.
+ */
+export const BLOCK_IDS = [...DOCUMENT_BLOCK_IDS, ...EMAIL_BLOCK_KINDS] as const;
+
 export type BlockId = (typeof BLOCK_IDS)[number];
 
 const BLOCK_ID_SET: ReadonlySet<string> = new Set(BLOCK_IDS);
 
-/** Is this an annex §13 document-block id? */
+/** Is this a block id the canvas can render (document block or email kind)? */
 export function isBlockId(value: unknown): value is BlockId {
   return typeof value === 'string' && BLOCK_ID_SET.has(value);
 }
@@ -99,13 +148,15 @@ export const DOC_TYPE_BLOCKS: Readonly<Record<DocType, readonly BlockId[]>> = {
     'block-attachments',
     'block-signature',
   ],
-  email: [
-    'block-highlight-box',
-    'block-discount-codes',
-    'block-loyalty-banner',
-    'block-delivery-stepper',
-    'block-contact',
-  ],
+  /*
+    A transactional email, not a marketing document. This used to be the five
+    ecommerce modules below (highlight box, discount codes, loyalty, delivery
+    stepper, contact) — the OPTIONAL half of the Email Templates comp — while
+    the comp's core (Heading / Body paragraphs / Call-to-action / Footer text)
+    was never built. Every stored template is made of that core, so the canvas
+    starts from it; the modules stay one click away in `DOC_TYPE_PALETTE.email`.
+  */
+  email: ['email.heading', 'email.text', 'email.button', 'email.divider', 'email.footer'],
 };
 
 /** Coerce an untrusted value to a `DocType`, defaulting to `invoice`. */
@@ -382,6 +433,24 @@ export function blockDataOf(blockId: string, doc: DocRecord | null): unknown {
     default:
       return doc.blocks?.[blockId] ?? null;
   }
+}
+
+/**
+ * One block INSTANCE's payload — instance id first, block id second.
+ *
+ * `blockDataOf` keys on the block id, which silently assumes a doc never holds
+ * two instances of the same kind. Every seeded email template breaks that
+ * assumption: `password-reset` has an `intro` paragraph AND a `notice`
+ * paragraph, both `email.text`, and a block-keyed lookup renders the same
+ * sentence twice while the other is unreachable. So an instance-keyed entry
+ * wins when the doc carries one.
+ *
+ * The block-keyed fallback is what every invoice/report doc already stores
+ * (one instance per kind), so this is additive: no existing doc changes shape.
+ */
+export function blockDataForInstance(instance: DocBlockInstance, doc: DocRecord | null): unknown {
+  const byInstance = doc?.blocks?.[instance.id];
+  return byInstance === undefined ? blockDataOf(instance.block, doc) : byInstance;
 }
 
 /**

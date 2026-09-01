@@ -122,6 +122,12 @@ export const BLOCK_LABEL_KEY = {
   'block-image-placeholder': 'ui:templates.builder.blocks.block-image-placeholder',
   'block-contact': 'ui:templates.builder.blocks.block-contact',
   'block-highlight-box': 'ui:templates.builder.blocks.block-highlight-box',
+  'email.heading': 'ui:templates.builder.blocks.email-heading',
+  'email.text': 'ui:templates.builder.blocks.email-text',
+  'email.button': 'ui:templates.builder.blocks.email-button',
+  'email.divider': 'ui:templates.builder.blocks.email-divider',
+  'email.spacer': 'ui:templates.builder.blocks.email-spacer',
+  'email.footer': 'ui:templates.builder.blocks.email-footer',
 } as const satisfies Record<BlockId, string>;
 
 /**
@@ -131,7 +137,9 @@ export const BLOCK_LABEL_KEY = {
  * above is the source of truth wherever a provider exists.
  */
 export function humanizeBlockId(block: BlockId): string {
-  const bare = block.replace(/^block-/, '').replace(/-/g, ' ');
+  // Two prefixes now: the 22 document blocks are `block-*`, the six mail kinds
+  // are `email.*` (the wire format the server seeds — see EMAIL_BLOCK_KINDS).
+  const bare = block.replace(/^block-/, '').replace(/^email\./, '').replace(/-/g, ' ');
   return bare.charAt(0).toUpperCase() + bare.slice(1);
 }
 
@@ -837,6 +845,36 @@ export function blockHighlightBoxDemoData(seed: number): RowData<BlockHighlight>
     value: `$${amount.toFixed(2)}`,
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// the six transactional-email blocks (see BlockEmail.tsx)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/*
+  These carry NO field-mapping options (`labelField`, `valueField`, …) on
+  purpose. Every other block projects a bound query row, so it needs to be told
+  which column to read; an email block's payload is the stored template entry
+  itself, whose keys (`text`, `level`, `label`, `url`, `size`) are fixed by the
+  mail renderer. Making them configurable would invent a way to write a template
+  the server cannot render.
+*/
+export const blockEmailHeadingConfigSchema = widgetSharedConfigSchema.extend({ ...emptyCopy });
+export type BlockEmailHeadingConfig = z.infer<typeof blockEmailHeadingConfigSchema>;
+
+export const blockEmailTextConfigSchema = widgetSharedConfigSchema.extend({ ...emptyCopy });
+export type BlockEmailTextConfig = z.infer<typeof blockEmailTextConfigSchema>;
+
+export const blockEmailButtonConfigSchema = widgetSharedConfigSchema.extend({ ...emptyCopy });
+export type BlockEmailButtonConfig = z.infer<typeof blockEmailButtonConfigSchema>;
+
+export const blockEmailDividerConfigSchema = widgetSharedConfigSchema.extend({ ...emptyCopy });
+export type BlockEmailDividerConfig = z.infer<typeof blockEmailDividerConfigSchema>;
+
+export const blockEmailSpacerConfigSchema = widgetSharedConfigSchema.extend({ ...emptyCopy });
+export type BlockEmailSpacerConfig = z.infer<typeof blockEmailSpacerConfigSchema>;
+
+export const blockEmailFooterConfigSchema = widgetSharedConfigSchema.extend({ ...emptyCopy });
+export type BlockEmailFooterConfig = z.infer<typeof blockEmailFooterConfigSchema>;
 
 /** Re-exported so stories/tests can pin the same anchor the generators use. */
 export { BLOCK_DEMO_EPOCH, computeTotals };

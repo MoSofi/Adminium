@@ -21,11 +21,22 @@
  * module in the repo where hardcoded colour and inline style are the correct
  * answer — please do not "fix" it.
  *
- * BLOCK VOCABULARY. Server-owned kinds under an `email.*` prefix. The
- * widgets block registry (`BLOCK_IDS`, `block-line-items` and friends) is
- * invoice-oriented and lives behind a package `apps/server` may not import at
- * all (01-architecture.md §2.3), so the two namespaces are disjoint by
- * construction: nothing there starts with `email.`.
+ * BLOCK VOCABULARY. Server-owned kinds under an `email.*` prefix. The widgets
+ * block registry's own 22 ids (`block-line-items` and friends) are
+ * invoice-oriented and live behind a package `apps/server` may not import at
+ * all (01-architecture.md §2.3), so nothing there starts with `email.`.
+ *
+ * THE EDITOR CANVAS MIRRORS THIS LIST, AND A GATE HOLDS THE TWO TOGETHER.
+ * `packages/widgets/src/families/domain/block-lib.ts` declares the same six
+ * kinds, because the Email Templates surface has to render the very rows this
+ * module sends. It did not, once: the canvas knew only the `block-*` ids, the
+ * two vocabularies were disjoint, and every seeded template opened as an empty
+ * page while every block the builder could add was dropped on send — silently
+ * in both directions, since an unrecognised kind is skipped rather than thrown
+ * on (see below) and no test fed either side a real row. There is no runtime
+ * package both trees may import, so the copies are held identical by
+ * `scripts/check-email-block-vocab.mjs` in CI. ADD OR RENAME A KIND HERE AND
+ * THAT LIST CHANGES IN THE SAME COMMIT, or the gate fails.
  *
  * UNKNOWN KINDS ARE SKIPPED, NEVER THROWN ON. A template row is editable at
  * runtime and round-trips through an editor that deliberately preserves block
