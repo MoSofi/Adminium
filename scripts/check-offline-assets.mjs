@@ -68,7 +68,48 @@ const DEFAULT_ROOTS = [
     why: 'the SPA build itself — the same artifact self-host serves, scanned at its source so a dashboard-only change fails here rather than one package later',
     build: 'pnpm --filter @adminium/dashboard build',
   },
+  {
+    // Added 2026-08-29 (32-add-on-distribution.md §4.5). The three roots above
+    // are all RENDERER output: everything this gate has ever looked at runs in
+    // Chromium. The MAIN process was never scanned, so `updates.mode:
+    // 'disabled'` ⇒ "zero non-loopback requests" — the desktop's headline
+    // offline promise — rested entirely on a runtime smoke test, with no
+    // build-time check that a remote URL had not been linked into the process
+    // that makes the requests.
+    path: 'apps/desktop/out/main',
+    why: 'the Electron MAIN process — the updater, the window lifecycle and the utilityProcess supervisor. A remote URL reachable here is a request made with no renderer involved, which no renderer-only scan can see',
+    build: 'pnpm --filter @adminium/desktop build',
+  },
 ];
+
+/**
+ * WHAT THIS GATE DELIBERATELY DOES NOT SCAN, AND WHY (32 §4.5, amended).
+ *
+ * Plan 32 asked for "the main-process/server bundle". The main process is now
+ * covered above. **The server is not, and should not be** — two reasons, both
+ * structural rather than expedient:
+ *
+ *  1. THERE IS NO SERVER BUNDLE. `electron.vite.config.ts` externalizes
+ *     `@adminium/server` on purpose ("`@adminium/server` runs unmodified —
+ *     bundling modifies it"), so it ships from node_modules and produces no
+ *     build output for a scanner to point at.
+ *  2. MORE IMPORTANTLY, THE SERVER'S URLS FAIL THIS GATE'S PREMISE. Every
+ *     ALLOWED_HOSTS entry certifies that a string is NEVER FETCHED. The server
+ *     contains `telemetry.adminium.dev` (fetched when telemetry is on),
+ *     `api.github.com` (fetched when the update check is on) and now
+ *     `adminium.dev` + `registry.npmjs.org` (fetched when the add-on catalog is
+ *     on). Allowlisting those would mean writing "never fetched" next to four
+ *     hostnames that are fetched — which does not tighten this gate, it empties
+ *     it, and it would do so silently for every future entry too.
+ *
+ * The server's offline guarantee is a DIFFERENT KIND OF CLAIM — "off means
+ * zero calls", not "this string is inert" — and it is proved where such a claim
+ * can actually be proved: `telemetry-network-isolation.test.ts` and
+ * `add-on-network-isolation.test.ts`, which replace fetch/net/http/https with
+ * recording throwers and assert the recorder stays empty. Plan 32 §4.5 says as
+ * much itself ("the primary isolation proof remains the extended
+ * network-isolation test either way").
+ */
 
 /**
  * Only files that can ISSUE a request. Scripts and stylesheets are executed and
@@ -155,10 +196,29 @@ const BLOCKED_HOSTS = [
 /**
  * The complete set of URLs the built product is permitted to contain, by host.
  *
- * Every entry is here because the string is NEVER FETCHED BY THE APP — it is an
- * identifier, an error message, a placeholder, or a link a human clicks that opens
- * in the system browser (§2.4). Adding an entry means claiming exactly that, in
- * the `why`.
+ * ── TWO KINDS OF ENTRY, AND THE DIFFERENCE MATTERS ──────────────────────────
+ *
+ * **INERT (the original kind, and still the default).** The string is NEVER
+ * FETCHED BY THE APP — an identifier, an error message, a placeholder, or a
+ * link a human clicks that opens in the system browser (§2.4). Adding one means
+ * claiming exactly that, in the `why`.
+ *
+ * **OPT-IN OUTBOUND (added 2026-08-29 with the main-process root).** The string
+ * IS fetched — but only by a feature that is off by default, individually
+ * disableable, and whose off-state is asserted at RUNTIME by a test that records
+ * connection attempts. These entries carry `optIn: true` and must name the
+ * switch and the test in the `why`.
+ *
+ * The second kind exists because scanning the main process made it necessary and
+ * honest: the update check really does reach `api.github.com`, and writing
+ * "never fetched" beside it to keep the gate green would have quietly converted
+ * every future entry into a lie too. Naming the category instead keeps the
+ * inert claim strong — the day someone adds an opt-in entry, they have to say
+ * which switch turns it off and which test proves it.
+ *
+ * The bar for `optIn` is deliberately high: off by default, individually
+ * disableable, runtime-asserted. A host that is merely "usually not used" does
+ * not qualify and cannot ship.
  */
 const ALLOWED_HOSTS = [
   {
@@ -198,6 +258,45 @@ const ALLOWED_HOSTS = [
       'never imports Leaflet, and never constructs a tileLayer from this template. The string rides along in the bundle as dead weight; the guarantee is that no ' +
       'code path reaches it, and 11-T18\'s offline smoke test asserts the runtime half (zero tile requests). Note the {s} — this matches Leaflet\'s subdomain ' +
       'template EXACTLY, so a plain cartocdn.com URL added by hand would not be covered by this entry and would fail the gate',
+  },
+  // ── Loopback: not remote at all ──────────────────────────────────────────
+  {
+    test: /^127\.0\.0\.1(:.*)?$/,
+    why: 'the embedded server on loopback — the address the shell dials to reach its OWN utilityProcess (§2.1). Never leaves the machine, and the offline build depends on it working',
+  },
+  {
+    // Scoped to the four placeholders that actually exist rather than a blanket
+    // `${...}`: the whole value of this gate is that a NEW remote URL fails it,
+    // and `^\$\{.*\}$` would wave through a future `${config.remoteHost}`.
+    test: /^\$\{(hostname|entry\.address|message\.host|host)\}(:.*)?$/,
+    why:
+      'URL templates whose host is filled in at runtime from an address this machine already owns, so the literal in the bundle has no origin at all. ' +
+      'All four are accounted for: `${hostname}` and `${entry.address}` build the LAN-share URL from a local network interface (main/lan.ts:96, §5); ' +
+      '`${message.host}` is the address the embedded server reports it BOUND to, echoed back over IPC (main/server-manager.ts:604); `${host}` is the same in the server\'s own boot log. ' +
+      'None can resolve to a remote origin — a change that made one able to would show up here as a new, unmatched literal',
+  },
+  // ── Opt-in outbound (see the two-kinds note above) ───────────────────────
+  {
+    test: /^api\.github\.com$/,
+    optIn: true,
+    why:
+      'the desktop update check (apps/desktop/src/main/updates.ts). FETCHED, and the entry says so: this is the first `optIn` entry and the reason that category exists. ' +
+      'It is off unless the user turns it on, `updates.mode: \'disabled\'` is a hard veto, and the guarantee that disabled means ZERO non-loopback requests is asserted at runtime by the offline smoke test — ' +
+      'not by this gate, which can only see that the string is present. Scanning the main process is what surfaced it; it was invisible while this gate looked only at renderer output',
+  },
+  {
+    test: /^adminium\.dev$/,
+    optIn: true,
+    why:
+      'the add-on catalog feed (32-add-on-distribution.md D2/D8; apps/server/src/add-ons/catalog.ts). Listed for the day the server is scanned or a main-process surface links it — it is fetched ONLY when the default-off ' +
+      '`addOns.catalogEnabled` setting is on AND `ADMINIUM_NETWORK_FEATURES` is on, either veto being sufficient. `add-on-network-isolation.test.ts` records connection attempts and asserts the recorder stays empty under either',
+  },
+  {
+    test: /^registry\.npmjs\.org$/,
+    optIn: true,
+    why:
+      'the npm packument + tarball, the other half of the add-on catalog (D2). Same two vetoes and the same recording-thrower proof as adminium.dev above. ' +
+      'npm is an INSTALL-TIME dependency only — nothing reaches it at boot or at serve time, so a deployment that never installs an add-on never contacts it',
   },
   {
     test: /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/,
