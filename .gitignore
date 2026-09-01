@@ -42,3 +42,7 @@ scripts/release/out/
 # typecheck (the `tsconfig.json` of each package), so it appears wherever a
 # package is typechecked and never belongs in a commit.
 *.tsbuildinfo
+# Local launch configurations. The working copy carries live sandbox
+# credentials (hosted-Postgres DSNs, ADMINIUM_SECRET values) that must never
+# reach a public repo; untracked deliberately — see 31 §12.7a.
+/.claude/launch.json
