@@ -54,7 +54,7 @@ function assert(condition, message) {
 if (!existsSync(distEntry)) {
   step('dist/ missing — compiling @adminium/server with the workspace tsc');
   const tscJs = require.resolve('typescript/lib/tsc.js');
-  const result = spawnSync(process.execPath, [tscJs, '-p', join(serverRoot, 'tsconfig.json')], {
+  const result = spawnSync(process.execPath, [tscJs, '-p', join(serverRoot, 'tsconfig.build.json')], {
     cwd: serverRoot,
     stdio: 'inherit',
   });

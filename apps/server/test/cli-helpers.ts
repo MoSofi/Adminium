@@ -159,10 +159,25 @@ export function fakeIo(opts: FakeIoOptions = {}): FakeIo {
  * "the command called THIS service with THESE options" rather than re-checking
  * the service's own behavior (which has its own suites).
  */
-export type FakeRuntime = CliRuntime & {
-  runService: Record<string, ReturnType<typeof vi.fn>>;
-  applyService: Record<string, ReturnType<typeof vi.fn>>;
-  promptService: Record<string, ReturnType<typeof vi.fn>>;
+type Spy = ReturnType<typeof vi.fn>;
+
+/**
+ * Every method of `S`, replaced by the spy standing in for it. The keys stay
+ * bound to the real service, so a stub for a method that no longer exists is a
+ * compile error rather than a silently dead line.
+ */
+type SpiedService<S> = { [K in keyof NonNullable<S>]: Spy };
+
+/**
+ * `Omit` rather than a plain intersection: on `CliRuntime & { runService: ... }`
+ * TypeScript resolves `runService.getRun` against the FIRST member that declares
+ * it — the real `RunService` — so the spy half never contributed `.mockResolvedValue`
+ * and every stub in the CLI suites was an error waiting to be typechecked.
+ */
+export type FakeRuntime = Omit<CliRuntime, 'runService' | 'applyService' | 'promptService'> & {
+  runService: SpiedService<CliRuntime['runService']>;
+  applyService: SpiedService<CliRuntime['applyService']>;
+  promptService: SpiedService<CliRuntime['promptService']>;
 };
 
 export function fakeRuntime(overrides: Partial<CliRuntime> = {}): FakeRuntime {

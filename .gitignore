@@ -38,3 +38,7 @@ scripts/release/out/
 # design comps are internal-only, not part of the shipped source.
 /workplan/
 /designs/
+# tsc's incremental cache. Written next to the config by every `--noEmit`
+# typecheck (the `tsconfig.json` of each package), so it appears wherever a
+# package is typechecked and never belongs in a commit.
+*.tsbuildinfo

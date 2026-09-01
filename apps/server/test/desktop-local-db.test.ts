@@ -426,6 +426,9 @@ describe('emitSqliteDdl', () => {
       irVersion: 1,
       dialect: 'postgres',
       name: 'x',
+      defaultSchema: 'public',
+      schemas: ['public'],
+      introspectedAt: '2026-01-01T00:00:00.000Z',
       source: { kind: 'import', format: 'prisma' },
       capabilities: {
         hasEnums: true,
@@ -503,7 +506,7 @@ describe('emitSqliteDdl', () => {
       ],
       relations: [],
       warnings: [],
-      stats: null,
+      stats: { tableCount: 1, columnCount: 2, relationCount: 0, durationMs: 0 },
     });
 
     const create = ddl.statements[0] ?? '';

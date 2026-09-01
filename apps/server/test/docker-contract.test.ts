@@ -578,7 +578,9 @@ describe('the desktop release body is user-facing and the checklist is not', () 
   const desktop = parse(read('.github/workflows/desktop-release.yml')) as {
     jobs: Record<string, { steps: WorkflowStep[] }>;
   };
-  const draftStep = desktop.jobs.release.steps.find(
+  const releaseJob = desktop.jobs.release;
+  expect(releaseJob, 'desktop-release.yml must still have a `release` job').toBeDefined();
+  const draftStep = releaseJob?.steps.find(
     (step) => step.name === 'Create or update draft Release',
   );
   const script = draftStep?.run ?? '';
@@ -646,7 +648,7 @@ describe('the desktop release body is user-facing and the checklist is not', () 
     // pointer is invisible to all of them — that outage has already happened
     // once (see release.yml's --latest=false test above).
     // Indented: both assignments sit inside the `if [ -n "$PRERELEASE" ]` fork.
-    const publishSteps = [...script.matchAll(/^ *publish_step="(.+)"$/gm)].map((m) => m[1]);
+    const publishSteps = [...script.matchAll(/^ *publish_step="(.+)"$/gm)].map((m) => m[1] ?? '');
     expect(publishSteps, 'both arms of the prerelease fork must exist').toHaveLength(2);
     const stable = publishSteps.filter((s) => s.includes('--draft=false --latest'));
     const prerelease = publishSteps.filter((s) => !s.includes('--draft=false --latest'));

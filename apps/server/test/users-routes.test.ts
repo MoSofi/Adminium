@@ -34,7 +34,7 @@ import { rbacPlugin } from '../src/plugins/rbac.js';
 import { permissionsRoutes } from '../src/routes/permissions/index.js';
 import { INVITE_TOKEN_TTL_MS } from '../src/routes/users/invite.js';
 import { usersRoutes } from '../src/routes/users/index.js';
-import { makeEnv } from './helpers.js';
+import { makeEnv, type InjectPayload } from './helpers.js';
 
 interface UsersTestContext {
   app: AdminiumServer;
@@ -175,7 +175,10 @@ describe('GET /users', () => {
       url: `/api/v1/users?limit=10&cursor=${encodeURIComponent(page1.nextCursor ?? '')}`,
       headers: asUser(ctx.users.superAdmin),
     });
-    const page2 = second.json() as { users: { id: string }[]; nextCursor: string | null };
+    const page2 = second.json() as {
+      users: { id: string; roles: { slug: string }[] }[];
+      nextCursor: string | null;
+    };
     expect(page2.nextCursor).toBeNull();
     const seen = new Set([...page1.users, ...page2.users].map((u) => u.id));
     expect(seen.size).toBe(5); // four seeded + the invitee, no repeats
@@ -519,11 +522,15 @@ describe('GET /permissions/catalog', () => {
     for (const reserved of [
       'system:automations:manage',
       'system:webhooks:manage',
-      'system:manifests:manage',
       'system:sql:run',
     ]) {
       expect(keys, reserved).not.toContain(reserved);
     }
+    // Un-reserved by 26-T05, so the catalog now OFFERS it — asserted here
+    // rather than merely dropped from the list above, because "no longer
+    // absent" and "actually present" are different facts and only the second
+    // one proves the change reached this surface.
+    expect(keys).toContain('system:manifests:manage');
     expect(body.system.every((entry) => entry.label.length > 0)).toBe(true);
     expect(body.tableActions).toContain('read');
     expect(body.pageActions).toEqual(['view', 'edit']);
@@ -542,7 +549,7 @@ describe('permission enforcement + audit', () => {
   it('a viewer is refused on every verb', async () => {
     ctx = await buildUsersTestApp();
     const target = ctx.users.admin.id;
-    const calls: { method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; url: string; payload?: unknown }[] = [
+    const calls: { method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; url: string; payload?: InjectPayload }[] = [
       { method: 'GET', url: '/api/v1/users' },
       { method: 'POST', url: '/api/v1/users', payload: { email: 'kai@adminium.test', name: 'Kai' } },
       { method: 'GET', url: `/api/v1/users/${target}` },

@@ -32,7 +32,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { desktopCapabilityRoutes } from '../src/routes/desktop-capabilities/index.js';
-import { makeEnv } from './helpers.js';
+import { makeEnv, type InjectPayload } from './helpers.js';
 
 const URL = '/api/v1/desktop/capability-grants';
 const NOW = 1_700_000_000_000;
@@ -105,7 +105,7 @@ async function harness(): Promise<Harness> {
 function req(
   h: Harness,
   method: 'GET' | 'POST' | 'DELETE',
-  opts: { user?: User; body?: unknown; remoteAddress?: string } = {},
+  opts: { user?: User; body?: InjectPayload; remoteAddress?: string } = {},
 ) {
   return h.app.inject({
     method,

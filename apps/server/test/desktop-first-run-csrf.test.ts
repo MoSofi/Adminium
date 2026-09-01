@@ -54,7 +54,7 @@ import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
 import { CSRF_HEADER } from '../src/security/csrf.js';
-import { makeEnv, TEST_SECRET } from './helpers.js';
+import { makeEnv, TEST_SECRET, type InjectPayload } from './helpers.js';
 
 /**
  * The REAL seed script the shell ships, resolved the way `demoSeedScriptPath`
@@ -200,7 +200,7 @@ class WizardClient {
     });
   }
 
-  async post(url: string, payload?: unknown) {
+  async post(url: string, payload?: InjectPayload) {
     const response = await this.app.inject({
       method: 'POST',
       url,

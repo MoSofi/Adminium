@@ -99,7 +99,7 @@ async function composeEverything(meta: MetaDb): Promise<ComposedServer> {
     }),
     runService,
     applyService: createApplyService({ meta, runService }),
-    allowed: { templates: [], widgets: [], widgetDataContracts: {} },
+    allowed: { templates: [], widgets: [], widgetContracts: {} },
     logger: false,
     telemetry: false,
     onMetaRelocated: () => {

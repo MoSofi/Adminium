@@ -15,7 +15,7 @@
  * plugin there instead).
  */
 import BetterSqlite3 from 'better-sqlite3';
-import { fastify, type FastifyRequest } from 'fastify';
+import { fastify, type FastifyError, type FastifyRequest } from 'fastify';
 import {
   serializerCompiler,
   validatorCompiler,
@@ -168,7 +168,7 @@ export function buildBareApp() {
   const app = fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: FastifyError, request, reply) => {
     const requestId = String(request.id);
     if (error instanceof AppError) {
       void reply

@@ -21,7 +21,9 @@ import { composeDsn } from '../src/cli/commands/init.js';
 import { formatBytes } from '../src/cli/commands/export-zip.js';
 import { loadCliEnv, displayUrl } from '../src/cli/runtime.js';
 import { runCli } from '../src/cli/run.js';
-import { ImportZipError } from '../src/export/import-service.js';
+import type { RunIntrospectionOptions } from '../src/connections/introspect.js';
+import { ImportZipError, type ImportZipOptions } from '../src/export/import-service.js';
+import type { ExportZipOptions } from '../src/export/zip-service.js';
 import { PlaintextSecretError } from '../src/export/redaction.js';
 import { fakeDeps, fakeIo, fakeRuntime, TEST_SECRET } from './cli-helpers.js';
 
@@ -212,7 +214,7 @@ describe('adminium introspect', () => {
   it('reports the snapshot and closes the runtime', async () => {
     const io = fakeIo();
     const deps = fakeDeps({ env: ENV });
-    const introspect = vi.fn(async () =>
+    const introspect = vi.fn(async (_opts: RunIntrospectionOptions) =>
       Promise.resolve({
         snapshot: { id: 'snap_1', checksum: 'abcdef0123456789', schema: { tables: [{ id: 'public.orders' }] } },
         noop: false,
@@ -407,7 +409,7 @@ describe('adminium export-zip', () => {
   });
 
   it('defaults to the whole instance with secrets excluded', async () => {
-    const exportZip = vi.fn(async () =>
+    const exportZip = vi.fn(async (_opts: ExportZipOptions) =>
       Promise.resolve({ path: '/tmp/a.zip', bytes: 1, entries: [], manifestVersion: 1, counts: {} }),
     );
     await runCli(['export-zip'], { io: fakeIo(), deps: fakeDeps({ env: ENV, exportZip }) });
@@ -448,7 +450,7 @@ describe('adminium import-zip', () => {
   });
 
   it('resolves --in against the cwd and reports the bundle version', async () => {
-    const importZip = vi.fn(async () =>
+    const importZip = vi.fn(async (_opts: ImportZipOptions) =>
       Promise.resolve({
         manifest: {
           formatVersion: 1,
@@ -477,7 +479,7 @@ describe('adminium import-zip', () => {
   });
 
   it('passes --dry-run through and says nothing was written', async () => {
-    const importZip = vi.fn(async () =>
+    const importZip = vi.fn(async (_opts: ImportZipOptions) =>
       Promise.resolve({
         manifest: {
           formatVersion: 1,

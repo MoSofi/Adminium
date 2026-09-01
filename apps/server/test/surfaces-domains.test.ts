@@ -28,6 +28,7 @@ import { discoverSurfaces, type HostedSurface } from '../src/cli/surfaces-root.j
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { isHostReservedPath, RESERVED_AUTH_PATHS } from '../src/plugins/surfaces.js';
 import { generatePublishableKey, sealPublishableKey } from '../src/public-api/keys.js';
+import type { DomainMapping } from '../src/surfaces/settings.js';
 import { buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
 import { makeEnv } from './helpers.js';
 
@@ -80,7 +81,7 @@ async function build(): Promise<AuthTestApp> {
 /** Write the domain map directly and drop the cache, as the admin route does. */
 async function setDomains(
   fixture: AuthTestApp,
-  domains: Record<string, { appKey: string; side: 'staff' | 'customer' }>,
+  domains: Record<string, DomainMapping>,
 ): Promise<void> {
   await settingsRepo(fixture.meta).set('surfaces.domains', domains, { updatedBy: null });
   fixture.app.surfaceSettings?.invalidate();

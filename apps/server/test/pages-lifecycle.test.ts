@@ -40,7 +40,7 @@ import { pageNavGroup } from '../src/routes/pages/schema.js';
 import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { pagesRoutes } from '../src/routes/pages/index.js';
-import { makeEnv } from './helpers.js';
+import { makeEnv, type InjectPayload } from './helpers.js';
 
 interface Harness {
   app: AdminiumServer;
@@ -123,7 +123,7 @@ describe('page lifecycle routes', () => {
     await t.meta.db.destroy();
   });
 
-  const create = (user: User, body: unknown) =>
+  const create = (user: User, body: InjectPayload) =>
     t.app.inject({ method: 'POST', url: '/api/v1/pages', headers: asUser(user), payload: body });
 
   const NEW_PAGE = {
