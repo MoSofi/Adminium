@@ -243,10 +243,16 @@ describe('add-on archive: non-file entry types are refused outright', () => {
 });
 
 describe('add-on archive: size and shape limits', () => {
-  it('refuses a decompression bomb with bounded allocation', () => {
-    // 200 MiB of zeros in well under 1 MB of gzip. The cap must fire from
-    // inside the stream, not after the expansion is materialised.
-    const bomb = gzipSync(new Uint8Array(200 * 1024 * 1024));
+  it('refuses a decompression bomb with bounded allocation', { timeout: 120_000 }, () => {
+    // 96 MiB of zeros in well under 1 MB of gzip — 1.5× the 64 MiB cap. The
+    // cap must fire from inside the stream, not after the expansion is
+    // materialised, and the overshoot is one slice regardless of bomb size
+    // (the 2026-08-29 review measured 200 MiB/1 GiB bombs identically), so a
+    // bigger bomb proves nothing extra. What it DID do was gzip 200 MiB of
+    // zeros in test setup — which blew the 30s default timeout on a starved
+    // CI runner (run 33493917464) while the refusal itself stayed instant.
+    // Hence the smaller bomb AND the explicit timeout.
+    const bomb = gzipSync(new Uint8Array(96 * 1024 * 1024));
     expect(bomb.byteLength).toBeLessThan(1024 * 1024);
     refusal(() => readAddOnTarball(bomb), 'UNCOMPRESSED_TOO_LARGE');
   });
