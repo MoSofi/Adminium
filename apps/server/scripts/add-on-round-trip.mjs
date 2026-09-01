@@ -624,11 +624,12 @@ async function main() {
       typeof browse.json?.catalogFetchedAt === 'number',
       'and carries the fetch timestamp rather than null',
     );
-    const fromFeed = (browse.json?.addOns ?? []).filter((a) => a.source === 'catalog');
-    check(
-      fromFeed.length >= 1,
-      `the live feed contributed ${String(fromFeed.length)} catalog-sourced entr(y/ies)`,
-    );
+    // No source-counting here on purpose: every key is still locally resident
+    // from the sideload loop above, and a local row wins the merge — so at
+    // this point ZERO rows read `source: 'catalog'` even though the refresh
+    // plainly worked (the first draft asserted a count and learned this). The
+    // feed's contribution is proven two checks down instead, where a
+    // discarded key can only be listed at all because the remote feed lists it.
 
     // One REAL download: packument pin → ledger cross-check → tarball →
     // hardened unpack → staged. Uninstall AND discard the upload-era stage
@@ -637,12 +638,14 @@ async function main() {
     await api('DELETE', '/api/v1/add-ons/holiday-calendars');
     await api('DELETE', '/api/v1/add-ons/staged/holiday-calendars/1.0.0');
     const cleared = await api('GET', '/api/v1/add-ons/catalog');
-    const preState = (cleared.json?.addOns ?? []).find(
-      (a) => a.key === 'holiday-calendars',
-    )?.state;
+    const clearedRow = (cleared.json?.addOns ?? []).find((a) => a.key === 'holiday-calendars');
     check(
-      preState === 'available',
-      `with stage discarded, holiday-calendars is merely available (${String(preState)})`,
+      clearedRow?.state === 'available',
+      `with stage discarded, holiday-calendars is merely available (${String(clearedRow?.state)})`,
+    );
+    check(
+      clearedRow?.source === 'catalog',
+      `and that row exists only because the LIVE FEED lists it (source: ${String(clearedRow?.source)})`,
     );
     const dl = await api('POST', '/api/v1/add-ons/download', {
       body: { key: 'holiday-calendars', version: '1.0.0' },
