@@ -43,7 +43,7 @@ async function insertPage(
   if (opts.isEnabled === false) {
     await meta.db
       .updateTable('adminium_pages')
-      .set({ isEnabled: writeBool(meta.dialect, false) } as never)
+      .set({ isEnabled: writeBool(meta, false) } as never)
       .where('id', '=', id)
       .execute();
   }

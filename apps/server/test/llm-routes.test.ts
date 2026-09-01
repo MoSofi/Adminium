@@ -41,7 +41,7 @@ import { createRunService } from '../src/llm/run-service.js';
 import { LLM_RUN_KIND } from '../src/jobs/llm-run.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { llmRoutes } from '../src/routes/llm/index.js';
-import { makeEnv, TEST_SECRET } from './helpers.js';
+import { makeEnv, TEST_SECRET, type InjectPayload } from './helpers.js';
 
 const testDsnCrypto: DsnCrypto = {
   encrypt: (plaintext) => `enc:test:${Buffer.from(plaintext, 'utf8').toString('base64')}`,
@@ -247,7 +247,7 @@ describe('llm routes — RBAC (acceptance #13)', () => {
   });
 
   // Valid bodies so schema validation (422) never masks the 403 guard.
-  const ROUTES: { method: 'GET' | 'POST' | 'PUT'; url: string; payload?: unknown }[] = [
+  const ROUTES: { method: 'GET' | 'POST' | 'PUT'; url: string; payload?: InjectPayload }[] = [
     { method: 'GET', url: '/api/v1/llm/config' },
     { method: 'PUT', url: '/api/v1/llm/config', payload: { provider: 'anthropic' } },
     { method: 'POST', url: '/api/v1/llm/config/test' },

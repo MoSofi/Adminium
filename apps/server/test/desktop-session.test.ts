@@ -38,7 +38,7 @@ import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createApplyService } from '../src/llm/apply-service.js';
 import { createRunService } from '../src/llm/run-service.js';
 import type { MetaStoreHandle } from '../src/meta/store.js';
-import { makeEnv, TEST_SECRET } from './helpers.js';
+import { makeEnv, TEST_SECRET, type InjectPayload } from './helpers.js';
 
 /** This boot's token. 64 hex characters — §2.2 step 4's 32 bytes. */
 const BOOT_TOKEN = 'a'.repeat(64);
@@ -137,7 +137,7 @@ async function harness(opts: HarnessOptions = {}): Promise<Harness> {
 /** A loopback exchange, as the shell makes it. `remoteAddress` defaults to 127.0.0.1. */
 function exchange(
   h: Harness,
-  body: unknown = { bootToken: BOOT_TOKEN },
+  body: InjectPayload = { bootToken: BOOT_TOKEN },
   opts: { remoteAddress?: string; headers?: Record<string, string> } = {},
 ) {
   return h.app.inject({

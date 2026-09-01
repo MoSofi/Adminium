@@ -29,7 +29,7 @@ import { buildServer, type AdminiumServer } from '../src/app.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { meViewsRoutes } from '../src/routes/me-views/index.js';
 import { pagesRoutes } from '../src/routes/pages/index.js';
-import { makeEnv } from './helpers.js';
+import { makeEnv, type InjectPayload } from './helpers.js';
 
 interface Harness {
   app: AdminiumServer;
@@ -137,9 +137,9 @@ describe('dashboard layout persistence', () => {
     await t.meta.db.destroy();
   });
 
-  const patchShared = (user: User, body: unknown) =>
+  const patchShared = (user: User, body: InjectPayload) =>
     t.app.inject({ method: 'PATCH', url: `/api/v1/pages/${t.pageId}/layout`, headers: asUser(user), payload: body });
-  const putPersonal = (user: User, body: unknown) =>
+  const putPersonal = (user: User, body: InjectPayload) =>
     t.app.inject({ method: 'PUT', url: `/api/v1/me/views/${t.pageId}/layout`, headers: asUser(user), payload: body });
   const del = (user: User) =>
     t.app.inject({ method: 'DELETE', url: `/api/v1/me/views/${t.pageId}/layout`, headers: asUser(user) });

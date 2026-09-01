@@ -88,7 +88,7 @@ async function serving(origins: string): Promise<ComposedServer['app']> {
     }),
     runService,
     applyService: createApplyService({ meta, runService }),
-    allowed: { templates: [], widgets: [], widgetDataContracts: {} },
+    allowed: { templates: [], widgets: [], widgetContracts: {} },
     logger: false,
     telemetry: false,
     onMetaRelocated: () => {

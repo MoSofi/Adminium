@@ -87,7 +87,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 }
 
 // 1. One blocking build so `node --watch` has an entrypoint to start from.
-const build = spawn(TSC, ['-p', 'tsconfig.json'], {
+const build = spawn(TSC, ['-p', 'tsconfig.build.json'], {
   cwd: serverDir,
   stdio: 'inherit',
 });
@@ -100,7 +100,7 @@ build.on('exit', (code) => {
     process.exit(code ?? 1);
   }
 
-  run(TSC, ['-p', 'tsconfig.json', '--watch', '--preserveWatchOutput']);
+  run(TSC, ['-p', 'tsconfig.build.json', '--watch', '--preserveWatchOutput']);
   run('node', [
     '--watch-path=./dist',
     `--env-file-if-exists=${resolve(repoRoot, '.env')}`,

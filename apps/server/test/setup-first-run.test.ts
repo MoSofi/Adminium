@@ -26,7 +26,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
-import { makeEnv } from './helpers.js';
+import { makeEnv, type InjectPayload } from './helpers.js';
 
 interface Harness {
   app: AdminiumServer;
@@ -55,7 +55,7 @@ describe('first-run super-admin bootstrap (M10-T04)', () => {
     await t.meta.db.destroy();
   });
 
-  const postSetup = (payload: unknown) =>
+  const postSetup = (payload: InjectPayload) =>
     t.app.inject({ method: 'POST', url: '/api/v1/setup/super-admin', payload });
 
   const getState = () => t.app.inject({ method: 'GET', url: '/api/v1/setup/state' });

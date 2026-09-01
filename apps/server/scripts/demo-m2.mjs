@@ -50,7 +50,7 @@ if (!existsSync(distEntry)) {
     console.error('  pnpm --filter @adminium/server... build');
     process.exit(1);
   }
-  const result = spawnSync(process.execPath, [tscJs, '-p', join(serverRoot, 'tsconfig.json')], {
+  const result = spawnSync(process.execPath, [tscJs, '-p', join(serverRoot, 'tsconfig.build.json')], {
     cwd: serverRoot,
     stdio: 'inherit',
   });

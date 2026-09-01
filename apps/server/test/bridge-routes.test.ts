@@ -21,6 +21,7 @@ import { createBridgeStore, type BridgeStore } from '../src/bridge/store.js';
 import { bridgeRoutes } from '../src/routes/bridge/index.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { buildAuthApp, login, type AuthTestApp } from './auth-helpers.js';
+import type { InjectPayload } from './helpers.js';
 
 const SITE = 'https://adminium.dev';
 const EVIL = 'https://evil.example';
@@ -57,7 +58,7 @@ describe('local bridge routes', () => {
     await t.destroy();
   });
 
-  const handoff = (payload: unknown, origin: string | undefined = SITE) =>
+  const handoff = (payload: InjectPayload, origin: string | undefined = SITE) =>
     t.app.inject({
       method: 'POST',
       url: '/api/v1/bridge/handoff',

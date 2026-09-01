@@ -63,7 +63,7 @@ const view = new SnapshotView('conn_1', model);
 const table = view.table('public.menu_items');
 
 let sql: string[] = [];
-let params: readonly unknown[][] = [];
+let params: readonly (readonly unknown[])[] = [];
 
 const db = new Kysely<SourceDatabase>({
   dialect: {

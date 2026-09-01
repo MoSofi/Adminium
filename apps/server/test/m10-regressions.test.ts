@@ -26,7 +26,7 @@ import { ADAPTER_PACKAGES } from '../src/connections/register-adapters.js';
 import { ConnectionManager } from '../src/connections/manager.js';
 import { dsnCryptoFromSecret } from '../src/connections/crypto.js';
 import { createApplyService } from '../src/llm/apply-service.js';
-import { createRunService } from '../src/llm/run-service.js';
+import { createRunService, type ReceiveResponseInput } from '../src/llm/run-service.js';
 import { createSetupService } from '../src/setup/service.js';
 import { COMMANDS, findCommand, wantsHelp } from '../src/cli/run.js';
 import { allowlistCandidates, BUNDLED_VOCABULARY_FILE } from '../src/cli/allowlist.js';
@@ -523,7 +523,7 @@ describe('apply-llm-response --dry-run', () => {
     // applyRun was not called, so it could not see this.
     const { applyLlmResponseCommand } = await import('../src/cli/commands/apply-llm-response.js');
     const runtime = fakeRuntime();
-    const receive = vi.fn(async () => ({
+    const receive = vi.fn(async (_runId: string, _input: ReceiveResponseInput) => ({
       run: { id: 'r1', status: 'validated', chunksReceived: 1, chunksTotal: 1 },
       validation: { response: {}, errors: [], warnings: [] },
     }));
