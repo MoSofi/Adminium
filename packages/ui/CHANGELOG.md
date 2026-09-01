@@ -1,5 +1,108 @@
 # @adminium/ui
 
+## 0.2.3
+
+### Patch Changes
+
+- 9e1adf7: Regenerate `icon-core.ts` for the page-builder's six email blocks.
+  
+  The generated static-import set had gone stale against
+  `packages/widgets/src/templates/page-builder/builder-config.ts`, which added
+  `email.heading`, `email.text`, `email.button`, `email.divider`, `email.spacer`
+  and `email.footer` with icon slugs the file did not carry — so
+  `gen-icon-core.mjs --check`, and the `packages/ui` test that asserts the same
+  thing from the other side, both failed.
+  
+  138 icons to 144, and 444 bytes gzipped onto the dashboard's entry chunk. Five
+  are genuinely new weight, not six: `Minus` was already there, imported by name
+  in `Checkbox.tsx` and three other entry-reachable components, so listing it cost
+  nine bytes of object key.
+  
+  Worth saying plainly, because the number is the wrong shape for what it buys:
+  those six icons are entry weight nothing renders. The page-builder resolves a
+  block glyph through `BLOCK_ICONS` in its own `PageBuilder.tsx` — a local map of
+  static imports, with a `SquareDashed` fallback — and never through lucide's
+  catalogue or `lucideByName`. The generator's best-effort `icon:` sweep collects
+  them anyway, which its own docblock predicts ("the page-builder resolves its
+  `icon:` slugs through a LOCAL map").
+  
+  They are not the first. Re-attributing all 144 emitted names to the source that
+  collected them shows **eighteen whose only origin is that one config file** —
+  today's six plus twelve already shipping. The surface that declares them is
+  `EmailTemplatesPage`, which RELEASE-GATE.md records as one of the eleven route
+  components deliberately moved behind `React.lazy`. Its vocabulary was in
+  everybody's cold boot regardless.
+  
+  It could not be skipped, either: `icon-core.test.ts` shells out to
+  `gen-icon-core.mjs --check`, so that test was red until this ran, and hand-editing
+  the file back would only be reverted by the next `--check`.
+  
+  So this step restored the gate rather than fixing anything visible, and it named
+  two follow-ups. **Both land in this same release, so the numbers above are not
+  the release's net** — read the two entries beside this one for the outcome.
+  
+  `BLOCK_ICONS` had none of the six email slugs, so each fell through its
+  `?? SquareDashed` default: seven of the seventeen rows in the email palette drew
+  the same dashed square (the six new ones, plus `block-highlight-box`, which maps
+  to that glyph legitimately), and the six were the message rail at the top of the
+  list. Cosmetic — every row still carried its own text label and the glyph is
+  `aria-hidden` — and invisible to CI: the only test that inspected these asserted
+  the slug is kebab-case, the Storybook story that renders the palette carries no
+  `vrt` tag, and axe cannot see an aria-hidden icon. Fixed in `@adminium/widgets`,
+  which also adds a test that renders every palette row on every doc type.
+  
+  Excluding `builder-config.ts` from the generic sweep was the other half, and it
+  is done: 144 icons back down to 126, and 1,574 bytes gzipped *out* of the entry
+  chunk rather than 444 in. The estimate above said ~2.1 KiB; the build says 1,574,
+  because `Minus` was already entry-resident and gzip shares a dictionary across
+  lucide's near-identical path data.
+- 9e1adf7: Stop `gen-icon-core.mjs` hoisting the page-builder's private glyph vocabulary
+  into the dashboard's entry chunk.
+  
+  The generator collects icon names two ways: declared vocabularies, whose every
+  entry is checked against lucide's catalogue, and a best-effort sweep of every
+  `icon:` literal under the scan roots. The sweep's comment claimed over-collecting
+  cost nothing, because a name lucide does not carry is dropped before anything is
+  written. That is true of a *wrong* name and false of a right one — a name lucide
+  really has is emitted, and an emitted name is a static import in the entry chunk
+  whether or not anything ever resolves it there.
+  
+  `page-builder`'s `BLOCK_KIND_META` is what proved it. Its `.icon` slugs are read
+  by exactly one component, `BlockIcon` in `PageBuilder.tsx`, which resolves them
+  through the local `BLOCK_ICONS` map of static imports and falls back to a dashed
+  square — never through `CORE_ICONS`, never through `lucideByName`. Attributing
+  all 144 emitted names to the source that collected them found **eighteen** whose
+  only origin was that one config file: `AlarmClock`, `Award`, `BadgeCheck`,
+  `Coins`, `Heading`, `History`, `Minus`, `MousePointerClick`, `MoveVertical`,
+  `PanelBottom`, `PenLine`, `QrCode`, `Repeat`, `Sigma`, `SquareCheckBig`,
+  `SquareDashed`, `Text`, `TicketPercent`. The surface that declares them is
+  `EmailTemplatesPage`, one of the eleven route components deliberately behind
+  `React.lazy` — so a lazy surface's vocabulary was riding in every cold boot.
+  
+  `SWEEP_IGNORE` excludes that file, and the `icon:` sweep only: an `<Icon name>`
+  or `lucideByName()` there would still be collected, because those genuinely do
+  resolve through this set. 144 icons to 126, and **1,574 bytes gzipped out of the
+  entry chunk** — 288.4 KiB gz against a 350 KiB target, with the ratchet in
+  `apps/dashboard/chunk-budget.json` clicked down in the same change.
+  
+  Less than the ~2.1 KiB a sum-of-parts estimate predicted, for two reasons worth
+  keeping. `Minus` is imported by name in `Checkbox.tsx`, so dropping it removed an
+  object-literal key and no module at all; and gzip shares a dictionary across
+  lucide's very similar path data, so eighteen removals do not cost eighteen icons'
+  worth. The estimate said which line to pull; the build said what it was worth.
+  
+  Nothing stops rendering. All eighteen still resolve — `icon-resolver.ts` loads
+  the full catalogue on demand for a name outside the core set, which is the
+  designed path for an icon an admin hand-picks by searching — and none of them
+  appears in either icon picker's curated grid, the engine's shape icons, or any
+  archetype nav, so no first paint reaches for one.
+  
+  An ignore entry can go blind the way a declared source can, and the consequence
+  is worse: it silently stops excluding, and the names return to the entry with
+  nothing in the log to say why. So an entry naming a file that is gone, or one
+  with no `icon:` literals left to skip, now fails the generator by name.
+- @adminium/tokens@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes
