@@ -1,5 +1,228 @@
 # @adminium/widgets
 
+## 0.2.3
+
+### Patch Changes
+
+- 7e5f704: A data connection can now be PAUSED instead of deleted.
+  
+  Deleting was the only way to stop Adminium touching a source database, and it
+  takes the generated pages with it — so "turn this off for the migration
+  window" and "I am done with this database" had one button between them. Studio
+  → Data connections now carries a Pause/Resume action per card.
+  
+  The state is a new `adminium_connections.disabled_at` column (meta wave 0019),
+  deliberately NOT a `status` value: `status` is a health reading and every
+  connection test overwrites it, so a pause folded into that enum would be
+  silently undone by the next successful probe — and a connection that was
+  FAILING when it was paused would lose that reading on the way. Health is
+  observed, a pause is intended; two facts, two columns, and the card can say
+  "paused, and it was failing when you paused it". The timestamp (rather than a
+  boolean) is what lets the card say *how long* — a source paused for an hour
+  during a migration and one paused five weeks ago and forgotten are the same
+  boolean and very different situations. NULL means serving, so no backfill.
+  
+  Enforcement is at the source-database boundary, not in the UI that offers the
+  button. `ConnectionManager.data/dataAdapter/introspectAdapter` refuse with a
+  new 503 `CONNECTION_DISABLED`, which is what covers every caller with no
+  operator in the loop: scheduled reports, export and import jobs, quick search,
+  widget refreshes and the public API. The check runs ahead of the pooled-handle
+  cache on every call, because the pool is process-local and a pause is a row in
+  the meta store — checking only on a cold open would leave a warm handle in a
+  second server process serving a source somebody had switched off. Pausing also
+  disposes the pool, so a paused connection holds no sockets open. `mustFind`
+  deliberately does NOT refuse: Studio has to be able to read and resume the row.
+  
+  - `PATCH /api/v1/connections/:id` accepts `disabled`, audited under its own
+    `connection.disable` / `connection.enable` actions. Omitted leaves the pause
+    alone, so a rename never resumes a source by accident.
+  - `POST /connections/:id/test` and `/introspect` refuse while paused — the
+    introspect refusal lands before the job is enqueued, so the operator is told
+    while they are still looking rather than by a job that fails out of sight.
+  - The public API maps the refusal to its own `PUBLIC_UPSTREAM_UNAVAILABLE`:
+    that surface's callers are the tenant's customers, who cannot resume
+    anything and should not learn the operator switched a database off.
+  - A paused connection's pages leave the SIDEBAR, and every other surface that
+    enumerates pages with them: the command palette, G-chord jumps, the 404's
+    suggestions, and the page pickers in scheduled reports, exports and imports
+    (all of which read `flattenNav(bootstrap.nav)`). They leave `hiddenPages`
+    too — that list is still enumerated by record-page related tabs and
+    cross-links, and a paused source must be enumerable by nothing. Quick search
+    drops the connection from its candidate set rather than dialling it and
+    degrading every table to a `partial: true` group.
+  - They travel in a new `pausedPages` bootstrap field read by exactly one
+    caller: the `/p/<slug>` URL resolver. A bookmark, or a tab that was open when
+    the pause landed, renders the `connection-paused` state instead of a 404 —
+    the page has not gone, its database has.
+  - Pausing publishes on the `config-changed` realtime channel, so every signed-in
+    session drops its bootstrap cache. The operator who flips it is rarely the
+    only person looking at the sidebar.
+  - Pages over a paused connection get a new `connection-paused` system state
+    and a matching template panel — "This connection is paused", calm tone, and
+    no Retry button, because retrying cannot change the answer until a person
+    resumes it. The four data templates that render an error panel share one
+    `describeDataError` helper for it.
+  - The desktop runtime chip stops counting a paused remote as either reachable
+    or offline; the hub's "healthy" count drops it and the header says how many
+    are paused, but only when some are.
+- 8ed7972: Fix the Email Templates builder rendering an empty canvas for every stored template.
+  
+  The surface was non-functional in both directions on every install, and had been
+  since it shipped. `apps/server/src/email/render.ts` owns a closed six-kind
+  vocabulary — `email.heading`, `email.text`, `email.button`, `email.divider`,
+  `email.spacer`, `email.footer` — and that is what `seedBuiltinEmailTemplates`
+  writes to `adminium_email_templates` at every boot and what `renderEmail` turns
+  into MIME. The builder canvas knew a different vocabulary entirely: the 22
+  `block-*` document ids (`block-line-items`, `block-tax-breakdown`,
+  `block-qr-pay`, …). The intersection was empty.
+  
+  So `emailDoc.ts` classified every block of every seeded row as `unknown`,
+  `blockOrder` came out `[]`, and the editor opened on "No blocks yet" for all 24
+  rows a fresh install seeds (3 built-ins × 8 compiled locales). The reverse trip
+  failed the same way: the palette could only offer `block-*` ids, `renderEmail`
+  skips any kind outside its vocabulary, so anything an admin added was saved,
+  shown as saved, and then silently dropped on send.
+  
+  **Neither half ever failed loudly, and that is why CI stayed green.** An
+  unrecognised kind is *skipped* on both sides — deliberately on the server, where
+  throwing would turn a stale row into a 500 on the password-reset path and lock
+  someone out of their own account. The only coverage the surface had fed it
+  hand-written docs made of `block-highlight-box` / `block-contact`, ids the canvas
+  already knew and the mail renderer never did, so the one broken thing was the one
+  thing nothing exercised.
+  
+  **The canvas moved to `email.*`, not the other way round.** The stored
+  vocabulary is the wire format of a production table and of sent mail; the
+  `block-*` set is a UI list. Changing code is free, migrating seeded rows in every
+  install is not. A mapping between the two was never an option either: the 22
+  document blocks contain no heading, paragraph, button, divider, spacer or footer,
+  so nothing could express a transactional email, and a lossy round trip would have
+  written `block-*` into stored rows — upgrading a broken editor into one that
+  blanks real password-reset mail. The Email Templates comp settles it too: its
+  inspector is Heading / Body paragraphs / Call-to-action / Footer text, and the
+  five ecommerce modules that `DOC_TYPE_BLOCKS.email` used to hold are the comp's
+  *optional* rail. They are still there, one click down the palette.
+  
+  Six canvas blocks back the kinds (`BlockEmail.tsx`). They read the stored payload
+  bare rather than through `rowOf`, because that payload is the template entry's own
+  `data` object and wrapping it would mean rewriting what the server sends.
+  `email.button` renders as a styled span plus its destination in mono, not an
+  `<a href>`: this is a preview inside an editor, a real link would navigate away on
+  the click meant to select the block, and the href is usually an unresolved
+  `{{resetUrl}}`. The heading renders as a weighted `<p>` carrying `data-level` —
+  the canvas already emits an `<h3>` block label, so a real `<h1>` inside it would
+  invert heading order on every template.
+  
+  **Payloads are now keyed by instance id, not block id.** Repeated kinds are the
+  ordinary case here — `password-reset` has an `intro` paragraph and a `notice`
+  paragraph, both `email.text` — and block-keyed storage collapses the two, showing
+  one sentence twice while the other is unreachable. `blockDataForInstance` reads
+  the instance id first and falls back to the block id, so no existing invoice or
+  report doc changes shape. For the same reason the canvas now emits
+  `blockInstanceOrder` alongside `blockOrder`: two instances of one kind produce an
+  identical sequence of block ids, so "swap the two paragraphs" was a silent no-op.
+  
+  Because `apps/server` may not import `@adminium/widgets` and there is no runtime
+  package both depend on, the vocabulary crosses that boundary the way the LLM
+  allow-lists already do — declared on each side, held identical by
+  `scripts/check-email-block-vocab.mjs` in CI. The gate compares both lists in
+  order, checks each kind actually reaches a renderer on both sides, and checks
+  that `BLOCK_IDS` still spreads `EMAIL_BLOCK_KINDS`: an earlier draft that compared
+  only the two lists passed happily while `isBlockId` rejected all six kinds, which
+  is the exact failure being fixed.
+  
+  Regression coverage runs a row copied verbatim out of a seeded install's meta
+  store through `emailDoc.ts` into the rendered page, and asserts six block
+  instances, two distinct paragraphs, a byte-identical round trip, and no empty
+  state. The server side asserts every vocabulary kind renders non-empty HTML, that
+  the real `builtins.ts` seed emits only vocabulary kinds in all eight compiled
+  locales, and that an unknown kind is still skipped rather than thrown on.
+- ac3f5e7: FK chips in generated grids now show the referenced record's display value
+  ("Drift & Fern") instead of the raw foreign-key id ("5"), wired through the
+  existing `lookup=` machinery — no new server surface.
+  
+  The grid spec's `fk` block always defined `displayKey` (a row key carrying a
+  pre-joined display value) but nothing ever populated it, so `FkChipCell` fell
+  back to the raw id on every generated page and owners added a separate linked
+  column just to see who a row points to. The missing fact was the referenced
+  table's display column, which only the generator knows:
+  
+  - The crud composer stamps a new optional `fk.display` — the referenced
+    table's classified display column — into each FK column spec, from a
+    `displayColumns` map (`crudDisplayColumns`) built over the included
+    candidate model. Stamping is pre-checked at generation time: skipped when
+    the referenced display column is secret (the server hard-422s lookups on
+    secret identifiers), when it IS the referenced column, and when the derived
+    alias would shadow a real source-table column or break the server's alias
+    grammar.
+  - The dashboard interpreter (`withFkDisplay`) turns each `fk.display` into a
+    `lookup=<name>__display:<name>.<display>` read param and stamps
+    `fk.displayKey` so the chip picks the joined value up — on list pages,
+    record pages, and record-page related tabs. Explicit lookup columns keep
+    absolute priority inside the server's MAX_LOOKUPS=12 budget; derived params
+    only spend what is left and drop deterministically (with a console note)
+    beyond it. A column already covered by an explicit single-hop lookup of the
+    same display value reuses that alias instead of spending budget on a twin.
+  - Masking degrades honestly: a PII display column the caller may not read
+    arrives as `null` + `_masked`, and the chip falls back to the raw id —
+    never a blank chip.
+  
+  The field is optional and regeneration-composed: stored pages predate it and
+  keep today's raw-id fallback untouched until their next regeneration (whose
+  `generatedHash` move rewrites untouched generated pages in place — that hash
+  move is the delivery mechanism, and the northwind baseline was re-recorded in
+  this change to pin it). Columns re-added through the Studio column manager
+  stay unstamped until regeneration — the schema reply does not carry the
+  referenced table's display-column pick.
+- 9e1adf7: Fix: the six email blocks all drew the same placeholder glyph.
+  
+  `BLOCK_KIND_META` names an icon slug per block and `PageBuilder`'s `BLOCK_ICONS`
+  maps that slug to a component, with `?? SquareDashed` behind it. The email
+  flavour's message rail — Heading, Paragraph, Call-to-action, Divider, Spacer,
+  Footer — was added to the registry without being added to the map, so all six
+  fell through to the default. Seven of the seventeen rows in the email palette
+  drew an identical dashed square (the six, plus `block-highlight-box`, which
+  names that glyph on purpose), and the six sat adjacent at the top of the list
+  where the difference matters most.
+  
+  Cosmetic rather than broken: every row keeps its own text label, and the glyph
+  is `aria-hidden`, so a screen reader was never affected. But it is six controls
+  a person has to read one by one in a rail designed to be scanned.
+  
+  The six entries are direct named lucide imports, like the other twenty-two, so
+  they ride in the page-builder's own lazy chunk. The dashboard's entry chunk
+  grows by four bytes gzipped — those bindings are already in it for an unrelated
+  reason (`gen-icon-core.mjs` sweeps this file's `icon:` literals into the
+  statically-imported core set, which is its own problem and not this one).
+  
+  **And a test that can see it.** Nothing could, before: the registry test asserts
+  only that the slug is kebab-shaped, so six unmapped-but-well-formed slugs passed
+  it; VRT skips this template because `PageBuilder.stories.tsx` carries no `vrt`
+  tag, so the story that renders the defective palette is never screenshotted; and
+  axe cannot see a glyph marked `aria-hidden`. Every palette row on every doc type
+  that has one is now rendered and checked.
+  
+  The assertion is "draws the placeholder if and only if it asked for the
+  placeholder" rather than "the rendered class matches the slug", and the
+  difference is load-bearing. Written the strict way it failed immediately on
+  `bar-chart-3`, which renders `class="lucide lucide-chart-column"` — a deprecated
+  lucide alias, still a legal named import, still the right glyph. A class-equality
+  check would have been red on a name that is fine, and the fix for it would have
+  been to break something.
+- Updated dependencies [36fb706]
+- Updated dependencies [4d68dc9]
+- Updated dependencies [4d68dc9]
+- Updated dependencies [36fb706]
+- Updated dependencies [7e5f704]
+- Updated dependencies [8ed7972]
+- Updated dependencies [37c99f2]
+- Updated dependencies [9e1adf7]
+- Updated dependencies [9e1adf7]
+  - @adminium/i18n@0.2.3
+  - @adminium/ui@0.2.3
+  - @adminium/charts@0.2.3
+  - @adminium/tokens@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes
