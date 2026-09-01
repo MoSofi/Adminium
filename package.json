@@ -15,6 +15,7 @@
     "e2e": "turbo run e2e",
     "check-deps": "depcruise --config .dependency-cruiser.cjs apps packages",
     "check-offline-assets": "node scripts/check-offline-assets.mjs",
+    "check-email-block-vocab": "node scripts/check-email-block-vocab.mjs",
     "check-spdx": "node scripts/check-spdx.mjs",
     "openapi": "pnpm --filter @adminium/server run openapi",
     "openapi-check": "pnpm --filter @adminium/server run openapi:check",

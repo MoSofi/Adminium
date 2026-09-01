@@ -19,6 +19,14 @@ import {
 } from './BlockFinancial.js';
 import { BlockContactWidget, BlockHighlightBoxWidget } from './BlockContent.js';
 import {
+  BlockEmailButtonWidget,
+  BlockEmailDividerWidget,
+  BlockEmailFooterWidget,
+  BlockEmailHeadingWidget,
+  BlockEmailSpacerWidget,
+  BlockEmailTextWidget,
+} from './BlockEmail.js';
+import {
   BlockAttachmentsWidget,
   BlockBarChartWidget,
   BlockImagePlaceholderWidget,
@@ -35,7 +43,7 @@ import {
   BlockTermsCheckboxWidget,
 } from './BlockStatus.js';
 import {
-  blockDataOf,
+  blockDataForInstance,
   blockOrderOf,
   docTypeOf,
   formatBlockDate,
@@ -66,6 +74,12 @@ import {
   blockTermsCheckboxConfigSchema,
   blockTotalsSummaryConfigSchema,
   blockTwoColTableConfigSchema,
+  blockEmailButtonConfigSchema,
+  blockEmailDividerConfigSchema,
+  blockEmailFooterConfigSchema,
+  blockEmailHeadingConfigSchema,
+  blockEmailSpacerConfigSchema,
+  blockEmailTextConfigSchema,
   documentCanvasConfigSchema,
   documentCanvasDemoData,
 } from './blocks-config.js';
@@ -172,6 +186,13 @@ const BLOCK_COMPONENTS: Record<BlockId, (props: BlockRenderProps) => ReactElemen
   'block-image-placeholder': blockRenderer(BlockImagePlaceholderWidget, blockImagePlaceholderConfigSchema),
   'block-contact': blockRenderer(BlockContactWidget, blockContactConfigSchema),
   'block-highlight-box': blockRenderer(BlockHighlightBoxWidget, blockHighlightBoxConfigSchema),
+  // The six mail kinds — the canvas half of `EMAIL_BLOCK_KINDS`.
+  'email.heading': blockRenderer(BlockEmailHeadingWidget, blockEmailHeadingConfigSchema),
+  'email.text': blockRenderer(BlockEmailTextWidget, blockEmailTextConfigSchema),
+  'email.button': blockRenderer(BlockEmailButtonWidget, blockEmailButtonConfigSchema),
+  'email.divider': blockRenderer(BlockEmailDividerWidget, blockEmailDividerConfigSchema),
+  'email.spacer': blockRenderer(BlockEmailSpacerWidget, blockEmailSpacerConfigSchema),
+  'email.footer': blockRenderer(BlockEmailFooterWidget, blockEmailFooterConfigSchema),
 };
 
 /** Accent token → the outline a selected block wears. */
@@ -276,6 +297,19 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
     onEvent(event);
   };
 
+  /*
+    Both keys, on purpose. `blockOrder` is bare BLOCK ids and is the shape hosts
+    have always consumed, so it stays. But block ids stop identifying an
+    instance the moment a doc holds two of a kind — every email template has two
+    `email.text` paragraphs — and "swap the two paragraphs" then emits the very
+    same id sequence, so the move silently does nothing. `blockInstanceOrder`
+    carries the instance ids alongside, and `reorderDocByBlockIds` prefers it.
+  */
+  const orderValues = (next: readonly DocBlockInstance[]): Record<string, unknown> => ({
+    blockOrder: next.map((instance) => instance.block),
+    blockInstanceOrder: next.map((instance) => instance.id),
+  });
+
   const reorder = (index: number, delta: number): void => {
     const next = moveBlock(blocks, index, delta);
     commit(next, {
@@ -283,7 +317,7 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
       intent: 'update',
       table: 'document',
       recordId: instanceId,
-      values: { blockOrder: next.map((instance) => instance.block) },
+      values: orderValues(next),
     });
   };
 
@@ -294,7 +328,7 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
       intent: 'update',
       table: 'document',
       recordId: instanceId,
-      values: { blockOrder: next.map((instance) => instance.block) },
+      values: orderValues(next),
     });
   };
 
@@ -387,10 +421,10 @@ export function DocumentCanvasWidget({ config, data, instanceId, onEvent }: Widg
                           {instance.label ?? t(BLOCK_LABEL_KEY[blockId], humanizeBlockId(blockId))}
                         </button>
                       </h3>
-                      <Block base={blockBase} data={blockDataOf(instance.block, doc)} instanceId={`${instanceId}-${instance.id}`} onEvent={onEvent} />
+                      <Block base={blockBase} data={blockDataForInstance(instance, doc)} instanceId={`${instanceId}-${instance.id}`} onEvent={onEvent} />
                     </div>
                   ) : (
-                    <Block base={blockBase} data={blockDataOf(instance.block, doc)} instanceId={`${instanceId}-${instance.id}`} onEvent={onEvent} />
+                    <Block base={blockBase} data={blockDataForInstance(instance, doc)} instanceId={`${instanceId}-${instance.id}`} onEvent={onEvent} />
                   )}
                 </div>
 

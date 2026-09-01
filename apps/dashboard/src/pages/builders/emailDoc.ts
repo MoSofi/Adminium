@@ -8,13 +8,25 @@
  * 09-generated-app.md §email-editor"). This module pins that concrete shape
  * for the editor:
  *
- *   { block: '<block-* registry id>', id?: string, label?: string, data?: unknown }
+ *   { block: '<email.* kind | block-* registry id>', id?: string, label?: string, data?: unknown }
  *
  * and projects it onto the `DocRecord` the `document-canvas` renders. UNKNOWN
  * entries (no recognizable `block` id — e.g. a future server-side block kind)
  * are preserved verbatim and re-emitted at their original positions on
  * serialize, so an editor round trip never destroys what it doesn't render —
  * the same forward-compatibility rule the page envelope follows (01 §6.2).
+ *
+ * `block` IS AN `email.*` KIND FOR EVERY REAL ROW. The stored vocabulary is the
+ * mail renderer's (`EMAIL_BLOCK_KINDS` — `email.heading`, `email.text`, …), and
+ * `isBlockId` now recognises it. It did not always: while the canvas knew only
+ * the 22 `block-*` document ids, every seeded template fell into `unknown` and
+ * the editor opened on an empty page for all 24 rows a fresh install seeds.
+ *
+ * PAYLOADS ARE KEYED BY INSTANCE ID, NOT BLOCK ID. Templates routinely hold two
+ * blocks of one kind — `password-reset` has an `intro` paragraph and a `notice`
+ * paragraph, both `email.text`. Keying `doc.blocks` by block id makes the second
+ * overwrite the first, so the canvas would show one sentence twice and the
+ * other not at all. `blockDataForInstance` reads the instance id first.
  */
 import {
   docBlockInstancesOf,
@@ -78,7 +90,7 @@ export function emailBlocksToDoc(
     title: meta.subject === '' ? meta.name : meta.subject,
     blockOrder: known.map((entry) => entry.instance),
     blocks: Object.fromEntries(
-      known.filter((entry) => entry.data !== undefined).map((entry) => [entry.instance.block, entry.data]),
+      known.filter((entry) => entry.data !== undefined).map((entry) => [entry.instance.id, entry.data]),
     ),
   };
   return { doc, unknown };
@@ -89,7 +101,9 @@ export function docToEmailBlocks(doc: DocRecord, unknown: readonly UnknownEntry[
   const ordered = docBlockInstancesOf(doc, 'email')
     .filter((instance) => doc.flags?.[instance.block] !== false)
     .map((instance): EmailBlock => {
-      const data = doc.blocks?.[instance.block];
+      // Instance-keyed on write, so instance-keyed on read; the block-keyed
+      // fallback covers a doc last written by the old projection.
+      const data = doc.blocks?.[instance.id] ?? doc.blocks?.[instance.block];
       return {
         block: instance.block,
         id: instance.id,

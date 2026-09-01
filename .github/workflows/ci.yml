@@ -131,6 +131,16 @@ jobs:
       - name: Check offline assets
         run: pnpm run check-offline-assets
 
+      # The mail renderer and the builder canvas both read
+      # `adminium_email_templates.blocks`, from two lists that no import can
+      # hold together (the server may not import @adminium/widgets, 01 2.3).
+      # They were disjoint on every install until 2026-08-29 and CI never
+      # noticed: a kind one side doesn't know is SKIPPED, not thrown on, so the
+      # symptom was a blank editor and a blank email, never a red build.
+      # Named separately so the failure says which list moved.
+      - name: Check email block vocabulary
+        run: pnpm run check-email-block-vocab
+
       # 08-server-api.md §1.1: every /api/v1 route declares a zod schema, so the
       # OpenAPI document is DERIVED from the route tree rather than written by
       # hand — and a derived artifact that nobody regenerates is a stale
