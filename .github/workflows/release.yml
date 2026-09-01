@@ -362,7 +362,26 @@ jobs:
           ADMINIUM_META_URL: postgres://adminium:adminium@meta-db:5432/adminium
         run: |
           set -euo pipefail
-          docker compose --profile with-meta up -d --wait --wait-timeout 180
+          # NOT `up --wait`: docker-compose.yml deliberately has no depends_on
+          # (a dependency on a profiled service breaks plain `up`) and covers
+          # the startup race with `restart: unless-stopped` — the app's first
+          # boot may exit on ECONNREFUSED while Postgres runs initdb, and the
+          # restart is the design working. `--wait` fails FAST on that first
+          # exit, which is how two starved runners turned a documented race
+          # into a red release on 2026-09-01 while the container was healthy
+          # two seconds later. Poll readiness instead, on the design's terms.
+          docker compose --profile with-meta up -d
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4600/api/v1/healthz >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$i" = "60" ]; then
+              echo "::error::adminium never became healthy within 180s"
+              docker compose --profile with-meta logs
+              exit 1
+            fi
+            sleep 3
+          done
           # The image must have actually USED Postgres — if `pg` were missing it
           # would either crash-loop or (worse) look fine on the fallback.
           docker compose logs adminium | grep -qi 'embedded SQLite' && {
