@@ -432,6 +432,15 @@ export interface DesktopBootDeps {
    */
   demoSeedScript?: string | undefined;
   /**
+   * 32-T11: `resources/add-ons-bundle`, the pre-verified bundled add-on set the
+   * embedded server seeds copy-if-absent at boot. Optional for the reason
+   * `demoSeedScript` is — the suites do not pass it — but the shipped app
+   * always does ({@link bundledAddOnsBundleDir}). Passing a path that does not
+   * exist is fine (dev runs, where the fetch never ran): `buildServerEnv` emits
+   * the variable only when the directory is really there.
+   */
+  bundledAddOnsDir?: string | undefined;
+  /**
    * 11-T04. Wire §4's `ipcMain` handlers — called ONCE, before the first window.
    *
    * A port rather than a call to `registerIpcHandlers` inside `start()`, for the
@@ -969,6 +978,10 @@ export function createDesktopApp(deps: DesktopBootDeps): DesktopApp {
         ...(deps.staticRoot === undefined ? {} : { staticRoot: deps.staticRoot }),
         // §6: where the demo seed script is. See DesktopBootDeps.demoSeedScript.
         ...(deps.demoSeedScript === undefined ? {} : { demoSeedScript: deps.demoSeedScript }),
+        // 32-T11: where the bundled add-on set is. See DesktopBootDeps.bundledAddOnsDir.
+        ...(deps.bundledAddOnsDir === undefined
+          ? {}
+          : { bundledAddOnsDir: deps.bundledAddOnsDir }),
         // §2.4: loopback unless the user opted into LAN share (§8.3). Omitting
         // both is not laziness — the manager defaults to 127.0.0.1 + port 0, so
         // the shell cannot bind every interface by forgetting something.
@@ -1308,6 +1321,28 @@ function bundledDemoSeedScript(): string {
     'resources',
     'demo',
     'demo-seed.mjs',
+  );
+}
+
+/**
+ * `resources/add-ons-bundle/` — the pre-verified bundled add-on set (32-T11):
+ * six first-party tarballs + `.integrity` sidecars the desktop-release workflow
+ * fetches against the exact pins in `scripts/release/add-ons-bundle.json`.
+ *
+ * The same `../../resources` arithmetic {@link bundledDemoSeedScript} uses, for
+ * the same both-worlds reason: §10's `files: [out/**, resources/**]` keeps the
+ * relative layout inside a packaged app. In dev the directory simply does not
+ * exist (the fetch output is .gitignored), and `buildServerEnv` omits
+ * `ADMINIUM_BUNDLED_ADD_ONS` for an absent directory, so the server's own
+ * CWD-relative default stands and the boot seed no-ops.
+ */
+function bundledAddOnsBundleDir(): string {
+  return resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'resources',
+    'add-ons-bundle',
   );
 }
 
@@ -1899,6 +1934,7 @@ export function electronBootDeps(): DesktopBootDeps {
     serverEntry: bundledServerEntry(),
     staticRoot: bundledStaticRoot(),
     demoSeedScript: bundledDemoSeedScript(),
+    bundledAddOnsDir: bundledAddOnsBundleDir(),
 
     registerBridge: (context) => {
       const handlers = registerIpcHandlers({

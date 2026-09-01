@@ -10,7 +10,9 @@
  * breaks: the app works fine, it is just reachable from the coffee shop's Wi-Fi.
  */
 
-import { resolve } from 'node:path';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 import { envSchema } from '@adminium/server';
 import { describe, expect, it } from 'vitest';
@@ -194,6 +196,71 @@ describe('buildServerEnv', () => {
         inherit: { ADMINIUM_DEMO_SEED_SCRIPT: '/tmp/evil.mjs' },
       });
       expect('ADMINIUM_DEMO_SEED_SCRIPT' in env).toBe(false);
+    });
+  });
+
+  describe('the bundled add-on set (32-T11)', () => {
+    const withTempDir = (run: (dir: string) => void): void => {
+      const dir = mkdtempSync(join(tmpdir(), 'adminium-add-ons-bundle-'));
+      try {
+        run(dir);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+
+    it('points ADMINIUM_BUNDLED_ADD_ONS at the bundle when the directory exists', () => {
+      withTempDir((dir) => {
+        const env = buildServerEnv({ ...base, bundledAddOnsDir: dir });
+        expect(env.ADMINIUM_BUNDLED_ADD_ONS).toBe(resolve(dir));
+      });
+    });
+
+    it('emits nothing when the directory does not exist — dev runs ship no bundle', () => {
+      // The shipped app passes the path unconditionally (like the demo seed);
+      // dev checkouts have never run the release fetch, so the honest env block
+      // simply has no opinion and the server's own CWD default stands.
+      withTempDir((dir) => {
+        const env = buildServerEnv({ ...base, bundledAddOnsDir: join(dir, 'never-fetched') });
+        expect('ADMINIUM_BUNDLED_ADD_ONS' in env).toBe(false);
+      });
+    });
+
+    it('emits nothing when a FILE sits where the directory should be', () => {
+      withTempDir((dir) => {
+        const file = join(dir, 'add-ons-bundle');
+        writeFileSync(file, 'not a directory');
+        const env = buildServerEnv({ ...base, bundledAddOnsDir: file });
+        expect('ADMINIUM_BUNDLED_ADD_ONS' in env).toBe(false);
+      });
+    });
+
+    it('omits the key entirely when no bundle dir is given', () => {
+      expect('ADMINIUM_BUNDLED_ADD_ONS' in buildServerEnv({ ...base })).toBe(false);
+    });
+
+    it('strips an inherited value — the shell chooses which packages seed the store', () => {
+      // The server seeds its add-on store from every tarball in this directory,
+      // verified against sidecars in the SAME directory — so an inherited value
+      // is an attacker choosing a whole set of packages to install at boot.
+      const env = buildServerEnv({
+        ...base,
+        inherit: { ADMINIUM_BUNDLED_ADD_ONS: '/tmp/evil-bundle' },
+      });
+      expect('ADMINIUM_BUNDLED_ADD_ONS' in env).toBe(false);
+    });
+
+    it('lets a real bundle dir survive the whole chain to the child process env', () => {
+      // Same seam the demo-seed chain test guards: compose.ts reads
+      // process.env.ADMINIUM_BUNDLED_ADD_ONS directly, and the child's
+      // process.env IS the built block, carried through toServerEnvRecord by
+      // inheritance. A dropped key here costs the packaged app its bundled set
+      // while both ends' suites stay green.
+      withTempDir((dir) => {
+        const built = buildServerEnv({ ...base, bundledAddOnsDir: dir });
+        const record = toServerEnvRecord(parseDesktopServerEnv(built), built);
+        expect(record.ADMINIUM_BUNDLED_ADD_ONS).toBe(resolve(dir));
+      });
     });
   });
 

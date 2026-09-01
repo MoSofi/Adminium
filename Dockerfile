@@ -98,6 +98,18 @@ RUN node apps/server/scripts/bundle-allowlists.mjs \
 # single `COPY --from=build` below sufficient.
 RUN pnpm deploy --filter=@adminium/server --prod --legacy /app
 
+# The bundled add-on set (32 D3, 32-T12): the six first-party add-on tarballs
+# plus their `.integrity` sidecars, fetched from registry.npmjs.org and verified
+# against the exact sha512 pins in scripts/release/add-ons-bundle.json before a
+# byte lands. Parked at /app/add-ons-bundle because the runtime stage keeps
+# WORKDIR /app, so the server's CWD-relative default `./add-ons-bundle`
+# (compose.ts BUNDLED_ADD_ONS_DIR) finds it with no env var, and the single
+# `COPY --from=build /app /app` below carries it. The layer is keyed by this
+# script + pin file like any other build input, so a pin bump — the per-release
+# refresh — invalidates it; the boot seed re-verifies every hash again on the
+# way into the store, copy-if-absent.
+RUN node scripts/release/fetch-add-ons-bundle.mjs /app/add-ons-bundle
+
 # ────────────────────────── runtime ──────────────────────────
 FROM node:22-slim AS runtime
 

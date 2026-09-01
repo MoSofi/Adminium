@@ -170,6 +170,7 @@ export default defineConfig({
             { label: 'Security hardening', link: '/self-hosting/security/' },
             { label: 'Telemetry', link: '/self-hosting/telemetry/' },
             { label: 'Export & restore', link: '/self-hosting/export-zip/' },
+            { label: 'Installing add-ons', link: '/self-hosting/installing-add-ons/' },
           ],
         },
         {

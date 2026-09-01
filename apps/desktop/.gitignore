@@ -18,3 +18,8 @@ resources/icons/*.ico
 # the repo LICENSE staged next to it for §13's in-app viewer (one source of truth).
 resources/THIRD-PARTY-NOTICES.txt
 resources/LICENSE
+
+# Fetched at release by scripts/release/fetch-add-ons-bundle.mjs (32-T11): the
+# bundled add-on set the embedded server seeds at boot. Only the pin file is
+# checked in; the tarballs are downloaded and hash-verified per build.
+resources/add-ons-bundle/

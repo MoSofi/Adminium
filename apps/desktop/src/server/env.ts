@@ -53,6 +53,7 @@
  */
 
 import { randomBytes } from 'node:crypto';
+import { statSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
 import { z } from 'zod';
@@ -127,6 +128,20 @@ export interface BuildServerEnvInput {
    */
   demoSeedScript?: string | undefined;
   /**
+   * 32-T11: `resources/add-ons-bundle`, the pre-verified bundled add-on set the
+   * desktop-release workflow fetches next to the demo seed — six first-party
+   * tarballs + `.integrity` sidecars, pinned by
+   * `scripts/release/add-ons-bundle.json`. The server seeds its add-on store
+   * from it at boot, copy-if-absent, re-verifying every hash — which is what
+   * makes the Add-ons page browsable with zero network.
+   *
+   * Optional for the reason `demoSeedScript` is: the suites do not pass it, and
+   * a dev checkout has no fetched bundle (the directory is .gitignored). Unlike
+   * the script, the variable is only EMITTED when the directory actually exists
+   * — see the existence check in {@link buildServerEnv}.
+   */
+  bundledAddOnsDir?: string | undefined;
+  /**
    * The environment the child inherits before Adminium's own keys are layered
    * on. Defaults to `process.env`. Injected by the suites.
    */
@@ -174,6 +189,12 @@ export const STRIPPED_INHERITED_ENV_KEYS: readonly string[] = [
   // executes — a much larger promotion than the rest of this list prevents. The
   // shell knows where its own resources are; nothing else gets a vote.
   'ADMINIUM_DEMO_SEED_SCRIPT',
+  // Same promotion class as the seed script, one step removed (32-T11): the
+  // server SEEDS ITS ADD-ON STORE from every tarball in this directory. The
+  // hashes are verified against sidecars in the SAME directory, so pointing it
+  // somewhere else is choosing an entire set of packages to install at boot —
+  // the shell knows where its bundled set is; nothing else gets a vote.
+  'ADMINIUM_BUNDLED_ADD_ONS',
   // §8.3 is what makes this one a security control rather than hygiene.
   //
   // `trustProxy` tells Fastify to believe `X-Forwarded-For`, which is correct
@@ -259,8 +280,25 @@ export function buildServerEnv(input: BuildServerEnvInput): Record<string, strin
   if (input.demoSeedScript !== undefined) {
     env.ADMINIUM_DEMO_SEED_SCRIPT = resolve(input.demoSeedScript);
   }
+  // Absolute for the demo-seed reason (the server resolves a relative value
+  // against ITS cwd, compose.ts's BUNDLED_ADD_ONS_DIR), and emitted only when
+  // the directory is really there: a dev run ships no bundle, and the honest
+  // instruction for "nothing bundled" is silence — the server's own default
+  // then no-ops — rather than a path to nowhere dressed up as configuration.
+  if (input.bundledAddOnsDir !== undefined && isExistingDirectory(input.bundledAddOnsDir)) {
+    env.ADMINIUM_BUNDLED_ADD_ONS = resolve(input.bundledAddOnsDir);
+  }
 
   return env;
+}
+
+/** `false` for anything that is not a readable directory — including a file. */
+function isExistingDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 // ─── Child side: reading it back ─────────────────────────────────────────────

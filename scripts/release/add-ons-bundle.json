@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "comment": "The bundled add-on set (32 D3). Exact pins only; refreshed per add-ons release from RELEASES.json in Adminiumjs/add-ons.",
+  "addOns": [
+    {
+      "key": "barcode-labels",
+      "version": "1.0.0",
+      "integrity": "sha512-DFNoYAcJEx1KZtPZK1GTTuZDq+/qpZ9k5/hL0QLYD9xJG0VWdawLDkktkNnoXpNgQkUR2XXhaMGUjZ1CYihPwA=="
+    },
+    {
+      "key": "design-studio",
+      "version": "1.0.0",
+      "integrity": "sha512-/1L7egbr8kj89Bcn3NGnBzV0vfTipQjqSjEcA9rZ2HmoZGvhGJwp6DZzQxjnU+qvw5YCkM5Gmj9PBDouUlkEyQ=="
+    },
+    {
+      "key": "holiday-calendars",
+      "version": "1.0.0",
+      "integrity": "sha512-AjZzZeLlBF+o5am/jXk69gnzjxm4urqye2Z4FamU/CjiezjDs9OihSyqAAt8qfIRuQJXzrFxJZn0nUirOc0hkQ=="
+    },
+    {
+      "key": "import-canva",
+      "version": "1.0.0",
+      "integrity": "sha512-GDfCrLRmnMMhfuHuzZdMn4wpiBYHeHc1Z3049D/VoZWpwHWKddXrZ401hv5Nwwi/FNKsbMRpJ4kxCTOBBn/QPg=="
+    },
+    {
+      "key": "personalizer",
+      "version": "1.0.0",
+      "integrity": "sha512-kVJ029dTIndC0Pim/SwN3RamiU38hr1vGSUts/yysvd/iaUaFQ7N1oi30S09u2kP9D93oasxwmxqPKDiXRcg6w=="
+    },
+    {
+      "key": "shipping-dhl",
+      "version": "1.0.0",
+      "integrity": "sha512-2/pMeVBIuyNRFQNfjHl1IEDi7ls6gD42AZ/FwFrkOGoj5CJHPO4XeD6FLkNLqkABsdNwLdBWjGju2gWyM4PKKA=="
+    }
+  ]
+}

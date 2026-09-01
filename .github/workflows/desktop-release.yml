@@ -151,6 +151,19 @@ jobs:
       - name: Generate app icons
         run: pnpm --filter @adminium/desktop run icons
 
+      # Like the icons: a .gitignored resource staged before `dist`, so a fresh
+      # CI checkout has none until this runs. Fetches the six first-party add-on
+      # tarballs + `.integrity` sidecars from registry.npmjs.org, verified
+      # against the exact sha512 pins in scripts/release/add-ons-bundle.json
+      # (32-T11). electron-builder's `files: resources/**` carries the directory
+      # into the packaged app, and buildServerEnv points ADMINIUM_BUNDLED_ADD_ONS
+      # at it so the embedded server seeds the bundled set at boot — the Add-ons
+      # page then browses it with zero network, which is the desktop's air-gap
+      # posture. A mismatched or unpinnable package fails THIS step, not a user's
+      # first launch.
+      - name: Fetch bundled add-on set
+        run: node scripts/release/fetch-add-ons-bundle.mjs apps/desktop/resources/add-ons-bundle
+
       # ── The CSC_* contract, stated once for both gates below ─────────────────
       #
       # electron-builder reads ONE pair of variables for code-signing material —

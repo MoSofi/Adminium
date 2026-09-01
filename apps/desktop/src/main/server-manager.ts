@@ -320,6 +320,8 @@ export interface CreateServerManagerOptions {
   staticRoot?: string | undefined;
   /** §6 step 2 card 4: `resources/demo/demo-seed.mjs` (11-T08). */
   demoSeedScript?: string | undefined;
+  /** 32-T11: `resources/add-ons-bundle`, the pre-verified bundled add-on set. */
+  bundledAddOnsDir?: string | undefined;
   /**
    * §9's `<userData>/logs`. Given it, the manager writes the child's stdout and
    * stderr into a rotating `adminium-server.log`. Omitted (and with no explicit
@@ -555,6 +557,9 @@ class ServerManagerImpl implements ServerManager {
       ...(this.#opts.demoSeedScript === undefined
         ? {}
         : { demoSeedScript: this.#opts.demoSeedScript }),
+      ...(this.#opts.bundledAddOnsDir === undefined
+        ? {}
+        : { bundledAddOnsDir: this.#opts.bundledAddOnsDir }),
       ...(this.#opts.inheritEnv === undefined ? {} : { inherit: this.#opts.inheritEnv }),
     };
     return buildServerEnv(input);
