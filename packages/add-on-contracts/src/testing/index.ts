@@ -147,6 +147,40 @@ export function describeShippingCarrier(
       }
     });
 
+    /*
+     * ── THE INBOUND DIRECTION (31 O4, ruled 2026-09-01) ─────────────────────
+     *
+     * The contract is direction-agnostic and these two cases are what that
+     * sentence means executably. A RETURN — a customer sending a parcel back to
+     * the business — is the same contract with the route reversed: `quote(parcel,
+     * from, to)` takes two addresses and has no opinion about which one is the
+     * shop; `book` buys a prepaid label the SENDER applies, whoever the sender
+     * is; `track` follows the parcel toward whoever is receiving it. No member
+     * changes shape, which is why this is a conformance amendment and not a
+     * version bump.
+     *
+     * The refusal is symmetric too, and that is a rule rather than a
+     * convenience: a label must carry a resolvable address at BOTH ends, so a
+     * carrier that would refuse an address as a recipient refuses it as a
+     * sender. The case reuses `rejectedTo` deliberately — the fixture is "an
+     * address the carrier refuses", and which end it sits at is not part of
+     * what makes it refusable.
+     */
+    it('quote is direction-symmetric — the same route reversed still quotes', async () => {
+      const rates = await impl.quote(fixtures.parcel, fixtures.to, fixtures.from);
+      expect(rates.length).toBeGreaterThan(0);
+      for (const rate of rates) {
+        const parsed = rateSchema.safeParse(rate);
+        expect(parsed.success, JSON.stringify(parsed.error?.issues)).toBe(true);
+      }
+    });
+
+    it('refuses an unserviceable sender exactly as it refuses a recipient', async () => {
+      await expect(
+        impl.quote(fixtures.parcel, fixtures.rejectedTo, fixtures.to),
+      ).rejects.toBeInstanceOf(CarrierError);
+    });
+
     it('books a shipment of the declared shape', async () => {
       const [rate] = await impl.quote(fixtures.parcel, fixtures.from, fixtures.to);
       expect(rate).toBeDefined();
