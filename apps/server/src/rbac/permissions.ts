@@ -19,8 +19,9 @@
  * matches anything.
  *
  * Reserved keys: meta's `RESERVED_SYSTEM_ACTION_KEYS` (automations.manage,
- * webhooks.manage, manifests.manage, sql.run) are deferred features with no
- * enforcement point in v1. The grammar here still accepts them — stored
+ * webhooks.manage, sql.run) are deferred features with no enforcement point in
+ * v1. `manifests.manage` left that list on 2026-08-29 when the
+ * `/api/v1/add-ons` routes landed to check it (26-T05). The grammar here still accepts them — stored
  * grants must keep round-tripping — but no permissions UI may offer them;
  * grantable lists come from meta's `GRANTABLE_SYSTEM_ACTION_KEYS`.
  */
@@ -59,6 +60,10 @@ export const PERMISSIONS = {
   // these are the canonical spellings.
   jobsRead: 'system:jobs:read',
   jobsManage: 'system:jobs:manage',
+  // M16 / 26 D3 — the add-on runtime. Deliberately NOT `settingsManage`:
+  // installing an add-on and changing a workspace setting are not the same
+  // authority, and 08 §2.19 was amended to say so.
+  manifestsManage: 'system:manifests:manage',
 } as const;
 
 export type ParsedGrant =

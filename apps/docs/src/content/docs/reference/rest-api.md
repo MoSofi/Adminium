@@ -84,6 +84,7 @@ Thirty-one namespaces. Counts are operations, not paths.
 | Group | Ops | |
 |---|---:|---|
 | `/api/v1/about/*` | 2 | Build version, edition, and the update check |
+| `/api/v1/add-ons/*` | 17 | Installed add-ons — list what a host should mount, preview what installing would do, install from a verified package, enable or disable per host, and uninstall |
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
@@ -144,6 +145,28 @@ The complete surface, straight from the spec. Path parameters appear as
 ```http
 GET /api/v1/about
 GET /api/v1/about/update-check
+```
+
+### `/add-ons`
+
+```http
+GET /api/v1/add-ons/catalog
+PUT /api/v1/add-ons/catalog
+POST /api/v1/add-ons/catalog/refresh
+POST /api/v1/add-ons/download
+POST /api/v1/add-ons/upload
+DELETE /api/v1/add-ons/staged/{key}/{version}
+POST /api/v1/add-ons/{key}/upgrade
+GET /api/v1/add-ons
+POST /api/v1/add-ons
+GET /api/v1/add-ons/{key}/plan
+GET /api/v1/add-ons/{key}/bundle/{*}
+POST /api/v1/add-ons/{key}/connect
+DELETE /api/v1/add-ons/{key}/connect
+POST /api/v1/add-ons/{key}/connect/oauth/start
+POST /api/v1/add-ons/{key}/connect/oauth/complete
+PATCH /api/v1/add-ons/{key}
+DELETE /api/v1/add-ons/{key}
 ```
 
 ### `/api-keys`

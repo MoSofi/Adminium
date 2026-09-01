@@ -17583,6 +17583,2009 @@
         }
       }
     },
+    "/api/v1/add-ons/catalog": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "bundled",
+                              "catalog"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "installed",
+                              "staged",
+                              "available"
+                            ]
+                          },
+                          "upgradeTo": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "version",
+                          "source",
+                          "state",
+                          "upgradeTo"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "catalogFetchedAt": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "onlineEnabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "addOns",
+                    "catalogFetchedAt",
+                    "onlineEnabled"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "onlineEnabled": {
+                      "type": "boolean"
+                    },
+                    "vetoed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "onlineEnabled",
+                    "vetoed"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/catalog/refresh": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jobId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/download": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "key",
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "jobId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/upload": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "query",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "query",
+            "name": "version",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^sha512-[A-Za-z0-9+/]+={0,2}$"
+            },
+            "in": "query",
+            "name": "expectedSha512",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "files": {
+                      "type": "number"
+                    },
+                    "integrity": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "files",
+                    "integrity"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/staged/{key}/{version}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "in": "path",
+            "name": "version",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "discarded": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "discarded"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/upgrade": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOn": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "connectKind": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "connectionExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attachedTo": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attachedTo",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "client",
+                              "order"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contract": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "contract",
+                              "version"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "networkAllow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "bundles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "integrity": {
+                                "type": "string",
+                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "url",
+                              "integrity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "version",
+                        "connectKind",
+                        "connected",
+                        "connectionExpiresAt",
+                        "attachments",
+                        "slots",
+                        "provides",
+                        "networkAllow",
+                        "bundles"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "pruned": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "addOn",
+                    "from",
+                    "to",
+                    "pruned"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOns": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "connectKind": {
+                            "type": "string",
+                            "enum": [
+                              "none",
+                              "api-key",
+                              "oauth2"
+                            ]
+                          },
+                          "connected": {
+                            "type": "boolean"
+                          },
+                          "connectionExpiresAt": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "attachments": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "attachedTo": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "attachedTo",
+                                "enabled"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "slots": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "slot": {
+                                  "type": "string"
+                                },
+                                "client": {
+                                  "type": "string"
+                                },
+                                "order": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "slot",
+                                "client",
+                                "order"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "provides": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "contract": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "contract",
+                                "version"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "networkAllow": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "bundles": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "path": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                },
+                                "integrity": {
+                                  "type": "string",
+                                  "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                                }
+                              },
+                              "required": [
+                                "path",
+                                "url",
+                                "integrity"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "version",
+                          "connectKind",
+                          "connected",
+                          "connectionExpiresAt",
+                          "attachments",
+                          "slots",
+                          "provides",
+                          "networkAllow",
+                          "bundles"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "addOns"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "attachTo": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    }
+                  }
+                },
+                "required": [
+                  "key",
+                  "version"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOn": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "connectKind": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "connectionExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attachedTo": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attachedTo",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "client",
+                              "order"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contract": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "contract",
+                              "version"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "networkAllow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "bundles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "integrity": {
+                                "type": "string",
+                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "url",
+                              "integrity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "version",
+                        "connectKind",
+                        "connected",
+                        "connectionExpiresAt",
+                        "attachments",
+                        "slots",
+                        "provides",
+                        "networkAllow",
+                        "bundles"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "plan": {
+                      "type": "object",
+                      "properties": {
+                        "addOnKey": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "installable": {
+                          "type": "boolean"
+                        },
+                        "touchesData": {
+                          "type": "boolean"
+                        },
+                        "create": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ref": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ref",
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "columns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reuse": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "missingColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "missingColumns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "references": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "fromTable": {
+                                "type": "string"
+                              },
+                              "fromColumn": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              },
+                              "resolution": {
+                                "type": "string",
+                                "enum": [
+                                  "internal",
+                                  "host",
+                                  "unresolved"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "fromTable",
+                              "fromColumn",
+                              "to",
+                              "resolution"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "problems": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "message",
+                              "table"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "requiresSchemaChange": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "addOnKey",
+                        "version",
+                        "installable",
+                        "touchesData",
+                        "create",
+                        "reuse",
+                        "references",
+                        "problems",
+                        "requiresSchemaChange"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "addOn",
+                    "plan"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/plan": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plan": {
+                      "type": "object",
+                      "properties": {
+                        "addOnKey": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "installable": {
+                          "type": "boolean"
+                        },
+                        "touchesData": {
+                          "type": "boolean"
+                        },
+                        "create": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "columns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "ref": {
+                                      "type": "string"
+                                    },
+                                    "type": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "ref",
+                                    "type"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "columns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "reuse": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ref": {
+                                "type": "string"
+                              },
+                              "missingColumns": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "ref",
+                              "missingColumns"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "references": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "fromTable": {
+                                "type": "string"
+                              },
+                              "fromColumn": {
+                                "type": "string"
+                              },
+                              "to": {
+                                "type": "string"
+                              },
+                              "resolution": {
+                                "type": "string",
+                                "enum": [
+                                  "internal",
+                                  "host",
+                                  "unresolved"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "fromTable",
+                              "fromColumn",
+                              "to",
+                              "resolution"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "problems": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "table": {
+                                "type": "string"
+                              },
+                              "column": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "message",
+                              "table"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "requiresSchemaChange": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "addOnKey",
+                        "version",
+                        "installable",
+                        "touchesData",
+                        "create",
+                        "reuse",
+                        "references",
+                        "problems",
+                        "requiresSchemaChange"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "plan"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/bundle/{*}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "path",
+            "name": "*",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "credentials": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096
+                    }
+                  }
+                },
+                "required": [
+                  "credentials"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOn": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "connectKind": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "connectionExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attachedTo": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attachedTo",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "client",
+                              "order"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contract": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "contract",
+                              "version"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "networkAllow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "bundles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "integrity": {
+                                "type": "string",
+                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "url",
+                              "integrity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "version",
+                        "connectKind",
+                        "connected",
+                        "connectionExpiresAt",
+                        "attachments",
+                        "slots",
+                        "provides",
+                        "networkAllow",
+                        "bundles"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "addOn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "credentialsDeleted": {
+                      "type": "boolean"
+                    },
+                    "tablesKept": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "credentialsDeleted",
+                    "tablesKept"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/oauth/start": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "clientSecret": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "redirectUri": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "clientSecret",
+                  "redirectUri"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authorizeUrl": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "authorizeUrl",
+                    "state"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}/connect/oauth/complete": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "required": [
+                  "state",
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOn": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "connectKind": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "connectionExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attachedTo": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attachedTo",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "client",
+                              "order"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contract": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "contract",
+                              "version"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "networkAllow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "bundles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "integrity": {
+                                "type": "string",
+                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "url",
+                              "integrity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "version",
+                        "connectKind",
+                        "connected",
+                        "connectionExpiresAt",
+                        "attachments",
+                        "slots",
+                        "provides",
+                        "networkAllow",
+                        "bundles"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "addOn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/add-ons/{key}": {
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attachedTo": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "attachedTo",
+                  "enabled"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addOn": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "string"
+                        },
+                        "connectKind": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "api-key",
+                            "oauth2"
+                          ]
+                        },
+                        "connected": {
+                          "type": "boolean"
+                        },
+                        "connectionExpiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "attachments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attachedTo": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                              },
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "attachedTo",
+                              "enabled"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slot": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "order": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "client",
+                              "order"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "provides": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contract": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "contract",
+                              "version"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "networkAllow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "bundles": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "url": {
+                                "type": "string"
+                              },
+                              "integrity": {
+                                "type": "string",
+                                "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$"
+                              }
+                            },
+                            "required": [
+                              "path",
+                              "url",
+                              "integrity"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "name",
+                        "version",
+                        "connectKind",
+                        "connected",
+                        "connectionExpiresAt",
+                        "attachments",
+                        "slots",
+                        "provides",
+                        "networkAllow",
+                        "bundles"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "addOn"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{1,79}$"
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]{1,79}$"
+                    },
+                    "tablesKept": {
+                      "type": "boolean"
+                    },
+                    "packageRemoved": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "tablesKept",
+                    "packageRemoved"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roles": {
       "get": {
         "responses": {
@@ -19397,7 +21400,8 @@
                 "llm",
                 "automation",
                 "export",
-                "system"
+                "system",
+                "add-on"
               ]
             },
             "in": "query",
@@ -19535,7 +21539,8 @@
                               "llm",
                               "automation",
                               "export",
-                              "system"
+                              "system",
+                              "add-on"
                             ]
                           },
                           "action": {
@@ -19711,7 +21716,8 @@
                         "llm",
                         "automation",
                         "export",
-                        "system"
+                        "system",
+                        "add-on"
                       ]
                     },
                     "action": {

@@ -29,12 +29,16 @@
  * behavior, kept, because a missing AI vocabulary must not cost you your CRUD.
  */
 
+import { resolve } from 'node:path';
+
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
+import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   auditRepo,
   exportsRepo,
   filesRepo,
   jobsRepo,
+  manifestsRepo,
   passwordResetsRepo,
   sessionsRepo,
   settingsRepo,
@@ -53,7 +57,17 @@ import { UndoStore } from './crud/undo.js';
 import { seedBuiltinEmailTemplates } from './email/builtins.js';
 import { emailSecretKey } from './email/config.js';
 import { configureEmailRuntime } from './email/send.js';
+import { createCatalogClient } from './add-ons/catalog.js';
+import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
+import { addOnHttpClientFor } from './add-ons/egress.js';
+import { buildAddOnRuntime, importServerHalf } from './add-ons/runtime.js';
+import { createAddOnStore, seedBundledPackages } from './add-ons/store.js';
 import { createFileStorage } from './files/storage.js';
+import {
+  enqueueCatalogRefresh,
+  registerAddOnAcquireHandlers,
+} from './jobs/add-on-acquire.js';
+import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
 import {
   SCHEDULED_REPORTS_POLL_CRON,
@@ -68,6 +82,8 @@ import { rbacPlugin } from './plugins/rbac.js';
 import { permissionSetAllows, resolvePermissionSet } from './rbac/resolver.js';
 import { API_PREFIX } from './routes/index.js';
 import { apiKeysRoutes } from './routes/api-keys/index.js';
+import { createAddOnSchemaTarget } from './add-ons/schema-target.js';
+import { addOnRoutes } from './routes/add-ons/index.js';
 import { auditRoutes } from './routes/audit/index.js';
 import { desktopSessionRoutes } from './routes/auth/desktop-session.js';
 import { desktopRoutes } from './routes/desktop/index.js';
@@ -121,6 +137,33 @@ export const TELEMETRY_SCHEDULE_NAME = 'telemetry-ping';
 export const TELEMETRY_CRON = '0 4 * * *';
 /** De-synchronize a fleet so a self-host cohort does not ping in lockstep. */
 export const TELEMETRY_JITTER_MS = 60 * 60 * 1000;
+
+/**
+ * Daily add-on catalog refresh (32-add-on-distribution.md D8/D10), offset an
+ * hour from the telemetry ping so the two dailies never contend.
+ *
+ * The tick is a NO-OP on the vast majority of installs: the handler asks the
+ * catalog client whether it is enabled before anything else, and the answer is
+ * false unless somebody turned the switch on — so what the schedule costs an
+ * air-gapped deployment is one settings read a day. It is registered
+ * unconditionally for the same reason the telemetry schedule is: registering a
+ * schedule is not consent, and a schedule that only exists once you consent is
+ * a schedule that silently does not exist when you revoke consent and grant it
+ * again without a restart.
+ *
+ * The bundled set (D3) is what makes the Add-ons page useful in the meantime.
+ */
+export const CATALOG_REFRESH_SCHEDULE_NAME = 'add-on-catalog-refresh';
+export const CATALOG_REFRESH_CRON = '0 5 * * *';
+/** Same fleet-desynchronization reasoning as the telemetry ping. */
+export const CATALOG_REFRESH_JITTER_MS = 60 * 60 * 1000;
+
+/**
+ * Where the image and the desktop build park the bundled add-on tarballs (D3).
+ * Relative to the process CWD, which for the container is `/app`; absent on a
+ * dev checkout, where {@link seedBundledPackages} is simply a no-op.
+ */
+export const BUNDLED_ADD_ONS_DIR = process.env['ADMINIUM_BUNDLED_ADD_ONS'] ?? './add-ons-bundle';
 
 /**
  * Daily export-retention sweep (M7-T07): flips `ready` → `expired` on
@@ -346,6 +389,34 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // Artifact storage for the data-io pipeline (M7-T07): exports, imports and
   // scheduled-report snapshots all live under `<dataDir>/files/`.
   const storage = createFileStorage({ dataDir: env.ADMINIUM_DATA_DIR });
+
+  // The add-on package store (32-add-on-distribution.md D11): a sibling of
+  // `files/` under the same data dir, so downloaded packages survive an image
+  // upgrade on the named volume the way exports and backups already do.
+  //
+  // Two things happen at boot and neither touches the network. Orphaned temp
+  // directories from an unpack that was interrupted (SIGKILL mid-write, a full
+  // disk) are pruned, because an atomic-rename staging scheme leaks exactly
+  // that on a hard stop. Then the image's bundled set (D3) is seeded
+  // copy-if-absent, with every hash re-verified on the way in — which is what
+  // makes an air-gapped install able to browse and install with no registry at
+  // all. Both are best-effort: a data dir that cannot be written is a real
+  // problem, but it is not a reason to refuse to start a server whose other
+  // features do not need one.
+  const addOnStore = createAddOnStore({ dataDir: env.ADMINIUM_DATA_DIR });
+  void addOnStore
+    .pruneTemp()
+    .then(async (pruned) => {
+      if (pruned > 0) app.log.info({ pruned }, 'pruned orphaned add-on staging directories');
+      const seed = await seedBundledPackages(addOnStore, resolve(BUNDLED_ADD_ONS_DIR), (m, d) =>
+        app.log.warn(d, m),
+      );
+      if (seed.seeded.length > 0) app.log.info({ seeded: seed.seeded }, 'seeded bundled add-ons');
+      if (seed.failed.length > 0) app.log.error({ failed: seed.failed }, 'bundled add-ons failed to seed');
+    })
+    .catch((err: unknown) => {
+      app.log.warn({ err }, 'add-on store could not be prepared');
+    });
 
   const jobs = await registerJobsAndRealtime(app, {
     meta,
@@ -617,6 +688,29 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // discovered the list is empty and the page says how to add some, which
       // beats a namespace that 404s only on some instances.
       await api.register(surfacesAdminRoutes({ meta }));
+      // The add-on runtime (26 §5.1). Registered unconditionally: an instance
+      // with no add-ons serves an empty list, which is what a host in connected
+      // mode expects to read — a conditionally-registered route would 404 there
+      // instead, and a 404 is indistinguishable from "this build is too old".
+      await api.register(
+        addOnRoutes({
+          meta,
+          store: addOnStore,
+          credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+          // Where an add-on's tables are planned against and created (26-T02).
+          schemaTarget: createAddOnSchemaTarget({
+            meta,
+            manager,
+            credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
+          }),
+          // The same client the acquisition jobs use, so the routes' gate check
+          // and the jobs' cannot disagree about whether browsing is on.
+          catalog: createCatalogClient({
+            meta,
+            networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+          }),
+        }),
+      );
       await api.register(rolesRoutes);
       await api.register(usersRoutes);
       await api.register(permissionsRoutes);
@@ -672,6 +766,107 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // variable is not misconfigured and should not be told it is.
     app.log.warn({ reason: publicBlocked }, 'public API not registered');
   }
+
+  // Add-on acquisition (32-add-on-distribution.md §4.1/§4.2, D10). The two job
+  // kinds are registered unconditionally; NEITHER of them can reach the network
+  // on its own, because the catalog client's gate (`ADMINIUM_NETWORK_FEATURES`
+  // AND the default-off `addOns.catalogEnabled` setting) is checked before any
+  // URL is constructed — the same shape as telemetry below, and pinned by
+  // `add-on-network-isolation.test.ts`. Registering the schedule is not consent.
+  registerAddOnAcquireHandlers(jobs.registry, {
+    meta,
+    store: addOnStore,
+    catalog: createCatalogClient({
+      meta,
+      networkFeatures: env.ADMINIUM_NETWORK_FEATURES,
+    }),
+  });
+  jobs.scheduler.registerSchedule(
+    CATALOG_REFRESH_SCHEDULE_NAME,
+    CATALOG_REFRESH_CRON,
+    async () => enqueueCatalogRefresh(meta),
+    { jitterMs: CATALOG_REFRESH_JITTER_MS },
+  );
+
+  /**
+   * The add-on runtime (26 §5.2/§5.3, T09/T10) — the point at which installed
+   * add-on code enters this process.
+   *
+   * O1 was ratified in-process on 2026-08-29 on the plan's recorded
+   * recommendation, so this loads server halves from the installed bundle on
+   * local disk and nowhere else, after re-checking each file against the hash
+   * recorded when it was unpacked (D4).
+   *
+   * Best-effort and AFTER everything else is composed: an add-on whose bundle is
+   * corrupt must cost its own integration and nothing more. A boot that died
+   * here would take an entire instance down for one broken third-party module,
+   * which is the opposite of the trade this design is making.
+   */
+  void (async () => {
+    const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
+    const installedAddOns = await repo.list('add-on');
+    if (installedAddOns.length === 0) return;
+
+    const parsed = installedAddOns.flatMap((entry) => {
+      const result = validateManifest(entry.document);
+      if (!result.ok || !isAddOnManifest(result.manifest)) {
+        app.log.warn({ key: entry.row.manifestKey }, 'installed add-on manifest no longer validates');
+        return [];
+      }
+      return [{ row: entry.row, manifest: result.manifest }];
+    });
+
+    const runtime = await buildAddOnRuntime({
+      store: addOnStore,
+      installed: parsed.map((p) => ({ manifest: p.manifest, version: p.row.version })),
+      log: (message, data) => app.log.warn(data, message),
+    });
+    for (const problem of runtime.problems) {
+      app.log.error({ key: problem.addOnKey, reason: problem.reason }, problem.message);
+    }
+    for (const conflict of runtime.conflicts) {
+      // Never silent (§5.2): an operator looking at a slot filled by an add-on
+      // they did not expect has to be able to find out why.
+      app.log.warn(conflict, 'add-on slot conflict — the lower `order` wins');
+    }
+
+    // Event handlers become job kinds on the SHARED registry, so add-on work
+    // gets the worker's retries, cancellation and `jobs:<jobId>` progress.
+    const events = [];
+    for (const { row, manifest } of parsed) {
+      for (const declared of manifest.addOn.events ?? []) {
+        let module: unknown;
+        try {
+          module = await importServerHalf(
+            addOnStore,
+            manifest.key,
+            row.version,
+            declared.server,
+          );
+        } catch (err) {
+          app.log.error({ key: manifest.key, event: declared.on, err }, 'add-on event half failed to load');
+          continue;
+        }
+        events.push({
+          addOnKey: manifest.key,
+          event: declared.on,
+          module,
+          // Built from the MANIFEST, so no caller can widen the allow-list.
+          http: addOnHttpClientFor(meta, manifest),
+          credential: async () => (await repo.getCredential(row.id))?.secret ?? null,
+        });
+      }
+    }
+    const registered = registerAddOnEventHandlers(jobs.registry, events);
+    for (const refusal of registered.refused) {
+      app.log.error(refusal, 'add-on event module does not export handle()');
+    }
+    if (registered.registered.length > 0) {
+      app.log.info({ kinds: registered.registered }, 'registered add-on event handlers');
+    }
+  })().catch((err: unknown) => {
+    app.log.error({ err }, 'the add-on runtime could not be built');
+  });
 
   // Telemetry (M10-T04). OPT-IN: `report()` reads `telemetry.enabled` FIRST and
   // returns before building a payload, so an instance that has not consented

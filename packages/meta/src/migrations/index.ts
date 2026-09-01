@@ -42,6 +42,9 @@ import { up as up0016 } from './0016_audit_entity.js';
 import { up as up0017 } from './0017_surface_binding.js';
 import { up as up0018 } from './0018_connection_timezone_source.js';
 import { up as up0019 } from './0019_connection_disabled.js';
+import { up as up0020 } from './0020_manifests_add_on.js';
+import { up as up0021 } from './0021_add_on_credentials.js';
+import { up as up0022 } from './0022_studio_namespace.js';
 
 export interface MetaMigration {
   /** Basename, e.g. `0001_core_auth` — the ledger PK. */
@@ -69,4 +72,7 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0017_surface_binding', up: up0017 },
   { name: '0018_connection_timezone_source', up: up0018 },
   { name: '0019_connection_disabled', up: up0019 },
+  { name: '0020_manifests_add_on', up: up0020 },
+  { name: '0021_add_on_credentials', up: up0021 },
+  { name: '0022_studio_namespace', up: up0022 },
 ];

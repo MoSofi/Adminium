@@ -16,9 +16,12 @@ import {
 } from '../src/index.js';
 
 describe('system action key reservation', () => {
-  it('reserves exactly the four deferred-feature keys', () => {
+  it('reserves exactly the three remaining deferred-feature keys', () => {
+    // `manifests.manage` left this list on 2026-08-29 (26-T05) in the same
+    // change that landed the `/api/v1/add-ons` routes enforcing it — which is
+    // the rule the list's own docblock states.
     expect([...RESERVED_SYSTEM_ACTION_KEYS].sort()).toEqual(
-      ['automations.manage', 'manifests.manage', 'sql.run', 'webhooks.manage'].sort(),
+      ['automations.manage', 'sql.run', 'webhooks.manage'].sort(),
     );
   });
 
@@ -56,6 +59,7 @@ describe('system action key reservation', () => {
       'reports.manage',
       'jobs.read',
       'jobs.manage',
+      'manifests.manage',
     ]) {
       expect(GRANTABLE_SYSTEM_ACTION_KEYS, key).toContain(key);
     }

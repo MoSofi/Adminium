@@ -329,6 +329,14 @@ export const SETTINGS_REGISTRY = {
   // the vendor, so a self-hosted instance opts into it explicitly rather than
   // inheriting consent from the telemetry answer (M10-T04).
   'updates.checkEnabled': def(z.boolean(), false, 'Check for new releases (opt-in outbound call)', P),
+  // The add-on catalog's browse-online switch (32-add-on-distribution.md D8,
+  // O1). OFF by default, and for the same reason `updates.checkEnabled` is: an
+  // online browse discloses this deployment's IP, the time, and the exact
+  // `package@version` it pulls to a third-party registry. The bundled set
+  // (D3) makes the Add-ons page useful with the switch off, so default-off
+  // costs a fresh install nothing. `ADMINIUM_NETWORK_FEATURES=off` and the
+  // desktop's air-gap mode both override it downward; nothing overrides it up.
+  'addOns.catalogEnabled': def(z.boolean(), false, 'Browse the online add-on catalog (opt-in outbound call)', P),
   // ── NOT portable ──────────────────────────────────────────────────────────
   // Everything below identifies THIS instance, records that something already
   // happened to it, or answers a question about the MACHINE it runs on. A

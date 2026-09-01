@@ -41,6 +41,9 @@ const check = process.argv.includes('--check');
  */
 const DESCRIPTIONS = {
   about: 'Build version, edition, and the update check',
+  'add-ons':
+    'Installed add-ons — list what a host should mount, preview what installing would do, ' +
+    'install from a verified package, enable or disable per host, and uninstall',
   'api-keys': 'Issue, list and revoke API keys',
   audit: 'The audit log — list and read single entries',
   auth: 'Login, logout, session listing, 2FA enrolment, password change and reset',

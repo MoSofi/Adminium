@@ -309,6 +309,9 @@ importers:
       '@adminium/adapter-sqlite':
         specifier: workspace:*
         version: link:../../packages/adapter-sqlite
+      '@adminium/add-on-contracts':
+        specifier: workspace:*
+        version: link:../../packages/add-on-contracts
       '@adminium/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -318,6 +321,9 @@ importers:
       '@adminium/llm':
         specifier: workspace:*
         version: link:../../packages/llm
+      '@adminium/manifest':
+        specifier: workspace:*
+        version: link:../../packages/manifest
       '@adminium/meta':
         specifier: workspace:*
         version: link:../../packages/meta
@@ -394,6 +400,9 @@ importers:
       '@types/nodemailer':
         specifier: ^8.0.1
         version: 8.0.1
+      '@types/pg':
+        specifier: ^8.21.0
+        version: 8.21.0
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1

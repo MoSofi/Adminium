@@ -86,13 +86,13 @@ describe('parseGrant / parsePermission', () => {
     expect(SYSTEM_ACTION_KEYS).toContain('jobs.manage');
   });
 
-  it('keeps the four reserved deferred keys in the grammar but out of every offered list', () => {
+  it('keeps the three reserved deferred keys in the grammar but out of every offered list', () => {
     // The reservation contract (meta RESERVED_SYSTEM_ACTION_KEYS): the keys
     // stay parseable — stored grants for them must keep round-tripping — but
     // no surface that OFFERS permissions may list them, because nothing in v1
     // enforces them and a grantable no-op is misleading security UI.
     expect([...RESERVED_SYSTEM_ACTION_KEYS].sort()).toEqual(
-      ['automations.manage', 'manifests.manage', 'sql.run', 'webhooks.manage'].sort(),
+      ['automations.manage', 'sql.run', 'webhooks.manage'].sort(),
     );
 
     for (const key of RESERVED_SYSTEM_ACTION_KEYS) {

@@ -137,7 +137,7 @@ export const SYSTEM_ACTION_KEYS = [
   'automations.manage', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   'webhooks.manage', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   'api-keys.manage',
-  'manifests.manage', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
+  'manifests.manage', // add-on + micro-SaaS install/connect/uninstall (26 D3)
   'audit.read',
   'sql.run', // reserved — deferred feature, no v1 enforcement (RESERVED_SYSTEM_ACTION_KEYS)
   // M7 wave 2 — data-io (T5) + scheduled reports (T6). `exports.manage` /
@@ -181,7 +181,11 @@ export const systemActionKeySchema = z.enum(SYSTEM_ACTION_KEYS);
 export const RESERVED_SYSTEM_ACTION_KEYS = [
   'automations.manage',
   'webhooks.manage',
-  'manifests.manage',
+  // `manifests.manage` UN-RESERVED 2026-08-29 (26-add-on-runtime.md D3, 26-T05)
+  // in the same change that landed its first enforcement point — the
+  // `/api/v1/add-ons` routes. That is the rule this list documents, honoured
+  // rather than quoted: a key becomes grantable when something checks it, and
+  // not one commit earlier.
   'sql.run',
 ] as const satisfies readonly SystemActionKey[];
 export type ReservedSystemActionKey = (typeof RESERVED_SYSTEM_ACTION_KEYS)[number];
@@ -228,6 +232,14 @@ export const auditCategorySchema = z.enum([
   'automation',
   'export',
   'system',
+  // Add-on acquisition and lifecycle (32-add-on-distribution.md §4.3): catalog
+  // refresh, download, verify- and unpack-refusals, upload, staged, deleted,
+  // upgraded. Its own category rather than a `system` action because an add-on
+  // ships a server half that runs in-process (24 D13) — "what code arrived on
+  // this deployment, from where, and did anything refuse it" is the question an
+  // operator asks on its own, and it should not have to be sieved out of the
+  // system log.
+  'add-on',
 ]);
 export type AuditCategory = z.infer<typeof auditCategorySchema>;
 

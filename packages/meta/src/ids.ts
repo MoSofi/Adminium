@@ -53,6 +53,13 @@ export const ID_PREFIXES = {
   whd: 'adminium_webhook_deliveries',
   flag: 'adminium_feature_flags',
   mft: 'adminium_manifests',
+  // 26-add-on-runtime.md §4. `mat` and `aoc` are separate spaces rather than
+  // reusing `mft`: an attachment and a credential are addressable rows with
+  // their own lifetimes (an attachment is disabled per host, a credential is
+  // deleted on disconnect while the manifest stays), and sharing an id space
+  // with the manifest they hang off would make a stray id look valid.
+  mat: 'adminium_manifest_attachments',
+  aoc: 'adminium_add_on_credentials',
   loc: 'adminium_locales',
   trn: 'adminium_translations',
   // 28-public-surface.md §3.3 — the public surface. `pbk` is deliberately not
