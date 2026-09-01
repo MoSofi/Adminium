@@ -127,6 +127,8 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles.permission.jobsRead', 'See all background jobs');
     case 'system:jobs:manage':
       return t('roles.permission.jobsManage', 'Start and cancel background jobs');
+    case 'system:manifests:manage':
+      return t('roles.permission.manifestsManage', 'Install and connect add-ons');
     default:
       return entry.label;
   }

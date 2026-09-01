@@ -19,13 +19,14 @@
  *
  * All Studio surfaces are wrapped in `StudioGuard` (role ≥ Admin).
  */
-import { Suspense, lazy, useState, type ComponentType } from 'react';
+import { Suspense, lazy, use, useState, type ComponentType, type ReactNode } from 'react';
 import { createRoute, useNavigate, type AnyRoute } from '@tanstack/react-router';
 import { Alert, Spinner } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { PageSurface } from '../shell/PageSurface.js';
 import { StudioGuard } from './StudioGuard.js';
+import { studioMessagesReady } from './studioMessages.js';
 import { takeBridgeTicket } from './connect/bridgeSeed.js';
 
 // --- the four Studio surfaces, LAZY -------------------------------------------
@@ -40,6 +41,12 @@ import { takeBridgeTicket } from './connect/bridgeSeed.js';
 //
 // `takeBridgeTicket` stays static: it is a tiny module read in a state
 // initialiser before the wizard renders, so deferring it would race the ticket.
+//
+// Their STRINGS are deferred too, since 10-T06: the `studio` message namespace
+// is fetched by `StudioBody` below rather than bundled, which took the last
+// ~15 KiB gz of admin-console text out of everybody else's first load. That is
+// the half no amount of lazy-loading a component could reach — every en-US key
+// used to land in the entry chunk no matter which chunk read it.
 
 const ConnectWizardLazy = lazy(async () => {
   const mod = await import('./connect/ConnectWizard.js');
@@ -54,6 +61,11 @@ const ConnectionsHubLazy = lazy(async () => {
 const StudioSettingsPageLazy = lazy(async () => {
   const mod = await import('./settings/StudioSettingsPage.js');
   return { default: mod.StudioSettingsPage };
+});
+
+const AddOnsPageLazy = lazy(async () => {
+  const mod = await import('./add-ons/AddOnsPage.js');
+  return { default: mod.AddOnsPage };
 });
 
 const PublicApiPageLazy = lazy(async () => {
@@ -113,9 +125,9 @@ function RemapUnavailable() {
     <PageSurface width="narrow">
       <Alert
         tone="info"
-        title={t('studio.remap.unavailableTitle', 'Schema remap editor not available')}
+        title={t('studio:remap.unavailableTitle', 'Schema remap editor not available')}
         body={t(
-          'studio.remap.unavailableBody',
+          'studio:remap.unavailableBody',
           'This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations.',
         )}
       />
@@ -135,9 +147,9 @@ function ReviewUnavailable() {
     <PageSurface width="narrow">
       <Alert
         tone="info"
-        title={t('studio.review.unavailableTitle', 'Review screen not available')}
+        title={t('studio:review.unavailableTitle', 'Review screen not available')}
         body={t(
-          'studio.review.unavailableBody',
+          'studio:review.unavailableBody',
           'This build does not include the enrichment review screen yet (06-T14). It lands with the diff-and-apply flow.',
         )}
       />
@@ -160,6 +172,30 @@ function CenteredSpinner() {
   );
 }
 
+/**
+ * The lazy body of a Studio route, and the one place the `studio` message
+ * namespace is loaded (./studioMessages.ts).
+ *
+ * Both waits share the SAME spinner on purpose: fetching the screen and
+ * fetching its words are one thing to a person looking at the page, and
+ * giving them separate fallbacks would flash a spinner, a page of English
+ * fallbacks, then the real text. `StudioGuard` stays outside it, so a viewer
+ * who cannot open the Studio at all gets `forbidden` without downloading the
+ * console's strings to be told so.
+ */
+function StudioBody({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<CenteredSpinner />}>
+      <StudioMessages>{children}</StudioMessages>
+    </Suspense>
+  );
+}
+
+function StudioMessages({ children }: { children: ReactNode }) {
+  use(studioMessagesReady());
+  return <>{children}</>;
+}
+
 // --- route components ---------------------------------------------------------
 
 function ConnectRouteComponent() {
@@ -170,13 +206,13 @@ function ConnectRouteComponent() {
   const [bridgeTicket] = useState(takeBridgeTicket);
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <ConnectWizardLazy
           bridgeTicket={bridgeTicket}
           onOpenApp={() => void navigate({ to: '/' })}
           onOpenReview={(runId) => void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })}
         />
-      </Suspense>
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -185,7 +221,7 @@ function HubRouteComponent() {
   const navigate = useNavigate();
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <ConnectionsHubLazy
           onConnectNew={() => void navigate({ to: '/studio/connect' })}
           onOpenRemap={(connectionId) =>
@@ -193,7 +229,7 @@ function HubRouteComponent() {
           }
           onOpenHostedApps={() => void navigate({ to: '/studio/apps' })}
         />
-      </Suspense>
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -201,9 +237,9 @@ function HubRouteComponent() {
 function PagesRouteComponent() {
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <StudioPagesPageLazy />
-      </Suspense>
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -211,9 +247,9 @@ function PagesRouteComponent() {
 function NewPageRouteComponent() {
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <NewPageScreenLazy />
-      </Suspense>
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -222,14 +258,24 @@ function SettingsRouteComponent() {
   const navigate = useNavigate();
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <StudioSettingsPageLazy
           onOpenGlobalDefaults={() => void navigate({ to: '/settings/defaults' })}
           onOpenTranslations={() => void navigate({ to: '/settings/translations' })}
           onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
           onOpenPages={() => void navigate({ to: '/studio/pages' })}
         />
-      </Suspense>
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
+function AddOnsRouteComponent() {
+  return (
+    <StudioGuard>
+      <StudioBody>
+        <AddOnsPageLazy />
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -237,9 +283,9 @@ function SettingsRouteComponent() {
 function PublicApiRouteComponent() {
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <PublicApiPageLazy />
-      </Suspense>
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -247,9 +293,9 @@ function PublicApiRouteComponent() {
 function HostedAppsRouteComponent() {
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <HostedAppsPageLazy />
-      </Suspense>
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -258,13 +304,13 @@ function AiSettingsRouteComponent() {
   const navigate = useNavigate();
   return (
     <StudioGuard>
-      <Suspense fallback={<CenteredSpinner />}>
+      <StudioBody>
         <StudioAiPageLazy
           onOpenReview={(runId) =>
             void navigate({ to: '/studio/llm-runs/$runId/review', params: { runId } })
           }
         />
-      </Suspense>
+      </StudioBody>
     </StudioGuard>
   );
 }
@@ -313,9 +359,9 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     const { pageId } = editPageRoute.useParams();
     return (
       <StudioGuard>
-        <Suspense fallback={<CenteredSpinner />}>
+        <StudioBody>
           <EditPageScreenLazy pageId={pageId} />
-        </Suspense>
+        </StudioBody>
       </StudioGuard>
     );
   }
@@ -342,9 +388,9 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     const { runId } = reviewRoute.useParams();
     return (
       <StudioGuard>
-        <Suspense fallback={<CenteredSpinner />}>
+        <StudioBody>
           <ReviewScreenLazy runId={runId} />
-        </Suspense>
+        </StudioBody>
       </StudioGuard>
     );
   }
@@ -359,9 +405,9 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     const { connectionId } = remapRoute.useParams();
     return (
       <StudioGuard>
-        <Suspense fallback={<CenteredSpinner />}>
+        <StudioBody>
           <RemapEditorLazy connectionId={connectionId} />
-        </Suspense>
+        </StudioBody>
       </StudioGuard>
     );
   }
@@ -378,6 +424,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: HostedAppsRouteComponent,
   });
 
+  const addOnsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/add-ons',
+    component: AddOnsRouteComponent,
+  });
+
   return [
     studioIndexRoute,
     connectRoute,
@@ -388,6 +440,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     aiSettingsRoute,
     publicApiRoute,
     hostedAppsRoute,
+    addOnsRoute,
     reviewRoute,
     remapRoute,
   ];

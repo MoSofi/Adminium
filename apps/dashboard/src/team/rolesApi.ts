@@ -78,7 +78,13 @@ export interface PermissionCatalogReply {
 export const RESERVED_GRANTS: readonly string[] = [
   'system:automations:manage',
   'system:webhooks:manage',
-  'system:manifests:manage',
+  // `system:manifests:manage` left this list on 2026-08-29 with 26-T05, when
+  // the `/api/v1/add-ons` routes landed to enforce it. THIS FILE IS THE SILENT
+  // HALF of that change: the dashboard cannot import `@adminium/meta` (the
+  // dep-cruiser rule `dashboard-no-meta-adapters-llm` forbids it), so nothing
+  // detects drift between this mirror and the real list — a key left here after
+  // being un-reserved server-side is dropped by `catalogPermissions()` below
+  // and never appears in the matrix, with no error and no failing test.
   'system:sql:run',
 ];
 
