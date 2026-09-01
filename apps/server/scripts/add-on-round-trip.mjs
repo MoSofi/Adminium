@@ -129,6 +129,21 @@ const KEEP = process.argv.includes('--keep');
  * stop proving that.
  */
 const AIR_GAPPED = process.argv.includes('--air-gapped');
+
+/**
+ * `--online-catalog` adds 32 acceptance #1's CATALOG LEG on the end of the
+ * default loop: switch the online catalog on, refresh from the real
+ * `adminium.dev/marketplace/catalog.json`, download one add-on from the real
+ * registry (packument pin → ledger cross-check → hardened unpack → staged),
+ * and install it from the stage. It reaches the live internet by design —
+ * that is the acceptance — so it is a flag rather than the default, and it
+ * contradicts `--air-gapped` outright.
+ */
+const ONLINE_CATALOG = process.argv.includes('--online-catalog');
+if (ONLINE_CATALOG && AIR_GAPPED) {
+  console.error('--online-catalog and --air-gapped contradict each other; pick one.');
+  process.exit(2);
+}
 const DB = KEEP
   ? 'adminium_round_trip_keep'
   : `adminium_round_trip_${Math.abs(process.pid)}_${process.hrtime.bigint() % 100000n}`;
@@ -193,6 +208,26 @@ async function api(method, path, { body, raw, query, cookie: as = cookie, header
     .map((h) => h.split(';')[0])
     .find((p) => p.startsWith('adminium_session='));
   return { status: res.status, json, cookie: set ?? null, text };
+}
+
+/**
+ * Polls `GET /api/v1/jobs/:id` until the job leaves `queued`/`running`, and
+ * returns the terminal status string. The online leg's two jobs both talk to
+ * the live internet, so the deadline is generous rather than tight — a slow
+ * registry is not a failed acceptance.
+ */
+async function waitForJob(jobId, deadlineMs = 120_000) {
+  const startedAt = Date.now();
+  for (;;) {
+    const res = await api('GET', `/api/v1/jobs/${jobId}`);
+    // The jobs route wraps its view: `{ data: { status, … } }` (§1.5 shape).
+    const jobStatus = res.json?.data?.status ?? `HTTP ${String(res.status)}`;
+    if (jobStatus !== 'pending' && jobStatus !== 'queued' && jobStatus !== 'running') {
+      return jobStatus;
+    }
+    if (Date.now() - startedAt > deadlineMs) return `timed out as ${jobStatus}`;
+    await new Promise((r) => setTimeout(r, 500));
+  }
 }
 
 async function waitForHealth(url, ms = 30_000) {
@@ -558,6 +593,83 @@ async function main() {
       installed.length > 0,
       `${String(installed.length)} add-on(s) installed from an uploaded tarball with its own hash`,
     );
+  }
+
+  // ── 32 acceptance #1 — the catalog leg, against the real feed ─────────────
+  if (ONLINE_CATALOG) {
+    step('32 acceptance #1 — the catalog leg: live feed, live registry, one real download');
+
+    const toggled = await api('PUT', '/api/v1/add-ons/catalog', { body: { enabled: true } });
+    check(
+      toggled.status === 200 &&
+        toggled.json?.onlineEnabled === true &&
+        toggled.json?.vetoed === false,
+      `the switch turns on, un-vetoed (${JSON.stringify(toggled.json)})`,
+    );
+
+    const refresh = await api('POST', '/api/v1/add-ons/catalog/refresh');
+    check(
+      refresh.status === 200 && typeof refresh.json?.jobId === 'string',
+      `refresh enqueued (${String(refresh.status)})`,
+    );
+    const refreshOutcome = await waitForJob(refresh.json.jobId);
+    check(
+      refreshOutcome === 'succeeded',
+      `catalog-refresh job ${refreshOutcome} — adminium.dev answered with the live feed`,
+    );
+
+    const browse = await api('GET', '/api/v1/add-ons/catalog');
+    check(browse.json?.onlineEnabled === true, 'browse says online is on');
+    check(
+      typeof browse.json?.catalogFetchedAt === 'number',
+      'and carries the fetch timestamp rather than null',
+    );
+    const fromFeed = (browse.json?.addOns ?? []).filter((a) => a.source === 'catalog');
+    check(
+      fromFeed.length >= 1,
+      `the live feed contributed ${String(fromFeed.length)} catalog-sourced entr(y/ies)`,
+    );
+
+    // One REAL download: packument pin → ledger cross-check → tarball →
+    // hardened unpack → staged. Uninstall AND discard the upload-era stage
+    // first — a stage survives uninstall by design, and the first draft of
+    // this leg read that leftover as proof of a download that never ran.
+    await api('DELETE', '/api/v1/add-ons/holiday-calendars');
+    await api('DELETE', '/api/v1/add-ons/staged/holiday-calendars/1.0.0');
+    const cleared = await api('GET', '/api/v1/add-ons/catalog');
+    const preState = (cleared.json?.addOns ?? []).find(
+      (a) => a.key === 'holiday-calendars',
+    )?.state;
+    check(
+      preState === 'available',
+      `with stage discarded, holiday-calendars is merely available (${String(preState)})`,
+    );
+    const dl = await api('POST', '/api/v1/add-ons/download', {
+      body: { key: 'holiday-calendars', version: '1.0.0' },
+    });
+    check(
+      dl.status === 200 && typeof dl.json?.jobId === 'string',
+      `download enqueued (${String(dl.status)})`,
+    );
+    const dlOutcome = await waitForJob(dl.json.jobId);
+    check(
+      dlOutcome === 'succeeded',
+      `add-on-download job ${dlOutcome} — registry.npmjs.org served bytes matching pin AND ledger`,
+    );
+
+    const after = await api('GET', '/api/v1/add-ons/catalog');
+    const row = (after.json?.addOns ?? []).find((a) => a.key === 'holiday-calendars');
+    check(row?.state === 'staged', `holiday-calendars is staged (${String(row?.state)})`);
+
+    const reinstall = await api('POST', '/api/v1/add-ons', {
+      body: { key: 'holiday-calendars', version: '1.0.0', attachTo: [] },
+    });
+    check(
+      reinstall.status === 200,
+      `and installs from the downloaded stage (${String(reinstall.status)})`,
+    );
+    const cleanup = await api('DELETE', '/api/v1/add-ons/holiday-calendars');
+    check(cleanup.status === 200, 'and uninstalls again, leaving the loop where it started');
   }
 
   // ── acceptance #5 — the egress refusal ────────────────────────────────────
