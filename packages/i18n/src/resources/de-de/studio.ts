@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/de-DE/studio.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -13,5 +14,1284 @@ export default {
     "title": "Einstellungen",
     "workspaceSection": "Workspace",
     "globalDefaultsNav": "Globale Standards"
+  },
+  "source": {
+    "engine": {
+      "label": "Datenbank-Engine",
+      "postgres": "PostgreSQL",
+      "mysql": "MySQL / MariaDB",
+      "sqlite": "SQLite"
+    },
+    "format": {
+      "label": "Schemaformat",
+      "helper": "Bei automatischer Erkennung belassen, sofern sie nicht danebenliegt.",
+      "auto": "Automatisch erkennen",
+      "sql": "SQL-DDL / pg_dump",
+      "prisma": "Prisma-Schema",
+      "drizzle": "Drizzle ORM",
+      "typeorm": "TypeORM-Entitäten",
+      "sequelize": "Sequelize-Modelle",
+      "rails": "Rails schema.rb",
+      "django": "Django models.py",
+      "json": "Adminium-JSON"
+    },
+    "sqlite": {
+      "file": "Pfad zur Datenbankdatei",
+      "helper": "SQLite ist eine Datei, kein Server — geben Sie den absoluten Pfad auf der Maschine an, auf der Adminium läuft."
+    },
+    "file": {
+      "detectedAs": "Erkannt: {format}",
+      "moreWarnings": "+{count} weitere Warnungen — die vollständige Liste erscheint im Analyse-Schritt.",
+      "dropTitle": "Schemadatei hier ablegen oder durchsuchen",
+      "dropHint": "SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-Modelle, Adminium JSON",
+      "pitch": "Keine Datenbankverbindung nötig — wir parsen Ihre Schemadatei und bauen dieselben Dashboards.",
+      "parsing": "Hochgeladene Schemadatei wird gelesen…",
+      "tables": "Tabellen",
+      "columns": "Spalten",
+      "warnings": "Warnungen",
+      "errorTitle": "Datei konnte nicht geparst werden",
+      "parseFailed": "Diese Datei konnte nicht geparst werden. Falls die automatische Erkennung falsch lag, wählen Sie das Format explizit und versuchen Sie es erneut.",
+      "unsupported": "Dieses Format wird nicht erkannt — unterstützt werden SQL DDL, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django-Modelle und Adminium JSON. Wählen Sie eines explizit und versuchen Sie es erneut.",
+      "requestFailed": "Upload fehlgeschlagen — prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    },
+    "title": "Verbinden Sie Ihre Datenbank",
+    "subtitle": "Richten Sie Adminium auf eine Datenbank — wir generieren aus ihrem Schema ein Admin-Dashboard.",
+    "name": "Verbindungsname",
+    "namePlaceholder": "Produktions-Postgres",
+    "modeLabel": "Eingabemodus der Quelle",
+    "mode": {
+      "dsn": "Verbindungszeichenfolge",
+      "fields": "Einzelne Felder",
+      "file": "Schemadatei"
+    },
+    "dsn": {
+      "label": "Verbindungszeichenfolge",
+      "helper": "postgres://benutzer:passwort@host:5432/datenbank — mysql:// und sqlite: funktionieren ebenfalls.",
+      "incomplete": "Host und Datenbank ergänzen, z. B. postgres://user@host:5432/db",
+      "invalidScheme": "Unbekanntes Schema — erwartet werden postgres://, mysql://, mariadb:// oder sqlite:",
+      "quickFill": "Schnellausfüllen:"
+    },
+    "fields": {
+      "host": "Host",
+      "port": "Port",
+      "database": "Datenbank",
+      "user": "Benutzer",
+      "password": "Passwort",
+      "ssl": "SSL-Modus",
+      "preview": "Vorschau der Verbindungszeichenfolge:"
+    },
+    "readOnlyRole": {
+      "title": "Verwenden Sie eine schreibgeschützte Rolle",
+      "body": "Adminium schreibt nie in Ihre Datenbank — die Einrichtung nutzt nur Schema-Metadaten. Wir empfehlen einen dedizierten Benutzer mit reinen SELECT-Rechten; wo Adminium seine eigenen Tabellen ablegt, entscheiden Sie im Meta-Speicher-Schritt."
+    }
+  },
+  "capability": {
+    "mysqlApproxRows": "MySQL-Zeilenzahlen sind Schätzungen der Storage-Engine (Abweichungen bis ±40 % möglich) — sie werden mit ≈ angezeigt.",
+    "mysqlFkEnum": "MySQL liefert schwächere FK-/Enum-Metadaten: MyISAM-Tabellen deklarieren keine Fremdschlüssel, Enums sind spaltengebundene enum(…)-Typen, und CHECK-Constraints erfordern MySQL 8.0.16+ / MariaDB 10.2+.",
+    "sqliteCheckEnums": "SQLite hat keinen nativen Enum-Typ — Enums werden aus CHECK-(col IN (…))-Constraints abgeleitet.",
+    "sqliteNoComments": "SQLite kennt keine Spaltenkommentare — verwenden Sie den Schema-Remap-Editor, um Beschriftungen zu vergeben.",
+    "importNoRowCounts": "Schemadateien enthalten keine Zeilenzahlen — die Tabellenliste zeigt — statt erfundener Werte.",
+    "importNoLiveHealth": "Keine Live-Datenbankverbindung — Health-Checks und Schema-Drift-Erkennung sind für diese Quelle nicht verfügbar.",
+    "rowsUnavailable": "Schemadateien haben keine Live-Datenbank — Zeilenzahlen sind unbekannt, bis Sie eine verbinden.",
+    "rowsRunAnalyze": "Noch keine Schätzung — führen Sie ANALYZE auf der Datenbank aus, um Zeilenzahlen zu erhalten.",
+    "rowsNoEstimate": "Die Engine hat für diese Tabelle keine Schätzung gemeldet.",
+    "rowsApproximate": "Schätzung der Storage-Engine — kann bei InnoDB um bis zu ±40 % abweichen."
+  },
+  "test": {
+    "log": {
+      "moreWarnings": "+{count} weitere Parser-Warnungen",
+      "connecting": "Sichere Verbindung wird aufgebaut…",
+      "connected": "Verbunden ({latency} ms) · schreibgeschützte Introspektion",
+      "connectFailed": "Verbindung fehlgeschlagen.",
+      "readingSchema": "Schema wird gelesen: public",
+      "readingFile": "Hochgeladene Schemadatei wird gelesen…",
+      "parsingFile": "{file} wird geparst…",
+      "detected": "{tables} Tabellen · {columns} Spalten erkannt",
+      "found": "{tables} Tabellen · {columns} Spalten gefunden",
+      "mapping": "Spaltentypen → Eingabe-Widgets werden zugeordnet",
+      "relations": "Beziehungen werden erkannt…",
+      "piiScan": "Suche nach PII-Spalten…",
+      "piiDone": "PII-Scan abgeschlossen — {count} Spalten standardmäßig maskiert",
+      "piiDoneUnknown": "PII-Scan abgeschlossen",
+      "jobFailed": "Introspektion fehlgeschlagen.",
+      "networkFailed": "Anfrage fehlgeschlagen — prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "ready": "Bereit"
+    },
+    "title": "Ihr Schema wird analysiert",
+    "subtitle": "Tabellen, Spalten und Beziehungen werden introspiziert. Das dauert ein paar Sekunden.",
+    "trust": "Wir lesen nur Ihr Schema und Ihre Daten. Nichts wird verändert.",
+    "errorTitle": "Verbindung fehlgeschlagen",
+    "retry": "Erneut versuchen",
+    "logLabel": "Introspektionsprotokoll",
+    "hint": {
+      "auth": "Authentifizierung fehlgeschlagen — prüfen Sie Benutzername und Passwort in Ihrer DSN.",
+      "hostUnreachable": "Host nicht erreichbar — prüfen Sie Hostname und Port und dass die Datenbank Verbindungen von dieser Maschine akzeptiert (unsere IPs freigeben).",
+      "metaPlacement": "Diese Quelle kann Adminiums Meta-Tabellen nicht aufnehmen — fahren Sie mit einer separaten Meta-Datenbank fort.",
+      "permission": "Die Rolle hat sich verbunden, darf das Schema aber nicht lesen — erteilen Sie Ihrer Introspektionsrolle USAGE auf dem Schema.",
+      "timeout": "Die Datenbank hat nicht rechtzeitig geantwortet — prüfen Sie Netzwerkpfad und Auslastung und versuchen Sie es erneut.",
+      "tls": "TLS-Aushandlung fehlgeschlagen — versuchen Sie sslmode=require oder laden Sie das CA-Zertifikat hoch, das Ihr Server erwartet.",
+      "unknown": "Verbindung fehlgeschlagen — prüfen Sie die DSN und versuchen Sie es erneut."
+    }
+  },
+  "tables": {
+    "importNoCounts": "Schemadateien enthalten keine Zeilenzahlen — die Spalte zeigt —, bis eine Live-Datenbank verbunden ist.",
+    "title": "Wählen Sie Ihre Tabellen",
+    "subtitle": "Wählen Sie, welche enthalten sein sollen. Sie können das jederzeit ändern.",
+    "search": "Tabellen filtern…",
+    "listLabel": "Einbeziehbare Tabellen",
+    "emptyFilter": "Keine Tabellen entsprechen Ihrem Filter.",
+    "pii": "PII",
+    "highVolume": "hohes Volumen",
+    "highVolumeNote": "Tabellen mit über 100.000 Zeilen sind anfangs abgewählt — Ops-Tabellen gehören selten in ein Dashboard.",
+    "joinHidden": "{count} Join-/Systemtabellen sind vorab ausgeblendet — sie treiben weiterhin m:n-Beziehungen an."
+  },
+  "hub": {
+    "title": "Datenverbindungen",
+    "subtitle": "{healthy, number} von {total, plural, one {# Verbindung} other {# Verbindungen}} fehlerfrei",
+    "connectNew": "Neue Verbindung",
+    "stats": {
+      "connections": "Verbindungen",
+      "healthy": "Fehlerfrei",
+      "tables": "Einbezogene Tabellen",
+      "pages": "Generierte Seiten"
+    },
+    "status": {
+      "connected": "Verbunden",
+      "error": "Fehler",
+      "unconfigured": "Entwurf",
+      "testing": "Wird getestet…",
+      "paused": "Pausiert"
+    },
+    "card": {
+      "readOnly": "Schreibgeschützt",
+      "tables": "Tabellen",
+      "pages": "Seiten",
+      "latency": "Latenz",
+      "latencyMs": "{latency, number} ms",
+      "lastIntrospected": "Zuletzt introspiziert",
+      "never": "Nie",
+      "timezone": "Zeitzone",
+      "timezoneGuessed": "von diesem Server",
+      "paused": "Adminium stellt keine Verbindung zu dieser Datenbank her. Ihre Seiten laden wieder, sobald Sie sie fortsetzen.",
+      "pausedSince": "Pausiert {when} – Adminium stellt keine Verbindung zu dieser Datenbank her. Ihre Seiten laden wieder, sobald Sie sie fortsetzen."
+    },
+    "action": {
+      "test": "Testen",
+      "reintrospect": "Neu introspizieren",
+      "reintrospectFile": "Schemadatei-Quellen haben keine Live-Datenbank — laden Sie stattdessen die Datei erneut hoch.",
+      "remap": "Schema neu zuordnen",
+      "delete": "Löschen",
+      "regional": "Regionale Einstellungen",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "pausedHint": "Diese Verbindung ist pausiert – setzen Sie sie fort, um die Datenbank zu erreichen.",
+      "rename": "Umbenennen"
+    },
+    "regional": {
+      "title": "Regionale Einstellungen",
+      "intro": "Sie beschreiben das Unternehmen, zu dem diese Datenbank gehört, nicht die lesende Person. Von Adminium ausgelieferte Apps lesen sie hier.",
+      "timezone": "Zeitzone",
+      "timezoneHelper": "Datum und Uhrzeit werden in dieser Zeitzone dargestellt. Von Adminium gehostete Apps weichen ohne Angabe auf UTC aus und weisen im Bildschirm darauf hin.",
+      "guessedTitle": "Diese Zeitzone stammt vom Server",
+      "guessedBody": "Adminium hat sie von der Maschine übernommen, auf der es läuft — niemand hier hat sie gewählt. Zum Bestätigen speichern oder die Zeitzone wählen, in der dieses Unternehmen tatsächlich arbeitet.",
+      "timezonePlaceholder": "Region/Stadt",
+      "currency": "Währung",
+      "currencyHelper": "Dient der Formatierung von Beträgen. Optional – ohne Angabe ändert sich nur die Formatierung.",
+      "currencyPlaceholder": "ISO-4217-Code",
+      "notSet": "Nicht gesetzt",
+      "noMatch": "Keine passende Zone",
+      "noMatchCurrency": "Keine passende Währung",
+      "save": "Speichern",
+      "failed": "Regionale Einstellungen konnten nicht gespeichert werden",
+      "saved": "Regionale Einstellungen aktualisiert"
+    },
+    "test": {
+      "ok": "Verbindung fehlerfrei · {latency, number} ms",
+      "failed": "Verbindungstest fehlgeschlagen"
+    },
+    "introspect": {
+      "noChanges": "Schema unverändert — kein neuer Snapshot.",
+      "updated": "Schema neu introspiziert",
+      "masksProposed": "{count, plural, one {# Spalte} other {# Spalten}} zur Maskierung vorgeschlagen — im Remap-Editor prüfen.",
+      "failed": "Introspektion fehlgeschlagen. Versuchen Sie es erneut."
+    },
+    "delete": {
+      "title": "Verbindung löschen",
+      "body": "Dies löscht „{name}“ und die daraus generierten Seiten. Ihre Datenbank selbst bleibt unangetastet.",
+      "prompt": "Geben Sie {name} zur Bestätigung ein",
+      "confirm": "Verbindung löschen",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "success": "Verbindung „{name}“ gelöscht",
+      "failed": "Die Verbindung konnte nicht gelöscht werden. Versuchen Sie es erneut."
+    },
+    "empty": {
+      "title": "Noch keine Datenquellen",
+      "body": "Verbinden Sie eine Datenbank — Adminium generiert Ihr Admin-Panel aus deren Schema.",
+      "cta": "Datenbank verbinden"
+    },
+    "hostedApps": "Gehostete Apps",
+    "subtitlePaused": "{healthy, number} von {total, plural, one {# Verbindung} other {# Verbindungen}} fehlerfrei · {paused, number} pausiert",
+    "pause": {
+      "title": "Diese Verbindung pausieren?",
+      "body": "Adminium baut keine Verbindung mehr zu „{name}“ auf. {pages, plural, one {# Seite} other {# Seiten}}, geplante Berichte und gehostete Apps laden keine Daten mehr, bis Sie sie fortsetzen.",
+      "keeps": "Nichts wird gelöscht – die Verbindung, ihr Schema und {pages, plural, one {ihre # Seite} other {ihre # Seiten}} bleiben erhalten, und ein Klick holt sie zurück.",
+      "confirm": "Verbindung pausieren",
+      "pausedToast": "Verbindung „{name}“ pausiert",
+      "resumedToast": "Verbindung „{name}“ fortgesetzt",
+      "pauseFailed": "Die Verbindung konnte nicht pausiert werden. Versuchen Sie es erneut.",
+      "resumeFailed": "Die Verbindung konnte nicht fortgesetzt werden. Versuchen Sie es erneut."
+    },
+    "rename": {
+      "title": "Verbindung umbenennen",
+      "label": "Name",
+      "helper": "Wie diese Datenbank in Adminium überall heißt — die Karte, die Seitenleisten-Gruppe über ihren Seiten und jede Auswahl, die sie anbietet. Die Datenbank selbst wird nicht umbenannt.",
+      "save": "Umbenennen",
+      "saved": "Verbindung umbenannt",
+      "failed": "Die Verbindung konnte nicht umbenannt werden"
+    }
+  },
+  "settingsHub": {
+    "title": "Workspace-Einstellungen",
+    "subtitle": "Identität, Sicherheit und destruktive Aktionen für diesen Workspace.",
+    "save": "Änderungen speichern",
+    "saved": "Workspace-Einstellungen aktualisiert",
+    "saveFailed": "Die Workspace-Einstellungen konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+    "superAdminOnlyTitle": "Super-Admin erforderlich",
+    "superAdminOnly": "Nur ein Super-Admin kann Identität und Sicherheitseinstellungen des Workspace ändern.",
+    "identity": {
+      "heading": "Workspace-Identität",
+      "appName": {
+        "label": "Anwendungsname",
+        "helper": "Erscheint in der Seitenleiste, im Browser-Titel und in E-Mails.",
+        "error": "Geben Sie einen Namen mit höchstens 60 Zeichen ein."
+      },
+      "logo": {
+        "label": "Logo",
+        "drop": "Bild hierher ziehen",
+        "helper": "PNG, JPEG, WebP, GIF oder SVG bis 1 MB. Ersetzt die eingebaute Marke überall.",
+        "upload": "Logo hochladen",
+        "replace": "Logo ersetzen",
+        "remove": "Entfernen",
+        "uploaded": "Logo aktualisiert",
+        "removed": "Logo entfernt",
+        "tooLarge": "Dieses Bild ist größer als 1 MB.",
+        "badType": "Wählen Sie ein PNG-, JPEG-, WebP-, GIF- oder SVG-Bild.",
+        "undo": "Rückgängig"
+      },
+      "showVersion": {
+        "label": "Version in der Seitenleiste",
+        "helper": "Die Build-Nummer neben dem Logo. Aus verbirgt, welche Version Sie einsetzen."
+      }
+    },
+    "security": {
+      "heading": "Sicherheit",
+      "require2fa": {
+        "label": "Zwei-Faktor-Authentifizierung verlangen",
+        "desc": "Jedes Mitglied muss 2FA aktivieren, um sich anzumelden.",
+        "note": "Hinweis, keine Sperre: Mitglieder ohne 2FA werden zur Einrichtung geleitet und können sie danach nicht mehr abschalten, ihre Anmeldung wird aber nie blockiert, und API-Schlüssel sind nicht betroffen."
+      },
+      "allowSignup": {
+        "label": "Selbstregistrierung erlauben",
+        "desc": "Jeder kann ein Konto erstellen — deaktiviert bleibt der Workspace nur per Einladung zugänglich."
+      },
+      "sessionTtl": {
+        "label": "Sitzungsdauer (Stunden)",
+        "error": "Zwischen {min, number} und {max, number} Stunden."
+      },
+      "passwordMin": {
+        "label": "Minimale Passwortlänge",
+        "error": "Zwischen {min, number} und {max, number} Zeichen."
+      }
+    },
+    "email": {
+      "heading": "E-Mail (SMTP)",
+      "unconfigured": "Es ist kein Mailserver eingerichtet, daher kann Adminium keine Passwort-Zurücksetzungen, Einladungen oder geplanten Berichte versenden.",
+      "host": {
+        "label": "SMTP-Host",
+        "error": "Nur ein Hostname oder eine IP-Adresse — ohne Schema, Port oder Zugangsdaten."
+      },
+      "port": {
+        "label": "Port",
+        "error": "Zwischen {min, number} und {max, number}."
+      },
+      "user": {
+        "label": "Benutzername",
+        "helper": "Leer lassen, wenn das Relay keine Anmeldung verlangt."
+      },
+      "pass": {
+        "label": "Passwort",
+        "helper": "Verschlüsselt gespeichert und nie wieder angezeigt. Leer lassen, um das aktuelle zu behalten.",
+        "error": "Zu diesem Benutzernamen gehört ein Passwort."
+      },
+      "from": {
+        "label": "Absenderadresse",
+        "helper": "Nur die Adresse oder ein Anzeigename davor.",
+        "error": "Geben Sie eine E-Mail-Adresse ein."
+      },
+      "secure": {
+        "label": "Implizites TLS",
+        "helper": "An für Port 465. Aus beginnt unverschlüsselt und wechselt per STARTTLS — so erwartet es Port 587."
+      },
+      "remove": "Mailserver entfernen",
+      "review": {
+        "removed": "Entfernt",
+        "password": "Ersetzt"
+      }
+    },
+    "review": {
+      "title": "Workspace-Einstellungen speichern",
+      "subtitle": "Prüfen Sie Ihre Änderungen vor dem Speichern.",
+      "confirm": "Änderungen speichern",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "on": "An",
+      "off": "Aus",
+      "shown": "Sichtbar",
+      "hidden": "Verborgen",
+      "change": "{before} → {after}"
+    },
+    "defaultsCard": {
+      "heading": "Standards für Darstellung & Sprache",
+      "body": "Workspace-weite Einstellungen für Theme, Akzentfarbe, Dichte und Sprache finden Sie unter „Globale Standards“.",
+      "cta": "Globale Standards öffnen"
+    },
+    "danger": {
+      "heading": "Gefahrenzone",
+      "subtitle": "Unumkehrbare Aktionen.",
+      "empty": "Nichts zu löschen — noch keine Verbindungen.",
+      "deleteDesc": "Löscht die Verbindung und die daraus generierten Seiten. Ihre Datenbank bleibt unangetastet. Kann nicht rückgängig gemacht werden.",
+      "deleteCta": "Verbindung löschen"
+    },
+    "aiCard": {
+      "heading": "KI-Anreicherung",
+      "body": "Konfigurieren Sie einen KI-Anbieter (oder den Kopieren-Einfügen-Umlauf), um Bezeichnungen, Gruppen und Beziehungen anzureichern.",
+      "cta": "KI-Einstellungen öffnen"
+    },
+    "pagesCard": {
+      "heading": "Seiten",
+      "body": "Seiten hinzufügen, bearbeiten und löschen, ihre Inhalte ändern und die Seitenleiste neu ordnen.",
+      "cta": "Seiten verwalten"
+    },
+    "translationsCard": {
+      "heading": "Sprachen & Übersetzungen",
+      "body": "Formulieren Sie beliebige Texte in Adminium neu, legen Sie fest, welche Sprachen zur Auswahl stehen, und fügen Sie eigene hinzu.",
+      "cta": "Übersetzungen öffnen"
+    }
+  },
+  "settingsAi": {
+    "title": "KI-Anreicherung",
+    "subtitle": "Verbinden Sie ein Modell, damit Adminium Bezeichnungen, Gruppen, Beziehungen und mehr vorschlägt — immer als Diff geprüft, bevor etwas übernommen wird.",
+    "saved": "KI-Anbieter gespeichert",
+    "saveFailed": "Der KI-Anbieter konnte nicht gespeichert werden. Erneut versuchen.",
+    "save": "Anbieter speichern",
+    "test": "Verbindung testen",
+    "testHintDirty": "Speichern Sie Ihre Änderungen vor dem Test.",
+    "testing": "Anbieter wird angepingt…",
+    "testError": "Test fehlgeschlagen",
+    "testErrorBody": "Der Anbieter war nicht erreichbar. Prüfen Sie Schlüssel und Basis-URL.",
+    "testOk": "Verbunden mit {model} in {latency} ms",
+    "testUnknownModel": "dem Anbieter",
+    "provider": {
+      "heading": "KI-Anbieter",
+      "subtitle": "Wählen Sie, wie Adminium ein Modell zur Anreicherung Ihres Schemas erreicht. Schlüssel werden verschlüsselt gespeichert und nie wieder angezeigt.",
+      "active": "Aktiv",
+      "anthropic": {
+        "label": "Anthropic",
+        "desc": "Claude-Modelle über die Anthropic-API."
+      },
+      "openai": {
+        "label": "OpenAI",
+        "desc": "GPT-Modelle über die OpenAI-API."
+      },
+      "openaiCompatible": {
+        "label": "OpenAI-kompatibel",
+        "desc": "Jeder Endpunkt, der das OpenAI-Format spricht — Groq, Together, vLLM, LM Studio."
+      },
+      "ollama": {
+        "label": "Ollama (lokal)",
+        "desc": "Modelle laufen lokal über Ollama — kein Schlüssel, keine Cloud."
+      },
+      "requiresNetwork": "Erfordert Internet und einen API-Schlüssel",
+      "networkDisabledTitle": "Direkte KI-Anbieter sind in dieser Installation deaktiviert",
+      "networkDisabledBody": "Dieses Adminium ist ohne ausgehenden Internetzugang konfiguriert und kann keine Anbieter-API erreichen. Nutzen Sie unten den Kopieren-und-Einfügen-Weg — er braucht weder Schlüssel noch Netzwerk."
+    },
+    "configure": {
+      "heading": "{provider} konfigurieren"
+    },
+    "field": {
+      "baseUrl": "Basis-URL",
+      "baseUrlOptional": "Unverändert lassen, außer Ollama läuft auf einem anderen Host.",
+      "baseUrlHelper": "Die Endpunkt-Wurzel, die /chat/completions bereitstellt.",
+      "model": "Modell",
+      "modelFreeText": "Geben Sie die genaue Modell-ID ein, die Ihr Endpunkt bereitstellt.",
+      "modelLive": "Live vom Anbieter geladen.",
+      "modelStatic": "Eine bewährte Liste; geben Sie nach dem Speichern eine eigene ID ein, um sie zu aktualisieren.",
+      "modelLoading": "Wird geladen…",
+      "modelPlaceholder": "Modell auswählen…",
+      "key": "API-Schlüssel",
+      "keyStored": "Verschlüsselt gespeichert. Ersetzen Sie ihn, um einen anderen Schlüssel zu verwenden.",
+      "keyMask": "sk-…{last4}",
+      "keyReplace": "Schlüssel ersetzen",
+      "keyOptional": "Optional — manche Endpunkte brauchen keinen Schlüssel.",
+      "keyWriteOnly": "Nur schreibend: einmal gespeichert, wird er nie wieder angezeigt.",
+      "noKeyTitle": "Kein API-Schlüssel nötig",
+      "noKeyBody": "Ollama läuft lokal, es verlässt also nichts diesen Rechner."
+    },
+    "runStatus": {
+      "draft": "Entwurf",
+      "running": "Läuft",
+      "awaitingResponse": "Wartet auf Antwort",
+      "validated": "Validiert",
+      "applied": "Übernommen",
+      "partiallyApplied": "Teilweise übernommen",
+      "failed": "Fehlgeschlagen",
+      "discarded": "Verworfen"
+    },
+    "byo": {
+      "heading": "Kein Schlüssel? Nutzen Sie Ihr eigenes KI-Tool",
+      "subtitle": "Der Kopieren-Einfügen-Umlauf — nichts verlässt diesen Rechner.",
+      "body": "Studio kann aus Ihrem Schema einen eigenständigen Prompt erzeugen. Führen Sie ihn in Claude Code, ChatGPT oder einem beliebigen Tool aus und fügen Sie das zurückgegebene JSON wieder in den Verbindungsassistenten ein. Gleiche Validierung, gleiche Prüfung, gleiches Ergebnis wie der direkte Weg.",
+      "guaranteeTitle": "Telemetriefreie Garantie",
+      "guarantee1": "Der Prompt enthält nur Ihr Schema und aggregierte Statistiken — standardmäßig nie Zeilendaten.",
+      "guarantee2": "Keine Anmeldedaten, keine Instanz-URL, keine Kennungen sind eingebettet.",
+      "guarantee3": "BYO-Läufe machen keinerlei Netzwerkaufrufe.",
+      "promptVersion": "Prompt {version}",
+      "schemaVersion": "Schema {version}",
+      "headingRecommended": "Eigenes KI-Tool verwenden — kein Schlüssel nötig",
+      "recommended": "Empfohlen"
+    },
+    "history": {
+      "heading": "Laufverlauf",
+      "subtitle": "Frühere Anreicherungsläufe. Öffnen Sie einen, um seine Vorschläge zu prüfen.",
+      "tableLabel": "Anreicherungsläufe",
+      "colDate": "Datum",
+      "colSource": "Quelle",
+      "colStatus": "Status",
+      "colChunks": "Blöcke",
+      "openReview": "Prüfung für den Lauf vom {date} öffnen",
+      "connection": "Verbindung",
+      "empty": "Noch keine Anreicherungsläufe. Reichern Sie ein Schema im Verbindungsassistenten an, um hier Verlauf zu sehen.",
+      "errorTitle": "Läufe konnten nicht geladen werden",
+      "errorBody": "Laden Sie die Seite neu, um es erneut zu versuchen.",
+      "noConnections": "Verbinden Sie zuerst eine Datenbank — Anreicherungsläufe werden pro Verbindung erfasst.",
+      "byo": "BYO",
+      "directPath": "Direkt"
+    }
+  },
+  "enrich": {
+    "title": "Mit KI anreichern",
+    "subtitle": "Verfeinern Sie die generierten Bezeichnungen, Gruppen, Enums und Dashboards optional mit einem LLM. Die heuristische Grundlage funktioniert auch ohne — dies fügt nur Vorschläge hinzu, die Sie prüfen, bevor etwas angewendet wird.",
+    "intentLabel": "Wie möchten Sie anreichern?",
+    "sectionsLegend": "Worüber soll die KI entscheiden?",
+    "localesLegend": "Bezeichnungen übersetzen in",
+    "localeLocked": "(erforderlich)",
+    "samplingTitle": "Beispielwerte einbeziehen",
+    "samplingHint": "Nimmt bis zu 20 echte Werte pro Nicht-PII-Spalte in den Prompt auf.",
+    "samplingPreviewTitle": "Was diesen Rechner verlässt",
+    "samplingPreviewBody": "Bis zu 20 häufigste Werte pro Nicht-PII-Spalte, plus Min/Max für numerische und Datumsspalten. Als PII markierte Spalten werden nie beprobt. Alles Übrige bleibt rein aggregiert. Prüfen Sie den genauen Prompt vor dem Kopieren (BYO) — ohne Ihr Zutun wird nichts gesendet.",
+    "noSections": "Wählen Sie mindestens eine Entscheidungsgruppe zum Anreichern.",
+    "generatePrompt": "Prompt erzeugen",
+    "startProvider": "Anreicherung starten",
+    "startOver": "Von vorn beginnen",
+    "copied": "Kopiert",
+    "createFailed": "Der Anreicherungs-Prompt konnte nicht erstellt werden — erneut versuchen.",
+    "createFailedTitle": "Konnte nicht starten",
+    "providerFallback": "Ihr KI-Anbieter",
+    "fileTitle": "KI-Anreicherung benötigt eine aktive Datenbank",
+    "fileBody": "Schema-Datei-Quellen haben noch keinen Snapshot zum Anreichern. Verbinden Sie eine aktive Datenbank für die KI-Anreicherung, oder fahren Sie fort — die heuristische Grundlage erzeugt weiterhin eine vollständige App.",
+    "section": {
+      "labels": "Bezeichnungen & Beschreibungen",
+      "groups": "Navigationsgruppen",
+      "enums": "Enum-Semantik",
+      "relations": "Beziehungen",
+      "keys": "Schlüsselspalten",
+      "templates": "Seitenvorlagen",
+      "widgets": "Dashboard-Widgets",
+      "pii": "PII & Maskierung",
+      "icons": "Symbole",
+      "microcopy": "Mikrotexte"
+    },
+    "provider": {
+      "title": "Meinen KI-Anbieter verwenden",
+      "description": "Führen Sie die Anreicherung jetzt mit Ihrem konfigurierten Anbieter aus. Sie prüfen jeden Vorschlag als Diff.",
+      "unconfigured": "Es ist noch kein KI-Anbieter konfiguriert — kopieren Sie unten einen Prompt in Ihr eigenes Tool, oder konfigurieren Sie zuerst einen Anbieter.",
+      "settingsHint": "Möchten Sie es direkt ausführen?",
+      "settingsLink": "Anbieter in Einstellungen → KI konfigurieren",
+      "networkDisabled": "Dieses Adminium hat keinen ausgehenden Internetzugang und kann keine Anbieter-API erreichen. Nutzen Sie stattdessen den Kopieren-und-Einfügen-Weg — gleicher Prompt, gleiche Prüfung."
+    },
+    "byo": {
+      "cardTitle": "Einen Prompt in mein eigenes KI-Tool kopieren",
+      "cardDescription": "Kopieren Sie einen eigenständigen Prompt in Claude Code, ChatGPT oder ein beliebiges Tool — und fügen Sie das JSON zurück ein. Kein Schlüssel nötig, nichts verlässt diesen Rechner automatisch.",
+      "guidance": "Führen Sie dies in einem beliebigen KI-Tool aus — Claude Code, ChatGPT, egal. Fügen Sie das zurückgegebene JSON unten ein.",
+      "promptLabel": "Anreicherungs-Prompt",
+      "promptLabelN": "Anreicherungs-Prompt {index} von {total}",
+      "tokenChip": "≈ {tokens} Tokens",
+      "copyPrompt": "Prompt kopieren",
+      "copyPromptDone": "Prompt kopiert",
+      "download": ".md herunterladen",
+      "chunkTabs": "Prompt-Abschnitte",
+      "chunkTab": "Prompt {index}",
+      "chunkValid": "Abschnitt {index} validiert",
+      "pasteLabel": "JSON-Antwort einfügen",
+      "pastePlaceholder": "JSON-Antwort hier einfügen…",
+      "validate": "Validieren",
+      "valid": "Antwort validiert",
+      "mergedTitle": "Alle {count} Abschnitte validiert und zusammengeführt",
+      "mergedTitleSingle": "Antwort validiert",
+      "mergedBody": "Die Vorschläge können nun gegen die heuristische Grundlage geprüft werden.",
+      "errorsTitle": "Die Validierung fand {count} Probleme",
+      "copyErrors": "Fehler für Ihr KI-Tool kopieren",
+      "copyErrorsDone": "Fehler kopiert",
+      "copyErrorsHint": "Fügen Sie dies in Ihr KI-Tool zurück ein, um eine korrigierte Antwort zu erhalten.",
+      "droppedItems": "{count} Vorschläge wurden bei der Validierung verworfen — die Prüfung zeigt die übrigen.",
+      "pendingTitle": "Validieren Sie jeden Prompt, um fortzufahren",
+      "pendingBody": "Fügen Sie die JSON-Antwort oben ein und validieren Sie sie, um zur Prüfung fortzufahren.",
+      "pendingBodyChunked": "Jeder Abschnitt muss validiert werden, bevor die Vorschläge zusammengeführt werden. Fügen Sie jeden Prompt oben ein und validieren Sie ihn.",
+      "requestFailed": "Der Server war für die Validierung nicht erreichbar — erneut versuchen.",
+      "continueReview": "Weiter zur Prüfung",
+      "wholeDocument": "gesamtes Dokument",
+      "cardTitleRecommended": "Prompt in mein eigenes KI-Tool kopieren — empfohlen"
+    },
+    "direct": {
+      "title": "Anreicherung mit KI",
+      "subtitle": "Ihr Schema wird gesendet an",
+      "building": "Prompt wird erstellt…",
+      "logLabel": "Anreicherungsprotokoll",
+      "cancel": "Abbrechen",
+      "back": "Zurück zu den Optionen",
+      "retry": "Erneut versuchen",
+      "done": "Anreicherung abgeschlossen — prüfen Sie die Vorschläge.",
+      "continueReview": "Weiter zur Prüfung",
+      "failed": "Der Anbieterlauf ist fehlgeschlagen. Prüfen Sie Ihre KI-Einstellungen und versuchen Sie es erneut.",
+      "jobFailed": "Der Anreicherungslauf wurde nicht abgeschlossen.",
+      "startFailed": "Der Lauf konnte nicht gestartet werden — erneut versuchen.",
+      "errorTitle": "Anreicherung fehlgeschlagen"
+    },
+    "skip": {
+      "title": "Überspringen — nur Heuristik verwenden",
+      "description": "Aus der heuristischen Grundlage generieren. Sie können später über Einstellungen → KI anreichern — Überspringen wird nie bestraft.",
+      "confirmTitle": "Weiter mit Heuristik",
+      "confirmBody": "Die generierte App verwendet die heuristischen Bezeichnungen, Gruppen und Dashboards. Fahren Sie mit dem Generieren fort — Sie können die KI-Anreicherung jederzeit über Einstellungen → KI ausführen."
+    }
+  },
+  "review": {
+    "unavailableTitle": "Prüfungsansicht nicht verfügbar",
+    "unavailableBody": "Dieser Build enthält die Anreicherungs-Prüfungsansicht noch nicht (06-T14). Sie kommt mit dem Diff-und-Übernehmen-Ablauf."
+  },
+  "llmRuns": {
+    "review": {
+      "header": {
+        "title": "KI-Vorschläge prüfen",
+        "model": "Modell",
+        "snapshot": "Schnappschuss",
+        "byo": "BYO",
+        "pathDirect": "Direkte API",
+        "pathByo": "Kopieren & Einfügen",
+        "agree": "{n} übereinstimmend",
+        "conflict": "{n} Konflikt",
+        "new": "{n} neu",
+        "rejects": "{n} Ablehnungen",
+        "countsAria": "Anzahl der Vorschläge"
+      },
+      "bulk": {
+        "thresholdLabel": "Konfidenzschwelle",
+        "thresholdAria": "Konfidenzschwelle für „Alle übernehmen“",
+        "acceptAll": "Alle ≥ {pct}% übernehmen",
+        "clear": "Auswahl aufheben"
+      },
+      "section": {
+        "selectAllAria": "Alle in {group} auswählen",
+        "acceptedCount": "{n} übernommen"
+      },
+      "group": {
+        "labels": "Bezeichnungen & Übersetzungen",
+        "navigation": "Navigation & Domänen",
+        "enums": "Enum-Semantik",
+        "relations": "Beziehungen",
+        "keys": "Schlüsselspalten",
+        "templates": "Seitenvorlagen",
+        "dashboards": "Dashboards & Widgets",
+        "pii": "PII & Maskierung",
+        "icons": "Symbole",
+        "microcopy": "Mikrotexte"
+      },
+      "status": {
+        "agree": "Stimmt überein",
+        "conflict": "Konflikt",
+        "new": "Neu",
+        "heuristicOnly": "Nur Heuristik",
+        "rejects": "Lehnt Heuristik ab",
+        "locked": "Gesperrt"
+      },
+      "row": {
+        "acceptAria": "{noun}-Vorschlag für {target} übernehmen",
+        "keptEdited": "beibehalten – von Ihnen bearbeitet",
+        "rejectsCallout": "Die KI lehnt eine heuristische Entscheidung ab – vor dem Übernehmen bestätigen.",
+        "showTranslations": "Übersetzungen anzeigen",
+        "hideTranslations": "Übersetzungen ausblenden",
+        "confidenceAria": "Konfidenz {pct}%",
+        "noAi": "Kein KI-Vorschlag"
+      },
+      "value": {
+        "none": "Kein Wert",
+        "absent": "Keiner",
+        "dash": "—",
+        "display": "Anzeige",
+        "key": "Schlüssel",
+        "rank": "Rang {n}",
+        "span": "Breite {n}",
+        "tableCount": "{n} Tabellen",
+        "widgetCount": "{n} Widgets",
+        "enumWorkflow": "Workflow",
+        "enumCategory": "Kategorie",
+        "notPii": "Keine PII",
+        "label": "Bezeichnung",
+        "description": "Beschreibung",
+        "subtitle": "Seitenuntertitel",
+        "headline": "Überschrift für leeren Zustand",
+        "guidance": "Hinweis für leeren Zustand"
+      },
+      "apply": {
+        "title": "{n} Vorschläge übernehmen",
+        "subtitle": "Diese Änderungen werden in einer Transaktion geschrieben und können rückgängig gemacht werden.",
+        "empty": "Nichts zum Übernehmen ausgewählt.",
+        "confirm": "Änderungen übernehmen"
+      },
+      "footer": {
+        "count": "{n} Vorschläge ausgewählt",
+        "apply": "{n} übernommene Vorschläge anwenden",
+        "failed": "Anwenden fehlgeschlagen"
+      },
+      "toast": {
+        "applied": "{n} Vorschläge übernommen",
+        "appliedPartial": "{n} Vorschläge übernommen (einige übersprungen)",
+        "applyFailed": "Vorschläge konnten nicht übernommen werden",
+        "undoFailed": "Diese Änderung konnte nicht rückgängig gemacht werden"
+      },
+      "error": {
+        "title": "Dieser Lauf konnte nicht geladen werden"
+      },
+      "notReady": {
+        "title": "Dieser Lauf hat noch keine Vorschläge zur Prüfung",
+        "body": "Ein Lauf muss validiert sein, bevor seine Vorschläge geprüft werden können. Erzeugen oder fügen Sie zuerst eine Antwort ein."
+      },
+      "applied": {
+        "title": "Dieser Lauf wurde angewendet",
+        "body": "Die übernommenen Vorschläge unten sind schreibgeschützt."
+      },
+      "empty": {
+        "title": "Keine Vorschläge",
+        "body": "Dieser Lauf hat keine Vorschläge zur Prüfung erzeugt."
+      },
+      "cat": {
+        "label": "Bezeichnung",
+        "key": "Schlüsselspalten",
+        "enum": "Enum",
+        "relation": "Beziehung",
+        "pii": "PII",
+        "template": "Seitenvorlage",
+        "group": "Navigationsgruppe",
+        "dashboard": "Dashboard",
+        "widget": "Widget",
+        "copy": "Mikrotext"
+      }
+    }
+  },
+  "wizard": {
+    "title": "Neue Verbindung",
+    "back": "Zurück",
+    "continue": "Weiter",
+    "progress": "Einrichtungsfortschritt",
+    "persistFailed": "Ihre Tabellenauswahl konnte nicht gespeichert werden — versuchen Sie es erneut.",
+    "persistFailedTitle": "Speichern fehlgeschlagen",
+    "bridgeAppliedTitle": "Verbindungszeichenfolge empfangen",
+    "bridgeAppliedBody": "Von adminium.dev durch Ihren Browser übergeben — sie ging direkt an diesen Rechner und wurde nie hochgeladen. Prüfen Sie sie unten und fahren Sie fort.",
+    "bridgeFailedTitle": "Diese Übergabe konnte nicht verwendet werden",
+    "bridgeFailedBody": "Sie wurde bereits verwendet oder ist abgelaufen. Fügen Sie Ihre Verbindungszeichenfolge stattdessen unten ein.",
+    "step": {
+      "source": "Quelle",
+      "test": "Analysieren",
+      "tables": "Tabellen",
+      "meta": "Meta-Speicher",
+      "intent": "Zweck",
+      "enrich": "Anreichern",
+      "generate": "Generieren"
+    }
+  },
+  "meta": {
+    "title": "Wo soll Adminium seine eigenen Tabellen ablegen?",
+    "subtitle": "Seiten, Rollen, Audit-Log und Einstellungen liegen in Tabellen mit adminium_-Präfix — nie mit Ihren Daten vermischt.",
+    "sameDb": {
+      "title": "Gleiche Datenbank",
+      "description": "adminium_*-Tabellen werden neben Ihren Quelltabellen angelegt. Einfachste Einrichtung — benötigt eine Rolle mit Schreib- und CREATE-TABLE-Rechten.",
+      "disabledReadOnly": "Ihre Rolle ist schreibgeschützt — Adminium schreibt nie in diese Datenbank. Wählen Sie für Adminiums eigene Tabellen eine separate Datenbank.",
+      "disabledNoDdl": "Diese Rolle darf kein DDL ausführen — Adminium-Migrationen benötigen CREATE TABLE. Wählen Sie für Adminiums eigene Tabellen eine separate Datenbank.",
+      "disabledFile": "Eine Schemadatei hat keine Live-Datenbank — wählen Sie für Adminiums eigene Tabellen eine separate Datenbank."
+    },
+    "separate": {
+      "title": "Separate Datenbank",
+      "description": "Adminium hält seine Tabellen in einer anderen Datenbank. Ihre Quelle bleibt unangetastet — erforderlich für schreibgeschützte Quellen.",
+      "dsn": "Verbindungszeichenfolge der Meta-Datenbank",
+      "helper": "Benötigt Schreib- und DDL-Rechte — Adminium führt dort seine eigenen Migrationen aus.",
+      "test": "Verbindung testen",
+      "ok": "Kompatibel — Schreiben ✓ · DDL ✓",
+      "insufficient": "Diese Rolle kann den Meta-Store nicht aufnehmen — Adminium benötigt dort Schreib- und CREATE-TABLE-Rechte.",
+      "errorTitle": "Meta-Store nicht kompatibel"
+    },
+    "testFailed": "Verbindung fehlgeschlagen.",
+    "v1Note": {
+      "title": "Über diese Installation",
+      "body": "Dieser Server hält seine eigenen Tabellen bereits in einer konfigurierten Datenbank, und dieser Schritt verschiebt sie nicht. Er prüft, ob Ihre Wahl mit dieser Verbindung kompatibel ist — der Server erzwingt dieselbe Regel unabhängig (409 META_PLACEMENT_INVALID)."
+    },
+    "move": {
+      "title": "Adminiums Tabellen werden verschoben",
+      "copying": "Adminiums Tabellen werden verschoben …",
+      "restarting": "Neustart …",
+      "copyingBody": "Jede adminium_-Tabelle wird in die neue Datenbank kopiert. Ihre Quelldaten bleiben unberührt, und es wird erst umgeschaltet, wenn die Kopie geprüft ist.",
+      "restartingBody": "Die Kopie ist fertig. Adminium startet auf der neuen Datenbank neu — diese Seite fährt in wenigen Sekunden von selbst fort.",
+      "failed": "Adminiums Tabellen konnten nicht verschoben werden — erneut versuchen.",
+      "timeout": "Adminium hat seine Tabellen verschoben, ist aber noch nicht zurück. Ihre Daten liegen sicher in der neuen Datenbank — laden Sie diese Seite gleich neu."
+    },
+    "willMove": {
+      "title": "Dies verschiebt Adminiums Tabellen",
+      "body": "Adminium nutzt derzeit seinen integrierten SQLite-Speicher. „Weiter“ kopiert diesen Speicher in die gewählte Datenbank und startet darauf neu — Konten, Seiten und Einstellungen kommen mit, Sie bleiben angemeldet."
+    }
+  },
+  "intent": {
+    "title": "Was brauchen Sie?",
+    "subtitle": "Der Zweck bestimmt, welche Seiten generiert werden. Sie können ihn später ändern — eine Änderung schlägt eine Neugenerierung vor, nie ein stilles Überschreiben.",
+    "trust": "Wir lesen nur Ihr Schema — während der Einrichtung nie Ihre Zeilendaten.",
+    "fullAdmin": {
+      "title": "Vollständiges Admin-Panel",
+      "description": "Dashboards, CRUD-Seiten, Suche, Importe und Exporte — alles, was Ihr Schema unterstützt."
+    },
+    "analytics": {
+      "title": "Schreibgeschützte Analysen",
+      "description": "Dashboards, Diagramme und schreibgeschützte Tabellen. Keine Formulare, keine Schreibvorgänge — jede Rolle auf Betrachter begrenzt."
+    },
+    "crud": {
+      "title": "CRUD-Tabellen",
+      "description": "Eine Bearbeitungsseite pro Tabelle plus Suche und Import/Export — ein minimales Zuhause, keine Dashboards."
+    },
+    "support": {
+      "title": "Support-Konsole",
+      "description": "Zuerst Warteschlangen, Ticket- und Kundendetailseiten. Löschen standardmäßig aus. (Queue-Vorlagen kommen mit M7 — der v1-Seitensatz entspricht dem vollständigen Admin.)"
+    }
+  },
+  "generate": {
+    "title": "Generieren Sie Ihre App",
+    "subtitle": "Eine Seite pro einbezogener Tabelle plus Dashboards je Domäne — Zweck:",
+    "run": "Dashboard generieren",
+    "openApp": "App öffnen",
+    "logLabel": "Generierungsprotokoll",
+    "log": {
+      "classifying": "Schema wird klassifiziert…",
+      "composing": "Vorlagen werden zusammengestellt…",
+      "writing": "Seiten werden geschrieben…",
+      "done": "{pages} Seiten in {groups} Navigationsgruppen generiert"
+    },
+    "successTitle": "Ihr Dashboard ist bereit",
+    "successBody": "{pages} Seiten in {groups} Navigationsgruppen — aus Ihrem Schema generiert, im Studio bearbeitbar.",
+    "errorTitle": "Generierung fehlgeschlagen",
+    "failed": "Generierung fehlgeschlagen — versuchen Sie es erneut oder führen Sie zuerst die Introspektion erneut aus.",
+    "fileTitle": "Schemadatei geparst — die Generierung benötigt eine Live-Datenbank",
+    "fileBody": "Ihr Schema wurde sauber geparst und die Vorschau oben ist echt. Eine laufende App direkt aus einer Schemadatei (mit Platzhalterzeilen) zu generieren ist noch nicht verfügbar — verbinden Sie eine Live-Datenbank, um heute zu generieren."
+  },
+  "remap": {
+    "column": {
+      "nullable": "NULL erlaubt",
+      "labelOverride": "Anzeigebezeichnung",
+      "labelHelper": "Abgeleitet: {name}",
+      "logicalType": "Logischer Typ",
+      "logicalTypeHelper": "Abgeleitet: {type} (aus {dbType}) — vom Adapter zugeordnet; in v1 nicht überschreibbar.",
+      "semantic": "Semantischer Typ",
+      "unclassified": "Noch nicht klassifiziert.",
+      "semanticHelper": "Klassifizierer: {tag} · {confidence}% Konfidenz · Quelle: {source}",
+      "semanticInferred": "abgeleitet: {tag}",
+      "currency": "Währung",
+      "currencyHelper": "ISO-4217-Code für die Formatierung von Geldbeträgen.",
+      "pii": "Standardmäßig maskieren",
+      "piiHelper": "Maskierte Werte werden geschwärzt dargestellt; das Aufheben der Maskierung erfordert die Berechtigung data.unmask_pii und wird im Audit-Log protokolliert.",
+      "enum": "Enum-Semantik",
+      "enumKind": "Enum-Art",
+      "enumWorkflow": "Workflow",
+      "enumCategory": "Kategorie",
+      "enumLabelFor": "Bezeichnung für {value}",
+      "enumToneFor": "Farbton für {value}",
+      "enumToneAuto": "automatisch",
+      "enumHelper": "Workflow-Enums steuern Status-Pills und Board-Spalten; Farbtöne ordnen Werte der semantischen Farbtonskala zu."
+    },
+    "diff": {
+      "one": "1 Änderung",
+      "count": "{count} Änderungen",
+      "saved": "Überschreibungen gespeichert.",
+      "revertOne": "{change} verwerfen",
+      "regenerate": "Seiten neu generieren",
+      "revertAll": "Alle verwerfen",
+      "save": "Überschreibungen speichern"
+    },
+    "table": {
+      "iconPicker": "Tabellensymbol",
+      "system": "System",
+      "labelOverride": "Anzeigebezeichnung",
+      "labelHelper": "Abgeleitet: {name}",
+      "icon": "Symbol",
+      "navGroup": "Navigationsgruppe",
+      "navGroupHelper": "Die Platzierung in der Navigation entscheidet der Generator — eine table.navGroup-Überschreibung ist nicht Teil des v1-Vokabulars.",
+      "include": "In die generierte App einbeziehen",
+      "includeHelper": "Ausgeschlossene Tabellen erhalten keine Seiten und verschwinden aus der Navigation.",
+      "shape": "Tabellenform (klassifiziert)",
+      "role": "Rolle",
+      "unclassified": "Nicht klassifiziert",
+      "kind": "Art",
+      "hierarchy": "Hierarchie",
+      "selfFk": "Selbstreferenz über {column}",
+      "polymorphic": "Polymorphe Paare",
+      "rows": "Geschätzte Zeilenzahl",
+      "shapeHelper": "Die Klassifikation wird bei jeder Introspektion neu berechnet; Überschreibungen liegen darüber und überstehen die Neugenerierung."
+    },
+    "relations": {
+      "declared": "Deklarierte Fremdschlüssel",
+      "noneDeclared": "Keine deklarierten Fremdschlüssel berühren diese Tabelle.",
+      "inferred": "Abgeleitete Beziehungen",
+      "noneInferred": "Für diese Tabelle wurde nichts abgeleitet.",
+      "confidence": "abgeleitet · {pct}%",
+      "accepted": "Übernommen",
+      "suppressed": "Unterdrückt",
+      "accept": "Übernehmen",
+      "suppress": "Unterdrücken",
+      "overrides": "Beziehungs-Überschreibungen (angewendet)",
+      "overrideBadge": "Überschreibung",
+      "add": "Virtuelle Beziehung hinzufügen",
+      "fromColumn": "Quellspalte",
+      "noColumns": "Keine passende Spalte",
+      "fromPlaceholder": "customer_id",
+      "toTable": "Zieltabelle",
+      "noTables": "Keine passende Tabelle",
+      "toColumn": "Zielspalte",
+      "cardinality": "Kardinalität",
+      "addButton": "Beziehung hinzufügen"
+    },
+    "toast": {
+      "saved": "Schema-Überschreibungen gespeichert",
+      "savedDetail": "Das angewendete Schema unten spiegelt Ihre Änderungen wider.",
+      "regenerated": "{created} erstellt · {updated} aktualisiert · {unchanged} unverändert",
+      "regeneratedDetail": "Von Hand bearbeitete Seiten bleiben erhalten — nur Seiten mit unangetastetem generated_hash wurden an Ort und Stelle neu generiert.",
+      "regenerateFailed": "Neugenerierung fehlgeschlagen"
+    },
+    "title": "Schema neu zuordnen",
+    "subtitle": "{tables} Tabellen · {applied} Überschreibungen angewendet",
+    "saveFailed": "Speichern fehlgeschlagen: {message}",
+    "loadFailed": "Das Schema für diese Verbindung konnte nicht geladen werden.",
+    "inspector": "Inspektor",
+    "empty": {
+      "title": "Wählen Sie eine Tabelle oder Spalte",
+      "description": "Wählen Sie etwas im Schemabaum aus, um Bezeichnung, Typ, Beziehungen oder Maskierung neu zuzuordnen."
+    },
+    "tabs": {
+      "details": "Details",
+      "relations": "Beziehungen"
+    },
+    "tree": {
+      "label": "Schema",
+      "search": "Tabellen und Spalten durchsuchen",
+      "searchPlaceholder": "Tabellen durchsuchen…",
+      "noMatches": "Keine Tabellen entsprechen Ihrer Suche.",
+      "collapse": "Tabelle einklappen",
+      "expand": "Tabelle ausklappen",
+      "unsaved": "Ungespeicherte Änderung",
+      "excluded": "Ausgeschlossen"
+    },
+    "badge": {
+      "pk": "PK",
+      "fk": "FK",
+      "unique": "UNIQUE",
+      "pii": "PII",
+      "masked": "Maskiert"
+    },
+    "unavailableTitle": "Editor zum Neuzuordnen des Schemas nicht verfügbar",
+    "unavailableBody": "Dieser Build enthält den Editor zum Neuzuordnen noch nicht (09-T12). Führen Sie die Generierung erneut aus, sobald er da ist, um Bezeichnungen, Typen und Beziehungen neu zuzuordnen."
+  },
+  "publicApi": {
+    "error": "Something went wrong",
+    "scopes": {
+      "deleteTitle": "Delete this scope",
+      "deleteBody": "Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.",
+      "deletePrompt": "Type the scope name to confirm",
+      "deleteConfirm": "Delete scope",
+      "issuesTitle": "This scope did not compile",
+      "title": "Scopes",
+      "subtitle": "A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.",
+      "emptyTitle": "No scopes yet",
+      "emptyBody": "Create one below. It is checked against your live schema before it is saved.",
+      "keyCount": "{count, plural, =0 {no keys} one {# key} other {# keys}}",
+      "delete": "Delete",
+      "nameLabel": "Name",
+      "connectionLabel": "Connection ID",
+      "documentLabel": "Scope document",
+      "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.",
+      "create": "Create scope",
+      "formLabel": "Create a scope"
+    },
+    "cancel": "Cancel",
+    "close": "Close",
+    "title": "Public API",
+    "subtitle": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
+    "notRegistered": {
+      "title": "Not enabled on this server",
+      "body": "Set ADMINIUM_PUBLIC_API_ORIGINS to the exact origins allowed to call it, then restart. Until then these routes are not served at all."
+    },
+    "toggle": {
+      "label": "Serve the public API",
+      "hint": "Turning this off stops every public request immediately. Nothing is deleted — keys, scopes and data all survive."
+    },
+    "origins": {
+      "label": "Origins allowed to call it"
+    },
+    "keys": {
+      "title": "Keys",
+      "subtitle": "These go in your page’s JavaScript, so anyone can read them. That is expected — a key can only ever do what its scope allows.",
+      "emptyTitle": "No keys yet",
+      "emptyBody": "Create a scope first, then mint a key for it.",
+      "reveal": "Show key",
+      "rotate": "Rotate",
+      "revoke": "Revoke",
+      "nameLabel": "Name",
+      "scopeLabel": "Scope",
+      "scopePlaceholder": "Choose a scope",
+      "create": "Create key",
+      "formLabel": "Create a key",
+      "scopeIsAuthTitle": "The scope is the only permission",
+      "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+      "appLabel": "An eine gehostete App-Oberfläche binden (optional)",
+      "appHint": "Die Kunden-Oberfläche der App liefert diesen Schlüssel dann selbst aus — eine Rotation braucht keinen Rebuild.",
+      "appNone": "Nicht gebunden"
+    },
+    "status": {
+      "heading": "Status"
+    }
+  },
+  "hostedApps": {
+    "title": "Gehostete Apps",
+    "subtitle": "Die App-Oberflächen, die diese Instanz ausliefert — wo jede erscheint und welche Domains auf sie zeigen.",
+    "error": "Etwas ist schiefgelaufen",
+    "emptyTitle": "Es werden keine App-Oberflächen ausgeliefert",
+    "emptyBody": "Setzen Sie ADMINIUM_SURFACES_DIR auf ein Verzeichnis gebauter Oberflächen — ein Ordner je App und Seite, jeweils mit index.html — und starten Sie neu. Sie werden dann unter /apps/ ausgeliefert und erscheinen hier.",
+    "surfaces": {
+      "title": "Oberflächen",
+      "subtitle": "Eine Mitarbeiter-Oberfläche kann sich in die Seitenleiste dieses Dashboards einfügen oder für sich stehen; eine Kunden-Oberfläche ist öffentlich und liest über ihren gebundenen Schlüssel.",
+      "staff": "Mitarbeiter",
+      "customer": "Kunden",
+      "noNav": "Interne Platzierung nicht verfügbar — bauen Sie diese Oberfläche mit dem aktuellen Toolkit neu, damit sie surface.json ausgibt.",
+      "noKey": "Kein Schlüssel gebunden — diese Oberfläche kann keine Daten lesen, bis einer für sie erstellt wird.",
+      "mintLink": "Unter „Öffentliche API“ erstellen",
+      "boundKey": "Liefert Schlüssel",
+      "placementLabel": "Platzierung",
+      "placementInternal": "In der Seitenleiste (eingebettet)",
+      "placementExternal": "Extern (nur eigene URL)",
+      "connectionLabel": "Liest",
+      "connectionUnset": "Was gerade bedient"
+    },
+    "domains": {
+      "title": "Domains",
+      "subtitle": "Richten Sie das DNS einer Domain auf Ihren Proxy, reichen Sie den Host-Header an Adminium durch und hängen Sie sie hier an — dieser Host liefert dann die Oberfläche statt dieses Dashboards. Zertifikate bleiben auf Ihrem Proxy.",
+      "issuesTitle": "Die Domain-Zuordnung wurde abgelehnt",
+      "savedTitle": "Gespeichert",
+      "savedBody": "Zuordnungen greifen innerhalb weniger Sekunden. Ein Host antwortet erst, wenn sein DNS und Ihr Proxy diese Instanz tatsächlich erreichen.",
+      "none": "Keine Domains angehängt.",
+      "hostLabel": "Host",
+      "surfaceLabel": "Oberfläche",
+      "remove": "Entfernen",
+      "add": "Domain anhängen",
+      "save": "Domains speichern",
+      "instanceLabel": "Instanz",
+      "instanceOwn": "Die App selbst"
+    },
+    "instances": {
+      "title": "Instanzen",
+      "body": "Dieselbe App über mehrere Datenbanken bereitstellen. Jede Instanz ist unter /apps/<app>/<segment>/<seite>/ erreichbar und liest nur die Verbindung, die Sie ihr geben.",
+      "appLabel": "App",
+      "slugLabel": "URL-Segment",
+      "readsLabel": "Liest",
+      "add": "Instanz hinzufügen",
+      "save": "Instanzen speichern",
+      "remove": "Entfernen",
+      "empty": "Keine weiteren Instanzen.",
+      "failed": "Instanzen wurden nicht gespeichert"
+    }
+  },
+  "addOns": {
+    "plan": {
+      "blocked": "Das kann hier nicht installiert werden",
+      "needsColumns": "Dieses Add-on benötigt Spalten, die Sie nicht haben",
+      "needsColumnsBody": "Adminium fügt Tabellen, die Ihnen bereits gehören, keine Spalten hinzu. Legen Sie sie selbst an, dann installieren Sie.",
+      "willCreate": "Dadurch werden Tabellen in Ihrer Datenbank angelegt",
+      "willCreateBody": "Bei der Installation werden diese Tabellen angelegt. Eine spätere Deinstallation lässt sie und ihre Daten unberührt.",
+      "noData": "Dieses Add-on liest und schreibt keine eigenen Tabellen.",
+      "reuse": "Dieses Add-on verwendet Tabellen, die Sie bereits haben:"
+    },
+    "consent": {
+      "title": "{name} installieren",
+      "subtitle": "Was dieses Add-on tun wird, bevor es das tun kann.",
+      "close": "Schließen",
+      "loading": "Wird ermittelt, was das bewirken würde …",
+      "hosts": "Verbinden mit",
+      "cancel": "Abbrechen",
+      "confirm": "Installieren"
+    },
+    "connect": {
+      "apiKey": "API-Schlüssel",
+      "submit": "Verbinden"
+    },
+    "title": "Add-ons",
+    "subtitle": "Zusätzliche Funktionen für Ihre Apps – Versand, Grafik, Daten. Jedes sagt vor der Installation, was es benötigt.",
+    "error": "Etwas ist schiefgelaufen",
+    "browse": {
+      "title": "Verfügbar",
+      "online": "Enthält Add-ons aus dem Online-Katalog. Die Suche nach neueren Versionen ist eine eigene Aktion.",
+      "offline": "Zeigt die mit dieser Version gelieferten Add-ons. Das Online-Stöbern ist ausgeschaltet, und nichts hier hat das Internet kontaktiert.",
+      "refresh": "Nach Neuerem suchen",
+      "emptyTitle": "Keine Add-ons verfügbar",
+      "emptyBody": "Diese Version enthält keine, und der Online-Katalog ist aus.",
+      "bundled": "Enthalten",
+      "upgrade": "v{version} verfügbar",
+      "download": "Herunterladen",
+      "install": "Installieren",
+      "discard": "Verwerfen",
+      "upgradeAction": "Aktualisieren",
+      "toggle": "Online-Katalog durchsuchen"
+    },
+    "installed": {
+      "title": "Installiert",
+      "emptyTitle": "Noch nichts installiert",
+      "emptyBody": "Installieren Sie oben ein Add-on, dann erscheint es hier mit seinen Hosts und seiner Verbindung.",
+      "connected": "Verbunden",
+      "notConnected": "Nicht verbunden",
+      "egress": "Darf kontaktieren: {hosts}",
+      "on": "an",
+      "off": "aus",
+      "disconnect": "Trennen",
+      "uninstall": "Deinstallieren"
+    },
+    "confirm": {
+      "close": "Schließen",
+      "disconnectTitle": "Dieses Add-on trennen",
+      "uninstallTitle": "Dieses Add-on deinstallieren",
+      "discardTitle": "Diesen Download verwerfen",
+      "disconnectBody": "Seine Schlüssel werden gelöscht und es stellt seine Aufrufe ein. Jede Tabelle und jede Zeile, die es angelegt hat, bleibt unverändert, und Sie können es jederzeit wieder verbinden.",
+      "uninstallBody": "Seine Schlüssel werden gelöscht und seine Dateien von diesem Server entfernt. Jede Tabelle und jede Zeile, die es angelegt hat, bleibt unverändert. Sie können es später erneut installieren.",
+      "discardBody": "Die heruntergeladenen Dateien werden gelöscht. Es wurde nichts installiert, also ändert sich sonst nichts – Sie können es jederzeit erneut herunterladen.",
+      "cancel": "Abbrechen",
+      "disconnect": "Trennen",
+      "uninstall": "Deinstallieren",
+      "discard": "Verwerfen"
+    },
+    "upgradeNote": "Beim Aktualisieren bleiben die Hosts, mit denen ein Add-on verbunden ist, und die bestehende Verbindung erhalten.",
+    "job": {
+      "title": "Wird heruntergeladen",
+      "body": "Wird geladen und geprüft. Installiert wird erst auf Ihr Wort.",
+      "failed": "Der Download wurde nicht abgeschlossen. Es wurde nichts installiert."
+    },
+    "veto": {
+      "title": "Diese Installation kann nicht online suchen",
+      "body": "Die Einstellung ist gespeichert, aber Netzwerkfunktionen sind für diesen Server aus, und das gilt. Geladene Add-ons laufen weiter, und Sie können eins hochladen."
+    },
+    "sideload": {
+      "title": "Paket hochladen",
+      "hint": "Für einen Server ohne Internet. Wird genau wie ein Download geprüft und braucht daher den mitgelieferten Hash.",
+      "file": "Paketdatei (.tgz)",
+      "key": "Add-on-Schlüssel",
+      "version": "Version",
+      "sha": "Integrität (sha512-…)",
+      "shaHint": "Der von `npm pack --json` ausgegebene `integrity`-Wert. Passen die Bytes nicht, wird abgelehnt.",
+      "submit": "Hochladen"
+    }
+  },
+  "pages": {
+    "title": "Seiten",
+    "subtitle": "Seiten Ihrer App hinzufügen, bearbeiten und ordnen – samt ihrer Reihenfolge in der Seitenleiste.",
+    "createButton": "Neue Seite",
+    "loadFailed": {
+      "title": "Seiten konnten nicht geladen werden",
+      "body": "Für die Seitenverwaltung wird die Berechtigung „Seiten verwalten“ benötigt. Bitten Sie eine Administratorin oder einen Administrator, sie einer Ihrer Rollen zuzuweisen."
+    },
+    "tab": {
+      "pages": "Alle Seiten",
+      "sidebar": "Reihenfolge der Seitenleiste"
+    },
+    "list": {
+      "title": "Seiten",
+      "count": "{count, plural, one {# Seite} other {# Seiten}}"
+    },
+    "empty": {
+      "title": "Noch keine Seiten",
+      "body": "Verbinden Sie eine Datenbank, um Seiten automatisch zu erzeugen, oder legen Sie eine von Hand an."
+    },
+    "status": {
+      "live": "Aktiv",
+      "hidden": "Ausgeblendet"
+    },
+    "origin": {
+      "generated": "Erzeugt",
+      "manifest": "Add-on",
+      "llm": "Assistent",
+      "system": "System",
+      "user": "Eigene"
+    },
+    "row": {
+      "menu": "Aktionen für {title}"
+    },
+    "action": {
+      "edit": "Seite bearbeiten",
+      "duplicate": "Duplizieren",
+      "hide": "In der Seitenleiste ausblenden",
+      "show": "In der Seitenleiste anzeigen",
+      "delete": "Seite löschen"
+    },
+    "create": {
+      "title": "Neue Seite",
+      "failed": "Die Seite konnte nicht erstellt werden",
+      "submit": "Seite erstellen",
+      "subtitle": "Legen Sie fest, was diese Seite zeigt und wie sie aussieht. Die Vorschau folgt Ihrer Auswahl."
+    },
+    "duplicate": {
+      "title": "Seite duplizieren",
+      "failed": "Die Seite konnte nicht dupliziert werden",
+      "submit": "Duplizieren"
+    },
+    "delete": {
+      "title": "Diese Seite löschen?",
+      "body": "Das lässt sich nicht rückgängig machen. Gespeicherte Ansichten und persönliche Layouts dieser Seite werden für alle gelöscht.",
+      "bodyGenerated": "Diese Seite stammt aus der Schema-Generierung und kehrt beim nächsten Generierungslauf zurück. Gespeicherte Ansichten und persönliche Layouts werden für alle gelöscht.",
+      "prompt": "Geben Sie zur Bestätigung {slug} ein",
+      "confirm": "Seite löschen"
+    },
+    "field": {
+      "title": "Titel",
+      "titleHint": "Wird in der Seitenleiste und in der Kopfzeile der Seite angezeigt.",
+      "slug": "Seitenadresse",
+      "slugHint": "Kleinbuchstaben, Ziffern und Bindestriche. Nur der letzte Teil – den Rest der Adresse ergänzen wir.",
+      "slugTaken": "Diese Adresse wird bereits von einer anderen Seite verwendet.",
+      "slugWarning": "Eine geänderte Adresse macht bestehende Links und Lesezeichen zu dieser Seite ungültig.",
+      "template": "Vorlage",
+      "templateHint": "Bestimmt, was die Seite enthalten kann. Später änderbar.",
+      "group": "Gruppe der Seitenleiste",
+      "groupHint": "In welchem Abschnitt der Seitenleiste sie erscheint.",
+      "icon": "Symbol",
+      "iconHint": "Wird neben dem Seitennamen in der Seitenleiste angezeigt.",
+      "visible": "In der Seitenleiste anzeigen",
+      "visibleHint": "Eine ausgeblendete Seite bleibt über ihre URL erreichbar, wenn man den Link kennt.",
+      "table": "Tabelle",
+      "tableCreateHint": "Die Tabelle, aus der diese Seite liest. Wählen Sie jetzt eine, dann ist die Seite sofort nutzbar; ohne Auswahl können Sie sie später verknüpfen.",
+      "tableNone": "Nicht verknüpft",
+      "tableNeedsConnection": "Wählen Sie zuerst eine Datenquelle.",
+      "connection": "Datenquelle",
+      "connectionNone": "Keine",
+      "iconPick": "Seitensymbol auswählen",
+      "padding": "Seitenabstand",
+      "width": "Inhaltsbreite",
+      "widthHint": "Wie breit die Inhaltsspalte der Seite auf einem großen Bildschirm werden darf."
+    },
+    "editor": {
+      "title": "Seite bearbeiten",
+      "save": "Änderungen speichern",
+      "saveFailed": "Änderungen konnten nicht gespeichert werden",
+      "openPage": "Seite öffnen",
+      "generated": {
+        "title": "Diese Seite wurde aus Ihrem Schema erzeugt",
+        "body": "Ihre Änderungen bleiben bei einer erneuten Generierung erhalten – die Seite wird als bearbeitet markiert und unangetastet gelassen. Ein Löschen hält allerdings nur, bis der nächste Generierungslauf sie neu anlegt."
+      },
+      "contentUnavailable": "Seiteninhalt konnte nicht geladen werden",
+      "contentUnavailableBody": "Die Angaben oben lassen sich trotzdem speichern.",
+      "contentInvalid": "Die Konfiguration dieser Seite ist nicht lesbar",
+      "contentInvalidBody": "Sie stammt aus einer neueren Version oder ist fehlerhaft. Erzeugen Sie die Seite neu oder löschen Sie sie.",
+      "data": "Daten",
+      "schemaFailed": "Tabellen konnten nicht aufgelistet werden",
+      "schemaFailedBody": "Diese Verbindung wurde möglicherweise noch nicht analysiert. Starten Sie die Introspektion unter Studio → Datenverbindungen.",
+      "notBindable": "Diese Vorlage ist nicht an eine einzelne Tabelle gebunden",
+      "notBindableBody": "Ihr Inhalt wird stattdessen Widget für Widget aufgebaut. Öffnen Sie die Seite und fügen Sie sie über „Bearbeiten“ hinzu.",
+      "recompose": "Diese Seite wird neu aufgebaut",
+      "recomposeBody": "Beim Speichern wird der Inhalt durch ein frisches Layout für Vorlage und Tabelle oben ersetzt. Spaltenanpassungen und Widget-Änderungen dieser Seite gehen verloren.",
+      "missing": "Diese Seite existiert nicht mehr",
+      "missingBody": "Sie wurde möglicherweise gelöscht oder von einem Generierungslauf entfernt.",
+      "details": "Details",
+      "itemsPending": "Speichern Sie zuerst die Änderung oben – der Seiteninhalt wird aus der neuen Vorlage und Tabelle neu aufgebaut.",
+      "columns": "Spalten",
+      "appearance": "Darstellung"
+    },
+    "sidebar": {
+      "help": "Seiten innerhalb einer Gruppe umsortieren oder in eine andere Gruppe verschieben. Die Änderungen gelten für alle Benutzerinnen und Benutzer.",
+      "discard": "Verwerfen",
+      "save": "Reihenfolge speichern",
+      "saveFailed": "Die neue Reihenfolge konnte nicht gespeichert werden",
+      "emptyGroup": "Keine Seiten in dieser Gruppe.",
+      "moveUp": "{title} nach oben verschieben",
+      "moveDown": "{title} nach unten verschieben",
+      "moveTo": "{title} in eine Gruppe verschieben",
+      "ungrouped": {
+        "title": "Einige Seiten gehören zu keiner Gruppe der Seitenleiste",
+        "body": "Diese Seiten funktionieren unter ihrer URL, erscheinen aber nirgends in der Seitenleiste. Öffnen Sie jede einzeln und wählen Sie eine Gruppe."
+      }
+    },
+    "columns": {
+      "help": "Spalten per Ziehen umsortieren, ihre Überschriften umbenennen und auswählen, welche in der Tabelle erscheinen.",
+      "empty": "Noch keine Spalten — fügen Sie unten welche hinzu.",
+      "pk": "Schlüssel",
+      "pii": "PII",
+      "header": "Überschrift für {name}",
+      "shown": "Sichtbar",
+      "toggle": "{name} in der Tabelle anzeigen",
+      "dragHandle": "{name} verschieben",
+      "remove": "{name} entfernen",
+      "addOpen": "Spalte hinzufügen",
+      "addTitle": "Spalte hinzufügen",
+      "addSearch": "Spalten durchsuchen…",
+      "addFromTable": "Aus {table}",
+      "addFromLinked": "Aus verknüpften Tabellen",
+      "addLinkedHelp": "Zeigt einen Wert aus der Tabelle, auf die eine Verknüpfungsspalte verweist.",
+      "addVia": "über {column}",
+      "addNoMatches": "Keine Spalten passen zu „{query}“.",
+      "followColumn": "{name} folgen",
+      "addLinkedFrom": "Tabellen, die hierher verweisen",
+      "addLinkedFromHelp": "Fügt die Anzahl der Zeilen hinzu, die auf jeden Datensatz verweisen.",
+      "countBadge": "Anzahl",
+      "lookupBadge": "Verknüpft",
+      "lookupBack": "Zurück",
+      "lookupBrowse": "Wählen Sie, was aus {table} angezeigt wird",
+      "lookupBroken": "Diese Verknüpfung lässt sich nicht mehr auflösen",
+      "lookupBrokenBody": "Das Schema hat sich währenddessen geändert. Beginnen Sie die Verknüpfung erneut.",
+      "schemaUnavailable": "Die Datenbankspalten konnten nicht geladen werden, daher lassen sich hier keine Spalten hinzufügen.",
+      "none": {
+        "title": "Diese Seite hat noch keine Spalten",
+        "body": "Spalten werden bei der Generierung aus der Tabelle gelesen. Binden Sie diese Seite an eine Tabelle und generieren Sie neu, um sie zu füllen."
+      }
+    },
+    "icon": {
+      "none": "Symbol auswählen",
+      "search": "Symbole suchen",
+      "noMatches": "Keine Symbole passen zu dieser Suche."
+    },
+    "preview": {
+      "untitled": "Unbenannte Seite",
+      "note": "Eine Darstellung des Layouts, nicht Ihrer Daten. Die echte Seite füllt sich nach dem Speichern."
+    },
+    "padding": {
+      "default": "Standard dieser Vorlage",
+      "none": "Kein Abstand",
+      "standard": "Standard (28 × 24)",
+      "custom": "Benutzerdefiniert …",
+      "x": "Seiten (px)",
+      "y": "Oben und unten (px)"
+    },
+    "width": {
+      "default": "Standard für diese Vorlage",
+      "narrow": "Schmal (720 px)",
+      "content": "Inhalt (900 px)",
+      "page": "Seite (1080 px)",
+      "dash": "Dashboard (1320 px)",
+      "wide": "Breit (1800 px)",
+      "full": "Volle Breite (kein Limit)"
+    }
   }
 } as const;

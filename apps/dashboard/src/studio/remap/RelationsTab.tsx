@@ -96,11 +96,11 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
     <div className="flex flex-col gap-5" data-testid="relations-tab">
       <section className="flex flex-col gap-2">
         <h4 className="text-body-sm font-semibold text-fg">
-          {t('studio.remap.relations.declared', 'Declared foreign keys')}
+          {t('studio:remap.relations.declared', 'Declared foreign keys')}
         </h4>
         {declared.length === 0 ? (
           <p className="text-body-sm text-fg-muted">
-            {t('studio.remap.relations.noneDeclared', 'No declared foreign keys touch this table.')}
+            {t('studio:remap.relations.noneDeclared', 'No declared foreign keys touch this table.')}
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
@@ -116,11 +116,11 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
 
       <section className="flex flex-col gap-2">
         <h4 className="text-body-sm font-semibold text-fg">
-          {t('studio.remap.relations.inferred', 'Inferred relations')}
+          {t('studio:remap.relations.inferred', 'Inferred relations')}
         </h4>
         {inferred.length === 0 ? (
           <p className="text-body-sm text-fg-muted">
-            {t('studio.remap.relations.noneInferred', 'Nothing inferred for this table.')}
+            {t('studio:remap.relations.noneInferred', 'Nothing inferred for this table.')}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -131,18 +131,18 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
                 <li key={relation.id} className="flex flex-wrap items-center gap-2">
                   <MonoText className="truncate text-[12px]">{endpointText(relation)}</MonoText>
                   <Badge tone="accent">
-                    {t('studio.remap.relations.confidence', 'inferred · {pct}%', { pct: String(Math.round(relation.confidence * 100)), })}
+                    {t('studio:remap.relations.confidence', 'inferred · {pct}%', { pct: String(Math.round(relation.confidence * 100)), })}
                   </Badge>
-                  {accepted ? <Badge tone="pos">{t('studio.remap.relations.accepted', 'Accepted')}</Badge> : null}
+                  {accepted ? <Badge tone="pos">{t('studio:remap.relations.accepted', 'Accepted')}</Badge> : null}
                   {suppressed ? (
-                    <Badge tone="danger">{t('studio.remap.relations.suppressed', 'Suppressed')}</Badge>
+                    <Badge tone="danger">{t('studio:remap.relations.suppressed', 'Suppressed')}</Badge>
                   ) : null}
                   <span className="ms-auto flex items-center gap-1">
                     <Button size="sm" variant="secondary" disabled={accepted} onClick={() => accept(relation)}>
-                      {t('studio.remap.relations.accept', 'Accept')}
+                      {t('studio:remap.relations.accept', 'Accept')}
                     </Button>
                     <Button size="sm" variant="ghost" disabled={suppressed} onClick={() => suppress(relation)}>
-                      {t('studio.remap.relations.suppress', 'Suppress')}
+                      {t('studio:remap.relations.suppress', 'Suppress')}
                     </Button>
                   </span>
                 </li>
@@ -155,13 +155,13 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
       {overrides.length > 0 ? (
         <section className="flex flex-col gap-2">
           <h4 className="text-body-sm font-semibold text-fg">
-            {t('studio.remap.relations.overrides', 'Override relations (applied)')}
+            {t('studio:remap.relations.overrides', 'Override relations (applied)')}
           </h4>
           <ul className="flex flex-col gap-1.5">
             {overrides.map((relation) => (
               <li key={relation.id} className="flex items-center gap-2">
                 <MonoText className="truncate text-[12px]">{endpointText(relation)}</MonoText>
-                <Badge tone="pos">{t('studio.remap.relations.overrideBadge', 'override')}</Badge>
+                <Badge tone="pos">{t('studio:remap.relations.overrideBadge', 'override')}</Badge>
               </li>
             ))}
           </ul>
@@ -170,19 +170,19 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
 
       <section className="flex flex-col gap-3">
         <h4 className="text-body-sm font-semibold text-fg">
-          {t('studio.remap.relations.add', 'Add virtual relation')}
+          {t('studio:remap.relations.add', 'Add virtual relation')}
         </h4>
-        <FormField label={t('studio.remap.relations.fromColumn', 'From column')}>
+        <FormField label={t('studio:remap.relations.fromColumn', 'From column')}>
           <Combobox
             mono
             options={table.columns.map((column) => ({ value: column.name, label: column.name }))}
             value={fromColumn}
             onValueChange={setFromColumn}
-            emptyText={t('studio.remap.relations.noColumns', 'No matching column')}
-            placeholder={t('studio.remap.relations.fromPlaceholder', 'customer_id')}
+            emptyText={t('studio:remap.relations.noColumns', 'No matching column')}
+            placeholder={t('studio:remap.relations.fromPlaceholder', 'customer_id')}
           />
         </FormField>
-        <FormField label={t('studio.remap.relations.toTable', 'To table')}>
+        <FormField label={t('studio:remap.relations.toTable', 'To table')}>
           <Combobox
             mono
             options={model.tables.map((candidate) => ({
@@ -195,22 +195,22 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
               setToTable(next);
               setToColumn(null);
             }}
-            emptyText={t('studio.remap.relations.noTables', 'No matching table')}
+            emptyText={t('studio:remap.relations.noTables', 'No matching table')}
             placeholder="public.customers"
           />
         </FormField>
-        <FormField label={t('studio.remap.relations.toColumn', 'To column')}>
+        <FormField label={t('studio:remap.relations.toColumn', 'To column')}>
           <Combobox
             mono
             options={(targetTable?.columns ?? []).map((column) => ({ value: column.name, label: column.name }))}
             value={toColumn}
             onValueChange={setToColumn}
             disabled={targetTable === undefined}
-            emptyText={t('studio.remap.relations.noColumns', 'No matching column')}
+            emptyText={t('studio:remap.relations.noColumns', 'No matching column')}
             placeholder="id"
           />
         </FormField>
-        <FormField label={t('studio.remap.relations.cardinality', 'Cardinality')}>
+        <FormField label={t('studio:remap.relations.cardinality', 'Cardinality')}>
           <Select value={cardinality} onChange={(event) => setCardinality(event.target.value as RelationOpCardinality)}>
             {RELATION_OP_CARDINALITIES.map((option) => (
               <option key={option} value={option}>
@@ -240,7 +240,7 @@ export function RelationsTab({ model, table, buffer }: RelationsTabProps) {
               setToColumn(null);
             }}
           >
-            {t('studio.remap.relations.addButton', 'Add relation')}
+            {t('studio:remap.relations.addButton', 'Add relation')}
           </Button>
         </div>
       </section>

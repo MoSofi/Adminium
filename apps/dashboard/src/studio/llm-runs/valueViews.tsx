@@ -104,13 +104,13 @@ function LabelSummary({ value }: { value: unknown }) {
   const record = asRecord(value);
   const label = primaryText(record?.['label']);
   const icon = typeof record?.['icon'] === 'string' ? (record['icon'] as string) : null;
-  if (label === null && icon === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (label === null && icon === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const IconGlyph = icon !== null ? lucideByName(icon) : null;
   return (
     <span className="inline-flex items-center gap-1.5">
       {IconGlyph !== null ? <IconGlyph aria-hidden className="size-3.5 text-fg-muted" /> : null}
       <span className="text-body-sm font-medium text-fg" dir="auto">
-        {label ?? t('studio.llmRuns.review.value.none', 'No value')}
+        {label ?? t('studio:llmRuns.review.value.none', 'No value')}
       </span>
     </span>
   );
@@ -118,18 +118,18 @@ function LabelSummary({ value }: { value: unknown }) {
 
 function KeySummary({ value }: { value: unknown }) {
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const displayColumn = typeof record['displayColumn'] === 'string' ? record['displayColumn'] : null;
   const naturalKey = asStringArray(record['naturalKey']);
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <span className="text-caption text-fg-subtle">{t('studio.llmRuns.review.value.display', 'Display')}</span>
+      <span className="text-caption text-fg-subtle">{t('studio:llmRuns.review.value.display', 'Display')}</span>
       {displayColumn !== null ? (
         <Tag mono>{displayColumn}</Tag>
       ) : (
-        <Placeholder>{t('studio.llmRuns.review.value.dash', '—')}</Placeholder>
+        <Placeholder>{t('studio:llmRuns.review.value.dash', '—')}</Placeholder>
       )}
-      <span className="ms-1 text-caption text-fg-subtle">{t('studio.llmRuns.review.value.key', 'Key')}</span>
+      <span className="ms-1 text-caption text-fg-subtle">{t('studio:llmRuns.review.value.key', 'Key')}</span>
       {naturalKey.length > 0 ? (
         naturalKey.map((column) => (
           <Tag key={column} mono>
@@ -137,7 +137,7 @@ function KeySummary({ value }: { value: unknown }) {
           </Tag>
         ))
       ) : (
-        <Placeholder>{t('studio.llmRuns.review.value.dash', '—')}</Placeholder>
+        <Placeholder>{t('studio:llmRuns.review.value.dash', '—')}</Placeholder>
       )}
     </span>
   );
@@ -145,7 +145,7 @@ function KeySummary({ value }: { value: unknown }) {
 
 function EnumSummary({ value }: { value: unknown }) {
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const kind = typeof record['kind'] === 'string' ? record['kind'] : null;
   const order = asStringArray(record['order']);
   const tones = asRecord(record['tones']) ?? {};
@@ -156,8 +156,8 @@ function EnumSummary({ value }: { value: unknown }) {
       {kind !== null ? (
         <Badge tone={kind === 'workflow' ? 'accent' : 'neutral'}>
           {kind === 'workflow'
-            ? t('studio.llmRuns.review.value.enumWorkflow', 'Workflow')
-            : t('studio.llmRuns.review.value.enumCategory', 'Category')}
+            ? t('studio:llmRuns.review.value.enumWorkflow', 'Workflow')
+            : t('studio:llmRuns.review.value.enumCategory', 'Category')}
         </Badge>
       ) : null}
       {values.map((entry) => {
@@ -175,7 +175,7 @@ function EnumSummary({ value }: { value: unknown }) {
 /** Relation identifier chips: `orders.product_id → products.id` (§10.3). */
 export function RelationChips({ value }: { value: unknown }) {
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const from = `${short(record['fromTable'])}.${asStringArray(record['fromColumns']).join(', ')}`;
   const to = `${short(record['toTable'])}.${asStringArray(record['toColumns']).join(', ')}`;
   const kind = typeof record['kind'] === 'string' ? record['kind'] : null;
@@ -196,10 +196,10 @@ export function RelationChips({ value }: { value: unknown }) {
 
 function PiiSummary({ value }: { value: unknown }) {
   if (value === null) {
-    return <Badge tone="neutral">{t('studio.llmRuns.review.value.notPii', 'Not PII')}</Badge>;
+    return <Badge tone="neutral">{t('studio:llmRuns.review.value.notPii', 'Not PII')}</Badge>;
   }
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const kind = typeof record['kind'] === 'string' ? record['kind'] : null;
   const masking = typeof record['masking'] === 'string' ? record['masking'] : null;
   return (
@@ -216,7 +216,7 @@ function PiiSummary({ value }: { value: unknown }) {
 
 function TemplateSummary({ value }: { value: unknown }) {
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const template = typeof record['template'] === 'string' ? record['template'] : null;
   const rank = typeof record['rank'] === 'number' ? record['rank'] : null;
   return (
@@ -224,7 +224,7 @@ function TemplateSummary({ value }: { value: unknown }) {
       {template !== null ? <Tag mono tone="accent">{template}</Tag> : null}
       {rank !== null ? (
         <span className="text-caption text-fg-subtle">
-          {t('studio.llmRuns.review.value.rank', 'rank {n}', { n: rank })}
+          {t('studio:llmRuns.review.value.rank', 'rank {n}', { n: rank })}
         </span>
       ) : null}
     </span>
@@ -233,7 +233,7 @@ function TemplateSummary({ value }: { value: unknown }) {
 
 function GroupSummary({ value }: { value: unknown }) {
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const label = primaryText(record['label']);
   const icon = typeof record['icon'] === 'string' ? (record['icon'] as string) : null;
   const tables = asStringArray(record['tables']);
@@ -242,10 +242,10 @@ function GroupSummary({ value }: { value: unknown }) {
     <span className="inline-flex items-center gap-1.5">
       {IconGlyph !== null ? <IconGlyph aria-hidden className="size-3.5 text-fg-muted" /> : null}
       <span className="text-body-sm font-medium text-fg" dir="auto">
-        {label ?? t('studio.llmRuns.review.value.none', 'No value')}
+        {label ?? t('studio:llmRuns.review.value.none', 'No value')}
       </span>
       <span className="text-caption text-fg-subtle">
-        {t('studio.llmRuns.review.value.tableCount', '{n} tables', { n: tables.length })}
+        {t('studio:llmRuns.review.value.tableCount', '{n} tables', { n: tables.length })}
       </span>
     </span>
   );
@@ -253,17 +253,17 @@ function GroupSummary({ value }: { value: unknown }) {
 
 function DashboardSummary({ value }: { value: unknown }) {
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const label = primaryText(record['label']);
   const domain = typeof record['domain'] === 'string' ? record['domain'] : null;
   const widgets = Array.isArray(record['widgets']) ? record['widgets'].length : 0;
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <span className="text-body-sm font-medium text-fg" dir="auto">
-        {label ?? domain ?? t('studio.llmRuns.review.value.none', 'No value')}
+        {label ?? domain ?? t('studio:llmRuns.review.value.none', 'No value')}
       </span>
       <span className="text-caption text-fg-subtle">
-        {t('studio.llmRuns.review.value.widgetCount', '{n} widgets', { n: widgets })}
+        {t('studio:llmRuns.review.value.widgetCount', '{n} widgets', { n: widgets })}
       </span>
     </span>
   );
@@ -272,7 +272,7 @@ function DashboardSummary({ value }: { value: unknown }) {
 /** Dashboard-widget preview: name + span + column binding (§10.3). */
 export function WidgetPreview({ value }: { value: unknown }) {
   const record = asRecord(value);
-  if (record === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (record === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   const widget = typeof record['widget'] === 'string' ? record['widget'] : null;
   const span = typeof record['span'] === 'number' ? record['span'] : null;
   const table = typeof record['table'] === 'string' ? record['table'] : null;
@@ -286,7 +286,7 @@ export function WidgetPreview({ value }: { value: unknown }) {
       {widget !== null ? <Tag mono tone="accent">{widget}</Tag> : null}
       {span !== null ? (
         <span className="text-caption text-fg-subtle">
-          {t('studio.llmRuns.review.value.span', 'span {n}', { n: span })}
+          {t('studio:llmRuns.review.value.span', 'span {n}', { n: span })}
         </span>
       ) : null}
       {table !== null ? (
@@ -302,7 +302,7 @@ export function WidgetPreview({ value }: { value: unknown }) {
 function CopySummary({ value }: { value: unknown }) {
   const record = asRecord(value);
   const subtitle = primaryText(record?.['pageSubtitle']);
-  if (subtitle === null) return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+  if (subtitle === null) return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   return (
     <span className="text-body-sm text-fg" dir="auto">
       {subtitle}
@@ -321,7 +321,7 @@ function short(qualified: unknown): string {
 
 export function DiffValue({ category, value }: { category: string; value: unknown }) {
   if (value === undefined) {
-    return <Placeholder>{t('studio.llmRuns.review.value.absent', 'None')}</Placeholder>;
+    return <Placeholder>{t('studio:llmRuns.review.value.absent', 'None')}</Placeholder>;
   }
   switch (category) {
     case 'label':
@@ -345,7 +345,7 @@ export function DiffValue({ category, value }: { category: string; value: unknow
     case 'copy':
       return <CopySummary value={value} />;
     default:
-      return <Placeholder>{t('studio.llmRuns.review.value.none', 'No value')}</Placeholder>;
+      return <Placeholder>{t('studio:llmRuns.review.value.none', 'No value')}</Placeholder>;
   }
 }
 
@@ -356,11 +356,11 @@ export function localizedFieldsOf(category: string, value: unknown): { key: stri
   if (category === 'label' || category === 'group') {
     const fields: { key: string; label: string; value: unknown }[] = [];
     if (isL10n(record['label']))
-      fields.push({ key: 'label', label: t('studio.llmRuns.review.value.label', 'Label'), value: record['label'] });
+      fields.push({ key: 'label', label: t('studio:llmRuns.review.value.label', 'Label'), value: record['label'] });
     if (isL10n(record['description']))
       fields.push({
         key: 'description',
-        label: t('studio.llmRuns.review.value.description', 'Description'),
+        label: t('studio:llmRuns.review.value.description', 'Description'),
         value: record['description'],
       });
     return fields;
@@ -370,7 +370,7 @@ export function localizedFieldsOf(category: string, value: unknown): { key: stri
     if (isL10n(record['pageSubtitle']))
       fields.push({
         key: 'pageSubtitle',
-        label: t('studio.llmRuns.review.value.subtitle', 'Page subtitle'),
+        label: t('studio:llmRuns.review.value.subtitle', 'Page subtitle'),
         value: record['pageSubtitle'],
       });
     const emptyState = asRecord(record['emptyState']);
@@ -378,13 +378,13 @@ export function localizedFieldsOf(category: string, value: unknown): { key: stri
       if (isL10n(emptyState['headline']))
         fields.push({
           key: 'headline',
-          label: t('studio.llmRuns.review.value.headline', 'Empty-state headline'),
+          label: t('studio:llmRuns.review.value.headline', 'Empty-state headline'),
           value: emptyState['headline'],
         });
       if (isL10n(emptyState['guidance']))
         fields.push({
           key: 'guidance',
-          label: t('studio.llmRuns.review.value.guidance', 'Empty-state guidance'),
+          label: t('studio:llmRuns.review.value.guidance', 'Empty-state guidance'),
           value: emptyState['guidance'],
         });
     }

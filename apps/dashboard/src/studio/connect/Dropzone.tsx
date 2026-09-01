@@ -54,11 +54,11 @@ export function Dropzone({ accept, onFile, disabled = false }: DropzoneProps) {
       >
         <UploadCloud aria-hidden="true" className="size-6 text-fg-subtle" />
         <span className="text-body-sm font-semibold text-fg">
-          {t('studio.source.file.dropTitle', 'Drop your schema file here, or browse')}
+          {t('studio:source.file.dropTitle', 'Drop your schema file here, or browse')}
         </span>
         <span className="text-caption text-fg-muted">
           {t(
-            'studio.source.file.dropHint',
+            'studio:source.file.dropHint',
             'SQL DDL / pg_dump, Prisma, Drizzle, TypeORM, Sequelize, Rails schema.rb, Django models, Adminium JSON',
           )}
         </span>

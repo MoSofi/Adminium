@@ -1015,6 +1015,25 @@
         "description": "Politiques de sécurité au niveau des lignes par table, avec leur commande, leur rôle et un interrupteur d'activation.",
         "emptyTitle": "Aucune politique",
         "emptyBody": "Cette table n'a pas encore de politiques de sécurité au niveau des lignes."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "Aucun titre",
+        "emptyBody": "Ajoutez le texte du titre de cet e-mail."
+      },
+      "blockEmailText": {
+        "emptyTitle": "Aucun texte",
+        "emptyBody": "Ajoutez un paragraphe à cet e-mail."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "Bouton incomplet",
+        "emptyBody": "Un bouton doit avoir un texte et un lien pour être envoyé."
+      },
+      "blockEmailSpacer": {
+        "label": "Espace de {size} px"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "Aucun pied de page",
+        "emptyBody": "Mentions légales, adresse et lien de désabonnement."
       }
     },
     "media": {
@@ -1551,7 +1570,13 @@
         "block-late-fees": "Pénalités de retard",
         "block-image-placeholder": "Image",
         "block-contact": "Contact",
-        "block-highlight-box": "Encadré"
+        "block-highlight-box": "Encadré",
+        "email-heading": "Titre",
+        "email-text": "Paragraphe",
+        "email-button": "Appel à l'action",
+        "email-divider": "Séparateur",
+        "email-spacer": "Espacement",
+        "email-footer": "Pied de page"
       },
       "starters": {
         "titles": {

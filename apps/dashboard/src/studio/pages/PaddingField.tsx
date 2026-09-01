@@ -66,24 +66,24 @@ export function PaddingField({ value, onChange }: PaddingFieldProps) {
 
   return (
     <>
-      <FormField label={t('studioPages.field.padding', 'Page padding')}>
+      <FormField label={t('studio:pages.field.padding', 'Page padding')}>
         <Select
           value={mode}
           onChange={(event) => selectMode(event.target.value as Mode)}
           data-testid="studio-pages-padding"
         >
           <option value="default">
-            {t('studioPages.padding.default', 'Default for this template')}
+            {t('studio:pages.padding.default', 'Default for this template')}
           </option>
-          <option value="none">{t('studioPages.padding.none', 'None')}</option>
-          <option value="standard">{t('studioPages.padding.standard', 'Standard (28 × 24)')}</option>
-          <option value="custom">{t('studioPages.padding.custom', 'Custom…')}</option>
+          <option value="none">{t('studio:pages.padding.none', 'None')}</option>
+          <option value="standard">{t('studio:pages.padding.standard', 'Standard (28 × 24)')}</option>
+          <option value="custom">{t('studio:pages.padding.custom', 'Custom…')}</option>
         </Select>
       </FormField>
 
       {mode === 'custom' ? (
         <div className="grid grid-cols-2 gap-3">
-          <FormField label={t('studioPages.padding.x', 'Sides (px)')}>
+          <FormField label={t('studio:pages.padding.x', 'Sides (px)')}>
             <Input
               type="number"
               min={0}
@@ -93,7 +93,7 @@ export function PaddingField({ value, onChange }: PaddingFieldProps) {
               data-testid="studio-pages-padding-x"
             />
           </FormField>
-          <FormField label={t('studioPages.padding.y', 'Top and bottom (px)')}>
+          <FormField label={t('studio:pages.padding.y', 'Top and bottom (px)')}>
             <Input
               type="number"
               min={0}

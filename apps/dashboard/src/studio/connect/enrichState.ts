@@ -49,25 +49,25 @@ export const ENRICH_SECTIONS: readonly LlmSection[] = [
 export function sectionLabel(section: LlmSection): string {
   switch (section) {
     case 'labels':
-      return t('studio.enrich.section.labels', 'Labels & descriptions');
+      return t('studio:enrich.section.labels', 'Labels & descriptions');
     case 'groups':
-      return t('studio.enrich.section.groups', 'Navigation groups');
+      return t('studio:enrich.section.groups', 'Navigation groups');
     case 'enums':
-      return t('studio.enrich.section.enums', 'Enum semantics');
+      return t('studio:enrich.section.enums', 'Enum semantics');
     case 'relations':
-      return t('studio.enrich.section.relations', 'Relations');
+      return t('studio:enrich.section.relations', 'Relations');
     case 'keys':
-      return t('studio.enrich.section.keys', 'Key columns');
+      return t('studio:enrich.section.keys', 'Key columns');
     case 'templates':
-      return t('studio.enrich.section.templates', 'Page templates');
+      return t('studio:enrich.section.templates', 'Page templates');
     case 'widgets':
-      return t('studio.enrich.section.widgets', 'Dashboard widgets');
+      return t('studio:enrich.section.widgets', 'Dashboard widgets');
     case 'pii':
-      return t('studio.enrich.section.pii', 'PII & masking');
+      return t('studio:enrich.section.pii', 'PII & masking');
     case 'icons':
-      return t('studio.enrich.section.icons', 'Icons');
+      return t('studio:enrich.section.icons', 'Icons');
     case 'microcopy':
-      return t('studio.enrich.section.microcopy', 'Micro-copy');
+      return t('studio:enrich.section.microcopy', 'Micro-copy');
   }
 }
 

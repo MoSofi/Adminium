@@ -37,7 +37,7 @@ function ErrorRow({ error }: { error: LlmValidationError }) {
             <MonoText className="text-caption text-fg-muted">{error.path}</MonoText>
           ) : (
             <span className="text-caption text-fg-subtle">
-              {t('studio.enrich.byo.wholeDocument', 'whole document')}
+              {t('studio:enrich.byo.wholeDocument', 'whole document')}
             </span>
           )}
         </div>
@@ -60,7 +60,7 @@ export function ValidationErrorList({ errors, warnings }: ValidationErrorListPro
     <div className="flex flex-col gap-2 rounded-lg border border-danger bg-danger-soft p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-body-sm font-semibold text-fg">
-          {t('studio.enrich.byo.errorsTitle', 'Validation found {count} issues', { count: String(rows.length) })}
+          {t('studio:enrich.byo.errorsTitle', 'Validation found {count} issues', { count: String(rows.length) })}
         </p>
       </div>
       <ul className="flex flex-col">
@@ -72,11 +72,11 @@ export function ValidationErrorList({ errors, warnings }: ValidationErrorListPro
         <div className="flex items-center gap-2 pt-1">
           <CopyButton
             value={() => formatRepairMessage(fatalOrItem)}
-            label={t('studio.enrich.byo.copyErrors', 'Copy errors for your AI tool')}
-            copiedLabel={t('studio.enrich.byo.copyErrorsDone', 'Errors copied')}
+            label={t('studio:enrich.byo.copyErrors', 'Copy errors for your AI tool')}
+            copiedLabel={t('studio:enrich.byo.copyErrorsDone', 'Errors copied')}
           />
           <p className="text-caption text-fg-muted">
-            {t('studio.enrich.byo.copyErrorsHint', 'Paste this back into your AI tool to get a corrected response.')}
+            {t('studio:enrich.byo.copyErrorsHint', 'Paste this back into your AI tool to get a corrected response.')}
           </p>
         </div>
       ) : null}

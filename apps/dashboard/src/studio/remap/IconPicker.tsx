@@ -47,7 +47,7 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
   return (
     <div
       role="group"
-      aria-label={t('studio.remap.table.iconPicker', 'Table icon')}
+      aria-label={t('studio:remap.table.iconPicker', 'Table icon')}
       className="grid grid-cols-8 gap-1"
     >
       {ICON_SUBSET.map((name) => {

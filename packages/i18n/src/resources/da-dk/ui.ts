@@ -2,8 +2,9 @@
 /**
  * GENERATED MIRROR of ../../../locales/da-DK/ui.json — do not edit by hand.
  * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
- * this TS mirror exists so the runtime bundles en-US resources (and chunk-splits
- * the other locales) without JSON import attributes (browser + NodeNext safe).
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
  * Parity is enforced by src/resources/parity.test.ts. Regenerate with
  * scripts/gen-resources.mjs.
  */
@@ -1024,6 +1025,25 @@ export default {
         "description": "Sikkerhedspolitikker på rækkeniveau pr. tabel med kommando, rolle og en aktiveringskontakt.",
         "emptyTitle": "Ingen politikker",
         "emptyBody": "Denne tabel har endnu ingen sikkerhedspolitikker på rækkeniveau."
+      },
+      "blockEmailHeading": {
+        "emptyTitle": "Ingen overskrift",
+        "emptyBody": "Tilføj overskriftstekst til denne e-mail."
+      },
+      "blockEmailText": {
+        "emptyTitle": "Ingen tekst",
+        "emptyBody": "Tilføj et afsnit til denne e-mail."
+      },
+      "blockEmailButton": {
+        "emptyTitle": "Ufuldstændig knap",
+        "emptyBody": "En knap skal have både tekst og et link for at blive sendt."
+      },
+      "blockEmailSpacer": {
+        "label": "{size} px mellemrum"
+      },
+      "blockEmailFooter": {
+        "emptyTitle": "Ingen sidefod",
+        "emptyBody": "Juridisk tekst, adresse og afmelding hører til her."
       }
     },
     "media": {
@@ -1560,7 +1580,13 @@ export default {
         "block-late-fees": "Rykkergebyrer",
         "block-image-placeholder": "Billede",
         "block-contact": "Kontakt",
-        "block-highlight-box": "Fremhævningsboks"
+        "block-highlight-box": "Fremhævningsboks",
+        "email-heading": "Overskrift",
+        "email-text": "Afsnit",
+        "email-button": "Handlingsknap",
+        "email-divider": "Skillelinje",
+        "email-spacer": "Mellemrum",
+        "email-footer": "Sidefod"
       },
       "starters": {
         "titles": {

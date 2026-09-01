@@ -62,15 +62,15 @@ export function DuplicatePageModal({ page, onClose, onDuplicated }: DuplicatePag
       size="sm"
     >
       <ModalHeader
-        title={t('studioPages.duplicate.title', 'Duplicate page')}
+        title={t('studio:pages.duplicate.title', 'Duplicate page')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
         <form id="studio-page-duplicate" className="flex flex-col gap-4" onSubmit={submit}>
-          <FormField label={t('studioPages.field.title', 'Title')}>
+          <FormField label={t('studio:pages.field.title', 'Title')}>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} autoFocus />
           </FormField>
-          <FormField label={t('studioPages.field.slug', 'Page address')}>
+          <FormField label={t('studio:pages.field.slug', 'Page address')}>
             <InputGroup
               prefix={PAGE_URL_PREFIX}
               mono
@@ -82,7 +82,7 @@ export function DuplicatePageModal({ page, onClose, onDuplicated }: DuplicatePag
           {duplicate.isError ? (
             <Alert
               tone="danger"
-              title={t('studioPages.duplicate.failed', 'The page could not be duplicated')}
+              title={t('studio:pages.duplicate.failed', 'The page could not be duplicated')}
               body={duplicate.error instanceof Error ? duplicate.error.message : ''}
             />
           ) : null}
@@ -99,7 +99,7 @@ export function DuplicatePageModal({ page, onClose, onDuplicated }: DuplicatePag
           loading={duplicate.isPending}
           data-testid="studio-pages-duplicate-submit"
         >
-          {t('studioPages.duplicate.submit', 'Duplicate')}
+          {t('studio:pages.duplicate.submit', 'Duplicate')}
         </Button>
       </ModalFooter>
     </Modal>

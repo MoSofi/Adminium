@@ -89,7 +89,7 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
 
   if (connectionId !== null && schemaQuery.isPending) {
     return (
-      <section aria-label={t('studio.tables.title', 'Choose your tables')} className="flex flex-col gap-3">
+      <section aria-label={t('studio:tables.title', 'Choose your tables')} className="flex flex-col gap-3">
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-40 w-full" />
       </section>
@@ -97,11 +97,11 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
   }
 
   return (
-    <section aria-label={t('studio.tables.title', 'Choose your tables')} className="flex flex-col gap-4">
+    <section aria-label={t('studio:tables.title', 'Choose your tables')} className="flex flex-col gap-4">
       <div>
-        <h2 className="text-section text-fg">{t('studio.tables.title', 'Choose your tables')}</h2>
+        <h2 className="text-section text-fg">{t('studio:tables.title', 'Choose your tables')}</h2>
         <p className="mt-1 text-body-sm text-fg-muted">
-          {t('studio.tables.subtitle', 'Choose which to include. You can change this anytime.')}
+          {t('studio:tables.subtitle', 'Choose which to include. You can change this anytime.')}
         </p>
       </div>
 
@@ -109,8 +109,8 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
         <SearchInput
           value={query}
           onChange={(event) => setQuery(event.currentTarget.value)}
-          placeholder={t('studio.tables.search', 'Filter tables…')}
-          aria-label={t('studio.tables.search', 'Filter tables…')}
+          placeholder={t('studio:tables.search', 'Filter tables…')}
+          aria-label={t('studio:tables.search', 'Filter tables…')}
           className="flex-1"
         />
         <MonoText className="shrink-0 text-body-sm text-fg-muted">{`${selected.size}/${visible.length}`}</MonoText>
@@ -120,32 +120,32 @@ export function TablesStep({ connectionId, fileTables, source, included, onInclu
         tables={filtered}
         selected={selected}
         onToggle={toggle}
-        piiLabel={t('studio.tables.pii', 'PII')}
-        highVolumeLabel={t('studio.tables.highVolume', 'high volume')}
+        piiLabel={t('studio:tables.pii', 'PII')}
+        highVolumeLabel={t('studio:tables.highVolume', 'high volume')}
         // The list gets its OWN name, narrower than the enclosing <section>'s.
         // Reusing the step title here would give two nested landmarks the same
         // accessible name ("Choose your tables, region" then "Choose your
         // tables, list"), which distinguishes neither.
-        a11yLabel={t('studio.tables.listLabel', 'Includable tables')}
+        a11yLabel={t('studio:tables.listLabel', 'Includable tables')}
         // The counter lives next to the search box on this screen, so the
         // widget's own header count would be a second copy of it.
-        emptyContent={t('studio.tables.emptyFilter', 'No tables match your filter.')}
+        emptyContent={t('studio:tables.emptyFilter', 'No tables match your filter.')}
         renderRowMeta={(table) => <RowEstimateCell source={source} estimate={table.rowEstimate} />}
       />
 
       <div className="flex flex-col gap-1">
         {source.kind === 'import' ? (
           <p className="text-caption text-fg-subtle">
-            {t('studio.tables.importNoCounts', 'Schema files carry no row counts — the column shows — until a live database is connected.')}
+            {t('studio:tables.importNoCounts', 'Schema files carry no row counts — the column shows — until a live database is connected.')}
           </p>
         ) : null}
         <p className="text-caption text-fg-subtle">
-          {t('studio.tables.highVolumeNote', 'Tables over 100,000 rows start unchecked — ops tables rarely belong in a dashboard.')}
+          {t('studio:tables.highVolumeNote', 'Tables over 100,000 rows start unchecked — ops tables rarely belong in a dashboard.')}
         </p>
         {hiddenCount > 0 ? (
           <p className="flex items-center gap-1.5 text-caption text-fg-subtle">
             <EyeOff aria-hidden="true" className="size-3.5" />
-            {t('studio.tables.joinHidden', '{count} join/system tables are pre-hidden — they still power many-to-many relations.', { count: String(hiddenCount), })}
+            {t('studio:tables.joinHidden', '{count} join/system tables are pre-hidden — they still power many-to-many relations.', { count: String(hiddenCount), })}
           </p>
         ) : null}
       </div>

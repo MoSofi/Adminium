@@ -18,15 +18,15 @@ export function SchemaBadges({ column }: { column: EffectiveColumn }) {
   const masked = column.masked ?? column.semantics?.flags.maskedByDefault === true;
   return (
     <span className="inline-flex items-center gap-1">
-      {column.isPrimaryKey ? <Badge tone="accent">{t('studio.remap.badge.pk', 'PK')}</Badge> : null}
-      {column.references !== null ? <Badge tone="info">{t('studio.remap.badge.fk', 'FK')}</Badge> : null}
+      {column.isPrimaryKey ? <Badge tone="accent">{t('studio:remap.badge.pk', 'PK')}</Badge> : null}
+      {column.references !== null ? <Badge tone="info">{t('studio:remap.badge.fk', 'FK')}</Badge> : null}
       {column.isUnique && !column.isPrimaryKey ? (
-        <Badge tone="neutral">{t('studio.remap.badge.unique', 'UNIQUE')}</Badge>
+        <Badge tone="neutral">{t('studio:remap.badge.unique', 'UNIQUE')}</Badge>
       ) : null}
-      {pii !== null ? <Badge tone="warn">{t('studio.remap.badge.pii', 'PII')}</Badge> : null}
+      {pii !== null ? <Badge tone="warn">{t('studio:remap.badge.pii', 'PII')}</Badge> : null}
       {masked ? (
         <Badge tone="warn" dot>
-          {t('studio.remap.badge.masked', 'Masked')}
+          {t('studio:remap.badge.masked', 'Masked')}
         </Badge>
       ) : null}
     </span>

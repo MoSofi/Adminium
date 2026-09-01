@@ -214,7 +214,7 @@ export function ConnectWizard({
           if (!back) {
             throw new Error(
               t(
-                'studio.meta.move.timeout',
+                'studio:meta.move.timeout',
                 'Adminium moved its tables but has not come back yet. Your data is safe in the new database — reload this page in a moment.',
               ),
             );
@@ -229,7 +229,7 @@ export function ConnectWizard({
               ? cause.message
               : cause instanceof Error
                 ? cause.message
-                : t('studio.meta.move.failed', 'Could not move Adminium’s tables — retry.'),
+                : t('studio:meta.move.failed', 'Could not move Adminium’s tables — retry.'),
           );
         })
         .finally(() => setRelocating(null));
@@ -251,7 +251,7 @@ export function ConnectWizard({
           setPersistError(
             cause instanceof ApiError
               ? cause.message
-              : t('studio.wizard.persistFailed', 'Could not save your table selection — retry.'),
+              : t('studio:wizard.persistFailed', 'Could not save your table selection — retry.'),
           );
         })
         .finally(() => setPersisting(false));
@@ -267,12 +267,12 @@ export function ConnectWizard({
 
   return (
     <PageSurface width="page" className="flex min-h-full flex-col gap-6">
-      <PageActions title={t('studio.wizard.title', 'New connection')} />
+      <PageActions title={t('studio:wizard.title', 'New connection')} />
       <header className="flex flex-col gap-4">
         <Stepper
           steps={steps}
           activeIndex={stepIndex}
-          label={t('studio.wizard.progress', 'Setup progress')}
+          label={t('studio:wizard.progress', 'Setup progress')}
           onStepClick={(index) => {
             // Back-navigation only — forward jumps go through Continue gating.
             if (index < stepIndex) {
@@ -289,18 +289,18 @@ export function ConnectWizard({
             {bridgeNotice === 'applied' ? (
               <Alert
                 tone="info"
-                title={t('studio.wizard.bridgeAppliedTitle', 'Connection string received')}
+                title={t('studio:wizard.bridgeAppliedTitle', 'Connection string received')}
                 body={t(
-                  'studio.wizard.bridgeAppliedBody',
+                  'studio:wizard.bridgeAppliedBody',
                   'Handed over from adminium.dev by your browser — it went straight to this machine and was never uploaded. Check it below, then continue.',
                 )}
               />
             ) : (
               <Alert
                 tone="warn"
-                title={t('studio.wizard.bridgeFailedTitle', 'That hand-off could not be used')}
+                title={t('studio:wizard.bridgeFailedTitle', 'That hand-off could not be used')}
                 body={t(
-                  'studio.wizard.bridgeFailedBody',
+                  'studio:wizard.bridgeFailedBody',
                   'It has already been used or has expired. Paste your connection string below instead.',
                 )}
               />
@@ -348,7 +348,7 @@ export function ConnectWizard({
         ) : null}
         {persistError !== null ? (
           <div className="mt-4">
-            <Alert tone="danger" role="alert" title={t('studio.wizard.persistFailedTitle', 'Save failed')} body={persistError} />
+            <Alert tone="danger" role="alert" title={t('studio:wizard.persistFailedTitle', 'Save failed')} body={persistError} />
           </div>
         ) : null}
       </main>
@@ -369,7 +369,7 @@ export function ConnectWizard({
           // restarting, and there is no earlier step to return to that would
           // still describe reality.
           <Button variant="ghost" onClick={back} disabled={relocating !== null}>
-            {t('studio.wizard.back', 'Back')}
+            {t('studio:wizard.back', 'Back')}
           </Button>
         )}
         {state.step !== 'generate' ? (
@@ -379,10 +379,10 @@ export function ConnectWizard({
             loading={persisting || relocating !== null}
           >
             {relocating === 'copying'
-              ? t('studio.meta.move.copying', 'Moving Adminium’s tables…')
+              ? t('studio:meta.move.copying', 'Moving Adminium’s tables…')
               : relocating === 'restarting'
-                ? t('studio.meta.move.restarting', 'Restarting…')
-                : t('studio.wizard.continue', 'Continue')}
+                ? t('studio:meta.move.restarting', 'Restarting…')
+                : t('studio:wizard.continue', 'Continue')}
           </Button>
         ) : null}
       </footer>

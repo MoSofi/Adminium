@@ -229,7 +229,7 @@ function LogoField({
       toasts.push({
         variant: 'error',
         title: t(
-          'studio.settingsHub.identity.logo.badType',
+          'studio:settingsHub.identity.logo.badType',
           'Choose a PNG, JPEG, WebP, GIF or SVG image.',
         ),
       });
@@ -238,7 +238,7 @@ function LogoField({
     if (file.size > LOGO_MAX_BYTES) {
       toasts.push({
         variant: 'error',
-        title: t('studio.settingsHub.identity.logo.tooLarge', 'That image is larger than 1 MB.'),
+        title: t('studio:settingsHub.identity.logo.tooLarge', 'That image is larger than 1 MB.'),
       });
       return;
     }
@@ -246,7 +246,7 @@ function LogoField({
   }
 
   return (
-    <FormField label={t('studio.settingsHub.identity.logo.label', 'Logo')}>
+    <FormField label={t('studio:settingsHub.identity.logo.label', 'Logo')}>
       {/* The WHOLE row is the target — a 44px tile is a small thing to aim a
           dragged file at, and a drop that lands 10px outside it navigates the
           browser to the image instead. Not a `<button>`: it contains two, and
@@ -293,13 +293,13 @@ function LogoField({
 
         <div className="min-w-0 flex-1">
           <div className="text-body-sm font-semibold text-fg">
-            {t('studio.settingsHub.identity.logo.drop', 'Drop an image here')}
+            {t('studio:settingsHub.identity.logo.drop', 'Drop an image here')}
           </div>
           <p className="mt-0.5 truncate text-caption text-fg-subtle">
             {staged.kind === 'replace'
               ? staged.file.name
               : t(
-                  'studio.settingsHub.identity.logo.helper',
+                  'studio:settingsHub.identity.logo.helper',
                   'PNG, JPEG, WebP, GIF or SVG, up to 1 MB. Replaces the built-in mark everywhere.',
                 )}
           </p>
@@ -325,8 +325,8 @@ function LogoField({
           onClick={() => inputRef.current?.click()}
         >
           {preview === null
-            ? t('studio.settingsHub.identity.logo.upload', 'Upload logo')
-            : t('studio.settingsHub.identity.logo.replace', 'Replace logo')}
+            ? t('studio:settingsHub.identity.logo.upload', 'Upload logo')
+            : t('studio:settingsHub.identity.logo.replace', 'Replace logo')}
         </Button>
 
         {staged.kind === 'keep' ? (
@@ -337,14 +337,14 @@ function LogoField({
               disabled={disabled}
               onClick={() => onStage({ kind: 'remove' })}
             >
-              {t('studio.settingsHub.identity.logo.remove', 'Remove')}
+              {t('studio:settingsHub.identity.logo.remove', 'Remove')}
             </Button>
           )
         ) : (
           /* A staged logo cannot be typed back the way a name can, so the one
              way out of it is explicit. */
           <Button variant="ghost" size="sm" disabled={disabled} onClick={() => onStage(KEEP)}>
-            {t('studio.settingsHub.identity.logo.undo', 'Undo')}
+            {t('studio:settingsHub.identity.logo.undo', 'Undo')}
           </Button>
         )}
       </div>
@@ -454,100 +454,100 @@ function WorkspaceForm({
 
   // Review-then-confirm (09 §7.10): the modal lists exactly what changes.
   const change = (beforeValue: string, afterValue: string): string =>
-    t('studio.settingsHub.review.change', '{before} → {after}', {
+    t('studio:settingsHub.review.change', '{before} → {after}', {
       before: beforeValue,
       after: afterValue,
     });
   const onOff = (on: boolean): string =>
-    on ? t('studio.settingsHub.review.shown', 'Shown') : t('studio.settingsHub.review.hidden', 'Hidden');
+    on ? t('studio:settingsHub.review.shown', 'Shown') : t('studio:settingsHub.review.hidden', 'Hidden');
   // Shown/Hidden reads wrong for a policy switch — the version chip is or is
   // not on screen, a 2FA requirement is or is not in force.
   const onOffState = (on: boolean): string =>
-    on ? t('studio.settingsHub.review.on', 'On') : t('studio.settingsHub.review.off', 'Off');
+    on ? t('studio:settingsHub.review.on', 'On') : t('studio:settingsHub.review.off', 'Off');
   const changes: KeyValueItem[] = [];
   if (nameDirty) {
     changes.push({
-      label: t('studio.settingsHub.identity.appName.label', 'Application name'),
+      label: t('studio:settingsHub.identity.appName.label', 'Application name'),
       value: change(before.appName, values.appName.trim()),
     });
   }
   if (versionDirty) {
     changes.push({
-      label: t('studio.settingsHub.identity.showVersion.label', 'Version in the sidebar'),
+      label: t('studio:settingsHub.identity.showVersion.label', 'Version in the sidebar'),
       value: change(onOff(before.showVersion), onOff(values.showVersion)),
     });
   }
   if (values.logo.kind === 'replace') {
     changes.push({
-      label: t('studio.settingsHub.identity.logo.label', 'Logo'),
+      label: t('studio:settingsHub.identity.logo.label', 'Logo'),
       // The file's own name is the only honest "after" for bytes.
       value: values.logo.file.name,
     });
   } else if (values.logo.kind === 'remove') {
     changes.push({
-      label: t('studio.settingsHub.identity.logo.label', 'Logo'),
-      value: t('studio.settingsHub.identity.logo.remove', 'Remove'),
+      label: t('studio:settingsHub.identity.logo.label', 'Logo'),
+      value: t('studio:settingsHub.identity.logo.remove', 'Remove'),
     });
   }
   if (require2faDirty) {
     changes.push({
-      label: t('studio.settingsHub.security.require2fa.label', 'Require two-factor auth'),
+      label: t('studio:settingsHub.security.require2fa.label', 'Require two-factor auth'),
       value: change(onOffState(before.require2fa), onOffState(values.require2fa)),
     });
   }
   if (ttlDirty) {
     changes.push({
-      label: t('studio.settingsHub.security.sessionTtl.label', 'Session lifetime (hours)'),
+      label: t('studio:settingsHub.security.sessionTtl.label', 'Session lifetime (hours)'),
       value: change(before.sessionTtlHours, values.sessionTtlHours.trim()),
     });
   }
   if (passwordMinDirty) {
     changes.push({
-      label: t('studio.settingsHub.security.passwordMin.label', 'Minimum password length'),
+      label: t('studio:settingsHub.security.passwordMin.label', 'Minimum password length'),
       value: change(before.passwordMinLength, values.passwordMinLength.trim()),
     });
   }
   if (values.smtpRemove) {
     changes.push({
-      label: t('studio.settingsHub.email.heading', 'Email (SMTP)'),
-      value: t('studio.settingsHub.email.review.removed', 'Removed'),
+      label: t('studio:settingsHub.email.heading', 'Email (SMTP)'),
+      value: t('studio:settingsHub.email.review.removed', 'Removed'),
     });
   } else if (smtpDirty) {
     // One row per changed field, like every other section — except the
     // password, which has no before and whose after must never be shown.
     if (values.smtpHost !== before.smtpHost) {
       changes.push({
-        label: t('studio.settingsHub.email.host.label', 'SMTP host'),
+        label: t('studio:settingsHub.email.host.label', 'SMTP host'),
         value: change(before.smtpHost === '' ? '—' : before.smtpHost, smtpHost),
       });
     }
     if (values.smtpPort !== before.smtpPort) {
       changes.push({
-        label: t('studio.settingsHub.email.port.label', 'Port'),
+        label: t('studio:settingsHub.email.port.label', 'Port'),
         value: change(before.smtpPort, values.smtpPort.trim()),
       });
     }
     if (values.smtpSecure !== before.smtpSecure) {
       changes.push({
-        label: t('studio.settingsHub.email.secure.label', 'Implicit TLS'),
+        label: t('studio:settingsHub.email.secure.label', 'Implicit TLS'),
         value: change(onOffState(before.smtpSecure), onOffState(values.smtpSecure)),
       });
     }
     if (values.smtpUser !== before.smtpUser) {
       changes.push({
-        label: t('studio.settingsHub.email.user.label', 'Username'),
+        label: t('studio:settingsHub.email.user.label', 'Username'),
         value: change(before.smtpUser === '' ? '—' : before.smtpUser, smtpUser === '' ? '—' : smtpUser),
       });
     }
     if (values.smtpPass !== '') {
       changes.push({
-        label: t('studio.settingsHub.email.pass.label', 'Password'),
-        value: t('studio.settingsHub.email.review.password', 'Replaced'),
+        label: t('studio:settingsHub.email.pass.label', 'Password'),
+        value: t('studio:settingsHub.email.review.password', 'Replaced'),
       });
     }
     if (values.smtpFrom !== before.smtpFrom) {
       changes.push({
-        label: t('studio.settingsHub.email.from.label', 'From address'),
+        label: t('studio:settingsHub.email.from.label', 'From address'),
         value: change(before.smtpFrom === '' ? '—' : before.smtpFrom, smtpFrom),
       });
     }
@@ -624,13 +624,13 @@ function WorkspaceForm({
         );
         toasts.push({
           variant: 'success',
-          title: t('studio.settingsHub.saved', 'Workspace settings updated'),
+          title: t('studio:settingsHub.saved', 'Workspace settings updated'),
         });
         setReviewOpen(false);
       } catch {
         toasts.push({
           variant: 'error',
-          title: t('studio.settingsHub.saveFailed', 'Could not save workspace settings. Try again.'),
+          title: t('studio:settingsHub.saveFailed', 'Could not save workspace settings. Try again.'),
         });
       } finally {
         setSaving(false);
@@ -647,18 +647,18 @@ function WorkspaceForm({
         <CardHeader className="flex items-center justify-start gap-3">
           <IconTile tone="accent" size="md" icon={<Building2 />} />
           <h3 className="text-section text-fg">
-            {t('studio.settingsHub.identity.heading', 'Workspace identity')}
+            {t('studio:settingsHub.identity.heading', 'Workspace identity')}
           </h3>
         </CardHeader>
         <CardBody>
           <FormField
-            label={t('studio.settingsHub.identity.appName.label', 'Application name')}
+            label={t('studio:settingsHub.identity.appName.label', 'Application name')}
             helper={t(
-              'studio.settingsHub.identity.appName.helper',
+              'studio:settingsHub.identity.appName.helper',
               'Shown in the sidebar, browser title, and emails.',
             )}
             {...(appNameInvalid
-              ? { error: t('studio.settingsHub.identity.appName.error', 'Enter a name of at most 60 characters.') }
+              ? { error: t('studio:settingsHub.identity.appName.error', 'Enter a name of at most 60 characters.') }
               : {})}
           >
             <Input value={values.appName} onChange={(event) => set('appName', event.target.value)} />
@@ -676,19 +676,19 @@ function WorkspaceForm({
           <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
             <div className="min-w-0 flex-1">
               <div className="text-body-sm font-bold text-fg">
-                {t('studio.settingsHub.identity.showVersion.label', 'Version in the sidebar')}
+                {t('studio:settingsHub.identity.showVersion.label', 'Version in the sidebar')}
               </div>
               <p className="mt-0.5 text-caption text-fg-subtle">
                 {t(
-                  'studio.settingsHub.identity.showVersion.helper',
-                  'The build number under the logo. Turn it off to hide which version you run.',
+                  'studio:settingsHub.identity.showVersion.helper',
+                  'The build number beside the logo. Off hides which version you run.',
                 )}
               </p>
             </div>
             <Switch
               checked={values.showVersion}
               onCheckedChange={(checked) => set('showVersion', checked)}
-              aria-label={t('studio.settingsHub.identity.showVersion.label', 'Version in the sidebar')}
+              aria-label={t('studio:settingsHub.identity.showVersion.label', 'Version in the sidebar')}
             />
           </div>
         </CardBody>
@@ -702,14 +702,14 @@ function WorkspaceForm({
         <CardHeader className="flex items-center justify-start gap-3">
           <IconTile tone="accent" size="md" icon={<ShieldCheck />} />
           <h3 className="text-section text-fg">
-            {t('studio.settingsHub.security.heading', 'Security')}
+            {t('studio:settingsHub.security.heading', 'Security')}
           </h3>
         </CardHeader>
         <CardBody>
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="text-body-sm font-bold text-fg">
-                {t('studio.settingsHub.security.require2fa.label', 'Require two-factor auth')}
+                {t('studio:settingsHub.security.require2fa.label', 'Require two-factor auth')}
               </div>
               {/* `require2fa.desc` — "Every member must enable 2FA to sign in." —
                   is deliberately NOT rendered. It is false: the flag is advisory,
@@ -723,7 +723,7 @@ function WorkspaceForm({
               checked={values.require2fa}
               onCheckedChange={(checked) => set('require2fa', checked)}
               aria-label={t(
-                'studio.settingsHub.security.require2fa.label',
+                'studio:settingsHub.security.require2fa.label',
                 'Require two-factor auth',
               )}
             />
@@ -738,7 +738,7 @@ function WorkspaceForm({
             <TriangleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
             <p className="text-caption text-fg-muted">
               {t(
-                'studio.settingsHub.security.require2fa.note',
+                'studio:settingsHub.security.require2fa.note',
                 'Advisory, not a barrier: members without 2FA are sent to set it up and can no longer turn it off, but their sign-in is never blocked, and API keys are unaffected.',
               )}
             </p>
@@ -746,11 +746,11 @@ function WorkspaceForm({
 
           <div className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
             <FormField
-              label={t('studio.settingsHub.security.sessionTtl.label', 'Session lifetime (hours)')}
+              label={t('studio:settingsHub.security.sessionTtl.label', 'Session lifetime (hours)')}
               {...(sessionTtl === null
                 ? {
                     error: t(
-                      'studio.settingsHub.security.sessionTtl.error',
+                      'studio:settingsHub.security.sessionTtl.error',
                       'Between {min, number} and {max, number} hours.',
                       { min: SESSION_TTL_MIN, max: SESSION_TTL_MAX },
                     ),
@@ -768,11 +768,11 @@ function WorkspaceForm({
             </FormField>
 
             <FormField
-              label={t('studio.settingsHub.security.passwordMin.label', 'Minimum password length')}
+              label={t('studio:settingsHub.security.passwordMin.label', 'Minimum password length')}
               {...(passwordMin === null
                 ? {
                     error: t(
-                      'studio.settingsHub.security.passwordMin.error',
+                      'studio:settingsHub.security.passwordMin.error',
                       'Between {min, number} and {max, number} characters.',
                       { min: PASSWORD_MIN_FLOOR, max: PASSWORD_MIN_CEILING },
                     ),
@@ -798,7 +798,7 @@ function WorkspaceForm({
         <CardHeader className="flex items-center justify-start gap-3">
           <IconTile tone="accent" size="md" icon={<Mail />} />
           <h3 className="text-section text-fg">
-            {t('studio.settingsHub.email.heading', 'Email (SMTP)')}
+            {t('studio:settingsHub.email.heading', 'Email (SMTP)')}
           </h3>
         </CardHeader>
         <CardBody>
@@ -807,7 +807,7 @@ function WorkspaceForm({
               <TriangleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
               <p className="text-caption text-fg-muted">
                 {t(
-                  'studio.settingsHub.email.unconfigured',
+                  'studio:settingsHub.email.unconfigured',
                   'No mail server is set, so Adminium cannot send password resets, user invites or scheduled reports.',
                 )}
               </p>
@@ -819,11 +819,11 @@ function WorkspaceForm({
           <fieldset disabled={values.smtpRemove} className="contents">
             <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
               <FormField
-                label={t('studio.settingsHub.email.host.label', 'SMTP host')}
+                label={t('studio:settingsHub.email.host.label', 'SMTP host')}
                 {...(smtpHostInvalid
                   ? {
                       error: t(
-                        'studio.settingsHub.email.host.error',
+                        'studio:settingsHub.email.host.error',
                         'A bare hostname or IP address — no scheme, port or credentials.',
                       ),
                     }
@@ -837,11 +837,11 @@ function WorkspaceForm({
               </FormField>
 
               <FormField
-                label={t('studio.settingsHub.email.port.label', 'Port')}
+                label={t('studio:settingsHub.email.port.label', 'Port')}
                 {...(smtpInUse && smtpPort === null
                   ? {
                       error: t(
-                        'studio.settingsHub.email.port.error',
+                        'studio:settingsHub.email.port.error',
                         'Between {min, number} and {max, number}.',
                         { min: SMTP_PORT_MIN, max: SMTP_PORT_MAX },
                       ),
@@ -858,9 +858,9 @@ function WorkspaceForm({
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <FormField
-                label={t('studio.settingsHub.email.user.label', 'Username')}
+                label={t('studio:settingsHub.email.user.label', 'Username')}
                 helper={t(
-                  'studio.settingsHub.email.user.helper',
+                  'studio:settingsHub.email.user.helper',
                   'Leave empty for a relay that does not authenticate.',
                 )}
               >
@@ -872,15 +872,15 @@ function WorkspaceForm({
               </FormField>
 
               <FormField
-                label={t('studio.settingsHub.email.pass.label', 'Password')}
+                label={t('studio:settingsHub.email.pass.label', 'Password')}
                 helper={t(
-                  'studio.settingsHub.email.pass.helper',
+                  'studio:settingsHub.email.pass.helper',
                   'Stored encrypted and never shown again. Leave blank to keep the current one.',
                 )}
                 {...(smtpPassMissing
                   ? {
                       error: t(
-                        'studio.settingsHub.email.pass.error',
+                        'studio:settingsHub.email.pass.error',
                         'This username needs a password.',
                       ),
                     }
@@ -901,13 +901,13 @@ function WorkspaceForm({
 
             <div className="mt-4">
               <FormField
-                label={t('studio.settingsHub.email.from.label', 'From address')}
+                label={t('studio:settingsHub.email.from.label', 'From address')}
                 helper={t(
-                  'studio.settingsHub.email.from.helper',
+                  'studio:settingsHub.email.from.helper',
                   'A bare address, or a display name in front of one.',
                 )}
                 {...(smtpFromInvalid
-                  ? { error: t('studio.settingsHub.email.from.error', 'Enter an email address.') }
+                  ? { error: t('studio:settingsHub.email.from.error', 'Enter an email address.') }
                   : {})}
               >
                 <Input
@@ -921,11 +921,11 @@ function WorkspaceForm({
             <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
               <div className="min-w-0 flex-1">
                 <div className="text-body-sm font-bold text-fg">
-                  {t('studio.settingsHub.email.secure.label', 'Implicit TLS')}
+                  {t('studio:settingsHub.email.secure.label', 'Implicit TLS')}
                 </div>
                 <p className="mt-0.5 text-caption text-fg-subtle">
                   {t(
-                    'studio.settingsHub.email.secure.helper',
+                    'studio:settingsHub.email.secure.helper',
                     'On for port 465. Off starts in cleartext and upgrades with STARTTLS, which is what port 587 expects.',
                   )}
                 </p>
@@ -933,7 +933,7 @@ function WorkspaceForm({
               <Switch
                 checked={values.smtpSecure}
                 onCheckedChange={(checked) => set('smtpSecure', checked)}
-                aria-label={t('studio.settingsHub.email.secure.label', 'Implicit TLS')}
+                aria-label={t('studio:settingsHub.email.secure.label', 'Implicit TLS')}
               />
             </div>
           </fieldset>
@@ -950,7 +950,7 @@ function WorkspaceForm({
                   size="sm"
                   onClick={() => set('smtpRemove', true)}
                 >
-                  {t('studio.settingsHub.email.remove', 'Remove mail server')}
+                  {t('studio:settingsHub.email.remove', 'Remove mail server')}
                 </Button>
               )}
             </div>
@@ -960,7 +960,7 @@ function WorkspaceForm({
 
       <div className="flex items-center justify-end gap-3">
         <Button disabled={!dirty || invalid} onClick={() => setReviewOpen(true)}>
-          {t('studio.settingsHub.save', 'Save changes')}
+          {t('studio:settingsHub.save', 'Save changes')}
         </Button>
       </div>
 
@@ -972,19 +972,19 @@ function WorkspaceForm({
         }}
       >
         <ModalHeader
-          title={t('studio.settingsHub.review.title', 'Save workspace settings')}
-          subtitle={t('studio.settingsHub.review.subtitle', 'Review your changes before saving.')}
-          closeLabel={t('studio.settingsHub.review.close', 'Close')}
+          title={t('studio:settingsHub.review.title', 'Save workspace settings')}
+          subtitle={t('studio:settingsHub.review.subtitle', 'Review your changes before saving.')}
+          closeLabel={t('studio:settingsHub.review.close', 'Close')}
         />
         <ModalBody>
           <KeyValueList items={changes} />
         </ModalBody>
         <ModalFooter>
           <Button variant="ghost" disabled={saving} onClick={() => setReviewOpen(false)}>
-            {t('studio.settingsHub.review.cancel', 'Cancel')}
+            {t('studio:settingsHub.review.cancel', 'Cancel')}
           </Button>
           <Button loading={saving} onClick={save}>
-            {t('studio.settingsHub.review.confirm', 'Save changes')}
+            {t('studio:settingsHub.review.confirm', 'Save changes')}
           </Button>
         </ModalFooter>
       </Modal>
@@ -1035,17 +1035,17 @@ function DangerZone(): ReactNode {
         <IconTile tone="danger" size="md" icon={<TriangleAlert />} />
         <div>
           <h3 className="text-section text-fg">
-            {t('studio.settingsHub.danger.heading', 'Danger zone')}
+            {t('studio:settingsHub.danger.heading', 'Danger zone')}
           </h3>
           <p className="text-caption text-fg-subtle">
-            {t('studio.settingsHub.danger.subtitle', 'Irreversible actions.')}
+            {t('studio:settingsHub.danger.subtitle', 'Irreversible actions.')}
           </p>
         </div>
       </CardHeader>
       <CardBody className="divide-y divide-border">
         {connections.length === 0 ? (
           <p className="py-2 text-body-sm text-fg-muted">
-            {t('studio.settingsHub.danger.empty', 'Nothing to delete — no connections yet.')}
+            {t('studio:settingsHub.danger.empty', 'Nothing to delete — no connections yet.')}
           </p>
         ) : (
           connections.map((connection) => (
@@ -1054,13 +1054,13 @@ function DangerZone(): ReactNode {
                 <div className="truncate text-body font-bold text-fg">{connection.name}</div>
                 <div className="mt-0.5 text-caption text-fg-subtle">
                   {t(
-                    'studio.settingsHub.danger.deleteDesc',
+                    'studio:settingsHub.danger.deleteDesc',
                     'Deletes the connection and its generated pages. Your database is not touched. Cannot be undone.',
                   )}
                 </div>
               </div>
               <Button variant="destructiveSoft" size="sm" onClick={() => setDeleting(connection)}>
-                {t('studio.settingsHub.danger.deleteCta', 'Delete connection')}
+                {t('studio:settingsHub.danger.deleteCta', 'Delete connection')}
               </Button>
             </div>
           ))
@@ -1145,9 +1145,9 @@ export function StudioSettingsPage({
           otherwise say "Home" above a page that names itself, and the h1 would
           scroll away from the surface it labels. */}
       <PageActions
-        title={t('studio.settingsHub.title', 'Workspace settings')}
+        title={t('studio:settingsHub.title', 'Workspace settings')}
         subtitle={t(
-          'studio.settingsHub.subtitle',
+          'studio:settingsHub.subtitle',
           'Identity, security and destructive actions for this workspace.',
         )}
       />
@@ -1157,9 +1157,9 @@ export function StudioSettingsPage({
       ) : (
         <Alert
           tone="info"
-          title={t('studio.settingsHub.superAdminOnlyTitle', 'Super admin required')}
+          title={t('studio:settingsHub.superAdminOnlyTitle', 'Super admin required')}
           body={t(
-            'studio.settingsHub.superAdminOnly',
+            'studio:settingsHub.superAdminOnly',
             'Only a super admin can change workspace identity and security settings.',
           )}
         />
@@ -1177,12 +1177,12 @@ export function StudioSettingsPage({
             in now that the avatar menu no longer lists Pages. */}
         <LinkRow
           icon={<Files />}
-          heading={t('studio.settingsHub.pagesCard.heading', 'Pages')}
+          heading={t('studio:settingsHub.pagesCard.heading', 'Pages')}
           body={t(
-            'studio.settingsHub.pagesCard.body',
+            'studio:settingsHub.pagesCard.body',
             'Add, edit and delete pages, change what each one shows, and reorder the sidebar.',
           )}
-          cta={t('studio.settingsHub.pagesCard.cta', 'Manage pages')}
+          cta={t('studio:settingsHub.pagesCard.cta', 'Manage pages')}
           onOpen={onOpenPages}
         />
 
@@ -1190,12 +1190,12 @@ export function StudioSettingsPage({
             can see this page can open it, so it is not gated further here. */}
         <LinkRow
           icon={<Sparkles />}
-          heading={t('studio.settingsHub.aiCard.heading', 'AI enrichment')}
+          heading={t('studio:settingsHub.aiCard.heading', 'AI enrichment')}
           body={t(
-            'studio.settingsHub.aiCard.body',
+            'studio:settingsHub.aiCard.body',
             'Configure an AI provider (or the copy-paste round-trip) to enrich labels, groups and relations.',
           )}
-          cta={t('studio.settingsHub.aiCard.cta', 'Open AI settings')}
+          cta={t('studio:settingsHub.aiCard.cta', 'Open AI settings')}
           onOpen={onOpenAiSettings}
         />
 
@@ -1205,12 +1205,12 @@ export function StudioSettingsPage({
         {isSuperAdmin ? (
           <LinkRow
             icon={<Globe2 />}
-            heading={t('studio.settingsHub.defaultsCard.heading', 'Appearance & language defaults')}
+            heading={t('studio:settingsHub.defaultsCard.heading', 'Appearance & language defaults')}
             body={t(
-              'studio.settingsHub.defaultsCard.body',
+              'studio:settingsHub.defaultsCard.body',
               'Workspace-wide theme, accent, density and language live under Global defaults.',
             )}
-            cta={t('studio.settingsHub.defaultsCard.cta', 'Open global defaults')}
+            cta={t('studio:settingsHub.defaultsCard.cta', 'Open global defaults')}
             onOpen={onOpenGlobalDefaults}
           />
         ) : null}
@@ -1221,12 +1221,12 @@ export function StudioSettingsPage({
         {isSuperAdmin ? (
           <LinkRow
             icon={<Languages />}
-            heading={t('studio.settingsHub.translationsCard.heading', 'Languages & translations')}
+            heading={t('studio:settingsHub.translationsCard.heading', 'Languages & translations')}
             body={t(
-              'studio.settingsHub.translationsCard.body',
+              'studio:settingsHub.translationsCard.body',
               'Reword anything in Adminium, choose which languages people can pick, and add your own.',
             )}
-            cta={t('studio.settingsHub.translationsCard.cta', 'Open translations')}
+            cta={t('studio:settingsHub.translationsCard.cta', 'Open translations')}
             onOpen={onOpenTranslations}
           />
         ) : null}

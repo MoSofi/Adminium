@@ -1,27 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Bundled en-US resources (10-i18n-theming.md §2.3): the fallback language
- * ships in the main bundle and must never be async. All five namespaces are
- * bundled this wave (the studio/generated lazy split lands with the M8
- * extraction pipeline, 10-T06/10-T10). TS mirrors of the canonical JSON —
- * see ./en-us/*.ts headers and parity.test.ts.
+ * The complete en-US catalogue, for the surfaces that need every namespace at
+ * once: the key index behind the Translations editor (../keys.ts), the
+ * cross-locale parity gate (./parity.test.ts) and the override merge
+ * (../overrides.ts, which reaches this module through a dynamic import).
+ *
+ * NOT the runtime set. The dashboard's boot path imports {@link EN_US_EAGER}
+ * from ./eager.js and the namespace axis from ./namespaces.js; `studio` is
+ * fetched on demand for every locale, en-US included (./lazy.ts). Importing
+ * THIS module from anything on the boot path puts the whole console's English
+ * back in the entry chunk, which is what `apps/dashboard`'s
+ * check-entry-budget ratchet exists to catch.
  */
-import common from './en-us/common.js';
-import errors from './en-us/errors.js';
-import generated from './en-us/generated.js';
 import studio from './en-us/studio.js';
-import ui from './en-us/ui.js';
 
-export const NAMESPACES = ['common', 'ui', 'studio', 'generated', 'errors'] as const;
-export type Namespace = (typeof NAMESPACES)[number];
+import { EN_US_EAGER } from './eager.js';
+import type { Namespace, ResourceBundle } from './namespaces.js';
 
-/** A single namespace's message tree (nested string leaves). */
-export type ResourceBundle = { readonly [key: string]: string | ResourceBundle };
+export {
+  DEFERRED_NAMESPACES,
+  EAGER_NAMESPACES,
+  NAMESPACES,
+  type DeferredNamespace,
+  type EagerNamespace,
+  type Namespace,
+  type ResourceBundle,
+} from './namespaces.js';
+export { EN_US_EAGER } from './eager.js';
 
 export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
-  common,
-  ui,
+  ...EN_US_EAGER,
   studio,
-  generated,
-  errors,
 };

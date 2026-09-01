@@ -67,14 +67,14 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
       .testDsn(engine, state.separateMetaDsn.trim())
       .then((probe) => {
         if (!probe.ok) {
-          setTestError(probe.error?.message ?? t('studio.meta.testFailed', 'Connection failed.'));
+          setTestError(probe.error?.message ?? t('studio:meta.testFailed', 'Connection failed.'));
           onPatch({ separateMetaTested: false });
           return;
         }
         if (probe.privileges !== null && (!probe.privileges.canWrite || !probe.privileges.canDDL)) {
           setTestError(
             t(
-              'studio.meta.separate.insufficient',
+              'studio:meta.separate.insufficient',
               'This role cannot host the meta store — Adminium needs write and CREATE TABLE privileges there.',
             ),
           );
@@ -84,28 +84,28 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
         onPatch({ separateMetaTested: true });
       })
       .catch(() => {
-        setTestError(t('studio.meta.testFailed', 'Connection failed.'));
+        setTestError(t('studio:meta.testFailed', 'Connection failed.'));
         onPatch({ separateMetaTested: false });
       })
       .finally(() => setTesting(false));
   };
 
   return (
-    <section aria-label={t('studio.meta.title', 'Where should Adminium keep its own tables?')} className="flex flex-col gap-4">
+    <section aria-label={t('studio:meta.title', 'Where should Adminium keep its own tables?')} className="flex flex-col gap-4">
       <div>
         <h2 className="text-section text-fg">
-          {t('studio.meta.title', 'Where should Adminium keep its own tables?')}
+          {t('studio:meta.title', 'Where should Adminium keep its own tables?')}
         </h2>
         <p className="mt-1 text-body-sm text-fg-muted">
           {t(
-            'studio.meta.subtitle',
+            'studio:meta.subtitle',
             'Pages, roles, audit log and settings live in adminium_-prefixed tables — never mixed into your data.',
           )}
         </p>
       </div>
 
       <RadioGroup
-        aria-label={t('studio.meta.title', 'Where should Adminium keep its own tables?')}
+        aria-label={t('studio:meta.title', 'Where should Adminium keep its own tables?')}
         value={state.metaPlacement ?? ''}
         onValueChange={(value) => onPatch({ metaPlacement: value as MetaPlacement })}
         className="grid gap-2.5"
@@ -113,11 +113,11 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
         <RadioCard
           value="same-db"
           disabled={disabledReason !== null}
-          title={t('studio.meta.sameDb.title', 'Same database')}
+          title={t('studio:meta.sameDb.title', 'Same database')}
           description={
             disabledReason ??
             t(
-              'studio.meta.sameDb.description',
+              'studio:meta.sameDb.description',
               'adminium_* tables are created beside your source tables. Simplest setup — needs a role with write and CREATE TABLE privileges.',
             )
           }
@@ -125,9 +125,9 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
         />
         <RadioCard
           value="separate-db"
-          title={t('studio.meta.separate.title', 'Separate database')}
+          title={t('studio:meta.separate.title', 'Separate database')}
           description={t(
-            'studio.meta.separate.description',
+            'studio:meta.separate.description',
             'Adminium keeps its tables in a different database. Your source stays untouched — required for read-only sources.',
           )}
           icon={<DatabaseZap />}
@@ -137,12 +137,12 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
       {state.metaPlacement === 'separate-db' ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface-2 p-3.5">
           <FormField
-            label={t('studio.meta.separate.dsn', 'Meta database connection string')}
+            label={t('studio:meta.separate.dsn', 'Meta database connection string')}
             required
             {...(separateDsnError === null ? {} : { error: separateDsnError })}
             helper={
               separateDsnError === null
-                ? t('studio.meta.separate.helper', 'Needs write + DDL privileges — Adminium runs its own migrations there.')
+                ? t('studio:meta.separate.helper', 'Needs write + DDL privileges — Adminium runs its own migrations there.')
                 : undefined
             }
           >
@@ -163,16 +163,16 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
               disabled={state.separateMetaDsn.trim().length === 0 || separateDsnError !== null}
               onClick={testSeparate}
             >
-              {t('studio.meta.separate.test', 'Test connection')}
+              {t('studio:meta.separate.test', 'Test connection')}
             </Button>
             {state.separateMetaTested ? (
               <span className="text-body-sm font-semibold text-pos">
-                {t('studio.meta.separate.ok', 'Compatible — write ✓ · DDL ✓')}
+                {t('studio:meta.separate.ok', 'Compatible — write ✓ · DDL ✓')}
               </span>
             ) : null}
           </div>
           {testError !== null ? (
-            <Alert tone="danger" role="alert" title={t('studio.meta.separate.errorTitle', 'Meta store not compatible')} body={testError} />
+            <Alert tone="danger" role="alert" title={t('studio:meta.separate.errorTitle', 'Meta store not compatible')} body={testError} />
           ) : null}
         </div>
       ) : null}
@@ -187,15 +187,15 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
         <Alert
           tone="info"
           role="status"
-          title={t('studio.meta.move.title', 'Moving Adminium’s tables')}
+          title={t('studio:meta.move.title', 'Moving Adminium’s tables')}
           body={
             relocating === 'copying'
               ? t(
-                  'studio.meta.move.copyingBody',
+                  'studio:meta.move.copyingBody',
                   'Copying every adminium_ table into the new database. Your source data is not touched, and nothing is switched over until the copy is verified.',
                 )
               : t(
-                  'studio.meta.move.restartingBody',
+                  'studio:meta.move.restartingBody',
                   'The copy is done. Adminium is restarting onto the new database — this page will continue by itself in a few seconds.',
                 )
           }
@@ -203,20 +203,20 @@ export function MetaStep({ state, onPatch, placement, relocating }: MetaStepProp
       ) : placement !== null && placement.embedded && placement.canRelocate ? (
         <Alert
           tone="info"
-          title={t('studio.meta.willMove.title', 'This will move Adminium’s tables')}
+          title={t('studio:meta.willMove.title', 'This will move Adminium’s tables')}
           body={t(
-            'studio.meta.willMove.body',
+            'studio:meta.willMove.body',
             'Adminium is currently using its built-in SQLite store. Continue copies that store into the database you picked and restarts onto it — accounts, pages and settings come with it, so you stay signed in.',
           )}
         />
       ) : (
         <Alert
           tone="info"
-          title={t('studio.meta.v1Note.title', 'About this install')}
+          title={t('studio:meta.v1Note.title', 'About this install')}
           body={
             placement?.reason ??
             t(
-              'studio.meta.v1Note.body',
+              'studio:meta.v1Note.body',
               'This server already keeps its own tables in a configured database, and this step does not move them. It validates that your choice is compatible with this connection — the server enforces the same rule independently (409 META_PLACEMENT_INVALID).',
             )
           }

@@ -99,15 +99,15 @@ function groupLabel(key: NavGroup): string {
 function originBadge(origin: string): { tone: 'neutral' | 'accent' | 'info'; label: string } {
   switch (origin) {
     case 'generated':
-      return { tone: 'accent', label: t('studioPages.origin.generated', 'Generated') };
+      return { tone: 'accent', label: t('studio:pages.origin.generated', 'Generated') };
     case 'manifest':
-      return { tone: 'info', label: t('studioPages.origin.manifest', 'Add-on') };
+      return { tone: 'info', label: t('studio:pages.origin.manifest', 'Add-on') };
     case 'llm':
-      return { tone: 'info', label: t('studioPages.origin.llm', 'Assistant') };
+      return { tone: 'info', label: t('studio:pages.origin.llm', 'Assistant') };
     case 'system':
-      return { tone: 'neutral', label: t('studioPages.origin.system', 'System') };
+      return { tone: 'neutral', label: t('studio:pages.origin.system', 'System') };
     default:
-      return { tone: 'neutral', label: t('studioPages.origin.user', 'Custom') };
+      return { tone: 'neutral', label: t('studio:pages.origin.user', 'Custom') };
   }
 }
 
@@ -148,14 +148,14 @@ function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy }: PageRo
       <span className="text-body-sm hidden text-fg-subtle sm:inline">{page.type}</span>
       <StatusPill status={page.isEnabled ? 'active' : 'disabled'}>
         {page.isEnabled
-          ? t('studioPages.status.live', 'Live')
-          : t('studioPages.status.hidden', 'Hidden')}
+          ? t('studio:pages.status.live', 'Live')
+          : t('studio:pages.status.hidden', 'Hidden')}
       </StatusPill>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <IconButton
             variant="ghost"
-            label={fmt(t('studioPages.row.menu', 'Actions for {title}'), {
+            label={fmt(t('studio:pages.row.menu', 'Actions for {title}'), {
               title: page.title,
             })}
             disabled={busy}
@@ -169,18 +169,18 @@ function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy }: PageRo
               ROW above is the real link — middle-clickable, copyable — so this
               only needs to navigate. */}
           <DropdownMenuItem onSelect={() => onEdit(page)}>
-            {t('studioPages.action.edit', 'Edit page')}
+            {t('studio:pages.action.edit', 'Edit page')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onDuplicate(page)}>
-            {t('studioPages.action.duplicate', 'Duplicate')}
+            {t('studio:pages.action.duplicate', 'Duplicate')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onToggle(page)}>
             {page.isEnabled
-              ? t('studioPages.action.hide', 'Hide from sidebar')
-              : t('studioPages.action.show', 'Show in sidebar')}
+              ? t('studio:pages.action.hide', 'Hide from sidebar')
+              : t('studio:pages.action.show', 'Show in sidebar')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onDelete(page)}>
-            {t('studioPages.action.delete', 'Delete page')}
+            {t('studio:pages.action.delete', 'Delete page')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -234,12 +234,12 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-body-sm flex-1 text-fg-muted">
           {t(
-            'studioPages.sidebar.help',
+            'studio:pages.sidebar.help',
             'Reorder pages within a group, or move one to another group. Changes apply to every user.',
           )}
         </p>
         <Button variant="ghost" onClick={() => setDraft(null)} disabled={!dirty || save.isPending}>
-          {t('studioPages.sidebar.discard', 'Discard')}
+          {t('studio:pages.sidebar.discard', 'Discard')}
         </Button>
         <Button
           onClick={() => save.mutate()}
@@ -247,14 +247,14 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
           loading={save.isPending}
           data-testid="studio-pages-save-order"
         >
-          {t('studioPages.sidebar.save', 'Save order')}
+          {t('studio:pages.sidebar.save', 'Save order')}
         </Button>
       </div>
 
       {save.isError ? (
         <Alert
           tone="danger"
-          title={t('studioPages.sidebar.saveFailed', 'The new order could not be saved')}
+          title={t('studio:pages.sidebar.saveFailed', 'The new order could not be saved')}
           body={save.error instanceof Error ? save.error.message : ''}
         />
       ) : null}
@@ -263,9 +263,9 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
         <Alert
           tone="warn"
           data-testid="studio-pages-ungrouped"
-          title={t('studioPages.sidebar.ungrouped.title', 'Some pages are in no sidebar group')}
+          title={t('studio:pages.sidebar.ungrouped.title', 'Some pages are in no sidebar group')}
           body={t(
-            'studioPages.sidebar.ungrouped.body',
+            'studio:pages.sidebar.ungrouped.body',
             'These pages work at their URL but appear nowhere in the sidebar. Open each one and pick a group.',
           )}
         />
@@ -279,7 +279,7 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
           <CardBody className="p-0">
             {group.pages.length === 0 ? (
               <p className="text-body-sm px-4 py-3 text-fg-subtle">
-                {t('studioPages.sidebar.emptyGroup', 'No pages in this group.')}
+                {t('studio:pages.sidebar.emptyGroup', 'No pages in this group.')}
               </p>
             ) : (
               <ul>
@@ -290,13 +290,13 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
                   >
                     <span className="text-body min-w-0 flex-1 truncate text-fg">{page.title}</span>
                     {!page.isEnabled ? (
-                      <Badge tone="neutral">{t('studioPages.status.hidden', 'Hidden')}</Badge>
+                      <Badge tone="neutral">{t('studio:pages.status.hidden', 'Hidden')}</Badge>
                     ) : null}
                     <IconButton
                       variant="ghost"
                       size="sm"
                       disabled={index === 0}
-                      label={fmt(t('studioPages.sidebar.moveUp', 'Move {title} up'), {
+                      label={fmt(t('studio:pages.sidebar.moveUp', 'Move {title} up'), {
                         title: page.title,
                       })}
                       onClick={() => reorder(group.key, index, -1)}
@@ -307,7 +307,7 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
                       variant="ghost"
                       size="sm"
                       disabled={index === group.pages.length - 1}
-                      label={fmt(t('studioPages.sidebar.moveDown', 'Move {title} down'), {
+                      label={fmt(t('studio:pages.sidebar.moveDown', 'Move {title} down'), {
                         title: page.title,
                       })}
                       onClick={() => reorder(group.key, index, 1)}
@@ -319,7 +319,7 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
                         <IconButton
                           variant="ghost"
                           size="sm"
-                          label={fmt(t('studioPages.sidebar.moveTo', 'Move {title} to a group'), {
+                          label={fmt(t('studio:pages.sidebar.moveTo', 'Move {title} to a group'), {
                             title: page.title,
                           })}
                         >
@@ -382,14 +382,14 @@ export function StudioPagesPage() {
         a top-level Studio screen, not a sub-screen of one.
       */}
       <PageActions
-        title={t('studioPages.title', 'Pages')}
+        title={t('studio:pages.title', 'Pages')}
         subtitle={t(
-          'studioPages.subtitle',
+          'studio:pages.subtitle',
           'Add, edit and organise the pages of your app, and the order they appear in the sidebar.',
         )}
       >
         <Button iconLeft={<Plus className="size-4" />} asChild data-testid="studio-pages-create">
-          <Link to="/studio/pages/new">{t('studioPages.createButton', 'New page')}</Link>
+          <Link to="/studio/pages/new">{t('studio:pages.createButton', 'New page')}</Link>
         </Button>
       </PageActions>
 
@@ -397,7 +397,7 @@ export function StudioPagesPage() {
         <Alert
           tone="danger"
           data-testid="studio-pages-error"
-          title={t('studioPages.loadFailed.title', 'Pages could not be loaded')}
+          title={t('studio:pages.loadFailed.title', 'Pages could not be loaded')}
           // A 403 is the expected failure — `pages.manage` is a new key that no
           // built-in role holds — so it gets the actionable message. Anything
           // else (a 404 from an older server, a 500) must NOT be reported as a
@@ -406,7 +406,7 @@ export function StudioPagesPage() {
           body={
             pages.error instanceof ApiError && pages.error.status === 403
               ? t(
-                  'studioPages.loadFailed.body',
+                  'studio:pages.loadFailed.body',
                   'Managing pages needs the “Manage pages” permission. Ask an administrator to grant it to one of your roles.',
                 )
               : pages.error instanceof Error
@@ -426,10 +426,10 @@ export function StudioPagesPage() {
         <Tabs defaultValue="inventory">
           <TabsList>
             <TabsTrigger value="inventory">
-              {t('studioPages.tab.pages', 'All pages')}
+              {t('studio:pages.tab.pages', 'All pages')}
             </TabsTrigger>
             <TabsTrigger value="sidebar">
-              {t('studioPages.tab.sidebar', 'Sidebar order')}
+              {t('studio:pages.tab.sidebar', 'Sidebar order')}
             </TabsTrigger>
           </TabsList>
 
@@ -437,11 +437,11 @@ export function StudioPagesPage() {
             <Card padded={false}>
               <CardHeader className="flex items-center gap-3">
                 <h2 className="text-section flex-1 text-fg">
-                  {t('studioPages.list.title', 'Pages')}
+                  {t('studio:pages.list.title', 'Pages')}
                 </h2>
                 <span className="text-body-sm text-fg-subtle" data-testid="studio-pages-count">
                   {t(
-                    'studioPages.list.count',
+                    'studio:pages.list.count',
                     '{count, plural, one {# page} other {# pages}}',
                     { count: rows.length },
                   )}
@@ -453,9 +453,9 @@ export function StudioPagesPage() {
                     compact
                     preset="no-data"
                     data-testid="studio-pages-empty"
-                    title={t('studioPages.empty.title', 'No pages yet')}
+                    title={t('studio:pages.empty.title', 'No pages yet')}
                     body={t(
-                      'studioPages.empty.body',
+                      'studio:pages.empty.body',
                       'Connect a database to generate pages automatically, or create one by hand.',
                     )}
                   />
@@ -506,27 +506,27 @@ export function StudioPagesPage() {
           onOpenChange={(open) => {
             if (!open) setDeleting(null);
           }}
-          title={t('studioPages.delete.title', 'Delete this page?')}
+          title={t('studio:pages.delete.title', 'Delete this page?')}
           // A generated page comes back on the next run; a custom one does not,
           // and deleting either destroys every saved view and personal layout
           // on it. Saying so is the difference between a confirm and a trap.
           body={
             deleting.origin === 'generated'
               ? t(
-                  'studioPages.delete.bodyGenerated',
+                  'studio:pages.delete.bodyGenerated',
                   'This page was created by schema generation, so it will come back the next time you regenerate. Saved views and personal layouts on it are deleted for everyone.',
                 )
               : t(
-                  'studioPages.delete.body',
+                  'studio:pages.delete.body',
                   'This cannot be undone. Saved views and personal layouts on this page are deleted for everyone.',
                 )
           }
           confirmWord={deleting.slug}
           promptLabel={fmt(
-            t('studioPages.delete.prompt', 'Type {slug} to confirm'),
+            t('studio:pages.delete.prompt', 'Type {slug} to confirm'),
             { slug: deleting.slug },
           )}
-          confirmLabel={t('studioPages.delete.confirm', 'Delete page')}
+          confirmLabel={t('studio:pages.delete.confirm', 'Delete page')}
           cancelLabel={t('common.cancel', 'Cancel')}
           closeLabel={t('common.close', 'Close')}
           busy={remove.isPending}

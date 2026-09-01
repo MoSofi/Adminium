@@ -44,18 +44,38 @@ export {
 export type { FormatFailure } from './format-errors.js';
 export type { BundleLoader, CreateI18nOptions, I18nInstance } from './create-i18n.js';
 
-export { EN_US_RESOURCES, NAMESPACES } from './resources/index.js';
-export type { Namespace, ResourceBundle } from './resources/index.js';
+// The namespace axis comes from the DATA-FREE module (./resources/namespaces.js).
+// Re-exporting it from ./resources/index.js instead would put the complete
+// en-US catalogue — the deferred `studio` bundle included — one unshaken
+// binding away from every consumer's entry chunk.
+export {
+  DEFERRED_NAMESPACES,
+  EAGER_NAMESPACES,
+  NAMESPACES,
+} from './resources/namespaces.js';
+export type {
+  DeferredNamespace,
+  EagerNamespace,
+  Namespace,
+  ResourceBundle,
+} from './resources/namespaces.js';
 export { loadLocaleBundle } from './resources/lazy.js';
 
 // NOTE: the key index (`./keys.js`), the write validator
-// (`./validate-message.js`) and the generated a11y-critical key list
-// (`./a11y-keys.js`) are deliberately NOT re-exported here. They are
-// EDIT-TIME concerns — only the server's translation routes and the editor
-// need them — and the 458-entry `Set` literal in particular is not something
-// Rollup will drop from the dashboard's entry chunk just because nothing
-// references it. Import them from `@adminium/i18n/editing` instead; the
-// dashboard's entry budget (`check-entry-budget.mjs`) is why.
+// (`./validate-message.js`), the generated a11y-critical key list
+// (`./a11y-keys.js`) and the complete en-US catalogue (`EN_US_RESOURCES`) are
+// deliberately NOT re-exported here. They are EDIT-TIME concerns — only the
+// server's translation routes, the editor and the parity gate need them — and
+// neither the 458-entry `Set` literal nor the catalogue is something Rollup
+// will drop from the dashboard's entry chunk just because nothing references
+// it. Import them from `@adminium/i18n/editing` and `@adminium/i18n/resources`
+// instead; the dashboard's entry budget (`check-entry-budget.mjs`) is why.
+//
+// `EN_US_RESOURCES` was here until 10-T06 and it is exactly what that NOTE
+// predicted: re-exported from the barrel, the deferred `studio` bundle stayed
+// in the entry chunk — and worse, it dragged `overrides.ts`'s DYNAMIC import
+// of the same module in with it, because a module that is also statically
+// reachable cannot be split out. Removing the one line moved 46 KB.
 
 export { formatFallback } from './fallback.js';
 

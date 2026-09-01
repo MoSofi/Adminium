@@ -106,8 +106,8 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
       setSavedOnce(true);
       toasts.push({
         variant: 'success',
-        title: t('studio.remap.toast.saved', 'Schema overrides saved'),
-        description: t('studio.remap.toast.savedDetail', 'The applied schema below reflects your changes.'),
+        title: t('studio:remap.toast.saved', 'Schema overrides saved'),
+        description: t('studio:remap.toast.savedDetail', 'The applied schema below reflects your changes.'),
       });
       // Live-preview read path: refetch the APPLIED schema + persisted rows.
       await Promise.all([
@@ -136,16 +136,16 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
       const reply = await regeneratePages(connectionId);
       toasts.push({
         variant: 'success',
-        title: t('studio.remap.toast.regenerated', '{created} created · {updated} updated · {unchanged} unchanged', { created: String(reply.result.created), updated: String(reply.result.updated), unchanged: String(reply.result.unchanged) }),
+        title: t('studio:remap.toast.regenerated', '{created} created · {updated} updated · {unchanged} unchanged', { created: String(reply.result.created), updated: String(reply.result.updated), unchanged: String(reply.result.unchanged) }),
         description: t(
-          'studio.remap.toast.regeneratedDetail',
+          'studio:remap.toast.regeneratedDetail',
           'Pages you edited by hand are preserved — only pages with an untouched generated_hash were regenerated in place.',
         ),
       });
     } catch (error) {
       toasts.push({
         variant: 'error',
-        title: t('studio.remap.toast.regenerateFailed', 'Regeneration failed'),
+        title: t('studio:remap.toast.regenerateFailed', 'Regeneration failed'),
         description: error instanceof Error ? error.message : undefined,
       });
     } finally {
@@ -173,10 +173,10 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
   return (
     <PageSurface fill className="gap-3">
       <header className="flex flex-wrap items-center gap-2">
-        <h2 className="text-section text-fg">{t('studio.remap.title', 'Schema remap')}</h2>
+        <h2 className="text-section text-fg">{t('studio:remap.title', 'Schema remap')}</h2>
         {schemaQuery.data !== undefined ? (
           <span className="text-body-sm text-fg-muted">
-            {t('studio.remap.subtitle', '{tables} tables · {applied} overrides applied', { tables: String(schemaQuery.data.model.tables.length), applied: String(schemaQuery.data.appliedOverrides) })}
+            {t('studio:remap.subtitle', '{tables} tables · {applied} overrides applied', { tables: String(schemaQuery.data.model.tables.length), applied: String(schemaQuery.data.appliedOverrides) })}
           </span>
         ) : null}
       </header>
@@ -193,12 +193,12 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
 
       {saveError !== null ? (
         <Banner tone="danger" role="alert">
-          {t('studio.remap.saveFailed', 'Save failed: {message}', { message: saveError.message })}
+          {t('studio:remap.saveFailed', 'Save failed: {message}', { message: saveError.message })}
         </Banner>
       ) : null}
       {schemaQuery.isError ? (
         <Banner tone="danger" role="alert">
-          {t('studio.remap.loadFailed', 'Could not load the schema for this connection.')}
+          {t('studio:remap.loadFailed', 'Could not load the schema for this connection.')}
         </Banner>
       ) : null}
 
@@ -213,15 +213,15 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[minmax(16rem,22rem)_1fr]">
           <SchemaTree model={model} buffer={buffer} selection={selection} onSelect={setSelection} />
           <section
-            aria-label={t('studio.remap.inspector', 'Inspector')}
+            aria-label={t('studio:remap.inspector', 'Inspector')}
             className="min-h-0 overflow-y-auto rounded-lg border border-border bg-surface p-4"
           >
             {selection === null || selectedTable === undefined ? (
               <EmptyState
                 preset="no-data"
-                title={t('studio.remap.empty.title', 'Pick a table or column')}
+                title={t('studio:remap.empty.title', 'Pick a table or column')}
                 body={t(
-                  'studio.remap.empty.description',
+                  'studio:remap.empty.description',
                   'Select something in the schema tree to remap its label, type, relations or masking.',
                 )}
               />
@@ -236,8 +236,8 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
             ) : (
               <Tabs defaultValue="details">
                 <TabsList>
-                  <TabsTrigger value="details">{t('studio.remap.tabs.details', 'Details')}</TabsTrigger>
-                  <TabsTrigger value="relations">{t('studio.remap.tabs.relations', 'Relations')}</TabsTrigger>
+                  <TabsTrigger value="details">{t('studio:remap.tabs.details', 'Details')}</TabsTrigger>
+                  <TabsTrigger value="relations">{t('studio:remap.tabs.relations', 'Relations')}</TabsTrigger>
                 </TabsList>
                 <TabsContent value="details" className="pt-4">
                   <TableInspector

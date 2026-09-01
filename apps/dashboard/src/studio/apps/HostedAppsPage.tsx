@@ -102,15 +102,15 @@ export function HostedAppsPage() {
   return (
     <PageSurface width="page" className="flex flex-col gap-5">
       <PageActions
-        title={t('studio.hostedApps.title', 'Hosted apps')}
+        title={t('studio:hostedApps.title', 'Hosted apps')}
         subtitle={t(
-          'studio.hostedApps.subtitle',
+          'studio:hostedApps.subtitle',
           'The app surfaces this instance serves — where each one appears, and the domains pointed at them.',
         )}
       />
 
       {error !== null && (
-        <Alert tone="danger" title={t('studio.hostedApps.error', 'Something went wrong')}>
+        <Alert tone="danger" title={t('studio:hostedApps.error', 'Something went wrong')}>
           {error}
         </Alert>
       )}
@@ -119,9 +119,9 @@ export function HostedAppsPage() {
         <Card>
           <CardBody>
             <EmptyState
-              title={t('studio.hostedApps.emptyTitle', 'No app surfaces are being served')}
+              title={t('studio:hostedApps.emptyTitle', 'No app surfaces are being served')}
               body={t(
-                'studio.hostedApps.emptyBody',
+                'studio:hostedApps.emptyBody',
                 'Point ADMINIUM_SURFACES_DIR at a directory of built surfaces — one folder per app and side, each with its index.html — and restart. They are then served under /apps/ and appear here.',
               )}
             />
@@ -193,11 +193,11 @@ function SurfacesCard({
         <IconTile tone="accent" size="md" icon={<AppWindow />} />
         <div>
           <h2 className="text-section text-fg">
-            {t('studio.hostedApps.surfaces.title', 'Surfaces')}
+            {t('studio:hostedApps.surfaces.title', 'Surfaces')}
           </h2>
           <p className="text-sm text-fg-muted">
             {t(
-              'studio.hostedApps.surfaces.subtitle',
+              'studio:hostedApps.surfaces.subtitle',
               'A staff surface can blend into this dashboard’s sidebar or stand on its own; a customer surface is public and reads through its bound key.',
             )}
           </p>
@@ -215,8 +215,8 @@ function SurfacesCard({
                   {surface.appKey}{' '}
                   <Badge tone={surface.side === 'staff' ? 'accent' : 'neutral'}>
                     {surface.side === 'staff'
-                      ? t('studio.hostedApps.surfaces.staff', 'Staff')
-                      : t('studio.hostedApps.surfaces.customer', 'Customer')}
+                      ? t('studio:hostedApps.surfaces.staff', 'Staff')
+                      : t('studio:hostedApps.surfaces.customer', 'Customer')}
                   </Badge>
                 </p>
                 <p className="text-sm text-fg-muted">
@@ -238,7 +238,7 @@ function SurfacesCard({
                 {surface.side === 'staff' && !surface.navAvailable && (
                   <p className="text-sm text-fg-muted">
                     {t(
-                      'studio.hostedApps.surfaces.noNav',
+                      'studio:hostedApps.surfaces.noNav',
                       'Internal placement unavailable — rebuild this surface with the current toolkit so it emits surface.json.',
                     )}
                   </p>
@@ -248,16 +248,16 @@ function SurfacesCard({
                     {surface.boundKey === null ? (
                       <>
                         {t(
-                          'studio.hostedApps.surfaces.noKey',
+                          'studio:hostedApps.surfaces.noKey',
                           'No key bound — this surface cannot read data until one is minted for it.',
                         )}{' '}
                         <Link className="underline" to="/studio/public-api">
-                          {t('studio.hostedApps.surfaces.mintLink', 'Mint one under Public API')}
+                          {t('studio:hostedApps.surfaces.mintLink', 'Mint one under Public API')}
                         </Link>
                       </>
                     ) : (
                       <>
-                        {t('studio.hostedApps.surfaces.boundKey', 'Serves key')}{' '}
+                        {t('studio:hostedApps.surfaces.boundKey', 'Serves key')}{' '}
                         <code>
                           {surface.boundKey.prefix}… · {surface.boundKey.name}
                         </code>
@@ -268,7 +268,7 @@ function SurfacesCard({
               </div>
               {surface.side === 'staff' && surface.navAvailable && (
                 <FormField
-                  label={t('studio.hostedApps.surfaces.placementLabel', 'Placement')}
+                  label={t('studio:hostedApps.surfaces.placementLabel', 'Placement')}
                   className="w-56"
                 >
                   <Select
@@ -282,10 +282,10 @@ function SurfacesCard({
                     }}
                   >
                     <option value="internal">
-                      {t('studio.hostedApps.surfaces.placementInternal', 'In the sidebar (blended)')}
+                      {t('studio:hostedApps.surfaces.placementInternal', 'In the sidebar (blended)')}
                     </option>
                     <option value="external">
-                      {t('studio.hostedApps.surfaces.placementExternal', 'External (own URL only)')}
+                      {t('studio:hostedApps.surfaces.placementExternal', 'External (own URL only)')}
                     </option>
                   </Select>
                 </FormField>
@@ -303,7 +303,7 @@ function SurfacesCard({
               */}
               {surface.side === 'staff' && connections.length > 1 && (
                 <FormField
-                  label={t('studio.hostedApps.surfaces.connectionLabel', 'Reads')}
+                  label={t('studio:hostedApps.surfaces.connectionLabel', 'Reads')}
                   className="w-56"
                 >
                   <Select
@@ -314,7 +314,7 @@ function SurfacesCard({
                     }}
                   >
                     <option value="">
-                      {t('studio.hostedApps.surfaces.connectionUnset', 'Whichever is serving')}
+                      {t('studio:hostedApps.surfaces.connectionUnset', 'Whichever is serving')}
                     </option>
                     {connections.map((connection) => (
                       <option key={connection.id} value={connection.id}>
@@ -379,11 +379,11 @@ function InstancesCard({
         <IconTile tone="accent" size="md" icon={<AppWindow />} />
         <div>
           <h2 className="text-section text-fg">
-            {t('studio.hostedApps.instances.title', 'Instances')}
+            {t('studio:hostedApps.instances.title', 'Instances')}
           </h2>
           <p className="mt-1 text-body-sm text-fg-muted">
             {t(
-              'studio.hostedApps.instances.body',
+              'studio:hostedApps.instances.body',
               'Serve the same app over more than one database. Each instance is reachable at /apps/<app>/<segment>/<side>/ and reads only the connection you give it.',
             )}
           </p>
@@ -393,18 +393,18 @@ function InstancesCard({
         {issues.length > 0 && (
           <Alert
             tone="danger"
-            title={t('studio.hostedApps.instances.failed', 'Instances were not saved')}
+            title={t('studio:hostedApps.instances.failed', 'Instances were not saved')}
             body={issues.map((issue) => issue.message).join(' ')}
           />
         )}
         {rows.length === 0 && (
           <p className="text-body-sm text-fg-muted">
-            {t('studio.hostedApps.instances.empty', 'No extra instances.')}
+            {t('studio:hostedApps.instances.empty', 'No extra instances.')}
           </p>
         )}
         {rows.map((row) => (
           <div key={row.key} className="flex flex-wrap items-end gap-3">
-            <FormField label={t('studio.hostedApps.instances.appLabel', 'App')} className="w-40">
+            <FormField label={t('studio:hostedApps.instances.appLabel', 'App')} className="w-40">
               <Select
                 value={row.appKey}
                 onChange={(event) => {
@@ -419,7 +419,7 @@ function InstancesCard({
               </Select>
             </FormField>
             <FormField
-              label={t('studio.hostedApps.instances.slugLabel', 'URL segment')}
+              label={t('studio:hostedApps.instances.slugLabel', 'URL segment')}
               className="min-w-48 flex-1"
             >
               <Input
@@ -431,7 +431,7 @@ function InstancesCard({
               />
             </FormField>
             <FormField
-              label={t('studio.hostedApps.instances.readsLabel', 'Reads')}
+              label={t('studio:hostedApps.instances.readsLabel', 'Reads')}
               className="w-56"
             >
               <Select
@@ -453,7 +453,7 @@ function InstancesCard({
                 setRows((current) => current.filter((candidate) => candidate.key !== row.key));
               }}
             >
-              {t('studio.hostedApps.instances.remove', 'Remove')}
+              {t('studio:hostedApps.instances.remove', 'Remove')}
             </Button>
           </div>
         ))}
@@ -469,7 +469,7 @@ function InstancesCard({
               setNextKey((key) => key + 1);
             }}
           >
-            {t('studio.hostedApps.instances.add', 'Add an instance')}
+            {t('studio:hostedApps.instances.add', 'Add an instance')}
           </Button>
           <Button
             disabled={busy}
@@ -477,7 +477,7 @@ function InstancesCard({
               void onSave(rows);
             }}
           >
-            {t('studio.hostedApps.instances.save', 'Save instances')}
+            {t('studio:hostedApps.instances.save', 'Save instances')}
           </Button>
         </div>
       </CardBody>
@@ -517,11 +517,11 @@ function DomainsCard({
         <IconTile tone="accent" size="md" icon={<PanelsTopLeft />} />
         <div>
           <h2 className="text-section text-fg">
-            {t('studio.hostedApps.domains.title', 'Domains')}
+            {t('studio:hostedApps.domains.title', 'Domains')}
           </h2>
           <p className="text-sm text-fg-muted">
             {t(
-              'studio.hostedApps.domains.subtitle',
+              'studio:hostedApps.domains.subtitle',
               'Point a domain’s DNS at your proxy, pass the Host header through to Adminium, and attach it here — that host then serves the surface instead of this dashboard. Certificates stay on your proxy.',
             )}
           </p>
@@ -531,7 +531,7 @@ function DomainsCard({
         {issues.length > 0 && (
           <Alert
             tone="danger"
-            title={t('studio.hostedApps.domains.issuesTitle', 'The domain map was refused')}
+            title={t('studio:hostedApps.domains.issuesTitle', 'The domain map was refused')}
           >
             <ul className="list-disc ps-5">
               {issues.map((issue, index) => (
@@ -541,9 +541,9 @@ function DomainsCard({
           </Alert>
         )}
         {savedNote && (
-          <Alert tone="info" title={t('studio.hostedApps.domains.savedTitle', 'Saved')}>
+          <Alert tone="info" title={t('studio:hostedApps.domains.savedTitle', 'Saved')}>
             {t(
-              'studio.hostedApps.domains.savedBody',
+              'studio:hostedApps.domains.savedBody',
               'Mappings take effect within a few seconds. A host only answers once its DNS and your proxy actually reach this instance.',
             )}
           </Alert>
@@ -551,14 +551,14 @@ function DomainsCard({
 
         {rows.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            {t('studio.hostedApps.domains.none', 'No domains are attached.')}
+            {t('studio:hostedApps.domains.none', 'No domains are attached.')}
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
             {rows.map((row) => (
               <li key={row.key} className="flex flex-wrap items-end gap-3">
                 <FormField
-                  label={t('studio.hostedApps.domains.hostLabel', 'Host')}
+                  label={t('studio:hostedApps.domains.hostLabel', 'Host')}
                   className="min-w-64 flex-1"
                 >
                   <Input
@@ -570,7 +570,7 @@ function DomainsCard({
                   />
                 </FormField>
                 <FormField
-                  label={t('studio.hostedApps.domains.surfaceLabel', 'Surface')}
+                  label={t('studio:hostedApps.domains.surfaceLabel', 'Surface')}
                   className="w-64"
                 >
                   <Select
@@ -600,7 +600,7 @@ function DomainsCard({
                 */}
                 {(instances[row.appKey]?.length ?? 0) > 0 && (
                   <FormField
-                    label={t('studio.hostedApps.domains.instanceLabel', 'Instance')}
+                    label={t('studio:hostedApps.domains.instanceLabel', 'Instance')}
                     className="w-48"
                   >
                     <Select
@@ -610,7 +610,7 @@ function DomainsCard({
                       }}
                     >
                       <option value="">
-                        {t('studio.hostedApps.domains.instanceOwn', "The app's own")}
+                        {t('studio:hostedApps.domains.instanceOwn', "The app's own")}
                       </option>
                       {(instances[row.appKey] ?? []).map((instance) => (
                         <option key={instance.slug} value={instance.slug}>
@@ -626,7 +626,7 @@ function DomainsCard({
                     setRows((current) => current.filter((candidate) => candidate.key !== row.key));
                   }}
                 >
-                  {t('studio.hostedApps.domains.remove', 'Remove')}
+                  {t('studio:hostedApps.domains.remove', 'Remove')}
                 </Button>
               </li>
             ))}
@@ -646,7 +646,7 @@ function DomainsCard({
               setNextKey((value) => value + 1);
             }}
           >
-            {t('studio.hostedApps.domains.add', 'Attach a domain')}
+            {t('studio:hostedApps.domains.add', 'Attach a domain')}
           </Button>
           <Button
             disabled={busy}
@@ -656,7 +656,7 @@ function DomainsCard({
               });
             }}
           >
-            {t('studio.hostedApps.domains.save', 'Save domains')}
+            {t('studio:hostedApps.domains.save', 'Save domains')}
           </Button>
         </div>
       </CardBody>

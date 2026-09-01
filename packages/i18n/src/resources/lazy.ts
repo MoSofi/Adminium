@@ -1,17 +1,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Lazy loaders for the 7 non-English locale bundles (10-i18n-theming.md §2.3):
- * en-US ships in the main bundle (./index.ts — it is the fallback text and
- * must never be async); every other locale/namespace pair is a literal
- * dynamic import so bundlers (Vite, Electron packaging) split one chunk per
- * bundle and a de_DE user downloads only German strings. Pass
- * {@link loadLocaleBundle} as `createI18n`'s `loadBundle`.
+ * Lazy loaders for every locale/namespace pair that is not bundled
+ * (10-i18n-theming.md §2.3). Each entry is a LITERAL dynamic import so
+ * bundlers (Vite, Electron packaging) split one chunk per bundle and a de_DE
+ * user downloads only German strings. Pass {@link loadLocaleBundle} as
+ * `createI18n`'s `loadBundle`.
+ *
+ * Two things are lazy here, for two different reasons:
+ *
+ * - **the 7 non-English locales, every namespace.** en-US's eager namespaces
+ *   (./eager.ts) ship in the main bundle because they are the fallback text
+ *   and must never be async; nobody else's do.
+ * - **`studio`, en-US INCLUDED** (10-T06). The deferred namespace is loaded
+ *   on demand by the surface that owns it, so the English console text is a
+ *   chunk the console's own visitors fetch rather than ~36 KiB every user
+ *   carries. See `DEFERRED_NAMESPACES` in ./namespaces.ts for the contract
+ *   that makes this safe.
  */
-import type { Namespace, ResourceBundle } from './index.js';
+import type { Namespace, ResourceBundle } from './namespaces.js';
 
 type BundleModule = { default: ResourceBundle };
 
 const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
+  // The one en-US bundle that is not in the main chunk (DEFERRED_NAMESPACES).
+  'en-US/studio': () => import('./en-us/studio.js'),
   'de-DE/common': () => import('./de-de/common.js'),
   'de-DE/ui': () => import('./de-de/ui.js'),
   'de-DE/studio': () => import('./de-de/studio.js'),
@@ -51,8 +63,8 @@ const LOADERS: Readonly<Record<string, () => Promise<BundleModule>>> = {
 
 /**
  * `BundleLoader`-shaped (create-i18n.ts): resolves `null` for pairs without a
- * lazy bundle (en-US — already bundled — and unknown tags), so the en-US
- * fallback chain applies instead of failing.
+ * lazy bundle (en-US's eager namespaces — already in the main chunk — and
+ * unknown tags), so the en-US fallback chain applies instead of failing.
  */
 export async function loadLocaleBundle(tag: string, ns: Namespace): Promise<BundleModule | null> {
   const loader = LOADERS[`${tag}/${ns}`];

@@ -55,11 +55,11 @@ export function DiffBar({
       {changes.length > 0 ? (
         <span className="text-body-sm font-semibold text-fg">
           {changes.length === 1
-            ? t('studio.remap.diff.one', '1 change')
-            : t('studio.remap.diff.count', '{count} changes', { count: String(changes.length) })}
+            ? t('studio:remap.diff.one', '1 change')
+            : t('studio:remap.diff.count', '{count} changes', { count: String(changes.length) })}
         </span>
       ) : (
-        <span className="text-body-sm text-fg-muted">{t('studio.remap.diff.saved', 'Overrides saved.')}</span>
+        <span className="text-body-sm text-fg-muted">{t('studio:remap.diff.saved', 'Overrides saved.')}</span>
       )}
       <ul className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
         {changes.map((change) => (
@@ -71,7 +71,7 @@ export function DiffBar({
               <span className="font-mono">{changeText(change)}</span>
               <button
                 type="button"
-                aria-label={t('studio.remap.diff.revertOne', 'Revert {change}', { change: changeText(change), })}
+                aria-label={t('studio:remap.diff.revertOne', 'Revert {change}', { change: changeText(change), })}
                 className="rounded-full hover:opacity-70"
                 onClick={() => onRevert(change.key)}
               >
@@ -84,16 +84,16 @@ export function DiffBar({
       <span className="ms-auto flex items-center gap-2">
         {canRegenerate ? (
           <Button variant="soft" size="sm" loading={regenerating} onClick={onRegenerate}>
-            {t('studio.remap.diff.regenerate', 'Regenerate pages')}
+            {t('studio:remap.diff.regenerate', 'Regenerate pages')}
           </Button>
         ) : null}
         {changes.length > 0 ? (
           <>
             <Button variant="ghost" size="sm" disabled={saving} onClick={onRevertAll}>
-              {t('studio.remap.diff.revertAll', 'Revert all')}
+              {t('studio:remap.diff.revertAll', 'Revert all')}
             </Button>
             <Button size="sm" loading={saving} onClick={onSave}>
-              {t('studio.remap.diff.save', 'Save overrides')}
+              {t('studio:remap.diff.save', 'Save overrides')}
             </Button>
           </>
         ) : null}

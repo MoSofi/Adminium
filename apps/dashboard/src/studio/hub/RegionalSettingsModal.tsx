@@ -156,7 +156,7 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
     [connection.currency],
   );
 
-  const notSet = t('studio.hub.regional.notSet', 'Not set');
+  const notSet = t('studio:hub.regional.notSet', 'Not set');
   const unsetRow: ComboboxOption = { value: UNSET, label: notSet };
 
   /**
@@ -206,7 +206,7 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
       size="sm"
     >
       <ModalHeader
-        title={t('studio.hub.regional.title', 'Regional settings')}
+        title={t('studio:hub.regional.title', 'Regional settings')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
@@ -214,9 +214,9 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
           {guessed ? (
             <Alert
               tone="warn"
-              title={t('studio.hub.regional.guessedTitle', 'This zone came from the server')}
+              title={t('studio:hub.regional.guessedTitle', 'This zone came from the server')}
               body={t(
-                'studio.hub.regional.guessedBody',
+                'studio:hub.regional.guessedBody',
                 'Adminium filled it in from the machine it runs on, not from anyone here. Save to confirm it, or pick the zone this business actually keeps.',
               )}
             />
@@ -224,15 +224,15 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
 
           <p className="text-caption text-fg-muted">
             {t(
-              'studio.hub.regional.intro',
+              'studio:hub.regional.intro',
               'These describe the business this database belongs to, not the person reading it. Apps served from Adminium read them from here.',
             )}
           </p>
 
           <FormField
-            label={t('studio.hub.regional.timezone', 'Timezone')}
+            label={t('studio:hub.regional.timezone', 'Timezone')}
             helper={t(
-              'studio.hub.regional.timezoneHelper',
+              'studio:hub.regional.timezoneHelper',
               'Dates and times render in this zone. Apps hosted by Adminium fall back to UTC without one, and say on screen that they are doing it.',
             )}
           >
@@ -240,16 +240,16 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
               options={[unsetRow, ...zones]}
               value={timezone ?? UNSET}
               onValueChange={(next) => setTimezone(next === null || next === UNSET ? null : next)}
-              emptyText={t('studio.hub.regional.noMatch', 'No matching zone')}
-              placeholder={t('studio.hub.regional.timezonePlaceholder', 'Region/City')}
+              emptyText={t('studio:hub.regional.noMatch', 'No matching zone')}
+              placeholder={t('studio:hub.regional.timezonePlaceholder', 'Region/City')}
               mono
             />
           </FormField>
 
           <FormField
-            label={t('studio.hub.regional.currency', 'Currency')}
+            label={t('studio:hub.regional.currency', 'Currency')}
             helper={t(
-              'studio.hub.regional.currencyHelper',
+              'studio:hub.regional.currencyHelper',
               'Used to format money. Optional — leaving it unset affects formatting only.',
             )}
           >
@@ -257,8 +257,8 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
               options={[unsetRow, ...currencies]}
               value={currency ?? UNSET}
               onValueChange={(next) => setCurrency(next === null || next === UNSET ? null : next)}
-              emptyText={t('studio.hub.regional.noMatchCurrency', 'No matching currency')}
-              placeholder={t('studio.hub.regional.currencyPlaceholder', 'ISO-4217 code')}
+              emptyText={t('studio:hub.regional.noMatchCurrency', 'No matching currency')}
+              placeholder={t('studio:hub.regional.currencyPlaceholder', 'ISO-4217 code')}
               mono
             />
           </FormField>
@@ -266,7 +266,7 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
           {save.isError ? (
             <Alert
               tone="danger"
-              title={t('studio.hub.regional.failed', 'Regional settings could not be saved')}
+              title={t('studio:hub.regional.failed', 'Regional settings could not be saved')}
               body={save.error instanceof Error ? save.error.message : ''}
             />
           ) : null}
@@ -283,7 +283,7 @@ export function RegionalSettingsModal({ connection, onClose, onSaved }: Regional
           loading={save.isPending}
           data-testid="regional-save"
         >
-          {t('studio.hub.regional.save', 'Save')}
+          {t('studio:hub.regional.save', 'Save')}
         </Button>
       </ModalFooter>
     </Modal>

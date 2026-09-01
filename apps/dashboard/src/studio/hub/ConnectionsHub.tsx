@@ -52,11 +52,11 @@ function fmt() {
 function engineLabel(engine: string): string {
   switch (engine) {
     case 'postgres':
-      return t('studio.source.engine.postgres', 'PostgreSQL');
+      return t('studio:source.engine.postgres', 'PostgreSQL');
     case 'mysql':
-      return t('studio.source.engine.mysql', 'MySQL / MariaDB');
+      return t('studio:source.engine.mysql', 'MySQL / MariaDB');
     case 'sqlite':
-      return t('studio.source.engine.sqlite', 'SQLite');
+      return t('studio:source.engine.sqlite', 'SQLite');
     default:
       return engine;
   }
@@ -65,11 +65,11 @@ function engineLabel(engine: string): string {
 function statusLabel(status: string): string {
   switch (status) {
     case 'connected':
-      return t('studio.hub.status.connected', 'Connected');
+      return t('studio:hub.status.connected', 'Connected');
     case 'error':
-      return t('studio.hub.status.error', 'Error');
+      return t('studio:hub.status.error', 'Error');
     default:
-      return t('studio.hub.status.unconfigured', 'Draft');
+      return t('studio:hub.status.unconfigured', 'Draft');
   }
 }
 
@@ -142,23 +142,23 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
     <ConfirmModal
       open
       onOpenChange={onOpenChange}
-      title={t('studio.hub.delete.title', 'Delete connection')}
+      title={t('studio:hub.delete.title', 'Delete connection')}
       body={t(
-        'studio.hub.delete.body',
+        'studio:hub.delete.body',
         'This deletes “{name}” and its generated pages. Your database itself is never touched.',
         { name: connection.name },
       )}
       confirmWord={connection.name}
-      promptLabel={t('studio.hub.delete.prompt', 'Type {name} to confirm', { name: connection.name })}
-      confirmLabel={t('studio.hub.delete.confirm', 'Delete connection')}
-      cancelLabel={t('studio.hub.delete.cancel', 'Cancel')}
-      closeLabel={t('studio.hub.delete.close', 'Close')}
+      promptLabel={t('studio:hub.delete.prompt', 'Type {name} to confirm', { name: connection.name })}
+      confirmLabel={t('studio:hub.delete.confirm', 'Delete connection')}
+      cancelLabel={t('studio:hub.delete.cancel', 'Cancel')}
+      closeLabel={t('studio:hub.delete.close', 'Close')}
       onConfirm={async () => {
         try {
           await studioApi.deleteConnection(connection.id, connection.name);
           toasts.push({
             variant: 'success',
-            title: t('studio.hub.delete.success', 'Connection “{name}” deleted', {
+            title: t('studio:hub.delete.success', 'Connection “{name}” deleted', {
               name: connection.name,
             }),
           });
@@ -171,7 +171,7 @@ export function DeleteConnectionModal({ connection, onOpenChange, onDeleted }: D
         } catch {
           toasts.push({
             variant: 'error',
-            title: t('studio.hub.delete.failed', 'Could not delete the connection. Try again.'),
+            title: t('studio:hub.delete.failed', 'Could not delete the connection. Try again.'),
           });
         }
       }}
@@ -217,13 +217,13 @@ function PauseConnectionModal({
       <ModalHeader
         icon={<Pause />}
         tone="warn"
-        title={t('studio.hub.pause.title', 'Pause this connection?')}
+        title={t('studio:hub.pause.title', 'Pause this connection?')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody>
         <p className="text-body-sm text-fg-muted">
           {t(
-            'studio.hub.pause.body',
+            'studio:hub.pause.body',
             'Adminium stops opening any connection to “{name}”. Its {pages, plural, one {# page} other {# pages}}, scheduled reports and hosted apps stop loading data until you resume it.',
             { name: connection.name, pages: connection.pageCount },
           )}
@@ -232,7 +232,7 @@ function PauseConnectionModal({
           {/* The reassurance that makes this the alternative to Delete rather
               than a milder version of it. */}
           {t(
-            'studio.hub.pause.keeps',
+            'studio:hub.pause.keeps',
             'Nothing is deleted — the connection, its schema and its {pages, plural, one {# page} other {# pages}} are all kept, and one click brings them back.',
             { pages: connection.pageCount },
           )}
@@ -243,7 +243,7 @@ function PauseConnectionModal({
           {t('common.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" loading={busy} onClick={onConfirm}>
-          {t('studio.hub.pause.confirm', 'Pause connection')}
+          {t('studio:hub.pause.confirm', 'Pause connection')}
         </Button>
       </ModalFooter>
     </Modal>
@@ -275,7 +275,7 @@ function PausableAction({
     return (
       <Tooltip
         content={t(
-          'studio.hub.action.pausedHint',
+          'studio:hub.action.pausedHint',
           'This connection is paused — resume it to reach the database.',
         )}
       >
@@ -327,13 +327,13 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
         result.ok
           ? {
               variant: 'success',
-              title: t('studio.hub.test.ok', 'Connection healthy · {latency, number} ms', {
+              title: t('studio:hub.test.ok', 'Connection healthy · {latency, number} ms', {
                 latency: result.latencyMs,
               }),
             }
           : {
               variant: 'error',
-              title: t('studio.hub.test.failed', 'Connection test failed'),
+              title: t('studio:hub.test.failed', 'Connection test failed'),
               // The hint is the actionable half (e.g. "use the unpooled host"),
               // so append it rather than showing the driver message alone.
               ...(result.error === null
@@ -348,7 +348,7 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
       );
     },
     onError: () => {
-      toasts.push({ variant: 'error', title: t('studio.hub.test.failed', 'Connection test failed') });
+      toasts.push({ variant: 'error', title: t('studio:hub.test.failed', 'Connection test failed') });
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['studio', 'connections'] });
@@ -390,16 +390,16 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
       if (outcome === 'noop') {
         toasts.push({
           variant: 'info',
-          title: t('studio.hub.introspect.noChanges', 'Schema unchanged — no new snapshot.'),
+          title: t('studio:hub.introspect.noChanges', 'Schema unchanged — no new snapshot.'),
         });
       } else if (outcome === 'updated') {
         toasts.push({
           variant: 'success',
-          title: t('studio.hub.introspect.updated', 'Schema re-introspected'),
+          title: t('studio:hub.introspect.updated', 'Schema re-introspected'),
           ...(masks > 0
             ? {
                 description: t(
-                  'studio.hub.introspect.masksProposed',
+                  'studio:hub.introspect.masksProposed',
                   '{count, plural, one {# column} other {# columns}} proposed for masking — review in the remap editor.',
                   { count: masks },
                 ),
@@ -409,14 +409,14 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
       } else {
         toasts.push({
           variant: 'error',
-          title: t('studio.hub.introspect.failed', 'Introspection failed. Try again.'),
+          title: t('studio:hub.introspect.failed', 'Introspection failed. Try again.'),
         });
       }
     },
     onError: () => {
       toasts.push({
         variant: 'error',
-        title: t('studio.hub.introspect.failed', 'Introspection failed. Try again.'),
+        title: t('studio:hub.introspect.failed', 'Introspection failed. Try again.'),
       });
     },
     onSettled: async () => {
@@ -435,16 +435,16 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
       toasts.push({
         variant: 'success',
         title: updated.disabled
-          ? t('studio.hub.pause.pausedToast', 'Connection “{name}” paused', { name: connection.name })
-          : t('studio.hub.pause.resumedToast', 'Connection “{name}” resumed', { name: connection.name }),
+          ? t('studio:hub.pause.pausedToast', 'Connection “{name}” paused', { name: connection.name })
+          : t('studio:hub.pause.resumedToast', 'Connection “{name}” resumed', { name: connection.name }),
       });
     },
     onError: () => {
       toasts.push({
         variant: 'error',
         title: connection.disabled
-          ? t('studio.hub.pause.resumeFailed', 'Could not resume the connection. Try again.')
-          : t('studio.hub.pause.pauseFailed', 'Could not pause the connection. Try again.'),
+          ? t('studio:hub.pause.resumeFailed', 'Could not resume the connection. Try again.')
+          : t('studio:hub.pause.pauseFailed', 'Could not pause the connection. Try again.'),
       });
     },
     onSettled: async () => {
@@ -460,7 +460,7 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
   const numbers = fmt();
   const lastIntrospected =
     connection.snapshot === null
-      ? t('studio.hub.card.never', 'Never')
+      ? t('studio:hub.card.never', 'Never')
       : numbers.relative(connection.snapshot.createdAt);
   const isFile = connection.sourceKind === 'schema-file';
   const pausedAt = connection.disabledAt === null ? null : numbers.relative(connection.disabledAt);
@@ -482,7 +482,7 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             <h3 className="truncate text-body font-bold text-fg">{connection.name}</h3>
             <Badge tone="neutral">{engineLabel(connection.engine)}</Badge>
             {connection.readOnly ? (
-              <Badge tone="info">{t('studio.hub.card.readOnly', 'Read-only')}</Badge>
+              <Badge tone="info">{t('studio:hub.card.readOnly', 'Read-only')}</Badge>
             ) : null}
           </div>
           {connection.dsnMasked === null ? null : (
@@ -498,9 +498,9 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             paused it" stays visible in one glance. */}
         <StatusPill status={pillStatus}>
           {test.isPending
-            ? t('studio.hub.status.testing', 'Testing…')
+            ? t('studio:hub.status.testing', 'Testing…')
             : connection.disabled
-              ? t('studio.hub.status.paused', 'Paused')
+              ? t('studio:hub.status.paused', 'Paused')
               : statusLabel(connection.status)}
         </StatusPill>
       </div>
@@ -509,11 +509,11 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
         <p role="status" className="text-caption text-fg-muted">
           {pausedAt === null
             ? t(
-                'studio.hub.card.paused',
+                'studio:hub.card.paused',
                 'Adminium is not connecting to this database. Its pages load again when you resume it.',
               )
             : t(
-                'studio.hub.card.pausedSince',
+                'studio:hub.card.pausedSince',
                 'Paused {when} — Adminium is not connecting to this database. Its pages load again when you resume it.',
                 { when: pausedAt },
               )}
@@ -531,33 +531,33 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
       ) : null}
 
       <div className="flex items-start gap-5 border-t border-border pt-3">
-        <MetaCell label={t('studio.hub.card.tables', 'Tables')}>
+        <MetaCell label={t('studio:hub.card.tables', 'Tables')}>
           {connection.tableCount === null ? '—' : numbers.number(connection.tableCount)}
         </MetaCell>
-        <MetaCell label={t('studio.hub.card.pages', 'Pages')}>
+        <MetaCell label={t('studio:hub.card.pages', 'Pages')}>
           {numbers.number(connection.pageCount)}
         </MetaCell>
-        <MetaCell label={t('studio.hub.card.latency', 'Latency')}>
+        <MetaCell label={t('studio:hub.card.latency', 'Latency')}>
           {connection.lastLatencyMs === null
             ? '—'
-            : t('studio.hub.card.latencyMs', '{latency, number} ms', {
+            : t('studio:hub.card.latencyMs', '{latency, number} ms', {
                 latency: connection.lastLatencyMs,
               })}
         </MetaCell>
-        <MetaCell label={t('studio.hub.card.lastIntrospected', 'Last introspected')} mono={false}>
+        <MetaCell label={t('studio:hub.card.lastIntrospected', 'Last introspected')} mono={false}>
           {lastIntrospected}
         </MetaCell>
         {/* Shown on the card because every date a hosted app surface renders
             is drawn through it, and because it is the one field here that can
             be a value nobody chose; currency only affects formatting and lives
             in the modal alone. */}
-        <MetaCell label={t('studio.hub.card.timezone', 'Timezone')}>
+        <MetaCell label={t('studio:hub.card.timezone', 'Timezone')}>
           {connection.timezone ?? '—'}
           {connection.timezone !== null && connection.timezoneSource === 'host' ? (
             <>
               {' · '}
               <span className="text-fg-muted">
-                {t('studio.hub.card.timezoneGuessed', 'from this server')}
+                {t('studio:hub.card.timezoneGuessed', 'from this server')}
               </span>
             </>
           ) : null}
@@ -574,7 +574,7 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
         {isFile ? null : (
           <PausableAction
             paused={connection.disabled}
-            label={t('studio.hub.action.test', 'Test')}
+            label={t('studio:hub.action.test', 'Test')}
             loading={test.isPending}
             onClick={() => test.mutate()}
           />
@@ -582,34 +582,34 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
         {isFile ? (
           <Tooltip
             content={t(
-              'studio.hub.action.reintrospectFile',
+              'studio:hub.action.reintrospectFile',
               'Schema-file sources have no live database — re-upload the file instead.',
             )}
           >
             <span className="inline-flex">
               <Button size="sm" variant="secondary" disabled>
                 <RefreshCw aria-hidden className="size-3.5" />
-                {t('studio.hub.action.reintrospect', 'Re-introspect')}
+                {t('studio:hub.action.reintrospect', 'Re-introspect')}
               </Button>
             </span>
           </Tooltip>
         ) : (
           <PausableAction
             paused={connection.disabled}
-            label={t('studio.hub.action.reintrospect', 'Re-introspect')}
+            label={t('studio:hub.action.reintrospect', 'Re-introspect')}
             icon={<RefreshCw aria-hidden className="size-3.5" />}
             loading={introspect.isPending}
             onClick={() => introspect.mutate()}
           />
         )}
         <Button size="sm" variant="secondary" onClick={() => onOpenRemap(connection.id)}>
-          {t('studio.hub.action.remap', 'Remap schema')}
+          {t('studio:hub.action.remap', 'Remap schema')}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => setRenaming(true)}>
-          {t('studio.hub.action.rename', 'Rename')}
+          {t('studio:hub.action.rename', 'Rename')}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => setEditingRegional(true)}>
-          {t('studio.hub.action.regional', 'Regional settings')}
+          {t('studio:hub.action.regional', 'Regional settings')}
         </Button>
         {/* Resume is immediate; pausing asks first (see PauseConnectionModal). */}
         <Button
@@ -628,11 +628,11 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             <Pause aria-hidden className="size-3.5" />
           )}
           {connection.disabled
-            ? t('studio.hub.action.resume', 'Resume')
-            : t('studio.hub.action.pause', 'Pause')}
+            ? t('studio:hub.action.resume', 'Resume')
+            : t('studio:hub.action.pause', 'Pause')}
         </Button>
         <Button size="sm" variant="ghost" className="text-danger" onClick={() => onDelete(connection)}>
-          {t('studio.hub.action.delete', 'Delete')}
+          {t('studio:hub.action.delete', 'Delete')}
         </Button>
       </div>
 
@@ -663,7 +663,7 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             setRenaming(false);
             toasts.push({
               variant: 'success',
-              title: t('studio.hub.rename.saved', 'Connection renamed'),
+              title: t('studio:hub.rename.saved', 'Connection renamed'),
             });
           }}
         />
@@ -678,7 +678,7 @@ function ConnectionCard({ connection, onOpenRemap, onDelete, pollIntervalMs }: C
             setEditingRegional(false);
             toasts.push({
               variant: 'success',
-              title: t('studio.hub.regional.saved', 'Regional settings updated'),
+              title: t('studio:hub.regional.saved', 'Regional settings updated'),
             });
           }}
         />
@@ -736,19 +736,19 @@ export function ConnectionsHub({
   return (
     <PageSurface width="page" className="flex flex-col gap-4">
       <PageActions
-        title={t('studio.hub.title', 'Data connections')}
+        title={t('studio:hub.title', 'Data connections')}
         subtitle={
           // The paused count only appears when there IS one: a permanent
           // "· 0 paused" trains people to stop reading the line that will one
           // day be the only warning that production has been off for a week.
           paused === 0
             ? t(
-                'studio.hub.subtitle',
+                'studio:hub.subtitle',
                 '{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy',
                 { healthy, total: connections.length },
               )
             : t(
-                'studio.hub.subtitlePaused',
+                'studio:hub.subtitlePaused',
                 '{healthy, number} of {total, plural, one {# connection} other {# connections}} healthy · {paused, number} paused',
                 { healthy, total: connections.length, paused },
               )
@@ -756,12 +756,12 @@ export function ConnectionsHub({
       >
         {onOpenHostedApps !== undefined && (
           <Button variant="secondary" onClick={onOpenHostedApps}>
-            {t('studio.hub.hostedApps', 'Hosted apps')}
+            {t('studio:hub.hostedApps', 'Hosted apps')}
           </Button>
         )}
         <Button onClick={onConnectNew}>
           <Plus aria-hidden className="size-4" />
-          {t('studio.hub.connectNew', 'New connection')}
+          {t('studio:hub.connectNew', 'New connection')}
         </Button>
       </PageActions>
 
@@ -769,11 +769,11 @@ export function ConnectionsHub({
         <Card>
           <EmptyState
             icon={<Database />}
-            title={t('studio.hub.empty.title', 'No data sources yet')}
-            body={t('studio.hub.empty.body', 'Connect a database and Adminium generates your admin panel from its schema.')}
+            title={t('studio:hub.empty.title', 'No data sources yet')}
+            body={t('studio:hub.empty.body', 'Connect a database and Adminium generates your admin panel from its schema.')}
             actions={
               <Button onClick={onConnectNew}>
-                {t('studio.hub.empty.cta', 'Connect a database')}
+                {t('studio:hub.empty.cta', 'Connect a database')}
               </Button>
             }
           />
@@ -785,25 +785,25 @@ export function ConnectionsHub({
               icon={<Database />}
               tone="accent"
               value={numbers.number(connections.length)}
-              label={t('studio.hub.stats.connections', 'Connections')}
+              label={t('studio:hub.stats.connections', 'Connections')}
             />
             <StatTile
               icon={<CircleCheckBig />}
               tone="pos"
               value={numbers.number(healthy)}
-              label={t('studio.hub.stats.healthy', 'Healthy')}
+              label={t('studio:hub.stats.healthy', 'Healthy')}
             />
             <StatTile
               icon={<Table2 />}
               tone="warn"
               value={numbers.number(tables)}
-              label={t('studio.hub.stats.tables', 'Tables included')}
+              label={t('studio:hub.stats.tables', 'Tables included')}
             />
             <StatTile
               icon={<LayoutGrid />}
               tone="info"
               value={numbers.number(pages)}
-              label={t('studio.hub.stats.pages', 'Generated pages')}
+              label={t('studio:hub.stats.pages', 'Generated pages')}
             />
           </div>
 

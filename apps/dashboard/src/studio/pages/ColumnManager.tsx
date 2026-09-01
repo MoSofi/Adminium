@@ -291,9 +291,9 @@ export function ColumnManager({ pageId, config, source, onDraft }: ColumnManager
       <Alert
         tone="info"
         data-testid="studio-pages-no-columns"
-        title={t('studioPages.columns.none.title', 'This page has no columns yet')}
+        title={t('studio:pages.columns.none.title', 'This page has no columns yet')}
         body={t(
-          'studioPages.columns.none.body',
+          'studio:pages.columns.none.body',
           'Columns are read from the table when the page is generated. Bind this page to a table and regenerate to fill them in.',
         )}
       />
@@ -304,7 +304,7 @@ export function ColumnManager({ pageId, config, source, onDraft }: ColumnManager
     <div className="flex flex-col gap-3" data-testid="studio-pages-columns">
       <p className="text-body-sm text-fg-muted">
         {t(
-          'studioPages.columns.help',
+          'studio:pages.columns.help',
           'Drag to reorder columns, rename their headers, and choose which are shown in the table.',
         )}
       </p>
@@ -335,7 +335,7 @@ export function ColumnManager({ pageId, config, source, onDraft }: ColumnManager
 
         {columns.length === 0 ? (
           <p className="text-body-sm p-3 text-fg-muted" data-testid="studio-pages-columns-empty">
-            {t('studioPages.columns.empty', 'No columns yet — add them below.')}
+            {t('studio:pages.columns.empty', 'No columns yet — add them below.')}
           </p>
         ) : null}
 
@@ -346,7 +346,7 @@ export function ColumnManager({ pageId, config, source, onDraft }: ColumnManager
                 variant="ghost"
                 size="sm"
                 tooltip
-                label={t('studioPages.columns.addOpen', 'Add column')}
+                label={t('studio:pages.columns.addOpen', 'Add column')}
                 onClick={() => setBrowse({ path: [], query: '' })}
                 data-testid="studio-pages-add-open"
               >
@@ -382,7 +382,7 @@ export function ColumnManager({ pageId, config, source, onDraft }: ColumnManager
         ) : table === null && schema.isError ? (
           <p className="text-body-sm border-t border-border p-3 text-fg-muted">
             {t(
-              'studioPages.columns.schemaUnavailable',
+              'studio:pages.columns.schemaUnavailable',
               'Database columns could not be listed, so columns cannot be added back here.',
             )}
           </p>
@@ -424,7 +424,7 @@ function SortableColumnRow({
         {...attributes}
         {...listeners}
         className="nb-ib inline-flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded text-fg-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
-        aria-label={fmt(t('studioPages.columns.dragHandle', 'Reorder {name}'), {
+        aria-label={fmt(t('studio:pages.columns.dragHandle', 'Reorder {name}'), {
           name: column.name,
         })}
         data-testid={`studio-pages-drag-${column.name}`}
@@ -442,21 +442,21 @@ function SortableColumnRow({
                 : column.name}
           </span>
           {column.lookup !== undefined ? (
-            <Badge tone="info">{t('studioPages.columns.lookupBadge', 'Linked')}</Badge>
+            <Badge tone="info">{t('studio:pages.columns.lookupBadge', 'Linked')}</Badge>
           ) : null}
           {column.reverse !== undefined ? (
-            <Badge tone="info">{t('studioPages.columns.countBadge', 'Count')}</Badge>
+            <Badge tone="info">{t('studio:pages.columns.countBadge', 'Count')}</Badge>
           ) : null}
           {column.primaryKey === true ? (
-            <Badge tone="neutral">{t('studioPages.columns.pk', 'Key')}</Badge>
+            <Badge tone="neutral">{t('studio:pages.columns.pk', 'Key')}</Badge>
           ) : null}
           {column.pii === true ? (
-            <Badge tone="warn">{t('studioPages.columns.pii', 'PII')}</Badge>
+            <Badge tone="warn">{t('studio:pages.columns.pii', 'PII')}</Badge>
           ) : null}
         </div>
         <Input
           value={column.label ?? ''}
-          aria-label={fmt(t('studioPages.columns.header', 'Header for {name}'), {
+          aria-label={fmt(t('studio:pages.columns.header', 'Header for {name}'), {
             name: column.name,
           })}
           onChange={(event) => onPatch({ label: event.target.value })}
@@ -465,11 +465,11 @@ function SortableColumnRow({
 
       <label className="flex items-center gap-2">
         <span className="text-body-sm text-fg-muted">
-          {t('studioPages.columns.shown', 'Shown')}
+          {t('studio:pages.columns.shown', 'Shown')}
         </span>
         <Switch
           checked={column.hidden !== true}
-          aria-label={fmt(t('studioPages.columns.toggle', 'Show {name} in the table'), {
+          aria-label={fmt(t('studio:pages.columns.toggle', 'Show {name} in the table'), {
             name: column.name,
           })}
           onCheckedChange={(checked) => onPatch({ hidden: !checked })}
@@ -479,7 +479,7 @@ function SortableColumnRow({
       <IconButton
         variant="ghost"
         size="sm"
-        label={fmt(t('studioPages.columns.remove', 'Remove {name}'), {
+        label={fmt(t('studio:pages.columns.remove', 'Remove {name}'), {
           name: column.name,
         })}
         onClick={onRemove}
@@ -547,9 +547,9 @@ function ColumnBrowser({
     return (
       <Alert
         tone="warn"
-        title={t('studioPages.columns.lookupBroken', 'That link no longer resolves')}
+        title={t('studio:pages.columns.lookupBroken', 'That link no longer resolves')}
         body={t(
-          'studioPages.columns.lookupBrokenBody',
+          'studio:pages.columns.lookupBrokenBody',
           'The schema changed while you were browsing. Start the link again.',
         )}
       />
@@ -557,7 +557,7 @@ function ColumnBrowser({
   }
 
   const query = browse.query;
-  const searchLabel = t('studioPages.columns.addSearch', 'Search columns…');
+  const searchLabel = t('studio:pages.columns.addSearch', 'Search columns…');
 
   /** Bare table name a link row is titled by ("clients", not "public.clients"). */
   const linkTitle = (column: SchemaColumn): string => {
@@ -597,7 +597,7 @@ function ColumnBrowser({
           <IconButton
             variant="ghost"
             size="sm"
-            label={t('studioPages.columns.lookupBack', 'Back')}
+            label={t('studio:pages.columns.lookupBack', 'Back')}
             onClick={onBack}
           >
             <ArrowLeft className="size-4 rtl:-scale-x-100" />
@@ -606,8 +606,8 @@ function ColumnBrowser({
         <div className="min-w-0 flex-1">
           <p className="text-body-sm font-semibold text-fg">
             {atRoot
-              ? t('studioPages.columns.addTitle', 'Add a column')
-              : fmt(t('studioPages.columns.lookupBrowse', 'Pick what to show from {table}'), {
+              ? t('studio:pages.columns.addTitle', 'Add a column')
+              : fmt(t('studio:pages.columns.lookupBrowse', 'Pick what to show from {table}'), {
                   table: current.name,
                 })}
           </p>
@@ -633,7 +633,7 @@ function ColumnBrowser({
 
       {nothingMatches && query !== '' ? (
         <p className="text-body-sm p-1 text-fg-muted">
-          {fmt(t('studioPages.columns.addNoMatches', 'No columns match “{query}”.'), { query })}
+          {fmt(t('studio:pages.columns.addNoMatches', 'No columns match “{query}”.'), { query })}
         </p>
       ) : null}
 
@@ -641,7 +641,7 @@ function ColumnBrowser({
         <>
           {baseRows.length > 0 ? (
             <BrowserSection
-              heading={fmt(t('studioPages.columns.addFromTable', 'From {table}'), {
+              heading={fmt(t('studio:pages.columns.addFromTable', 'From {table}'), {
                 table: table.name,
               })}
             >
@@ -668,9 +668,9 @@ function ColumnBrowser({
 
           {linkRows.length > 0 ? (
             <BrowserSection
-              heading={t('studioPages.columns.addFromLinked', 'From linked tables')}
+              heading={t('studio:pages.columns.addFromLinked', 'From linked tables')}
               caption={t(
-                'studioPages.columns.addLinkedHelp',
+                'studio:pages.columns.addLinkedHelp',
                 'Show a value from the table a link column points to.',
               )}
             >
@@ -686,7 +686,7 @@ function ColumnBrowser({
                       {linkTitle(column)}
                     </span>
                     <span className="truncate font-mono text-caption text-fg-subtle">
-                      {fmt(t('studioPages.columns.addVia', 'via {column}'), {
+                      {fmt(t('studio:pages.columns.addVia', 'via {column}'), {
                         column: column.name,
                       })}
                     </span>
@@ -702,9 +702,9 @@ function ColumnBrowser({
 
           {inboundRows.length > 0 ? (
             <BrowserSection
-              heading={t('studioPages.columns.addLinkedFrom', 'Tables that link here')}
+              heading={t('studio:pages.columns.addLinkedFrom', 'Tables that link here')}
               caption={t(
-                'studioPages.columns.addLinkedFromHelp',
+                'studio:pages.columns.addLinkedFromHelp',
                 'Add a count of the rows that point at each record.',
               )}
             >
@@ -723,11 +723,11 @@ function ColumnBrowser({
                       {link.table.name}
                     </span>
                     <span className="truncate font-mono text-caption text-fg-subtle">
-                      {fmt(t('studioPages.columns.addVia', 'via {column}'), {
+                      {fmt(t('studio:pages.columns.addVia', 'via {column}'), {
                         column: link.column.name,
                       })}
                     </span>
-                    <Badge tone="info">{t('studioPages.columns.countBadge', 'Count')}</Badge>
+                    <Badge tone="info">{t('studio:pages.columns.countBadge', 'Count')}</Badge>
                     <Plus className="size-4 shrink-0 text-fg-subtle" aria-hidden="true" />
                   </button>
                 </li>
@@ -761,7 +761,7 @@ function ColumnBrowser({
                   variant="ghost"
                   size="sm"
                   className="me-2"
-                  label={fmt(t('studioPages.columns.followColumn', 'Follow {name}'), {
+                  label={fmt(t('studio:pages.columns.followColumn', 'Follow {name}'), {
                     name: column.name,
                   })}
                   onClick={() => onFollow(column.name)}

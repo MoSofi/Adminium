@@ -77,15 +77,15 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
     setLines([]);
     void (async () => {
       try {
-        push('running', t('studio.generate.log.classifying', 'Classifying schema…'));
+        push('running', t('studio:generate.log.classifying', 'Classifying schema…'));
         await wait(lineDelayMs);
-        push('running', t('studio.generate.log.composing', 'Composing templates…'));
+        push('running', t('studio:generate.log.composing', 'Composing templates…'));
         const generated = await studioApi.generate(connectionId, state.intent);
-        push('running', t('studio.generate.log.writing', 'Writing pages…'));
+        push('running', t('studio:generate.log.writing', 'Writing pages…'));
         await wait(lineDelayMs);
         push(
           'ok',
-          t('studio.generate.log.done', '{pages} pages generated across {groups} nav groups', { pages: String(generated.pages), groups: String(generated.navGroups.length) }),
+          t('studio:generate.log.done', '{pages} pages generated across {groups} nav groups', { pages: String(generated.pages), groups: String(generated.navGroups.length) }),
         );
         if (!cancelledRef.current) {
           setResult(generated);
@@ -102,7 +102,7 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
         setError(
           cause instanceof ApiError
             ? cause.message
-            : t('studio.generate.failed', 'Generation failed — retry, or re-run introspection first.'),
+            : t('studio:generate.failed', 'Generation failed — retry, or re-run introspection first.'),
         );
       }
     })();
@@ -110,13 +110,13 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
 
   if (state.mode === 'file') {
     return (
-      <section aria-label={t('studio.generate.title', 'Generate your app')} className="flex flex-col gap-4">
-        <h2 className="text-section text-fg">{t('studio.generate.title', 'Generate your app')}</h2>
+      <section aria-label={t('studio:generate.title', 'Generate your app')} className="flex flex-col gap-4">
+        <h2 className="text-section text-fg">{t('studio:generate.title', 'Generate your app')}</h2>
         <Alert
           tone="info"
-          title={t('studio.generate.fileTitle', 'Schema file parsed — generation needs a live database')}
+          title={t('studio:generate.fileTitle', 'Schema file parsed — generation needs a live database')}
           body={t(
-            'studio.generate.fileBody',
+            'studio:generate.fileBody',
             'Your schema parsed cleanly and the preview above is real. Generating a running app straight from a schema file (with placeholder rows) is not available yet — connect a live database to generate today.',
           )}
         />
@@ -127,9 +127,9 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
   if (phase === 'done' && result !== null) {
     return (
       <SuccessState
-        title={t('studio.generate.successTitle', 'Your dashboard is ready')}
-        body={t('studio.generate.successBody', '{pages} pages across {groups} navigation groups — generated from your schema, editable in Studio.', { pages: String(result.pages), groups: String(result.navGroups.length) })}
-        doneLabel={t('studio.generate.openApp', 'Open your app')}
+        title={t('studio:generate.successTitle', 'Your dashboard is ready')}
+        body={t('studio:generate.successBody', '{pages} pages across {groups} navigation groups — generated from your schema, editable in Studio.', { pages: String(result.pages), groups: String(result.navGroups.length) })}
+        doneLabel={t('studio:generate.openApp', 'Open your app')}
         onDone={() => {
           clearWizardState();
           onOpenApp();
@@ -139,21 +139,21 @@ export function GenerateStep({ state, onOpenApp, lineDelayMs = 250 }: GenerateSt
   }
 
   return (
-    <section aria-label={t('studio.generate.title', 'Generate your app')} className="flex flex-col gap-4">
+    <section aria-label={t('studio:generate.title', 'Generate your app')} className="flex flex-col gap-4">
       <div>
-        <h2 className="text-section text-fg">{t('studio.generate.title', 'Generate your app')}</h2>
+        <h2 className="text-section text-fg">{t('studio:generate.title', 'Generate your app')}</h2>
         <p className="mt-1 text-body-sm text-fg-muted">
-          {t('studio.generate.subtitle', 'One page per included table plus dashboards per domain — intent:')}{' '}
+          {t('studio:generate.subtitle', 'One page per included table plus dashboards per domain — intent:')}{' '}
           <MonoText>{state.intent}</MonoText>
         </p>
       </div>
-      {lines.length > 0 ? <LogConsole lines={lines} label={t('studio.generate.logLabel', 'Generation log')} /> : null}
+      {lines.length > 0 ? <LogConsole lines={lines} label={t('studio:generate.logLabel', 'Generation log')} /> : null}
       {error !== null ? (
-        <Alert tone="danger" role="alert" title={t('studio.generate.errorTitle', 'Generation failed')} body={error} />
+        <Alert tone="danger" role="alert" title={t('studio:generate.errorTitle', 'Generation failed')} body={error} />
       ) : null}
       <div>
         <Button onClick={run} loading={phase === 'running'} disabled={state.connectionId === null}>
-          {t('studio.generate.run', 'Generate dashboard')}
+          {t('studio:generate.run', 'Generate dashboard')}
         </Button>
       </div>
     </section>

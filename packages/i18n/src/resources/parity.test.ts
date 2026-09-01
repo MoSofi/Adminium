@@ -182,27 +182,28 @@ describe('studio.enrich is present and genuinely translated in all locales (acce
   // regression that ships them in no bundle would make every non-English user
   // read English. Key-set parity above guarantees all-or-nothing presence — this
   // additionally proves the strings are real translations, not English fallbacks.
+  // In the `studio` namespace since 10-T06 (they were `common.studio.*`).
   const SAMPLE_KEYS = [
-    'studio.enrich.title',
-    'studio.enrich.subtitle',
-    'studio.enrich.byo.cardTitle',
-    'studio.enrich.direct.title',
-    'studio.enrich.section.labels',
+    'enrich.title',
+    'enrich.subtitle',
+    'enrich.byo.cardTitle',
+    'enrich.direct.title',
+    'enrich.section.labels',
   ] as const;
 
   it('en-US carries the whole enrich subtree', () => {
-    const en = flatten(EN_US_RESOURCES.common);
+    const en = flatten(EN_US_RESOURCES.studio);
     for (const key of SAMPLE_KEYS) expect(en.get(key), key).toBeTypeOf('string');
     // The full section vocabulary the wizard renders is present.
     for (const section of ['labels', 'groups', 'enums', 'relations', 'keys', 'templates', 'widgets', 'pii', 'icons', 'microcopy']) {
-      expect(en.get(`studio.enrich.section.${section}`), section).toBeTypeOf('string');
+      expect(en.get(`enrich.section.${section}`), section).toBeTypeOf('string');
     }
   });
 
   for (const locale of TARGET_LOCALES) {
     it(`${locale.id} translates the enrich copy (not the English fallback)`, () => {
-      const en = flatten(EN_US_RESOURCES.common);
-      const target = flatten(readJson(locale.tag, 'common'));
+      const en = flatten(EN_US_RESOURCES.studio);
+      const target = flatten(readJson(locale.tag, 'studio'));
       for (const key of SAMPLE_KEYS) {
         expect(target.get(key), `${locale.tag}:${key}`).toBeTypeOf('string');
         expect(target.get(key), `${locale.tag}:${key} must be translated, not English`).not.toBe(en.get(key));
