@@ -83,6 +83,32 @@ const SCAN_ROOTS = [
   'packages/engine/src',
 ];
 
+/**
+ * Files the best-effort `icon:` sweep must SKIP — private vocabularies that are
+ * resolved by a local map of static imports, never through `CORE_ICONS` or
+ * `lucideByName`.
+ *
+ * The sweep's own comment used to say over-collecting costs nothing, because a
+ * fabricated name is dropped against the catalogue below. That is true of a
+ * WRONG name and false of a right one: a name lucide really has is emitted, and
+ * an emitted name is a static import in the dashboard's ENTRY chunk whether or
+ * not anything resolves it there.
+ *
+ * `page-builder`'s `BLOCK_KIND_META` is the case that proved it. Its `.icon`
+ * slugs are read by one component — `BlockIcon` in `PageBuilder.tsx` — which
+ * resolves them through the local `BLOCK_ICONS` map and falls back to a dashed
+ * square, so the catalogue is never consulted. Attributing all 144 emitted
+ * names to their collecting source found EIGHTEEN whose only origin was that
+ * file — 1,574 bytes gz, measured, less than the ~2.1 KiB a sum-of-parts
+ * estimate predicted — and its host `EmailTemplatesPage` is one of the eleven
+ * routes deliberately behind `React.lazy` — so a lazy surface's private
+ * vocabulary was riding in every user's cold boot.
+ *
+ * This skips the `icon:` sweep ONLY. `<Icon name>` and `lucideByName()` in the
+ * same file would still be collected, because those genuinely do resolve here.
+ */
+const SWEEP_IGNORE = ['packages/widgets/src/templates/page-builder/builder-config.ts'];
+
 /** Files whose curated arrays are icon vocabularies in full. */
 const LIST_SOURCES = [
   ['apps/dashboard/src/studio/pages/IconPicker.tsx', /ICON_SHORTLIST[\s\S]*?\n\];/],
@@ -218,6 +244,8 @@ const ALWAYS_CORE = [
 ];
 
 const names = new Set(ALWAYS_CORE);
+/** {@link SWEEP_IGNORE} path → how many `icon:` literals it actually hid. */
+const sweepIgnoreHits = new Map();
 /** PascalCase name → the declared vocabularies that spelled it, for the report. */
 const strict = new Map();
 const declare = (pascal, origin) => {
@@ -238,11 +266,18 @@ for (const root of SCAN_ROOTS) {
         declare(literal[1], `<Icon name> in ${relative}`);
     }
     // `icon: 'Database'` (an `IconName` field) and `icon: 'bar-chart-3'` (kebab,
-    // resolved through `lucideByName`). Both shapes appear; both are filtered
-    // against the real catalogue below, so over-collecting costs nothing.
-    for (const match of source.matchAll(/\bicon:\s*['"]([A-Za-z][A-Za-z0-9-]*)['"]/g)) {
-      names.add(match[1]);
-      names.add(pascalCase(match[1]));
+    // resolved through `lucideByName`). Both shapes appear, and a name lucide
+    // does not carry is dropped against the catalogue below — but one it DOES
+    // carry is emitted regardless of whether anything resolves it through this
+    // set, which is the cost {@link SWEEP_IGNORE} exists to stop paying.
+    const swept = [...source.matchAll(/\bicon:\s*['"]([A-Za-z][A-Za-z0-9-]*)['"]/g)];
+    if (SWEEP_IGNORE.includes(relative)) {
+      sweepIgnoreHits.set(relative, (sweepIgnoreHits.get(relative) ?? 0) + swept.length);
+    } else {
+      for (const match of swept) {
+        names.add(match[1]);
+        names.add(pascalCase(match[1]));
+      }
     }
     for (const match of source.matchAll(/lucideByName\(\s*'([a-z0-9-]+)'/g))
       declare(pascalCase(match[1]), `lucideByName() in ${relative}`);
@@ -259,6 +294,16 @@ for (const [relative, section] of LIST_SOURCES) {
 
 /** A strict source that matches nothing has been renamed out from under us. */
 const blindSources = [];
+
+// The same failure from the other side: an ignore entry that stops matching
+// stops excluding, and the names it was hiding return to the entry chunk with
+// nothing in the log to say why. The chunk-budget gate would go red eventually;
+// this says which line did it.
+for (const relative of SWEEP_IGNORE) {
+  if (!existsSync(join(repoRoot, relative))) blindSources.push(`${relative} (SWEEP_IGNORE: file is gone)`);
+  else if ((sweepIgnoreHits.get(relative) ?? 0) === 0)
+    blindSources.push(`${relative} (SWEEP_IGNORE: no \`icon:\` literals left to skip)`);
+}
 for (const [relative, block, value] of STRICT_SOURCES) {
   const file = join(repoRoot, relative);
   if (!existsSync(file)) {
@@ -276,9 +321,11 @@ for (const [relative, block, value] of STRICT_SOURCES) {
 
 if (blindSources.length > 0) {
   console.error(
-    'The icon-vocabulary gate has gone blind — a declared source yielded no names:\n' +
+    'The icon-vocabulary gate has gone blind — a source matched nothing:\n' +
       blindSources.map((line) => `  - ${line}`).join('\n') +
-      '\nFix the STRICT_SOURCES entry in scripts/gen-icon-core.mjs, or the gate is off.',
+      '\nFix its STRICT_SOURCES or SWEEP_IGNORE entry in scripts/gen-icon-core.mjs.\n' +
+      'A blind STRICT_SOURCES entry stops CHECKING names; a blind SWEEP_IGNORE entry\n' +
+      'stops EXCLUDING them, and they go back into the dashboard entry chunk.',
   );
   process.exit(1);
 }
@@ -419,9 +466,11 @@ if (check) {
 
 writeFileSync(OUT_FILE, serialized, 'utf8');
 writeFileSync(NAMES_FILE, serializedNames, 'utf8');
+const skipped = [...sweepIgnoreHits.values()].reduce((sum, n) => sum + n, 0);
 console.log(
   `Wrote ${OUT_FILE} (${String(real.length)} icons; ` +
     `${String(strict.size)} declared by contract, all valid; ` +
-    `dropped ${String(dropped.length)} non-lucide names from the best-effort scan)`,
+    `dropped ${String(dropped.length)} non-lucide names from the best-effort scan; ` +
+    `skipped ${String(skipped)} \`icon:\` literal(s) in ${String(SWEEP_IGNORE.length)} local-map file(s))`,
 );
 console.log(`Wrote ${NAMES_FILE} (${String(allKebab.length)} catalogue names)`);
