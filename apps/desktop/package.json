@@ -230,7 +230,7 @@
     "@electron/rebuild": "^4.2.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "22.15.3",
-    "electron": "^43.4.0",
+    "electron": "^44.1.1",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "catalog:",
