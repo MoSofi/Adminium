@@ -36,11 +36,11 @@
   "devDependencies": {
     "@adminium/config": "workspace:*",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "22.15.3",
-    "@types/pg": "^8.21.0",
+    "@types/node": "22.20.1",
+    "@types/pg": "^8.23.1",
     "better-sqlite3": "^13.0.3",
     "eslint": "catalog:",
-    "mysql2": "^3.23.3",
+    "mysql2": "^3.24.3",
     "pg": "^8.23.0",
     "typescript": "catalog:",
     "vitest": "catalog:"

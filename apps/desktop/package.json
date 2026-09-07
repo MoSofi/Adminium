@@ -146,7 +146,7 @@
     "zod": "catalog:"
   },
   "optionalDependencies": {
-    "mysql2": "^3.23.3",
+    "mysql2": "^3.24.3",
     "pg": "^8.23.0"
   },
   "//native-modules": [
@@ -229,13 +229,13 @@
     "@adminium/tokens": "workspace:*",
     "@electron/rebuild": "^4.2.0",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "22.15.3",
+    "@types/node": "22.20.1",
     "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "catalog:",
     "icon-gen": "^5.0.0",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "typescript": "catalog:",
     "vite": "^7.0.5",
     "vitest": "catalog:"
