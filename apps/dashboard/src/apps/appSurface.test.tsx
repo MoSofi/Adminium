@@ -11,7 +11,7 @@
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { activeHostedItem, type HostedApp } from '../app/bootstrap.js';
@@ -106,25 +106,37 @@ describe('activeHostedItem — longest match', () => {
   });
 });
 
+/**
+ * The hosted section's OWN rows. The platform rail carries an `Invoices` row of
+ * its own (`/invoices`, 34-invoices-add-on.md 34-T48), so a document-wide
+ * `getByRole('link', { name: 'Invoices' })` finds two — and D7's claim is about
+ * the app's section, not the rail around it.
+ */
+function hostedLink(name: string): HTMLElement {
+  const section = document.querySelector('[data-part="nav-hosted-app"]');
+  if (section === null) throw new Error('no hosted section rendered');
+  return within(section as HTMLElement).getByRole('link', { name });
+}
+
 describe('the sidebar section (D7)', () => {
   it('renders the app as its own labelled section with its own rows', async () => {
     await renderAt('/a/clients/home');
     expect(screen.getByText('Outline')).toBeTruthy();
     for (const label of ['Home', 'Invoices', 'Archive']) {
-      expect(screen.getByRole('link', { name: label })).toBeTruthy();
+      expect(hostedLink(label)).toBeTruthy();
     }
   });
 
   it('marks only the active row active', async () => {
     await renderAt('/a/clients/invoices');
-    expect(screen.getByRole('link', { name: 'Invoices' }).getAttribute('data-status')).toBe('active');
-    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('data-status')).toBeNull();
+    expect(hostedLink('Invoices').getAttribute('data-status')).toBe('active');
+    expect(hostedLink('Home').getAttribute('data-status')).toBeNull();
   });
 
   it('keeps the highlight on the section when the app is on an unlisted screen', async () => {
     // The app navigated to an invoice detail. The rail must not go blank.
     await renderAt('/a/clients/invoices/INV-204');
-    expect(screen.getByRole('link', { name: 'Invoices' }).getAttribute('data-status')).toBe('active');
+    expect(hostedLink('Invoices').getAttribute('data-status')).toBe('active');
   });
 
   it('renders no section at all when no app is blended', async () => {

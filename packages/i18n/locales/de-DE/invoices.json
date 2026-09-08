@@ -1,0 +1,706 @@
+{
+  "add": {
+    "allOn": "Alle Standardblöcke sind bereits auf dieser Rechnung.",
+    "custom": "Selbst gestalten",
+    "standard": "Standardblöcke",
+    "subtitle": "Gestalten Sie einen eigenen Abschnitt oder schalten Sie einen der Standardblöcke ein.",
+    "title": "Abschnitt hinzufügen"
+  },
+  "canvas": {
+    "addSection": "Abschnitt hinzufügen",
+    "approval": {
+      "approved": "Genehmigt",
+      "pending": "Ausstehend",
+      "rejected": "Abgelehnt",
+      "title": "Genehmigung"
+    },
+    "attachments": "Anhänge",
+    "blocks": {
+      "parties": "Absender & Rechnung an",
+      "paynotes": "Zahlung & Hinweise"
+    },
+    "brandName": "Markenname",
+    "brandingHint": "Marke · zum Bearbeiten klicken",
+    "contact": "Fragen? Sprechen Sie uns an",
+    "custom": {
+      "addRow": "Zeile hinzufügen",
+      "body": "Abschnittstext",
+      "caption": "Bildunterschrift",
+      "clearImage": "Bild entfernen",
+      "clearSlot": "Entfernen",
+      "clearSlotOf": "Bild {n} entfernen",
+      "remove": "Abschnitt entfernen",
+      "removeOf": "Abschnitt entfernen: {title}",
+      "removeRow": "Zeile entfernen",
+      "removeRowOf": "Zeile {n} entfernen",
+      "rowLabel": "Beschriftung von Zeile {n}",
+      "rowValue": "Wert von Zeile {n}",
+      "titleLabel": "Abschnittstitel",
+      "upload": "Zum Hochladen eines Bildes klicken",
+      "uploadSlot": "Bild {n} hochladen"
+    },
+    "customerName": "Kundenname",
+    "dateSigned": "Datum der Unterschrift",
+    "delivery": {
+      "title": "Lieferverlauf"
+    },
+    "discount": {
+      "title": "Rabattcodes"
+    },
+    "due": "Fällig",
+    "from": "Absender",
+    "insertAbove": "Abschnitt über {label} einfügen",
+    "insertHere": "Hier einen Abschnitt einfügen",
+    "invoiceTo": "Rechnung an",
+    "issued": "Ausgestellt",
+    "items": {
+      "add": "Position hinzufügen",
+      "amount": "Betrag",
+      "description": "Beschreibung",
+      "descriptionOf": "Beschreibung von Position {n}",
+      "qty": "Menge",
+      "qtyOf": "Menge von Position {n}",
+      "rate": "Preis",
+      "rateOf": "Preis von Position {n}",
+      "remove": "Position entfernen: {name}",
+      "reorder": "Zum Anordnen ziehen",
+      "reorderOf": "Zum Anordnen ziehen: {name}",
+      "row": "Position {n}"
+    },
+    "latefees": {
+      "sentence": "Auf Beträge, die mehr als {days} Tage nach dem Fälligkeitsdatum offen sind, fallen monatlich {rate} % Verzugsgebühr an.",
+      "title": "Verzugsgebühr"
+    },
+    "legal": "Rechtliches",
+    "lines": {
+      "customer": "Kundenzeile {n}",
+      "from": "Absenderzeile {n}",
+      "payment": "Zahlungszeile {n}",
+      "ship": "Lieferzeile {n}"
+    },
+    "loyalty": {
+      "balance": "{balance} Pkt. · {level}",
+      "title": "Punktestand"
+    },
+    "multicurrency": {
+      "note": "Umgerechnet aus {total} zu Richtkursen.",
+      "title": "Auch zahlbar in"
+    },
+    "notes": "Hinweise",
+    "payhistory": {
+      "title": "Zahlungsverlauf"
+    },
+    "payment": "Zahlung",
+    "poNumber": "Bestellnummer",
+    "poTerms": "Bedingungen der Bestellung",
+    "qr": {
+      "due": "Fälliger Betrag · {total}",
+      "title": "Per QR-Code zahlen"
+    },
+    "recurring": {
+      "next": "Nächste am {next} · {count}",
+      "title": "Wiederkehrend — {freq}"
+    },
+    "refund": "Rückerstattungsregeln",
+    "reorderSection": "Abschnitt zum Anordnen ziehen",
+    "reorderSectionOf": "Abschnitt zum Anordnen ziehen: {label}",
+    "select": "{label} bearbeiten",
+    "shipName": "Empfängername",
+    "shipTo": "Lieferung an",
+    "sigName": "Name des Unterzeichners",
+    "sigTitle": "Funktion des Unterzeichners",
+    "signature": "Unterschrift",
+    "taxbreak": {
+      "title": "Steueraufschlüsselung"
+    },
+    "terms": "Bedingungen",
+    "termsAccepted": "Bedingungen angenommen",
+    "termsLabel": "Beschriftung der Bedingungen",
+    "totals": {
+      "discount": "Rabatt ({rate})",
+      "subtotal": "Zwischensumme",
+      "tax": "Steuer ({rate})",
+      "total": "Gesamtbetrag"
+    }
+  },
+  "card": {
+    "delete": "Löschen",
+    "duplicate": "Duplizieren",
+    "edit": "Bearbeiten",
+    "rename": "Umbenennen",
+    "renameLabel": "Neuer Name",
+    "total": "GESAMT"
+  },
+  "custom": {
+    "gallery": {
+      "hint": "Zwei oder drei Bilder nebeneinander",
+      "label": "Bilderreihe"
+    },
+    "image": {
+      "hint": "Foto, Zeichnung oder Zertifikat hochladen",
+      "label": "Bildblock"
+    },
+    "kv": {
+      "hint": "Paare aus Beschriftung und Wert",
+      "label": "Detailzeilen"
+    },
+    "text": {
+      "hint": "Ihr eigener Text — Hinweise, Umfang, Bedingungen",
+      "label": "Textabschnitt"
+    }
+  },
+  "delete": {
+    "body": {
+      "invoice": "Das lässt sich nicht rückgängig machen. Die Rechnung wird dauerhaft entfernt.",
+      "template": "Das lässt sich nicht rückgängig machen. Die Vorlage wird dauerhaft entfernt."
+    },
+    "confirm": "Löschen",
+    "title": "{name} löschen?"
+  },
+  "editor": {
+    "delete": "Löschen",
+    "discard": {
+      "body": "Ihre Änderungen an {name} gehen verloren.",
+      "confirm": "Verwerfen",
+      "keep": "Weiter bearbeiten",
+      "title": "Nicht gespeicherte Änderungen verwerfen?"
+    },
+    "duplicate": "Duplizieren",
+    "images": "Bilder",
+    "kind": {
+      "invoice": "Rechnung",
+      "template": "Vorlage"
+    },
+    "loadFailed": "Dieses Dokument konnte nicht geladen werden",
+    "nameLabel": "Name",
+    "redo": "Wiederholen",
+    "saveFailed": "Konnte nicht gespeichert werden",
+    "saveInvoice": "Rechnung speichern",
+    "saveState": {
+      "dirty": "Nicht gespeicherte Änderungen",
+      "error": "Nicht gespeichert",
+      "saved": "Alle Änderungen gespeichert",
+      "saving": "Wird gespeichert…"
+    },
+    "saveTemplate": "Vorlage speichern",
+    "sendInvoice": "Rechnung senden",
+    "shortcutSave": "Dokument speichern",
+    "undo": "Rückgängig"
+  },
+  "empty": {
+    "invoices": {
+      "body": "Erstellen Sie Ihre erste Rechnung aus einer Vorlage oder auf leerer Fläche.",
+      "title": "Noch keine Rechnungen"
+    },
+    "noMatch": {
+      "body": "Versuchen Sie einen anderen Suchbegriff.",
+      "invoices": "Keine passenden Rechnungen",
+      "templates": "Keine passenden Vorlagen"
+    },
+    "templates": {
+      "body": "Erstellen Sie eine wiederverwendbare Rechnungsvorlage, aus der Ihr Team arbeiten kann.",
+      "title": "Noch keine Vorlagen"
+    }
+  },
+  "inspector": {
+    "addLine": "Zeile hinzufügen",
+    "approval": {
+      "name": "Name des Genehmigers",
+      "status": {
+        "approved": "Genehmigt",
+        "pending": "Ausstehend",
+        "rejected": "Abgelehnt"
+      },
+      "statusLabel": "Status",
+      "title": "Rolle / Funktion"
+    },
+    "attachments": {
+      "add": "Datei hinzufügen",
+      "files": "Dateien",
+      "name": "Name von Datei {n}",
+      "removeRow": "Datei {n} entfernen",
+      "seedName": "Neue Datei.pdf",
+      "size": "Größe von Datei {n}"
+    },
+    "branding": {
+      "accentHintAfter": "& Design.",
+      "accentHintBefore": "Ändern Sie die Akzentfarbe im Abschnitt",
+      "accentHintBold": "Titel",
+      "brandName": "Markenname",
+      "logoImage": "Logobild",
+      "logoMark": "Logozeichen",
+      "logoNoteAfter": "in der Symbolleiste.",
+      "logoNoteBefore": "Ein hochgeladenes Logo ersetzt das Zeichen oben. Alle festen Bilder liegen unter",
+      "logoNoteBold": "Bilder",
+      "removeLogo": "Entfernen",
+      "uploadLogo": "Logo hochladen"
+    },
+    "contact": {
+      "email": "E-Mail",
+      "name": "Kontaktname",
+      "phone": "Telefon"
+    },
+    "custom": {
+      "addRow": "Zeile hinzufügen",
+      "body": "Fließtext",
+      "caption": "Bildunterschrift",
+      "galleryHint": "Klicken Sie auf der Rechnung auf jeden Platz, um ein Bild hochzuladen.",
+      "height": "Höhe",
+      "image": "Bild",
+      "remove": "Abschnitt entfernen",
+      "title": "Abschnittstitel",
+      "upload": "Hochladen / ersetzen"
+    },
+    "customer": {
+      "addressContact": "Adresse & Kontakt",
+      "clientName": "Kundenname"
+    },
+    "delivery": {
+      "add": "Schritt hinzufügen",
+      "cycle": "Status von Schritt {n}: {status}",
+      "label": "Schritt {n}",
+      "note": "Tippen Sie auf den Status, um zwischen Ausstehend → In Arbeit → Erledigt zu wechseln.",
+      "removeRow": "Schritt {n} entfernen",
+      "seedLabel": "Neuer Schritt",
+      "status": {
+        "current": "In Arbeit",
+        "done": "Erledigt",
+        "todo": "Ausstehend"
+      },
+      "steps": "Schritte"
+    },
+    "discount": {
+      "add": "Code hinzufügen",
+      "amount": "Betrag von Code {n}",
+      "code": "Code {n}",
+      "codePlaceholder": "CODE",
+      "codes": "Rabattcodes",
+      "label": "Beschreibung von Code {n}",
+      "labelPlaceholder": "Beschreibung",
+      "removeRow": "Code {n} entfernen",
+      "seedLabel": "Neuer Rabatt"
+    },
+    "fallback": {
+      "title": "Bearbeiten"
+    },
+    "from": {
+      "companyDetails": "Firmendaten"
+    },
+    "images": {
+      "addSection": "Bildabschnitt hinzufügen",
+      "background": "Hintergrund",
+      "backgroundHint": "Wasserzeichen hinter der Rechnung",
+      "intro": "Feste Bilder, die mit der Rechnung mitgehen. Einmal hochladen — jedes Dokument aus dieser Vorlage behält sie.",
+      "logo": "Logo",
+      "logoHint": "Ersetzt das Logozeichen",
+      "qr": "QR-Code",
+      "qrHint": "Wird im QR-Zahlungsblock angezeigt",
+      "remove": "Entfernen",
+      "replace": "Ersetzen",
+      "signature": "Unterschrift",
+      "signatureHint": "Eingescannte Unterschrift",
+      "stamp": "Stempel / Siegel",
+      "stampHint": "Stempel für Bezahlt oder Genehmigt",
+      "upload": "Hochladen",
+      "uploadSlot": "{label} hochladen"
+    },
+    "items": {
+      "add": "Position hinzufügen",
+      "count": "Positionen",
+      "hint": "Bearbeiten Sie jede Zelle direkt auf der Rechnung oder ziehen Sie am Griff, um die Reihenfolge zu ändern.",
+      "subtotal": "Zwischensumme"
+    },
+    "latefees": {
+      "grace": "Karenzzeit",
+      "graceUnit": "Tage",
+      "rate": "Gebührensatz",
+      "rateUnit": "% monatlich"
+    },
+    "legal": {
+      "footer": "Rechtliche Fußzeile"
+    },
+    "line": "{label} {n}",
+    "loyalty": {
+      "balance": "Punktestand",
+      "earned": "Erhaltene Punkte",
+      "level": "Stufe"
+    },
+    "meta": {
+      "due": "Fälligkeitsdatum",
+      "issued": "Rechnungsdatum",
+      "number": "Rechnungsnummer",
+      "poNumber": "Bestellnummer",
+      "terms": "Zahlungsbedingungen"
+    },
+    "multicurrency": {
+      "add": "Währung hinzufügen",
+      "code": "Code von Währung {n}",
+      "note": "Der Kurs wird mit dem Gesamtbetrag der Rechnung multipliziert. Code, Symbol, dann Kurs.",
+      "rate": "Kurs von Währung {n}",
+      "rates": "Währungen & Kurse",
+      "removeRow": "Währung {n} entfernen",
+      "symbol": "Symbol von Währung {n}"
+    },
+    "notes": {
+      "footerNotes": "Hinweise in der Fußzeile",
+      "hint": "Steht unten auf der Rechnung — Bedingungen, ein Dankeschön oder Rechtstext."
+    },
+    "payhistory": {
+      "add": "Zahlung hinzufügen",
+      "amount": "Betrag von Zahlung {n}",
+      "amountPlaceholder": "Betrag",
+      "date": "Datum von Zahlung {n}",
+      "datePlaceholder": "Datum",
+      "method": "Art von Zahlung {n}",
+      "methodPlaceholder": "Zahlungsart",
+      "payments": "Zahlungen",
+      "removeRow": "Zahlung {n} entfernen"
+    },
+    "payment": {
+      "instructions": "Zahlungshinweise"
+    },
+    "poterms": {
+      "terms": "Bedingungen der Bestellung"
+    },
+    "qr": {
+      "caption": "Bildunterschrift",
+      "hint": "Codiert „Fälliger Betrag · {total}“. Angezeigt wird das Bild, das Sie unter „Bilder“ hochladen."
+    },
+    "recurring": {
+      "annually": "Jährlich",
+      "frequency": "Häufigkeit",
+      "monthly": "Monatlich",
+      "next": "Nächstes Ausgabedatum",
+      "note": "Hinweis zum Rhythmus",
+      "quarterly": "Vierteljährlich",
+      "weekly": "Wöchentlich"
+    },
+    "refund": {
+      "policy": "Rückerstattungsregeln"
+    },
+    "removeLine": "{label} {n} entfernen",
+    "removeSection": "Abschnitt entfernen",
+    "shipto": {
+      "addressLines": "Adresszeilen",
+      "name": "Name des Empfängers"
+    },
+    "signature": {
+      "hint": "Auf der Rechnung erscheinen eine Unterschriftenlinie und ein Datumsfeld zum Unterschreiben von Hand.",
+      "name": "Name des Unterzeichners",
+      "title": "Funktion / Rolle"
+    },
+    "tax": {
+      "discount": "Rabatt",
+      "discountRow": "Rabatt",
+      "subtotal": "Zwischensumme",
+      "tax": "Steuer",
+      "taxRate": "Steuersatz",
+      "total": "Gesamtbetrag"
+    },
+    "taxbreak": {
+      "add": "Steuerzeile hinzufügen",
+      "components": "Steuerbestandteile",
+      "label": "Beschriftung von Steuerzeile {n}",
+      "note": "Jeder Satz wird auf die Zwischensumme nach Abzug des Rabatts angewendet.",
+      "rate": "Satz von Steuerzeile {n}",
+      "removeRow": "Steuerzeile {n} entfernen",
+      "seedLabel": "Neue Steuer"
+    },
+    "terms": {
+      "checkboxLabel": "Beschriftung des Kästchens",
+      "preChecked": "Vorab angehakt",
+      "preCheckedHint": "Das Kästchen bereits angehakt anzeigen"
+    },
+    "theme": {
+      "accentColour": "Akzentfarbe",
+      "backgroundHint": "Legt einen randlosen Hintergrund hinter die ganze Rechnung — ideal für Briefpapier oder ein Wasserzeichen.",
+      "backgroundImage": "Hintergrundbild",
+      "currency": "Währung",
+      "documentTitle": "Dokumenttitel",
+      "language": "Sprache",
+      "languageNote": "Erstellen Sie mit der Sprachschaltfläche in der Symbolleiste eine verknüpfte Variante, statt diese hier neu auszuzeichnen.",
+      "overlay": "Überlagerung {pct} %",
+      "overlayLabel": "Überlagerung",
+      "removeBackground": "Entfernen",
+      "replaceBackground": "Ersetzen",
+      "showDecimals": "Nachkommastellen anzeigen",
+      "showDecimalsHint": "z. B. 290,00 $ statt 290 $",
+      "status": {
+        "draft": "Entwurf",
+        "live": "Aktiv",
+        "overdue": "Überfällig",
+        "paid": "Bezahlt",
+        "sent": "Gesendet"
+      },
+      "statusLabel": "Status",
+      "topic": {
+        "logistics": "Versand & Logistik",
+        "other": "Ohne Kategorie",
+        "receipts": "Belege & Erstattungen",
+        "recurring": "Wiederkehrend",
+        "sales": "Verkauf & Angebote",
+        "services": "Dienstleistungen"
+      },
+      "topicLabel": "Thema",
+      "uploadBackground": "Hintergrund hochladen"
+    }
+  },
+  "languages": {
+    "de": "Deutsch",
+    "en": "Englisch",
+    "es": "Spanisch",
+    "footnote": "Eine neue Sprache erzeugt eine verknüpfte Kopie, gruppiert unter demselben Thema.",
+    "fr": "Französisch",
+    "ja": "Japanisch",
+    "pt": "Portugiesisch",
+    "state": {
+      "create": "Anlegen",
+      "editing": "Bearbeiten",
+      "open": "Öffnen"
+    },
+    "title": "Sprachvarianten"
+  },
+  "list": {
+    "actions": "Aktionen",
+    "name": "Name",
+    "status": "Status",
+    "updated": "Aktualisiert"
+  },
+  "manager": {
+    "group": {
+      "documents": "{count, plural, one {# Dokument} other {# Dokumente}}",
+      "label": "Gruppierung",
+      "language": "Sprache",
+      "languages": "{count, plural, one {# Sprache} other {# Sprachen}}",
+      "none": "Keine",
+      "topic": "Thema"
+    },
+    "layout": {
+      "gallery": "Galerie",
+      "label": "Ansicht",
+      "list": "Liste"
+    },
+    "loadFailed": "Rechnungen konnten nicht geladen werden",
+    "search": {
+      "clear": "Suche löschen",
+      "invoices": "Rechnungen durchsuchen…",
+      "templates": "Vorlagen durchsuchen…"
+    },
+    "subtitle": "Wiederverwendbare Vorlagen und die Rechnungen, die Sie daraus erstellen.",
+    "tabs": {
+      "invoices": "Rechnungen",
+      "label": "Art",
+      "templates": "Vorlagen"
+    },
+    "title": "Rechnungen",
+    "untitled": "Ohne Titel"
+  },
+  "new": {
+    "blank": "Leere Rechnung",
+    "blankHint": "Von Grund auf beginnen",
+    "category": {
+      "adjustments": "Korrekturen",
+      "business": "Unternehmen",
+      "nonprofit": "Gemeinnützig",
+      "payments": "Zahlungen",
+      "projects": "Projekte",
+      "recurring": "Wiederkehrend",
+      "sales": "Verkauf",
+      "services": "Dienstleistungen",
+      "shipping": "Versand"
+    },
+    "failed": "Konnte nicht erstellt werden",
+    "invoice": "Neue Rechnung",
+    "startersFailed": "Die Startvorlagen konnten nicht geladen werden. Beginnen Sie leer oder versuchen Sie es erneut.",
+    "subtitle": "Beginnen Sie auf leerer Fläche oder mit einer fertigen Vorlage.",
+    "template": "Neue Vorlage",
+    "yourTemplates": "Ihre Vorlagen"
+  },
+  "optional": {
+    "approvalShow": "Genehmigung",
+    "attachShow": "Anhänge",
+    "conShow": "Kontakt",
+    "delShow": "Lieferverlauf",
+    "discShow": "Rabattcodes",
+    "lateShow": "Verzugsgebühren",
+    "legalShow": "Rechtliche Fußzeile",
+    "loyShow": "Treuepunkte",
+    "mcShow": "Mehrere Währungen",
+    "payhShow": "Zahlungsverlauf",
+    "poShow": "Bestellbedingungen",
+    "qrShow": "QR-Zahlung",
+    "recurShow": "Wiederkehrend",
+    "refShow": "Rückerstattungsregeln",
+    "shipShow": "Lieferung an",
+    "sigShow": "Unterschrift",
+    "taxbShow": "Steueraufschlüsselung",
+    "termsShow": "Zustimmung zu den Bedingungen"
+  },
+  "section": {
+    "approval": {
+      "hint": "Stand der Genehmigung",
+      "title": "Genehmigung"
+    },
+    "attachments": {
+      "hint": "Angehängte Dateien",
+      "title": "Anhänge"
+    },
+    "branding": {
+      "hint": "Logo & Markenname",
+      "title": "Marke"
+    },
+    "contact": {
+      "hint": "Kontaktdaten für den Support",
+      "title": "Kontakt"
+    },
+    "custom": {
+      "hint": "Ihr eigener Abschnitt",
+      "title": "Eigener Abschnitt"
+    },
+    "customer": {
+      "hint": "Kundendaten",
+      "title": "Rechnung an"
+    },
+    "delivery": {
+      "hint": "Stand der Lieferung",
+      "title": "Lieferverlauf"
+    },
+    "discount": {
+      "hint": "Angewendete Aktionscodes",
+      "title": "Rabattcodes"
+    },
+    "from": {
+      "hint": "Ihre Firmendaten",
+      "title": "Absender"
+    },
+    "images": {
+      "hint": "Logo, Hintergrund, QR & Fotos",
+      "title": "Bilder"
+    },
+    "items": {
+      "hint": "Produkte & Leistungen",
+      "title": "Positionen"
+    },
+    "latefees": {
+      "hint": "Aufschlag bei Verzug",
+      "title": "Verzugsgebühren"
+    },
+    "legal": {
+      "hint": "Kleingedrucktes",
+      "title": "Rechtliche Fußzeile"
+    },
+    "loyalty": {
+      "hint": "Prämienguthaben",
+      "title": "Treuepunkte"
+    },
+    "meta": {
+      "hint": "Nummer, Daten, Bestellung & Bedingungen",
+      "title": "Rechnungsdaten"
+    },
+    "multicurrency": {
+      "hint": "Summen in anderen Währungen",
+      "title": "Mehrere Währungen"
+    },
+    "notes": {
+      "hint": "Text in der Fußzeile",
+      "title": "Hinweise"
+    },
+    "payhistory": {
+      "hint": "Frühere Zahlungen",
+      "title": "Zahlungsverlauf"
+    },
+    "payment": {
+      "hint": "Wie bezahlt wird",
+      "title": "Zahlung"
+    },
+    "poterms": {
+      "hint": "Bedingungen der Bestellung",
+      "title": "Bestellbedingungen"
+    },
+    "qr": {
+      "hint": "Code zum Scannen und Bezahlen",
+      "title": "QR-Zahlung"
+    },
+    "recurring": {
+      "hint": "Rhythmus der Abbuchung",
+      "title": "Wiederkehrend"
+    },
+    "refund": {
+      "hint": "Rückgaben und Erstattungen",
+      "title": "Rückerstattungsregeln"
+    },
+    "shipto": {
+      "hint": "Lieferanschrift",
+      "title": "Lieferung an"
+    },
+    "signature": {
+      "hint": "Verbindliche Unterzeichnung",
+      "title": "Unterschrift"
+    },
+    "tax": {
+      "hint": "Sätze & Rabatte",
+      "title": "Steuer & Summen"
+    },
+    "taxbreak": {
+      "hint": "Steuerbestandteile",
+      "title": "Steueraufschlüsselung"
+    },
+    "terms": {
+      "hint": "Kästchen zur Zustimmung",
+      "title": "Bedingungen"
+    },
+    "theme": {
+      "hint": "Farbe, Währung, Status",
+      "title": "Titel & Design"
+    }
+  },
+  "seed": {
+    "gallery": {
+      "title": "Bilder"
+    },
+    "image": {
+      "caption": "Bildunterschrift hinzufügen",
+      "title": "Bild"
+    },
+    "item": "Neuer Eintrag",
+    "kv": {
+      "label": "Beschriftung",
+      "row1k": "Kostenstelle",
+      "row2k": "Vertrag",
+      "title": "Referenzangaben",
+      "value": "Wert"
+    },
+    "text": {
+      "body": "Fügen Sie hier Ihren eigenen Text ein — Umfang, Lieferhinweise, Bedingungen oder eine Nachricht an Ihre Kundschaft.",
+      "title": "Weitere Hinweise"
+    }
+  },
+  "status": {
+    "draft": "Entwurf",
+    "live": "Aktiv",
+    "overdue": "Überfällig",
+    "paid": "Bezahlt",
+    "sent": "Gesendet"
+  },
+  "toast": {
+    "deleteFailed": "Konnte nicht gelöscht werden",
+    "duplicateFailed": "Konnte nicht dupliziert werden",
+    "duplicated": {
+      "invoice": "Rechnung dupliziert",
+      "template": "Vorlage dupliziert"
+    },
+    "imageTooLarge": "Bild zu groß (max. {max})",
+    "imageUnreadable": "Diese Datei konnte nicht gelesen werden",
+    "languageFailed": "Diese Sprache konnte nicht hinzugefügt werden",
+    "notAnImage": "Diese Datei ist kein Bild",
+    "renameFailed": "Konnte nicht umbenannt werden"
+  },
+  "topic": {
+    "logistics": "Versand & Logistik",
+    "other": "Ohne Kategorie",
+    "receipts": "Belege & Erstattungen",
+    "recurring": "Wiederkehrend",
+    "sales": "Verkauf & Angebote",
+    "services": "Dienstleistungen"
+  }
+}

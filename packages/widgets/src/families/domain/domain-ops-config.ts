@@ -92,10 +92,10 @@ export const starterTemplatePickerConfigSchema = widgetSharedConfigSchema.extend
 export type StarterTemplatePickerConfig = z.infer<typeof starterTemplatePickerConfigSchema>;
 
 const STARTER_DEFS: readonly { id: string; title: string; category: string }[] = [
-  { id: 'st-standard', title: 'Standard invoice', category: 'Billing' },
-  { id: 'st-recurring', title: 'Recurring subscription', category: 'Billing' },
-  { id: 'st-deposit', title: 'Deposit request', category: 'Billing' },
-  { id: 'st-credit', title: 'Credit note', category: 'Billing' },
+  { id: 'st-standard', title: 'Standard invoice', category: 'Invoicing' },
+  { id: 'st-recurring', title: 'Recurring subscription', category: 'Invoicing' },
+  { id: 'st-deposit', title: 'Deposit request', category: 'Invoicing' },
+  { id: 'st-credit', title: 'Credit note', category: 'Invoicing' },
   { id: 'st-quote', title: 'Quote / estimate', category: 'Sales' },
   { id: 'st-proforma', title: 'Pro forma', category: 'Sales' },
   { id: 'st-receipt', title: 'Payment receipt', category: 'Sales' },

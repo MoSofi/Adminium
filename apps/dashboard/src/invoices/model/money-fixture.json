@@ -1,0 +1,80 @@
+{
+  "adminium": { "kind": "invoice-money-fixture", "version": 1 },
+  "law": "a line rounds once; a document discount applies to the rounded subtotal; tax on the discounted subtotal; tax-breakdown components on the same base",
+  "cases": [
+    {
+      "name": "the comp's default document, undiscounted",
+      "items": [ { "qty": "1", "rate": "2400" }, { "qty": "6", "rate": "180" }, { "qty": "1", "rate": "320" } ],
+      "discountRate": "0",
+      "taxRate": "8",
+      "expect": { "lines": [240000, 108000, 32000], "subtotal": 380000, "discount": 0, "taxBase": 380000, "tax": 30400, "total": 410400 }
+    },
+    {
+      "name": "a ten percent document discount, tax on the discounted base",
+      "items": [ { "qty": "12", "rate": "63" }, { "qty": "2", "rate": "149" }, { "qty": "1", "rate": "99" } ],
+      "discountRate": "10",
+      "taxRate": "8",
+      "expect": { "lines": [75600, 29800, 9900], "subtotal": 115300, "discount": 11530, "taxBase": 103770, "tax": 8302, "total": 112072 }
+    },
+    {
+      "name": "fractional hours round once per line",
+      "items": [ { "qty": "1.5", "rate": "145" }, { "qty": "0.25", "rate": "165" } ],
+      "discountRate": "0",
+      "taxRate": "20",
+      "expect": { "lines": [21750, 4125], "subtotal": 25875, "discount": 0, "taxBase": 25875, "tax": 5175, "total": 31050 }
+    },
+    {
+      "name": "a third decimal in the rate rounds half away from zero",
+      "items": [ { "qty": "3", "rate": "0.005" }, { "qty": "1", "rate": "10.004" } ],
+      "discountRate": "0",
+      "taxRate": "0",
+      "expect": { "lines": [3, 1000], "subtotal": 1003, "discount": 0, "taxBase": 1003, "tax": 0, "total": 1003 }
+    },
+    {
+      "name": "a credit note's negative lines",
+      "items": [ { "qty": "3", "rate": "-63" } ],
+      "discountRate": "0",
+      "taxRate": "8",
+      "expect": { "lines": [-18900], "subtotal": -18900, "discount": 0, "taxBase": -18900, "tax": -1512, "total": -20412 }
+    },
+    {
+      "name": "a half-cent tax rounds away from zero",
+      "items": [ { "qty": "1", "rate": "0.75" } ],
+      "discountRate": "0",
+      "taxRate": "10",
+      "expect": { "lines": [75], "subtotal": 75, "discount": 0, "taxBase": 75, "tax": 8, "total": 83 }
+    },
+    {
+      "name": "unparseable text is zero, never NaN",
+      "items": [ { "qty": "two", "rate": "$5" }, { "qty": "1", "rate": "" } ],
+      "discountRate": "abc",
+      "taxRate": "",
+      "expect": { "lines": [0, 0], "subtotal": 0, "discount": 0, "taxBase": 0, "tax": 0, "total": 0 }
+    },
+    {
+      "name": "a comma decimal mark and a typographic minus parse",
+      "items": [ { "qty": "2", "rate": "12,50" }, { "qty": "1", "rate": "−5" } ],
+      "discountRate": "2,5",
+      "taxRate": "7,5",
+      "expect": { "lines": [2500, -500], "subtotal": 2000, "discount": 50, "taxBase": 1950, "tax": 146, "total": 2096 }
+    }
+  ],
+  "breakdown": {
+    "name": "components on the discounted base, not the raw subtotal",
+    "taxBase": 103770,
+    "lines": [ { "label": "State tax", "rate": "6" }, { "label": "City tax", "rate": "2" } ],
+    "expect": [6226, 2075]
+  },
+  "fx": {
+    "name": "the total times the typed rate, rounded",
+    "totalMinor": 112072,
+    "rates": [ { "rate": "0.92", "expect": 103106 }, { "rate": "0.79", "expect": 88537 }, { "rate": "abc", "expect": 0 } ]
+  },
+  "format": [
+    { "minor": 410400, "currency": "$", "cents": true, "expect": "$4,104.00" },
+    { "minor": 410400, "currency": "$", "cents": false, "expect": "$4,104" },
+    { "minor": -20412, "currency": "€", "cents": true, "expect": "−€204.12" },
+    { "minor": 5, "currency": "£", "cents": true, "expect": "£0.05" },
+    { "minor": 50, "currency": "¥", "cents": false, "expect": "¥1" }
+  ]
+}

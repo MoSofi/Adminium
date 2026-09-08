@@ -438,7 +438,7 @@ export type BuilderStarterId =
 
 /** The English category display values the starter cards group by. */
 export type BuilderStarterCategory =
-  | 'Billing'
+  | 'Invoicing'
   | 'Sales'
   | 'Non-profit'
   | 'Reports'
@@ -463,7 +463,7 @@ export interface BuilderStarterDef {
  * `satisfies` clause makes a new category a compile error.
  */
 export const STARTER_CATEGORY_KEYS = {
-  Billing: 'ui:templates.builder.starters.categories.billing',
+  Invoicing: 'ui:templates.builder.starters.categories.invoicing',
   Sales: 'ui:templates.builder.starters.categories.sales',
   'Non-profit': 'ui:templates.builder.starters.categories.nonProfit',
   Reports: 'ui:templates.builder.starters.categories.reports',
@@ -479,16 +479,16 @@ export const STARTER_CATEGORY_KEYS = {
  */
 export const BUILDER_STARTERS: Readonly<Record<DocType, readonly BuilderStarterDef[]>> = {
   invoice: [
-    { id: 'st-standard', title: 'Standard invoice', category: 'Billing' },
-    { id: 'st-recurring', title: 'Recurring subscription', category: 'Billing' },
-    { id: 'st-deposit', title: 'Deposit request', category: 'Billing' },
-    { id: 'st-credit-note', title: 'Credit note', category: 'Billing' },
-    { id: 'st-late-reminder', title: 'Late-payment reminder', category: 'Billing' },
+    { id: 'st-standard', title: 'Standard invoice', category: 'Invoicing' },
+    { id: 'st-recurring', title: 'Recurring subscription', category: 'Invoicing' },
+    { id: 'st-deposit', title: 'Deposit request', category: 'Invoicing' },
+    { id: 'st-credit-note', title: 'Credit note', category: 'Invoicing' },
+    { id: 'st-late-reminder', title: 'Late-payment reminder', category: 'Invoicing' },
     { id: 'st-quote', title: 'Quote / estimate', category: 'Sales' },
     { id: 'st-proforma', title: 'Pro forma', category: 'Sales' },
     { id: 'st-receipt', title: 'Payment receipt', category: 'Sales' },
     { id: 'st-retainer', title: 'Retainer', category: 'Sales' },
-    { id: 'st-usage', title: 'Usage-based invoice', category: 'Billing' },
+    { id: 'st-usage', title: 'Usage-based invoice', category: 'Invoicing' },
     { id: 'st-milestone', title: 'Project milestone', category: 'Sales' },
     { id: 'st-donation', title: 'Donation receipt (Tax ID)', category: 'Non-profit' },
   ],

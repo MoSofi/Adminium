@@ -1,0 +1,716 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/zh-TW/invoices.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "add": {
+    "allOn": "這張發票已經加入所有標準區塊。",
+    "custom": "自行建立",
+    "standard": "標準區塊",
+    "subtitle": "自行建立，或開啟其中一個標準區塊。",
+    "title": "新增區段"
+  },
+  "canvas": {
+    "addSection": "新增區段",
+    "approval": {
+      "approved": "已核准",
+      "pending": "待審核",
+      "rejected": "已退回",
+      "title": "簽核"
+    },
+    "attachments": "附件",
+    "blocks": {
+      "parties": "開立方與收票方",
+      "paynotes": "付款與備註"
+    },
+    "brandName": "品牌名稱",
+    "brandingHint": "品牌識別 · 點選即可編輯",
+    "contact": "有問題嗎？聯絡我們",
+    "custom": {
+      "addRow": "新增列",
+      "body": "區段內文",
+      "caption": "圖說",
+      "clearImage": "移除圖片",
+      "clearSlot": "移除",
+      "clearSlotOf": "移除圖片 {n}",
+      "remove": "移除區段",
+      "removeOf": "移除區段：{title}",
+      "removeRow": "移除列",
+      "removeRowOf": "移除第 {n} 列",
+      "rowLabel": "第 {n} 列的標籤",
+      "rowValue": "第 {n} 列的值",
+      "titleLabel": "區段標題",
+      "upload": "點選以上傳圖片",
+      "uploadSlot": "上傳圖片 {n}"
+    },
+    "customerName": "客戶名稱",
+    "dateSigned": "簽署日期",
+    "delivery": {
+      "title": "配送時程"
+    },
+    "discount": {
+      "title": "折扣碼"
+    },
+    "due": "到期日",
+    "from": "開立方",
+    "insertAbove": "在{label}上方新增區段",
+    "insertHere": "在這裡新增區段",
+    "invoiceTo": "收票方",
+    "issued": "開立日期",
+    "items": {
+      "add": "新增明細項目",
+      "amount": "金額",
+      "description": "說明",
+      "descriptionOf": "第 {n} 列的說明",
+      "qty": "數量",
+      "qtyOf": "第 {n} 列的數量",
+      "rate": "單價",
+      "rateOf": "第 {n} 列的單價",
+      "remove": "移除明細項目：{name}",
+      "reorder": "拖曳可重新排序",
+      "reorderOf": "拖曳可重新排序：{name}",
+      "row": "明細項目 {n}"
+    },
+    "latefees": {
+      "sentence": "超過到期日 {days} 天仍未付清的餘額，每月加收 {rate}% 的逾期費用。",
+      "title": "逾期付款費用"
+    },
+    "legal": "法律聲明",
+    "lines": {
+      "customer": "客戶資料第 {n} 行",
+      "from": "開立方資料第 {n} 行",
+      "payment": "付款資訊第 {n} 行",
+      "ship": "送貨資料第 {n} 行"
+    },
+    "loyalty": {
+      "balance": "{balance} 點 · {level}",
+      "title": "點數餘額"
+    },
+    "multicurrency": {
+      "note": "依參考匯率自 {total} 換算。",
+      "title": "亦可用以下幣別支付"
+    },
+    "notes": "備註",
+    "payhistory": {
+      "title": "付款紀錄"
+    },
+    "payment": "付款",
+    "poNumber": "採購單號",
+    "poTerms": "採購單條款",
+    "qr": {
+      "due": "應付金額 · {total}",
+      "title": "掃 QR 付款"
+    },
+    "recurring": {
+      "next": "下次：{next} · {count}",
+      "title": "週期性 — {freq}"
+    },
+    "refund": "退款政策",
+    "reorderSection": "拖曳可重新排序區段",
+    "reorderSectionOf": "拖曳可重新排序區段：{label}",
+    "select": "編輯{label}",
+    "shipName": "收貨人姓名",
+    "shipTo": "送貨至",
+    "sigName": "簽署人姓名",
+    "sigTitle": "簽署人職稱",
+    "signature": "簽名",
+    "taxbreak": {
+      "title": "稅額明細"
+    },
+    "terms": "條款",
+    "termsAccepted": "已同意條款",
+    "termsLabel": "條款標籤",
+    "totals": {
+      "discount": "折扣（{rate}）",
+      "subtotal": "小計",
+      "tax": "稅額（{rate}）",
+      "total": "總計"
+    }
+  },
+  "card": {
+    "delete": "刪除",
+    "duplicate": "複製",
+    "edit": "編輯",
+    "rename": "重新命名",
+    "renameLabel": "新名稱",
+    "total": "總計"
+  },
+  "custom": {
+    "gallery": {
+      "hint": "兩到三張圖片並排",
+      "label": "圖片列"
+    },
+    "image": {
+      "hint": "上傳照片、圖稿或證書",
+      "label": "圖片區塊"
+    },
+    "kv": {
+      "hint": "標籤／數值配對",
+      "label": "明細列"
+    },
+    "text": {
+      "hint": "你自己的文字 — 備註、工作範圍或條件",
+      "label": "文字區段"
+    }
+  },
+  "delete": {
+    "body": {
+      "invoice": "此動作無法復原。發票將被永久移除。",
+      "template": "此動作無法復原。範本將被永久移除。"
+    },
+    "confirm": "刪除",
+    "title": "刪除 {name}？"
+  },
+  "editor": {
+    "delete": "刪除",
+    "discard": {
+      "body": "你對 {name} 的修改將會遺失。",
+      "confirm": "捨棄",
+      "keep": "繼續編輯",
+      "title": "捨棄未儲存的變更？"
+    },
+    "duplicate": "複製",
+    "images": "圖片",
+    "kind": {
+      "invoice": "發票",
+      "template": "範本"
+    },
+    "loadFailed": "無法載入這份文件",
+    "nameLabel": "名稱",
+    "redo": "重做",
+    "saveFailed": "無法儲存",
+    "saveInvoice": "儲存發票",
+    "saveState": {
+      "dirty": "尚未儲存的變更",
+      "error": "無法儲存",
+      "saved": "所有變更已儲存",
+      "saving": "儲存中…"
+    },
+    "saveTemplate": "儲存範本",
+    "sendInvoice": "寄送發票",
+    "shortcutSave": "儲存文件",
+    "undo": "復原"
+  },
+  "empty": {
+    "invoices": {
+      "body": "以範本或空白畫布建立你的第一張發票。",
+      "title": "還沒有發票"
+    },
+    "noMatch": {
+      "body": "試試其他搜尋字詞。",
+      "invoices": "沒有符合的發票",
+      "templates": "沒有符合的範本"
+    },
+    "templates": {
+      "body": "建立一份可重複使用的發票範本，讓團隊可以據以製作。",
+      "title": "還沒有範本"
+    }
+  },
+  "inspector": {
+    "addLine": "新增列",
+    "approval": {
+      "name": "簽核人姓名",
+      "status": {
+        "approved": "已核准",
+        "pending": "待審核",
+        "rejected": "已退回"
+      },
+      "statusLabel": "狀態",
+      "title": "角色／職稱"
+    },
+    "attachments": {
+      "add": "新增檔案",
+      "files": "檔案",
+      "name": "檔案 {n} 名稱",
+      "removeRow": "移除檔案 {n}",
+      "seedName": "新檔案.pdf",
+      "size": "檔案 {n} 大小"
+    },
+    "branding": {
+      "accentHintAfter": "區段中修改。",
+      "accentHintBefore": "強調色可在",
+      "accentHintBold": "標題",
+      "brandName": "品牌名稱",
+      "logoImage": "標誌圖片",
+      "logoMark": "標誌圖形",
+      "logoNoteAfter": "之中。",
+      "logoNoteBefore": "上傳標誌後會取代上方的圖形。所有固定圖片都收在工具列的",
+      "logoNoteBold": "圖片",
+      "removeLogo": "移除",
+      "uploadLogo": "上傳標誌"
+    },
+    "contact": {
+      "email": "電子郵件",
+      "name": "聯絡人姓名",
+      "phone": "電話"
+    },
+    "custom": {
+      "addRow": "新增列",
+      "body": "內文",
+      "caption": "圖說",
+      "galleryHint": "點選發票上的各個位置即可上傳圖片。",
+      "height": "高度",
+      "image": "圖片",
+      "remove": "移除區段",
+      "title": "區段標題",
+      "upload": "上傳／取代"
+    },
+    "customer": {
+      "addressContact": "地址與聯絡方式",
+      "clientName": "客戶名稱"
+    },
+    "delivery": {
+      "add": "新增步驟",
+      "cycle": "步驟 {n} 狀態：{status}",
+      "label": "步驟 {n}",
+      "note": "點選狀態可依序切換 待處理 → 進行中 → 已完成。",
+      "removeRow": "移除步驟 {n}",
+      "seedLabel": "新步驟",
+      "status": {
+        "current": "進行中",
+        "done": "已完成",
+        "todo": "待處理"
+      },
+      "steps": "步驟"
+    },
+    "discount": {
+      "add": "新增折扣碼",
+      "amount": "折扣碼 {n} 金額",
+      "code": "折扣碼 {n}",
+      "codePlaceholder": "CODE",
+      "codes": "折扣碼",
+      "label": "折扣碼 {n} 說明",
+      "labelPlaceholder": "說明",
+      "removeRow": "移除折扣碼 {n}",
+      "seedLabel": "新折扣"
+    },
+    "fallback": {
+      "title": "編輯"
+    },
+    "from": {
+      "companyDetails": "公司資料"
+    },
+    "images": {
+      "addSection": "新增圖片區段",
+      "background": "背景",
+      "backgroundHint": "發票背後的浮水印",
+      "intro": "隨發票一起帶著走的固定圖片。上傳一次，之後以此範本製作的每份文件都會保留。",
+      "logo": "標誌",
+      "logoHint": "會取代標誌圖形",
+      "qr": "QR 碼",
+      "qrHint": "顯示在 QR 付款區塊中",
+      "remove": "移除",
+      "replace": "取代",
+      "signature": "簽名",
+      "signatureHint": "掃描的簽名圖檔",
+      "stamp": "印章／戳記",
+      "stampHint": "已付款或核准的戳記",
+      "upload": "上傳",
+      "uploadSlot": "上傳{label}"
+    },
+    "items": {
+      "add": "新增明細項目",
+      "count": "明細項目",
+      "hint": "可直接在發票上編輯任一欄位，或拖曳握把重新排序。",
+      "subtotal": "小計"
+    },
+    "latefees": {
+      "grace": "寬限期",
+      "graceUnit": "天",
+      "rate": "逾期費率",
+      "rateUnit": "%／月"
+    },
+    "legal": {
+      "footer": "法律頁尾"
+    },
+    "line": "{label} {n}",
+    "loyalty": {
+      "balance": "點數餘額",
+      "earned": "已獲得點數",
+      "level": "等級"
+    },
+    "meta": {
+      "due": "到期日",
+      "issued": "開立日期",
+      "number": "發票號碼",
+      "poNumber": "採購單號",
+      "terms": "付款條件"
+    },
+    "multicurrency": {
+      "add": "新增幣別",
+      "code": "幣別 {n} 代碼",
+      "note": "匯率會乘上發票總計。依序填入代碼、符號與匯率。",
+      "rate": "幣別 {n} 匯率",
+      "rates": "幣別與匯率",
+      "removeRow": "移除幣別 {n}",
+      "symbol": "幣別 {n} 符號"
+    },
+    "notes": {
+      "footerNotes": "頁尾備註",
+      "hint": "顯示在發票底部 — 條款、感謝詞或法律文字。"
+    },
+    "payhistory": {
+      "add": "新增付款",
+      "amount": "付款 {n} 金額",
+      "amountPlaceholder": "金額",
+      "date": "付款 {n} 日期",
+      "datePlaceholder": "日期",
+      "method": "付款 {n} 方式",
+      "methodPlaceholder": "方式",
+      "payments": "付款",
+      "removeRow": "移除付款 {n}"
+    },
+    "payment": {
+      "instructions": "付款說明"
+    },
+    "poterms": {
+      "terms": "採購單條款"
+    },
+    "qr": {
+      "caption": "圖說",
+      "hint": "編碼內容為「應付金額 · {total}」。畫面上的圖碼就是你在「圖片」中上傳的圖片。"
+    },
+    "recurring": {
+      "annually": "每年",
+      "frequency": "頻率",
+      "monthly": "每月",
+      "next": "下次開立日期",
+      "note": "週期說明",
+      "quarterly": "每季",
+      "weekly": "每週"
+    },
+    "refund": {
+      "policy": "退款政策"
+    },
+    "removeLine": "移除{label} {n}",
+    "removeSection": "移除區段",
+    "shipto": {
+      "addressLines": "地址",
+      "name": "收貨人姓名"
+    },
+    "signature": {
+      "hint": "發票上會出現簽名欄與日期欄，供親筆簽署。",
+      "name": "簽署人姓名",
+      "title": "職稱／角色"
+    },
+    "tax": {
+      "discount": "折扣",
+      "discountRow": "折扣",
+      "subtotal": "小計",
+      "tax": "稅額",
+      "taxRate": "稅率",
+      "total": "總計"
+    },
+    "taxbreak": {
+      "add": "新增稅額列",
+      "components": "稅額項目",
+      "label": "稅額列 {n} 標籤",
+      "note": "各項稅率都以折扣後的小計計算。",
+      "rate": "稅額列 {n} 稅率",
+      "removeRow": "移除稅額列 {n}",
+      "seedLabel": "新稅額"
+    },
+    "terms": {
+      "checkboxLabel": "核取方塊標籤",
+      "preChecked": "預先勾選",
+      "preCheckedHint": "顯示為已勾選的狀態"
+    },
+    "theme": {
+      "accentColour": "強調色",
+      "backgroundHint": "在整張發票後方加上滿版背景 — 很適合信頭或浮水印。",
+      "backgroundImage": "背景圖片",
+      "currency": "幣別",
+      "documentTitle": "文件標題",
+      "language": "語言",
+      "languageNote": "請用工具列的語言按鈕建立連結的語言版本，而不是改標這一份的語言。",
+      "overlay": "遮罩 {pct}%",
+      "overlayLabel": "遮罩",
+      "removeBackground": "移除",
+      "replaceBackground": "取代",
+      "showDecimals": "顯示小數",
+      "showDecimalsHint": "例如 $290.00 與 $290",
+      "status": {
+        "draft": "草稿",
+        "live": "啟用中",
+        "overdue": "已逾期",
+        "paid": "已付款",
+        "sent": "已寄出"
+      },
+      "statusLabel": "狀態",
+      "topic": {
+        "logistics": "運送與物流",
+        "other": "未分類",
+        "receipts": "收據與退款",
+        "recurring": "週期性",
+        "sales": "銷售與報價",
+        "services": "專業服務"
+      },
+      "topicLabel": "主題",
+      "uploadBackground": "上傳背景"
+    }
+  },
+  "languages": {
+    "de": "德文",
+    "en": "英文",
+    "es": "西班牙文",
+    "footnote": "新增語言會建立一份連結的副本，並歸在同一個主題之下。",
+    "fr": "法文",
+    "ja": "日文",
+    "pt": "葡萄牙文",
+    "state": {
+      "create": "建立",
+      "editing": "編輯中",
+      "open": "開啟"
+    },
+    "title": "語言版本"
+  },
+  "list": {
+    "actions": "動作",
+    "name": "名稱",
+    "status": "狀態",
+    "updated": "更新時間"
+  },
+  "manager": {
+    "group": {
+      "documents": "{count, plural, other {# 份文件}}",
+      "label": "分組",
+      "language": "語言",
+      "languages": "{count, plural, other {# 種語言}}",
+      "none": "不分組",
+      "topic": "主題"
+    },
+    "layout": {
+      "gallery": "圖庫",
+      "label": "版面",
+      "list": "清單"
+    },
+    "loadFailed": "無法載入發票",
+    "search": {
+      "clear": "清除搜尋",
+      "invoices": "搜尋發票…",
+      "templates": "搜尋範本…"
+    },
+    "subtitle": "可重複使用的範本，以及以它們製作的發票。",
+    "tabs": {
+      "invoices": "發票",
+      "label": "類型",
+      "templates": "範本"
+    },
+    "title": "發票",
+    "untitled": "未命名"
+  },
+  "new": {
+    "blank": "空白發票",
+    "blankHint": "從零開始",
+    "category": {
+      "adjustments": "調整",
+      "business": "商務",
+      "nonprofit": "非營利",
+      "payments": "付款",
+      "projects": "專案",
+      "recurring": "週期性",
+      "sales": "銷售",
+      "services": "服務",
+      "shipping": "運送"
+    },
+    "failed": "無法建立",
+    "invoice": "新增發票",
+    "startersFailed": "無法載入起始範本。請從空白開始，或再試一次。",
+    "subtitle": "從空白畫布開始，或使用現成的範本。",
+    "template": "新增範本",
+    "yourTemplates": "你的範本"
+  },
+  "optional": {
+    "approvalShow": "簽核",
+    "attachShow": "附件",
+    "conShow": "聯絡資訊",
+    "delShow": "配送時程",
+    "discShow": "折扣碼",
+    "lateShow": "逾期費用",
+    "legalShow": "法律頁尾",
+    "loyShow": "會員點數",
+    "mcShow": "多幣別",
+    "payhShow": "付款紀錄",
+    "poShow": "採購單條款",
+    "qrShow": "QR 付款",
+    "recurShow": "週期性",
+    "refShow": "退款政策",
+    "shipShow": "送貨至",
+    "sigShow": "簽名",
+    "taxbShow": "稅額明細",
+    "termsShow": "條款同意"
+  },
+  "section": {
+    "approval": {
+      "hint": "簽核狀態",
+      "title": "簽核"
+    },
+    "attachments": {
+      "hint": "附加的檔案",
+      "title": "附件"
+    },
+    "branding": {
+      "hint": "標誌與品牌名稱",
+      "title": "品牌識別"
+    },
+    "contact": {
+      "hint": "支援聯絡資訊",
+      "title": "聯絡資訊"
+    },
+    "custom": {
+      "hint": "你自己的區段",
+      "title": "自訂區段"
+    },
+    "customer": {
+      "hint": "客戶資料",
+      "title": "收票方"
+    },
+    "delivery": {
+      "hint": "出貨狀態",
+      "title": "配送時程"
+    },
+    "discount": {
+      "hint": "已套用的優惠碼",
+      "title": "折扣碼"
+    },
+    "from": {
+      "hint": "你的公司資料",
+      "title": "開立方"
+    },
+    "images": {
+      "hint": "標誌、背景、QR 碼與照片",
+      "title": "圖片"
+    },
+    "items": {
+      "hint": "產品與服務",
+      "title": "明細項目"
+    },
+    "latefees": {
+      "hint": "逾期加收的費用",
+      "title": "逾期費用"
+    },
+    "legal": {
+      "hint": "細則",
+      "title": "法律頁尾"
+    },
+    "loyalty": {
+      "hint": "獎勵餘額",
+      "title": "會員點數"
+    },
+    "meta": {
+      "hint": "號碼、日期、採購單與條件",
+      "title": "發票資訊"
+    },
+    "multicurrency": {
+      "hint": "其他幣別的總計",
+      "title": "多幣別"
+    },
+    "notes": {
+      "hint": "頁尾文字",
+      "title": "備註"
+    },
+    "payhistory": {
+      "hint": "過去的付款",
+      "title": "付款紀錄"
+    },
+    "payment": {
+      "hint": "付款方式",
+      "title": "付款"
+    },
+    "poterms": {
+      "hint": "採購訂單的條款",
+      "title": "採購單條款"
+    },
+    "qr": {
+      "hint": "掃碼付款的圖碼",
+      "title": "QR 付款"
+    },
+    "recurring": {
+      "hint": "收費排程",
+      "title": "週期性"
+    },
+    "refund": {
+      "hint": "退貨與退款",
+      "title": "退款政策"
+    },
+    "shipto": {
+      "hint": "送貨地址",
+      "title": "送貨至"
+    },
+    "signature": {
+      "hint": "授權簽署",
+      "title": "簽名"
+    },
+    "tax": {
+      "hint": "稅率與折扣",
+      "title": "稅額與總計"
+    },
+    "taxbreak": {
+      "hint": "稅額項目",
+      "title": "稅額明細"
+    },
+    "terms": {
+      "hint": "同意的核取方塊",
+      "title": "條款"
+    },
+    "theme": {
+      "hint": "顏色、幣別、狀態",
+      "title": "標題與外觀"
+    }
+  },
+  "seed": {
+    "gallery": {
+      "title": "圖片"
+    },
+    "image": {
+      "caption": "加入圖說",
+      "title": "圖片"
+    },
+    "item": "新項目",
+    "kv": {
+      "label": "標籤",
+      "row1k": "成本中心",
+      "row2k": "合約",
+      "title": "參考資訊",
+      "value": "數值"
+    },
+    "text": {
+      "body": "在這裡加入你自己的文字 — 工作範圍、交付說明、條件，或想對客戶說的話。",
+      "title": "補充備註"
+    }
+  },
+  "status": {
+    "draft": "草稿",
+    "live": "啟用中",
+    "overdue": "已逾期",
+    "paid": "已付款",
+    "sent": "已寄出"
+  },
+  "toast": {
+    "deleteFailed": "無法刪除",
+    "duplicateFailed": "無法複製",
+    "duplicated": {
+      "invoice": "已複製發票",
+      "template": "已複製範本"
+    },
+    "imageTooLarge": "圖片太大（上限 {max}）",
+    "imageUnreadable": "無法讀取該檔案",
+    "languageFailed": "無法新增該語言",
+    "notAnImage": "該檔案不是圖片",
+    "renameFailed": "無法重新命名"
+  },
+  "topic": {
+    "logistics": "運送與物流",
+    "other": "未分類",
+    "receipts": "收據與退款",
+    "recurring": "週期性",
+    "sales": "銷售與報價",
+    "services": "專業服務"
+  }
+} as const;
