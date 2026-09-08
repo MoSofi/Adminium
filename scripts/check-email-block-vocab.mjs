@@ -1,30 +1,39 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * Email block vocabulary gate - the mail renderer and the canvas must agree.
+ * Email block vocabulary gate - the mail renderer, the email editor and the
+ * generic canvas must agree.
  *
  * `adminium_email_templates.blocks` stores an ordered array of
- * `{ block: 'email.heading' | 'email.text' | ... }` records. TWO independent
- * pieces of code read that vocabulary:
+ * `{ block: 'email.heading' | 'email.text' | ... }` records. THREE independent
+ * pieces of code read that vocabulary (39-email-templates-and-campaigns.md
+ * D16):
  *
- *   - `apps/server/src/email/render.ts`  turns the blocks into MIME
- *   - `packages/widgets/.../block-lib.ts`  renders them in the editor canvas
+ *   - `apps/server/src/email/render.ts`          turns the blocks into MIME
+ *   - `apps/dashboard/src/email/model/blocks.ts`  the Email Templates editor
+ *   - `packages/widgets/.../block-lib.ts`         the generic page-builder canvas
  *
- * and when the two lists disagree the failure is silent in BOTH directions: a
- * kind the canvas doesn't know is dropped into `unknown` and the template opens
+ * and when the lists disagree the failure is silent in BOTH directions: a
+ * kind the editor doesn't know is dropped into `unknown` and the template opens
  * as a blank page, while a kind the renderer doesn't know is skipped by
  * `renderEmail` and simply never appears in the sent mail. Neither path throws,
  * neither was covered by a fixture-fed test, and that is exactly how the two
  * vocabularies came to be disjoint - 22 `block-*` ids on one side and six
  * `email.*` kinds on the other, intersection empty, CI green throughout.
  *
+ * The rule per pair: the RENDERER and the EDITOR are identical (membership and
+ * order); the generic canvas's six are a PREFIX of the renderer's list - it
+ * keeps its original vocabulary until the page-builder email flavor retires
+ * (39 O4 -> 27-T61), and a prefix is what lets the renderer grow without
+ * touching it.
+ *
  * --- WHY A SCRIPT AND NOT A SHARED IMPORT ---------------------------------
  *
  * Because the import does not exist and must not be created. `apps/server` may
- * not import `@adminium/widgets` and `@adminium/widgets` may not import the
+ * not import `@adminium/widgets` or the dashboard, and neither may import the
  * server (01 2.3, enforced by `.dependency-cruiser.cjs`
  * `server-no-ui-widgets-charts` / `widgets-no-meta-adapters-server`), and there
- * is no runtime workspace package that both already depend on:
+ * is no runtime workspace package that all three already depend on:
  * `@adminium/config` is an ESLint plugin, and `@adminium/i18n` - the only other
  * shared dependency - is not a vocabulary registry. The established answer in
  * this repo for exactly this shape is to move the value across the boundary as
@@ -58,32 +67,46 @@ function readVocabulary(relPath, constName) {
 }
 
 const SERVER = 'apps/server/src/email/render.ts';
+const EDITOR = 'apps/dashboard/src/email/model/blocks.ts';
 const WIDGETS = 'packages/widgets/src/families/domain/block-lib.ts';
 const CANVAS = 'packages/widgets/src/families/domain/DocumentCanvas.tsx';
 
 const server = readVocabulary(SERVER, 'EMAIL_BLOCK_KINDS');
+const editor = readVocabulary(EDITOR, 'EMAIL_BLOCK_KINDS');
 const widgets = readVocabulary(WIDGETS, 'EMAIL_BLOCK_KINDS');
 
 const problems = [];
 
 if (server.length === 0) problems.push(`${SERVER}: EMAIL_BLOCK_KINDS is empty`);
 
-// ORDER MATTERS, not just membership: the canvas palette and the doc-type
+function differ(label, a, aPath, b, bPath) {
+  const onlyA = a.filter((kind) => !b.includes(kind));
+  const onlyB = b.filter((kind) => !a.includes(kind));
+  return (
+    `${label}\n` +
+    `  ${aPath}\n    ${JSON.stringify(a)}\n` +
+    `  ${bPath}\n    ${JSON.stringify(b)}` +
+    (onlyA.length > 0 ? `\n  only ${aPath} knows: ${onlyA.join(', ')}` : '') +
+    (onlyB.length > 0 ? `\n  only ${bPath} knows: ${onlyB.join(', ')}` : '')
+  );
+}
+
+// ORDER MATTERS, not just membership: the editor's picker and the doc-type
 // default composition are built from this order, so a silent reshuffle changes
 // which blocks a new template starts with.
-if (server.join(' ') !== widgets.join(' ')) {
-  const onlyServer = server.filter((kind) => !widgets.includes(kind));
-  const onlyWidgets = widgets.filter((kind) => !server.includes(kind));
+if (server.join(' ') !== editor.join(' ')) {
+  problems.push(differ('EMAIL_BLOCK_KINDS differ between the mail renderer and the editor.', server, SERVER, editor, EDITOR));
+}
+
+// The generic canvas keeps the original six; they must be the renderer's prefix.
+if (widgets.length === 0 || server.slice(0, widgets.length).join(' ') !== widgets.join(' ')) {
   problems.push(
-    'EMAIL_BLOCK_KINDS differ between the mail renderer and the canvas.\n' +
-      `  ${SERVER}\n    ${JSON.stringify(server)}\n` +
-      `  ${WIDGETS}\n    ${JSON.stringify(widgets)}` +
-      (onlyServer.length > 0 ? `\n  only the renderer knows: ${onlyServer.join(', ')}` : '') +
-      (onlyWidgets.length > 0 ? `\n  only the canvas knows:   ${onlyWidgets.join(', ')}` : ''),
+    differ("The generic canvas's EMAIL_BLOCK_KINDS must be a prefix of the renderer's list.", server, SERVER, widgets, WIDGETS),
   );
 }
 
 const renderSource = fs.readFileSync(path.join(root, SERVER), 'utf8');
+const editorSource = fs.readFileSync(path.join(root, EDITOR), 'utf8');
 const canvasSource = fs.readFileSync(path.join(root, CANVAS), 'utf8');
 const widgetsSource = fs.readFileSync(path.join(root, WIDGETS), 'utf8');
 
@@ -103,12 +126,21 @@ if (!/export const BLOCK_IDS = \[[^\]]*\.\.\.EMAIL_BLOCK_KINDS/.test(widgetsSour
   );
 }
 
-// Every kind must actually reach a renderer on both sides: a kind that is
-// listed but never dispatched is the same silent drop this gate exists to stop.
+// Every kind must actually reach a renderer / a definition on every side: a
+// kind that is listed but never dispatched is the same silent drop this gate
+// exists to stop.
 for (const kind of server) {
   if (!renderSource.includes(`case '${kind}':`)) {
     problems.push(`${SERVER}: "${kind}" is in EMAIL_BLOCK_KINDS but renderBlock has no case for it`);
   }
+  if (!editorSource.includes(`'${kind}': def('${kind}'`)) {
+    problems.push(`${EDITOR}: "${kind}" is in EMAIL_BLOCK_KINDS but EMAIL_BLOCKS has no definition for it`);
+  }
+  if (!editorSource.includes(`case '${kind}':`)) {
+    problems.push(`${EDITOR}: "${kind}" is in EMAIL_BLOCK_KINDS but defaultBlockData has no case for it`);
+  }
+}
+for (const kind of widgets) {
   if (!canvasSource.includes(`'${kind}': blockRenderer(`)) {
     problems.push(`${CANVAS}: "${kind}" is in EMAIL_BLOCK_KINDS but BLOCK_COMPONENTS has no entry for it`);
   }
@@ -117,8 +149,10 @@ for (const kind of server) {
 if (problems.length > 0) {
   console.error('Email block vocabulary gate FAILED:\n');
   for (const problem of problems) console.error(`  - ${problem}\n`);
-  console.error('Both lists are the wire format of adminium_email_templates.blocks. Change them together.');
+  console.error('All three lists are the wire format of adminium_email_templates.blocks. Change them together.');
   process.exit(1);
 }
 
-console.log(`Email block vocabulary OK - ${String(server.length)} kinds, renderer and canvas agree.`);
+console.log(
+  `Email block vocabulary OK - ${String(server.length)} kinds; renderer and editor agree, the generic canvas's ${String(widgets.length)} are a prefix.`,
+);

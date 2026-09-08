@@ -1,0 +1,621 @@
+{
+  "title": "電子郵件範本",
+  "subtitle": "設計可重複使用的電子郵件，以及以它們寄出的活動。",
+  "loadFailed": "無法載入電子郵件範本",
+  "needsTranslation": "需要翻譯",
+  "actions": {
+    "menu": "更多動作",
+    "eyebrow": "動作",
+    "import": "匯入範本",
+    "senders": "管理寄件者",
+    "exportAll": "全部匯出",
+    "settings": "電子郵件設定",
+    "archived": "已封存"
+  },
+  "new": {
+    "template": "新增範本",
+    "campaign": "新增活動",
+    "subtitle": "從空白開始，或使用現成的電子郵件設計。",
+    "blank": "空白郵件",
+    "blankHint": "從零開始",
+    "yourTemplates": "你的範本",
+    "failed": "無法建立",
+    "startersFailed": "無法載入起始範本。請從空白開始，或再試一次。"
+  },
+  "tabs": {
+    "label": "類型",
+    "templates": "範本",
+    "campaigns": "活動"
+  },
+  "groupBy": {
+    "label": "分組方式",
+    "none": "不分組",
+    "topic": "主題",
+    "language": "語言"
+  },
+  "search": {
+    "templates": "搜尋範本…",
+    "campaigns": "搜尋活動…",
+    "clear": "清除搜尋"
+  },
+  "layout": {
+    "label": "版面",
+    "gallery": "圖庫",
+    "list": "清單"
+  },
+  "archivedChip": {
+    "field": "顯示中",
+    "value": "已封存",
+    "leave": "離開封存"
+  },
+  "empty": {
+    "templates": {
+      "title": "還沒有範本",
+      "body": "設計一封可重複使用的電子郵件，讓團隊可以據以寄送。"
+    },
+    "campaigns": {
+      "title": "還沒有活動",
+      "body": "以範本或空白畫布建立一個活動。"
+    },
+    "noMatch": {
+      "templates": "沒有符合的範本",
+      "campaigns": "沒有符合的活動",
+      "body": "試試其他搜尋字詞。"
+    },
+    "archived": {
+      "templates": "沒有已封存的範本",
+      "campaigns": "沒有已封存的活動",
+      "body": "刪除的內容會出現在這裡，並且可以還原。"
+    }
+  },
+  "status": {
+    "draft": "草稿",
+    "live": "啟用中",
+    "scheduled": "已排程",
+    "sending": "寄送中",
+    "sent": "已寄出",
+    "failed": "失敗"
+  },
+  "category": {
+    "transactional": "交易類",
+    "lifecycle": "生命週期",
+    "marketing": "行銷"
+  },
+  "run": {
+    "counts": "已寄出 {sent} · 失敗 {failed}",
+    "sending": "寄送中 · {pct}%"
+  },
+  "group": {
+    "languages": "{count, plural, other {# 種語言}}",
+    "emails": "{count, plural, other {# 封郵件}}",
+    "needsTranslation": "{count} 個需要翻譯"
+  },
+  "card": {
+    "edit": "編輯",
+    "duplicate": "複製",
+    "rename": "重新命名",
+    "renameLabel": "新名稱",
+    "delete": "刪除",
+    "restore": "還原",
+    "deleteForGood": "永久刪除",
+    "reset": "重設為內建版本"
+  },
+  "list": {
+    "name": "名稱",
+    "lang": "語言",
+    "status": "狀態",
+    "updated": "更新時間",
+    "actions": "動作"
+  },
+  "delete": {
+    "title": "刪除 {name}？",
+    "archiveBody": "它會移到「已封存」，在那裡可以還原或永久刪除。",
+    "confirm": "刪除",
+    "forGoodTitle": "永久刪除 {name}？",
+    "forGoodBody": {
+      "template": "此動作無法復原。範本將被永久移除。",
+      "campaign": "此動作無法復原。活動將被永久移除。"
+    },
+    "forGood": "永久刪除",
+    "resetTitle": "將 {name} 重設為內建版本？",
+    "resetBody": "你在此語言所做的修改將被內附的版本取代。",
+    "reset": "重設"
+  },
+  "toast": {
+    "duplicated": {
+      "template": "已複製範本",
+      "campaign": "已複製活動"
+    },
+    "duplicateFailed": "無法複製",
+    "deleted": {
+      "template": "已刪除範本",
+      "campaign": "已刪除活動"
+    },
+    "deleteFailed": "無法刪除",
+    "restored": {
+      "template": "已還原範本",
+      "campaign": "已還原活動"
+    },
+    "restoreFailed": "無法還原",
+    "deletedForGood": {
+      "template": "已永久刪除範本",
+      "campaign": "已永久刪除活動"
+    },
+    "reset": "已重設為內建版本",
+    "renameFailed": "無法重新命名"
+  },
+  "import": {
+    "title": "匯入範本",
+    "subtitle": "從 Adminium 匯出的套件。",
+    "choose": "選擇套件",
+    "hint": "adminium-email-templates-<date>.json",
+    "invalid": "這個檔案不是 Adminium 電子郵件套件。",
+    "summary": "{templates, plural, other {# 個範本}}和{campaigns, plural, other {# 個活動}} · {duplicates} 個已存在",
+    "modeLabel": "已存在的文件",
+    "skip": "略過已存在的",
+    "replace": "取代已存在的",
+    "confirm": "匯入",
+    "failed": "匯入失敗。",
+    "done": "已匯入 {created} · 已取代 {replaced} · 已略過 {skipped}",
+    "errors": "{count, plural, other {# 個文件}}無法匯入"
+  },
+  "editor": {
+    "kind": {
+      "template": "範本",
+      "campaign": "活動"
+    },
+    "nameLabel": "名稱",
+    "undo": "復原",
+    "redo": "重做",
+    "test": "測試",
+    "save": "儲存",
+    "saveTemplate": "儲存範本",
+    "sendCampaign": "寄送活動",
+    "shortcutSave": "儲存郵件",
+    "saveState": {
+      "saving": "儲存中…",
+      "saved": "所有變更已儲存",
+      "dirty": "有未儲存的變更",
+      "error": "無法儲存"
+    },
+    "languages": {
+      "title": "語言版本",
+      "current": "編輯中",
+      "translated": "已翻譯",
+      "needsTranslation": "需要翻譯",
+      "missing": "尚未建立",
+      "created": "已建立 {language} 版本",
+      "createdNeedsTranslation": "已建立 {language} 版本 — 需要翻譯",
+      "addFailed": "無法新增該語言"
+    },
+    "discard": {
+      "title": "捨棄未儲存的變更？",
+      "body": "你對 {name} 的修改將會遺失。",
+      "keep": "繼續編輯",
+      "confirm": "捨棄"
+    },
+    "saveFailed": "無法儲存",
+    "saved": "變更已儲存",
+    "loadFailed": "無法載入這封郵件"
+  },
+  "canvas": {
+    "livePreview": "即時預覽 · 點選郵件的任何部分即可編輯",
+    "device": "預覽寬度",
+    "desktop": "桌面",
+    "mobile": "手機",
+    "subject": "主旨",
+    "preheader": "預覽文字",
+    "preheaderPlaceholder": "預覽文字…",
+    "select": "編輯{label}",
+    "insertAbove": "在{label}上方插入區段",
+    "add": "新增",
+    "addSection": "新增區段",
+    "defaultSender": "預設寄件者",
+    "now": "剛剛",
+    "attachments": "{count, plural, other {# 個附件}}",
+    "fileMissing": "找不到檔案",
+    "variables": "變數",
+    "imagePlaceholder": "圖片預留位置",
+    "htmlNote": "寄出郵件時以原始 HTML 呈現。",
+    "recurring": "週期性 — {freq}",
+    "nextOn": "下次：{next} · {note}",
+    "loyaltyBalance": "點數餘額",
+    "loyaltyLine": "{balance} 點 · {level}",
+    "sections": {
+      "branding": "品牌與寄件者",
+      "subject": "主旨與預覽文字",
+      "footer": "頁尾",
+      "attachments": "附件"
+    },
+    "blockAdded": "已新增{label}"
+  },
+  "blocks": {
+    "heading": {
+      "label": "標題",
+      "hint": "區段標題"
+    },
+    "text": {
+      "label": "文字區塊",
+      "hint": "一個或多個段落"
+    },
+    "button": {
+      "label": "按鈕",
+      "hint": "主要行動呼籲"
+    },
+    "divider": {
+      "label": "分隔線 / 間距",
+      "hint": "橫線或空白"
+    },
+    "spacer": {
+      "label": "間距",
+      "hint": "空白區域"
+    },
+    "footer": {
+      "label": "頁尾文字",
+      "hint": "舊版頁尾區塊"
+    },
+    "image": {
+      "label": "圖片預留位置",
+      "hint": "稍後再放入圖片"
+    },
+    "two-col": {
+      "label": "雙欄文字",
+      "hint": "並排的文字"
+    },
+    "list": {
+      "label": "項目符號清單",
+      "hint": "簡短要點"
+    },
+    "quote": {
+      "label": "引言",
+      "hint": "附署名的推薦"
+    },
+    "social": {
+      "label": "社群連結",
+      "hint": "頁尾連結標籤"
+    },
+    "html": {
+      "label": "自訂 HTML",
+      "hint": "貼上你自己的標記"
+    },
+    "box": {
+      "label": "重點框",
+      "hint": "標籤與一個大數值"
+    },
+    "stats": {
+      "label": "數據列",
+      "hint": "兩到四個數字"
+    },
+    "product": {
+      "label": "商品列",
+      "hint": "含價格的品項"
+    },
+    "multi-currency": {
+      "label": "多幣別",
+      "hint": "其他幣別的總計"
+    },
+    "tax-breakdown": {
+      "label": "稅額明細",
+      "hint": "各項稅額"
+    },
+    "discount-codes": {
+      "label": "折扣碼",
+      "hint": "已套用的優惠碼"
+    },
+    "payment-history": {
+      "label": "付款紀錄",
+      "hint": "過去的付款"
+    },
+    "recurring": {
+      "label": "週期安排",
+      "hint": "配送節奏"
+    },
+    "loyalty": {
+      "label": "點數",
+      "hint": "獎勵餘額"
+    },
+    "delivery": {
+      "label": "配送進度",
+      "hint": "出貨狀態"
+    },
+    "po-terms": {
+      "label": "訂單條款",
+      "hint": "採購訂單條款"
+    },
+    "legal": {
+      "label": "法律頁尾",
+      "hint": "細則"
+    },
+    "refund-policy": {
+      "label": "退款政策",
+      "hint": "退貨與退款"
+    },
+    "contact": {
+      "label": "聯絡區塊",
+      "hint": "支援聯絡資訊"
+    },
+    "unknown": {
+      "label": "區段"
+    }
+  },
+  "picker": {
+    "title": "新增區段",
+    "above": "插入到{label}上方",
+    "atEnd": "新增到郵件結尾",
+    "groups": {
+      "content": "內容",
+      "commerce": "商務與資料",
+      "legal": "法律與支援",
+      "saved": "已儲存的區塊"
+    },
+    "savedHint": "已儲存：{label}"
+  },
+  "mirror": {
+    "title": "套用到其他語言？",
+    "body": "{label} 可以鏡像到 {topic} 的{count, plural, other {# 個其他語言版本}}。儲存時文字會原樣複製，不做翻譯。",
+    "onlyThis": "僅 {native}",
+    "applyAll": "套用到全部 {count} 個",
+    "queued": "已排入{count, plural, other {# 個其他語言}} — 儲存時套用"
+  },
+  "inspector": {
+    "tabs": "檢閱器",
+    "sections": "區段",
+    "design": "設計",
+    "backToSections": "返回區段清單",
+    "fixed": "固定",
+    "bodySections": "內文區段 · 拖曳可重新排序",
+    "dragToReorder": "拖曳可重新排序",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "duplicateSection": "複製{label}",
+    "removeSection": "移除{label}",
+    "savedBlocks": "已儲存的區塊",
+    "savedBlocksHint": "在「設計」分頁儲存任何區段，即可在其他範本中重複使用。",
+    "titles": {
+      "subject": "主旨"
+    },
+    "hints": {
+      "branding": "標誌、寄件者、顏色、狀態",
+      "subject": "主旨與預覽文字",
+      "attachments": "固定檔案與產生的檔案",
+      "footer": "法律資訊與取消訂閱",
+      "gone": "區段已移除"
+    },
+    "subjectLine": "主旨列",
+    "preheader": "預覽文字",
+    "insertVariable": "插入變數",
+    "insertHint": "先點選一個欄位，再點選變數即可插入。",
+    "footerText": "頁尾文字",
+    "footerHint": "法律文字、地址與取消訂閱說明。顯示在每封寄出郵件的底部。",
+    "attachedToEverySend": "每次寄送都附上",
+    "attachmentsEmpty": "還沒有附件。可以新增每次寄送都附上的固定檔案，或依收件者產生的檔案。",
+    "generatedLabel": "標籤",
+    "generatedToken": "權杖",
+    "resolvedPerRecipient": "寄送時依收件者產生。",
+    "removeAttachment": "移除附件",
+    "addGeneratedFile": "新增產生的檔案",
+    "workspaceDocuments": "工作區文件",
+    "chooseImage": "選擇圖片",
+    "addRow": "新增{noun}",
+    "duplicateRow": "複製{noun}",
+    "removeRow": "移除{noun}",
+    "saveAsReusable": "儲存為可重複使用的區塊",
+    "blockName": "區塊名稱",
+    "myBlock": "我的區塊",
+    "save": "儲存",
+    "duplicate": "複製",
+    "remove": "移除",
+    "savedToBlocks": "已儲存到你的區塊",
+    "saveBlockFailed": "無法儲存區塊",
+    "sectionDuplicated": "已複製區段",
+    "sectionRemoved": "已移除區段",
+    "sectionsReordered": "已重新排序區段",
+    "noDocuments": "文件庫中還沒有文件。請到「檔案」上傳。",
+    "attached": "已附加 {name}"
+  },
+  "style": {
+    "title": "區塊樣式",
+    "alignment": "對齊",
+    "align": {
+      "start": "靠左",
+      "center": "置中",
+      "end": "靠右"
+    },
+    "background": "背景",
+    "bg": {
+      "none": "無",
+      "soft": "灰色",
+      "tint": "品牌淺色",
+      "accent": "品牌色",
+      "dark": "深色"
+    },
+    "textColour": "文字顏色",
+    "fg": {
+      "auto": "內文",
+      "strong": "加深",
+      "muted": "柔和",
+      "accent": "品牌色",
+      "white": "白色"
+    },
+    "spacing": "間距",
+    "pad": {
+      "none": "無"
+    },
+    "textSize": "文字大小",
+    "size": {
+      "s": "小",
+      "m": "中",
+      "l": "大"
+    },
+    "border": "框線",
+    "borderKind": {
+      "none": "無",
+      "thin": "實線",
+      "dashed": "虛線"
+    },
+    "radius": "圓角",
+    "radiusKind": {
+      "none": "直角",
+      "md": "圓角",
+      "lg": "大圓角"
+    },
+    "fullWidth": "滿版",
+    "fullWidthHint": "延伸至郵件邊緣"
+  },
+  "branding": {
+    "brandName": "品牌名稱",
+    "logoMark": "標誌圖形",
+    "yourLogo": "你的標誌",
+    "fromName": "寄件者名稱",
+    "fromEmail": "寄件者信箱",
+    "notConfigured": "不是已設定的寄件者。",
+    "manageSenders": "管理寄件者",
+    "noSenders": "尚未設定寄件者 — 將使用預設寄件者。",
+    "defaultSenderOption": "預設寄件者",
+    "brandColour": "品牌色",
+    "category": "類別",
+    "status": "狀態",
+    "languageVariations": "語言版本",
+    "languageHint": "新增語言會建立一份連結的副本。各版本仍歸在 {topic} 之下。",
+    "tagCurrent": "目前",
+    "tagEdit": "編輯",
+    "tagAdd": "新增",
+    "noMatch": "沒有符合的寄件者"
+  },
+  "fields": {
+    "heading": "標題",
+    "buttonText": "按鈕文字",
+    "linkUrl": "連結網址",
+    "height": "高度（px）",
+    "footer": "頁尾",
+    "placeholderLabel": "預留位置標籤",
+    "imageUrl": "圖片網址",
+    "leftColumn": "左欄",
+    "rightColumn": "右欄",
+    "quote": "引言",
+    "attribution": "署名",
+    "html": "HTML",
+    "label": "標籤",
+    "value": "數值",
+    "sectionLabel": "區段標籤",
+    "baseAmount": "基本金額",
+    "frequency": "頻率",
+    "nextIssueDate": "下次發出日期",
+    "scheduleNote": "週期說明",
+    "balance": "餘額",
+    "earned": "已獲得",
+    "level": "等級",
+    "body": "內文",
+    "finePrint": "細則",
+    "contactName": "聯絡人姓名",
+    "email": "電子郵件",
+    "phone": "電話"
+  },
+  "rows": {
+    "paragraphs": "段落",
+    "listItems": "清單項目",
+    "links": "連結",
+    "stats": "數據",
+    "lineItems": "品項",
+    "currencies": "幣別與匯率",
+    "taxComponents": "稅額項目",
+    "codes": "優惠碼",
+    "payments": "付款",
+    "steps": "步驟"
+  },
+  "nouns": {
+    "paragraph": "段落",
+    "item": "項目",
+    "link": "連結",
+    "stat": "數據",
+    "currency": "幣別",
+    "taxLine": "稅額列",
+    "code": "優惠碼",
+    "payment": "付款",
+    "step": "步驟"
+  },
+  "placeholders": {
+    "paragraphText": "段落文字",
+    "listItem": "清單項目",
+    "label": "標籤",
+    "iconName": "圖示名稱",
+    "url": "網址",
+    "itemName": "品項名稱",
+    "variant": "款式 / SKU",
+    "stepName": "步驟名稱",
+    "description": "說明"
+  },
+  "cycle": {
+    "done": "已完成",
+    "current": "進行中",
+    "todo": "待處理"
+  },
+  "testSend": {
+    "title": "寄送測試郵件",
+    "to": "寄送至",
+    "placeholder": "name@company.com, …",
+    "removeRecipient": "移除 {email}",
+    "quickAdd": "快速加入同事",
+    "note": "測試寄送時，{token} 這類變數會以範例資料填入。",
+    "noteNoVars": "測試郵件會原樣寄出。",
+    "count": "{count, plural, other {# 位收件者}}",
+    "send": "寄送測試",
+    "sending": "寄送中…",
+    "failed": "無法寄送測試郵件。",
+    "sentTitle": "測試已寄出！",
+    "sentBody": "{name} 的測試郵件正寄往{count, plural, other {# 位收件者}}。",
+    "sendAnother": "再寄一封",
+    "done": "完成",
+    "queued": "測試郵件已寄給{count, plural, other {# 位收件者}}"
+  },
+  "imagePicker": {
+    "title": "選擇圖片",
+    "subtitle": "從工作區檔案中選擇、上傳一張，或貼上網址。",
+    "source": "來源",
+    "workspaceFiles": "工作區檔案",
+    "upload": "上傳",
+    "noImages": "檔案庫中還沒有圖片 — 上傳一張吧。",
+    "connection": "上傳到",
+    "noConnection": "上傳前請先連接資料來源。",
+    "drop": "將圖片拖曳到這裡",
+    "formats": "PNG、JPG、GIF 或 SVG",
+    "browse": "瀏覽檔案",
+    "url": "圖片網址",
+    "urlPlaceholder": "…或貼上圖片網址",
+    "useUrl": "使用網址",
+    "selected": "已選擇 {name}",
+    "uploaded": "已上傳 {name}"
+  },
+  "campaign": {
+    "title": "寄送活動",
+    "sendTo": "寄送至",
+    "workspaceUsers": "工作區使用者",
+    "rolesHint": "所有人，或僅限所選角色的成員。",
+    "when": "時間",
+    "now": "立即",
+    "schedule": "排程",
+    "scheduleAt": "寄送時間",
+    "pastTime": "請選擇未來的時間。",
+    "counting": "正在計算收件者…",
+    "countFailed": "無法計算收件者",
+    "count": "{total, plural, other {# 位收件者}}",
+    "optedOut": "{skipped} 位已取消訂閱",
+    "note": "變數會依收件者填入 — {token} 會變成每個人的名字。",
+    "send": "寄送活動",
+    "scheduleAction": "排程寄送活動",
+    "sending": "寄送中…",
+    "failed": "無法寄送活動。",
+    "sentTitle": "活動已寄出！",
+    "sentBody": "{name} 正寄往{count, plural, other {# 位收件者}}。",
+    "scheduledTitle": "活動已排程！",
+    "scheduledBody": "{name} 將於 {when} 寄出。",
+    "done": "完成",
+    "chipScheduled": "已排程 · {when}",
+    "chipSending": "寄送中 · {pct}%",
+    "cancelSchedule": "取消排程",
+    "cancelSending": "取消寄送",
+    "cancelled": "已取消排程",
+    "sendingCancelled": "已取消寄送",
+    "cancelFailed": "無法取消"
+  }
+}

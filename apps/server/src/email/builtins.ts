@@ -3,7 +3,7 @@
  * Built-in transactional email templates and their boot-time seed.
  *
  * A fresh install has ZERO rows in `adminium_email_templates` — the table, the
- * repo, the CRUD route and the editor all shipped, but nothing ever wrote a
+ * repo, the routes and the editor all shipped, but nothing ever wrote a
  * template. So the first thing every install needs is content, and it has to
  * arrive the way `seedBuiltinRoles` delivers roles (packages/meta
  * bootstrap.ts): idempotent natural-key upserts, re-run at EVERY boot so an
@@ -19,7 +19,18 @@
  *     never touched the template
  *   - NEVER touches a `false` row — an admin's wording is theirs, and an
  *     upgrade that silently reverted it would be indistinguishable from data
- *     loss.
+ *     loss
+ *   - NEVER touches an ARCHIVED row either (39-email-templates-and-campaigns.md
+ *     D4): archiving is a human decision about that row, and a seed that
+ *     resurrected a pristine built-in at the next restart would undo it
+ *     silently. "Reset to built-in" ({@link resetBuiltinEmailTemplate}) is
+ *     the explicit way back.
+ *
+ * THE ENVELOPE (39 D5). The comp's footer is a fixed field, not a block, so a
+ * built-in is expressed as `{ blocks, footer }` and seeded that way. Rows
+ * written before wave 0026 hold the footer as a trailing block; the repo
+ * lifts it on read, so the change detection below compares like with like
+ * and rewrites a pristine legacy row exactly once.
  *
  * LOCALE. Rows are keyed `(key, locale)`, so the seed writes one row per
  * COMPILED locale and the copy comes from `createServerI18n` — this module is
@@ -42,13 +53,18 @@
  * the send, and by then ICU is long gone.
  *
  * BRANDING. `{{appName}}` only, which every call site already passes from
- * `branding.appName` (default "Adminium"). No logo, no colours, no import from
- * `src/branding/` — that is a separate track.
+ * `branding.appName` (default "Adminium"). `brand` stays null on a built-in:
+ * the workspace's name and accent are what the banner shows (39 D6).
  */
 
 import { BUILTIN_LOCALE_IDS, type BuiltinLocaleId } from '@adminium/i18n';
 import { createServerI18n, type I18nInstance } from '@adminium/i18n/server';
-import { emailTemplatesRepo, type EmailTemplate, type MetaDb } from '@adminium/meta';
+import {
+  emailTemplatesRepo,
+  type EmailCategory,
+  type EmailTemplate,
+  type MetaDb,
+} from '@adminium/meta';
 
 import { loadOverrideMap } from '../i18n/server-i18n.js';
 
@@ -61,6 +77,9 @@ export interface BuiltinEmailTemplate {
   name: string;
   subject: string;
   blocks: EmailTemplateBlock[];
+  /** The fixed footer (39 D5). */
+  footer: string;
+  category: EmailCategory;
 }
 
 /**
@@ -80,7 +99,7 @@ export type BuiltinEmailTemplateKey = (typeof BUILTIN_EMAIL_TEMPLATE_KEYS)[numbe
 /**
  * The `vars` each built-in reads, matching what the enqueue sites pass
  * (`routes/auth/handlers.ts`, `routes/users/index.ts`,
- * `notifications/notify.ts`, and the test-send route's `sampleVars`).
+ * `notifications/notify.ts`, and the test-send route's samples).
  *
  * A caller that omits one does not get a blank: `renderEmail` re-emits
  * `{{resetUrl}}` verbatim, on purpose, because a visibly broken sentence gets
@@ -125,28 +144,20 @@ function button(label: string, url: string): EmailTemplateBlock {
   return { block: 'email.button', id: 'action', data: { label, url } };
 }
 
-const divider: EmailTemplateBlock = { block: 'email.divider', id: 'rule' };
-
-function footer(text: string): EmailTemplateBlock {
-  return { block: 'email.footer', id: 'footer', data: { text } };
-}
-
 /**
  * i18next's `t` narrowed to what this module uses. Keys are always string
  * literals at the call sites below — `adminium/no-dynamic-i18n-key` forbids
  * assembling them, and it is right to: a fabricated key is invisible to the
  * extractor and renders as a raw dotted string in someone's inbox.
  */
-type Translate = I18nInstance['t'];
+export type Translate = I18nInstance['t'];
 
 /** The "paste this link" footer, shared by every built-in that has a button. */
-function linkFallback(t: Translate, url: string): EmailTemplateBlock {
-  return footer(
-    t('email.linkFallback', {
-      url,
-      defaultValue: 'If the button doesn’t work, paste this link into your browser: {url}',
-    }),
-  );
+function linkFallback(t: Translate, url: string): string {
+  return t('email.linkFallback', {
+    url,
+    defaultValue: 'If the button doesn’t work, paste this link into your browser: {url}',
+  });
 }
 
 function passwordResetTemplate(t: Translate): BuiltinEmailTemplate {
@@ -157,6 +168,7 @@ function passwordResetTemplate(t: Translate): BuiltinEmailTemplate {
       appName: VAR.appName,
       defaultValue: 'Reset your {appName} password',
     }),
+    category: 'transactional',
     blocks: [
       heading(t('email.passwordReset.heading', { defaultValue: 'Reset your password' })),
       paragraph(
@@ -182,9 +194,8 @@ function passwordResetTemplate(t: Translate): BuiltinEmailTemplate {
             'stays active.',
         }),
       ),
-      divider,
-      linkFallback(t, VAR.resetUrl),
     ],
+    footer: linkFallback(t, VAR.resetUrl),
   };
 }
 
@@ -196,6 +207,7 @@ function userInviteTemplate(t: Translate): BuiltinEmailTemplate {
       appName: VAR.appName,
       defaultValue: 'You have been invited to {appName}',
     }),
+    category: 'transactional',
     blocks: [
       heading(t('email.userInvite.heading', { defaultValue: 'You’ve been invited' })),
       paragraph(
@@ -219,9 +231,8 @@ function userInviteTemplate(t: Translate): BuiltinEmailTemplate {
             'expecting it, you can ignore this email.',
         }),
       ),
-      divider,
-      linkFallback(t, VAR.activationUrl),
     ],
+    footer: linkFallback(t, VAR.activationUrl),
   };
 }
 
@@ -236,6 +247,7 @@ function notificationTemplate(t: Translate): BuiltinEmailTemplate {
     key: 'notification',
     name: t('email.notification.name', { defaultValue: 'Notification' }),
     subject: VAR.title,
+    category: 'transactional',
     blocks: [
       heading(VAR.title),
       // `body` and `actionUrl` are both optional on a notification row; the
@@ -246,16 +258,13 @@ function notificationTemplate(t: Translate): BuiltinEmailTemplate {
         t('email.notification.action', { appName: VAR.appName, defaultValue: 'Open {appName}' }),
         VAR.actionUrl,
       ),
-      divider,
-      footer(
-        t('email.notification.footer', {
-          appName: VAR.appName,
-          defaultValue:
-            'You are receiving this because email notifications are on for your {appName} ' +
-            'account. You can turn them off in your notification preferences.',
-        }),
-      ),
     ],
+    footer: t('email.notification.footer', {
+      appName: VAR.appName,
+      defaultValue:
+        'You are receiving this because email notifications are on for your {appName} ' +
+        'account. You can turn them off in your notification preferences.',
+    }),
   };
 }
 
@@ -268,7 +277,7 @@ export function builtinEmailTemplates(t: Translate): BuiltinEmailTemplate[] {
 }
 
 /** A translator for one locale (no user involved — the row IS the locale). */
-async function translatorForLocale(meta: MetaDb, locale: BuiltinLocaleId): Promise<I18nInstance> {
+export async function translatorForLocale(meta: MetaDb, locale: string): Promise<I18nInstance> {
   return createServerI18n({ locale, overrides: await loadOverrideMap(meta, locale) });
 }
 
@@ -276,13 +285,15 @@ function sameContent(row: EmailTemplate, def: BuiltinEmailTemplate): boolean {
   return (
     row.name === def.name &&
     row.subject === def.subject &&
+    row.footer === def.footer &&
+    row.category === def.category &&
     JSON.stringify(row.blocks) === JSON.stringify(def.blocks)
   );
 }
 
 /**
  * Seed (and keep current) the built-in templates for every compiled locale.
- * Safe at every boot; never overwrites a row an admin has edited.
+ * Safe at every boot; never overwrites a row an admin has edited or archived.
  */
 export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.now()): Promise<void> {
   const repo = emailTemplatesRepo(meta);
@@ -293,8 +304,8 @@ export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.
     for (const def of builtinEmailTemplates(t)) {
       const existing = await repo.findByKeyLocale(def.key, locale);
 
-      // Human-owned. Their wording wins, forever.
-      if (existing !== null && !existing.isBuiltinCopy) continue;
+      // Human-owned — edited or archived. Their decision wins, forever.
+      if (existing !== null && (!existing.isBuiltinCopy || existing.archivedAt !== null)) continue;
       // Unchanged built-in copy: skip the write so `updatedAt` does not churn
       // on every restart (the templates list sorts and displays it).
       if (existing !== null && sameContent(existing, def)) continue;
@@ -306,6 +317,8 @@ export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.
           name: def.name,
           subject: def.subject,
           blocks: def.blocks,
+          footer: def.footer,
+          category: def.category,
           enabled: existing?.enabled ?? true,
           isBuiltinCopy: true,
           updatedBy: null,
@@ -317,13 +330,63 @@ export async function seedBuiltinEmailTemplates(meta: MetaDb, at: number = Date.
 }
 
 /**
+ * "Reset to built-in" (39 D4): re-seed ONE `(key, locale)` from the built-in
+ * definition, in the same request that would otherwise have deleted it. A
+ * built-in key can never be absent — a deleted `password-reset/en_US` would be
+ * a forgot-password that 202s into the void — so the archived row's "Delete
+ * for good" is this instead. Everything human about the row goes: the
+ * wording, the brand, the attachments, the archive mark; `enabled` comes back
+ * on, because a reset is a request for the shipped behaviour.
+ *
+ * Returns null when `key` is not a built-in.
+ */
+export async function resetBuiltinEmailTemplate(
+  meta: MetaDb,
+  key: string,
+  locale: string,
+  at: number = Date.now(),
+): Promise<EmailTemplate | null> {
+  if (!(BUILTIN_EMAIL_TEMPLATE_KEYS as readonly string[]).includes(key)) return null;
+  const { t } = await translatorForLocale(meta, isBuiltinLocale(locale) ? locale : 'en_US');
+  const def = builtinEmailTemplates(t).find((d) => d.key === key);
+  if (def === undefined) return null;
+  const repo = emailTemplatesRepo(meta);
+  const row = await repo.upsert(
+    key,
+    locale,
+    {
+      name: def.name,
+      subject: def.subject,
+      blocks: def.blocks,
+      footer: def.footer,
+      category: def.category,
+      preheader: '',
+      brand: null,
+      attachments: [],
+      starter: null,
+      needsTranslation: false,
+      enabled: true,
+      isBuiltinCopy: true,
+      updatedBy: null,
+    },
+    at,
+  );
+  return row.archivedAt === null ? row : await repo.restore(row.id, at);
+}
+
+function isBuiltinLocale(locale: string): locale is BuiltinLocaleId {
+  return (BUILTIN_LOCALE_IDS as readonly string[]).includes(locale);
+}
+
+/**
  * The template a message to a `locale` recipient should render from.
  *
  * Falls back to `en_US` when the locale has no row — a partially seeded
  * install still sends a complete email rather than none. A row that EXISTS but
  * is disabled returns null with no fallback: disabling `password-reset/de_DE`
  * is an explicit choice, and quietly sending the English one instead would
- * override it.
+ * override it. An archived row is treated as absent for the fallback and as
+ * disabled otherwise — it left the manager, so it left the sender too.
  */
 export async function resolveEmailTemplate(
   meta: MetaDb,
@@ -332,8 +395,8 @@ export async function resolveEmailTemplate(
 ): Promise<EmailTemplate | null> {
   const repo = emailTemplatesRepo(meta);
   const row = await repo.findByKeyLocale(key, locale);
-  if (row !== null) return row.enabled ? row : null;
+  if (row !== null) return row.enabled && row.archivedAt === null ? row : null;
   if (locale === 'en_US') return null;
   const fallback = await repo.findByKeyLocale(key, 'en_US');
-  return fallback !== null && fallback.enabled ? fallback : null;
+  return fallback !== null && fallback.enabled && fallback.archivedAt === null ? fallback : null;
 }

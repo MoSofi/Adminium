@@ -201,9 +201,10 @@ for (const dialect of TEST_DIALECTS) {
         enabled: true,
       });
       const listed = await repo.list();
+      // Topic first, then `en_US` ahead of the other locales (39 D3).
       expect(listed.map((row) => `${row.key}/${row.locale}`)).toEqual([
-        'welcome/de_DE',
         'welcome/en_US',
+        'welcome/de_DE',
       ]);
 
       expect(await repo.findByKeyLocale('welcome', 'fr_FR')).toBeNull();

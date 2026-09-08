@@ -233,7 +233,8 @@ export const AUDIT_COVERAGE: Readonly<Record<string, AuditMark>> = {
   'PUT /api/v1/settings/telemetry': audited('rbac'), // settings.telemetry.update
   'POST /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.update
   'DELETE /api/v1/branding/logo': audited('rbac'), // settings.branding.logo.remove
-  'PUT /api/v1/email-templates/:key/:locale': audited('rbac'), // email-template.update
+  // Email documents (39-email-templates-and-campaigns.md D20): every write is
+  // marked on its route in routes/email-templates/index.ts, next to the audit call.
   'PUT /api/v1/i18n/keys': audited('rbac'), // i18n.key.update
   'DELETE /api/v1/i18n/keys': audited('rbac'), // i18n.key.reset
   'POST /api/v1/i18n/keys/bulk': audited('rbac'), // i18n.keys.bulk

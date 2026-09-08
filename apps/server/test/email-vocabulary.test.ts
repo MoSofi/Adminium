@@ -35,21 +35,9 @@ import { createServerI18n } from '@adminium/i18n/server';
 
 import { builtinEmailTemplates } from '../src/email/builtins.js';
 import { EMAIL_BLOCK_KINDS, isEmailBlockKind, renderEmail } from '../src/email/render.js';
+import { EMAIL_BLOCK_SAMPLES } from './email-samples.js';
 
-/**
- * A minimal but VALID payload per kind. Deliberately spelled out rather than
- * generated: the renderer drops a block whose required fields are missing
- * (a button with no url renders nothing at all), so a generated stub would
- * quietly assert the empty case and pass while proving nothing.
- */
-const SAMPLE: Record<string, Record<string, unknown>> = {
-  'email.heading': { text: 'Reset your password', level: 1 },
-  'email.text': { text: 'Hi {{name}}, here is the thing you asked for.' },
-  'email.button': { label: 'Choose a new password', url: 'https://example.test/reset' },
-  'email.divider': {},
-  'email.spacer': { size: 24 },
-  'email.footer': { text: 'You are receiving this because you have an account.' },
-};
+const SAMPLE = EMAIL_BLOCK_SAMPLES;
 
 describe('email block vocabulary', () => {
   it('renders every kind the builder can author into non-empty html', () => {
@@ -66,7 +54,8 @@ describe('email block vocabulary', () => {
 
       // The body cell is the only part that varies; the chrome renders either
       // way, so assert on content that could only come from the block.
-      const body = out.html.split('padding:32px;font-family:')[1] ?? '';
+      // Everything between the first block cell and the footer row is the blocks.
+      const body = out.html.split('padding:26px 28px 0 28px;')[1]?.split('padding:0 0 26px;')[0] ?? '';
       expect(body.trim(), `${kind} rendered no html`).not.toBe('');
       expect(body, `${kind} rendered only the empty cell`).toMatch(/<(h1|h2|p|table|div|a)/);
     }

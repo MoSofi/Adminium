@@ -171,14 +171,50 @@ describe('PUT /settings/email', () => {
       user: null,
       from: null,
       secure: null,
+      senders: [],
+      maxAttachmentBytes: 10_485_760,
     });
+  });
+
+  it('saves senders and the attachment cap on their own, leaving the transport alone (39 D7, D8)', async () => {
+    await putEmail(t, { smtp: SMTP_BODY });
+    const before = await settingsRepo(t.meta).get('email.smtp');
+
+    const res = await putEmail(t, {
+      senders: [
+        { name: 'Acme News', address: 'news@acme.example' },
+        { name: '', address: 'NEWS@acme.example' },
+        { name: 'Receipts', address: 'receipts@acme.example' },
+      ],
+      maxAttachmentBytes: 5 * 1024 * 1024,
+    });
+    expect(res.statusCode, res.body).toBe(200);
+    // Duplicate addresses collapse (case-insensitively); the transport is untouched.
+    expect(res.json().data.senders).toEqual([
+      { name: 'Acme News', address: 'news@acme.example' },
+      { name: 'Receipts', address: 'receipts@acme.example' },
+    ]);
+    expect(res.json().data.maxAttachmentBytes).toBe(5 * 1024 * 1024);
+    expect(res.json().data.host).toBe(SMTP_BODY.host);
+    expect(await settingsRepo(t.meta).get('email.smtp')).toEqual(before);
+    expect(await settingsRepo(t.meta).get('email.senders')).toHaveLength(2);
+
+    // Bounds are the registry's; a sender needs an address.
+    expect((await putEmail(t, { maxAttachmentBytes: 1024 })).statusCode).toBe(422);
+    expect((await putEmail(t, { senders: [{ name: 'x', address: 'nope' }] })).statusCode).toBe(422);
+    expect((await putEmail(t, { senders: [{ name: 'x', address: 'a@b.c\r\nBcc: evil@x' }] })).statusCode).toBe(422);
+
+    // The audit row carries the senders in both images, never a password.
+    const row = (await auditRepo(t.meta).list({ category: 'settings' })).find((r) => r.action === 'settings.email.update');
+    expect(JSON.stringify(row?.changes)).toContain('receipts@acme.example');
+    expect(JSON.stringify(row?.changes)).not.toContain('hunter2');
   });
 
   it('stores the password encrypted and never reads it back', async () => {
     const res = await putEmail(t, { smtp: SMTP_BODY });
     expect(res.statusCode).toBe(200);
 
-    // The reply: presence, and the five non-secret fields. Nothing else.
+    // The reply: presence, the five non-secret fields, the senders and the cap. Nothing else.
     expect(res.json().data).toEqual({
       configured: true,
       host: SMTP_BODY.host,
@@ -186,6 +222,8 @@ describe('PUT /settings/email', () => {
       user: SMTP_BODY.user,
       from: SMTP_BODY.from,
       secure: false,
+      senders: [],
+      maxAttachmentBytes: 10_485_760,
     });
     // Not the value, not a masked copy, not a last-4 — the serialized body must
     // not contain the password in ANY form.
@@ -465,5 +503,28 @@ describe('createSmtpTransport', () => {
     expect(mailer.sendMail).toHaveBeenCalledTimes(1);
     // Still torn down on the failure path.
     expect(mailer.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands attachments to nodemailer as bytes only, inline ones by cid, and honours a configured From (39 D7–D9)', async () => {
+    const pdf = Buffer.from('%PDF-1.4');
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    await createSmtpTransport(cfg).send({
+      ...msg,
+      from: 'Acme News <news@acme.example>',
+      attachments: [
+        { filename: 'hexagon.png', content: png, contentType: 'image/png', cid: 'mark' },
+        { filename: 'receipt.pdf', content: pdf, contentType: 'application/pdf' },
+      ],
+    });
+    const sent = mailer.sendMail.mock.calls[0]?.[0] as { from: string; attachments: Record<string, unknown>[] };
+    expect(sent.from).toBe('Acme News <news@acme.example>');
+    expect(sent.attachments).toEqual([
+      { filename: 'hexagon.png', content: png, contentType: 'image/png', cid: 'mark', contentDisposition: 'inline' },
+      { filename: 'receipt.pdf', content: pdf, contentType: 'application/pdf' },
+    ]);
+    // Never a `path` or an `href`: with `disableFileAccess`/`disableUrlAccess`
+    // on, those would be refused — and a template variable must never be able
+    // to become a file read or a fetch in the first place.
+    expect(JSON.stringify(sent.attachments)).not.toMatch(/"(path|href)"/);
   });
 });

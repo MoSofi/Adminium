@@ -1,0 +1,621 @@
+{
+  "title": "Modèles d’e-mail",
+  "subtitle": "Concevez des e-mails réutilisables et les campagnes que vous envoyez à partir de ceux-ci.",
+  "loadFailed": "Impossible de charger les modèles d’e-mail",
+  "needsTranslation": "Traduction requise",
+  "actions": {
+    "menu": "Plus d’actions",
+    "eyebrow": "Actions",
+    "import": "Importer un modèle",
+    "senders": "Gérer les expéditeurs",
+    "exportAll": "Tout exporter",
+    "settings": "Paramètres e-mail",
+    "archived": "Archivés"
+  },
+  "new": {
+    "template": "Nouveau modèle",
+    "campaign": "Nouvelle campagne",
+    "subtitle": "Partez de zéro ou d’un design d’e-mail prêt à l’emploi.",
+    "blank": "E-mail vierge",
+    "blankHint": "Partir de zéro",
+    "yourTemplates": "Vos modèles",
+    "failed": "Création impossible",
+    "startersFailed": "Les modèles de départ n’ont pas pu être chargés. Partez de zéro ou réessayez."
+  },
+  "tabs": {
+    "label": "Type",
+    "templates": "Modèles",
+    "campaigns": "Campagnes"
+  },
+  "groupBy": {
+    "label": "Grouper par",
+    "none": "Aucun",
+    "topic": "Sujet",
+    "language": "Langue"
+  },
+  "search": {
+    "templates": "Rechercher des modèles…",
+    "campaigns": "Rechercher des campagnes…",
+    "clear": "Effacer la recherche"
+  },
+  "layout": {
+    "label": "Affichage",
+    "gallery": "Galerie",
+    "list": "Liste"
+  },
+  "archivedChip": {
+    "field": "Affichage",
+    "value": "Archivés",
+    "leave": "Quitter les archives"
+  },
+  "empty": {
+    "templates": {
+      "title": "Aucun modèle pour l’instant",
+      "body": "Concevez un e-mail réutilisable à partir duquel votre équipe peut envoyer."
+    },
+    "campaigns": {
+      "title": "Aucune campagne pour l’instant",
+      "body": "Créez une campagne à partir d’un modèle ou d’une page vierge."
+    },
+    "noMatch": {
+      "templates": "Aucun modèle ne correspond",
+      "campaigns": "Aucune campagne ne correspond",
+      "body": "Essayez un autre terme de recherche."
+    },
+    "archived": {
+      "templates": "Aucun modèle archivé",
+      "campaigns": "Aucune campagne archivée",
+      "body": "Tout ce que vous supprimez arrive ici et peut être restauré."
+    }
+  },
+  "status": {
+    "draft": "Brouillon",
+    "live": "Actif",
+    "scheduled": "Programmé",
+    "sending": "Envoi en cours",
+    "sent": "Envoyé",
+    "failed": "Échec"
+  },
+  "category": {
+    "transactional": "Transactionnel",
+    "lifecycle": "Cycle de vie",
+    "marketing": "Marketing"
+  },
+  "run": {
+    "counts": "{sent} envoyés · {failed} en échec",
+    "sending": "Envoi en cours · {pct} %"
+  },
+  "group": {
+    "languages": "{count, plural, one {# langue} other {# langues}}",
+    "emails": "{count, plural, one {# e-mail} other {# e-mails}}",
+    "needsTranslation": "{count} à traduire"
+  },
+  "card": {
+    "edit": "Modifier",
+    "duplicate": "Dupliquer",
+    "rename": "Renommer",
+    "renameLabel": "Nouveau nom",
+    "delete": "Supprimer",
+    "restore": "Restaurer",
+    "deleteForGood": "Supprimer définitivement",
+    "reset": "Rétablir la version intégrée"
+  },
+  "list": {
+    "name": "Nom",
+    "lang": "Langue",
+    "status": "Statut",
+    "updated": "Mis à jour",
+    "actions": "Actions"
+  },
+  "delete": {
+    "title": "Supprimer {name} ?",
+    "archiveBody": "L’élément passe dans les archives, où vous pouvez le restaurer ou le supprimer définitivement.",
+    "confirm": "Supprimer",
+    "forGoodTitle": "Supprimer {name} définitivement ?",
+    "forGoodBody": {
+      "template": "Cette action est irréversible. Le modèle sera définitivement supprimé.",
+      "campaign": "Cette action est irréversible. La campagne sera définitivement supprimée."
+    },
+    "forGood": "Supprimer définitivement",
+    "resetTitle": "Rétablir la version intégrée de {name} ?",
+    "resetBody": "Vos modifications dans cette langue sont remplacées par la version fournie.",
+    "reset": "Rétablir"
+  },
+  "toast": {
+    "duplicated": {
+      "template": "Modèle dupliqué",
+      "campaign": "Campagne dupliquée"
+    },
+    "duplicateFailed": "Duplication impossible",
+    "deleted": {
+      "template": "Modèle supprimé",
+      "campaign": "Campagne supprimée"
+    },
+    "deleteFailed": "Suppression impossible",
+    "restored": {
+      "template": "Modèle restauré",
+      "campaign": "Campagne restaurée"
+    },
+    "restoreFailed": "Restauration impossible",
+    "deletedForGood": {
+      "template": "Modèle supprimé définitivement",
+      "campaign": "Campagne supprimée définitivement"
+    },
+    "reset": "Version intégrée rétablie",
+    "renameFailed": "Renommage impossible"
+  },
+  "import": {
+    "title": "Importer un modèle",
+    "subtitle": "Un lot exporté depuis Adminium.",
+    "choose": "Choisir un lot",
+    "hint": "adminium-email-templates-<date>.json",
+    "invalid": "Ce fichier n’est pas un lot d’e-mails Adminium.",
+    "summary": "{templates, plural, one {# modèle} other {# modèles}} et {campaigns, plural, one {# campagne} other {# campagnes}} · {duplicates} déjà présents",
+    "modeLabel": "Documents existants",
+    "skip": "Ignorer les existants",
+    "replace": "Remplacer les existants",
+    "confirm": "Importer",
+    "failed": "L’import a échoué.",
+    "done": "{created} importés · {replaced} remplacés · {skipped} ignorés",
+    "errors": "{count, plural, one {# document n’a pas pu être importé} other {# documents n’ont pas pu être importés}}"
+  },
+  "editor": {
+    "kind": {
+      "template": "Modèle",
+      "campaign": "Campagne"
+    },
+    "nameLabel": "Nom",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "test": "Tester",
+    "save": "Enregistrer",
+    "saveTemplate": "Enregistrer le modèle",
+    "sendCampaign": "Envoyer la campagne",
+    "shortcutSave": "Enregistrer l’e-mail",
+    "saveState": {
+      "saving": "Enregistrement…",
+      "saved": "Toutes les modifications sont enregistrées",
+      "dirty": "Modifications non enregistrées",
+      "error": "Enregistrement impossible"
+    },
+    "languages": {
+      "title": "Variantes linguistiques",
+      "current": "En cours d’édition",
+      "translated": "Traduit",
+      "needsTranslation": "Traduction requise",
+      "missing": "Pas encore créée",
+      "created": "Variante {language} créée",
+      "createdNeedsTranslation": "Variante {language} créée — traduction requise",
+      "addFailed": "Impossible d’ajouter cette langue"
+    },
+    "discard": {
+      "title": "Abandonner les modifications non enregistrées ?",
+      "body": "Vos modifications de {name} seront perdues.",
+      "keep": "Continuer l’édition",
+      "confirm": "Abandonner"
+    },
+    "saveFailed": "Enregistrement impossible",
+    "saved": "Modifications enregistrées",
+    "loadFailed": "Impossible de charger cet e-mail"
+  },
+  "canvas": {
+    "livePreview": "Aperçu en direct · cliquez sur une partie de l’e-mail pour la modifier",
+    "device": "Largeur de l’aperçu",
+    "desktop": "Ordinateur",
+    "mobile": "Mobile",
+    "subject": "Objet",
+    "preheader": "Texte d’aperçu",
+    "preheaderPlaceholder": "Texte d’aperçu…",
+    "select": "Modifier {label}",
+    "insertAbove": "Insérer une section au-dessus de {label}",
+    "add": "Ajouter",
+    "addSection": "Ajouter une section",
+    "defaultSender": "Expéditeur par défaut",
+    "now": "maintenant",
+    "attachments": "{count, plural, one {# pièce jointe} other {# pièces jointes}}",
+    "fileMissing": "Fichier manquant",
+    "variables": "Variables",
+    "imagePlaceholder": "Emplacement d’image",
+    "htmlNote": "Rendu tel quel en HTML brut à l’envoi de l’e-mail.",
+    "recurring": "Récurrent — {freq}",
+    "nextOn": "Prochaine le {next} · {note}",
+    "loyaltyBalance": "Solde de fidélité",
+    "loyaltyLine": "{balance} pts · {level}",
+    "sections": {
+      "branding": "Marque et expéditeur",
+      "subject": "Objet et texte d’aperçu",
+      "footer": "Pied de page",
+      "attachments": "Pièces jointes"
+    },
+    "blockAdded": "{label} ajouté"
+  },
+  "blocks": {
+    "heading": {
+      "label": "Titre",
+      "hint": "Titre de section"
+    },
+    "text": {
+      "label": "Bloc de texte",
+      "hint": "Un ou plusieurs paragraphes"
+    },
+    "button": {
+      "label": "Bouton",
+      "hint": "Appel à l’action principal"
+    },
+    "divider": {
+      "label": "Séparateur / espace",
+      "hint": "Filet ou espace vide"
+    },
+    "spacer": {
+      "label": "Espace",
+      "hint": "Espace vide"
+    },
+    "footer": {
+      "label": "Texte de pied de page",
+      "hint": "Ancien bloc de pied de page"
+    },
+    "image": {
+      "label": "Emplacement d’image",
+      "hint": "Ajoutez le visuel plus tard"
+    },
+    "two-col": {
+      "label": "Texte sur deux colonnes",
+      "hint": "Textes côte à côte"
+    },
+    "list": {
+      "label": "Liste à puces",
+      "hint": "Points courts"
+    },
+    "quote": {
+      "label": "Citation",
+      "hint": "Témoignage avec attribution"
+    },
+    "social": {
+      "label": "Liens sociaux",
+      "hint": "Puces de liens en pied de page"
+    },
+    "html": {
+      "label": "HTML personnalisé",
+      "hint": "Collez votre propre code"
+    },
+    "box": {
+      "label": "Encadré",
+      "hint": "Un libellé et une grande valeur"
+    },
+    "stats": {
+      "label": "Ligne de chiffres",
+      "hint": "Deux à quatre chiffres"
+    },
+    "product": {
+      "label": "Ligne produit",
+      "hint": "Articles avec prix"
+    },
+    "multi-currency": {
+      "label": "Multidevise",
+      "hint": "Totaux en d’autres devises"
+    },
+    "tax-breakdown": {
+      "label": "Détail des taxes",
+      "hint": "Composantes des taxes"
+    },
+    "discount-codes": {
+      "label": "Codes de réduction",
+      "hint": "Codes promo appliqués"
+    },
+    "payment-history": {
+      "label": "Historique des paiements",
+      "hint": "Paiements passés"
+    },
+    "recurring": {
+      "label": "Cadence récurrente",
+      "hint": "Rythme de livraison"
+    },
+    "loyalty": {
+      "label": "Points de fidélité",
+      "hint": "Solde de récompenses"
+    },
+    "delivery": {
+      "label": "Suivi de livraison",
+      "hint": "État de la préparation"
+    },
+    "po-terms": {
+      "label": "Conditions du bon de commande",
+      "hint": "Conditions de la commande"
+    },
+    "legal": {
+      "label": "Pied de page légal",
+      "hint": "Mentions en petits caractères"
+    },
+    "refund-policy": {
+      "label": "Conditions de remboursement",
+      "hint": "Retours et remboursements"
+    },
+    "contact": {
+      "label": "Bloc de contact",
+      "hint": "Coordonnées du support"
+    },
+    "unknown": {
+      "label": "Section"
+    }
+  },
+  "picker": {
+    "title": "Ajouter une section",
+    "above": "Insérée au-dessus de {label}",
+    "atEnd": "Ajoutée à la fin de l’e-mail",
+    "groups": {
+      "content": "Contenu",
+      "commerce": "Commerce et données",
+      "legal": "Légal et support",
+      "saved": "Blocs enregistrés"
+    },
+    "savedHint": "Enregistré : {label}"
+  },
+  "mirror": {
+    "title": "Appliquer aux autres langues ?",
+    "body": "{label} peut être reproduit dans {count, plural, one {# autre variante linguistique} other {# autres variantes linguistiques}} de {topic}. Le texte arrive non traduit, à l’enregistrement.",
+    "onlyThis": "Seulement {native}",
+    "applyAll": "Appliquer aux {count}",
+    "queued": "En attente pour {count, plural, one {# autre langue} other {# autres langues}} — appliqué à l’enregistrement"
+  },
+  "inspector": {
+    "tabs": "Inspecteur",
+    "sections": "Sections",
+    "design": "Design",
+    "backToSections": "Retour aux sections",
+    "fixed": "Fixes",
+    "bodySections": "Sections du corps · glissez pour réordonner",
+    "dragToReorder": "Glisser pour réordonner",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "duplicateSection": "Dupliquer {label}",
+    "removeSection": "Retirer {label}",
+    "savedBlocks": "Blocs enregistrés",
+    "savedBlocksHint": "Enregistrez une section depuis l’onglet Design pour la réutiliser dans d’autres modèles.",
+    "titles": {
+      "subject": "Objet"
+    },
+    "hints": {
+      "branding": "Logo, expéditeur, couleur, statut",
+      "subject": "Objet et texte d’aperçu",
+      "attachments": "Fichiers fixes et fichiers générés",
+      "footer": "Légal et désabonnement",
+      "gone": "Section retirée"
+    },
+    "subjectLine": "Ligne d’objet",
+    "preheader": "Pré-en-tête / texte d’aperçu",
+    "insertVariable": "Insérer une variable",
+    "insertHint": "Cliquez dans un champ, puis sur une variable pour l’insérer.",
+    "footerText": "Texte de pied de page",
+    "footerHint": "Mentions légales, adresse et désabonnement. Affiché en bas de chaque envoi.",
+    "attachedToEverySend": "Joint à chaque envoi",
+    "attachmentsEmpty": "Rien de joint pour l’instant. Ajoutez un fichier fixe envoyé à chaque fois, ou un fichier généré résolu par destinataire.",
+    "generatedLabel": "Libellé",
+    "generatedToken": "Jeton",
+    "resolvedPerRecipient": "Résolu par destinataire au moment de l’envoi.",
+    "removeAttachment": "Retirer la pièce jointe",
+    "addGeneratedFile": "Ajouter un fichier généré",
+    "workspaceDocuments": "Documents de l’espace de travail",
+    "chooseImage": "Choisir une image",
+    "addRow": "Ajouter {noun}",
+    "duplicateRow": "Dupliquer {noun}",
+    "removeRow": "Retirer {noun}",
+    "saveAsReusable": "Enregistrer comme bloc réutilisable",
+    "blockName": "Nom du bloc",
+    "myBlock": "Mon bloc",
+    "save": "Enregistrer",
+    "duplicate": "Dupliquer",
+    "remove": "Retirer",
+    "savedToBlocks": "Enregistré dans vos blocs",
+    "saveBlockFailed": "Impossible d’enregistrer le bloc",
+    "sectionDuplicated": "Section dupliquée",
+    "sectionRemoved": "Section retirée",
+    "sectionsReordered": "Sections réordonnées",
+    "noDocuments": "Aucun document dans la bibliothèque pour l’instant. Importez-en un depuis Fichiers.",
+    "attached": "{name} joint"
+  },
+  "style": {
+    "title": "Style du bloc",
+    "alignment": "Alignement",
+    "align": {
+      "start": "Gauche",
+      "center": "Centré",
+      "end": "Droite"
+    },
+    "background": "Fond",
+    "bg": {
+      "none": "Aucun",
+      "soft": "Gris",
+      "tint": "Teinte de marque",
+      "accent": "Marque",
+      "dark": "Sombre"
+    },
+    "textColour": "Couleur du texte",
+    "fg": {
+      "auto": "Corps",
+      "strong": "Fort",
+      "muted": "Atténué",
+      "accent": "Marque",
+      "white": "Blanc"
+    },
+    "spacing": "Espacement",
+    "pad": {
+      "none": "Aucun"
+    },
+    "textSize": "Taille du texte",
+    "size": {
+      "s": "Petit",
+      "m": "Moyen",
+      "l": "Grand"
+    },
+    "border": "Bordure",
+    "borderKind": {
+      "none": "Aucune",
+      "thin": "Pleine",
+      "dashed": "Pointillés"
+    },
+    "radius": "Arrondi des coins",
+    "radiusKind": {
+      "none": "Carré",
+      "md": "Arrondi",
+      "lg": "Très arrondi"
+    },
+    "fullWidth": "Pleine largeur",
+    "fullWidthHint": "Jusqu’aux bords de l’e-mail"
+  },
+  "branding": {
+    "brandName": "Nom de marque",
+    "logoMark": "Logo",
+    "yourLogo": "Votre logo",
+    "fromName": "Nom d’expéditeur",
+    "fromEmail": "Adresse d’expéditeur",
+    "notConfigured": "Cet expéditeur n’est pas configuré.",
+    "manageSenders": "Gérer les expéditeurs",
+    "noSenders": "Aucun expéditeur configuré pour l’instant — l’expéditeur par défaut est utilisé.",
+    "defaultSenderOption": "Expéditeur par défaut",
+    "brandColour": "Couleur de marque",
+    "category": "Catégorie",
+    "status": "Statut",
+    "languageVariations": "Variantes linguistiques",
+    "languageHint": "Ajouter une langue crée une copie liée. Les variantes restent groupées sous {topic}.",
+    "tagCurrent": "Actuelle",
+    "tagEdit": "Modifier",
+    "tagAdd": "Ajouter",
+    "noMatch": "Aucun expéditeur ne correspond"
+  },
+  "fields": {
+    "heading": "Titre",
+    "buttonText": "Texte du bouton",
+    "linkUrl": "URL du lien",
+    "height": "Hauteur (px)",
+    "footer": "Pied de page",
+    "placeholderLabel": "Libellé de l’emplacement",
+    "imageUrl": "URL de l’image",
+    "leftColumn": "Colonne de gauche",
+    "rightColumn": "Colonne de droite",
+    "quote": "Citation",
+    "attribution": "Attribution",
+    "html": "HTML",
+    "label": "Libellé",
+    "value": "Valeur",
+    "sectionLabel": "Libellé de section",
+    "baseAmount": "Montant de base",
+    "frequency": "Fréquence",
+    "nextIssueDate": "Prochaine date d’émission",
+    "scheduleNote": "Note de cadence",
+    "balance": "Solde",
+    "earned": "Gagnés",
+    "level": "Niveau",
+    "body": "Corps",
+    "finePrint": "Petits caractères",
+    "contactName": "Nom du contact",
+    "email": "E-mail",
+    "phone": "Téléphone"
+  },
+  "rows": {
+    "paragraphs": "Paragraphes",
+    "listItems": "Éléments de liste",
+    "links": "Liens",
+    "stats": "Chiffres",
+    "lineItems": "Articles",
+    "currencies": "Devises et taux",
+    "taxComponents": "Composantes des taxes",
+    "codes": "Codes",
+    "payments": "Paiements",
+    "steps": "Étapes"
+  },
+  "nouns": {
+    "paragraph": "un paragraphe",
+    "item": "un élément",
+    "link": "un lien",
+    "stat": "un chiffre",
+    "currency": "une devise",
+    "taxLine": "une ligne de taxe",
+    "code": "un code",
+    "payment": "un paiement",
+    "step": "une étape"
+  },
+  "placeholders": {
+    "paragraphText": "Texte du paragraphe",
+    "listItem": "Élément de liste",
+    "label": "Libellé",
+    "iconName": "Nom de l’icône",
+    "url": "URL",
+    "itemName": "Nom de l’article",
+    "variant": "Variante / SKU",
+    "stepName": "Nom de l’étape",
+    "description": "Description"
+  },
+  "cycle": {
+    "done": "Terminé",
+    "current": "En cours",
+    "todo": "En attente"
+  },
+  "testSend": {
+    "title": "Envoyer un e-mail de test",
+    "to": "Envoyer à",
+    "placeholder": "nom@entreprise.com, …",
+    "removeRecipient": "Retirer {email}",
+    "quickAdd": "Ajouter rapidement des collègues",
+    "note": "Les variables comme {token} sont remplies avec des données d’exemple dans les envois de test.",
+    "noteNoVars": "Les envois de test partent exactement tels qu’affichés.",
+    "count": "{count, plural, one {# destinataire} other {# destinataires}}",
+    "send": "Envoyer le test",
+    "sending": "Envoi…",
+    "failed": "Le test n’a pas pu être envoyé.",
+    "sentTitle": "Test envoyé !",
+    "sentBody": "Votre test de {name} est en route vers {count, plural, one {# destinataire} other {# destinataires}}.",
+    "sendAnother": "En envoyer un autre",
+    "done": "Terminé",
+    "queued": "E-mail de test envoyé à {count, plural, one {# destinataire} other {# destinataires}}"
+  },
+  "imagePicker": {
+    "title": "Choisir une image",
+    "subtitle": "Choisissez parmi les fichiers de votre espace de travail, importez-en une ou collez une URL.",
+    "source": "Source",
+    "workspaceFiles": "Fichiers de l’espace de travail",
+    "upload": "Importer",
+    "noImages": "Aucune image dans la bibliothèque pour l’instant — importez-en une.",
+    "connection": "Importer dans",
+    "noConnection": "Connectez une source de données avant d’importer.",
+    "drop": "Déposez une image ici",
+    "formats": "PNG, JPG, GIF ou SVG",
+    "browse": "Parcourir les fichiers",
+    "url": "URL de l’image",
+    "urlPlaceholder": "…ou collez l’URL d’une image",
+    "useUrl": "Utiliser l’URL",
+    "selected": "{name} sélectionné",
+    "uploaded": "{name} importé"
+  },
+  "campaign": {
+    "title": "Envoyer la campagne",
+    "sendTo": "Envoyer à",
+    "workspaceUsers": "Utilisateurs de l’espace de travail",
+    "rolesHint": "Tout le monde, ou seulement les titulaires des rôles choisis.",
+    "when": "Quand",
+    "now": "Maintenant",
+    "schedule": "Programmer",
+    "scheduleAt": "Envoyer le",
+    "pastTime": "Choisissez un moment dans le futur.",
+    "counting": "Comptage des destinataires…",
+    "countFailed": "Impossible de compter les destinataires",
+    "count": "{total, plural, one {# destinataire} other {# destinataires}}",
+    "optedOut": "{skipped} désinscrits",
+    "note": "Les variables sont remplies par destinataire — {token} devient le nom de chaque personne.",
+    "send": "Envoyer la campagne",
+    "scheduleAction": "Programmer la campagne",
+    "sending": "Envoi…",
+    "failed": "La campagne n’a pas pu être envoyée.",
+    "sentTitle": "Campagne envoyée !",
+    "sentBody": "{name} est en route vers {count, plural, one {# destinataire} other {# destinataires}}.",
+    "scheduledTitle": "Campagne programmée !",
+    "scheduledBody": "{name} partira le {when}.",
+    "done": "Terminé",
+    "chipScheduled": "Programmé · {when}",
+    "chipSending": "Envoi · {pct} %",
+    "cancelSchedule": "Annuler la programmation",
+    "cancelSending": "Annuler l’envoi",
+    "cancelled": "Programmation annulée",
+    "sendingCancelled": "Envoi annulé",
+    "cancelFailed": "Annulation impossible"
+  }
+}

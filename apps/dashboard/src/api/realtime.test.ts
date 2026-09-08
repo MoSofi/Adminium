@@ -55,6 +55,18 @@ describe('invalidateForRealtimeEvent', () => {
     expect(invalidate.mock.calls.map((call) => call[0]?.queryKey)).toEqual([['notifications']]);
   });
 
+  it('jobs:<id> terminal events of an email.campaign-run job → the ["email-templates"] prefix (39 D12)', () => {
+    const { queryClient, invalidate } = spyClient();
+    invalidateForRealtimeEvent(queryClient, { ...makeEvent('jobs:job_1', 'completed'), data: { jobId: 'job_1', kind: 'email.campaign-run' } });
+    invalidateForRealtimeEvent(queryClient, { ...makeEvent('jobs:job_1', 'cancelled'), data: { jobId: 'job_1', kind: 'email.campaign-run' } });
+    expect(invalidate.mock.calls.map((call) => call[0]?.queryKey)).toEqual([['email-templates'], ['email-templates']]);
+    // Progress ticks carry no kind and change no row; other jobs' terminal events are not ours.
+    invalidate.mockClear();
+    invalidateForRealtimeEvent(queryClient, { ...makeEvent('jobs:job_1', 'progress'), data: { pct: 40, step: 'send', message: null } });
+    invalidateForRealtimeEvent(queryClient, { ...makeEvent('jobs:job_2', 'completed'), data: { jobId: 'job_2', kind: 'data-io.import' } });
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
   it('ignores unrelated channels', () => {
     const { queryClient, invalidate } = spyClient();
     invalidateForRealtimeEvent(queryClient, makeEvent('jobs:job_01H'));

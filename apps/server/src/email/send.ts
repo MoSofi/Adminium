@@ -14,15 +14,22 @@
  * template was edited, or one that renders in the wrong language because the
  * recipient changed their preference in between.
  *
+ * WHY BYTES DO NOT. An attachment is a library file and the brand mark is a
+ * shipped PNG; the payload carries their IDS and delivery reads the bytes
+ * right before `sendMail` (39-email-templates-and-campaigns.md D8). A queue
+ * that copied every PDF into every row would be a second file store with no
+ * retention policy.
+ *
  * WHY THE BODY IS ENCRYPTED AT REST. A rendered password-reset or invite mail
  * contains the PLAINTEXT single-use token — the exact thing
  * `adminium_password_resets` stores only as a SHA-256 so that reading the meta
  * store cannot become an account takeover. `adminium_jobs.payload` is readable
  * through `GET /jobs/:id`, so parking the rendered HTML there raw would undo
  * that guarantee through the back door. The envelope (recipient, subject,
- * html, text) is therefore sealed with the same AES-256-GCM primitive that
- * protects DSNs and TOTP secrets (`config/secrets.ts`); the plaintext payload
- * carries only the template key and locale, which are not secrets.
+ * html, text, from) is therefore sealed with the same AES-256-GCM primitive
+ * that protects DSNs and TOTP secrets (`config/secrets.ts`); the plaintext
+ * payload carries only the template key, the locale and file ids, which are
+ * not secrets.
  *
  * TWO KEYS, TWO PURPOSES. {@link emailEnvelopeKey} seals the queued body;
  * `emailSecretKey` (config.ts) opens the stored SMTP password. Separate HKDF
@@ -37,7 +44,11 @@
  */
 import {
   emailTemplatesRepo,
+  filesRepo,
   jobsRepo,
+  settingsRepo,
+  type EmailAttachment,
+  type EmailBrand,
   type EnqueueJobInput,
   type Job,
   type MetaDb,
@@ -48,13 +59,27 @@ import { deriveKey, encryptSecret } from '../config/secrets.js';
 import { recipientLocale } from '../i18n/server-i18n.js';
 import { resolveEmailTemplate } from './builtins.js';
 import { emailSecretKey, resolveSmtpConfig } from './config.js';
-import { renderEmail } from './render.js';
+import { bareAddress } from './document.js';
+import { isShippedMark } from './marks.js';
+import {
+  DEFAULT_EMAIL_MARK,
+  MARK_CID,
+  effectiveBrand,
+  renderEmail,
+  type EmailInlineRef,
+  type RenderEmailInput,
+  type RenderedEmail,
+} from './render.js';
+import type { EmailRenderSource, EmailSendAttachmentRef, EmailSendInlineRef } from './types.js';
 
 /** The `adminium_jobs.kind` of a queued outbound email. */
 export const EMAIL_SEND_JOB_KIND = 'email.send';
 
-/** Payload envelope version — bumped if the sealed shape ever changes. */
-export const EMAIL_SEND_PAYLOAD_VERSION = 1;
+/**
+ * Payload envelope version. `2` (39) adds `attachments` and `inline`
+ * references beside the sealed body; `1` rows still deliver.
+ */
+export const EMAIL_SEND_PAYLOAD_VERSION = 2;
 
 /**
  * Retry budget for one message. Five attempts on the worker's 30 s-doubling
@@ -138,7 +163,8 @@ export interface EnqueueEmailInput {
   /**
    * Substitutions. Read the expected names off
    * `BUILTIN_EMAIL_TEMPLATE_VARS` rather than guessing — an omitted var is
-   * re-emitted verbatim by the renderer, on purpose.
+   * re-emitted verbatim by the renderer, on purpose. A `generated` attachment's
+   * token (39 D8) is resolved from here too: `vars[token]` must be a file id.
    */
   vars: Record<string, string>;
   /**
@@ -189,6 +215,7 @@ interface EmailEnvelope {
   subject: string;
   html: string;
   text: string;
+  from?: string | undefined;
 }
 
 /** The plaintext `adminium_jobs.payload` of an `email.send` row. */
@@ -198,9 +225,197 @@ export interface EmailSendPayload {
   locale: string;
   /** `enc:v1:` token over {@link EmailEnvelope} (config/secrets.ts). */
   envelope: string;
+  /** Library files whose bytes travel with the message (39 D8); absent on `v: 1` rows. */
+  attachments?: EmailSendAttachmentRef[];
+  /** Inline images the HTML references by `cid:` (39 D6/D9); absent on `v: 1` rows. */
+  inline?: EmailSendInlineRef[];
+}
+
+// --- the document → what the renderer and the queue need ----------------------------
+
+/** Everything a stored document contributes to one send, resolved once. */
+export interface PreparedEmail {
+  render: Pick<RenderEmailInput, 'document' | 'brand' | 'mark' | 'imageFiles'>;
+  /** A configured sender's `Name <addr>`, or undefined for the transport's own. */
+  from: string | undefined;
+  /** Fixed attachments — the library files that exist (39 D8). */
+  attachments: EmailSendAttachmentRef[];
+  /** Fixed attachments whose file is missing or trashed — reported, never silently dropped. */
+  missing: { id: string; fileId: string }[];
+}
+
+/**
+ * Resolve a document's brand, mark, images and fixed attachments against the
+ * workspace (39 D6–D9). Exported for the routes (test-send carries the
+ * on-screen document) and the campaign runner.
+ *
+ * The From header is `"${fromName} <${fromEmail}>"` only when the document
+ * names a configured sender; `validateDocument` refused anything else at save
+ * time, and this re-checks so a stale row cannot send from an address the
+ * operator has since removed (39 D7).
+ */
+export async function prepareEmail(meta: MetaDb, doc: EmailRenderSource): Promise<PreparedEmail> {
+  const settings = settingsRepo(meta);
+  const [appName, accent, logoFileId, smtp, senders] = await Promise.all([
+    settings.get('branding.appName'),
+    settings.get('appearance.accent'),
+    settings.get('branding.logoFileId'),
+    settings.get('email.smtp'),
+    settings.get('email.senders'),
+  ]);
+  const files = filesRepo(meta);
+
+  // The mark: the document's choice, else the workspace logo when there is one, else the comp's default.
+  const wanted = doc.brand?.mark ?? (logoFileId === null ? DEFAULT_EMAIL_MARK : 'logo');
+  let mark: RenderEmailInput['mark'];
+  if (wanted === 'logo') {
+    const logo = logoFileId === null ? null : await files.findById(logoFileId);
+    mark = logo !== null && logo.deletedAt === null ? { kind: 'file', fileId: logo.id } : { kind: 'mark', mark: DEFAULT_EMAIL_MARK };
+  } else {
+    mark = { kind: 'mark', mark: isShippedMark(wanted) ? wanted : DEFAULT_EMAIL_MARK };
+  }
+
+  // Images: only the file ids that exist travel by CID; the rest fall back to their URL.
+  const imageFiles = new Set<string>();
+  for (const block of doc.blocks) {
+    if (block['block'] !== 'email.image') continue;
+    const data = block['data'];
+    const fileId = typeof data === 'object' && data !== null ? (data as Record<string, unknown>)['fileId'] : undefined;
+    if (typeof fileId !== 'string' || fileId === '') continue;
+    const row = await files.findById(fileId);
+    if (row !== null && row.deletedAt === null) imageFiles.add(fileId);
+  }
+
+  const attachments: EmailSendAttachmentRef[] = [];
+  const missing: PreparedEmail['missing'] = [];
+  for (const attachment of doc.attachments) {
+    if (attachment.kind !== 'file') continue;
+    const row = await files.findById(attachment.fileId);
+    if (row === null || row.deletedAt !== null) missing.push({ id: attachment.id, fileId: attachment.fileId });
+    else attachments.push({ fileId: row.id, filename: row.filename });
+  }
+
+  const from = senderHeader(doc.brand, [
+    ...(smtp === null ? [] : [smtp.from]),
+    ...senders.map((s) => (s.name.trim() === '' ? s.address : `${s.name} <${s.address}>`)),
+  ]);
+
+  return {
+    render: {
+      document: { subject: doc.subject, preheader: doc.preheader, blocks: doc.blocks, footer: doc.footer },
+      brand: effectiveBrand(doc.brand, { appName, accent }),
+      mark,
+      imageFiles,
+    },
+    from,
+    attachments,
+    missing,
+  };
+}
+
+/** `Name <addr>` when the document's sender is configured; undefined otherwise (39 D7). */
+export function senderHeader(brand: EmailBrand | null, configured: readonly string[]): string | undefined {
+  if (brand === null || brand.fromEmail.trim() === '') return undefined;
+  const wanted = bareAddress(brand.fromEmail);
+  const match = configured.find((entry) => bareAddress(entry) === wanted);
+  if (match === undefined) return undefined;
+  const name = brand.fromName.trim();
+  return name === '' ? wanted : `${name} <${wanted}>`;
+}
+
+/**
+ * A `generated` attachment (39 D8) names a `{{token}}`; the caller fills it
+ * with a file id per send. An unknown or non-file value is skipped with one
+ * warning — the caller's contract, like an unresolved `{{var}}`.
+ */
+export async function resolveGeneratedAttachments(
+  meta: MetaDb,
+  attachments: readonly EmailAttachment[],
+  vars: Record<string, string>,
+  logger: EmailLogger | undefined,
+): Promise<EmailSendAttachmentRef[]> {
+  const out: EmailSendAttachmentRef[] = [];
+  const files = filesRepo(meta);
+  for (const attachment of attachments) {
+    if (attachment.kind !== 'generated') continue;
+    const name = /\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/.exec(attachment.token)?.[1] ?? attachment.token;
+    const fileId = vars[name];
+    const row = fileId === undefined || fileId === '' ? null : await files.findById(fileId);
+    if (row === null || row.deletedAt !== null) {
+      logger?.warn(
+        { token: attachment.token, label: attachment.label },
+        'generated attachment token did not resolve to a library file — skipped',
+      );
+      continue;
+    }
+    out.push({ fileId: row.id, filename: row.filename });
+  }
+  return out;
+}
+
+/** The queue-side shape of the renderer's inline references. */
+export function inlineRefs(rendered: RenderedEmail): EmailSendInlineRef[] {
+  return rendered.inline.map((ref: EmailInlineRef) => (ref.kind === 'mark' ? { cid: ref.cid, kind: 'mark', mark: ref.mark } : { cid: ref.cid, kind: 'file', fileId: ref.fileId }));
 }
 
 // --- enqueue ------------------------------------------------------------------------
+
+export interface EnqueueRenderedEmailInput {
+  to: string;
+  templateKey: string;
+  locale: string;
+  rendered: Pick<RenderedEmail, 'subject' | 'html' | 'text' | 'inline'>;
+  from?: string | undefined;
+  attachments?: readonly EmailSendAttachmentRef[] | undefined;
+  /** Collapses duplicates while a job with the same key is pending/running. */
+  dedupeKey?: string | null | undefined;
+}
+
+/**
+ * Seal an already-rendered message and queue it. The lower half of
+ * {@link enqueueEmail}, used directly by test sends (which render the
+ * on-screen document, 39 D1) and by anything else that already has a body.
+ * Returns null when no secret is available — never throws.
+ */
+export async function enqueueRenderedEmail(
+  deps: EnqueueEmailDeps,
+  input: EnqueueRenderedEmailInput,
+): Promise<Job | null> {
+  const secret = deps.secret ?? runtimeSecret;
+  if (secret === null || secret === undefined || secret.length === 0) {
+    logUnconfiguredOnce(deps.logger, 'no master secret is available to the email layer');
+    return null;
+  }
+  const to = input.to.trim();
+  if (to.length === 0) return null;
+
+  const envelope: EmailEnvelope = {
+    to,
+    subject: input.rendered.subject,
+    html: input.rendered.html,
+    text: input.rendered.text,
+    ...(input.from === undefined ? {} : { from: input.from }),
+  };
+  const inline = inlineRefs(input.rendered as RenderedEmail);
+  const attachments = [...(input.attachments ?? [])];
+  const payload: EmailSendPayload = {
+    v: EMAIL_SEND_PAYLOAD_VERSION,
+    templateKey: input.templateKey,
+    locale: input.locale,
+    envelope: encryptSecret(JSON.stringify(envelope), emailEnvelopeKey(secret)),
+    ...(attachments.length === 0 ? {} : { attachments }),
+    ...(inline.length === 0 ? {} : { inline }),
+  };
+
+  const enqueue = deps.enqueue ?? ((job: EnqueueJobInput) => jobsRepo(deps.meta).enqueue(job));
+  return await enqueue({
+    kind: EMAIL_SEND_JOB_KIND,
+    payload: payload as unknown as Record<string, unknown>,
+    maxAttempts: EMAIL_SEND_MAX_ATTEMPTS,
+    ...(deps.runAt === undefined ? {} : { runAt: deps.runAt }),
+    ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
+  });
+}
 
 /**
  * Renders `templateKey` for `to` and queues it.
@@ -239,36 +454,39 @@ export async function enqueueEmail(
   }
 
   const locale = input.locale ?? (await recipientLocale(meta, null));
-  const template = await resolveTemplate(meta, input, locale, deps.logger);
-  if (template === null) return null;
+  const row = await resolveTemplate(meta, input, locale, deps.logger);
+  if (row === null) return null;
+
+  const prepared = await prepareEmail(meta, row);
+  for (const gone of prepared.missing) {
+    deps.logger?.warn(
+      { templateKey: input.templateKey, attachmentId: gone.id, fileId: gone.fileId },
+      'a fixed attachment names a missing or trashed file — the send will fail at delivery',
+    );
+    // Queue it anyway with the reference: the handler fails LOUDLY on it (39 D8),
+    // which is what makes the dead-letter row an operator can act on.
+    prepared.attachments.push({ fileId: gone.fileId, filename: gone.fileId });
+  }
+  const generated = await resolveGeneratedAttachments(meta, row.attachments, input.vars, deps.logger);
 
   const rendered = renderEmail({
-    template,
+    ...prepared.render,
     locale,
     vars: input.vars,
     dir: isLocaleId(locale) ? dirForLocale(locale) : 'ltr',
   });
 
-  const envelope: EmailEnvelope = {
-    to,
-    subject: rendered.subject,
-    html: rendered.html,
-    text: rendered.text,
-  };
-  const payload: EmailSendPayload = {
-    v: EMAIL_SEND_PAYLOAD_VERSION,
-    templateKey: input.templateKey,
-    locale,
-    envelope: encryptSecret(JSON.stringify(envelope), emailEnvelopeKey(secret)),
-  };
-
-  const enqueue = deps.enqueue ?? ((job: EnqueueJobInput) => jobsRepo(meta).enqueue(job));
-  return await enqueue({
-    kind: EMAIL_SEND_JOB_KIND,
-    payload: payload as unknown as Record<string, unknown>,
-    maxAttempts: EMAIL_SEND_MAX_ATTEMPTS,
-    ...(deps.runAt === undefined ? {} : { runAt: deps.runAt }),
-  });
+  return await enqueueRenderedEmail(
+    { ...deps, secret },
+    {
+      to,
+      templateKey: input.templateKey,
+      locale,
+      rendered,
+      from: prepared.from,
+      attachments: [...prepared.attachments, ...generated],
+    },
+  );
 }
 
 /** True when this instance can actually deliver mail right now. */
@@ -291,12 +509,19 @@ async function resolveTemplate(
   input: EnqueueEmailInput,
   locale: string,
   logger: EmailLogger | undefined,
-): Promise<{ subject: string; blocks: readonly unknown[] } | null> {
+): Promise<EmailRenderSource | null> {
   const row = await resolveEmailTemplate(meta, input.templateKey, locale);
-  if (row !== null) return { subject: row.subject, blocks: row.blocks };
+  if (row !== null) return row;
 
   if (input.fallback !== undefined && !(await templateExists(meta, input.templateKey, locale))) {
-    return { subject: input.fallback.subject, blocks: input.fallback.blocks };
+    return {
+      subject: input.fallback.subject,
+      preheader: '',
+      blocks: input.fallback.blocks as Record<string, unknown>[],
+      footer: '',
+      brand: null,
+      attachments: [],
+    };
   }
   logger?.warn(
     { templateKey: input.templateKey, locale },
@@ -347,3 +572,5 @@ function logUnconfiguredOnce(logger: EmailLogger | undefined, msg: string): void
   unconfiguredLogged = true;
   logger?.info({ kind: EMAIL_SEND_JOB_KIND }, msg);
 }
+
+export { MARK_CID };

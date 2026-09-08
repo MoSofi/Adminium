@@ -39,6 +39,20 @@ export interface SmtpConfig {
   secure: boolean;
 }
 
+/**
+ * One attachment or inline image, as BYTES. Never a path, never a URL: the
+ * transport runs with `disableFileAccess` and `disableUrlAccess`, so this is
+ * the only shape it can send — and the only shape it must ever be handed
+ * (39-email-templates-and-campaigns.md D8, D9).
+ */
+export interface OutboundAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string | undefined;
+  /** Present for an inline image the HTML references as `cid:<cid>`. */
+  cid?: string | undefined;
+}
+
 /** One message, fully rendered — the transport adds only the From. */
 export interface OutboundEmail {
   to: string;
@@ -48,6 +62,9 @@ export interface OutboundEmail {
   text: string;
   /** Extra headers (e.g. `Auto-Submitted`, `List-Unsubscribe`). */
   headers?: Record<string, string>;
+  /** Overrides the transport's `email.smtp.from` — a configured sender (39 D7). */
+  from?: string | undefined;
+  attachments?: OutboundAttachment[] | undefined;
 }
 
 /**
@@ -58,6 +75,70 @@ export interface OutboundEmail {
  * it was delivered — nothing downstream may promise otherwise. A rejection is
  * thrown, and the job worker decides whether it is worth another attempt.
  */
-export interface EmailTransport {
-  send(msg: OutboundEmail): Promise<void>;
+/**
+ * What the relay said. Void from a transport that does not report it (every
+ * test recorder); the SMTP transport returns the reply line, because Workflow
+ * Logs draws it as an automation step's log — "250 OK · delivered to …"
+ * (42 D15) — and a discarded reply cannot be shown later.
+ */
+export interface EmailSendResult {
+  /** e.g. `250 2.0.0 Ok: queued as 4B1C2`. */
+  response?: string | undefined;
+  messageId?: string | undefined;
 }
+
+export interface EmailTransport {
+  send(msg: OutboundEmail): Promise<EmailSendResult | void>;
+}
+
+// --- the document, as every half of the pipeline sees it (39 §3.3) -------------------
+
+import type { EmailAttachment, EmailBlockStyle, EmailBrand } from '@adminium/meta';
+
+/**
+ * One block as the editor and the renderer both see it. A type alias, not an
+ * interface: an alias gets the implicit index signature that lets a block be
+ * handed to the repo's open `Record<string, unknown>[]` without a cast.
+ */
+export type EmailBlock = {
+  id: string;
+  block: string;
+  data: Record<string, unknown>;
+  style: EmailBlockStyle;
+};
+
+export interface EmailDocument {
+  /** ≤300; CR/LF stripped at render (a subject is a header). */
+  subject: string;
+  /** ≤300; the inbox preview line. */
+  preheader: string;
+  blocks: EmailBlock[];
+  /** ≤2000, pre-wrap; the fixed footer (39 D5). */
+  footer: string;
+  /** null = the workspace defaults (39 D6). */
+  brand: EmailBrand | null;
+  attachments: EmailAttachment[];
+}
+
+/** A document as a send needs it — a row or a normalized document both fit. */
+export type EmailRenderSource = {
+  subject: string;
+  preheader: string;
+  blocks: readonly Record<string, unknown>[];
+  footer: string;
+  brand: EmailBrand | null;
+  attachments: readonly EmailAttachment[];
+};
+
+// --- what a queued message references (39 D8, D9) ---------------------------------------
+
+/** A fixed attachment: the library file whose bytes travel with the message. */
+export interface EmailSendAttachmentRef {
+  fileId: string;
+  filename: string;
+}
+
+/** An inline image the HTML references by `cid:` — a shipped mark, or a library file (the logo, a Files image). */
+export type EmailSendInlineRef =
+  | { cid: string; kind: 'mark'; mark: string }
+  | { cid: string; kind: 'file'; fileId: string };

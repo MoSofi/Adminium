@@ -7,7 +7,12 @@
  *   nav edits propagate live without reload);
  * - `table:{connectionId}:{schema.table}` (CRUD mutation fan-out) →
  *   `['data', connectionId, table, *]` lists + the `['widget-data']` prefix;
- * - `widget-data:{connectionId}:{table}` publications → same as above.
+ * - `widget-data:{connectionId}:{table}` publications → same as above;
+ * - `jobs:{jobId}` terminal events of an `email.campaign-run` job → the
+ *   `['email-templates']` prefix (39 D12): a run that finished, failed or was
+ *   cancelled changes a campaign's status pill and counts. The editor and the
+ *   manager subscribe per run (`email/useRunProgress.ts`) and route every
+ *   non-progress event through here, so this stays the one map.
  *
  * Pure function so the AppShell subscription stays a one-liner and the map is
  * unit-testable without a socket.
@@ -57,9 +62,19 @@ export function invalidateForRealtimeEvent(queryClient: QueryClient, event: Real
     return;
   }
 
+  if (event.channel.startsWith('jobs:') && event.type !== 'progress' && isCampaignRunEvent(event.data)) {
+    void queryClient.invalidateQueries({ queryKey: ['email-templates'] });
+    return;
+  }
+
   const match = TABLE_CHANNEL.exec(event.channel);
   if (match === null) return;
   const [, connectionId, table] = match as unknown as [string, string, string];
   void queryClient.invalidateQueries({ queryKey: ['data', connectionId, table] });
   void queryClient.invalidateQueries({ queryKey: ['widget-data'] });
+}
+
+/** The worker's `completed` / `failed` / `cancelled` payloads name the job kind; `progress` does not. */
+function isCampaignRunEvent(data: unknown): boolean {
+  return typeof data === 'object' && data !== null && (data as { kind?: unknown }).kind === 'email.campaign-run';
 }

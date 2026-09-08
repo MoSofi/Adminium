@@ -58,6 +58,11 @@ export const NOTIFICATION_EVENT_KEYS: readonly string[] = [
   'report.ready',
   'report.failed',
   'desktop.backup.completed',
+  // 39-email-templates-and-campaigns.md D11: `email.campaign` is the opt-out
+  // for campaign mail (its `email` channel is the whole point; the in-app half
+  // is inert), `email.campaign.sent` the creator's notice when a run finishes.
+  'email.campaign',
+  'email.campaign.sent',
 ];
 
 /**

@@ -73,6 +73,8 @@
   --spacing-sidebar: 256px;
   --container-form: 640px; --container-narrow: 720px; --container-page: 1080px;
   --container-marketing: 1160px; --container-wide: 1200px; --container-max: 1360px; --container-widest: 1800px;
+  /* The email editor's canvas column (39-email-templates-and-campaigns.md D15): the comp's 680. */
+  --container-email: 680px;
   /* A reading column for a short stack of controls rather than a grid. Wide
      enough for a two-up field row, narrow enough that a lone label does not run
      the full monitor; `--container-narrow` (720px) is a text measure and

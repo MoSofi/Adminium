@@ -1,0 +1,631 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/zh-CN/email.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "title": "邮件模板",
+  "subtitle": "设计可复用的邮件，以及基于它们发送的活动。",
+  "loadFailed": "无法加载邮件模板",
+  "needsTranslation": "需要翻译",
+  "actions": {
+    "menu": "更多操作",
+    "eyebrow": "操作",
+    "import": "导入模板",
+    "senders": "管理发件人",
+    "exportAll": "全部导出",
+    "settings": "邮件设置",
+    "archived": "已归档"
+  },
+  "new": {
+    "template": "新建模板",
+    "campaign": "新建活动",
+    "subtitle": "从空白开始，或使用现成的邮件设计。",
+    "blank": "空白邮件",
+    "blankHint": "从零开始",
+    "yourTemplates": "你的模板",
+    "failed": "创建失败",
+    "startersFailed": "无法加载起始模板。可以从空白开始，或重试。"
+  },
+  "tabs": {
+    "label": "类型",
+    "templates": "模板",
+    "campaigns": "活动"
+  },
+  "groupBy": {
+    "label": "分组方式",
+    "none": "不分组",
+    "topic": "主题",
+    "language": "语言"
+  },
+  "search": {
+    "templates": "搜索模板…",
+    "campaigns": "搜索活动…",
+    "clear": "清除搜索"
+  },
+  "layout": {
+    "label": "布局",
+    "gallery": "画廊",
+    "list": "列表"
+  },
+  "archivedChip": {
+    "field": "正在显示",
+    "value": "已归档",
+    "leave": "退出归档"
+  },
+  "empty": {
+    "templates": {
+      "title": "还没有模板",
+      "body": "设计一封可复用的邮件，让团队可以基于它发送。"
+    },
+    "campaigns": {
+      "title": "还没有活动",
+      "body": "基于模板或空白画布创建一个活动。"
+    },
+    "noMatch": {
+      "templates": "没有匹配的模板",
+      "campaigns": "没有匹配的活动",
+      "body": "换个搜索词试试。"
+    },
+    "archived": {
+      "templates": "没有已归档的模板",
+      "campaigns": "没有已归档的活动",
+      "body": "删除的内容会出现在这里，并且可以恢复。"
+    }
+  },
+  "status": {
+    "draft": "草稿",
+    "live": "已启用",
+    "scheduled": "已定时",
+    "sending": "发送中",
+    "sent": "已发送",
+    "failed": "失败"
+  },
+  "category": {
+    "transactional": "事务类",
+    "lifecycle": "生命周期",
+    "marketing": "营销"
+  },
+  "run": {
+    "counts": "已发送 {sent} · 失败 {failed}",
+    "sending": "发送中 · {pct}%"
+  },
+  "group": {
+    "languages": "{count, plural, other {# 种语言}}",
+    "emails": "{count, plural, other {# 封邮件}}",
+    "needsTranslation": "{count} 个需要翻译"
+  },
+  "card": {
+    "edit": "编辑",
+    "duplicate": "复制",
+    "rename": "重命名",
+    "renameLabel": "新名称",
+    "delete": "删除",
+    "restore": "恢复",
+    "deleteForGood": "永久删除",
+    "reset": "重置为内置版本"
+  },
+  "list": {
+    "name": "名称",
+    "lang": "语言",
+    "status": "状态",
+    "updated": "更新时间",
+    "actions": "操作"
+  },
+  "delete": {
+    "title": "删除 {name}？",
+    "archiveBody": "它会移到“已归档”，在那里可以恢复或永久删除。",
+    "confirm": "删除",
+    "forGoodTitle": "永久删除 {name}？",
+    "forGoodBody": {
+      "template": "此操作无法撤销。该模板将被永久移除。",
+      "campaign": "此操作无法撤销。该活动将被永久移除。"
+    },
+    "forGood": "永久删除",
+    "resetTitle": "将 {name} 重置为内置版本？",
+    "resetBody": "你对该语言所做的修改将被自带的版本替换。",
+    "reset": "重置"
+  },
+  "toast": {
+    "duplicated": {
+      "template": "模板已复制",
+      "campaign": "活动已复制"
+    },
+    "duplicateFailed": "复制失败",
+    "deleted": {
+      "template": "模板已删除",
+      "campaign": "活动已删除"
+    },
+    "deleteFailed": "删除失败",
+    "restored": {
+      "template": "模板已恢复",
+      "campaign": "活动已恢复"
+    },
+    "restoreFailed": "恢复失败",
+    "deletedForGood": {
+      "template": "模板已永久删除",
+      "campaign": "活动已永久删除"
+    },
+    "reset": "已重置为内置版本",
+    "renameFailed": "重命名失败"
+  },
+  "import": {
+    "title": "导入模板",
+    "subtitle": "从 Adminium 导出的包。",
+    "choose": "选择一个包",
+    "hint": "adminium-email-templates-<date>.json",
+    "invalid": "该文件不是 Adminium 邮件包。",
+    "summary": "{templates, plural, other {# 个模板}}和{campaigns, plural, other {# 个活动}} · {duplicates} 个已存在",
+    "modeLabel": "已存在的文档",
+    "skip": "跳过已存在的",
+    "replace": "替换已存在的",
+    "confirm": "导入",
+    "failed": "导入失败。",
+    "done": "已导入 {created} · 已替换 {replaced} · 已跳过 {skipped}",
+    "errors": "{count, plural, other {# 个文档}}无法导入"
+  },
+  "editor": {
+    "kind": {
+      "template": "模板",
+      "campaign": "活动"
+    },
+    "nameLabel": "名称",
+    "undo": "撤销",
+    "redo": "重做",
+    "test": "测试",
+    "save": "保存",
+    "saveTemplate": "保存模板",
+    "sendCampaign": "发送活动",
+    "shortcutSave": "保存邮件",
+    "saveState": {
+      "saving": "保存中…",
+      "saved": "所有更改已保存",
+      "dirty": "有未保存的更改",
+      "error": "保存失败"
+    },
+    "languages": {
+      "title": "语言版本",
+      "current": "正在编辑",
+      "translated": "已翻译",
+      "needsTranslation": "需要翻译",
+      "missing": "尚未创建",
+      "created": "已创建 {language} 版本",
+      "createdNeedsTranslation": "已创建 {language} 版本 — 需要翻译",
+      "addFailed": "无法添加该语言"
+    },
+    "discard": {
+      "title": "放弃未保存的更改？",
+      "body": "你对 {name} 的修改将会丢失。",
+      "keep": "继续编辑",
+      "confirm": "放弃"
+    },
+    "saveFailed": "保存失败",
+    "saved": "更改已保存",
+    "loadFailed": "无法加载这封邮件"
+  },
+  "canvas": {
+    "livePreview": "实时预览 · 点击邮件的任意部分即可编辑",
+    "device": "预览宽度",
+    "desktop": "桌面",
+    "mobile": "手机",
+    "subject": "主题",
+    "preheader": "预览文本",
+    "preheaderPlaceholder": "预览文本…",
+    "select": "编辑{label}",
+    "insertAbove": "在{label}上方插入区块",
+    "add": "添加",
+    "addSection": "添加区块",
+    "defaultSender": "默认发件人",
+    "now": "刚刚",
+    "attachments": "{count, plural, other {# 个附件}}",
+    "fileMissing": "文件缺失",
+    "variables": "变量",
+    "imagePlaceholder": "图片占位",
+    "htmlNote": "发送邮件时按原始 HTML 渲染。",
+    "recurring": "周期性 — {freq}",
+    "nextOn": "下次：{next} · {note}",
+    "loyaltyBalance": "积分余额",
+    "loyaltyLine": "{balance} 分 · {level}",
+    "sections": {
+      "branding": "品牌与发件人",
+      "subject": "主题与预览文本",
+      "footer": "页脚",
+      "attachments": "附件"
+    },
+    "blockAdded": "已添加{label}"
+  },
+  "blocks": {
+    "heading": {
+      "label": "标题",
+      "hint": "区块标题"
+    },
+    "text": {
+      "label": "文本块",
+      "hint": "一个或多个段落"
+    },
+    "button": {
+      "label": "按钮",
+      "hint": "主要行动号召"
+    },
+    "divider": {
+      "label": "分隔线 / 间距",
+      "hint": "横线或空白"
+    },
+    "spacer": {
+      "label": "间距",
+      "hint": "空白区域"
+    },
+    "footer": {
+      "label": "页脚文本",
+      "hint": "旧版页脚块"
+    },
+    "image": {
+      "label": "图片占位",
+      "hint": "稍后放入图片"
+    },
+    "two-col": {
+      "label": "两栏文本",
+      "hint": "左右并排的文字"
+    },
+    "list": {
+      "label": "项目符号列表",
+      "hint": "简短要点"
+    },
+    "quote": {
+      "label": "引用",
+      "hint": "带署名的评价"
+    },
+    "social": {
+      "label": "社交链接",
+      "hint": "页脚链接标签"
+    },
+    "html": {
+      "label": "自定义 HTML",
+      "hint": "粘贴你自己的代码"
+    },
+    "box": {
+      "label": "高亮框",
+      "hint": "标签与一个大数值"
+    },
+    "stats": {
+      "label": "数据行",
+      "hint": "两到四个数字"
+    },
+    "product": {
+      "label": "商品行",
+      "hint": "带价格的明细"
+    },
+    "multi-currency": {
+      "label": "多币种",
+      "hint": "其他货币的合计"
+    },
+    "tax-breakdown": {
+      "label": "税费明细",
+      "hint": "各项税费"
+    },
+    "discount-codes": {
+      "label": "折扣码",
+      "hint": "已使用的优惠码"
+    },
+    "payment-history": {
+      "label": "付款记录",
+      "hint": "过往付款"
+    },
+    "recurring": {
+      "label": "周期安排",
+      "hint": "配送节奏"
+    },
+    "loyalty": {
+      "label": "积分",
+      "hint": "奖励余额"
+    },
+    "delivery": {
+      "label": "配送进度",
+      "hint": "履约状态"
+    },
+    "po-terms": {
+      "label": "订单条款",
+      "hint": "采购订单条款"
+    },
+    "legal": {
+      "label": "法律页脚",
+      "hint": "小字条款"
+    },
+    "refund-policy": {
+      "label": "退款政策",
+      "hint": "退货与退款"
+    },
+    "contact": {
+      "label": "联系方式块",
+      "hint": "支持联系信息"
+    },
+    "unknown": {
+      "label": "区块"
+    }
+  },
+  "picker": {
+    "title": "添加区块",
+    "above": "插入到{label}上方",
+    "atEnd": "添加到邮件末尾",
+    "groups": {
+      "content": "内容",
+      "commerce": "商务与数据",
+      "legal": "法律与支持",
+      "saved": "已保存的块"
+    },
+    "savedHint": "已保存：{label}"
+  },
+  "mirror": {
+    "title": "应用到其他语言？",
+    "body": "{label} 可以镜像到 {topic} 的{count, plural, other {# 个其他语言版本}}。保存时文字会原样复制，不做翻译。",
+    "onlyThis": "仅 {native}",
+    "applyAll": "应用到全部 {count} 个",
+    "queued": "已排队应用到{count, plural, other {# 个其他语言}} — 保存时生效"
+  },
+  "inspector": {
+    "tabs": "检查器",
+    "sections": "区块",
+    "design": "设计",
+    "backToSections": "返回区块列表",
+    "fixed": "固定",
+    "bodySections": "正文区块 · 拖动可排序",
+    "dragToReorder": "拖动可排序",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "duplicateSection": "复制{label}",
+    "removeSection": "移除{label}",
+    "savedBlocks": "已保存的块",
+    "savedBlocksHint": "在“设计”标签页中保存任意区块，即可在其他模板中复用。",
+    "titles": {
+      "subject": "主题"
+    },
+    "hints": {
+      "branding": "标志、发件人、颜色、状态",
+      "subject": "主题与预览文本",
+      "attachments": "固定文件与生成文件",
+      "footer": "法律信息与退订",
+      "gone": "区块已移除"
+    },
+    "subjectLine": "主题行",
+    "preheader": "预览文本",
+    "insertVariable": "插入变量",
+    "insertHint": "先点击一个字段，再点击变量即可插入。",
+    "footerText": "页脚文本",
+    "footerHint": "法律文本、地址与退订说明。显示在每封邮件的底部。",
+    "attachedToEverySend": "每次发送都附带",
+    "attachmentsEmpty": "还没有附件。可以添加随每次发送一起发出的固定文件，或按收件人生成的文件。",
+    "generatedLabel": "标签",
+    "generatedToken": "令牌",
+    "resolvedPerRecipient": "发送时按收件人生成。",
+    "removeAttachment": "移除附件",
+    "addGeneratedFile": "添加生成文件",
+    "workspaceDocuments": "工作区文档",
+    "chooseImage": "选择图片",
+    "addRow": "添加{noun}",
+    "duplicateRow": "复制{noun}",
+    "removeRow": "移除{noun}",
+    "saveAsReusable": "保存为可复用块",
+    "blockName": "块名称",
+    "myBlock": "我的块",
+    "save": "保存",
+    "duplicate": "复制",
+    "remove": "移除",
+    "savedToBlocks": "已保存到你的块",
+    "saveBlockFailed": "无法保存该块",
+    "sectionDuplicated": "区块已复制",
+    "sectionRemoved": "区块已移除",
+    "sectionsReordered": "区块已重新排序",
+    "noDocuments": "文档库中还没有文档。请在“文件”中上传。",
+    "attached": "已附加 {name}"
+  },
+  "style": {
+    "title": "块样式",
+    "alignment": "对齐",
+    "align": {
+      "start": "左对齐",
+      "center": "居中",
+      "end": "右对齐"
+    },
+    "background": "背景",
+    "bg": {
+      "none": "无",
+      "soft": "灰色",
+      "tint": "品牌浅色",
+      "accent": "品牌色",
+      "dark": "深色"
+    },
+    "textColour": "文字颜色",
+    "fg": {
+      "auto": "正文",
+      "strong": "加深",
+      "muted": "柔和",
+      "accent": "品牌色",
+      "white": "白色"
+    },
+    "spacing": "间距",
+    "pad": {
+      "none": "无"
+    },
+    "textSize": "文字大小",
+    "size": {
+      "s": "小",
+      "m": "中",
+      "l": "大"
+    },
+    "border": "边框",
+    "borderKind": {
+      "none": "无",
+      "thin": "实线",
+      "dashed": "虚线"
+    },
+    "radius": "圆角",
+    "radiusKind": {
+      "none": "直角",
+      "md": "圆角",
+      "lg": "大圆角"
+    },
+    "fullWidth": "通栏",
+    "fullWidthHint": "延伸至邮件边缘"
+  },
+  "branding": {
+    "brandName": "品牌名称",
+    "logoMark": "标志图形",
+    "yourLogo": "你的标志",
+    "fromName": "发件人名称",
+    "fromEmail": "发件人邮箱",
+    "notConfigured": "不是已配置的发件人。",
+    "manageSenders": "管理发件人",
+    "noSenders": "尚未配置发件人 — 将使用默认发件人。",
+    "defaultSenderOption": "默认发件人",
+    "brandColour": "品牌色",
+    "category": "类别",
+    "status": "状态",
+    "languageVariations": "语言版本",
+    "languageHint": "添加语言会创建一个关联副本。各版本仍归在 {topic} 下。",
+    "tagCurrent": "当前",
+    "tagEdit": "编辑",
+    "tagAdd": "添加",
+    "noMatch": "没有匹配的发件人"
+  },
+  "fields": {
+    "heading": "标题",
+    "buttonText": "按钮文字",
+    "linkUrl": "链接 URL",
+    "height": "高度（px）",
+    "footer": "页脚",
+    "placeholderLabel": "占位标签",
+    "imageUrl": "图片 URL",
+    "leftColumn": "左栏",
+    "rightColumn": "右栏",
+    "quote": "引用",
+    "attribution": "署名",
+    "html": "HTML",
+    "label": "标签",
+    "value": "数值",
+    "sectionLabel": "区块标签",
+    "baseAmount": "基础金额",
+    "frequency": "频率",
+    "nextIssueDate": "下次发出日期",
+    "scheduleNote": "周期说明",
+    "balance": "余额",
+    "earned": "已获得",
+    "level": "等级",
+    "body": "正文",
+    "finePrint": "小字条款",
+    "contactName": "联系人姓名",
+    "email": "邮箱",
+    "phone": "电话"
+  },
+  "rows": {
+    "paragraphs": "段落",
+    "listItems": "列表项",
+    "links": "链接",
+    "stats": "数据",
+    "lineItems": "明细项",
+    "currencies": "货币与汇率",
+    "taxComponents": "税费项",
+    "codes": "优惠码",
+    "payments": "付款",
+    "steps": "步骤"
+  },
+  "nouns": {
+    "paragraph": "段落",
+    "item": "条目",
+    "link": "链接",
+    "stat": "数据",
+    "currency": "货币",
+    "taxLine": "税费行",
+    "code": "优惠码",
+    "payment": "付款",
+    "step": "步骤"
+  },
+  "placeholders": {
+    "paragraphText": "段落文字",
+    "listItem": "列表项",
+    "label": "标签",
+    "iconName": "图标名称",
+    "url": "URL",
+    "itemName": "商品名称",
+    "variant": "款式 / SKU",
+    "stepName": "步骤名称",
+    "description": "描述"
+  },
+  "cycle": {
+    "done": "已完成",
+    "current": "进行中",
+    "todo": "待处理"
+  },
+  "testSend": {
+    "title": "发送测试邮件",
+    "to": "发送至",
+    "placeholder": "name@company.com, …",
+    "removeRecipient": "移除 {email}",
+    "quickAdd": "快速添加同事",
+    "note": "测试发送时，{token} 这类变量会用示例数据填充。",
+    "noteNoVars": "测试邮件会原样发出。",
+    "count": "{count, plural, other {# 位收件人}}",
+    "send": "发送测试",
+    "sending": "发送中…",
+    "failed": "测试邮件发送失败。",
+    "sentTitle": "测试已发送！",
+    "sentBody": "{name} 的测试邮件正在发往{count, plural, other {# 位收件人}}。",
+    "sendAnother": "再发一封",
+    "done": "完成",
+    "queued": "测试邮件已发送给{count, plural, other {# 位收件人}}"
+  },
+  "imagePicker": {
+    "title": "选择图片",
+    "subtitle": "从工作区文件中选择、上传一张，或粘贴 URL。",
+    "source": "来源",
+    "workspaceFiles": "工作区文件",
+    "upload": "上传",
+    "noImages": "文件库中还没有图片 — 上传一张吧。",
+    "connection": "上传到",
+    "noConnection": "上传前请先连接数据源。",
+    "drop": "将图片拖到这里",
+    "formats": "PNG、JPG、GIF 或 SVG",
+    "browse": "浏览文件",
+    "url": "图片 URL",
+    "urlPlaceholder": "…或粘贴图片 URL",
+    "useUrl": "使用 URL",
+    "selected": "已选择 {name}",
+    "uploaded": "已上传 {name}"
+  },
+  "campaign": {
+    "title": "发送活动",
+    "sendTo": "发送至",
+    "workspaceUsers": "工作区用户",
+    "rolesHint": "所有人，或仅限所选角色的成员。",
+    "when": "时间",
+    "now": "立即",
+    "schedule": "定时",
+    "scheduleAt": "发送时间",
+    "pastTime": "请选择一个未来的时间。",
+    "counting": "正在统计收件人…",
+    "countFailed": "无法统计收件人",
+    "count": "{total, plural, other {# 位收件人}}",
+    "optedOut": "{skipped} 位已退订",
+    "note": "变量会按收件人填充 — {token} 会变成每个人的名字。",
+    "send": "发送活动",
+    "scheduleAction": "定时发送活动",
+    "sending": "发送中…",
+    "failed": "活动发送失败。",
+    "sentTitle": "活动已发送！",
+    "sentBody": "{name} 正在发往{count, plural, other {# 位收件人}}。",
+    "scheduledTitle": "活动已定时！",
+    "scheduledBody": "{name} 将于 {when} 发出。",
+    "done": "完成",
+    "chipScheduled": "已定时 · {when}",
+    "chipSending": "发送中 · {pct}%",
+    "cancelSchedule": "取消定时",
+    "cancelSending": "取消发送",
+    "cancelled": "已取消定时",
+    "sendingCancelled": "已取消发送",
+    "cancelFailed": "无法取消"
+  }
+} as const;

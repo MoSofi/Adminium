@@ -87,6 +87,19 @@ export interface EmailSettings {
   user: string | null;
   from: string | null;
   secure: boolean | null;
+  /**
+   * The configured From addresses a document may choose beyond `from`
+   * (39-email-templates-and-campaigns.md D7). `from` is the implicit first
+   * sender and is not repeated here.
+   */
+  senders: EmailSender[];
+  /** `email.maxAttachmentBytes` (39 D8). */
+  maxAttachmentBytes: number;
+}
+
+export interface EmailSender {
+  name: string;
+  address: string;
 }
 
 /**
@@ -112,7 +125,17 @@ export function emailSettingsQuery() {
   });
 }
 
-/** `null` clears the configuration — the route's own way of spelling "no relay". */
-export async function putEmailSettings(smtp: EmailSettingsInput | null): Promise<EmailSettings> {
-  return (await api.put<{ data: EmailSettings }>('/api/v1/settings/email', { smtp })).data;
+/**
+ * `PUT /settings/email`. Every key is optional and absent means untouched, so
+ * the senders card can save on its own; `smtp: null` clears the transport —
+ * the route's own way of spelling "no relay".
+ */
+export interface EmailSettingsPutBody {
+  smtp?: EmailSettingsInput | null;
+  senders?: EmailSender[];
+  maxAttachmentBytes?: number;
+}
+
+export async function putEmailSettings(body: EmailSettingsPutBody): Promise<EmailSettings> {
+  return (await api.put<{ data: EmailSettings }>('/api/v1/settings/email', body)).data;
 }

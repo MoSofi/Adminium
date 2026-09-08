@@ -88,11 +88,15 @@ function sameSmtp(a: StoredSmtp, b: StoredSmtp): boolean {
 }
 
 /** The password-free projection used by both the reply and the audit row. */
-function viewOf(stored: StoredSmtp): SettingsEmailView {
+function viewOf(
+  stored: StoredSmtp,
+  extra: { senders: SettingsEmailView['senders']; maxAttachmentBytes: number },
+): SettingsEmailView {
   if (stored === null) {
-    return { configured: false, host: null, port: null, user: null, from: null, secure: null };
+    return { configured: false, host: null, port: null, user: null, from: null, secure: null, ...extra };
   }
   return {
+    ...extra,
     configured: true,
     host: stored.host,
     port: stored.port,
@@ -160,8 +164,16 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
     };
   }
 
+  async function emailExtras(): Promise<{ senders: SettingsEmailView['senders']; maxAttachmentBytes: number }> {
+    const [senders, maxAttachmentBytes] = await Promise.all([
+      settings.get('email.senders'),
+      settings.get('email.maxAttachmentBytes'),
+    ]);
+    return { senders, maxAttachmentBytes };
+  }
+
   async function emailReply(): Promise<SettingsEmailReply> {
-    return { data: viewOf(await settings.get('email.smtp')) };
+    return { data: viewOf(await settings.get('email.smtp'), await emailExtras()) };
   }
 
   async function readDefaults(): Promise<{
@@ -472,26 +484,48 @@ export function settingsRoutes(deps: SettingsRoutesDeps): FastifyPluginAsyncZod 
       },
       async (request) => {
         const stored = await settings.get('email.smtp');
-        const before = viewOf(stored);
+        const extrasBefore = await emailExtras();
+        const before = viewOf(stored, extrasBefore);
         const at = app.rbac.now();
         const actingUserId =
           request.apiKeyPrincipal === null
             ? ((request as unknown as { user?: { id?: string } }).user?.id ?? null)
             : null;
 
+        // Absent = untouched (39-T04): the senders card saves on its own.
         const next = request.body.smtp;
-        const value = next === null ? null : buildSmtpValue(next, stored);
-        if (!sameSmtp(stored, value)) {
+        const value = next === undefined ? stored : next === null ? null : buildSmtpValue(next, stored);
+        if (next !== undefined && !sameSmtp(stored, value)) {
           await settings.set('email.smtp', value, { updatedBy: actingUserId, at });
         }
+        // The senders list (39 D7) and the attachment cap (39 D8), each written
+        // only when the body carries it.
+        const senders = request.body.senders;
+        if (senders !== undefined) {
+          const seen = new Set<string>();
+          const deduped = senders.filter((s) => {
+            const key = s.address.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          await settings.set('email.senders', deduped, { updatedBy: actingUserId, at });
+        }
+        if (request.body.maxAttachmentBytes !== undefined) {
+          await settings.set('email.maxAttachmentBytes', request.body.maxAttachmentBytes, {
+            updatedBy: actingUserId,
+            at,
+          });
+        }
 
+        const after = viewOf(value, await emailExtras());
         await app.rbac.audit(request, {
           category: 'settings',
           action: 'settings.email.update',
           // The SAFE views — an audit row is read back by humans through the
           // audit UI and travels in an audit export, so the password must be as
           // absent here as it is in the reply.
-          changes: { before: { ...before }, after: { ...viewOf(value) } },
+          changes: { before: { ...before }, after: { ...after } },
         });
 
         return emailReply();

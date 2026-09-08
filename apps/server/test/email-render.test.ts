@@ -88,7 +88,7 @@ describe('renderEmail — password-reset snapshots (10-T18)', () => {
     ['ar_EG', 'rtl'],
   ] as const)('renders password-reset for %s', (locale, dir) => {
     const rendered = renderEmail({
-      template: builtin('password-reset'),
+      document: builtin('password-reset'),
       locale,
       vars: RESET_VARS,
       dir,
@@ -100,7 +100,7 @@ describe('renderEmail — password-reset snapshots (10-T18)', () => {
 describe('renderEmail — direction', () => {
   it('flips the wrapper and every block for RTL', () => {
     const rtl = renderEmail({
-      template: builtin('password-reset'),
+      document: builtin('password-reset'),
       locale: 'ar_EG',
       vars: RESET_VARS,
       dir: 'rtl',
@@ -110,7 +110,7 @@ describe('renderEmail — direction', () => {
     expect(rtl.html).not.toContain('text-align:left;');
 
     const ltr = renderEmail({
-      template: builtin('password-reset'),
+      document: builtin('password-reset'),
       locale: 'en_US',
       vars: RESET_VARS,
       dir: 'ltr',
@@ -217,7 +217,7 @@ describe('renderEmail — unknown blocks', () => {
 describe('renderEmail — links', () => {
   it('puts the URL in the text part, not only inside an href', () => {
     const rendered = renderEmail({
-      template: builtin('password-reset'),
+      document: builtin('password-reset'),
       locale: 'en_US',
       vars: RESET_VARS,
       dir: 'ltr',
@@ -445,7 +445,7 @@ describe('built-in coverage', () => {
 
   it('drops the optional notification blocks when their vars resolve empty', () => {
     const rendered = renderEmail({
-      template: builtin('notification'),
+      document: builtin('notification'),
       locale: 'en_US',
       vars: {
         appName: 'Adminium',

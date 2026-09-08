@@ -31,6 +31,11 @@ test.describe('workspace settings', () => {
     page,
   }) => {
     await signIn(page);
+    // The harness seeds a relay at boot so the email specs can send into the
+    // sink (39-T19); this spec is about configuring one from nothing, so it
+    // starts from nothing. `smtp: null` is the route's own "clear" (39-T04).
+    const cleared = await page.request.put('/api/v1/settings/email', { data: { smtp: null } });
+    expect(cleared.status(), await cleared.text()).toBe(200);
     await page.goto(SETTINGS);
 
     // The three cards of the one form.

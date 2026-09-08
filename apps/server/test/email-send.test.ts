@@ -12,15 +12,17 @@
  */
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { Readable } from 'node:stream';
+
 import {
   createSqliteMetaDb,
+  emailTemplatesRepo,
+  filesRepo,
   firstRun,
   notificationPrefsRepo,
-  rolesRepo,
   settingsRepo,
   usersRepo,
   type MetaDb,
-  type Role,
   type User,
 } from '@adminium/meta';
 
@@ -42,10 +44,9 @@ import { notify } from '../src/notifications/notify.js';
 import { createJobRegistry } from '../src/jobs/registry.js';
 import { JobWorker } from '../src/jobs/worker.js';
 import { RealtimeHub } from '../src/realtime/hub.js';
-import { rbacPlugin } from '../src/plugins/rbac.js';
-import { emailTemplatesRoutes } from '../src/routes/email-templates/index.js';
+import type { FileStore } from '../src/files/store.js';
 import { buildAuthApp, ADMIN_EMAIL, type AuthTestApp } from './auth-helpers.js';
-import { buildBareApp, until, type BareApp } from './jobs-helpers.js';
+import { until } from './jobs-helpers.js';
 import { TEST_SECRET } from './helpers.js';
 
 const SMTP_PASSWORD = 'relay-password';
@@ -402,88 +403,147 @@ describe('POST /auth/password/forgot still 202s and now also mails', () => {
   });
 });
 
-// --- POST /email-templates/:key/test-send --------------------------------------------
+// --- attachments at delivery (39 D8, D9; 39-T06) ---------------------------------------
 
-describe('POST /email-templates/:key/test-send', () => {
+describe('email.send delivers attachments and inline parts as bytes', () => {
   let meta: MetaDb;
-  let app: BareApp;
-  let manager: User;
-  let viewer: User;
+  const PDF = Buffer.from('%PDF-1.4 bytes');
+  const bytes = new Map<string, Buffer>();
 
-  async function role(slug: string): Promise<Role> {
-    const found = await rolesRepo(meta).findBySlug(slug);
-    if (found === null) throw new Error(`missing built-in role ${slug}`);
-    return found;
-  }
+  const storage = {
+    async open(file: { storageKey: string }) {
+      const content = bytes.get(file.storageKey);
+      if (content === undefined) throw new Error(`no bytes for ${file.storageKey}`);
+      return { stream: Readable.from([content]), sizeBytes: content.length };
+    },
+  } as unknown as FileStore;
 
   beforeEach(async () => {
     resetEmailRuntime();
+    bytes.clear();
     meta = await freshMeta();
-    const users = usersRepo(meta);
-    manager = await users.create({ email: 'ava@adminium.test', name: 'Ava', status: 'active' });
-    viewer = await users.create({ email: 'liam@adminium.test', name: 'Liam', status: 'active' });
-    // `settings.manage` is a super-admin power — the built-in `admin` role does
-    // NOT hold it (packages/meta bootstrap.ts BUILTIN_ROLES).
-    await rolesRepo(meta).assignToUser(manager.id, (await role('super-admin')).id);
-    await rolesRepo(meta).assignToUser(viewer.id, (await role('viewer')).id);
-
-    app = buildBareApp();
-    app.addHook('onRequest', async (request) => {
-      const id = request.headers['x-test-user-id'];
-      if (typeof id === 'string' && id.length > 0) {
-        (request as unknown as { user: { id: string; name: string } }).user = { id, name: id };
-      }
-    });
-    await app.register(rbacPlugin, { meta });
-    await app.register(emailTemplatesRoutes({ meta, secret: TEST_SECRET }));
-    await app.ready();
+    await configureSmtp(meta);
   });
 
   afterEach(async () => {
     resetEmailRuntime();
-    await app.close();
     await meta.db.destroy();
   });
 
-  function testSend(user: User, key = PASSWORD_RESET_TEMPLATE_KEY) {
-    return app.inject({
-      method: 'POST',
-      url: `/email-templates/${key}/test-send`,
-      headers: { 'x-test-user-id': user.id },
-      payload: { to: 'ops@adminium.test' },
+  async function attachPdf(): Promise<string> {
+    const file = await filesRepo(meta).create({
+      filename: 'receipt.pdf',
+      mime: 'application/pdf',
+      sizeBytes: PDF.length,
+      sha256: 'a'.repeat(64),
+      kind: 'upload',
+      attachedAt: 1,
     });
+    bytes.set(file.storageKey, PDF);
+    const row = await emailTemplatesRepo(meta).findByKeyLocale(PASSWORD_RESET_TEMPLATE_KEY, 'en_US');
+    if (row === null) throw new Error('seed missing');
+    await emailTemplatesRepo(meta).patch(row.id, {
+      attachments: [
+        { id: 'a1', kind: 'file', fileId: file.id },
+        { id: 'a2', kind: 'generated', label: 'Statement', token: '{{statement_pdf}}' },
+      ],
+    });
+    return file.id;
   }
 
-  it('409s with a "not configured" detail when SMTP is unset', async () => {
-    const res = await testSend(manager);
-    expect(res.statusCode).toBe(409);
-    const body = res.json() as { error: { code: string; details?: { reason?: string } } };
-    expect(body.error.code).toBe('CONFLICT');
-    expect(body.error.details?.reason).toBe('not configured');
-    expect(await jobRows(meta)).toHaveLength(0);
+  function runWorker(transport: ReturnType<typeof recordingTransport>, opts: { storage?: FileStore } = {}) {
+    const registry = createJobRegistry();
+    registerEmailSendHandler(registry, { meta, secret: TEST_SECRET, createTransport: transport.make, ...opts });
+    const hub = new RealtimeHub();
+    const worker = new JobWorker({ meta, registry, hub, workerId: 'email-attach:1', backoffBaseMs: 1 });
+    return { worker, hub };
+  }
+
+  const VARS = {
+    appName: 'Adminium',
+    name: 'Ava',
+    email: 'ava@example.com',
+    resetUrl: 'https://admin.test/reset/tok',
+    expiresInMinutes: '30',
+  };
+
+  it('carries the file id at enqueue and hands the handler the bytes, the mark by cid, and no path or href', async () => {
+    const fileId = await attachPdf();
+    const job = await enqueueEmail(
+      { meta, secret: TEST_SECRET },
+      { to: 'ava@example.com', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', vars: VARS },
+    );
+    expect(job).not.toBeNull();
+    const payload = job?.payload as { v: number; attachments: unknown[]; inline: unknown[] };
+    expect(payload.v).toBe(2);
+    expect(payload.attachments).toEqual([{ fileId, filename: 'receipt.pdf' }]);
+    expect(payload.inline).toEqual([{ cid: 'mark', kind: 'mark', mark: 'hexagon' }]);
+    // The row never holds bytes.
+    expect(String((await jobRows(meta))[0]?.payload)).not.toContain(PDF.toString('base64'));
+
+    const transport = recordingTransport();
+    const { worker, hub } = runWorker(transport, { storage });
+    worker.start();
+    try {
+      await until(() => transport.sent.length === 1);
+    } finally {
+      await worker.stop();
+      hub.close();
+    }
+    const msg = transport.sent[0];
+    expect(msg?.html).toContain('src="cid:mark"');
+    expect(msg?.attachments?.map((a) => ({ filename: a.filename, cid: a.cid, contentType: a.contentType }))).toEqual([
+      { filename: 'hexagon.png', cid: 'mark', contentType: 'image/png' },
+      { filename: 'receipt.pdf', cid: undefined, contentType: 'application/pdf' },
+    ]);
+    expect(msg?.attachments?.[1]?.content.equals(PDF)).toBe(true);
+    expect(msg?.attachments?.[0]?.content.subarray(0, 4).toString('hex')).toBe('89504e47');
+    for (const part of msg?.attachments ?? []) {
+      expect(Buffer.isBuffer(part.content)).toBe(true);
+      expect(part).not.toHaveProperty('path');
+      expect(part).not.toHaveProperty('href');
+    }
   });
 
-  it('202s and queues one message once SMTP is configured', async () => {
-    await configureSmtp(meta);
-    const res = await testSend(manager);
-    expect(res.statusCode).toBe(202);
-    expect(res.json()).toMatchObject({ queued: true });
-
-    const pending = await jobRows(meta);
-    expect(pending).toHaveLength(1);
-    expect(pending[0]?.kind).toBe(EMAIL_SEND_JOB_KIND);
+  it('skips a generated token whose var is not a known file id, with one warning', async () => {
+    await attachPdf();
+    const warnings: string[] = [];
+    const job = await enqueueEmail(
+      {
+        meta,
+        secret: TEST_SECRET,
+        logger: { info: () => {}, warn: (_obj, msg) => warnings.push(msg ?? '') },
+      },
+      { to: 'ava@example.com', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', vars: { ...VARS, statement_pdf: 'file_NOPE' } },
+    );
+    expect((job?.payload as { attachments: unknown[] }).attachments).toHaveLength(1);
+    expect(warnings.filter((w) => w.includes('generated attachment'))).toHaveLength(1);
   });
 
-  it('404s for a template key that does not exist', async () => {
-    await configureSmtp(meta);
-    const res = await testSend(manager, 'no-such-template');
-    expect(res.statusCode).toBe(404);
-  });
+  it('a trashed file makes the handler throw with the filename (the dead-letter path)', async () => {
+    const fileId = await attachPdf();
+    await enqueueEmail(
+      { meta, secret: TEST_SECRET },
+      { to: 'ava@example.com', templateKey: PASSWORD_RESET_TEMPLATE_KEY, locale: 'en_US', vars: VARS },
+    );
+    await filesRepo(meta).markDeleted(fileId);
 
-  it('403s a viewer — test-send is a settings:manage power', async () => {
-    await configureSmtp(meta);
-    const res = await testSend(viewer);
-    expect(res.statusCode).toBe(403);
-    expect(await jobRows(meta)).toHaveLength(0);
+    const transport = recordingTransport();
+    const { worker, hub } = runWorker(transport, { storage });
+    worker.start();
+    try {
+      const deadline = Date.now() + 10_000;
+      while (((await jobRows(meta))[0]?.lastError ?? null) === null) {
+        if (Date.now() > deadline) throw new Error('the handler never failed the job');
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    } finally {
+      await worker.stop();
+      hub.close();
+    }
+    const row = (await jobRows(meta))[0];
+    expect(row?.lastError).toContain('receipt.pdf');
+    expect(row?.lastError).toContain('missing or in the trash');
+    expect(transport.sent).toHaveLength(0);
   });
 });

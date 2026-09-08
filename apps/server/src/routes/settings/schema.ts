@@ -172,7 +172,30 @@ const CONTROL_CHAR_MESSAGE = 'must not contain line breaks or control characters
  * production SMTP password ends up in someone's notes app so it can be pasted
  * back. Absent ⇒ keep the stored one; empty string ⇒ clear it.
  */
+/** One configured From address beyond `email.smtp.from` (39-email-templates-and-campaigns.md D7). */
+export const settingsEmailSender = z.object({
+  name: z.string().max(120).refine(noControlChars, CONTROL_CHAR_MESSAGE),
+  address: z
+    .string()
+    .trim()
+    .min(3)
+    .max(SMTP_FROM_MAX)
+    .refine(noControlChars, CONTROL_CHAR_MESSAGE)
+    .refine((value) => value.includes('@'), 'must be an email address'),
+});
+export type SettingsEmailSender = z.infer<typeof settingsEmailSender>;
+
+/** `email.maxAttachmentBytes` bounds — the registry's own (256 KiB … 50 MiB). */
+export const ATTACHMENT_CAP_MIN = 262_144;
+export const ATTACHMENT_CAP_MAX = 52_428_800;
+
 export const settingsEmailPutBody = z.object({
+  /**
+   * Absent = the transport is untouched; `null` clears it (39-T04 made this
+   * optional so the senders and the cap can be saved on their own).
+   */
+  senders: z.array(settingsEmailSender).max(50).optional(),
+  maxAttachmentBytes: z.number().int().min(ATTACHMENT_CAP_MIN).max(ATTACHMENT_CAP_MAX).optional(),
   smtp: z
     .object({
       host: z.string().min(1).max(SMTP_HOST_MAX).refine(noControlChars, CONTROL_CHAR_MESSAGE),
@@ -191,7 +214,8 @@ export const settingsEmailPutBody = z.object({
       /** true = implicit TLS (465); false = STARTTLS on a cleartext port (587). */
       secure: z.boolean(),
     })
-    .nullable(),
+    .nullable()
+    .optional(),
 });
 export type SettingsEmailPutBody = z.infer<typeof settingsEmailPutBody>;
 
@@ -213,6 +237,14 @@ export const settingsEmailView = z.object({
   user: z.string().nullable(),
   from: z.string().nullable(),
   secure: z.boolean().nullable(),
+  /**
+   * The configured From addresses a document may choose (39 D7). `from`
+   * above is the implicit first sender and is NOT repeated here — the client
+   * shows it as the row that cannot be removed.
+   */
+  senders: z.array(settingsEmailSender),
+  /** `email.maxAttachmentBytes` (39 D8). */
+  maxAttachmentBytes: z.number().int(),
 });
 export type SettingsEmailView = z.infer<typeof settingsEmailView>;
 

@@ -63,7 +63,7 @@ import { settingsRepo, type MetaDb } from '@adminium/meta';
 import { decryptSecret, deriveKey, isEncryptedSecret } from '../config/secrets.js';
 import { assertOutboundHostAllowed } from '../connections/dsn.js';
 import { ValidationFailedError } from '../errors.js';
-import type { EmailTransport, OutboundEmail, SmtpConfig } from './types.js';
+import type { EmailSendResult, EmailTransport, OutboundEmail, SmtpConfig } from './types.js';
 
 /** HKDF salt scoping the SMTP-password encryption key. */
 export const EMAIL_KEY_SALT = 'adminium:smtp-password:v1';
@@ -182,7 +182,7 @@ export function createSmtpTransport(cfg: SmtpConfig): EmailTransport {
   assertSmtpHostAllowed(cfg.host);
 
   return {
-    async send(msg: OutboundEmail): Promise<void> {
+    async send(msg: OutboundEmail): Promise<EmailSendResult> {
       const { createTransport } = await import('nodemailer');
       const transporter = createTransport({
         host: cfg.host,
@@ -214,14 +214,33 @@ export function createSmtpTransport(cfg: SmtpConfig): EmailTransport {
         disableUrlAccess: true,
       });
       try {
-        await transporter.sendMail({
-          from: cfg.from,
+        const info = await transporter.sendMail({
+          from: msg.from ?? cfg.from,
           to: msg.to,
           subject: msg.subject,
           text: msg.text,
           html: msg.html,
           ...(msg.headers === undefined ? {} : { headers: msg.headers }),
+          // BYTES ONLY (39 D8/D9): `content` is a Buffer the delivery layer
+          // read itself. Nothing here ever becomes a `path` or an `href`, so
+          // the two `disable*Access` flags above are belt and braces, not the
+          // only line of defence.
+          ...(msg.attachments === undefined || msg.attachments.length === 0
+            ? {}
+            : {
+                attachments: msg.attachments.map((a) => ({
+                  filename: a.filename,
+                  content: a.content,
+                  ...(a.contentType === undefined ? {} : { contentType: a.contentType }),
+                  ...(a.cid === undefined ? {} : { cid: a.cid, contentDisposition: 'inline' as const }),
+                })),
+              }),
         });
+        // The reply line, kept rather than discarded — see `EmailSendResult`.
+        return {
+          ...(typeof info.response === 'string' ? { response: info.response } : {}),
+          ...(typeof info.messageId === 'string' ? { messageId: info.messageId } : {}),
+        };
       } finally {
         transporter.close();
       }

@@ -27,8 +27,10 @@
     "better-sqlite3": "^13.0.3",
     "electron": "^43.4.0",
     "eslint": "catalog:",
+    "mailparser": "^3.9.22",
     "mysql2": "^3.23.3",
     "pg": "^8.23.0",
+    "smtp-server": "^3.19.8",
     "typescript": "catalog:"
   }
 }

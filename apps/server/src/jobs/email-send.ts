@@ -2,11 +2,20 @@
 /**
  * The `email.send` job handler — the delivery half of `email/send.ts`.
  *
- * It does exactly three things: decrypt the sealed envelope, resolve the SMTP
- * transport from `adminium_settings`, and hand the message over. Rendering
- * already happened at enqueue time, so nothing here reads a template, a locale
- * or a user row; a message that was queued is a message whose content is
- * final.
+ * It does four things: decrypt the sealed envelope, resolve the SMTP
+ * transport from `adminium_settings`, read the bytes of every attachment and
+ * inline image the message references, and hand the message over. Rendering
+ * already happened at enqueue time, so nothing here reads a template, a
+ * locale or a user row; a message that was queued is a message whose content
+ * is final. What is NOT final at enqueue is the BYTES (39-email-templates-and-
+ * campaigns.md D8): a fixed attachment is a library file whose bytes are read
+ * right before `sendMail`, so a queue holding ten thousand copies of a PDF is
+ * never a thing.
+ *
+ * A MISSING OR TRASHED FILE FAILS THE SEND LOUDLY. A receipt without its
+ * document is worse than no receipt: the handler throws with the filename,
+ * the worker retries on its schedule, and the row dead-letters where an
+ * operator can see it — rather than the message going out with a hole in it.
  *
  * INTERNAL KIND, deliberately. `POST /jobs` lets a `jobs:manage` holder
  * hand-craft a payload for any non-internal kind. For this one that would be a
@@ -21,26 +30,50 @@
  * Silently completing would lose the mail with no trace.
  */
 import { z } from 'zod';
-import type { MetaDb } from '@adminium/meta';
+import { filesRepo, type MetaDb } from '@adminium/meta';
 
 import { decryptSecret } from '../config/secrets.js';
 import { createSmtpTransport, emailSecretKey, resolveSmtpConfig } from '../email/config.js';
+import { isShippedMark, loadMarkBytes } from '../email/marks.js';
 import { EMAIL_SEND_JOB_KIND, emailEnvelopeKey } from '../email/send.js';
-import type { EmailTransport, SmtpConfig } from '../email/types.js';
+import type {
+  EmailSendAttachmentRef,
+  EmailSendInlineRef,
+  EmailTransport,
+  OutboundAttachment,
+  SmtpConfig,
+} from '../email/types.js';
+import type { FileStore } from '../files/store.js';
 import type { JobRegistry } from './registry.js';
 
 export { EMAIL_SEND_JOB_KIND };
 
+/** A fixed attachment: the library file whose bytes travel with the message (39 D8). */
+export const emailSendAttachmentRefSchema: z.ZodType<EmailSendAttachmentRef> = z.object({
+  fileId: z.string().min(1).max(36),
+  filename: z.string().min(1).max(255),
+});
+
+/** An inline image the HTML references by `cid:` — a shipped mark, or a library file (the logo, a Files image). */
+export const emailSendInlineRefSchema: z.ZodType<EmailSendInlineRef> = z.discriminatedUnion('kind', [
+  z.object({ cid: z.string().min(1).max(80), kind: z.literal('mark'), mark: z.string().min(1).max(20) }),
+  z.object({ cid: z.string().min(1).max(80), kind: z.literal('file'), fileId: z.string().min(1).max(36) }),
+]);
+export type { EmailSendAttachmentRef, EmailSendInlineRef };
+
 /**
  * The stored payload. `envelope` is opaque here — its schema is enforced by
  * {@link envelopeSchema} AFTER decryption, so a tampered row fails on the GCM
- * tag rather than on a shape check.
+ * tag rather than on a shape check. `v: 1` rows (queued before wave 39) carry
+ * no attachment or inline references and still deliver.
  */
 export const emailSendPayloadSchema = z.object({
-  v: z.number().int().min(1).max(1),
+  v: z.number().int().min(1).max(2),
   templateKey: z.string().min(1).max(120),
   locale: z.string().min(2).max(35),
   envelope: z.string().min(1),
+  attachments: z.array(emailSendAttachmentRefSchema).max(20).optional(),
+  inline: z.array(emailSendInlineRefSchema).max(50).optional(),
 });
 export type EmailSendJobPayload = z.infer<typeof emailSendPayloadSchema>;
 
@@ -49,6 +82,8 @@ const envelopeSchema = z.object({
   subject: z.string(),
   html: z.string(),
   text: z.string(),
+  /** A configured sender's `Name <addr>`; absent = the transport's `email.smtp.from` (39 D7). */
+  from: z.string().optional(),
 });
 
 export interface EmailSendHandlerDeps {
@@ -57,6 +92,58 @@ export interface EmailSendHandlerDeps {
   secret: string;
   /** Transport factory; tests inject a recorder instead of a socket. */
   createTransport?: ((cfg: SmtpConfig) => EmailTransport) | undefined;
+  /** Where attachment and inline-image bytes are read from (39 D8/D9). */
+  storage?: FileStore | undefined;
+}
+
+async function readAll(stream: AsyncIterable<Buffer | string>): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  return Buffer.concat(chunks);
+}
+
+/** The bytes of a LIVE library file — throws with the filename when it is missing or trashed (39 D8). */
+async function readLibraryFile(
+  deps: EmailSendHandlerDeps,
+  fileId: string,
+  filename: string,
+): Promise<{ content: Buffer; contentType: string; filename: string }> {
+  const row = await filesRepo(deps.meta).findById(fileId);
+  if (row === null || row.deletedAt !== null) {
+    throw new Error(`attachment "${filename}" (${fileId}) is missing or in the trash — cannot deliver this message`);
+  }
+  if (deps.storage === undefined) {
+    throw new Error(`attachment "${filename}" (${fileId}) cannot be read: no file store is wired to the email runner`);
+  }
+  const opened = await deps.storage.open({ destinationId: row.destinationId, storageKey: row.storageKey });
+  return { content: await readAll(opened.stream), contentType: row.mime, filename: row.filename };
+}
+
+/**
+ * Every part the message needs, as bytes: inline images first (the HTML
+ * references them), then the fixed attachments. Exported so the campaign
+ * runner (39 D11) resolves them once per run rather than once per recipient.
+ */
+export async function resolveEmailParts(
+  deps: EmailSendHandlerDeps,
+  refs: { inline?: readonly EmailSendInlineRef[] | undefined; attachments?: readonly EmailSendAttachmentRef[] | undefined },
+): Promise<OutboundAttachment[]> {
+  const parts: OutboundAttachment[] = [];
+  for (const ref of refs.inline ?? []) {
+    if (ref.kind === 'mark') {
+      if (!isShippedMark(ref.mark)) throw new Error(`unknown brand mark "${ref.mark}"`);
+      const mark = await loadMarkBytes(ref.mark);
+      parts.push({ filename: mark.filename, content: mark.content, contentType: mark.contentType, cid: ref.cid });
+    } else {
+      const file = await readLibraryFile(deps, ref.fileId, ref.cid);
+      parts.push({ filename: file.filename, content: file.content, contentType: file.contentType, cid: ref.cid });
+    }
+  }
+  for (const ref of refs.attachments ?? []) {
+    const file = await readLibraryFile(deps, ref.fileId, ref.filename);
+    parts.push({ filename: ref.filename, content: file.content, contentType: file.contentType });
+  }
+  return parts;
 }
 
 /** Registers the `email.send` handler on `registry` (internal kind). */
@@ -78,12 +165,19 @@ export function registerEmailSendHandler(registry: JobRegistry, deps: EmailSendH
       const envelope = envelopeSchema.parse(
         JSON.parse(decryptSecret(payload.envelope, emailEnvelopeKey(deps.secret))),
       );
+      // Bytes are read HERE, never at enqueue (39 D8): the queue row carries
+      // ids, the message carries content, and a file trashed in between fails
+      // the send instead of sending a copy nobody can revoke.
+      ctx.progress(25, { step: 'attachments', message: 'reading attachments' });
+      const attachments = await resolveEmailParts(deps, payload);
       ctx.progress(50, { step: 'send', message: `sending ${payload.templateKey}` });
       await makeTransport(config).send({
         to: envelope.to,
         subject: envelope.subject,
         html: envelope.html,
         text: envelope.text,
+        ...(envelope.from === undefined ? {} : { from: envelope.from }),
+        ...(attachments.length === 0 ? {} : { attachments }),
       });
       ctx.progress(100, { step: 'sent' });
       // The recipient address is PII and the body is a secret — the result is
