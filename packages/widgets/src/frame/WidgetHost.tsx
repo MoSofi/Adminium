@@ -48,7 +48,12 @@ export interface WidgetHostProps {
    * definition's capabilities (currently "Export PNG").
    */
   menu?: ReactNode | undefined;
-  /** Info popover content override (defaults to the definition's descriptionKey). */
+  /**
+   * Info popover content override (defaults to the definition's descriptionKey).
+   * Explicit `null` SUPPRESSES the popover: a frameless page-placement widget
+   * that is the whole page body (the builder canvas) otherwise grows a header
+   * band holding nothing but the ⓘ, which offsets it from its sibling panes.
+   */
   info?: ReactNode | undefined;
   /**
    * Registry override for tests and the manifest extension host; defaults to
@@ -151,8 +156,10 @@ export function WidgetHost({
   // own `descriptionKey`, host-registered widgets included, so this generic
   // host cannot enumerate the set. `ui:` only selects the namespace, and the
   // humanized widget id is the dangling-key fallback.
+  // An explicit `null` SUPPRESSES the popover, so the test is `=== undefined`,
+  // not `??`: `??` would read the suppressing null as "nothing was passed".
   // i18n-dynamic-key: per-definition descriptionKey from an open registry.
-  const resolvedInfo = info ?? t(`ui:${definition.descriptionKey}`, humanizedId);
+  const resolvedInfo = info === undefined ? t(`ui:${definition.descriptionKey}`, humanizedId) : info;
 
   const Component = definition.component;
   const frameless = definition.placement === 'page';
@@ -204,7 +211,7 @@ export function WidgetHost({
       // widget's config drawer and did nothing when set. This is the consumer.
       subtitle={typeof cfg.subtitle === 'string' && cfg.subtitle !== '' ? cfg.subtitle : undefined}
       bleed={cfg.bleed === true}
-      info={resolvedInfo}
+      info={resolvedInfo ?? undefined}
       menu={menuItems}
       dragGrip={dragGrip}
       skeleton={definition.skeleton}

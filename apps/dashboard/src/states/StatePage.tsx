@@ -7,6 +7,9 @@
 import { useNavigate } from '@tanstack/react-router';
 
 import { isSystemStateId, type SystemStateId } from '../app/query.js';
+import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
+import { useDocumentPageTitle } from '../shell/documentTitle.js';
 import { NotFoundPage } from './NotFoundPage.js';
 import { StateHero } from './StateHero.js';
 import { SYSTEM_STATES } from './stateMap.js';
@@ -19,6 +22,26 @@ export interface StatePageProps {
   fullPage?: boolean | undefined;
   /** Override for Retry-style CTAs (query refetch instead of hard reload). */
   onRetry?: (() => void) | undefined;
+}
+
+/** The state's own heading — what the tab is named after. Unknown id ⇒ 404. */
+export function systemStateTitle(stateId: string): string {
+  const spec = SYSTEM_STATES[isSystemStateId(stateId) ? stateId : 'not-found'];
+  return t(spec.title.key, spec.title.en);
+}
+
+/**
+ * A system state as a WHOLE SCREEN with no shell around it: the `/state/$id`
+ * route, the authed layout's error boundary, the routed 404.
+ *
+ * The tab is named here and not inside `StatePage` because that component is
+ * ALSO rendered inside the shell — a forbidden panel in the content outlet,
+ * a page-scoped failure under a topbar that still names the page. There the
+ * topbar owns the tab, and a second writer would fight it.
+ */
+export function SystemStateScreen(props: StatePageProps) {
+  useDocumentPageTitle(systemStateTitle(props.stateId));
+  return <StatePage {...props} />;
 }
 
 export function StatePage({ stateId, requestId, fullPage = true, onRetry }: StatePageProps) {
@@ -61,12 +84,19 @@ export function StatePage({ stateId, requestId, fullPage = true, onRetry }: Stat
   };
 
   return (
-    <StateHero
-      spec={spec}
-      fullPage={fullPage}
-      requestId={requestId}
-      onPrimary={primaryActions[stateId]}
-      onSecondary={secondaryActions[stateId]}
-    />
+    <>
+      {/* A full-page state inside the shell IS the screen — "Access denied",
+          not the name of the page it replaced. Rendered through the channel so
+          the topbar stays the single writer; outside the shell there is no
+          channel and this draws nothing (`SystemStateScreen` names those). */}
+      {fullPage ? <PageActions documentTitle={t(spec.title.key, spec.title.en)} /> : null}
+      <StateHero
+        spec={spec}
+        fullPage={fullPage}
+        requestId={requestId}
+        onPrimary={primaryActions[stateId]}
+        onSecondary={secondaryActions[stateId]}
+      />
+    </>
   );
 }

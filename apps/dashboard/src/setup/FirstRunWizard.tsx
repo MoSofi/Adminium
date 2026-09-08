@@ -141,7 +141,9 @@ export function FirstRunWizard({ passwordMinLength }: FirstRunWizardProps): Reac
   }
 
   return (
-    <AuthScreenLayout>
+    // No tab name: this is the only screen an unconfigured instance serves,
+    // and "Set up Adminium · Adminium" says the product's name twice.
+    <AuthScreenLayout documentTitle={null}>
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-h2 font-extrabold tracking-[-0.02em] text-fg">

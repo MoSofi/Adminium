@@ -40,23 +40,22 @@ export function ReviewHeader({
   return (
     <header className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-title-sm font-semibold text-fg">
-            {t('studio:llmRuns.review.header.title', 'Review AI suggestions')}
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-fg-muted">
-            <Badge tone={isByo ? 'info' : 'accent'}>
-              {isByo ? t('studio:llmRuns.review.header.pathByo', 'Copy-paste') : t('studio:llmRuns.review.header.pathDirect', 'Direct API')}
-            </Badge>
-            <span className="inline-flex items-center gap-1">
-              {t('studio:llmRuns.review.header.model', 'Model')}
-              <MonoText className="text-fg">{modelLabel}</MonoText>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              {t('studio:llmRuns.review.header.snapshot', 'Snapshot')}
-              <MonoText className="text-fg">{run.snapshotId}</MonoText>
-            </span>
-          </div>
+        {/* No heading here: the screen publishes it to the topbar, which draws
+            an h1 for every route whether a page fills it or not. A second one
+            in the body said the same thing twice while the shell's copy said
+            "Home". What is left is the run summary this card exists for. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-fg-muted">
+          <Badge tone={isByo ? 'info' : 'accent'}>
+            {isByo ? t('studio:llmRuns.review.header.pathByo', 'Copy-paste') : t('studio:llmRuns.review.header.pathDirect', 'Direct API')}
+          </Badge>
+          <span className="inline-flex items-center gap-1">
+            {t('studio:llmRuns.review.header.model', 'Model')}
+            <MonoText className="text-fg">{modelLabel}</MonoText>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            {t('studio:llmRuns.review.header.snapshot', 'Snapshot')}
+            <MonoText className="text-fg">{run.snapshotId}</MonoText>
+          </span>
         </div>
 
         <ul className="flex flex-wrap items-center gap-2" aria-label={t('studio:llmRuns.review.header.countsAria', 'Suggestion counts')}>

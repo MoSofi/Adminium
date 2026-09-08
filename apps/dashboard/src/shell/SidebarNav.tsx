@@ -24,11 +24,16 @@ import {
   CalendarClock,
   Database,
   Download,
+  FileText,
+  History,
+  KeyRound,
   Mail,
+  Paperclip,
   ScrollText,
   ShieldCheck,
   Upload,
   Users,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@adminium/ui';
@@ -104,11 +109,49 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
     links: [
       { to: '/imports', labelKey: 'nav.imports', fallback: 'Import data', icon: Upload },
       { to: '/exports', labelKey: 'nav.exports', fallback: 'Data exports', icon: Download },
+      /*
+       * `/files` (37-files-and-storage.md §3.8). In `library` beside imports
+       * and exports because it is the same kind of thing — a workspace-wide
+       * view of artifacts, not a page over a customer table.
+       *
+       * `adminOnly` gates DISCOVERY only, as the comment above says: without
+       * `files.manage` the page still works and shows the caller their OWN
+       * uploads (the route is mine-only rather than forbidden), so hiding the
+       * entry from non-admins costs them nothing they could see anyway while
+       * keeping the rail short for the people who use the app rather than
+       * administer it.
+       */
+      { to: '/files', labelKey: 'nav.files', fallback: 'Files', icon: Paperclip, adminOnly: true },
       {
         to: '/email-templates',
         labelKey: 'nav.emailTemplates',
         fallback: 'Email templates',
         icon: Mail,
+        adminOnly: true,
+      },
+      // `/invoices` (34-invoices-add-on.md §3.9): the comp's rail row is
+      // `{ key: 'invoices', label: 'Invoices', icon: 'file-text' }` (comp
+      // 1077); it sits beside `/email-templates`, the surface it mirrors.
+      { to: '/invoices', labelKey: 'nav.invoices', fallback: 'Invoices', icon: FileText, adminOnly: true },
+      /*
+       * The comp's two adjacent Library rows (Automation Rules 370, Workflow
+       * Logs 176). `adminOnly` gates DISCOVERY; the routes themselves are
+       * behind `system:automations:manage` on the server, which is seeded to
+       * super-admin only (42 D1/O1) — so unlike `/files`, a non-holder who
+       * reached the URL would see the 403 state rather than a narrowed page.
+       */
+      {
+        to: '/automations',
+        labelKey: 'nav.automations',
+        fallback: 'Automations',
+        icon: Workflow,
+        adminOnly: true,
+      },
+      {
+        to: '/workflow-logs',
+        labelKey: 'nav.workflowLogs',
+        fallback: 'Workflow logs',
+        icon: History,
         adminOnly: true,
       },
     ],
@@ -125,6 +168,22 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
         labelKey: 'nav.roles',
         fallback: 'Roles & permissions',
         icon: ShieldCheck,
+        adminOnly: true,
+      },
+      /*
+       * `/api-keys` shipped with a route, a 519-line page and no entry point in
+       * any nav — the same shape the `people` comment above describes. It is
+       * here rather than in `account` because a key is a PRINCIPAL, not a
+       * personal preference: it is workspace-wide, it carries a role, and it
+       * belongs beside the people and roles that can act. `adminOnly` mirrors
+       * the route's own `StudioGuard`; the server's `system:api-keys:manage` is
+       * the real boundary either way.
+       */
+      {
+        to: '/api-keys',
+        labelKey: 'nav.apiKeys',
+        fallback: 'API keys',
+        icon: KeyRound,
         adminOnly: true,
       },
       {
@@ -361,18 +420,28 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
 
       {/* Nav groups */}
       <nav aria-label={t('nav.primary', 'Primary')} className="nb-scroll min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
-        {nav.groups.length === 0 ? (
-          // A hosted app is a real destination; the "connect a database" prompt
-          // is only the whole answer when there is genuinely nothing here.
-          (hostedSections ?? (
-            <p className="px-2 py-3 text-body-sm text-fg-subtle">
-              {t('nav.empty', 'Pages appear here once a database is connected.')}
-            </p>
-          ))
-        ) : (
-          <>
-            {hostedAfter === null ? hostedSections : null}
-            {nav.groups.map((group) => (
+        {/*
+          * The platform tail is NOT conditional on having generated pages.
+          * This used to be an either/or: with no `nav.groups` the rail rendered
+          * the prompt below (or the hosted apps) and returned, which skipped
+          * `platformOnlyGroups` entirely — so a fresh instance hid Team, Roles,
+          * API keys, the audit log, Files, Email templates, imports, exports
+          * and scheduled reports behind a database connection none of them need.
+          * The first thing an admin does is invite people, and Team was
+          * unreachable until they had connected a source first.
+          *
+          * So the three blocks below always run and each contributes what it
+          * has. The prompt is now only what it says it is — an explanation for
+          * the missing PAGES — and shows when there is genuinely nothing
+          * generated and no app either.
+          */}
+        {hostedAfter === null ? hostedSections : null}
+        {nav.groups.length === 0 && hostedApps.length === 0 ? (
+          <p className="px-2 py-3 text-body-sm text-fg-subtle">
+            {t('nav.empty', 'Pages appear here once a database is connected.')}
+          </p>
+        ) : null}
+        {nav.groups.map((group) => (
               <Fragment key={group.key}>
               <div className="mb-1">
                 <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
@@ -403,21 +472,19 @@ export function SidebarNav({ bootstrap, className }: SidebarNavProps) {
               </div>
               {hostedAfter === group.key ? hostedSections : null}
               </Fragment>
-            ))}
-            {platformOnlyGroups.map((entry) => {
-              const links = platformLinksFor(entry.group);
-              if (links.length === 0) return null;
-              return (
-                <div key={entry.group} className="mb-1" data-part="nav-platform-group">
-                  <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
-                    {t(GROUP_LABEL_KEY[entry.group], GROUP_LABELS[entry.group])}
-                  </div>
-                  <PlatformLinkList links={links} />
-                </div>
-              );
-            })}
-          </>
-        )}
+        ))}
+        {platformOnlyGroups.map((entry) => {
+          const links = platformLinksFor(entry.group);
+          if (links.length === 0) return null;
+          return (
+            <div key={entry.group} className="mb-1" data-part="nav-platform-group">
+              <div className="px-2 pb-1 pt-3 text-micro uppercase tracking-[0.06em] text-fg-subtle">
+                {t(GROUP_LABEL_KEY[entry.group], GROUP_LABELS[entry.group])}
+              </div>
+              <PlatformLinkList links={links} />
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

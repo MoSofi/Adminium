@@ -255,6 +255,8 @@ export function AppShell() {
             onOpenPreferences={() => void navigate({ to: '/account/preferences' })}
             onOpenStudio={() => void navigate({ to: '/studio' })}
             onOpenStudioSettings={() => void navigate({ to: '/studio/settings' })}
+            onOpenHelp={() => void navigate({ to: '/help' })}
+            onOpenChangelog={() => void navigate({ to: '/changelog' })}
           />
           <main className="min-h-0 flex-1">
             <Outlet />

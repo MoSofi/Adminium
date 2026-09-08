@@ -14,6 +14,7 @@ import { Button, MonoText, SearchInput } from '@adminium/ui';
 import { bootstrapQuery, flattenNav, type NavItem } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { BrandMark } from '../shell/BrandMark.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { lucideByName } from '../lib/lucide.js';
 
 const STATIC_CHIPS = [
@@ -53,6 +54,12 @@ export function NotFoundPage({ requestId }: NotFoundPageProps) {
       data-part="not-found-page"
       className="relative flex min-h-dvh w-full flex-col items-center justify-center overflow-hidden bg-bg p-10 text-fg"
     >
+      {/* Names the browser tab when this renders INSIDE the shell — an unknown
+          `/p/$slug`, an unknown app surface — where the topbar's path
+          derivation has nothing to go on and falls back to "Home". Outside the
+          shell there is no channel and this draws nothing: the routed 404 goes
+          through `SystemStateScreen`, which names the tab itself. */}
+      <PageActions documentTitle={t('notFound.title', 'This page went missing')} />
       <BrandMark className="absolute start-[26px] top-6" />
 
       <div className="max-w-[520px] text-center">

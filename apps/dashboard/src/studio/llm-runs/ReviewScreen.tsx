@@ -32,6 +32,7 @@ import {
   selectableIds,
   summarizeAccepted,
 } from './model.js';
+import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { clearDraftSelection, loadDraftSelection, saveDraftSelection } from './persistence.js';
 
@@ -61,7 +62,26 @@ export interface ReviewScreenProps {
   runId: string;
 }
 
-export function ReviewScreen({ runId }: ReviewScreenProps) {
+/**
+ * Publishes the heading for every one of the screen's render states — loading,
+ * both failure alerts and the review itself — which is why it wraps the body
+ * rather than sitting inside one branch of it.
+ *
+ * `ReviewHeader` used to draw this screen's title as a SECOND `<h1>` in the
+ * body while the shell's own h1, which has only a path derivation to go on,
+ * said "Home" above it. Two h1s, one of them wrong, and a browser tab named
+ * after neither.
+ */
+export function ReviewScreen(props: ReviewScreenProps) {
+  return (
+    <>
+      <PageActions title={t('studio:llmRuns.review.header.title', 'Review AI suggestions')} />
+      <ReviewScreenBody {...props} />
+    </>
+  );
+}
+
+function ReviewScreenBody({ runId }: ReviewScreenProps) {
   const queryClient = useQueryClient();
   const toasts = useAppToasts();
 

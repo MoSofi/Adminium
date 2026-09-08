@@ -41,6 +41,7 @@ import {
   type DocRecord,
 } from '@adminium/widgets';
 import { t } from '../../i18n/t.js';
+import { PageActions } from '../../shell/PageActionsProvider.js';
 import { useSavePersonalLayout, useSaveSharedLayout } from '../layout/useLayoutPersistence.js';
 import { viewsApi } from '../views/viewsApi.js';
 import type { ViewConfig } from '../views/viewsApi.js';
@@ -179,6 +180,51 @@ export function PageBuilderBinding({ page, adapters, canEditLayout }: PageTempla
   return (
     // Gutter + `max-w-page` column come from PageRenderer's `PageSurface`.
     <div className="flex h-full min-h-0 flex-col" data-testid="page-builder-binding">
+      {/* Versions + Save-as-version ride the topbar's page-actions slot rather
+          than an in-content toolbar row, so the builder’s three panes (palette,
+          canvas, inspector) all start at the same y and every page-level control
+          sits in one place. */}
+      <PageActions>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="secondary"
+              size="sm"
+              iconLeft={<Clock3 className="size-4" aria-hidden="true" />}
+              data-testid="builder-versions-menu"
+            >
+              {t('builder.versions', 'Versions')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {versions.length === 0 ? (
+              <DropdownMenuItem disabled>
+                {t('builder.versionsEmpty', 'No saved versions yet')}
+              </DropdownMenuItem>
+            ) : (
+              versions.map((version) => (
+                <DropdownMenuItem
+                  key={version.viewId}
+                  data-testid={`builder-version-${version.viewId}`}
+                  onSelect={() => restoreVersion(version.doc)}
+                >
+                  {version.name}
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          variant="secondary"
+          size="sm"
+          iconLeft={<Save className="size-4" aria-hidden="true" />}
+          data-testid="builder-save-as-version"
+          onClick={() => setSaveAsOpen(true)}
+        >
+          {t('builder.saveAsVersion', 'Save as version')}
+        </Button>
+      </PageActions>
+
       <PageBuilder
         key={restoreKey}
         config={page.config}
@@ -193,48 +239,6 @@ export function PageBuilderBinding({ page, adapters, canEditLayout }: PageTempla
           if (event.type === 'mutate' && isDraftMutation(event)) return;
           return adapters.onEvent(event);
         }}
-        toolbarActions={
-          <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  iconLeft={<Clock3 className="size-4" aria-hidden="true" />}
-                  data-testid="builder-versions-menu"
-                >
-                  {t('builder.versions', 'Versions')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {versions.length === 0 ? (
-                  <DropdownMenuItem disabled>
-                    {t('builder.versionsEmpty', 'No saved versions yet')}
-                  </DropdownMenuItem>
-                ) : (
-                  versions.map((version) => (
-                    <DropdownMenuItem
-                      key={version.viewId}
-                      data-testid={`builder-version-${version.viewId}`}
-                      onSelect={() => restoreVersion(version.doc)}
-                    >
-                      {version.name}
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              variant="secondary"
-              size="sm"
-              iconLeft={<Save className="size-4" aria-hidden="true" />}
-              data-testid="builder-save-as-version"
-              onClick={() => setSaveAsOpen(true)}
-            >
-              {t('builder.saveAsVersion', 'Save as version')}
-            </Button>
-          </>
-        }
       />
 
       <Modal open={saveAsOpen} onOpenChange={setSaveAsOpen} size="sm">

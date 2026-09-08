@@ -103,6 +103,8 @@ function renderTopbar() {
               onOpenPreferences={() => {}}
               onOpenStudio={() => {}}
               onOpenStudioSettings={() => {}}
+              onOpenHelp={() => {}}
+              onOpenChangelog={() => {}}
             />
           </ShortcutsProvider>
         </TooltipProvider>

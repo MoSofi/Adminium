@@ -59,6 +59,8 @@ function renderTopbar(roles: string[]) {
   stubFetch();
   const onOpenStudio = vi.fn();
   const onOpenStudioSettings = vi.fn();
+  const onOpenHelp = vi.fn();
+  const onOpenChangelog = vi.fn();
   render(
     <QueryClientProvider client={createQueryClient()}>
       <ThemeProvider>
@@ -73,13 +75,15 @@ function renderTopbar(roles: string[]) {
               onOpenPreferences={() => {}}
               onOpenStudio={onOpenStudio}
               onOpenStudioSettings={onOpenStudioSettings}
+              onOpenHelp={onOpenHelp}
+              onOpenChangelog={onOpenChangelog}
             />
           </ShortcutsProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  return { onOpenStudio, onOpenStudioSettings };
+  return { onOpenStudio, onOpenStudioSettings, onOpenHelp, onOpenChangelog };
 }
 
 afterEach(() => {
@@ -118,6 +122,26 @@ describe('avatar menu Studio section', () => {
     expect(await screen.findByRole('menuitem', { name: 'Profile' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Data connections' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Workspace settings' })).toBeNull();
+  });
+
+  /**
+   * `/help` and `/changelog` shipped with routes, built pages and no entry
+   * point at all — absent from `PLATFORM_NAV`, from this menu and from the
+   * command palette. The router's own comment says they are for EVERYONE, so
+   * the viewer case is the one that matters: it is the role most likely to
+   * need the docs and least likely to guess a URL.
+   */
+  it('gives every role the help centre and release notes', async () => {
+    const user = userEvent.setup();
+    const { onOpenHelp, onOpenChangelog } = renderTopbar(['viewer']);
+
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Help centre' }));
+    expect(onOpenHelp).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'What’s new' }));
+    expect(onOpenChangelog).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -9,7 +9,7 @@
  */
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { Suspense, lazy, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
+import { Suspense, lazy, use, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
 import {
   Outlet,
   createRootRouteWithContext,
@@ -23,6 +23,15 @@ import { ThemeProvider, TooltipProvider, type ThemePrefs } from '@adminium/ui';
 import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
 import { dataIoRoutes } from '../data-io/routes.js';
+import { emailMessagesReady } from '../email/emailMessages.js';
+import { validateEmailTemplatesSearch } from '../email/search.js';
+import { invoicesMessagesReady } from '../invoices/invoicesMessages.js';
+import { validateInvoicesSearch } from '../invoices/search.js';
+import { automationsMessagesReady } from '../automations/automationsMessages.js';
+import {
+  validateAutomationsSearch,
+  validateWorkflowLogsSearch,
+} from '../automations/search.js';
 import { reportsRoutes } from '../reports/routes.js';
 import { setupStateQuery } from '../setup/setupApi.js';
 import { HomePage } from '../pages/HomePage.js';
@@ -34,8 +43,7 @@ import { ResetPage } from '../auth/ResetPage.js';
 import { ShortcutsProvider } from '../shell/ShortcutsProvider.js';
 import { useBrandedDocumentTitle } from '../shell/BrandMark.js';
 import { AppShell } from '../shell/AppShell.js';
-import { NotFoundPage } from '../states/NotFoundPage.js';
-import { StatePage } from '../states/StatePage.js';
+import { StatePage, SystemStateScreen } from '../states/StatePage.js';
 import { pageQuery } from '../api/pages.js';
 import { StudioGuard } from '../studio/StudioGuard.js';
 import { studioRoutes } from '../studio/routes.js';
@@ -185,7 +193,10 @@ function RootComponent() {
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: RootComponent,
-  notFoundComponent: () => <NotFoundPage />,
+  // `SystemStateScreen`, not `NotFoundPage`: identical pixels (it resolves to
+  // the same 404), and it is what names the browser tab on a route that has no
+  // shell above it to do so.
+  notFoundComponent: () => <SystemStateScreen stateId="not-found" />,
 });
 
 // --- public: auth group + direct-address system states ----------------------
@@ -337,8 +348,8 @@ const otpRoute = createRoute({
  */
 function StateRouteComponent() {
   const { stateId } = stateRoute.useParams();
-  if (isHostedPlanSurface(stateId)) return <NotFoundPage />;
-  return <StatePage stateId={stateId} />;
+  if (isHostedPlanSurface(stateId)) return <SystemStateScreen stateId="not-found" />;
+  return <SystemStateScreen stateId={stateId} />;
 }
 
 const stateRoute = createRoute({
@@ -350,7 +361,8 @@ const stateRoute = createRoute({
 // --- authed layout: session guard + error → system-state mapping ------------
 
 function AppErrorComponent({ error }: { error: Error }) {
-  return <StatePage stateId={stateIdForError(error)} requestId={requestIdForError(error)} />;
+  // Replaces `AppShell`, so there is no topbar to name the tab from.
+  return <SystemStateScreen stateId={stateIdForError(error)} requestId={requestIdForError(error)} />;
 }
 
 const appRoute = createRoute({
@@ -500,22 +512,49 @@ const accountNotificationsRoute = createRoute({
  * mapping. The NAV entry (SidebarNav) is what gates discovery to admins.
  */
 /**
- * LAZY, and this one paid more than any other split in this file. The editor
- * shares the block canvas with `page-builder`, so a static import reached
- * `@adminium/widgets`' `PageBuilder` → `WidgetHost` → the whole widget
- * REGISTRY: 23 families of definitions and Zod config schemas, 336 KiB
- * minified, in the entry chunk of every user on every route — for one admin
- * screen. It was the last thing holding the registry in the entry.
+ * LAZY: the manager and the editor are one admin screen's worth of code the
+ * rest of the app never needs (39-email-templates-and-campaigns.md D16), and
+ * the editor pulls the block registry behind it. The split predates 39 — the
+ * old page reached `@adminium/widgets`' whole registry through `page-builder`,
+ * 336 KiB minified in every user's entry chunk — and stays for the same
+ * reason.
  */
 const EmailTemplatesPageLazy = lazy(async () => {
-  const mod = await import('../pages/builders/EmailTemplatesPage.js');
+  const mod = await import('../email/EmailTemplatesPage.js');
   return { default: mod.EmailTemplatesPage };
 });
+
+const EmailEditorPageLazy = lazy(async () => {
+  const mod = await import('../email/EmailEditorPage.js');
+  return { default: mod.EmailEditorPage };
+});
+
+/**
+ * The `email` message namespace is deferred like `studio`'s (39 §6.1): the
+ * route bodies wait for it under the same Suspense boundary that waits for
+ * their chunk, so a translated locale never paints the editor in English.
+ */
+function EmailMessages({ children }: { children: ReactElement }) {
+  use(emailMessagesReady());
+  return children;
+}
 
 function EmailTemplatesRouteComponent() {
   return (
     <Suspense fallback={null}>
-      <EmailTemplatesPageLazy />
+      <EmailMessages>
+        <EmailTemplatesPageLazy />
+      </EmailMessages>
+    </Suspense>
+  );
+}
+
+function EmailEditorRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <EmailMessages>
+        <EmailEditorPageLazy />
+      </EmailMessages>
     </Suspense>
   );
 }
@@ -523,7 +562,127 @@ function EmailTemplatesRouteComponent() {
 const emailTemplatesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/email-templates',
+  validateSearch: validateEmailTemplatesSearch,
   component: EmailTemplatesRouteComponent,
+});
+
+const emailEditorRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/email-templates/$id',
+  component: EmailEditorRouteComponent,
+});
+
+/**
+ * Invoices — the authored surface (34-invoices-add-on.md §3.9, 34-T48): the
+ * same manager+editor machine as the email surface, in the same shape — lazy
+ * chunks, a deferred `invoices` message namespace gated under the Suspense
+ * boundary that waits for the chunk, and the nav entry gating discovery.
+ * Unconditional whether or not a `document-render` provider is installed
+ * (34 O17): authoring needs no provider; only rendering does.
+ */
+const InvoicesPageLazy = lazy(async () => {
+  const mod = await import('../invoices/InvoicesPage.js');
+  return { default: mod.InvoicesPage };
+});
+
+const InvoiceEditorPageLazy = lazy(async () => {
+  const mod = await import('../invoices/InvoiceEditorPage.js');
+  return { default: mod.InvoiceEditorPage };
+});
+
+function InvoicesMessages({ children }: { children: ReactElement }) {
+  use(invoicesMessagesReady());
+  return children;
+}
+
+function InvoicesRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <InvoicesMessages>
+        <InvoicesPageLazy />
+      </InvoicesMessages>
+    </Suspense>
+  );
+}
+
+function InvoiceEditorRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <InvoicesMessages>
+        <InvoiceEditorPageLazy />
+      </InvoicesMessages>
+    </Suspense>
+  );
+}
+
+const invoicesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/invoices',
+  validateSearch: validateInvoicesSearch,
+  component: InvoicesRouteComponent,
+});
+
+const invoiceEditorRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/invoices/$id',
+  component: InvoiceEditorRouteComponent,
+});
+
+/**
+ * Automations (42-automations-and-workflow-logs.md §3.6, 42-T18): two admin
+ * routes in the same shape as the email and invoice surfaces — lazy chunks,
+ * the deferred `automations` message namespace gated under the Suspense
+ * boundary that waits for the chunk, and the two `PLATFORM_NAV` rows gating
+ * discovery. `system:automations:manage` is enforced on every route the
+ * pages call; the rail entry is what keeps them out of everybody else's way.
+ */
+const AutomationRulesPageLazy = lazy(async () => {
+  const mod = await import('../automations/AutomationRulesPage.js');
+  return { default: mod.AutomationRulesPage };
+});
+
+const WorkflowLogsPageLazy = lazy(async () => {
+  const mod = await import('../automations/WorkflowLogsPage.js');
+  return { default: mod.WorkflowLogsPage };
+});
+
+function AutomationsMessages({ children }: { children: ReactElement }) {
+  use(automationsMessagesReady());
+  return children;
+}
+
+function AutomationRulesRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <AutomationsMessages>
+        <AutomationRulesPageLazy />
+      </AutomationsMessages>
+    </Suspense>
+  );
+}
+
+function WorkflowLogsRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <AutomationsMessages>
+        <WorkflowLogsPageLazy />
+      </AutomationsMessages>
+    </Suspense>
+  );
+}
+
+const automationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/automations',
+  validateSearch: validateAutomationsSearch,
+  component: AutomationRulesRouteComponent,
+});
+
+const workflowLogsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/workflow-logs',
+  validateSearch: validateWorkflowLogsSearch,
+  component: WorkflowLogsRouteComponent,
 });
 
 const settingsDefaultsRoute = createRoute({
@@ -651,6 +810,11 @@ const AuditLogPageLazy = lazy(async () => {
   return { default: mod.AuditLogPage };
 });
 
+const FilesPageLazy = lazy(async () => {
+  const mod = await import('../files/FilesPage.js');
+  return { default: mod.FilesPage };
+});
+
 const SecurityPageLazy = lazy(async () => {
   const mod = await import('../account/SecurityPage.js');
   return { default: mod.SecurityPage };
@@ -686,6 +850,26 @@ function AuditRouteComponent() {
   );
 }
 
+/**
+ * `/files` (37-files-and-storage.md §3.8) — a SYSTEM page like the audit log,
+ * not a generated one and not the `page-files` template (which browses a
+ * file-shaped table in the customer's own database).
+ *
+ * Behind `StudioGuard` for the same reason the audit log is: the server's real
+ * boundary is `files.manage`, and without it the list is mine-only rather than
+ * forbidden — so an admin who does not hold the grant still gets a working
+ * page showing their own uploads, which is the honest degradation.
+ */
+function FilesRouteComponent() {
+  return (
+    <StudioGuard>
+      <Suspense fallback={null}>
+        <FilesPageLazy />
+      </Suspense>
+    </StudioGuard>
+  );
+}
+
 function AccountSecurityRouteComponent() {
   return (
     <Suspense fallback={null}>
@@ -710,6 +894,12 @@ const auditRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/audit',
   component: AuditRouteComponent,
+});
+
+const filesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/files',
+  component: FilesRouteComponent,
 });
 
 const accountSecurityRoute = createRoute({
@@ -756,7 +946,13 @@ const routeTree = rootRoute.addChildren([
     settingsTeamRoute,
     settingsRolesRoute,
     auditRoute,
+    filesRoute,
     emailTemplatesRoute,
+    emailEditorRoute,
+    invoicesRoute,
+    invoiceEditorRoute,
+    automationsRoute,
+    workflowLogsRoute,
     // Studio (09 §8.1): connect wizard + remap route contract, role ≥ Admin.
     ...studioRoutes(appRoute),
     // M7 wave 2 SPA surfaces (data-io §11, scheduled reports): same factory

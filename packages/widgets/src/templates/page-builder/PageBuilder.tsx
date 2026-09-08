@@ -381,6 +381,10 @@ export function PageBuilder({
   const closeLabel = labels?.close ?? t('ui:action.close', 'Close');
   const blockLabelOf = (block: BlockId): string => t(BLOCK_LABEL_KEY[block], BLOCK_KIND_META[block].label);
 
+  // Everything the toolbar can actually show: `idle` autosave draws nothing,
+  // and the saved-at stamp only rides along with the `saved` state.
+  const hasToolbarRow = autosave !== 'idle' || toolbarActions !== undefined || docType === 'survey';
+
   const palette = DOC_TYPE_PALETTE[canvasDocType];
   const activeBlocks = new Set(
     docBlockInstancesOf(doc, canvasDocType)
@@ -390,8 +394,15 @@ export function PageBuilder({
 
   return (
     <div data-part="page-builder" data-doc-type={docType} data-testid={testId} className={cn('flex h-full min-h-0 flex-col gap-3', className)}>
-      {/* Toolbar — `chrome.toolbar: ['autosave-indicator']` (manifest). */}
-      <div className="flex min-h-9 items-center gap-2">
+      {/* Toolbar — `chrome.toolbar: ['autosave-indicator']` (manifest). The
+          autosave live region stays MOUNTED while idle (a region inserted in the
+          same commit as its first message is not announced) and keeps its own
+          reserved `h-6`, so an empty toolbar collapses by CLIPPING — height 0,
+          still in the a11y tree — rather than by unmounting. A host that hoists
+          its actions into its own header (the dashboard's topbar slot) then pays
+          no blank band for a row nobody can see, and the row is back at full
+          height in the same commit that gives the indicator something to say. */}
+      <div className={cn('flex items-center gap-2', hasToolbarRow ? 'min-h-9' : 'h-0 overflow-hidden')}>
         <AutosaveIndicator
           data-part="builder-autosave"
           status={autosave}
@@ -475,6 +486,11 @@ export function PageBuilder({
             config={canvasConfig}
             data={{ status: 'success', data: canvasData }}
             onEvent={handleCanvasEvent}
+            // The canvas is the page body, not a dashboard card: it carries no
+            // title, so the definition's ⓘ was the ONLY thing in its frame
+            // header — a band that bought nothing and started the canvas one row
+            // below the palette and inspector beside it.
+            info={null}
           />
         </div>
 

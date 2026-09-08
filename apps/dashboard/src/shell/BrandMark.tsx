@@ -22,6 +22,7 @@ import { Hexagon } from 'lucide-react';
 import { cn } from '@adminium/ui';
 
 import { brandingQuery, DEFAULT_BRANDING, type BrandingData } from '../app/branding.js';
+import { setDocumentAppName } from './documentTitle.js';
 
 /** Stand-in for the surfaces that render outside a provider; never fetches. */
 const DETACHED_CLIENT = new QueryClient();
@@ -55,11 +56,15 @@ export function useBranding(): BrandingData {
  * built-in title for the pre-hydration paint; this is what makes a rebrand
  * reach the one piece of chrome that lives outside React's tree — including
  * the bookmark and the window title of the desktop build.
+ *
+ * It publishes the app name into `documentTitle.ts` rather than assigning
+ * `document.title`, because the workspace name is only half of the tab: the
+ * screen supplies the other half, from inside the router this hook sits above.
  */
 export function useBrandedDocumentTitle(): void {
   const { appName } = useBranding();
   useEffect(() => {
-    document.title = appName;
+    setDocumentAppName(appName);
   }, [appName]);
 }
 

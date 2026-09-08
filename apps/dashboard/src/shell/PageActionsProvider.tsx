@@ -37,8 +37,13 @@ interface PageActionsChannel {
   setSubtitle: (subtitle: string | null) => void;
   title: string | null;
   setTitle: (title: string | null) => void;
+  documentTitle: string | null;
+  setDocumentTitle: (documentTitle: string | null) => void;
   backTo: string | null;
   setBackTo: (backTo: string | null) => void;
+  /** Mount point beside the topbar h1 for a page's title chip; null until the slot mounts. */
+  titleContainer: HTMLElement | null;
+  setTitleContainer: (element: HTMLElement | null) => void;
 }
 
 const PageActionsContext = createContext<PageActionsChannel | null>(null);
@@ -48,10 +53,25 @@ export function PageActionsProvider({ children }: { children: ReactNode }) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const [subtitle, setSubtitle] = useState<string | null>(null);
   const [title, setTitle] = useState<string | null>(null);
+  const [documentTitle, setDocumentTitle] = useState<string | null>(null);
   const [backTo, setBackTo] = useState<string | null>(null);
+  const [titleContainer, setTitleContainer] = useState<HTMLElement | null>(null);
   const value = useMemo<PageActionsChannel>(
-    () => ({ container, setContainer, subtitle, setSubtitle, title, setTitle, backTo, setBackTo }),
-    [container, subtitle, title, backTo],
+    () => ({
+      container,
+      setContainer,
+      subtitle,
+      setSubtitle,
+      title,
+      setTitle,
+      documentTitle,
+      setDocumentTitle,
+      backTo,
+      setBackTo,
+      titleContainer,
+      setTitleContainer,
+    }),
+    [container, subtitle, title, documentTitle, backTo, titleContainer],
   );
   return <PageActionsContext.Provider value={value}>{children}</PageActionsContext.Provider>;
 }
@@ -73,6 +93,24 @@ export function PageActionsSlot({ className }: { className?: string }) {
   );
 }
 
+/**
+ * The mount point BESIDE the topbar h1 (41-export-builder.md D14): a chip a
+ * page pins to its own name — "Based on invoices-2026-08-30.csv" — travels by
+ * portal like the actions do, and for the same reason. `empty:hidden` so a
+ * page that pins nothing costs the title row no gap.
+ */
+export function PageTitleAdornmentSlot({ className }: { className?: string }) {
+  const channel = useContext(PageActionsContext);
+  if (channel === null) return null;
+  return (
+    <span
+      ref={channel.setTitleContainer}
+      data-part="topbar-title-adornment"
+      className={cn('inline-flex shrink-0 items-center gap-2 empty:hidden', className)}
+    />
+  );
+}
+
 /** The published page subtitle, or null outside a provider / when nothing is published. */
 export function usePageSubtitle(): string | null {
   return useContext(PageActionsContext)?.subtitle ?? null;
@@ -88,6 +126,15 @@ export function usePageTitle(): string | null {
   return useContext(PageActionsContext)?.title ?? null;
 }
 
+/**
+ * The published BROWSER TAB name, for the screens whose `<h1>` alone does not
+ * identify them. Null means "the tab mirrors the h1", which is what nearly
+ * every screen wants — see `PageActionsProps.documentTitle`.
+ */
+export function usePageDocumentTitle(): string | null {
+  return useContext(PageActionsContext)?.documentTitle ?? null;
+}
+
 /** Where the topbar's back control returns to, or null for no back control. */
 export function usePageBackTo(): string | null {
   return useContext(PageActionsContext)?.backTo ?? null;
@@ -99,10 +146,26 @@ export interface PageActionsProps {
   /** Secondary line under the topbar h1 — page context, not a restatement of the title. */
   subtitle?: string | undefined;
   /**
+   * Overrides the browser tab's name for this screen. Omit it: the tab is
+   * composed from the topbar h1 and the workspace name, and a screen whose
+   * heading names it needs nothing here.
+   *
+   * It exists for the shapes the h1 cannot serve. A record page's h1 is the
+   * record ("Northwind"), which in a tab strip says nothing about which page
+   * you are on — it publishes "Northwind · Customers". A full-page system
+   * state names the tab after the state rather than the page it replaced.
+   *
+   * It is NOT the way to fix a screen whose topbar reads "Home": that screen
+   * is missing a `title`, and naming only its tab leaves the chrome wrong.
+   */
+  documentTitle?: string | undefined;
+  /**
    * Path the topbar's back control returns to. A sub-screen reached from a
    * list publishes the list's path; omit it and no back control renders.
    */
   backTo?: string | undefined;
+  /** A chip rendered beside the topbar h1 (D14) — a fact about THIS screen, not an action. */
+  titleAdornment?: ReactNode;
   /** Controls rendered at the start of the topbar's right cluster. */
   children?: ReactNode;
 }
@@ -114,10 +177,18 @@ export interface PageActionsProps {
  *
  * Render it anywhere inside the page; it draws nothing where it sits.
  */
-export function PageActions({ title, subtitle, backTo, children }: PageActionsProps): ReactNode {
+export function PageActions({
+  title,
+  subtitle,
+  documentTitle,
+  backTo,
+  titleAdornment,
+  children,
+}: PageActionsProps): ReactNode {
   const channel = useContext(PageActionsContext);
   const setSubtitle = channel?.setSubtitle;
   const setTitle = channel?.setTitle;
+  const setChannelDocumentTitle = channel?.setDocumentTitle;
   const setBackTo = channel?.setBackTo;
 
   useEffect(() => {
@@ -138,11 +209,24 @@ export function PageActions({ title, subtitle, backTo, children }: PageActionsPr
   }, [setTitle, title]);
 
   useEffect(() => {
+    if (setChannelDocumentTitle === undefined || documentTitle === undefined) return;
+    setChannelDocumentTitle(documentTitle);
+    return () => setChannelDocumentTitle(null);
+  }, [setChannelDocumentTitle, documentTitle]);
+
+  useEffect(() => {
     if (setBackTo === undefined || backTo === undefined) return;
     setBackTo(backTo);
     return () => setBackTo(null);
   }, [setBackTo, backTo]);
 
-  if (channel === null || channel.container === null || children === undefined) return null;
-  return createPortal(children, channel.container);
+  if (channel === null) return null;
+  return (
+    <>
+      {channel.titleContainer !== null && titleAdornment !== undefined
+        ? createPortal(titleAdornment, channel.titleContainer)
+        : null}
+      {channel.container !== null && children !== undefined ? createPortal(children, channel.container) : null}
+    </>
+  );
 }

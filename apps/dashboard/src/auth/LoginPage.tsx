@@ -38,7 +38,9 @@ export function LoginPage() {
   };
 
   return (
-    <AuthScreenLayout>
+    // The tab is named after the ACTION, not the heading: "Welcome back" is a
+    // greeting, and a tab strip needs to say which screen this is.
+    <AuthScreenLayout documentTitle={t('auth.signIn.submit', 'Sign in')}>
       <SignInForm
         labels={{
           title: t('auth.signIn.title', 'Welcome back'),

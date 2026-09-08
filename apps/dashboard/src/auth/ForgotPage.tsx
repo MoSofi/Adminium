@@ -74,7 +74,7 @@ export function ForgotPage() {
   };
 
   return (
-    <AuthScreenLayout>
+    <AuthScreenLayout documentTitle={t('auth.forgot.title', 'Reset your password')}>
       {sentTo === null ? (
         <ForgotPasswordForm
           labels={{

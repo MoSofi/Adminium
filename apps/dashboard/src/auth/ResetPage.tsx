@@ -19,7 +19,7 @@ export function ResetPage() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <AuthScreenLayout>
+    <AuthScreenLayout documentTitle={t('auth.reset.title', 'Set a new password')}>
       <ResetPasswordForm
         labels={{
           title: t('auth.reset.title', 'Set a new password'),

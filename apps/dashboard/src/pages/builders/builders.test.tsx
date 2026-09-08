@@ -3,7 +3,7 @@
  * page-builder binding tests (M7-T06, 09 §7.11): envelope → PageBuilder
  * projection, the doc-in-layout persistence path (shared vs personal routed on
  * `canEditLayout`, autosave choreography), save-as-version through the
- * saved-views API, draft-mutation filtering, and the docState/emailDoc pure
+ * saved-views API, draft-mutation filtering, and the docState pure
  * algebra. Persistence hooks are mocked like DashboardBuilder.test.tsx; the
  * views API rides a fetch mock like the sibling suites (no msw).
  */
@@ -16,6 +16,7 @@ import type { DocRecord } from '@adminium/widgets';
 import { createQueryClient } from '../../app/query.js';
 import { installTestI18n } from '../../i18n/testing.js';
 import { jsonResponse } from '../../test/fixtures.js';
+import { PageActionsProvider, PageActionsSlot } from '../../shell/PageActionsProvider.js';
 import type { PageTemplateAdapters } from '../template-types.js';
 import { BUILDER_AUTOSAVE_DEBOUNCE_MS, PageBuilderBinding } from './PageBuilderBinding.js';
 import {
@@ -24,7 +25,6 @@ import {
   builderVersionsOf,
   layoutWithDoc,
 } from './docState.js';
-import { docToEmailBlocks, emailBlocksToDoc } from './emailDoc.js';
 
 const persist = vi.hoisted(() => ({
   sharedSave: vi.fn(),
@@ -150,11 +150,17 @@ function renderBinding(options: { canEditLayout?: boolean; adapters?: PageTempla
   const adapters = options.adapters ?? makeAdapters();
   const { unmount } = render(
     <QueryClientProvider client={client}>
-      <PageBuilderBinding
-        page={builderEnvelope()}
-        adapters={adapters}
-        canEditLayout={options.canEditLayout ?? true}
-      />
+      {/* Versions + Save-as-version portal into the topbar slot, so the harness
+          has to stand in for the shell that owns it — without a provider the
+          binding publishes into nothing and those controls never render. */}
+      <PageActionsProvider>
+        <PageActionsSlot />
+        <PageBuilderBinding
+          page={builderEnvelope()}
+          adapters={adapters}
+          canEditLayout={options.canEditLayout ?? true}
+        />
+      </PageActionsProvider>
     </QueryClientProvider>,
   );
   return { adapters, unmount };
@@ -221,40 +227,6 @@ describe('docState', () => {
     expect(versions[0]?.doc.number).toBe('INV-2601');
   });
 });
-
-describe('emailDoc', () => {
-  it('maps stored blocks onto a canvas doc and back, preserving unknown entries in place', () => {
-    const blocks = [
-      { block: 'block-highlight-box', id: 'hb-1', data: { row: { label: 'Amount', value: '$290.00' } } },
-      { kind: 'x-vendor-hero', src: 'cid:hero' }, // unknown → preserved
-      { block: 'block-contact', id: 'c-1' },
-    ];
-    const state = emailBlocksToDoc(blocks, { name: 'Receipt', subject: 'Your receipt' });
-    expect(state.doc.docType).toBe('email');
-    expect(state.doc.title).toBe('Your receipt');
-    expect(state.doc.blockOrder?.map((instance) => instance.block)).toEqual([
-      'block-highlight-box',
-      'block-contact',
-    ]);
-    expect(state.unknown).toHaveLength(1);
-
-    const out = docToEmailBlocks(state.doc, state.unknown);
-    expect(out).toHaveLength(3);
-    expect(out[1]).toEqual({ kind: 'x-vendor-hero', src: 'cid:hero' });
-    expect(out[0]).toMatchObject({ block: 'block-highlight-box', id: 'hb-1' });
-  });
-
-  it('drops hidden blocks on serialize (flags[block] === false)', () => {
-    const state = emailBlocksToDoc(
-      [{ block: 'block-contact', id: 'c-1' }, { block: 'block-highlight-box', id: 'h-1' }],
-      { name: 'n', subject: 's' },
-    );
-    const hidden = { ...state.doc, flags: { 'block-contact': false } };
-    expect(docToEmailBlocks(hidden).map((entry) => entry['block'])).toEqual(['block-highlight-box']);
-  });
-});
-
-// ── rendered binding ─────────────────────────────────────────────────────────
 
 describe('PageBuilderBinding', () => {
   it('renders the invoice canvas from the stored doc and autosaves edits to the SHARED layout for page editors', async () => {

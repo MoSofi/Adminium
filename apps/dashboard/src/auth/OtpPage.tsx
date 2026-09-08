@@ -26,7 +26,7 @@ export function OtpPage() {
   if (challenge === null) return null;
 
   return (
-    <AuthScreenLayout>
+    <AuthScreenLayout documentTitle={t('auth.otp.title', 'Two-factor authentication')}>
       <TwoFactorForm
         labels={{
           title: t('auth.otp.title', 'Two-factor authentication'),

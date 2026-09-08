@@ -89,14 +89,14 @@ class FakeWebSocket {
   close(): void {}
 }
 
-async function renderShellWithNav(nav: NavTree) {
+async function renderShellWithNav(nav: NavTree, roles: string[] = ['super-admin']) {
   vi.stubGlobal('WebSocket', FakeWebSocket);
   vi.stubGlobal(
     'fetch',
     vi.fn().mockImplementation((input: unknown) => {
       const url = String(input);
       if (url.startsWith('/api/v1/bootstrap')) {
-        return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ nav }) }));
+        return Promise.resolve(jsonResponse(200, { data: makeBootstrap({ nav, roles }) }));
       }
       if (url.startsWith('/api/v1/pages/')) {
         return Promise.resolve(
@@ -150,5 +150,69 @@ describe('SidebarNav connection labels', () => {
     // Items cluster under their connection label within the group.
     const labels = screen.getAllByText(/Production Postgres|Analytics MySQL|Shared/);
     expect(labels.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * `/api-keys` shipped with a route, a 519-line page and no entry point in any
+ * nav — `PLATFORM_NAV` never listed it, the avatar menu never has, and the
+ * palette only knows generated pages. It was reachable by URL alone. This
+ * asserts the door exists and that it is gated the way the route is.
+ */
+describe('SidebarNav platform tail: API keys', () => {
+  const nav: NavTree = { groups: [{ key: 'workspace', items: [item('customers', PROD)] }] };
+
+  it('gives an admin a link to API keys, beside the other governance rows', async () => {
+    await renderShellWithNav(nav, ['admin']);
+    const link = screen.getByRole('link', { name: 'API keys' });
+    expect(link.getAttribute('href')).toBe('/api-keys');
+    // It belongs with the principals that can act, not with personal settings.
+    expect(screen.getByRole('link', { name: 'Roles & permissions' })).toBeTruthy();
+  });
+
+  it('hides it from a viewer, like the rest of the admin tail', async () => {
+    await renderShellWithNav(nav, ['viewer']);
+    expect(screen.queryByRole('link', { name: 'API keys' })).toBeNull();
+    // The personal rows still render — this gates the admin tail, not the rail.
+    expect(screen.getByRole('link', { name: 'Password & sessions' })).toBeTruthy();
+  });
+});
+
+/**
+ * The platform tail used to be conditional on having generated pages: with no
+ * `nav.groups` the rail rendered the "connect a database" prompt and returned,
+ * skipping `platformOnlyGroups` entirely. So on a fresh instance — the one
+ * state every deployment passes through — Team, Roles, API keys, the audit log,
+ * Files, Email templates, imports, exports and scheduled reports were all
+ * invisible until a source was connected, which none of them need. Inviting
+ * people is the first thing an admin does, and Team was behind that wall.
+ */
+describe('SidebarNav on a fresh instance (no connection)', () => {
+  const empty: NavTree = { groups: [] };
+
+  it('still offers the platform tail an admin needs before any database exists', async () => {
+    await renderShellWithNav(empty, ['admin']);
+    for (const name of ['Team', 'Roles & permissions', 'API keys', 'Audit log']) {
+      expect(screen.getByRole('link', { name })).toBeTruthy();
+    }
+    expect(screen.getByRole('link', { name: 'Import data' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Password & sessions' })).toBeTruthy();
+  });
+
+  it('keeps the prompt, which now explains only the missing pages', async () => {
+    await renderShellWithNav(empty, ['admin']);
+    // It sits ALONGSIDE the tail rather than replacing it: the sentence is
+    // about generated pages, and those really are absent.
+    expect(screen.getByText('Pages appear here once a database is connected.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Team' })).toBeTruthy();
+  });
+
+  it('still respects the admin gate with nothing connected', async () => {
+    await renderShellWithNav(empty, ['viewer']);
+    expect(screen.queryByRole('link', { name: 'Team' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'API keys' })).toBeNull();
+    // …and the ungated rows are what a viewer is left with, not an empty rail.
+    expect(screen.getByRole('link', { name: 'Password & sessions' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Data exports' })).toBeTruthy();
   });
 });

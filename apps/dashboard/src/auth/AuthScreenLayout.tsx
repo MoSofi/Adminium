@@ -10,6 +10,7 @@ import { AuthLayout, IconButton, useTheme, useThemePrefs } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { BrandMark } from '../shell/BrandMark.js';
+import { useDocumentPageTitle } from '../shell/documentTitle.js';
 
 export function ThemeToggleButton() {
   const resolved = useTheme();
@@ -31,7 +32,24 @@ export function ThemeToggleButton() {
   );
 }
 
-export function AuthScreenLayout({ children }: { children: ReactNode }) {
+export interface AuthScreenLayoutProps {
+  /**
+   * What the browser tab calls this screen, ahead of the workspace name. These
+   * screens render with no shell, so there is no topbar to derive it from and
+   * each one has to say who it is — otherwise every tab in the group reads
+   * "Adminium" and they are indistinguishable side by side.
+   *
+   * Required, and nullable rather than optional, so the two first-run wizards
+   * have to say out loud that they mean it: at first run this layout is the
+   * only screen the instance can show, so there is nothing to tell apart and
+   * the tab is better off reading the product name alone.
+   */
+  documentTitle: string | null;
+  children: ReactNode;
+}
+
+export function AuthScreenLayout({ documentTitle, children }: AuthScreenLayoutProps) {
+  useDocumentPageTitle(documentTitle);
   return (
     // `logo`: the workspace's own mark, from the PUBLIC branding route — a
     // white label that only applies after you sign in is not a white label.

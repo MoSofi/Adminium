@@ -14,6 +14,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { installTestI18n } from '../../i18n/testing.js';
 import { AppToastProvider } from '../../pages/toasts.js';
+import { ShellHarness } from '../../test/shellHarness.js';
 import { jsonResponse } from '../../test/fixtures.js';
 import type { LlmRunDetail, SuggestionDiff } from '../ai/api.js';
 import { ReviewScreen } from './ReviewScreen.js';
@@ -198,10 +199,14 @@ function installFetch(options: HarnessOptions = {}): { calls: Call[] } {
 
 function renderScreen(): RenderResult {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // `ShellHarness`: this screen's heading is published to the topbar, so a
+  // bare render has nowhere to draw it.
   return render(
     <QueryClientProvider client={queryClient}>
       <AppToastProvider>
-        <ReviewScreen runId="run_1" />
+        <ShellHarness>
+          <ReviewScreen runId="run_1" />
+        </ShellHarness>
       </AppToastProvider>
     </QueryClientProvider>,
   );
@@ -220,6 +225,12 @@ describe('ReviewScreen — grouping & counts', () => {
     const sections = await screen.findAllByTestId('category-section');
     const groupIds = sections.map((section) => section.getAttribute('data-group'));
     expect(groupIds).toEqual(['labels', 'enums', 'relations', 'keys', 'pii']);
+
+    // ONE h1, and it is the shell's: the run summary card used to draw a
+    // second one while the topbar's said "Home".
+    const headings = screen.getAllByRole('heading', { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]?.textContent).toBe('Review AI suggestions');
 
     // Header counts: 1 agree / 2 conflict / 2 new / 1 rejects.
     expect(screen.getByText('1 agree')).toBeTruthy();

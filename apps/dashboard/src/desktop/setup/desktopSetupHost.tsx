@@ -426,7 +426,8 @@ export function DesktopSetupHost(): ReactNode {
     busy || (state.step === 'database' && !sourceCardValid(state)) || (state.step === 'location' && cloudSync !== null);
 
   return (
-    <AuthScreenLayout>
+    // No tab name, for the reason FirstRunWizard gives: one screen, once.
+    <AuthScreenLayout documentTitle={null}>
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-h2 font-extrabold tracking-[-0.02em] text-fg">

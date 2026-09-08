@@ -24,7 +24,7 @@ import { RuntimeChip } from '@adminium/ui';
 import { useCapabilities } from '../app/capabilities.js';
 import { LAN_SHARE_PANEL_HASH } from '../desktop/lanShare.js';
 import { t } from '../i18n/t.js';
-import { connectionHealthQuery } from '../studio/api.js';
+import { connectionHealthQuery } from './connectionHealth.js';
 import { runtimeChipState, unreachableRemotes } from './runtimeChipState.js';
 
 function chipLabel(state: NonNullable<ReturnType<typeof runtimeChipState>>): string {

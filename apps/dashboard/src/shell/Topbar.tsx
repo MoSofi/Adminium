@@ -20,8 +20,10 @@ import { Link, useRouter } from '@tanstack/react-router';
 import {
   ArrowLeft,
   Bell,
+  CircleHelp,
   Database,
   LogOut,
+  Megaphone,
   Moon,
   Settings,
   SlidersHorizontal,
@@ -57,7 +59,15 @@ import {
 import type { BootstrapData } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
-import { PageActionsSlot, usePageBackTo, usePageSubtitle, usePageTitle } from './PageActionsProvider.js';
+import {
+  PageActionsSlot,
+  PageTitleAdornmentSlot,
+  usePageBackTo,
+  usePageDocumentTitle,
+  usePageSubtitle,
+  usePageTitle,
+} from './PageActionsProvider.js';
+import { useDocumentPageTitle } from './documentTitle.js';
 import { RuntimeChipHost } from './RuntimeChipHost.js';
 import { useChordPending } from './ShortcutsProvider.js';
 
@@ -81,6 +91,16 @@ export interface TopbarProps {
    */
   onOpenStudio: () => void;
   onOpenStudioSettings: () => void;
+  /**
+   * `/help` and `/changelog` (M10-T06). Both shipped with a route, a built page
+   * and NO entry point anywhere — not the rail, not this menu, not the palette.
+   * They are here rather than in the sidebar because the router's own comment
+   * makes the split: these two are for EVERYONE (a viewer hitting a wall needs
+   * the docs more than an admin does), while the rail's platform tail is
+   * workspace administration.
+   */
+  onOpenHelp: () => void;
+  onOpenChangelog: () => void;
 }
 
 /**
@@ -218,6 +238,8 @@ export function Topbar({
   onOpenPreferences,
   onOpenStudio,
   onOpenStudioSettings,
+  onOpenHelp,
+  onOpenChangelog,
 }: TopbarProps) {
   const resolved = useTheme();
   const { setPref } = useThemePrefs();
@@ -228,6 +250,22 @@ export function Topbar({
   // `/p/$slug` and `/account`, and answers "Home" for everything else.
   const publishedTitle = usePageTitle();
   const backTo = usePageBackTo();
+
+  /*
+   * The browser tab, for every screen inside the shell — and the reason it is
+   * named HERE rather than in each page: this component is the one place that
+   * already knows what the current screen is called, and a tab named from any
+   * other source is a second answer to that question, free to disagree with
+   * the heading. The tab used to read "Adminium" everywhere, so a strip of six
+   * open tabs was six identical labels.
+   *
+   * Everything below the shell publishes through the same channel, so there is
+   * exactly one writer per screen; `documentTitle.ts` composes it with the
+   * workspace name. `documentTitle` overrides the h1 for the screens whose
+   * heading does not identify them (a record page's h1 is the record).
+   */
+  const publishedDocumentTitle = usePageDocumentTitle();
+  useDocumentPageTitle(publishedDocumentTitle ?? publishedTitle ?? title);
   const { user } = bootstrap;
   const admin = hasStudioAccess(bootstrap.roles);
 
@@ -260,9 +298,12 @@ export function Topbar({
       )}
 
       <div className="min-w-0">
-        <h1 className="truncate text-topbar-title leading-[1.2] text-fg">
-          {publishedTitle ?? title}
-        </h1>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="min-w-0 truncate text-topbar-title leading-[1.2] text-fg">
+            {publishedTitle ?? title}
+          </h1>
+          <PageTitleAdornmentSlot />
+        </div>
         {subtitle === null ? null : (
           <div data-part="topbar-subtitle" className="mt-0.5 truncate text-body-sm text-fg-muted">
             {subtitle}
@@ -362,6 +403,16 @@ export function Topbar({
                 </DropdownMenuItem>
               </>
             ) : null}
+            {/* Product comms, below Studio because they are read occasionally
+                and not gated: a viewer sees Profile/Preferences/theme, then
+                these two, then Sign out. */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem icon={<CircleHelp />} onSelect={onOpenHelp}>
+              {t('topbar.help', 'Help centre')}
+            </DropdownMenuItem>
+            <DropdownMenuItem icon={<Megaphone />} onSelect={onOpenChangelog}>
+              {t('topbar.changelog', 'What’s new')}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem icon={<LogOut className="rtl:-scale-x-100" />} onSelect={onSignOut}>
               {t('topbar.signOut', 'Sign out')}
