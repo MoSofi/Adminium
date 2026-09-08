@@ -98,6 +98,13 @@ export const SECRET_FIELD_NAMES_CANONICAL: readonly string[] = [
   'payload',
   'refreshToken',
   'accessToken',
+  // 37 §3.12 / §6 item 10 — a storage destination's S3 credential. The pair is
+  // named for the AWS SDK's own field names, so none of the `*Key` / `secret*`
+  // patterns above reaches either: `secretAccessKey` is not `secret`, and the
+  // matcher is exact. A destination row logged anywhere — a failed `test`, a
+  // driver error, a job payload — would print the key that opens the bucket.
+  'accessKeyId',
+  'secretAccessKey',
   'dsn',
   'dsnEncrypted',
   'connectionString',

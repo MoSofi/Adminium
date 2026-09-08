@@ -26,7 +26,8 @@ import {
 import { jobsRepo, newId, pagesRepo, viewsRepo, type Job, type JobsRepo, type User } from '@adminium/meta';
 
 import { parseCsv } from '../src/data-io/csv.js';
-import { createFileStorage, type FileStorage } from '../src/files/storage.js';
+import { type FileStore } from '../src/files/store.js';
+import { createTestFileStore } from './helpers/file-store.js';
 import { registerExportRunHandler } from '../src/jobs/export-run.js';
 import { registerImportRunHandler } from '../src/jobs/import-run.js';
 import { createJobRegistry, type JobRegistry } from '../src/jobs/registry.js';
@@ -168,14 +169,14 @@ describe('data-io routes + jobs (fake adapter)', () => {
   let t: DataTestContext;
   let connId: string;
   let dataDir: string;
-  let storage: FileStorage;
+  let storage: FileStore;
   let registry: JobRegistry;
   let jobs: JobsRepo;
   const hub = new RealtimeHub();
 
   beforeAll(async () => {
     dataDir = mkdtempSync(join(tmpdir(), 'adminium-dataio-'));
-    storage = createFileStorage({ dataDir });
+    storage = createTestFileStore({ dataDir });
     t = await buildDataTestApp({
       registry: makeFakeRegistry(seedSqlite()),
       extraRoutes: async (api, ctx) => {

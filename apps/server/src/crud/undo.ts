@@ -34,6 +34,14 @@ export interface UndoEntry {
   after: Row[];
   /** Update undo: the column set to compare + restore ([] = all columns). */
   changedColumns: string[];
+  /**
+   * Files trashed alongside this write (37-files-and-storage.md D12).
+   *
+   * They are here rather than re-derived at undo time because once the row is
+   * deleted there is nothing left to derive them FROM: the column values that
+   * named them are gone, and the sidecar rows have already been trashed.
+   */
+  fileIds: string[];
   expiresAt: number;
 }
 
@@ -59,10 +67,16 @@ export class UndoStore {
     this.#now = now;
   }
 
-  issue(entry: Omit<UndoEntry, 'expiresAt'>, ttlMs: number = UNDO_TTL_MS): IssuedUndo {
+  issue(
+    // `fileIds` is optional at the door and always present on the stored entry:
+    // every caller that predates 37 trashes no files, and making them all say
+    // `fileIds: []` would be noise at ten call sites to state a default.
+    entry: Omit<UndoEntry, 'expiresAt' | 'fileIds'> & { fileIds?: string[] },
+    ttlMs: number = UNDO_TTL_MS,
+  ): IssuedUndo {
     this.#sweep();
     const token = `undo_${randomBytes(16).toString('hex')}`;
-    const stored: UndoEntry = { ...entry, expiresAt: this.#now() + ttlMs };
+    const stored: UndoEntry = { ...entry, fileIds: entry.fileIds ?? [], expiresAt: this.#now() + ttlMs };
     this.#entries.set(hashToken(token), stored);
     return { token, entry: stored };
   }

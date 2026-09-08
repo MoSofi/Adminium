@@ -238,6 +238,23 @@ export const RATE_BUCKETS = {
   llm: { max: 20, timeWindowMs: 3_600_000, keyBy: 'principal' },
   'file-bytes': { max: 30, timeWindowMs: 3_600_000, keyBy: 'principal' },
   /*
+   * `POST /files` only (37-files-and-storage.md D28).
+   *
+   * Deliberately NOT `file-bytes`, whose 30/hour is right for the surfaces it
+   * covers — one logo, one CSV, one add-on tarball, one export download — and
+   * wrong for the one this feature adds. Attaching photos to a record is a
+   * batch: a person selecting twelve images from a phone would spend the whole
+   * `file-bytes` hour on two records, and 08 §2.10's original 30/hour figure
+   * predates the batch flow it would refuse.
+   *
+   * 240/hour keyed by principal is four uploads a minute sustained, which is
+   * generous for a human and still four hundred times tighter than the general
+   * `api` bucket the route would otherwise fall into. The size cap
+   * (`files.maxBytes`, default 200 MiB) is the other half of the bound, and the
+   * spool aborts before the bytes are committed anywhere.
+   */
+  upload: { max: 240, timeWindowMs: 3_600_000, keyBy: 'principal' },
+  /*
    * A BACKSTOP, not the real limit (28-public-surface.md D9).
    *
    * The public namespace runs its own counters — per session, then per key,
@@ -307,6 +324,15 @@ const AUTO_BUCKETS: readonly {
     pattern: /\/(?:imports\/:id\/error-report|exports\/:id\/download)$/,
     bucket: 'file-bytes',
   },
+  // 37 D28. Anchored on `/files` exactly, so `/files/:id/attach` and the rest
+  // of the group fall through to `api` — they move no bytes.
+  { methods: ['POST'], pattern: /\/files$/, bucket: 'upload' },
+  // Serving is a byte surface like the export download beside it: 30/hour is
+  // the wrong shape for a GRID of thumbnails, so it is not `file-bytes`
+  // either — the general `api` bucket (300/min) is what a page of 50 rows with
+  // an image column needs, and the content route's own grant check is the
+  // real bound on who may ask.
+  { methods: ['GET'], pattern: /\/files\/:id\/content$/, bucket: 'api' },
   // The CREATE side only. `POST /imports/:id/run` is not double-charged: it
   // can only fire on an import this bucket already paid for, and only while
   // that import is `ready` (the route 409s otherwise), so charging it too

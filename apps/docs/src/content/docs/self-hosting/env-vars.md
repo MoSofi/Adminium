@@ -19,6 +19,12 @@ half-configured and fail later.
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
 | `ADMINIUM_DATA_DIR` | No | `./data` | Writable directory for files, exports, backups, add-on packages, and the embedded meta store. |
+| `ADMINIUM_STORAGE_URL` | No | *(this server's disk)* | Where uploaded and generated files live. Seeded once, on a boot with no storage destination configured. See below. |
+| `AWS_ENDPOINT_URL_S3` | No | *(unset)* | S3-compatible endpoint. Read **only** by the first-boot storage seed, and only when `ADMINIUM_STORAGE_URL` is unset. See below. |
+| `AWS_REGION` | No | `auto` | Region for the AWS storage variables. |
+| `BUCKET_NAME` | No | *(unset)* | Bucket for the AWS storage variables. |
+| `AWS_ACCESS_KEY_ID` | No | *(unset)* | Access key for the AWS storage variables. |
+| `AWS_SECRET_ACCESS_KEY` | No | *(unset)* | Secret key for the AWS storage variables. |
 | `ADMINIUM_BUNDLED_ADD_ONS` | No | `./add-ons-bundle` | Directory of pre-verified add-on tarballs seeded into the store at boot — see [Installing add-ons](/self-hosting/installing-add-ons/). |
 | `ADMINIUM_LOG_LEVEL` | No | `info` | `fatal` · `error` · `warn` · `info` · `debug` · `trace` |
 | `ADMINIUM_STATIC_ROOT` | No | *(auto-detected)* | Serve the dashboard build from this directory instead of the auto-detected copy. |
@@ -100,6 +106,57 @@ The meta store's engine is independent of your source database's.
 want an admin panel **for** is a different thing, and it has its own variable —
 `ADMINIUM_SOURCE_URL`, below.
 :::
+
+## `ADMINIUM_STORAGE_URL`
+
+Where uploaded files, export artifacts, the branding logo and imported schema
+files are stored.
+
+**Leave it unset unless your host has no persistent disk.** Unset means this
+server's own disk, under `ADMINIUM_DATA_DIR/files` — which is correct on a
+Droplet, on Fly with a volume, on Render, and on anything running Docker with a
+named volume.
+
+It matters in one situation: a runtime with **no persistent local disk**, where
+files written today are gone after the next redeploy. DigitalOcean App Platform
+is the main one. There, set this before the first boot:
+
+```yaml
+ADMINIUM_STORAGE_URL: s3://my-space?endpoint=https://nyc3.digitaloceanspaces.com&region=nyc3&pathStyle=0&accessKey=DO00EXAMPLE&secretKey=...
+```
+
+The three grammars:
+
+| Driver | Value |
+|---|---|
+| Any S3-compatible bucket | `s3://<bucket>[/<prefix>]?endpoint=&region=&accessKey=&secretKey=&pathStyle=1&publicBaseUrl=` |
+| A WebDAV server (a NAS, a Storage Box, Nextcloud) | `webdavs://<user>:<pass>@<host>[/<path>]?publicBaseUrl=` |
+| Another directory on this machine | `file:///absolute/path` — note the three slashes |
+
+`endpoint` is optional for AWS itself, whose endpoint is derived from the
+region — and in exactly that case `region` defaults to `us-east-1`. With an
+`endpoint` set it defaults to `auto` instead, which is what Cloudflare R2 and
+Tigris want. `pathStyle=1` is the default whenever `endpoint` is set, because
+self-hosted targets (MinIO, Garage) issue no per-bucket hostnames; managed
+providers that do issue them want `pathStyle=0`. `publicBaseUrl` is a CDN or
+share URL under which the objects are readable without Adminium — it is used
+only for the reference stored in your own table, never as a read path.
+
+**It runs once.** On a boot where no storage destination exists at all, it
+creates one and makes it the default. On every later boot it changes nothing
+and says so in the log. A destination you configured in Studio is never
+overridden, and a value that will not parse is reported as a warning — the boot
+continues, because Studio is where you fix it.
+
+### Fly.io needs none of this
+
+`fly storage create` provisions a Tigris bucket and writes five variables into
+your app's secrets: `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `BUCKET_NAME`,
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. The same seed reads those as a
+fallback when `ADMINIUM_STORAGE_URL` is unset, so a Fly deploy is zero-config.
+
+The storage seed is the only code in Adminium that reads an `AWS_*` variable.
+Nothing else picks up ambient AWS credentials.
 
 ## `ADMINIUM_SOURCE_URL`
 

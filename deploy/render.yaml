@@ -23,6 +23,12 @@ services:
         generateValue: true
       - key: ADMINIUM_DATA_DIR
         value: /data
+    # The disk is also where files land: uploads, record attachments, export
+    # artifacts, the branding logo and imported schema files are written under
+    # /data/files, with nothing to configure. 1 GB is a starting size, not a
+    # ceiling — raise sizeGB, or send the bytes elsewhere by setting
+    # ADMINIUM_STORAGE_URL to an S3-compatible bucket or a WebDAV server when
+    # the disk is no longer the right home for them.
     disk:
       name: adminium-data
       mountPath: /data

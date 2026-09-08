@@ -42,7 +42,7 @@ import {
   UnauthorizedError,
   ValidationFailedError,
 } from '../../errors.js';
-import type { FileStorage } from '../../files/storage.js';
+import type { ByteLocation, FileStore } from '../../files/store.js';
 import { IMPORT_RUN_KIND } from '../../jobs/import-run.js';
 import {
   REPORT_ISSUE_CAP,
@@ -70,7 +70,7 @@ export const UPLOAD_BODY_LIMIT = 32 * 1024 * 1024;
 export interface ImportsRoutesDeps {
   meta: MetaDb;
   manager: ConnectionManager;
-  storage: FileStorage;
+  storage: FileStore;
   /** `app.jobs.enqueue` in compose; a jobsRepo-backed stub in tests. */
   enqueue: (input: EnqueueJobInput) => Promise<Job>;
 }
@@ -165,8 +165,8 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
     throw new NotFoundError(`Import ${row.id} not found.`);
   }
 
-  async function readStoredCsv(storageKey: string): Promise<string> {
-    const stream = await storage.read(storageKey);
+  async function readStoredCsv(file: ByteLocation): Promise<string> {
+    const stream = await storage.read(file);
     stream.setEncoding('utf8');
     let text = '';
     for await (const chunk of stream) text += chunk as string;
@@ -202,7 +202,13 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           .filter((record) => !(record.length === 1 && record[0]?.trim() === ''));
 
         const fileId = newId('file');
-        const written = await storage.write(fileId, body);
+        const written = await storage.write({
+          id: fileId,
+          kind: 'import',
+          filename: request.query.filename,
+          mime: 'text/csv; charset=utf-8',
+          bytes: body,
+        });
         const file = await files.create({
           id: fileId,
           filename: request.query.filename,
@@ -211,6 +217,12 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
           sha256: written.sha256,
           kind: 'import',
           uploadedBy: userId,
+          // Wave 0024: where the bytes actually landed. With no destination
+          // configured these are `null` / `'local'` / the id — exactly the row
+          // this call wrote before the wave.
+          storageKey: written.storageKey,
+          destinationId: written.destinationId,
+          storage: written.storage,
         });
         await app.rbac.audit(request, {
           category: 'data',
@@ -291,7 +303,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
         }
 
         // --- VALIDATE stage (§11.1): parse + coerce, collect per-row issues ----
-        const rows = parseCsv(await readStoredCsv(upload.storageKey));
+        const rows = parseCsv(await readStoredCsv(upload));
         const header = rows[0];
         if (header === undefined) throw new ValidationFailedError('The file is empty.', {});
         const report = validateRows(rows.slice(1), header, mapping, view, table);
@@ -393,7 +405,7 @@ export function importsRoutes(deps: ImportsRoutesDeps): FastifyPluginAsyncZod {
         if (file === null || file.deletedAt !== null) {
           throw new NotFoundError('The error report is no longer stored.');
         }
-        const stream = await storage.read(file.storageKey);
+        const stream = await storage.read(file);
         const safeName = file.filename.replaceAll(/["\\\r\n]/g, '_');
         return reply
           .header('content-type', file.mime)

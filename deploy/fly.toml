@@ -21,6 +21,20 @@ primary_region = "iad"
 [env]
   ADMINIUM_DATA_DIR = "/data"
 
+# Uploads, record attachments, export artifacts, the branding logo and imported
+# schema files land under /data/files on this volume, with nothing to configure.
+# Know what that buys you: a Fly volume is attached to ONE machine in ONE region
+# and is not replicated, so it is durable for the single-machine app this file
+# describes (min_machines_running = 1) and no further. Scale to a second machine
+# and each one has its own separate volume and its own separate files.
+#
+# For anything beyond that, `fly storage create` provisions a Tigris bucket and
+# writes AWS_ENDPOINT_URL_S3, AWS_REGION, BUCKET_NAME, AWS_ACCESS_KEY_ID and
+# AWS_SECRET_ACCESS_KEY into the app's secrets. Adminium's first-boot storage
+# seed (apps/server/src/config/storage-seed.ts) reads exactly those five when
+# ADMINIUM_STORAGE_URL is unset, so no further configuration is needed. They are
+# also the only AWS_* variables Adminium reads anywhere: nothing else in the
+# server picks up ambient AWS credentials.
 [[mounts]]
   source = "adminium_data"
   destination = "/data"

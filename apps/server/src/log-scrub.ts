@@ -47,6 +47,13 @@ export const SENSITIVE_QUERY_PARAMS: readonly string[] = [
   'token',
   'challengeToken',
   'apiKey',
+  // 37 §3.12 — `ADMINIUM_STORAGE_URL` carries the bucket credential IN ITS
+  // QUERY STRING (`s3://bucket?endpoint=…&accessKey=AK&secretKey=SK`), and the
+  // docs' own per-host recipes tell operators to write exactly that. These are
+  // the param names those recipes use, so a log line that echoes the seed URL
+  // is scrubbed rather than printing the key that opens the bucket.
+  'accessKey',
+  'secretKey',
 ];
 
 const SENSITIVE_LOWER = new Set(SENSITIVE_QUERY_PARAMS.map((name) => name.toLowerCase()));

@@ -40,7 +40,9 @@ import {
   guardPreMigration,
   snapshotFailureRefusal,
 } from '../../backup/pre-migration.js';
+import { seedStorageDestination } from '../../config/storage-seed.js';
 import { seedSourceConnection } from '../../connections/seed.js';
+import { storageCryptoFromSecret } from '../../files/crypto.js';
 import { embeddedMetaWarning } from '../../meta/store.js';
 import { numberFlag, parseFlags, stringFlag } from '../args.js';
 import type { Command } from '../command.js';
@@ -169,8 +171,31 @@ export const startCommand: Command = {
     // Not inside the `--skip-migrate` branch. That flag means "do not touch the
     // schema", not "ignore my configuration" — and on an already-migrated store,
     // which is the only kind that flag is used against, the seed is exactly as
-    // valid as it is on any other boot. It fails soft if the store really is
-    // unmigrated.
+    // valid as it is on any other boot. Both seeds fail soft if the store really
+    // is unmigrated — each wraps its own body in a catch-all, because this is a
+    // container's PID 1 and neither seed is worth a crash loop.
+    //
+    // Storage BEFORE the source seed, because the source seed generates pages
+    // and a generation run can write files: a destination configured for this
+    // boot must already be the default when the first artifact of the boot is
+    // written, or that artifact lands on a disk the operator was told not to
+    // rely on (37-files-and-storage.md D15). `composeServer` seeds storage as
+    // well, for every boot path that is not this one — but on THIS path it runs
+    // below, inside `relocationHost.start` → `startServer`, long after the
+    // source seed has already generated. That ordering is the whole reason this
+    // call site stays. The seed is idempotent, so the two do not fight.
+    await seedStorageDestination({
+      meta: runtime.metaStore.meta,
+      crypto: storageCryptoFromSecret(env.ADMINIUM_SECRET),
+      env,
+      log: (message) => {
+        io.out(message);
+      },
+      warn: (message) => {
+        io.err(message);
+      },
+    });
+
     if (env.ADMINIUM_SOURCE_URL !== undefined) {
       await seedSourceConnection({
         manager: runtime.manager,

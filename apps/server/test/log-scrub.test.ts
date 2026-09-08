@@ -24,6 +24,18 @@ describe('scrubUrlForLog', () => {
     );
   });
 
+  it('redacts the storage seed URL\u2019s bucket credential (37 \u00a76 item 10)', () => {
+    // NAMED for the same reason as the redaction test's S3 case: the loop below
+    // cannot fail on a name that is in the list. `ADMINIUM_STORAGE_URL` carries
+    // the credential in its QUERY STRING and the docs' per-host recipes tell
+    // operators to write exactly this, so any log line echoing it is a leak.
+    const url = `/x?endpoint=https%3A%2F%2Fnyc3.digitaloceanspaces.com&accessKey=${TOKEN}&secretKey=${TOKEN}&pathStyle=0`;
+    const out = scrubUrlForLog(url);
+    expect(out).not.toContain(TOKEN);
+    expect(out).toContain('pathStyle=0');
+    expect(out).toContain('nyc3.digitaloceanspaces.com');
+  });
+
   it('redacts every declared parameter, whatever the caller capitalized', () => {
     for (const name of SENSITIVE_QUERY_PARAMS) {
       expect(scrubUrlForLog(`/x?${name}=${TOKEN}`)).toBe(`/x?${name}=${REDACTED}`);

@@ -92,12 +92,12 @@ unreachable.
 
 ## Backups
 
-Two things to back up, and they are not the same thing:
+Three things to back up, and they are not the same thing:
 
 | | What | How |
 |---|---|---|
 | **The meta store** | Users, roles, connections, page config, audit | Your database's normal backup |
-| **The data directory** | Files, exports — and the embedded meta store, if you use it | Filesystem backup of `ADMINIUM_DATA_DIR` |
+| **The data directory** | Files stored on this server's disk, exports — and the embedded meta store, if you use it | Filesystem backup of `ADMINIUM_DATA_DIR` |
 | **`ADMINIUM_SECRET`** | The key to everything encrypted in the meta store | Your secret manager |
 
 A meta-store backup without the secret is unreadable. Back them up together, and
@@ -106,6 +106,28 @@ test the restore.
 `adminium export-zip` is **not** a backup — it is a config bundle, and it is not
 a substitute for a database backup. See
 [Export & restore](/self-hosting/export-zip/).
+
+### What a backup does not cover
+
+With no storage destination configured, every file is on this server's own disk
+under `ADMINIUM_DATA_DIR/files`, and the data-directory row above covers it.
+Once you set `ADMINIUM_STORAGE_URL` — or add a destination in Studio — every
+*new* upload, record attachment, export artifact, branding logo and imported
+schema file goes to that bucket or that server instead (what was already written
+stays where it is until you move it), and **a filesystem backup of the data
+directory will not contain them.** Neither will the desktop app's
+[backup archive](/desktop/backups/), which carries the meta store, your local
+SQLite databases and a redacted copy of the desktop config — and no file bytes
+at all, wherever they are stored.
+
+Those bytes are the bucket's or the server's own responsibility: object
+versioning, lifecycle rules, snapshots, whatever that storage already gives you.
+Adminium does not copy them anywhere on your behalf and does not pretend to.
+
+What survives either way is the *record* of them. Every file's row in the meta
+store carries its name, size, SHA-256, which destination it lives on and which
+record it is attached to, so a restore can say exactly what is missing rather
+than losing the reference along with the bytes.
 
 ## Telemetry is off
 

@@ -40,13 +40,20 @@ Adminium is a long-running server with a durable meta store, so it runs on any h
 that gives it a process plus a disk (or a managed database). Ready-made configs live
 in [`deploy/`](deploy/):
 
-| Host | Meta store | Config |
-|------|-----------|--------|
-| Docker / Compose · any VPS | SQLite volume, or external Postgres/MySQL | [`docker-compose.yml`](docker-compose.yml) |
-| Render | SQLite on a disk | [`deploy/render.yaml`](deploy/render.yaml) |
-| Fly.io | SQLite on a volume | [`deploy/fly.toml`](deploy/fly.toml) |
-| DigitalOcean App Platform | managed Postgres | [`deploy/do-app.yaml`](deploy/do-app.yaml) |
-| Railway · Elestio · PikaPods | managed | see [`deploy/README.md`](deploy/README.md) |
+| Host | Meta store | Files | Config |
+|------|-----------|-------|--------|
+| Docker / Compose · any VPS | SQLite volume, or external Postgres/MySQL | the data volume | [`docker-compose.yml`](docker-compose.yml) |
+| Render | SQLite on a disk | the disk | [`deploy/render.yaml`](deploy/render.yaml) |
+| Fly.io | SQLite on a volume | the volume, or Tigris via `fly storage create` | [`deploy/fly.toml`](deploy/fly.toml) |
+| DigitalOcean App Platform | managed Postgres | **a storage destination is required** — no local disk | [`deploy/do-app.yaml`](deploy/do-app.yaml) |
+| Railway · Elestio · PikaPods | managed | the volume, or a bucket | see [`deploy/README.md`](deploy/README.md) |
+
+*Files* means uploads, record attachments, export artifacts and the branding
+logo. They go to `ADMINIUM_DATA_DIR/files` on the server's own disk unless
+`ADMINIUM_STORAGE_URL` sends them to an S3-compatible bucket or a WebDAV server,
+which is required on a host with no persistent disk and optional everywhere
+else. Backup archives are not among them — those are written straight to
+`ADMINIUM_DATA_DIR/backups` and never follow a destination.
 
 **Netlify and Vercel are not supported for the server** — they run
 functions/serverless, not a long-lived process with a durable meta store. "Host

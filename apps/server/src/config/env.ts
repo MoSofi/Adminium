@@ -91,6 +91,39 @@ export const envSchema = z.object({
    * wizard path, which is how every non-Docker install starts.
    */
   ADMINIUM_SOURCE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /**
+   * Where uploaded and generated FILES live, seeded once on a boot that has no
+   * storage destination configured (37-files-and-storage.md §3.11, D15).
+   *
+   *   s3://<bucket>[/<prefix>]?endpoint=&region=&accessKey=&secretKey=&pathStyle=1&publicBaseUrl=
+   *   webdav://<user>:<pass>@<host>[/<path>]?publicBaseUrl=
+   *   file:///abs/path
+   *
+   * Unset is the ordinary case and means this server's own disk
+   * (`<ADMINIUM_DATA_DIR>/files`) — which is right everywhere with a volume and
+   * wrong in exactly one place: a runtime with no persistent local disk, where
+   * every export, the branding logo and every uploaded file is lost on each
+   * redeploy. DigitalOcean App Platform is that place (`deploy/do-app.yaml`).
+   *
+   * The `ADMINIUM_SOURCE_URL` discipline applies: it runs ONCE, on an instance
+   * with no destination rows; it never overrides one somebody configured in
+   * Studio; and it logs what it did. A value that will not parse warns and lets
+   * the boot continue, because the Studio is where it gets fixed.
+   *
+   * Fly.io needs none of this: `fly storage create` writes the AWS quartet
+   * (`AWS_ENDPOINT_URL_S3`, `BUCKET_NAME`, `AWS_ACCESS_KEY_ID`,
+   * `AWS_SECRET_ACCESS_KEY`, plus `AWS_REGION`), which the same seed reads as a
+   * fallback. Those five are validated here so a typo is reported rather than
+   * silently ignored, and `config/storage-seed.ts` is the ONLY code in the
+   * server that reads them — an ambient credential picked up anywhere else
+   * would be a surprise, not a feature.
+   */
+  ADMINIUM_STORAGE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AWS_ENDPOINT_URL_S3: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AWS_REGION: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  BUCKET_NAME: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AWS_ACCESS_KEY_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AWS_SECRET_ACCESS_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_META_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   ADMINIUM_DATA_DIR: z.preprocess(emptyToUndefined, z.string().default('./data')),
   ADMINIUM_LOG_LEVEL: z.preprocess(emptyToUndefined, z.enum(LOG_LEVELS).default('info')),
@@ -417,6 +450,13 @@ const ENV_HINTS: Record<string, string> = {
   ADMINIUM_META_URL: 'optional meta-store DSN: postgres://, mysql://, or sqlite:<path>',
   ADMINIUM_DATA_DIR:
     'writable directory for files, exports, backups, and add-on packages (default ./data)',
+  ADMINIUM_STORAGE_URL:
+    'optional first-boot storage destination: s3://<bucket>?endpoint=&region=&accessKey=&secretKey=, webdav://<user>:<pass>@<host>/<path>, or file:///abs/path',
+  AWS_ENDPOINT_URL_S3: 'S3-compatible endpoint (set by `fly storage create`; read only by the first-boot storage seed)',
+  AWS_REGION: 'region for the AWS storage variables (default auto)',
+  BUCKET_NAME: 'bucket for the AWS storage variables',
+  AWS_ACCESS_KEY_ID: 'access key for the AWS storage variables',
+  AWS_SECRET_ACCESS_KEY: 'secret key for the AWS storage variables',
   ADMINIUM_LOG_LEVEL: `one of ${LOG_LEVELS.join(', ')} (default info)`,
   ADMINIUM_STATIC_ROOT:
     'directory holding a dashboard build (its index.html) — overrides the bundled copy',

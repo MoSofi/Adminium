@@ -5,13 +5,13 @@ One-click / managed-platform deploy configs for the published Adminium image
 `docker-compose.yml`) remains the reference deployment; these adapt it to hosts
 that provision and bill the infrastructure for you.
 
-| File | Platform | Meta store | `ADMINIUM_SECRET` |
-|------|----------|-----------|-------------------|
-| [`render.yaml`](render.yaml) | Render | SQLite on a 1 GB disk | generated once (`generateValue`) |
-| [`fly.toml`](fly.toml) | Fly.io | SQLite on a volume | `fly secrets set` (one-time) |
-| [`do-app.yaml`](do-app.yaml) | DigitalOcean App Platform | managed Postgres (no local disk) | app-level secret (one-time) |
+| File | Platform | Meta store | Files | `ADMINIUM_SECRET` |
+|------|----------|-----------|-------|-------------------|
+| [`render.yaml`](render.yaml) | Render | SQLite on a 1 GB disk | the disk | generated once (`generateValue`) |
+| [`fly.toml`](fly.toml) | Fly.io | SQLite on a volume | the volume (one machine, one region), or Tigris | `fly secrets set` (one-time) |
+| [`do-app.yaml`](do-app.yaml) | DigitalOcean App Platform | managed Postgres (no local disk) | **a destination is required** | app-level secret (one-time) |
 
-Two invariants hold on every platform:
+Three invariants hold on every platform:
 
 - **`ADMINIUM_SECRET` must be stable forever.** It derives the encryption key for
   every stored DSN and API key; change it and all stored secrets become
@@ -20,6 +20,18 @@ Two invariants hold on every platform:
 - **The meta store must be durable.** Platforms with a persistent disk keep the
   embedded SQLite store on the mounted volume; platforms without one (App
   Platform) wire `ADMINIUM_META_URL` to a managed Postgres/MySQL.
+- **Files need a durable home too, and it is a separate decision.** Uploads,
+  record attachments, export artifacts, the branding logo and imported schema
+  files all go through one storage seam, which writes to
+  `ADMINIUM_DATA_DIR/files` — this server's own disk — unless a destination is
+  configured. On a platform with a disk or a volume, that is the disk or the
+  volume, and there is nothing to set. **On App Platform there is no local disk,
+  so a destination is required**, and it has to exist before the first boot:
+  point `ADMINIUM_STORAGE_URL` at a DigitalOcean Space, any other S3-compatible
+  bucket, or a WebDAV server. Fly is the special case — `fly storage create`
+  provisions Tigris and writes the five secrets Adminium's first-boot seed
+  reads, so nothing else is needed there. Grammar and per-host recipes:
+  [environment variables](https://docs.adminium.dev/self-hosting/env-vars/).
 
 **Not supported — and why:** Netlify and Vercel run functions/serverless, not a
 long-lived process with a persistent meta store, so Adminium-the-server does not

@@ -59,6 +59,37 @@ describe('secrets do not survive the log at any depth', () => {
     expect(out).toContain('ops@example.com');
   });
 
+  it('redacts a storage destination\u2019s S3 credential (37 \u00a76 item 10)', () => {
+    // NAMED, not covered by the loop over SECRET_FIELD_NAMES_CANONICAL below:
+    // that loop passes the moment a name is in the list, so it cannot fail if
+    // these two are removed. The pair is named for the AWS SDK's own fields, so
+    // no earlier pattern reaches it — `secretAccessKey` is not `secret`, and
+    // the matcher is exact, not a substring.
+    const out = logged((log) => {
+      log.info(
+        {
+          destination: {
+            name: 'invoices',
+            driver: 's3',
+            config: { bucket: 'acme-invoices', region: 'nyc3' },
+            // NOT nested under a `secret` key. That parent is itself redacted,
+            // which would cover this subtree whatever these two fields were
+            // called and make the test vacuous — it was, in its first draft.
+            // A driver error, a `test` result and a job payload all carry the
+            // pair at their own level, which is the shape that leaked.
+            accessKeyId: SECRET,
+            secretAccessKey: SECRET,
+          },
+        },
+        'destination test failed',
+      );
+    });
+    expect(out).not.toContain(SECRET);
+    // …and the line is still worth having: what failed, and where.
+    expect(out).toContain('acme-invoices');
+    expect(out).toContain('nyc3');
+  });
+
   it('redacts the TOTP seed, recovery codes and a driver error carrying a DSN', () => {
     const out = logged((log) => {
       // otpauthUrl is a STRING containing the seed, so no key-name rule below it helps.

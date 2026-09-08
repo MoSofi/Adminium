@@ -8,6 +8,25 @@
 # must never also be imported as a source connection. Set it only if you have a
 # separate application database you want a back office for.
 #
+# THE MISSING DISK COSTS YOU FILES TOO, and that is a SECOND thing to set.
+# Uploads, record attachments, export artifacts, the branding logo and imported
+# schema files are all written through one storage seam (37-files-and-storage.md
+# §3.1), which defaults to ADMINIUM_DATA_DIR/files — a directory that does not
+# survive a redeploy here. A storage destination is therefore REQUIRED on App
+# Platform, not optional, and it must exist before the first boot. Create a
+# Space (and, if you want CDN URLs, enable its CDN), then add a second
+# encrypted app-level secret:
+#
+#   ADMINIUM_STORAGE_URL=s3://<space>?endpoint=https://<region>.digitaloceanspaces.com&region=<region>&pathStyle=0&accessKey=...&secretKey=...
+#
+# optionally with &publicBaseUrl=https://<space>.<region>.cdn.digitaloceanspaces.com
+# so a stored reference in your own table points at the CDN. It is read ONCE,
+# on a boot where no destination is configured, and ignored on every boot
+# after; a destination you later edit in Studio wins. It is deliberately absent
+# from `envs` below because its value carries a credential — set it in the App
+# Platform UI or with `doctl`, as an encrypted secret, exactly like
+# ADMINIUM_SECRET.
+#
 # App Platform declares the listening port with `http_port` and sets PORT to
 # match; Adminium honors PORT. ADMINIUM_SECRET must be set as an encrypted
 # app-level secret before the first deploy and kept stable (changing it makes

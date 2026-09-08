@@ -34,7 +34,18 @@ import {
 } from '@adminium/meta';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
-import { createFileStorage, type FileStorage } from '../src/files/storage.js';
+import { FILES_DIR } from '../src/files/drivers/local.js';
+import { type FileStore } from '../src/files/store.js';
+import { createTestFileStore } from './helpers/file-store.js';
+
+/**
+ * The implicit destination's root (37 D3). These assertions are the
+ * byte-identity proof: with no destination configured, a logo still lands at
+ * `<dataDir>/files/<file_ULID>` exactly as it did before wave 0024.
+ */
+function filesRoot(t: { dataDir: string }): string {
+  return join(t.dataDir, FILES_DIR);
+}
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { brandingRoutes, sniffLogo } from '../src/routes/branding/index.js';
 import { makeEnv } from './helpers.js';
@@ -49,7 +60,7 @@ const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 
 interface Harness {
   app: AdminiumServer;
   meta: MetaDb;
-  storage: FileStorage;
+  storage: FileStore;
   dataDir: string;
   superAdmin: User;
   admin: User;
@@ -81,7 +92,7 @@ async function buildHarness(): Promise<Harness> {
   const admin = await makeUser('Noah', 'admin');
 
   const dataDir = await mkdtemp(join(tmpdir(), 'adminium-branding-'));
-  const storage = createFileStorage({ dataDir });
+  const storage = createTestFileStore({ dataDir });
   const app = await buildServer({ env: makeEnv(), logger: false });
 
   app.addHook('onRequest', async (request) => {
@@ -190,7 +201,7 @@ describe('branding routes', () => {
     expect(res.statusCode).toBe(422);
     expect(res.json().error.code).toBe('VALIDATION_FAILED');
     expect(await settingsRepo(t.meta).get('branding.logoFileId')).toBeNull();
-    expect(await readdir(t.storage.root).catch(() => [])).toHaveLength(0);
+    expect(await readdir(filesRoot(t)).catch(() => [])).toHaveLength(0);
   });
 
   it('replacing a logo drops the previous bytes', async () => {
@@ -202,7 +213,7 @@ describe('branding routes', () => {
     expect(second).not.toBe(first);
 
     // One logo in, one logo on disk — a replaced mark is not left behind.
-    expect(await readdir(t.storage.root)).toEqual([second]);
+    expect(await readdir(filesRoot(t))).toEqual([second]);
   });
 
   it('DELETE returns to the built-in mark and leaves no dangling id', async () => {
@@ -215,7 +226,7 @@ describe('branding routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().data.logoUrl).toBeNull();
     expect(await settingsRepo(t.meta).get('branding.logoFileId')).toBeNull();
-    expect(await readdir(t.storage.root)).toHaveLength(0);
+    expect(await readdir(filesRoot(t))).toHaveLength(0);
 
     const missing = await t.app.inject({ method: 'GET', url: '/api/v1/branding/logo' });
     expect(missing.statusCode).toBe(404);

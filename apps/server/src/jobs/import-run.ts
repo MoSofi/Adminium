@@ -35,7 +35,7 @@ import type { ResolvedColumn, ResolvedTable, SnapshotView } from '../crud/identi
 import { coerceCell } from '../data-io/coerce.js';
 import { EXPORT_BOM, createCsvParser, serializeCsvRow } from '../data-io/csv.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
-import type { FileStorage } from '../files/storage.js';
+import type { FileStore } from '../files/store.js';
 import { widgetDataChannel, type RealtimeHub } from '../realtime/hub.js';
 import { JobCancelledError, type JobHandlerContext, type JobRegistry } from './registry.js';
 
@@ -52,7 +52,7 @@ export type ImportRunPayload = z.infer<typeof importRunPayloadSchema>;
 export interface ImportRunDeps {
   meta: MetaDb;
   manager: ConnectionManager;
-  storage: FileStorage;
+  storage: FileStore;
   /** Optional — table-channel fan-out when the hub is wired (compose). */
   hub?: RealtimeHub | undefined;
   now?: (() => number) | undefined;
@@ -160,7 +160,7 @@ async function runImport(
 
   // --- stream-parse the CSV ---------------------------------------------------
   const parser = createCsvParser();
-  const stream = await deps.storage.read(upload.storageKey);
+  const stream = await deps.storage.read(upload);
   stream.setEncoding('utf8');
 
   let header: string[] | null = null;
@@ -301,15 +301,25 @@ async function runImport(
     for (const issue of issues) {
       report += serializeCsvRow([issue.row, issue.column, issue.code, issue.message, issue.raw]);
     }
-    const written = await deps.storage.write(reportId, report);
+    const filename = `import-${row.id}-errors.csv`;
+    const written = await deps.storage.write({
+      id: reportId,
+      kind: 'import',
+      filename,
+      mime: 'text/csv; charset=utf-8',
+      bytes: report,
+    });
     await files.create({
       id: reportId,
-      filename: `import-${row.id}-errors.csv`,
+      filename,
       mime: 'text/csv; charset=utf-8',
       sizeBytes: written.sizeBytes,
       sha256: written.sha256,
       kind: 'import',
       uploadedBy: payload.userId ?? null,
+      storageKey: written.storageKey,
+      destinationId: written.destinationId,
+      storage: written.storage,
     });
     errorReportFileId = reportId;
   }

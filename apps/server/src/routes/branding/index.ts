@@ -28,7 +28,7 @@ import { filesRepo, newId, settingsRepo, type MetaDb } from '@adminium/meta';
 
 import { BRANDING_UPDATED, logoUrlFor, readBranding, resolveLogoFile } from '../../branding/service.js';
 import { NotFoundError, ValidationFailedError } from '../../errors.js';
-import type { FileStorage } from '../../files/storage.js';
+import type { FileStore } from '../../files/store.js';
 import { PERMISSIONS } from '../../rbac/permissions.js';
 import {
   LOGO_BODY_LIMIT,
@@ -42,7 +42,7 @@ import {
 
 export interface BrandingRoutesDeps {
   meta: MetaDb;
-  storage: FileStorage;
+  storage: FileStore;
 }
 
 /**
@@ -96,7 +96,7 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
       // Unlike an export artifact, a retired logo has no reader left the
       // moment the key stops pointing at it — so the bytes go now rather than
       // waiting for a GC pass to notice.
-      await storage.remove(current.storageKey);
+      await storage.remove(current);
       return true;
     }
 
@@ -112,7 +112,7 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
       const etag = `"${file.sha256}"`;
       if (request.headers['if-none-match'] === etag) return reply.status(304).send();
 
-      const stream = await storage.read(file.storageKey);
+      const stream = await storage.read(file);
       return reply
         .header('content-type', file.mime)
         .header('content-length', String(file.sizeBytes))
@@ -158,7 +158,13 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
         await clearCurrentLogo();
 
         const fileId = newId('file');
-        const written = await storage.write(fileId, body);
+        const written = await storage.write({
+          id: fileId,
+          kind: 'branding',
+          filename: request.query.filename,
+          mime,
+          bytes: body,
+        });
         await files.create(
           {
             id: fileId,
@@ -168,6 +174,12 @@ export function brandingRoutes(deps: BrandingRoutesDeps): FastifyPluginAsyncZod 
             sha256: written.sha256,
             kind: 'branding',
             uploadedBy: actingUserId(request),
+            // Wave 0024: a logo follows the default destination like every
+            // other kind (D18), which is what makes it survive a redeploy on a
+            // host with no persistent disk.
+            storageKey: written.storageKey,
+            destinationId: written.destinationId,
+            storage: written.storage,
           },
           at,
         );
