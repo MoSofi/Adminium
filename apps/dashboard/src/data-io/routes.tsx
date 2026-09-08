@@ -44,6 +44,14 @@ const DataExportsPageLazy = lazy(async () => {
   return { default: mod.DataExportsPage };
 });
 
+// The builder (41-export-builder.md) is the largest body under this factory —
+// three steps, a column browser and a preview — and it pulls the Studio's
+// column-spec composer with it. Deferred for the same reason as the wizard.
+const ExportBuilderPageLazy = lazy(async () => {
+  const mod = await import('./export-builder/ExportBuilderPage.js');
+  return { default: mod.ExportBuilderPage };
+});
+
 /** Same shape as `studio/routes.tsx`'s: the frame holds, the body fills in. */
 function CenteredSpinner() {
   return (
@@ -87,6 +95,19 @@ function ExportsRouteComponent() {
   );
 }
 
+// The title, subtitle and back arrow are published by the body itself: the
+// builder's header carries a "Based on …" chip the shell cannot know about
+// until the export row has loaded, and the two publications must not race.
+function ExportBuilderRouteComponent() {
+  return (
+    <PageSurface width="page" fill>
+      <Suspense fallback={<CenteredSpinner />}>
+        <ExportBuilderPageLazy />
+      </Suspense>
+    </PageSurface>
+  );
+}
+
 export function dataIoRoutes(parent: AnyRoute): AnyRoute[] {
   const importsRoute = createRoute({
     getParentRoute: () => parent,
@@ -100,7 +121,20 @@ export function dataIoRoutes(parent: AnyRoute): AnyRoute[] {
     component: ExportsRouteComponent,
   });
 
-  return [importsRoute, exportsRoute];
+  // `/exports/new?basedOn=<exportId>` — a static segment, so it wins over any
+  // `/exports/:id` a later route might add; the search param pre-fills every
+  // step from a finished export's stored definition (41 §4, "Based on").
+  const exportBuilderRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/exports/new',
+    validateSearch: (search: Record<string, unknown>): { basedOn?: string } =>
+      typeof search['basedOn'] === 'string' && search['basedOn'].length > 0
+        ? { basedOn: search['basedOn'] }
+        : {},
+    component: ExportBuilderRouteComponent,
+  });
+
+  return [importsRoute, exportsRoute, exportBuilderRoute];
 }
 
 // No re-export of the two page components. Nothing imported them from here —

@@ -12,12 +12,15 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Alert, Button, Select } from '@adminium/ui';
 import { ScheduledJobsList, type ScheduledJob } from '@adminium/widgets';
+import { Plus } from 'lucide-react';
 
 import { bootstrapQuery, flattenNav, type NavItem } from '../app/bootstrap.js';
 import { pageQuery } from '../api/pages.js';
 import { t } from '../i18n/t.js';
+import { PageActions } from '../shell/PageActionsProvider.js';
 import { dataIoApi, exportsListQuery, type ExportDto, type ExportFormat } from './api.js';
 
 function statusLine(row: ExportDto): string {
@@ -52,6 +55,7 @@ function toneOf(row: ExportDto): string {
 
 export function DataExportsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const boot = useQuery({ ...bootstrapQuery(), enabled: false });
   const exportsList = useQuery(exportsListQuery());
 
@@ -134,6 +138,13 @@ export function DataExportsPage() {
   return (
     // Gutter + column come from the route's `PageSurface` (data-io/routes.tsx).
     <div className="flex h-full min-h-0 flex-col gap-5">
+      {/* The comp's header primary (41-export-builder.md §3.9): the builder
+          is where a file is put together; this form stays as the quick path. */}
+      <PageActions>
+        <Button asChild size="topbar" iconLeft={<Plus />} data-testid="exports-new">
+          <Link to="/exports/new">{t('dataio.exports.new', 'New export')}</Link>
+        </Button>
+      </PageActions>
 
       {/* --- request form ------------------------------------------------------ */}
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
@@ -204,7 +215,11 @@ export function DataExportsPage() {
         emptyBody={t('dataio.exports.emptyBody', 'Request one above — artifacts appear here with their status.')}
         onSelect={(job) => {
           const row = (exportsList.data ?? []).find((entry) => entry.id === String(job.id));
-          if (row !== undefined && row.status === 'ready') download(row.id);
+          if (row === undefined) return;
+          if (row.status === 'ready') download(row.id);
+          // A failed row is the comp Data Exports' "Retry": the builder opens
+          // with every step pre-filled from the stored definition (41 D18).
+          if (row.status === 'failed') void navigate({ to: '/exports/new', search: { basedOn: row.id } });
         }}
         testId="exports-list"
       />

@@ -20,9 +20,17 @@ export const DrawerTrigger = DialogPrimitive.Trigger;
 /** Close wrapper for footer buttons (`asChild` supported). */
 export const DrawerClose = DialogPrimitive.Close;
 
+export type DrawerSide = 'end' | 'bottom';
+
 export interface DrawerProps extends ComponentPropsWithRef<typeof DialogPrimitive.Root> {
-  /** Inline size: sm 380 / md 480 / lg 640. */
+  /** Inline size: sm 380 / md 480 / lg 640. Ignored for a bottom sheet, which is full-width. */
   size?: DrawerSize | undefined;
+  /**
+   * Where the sheet comes from. `end` (default) is the side drawer; `bottom`
+   * is the phone-width sheet the Export Builder comp draws (41-export-builder.md
+   * D13): full width, 84vh tall at most, 20px top radius, sliding up.
+   */
+  side?: DrawerSide | undefined;
   /** Extra classes for the sheet panel. */
   className?: string | undefined;
   /** Extra classes for the scrim overlay. */
@@ -36,7 +44,14 @@ export interface DrawerProps extends ComponentPropsWithRef<typeof DialogPrimitiv
  * compose with `DrawerHeader` / `DrawerBody` / `DrawerFooter`
  * (research/design-system.md §3 Tier 3).
  */
-export function Drawer({ size = 'md', className, overlayClassName, children, ...rootProps }: DrawerProps) {
+export function Drawer({
+  size = 'md',
+  side = 'end',
+  className,
+  overlayClassName,
+  children,
+  ...rootProps
+}: DrawerProps) {
   // Triggers must stay outside the Portal (unmounted while closed) — same
   // pattern as Modal.
   const childArray = Children.toArray(children);
@@ -54,12 +69,21 @@ export function Drawer({ size = 'md', className, overlayClassName, children, ...
           )}
         />
         <DialogPrimitive.Content
+          data-side={side}
           className={cn(
-            'fixed inset-y-0 end-0 z-50 flex h-full max-w-[calc(100vw-32px)] flex-col',
-            'border-s border-border bg-surface shadow-modal outline-none',
-            // nb-slide translates from --nb-slide-from (24px); flip for RTL.
-            'animate-[nb-slide_.22s_cubic-bezier(.2,.7,.3,1)] rtl:[--nb-slide-from:-24px]',
-            drawerSizeClasses[size],
+            side === 'bottom'
+              ? [
+                  'fixed inset-x-0 bottom-0 z-50 flex max-h-[84vh] w-full flex-col',
+                  'rounded-t-[20px] border-t border-border bg-surface shadow-modal outline-none',
+                  'animate-[nb-sheetup_.24s_cubic-bezier(.2,.8,.2,1)]',
+                ]
+              : [
+                  'fixed inset-y-0 end-0 z-50 flex h-full max-w-[calc(100vw-32px)] flex-col',
+                  'border-s border-border bg-surface shadow-modal outline-none',
+                  // nb-slide translates from --nb-slide-from (24px); flip for RTL.
+                  'animate-[nb-slide_.22s_cubic-bezier(.2,.7,.3,1)] rtl:[--nb-slide-from:-24px]',
+                  drawerSizeClasses[size],
+                ],
             className,
           )}
         >

@@ -187,3 +187,10 @@
   }
   .nb-skel { animation: none !important; background: var(--surface-3) !important; }
 }
+
+/* A bottom sheet rising into place — the Export Builder comp's phone-width
+   column browser (41-export-builder.md D13). */
+@keyframes nb-sheetup {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}

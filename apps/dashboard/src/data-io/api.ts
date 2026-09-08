@@ -77,11 +77,86 @@ export interface ValidationReportDto {
 export type ExportFormat = 'csv' | 'json' | 'xlsx';
 export type ExportStatus = 'processing' | 'ready' | 'failed' | 'cancelled' | 'expired';
 
+/** One column of an export definition (41-export-builder.md D1) — mirrors meta's `exportColumnSchema`. */
+export interface ExportColumnDef {
+  name: string;
+  label: string;
+  lookup?: { path: string[]; select: string };
+  reverse?: { table: string; fkColumn: string; agg: 'count' };
+  derived?: { ref: string };
+}
+
+export interface ExportOptions {
+  headerRow?: boolean;
+  fileName?: string;
+}
+
 export interface ExportSource {
   kind: 'table' | 'view' | 'page';
   table?: string | null;
   viewId?: string | null;
   filters?: unknown[];
+  /** The builder's definition; absent on legacy rows. */
+  columns?: ExportColumnDef[];
+  /** A `CrudDerivedConfig` — measures and fields the columns refer to. */
+  derived?: unknown;
+  options?: ExportOptions;
+}
+
+// --- the builder's reads (41 §3.1) ---------------------------------------------
+
+export interface ExportSourcePage {
+  id: string;
+  title: string;
+  columns: number;
+  linked: number;
+  totals: number;
+}
+
+export interface ExportSourceTable {
+  id: string;
+  schema: string;
+  name: string;
+  label: string | null;
+  rowCountEstimate: number | null;
+  columnCount: number;
+  canExport: boolean;
+  usedBy: number;
+  pages: ExportSourcePage[];
+}
+
+export interface ExportSourcesDto {
+  connection: { id: string; name: string; dialect: string };
+  tables: ExportSourceTable[];
+}
+
+export interface ExportSavedViewDto {
+  id: string;
+  pageId: string;
+  pageTitle: string;
+  name: string;
+  filterCount: number;
+  filters: unknown[];
+  hasSearch: boolean;
+  rowCount: number | null;
+}
+
+export interface ExportPreviewColumn {
+  key: string;
+  header: string;
+  kind: 'base' | 'lookup' | 'count' | 'measure' | 'field';
+  numeric: boolean;
+  masked: boolean;
+}
+
+export interface ExportPreviewDto {
+  columns: ExportPreviewColumn[];
+  rows: string[][];
+  raw: string[];
+  rowCount: number | null;
+  rowCountKind: 'exact' | 'estimate' | 'unknown';
+  estimatedBytes: number | null;
+  sampleRows: number;
 }
 
 export interface ExportDto {
@@ -184,6 +259,27 @@ export const dataIoApi = {
 
   downloadHref: (id: string) => `/api/v1/exports/${encodeURIComponent(id)}/download`,
 
+  exportSources: async (connectionId: string) =>
+    (
+      await api.get<{ data: ExportSourcesDto }>(
+        `/api/v1/exports/sources?connectionId=${encodeURIComponent(connectionId)}`,
+      )
+    ).data,
+
+  exportViews: async (connectionId: string, table: string) =>
+    (
+      await api.get<{ data: { views: ExportSavedViewDto[] } }>(
+        `/api/v1/exports/views?connectionId=${encodeURIComponent(connectionId)}&table=${encodeURIComponent(table)}`,
+      )
+    ).data.views,
+
+  previewExport: async (input: {
+    connectionId: string;
+    source: ExportSource;
+    format: ExportFormat;
+    sampleRows?: number;
+  }) => (await api.post<{ data: ExportPreviewDto }>('/api/v1/exports/preview', input)).data,
+
   getJob: async (jobId: string): Promise<JobDto> =>
     (await api.get<{ data: JobDto }>(`/api/v1/jobs/${encodeURIComponent(jobId)}`)).data,
 };
@@ -197,6 +293,31 @@ export function exportsListQuery() {
     // Poll while anything is processing; realtime jobs:<id> events refine this.
     refetchInterval: (query) =>
       (query.state.data ?? []).some((row) => row.status === 'processing') ? 2_000 : false,
+  });
+}
+
+export function exportQuery(id: string | null) {
+  return queryOptions({
+    queryKey: ['data-io', 'export', id] as const,
+    queryFn: () => dataIoApi.getExport(id as string),
+    enabled: id !== null,
+    refetchInterval: (query) => (query.state.data?.status === 'processing' ? 1_000 : false),
+  });
+}
+
+export function exportSourcesQuery(connectionId: string | null) {
+  return queryOptions({
+    queryKey: ['data-io', 'export-sources', connectionId] as const,
+    queryFn: () => dataIoApi.exportSources(connectionId as string),
+    enabled: connectionId !== null,
+  });
+}
+
+export function exportViewsQuery(connectionId: string | null, table: string | null) {
+  return queryOptions({
+    queryKey: ['data-io', 'export-views', connectionId, table] as const,
+    queryFn: () => dataIoApi.exportViews(connectionId as string, table as string),
+    enabled: connectionId !== null && table !== null,
   });
 }
 

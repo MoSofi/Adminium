@@ -21,11 +21,29 @@ import { affected, packJson, readJson } from './util.js';
 export type ExportFormat = 'csv' | 'json' | 'xlsx';
 export type ExportStatus = 'processing' | 'ready' | 'failed' | 'cancelled' | 'expired';
 
+/** One column of an export definition (41-export-builder.md D1). */
+export interface ExportColumn {
+  name: string;
+  label: string;
+  lookup?: { path: string[]; select: string } | undefined;
+  reverse?: { table: string; fkColumn: string; agg: 'count' } | undefined;
+  derived?: { ref: string } | undefined;
+}
+
+export interface ExportOptions {
+  headerRow?: boolean | undefined;
+  fileName?: string | undefined;
+}
+
 export interface ExportSource {
   kind: 'table' | 'view' | 'page';
   table?: string | null | undefined;
   viewId?: string | null | undefined;
   filters?: unknown[] | undefined;
+  /** The builder's definition (41 D1); absent on legacy rows and scheduled reports. */
+  columns?: ExportColumn[] | undefined;
+  derived?: unknown;
+  options?: ExportOptions | undefined;
 }
 
 export interface DataExport {
