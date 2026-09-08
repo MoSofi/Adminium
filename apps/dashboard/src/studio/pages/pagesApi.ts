@@ -42,6 +42,21 @@ export type PageOrigin = 'generated' | 'user' | 'manifest' | 'system' | 'llm';
 export interface PageSummaryDto {
   id: string;
   connectionId: string | null;
+  /**
+   * Display name of the owning connection, resolved server-side. Null both for
+   * a page with no data source and for one whose connection has since been
+   * deleted — `connectionId` tells the two apart, and the chip in the manager
+   * reads it that way ("Shared" vs. an unnamed source).
+   */
+  connectionName: string | null;
+  /**
+   * Whether an operator has PAUSED the owning connection. A paused source
+   * serves nothing and `buildNavTree` drops all of its pages out of the nav, so
+   * this outranks `isEnabled` everywhere a status is shown — an `isEnabled`
+   * page on a paused connection is off, not live. False when there is no
+   * connection to pause.
+   */
+  connectionPaused: boolean;
   slug: string;
   /** Page-template id (`page-crud`, `page-dashboard`, …). */
   type: string;

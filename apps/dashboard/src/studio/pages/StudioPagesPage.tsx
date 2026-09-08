@@ -47,7 +47,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@adminium/ui';
-import { ChevronDown, ChevronUp, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Database, MoreHorizontal, Plus } from 'lucide-react';
 
 import { Link, useNavigate } from '@tanstack/react-router';
 
@@ -111,6 +111,47 @@ function originBadge(origin: string): { tone: 'neutral' | 'accent' | 'info'; lab
   }
 }
 
+/**
+ * Which data source a page belongs to.
+ *
+ * Both tabs list every connection's pages together — the inventory as one flat
+ * list, the organizer bucketed by nav group — so neither one answered "this
+ * Orders page, from which database?". The sidebar rail already solves exactly
+ * this (`shell/navSections.ts`: with 2+ sources it sub-labels items with a
+ * Database glyph and the connection's name); this is that label, chip-shaped,
+ * on the two screens that were missing it. Deliberately the SAME two strings —
+ * `nav.connection.*` from the common namespace, not new `studio:` keys — so the
+ * manager and the rail cannot drift into calling one source two things.
+ *
+ * The two null cases are not the same thing and must not render the same way:
+ * a null `connectionId` is a page with no data source at all (user, system or
+ * add-on) and reads "Shared", while a live id whose name did not resolve is a
+ * connection deleted out from under the page — showing that as "Shared" would
+ * hide the orphan on the one screen where you would go to find it.
+ */
+function ConnectionChip({ page }: { page: PageSummaryDto }) {
+  const shared = page.connectionId === null;
+  const label = shared
+    ? t('nav.connection.shared', 'Shared')
+    : (page.connectionName ?? t('nav.connection.unnamed', 'Connection'));
+  return (
+    <Badge
+      tone="neutral"
+      // Capped AND unshrinkable: the row's flexible child is the title link
+      // (`min-w-0 flex-1`), so it is the one that must give way. Left
+      // shrinkable, a chip whose siblings are all `whitespace-nowrap` gets
+      // squeezed past its own text instead. `title` keeps the full name
+      // reachable once the cap truncates it.
+      className="max-w-[11rem] shrink-0"
+      title={label}
+      data-testid="studio-pages-connection"
+    >
+      <Database className="size-3 shrink-0" aria-hidden />
+      <span className="min-w-0 truncate">{label}</span>
+    </Badge>
+  );
+}
+
 /** The repo's non-inflecting `{arg}` substitution (works pre-i18n-init too). */
 function fmt(template: string, args: Record<string, string | number>): string {
   return template.replaceAll(/\{(\w+)\}/g, (match, name: string) =>
@@ -144,13 +185,35 @@ function PageRow({ page, onEdit, onDuplicate, onDelete, onToggle, busy }: PageRo
         <span className="text-body truncate text-fg">{page.title}</span>
         <span className="text-body-sm truncate font-mono text-fg-subtle">{`/p/${page.slug}`}</span>
       </Link>
+      <ConnectionChip page={page} />
       <Badge tone={badge.tone}>{badge.label}</Badge>
       <span className="text-body-sm hidden text-fg-subtle sm:inline">{page.type}</span>
-      <StatusPill status={page.isEnabled ? 'active' : 'disabled'}>
-        {page.isEnabled
-          ? t('studio:pages.status.live', 'Live')
-          : t('studio:pages.status.hidden', 'Hidden')}
-      </StatusPill>
+      {/*
+        A PAUSED source outranks the page's own visibility, exactly as it does
+        in `buildNavTree` (“the pause outranks the group: a paused page is not
+        hidden, it is off”). Its pages are dropped out of the nav entirely and
+        serve no data, so a green “Live” on one is not a nuance — it is wrong,
+        and it points the admin at the page when the fix is on the connection.
+        Same status key and wording the Connections hub uses, so one pause reads
+        the same on both screens.
+      */}
+      {page.connectionPaused ? (
+        <StatusPill
+          status="paused"
+          title={t(
+            'studio:hub.action.pausedHint',
+            'This connection is paused — resume it to reach the database.',
+          )}
+        >
+          {t('studio:hub.status.paused', 'Paused')}
+        </StatusPill>
+      ) : (
+        <StatusPill status={page.isEnabled ? 'active' : 'disabled'}>
+          {page.isEnabled
+            ? t('studio:pages.status.live', 'Live')
+            : t('studio:pages.status.hidden', 'Hidden')}
+        </StatusPill>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <IconButton
@@ -289,7 +352,13 @@ function SidebarOrganizer({ pages }: { pages: readonly PageSummaryDto[] }) {
                     className="flex items-center gap-2 border-b border-border px-4 py-2 last:border-b-0"
                   >
                     <span className="text-body min-w-0 flex-1 truncate text-fg">{page.title}</span>
-                    {!page.isEnabled ? (
+                    <ConnectionChip page={page} />
+                    {/* Same precedence as the inventory pill: a page whose
+                        source is paused is not in the rail at all, so ordering
+                        it here is ordering something nobody can see. */}
+                    {page.connectionPaused ? (
+                      <Badge tone="neutral">{t('studio:hub.status.paused', 'Paused')}</Badge>
+                    ) : !page.isEnabled ? (
                       <Badge tone="neutral">{t('studio:pages.status.hidden', 'Hidden')}</Badge>
                     ) : null}
                     <IconButton

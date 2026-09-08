@@ -40,6 +40,8 @@ afterEach(() => {
 const PAGE: PageSummaryDto = {
   id: 'page_orders',
   connectionId: 'conn_1',
+  connectionName: 'Production',
+  connectionPaused: false,
   slug: 'orders',
   type: 'page-crud',
   title: 'Orders',
