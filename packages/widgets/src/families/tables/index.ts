@@ -6,15 +6,18 @@
  * Registry metadata stays in `definitions.ts` (lazy chunk boundary, 04 §2.3).
  */
 export {
+  COLUMN_DISPLAY_KINDS,
   GRID_LOGICAL_TYPES,
   GRID_SEMANTICS,
   columnAlign,
+  columnDisplaySchema,
   compareCellValues,
   dateOnlyValue,
   displayValueOf,
   fkDisplayAliasOf,
   formatAbsoluteTime,
   formatCalendarDate,
+  formatDisplayValue,
   formatMoney,
   formatRelativeTime,
   gridColumnSpecSchema,
@@ -23,6 +26,8 @@ export {
   isTemporalColumn,
   maskedColumnsOf,
   rowIdOf,
+  type ColumnDisplay,
+  type ColumnDisplayKind,
   type GridColumnSpec,
   type GridColumnSpecInput,
   type GridLogicalType,
@@ -30,7 +35,7 @@ export {
   type GridSemantic,
   type GridTone,
 } from './column-spec.js';
-export { CellValue, MASKED_PLACEHOLDER, cellAlignClass, type CellContext } from './cells.js';
+export { CellValue, MASKED_PLACEHOLDER, cellAlignClass, type CellContext, type ResolvedFile } from './cells.js';
 export { DataGrid, type DataGridProps, type DataGridSort } from './DataGrid.js';
 export {
   PAGE_SIZE_OPTIONS,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useMaybeT } from '@adminium/i18n/react';
 import { Avatar, Badge, MonoText, StatusPill, type Tone } from '@adminium/ui';
-import { Check, Eye, EyeOff, X } from 'lucide-react';
+import { Check, Eye, EyeOff, Paperclip, X } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
@@ -10,12 +10,14 @@ import {
   dateOnlyValue,
   formatAbsoluteTime,
   formatCalendarDate,
+  formatDisplayValue,
   formatMoney,
   formatRelativeTime,
   maskedColumnsOf,
   uiToneOf,
 } from './column-spec.js';
 import type { GridColumnSpec, GridRow } from './column-spec.js';
+import { parseRefList } from '../../page-config/file-refs.js';
 import type { WidgetEvent } from '../../registry/types.js';
 
 /**
@@ -40,6 +42,29 @@ export interface CellContext {
   /** Unmask-toggle accessible labels (i18n). */
   revealLabel?: string | undefined;
   hideLabel?: string | undefined;
+  /**
+   * Resolved file references for this page of rows (37 §3.5, D14).
+   *
+   * The host batches one `POST /files/resolve` per fetched page and hands the
+   * answers down as a map keyed by the STORED VALUE — so a grid of fifty rows
+   * with a file column costs one request, not fifty. A value that is absent
+   * from the map, or maps to `null`, renders as today's plain link: it is a
+   * foreign URL, or a file this reader may not see, and both are the same
+   * thing from here.
+   */
+  files?: ReadonlyMap<string, ResolvedFile | null> | undefined;
+  /** Above this, an image column shows its chip instead of a preview (D24). */
+  thumbnailMaxBytes?: number | undefined;
+}
+
+/** What the host's resolve call hands back for one stored reference. */
+export interface ResolvedFile {
+  id: string;
+  filename: string;
+  mime: string;
+  sizeBytes: number;
+  /** Same-origin path. NEVER a destination's public URL — the CSP blocks it (D24). */
+  contentPath: string;
 }
 
 export const MASKED_PLACEHOLDER = '•••';
@@ -101,6 +126,9 @@ function FkChipCell({
   context: CellContext;
 }) {
   const fk = column.fk as NonNullable<GridColumnSpec['fk']>;
+  // The chip's monogram is ON unless the page turned it off — an absent flag
+  // is what every stored page has, and those must look as they did.
+  const avatar = column.avatar !== false;
   const displayRaw = fk.displayKey !== undefined ? row[fk.displayKey] : undefined;
   const display = displayRaw !== null && displayRaw !== undefined && String(displayRaw) !== ''
     ? String(displayRaw)
@@ -121,9 +149,13 @@ function FkChipCell({
         event.stopPropagation();
         open();
       }}
-      className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-full border border-border bg-surface pe-2 ps-0.5 text-caption font-semibold text-fg hover:border-border-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+      // `ps-0.5` exists to hug the avatar's round edge. With no avatar that
+      // start padding is a visible notch, so the chip pads evenly instead.
+      className={`inline-flex h-6 max-w-full items-center gap-1.5 rounded-full border border-border bg-surface pe-2 text-caption font-semibold text-fg hover:border-border-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+        avatar ? 'ps-0.5' : 'ps-2'
+      }`}
     >
-      <Avatar name={display} size="xs" />
+      {avatar ? <Avatar name={display} size="xs" /> : null}
       <span className="truncate">{display}</span>
     </button>
   );
@@ -135,11 +167,124 @@ function enumTone(column: GridColumnSpec, value: string): Tone | undefined {
 }
 
 /**
+ * One cell: the type-aware content, optionally behind a monogram.
+ *
+ * The avatar is a WRAPPER rather than another branch of the dispatch below,
+ * so it composes with whatever treatment the column already has — a name in
+ * plain text, a linked lookup, a badge — instead of replacing it. The FK chip
+ * is the one exception: it draws its own monogram inside the pill, where it
+ * belongs, so wrapping it too would give it two.
+ *
+ * Nothing to monogram means no monogram: a null, an empty string, or a value
+ * the reader is not being shown all render exactly as they did before, because
+ * the initials would be either meaningless or a leak of a masked value's shape.
+ */
+/** Human byte size for a chip. Deliberately not `Intl.NumberFormat` units:
+ * `notation: 'compact'` on bytes reads as "1.2K" where a person expects "1.2 KB",
+ * and the unit table below is four lines against a formatter that needs a
+ * locale-aware unit vocabulary this component does not have.
+ */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${String(bytes)} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 ? value.toFixed(1) : String(Math.round(value))} ${units[unit] ?? 'TB'}`;
+}
+
+const THUMBNAIL_MIMES: ReadonlySet<string> = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
+/**
+ * A resolved file in a grid cell: a thumbnail for a small raster image,
+ * otherwise a chip with the name and size (37 D14, D24).
+ *
+ * THE IMAGE IS THE ORIGINAL, rendered small. There is no server-side resizing
+ * (D39), so the size cap is what stops a 40 px box from downloading twelve
+ * megabytes — above it, the chip. And the `src` is always the SAME-ORIGIN
+ * content path, never a destination's `publicBaseUrl`: the dashboard's CSP is
+ * `default-src 'self'`, so a cross-origin `<img>` is blocked outright and
+ * widening `img-src` per destination would mean a per-request CSP.
+ */
+function FileCell({
+  column,
+  file,
+  context,
+}: {
+  column: GridColumnSpec;
+  file: ResolvedFile;
+  context: CellContext;
+}): ReactNode {
+  const t = useMaybeT();
+  const cap = context.thumbnailMaxBytes ?? 2_097_152;
+  const showsImage =
+    column.file?.inline === true && THUMBNAIL_MIMES.has(file.mime) && file.sizeBytes <= cap;
+
+  return (
+    <a
+      data-part="cell-file"
+      href={file.contentPath}
+      // Downloads and previews both leave this page; a row-open click must not
+      // also fire, the same reason the FK chip and the unmask toggle stop it.
+      onClick={(event) => event.stopPropagation()}
+      target="_blank"
+      rel="noreferrer"
+      title={`${file.filename} · ${formatBytes(file.sizeBytes)}`}
+      className="inline-flex min-w-0 items-center gap-1.5 font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+    >
+      {showsImage ? (
+        <img
+          src={`${file.contentPath}?inline=1`}
+          alt=""
+          loading="lazy"
+          className="size-10 shrink-0 rounded border border-border object-cover"
+        />
+      ) : (
+        <Paperclip aria-hidden className="size-3.5 shrink-0 text-fg-muted" />
+      )}
+      <span className="truncate">{file.filename}</span>
+      <span data-part="cell-file-size" className="shrink-0 text-xs text-fg-subtle">
+        {formatBytes(file.sizeBytes)}
+      </span>
+      <span className="sr-only">{t?.('ui:widgets.tables.fileDownload', 'Download') ?? 'Download'}</span>
+    </a>
+  );
+}
+
+export function CellValue({
+  column,
+  row,
+  context = {},
+}: {
+  column: GridColumnSpec;
+  row: GridRow;
+  context?: CellContext | undefined;
+}): ReactNode {
+  const content = <CellContent column={column} row={row} context={context} />;
+  if (column.avatar !== true || column.fk !== undefined) return content;
+
+  const value = row[column.name];
+  const masked = column.pii === true || maskedColumnsOf(row).includes(column.name);
+  if (masked || value === null || value === undefined || String(value).trim() === '') {
+    return content;
+  }
+  return (
+    <span data-part="cell-avatar" className="inline-flex min-w-0 items-center gap-1.5">
+      <Avatar name={String(value)} size="xs" />
+      {content}
+    </span>
+  );
+}
+
+/**
  * Render one cell's content for a column spec. Pure dispatch on
  * `semantic`/`logicalType`; interactive treatments (FK chip, unmask toggle)
  * stop propagation so row-open clicks stay intact.
  */
-export function CellValue({
+function CellContent({
   column,
   row,
   context = {},
@@ -157,6 +302,30 @@ export function CellValue({
     return <MaskedCell value={value} revealable={context.canUnmask === true} context={context} />;
   }
   if (value === null || value === undefined) return EMPTY_CELL;
+
+  /*
+   * An explicit `display` block wins over the semantic chain below, and it has
+   * to be tested BEFORE it because a derived value has no useful `semantic` or
+   * `logicalType` — a computed invoice total would otherwise fall all the way
+   * through to the plain mono-string branch and render `1367.28` unformatted
+   * (36-derived-columns.md D8).
+   *
+   * Opt-in by construction: absent on every generated page, so a page that
+   * does not carry one renders exactly what it rendered before.
+   */
+  if (column.display !== undefined) {
+    return (
+      <MonoText
+        data-part="cell-display"
+        className={column.display.kind === 'currency' ? 'truncate font-semibold' : 'truncate'}
+      >
+        {formatDisplayValue(value, column.display, {
+          locale: context.locale,
+          currency: context.currency ?? column.currency,
+        })}
+      </MonoText>
+    );
+  }
 
   /* Every text-shaped cell truncates. The grid cell is a flex container, so its
      children are blockified and `truncate` bites — but only the plain-string and
@@ -219,6 +388,55 @@ export function CellValue({
   if (column.semantic === 'email') {
     return <MonoText data-part="cell-email" className="truncate">{String(value)}</MonoText>;
   }
+  // 37 D14: a `file` block, and a value this page's resolve call recognised.
+  // Everything else about this column keeps rendering exactly as it did — an
+  // unresolved value falls through to the link branch below, which is what a
+  // foreign URL in a file column should look like.
+  if (column.file !== undefined && value !== null && value !== undefined && String(value).trim() !== '') {
+    if (column.file.multiple === true) {
+      /*
+       * A LIST column (38 D20): the first file's chip, plus a count of the
+       * rest. A row is one line high, so showing every chip would either wrap
+       * the row or truncate to the same thing this says explicitly.
+       *
+       * Falls through to the link branch when NOTHING in the list resolved,
+       * which is the same rule the single-value branch follows: a column full
+       * of foreign links renders as it did before the block existed.
+       */
+      const refs = parseRefList(value);
+      const resolvedRefs = refs
+        .map((ref) => context.files?.get(ref))
+        .filter((file): file is ResolvedFile => file !== undefined && file !== null);
+      const first = resolvedRefs[0];
+      if (first !== undefined) {
+        return (
+          <span data-part="cell-file-list" className="inline-flex min-w-0 items-center gap-1.5">
+            <FileCell column={column} file={first} context={context} />
+            {refs.length > 1 ? (
+              <span
+                data-part="cell-file-more"
+                className="shrink-0 rounded bg-surface-3 px-1.5 py-0.5 text-xs text-fg-muted"
+                // The names of what the badge is counting, so the row does not
+                // have to be opened to find out.
+                title={resolvedRefs
+                  .slice(1)
+                  .map((file) => file.filename)
+                  .join(', ')}
+              >
+                {`+${String(refs.length - 1)}`}
+              </span>
+            ) : null}
+          </span>
+        );
+      }
+    } else {
+      const resolved = context.files?.get(String(value));
+      if (resolved !== undefined && resolved !== null) {
+        return <FileCell column={column} file={resolved} context={context} />;
+      }
+    }
+  }
+
   if (column.semantic === 'url' || column.semantic === 'image-url') {
     return (
       <a

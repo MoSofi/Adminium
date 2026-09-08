@@ -119,6 +119,15 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Edit your schema',
+              items: [
+                {
+                  label: 'Editing your schema',
+                  link: '/guides/schema/editing-your-schema/',
+                },
+              ],
+            },
+            {
               label: 'Import a schema file',
               items: [
                 { label: 'Overview', link: '/guides/schema-import/' },
@@ -130,6 +139,23 @@ export default defineConfig({
                 { label: 'Rails', link: '/guides/schema-import/rails/' },
                 { label: 'Django', link: '/guides/schema-import/django/' },
                 { label: 'JSON (the IR)', link: '/guides/schema-import/json-ir/' },
+              ],
+            },
+            {
+              label: 'Files',
+              items: [
+                { label: 'Attaching files to records', link: '/guides/files/' },
+                {
+                  label: 'Where your files are stored',
+                  link: '/guides/files/storage-destinations/',
+                },
+              ],
+            },
+            {
+              label: 'Email',
+              items: [
+                { label: 'Email templates', link: '/guides/email/' },
+                { label: 'Campaigns', link: '/guides/email/campaigns/' },
               ],
             },
             {

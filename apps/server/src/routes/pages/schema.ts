@@ -40,6 +40,28 @@ export const pageTemplateId = z.enum(PAGE_TEMPLATE_IDS as unknown as [string, ..
 export const pageSummary = z.object({
   id: z.string(),
   connectionId: z.string().nullable(),
+  /**
+   * Display name of the owning connection, resolved by the route — the manager
+   * lists every source's pages in one flat list, so the id alone leaves "which
+   * database is this Orders page from?" unanswerable. Null when the page has no
+   * data source (a user/system/add-on page), and also when the id no longer
+   * resolves, which the client renders as an unnamed source rather than as
+   * "shared". Denormalized here rather than fetched client-side because
+   * `GET /connections` rides `CONNECTIONS_MANAGE`, a permission a page manager
+   * need not hold — the name would 403 for exactly the admin who is allowed on
+   * this screen. Same annotation the bootstrap nav tree does for the sidebar.
+   */
+  connectionName: z.string().nullable(),
+  /**
+   * Whether the owning connection is PAUSED (`adminium_connections.disabledAt`).
+   *
+   * Not cosmetic, and not derivable from `isEnabled`: pausing a connection is
+   * what `buildNavTree` reads to drop every one of its pages out of the nav
+   * into the `pausedPages` bucket, so an `isEnabled: true` page on a paused
+   * source is reachable from nothing and serves no data — "Live" is a lie about
+   * it. False for a page with no data source, which has nothing to pause.
+   */
+  connectionPaused: z.boolean(),
   slug: z.string(),
   type: z.string(),
   title: z.string(),
@@ -170,6 +192,17 @@ export const pageReply = z.object({
   canCreate: z.boolean().optional(),
   canUpdate: z.boolean().optional(),
   canDelete: z.boolean().optional(),
+  /**
+   * Whether the caller may attach a file to a record of this table
+   * (37-files-and-storage.md D11, §3.5).
+   *
+   * Stated separately from `canUpdate` even though it resolves from the same
+   * grant, because the two diverge on a READ-ONLY source: the record cannot be
+   * edited there and a SIDECAR file still can be attached, which is the whole
+   * point of the sidecar mode. The panel reads this so it never offers a
+   * dropzone the server would refuse.
+   */
+  canAttach: z.boolean().optional(),
   /**
    * Whether the caller holds the PII unmask permission (crud/mask.ts
    * UNMASK_PERMISSION — the same check the data routes run before sending

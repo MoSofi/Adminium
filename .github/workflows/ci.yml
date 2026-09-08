@@ -55,6 +55,29 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # 37-T09: TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
+      # suite (apps/server/test/files-drivers.test.ts). It is the first
+      # non-database service this job runs, and it is the only place SigV4 is
+      # proved against a real S3 implementation rather than against AWS's
+      # published vectors — the vectors prove the signing math, MinIO proves
+      # interop with a target that actually verifies it.
+      #
+      # `bitnami/minio` rather than `minio/minio`: a GitHub service container
+      # cannot be given a command, and the upstream image needs `server /data`.
+      # This one starts from environment alone and creates the bucket for us.
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+          MINIO_DEFAULT_BUCKETS: adminium-test
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -101,6 +124,10 @@ jobs:
         env:
           TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306
           TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          # 37-T09. The grammar is `http://<key>:<secret>@<host>/<bucket>`; the
+          # suite prints "SKIPPED (TEST_S3_URL is not set)" by name when it is
+          # absent, so a leg that stops running says so instead of vanishing.
+          TEST_S3_URL: http://minioadmin:minioadmin@127.0.0.1:9000/adminium-test
           # The psql-driven harnesses (apps/server + adapter-postgres) shell out
           # to `psql -h 127.0.0.1` and authenticate from the ambient PG env.
           PGUSER: postgres
@@ -140,6 +167,25 @@ jobs:
       # Named separately so the failure says which list moved.
       - name: Check email block vocabulary
         run: pnpm run check-email-block-vocab
+
+      # 34-invoices-add-on.md §3.9 "Two vocabularies, three trees, one gate":
+      # the same shape as the email gate above, with one difference the header
+      # of scripts/check-invoice-block-vocab.mjs spells out — the renderer of
+      # the authored body lives in ANOTHER repository (the invoices add-on),
+      # so the 27 kinds cross the boundary as data and every copy is held
+      # equal to it. Named separately so the failure says which copy moved.
+      - name: Check invoice block vocabulary
+        run: pnpm run check-invoice-block-vocab
+
+      # 34-invoices-add-on.md D20 / O25 (34-T54): the arithmetic law is a COPY
+      # in each tree that computes money (the editor's ladder, the summary the
+      # server writes, the add-on's renderer), and each tree's test proves its
+      # copy against its own money-fixture.json — so the fixtures themselves
+      # must be byte-identical, or a tree whose table was edited alone goes
+      # green on a law the other trees no longer share. Named separately so
+      # the failure names the copy to overwrite.
+      - name: Check invoice money fixture
+        run: pnpm run check-invoice-money-fixture
 
       # 08-server-api.md §1.1: every /api/v1 route declares a zod schema, so the
       # OpenAPI document is DERIVED from the route tree rather than written by

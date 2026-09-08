@@ -111,6 +111,7 @@ function PageDocument({ pageId, slug, recordId }: { pageId: string; slug: string
       canCreate={result.canCreate}
       canUpdate={result.canUpdate}
       canDelete={result.canDelete}
+      canAttach={result.canAttach}
       canUnmask={result.canUnmask}
     />
   );
@@ -146,6 +147,7 @@ function TemplateMount({
   canCreate,
   canUpdate,
   canDelete,
+  canAttach,
   canUnmask,
 }: {
   page: PageEnvelope;
@@ -155,6 +157,7 @@ function TemplateMount({
   canCreate?: boolean | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
+  canAttach?: boolean | undefined;
   canUnmask?: boolean | undefined;
 }) {
   const [resolution, setResolution] = useState<TemplateResolution>({ phase: 'resolving' });
@@ -177,6 +180,14 @@ function TemplateMount({
   }, [effectiveTemplate]);
 
   const adapters = usePageAdapters(page, slug);
+
+  // The connection's display currency, resolved once here so every template
+  // gets it the same way and no binding has to know about the nav tree
+  // (36-derived-columns.md 36-T15). `useQuery` rather than the suspense form:
+  // this is a formatting nicety, and a page must render without it.
+  const { data: navBootstrap } = useQuery(bootstrapQuery());
+  const currency =
+    navBootstrap === undefined ? null : (findPageBySlug(navBootstrap, slug)?.currency ?? null);
 
   // The ONE gutter for `/p/<slug>` (02 §1.8): the template's default from
   // `surfaceDefaults`, overridden by the page's stored `padding` when an admin
@@ -236,7 +247,9 @@ function TemplateMount({
           canCreate={canCreate}
           canUpdate={canUpdate}
           canDelete={canDelete}
+          canAttach={canAttach}
           canUnmask={canUnmask}
+          {...(currency === null || currency === undefined ? {} : { currency })}
         />
       </PageSurface>
     </WidgetErrorBoundary>

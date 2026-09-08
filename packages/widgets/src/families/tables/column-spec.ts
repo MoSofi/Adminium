@@ -3,6 +3,7 @@ import { getFormatters, latnDataTag } from '@adminium/i18n';
 import type { Tone } from '@adminium/ui';
 
 import type {
+  ColumnDisplay,
   GridColumnSpec,
   GridLogicalType,
   GridRow,
@@ -21,11 +22,19 @@ import type {
  * here verbatim — this stays the `tables`-family import site.
  */
 export {
+  COLUMN_DISPLAY_KINDS,
+  COLUMN_FILE_REFS,
   GRID_LOGICAL_TYPES,
   GRID_SEMANTICS,
+  columnDisplaySchema,
+  columnFileSchema,
   fkDisplayAliasOf,
   gridColumnSpecSchema,
   gridLogicalTypeSchema,
+  type ColumnDisplay,
+  type ColumnDisplayKind,
+  type ColumnFile,
+  type ColumnFileRef,
   type GridColumnSpec,
   type GridColumnSpecInput,
   type GridLogicalType,
@@ -66,6 +75,11 @@ const TIME_TYPES: ReadonlySet<GridLogicalType> = new Set([
 
 /** Numeric column: numeric logical type or money/percent/score semantics. */
 export function isNumericColumn(column: GridColumnSpec): boolean {
+  // An explicit `display` block is the strongest statement there is about a
+  // column's kind — and a DERIVED column has no useful `logicalType` (it
+  // defaults to `text`) or `semantic` to fall back on, so without this a
+  // computed total would left-align and sort lexicographically.
+  if (column.display !== undefined) return true;
   if (NUMERIC_TYPES.has(column.logicalType)) return true;
   return column.semantic === 'money' || column.semantic === 'percent' || column.semantic === 'score';
 }
@@ -114,20 +128,114 @@ export function compareCellValues(column: GridColumnSpec, a: unknown, b: unknown
   return String(a).localeCompare(String(b));
 }
 
-/** Locale/currency formatting for money cells (Intl, config override wins). */
+/**
+ * What `Intl` will format exactly: a decimal string, with an optional sign and
+ * an optional exponent. Deliberately NOT `Number(v)`: Postgres and MySQL hand
+ * every decimal back as a string, and coercing one loses digits past 15
+ * significant figures — the difference between `$1,234,567,890,123,456,789.55`
+ * and `…800.00` (36-derived-columns.md D7).
+ */
+const DECIMAL_INPUT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+/**
+ * A cell value in the shape `Intl` can format losslessly, or `null` when it is
+ * not a number at all.
+ *
+ * A STRING passes through untouched — that is the whole change. Everything
+ * else keeps the coercion this function has always done, so a boolean or a
+ * `null` renders exactly what it rendered before.
+ */
+function numericInput(value: unknown): number | string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return DECIMAL_INPUT.test(trimmed) ? trimmed : null;
+  }
+  const amount = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+/** Whether a value has no fractional part — the absent-`decimals` default. */
+function isWholeInput(value: number | string): boolean {
+  return typeof value === 'number' ? Number.isInteger(value) : !/\.\d*[1-9]/.test(value);
+}
+
+/**
+ * Locale/currency formatting for money cells (Intl, config override wins).
+ *
+ * `decimals` is OPTIONAL and its absence keeps the historical behaviour
+ * exactly: fraction digits flip per value (`Number.isInteger(x) ? 0 : 2`),
+ * which is how one column renders `$1,234` directly above `$1,234.50`.
+ * `GroupedSummaryTable` calls this with `{locale}` only and must not move, so
+ * the flip stays the default rather than becoming a special case
+ * (36-derived-columns.md 36-T14). A column that wants a stable width says so.
+ */
 export function formatMoney(
   value: unknown,
-  options?: { locale?: string | undefined; currency?: string | undefined },
+  options?: {
+    locale?: string | undefined;
+    currency?: string | undefined;
+    decimals?: number | undefined;
+  },
 ): string {
-  const amount = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(amount)) return String(value ?? '');
+  const amount = numericInput(value);
+  if (amount === null) return String(value ?? '');
+  const decimals = options?.decimals;
   // Money is a mono grid cell → data context (latn digits) via the format layer.
   // `|| 'USD'` (not `??`) so a schema-valid empty currency code coalesces too —
   // `{ style: 'currency', currency: '' }` would otherwise throw a RangeError.
   return getFormatters(options?.locale ?? 'en-US').number(amount, {
     style: 'currency',
     currency: options?.currency || 'USD',
-    maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    ...(decimals === undefined
+      ? { maximumFractionDigits: isWholeInput(amount) ? 0 : 2 }
+      : { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),
+  });
+}
+
+/** Digits a `display` block shows when it does not say. */
+const DEFAULT_DISPLAY_DECIMALS = 2;
+
+/**
+ * Render one value through an explicit {@link ColumnDisplay} block — the
+ * opt-in override of the semantic chain (36-derived-columns.md D8).
+ *
+ * The percent branch is the reason `percentScale` is mandatory: `8` means 8%
+ * in a 0-100 `tax_rate` column and 800% in a 0-1 ratio column, and `Intl`'s
+ * `style: 'percent'` multiplies by 100. `'unit'` therefore formats the number
+ * and appends the sign; `'fraction'` hands it to Intl. Guessing either way is
+ * a 100x error on screen (D9).
+ */
+export function formatDisplayValue(
+  value: unknown,
+  display: ColumnDisplay,
+  options?: { locale?: string | undefined; currency?: string | undefined },
+): string {
+  const amount = numericInput(value);
+  if (amount === null) return String(value ?? '');
+  const locale = options?.locale ?? 'en-US';
+  const decimals = display.decimals ?? DEFAULT_DISPLAY_DECIMALS;
+  if (display.kind === 'currency') {
+    return formatMoney(amount, {
+      locale: options?.locale,
+      currency: display.currency ?? options?.currency,
+      decimals,
+    });
+  }
+  if (display.kind === 'percent') {
+    if (display.percentScale === 'fraction') {
+      return getFormatters(locale).percent(amount, { fractionDigits: decimals });
+    }
+    return `${getFormatters(locale).number(amount, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })}%`;
+  }
+  if (display.kind === 'integer') {
+    return getFormatters(locale).number(amount, { maximumFractionDigits: 0 });
+  }
+  return getFormatters(locale).number(amount, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   });
 }
 

@@ -44,7 +44,13 @@ import { up as up0018 } from './0018_connection_timezone_source.js';
 import { up as up0019 } from './0019_connection_disabled.js';
 import { up as up0020 } from './0020_manifests_add_on.js';
 import { up as up0021 } from './0021_add_on_credentials.js';
+import { up as up0023 } from './0023_schema_authoring.js';
 import { up as up0022 } from './0022_studio_namespace.js';
+import { up as up0024 } from './0024_file_destinations.js';
+import { up as up0025 } from './0025_schema_change_acknowledged_rows.js';
+import { up as up0026 } from './0026_email_documents.js';
+import { up as up0027 } from './0027_invoice_documents.js';
+import { up as up0028 } from './0028_automations_runtime.js';
 
 export interface MetaMigration {
   /** Basename, e.g. `0001_core_auth` — the ledger PK. */
@@ -75,4 +81,10 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0020_manifests_add_on', up: up0020 },
   { name: '0021_add_on_credentials', up: up0021 },
   { name: '0022_studio_namespace', up: up0022 },
+  { name: '0023_schema_authoring', up: up0023 },
+  { name: '0024_file_destinations', up: up0024 },
+  { name: '0025_schema_change_acknowledged_rows', up: up0025 },
+  { name: '0026_email_documents', up: up0026 },
+  { name: '0027_invoice_documents', up: up0027 },
+  { name: '0028_automations_runtime', up: up0028 },
 ];

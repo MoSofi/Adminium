@@ -24,6 +24,7 @@ export type FieldKind =
   | 'fk' // async avatar combobox
   | 'email'
   | 'url'
+  | 'file' // a `file` block on the column — upload, chip, replace (37 D14)
   | 'json';
 
 /** Enum arity at or below which the form renders a SegmentedControl (comp rule). */
@@ -32,15 +33,34 @@ export const SEGMENTED_MAX_ARITY = 4;
 const SERVER_MANAGED_SEMANTICS = new Set(['created-at', 'updated-at']);
 
 export function fieldKindFor(column: GridColumnSpec): FieldKind {
-  // Lookup columns are cross-table projections — there is nothing on this
-  // table to write, so they never appear in forms at all.
-  if (column.lookup !== undefined || column.reverse !== undefined) return 'hidden';
+  // Lookup, reverse-link and derived columns are all PROJECTIONS — computed
+  // server-side from other rows or from arithmetic, with nothing on this table
+  // to write — so they never appear in forms at all.
+  if (
+    column.lookup !== undefined ||
+    column.reverse !== undefined ||
+    column.derived !== undefined
+  ) {
+    return 'hidden';
+  }
   // Server-managed columns never render as inputs (09 §7.1 form keeper).
   if (column.primaryKey && column.hasDefault) return 'hidden';
   if (column.semantic !== null && SERVER_MANAGED_SEMANTICS.has(column.semantic)) return 'hidden';
   if (column.readOnly) return 'readonly';
 
   if (column.fk !== undefined) return 'fk';
+
+  // 37 D14: the `file` block is the ONLY trigger. Not the `file-ref` /
+  // `image-url` semantic tags, which are already on every generated page and
+  // already drive a bare `url` input — honouring the TAG would change how
+  // every stored page's form renders, including pages a person has edited.
+  // Generation seeds the block on new pages, so a freshly generated app gets
+  // upload affordances without anybody configuring one.
+  //
+  // Placed after `fk` and before the enum branch: a file column is text by
+  // definition (a `json` column is O5, a `binary` column stays a byte cell), so
+  // no earlier branch can legitimately claim it.
+  if (column.file !== undefined) return 'file';
 
   if (column.logicalType === 'enum' || (column.enumValues !== undefined && column.enumValues.length > 0)) {
     const arity = column.enumValues?.length ?? 0;

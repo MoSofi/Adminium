@@ -48,7 +48,29 @@ export const ID_PREFIXES = {
   exp: 'adminium_exports',
   imp: 'adminium_imports',
   file: 'adminium_files',
+  // 37-files-and-storage.md §3.2 — a configured place bytes may live. Its own
+  // space rather than riding `file`: a destination and a file are different
+  // objects with different lifetimes (a destination outlives every file it
+  // held, and a file outlives the destination it was moved off), and sharing
+  // an id space would make a stray id of either look valid as the other.
+  dest: 'adminium_storage_destinations',
   tpl: 'adminium_email_templates',
+  // 39-email-templates-and-campaigns.md §3.2. Two more spaces beside `tpl`
+  // rather than riding it: a saved block and a campaign run are addressable
+  // rows with lifetimes of their own (a block outlives every document it was
+  // pasted into; a run is deleted with its campaign), and sharing the
+  // template's id space would make a stray id of either look valid as a
+  // template.
+  ebk: 'adminium_email_blocks',
+  erun: 'adminium_email_runs',
+  // 34-invoices-add-on.md §3.9 — the AUTHORED invoice source (`/invoices`):
+  // what a person typed and can edit again, one row per template or invoice.
+  // Its own space rather than riding `tpl`: an invoice document and an email
+  // document are different objects with different lifetimes and editors, and
+  // sharing an id space would make a stray id of either look valid as the
+  // other. The render register (`adminium_documents`, 34 §3.3) is a later
+  // wave's table and gets its own prefix then.
+  inv: 'adminium_invoice_documents',
   wh: 'adminium_webhooks',
   whd: 'adminium_webhook_deliveries',
   flag: 'adminium_feature_flags',
@@ -65,6 +87,12 @@ export const ID_PREFIXES = {
   // 28-public-surface.md §3.3 — the public surface. `pbk` is deliberately not
   // `key`: a publishable key is never an RbacPrincipal (28 D3) and sharing an
   // id space with `adminium_api_keys` would blur exactly that boundary.
+  // 35-schema-authoring.md §3.5 — the applied-DDL ledger. Its own space rather
+  // than reusing `snap`: a schema CHANGE and a schema SNAPSHOT are different
+  // objects with different lifetimes (a change names the snapshot it started
+  // from and the one it produced), and sharing an id space would make a stray
+  // id of either look valid as the other.
+  sch: 'adminium_schema_changes',
   pbk: 'adminium_public_keys',
   psc: 'adminium_public_scopes',
   pss: 'adminium_public_sessions',

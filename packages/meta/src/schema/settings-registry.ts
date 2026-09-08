@@ -89,6 +89,23 @@ const smtpSchema = z
   })
   .nullable();
 
+/**
+ * One configured From address (39-email-templates-and-campaigns.md D7). A
+ * document's `brand.fromEmail` must be one of these or `email.smtp.from` —
+ * a relay refuses or spam-folders an arbitrary From (SPF/DKIM), so the choice
+ * is a list an operator curates, not a text field a template fills.
+ */
+const emailSenderSchema = z.object({
+  name: z.string().max(120),
+  address: z
+    .string()
+    .trim()
+    .min(3)
+    .max(320)
+    .refine((value) => value.includes('@'), 'must be an email address'),
+});
+export type EmailSender = z.infer<typeof emailSenderSchema>;
+
 const llmProviderSchema = z
   .enum(['anthropic', 'openai', 'openai-compatible', 'ollama', 'adminium-managed'])
   .nullable();
@@ -310,6 +327,17 @@ export const SETTINGS_REGISTRY = {
   ),
   'auth.passwordMinLength': def(z.number().int().min(8).max(128), 10, 'Minimum password length', P),
   'email.smtp': def<z.infer<typeof smtpSchema>>(smtpSchema, null, 'SMTP transport; email features degrade gracefully when unset', { secret: true, portable: true }),
+  // ── email documents (39-email-templates-and-campaigns.md D7, D8) ──────────
+  //
+  // `email.senders` is the From addresses a document may choose beyond
+  // `email.smtp.from` (which is always the implicit first entry). Portable:
+  // it is configuration the operator authored, not a secret and not identity.
+  'email.senders': def<EmailSender[]>(z.array(emailSenderSchema).max(50), [], 'Configured From addresses a document may send from (39 D7)', P),
+  // The cap on one message's attachments, enforced when a document is saved
+  // and re-checked when it is queued. 10 MiB is where most relays start
+  // refusing; the floor keeps a PDF possible and the ceiling stays under the
+  // 50 MiB the strictest common providers accept.
+  'email.maxAttachmentBytes': def(z.number().int().min(262_144).max(52_428_800), 10_485_760, 'Largest total attachment payload per message, in bytes (39 D8)', P),
   'llm.provider': def<z.infer<typeof llmProviderSchema>>(llmProviderSchema, null, 'LLM provider (06-llm-assist.md §3.1)', P),
   'llm.apiKey': def<string | null>(z.string().nullable(), null, 'LLM provider API key', { secret: true, portable: true }),
   'llm.model': def<string | null>(z.string().nullable(), null, 'LLM model override (null = provider default)', P),
@@ -322,6 +350,31 @@ export const SETTINGS_REGISTRY = {
   'retention.notificationsDays': def(z.number().int().min(1), 90, 'Read-notification retention in days', P),
   'retention.llmRunsDays': def(z.number().int().min(1), 90, 'Unapplied LLM run retention in days', P),
   'retention.jobsDays': def(z.number().int().min(1), 30, 'Finished job retention in days', P),
+  // ── files & storage (37-files-and-storage.md §3.2, D8, D12, D24) ──────────
+  //
+  // `files.maxBytes` default is 08 §2.10's 200 MiB figure, which is also the
+  // number the File Manager comp puts in front of the user. The hard ceiling is
+  // 2 GiB and is below S3's 5 GiB single-PUT limit by design (D26): one
+  // request, one spool, one PUT, no multipart.
+  'files.maxBytes': def(z.number().int().min(1024).max(2_147_483_648), 209_715_200, 'Largest single upload, in bytes', P),
+  // The SECURITY BOUNDARY, not a convenience list (D8). A type absent from
+  // here is refused whatever the file claims to be and whatever a column's
+  // `accept` allows — a column narrows this, it never widens it.
+  'files.allowedTypes': def(
+    z.array(z.string().min(1).max(20)),
+    ['pdf', 'png', 'jpeg', 'gif', 'webp', 'heic', 'svg', 'zip', 'office', 'mp4', 'mp3', 'wav', 'webm', 'ogg', 'csv', 'text', 'markdown', 'json'],
+    'File types accepted on upload (the sniffed type must be one of these)',
+    P,
+  ),
+  // An upload nobody attached is litter: the create form was abandoned, the
+  // tab was closed. 24 hours is long enough that a form left open over lunch
+  // still saves, and short enough that the litter does not accumulate.
+  'files.unattachedHours': def(z.number().int().min(1).max(720), 24, 'Hours an unattached upload is kept before it is moved to trash', P),
+  'retention.filesTrashDays': def(z.number().int().min(1).max(365), 30, 'Days a trashed file is kept before its bytes are deleted', P),
+  // Above this, a grid cell shows the chip rather than the image. There is no
+  // server-side resizing (D24/D39) — the thumbnail IS the original, rendered
+  // small — so the cap is what stops a 40 px box from downloading 12 MB.
+  'files.thumbnailMaxBytes': def(z.number().int().min(0).max(52_428_800), 2_097_152, 'Largest image rendered as a grid thumbnail, in bytes', P),
   'retention.auditArchive': def(z.boolean(), false, 'Archive audit batches to adminium_files before deleting', P),
   'telemetry.enabled': def(z.boolean(), false, 'Anonymous telemetry (opt-in)', P),
   // Separate from telemetry.enabled and likewise OFF by default: an update

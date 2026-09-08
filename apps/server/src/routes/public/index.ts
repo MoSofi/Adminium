@@ -25,7 +25,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import type { MetaDb } from '@adminium/meta';
+import type { MetaDb, RecordRef } from '@adminium/meta';
 import {
   auditRepo,
   overridesRepo,
@@ -46,7 +46,9 @@ import { SnapshotView } from '../../crud/identifiers.js';
 import { runList } from '../../crud/list.js';
 import { compileFilter, parseWhereParam } from '../../crud/filters.js';
 import { createPublicKeyResolver, type ResolvedKey } from '../../public-api/resolve.js';
-import { publicConfigOf, type CompiledResource } from '../../public-api/scope.js';
+import { publicConfigOf } from '../../public-api/scope.js';
+import { prepareValues } from '../../public-api/values.js';
+import { publishPublicWrite } from '../../public-api/publish.js';
 import {
   CLAIM_SESSION_TTL_MS,
   claimPredicateFor,
@@ -62,7 +64,8 @@ import { generatePublicSessionToken, hashPublishableKey } from '../../public-api
 // refactor with its own risk, and `check-deps` is the arbiter of whether this
 // import is allowed (it is — routes may share exported helpers).
 import { insertRow } from '../data/index.js';
-import { fetchByPk, parseRecordId } from '../../crud/records.js';
+import { fetchByPk, parseRecordId, pkLabel } from '../../crud/records.js';
+import { emitRecordEvent } from '../../crud/after-record-write.js';
 import { audited } from '../../audit/coverage.js';
 import {
   PUBLIC_ERROR_CODES,
@@ -475,45 +478,6 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     };
   };
 
-  /**
-   * Caller values → the row that will actually be written.
-   *
-   * Two rules, and the second is the one that is easy to get wrong. Only
-   * `writable` columns survive — anything else is a refusal, not a silent drop,
-   * because silently ignoring a field the caller sent produces a row that is
-   * not what they asked for and no way to tell. And `defaults` are applied
-   * AFTER, overwriting whatever arrived, which is what makes them immutable
-   * rather than merely suggested.
-   */
-  const prepareValues = (
-    resource: CompiledResource,
-    values: Record<string, unknown>,
-    session: PublicSessionContext | null,
-  ): Record<string, unknown> | null => {
-    for (const column of Object.keys(values)) {
-      if (!resource.writable.has(column)) return null;
-    }
-    const out: Record<string, unknown> = { ...values, ...resource.defaults };
-
-    /*
-     * THE CLAIM WRITES ITSELF IN.
-     *
-     * A claim-gated resource almost always owns its rows through a NOT NULL
-     * column — `enquiries.patient_id`, `orders.customer_id`. Without this, a
-     * claimed create can never satisfy that column: the caller must not be
-     * allowed to set it (they would write rows as somebody else) and `defaults`
-     * cannot carry it (it differs per session). So the grant supplies it,
-     * LAST, after `defaults`, and therefore unoverridable by either.
-     *
-     * Found by a live probe: the write failed on a not-null violation and the
-     * only honest fix was for the session to provide the value it already
-     * proves.
-     */
-    if (session !== null && resource.claim?.column !== undefined) {
-      out[resource.claim.column] = session.grant.value;
-    }
-    return out;
-  };
 
   /**
    * Audit a public write.
@@ -529,6 +493,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
     ok: { key: ResolvedKey; session: PublicSessionContext | null },
     action: string,
     changes: Record<string, unknown>,
+    /**
+     * WHICH ROW, when there is one (34 §7.1). Without it a public write left
+     * an audit entry naming the table and nothing else, so the per-record
+     * history a record page shows (30 WS-A) had a hole exactly where an
+     * anonymous caller had been — the writes an operator most wants to trace.
+     */
+    entity: RecordRef | null = null,
   ): Promise<void> => {
     const userAgent = request.headers['user-agent'];
     await audit.append({
@@ -538,6 +509,7 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
       category: 'data',
       action,
       connectionId: ok.key.connectionId,
+      entity,
       changes: { after: { ...changes, claimed: ok.session !== null } },
       ip: request.ip,
       userAgent: typeof userAgent === 'string' ? userAgent.slice(0, 300) : null,
@@ -725,7 +697,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const found = await resolveResource(request, reply, ok, request.params.ref, 'create');
         if (found === null) return reply;
 
-        const values = prepareValues(found.resource, request.body.values, ok.session);
+        const values = prepareValues(
+          found.resource,
+          request.body.values,
+          ok.session,
+          'create',
+          found.dialect,
+        );
         if (values === null) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
@@ -743,11 +721,53 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That write was refused.');
         }
 
-        await auditWrite(request, ok, 'public.record.create', {
-          ref: request.params.ref,
-          table: found.resource.table,
-        });
+        const createdPk = Object.fromEntries(found.table.primaryKey.map((c) => [c, inserted[c]]));
+        const createdRef: RecordRef = {
+          connectionId: ok.key.connectionId,
+          table: found.table.id,
+          pk: createdPk,
+          label: pkLabel(found.table, createdPk),
+        };
+        await auditWrite(
+          request,
+          ok,
+          'public.record.create',
+          { ref: request.params.ref, table: found.resource.table },
+          createdRef,
+        );
         await keys.touchLastUsed(ok.key.keyId);
+        /*
+         * The UNPROJECTED row, deliberately. What comes back to the anonymous
+         * caller is narrowed to `expose`, because a create must not return more
+         * than a read of the same row would — but the stream's subscribers are
+         * signed-in staff holding a table-read grant, and narrowing THEIR frame
+         * to a customer scope's `expose` would hand the dashboard a half-row it
+         * would have to refetch to complete. The publisher masks it for PII and
+         * secrets on the way out, which is the check that applies here.
+         */
+        publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
+          connectionId: ok.key.connectionId,
+          table: found.table,
+          action: 'create',
+          pk: createdPk,
+          row: inserted,
+        });
+        /*
+         * The sign-ups a rule most needs to see. A public create never reached
+         * `routes/data`, so before this a "when a record is created in users"
+         * rule was blind to exactly the rows 28's public surface and 33's
+         * live-chat make (42 §0.3). No undo window: nobody can take an
+         * anonymous caller's write back.
+         */
+        await emitRecordEvent(app, {
+          connectionId: ok.key.connectionId,
+          table: found.table,
+          action: 'create',
+          entity: createdRef,
+          before: null,
+          after: inserted,
+          origin: 'public',
+        });
 
         // Only the exposed columns come back — a create must not return more
         // than a read of the same row would.
@@ -780,7 +800,13 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
         const found = await resolveResource(request, reply, ok, request.params.ref, 'update');
         if (found === null) return reply;
 
-        const values = prepareValues(found.resource, request.body.values, ok.session);
+        const values = prepareValues(
+          found.resource,
+          request.body.values,
+          ok.session,
+          'update',
+          found.dialect,
+        );
         if (values === null) {
           return fail(reply, 400, 'PUBLIC_WRITE_REFUSED', 'That column is not writable here.');
         }
@@ -832,13 +858,44 @@ export function publicRoutes(deps: PublicRoutesDeps): FastifyPluginAsyncZod {
           return fail(reply, 404, 'PUBLIC_REF_NOT_FOUND', 'No such record.');
         }
 
-        await auditWrite(request, ok, 'public.record.update', {
-          ref: request.params.ref,
-          table: found.resource.table,
-        });
+        const updatedRef: RecordRef = {
+          connectionId: ok.key.connectionId,
+          table: found.table.id,
+          pk,
+          label: pkLabel(found.table, pk),
+        };
+        await auditWrite(
+          request,
+          ok,
+          'public.record.update',
+          { ref: request.params.ref, table: found.resource.table },
+          updatedRef,
+        );
         await keys.touchLastUsed(ok.key.keyId);
 
         const after = await fetchByPk(found.db, found.table, pk);
+        publishPublicWrite(app.hasDecorator('realtime') ? app.realtime : null, {
+          connectionId: ok.key.connectionId,
+          table: found.table,
+          action: 'update',
+          pk,
+          row: after ?? null,
+        });
+        await emitRecordEvent(app, {
+          connectionId: ok.key.connectionId,
+          table: found.table,
+          action: 'update',
+          entity: updatedRef,
+          // The before-image is not read on this path — the predicate goes into
+          // the UPDATE itself rather than a lookup before it (see above), and
+          // adding a SELECT to recover it would reopen the TOCTOU window that
+          // design closed. A rule's `when` therefore evaluates on the after
+          // image, which is what it evaluates on for every other origin too.
+          before: null,
+          after: after ?? null,
+          origin: 'public',
+        });
+
         const projected: Record<string, unknown> = {};
         for (const column of found.resource.expose) projected[column] = after?.[column];
         return reply.send({ data: projected });

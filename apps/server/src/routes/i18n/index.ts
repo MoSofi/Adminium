@@ -105,9 +105,21 @@ export const I18N_CHANGED = 'i18n.changed';
  * the same browser — so dropping them out of the cap would have quietly
  * doubled what one locale can be made to carry.
  *
+ * `email` joined the same way (39-email-templates-and-campaigns.md §6.1): the
+ * Email templates surface's messages, fetched when its routes open. `invoices`
+ * likewise (34-invoices-add-on.md 34-T51), for the Invoices surface.
+ *
  * `generated` is still out, and correctly: nothing fetches overrides for it.
  */
-const BUDGETED_NAMESPACES: readonly Namespace[] = ['common', 'ui', 'errors', 'studio'];
+const BUDGETED_NAMESPACES: readonly Namespace[] = [
+  'common',
+  'ui',
+  'errors',
+  'studio',
+  'email',
+  'invoices',
+  'automations',
+];
 
 /**
  * 256 KiB per locale across the budgeted namespaces. Measured, not guessed:

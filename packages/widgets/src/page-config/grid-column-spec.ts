@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { z } from 'zod';
 
+import { DERIVED_ALIAS_PATTERN } from './crud-derived.js';
+import { WORKING_SCALE } from './decimal.js';
+
 /**
  * Column-spec vocabulary for the `page-crud` config body — the typed
  * `config.columns[]` contract (research/widget-registry.md §3 "column defs
@@ -92,10 +95,154 @@ export const gridToneSchema = z.enum(['neutral', 'accent', 'pos', 'warn', 'dange
 export type GridTone = z.infer<typeof gridToneSchema>;
 
 /**
+ * Explicit presentation kinds a column may opt into.
+ *
+ * Small and closed on purpose: each one is a branch in the cell renderer with
+ * its own alignment, its own formatter and its own baseline.
+ */
+export const COLUMN_DISPLAY_KINDS = ['currency', 'percent', 'decimal', 'integer'] as const;
+export type ColumnDisplayKind = (typeof COLUMN_DISPLAY_KINDS)[number];
+
+/**
+ * How to render THIS column's value — an opt-in override of the semantic
+ * chain (36-derived-columns.md D8).
+ *
+ * WHY A NEW BLOCK RATHER THAN READING THE EXISTING `format`. `column.format`
+ * is written by the generator on every page already and read by zero
+ * renderers, so teaching a cell to honour it would change the appearance of
+ * every stored page and move byte-pinned baselines. An opt-in block, by
+ * construction, changes nothing that is not opted in.
+ *
+ * WHY ON EVERY COLUMN AND NOT ONLY DERIVED ONES. A derived value needs it (it
+ * has no useful `semantic` or `logicalType` and would otherwise render as a
+ * bare mono string), but the same block is also the only in-scope repair for a
+ * MIS-CLASSIFIED physical column — a `numeric(12,2)` unit price called `rate`
+ * classifies as a percent and renders `1533%` — and it repairs it per column,
+ * without touching the classifier and re-recording its byte-pinned baseline.
+ */
+export const columnDisplaySchema = z
+  .object({
+    kind: z.enum(COLUMN_DISPLAY_KINDS),
+    /**
+     * ISO-4217, for `kind: 'currency'`. Ranked ABOVE the connection's own
+     * currency, which is ranked above the `'USD'` fallback — so a per-column
+     * override exists for the mixed-currency table without making every page
+     * declare one.
+     */
+    currency: z.string().regex(/^[A-Za-z]{3}$/).optional(),
+    /**
+     * Fraction digits, always exactly this many. Capped at the arithmetic's
+     * own working width — a column cannot display more digits than the value
+     * carries.
+     */
+    decimals: z.number().int().min(0).max(WORKING_SCALE).optional(),
+    /**
+     * REQUIRED for `kind: 'percent'`, and the reason this block exists at all
+     * for percents: `8` means 8% in a 0-100 `tax_rate` column and 800% in a
+     * 0-1 ratio column, and guessing wrong is a 100x error on screen. The
+     * classifier already distinguishes the two and throws the information
+     * away; this is where it is finally stated (D9).
+     */
+    percentScale: z.enum(['unit', 'fraction']).optional(),
+  })
+  .refine((value) => value.kind !== 'percent' || value.percentScale !== undefined, {
+    error: "`display.percentScale` is required when kind is 'percent'.",
+    path: ['percentScale'],
+  });
+export type ColumnDisplay = z.infer<typeof columnDisplaySchema>;
+
+/**
  * One column definition — the `config.columns[]` entry of `page-crud`
  * (01 §6.1) and the column contract of `data-grid`/`detail-key-value`/
  * `mini-table` (annex §3: `{key, label, type, mono, align, pill?, fk?}`).
  */
+/**
+ * The reference shapes a file column may store (37-files-and-storage.md D7).
+ * `url` is the default and what generation seeds (D31).
+ */
+export const COLUMN_FILE_REFS = ['url', 'id', 'key'] as const;
+export type ColumnFileRef = (typeof COLUMN_FILE_REFS)[number];
+
+/**
+ * This column holds a FILE, not a string that happens to look like one
+ * (37-files-and-storage.md D6, D14).
+ *
+ * WHY AN OPT-IN BLOCK AND NOT A SEMANTIC TAG. The classifier already tags
+ * `file-ref` and `image-url` columns, and has since M5 — those tags are
+ * written onto every generated page and drive a bare `<a>` today. Teaching the
+ * cell renderer to honour the TAG would change how every stored page renders,
+ * including pages a person has edited, and would move byte-pinned VRT
+ * baselines for tables nobody asked to change. The same argument
+ * `columnDisplaySchema` makes, for the same reason: an opt-in block changes
+ * nothing that is not opted in (the 36 D8 rule).
+ *
+ * Generation SEEDS the block on NEW pages for `file-ref` / `image-url`
+ * columns, so a freshly generated app gets upload affordances without anybody
+ * configuring one; a page that already exists keeps rendering exactly as it
+ * did until an operator turns it on in the ColumnManager.
+ *
+ * THE COLUMN MUST BE TEXT. A `json` column holding an array is O5 (refused in
+ * v1); a `binary` column is bytes inside the customer's database, which is a
+ * different feature and stays a "binary, N bytes" cell.
+ */
+export const columnFileSchema = z
+  .object({
+    /**
+     * What gets WRITTEN into the customer's column. The server accepts all
+     * three on read plus foreign links, so changing this does not invalidate
+     * values already stored — it only changes the next one.
+     */
+    ref: z.enum(COLUMN_FILE_REFS).default('url'),
+    /**
+     * Where new uploads for this column go. Absent = the workspace default,
+     * which is what almost every column wants; naming one is for the table
+     * whose files belong somewhere else (product photos on a CDN bucket while
+     * everything else stays on the disk).
+     */
+    destinationId: z.string().min(1).optional(),
+    /**
+     * Narrow the workspace allowlist for THIS column — the keys from
+     * `files.allowedTypes`. It can only ever narrow: a column naming a type the
+     * workspace refuses would be a way to widen the security boundary from a
+     * page config, and the server intersects rather than unions.
+     */
+    accept: z.array(z.string().min(1).max(20)).max(20).optional(),
+    /** A per-column cap, below the workspace's `files.maxBytes`. */
+    maxBytes: z.number().int().min(1024).optional(),
+    /**
+     * Render an image preview in the cell rather than a chip. Honoured only for
+     * raster images under `files.thumbnailMaxBytes`, and always through the
+     * same-origin content route — the dashboard's CSP is `default-src 'self'`,
+     * so a cross-origin `<img>` is blocked whatever this says (D24).
+     */
+    inline: z.boolean().optional(),
+    /**
+     * This column holds a LIST of files rather than one
+     * (38-files-library-and-attachments.md D1/D5) — the shape the Attachments
+     * card creates, and the shape a person means by "attach the files".
+     *
+     * The value is a JSON array of references in this column's own `ref`
+     * shape, stored in the same `text` column a single reference would use.
+     * Not a `json` column: those are excluded from grids by `rankColumn` and
+     * are not file-capable, and a text value is what keeps every existing
+     * reader — the grid, a `SELECT`, a foreign app — working unchanged.
+     *
+     * Absent ⇒ exactly the single-value column 37 shipped.
+     */
+    multiple: z.boolean().optional(),
+    /**
+     * Refuse a write that would put more than this many files on one record.
+     *
+     * Enforced by the SERVER at write time, which is the only moment a
+     * per-record count is knowable: a column upload for a record that does not
+     * exist yet names no record. The form uses it to stop offering the control
+     * once the list is full, which is courtesy rather than the boundary.
+     */
+    maxCount: z.number().int().min(1).max(500).optional(),
+  })
+  .strict();
+export type ColumnFile = z.infer<typeof columnFileSchema>;
+
 export const gridColumnSpecSchema = z.object({
   /** Snapshot column name — the row-object key. */
   name: z.string().min(1),
@@ -169,8 +316,68 @@ export const gridColumnSpecSchema = z.object({
       agg: z.string().min(1),
     })
     .optional(),
-  /** PII column — masked-by-default treatment ('•••' + unmask affordance). */
+  /**
+   * Derived value — this column shows a page-level MEASURE or DERIVED FIELD
+   * declared in `config.derived` (36-derived-columns.md §3.2). `name` is then
+   * a synthetic alias, and `ref` names the definition to show.
+   *
+   * The definitions live at page level rather than here because the numbers
+   * form a chain that several columns share (subtotal -> tax -> total ->
+   * shipping), and no dialect permits a sibling SELECT alias inside one SELECT
+   * list — so a per-column definition would re-derive the whole chain once per
+   * consumer. Derived columns are projections: never sortable server-side,
+   * never form fields.
+   */
+  derived: z
+    .object({
+      ref: z.string().regex(DERIVED_ALIAS_PATTERN),
+    })
+    .optional(),
+  /**
+   * Explicit presentation for this column — see {@link columnDisplaySchema}.
+   * Absent on every generated page, and absence is exactly today's behaviour.
+   */
+  display: columnDisplaySchema.optional(),
+  /**
+   * This column holds a file — see {@link columnFileSchema}. Absent on every
+   * page generated before 37, and absence is exactly today's behaviour: a bare
+   * link in the grid and a `url` text input in the form.
+   */
+  file: columnFileSchema.optional(),
+  /**
+   * Masked-by-default treatment ('•••' + unmask affordance).
+   *
+   * PRESENTATION ONLY, and the distinction is load-bearing. Whether the VALUE
+   * reaches the browser is decided server-side from the connection's own
+   * classification (`apps/server/src/crud/mask.ts` against the resolved
+   * table's masked set) and the reader's unmask permission; a column masked
+   * there arrives as `null` alongside a `_masked` marker and renders masked no
+   * matter what this flag says. So turning this off cannot leak anything — the
+   * value was already in the payload — and turning it on protects nothing.
+   * It decides whether a reader who was sent the value has to click to see it.
+   *
+   * Generation seeds it from the classifier's `maskedByDefault`; the page
+   * editor can flip it per column either way.
+   */
   pii: z.boolean().default(false),
+  /**
+   * Draw a monogram avatar beside this column's value.
+   *
+   * TRI-STATE, because the sensible default is not the same everywhere and a
+   * plain boolean would have to pick one and be wrong half the time:
+   *
+   * - absent on an FK column → ON. The chip has always drawn one, and an
+   *   untouched page must keep looking as it did.
+   * - absent anywhere else → OFF. Nothing else has ever drawn one.
+   * - `true` / `false` → exactly that, on any column.
+   *
+   * Offered on EVERY column and not just the FK ones, because the column that
+   * deserves a monogram is usually a person or company NAME — often a lookup
+   * pulled across a relation — while the FK id column beside it usually
+   * deserves none. Scoping the choice to FK columns offered it in the one
+   * place it was least wanted.
+   */
+  avatar: z.boolean().optional(),
   /** JetBrains Mono value treatment (ids, amounts, emails). */
   mono: z.boolean().default(false),
   align: z.enum(['start', 'end']).optional(),

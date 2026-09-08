@@ -175,7 +175,11 @@ export interface AdminiumApiKeysTable {
 /** §3.27 metadata for binaries Adminium itself stores. */
 export interface AdminiumFilesTable {
   id: Id;
-  /** v1: local only. */
+  /**
+   * The driver that wrote the bytes, informational since 0024 —
+   * `destination_id` is the authority (37 §3.2). `'local'` on every pre-0024
+   * row and on every row that still lives on this server's disk.
+   */
   storage: string;
   storageKey: string;
   filename: string;
@@ -189,6 +193,37 @@ export interface AdminiumFilesTable {
   uploadedBy: Id | null;
   createdAt: Ts;
   deletedAt: Ts | null;
+  // ── wave 0024 (37-files-and-storage.md §3.2) ──────────────────────────────
+  /** NULL = this server's disk, the implicit destination (37 D3). */
+  destinationId: Id | null;
+  /** NULL = an upload no record claims yet; the sweep collects it (37 D12). */
+  attachedAt: Ts | null;
+  /** Sidecar linkage, 0016's denormalised `keysOf` shape plus the connection. */
+  entityConnectionId: Id | null;
+  entityTable: string | null;
+  entityId: string | null;
+}
+
+/** 37-files-and-storage.md §3.2 — where bytes may be written. */
+export interface AdminiumStorageDestinationsTable {
+  id: Id;
+  name: string;
+  /** local | s3 | webdav */
+  driver: string;
+  /** Non-secret driver config; Zod-validated in the repo. */
+  config: JsonColumn;
+  /** `enc:v1:` token; NULL for `local`, which has no credential. */
+  secretEncrypted: string | null;
+  isDefault: BoolColumn;
+  /** untested | ok | error */
+  status: string;
+  lastTestedAt: Ts | null;
+  lastError: string | null;
+  /** Disabled ≠ deleted: takes no new files, still serves the ones it holds. */
+  disabledAt: Ts | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
 }
 
 /** §3.13 one row per configured source database. */
@@ -238,9 +273,61 @@ export interface AdminiumConnectionsTable {
    * survive one — see the migration.
    */
   disabledAt: Ts | null;
+  /**
+   * What the last capability probe said about DDL on this connection's role
+   * (wave 0023). `null` = never probed, which every pre-0023 row is.
+   *
+   * A **UI hint**, not a guard: the Studio hides schema authoring without a
+   * round trip. Whether a given step may run is decided per target at plan
+   * time (35 D17), because a role can own one table and not another and one
+   * boolean cannot say so.
+   */
+  canDdl: BoolColumn | null;
+  /**
+   * Manual ER-diagram node positions (35 D21, M18). Per connection rather than
+   * per user — the diagram is a shared map — and its own column rather than a
+   * key in {@link settings}, which is written whole under `connections.manage`.
+   */
+  diagramLayout: JsonColumn | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
+}
+
+/**
+ * §3.5 of 35-schema-authoring.md — one applied (or attempted) DDL plan.
+ *
+ * The row is written `running` BEFORE the first statement (D3/35-T36): an
+ * apply is re-runnable rather than transactional, because MySQL commits every
+ * DDL statement implicitly, so a crash halfway must leave evidence rather than
+ * a status that claims a state the database is not in.
+ */
+export interface AdminiumSchemaChangesTable {
+  id: Id;
+  connectionId: Id;
+  /** The plan checksum the apply was authorised against (35 D2). */
+  planChecksum: string;
+  /** running | applied | partial | failed */
+  status: string;
+  /** The ordered steps with their outcomes — Zod-validated in the repo. */
+  steps: JsonColumn;
+  /** Worst hazard in the plan, denormalised so a history list needs no parse. */
+  hazard: string;
+  baseSnapshotId: Id | null;
+  /** The snapshot re-introspection produced; null until it does. */
+  resultSnapshotId: Id | null;
+  error: string | null;
+  /**
+   * Rows the operator confirmed they had seen before a rewrite ran (D18).
+   *
+   * NULL is the common case and is meaningful: most plans warn about no rows at
+   * all, and 0 would read as "they acknowledged zero rows", which is a
+   * different claim. Migration `0025`.
+   */
+  acknowledgedRows: number | null;
+  createdBy: Id | null;
+  startedAt: Ts;
+  finishedAt: Ts | null;
 }
 
 /** §3.14 immutable record of one introspection / schema-import run. */
@@ -476,6 +563,12 @@ export interface AdminiumAutomationsTable {
   trigger: JsonColumn;
   graph: JsonColumn;
   lastRunAt: Ts | null;
+  /** Next schedule tick; NULL for record-triggered rules (0028). */
+  nextRunAt: Ts | null;
+  /** `{ value, frontierPk }` — the watch poller's keyset position (0028). */
+  watchCursor: JsonColumn | null;
+  /** The comp's ROI segment; NULL = not stated (0028, 42 F6). */
+  timeSavedMinutes: number | null;
   createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
@@ -487,11 +580,19 @@ export interface AdminiumAutomationRunsTable {
   automationId: Id;
   /** Soft ref — job rows are GC'd sooner. */
   jobId: string | null;
-  /** running | succeeded | failed | skipped */
+  /** pending | running | waiting | succeeded | failed | skipped | cancelled (42 D9). */
   status: string;
   triggerEvent: JsonColumn;
   trace: JsonColumn | null;
   error: string | null;
+  /** UNIQUE occurrence identity; NULL = nothing to collapse on (0028, 42 D6). */
+  dedupeKey: string | null;
+  /** When a pending/waiting run resumes (0028, 42 D7/D8). */
+  wakeAt: Ts | null;
+  /** Sum of step durations, waits excluded (0028). */
+  durationMs: number | null;
+  /** dashboard | public | bulk | watch | schedule | test | automation (0028). */
+  origin: string;
   startedAt: Ts;
   finishedAt: Ts | null;
 }
@@ -549,7 +650,12 @@ export interface AdminiumImportsTable {
   finishedAt: Ts | null;
 }
 
-/** §3.28 overrides of built-in email templates; unique (key, locale). */
+/**
+ * §3.28 email documents — templates AND campaigns (39-email-templates-and-
+ * campaigns.md §3.2, D2); unique (key, locale). Wave 0026 added everything
+ * after `updatedBy`. Status is derived, never stored: a template's Draft/Live
+ * is `enabled`, a campaign's is its latest `adminium_email_runs` row.
+ */
 export interface AdminiumEmailTemplatesTable {
   id: Id;
   key: string;
@@ -560,6 +666,91 @@ export interface AdminiumEmailTemplatesTable {
   enabled: BoolColumn;
   isBuiltinCopy: BoolColumn;
   updatedBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+  /** template | campaign */
+  kind: string;
+  /** transactional | lifecycle | marketing */
+  category: string;
+  /** Which starter minted the family; NULL for blank and built-in documents. */
+  starter: string | null;
+  needsTranslation: BoolColumn;
+  /** Delete is archive (39 D4). */
+  archivedAt: Ts | null;
+  preheader: string;
+  /** NULL reads as '' (MySQL forbids a DEFAULT on text). */
+  footer: string | null;
+  /** `EmailBrand`; NULL = workspace defaults. */
+  brand: JsonColumn | null;
+  /** `EmailAttachment[]`; NULL reads as []. */
+  attachments: JsonColumn | null;
+  createdBy: Id | null;
+}
+
+/** 39 §3.2 — saved reusable email blocks, workspace-wide. */
+export interface AdminiumEmailBlocksTable {
+  id: Id;
+  name: string;
+  /** One `{ id, block, data, style }` record. */
+  block: JsonColumn;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/** 39 §3.2 / D11 — one row per campaign send; counts, never per-recipient rows. */
+export interface AdminiumEmailRunsTable {
+  id: Id;
+  templateId: Id;
+  /** scheduled | running | sent | failed | cancelled */
+  status: string;
+  /** `EmailAudience` */
+  audience: JsonColumn;
+  scheduledAt: Ts;
+  startedAt: Ts | null;
+  finishedAt: Ts | null;
+  total: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  /** ≤100 `{ to, error }` records. */
+  failures: JsonColumn | null;
+  jobId: Id | null;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
+/**
+ * 34-invoices-add-on.md §3.9 — the AUTHORED invoice source behind `/invoices`
+ * (wave 0027): one row per template or invoice, the same envelope in `body`.
+ * Not the render register (`adminium_documents`, 34 §3.3 — a later wave).
+ * `(topic, lang)` names one member of a language family; `position` is the
+ * manager's sort key; `origin_id` is a soft ref with no FK (34 O20).
+ */
+export interface AdminiumInvoiceDocumentsTable {
+  id: Id;
+  /** template | invoice */
+  kind: string;
+  name: string;
+  /** draft | sent | paid | live | overdue — the comp's five, shared by both kinds. */
+  status: string;
+  /** recurring | services | receipts | sales | logistics | other */
+  topic: string;
+  /** en | de | fr | es | pt | ja */
+  lang: string;
+  /** Denormalised from `body.number`. */
+  number: string;
+  /** Which starter minted it; NULL for blank documents. */
+  starter: string | null;
+  /** The template an invoice was built from; no FK on purpose. */
+  originId: Id | null;
+  position: number;
+  /** The envelope (`InvoiceBody` on the server). */
+  body: JsonColumn;
+  /** `InvoiceSummary` — the card facts, written on every save. */
+  summary: JsonColumn;
+  createdBy: Id | null;
   createdAt: Ts;
   updatedAt: Ts;
 }
@@ -830,9 +1021,11 @@ export interface MetaDB {
   adminium_user_roles: AdminiumUserRolesTable;
   adminium_api_keys: AdminiumApiKeysTable;
   adminium_files: AdminiumFilesTable;
+  adminium_storage_destinations: AdminiumStorageDestinationsTable;
   adminium_connections: AdminiumConnectionsTable;
   adminium_schema_snapshots: AdminiumSchemaSnapshotsTable;
   adminium_schema_overrides: AdminiumSchemaOverridesTable;
+  adminium_schema_changes: AdminiumSchemaChangesTable;
   adminium_pages: AdminiumPagesTable;
   adminium_views: AdminiumViewsTable;
   adminium_jobs: AdminiumJobsTable;
@@ -846,6 +1039,9 @@ export interface MetaDB {
   adminium_exports: AdminiumExportsTable;
   adminium_imports: AdminiumImportsTable;
   adminium_email_templates: AdminiumEmailTemplatesTable;
+  adminium_email_blocks: AdminiumEmailBlocksTable;
+  adminium_email_runs: AdminiumEmailRunsTable;
+  adminium_invoice_documents: AdminiumInvoiceDocumentsTable;
   adminium_webhooks: AdminiumWebhooksTable;
   adminium_webhook_deliveries: AdminiumWebhookDeliveriesTable;
   adminium_feature_flags: AdminiumFeatureFlagsTable;
@@ -873,10 +1069,12 @@ export const META_TABLE_NAMES = [
   'adminium_role_permissions',
   'adminium_user_roles',
   'adminium_api_keys',
+  'adminium_storage_destinations',
   'adminium_files',
   'adminium_connections',
   'adminium_schema_snapshots',
   'adminium_schema_overrides',
+  'adminium_schema_changes',
   'adminium_pages',
   'adminium_views',
   'adminium_jobs',
@@ -890,6 +1088,9 @@ export const META_TABLE_NAMES = [
   'adminium_exports',
   'adminium_imports',
   'adminium_email_templates',
+  'adminium_email_blocks',
+  'adminium_email_runs',
+  'adminium_invoice_documents',
   'adminium_webhooks',
   'adminium_webhook_deliveries',
   'adminium_feature_flags',

@@ -78,15 +78,23 @@ function TestCrudTemplate({ page, adapters, recordId }: PageTemplateProps) {
 interface Fixture {
   pageReply?: () => Response;
   batchReply?: () => Response;
+  /** Rows the stubbed CrudApi list returns (default: one Northwind row). */
+  rows?: Record<string, unknown>[];
+  /** The `customers` nav item's owning-connection currency (36-T15). */
+  currency?: string | null;
 }
 
 function stubFetch(fixture: Fixture = {}) {
-  let rows = [{ id: 1, name: 'Northwind' }];
+  let rows: Record<string, unknown>[] = fixture.rows ?? [{ id: 1, name: 'Northwind' }];
   const fetchMock = vi.fn().mockImplementation((input: unknown, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
     if (url.startsWith('/api/v1/bootstrap')) {
       const bootstrap = makeBootstrap();
+      if (fixture.currency !== undefined) {
+        const item = bootstrap.nav.groups[0]?.items[0];
+        if (item !== undefined) item.currency = fixture.currency;
+      }
       bootstrap.nav.groups[0]?.items.push({
         pageId: 'page_overview',
         slug: 'overview',
@@ -211,6 +219,74 @@ describe('built-in page-crud binding (real template, no registration)', () => {
     expect(await screen.findByText('Northwind')).toBeDefined();
     // Header CTA uses DB framing (09 §7.1) — proves the real PageCrud mounted.
     expect(screen.getByRole('button', { name: /New row/ })).toBeDefined();
+  });
+
+  it('renders the page\u2019s own button label over the DB framing', async () => {
+    // The stored `config.labels` block the Studio page editor writes. "New row"
+    // is right for a table nobody has named and wrong on a page called
+    // Invoices, so the override has to reach the button — both places it is
+    // drawn, since the empty state repeats the same action.
+    await renderAt('/p/customers', {
+      pageReply: () =>
+        jsonResponse(200, {
+          data: makeCrudEnvelope({
+            config: { ...makeCrudEnvelope().config, labels: { newRow: 'Add invoice' } },
+          }),
+        }),
+    });
+
+    expect(await screen.findByRole('button', { name: 'Add invoice' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: /New row/ })).toBeNull();
+  });
+
+  /**
+   * 36-derived-columns.md 36-T15. Every money cell in the product has rendered
+   * USD since the feature shipped — `formatMoney` falls back to it, the column
+   * spec's own `currency` is populated by nothing, and the `currency` prop
+   * `PageCrud` already accepted had no caller. The connection's own currency
+   * now rides the bootstrap nav item and `PageRenderer` hands it down.
+   */
+  const moneyEnvelope = () =>
+    makeCrudEnvelope({
+      config: {
+        columns: [
+          { name: 'id', label: 'ID', logicalType: 'integer', primaryKey: true, mono: true },
+          { name: 'mrr', label: 'MRR', logicalType: 'decimal', semantic: 'money' },
+        ],
+      },
+    });
+
+  it("formats money in the connection's own currency", async () => {
+    await renderAt('/p/customers', {
+      pageReply: () => jsonResponse(200, { data: moneyEnvelope() }),
+      rows: [{ id: 1, mrr: '1234.50' }],
+      currency: 'EUR',
+    });
+    expect(await screen.findByText('€1,234.50')).toBeDefined();
+  });
+
+  it('is unchanged from today when the connection sets none', async () => {
+    await renderAt('/p/customers', {
+      pageReply: () => jsonResponse(200, { data: moneyEnvelope() }),
+      rows: [{ id: 1, mrr: '1234.50' }],
+      currency: null,
+    });
+    expect(await screen.findByText('$1,234.50')).toBeDefined();
+  });
+
+  it('keeps the translated default when the stored label is unusable', async () => {
+    // Never-crash + no nameless button: a block this build cannot read degrades
+    // to the template's own string rather than to an empty CTA.
+    await renderAt('/p/customers', {
+      pageReply: () =>
+        jsonResponse(200, {
+          data: makeCrudEnvelope({
+            config: { ...makeCrudEnvelope().config, labels: { newRow: '   ' } },
+          }),
+        }),
+    });
+
+    expect(await screen.findByRole('button', { name: /New row/ })).toBeDefined();
   });
 });
 

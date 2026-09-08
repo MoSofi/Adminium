@@ -27,7 +27,11 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { createServer as createHttpServer } from 'node:http';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import { simpleParser } from 'mailparser';
+import { SMTPServer } from 'smtp-server';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
@@ -43,8 +47,25 @@ const HOST = '127.0.0.1';
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'e2e@adminium.local';
 const ADMIN_NAME = process.env.E2E_ADMIN_NAME ?? 'E2E Admin';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'adminium-e2e-password';
+/**
+ * A second super admin for the files specs — they get their own `api` rate
+ * budget, which is keyed by principal (tests/constants.ts explains why).
+ */
+const FILES_ADMIN_EMAIL = process.env.E2E_FILES_ADMIN_EMAIL ?? 'e2e-files@adminium.local';
+const FILES_ADMIN_NAME = 'E2E Files Admin';
+const FILES_ADMIN_PASSWORD = process.env.E2E_FILES_ADMIN_PASSWORD ?? 'adminium-e2e-password';
 const CONNECTION_NAME = process.env.E2E_CONNECTION_NAME ?? 'northwind';
 const E2E_DATABASE = process.env.E2E_DATABASE ?? 'adminium_e2e';
+/**
+ * The SMTP sink (39-email-templates-and-campaigns.md 39-T19): an in-process
+ * `smtp-server` on loopback, plain (no STARTTLS, no AUTH — the transport
+ * drops `requireTLS` for a loopback host and sends no AUTH for an empty
+ * user), parsed by `mailparser` and served back to the specs as JSON over a
+ * second loopback port. Both ports derive from the API port so the three
+ * engines never collide (tests/constants.ts mirrors the arithmetic).
+ */
+const SMTP_PORT = Number(process.env.E2E_SMTP_PORT ?? PORT + 100);
+const SINK_PORT = Number(process.env.E2E_SINK_PORT ?? PORT + 101);
 
 const log = (msg) => console.log(`[e2e-server] ${msg}`);
 const die = (msg) => {
@@ -69,7 +90,7 @@ if (!existsSync(join(dashboardDist, 'index.html'))) {
 
 const distUrl = (rel) => pathToFileURL(join(serverRoot, 'dist', rel)).href;
 
-const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun, createFirstSuperAdmin }, { default: BetterSqlite3 }] =
+const [{ loadCliEnv, openRuntime, composeServer }, { hashPassword }, { firstRun, createFirstSuperAdmin, rolesRepo, usersRepo }, { default: BetterSqlite3 }] =
   await Promise.all([
     import('@adminium/server'),
     import(distUrl('auth/passwords.js')),
@@ -85,6 +106,38 @@ let sqliteSourceFile = null;
 const fixture = (engineDir, file) =>
   join(repoRoot, 'packages', engineDir, 'fixtures', file);
 
+/**
+ * The one column Northwind does not have and this suite needs
+ * (37-files-and-storage.md §6 item 1).
+ *
+ * The owner's original sentence for the whole files feature is "while creating
+ * an invoice, attach a PDF and store the link in the invoices table" — a
+ * COLUMN-BOUND file. Nothing in stock Northwind is one: the classifier seeds a
+ * `file` block only onto a text column whose NAME matches its file/attachment
+ * vocabulary (`classify/columns.ts` r20, `FILE_RE`), and Northwind has no such
+ * column on any table. Without one, the e2e suite could only ever exercise the
+ * sidecar path, and the flow the feature exists for would be proved by unit
+ * tests alone.
+ *
+ * WHY IT IS ADDED HERE AND NOT TO THE FIXTURES. The per-adapter `fixtures`
+ * directories are shared with the three adapters' introspection suites and with
+ * `apps/server/test/connections-helpers.ts`; a column added there would ripple
+ * into assertions that have nothing to do with files. The e2e harness is the
+ * thing that defines the e2e world, so it defines this too.
+ *
+ * WHY `shippers`. It has three columns, so the new one survives generation's
+ * eight-column list cap — a `file-ref` ranks last (`generate/crud-body.ts`
+ * `rankColumn`), and on a wide table like `customers` it would be composed out
+ * of the grid and the chip would never render. No other spec touches shippers,
+ * so the column cannot perturb an unrelated assertion.
+ *
+ * WHY `varchar(400)`. The seeded reference shape is `url` (37 D31) and a
+ * content URL needs 200 characters (`files/refs.ts` REF_MIN_WIDTH); a narrower
+ * column would store a truncated link on some engines and refuse the write on
+ * others. Nullable, so the create form has nothing extra to satisfy.
+ */
+const SHIPPER_FILE_COLUMN = 'document_url';
+
 /** Prepares the Northwind source DB; returns the DSN for the connections API. */
 async function prepareSourceDb() {
   if (ENGINE === 'sqlite') {
@@ -96,6 +149,7 @@ async function prepareSourceDb() {
     const db = new BetterSqlite3(file);
     try {
       db.exec(readFileSync(fixture('adapter-sqlite', 'northwind.sqlite.sql'), 'utf8'));
+      db.exec(`ALTER TABLE shippers ADD COLUMN ${SHIPPER_FILE_COLUMN} varchar(400)`);
     } finally {
       db.close();
     }
@@ -122,6 +176,7 @@ async function prepareSourceDb() {
     await seeded.connect();
     try {
       await seeded.query(readFileSync(fixture('adapter-postgres', 'northwind.sql'), 'utf8'));
+      await seeded.query(`ALTER TABLE shippers ADD COLUMN ${SHIPPER_FILE_COLUMN} varchar(400)`);
     } finally {
       await seeded.end();
     }
@@ -145,6 +200,7 @@ async function prepareSourceDb() {
     const seeded = await mysql.createConnection({ uri: url.toString(), multipleStatements: true });
     try {
       await seeded.query(readFileSync(fixture('adapter-mysql', 'northwind.mysql.sql'), 'utf8'));
+      await seeded.query(`ALTER TABLE shippers ADD COLUMN ${SHIPPER_FILE_COLUMN} varchar(400)`);
     } finally {
       await seeded.end();
     }
@@ -160,6 +216,8 @@ async function prepareSourceDb() {
 
 let app = null;
 let runtime = null;
+let smtpSink = null;
+let sinkHttp = null;
 const cleanup = () => {
   rmSync(tempDir, { recursive: true, force: true });
   if (sqliteSourceFile !== null) rmSync(sqliteSourceFile, { force: true });
@@ -193,6 +251,80 @@ try {
     name: ADMIN_NAME,
     passwordHash: await hashPassword(ADMIN_PASSWORD),
   });
+
+  // A SECOND super admin, for the files specs alone. The `api` rate bucket is
+  // keyed by principal, and those specs are the expensive ones (real uploads, a
+  // schema plan+apply, a create dialog) — sharing one budget with the rest of
+  // the suite tipped whole runs over the ceiling. See tests/constants.ts.
+  {
+    const meta = runtime.metaStore.meta;
+    const superAdmin = await rolesRepo(meta).findBySlug('super-admin');
+    const user = await usersRepo(meta).create({
+      email: FILES_ADMIN_EMAIL,
+      name: FILES_ADMIN_NAME,
+      passwordHash: await hashPassword(FILES_ADMIN_PASSWORD),
+      status: 'active',
+    });
+    if (superAdmin !== null) await rolesRepo(meta).assignToUser(user.id, superAdmin.id);
+  }
+
+  // --- the SMTP sink: up before the server so a send can never race it -----------
+  const sinkMessages = [];
+  smtpSink = new SMTPServer({
+    authOptional: true,
+    disabledCommands: ['AUTH', 'STARTTLS'],
+    disableReverseLookup: true,
+    logger: false,
+    onData(stream, session, callback) {
+      simpleParser(stream).then(
+        (parsed) => {
+          const list = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);
+          sinkMessages.push({
+            receivedAt: Date.now(),
+            envelope: {
+              from: session.envelope.mailFrom === false ? '' : session.envelope.mailFrom.address,
+              to: session.envelope.rcptTo.map((entry) => entry.address),
+            },
+            subject: parsed.subject ?? '',
+            from: parsed.from?.text ?? '',
+            to: list(parsed.to).flatMap((entry) => entry.value.map((address) => address.address ?? '')),
+            html: typeof parsed.html === 'string' ? parsed.html : '',
+            text: parsed.text ?? '',
+            attachments: parsed.attachments.map((attachment) => ({
+              filename: attachment.filename ?? '',
+              contentType: attachment.contentType,
+              cid: attachment.cid ?? null,
+              size: attachment.size,
+              related: attachment.related === true,
+            })),
+          });
+          callback();
+        },
+        (error) => callback(error instanceof Error ? error : new Error(String(error))),
+      );
+    },
+  });
+  await new Promise((resolve, reject) => {
+    smtpSink.once('error', reject);
+    smtpSink.listen(SMTP_PORT, HOST, () => resolve());
+  });
+  sinkHttp = createHttpServer((req, res) => {
+    if (req.url === '/messages' && req.method === 'GET') {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify(sinkMessages));
+      return;
+    }
+    if (req.url === '/messages' && req.method === 'DELETE') {
+      sinkMessages.length = 0;
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+    res.statusCode = 404;
+    res.end();
+  });
+  await new Promise((resolve) => sinkHttp.listen(SINK_PORT, HOST, resolve));
+  log(`SMTP sink listening on ${HOST}:${String(SMTP_PORT)} — messages at http://${HOST}:${String(SINK_PORT)}/messages`);
 
   const composed = await composeServer({
     env,
@@ -239,6 +371,12 @@ try {
   expectStatus('login', login, 200);
   const setCookie = login.headers['set-cookie'];
   const cookie = (Array.isArray(setCookie) ? setCookie[0] : setCookie).split(';')[0];
+  // Point the relay at the sink (39-T19). `user: ''` → no AUTH; loopback → plain.
+  const emailSettings = await inject('PUT', '/api/v1/settings/email', {
+    cookie,
+    payload: { smtp: { host: HOST, port: SMTP_PORT, user: '', from: `E2E <${ADMIN_EMAIL}>`, secure: false } },
+  });
+  expectStatus('email settings', emailSettings, 200);
 
   const created = await inject('POST', '/api/v1/connections', {
     cookie,
@@ -278,12 +416,16 @@ try {
   console.error(`[e2e-server] boot failed: ${error?.stack ?? error}`);
   if (app !== null) await app.close().catch(() => {});
   if (runtime !== null) await runtime.close().catch(() => {});
+  if (sinkHttp !== null) sinkHttp.close();
+  if (smtpSink !== null) smtpSink.close();
   cleanup();
   process.exit(1);
 }
 
 const shutdown = () => {
   const finish = () => {
+    if (sinkHttp !== null) sinkHttp.close();
+    if (smtpSink !== null) smtpSink.close();
     cleanup();
     process.exit(0);
   };

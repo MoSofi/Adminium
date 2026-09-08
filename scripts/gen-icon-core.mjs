@@ -107,7 +107,33 @@ const SCAN_ROOTS = [
  * This skips the `icon:` sweep ONLY. `<Icon name>` and `lucideByName()` in the
  * same file would still be collected, because those genuinely do resolve here.
  */
-const SWEEP_IGNORE = ['packages/widgets/src/templates/page-builder/builder-config.ts'];
+const SWEEP_IGNORE = [
+  'packages/widgets/src/templates/page-builder/builder-config.ts',
+  // The email surfaces (39): every route is lazy and every name below resolves
+  // through `apps/dashboard/src/email/icons.ts` (`emailIcon`), a local map of
+  // static imports — the block registry, the inspector's section headers, the
+  // unknown-kind glyph and the manager's group-header key.
+  'apps/dashboard/src/email/model/blocks.ts',
+  'apps/dashboard/src/email/editor/Editor.tsx',
+  'apps/dashboard/src/email/editor/canvas/blocks/index.tsx',
+  'apps/dashboard/src/email/manager/model.ts',
+  'apps/dashboard/src/email/manager/GroupHeader.tsx',
+  // The invoices surface (34): lazy routes, every name resolved through
+  // `apps/dashboard/src/invoices/icons.ts` (`invoiceIcon`), the same local
+  // map — the block registry, the inspector's section headers, the fixed
+  // image slots and the theme panel's status glyphs.
+  'apps/dashboard/src/invoices/model/blocks.ts',
+  'apps/dashboard/src/invoices/editor/inspector/Inspector.tsx',
+  'apps/dashboard/src/invoices/editor/inspector/panels/ImagesPanel.tsx',
+  'apps/dashboard/src/invoices/editor/inspector/panels/ThemePanel.tsx',
+  // The automations surfaces (42): two lazy routes, every name resolved
+  // through `apps/dashboard/src/automations/icons.ts` (`automationIcon`), the
+  // same local map — the five node kinds, the six picker actions, the four
+  // logic tiles, the seven run statuses and the five trace tones.
+  'apps/dashboard/src/automations/model/vocabulary.ts',
+  'apps/dashboard/src/automations/AutomationRulesPage.tsx',
+  'apps/dashboard/src/automations/WorkflowLogsPage.tsx',
+];
 
 /** Files whose curated arrays are icon vocabularies in full. */
 const LIST_SOURCES = [

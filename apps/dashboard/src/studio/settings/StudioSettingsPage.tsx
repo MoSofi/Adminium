@@ -20,17 +20,21 @@
  * forbidden state for everyone else — so it is hidden from plain admins.
  */
 import { useQueryClient, useSuspenseQueries, useSuspenseQuery } from '@tanstack/react-query';
+import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  Blocks,
   Building2,
   Files,
   Globe2,
+  HardDrive,
   Languages,
   Mail,
   ShieldCheck,
   Sparkles,
   TriangleAlert,
   UploadCloud,
+  Webhook,
 } from 'lucide-react';
 import {
   Alert,
@@ -66,16 +70,18 @@ import { PageSurface } from '../../shell/PageSurface.js';
 import { connectionsQuery, DeleteConnectionModal } from '../hub/ConnectionsHub.js';
 import {
   EMAIL_SETTINGS_QUERY_KEY,
-  SECURITY_SETTINGS_QUERY_KEY,
-  WORKSPACE_SETTINGS_QUERY_KEY,
   emailSettingsQuery,
   putEmailSettings,
   putSecuritySettings,
   putWorkspaceBranding,
+  SECURITY_SETTINGS_QUERY_KEY,
   securitySettingsQuery,
+  WORKSPACE_SETTINGS_QUERY_KEY,
   workspaceSettingsQuery,
+  type EmailSender,
   type EmailSettings,
   type EmailSettingsInput,
+  type EmailSettingsPutBody,
   type SecuritySettings,
   type WorkspaceSettingsData,
 } from './workspaceApi.js';
@@ -127,6 +133,31 @@ interface FormValues {
   smtpSecure: boolean;
   /** Staged clear of a configured transport, like the logo's `remove`. */
   smtpRemove: boolean;
+  /**
+   * The configured From addresses beyond the SMTP one
+   * (39-email-templates-and-campaigns.md D7). The SMTP From address is the
+   * implicit first sender and is not a row here — it cannot be removed.
+   */
+  senders: EmailSender[];
+  /** `email.maxAttachmentBytes` as typed MB text, for the same reason as the numbers above (39 D8). */
+  attachmentMb: string;
+}
+
+const MB = 1024 * 1024;
+/** The registry's own bounds on `email.maxAttachmentBytes`, in MB. */
+const ATTACHMENT_MB_MIN = 0.25;
+const ATTACHMENT_MB_MAX = 50;
+
+function toMb(bytes: number): string {
+  return String(Math.round((bytes / MB) * 100) / 100);
+}
+
+/** Parsed and bounded, or null for a draft that is not a usable number. */
+function boundedMb(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === '' || !/^\d+(\.\d+)?$/.test(trimmed)) return null;
+  const value = Number(trimmed);
+  return value >= ATTACHMENT_MB_MIN && value <= ATTACHMENT_MB_MAX ? value : null;
 }
 
 /** Submission port for a cleartext relay — what a first-time form should suggest. */
@@ -151,6 +182,8 @@ function toValues(
     smtpFrom: email.from ?? '',
     smtpSecure: email.secure ?? false,
     smtpRemove: false,
+    senders: email.senders.map((sender) => ({ ...sender })),
+    attachmentMb: toMb(email.maxAttachmentBytes),
   };
 }
 
@@ -173,6 +206,8 @@ const SMTP_PORT_MAX = 65535;
  */
 const SMTP_HOST_RE = /^\[?[A-Za-z0-9.:_-]+]?$/;
 const SMTP_HOST_MAX = 255;
+/** RFC 5321's addressable-path cap, the same bound the route applies to a sender. */
+const SMTP_FROM_MAX_LENGTH = 320;
 
 /**
  * The typed text as an in-range integer, or null when it is not one.
@@ -371,6 +406,14 @@ function WorkspaceForm({
 
   const before = toValues(initial, initialSecurity, initialEmail);
 
+  // `/studio/settings#email` — where the email manager's "Email settings" and
+  // "Manage senders" items land (39 D7): scroll the SMTP card into view.
+  const hash = useLocation({ select: (location) => location.hash });
+  useEffect(() => {
+    if (hash.replace(/^#/, '') !== 'email') return;
+    document.getElementById('email')?.scrollIntoView({ block: 'start' });
+  }, [hash]);
+
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]): void {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
@@ -440,7 +483,19 @@ function WorkspaceForm({
   // left to its 422 rather than guessed at here.
   const smtpPassMissing = smtpInUse && smtpUser !== '' && values.smtpPass === '' && !initialEmail.configured;
 
-  const dirty = nameDirty || versionDirty || logoDirty || securityDirty || smtpDirty;
+  // --- senders + attachment cap (39 D7, D8) -----------------------------------
+  const sendersNormalized = values.senders.map((sender) => ({
+    name: sender.name.trim(),
+    address: sender.address.trim(),
+  }));
+  const sendersDirty = JSON.stringify(sendersNormalized) !== JSON.stringify(before.senders);
+  const sendersInvalid = sendersNormalized.some(
+    (sender) => !sender.address.includes('@') || sender.address.length > SMTP_FROM_MAX_LENGTH,
+  );
+  const attachmentMb = boundedMb(values.attachmentMb);
+  const capDirty = values.attachmentMb !== before.attachmentMb;
+
+  const dirty = nameDirty || versionDirty || logoDirty || securityDirty || smtpDirty || sendersDirty || capDirty;
 
   const appNameInvalid = values.appName.trim().length === 0 || values.appName.trim().length > 60;
   const invalid =
@@ -450,7 +505,9 @@ function WorkspaceForm({
     smtpHostInvalid ||
     smtpFromInvalid ||
     smtpPassMissing ||
-    (smtpInUse && smtpPort === null);
+    (smtpInUse && smtpPort === null) ||
+    sendersInvalid ||
+    attachmentMb === null;
 
   // Review-then-confirm (09 §7.10): the modal lists exactly what changes.
   const change = (beforeValue: string, afterValue: string): string =>
@@ -553,6 +610,21 @@ function WorkspaceForm({
     }
   }
 
+  if (sendersDirty) {
+    const list = (senders: EmailSender[]): string =>
+      senders.length === 0 ? '—' : senders.map((sender) => sender.address).join(', ');
+    changes.push({
+      label: t('studio:settingsHub.email.senders.review', 'Senders'),
+      value: change(list(before.senders), list(sendersNormalized)),
+    });
+  }
+  if (capDirty) {
+    changes.push({
+      label: t('studio:settingsHub.email.attachmentCap.label', 'Attachment limit (MB)'),
+      value: change(before.attachmentMb, values.attachmentMb.trim()),
+    });
+  }
+
   function save(): void {
     setSaving(true);
     void (async () => {
@@ -592,8 +664,9 @@ function WorkspaceForm({
         // Third section-put, same partial-failure story: last, and only when it
         // changed. This one carries a secret, so it is also the only one whose
         // reply cannot be reconstructed from what was sent.
+        const emailBody: EmailSettingsPutBody = {};
         if (values.smtpRemove) {
-          queryClient.setQueryData(EMAIL_SETTINGS_QUERY_KEY, await putEmailSettings(null));
+          emailBody.smtp = null;
         } else if (smtpDirty && smtpPort !== null) {
           const next: EmailSettingsInput = {
             host: smtpHost,
@@ -613,7 +686,14 @@ function WorkspaceForm({
                 ? { pass: '' }
                 : {}),
           };
-          queryClient.setQueryData(EMAIL_SETTINGS_QUERY_KEY, await putEmailSettings(next));
+          emailBody.smtp = next;
+        }
+        // The senders and the cap ride the same PUT, each only when it changed
+        // (absent = untouched on the wire, 39-T04).
+        if (sendersDirty) emailBody.senders = sendersNormalized;
+        if (capDirty && attachmentMb !== null) emailBody.maxAttachmentBytes = Math.round(attachmentMb * MB);
+        if (Object.keys(emailBody).length > 0) {
+          queryClient.setQueryData(EMAIL_SETTINGS_QUERY_KEY, await putEmailSettings(emailBody));
         }
 
         queryClient.setQueryData(WORKSPACE_SETTINGS_QUERY_KEY, data);
@@ -794,7 +874,7 @@ function WorkspaceForm({
           that gates password reset, user invites and scheduled reports had no
           surface anywhere in the product — `PUT /api/v1/settings/email` by hand
           or a config-bundle import were the only ways to set it. */}
-      <Card>
+      <Card id="email">
         <CardHeader className="flex items-center justify-start gap-3">
           <IconTile tone="accent" size="md" icon={<Mail />} />
           <h3 className="text-section text-fg">
@@ -958,6 +1038,119 @@ function WorkspaceForm({
         </CardBody>
       </Card>
 
+      {/* The senders a document may choose as its From (39 D7), and the
+          attachment cap (39 D8). Part of the SAME form and the same review
+          modal; the manager's Email settings / Manage senders items both land
+          on `#email`, which is the SMTP card above. */}
+      <Card>
+        <CardHeader className="flex items-center justify-start gap-3">
+          <IconTile tone="accent" size="md" icon={<Mail />} />
+          <h3 className="text-section text-fg">
+            {t('studio:settingsHub.email.senders.heading', 'Senders')}
+          </h3>
+        </CardHeader>
+        <CardBody>
+          <p className="mb-4 text-caption text-fg-muted">
+            {t(
+              'studio:settingsHub.email.senders.helper',
+              'Addresses an email may be sent from. The SMTP From address is always available.',
+            )}
+          </p>
+
+          <ul className="flex flex-col gap-3" data-part="email-senders">
+            {smtpFrom === '' ? null : (
+              <li className="flex items-center gap-3 rounded-md border border-border bg-surface-2 px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-body-sm text-fg">{smtpFrom}</span>
+                <span className="shrink-0 rounded-full bg-surface-3 px-2 py-0.5 text-caption font-bold text-fg-muted">
+                  {t('studio:settingsHub.email.senders.implicit', 'SMTP From address')}
+                </span>
+              </li>
+            )}
+            {values.senders.map((sender, index) => {
+              const address = sender.address.trim();
+              const invalidAddress = !address.includes('@') || address.length > SMTP_FROM_MAX_LENGTH;
+              return (
+                // Index keys are correct here: rows are a positional list the
+                // admin adds to and removes from, with no identity of their own.
+                <li key={index} className="grid gap-3 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end">
+                  <FormField label={t('studio:settingsHub.email.senders.name', 'Display name')}>
+                    <Input
+                      value={sender.name}
+                      autoComplete="off"
+                      onChange={(event) =>
+                        set(
+                          'senders',
+                          values.senders.map((row, i) => (i === index ? { ...row, name: event.target.value } : row)),
+                        )
+                      }
+                    />
+                  </FormField>
+                  <FormField
+                    label={t('studio:settingsHub.email.senders.address', 'Address')}
+                    {...(invalidAddress
+                      ? { error: t('studio:settingsHub.email.senders.error', 'Enter an email address.') }
+                      : {})}
+                  >
+                    <Input
+                      value={sender.address}
+                      autoComplete="off"
+                      onChange={(event) =>
+                        set(
+                          'senders',
+                          values.senders.map((row, i) => (i === index ? { ...row, address: event.target.value } : row)),
+                        )
+                      }
+                    />
+                  </FormField>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => set('senders', values.senders.filter((_, i) => i !== index))}
+                  >
+                    {t('studio:settingsHub.email.senders.remove', 'Remove sender')}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => set('senders', [...values.senders, { name: '', address: '' }])}
+            >
+              {t('studio:settingsHub.email.senders.add', 'Add sender')}
+            </Button>
+          </div>
+
+          <div className="mt-4 border-t border-border pt-4 sm:max-w-xs">
+            <FormField
+              label={t('studio:settingsHub.email.attachmentCap.label', 'Attachment limit (MB)')}
+              helper={t(
+                'studio:settingsHub.email.attachmentCap.helper',
+                'The most one message may carry in attachments.',
+              )}
+              {...(attachmentMb === null
+                ? {
+                    error: t(
+                      'studio:settingsHub.email.attachmentCap.error',
+                      'Between {min, number} and {max, number} MB.',
+                      { min: ATTACHMENT_MB_MIN, max: ATTACHMENT_MB_MAX },
+                    ),
+                  }
+                : {})}
+            >
+              <Input
+                inputMode="decimal"
+                value={values.attachmentMb}
+                onChange={(event) => set('attachmentMb', event.target.value)}
+              />
+            </FormField>
+          </div>
+        </CardBody>
+      </Card>
+
       <div className="flex items-center justify-end gap-3">
         <Button disabled={!dirty || invalid} onClick={() => setReviewOpen(true)}>
           {t('studio:settingsHub.save', 'Save changes')}
@@ -1016,6 +1209,8 @@ function WorkspaceFormLoader(): ReactNode {
     email.user ?? '',
     email.from ?? '',
     String(email.secure ?? ''),
+    email.senders.map((sender) => `${sender.name}<${sender.address}>`).join(','),
+    String(email.maxAttachmentBytes),
   ].join('|');
   return (
     <WorkspaceForm key={key} initial={data} initialSecurity={security} initialEmail={email} />
@@ -1123,6 +1318,12 @@ export interface StudioSettingsPageProps {
   onOpenAiSettings: () => void;
   /** Router-injected: opens `/studio/pages` (08 §2.6 lifecycle surface, Admin+). */
   onOpenPages: () => void;
+  /** `/studio/storage` (37-files-and-storage.md §3.8). */
+  onOpenStorage: () => void;
+  /** `/studio/add-ons` (26-add-on-runtime.md §7, 32-add-on-distribution.md §4.4). */
+  onOpenAddOns: () => void;
+  /** `/studio/public-api` (28-public-surface.md §4). */
+  onOpenPublicApi: () => void;
 }
 
 export function StudioSettingsPage({
@@ -1130,6 +1331,9 @@ export function StudioSettingsPage({
   onOpenTranslations,
   onOpenAiSettings,
   onOpenPages,
+  onOpenStorage,
+  onOpenAddOns,
+  onOpenPublicApi,
 }: StudioSettingsPageProps): ReactNode {
   const { data: bootstrap } = useSuspenseQuery(bootstrapQuery());
   const isSuperAdmin = bootstrap.roles.includes(SUPER_ADMIN_ROLE);
@@ -1197,6 +1401,57 @@ export function StudioSettingsPage({
           )}
           cta={t('studio:settingsHub.aiCard.cta', 'Open AI settings')}
           onOpen={onOpenAiSettings}
+        />
+
+        {/* Storage (/studio/storage) is Admin+ like this hub. The route's own
+            guard is `storage.manage`, and the page explains a 403 rather than
+            rendering an empty list — the same reasoning as Pages above: better
+            an admin who could be granted the permission finds the door than
+            that the door is invisible. */}
+        <LinkRow
+          icon={<HardDrive />}
+          heading={t('studio:settingsHub.storageCard.heading', 'Storage')}
+          body={t(
+            'studio:settingsHub.storageCard.body',
+            'Choose where uploaded files, exports and other stored bytes live — this server, a bucket, or your own server.',
+          )}
+          cta={t('studio:settingsHub.storageCard.cta', 'Open storage')}
+          onOpen={onOpenStorage}
+        />
+
+        {/* Add-ons (/studio/add-ons) — the acquisition and runtime surface for
+            26/32. Its routes guard on `system:manifests:manage`, so the same
+            reasoning as Pages and Storage applies: the page answers a 403
+            itself, and an admin who could be granted the permission should be
+            able to find the door. Until this row existed the page had a route
+            and no inbound link at all — the docs told operators to open
+            "Studio → Add-ons" and there was nothing to click. */}
+        <LinkRow
+          icon={<Blocks />}
+          heading={t('studio:settingsHub.addOnsCard.heading', 'Add-ons')}
+          body={t(
+            'studio:settingsHub.addOnsCard.body',
+            'Browse, install and connect add-ons — extra blocks, data packs and integrations — or upload one yourself.',
+          )}
+          cta={t('studio:settingsHub.addOnsCard.cta', 'Open add-ons')}
+          onOpen={onOpenAddOns}
+        />
+
+        {/* Public API (/studio/public-api). Its only inbound link was inline
+            prose on the Hosted apps page, rendered ONLY for a customer-side
+            surface with no key bound yet — so the page was unreachable without
+            hosted surfaces, and the link removed itself the moment someone
+            bound the key it sent them to mint. That contextual shortcut is
+            still useful where it appears; this row is the standing door. */}
+        <LinkRow
+          icon={<Webhook />}
+          heading={t('studio:settingsHub.publicApiCard.heading', 'Public API')}
+          body={t(
+            'studio:settingsHub.publicApiCard.body',
+            'Let your own customer- or staff-facing pages read this database, through a scope you define.',
+          )}
+          cta={t('studio:settingsHub.publicApiCard.cta', 'Open public API')}
+          onOpen={onOpenPublicApi}
         />
 
         {/* Global defaults is a super-admin-only surface (/settings/defaults) — hide

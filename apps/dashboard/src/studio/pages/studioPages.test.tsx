@@ -20,8 +20,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createQueryClient } from '../../app/query.js';
 import { createAppRouter } from '../../app/router.js';
+import { gridColumnSpecSchema } from '@adminium/widgets';
+
 import { installTestI18n } from '../../i18n/testing.js';
-import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
+import { jsonResponse, makeBootstrap, makeCrudEnvelope } from '../../test/fixtures.js';
 import { pageTemplateDefinitions } from '@adminium/widgets';
 
 import { ICON_SHORTLIST, ensureIconCatalogue, isKnownIcon, searchIcons } from './IconPicker.js';
@@ -39,6 +41,8 @@ function page(overrides: Partial<PageSummaryDto> = {}): PageSummaryDto {
   return {
     id: 'page_1',
     connectionId: 'conn_1',
+    connectionName: 'Production',
+    connectionPaused: false,
     slug: 'customers',
     type: 'page-crud',
     title: 'Customers',
@@ -168,6 +172,33 @@ describe('page-manager algebra', () => {
 interface StubOptions {
   pages?: PageSummaryDto[];
   status?: number;
+  /**
+   * Config BODY the edit screen's `GET /pages/:id` answers with. Only the edit
+   * route reads it — the list screen never fetches a document — so the default
+   * keeps every existing test on the 404 it already expected.
+   */
+  config?: Record<string, unknown>;
+  /**
+   * `GET /storage/destinations` for the Attachments card's picker. Undefined
+   * answers 403 — the common case, because `storage.manage` is a separate
+   * grant from `pages.manage`, and the card has to degrade to "everything
+   * follows the default" rather than to an error.
+   */
+  destinations?: { id: string; name: string; isDefault: boolean; disabled: boolean }[];
+  /**
+   * `schemaAuthoring` on the schema reply — what decides which MODE the
+   * attachments card is in (38 D2). Absent = authorable, which is both the
+   * server's default and the tolerance `RemapEditor` applies to an older
+   * server, so it is COLUMN mode unless a test says otherwise.
+   */
+  schemaAuthoring?: {
+    authorable: boolean;
+    reason: 'NO_LIVE_DATABASE' | 'READ_ONLY_ROLE' | 'NO_DDL_PRIVILEGE' | 'READ_ONLY_INTENT' | null;
+  };
+  /** `POST /connections/:id/schema/plan` — the column setup's preview. */
+  planReply?: () => Response;
+  /** `POST /connections/:id/schema/apply` — the column setup's confirm. */
+  applyReply?: () => Response;
 }
 
 interface Recorded {
@@ -191,7 +222,93 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
       if (path.startsWith('/api/v1/bootstrap')) {
         return jsonResponse(200, { data: makeBootstrap({ roles: ['super-admin'] }) });
       }
+      // Before the blanket connections branch: `/connections/:id/schema` is a
+      // different reply shape, and the edit screen reads `model.tables` off it
+      // unguarded — answering it with the connection-list shape blanks the
+      // whole screen through the route error boundary.
+      if (path.startsWith('/api/v1/connections/') && path.endsWith('/schema/plan')) {
+        return (
+          options.planReply?.() ??
+          jsonResponse(200, {
+            steps: [
+              {
+                id: 's1',
+                kind: 'add-column',
+                table: 'public.customers',
+                column: 'attachments',
+                hazard: 'safe',
+                requiresSuperAdmin: false,
+                summary: 'Add column attachments (text)',
+                rationale: 'Postgres adds a nullable column as metadata.',
+                consequences: [],
+                dependsOn: [],
+                outsideTransaction: false,
+                refusal: null,
+                sql: ['alter table "public"."customers" add column "attachments" text'],
+              },
+            ],
+            refusals: [],
+            warnings: [],
+            hazard: 'safe',
+            requiresSuperAdmin: false,
+            checksum: 'sum_1',
+            ceilings: [],
+            unfinished: null,
+          })
+        );
+      }
+      if (path.startsWith('/api/v1/connections/') && path.endsWith('/schema/apply')) {
+        return (
+          options.applyReply?.() ??
+          jsonResponse(200, { changeId: 'chg_1', status: 'applied', steps: [], error: null, repaired: null })
+        );
+      }
+      if (path.startsWith('/api/v1/connections/') && path.endsWith('/schema')) {
+        return jsonResponse(200, {
+          connectionId: 'conn_1',
+          snapshotId: 'snap_1',
+          checksum: 'x',
+          createdAt: 1,
+          source: 'introspection',
+          model: {
+            tables: [
+              {
+                id: 'public.customers',
+                schema: 'public',
+                name: 'customers',
+                rowCountEstimate: null,
+                primaryKey: ['id'],
+                columns: [
+                  { name: 'id', ordinal: 1, logicalType: 'integer', isPrimaryKey: true, nullable: false },
+                  { name: 'name', ordinal: 2, logicalType: 'text', nullable: true },
+                ],
+              },
+              // A second table so a test can rebind the page to something else.
+              {
+                id: 'public.invoices',
+                schema: 'public',
+                name: 'invoices',
+                rowCountEstimate: null,
+                primaryKey: ['id'],
+                columns: [
+                  { name: 'id', ordinal: 1, logicalType: 'integer', isPrimaryKey: true, nullable: false },
+                ],
+              },
+            ],
+          },
+          appliedOverrides: 0,
+          ...(options.schemaAuthoring === undefined
+            ? {}
+            : { schemaAuthoring: options.schemaAuthoring }),
+        });
+      }
       if (path.startsWith('/api/v1/connections')) return jsonResponse(200, { connections: [] });
+
+      if (path === '/api/v1/storage/destinations') {
+        return options.destinations === undefined
+          ? jsonResponse(403, { error: { code: 'FORBIDDEN', message: 'nope' } })
+          : jsonResponse(200, { data: options.destinations });
+      }
 
       if (path === '/api/v1/pages' && method === 'GET') {
         return options.status !== undefined && options.status !== 200
@@ -202,6 +319,12 @@ function stubFetch(options: StubOptions = {}): Recorded[] {
         return jsonResponse(200, { data: page({ id: 'page_new', ...(body as object) }) });
       }
       if (path === '/api/v1/pages/nav-order') return jsonResponse(200, { data: { moved: 2 } });
+      if (options.config !== undefined && path === `/api/v1/pages/${rows[0]?.id}` && method === 'GET') {
+        return jsonResponse(200, {
+          data: makeCrudEnvelope({ id: rows[0]?.id as string, config: options.config }),
+          canEditLayout: true,
+        });
+      }
       if (method === 'DELETE') return jsonResponse(200, { data: { ok: true } });
       if (method === 'PATCH') return jsonResponse(200, { data: rows[0] });
       return jsonResponse(404, { error: { code: 'NOT_FOUND', message: 'nope' } });
@@ -464,5 +587,563 @@ describe('StudioPagesPage', () => {
     const { user } = renderAt('/studio/pages', { pages: [page({ id: 'lost', slug: 'lost', title: 'Lost', navGroup: null })] });
     await user.click(await screen.findByRole('tab', { name: 'Sidebar order' }));
     expect(await screen.findByTestId('studio-pages-ungrouped')).toBeTruthy();
+  });
+
+  /**
+   * The owning data source, on BOTH tabs. With two connections the inventory
+   * is one flat list and the organizer is bucketed by nav group, so neither
+   * one said which database an "Orders" page came from — the same ambiguity
+   * `shell/navSections.ts` exists to fix in the rail.
+   */
+  it('names the owning connection on every row of both tabs', async () => {
+    const { user } = renderAt('/studio/pages', {
+      pages: [
+        page({ id: 'a', slug: 'orders', title: 'Orders', navGroup: 'library', connectionName: 'Production' }),
+        page({
+          id: 'b',
+          slug: 'orders-eu',
+          title: 'Orders EU',
+          navGroup: 'library',
+          connectionId: 'conn_2',
+          connectionName: 'Warehouse',
+        }),
+      ],
+    });
+
+    await screen.findByTestId('studio-pages-count');
+    const inventory = screen.getAllByTestId('studio-pages-connection');
+    expect(inventory.map((chip) => chip.textContent)).toEqual(['Production', 'Warehouse']);
+
+    // The organizer is the other half of the ask: reordering the rail is where
+    // two same-named pages from different sources are easiest to confuse.
+    await user.click(screen.getByRole('tab', { name: 'Sidebar order' }));
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId('studio-pages-connection').map((chip) => chip.textContent),
+      ).toEqual(['Production', 'Warehouse']);
+    });
+  });
+
+  /**
+   * Reported from a real deployment: a paused connection's pages still wore the
+   * green "Live" pill. They are not live — `buildNavTree` drops every page of a
+   * paused source out of the nav into `pausedPages` — so the pill was sending
+   * the admin to the page when the fix was on the connection.
+   */
+  it('does not call a page on a paused connection Live, on either tab', async () => {
+    const { user } = renderAt('/studio/pages', {
+      pages: [
+        page({ id: 'a', slug: 'orders', title: 'Orders', navGroup: 'library' }),
+        page({
+          id: 'b',
+          slug: 'charges',
+          title: 'Charges',
+          navGroup: 'library',
+          connectionId: 'conn_2',
+          connectionName: 'Clinic',
+          connectionPaused: true,
+        }),
+      ],
+    });
+
+    await screen.findByTestId('studio-pages-count');
+    expect(screen.getByText('Live')).toBeTruthy();
+    expect(screen.getByText('Paused')).toBeTruthy();
+    // One Live, not two: the paused row must not carry it as well.
+    expect(screen.queryAllByText('Live')).toHaveLength(1);
+
+    await user.click(screen.getByRole('tab', { name: 'Sidebar order' }));
+    await waitFor(() => {
+      expect(screen.getByText('Paused')).toBeTruthy();
+    });
+  });
+
+  it('lets the pause outrank a page that is also hidden', async () => {
+    // Both facts are true at once and the pill has one slot. Pause wins,
+    // because un-hiding the page would still leave it serving nothing —
+    // `buildNavTree` applies exactly this precedence.
+    renderAt('/studio/pages', {
+      pages: [
+        page({ id: 'a', slug: 'charges', title: 'Charges', isEnabled: false, connectionPaused: true }),
+      ],
+    });
+
+    await screen.findByTestId('studio-pages-count');
+    expect(screen.getByText('Paused')).toBeTruthy();
+    expect(screen.queryByText('Hidden')).toBeNull();
+  });
+
+  it('separates a page with no data source from one whose connection is gone', async () => {
+    // Both arrive as a null name and they are not the same fact: the first is a
+    // hand-made page that never had a source, the second is an orphan left by a
+    // deleted connection. Rendering both as "Shared" would hide the orphan on
+    // the one screen an admin would go to find it.
+    renderAt('/studio/pages', {
+      pages: [
+        page({ id: 'a', slug: 'notes', title: 'Notes', origin: 'user', connectionId: null, connectionName: null }),
+        page({ id: 'b', slug: 'orphan', title: 'Orphan', connectionId: 'conn_gone', connectionName: null }),
+      ],
+    });
+
+    await screen.findByTestId('studio-pages-count');
+    expect(
+      screen.getAllByTestId('studio-pages-connection').map((chip) => chip.textContent),
+    ).toEqual(['Shared', 'Connection']);
+  });
+
+  it('carries a stored button label into the field and renames it in the one save', async () => {
+    // "New row" is the database framing the template defaults to. On a page an
+    // admin has called Invoices it is the last control still talking about
+    // rows, and until now there was nowhere to change it — the template had
+    // accepted a `labels` prop for a long time, but nothing could store one.
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [], labels: { newRow: 'Add invoice' } },
+    });
+
+    await waitFor(() => {
+      expect(
+        (screen.getByTestId('studio-pages-new-row-label') as HTMLInputElement).value,
+      ).toBe('Add invoice');
+    });
+    const field = screen.getByTestId('studio-pages-new-row-label');
+
+    await user.clear(field);
+    await user.type(field, 'New invoice');
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config')),
+      ).toBeDefined();
+    });
+    const write = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'));
+    expect(write?.body).toMatchObject({
+      config: { labels: { newRow: 'New invoice' } },
+      expectedRevision: 3,
+    });
+  });
+
+  it('clears the override instead of storing a blank button', async () => {
+    // `labels?.newRow ?? t(…)` cannot fall back from a string that is present
+    // but empty, so an emptied field has to DELETE the key. Storing `''` would
+    // leave a nameless button and no way back to the translated default short
+    // of hand-editing the page's JSON.
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [], labels: { newRow: 'Add invoice' } },
+    });
+
+    await waitFor(() => {
+      expect(
+        (screen.getByTestId('studio-pages-new-row-label') as HTMLInputElement).value,
+      ).toBe('Add invoice');
+    });
+    await user.clear(screen.getByTestId('studio-pages-new-row-label'));
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config')),
+      ).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: Record<string, unknown> };
+    // The whole block goes, not just the key — a page with no overrides carries
+    // no `labels`, exactly as a freshly generated one does.
+    expect(body.config).not.toHaveProperty('labels');
+  });
+
+  it('locks the label field while a retemplate is pending', async () => {
+    // Saving a template change RECOMPOSES the body. A label written in the same
+    // save would be rebuilt away by the PATCH that follows it, so the field
+    // closes exactly as the Columns card does.
+    const { user } = renderAt('/studio/pages/page_1', {
+      config: { columns: [], labels: { newRow: 'Add invoice' } },
+    });
+
+    await waitFor(() => {
+      expect(
+        (screen.getByTestId('studio-pages-new-row-label') as HTMLInputElement).disabled,
+      ).toBe(false);
+    });
+    // Rebinding the table, not the template: switching template away from
+    // page-crud removes the field outright (the next test), so the gate that
+    // needs pinning is the one that fires while it is still on screen.
+    await user.selectOptions(screen.getByTestId('studio-pages-table'), 'public.invoices');
+    expect(
+      (screen.getByTestId('studio-pages-new-row-label') as HTMLInputElement).disabled,
+    ).toBe(true);
+  });
+
+  it('leaves the label field off a template that has no such button', async () => {
+    renderAt('/studio/pages/page_1', {
+      pages: [page({ type: 'page-dashboard' })],
+      config: { layout: { v: 1, cols: 12, items: [] } },
+    });
+    await screen.findByTestId('studio-pages-template');
+    expect(screen.queryByTestId('studio-pages-new-row-label')).toBeNull();
+  });
+
+  // --- attachments (37-files-and-storage.md §3.8, 37-T22) ----------------------
+
+  /**
+   * SIDECAR attachments — files linked on Adminium's side, needing no column
+   * in the customer's table.
+   *
+   * After 38 D2 this is the FALLBACK mode, reached only when the connection's
+   * schema cannot be authored, so every test below says so explicitly. The
+   * behaviour itself is unchanged from 37: what a stored block puts on the
+   * wire, and what turning the switch off leaves behind.
+   */
+  it('leaves the attachments card off a page with no records to attach to', async () => {
+    // A dashboard page has no rows, so the block it would write is one the
+    // record route can never read. Same reasoning as the Columns card.
+    renderAt('/studio/pages/page_1', {
+      pages: [page({ type: 'page-dashboard' })],
+      config: { layout: { v: 1, cols: 12, items: [] } },
+    });
+    await screen.findByTestId('studio-pages-template');
+    expect(screen.queryByTestId('studio-pages-attachments-enabled')).toBeNull();
+  });
+
+  it('writes config.attachments when the switch is turned on', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [] },
+      schemaAuthoring: { authorable: false, reason: 'READ_ONLY_ROLE' as const },
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config')),
+      ).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: Record<string, unknown> };
+    // Only `enabled` — the rest of the block is absent, which is how "follow
+    // the workspace" is spelled. A key present with `undefined` would not
+    // survive the JSON round-trip anyway.
+    expect(body.config['attachments']).toEqual({ enabled: true });
+  });
+
+  it('carries the destination, accepted types and caps onto the wire', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [] },
+      schemaAuthoring: { authorable: false, reason: 'READ_ONLY_ROLE' as const },
+      destinations: [
+        { id: 'dst_1', name: 'Product photos', isDefault: false, disabled: false },
+        // Disabled destinations are not offered; naming one would store a
+        // block whose uploads the server refuses.
+        { id: 'dst_off', name: 'Retired bucket', isDefault: false, disabled: true },
+      ],
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    const picker = (await screen.findByTestId(
+      'studio-pages-attachments-destination',
+    )) as HTMLSelectElement;
+    expect([...picker.options].map((option) => option.value)).toEqual(['', 'local', 'dst_1']);
+
+    await user.selectOptions(picker, 'dst_1');
+    await user.click(within(screen.getByTestId('studio-pages-attachments-accept')).getByText('PDF'));
+    await user.type(screen.getByTestId('studio-pages-attachments-max-bytes'), '5');
+    await user.type(screen.getByTestId('studio-pages-attachments-max-count'), '3');
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config')),
+      ).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: Record<string, unknown> };
+    expect(body.config['attachments']).toEqual({
+      enabled: true,
+      destinationId: 'dst_1',
+      accept: ['pdf'],
+      // Typed in megabytes, stored in bytes — the unit the schema and the
+      // upload route both speak.
+      maxBytes: 5 * 1024 * 1024,
+      maxCount: 3,
+    });
+  });
+
+  it('leaves no attachments block behind when the switch goes back off', async () => {
+    // The byte-identity case: a page that never carried the block must not
+    // GAIN a disabled one just because somebody looked at the switch. The
+    // label edit is only there to make the save happen at all.
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [] },
+      schemaAuthoring: { authorable: false, reason: 'READ_ONLY_ROLE' as const },
+    });
+
+    const toggle = await screen.findByTestId('studio-pages-attachments-enabled');
+    await user.click(toggle);
+    expect(screen.getByTestId('studio-pages-attachments-max-count')).toBeTruthy();
+    await user.click(toggle);
+    expect(screen.queryByTestId('studio-pages-attachments-max-count')).toBeNull();
+
+    await user.type(screen.getByTestId('studio-pages-new-row-label'), 'New invoice');
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config')),
+      ).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: Record<string, unknown> };
+    expect(body.config).not.toHaveProperty('attachments');
+  });
+
+  it('keeps a configured block when an operator switches it off', async () => {
+    // The other spelling of off, and the reason there are two: a page that HAS
+    // been configured keeps its destination and caps through the switch, so
+    // turning the panel back on does not mean setting it all up again.
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [], attachments: { enabled: true, maxCount: 3 } },
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config')),
+      ).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))
+      ?.body as { config: Record<string, unknown> };
+    expect(body.config['attachments']).toEqual({ enabled: false, maxCount: 3 });
+  });
+
+  it('still offers the card when the destination list is refused', async () => {
+    // `storage.manage` is a different grant from `pages.manage` (37 D10). A
+    // 403 there means the picker cannot be drawn — it must not mean the card
+    // fails, because every attachment would follow the workspace default
+    // regardless.
+    const { user } = renderAt('/studio/pages/page_1', {
+      config: { columns: [] },
+      schemaAuthoring: { authorable: false, reason: 'READ_ONLY_ROLE' as const },
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    expect(screen.getByTestId('studio-pages-attachments-accept')).toBeTruthy();
+    expect(screen.queryByTestId('studio-pages-attachments-destination')).toBeNull();
+    expect(screen.queryByTestId('studio-pages-save-error')).toBeNull();
+  });
+
+  // --- attachments in COLUMN mode (38 D2/D6/D7/D14, 38-T07) -------------------
+
+  /**
+   * The owner's model: turning attachments on adds a column to the customer's
+   * own table, so the files appear in the New and Edit dialogs and not only on
+   * the record page.
+   *
+   * The connection's `schemaAuthoring` is what selects this mode, and the stub
+   * omits the field by default — which is `authorable`, matching both the
+   * server's answer and the tolerance an older server gets.
+   */
+  it('asks for a column name instead of writing a block the moment the switch goes on', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', { config: { columns: [] } });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    expect(screen.getByTestId('studio-pages-attachments-setup')).toBeTruthy();
+    // Nothing is planned until the operator asks for it.
+    expect(calls.some((call) => call.path.endsWith('/schema/plan'))).toBe(false);
+    // And the caps fields are not offered yet: there is no block to configure.
+    expect(screen.queryByTestId('studio-pages-attachments-max-count')).toBeNull();
+  });
+
+  it('plans exactly one added text column — addColumns, never upsertTables', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', { config: { columns: [] } });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    await user.click(screen.getByTestId('studio-pages-attachments-column-go'));
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.path.endsWith('/schema/plan'))).toBeDefined();
+    });
+    const plan = calls.find((call) => call.path.endsWith('/schema/plan'))?.body as {
+      addColumns: { table: string; column: Record<string, unknown> }[];
+      upsertTables: unknown[];
+    };
+    expect(plan.upsertTables).toEqual([]);
+    expect(plan.addColumns).toHaveLength(1);
+    expect(plan.addColumns[0]?.table).toBe('public.customers');
+    // Nullable text with no default: a NOT NULL add is refused by name on a
+    // table that already has rows, and a record simply has no attachments
+    // until it has some.
+    expect(plan.addColumns[0]?.column).toMatchObject({
+      name: 'attachments',
+      logicalType: 'text',
+      nullable: true,
+      default: null,
+    });
+  });
+
+  it('shows the exact statement before running it, and runs it only on confirm', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', { config: { columns: [] } });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    await user.click(screen.getByTestId('studio-pages-attachments-column-go'));
+
+    // D2: the SQL the operator authorises is the SQL that runs, so it is on
+    // screen before anything is applied.
+    expect(await screen.findByTestId('studio-pages-attachments-plan')).toBeTruthy();
+    expect(screen.getByText(/add column "attachments" text/)).toBeTruthy();
+    expect(calls.some((call) => call.path.endsWith('/schema/apply'))).toBe(false);
+
+    await user.click(screen.getByTestId('studio-pages-attachments-column-confirm'));
+    await waitFor(() => {
+      expect(calls.find((call) => call.path.endsWith('/schema/apply'))).toBeDefined();
+    });
+    // The checksum from the plan, so a shape that moved in between is refused
+    // rather than applied.
+    expect((calls.find((call) => call.path.endsWith('/schema/apply'))?.body as { checksum: string }).checksum).toBe(
+      'sum_1',
+    );
+  });
+
+  it('writes the pointer and the column block AFTER the apply, in one save', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', { config: { columns: [] } });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    await user.click(screen.getByTestId('studio-pages-attachments-column-go'));
+    await user.click(await screen.findByTestId('studio-pages-attachments-column-confirm'));
+    await screen.findByTestId('studio-pages-attachments-bound');
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))).toBeDefined();
+    });
+    // D6's ordering: the column exists before the page names it.
+    const applyAt = calls.findIndex((call) => call.path.endsWith('/schema/apply'));
+    const saveAt = calls.findIndex((call) => call.method === 'PATCH' && call.path.endsWith('/config'));
+    expect(applyAt).toBeGreaterThanOrEqual(0);
+    expect(saveAt).toBeGreaterThan(applyAt);
+
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))?.body as {
+      config: Record<string, unknown>;
+    };
+    expect(body.config['attachments']).toEqual({ enabled: true, column: 'attachments' });
+    // Both halves, in one document: the pointer above and the column's own
+    // block, which is what the server's reconcile hook actually reads.
+    // A `label` is not decoration: `gridColumnSpecSchema` requires one, and a
+    // spec without it is DROPPED on the next read rather than refused on the
+    // write — it would save cleanly and simply be gone.
+    expect(body.config['columns']).toEqual([
+      { name: 'attachments', label: 'Attachments', logicalType: 'text', file: { ref: 'id', multiple: true } },
+    ]);
+    // The PROPERTY behind that literal, so a future edit to the spec cannot
+    // reintroduce the same silent loss with a different missing field.
+    expect(
+      gridColumnSpecSchema.safeParse((body.config['columns'] as unknown[])[0]).success,
+    ).toBe(true);
+  });
+
+  it('adopts a column that already exists rather than planning DDL for it', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', { config: { columns: [] } });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    const name = screen.getByTestId('studio-pages-attachments-column-name');
+    await user.clear(name);
+    // `name` is a real text column on the stub's customers table.
+    await user.type(name, 'name');
+    await user.click(screen.getByTestId('studio-pages-attachments-column-go'));
+
+    await screen.findByTestId('studio-pages-attachments-bound');
+    // Nothing to run: the column is there and can hold a reference.
+    expect(calls.some((call) => call.path.endsWith('/schema/plan'))).toBe(false);
+    expect(calls.some((call) => call.path.endsWith('/schema/apply'))).toBe(false);
+  });
+
+  it('refuses a name the database cannot take, before any round trip', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', { config: { columns: [] } });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    const name = screen.getByTestId('studio-pages-attachments-column-name');
+    await user.clear(name);
+    await user.type(name, 'Attachments!');
+    expect(screen.getByTestId('studio-pages-attachments-column-go').hasAttribute('disabled')).toBe(true);
+
+    // An existing column of the wrong type is refused too, and says why.
+    await user.clear(name);
+    await user.type(name, 'id');
+    expect(screen.getByText(/cannot hold a file reference/i)).toBeTruthy();
+    expect(calls.some((call) => call.path.endsWith('/schema/plan'))).toBe(false);
+  });
+
+  it('surfaces the server’s refusal and writes nothing when the plan is denied', async () => {
+    // The card cannot know whether THIS operator holds `schema.ddl` — the
+    // dashboard is told a connection's authorability, never a person's grants
+    // — so the plan call is how that question gets asked.
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: { columns: [] },
+      planReply: () =>
+        jsonResponse(403, {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You need schema.ddl to change this connection’s schema.',
+            requestId: 'req_1',
+          },
+        }),
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    await user.click(screen.getByTestId('studio-pages-attachments-column-go'));
+
+    expect((await screen.findByTestId('studio-pages-attachments-error')).textContent).toContain('schema.ddl');
+    expect(calls.some((call) => call.path.endsWith('/schema/apply'))).toBe(false);
+    // And crucially: nothing bound, so a save cannot write a page that claims
+    // attachments and names no column.
+    expect(screen.queryByTestId('studio-pages-attachments-bound')).toBeNull();
+  });
+
+  it('explains the sidecar rather than offering a column on an unauthorable source', async () => {
+    const { user } = renderAt('/studio/pages/page_1', {
+      config: { columns: [] },
+      schemaAuthoring: { authorable: false, reason: 'NO_LIVE_DATABASE' as const },
+    });
+
+    await user.click(await screen.findByTestId('studio-pages-attachments-enabled'));
+    expect(screen.queryByTestId('studio-pages-attachments-setup')).toBeNull();
+    // The server's own reason, rendered — not a disabled control with no
+    // explanation beside it.
+    expect(screen.getByText(/created from a schema file/i)).toBeTruthy();
+    expect(screen.getByTestId('studio-pages-attachments-accept')).toBeTruthy();
+  });
+
+  it('unbinds on OFF and never plans a drop', async () => {
+    const { user, calls } = renderAt('/studio/pages/page_1', {
+      config: {
+        columns: [
+          { name: 'attachments', label: 'Attachments', logicalType: 'text', file: { ref: 'id', multiple: true } },
+        ],
+        attachments: { enabled: true, column: 'attachments' },
+      },
+    });
+
+    const toggle = await screen.findByTestId('studio-pages-attachments-enabled');
+    await user.click(toggle);
+    await user.click(screen.getByTestId('studio-pages-save'));
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))).toBeDefined();
+    });
+    const body = calls.find((call) => call.method === 'PATCH' && call.path.endsWith('/config'))?.body as {
+      config: Record<string, unknown>;
+    };
+    // D7: the pointer goes, the column's `file` block goes — that block is
+    // what the reconcile hook reads, and leaving it would keep attaching and
+    // trashing files for a page that no longer offers them.
+    expect(body.config['attachments']).toEqual({ enabled: false });
+    expect(body.config['columns']).toEqual([
+      { name: 'attachments', label: 'Attachments', logicalType: 'text' },
+    ]);
+    // The COLUMN itself is untouched. Dropping one is the step Adminium
+    // cannot take back.
+    expect(calls.some((call) => call.path.endsWith('/schema/apply'))).toBe(false);
   });
 });

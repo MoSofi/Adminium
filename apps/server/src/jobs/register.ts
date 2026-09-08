@@ -30,13 +30,17 @@ import { RealtimeHub } from '../realtime/hub.js';
 import { registerSseRoute } from '../realtime/sse.js';
 import { registerWsRoute, type RealtimeGatewayDeps } from '../realtime/ws.js';
 import type { ConnectionManager } from '../connections/manager.js';
-import type { FileStorage } from '../files/storage.js';
+import type { DsnCrypto } from '@adminium/meta';
+
+import type { FileStore } from '../files/store.js';
+import { EMAIL_CAMPAIGN_RUN_KIND, registerEmailCampaignRunHandler } from './email-campaign-run.js';
 import {
   EMAIL_SEND_JOB_KIND,
   registerEmailSendHandler,
   type EmailSendHandlerDeps,
 } from './email-send.js';
 import { EXPORT_RUN_KIND, registerExportRunHandler } from './export-run.js';
+import { FILES_MIGRATE_KIND, registerFilesMigrateHandler } from './files-migrate.js';
 import { IMPORT_RUN_KIND, registerImportRunHandler } from './import-run.js';
 import { LLM_RUN_KIND, registerLlmRunHandler, type ResolveRun } from './llm-run.js';
 import { REPORT_RUN_KIND, registerReportRunHandler } from './report-run.js';
@@ -76,6 +80,12 @@ export interface JobsAndRealtimeOptions {
         secret: string;
         /** Transport factory override (tests inject a recorder). */
         createTransport?: EmailSendHandlerDeps['createTransport'];
+        /**
+         * The file store attachments and inline images are read through at
+         * delivery (39 D8/D9). Absent keeps the pre-39 shape: a message with
+         * an attachment then fails loudly rather than sending without it.
+         */
+        storage?: EmailSendHandlerDeps['storage'];
       }
     | undefined;
   /**
@@ -87,7 +97,14 @@ export interface JobsAndRealtimeOptions {
   dataIo?:
     | {
         manager: ConnectionManager;
-        storage: FileStorage;
+        storage: FileStore;
+        /**
+         * Storage-credential closures. Present ⇒ `files.migrate` is registered
+         * too (37 D20) — it moves bytes between destinations and therefore
+         * needs to read their credentials. Absent keeps the pre-37 shape, which
+         * is what every test that predates this wave passes.
+         */
+        storageCrypto?: DsnCrypto | undefined;
       }
     | undefined;
   /** Worker tuning knobs. */
@@ -148,10 +165,23 @@ export async function registerJobsAndRealtime(
       ...(opts.email.createTransport === undefined
         ? {}
         : { createTransport: opts.email.createTransport }),
+      ...(opts.email.storage === undefined ? {} : { storage: opts.email.storage }),
     });
   }
 
   const hub = new RealtimeHub();
+  // The campaign runner (39 D11) rides the same `email` option: same secret,
+  // same transport factory, same file store — plus the hub for the creator's
+  // notice, which is why it registers after the hub exists.
+  if (opts.email !== undefined && !registry.has(EMAIL_CAMPAIGN_RUN_KIND)) {
+    registerEmailCampaignRunHandler(registry, {
+      meta,
+      secret: opts.email.secret,
+      hub,
+      ...(opts.email.createTransport === undefined ? {} : { createTransport: opts.email.createTransport }),
+      ...(opts.email.storage === undefined ? {} : { storage: opts.email.storage }),
+    });
+  }
   if (opts.dataIo !== undefined) {
     const { manager, storage } = opts.dataIo;
     if (!registry.has(EXPORT_RUN_KIND)) {
@@ -165,6 +195,13 @@ export async function registerJobsAndRealtime(
     // where the data-io pipeline is wired.
     if (!registry.has(REPORT_RUN_KIND)) {
       registerReportRunHandler(registry, { meta, registry, hub });
+    }
+    // `files.migrate` is INTERNAL (37 D20): only `POST /storage/migrate`
+    // enqueues it, never the generic `POST /jobs`. Its payload names a source
+    // and a target destination, and a `jobs.manage` holder hand-crafting one
+    // would move an instance's bytes without holding `storage.manage`.
+    if (opts.dataIo.storageCrypto !== undefined && !registry.has(FILES_MIGRATE_KIND)) {
+      registerFilesMigrateHandler(registry, { meta, storage, storageCrypto: opts.dataIo.storageCrypto });
     }
   }
   const worker = new JobWorker({

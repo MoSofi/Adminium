@@ -115,6 +115,8 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles.permission.connectionsManage', 'Manage database connections');
     case 'system:schema:remap':
       return t('roles.permission.schemaRemap', 'Edit schema labels and overrides');
+    case 'system:schema:ddl':
+      return t('roles.permission.schemaDdl', 'Create, edit and delete tables');
     case 'system:exports:manage':
       return t('roles.permission.exportsManage', 'Manage everyone’s exports');
     case 'system:imports:manage':
@@ -129,6 +131,10 @@ function permissionLabel(entry: GrantableCatalogEntry): string {
       return t('roles.permission.jobsManage', 'Start and cancel background jobs');
     case 'system:manifests:manage':
       return t('roles.permission.manifestsManage', 'Install and connect add-ons');
+    case 'system:files:manage':
+      return t('roles.permission.filesManage', 'Manage everyone’s files');
+    case 'system:storage:manage':
+      return t('roles.permission.storageManage', 'Manage storage destinations');
     default:
       return entry.label;
   }

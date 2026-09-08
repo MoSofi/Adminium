@@ -21,6 +21,63 @@ describe('CellValue — type-aware cell renderers (09 §7.1)', () => {
     expect(screen.getByText('$4,820')).toBeDefined();
   });
 
+  it('an explicit display block wins over the semantic chain', () => {
+    // A derived value has no useful semantic or logicalType, so without this
+    // branch a computed total renders as a bare mono string.
+    render(
+      <CellValue
+        column={spec({
+          name: 'total',
+          label: 'Total',
+          derived: { ref: 'total' },
+          display: { kind: 'currency', decimals: 2 },
+          sortable: false,
+        })}
+        row={{ total: '1367.28' }}
+      />,
+    );
+    expect(screen.getByText('$1,367.28')).toBeDefined();
+  });
+
+  it('repairs a mis-classified numeric column without touching the classifier', () => {
+    // `invoice_items.rate` is a numeric(12,2) unit price whose NAME matches
+    // the classifier's percent vocabulary, so it renders `1533%` today. The
+    // repair changes the unit, not the magnitude (criterion 13).
+    const rate: GridColumnSpecInput = {
+      name: 'rate',
+      label: 'Rate',
+      logicalType: 'decimal',
+      semantic: 'percent',
+    };
+    const { unmount } = render(<CellValue column={spec(rate)} row={{ rate: '1533.00' }} />);
+    expect(screen.getByText('1533%')).toBeDefined();
+    unmount();
+    render(
+      <CellValue
+        column={spec({ ...rate, display: { kind: 'currency', decimals: 2 } })}
+        row={{ rate: '1533.00' }}
+      />,
+    );
+    expect(screen.getByText('$1,533.00')).toBeDefined();
+  });
+
+  it('renders a refused derived value as masked, and an absent one as an em-dash', () => {
+    // The two nulls the wire distinguishes with `_masked` (D11).
+    const column = spec({
+      name: 'total',
+      label: 'Total',
+      derived: { ref: 'total' },
+      display: { kind: 'currency', decimals: 2 },
+    });
+    const { unmount } = render(
+      <CellValue column={column} row={{ total: null, _masked: ['total'] }} />,
+    );
+    expect(screen.getByText(MASKED_PLACEHOLDER)).toBeDefined();
+    unmount();
+    render(<CellValue column={column} row={{ total: null }} />);
+    expect(screen.getByText('—')).toBeDefined();
+  });
+
   it('status-workflow enum → StatusPill with the configured tone', () => {
     const { container } = render(
       <CellValue
@@ -92,6 +149,90 @@ describe('CellValue — type-aware cell renderers (09 §7.1)', () => {
       />,
     );
     expect(screen.getByRole('button', { name: /3/ })).toBeDefined();
+  });
+
+  it('FK chip drops the monogram on an explicit avatar: false', () => {
+    // The chip is the page's choice, not the template's. Default stays ON —
+    // an untouched page must look exactly as it did — so only a stored
+    // `false` removes it, and the label survives either way.
+    const column = {
+      name: 'client_id',
+      label: 'Client',
+      logicalType: 'integer' as const,
+      fk: { table: 'public.clients', column: 'id' },
+    };
+
+    // `Avatar` renders `role="img"` — the monogram is the only one in a chip.
+    const on = render(<CellValue column={spec(column)} row={{ client_id: 42 }} />);
+    expect(on.container.querySelector('[role="img"]')).not.toBeNull();
+    on.unmount();
+
+    const off = render(
+      <CellValue column={spec({ ...column, avatar: false })} row={{ client_id: 42 }} />,
+    );
+    expect(off.container.querySelector('[role="img"]')).toBeNull();
+    // Still a chip, still the value, still clickable through to the record.
+    expect(screen.getByRole('button', { name: /42/ })).toBeDefined();
+  });
+
+  it('puts a monogram on any column that opts in, keeping its own treatment', () => {
+    // The point of the flag: the monogram belongs on the NAME, which is a
+    // plain (often looked-up) text column, not on the id beside it.
+    const column = { name: 'client_name', label: 'Client Name', logicalType: 'text' as const };
+
+    const off = render(<CellValue column={spec(column)} row={{ client_name: 'Acme Corp' }} />);
+    expect(off.container.querySelector('[role="img"]')).toBeNull();
+    off.unmount();
+
+    const on = render(
+      <CellValue column={spec({ ...column, avatar: true })} row={{ client_name: 'Acme Corp' }} />,
+    );
+    expect(on.container.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('Acme Corp');
+    expect(screen.getByText('Acme Corp')).toBeDefined();
+  });
+
+  it('wraps a badge treatment rather than replacing it', () => {
+    // The avatar composes with whatever the column already renders as — it is
+    // a wrapper, not another branch of the type dispatch.
+    const { container } = render(
+      <CellValue
+        column={spec({
+          name: 'plan',
+          label: 'Plan',
+          logicalType: 'enum',
+          semantic: 'category-enum',
+          enumValues: ['team'],
+          avatar: true,
+        })}
+        row={{ plan: 'team' }}
+      />,
+    );
+    expect(container.querySelector('[role="img"]')).not.toBeNull();
+    expect(container.querySelector('[data-part="badge"], .inline-flex')).not.toBeNull();
+    expect(screen.getByText('team')).toBeDefined();
+  });
+
+  it('draws no monogram where there is nothing to draw one from', () => {
+    const column = { name: 'client_name', label: 'Client Name', logicalType: 'text' as const, avatar: true };
+
+    // Empty and null values: initials of nothing are nothing.
+    for (const row of [{ client_name: '' }, { client_name: '   ' }, { client_name: null }]) {
+      const view = render(<CellValue column={spec(column)} row={row} />);
+      expect(view.container.querySelector('[role="img"]')).toBeNull();
+      view.unmount();
+    }
+
+    // A masked value: the initials would leak the shape of what is hidden.
+    const masked = render(
+      <CellValue column={spec({ ...column, pii: true })} row={{ client_name: 'Acme Corp' }} />,
+    );
+    expect(masked.container.querySelector('[role="img"]')).toBeNull();
+    masked.unmount();
+
+    const serverMasked = render(
+      <CellValue column={spec(column)} row={{ client_name: null, _masked: ['client_name'] }} />,
+    );
+    expect(serverMasked.container.querySelector('[role="img"]')).toBeNull();
   });
 
   it('boolean → check / x glyphs', () => {

@@ -78,6 +78,11 @@ const HostedAppsPageLazy = lazy(async () => {
   return { default: mod.HostedAppsPage };
 });
 
+const StoragePageLazy = lazy(async () => {
+  const mod = await import('./storage/StoragePage.js');
+  return { default: mod.StoragePage };
+});
+
 const StudioAiPageLazy = lazy(async () => {
   const mod = await import('./ai/StudioAiPage.js');
   return { default: mod.StudioAiPage };
@@ -264,6 +269,9 @@ function SettingsRouteComponent() {
           onOpenTranslations={() => void navigate({ to: '/settings/translations' })}
           onOpenAiSettings={() => void navigate({ to: '/studio/settings/ai' })}
           onOpenPages={() => void navigate({ to: '/studio/pages' })}
+          onOpenStorage={() => void navigate({ to: '/studio/storage' })}
+          onOpenAddOns={() => void navigate({ to: '/studio/add-ons' })}
+          onOpenPublicApi={() => void navigate({ to: '/studio/public-api' })}
         />
       </StudioBody>
     </StudioGuard>
@@ -295,6 +303,16 @@ function HostedAppsRouteComponent() {
     <StudioGuard>
       <StudioBody>
         <HostedAppsPageLazy />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
+function StorageRouteComponent() {
+  return (
+    <StudioGuard>
+      <StudioBody>
+        <StoragePageLazy />
       </StudioBody>
     </StudioGuard>
   );
@@ -424,6 +442,12 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     component: HostedAppsRouteComponent,
   });
 
+  const storageRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/storage',
+    component: StorageRouteComponent,
+  });
+
   const addOnsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/add-ons',
@@ -440,6 +464,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     aiSettingsRoute,
     publicApiRoute,
     hostedAppsRoute,
+    storageRoute,
     addOnsRoute,
     reviewRoute,
     remapRoute,

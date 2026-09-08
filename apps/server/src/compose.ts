@@ -35,7 +35,11 @@ import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm'
 import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
   auditRepo,
+  automationRunsRepo,
+  DAY_MS,
+  destinationsRepo,
   exportsRepo,
+  HOUR_MS,
   filesRepo,
   jobsRepo,
   manifestsRepo,
@@ -49,6 +53,7 @@ import { buildServer, type AdminiumServer } from './app.js';
 import type { HostedSurface } from './cli/surfaces-root.js';
 import type { Env } from './config/env.js';
 import { decryptSecret, deriveKey, encryptSecret } from './config/secrets.js';
+import { seedStorageDestination } from './config/storage-seed.js';
 import { dsnCryptoFromSecret } from './connections/crypto.js';
 import { createBridgeStore, createPairingCode } from './bridge/store.js';
 import { registerIntrospectJob } from './connections/introspect.js';
@@ -62,13 +67,32 @@ import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js'
 import { addOnHttpClientFor } from './add-ons/egress.js';
 import { buildAddOnRuntime, importServerHalf } from './add-ons/runtime.js';
 import { createAddOnStore, seedBundledPackages } from './add-ons/store.js';
-import { createFileStorage } from './files/storage.js';
+import { createColumnBlockReader } from './files/column-blocks.js';
+import { createDestinationResolver } from './files/destinations.js';
+import { createFileReconciler } from './files/reconcile.js';
+import { FILES_DIR } from './files/drivers/local.js';
+import { storageCryptoFromSecret } from './files/crypto.js';
+import { createSpool } from './files/spool.js';
+import { createFileStore } from './files/store.js';
 import {
   enqueueCatalogRefresh,
   registerAddOnAcquireHandlers,
 } from './jobs/add-on-acquire.js';
 import { registerAddOnEventHandlers } from './jobs/add-on-events.js';
 import { registerJobsAndRealtime, type JobsAndRealtime } from './jobs/register.js';
+import { registerAutomationRunHandler } from './jobs/automation-run.js';
+import { automationsRoutes } from './routes/automations/index.js';
+import { automationRunsRoutes } from './routes/automations/runs.js';
+import { createAutomations, decorateAutomations } from './automations/register.js';
+import {
+  AUTOMATION_POLL_CRON,
+  AUTOMATION_SCHEDULE_JITTER_MS,
+  AUTOMATION_SCHEDULE_SCAN_NAME,
+  AUTOMATION_WATCH_JITTER_MS,
+  AUTOMATION_WATCH_SCHEDULE_NAME,
+} from './automations/kinds.js';
+import { pollWatchedTables } from './automations/watch.js';
+import { scanDueSchedules } from './automations/schedule.js';
 import {
   SCHEDULED_REPORTS_POLL_CRON,
   SCHEDULED_REPORTS_POLL_NAME,
@@ -99,8 +123,10 @@ import { connectionsRoutes } from './routes/connections/index.js';
 import { dataRoutes } from './routes/data/index.js';
 import { emailTemplatesRoutes } from './routes/email-templates/index.js';
 import { exportsRoutes } from './routes/exports/index.js';
+import { filesRoutes } from './routes/files/index.js';
 import { generateRoutes } from './routes/generate/index.js';
 import { importsRoutes } from './routes/imports/index.js';
+import { invoicesRoutes } from './routes/invoices/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
@@ -109,9 +135,11 @@ import { pagesRoutes } from './routes/pages/index.js';
 import { permissionsRoutes } from './routes/permissions/index.js';
 import { rolesRoutes } from './routes/roles/index.js';
 import { scheduledReportsRoutes } from './routes/scheduled-reports/index.js';
+import { schemaDdlRoutes } from './routes/schema-ddl/index.js';
 import { schemaRoutes } from './routes/schema/index.js';
 import { schemaImportRoutes } from './routes/schema-import/index.js';
 import { searchRoutes } from './routes/search/index.js';
+import { storageRoutes } from './routes/storage/index.js';
 import { i18nRoutes } from './routes/i18n/index.js';
 import { settingsRoutes } from './routes/settings/index.js';
 import { usersRoutes } from './routes/users/index.js';
@@ -174,6 +202,24 @@ export const BUNDLED_ADD_ONS_DIR = process.env['ADMINIUM_BUNDLED_ADD_ONS'] ?? '.
  */
 export const EXPORTS_RETENTION_SCHEDULE_NAME = 'exports-retention-sweep';
 export const EXPORTS_RETENTION_CRON = '30 4 * * *';
+
+/**
+ * Daily FILES sweep (37-files-and-storage.md D12, 37-T14). Two halves, and
+ * they are different lifecycles that happen to run on one tick:
+ *
+ *  1. UNATTACHED uploads older than `files.unattachedHours` are trashed. These
+ *     are the create form that was abandoned and the tab that was closed — a
+ *     file nobody ever pointed a record at. Without this half, every abandoned
+ *     upload is stored forever with nothing to find it by.
+ *  2. TRASHED files older than `retention.filesTrashDays` have their bytes
+ *     removed and their rows purged — through each file's OWN destination, not
+ *     the current default, because a file written before a bucket was
+ *     configured still lives on this server's disk.
+ *
+ * Offset from the exports sweep so the two never contend for the same driver.
+ */
+export const FILES_RETENTION_SCHEDULE_NAME = 'files-retention-sweep';
+export const FILES_RETENTION_CRON = '45 4 * * *';
 
 /**
  * Daily META-STORE retention sweep — the one that keeps a self-host install
@@ -386,9 +432,82 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           };
         })();
 
-  // Artifact storage for the data-io pipeline (M7-T07): exports, imports and
-  // scheduled-report snapshots all live under `<dataDir>/files/`.
-  const storage = createFileStorage({ dataDir: env.ADMINIUM_DATA_DIR });
+  // THE ONE BYTE SEAM (37-files-and-storage.md §3.1). Everything Adminium
+  // stores goes through it: exports, imports, scheduled-report snapshots, the
+  // branding logo, imported schema files and uploads.
+  //
+  // With no destination configured it is byte-identical to what shipped before
+  // wave 0024 — `<dataDir>/files/<file_ULID>`, the same flat key grammar that
+  // IS the traversal guard. Configure a destination in Studio (or seed one from
+  // the environment) and every NEW file of every kind follows it (D18), which
+  // is what makes a host with no persistent disk viable at all.
+  const storageCrypto = storageCryptoFromSecret(env.ADMINIUM_SECRET);
+  const destinationResolver = createDestinationResolver({
+    repo: destinationsRepo(meta, storageCrypto),
+    localRoot: resolve(env.ADMINIUM_DATA_DIR, FILES_DIR),
+  });
+  // The first-boot destination seed (37 §3.11, D15), and it has TWO CALL SITES
+  // deliberately.
+  //
+  // `cli/commands/start.ts` calls it too, and earlier, because on the CLI path
+  // `composeServer` runs late — after the source seed, which generates pages,
+  // and a generation run writes files. A destination named in the environment
+  // has to be the default BEFORE the first artifact of that boot is written, so
+  // the CLI cannot wait for this line.
+  //
+  // This line is the one that covers everybody else. The desktop app boots
+  // `composeServer` directly (`apps/desktop/src/server/index.ts`) and never
+  // goes through `start.ts`, so without it `ADMINIUM_STORAGE_URL` and the
+  // `AWS_*` quartet were read by nothing outside the CLI — on the one host with
+  // the least reason to care and none of the ephemeral-disk hosts the seed was
+  // written for. Paying for it twice costs one indexed read: the seed returns
+  // before touching the store when nothing is configured, and ANY existing
+  // destination row makes it a no-op — and one log line, see below.
+  //
+  // Best-effort, like the template seed above. The seed catches its own
+  // failures — an unmigrated store included — so this is the composition root's
+  // own belt rather than the only one: nothing about optional storage
+  // configuration is worth refusing to serve CRUD over.
+  //
+  // `log` goes to DEBUG here, and only here. On the CLI path `start.ts` has
+  // already said what happened, in the operator's terminal, before this server
+  // existed — so at `info` this second call would print a line contradicting
+  // the first ("seeded from ADMINIUM_STORAGE_URL" immediately followed by
+  // "ADMINIUM_STORAGE_URL ignored — this instance already has a storage
+  // destination"), on every boot of exactly the ephemeral-disk hosts the seed
+  // was written for. Anything from this call that an operator must act on is a
+  // `warn`, and that still reaches them.
+  try {
+    await seedStorageDestination({
+      meta,
+      crypto: storageCrypto,
+      env,
+      log: (message) => {
+        app.log.debug(message);
+      },
+      warn: (message) => {
+        app.log.warn(message);
+      },
+    });
+  } catch (error) {
+    app.log.warn({ err: error }, 'could not seed the storage destination from the environment');
+  }
+  const storage = createFileStore({
+    spool: createSpool({ dataDir: env.ADMINIUM_DATA_DIR }),
+    destinations: destinationResolver,
+    files: filesRepo(meta),
+  });
+  // Which columns hold files, and the hook that keeps `adminium_files` in step
+  // with what those columns say (37 §3.7). One reader, shared by the upload
+  // route (which asks about ONE column) and the reconcile hook (which asks
+  // about a whole table), so both see the same cache.
+  const columnBlocks = createColumnBlockReader(meta);
+  const fileReconciler = createFileReconciler({
+    meta,
+    blocks: columnBlocks,
+    destinations: destinationResolver,
+    logger: app.log,
+  });
 
   // The add-on package store (32-add-on-distribution.md D11): a sibling of
   // `files/` under the same data dir, so downloaded packages survive an image
@@ -423,7 +542,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     resolveUser: (req) => req.user ?? null,
     // Registers the export-run / import-run / report-run handlers on the shared
     // registry — the same instances the exports/imports routes receive below.
-    dataIo: { manager, storage },
+    dataIo: { manager, storage, storageCrypto },
     // The realtime hub authorizes a SUBSCRIBED USER, not a request, so it cannot
     // reuse `request.can()` (which caches per request and needs a principal on
     // one). It goes through the same resolver + the same decision function the
@@ -439,7 +558,7 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     // Claims the `email.send` kind (jobs/email-send.ts). Registered
     // unconditionally: whether mail actually goes out is decided by the
     // `email.smtp` SETTING at enqueue time, not by boot configuration.
-    email: { secret: env.ADMINIUM_SECRET },
+    email: { secret: env.ADMINIUM_SECRET, storage },
     ...(llm === null ? {} : { llm: { resolve: llm.resolve } }),
   });
 
@@ -448,6 +567,62 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   // dev/test path (30s request-thread budget) in every deployment and the
   // wizard's job-polling branch never runs.
   registerIntrospectJob(jobs.registry, { manager, meta });
+
+  /*
+   * THE RULE ENGINE (42-automations-and-workflow-logs.md §3.3, §3.4).
+   *
+   * Decorated BEFORE the data routes are registered, because
+   * `crud/after-record-write.ts` guards on `hasDecorator('automations')` and a
+   * write that reached the seam before this point would be dispatched to
+   * nothing. Two croner names tick every minute alongside the scheduled-report
+   * poll, jittered apart so three schedules do not land on the same second
+   * (§8).
+   */
+  const automations = createAutomations({
+    meta,
+    manager,
+    enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+    log: app.log,
+  });
+  decorateAutomations(app, automations);
+  registerAutomationRunHandler(jobs.registry, {
+    meta,
+    manager,
+    app,
+    secret: env.ADMINIUM_SECRET,
+    storage,
+    hub: jobs.hub,
+    enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+  });
+  jobs.scheduler.registerSchedule(
+    AUTOMATION_WATCH_SCHEDULE_NAME,
+    AUTOMATION_POLL_CRON,
+    async () => {
+      const tick = await pollWatchedTables({
+        meta,
+        manager,
+        enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+        countRelated: automations.countRelated,
+        log: app.log,
+      });
+      if (tick.runsStarted > 0) app.log.info(tick, 'automation watch tick');
+    },
+    { jitterMs: AUTOMATION_WATCH_JITTER_MS },
+  );
+  jobs.scheduler.registerSchedule(
+    AUTOMATION_SCHEDULE_SCAN_NAME,
+    AUTOMATION_POLL_CRON,
+    async () => {
+      const tick = await scanDueSchedules({
+        meta,
+        manager,
+        enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+        log: app.log,
+      });
+      if (tick.runsStarted > 0 || tick.capped > 0) app.log.info(tick, 'automation schedule tick');
+    },
+    { jitterMs: AUTOMATION_SCHEDULE_JITTER_MS },
+  );
 
   const undoStore = new UndoStore();
 
@@ -638,7 +813,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       }
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
-      await api.register(dataRoutes({ manager, meta, undoStore }));
+      await api.register(
+        schemaDdlRoutes({ manager, meta, crypto: dsnCryptoFromSecret(env.ADMINIUM_SECRET) }),
+      );
+      await api.register(dataRoutes({ manager, meta, undoStore, files: fileReconciler }));
       // M7 data-io + reports/notifications (T5/T6): exports and imports share
       // the jobs pipeline wired above; scheduled reports ride the same registry
       // via the poll schedule below.
@@ -647,10 +825,31 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       await api.register(importsRoutes({ meta, manager, storage, enqueue: enqueueDataIo }));
       await api.register(notificationsRoutes({ meta, hub: jobs.hub }));
       await api.register(scheduledReportsRoutes({ meta }));
-      await api.register(emailTemplatesRoutes({ meta }));
+      // 42 §3.1. `onRulesChanged` is what keeps the matcher's in-memory index
+      // honest: a rule saved through this route is matched by the next write.
+      await api.register(
+        automationsRoutes({
+          meta,
+          manager,
+          secret: env.ADMINIUM_SECRET,
+          enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
+          onRulesChanged: () => automations.matcher.onRulesChanged(),
+          runner: { storage, hub: jobs.hub },
+        }),
+      );
+      await api.register(automationRunsRoutes({ meta }));
+      await api.register(
+        emailTemplatesRoutes({ meta, storage, cancelRunningJob: (jobId) => jobs.worker.requestCancel(jobId) }),
+      );
+      // 34-invoices-add-on.md §3.9: the authored `/invoices` surface — the
+      // same deps shape as the email documents; rendering is a later wave's.
+      await api.register(invoicesRoutes({ meta }));
       await api.register(generateRoutes({ manager, meta }));
       await api.register(schemaImportRoutes());
-      await api.register(pagesRoutes({ meta }));
+      // The block cache is derived from page config, so a page write must drop
+      // it — otherwise a column configured as a file column is invisible to the
+      // next upload for up to 30 seconds (38 D8).
+      await api.register(pagesRoutes({ meta, onPageChanged: () => { columnBlocks.clear(); } }));
       // ⌘K global search (08 §2.9, M4-T06): pages by title + records via the
       // crud quick-search path, RBAC/PII-filtered like the data routes.
       await api.register(searchRoutes({ manager, meta }));
@@ -665,6 +864,32 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // Branding rides with settings but owns the bytes half (logo storage)
       // and the two PUBLIC reads the sign-in screen paints itself with.
       await api.register(brandingRoutes({ meta, storage }));
+      // Files (37 Appendix C). The upload route asks `columnBlocks` for the
+      // named column's `file` block — its allowlist, its cap, its destination
+      // and the reference shape to hand back.
+      await api.register(
+        filesRoutes({
+          meta,
+          storage,
+          storageCrypto,
+          columnFileBlock: (input) => columnBlocks.forColumn(input),
+          // The sidecar half: `config.attachments` narrows the allowlist, the
+          // cap and the destination for an upload that names no column, and
+          // enforces the per-record count.
+          pageAttachments: (input) => columnBlocks.attachmentsFor(input.connectionId, input.table),
+        }),
+      );
+      // Storage destinations (37 §3.2). Its own grant, `storage.manage`, and
+      // the resolver instance the store itself uses — so a credential edit
+      // invalidates the driver the next upload gets.
+      await api.register(
+        storageRoutes({
+          meta,
+          storageCrypto,
+          destinations: destinationResolver,
+          enqueue: (input) => jobs.enqueue(input),
+        }),
+      );
       await api.register(i18nRoutes({ meta }));
       await api.register(viewsRoutes({ meta }));
       await api.register(meViewsRoutes({ meta }));
@@ -908,7 +1133,63 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const files = filesRepo(meta);
     for (const artifact of await repo.listExpiredArtifacts()) {
       await files.markDeleted(artifact.fileId);
-      await storage.remove(artifact.storageKey);
+      // Through the FILE's own destination, not the current default: an
+      // artifact written before a destination was configured still lives on
+      // this server's disk, and removing it from the new bucket would remove
+      // nothing while leaving the real bytes behind forever.
+      const row = await files.findById(artifact.fileId);
+      if (row !== null) await storage.remove(row);
+    }
+  });
+
+  // Files retention (37 D12/D14) — see FILES_RETENTION_SCHEDULE_NAME for the
+  // two halves. Counts are logged for the reason the meta GC logs its own: a
+  // sweep that runs silently is indistinguishable from a sweep that is not
+  // running.
+  jobs.scheduler.registerSchedule(FILES_RETENTION_SCHEDULE_NAME, FILES_RETENTION_CRON, async () => {
+    const settings = settingsRepo(meta);
+    const repo = filesRepo(meta);
+    const at = Date.now();
+
+    const unattachedHours = await settings.get('files.unattachedHours');
+    let trashed = 0;
+    for (;;) {
+      const stale = await repo.listUnattachedBefore(at - unattachedHours * HOUR_MS, 100);
+      if (stale.length === 0) break;
+      for (const file of stale) {
+        if (await repo.markDeleted(file.id, at)) trashed += 1;
+      }
+      if (stale.length < 100) break;
+    }
+
+    const trashDays = await settings.get('retention.filesTrashDays');
+    let purged = 0;
+    let failed = 0;
+    for (;;) {
+      const due = (await repo.listDeletedBefore(at - trashDays * DAY_MS, 100)).filter(
+        // `upload` (and 34's `document`) only: an export's bytes are the
+        // exports sweep's business and its retention is a different setting.
+        (file) => file.kind === 'upload',
+      );
+      if (due.length === 0) break;
+      for (const file of due) {
+        try {
+          // BYTES FIRST, then the row: a row that survives a failed byte
+          // deletion is retried on the next tick, where a byte deletion with no
+          // row left is unreachable garbage forever.
+          await storage.remove(file);
+          await repo.purge(file.id);
+          purged += 1;
+        } catch (error) {
+          failed += 1;
+          app.log.warn({ err: error, fileId: file.id }, 'could not remove a trashed file’s bytes');
+        }
+      }
+      if (due.length < 100) break;
+    }
+
+    if (trashed > 0 || purged > 0 || failed > 0) {
+      app.log.info({ trashed, purged, failed }, 'files retention sweep');
     }
   });
 
@@ -944,8 +1225,24 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     const auditArchive = await settings.get('retention.auditArchive');
     const auditEntries = auditArchive ? null : await auditRepo(meta).gc(at, auditLogDays);
 
+    // 42 D23. `retention.automationRunsDays` has been a registered setting
+    // read by nobody since it was added; this is its first reader. Failed runs
+    // are kept twice as long (07 §8) and `pending`/`waiting` rows are never
+    // swept — they are work that has not happened yet.
+    const automationRunsDays = await settings.get('retention.automationRunsDays');
+    const automationRuns = await automationRunsRepo(meta).gc(at, automationRunsDays);
+
     app.log.info(
-      { sessions, passwordResets, jobs: finishedJobs, auditEntries, jobsDays, auditLogDays },
+      {
+        sessions,
+        passwordResets,
+        jobs: finishedJobs,
+        auditEntries,
+        automationRuns,
+        jobsDays,
+        auditLogDays,
+        automationRunsDays,
+      },
       auditArchive
         ? 'retention sweep complete — audit log skipped, retention.auditArchive is on and archiving is not implemented'
         : 'retention sweep complete',

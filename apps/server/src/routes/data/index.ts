@@ -21,19 +21,15 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationFaile
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager, SourceDatabase } from '../../connections/manager.js';
 import { SnapshotView, type ResolvedTable } from '../../crud/identifiers.js';
-import {
-  applyAggregateMask,
-  fetchAggregateValues,
-  resolveAggregates,
-  type ResolvedAggregate,
-} from '../../crud/aggregates.js';
+import { applyDerivedFields } from '../../crud/derive.js';
+import { applyMeasureMask, fetchMeasureValues } from '../../crud/measures.js';
 import { runList } from '../../crud/list.js';
+import { applyLookupMask, fetchLookupValues } from '../../crud/lookups.js';
 import {
-  applyLookupMask,
-  fetchLookupValues,
-  resolveLookups,
-  type ResolvedLookup,
-} from '../../crud/lookups.js';
+  resolveProjections,
+  type ProjectionRefusal,
+  type Projections,
+} from '../../crud/projections.js';
 import { canReadPii, maskRow, type Row } from '../../crud/mask.js';
 import {
   fetchByPk,
@@ -43,8 +39,13 @@ import {
   type ReferenceCount,
 } from '../../crud/records.js';
 import { rowsEqual, UndoStore, type UndoAction, type UndoEntry } from '../../crud/undo.js';
+import {
+  afterRecordWrite,
+  emitRecordEvent,
+  type RecordWriteAction,
+} from '../../crud/after-record-write.js';
+import type { FileReconciler } from '../../files/reconcile.js';
 import { normalizeWriteValue } from '../../crud/write-values.js';
-import { publishWidgetDataStream } from '../../widget-data/stream-publisher.js';
 import {
   dataRecordParams,
   dataTableParams,
@@ -71,6 +72,13 @@ export interface DataRoutesDeps {
   meta: MetaDb;
   /** Injectable for TTL tests; a fresh store otherwise. */
   undoStore?: UndoStore | undefined;
+  /**
+   * Keeps `adminium_files` in step with what the customer's own file columns
+   * say (37-files-and-storage.md §3.7). ABSENT ⇒ no file behaviour at all,
+   * which is what every test that predates 37 gets and is why they are
+   * unchanged: a store with no file columns configured reconciles nothing.
+   */
+  files?: FileReconciler | undefined;
 }
 
 interface DataContext {
@@ -239,6 +247,39 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return { connectionId, view, table, db, dialect, unmasked: await canReadPii(request) };
     }
 
+    /**
+     * Refuse a write whose file columns do not hold what they are configured
+     * to hold (38 D5) — a `multiple` column handed a non-array, or a list past
+     * the column's `maxCount`.
+     *
+     * PRE-COMMIT, and it is the only file check that can be: the reconcile
+     * hook runs after the row is written and is forbidden from throwing, so a
+     * cap enforced there would be reported after being exceeded.
+     *
+     * No-op when the table has no `multiple` file column, which is every table
+     * that predates 38 — so nothing existing pays for this beyond one cached
+     * block lookup.
+     */
+    async function assertFileColumns(ctx: DataContext, values: Row): Promise<void> {
+      if (deps.files === undefined) return;
+      const problem = await deps.files.validateWrite({
+        connectionId: ctx.connectionId,
+        table: ctx.table.id,
+        values,
+      });
+      if (problem === null) return;
+      if (problem.reason === 'too-many') {
+        throw new ValidationFailedError(
+          `${problem.column} accepts at most ${String(problem.maxCount)} file(s); this record would have ${String(problem.count)}.`,
+          { column: problem.column, maxCount: problem.maxCount, count: problem.count },
+        );
+      }
+      throw new ValidationFailedError(
+        `${problem.column} stores a list of files, so its value must be a JSON array.`,
+        { column: problem.column },
+      );
+    }
+
     /** Allowlist incoming row keys against the snapshot (422 otherwise). */
     function allowlistValues(ctx: DataContext, values: Row): Row {
       const entries = Object.entries(values);
@@ -279,40 +320,32 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       return { connectionId: ctx.connectionId, table: ctx.table.id, pk, label: pkLabel(ctx.table, pk) };
     }
 
+    /**
+     * Every single-row write ends here, and here is now a thin call into
+     * `crud/after-record-write.ts` — the body moved out so the bulk route,
+     * the public surface and the automation runner reach the same downstream
+     * (42 §3.3). What stays is the origin: a write made through this route is
+     * `dashboard`, which is the origin whose rules wait out the undo window.
+     */
     async function afterMutation(
       request: FastifyRequest,
       ctx: DataContext,
-      action: string,
+      action: RecordWriteAction,
       entity: RecordRef,
       before: Row | null,
       after: Row | null,
     ): Promise<void> {
-      await app.rbac.audit(request, {
-        category: 'data',
-        action: `record.${action}`,
+      await afterRecordWrite(app, {
+        request,
         connectionId: ctx.connectionId,
+        table: ctx.table,
+        action,
         entity,
-        changes: {
-          // Before/after images are PII-redacted in the audit trail (§5.3).
-          before: before === null ? null : maskRow(before, ctx.table, false),
-          after: after === null ? null : maskRow(after, ctx.table, false),
-        },
+        before,
+        after,
+        origin: 'dashboard',
+        files: deps.files,
       });
-      if (app.hasDecorator('realtime')) {
-        // Cache-invalidation fan-out (09 §4.1) — carries only the pk.
-        app.realtime.publish(`table:${ctx.connectionId}:${ctx.table.id}`, `record.${action}`, {
-          pk: entity.pk,
-        });
-        // Live-stream fan-out (04 §5.3) — carries the PII-masked row so the
-        // realtime-feed / live log-table tail can prepend it without a refetch.
-        publishWidgetDataStream(app.realtime, {
-          connectionId: ctx.connectionId,
-          table: ctx.table,
-          type: `record.${action}`,
-          pk: entity.pk,
-          row: action === 'delete' ? before : after,
-        });
-      }
     }
 
     function issueUndo(
@@ -322,6 +355,8 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       before: Row[],
       after: Row[],
       changedColumns: string[] = [],
+      /** Files trashed alongside this write; the undo restores them (37 D12). */
+      fileIds: string[] = [],
     ): string | null {
       const userId = principalId(request);
       if (userId === null || ctx.table.primaryKey.length === 0) return null;
@@ -335,53 +370,84 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         before,
         after,
         changedColumns,
+        fileIds,
       });
       return token;
     }
 
     /**
-     * Resolve the request's `lookup=` params (crud/lookups.ts): identifier
-     * errors 422 here; per-caller refusals (masking, missing read grant on a
-     * reached table) degrade to `null` + `_masked` instead of failing the
-     * whole read for low-privilege callers.
+     * Everything a deleted record owned: its sidecar attachments, and whatever
+     * its file columns pointed at. Returns the ids so the undo entry can carry
+     * them — nothing else knows which files a `DELETE` took with it once the
+     * row is gone.
      */
-    async function lookupsFor(
-      request: FastifyRequest,
-      ctx: DataContext,
-      raw: string | string[] | undefined,
-    ): Promise<ResolvedLookup[]> {
-      const list = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
-      if (list.length === 0) return [];
-      return resolveLookups({
-        view: ctx.view,
-        table: ctx.table,
-        raw: list,
-        canReadPii: ctx.unmasked,
-        canReadTable: (tableId) => request.can(`table:${ctx.connectionId}:${tableId}:read`),
+    async function trashRecordFiles(ctx: DataContext, entity: RecordRef, before: Row): Promise<string[]> {
+      if (deps.files === undefined) return [];
+      const trashed = await deps.files.trashForRecord({
+        connectionId: ctx.connectionId,
+        table: ctx.table.id,
+        entity,
+        row: before,
       });
+      return trashed;
     }
 
     /**
-     * Resolve the request's `agg=` params (crud/aggregates.ts) — same error
-     * split as `lookupsFor`, with the lookups' aliases passed in so one
-     * request cannot claim a row key twice across the two param families.
+     * Resolve `lookup=`, `agg=` and `compute=` for one request through the
+     * shared resolver (crud/projections.ts, 41-export-builder.md D2) and audit
+     * every refused projection (D16). The export preview and the export job
+     * call the same resolver, so the per-reached-table permission decision is
+     * made in one place for every reader of a row.
      */
-    async function aggregatesFor(
+    async function projectionsFor(
       request: FastifyRequest,
       ctx: DataContext,
-      raw: string | string[] | undefined,
-      lookups: readonly ResolvedLookup[],
-    ): Promise<ResolvedAggregate[]> {
-      const list = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
-      if (list.length === 0) return [];
-      return resolveAggregates({
+      query: { lookup?: string | string[] | undefined; agg?: string | string[] | undefined; compute?: string | string[] | undefined },
+    ): Promise<Projections> {
+      const projections = await resolveProjections({
         view: ctx.view,
         table: ctx.table,
-        raw: list,
         canReadPii: ctx.unmasked,
         canReadTable: (tableId) => request.can(`table:${ctx.connectionId}:${tableId}:read`),
-        takenAliases: new Set(lookups.map((lookup) => lookup.alias)),
+        lookup: query.lookup,
+        agg: query.agg,
+        compute: query.compute,
       });
+      await auditRefusedProjections(request, ctx, projections.refusals);
+      return projections;
+    }
+
+    /**
+     * One `app.rbac.audit` row per refused projection (D16).
+     *
+     * The gap this closes: `contextFor` audits a denied TABLE read one file
+     * over, while a lookup or a measure that resolves to `null` because the
+     * caller cannot read the table it reaches wrote nothing at all — the
+     * refusals that degrade were the ones invisible to the trail. Widening
+     * the disclosure from a row count to an invoice total is exactly the
+     * moment to close it.
+     */
+    async function auditRefusedProjections(
+      request: FastifyRequest,
+      ctx: DataContext,
+      refusals: readonly ProjectionRefusal[],
+    ): Promise<void> {
+      for (const entry of refusals) {
+        await app.rbac.audit(request, {
+          category: 'rbac',
+          action: 'projection.denied',
+          connectionId: ctx.connectionId,
+          changes: {
+            after: {
+              alias: entry.alias,
+              table: entry.table,
+              reason: entry.reason,
+              method: request.method,
+              url: request.url,
+            },
+          },
+        });
+      }
     }
 
     // --- list -----------------------------------------------------------------
@@ -391,8 +457,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       { schema: { params: dataTableParams, querystring: recordListQuery, response: { 200: recordListReply } } },
       async (request) => {
         const ctx = await contextFor(request, 'read');
-        const lookups = await lookupsFor(request, ctx, request.query.lookup);
-        const aggregates = await aggregatesFor(request, ctx, request.query.agg, lookups);
+        const { lookups, measures, requiredColumns, fields } = await projectionsFor(
+          request,
+          ctx,
+          request.query,
+        );
         return runList({
           db: ctx.db,
           view: ctx.view,
@@ -401,7 +470,9 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           canReadPii: ctx.unmasked,
           dialect: ctx.dialect,
           lookups,
-          aggregates,
+          measures,
+          requiredColumns,
+          derivedFields: fields,
         });
       },
     );
@@ -436,6 +507,11 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const table = view.table(entry.tableId);
         const { db } = await manager.data(entry.connectionId);
         const restoredIds = await executeUndo(db, table, entry);
+        // The record is back; so are its files (37 D12). Before the audit row,
+        // so a partial restore is visible in the same entry that claims it.
+        if (entry.fileIds.length > 0 && deps.files !== undefined) {
+          await deps.files.restoreAll(entry.fileIds);
+        }
         await app.rbac.audit(request, {
           category: 'data',
           action: 'record.undo',
@@ -446,6 +522,25 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
           app.realtime.publish(`table:${entry.connectionId}:${entry.tableId}`, 'record.undo', {
             action: entry.action,
           });
+        }
+        /*
+         * D7 — the undo window is the reason a dashboard-origin rule waits 60 s
+         * before it runs. Now that the write is taken back, the runs it queued
+         * must never happen: `onUndo` flips the ones still pending to skipped
+         * and cancels their jobs. An `update` undo is NOT included — the row
+         * still exists and its rule (if any) fired on a change that has now
+         * been reversed by a second change, which is itself an event.
+         */
+        if (app.hasDecorator('automations') && entry.action !== 'update') {
+          const images = entry.action === 'create' ? entry.after : entry.before;
+          await app.automations.onUndo(
+            images.map((row) => ({
+              connectionId: entry.connectionId,
+              table: entry.tableId,
+              pk: Object.fromEntries(entry.pkColumns.map((c) => [c, row[c]])),
+              label: '',
+            })),
+          );
         }
         return { restoredIds };
       },
@@ -525,6 +620,13 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const results: { id: unknown; ok: boolean; error?: string }[] = [];
         const beforeImages: Row[] = [];
         const afterImages: Row[] = [];
+        /*
+         * O7 — a bulk write fires record triggers, per row, bounded by this
+         * route's own 1,000-id cap. Collected inside the transaction and
+         * emitted after it commits: a rule must never see a row that a later
+         * failure rolled back.
+         */
+        const events: { pk: Row; before: Row; after: Row | null }[] = [];
 
         await ctx.db.transaction().execute(async (trx) => {
           const tdb = trx as unknown as Kysely<SourceDatabase>;
@@ -543,6 +645,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 }
                 await qb.execute();
                 beforeImages.push(before);
+                events.push({ pk, before, after: null });
               } else {
                 let qb = trx.updateTable(ctx.table.id).set(values as never);
                 for (const [column, value] of Object.entries(pk)) {
@@ -552,6 +655,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
                 const after = await fetchByPk(tdb, ctx.table, pk);
                 beforeImages.push(before);
                 if (after !== undefined) afterImages.push(after);
+                events.push({ pk, before, after: after ?? before });
               }
               results.push({ id, ok: true });
             } catch (error) {
@@ -585,6 +689,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
             count: okCount,
           });
         }
+        // Events, not the full helper: one operator action stays ONE audit row
+        // and one counted publish (see `crud/after-record-write.ts`).
+        for (const event of events) {
+          await emitRecordEvent(app, {
+            connectionId: ctx.connectionId,
+            table: ctx.table,
+            action: action === 'delete' ? 'delete' : 'update',
+            entity: recordRef(ctx, event.pk),
+            before: event.before,
+            after: event.after,
+            origin: 'bulk',
+          });
+        }
         return { results, undoToken };
       },
     );
@@ -616,16 +733,19 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const row = await fetchByPk(ctx.db, ctx.table, pk);
         if (row === undefined) throw new NotFoundError('Record not found.', { pk });
         let data = maskRow(row, ctx.table, ctx.unmasked);
-        const lookups = await lookupsFor(request, ctx, request.query.lookup);
+        const { lookups, measures, fields } = await projectionsFor(request, ctx, request.query);
         if (lookups.length > 0) {
           const values = await fetchLookupValues(ctx.db, ctx.table, pk, lookups);
           data = applyLookupMask([{ ...data, ...values }], lookups)[0] as Row;
         }
-        const aggregates = await aggregatesFor(request, ctx, request.query.agg, lookups);
-        if (aggregates.length > 0) {
-          const values = await fetchAggregateValues(ctx.db, ctx.table, pk, aggregates);
-          data = applyAggregateMask([{ ...data, ...values }], aggregates)[0] as Row;
+        if (measures.length > 0) {
+          const values = await fetchMeasureValues(ctx.db, ctx.table, pk, measures);
+          data = applyMeasureMask([{ ...data, ...values }], measures)[0] as Row;
         }
+        // The fourth stage, in the same position the list runs it: after the
+        // whole masking chain, so list and record answer the same numbers and
+        // the same markers for the same row.
+        data = applyDerivedFields([data], fields)[0] as Row;
         if (request.query.include === 'inboundCounts') {
           return { data, inboundCounts: await referenceCounts(ctx.db, ctx.view, ctx.table, pk) };
         }
@@ -639,6 +759,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
       async (request, reply) => {
         const ctx = await contextFor(request, 'create');
         const values = allowlistValues(ctx, request.body.values);
+        await assertFileColumns(ctx, values);
         let inserted: Row;
         try {
           inserted = await insertRow(ctx.db, ctx.dialect, ctx.table, values);
@@ -661,6 +782,7 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         const ctx = await contextFor(request, 'update');
         const pk = parseRecordId(ctx.table, request.params.recordId);
         const values = allowlistValues(ctx, request.body.values);
+        await assertFileColumns(ctx, values);
         const before = await fetchByPk(ctx.db, ctx.table, pk);
         if (before === undefined) throw new NotFoundError('Record not found.', { pk });
         try {
@@ -716,8 +838,14 @@ export function dataRoutes(deps: DataRoutesDeps): FastifyPluginAsyncZod {
         } catch (error) {
           mapDbError(error);
         }
-        const undoToken = issueUndo(request, ctx, 'delete', [before], []);
-        await afterMutation(request, ctx, 'delete', recordRef(ctx, pk), before, null);
+        const entity = recordRef(ctx, pk);
+        // The record is gone; its files go with it (37 D12) — sidecar
+        // attachments AND anything its file columns named. Trashed, not
+        // deleted, so the 60 s undo below can put them back and the retention
+        // sweep owns the bytes.
+        const trashedFileIds = await trashRecordFiles(ctx, entity, before);
+        const undoToken = issueUndo(request, ctx, 'delete', [before], [], [], trashedFileIds);
+        await afterMutation(request, ctx, 'delete', entity, before, null);
         return { data: maskRow(before, ctx.table, ctx.unmasked), undoToken };
       },
     );

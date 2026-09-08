@@ -64,6 +64,17 @@ export const PERMISSIONS = {
   // installing an add-on and changing a workspace setting are not the same
   // authority, and 08 §2.19 was amended to say so.
   manifestsManage: 'system:manifests:manage',
+  // 37-files-and-storage.md D10/D37. `filesManage` gates seeing and acting on
+  // files somebody else uploaded (lists are mine-only without it); uploading is
+  // authorised by the entity table's own grant, never by this. `storageManage`
+  // gates the destinations themselves.
+  filesManage: 'system:files:manage',
+  storageManage: 'system:storage:manage',
+  // 42 D1 — ONE key this wave, gating both pages, every rule write and every
+  // run read. A read-only `automations.read` is a residual (42 §10): while
+  // only super-admins and explicitly-granted admins author rules, a second
+  // key would be a switch with nothing behind it.
+  automationsManage: 'system:automations:manage',
 } as const;
 
 export type ParsedGrant =

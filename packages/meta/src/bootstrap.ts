@@ -16,7 +16,7 @@ import { permissionsRepo } from './repos/permissions.js';
 import { rolesRepo, type Role } from './repos/roles.js';
 import { settingsRepo } from './repos/settings.js';
 import { usersRepo, type User } from './repos/users.js';
-import { packJson } from './repos/util.js';
+import { isDuplicateKeyError, packJson } from './repos/util.js';
 
 export interface BuiltinRoleDef {
   slug: string;
@@ -40,8 +40,8 @@ export interface BuiltinRoleDef {
  * there is no SMTP to keep it out of the inviter's hands). `seedBuiltinRoles`
  * runs at every boot and backfills the two new rows on existing installs.
  *
- * Reserved-key footprint: "every system action" includes ALL FOUR
- * `RESERVED_SYSTEM_ACTION_KEYS` (automations/webhooks/manifests/sql.run — no
+ * Reserved-key footprint: "every system action" includes BOTH remaining
+ * `RESERVED_SYSTEM_ACTION_KEYS` (webhooks/sql.run — no
  * v1 enforcement point). That is deliberate and super-admin-ONLY: the role is
  * definitionally full-access (and the RBAC layer short-circuits for
  * `super-admin` anyway), so its reserved rows are inert declarations of
@@ -64,6 +64,10 @@ export const BUILTIN_ROLES: readonly BuiltinRoleDef[] = [
     slug: 'admin',
     name: 'Admin',
     description: 'Manages connections, schema, and LLM assist.',
+    // `schema.ddl` is deliberately ABSENT (35-schema-authoring.md D6/D7):
+    // the built-in Admin manages connections and labels, and writing DDL to
+    // the customer's database is a capability an operator grants on purpose,
+    // not one four roles arrive holding. Super Admin has it via SYSTEM_ACTION_KEYS.
     systemActions: ['users.manage', 'audit.read', 'connections.manage', 'schema.remap', 'llm.run'],
   },
   {
@@ -232,25 +236,6 @@ export async function createFirstSuperAdmin(
     await roles.assignToUser(user.id, superAdmin.id, null, at);
     return user;
   });
-}
-
-/**
- * Duplicate-key detection across the three v1 dialects: SQLite
- * (`SQLITE_CONSTRAINT_PRIMARYKEY` / "UNIQUE constraint failed"), Postgres
- * (SQLSTATE 23505), MySQL/MariaDB (errno 1062 / `ER_DUP_ENTRY`). Falls back to
- * a message probe so an unrecognized driver shape still reads as a duplicate
- * rather than a 500 on the security-critical path.
- */
-function isDuplicateKeyError(error: unknown): boolean {
-  if (error === null || typeof error !== 'object') return false;
-  const e = error as { code?: unknown; errno?: unknown; message?: unknown };
-  if (typeof e.code === 'string') {
-    if (e.code === '23505') return true; // Postgres unique_violation
-    if (e.code.startsWith('SQLITE_CONSTRAINT')) return true;
-    if (e.code === 'ER_DUP_ENTRY') return true;
-  }
-  if (e.errno === 1062) return true; // MySQL/MariaDB
-  return typeof e.message === 'string' && /duplicate|unique constraint/i.test(e.message);
 }
 
 /**

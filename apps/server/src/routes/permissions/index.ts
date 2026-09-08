@@ -67,6 +67,7 @@ const SYSTEM_PERMISSION_META: Record<
   'pages.manage': { label: 'Create and organize pages', category: 'workspace' },
   'connections.manage': { label: 'Manage database connections', category: 'data' },
   'schema.remap': { label: 'Edit schema labels and overrides', category: 'data' },
+  'schema.ddl': { label: 'Create, edit and delete tables', category: 'data' },
   'exports.manage': { label: "Manage everyone's exports", category: 'data' },
   'imports.manage': { label: "Manage everyone's imports", category: 'data' },
   'reports.manage': { label: 'Manage scheduled reports', category: 'data' },
@@ -78,6 +79,16 @@ const SYSTEM_PERMISSION_META: Record<
   // to "change a setting" — and 26 D3 exists precisely to stop it riding on
   // `settings.manage`.
   'manifests.manage': { label: 'Install and connect add-ons', category: 'operations' },
+  // 37-T10. `files.manage` is `data` — it is about other people's records'
+  // attachments, beside the exports/imports rows it mirrors. `storage.manage`
+  // is `workspace`: it configures where the whole instance writes bytes and
+  // holds a credential, which is infrastructure rather than data.
+  'files.manage': { label: "Manage everyone's files", category: 'data' },
+  'storage.manage': { label: 'Manage storage destinations', category: 'workspace' },
+  // 42-T13. `operations` beside the jobs rows: a rule is work the instance
+  // performs on its own, and the two pages it gates are read as "what is this
+  // deployment doing" rather than "how is this workspace configured".
+  'automations.manage': { label: 'Manage automations and their logs', category: 'operations' },
 };
 
 /** `users.manage` → `system:users:manage` (§5.1 spells the dot as a colon). */

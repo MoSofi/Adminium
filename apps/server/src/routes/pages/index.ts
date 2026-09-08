@@ -84,6 +84,24 @@ import {
 
 export interface PagesRoutesDeps {
   meta: MetaDb;
+  /**
+   * A stored page changed — drop anything derived from page config
+   * (38-files-library-and-attachments.md D8).
+   *
+   * THE BUG THIS EXISTS FOR. `createColumnBlockReader` caches a table's `file`
+   * blocks for 30 seconds and has always exposed `clear()`; nothing outside its
+   * own tests ever called it. So for half a minute after an operator turned a
+   * column into a file column — or, from 38, after the Attachments card created
+   * one — `POST /files` still saw no block, took the workspace limits, and
+   * minted the reference in the DEFAULT `url` shape rather than the configured
+   * one. Every shape parses on read, so nothing errored and nothing logged; the
+   * only trace was a column whose first rows held a different kind of value
+   * from the rest.
+   *
+   * Optional because the read-only harness and several tests mount these routes
+   * with nothing derived from them to invalidate.
+   */
+  onPageChanged?: ((connectionId: string | null) => void) | undefined;
 }
 
 /** The acting session user id, or null for keyless/API-key principals. */
@@ -92,10 +110,30 @@ function sessionUserId(request: FastifyRequest): string | null {
   return (request as unknown as { user?: { id?: string } }).user?.id ?? null;
 }
 
-/** The `GET /pages` row shape, from a full page row. */
-function toSummary(page: Page): {
+/**
+ * What the summary says about the owning connection: its display name, and
+ * whether an operator has paused it.
+ */
+interface ConnectionFacts {
+  name: string | null;
+  paused: boolean;
+}
+
+/** A page with no data source — nothing to name, nothing to pause. */
+const NO_CONNECTION: ConnectionFacts = { name: null, paused: false };
+
+/**
+ * The `GET /pages` row shape, from a full page row.
+ *
+ * The connection facts are passed in rather than looked up here: the list
+ * resolves every connection in ONE query and the single-row mutation replies
+ * resolve their own, so the shape has no say in how they were fetched.
+ */
+function toSummary(page: Page, connection: ConnectionFacts): {
   id: string;
   connectionId: string | null;
+  connectionName: string | null;
+  connectionPaused: boolean;
   slug: string;
   type: string;
   title: string;
@@ -111,6 +149,8 @@ function toSummary(page: Page): {
   return {
     id: page.id,
     connectionId: page.connectionId,
+    connectionName: connection.name,
+    connectionPaused: connection.paused,
     slug: page.slug,
     type: page.type,
     title: page.title,
@@ -138,11 +178,35 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
      * the realtime plugin.
      */
     async function publishConfigChanged(connectionId: string | null): Promise<void> {
+      // Every mutating handler here funnels through this call, which is why the
+      // server-side invalidation rides it rather than being repeated at seven
+      // call sites — one of which would eventually be added without it.
+      deps.onPageChanged?.(connectionId);
       if (!app.hasDecorator('realtime')) return;
       app.realtime.publish('config-changed', 'config-changed', {
         connectionId,
         configVersion: await pages.configVersion(),
       });
+    }
+
+    /**
+     * Name + pause state of one connection, for the summary reply.
+     *
+     * Read straight off the row like `composeForTable` does, not through
+     * `connectionsRepo`: that repo carries the DSN crypto, and nothing on this
+     * route has any business decrypting a connection string to print a label.
+     * A missing row falls back to `NO_CONNECTION` — a page can outlive the
+     * connection it was generated from, and the manager is the screen where you
+     * go to notice.
+     */
+    async function connectionFactsOf(connectionId: string | null): Promise<ConnectionFacts> {
+      if (connectionId === null) return NO_CONNECTION;
+      const row = await deps.meta.db
+        .selectFrom('adminium_connections')
+        .select(['name', 'disabledAt'])
+        .where('id', '=', connectionId)
+        .executeTakeFirst();
+      return row === undefined ? NO_CONNECTION : { name: row.name, paused: row.disabledAt !== null };
     }
 
     /**
@@ -246,12 +310,18 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           ? { ...(title as Record<string, unknown>), fallback: input.title }
           : { key: `nav.${input.slug}`, fallback: input.title };
 
-      // The composed document carries a fresh `generatedHash`, which would tell
-      // the next generation run this page is byte-identically regenerable and
-      // therefore safe to overwrite or prune. It is not — an admin chose this
-      // template and table by hand. Dropping the hash restores the "edited"
-      // reading (`isEditedEnvelope` treats a hashless document as untouched),
-      // so the choice survives regeneration.
+      // A composed document must not claim a `generatedHash`. The hash is the
+      // generator's assertion that it emitted this exact document, and
+      // `isEditedEnvelope` reads a document matching its hash as UNTOUCHED —
+      // which is the overwritable, prunable state, not the protected one.
+      // `composeRequestedPage` stamps no hash today (only `generatePages` and
+      // the LLM materializer do), so this is a normalization rather than a
+      // repair, and it keeps that true if the engine ever starts stamping.
+      //
+      // Absence is not protection either. Create is safe because it writes
+      // `origin: 'user'`, which regeneration skips on origin alone; recompose
+      // stays `origin: 'generated'` and re-attaches the row's ORIGINAL hash
+      // afterwards — see `carryGeneratedHash`.
       const body = composed['config'];
       if (typeof body === 'object' && body !== null) {
         const hashless = { ...(body as Record<string, unknown>) };
@@ -323,6 +393,32 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
       return { ...envelope, [key]: value };
     }
 
+    /**
+     * Copy a page's `config.generatedHash` onto a replacement document.
+     *
+     * Only meaningful for `origin: 'generated'` rows — nothing else is hashed,
+     * and nothing else is what `upsertGenerated` overwrites or prunes. A row
+     * without a string hash (hand-authored, llm-seeded, or written by a
+     * pre-M5 build) is returned unchanged: there is nothing to carry, and
+     * inventing a hash would be a false claim that the generator emitted this.
+     */
+    function carryGeneratedHash(
+      stored: Record<string, unknown>,
+      next: Record<string, unknown>,
+    ): Record<string, unknown> {
+      const storedBody = stored['config'];
+      const hash =
+        typeof storedBody === 'object' && storedBody !== null
+          ? (storedBody as Record<string, unknown>)['generatedHash']
+          : undefined;
+      if (typeof hash !== 'string') return next;
+      const body = next['config'];
+      const withHash =
+        typeof body === 'object' && body !== null ? { ...(body as Record<string, unknown>) } : {};
+      withHash['generatedHash'] = hash;
+      return { ...next, config: withHash };
+    }
+
     async function recomposeIfRequested(
       page: Page,
       next: {
@@ -367,20 +463,36 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         };
       }
 
+      // The body is replaced, but the ROW stays `origin: 'generated'`, so the
+      // only thing standing between this choice and the next generation run
+      // is the H5 edited-page guard (04 §6.3) — and that guard is a MISMATCH
+      // against `config.generatedHash`, not the hash's absence. Carrying the
+      // row's original hash onto the new document is what leaves the mismatch
+      // behind; it is the same move every other in-place edit makes
+      // (`setLayout`, `setTemplateConfig` and `mergeEnvelopeMeta` all leave
+      // the stored hash exactly as found). The mismatch is guaranteed, not
+      // merely likely: this line is unreachable unless the template,
+      // connection or table actually changed, and all three are hashed.
+      //
+      // The non-composed branch above needs none of this — it spreads the
+      // stored envelope, so the hash rides along with it.
       return {
         type: template,
         connectionId,
-        envelope: await composeForTable({
-          pageId: page.id,
-          connectionId,
-          table,
-          template,
-          slug: next.slug ?? page.slug,
-          title: next.title ?? page.title,
-          navGroup: next.navGroup ?? page.navGroup ?? 'library',
-          navIcon: next.icon ?? page.icon ?? 'table',
-          navOrder: page.navOrder,
-        }),
+        envelope: carryGeneratedHash(
+          envelope,
+          await composeForTable({
+            pageId: page.id,
+            connectionId,
+            table,
+            template,
+            slug: next.slug ?? page.slug,
+            title: next.title ?? page.title,
+            navGroup: next.navGroup ?? page.navGroup ?? 'library',
+            navIcon: next.icon ?? page.icon ?? 'table',
+            navOrder: page.navOrder,
+          }),
+        ),
       };
     }
 
@@ -488,6 +600,13 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
                 canCreate: await request.can(`table:${source.connectionId}:${source.table}:create`),
                 canUpdate: await request.can(`table:${source.connectionId}:${source.table}:update`),
                 canDelete: await request.can(`table:${source.connectionId}:${source.table}:delete`),
+                // 37 D11: the same grant `POST /files` checks. Resolved here
+                // rather than derived from `canUpdate` on the client, because a
+                // sidecar attach ignores the source's `read_only` flag — the
+                // sidecar is Adminium's own data — and a client that inferred
+                // it from `canUpdate` would hide the panel on exactly the
+                // connections it exists for.
+                canAttach: await request.can(`table:${source.connectionId}:${source.table}:update`),
                 // The SAME unmask check the data routes mask rows with — when
                 // true the caller's reads carry PII in clear, so the grid may
                 // render its reveal affordance (schema.ts pageReply).
@@ -610,7 +729,34 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
         preHandler: [app.requireAuth, requireManage],
         schema: { response: { 200: pageListReply } },
       },
-      async () => ({ data: await pages.listAll() }),
+      async () => {
+        // One query for every connection, not one per row: the list is ~100
+        // pages wide and `connectionFactsOf` per row would be a fan-out on a
+        // screen that already renders in one round trip.
+        const [rows, connections] = await Promise.all([
+          pages.listAll(),
+          deps.meta.db
+            .selectFrom('adminium_connections')
+            .select(['id', 'name', 'disabledAt'])
+            .execute(),
+        ]);
+        const facts = new Map<string, ConnectionFacts>(
+          connections.map((row) => [row.id, { name: row.name, paused: row.disabledAt !== null }]),
+        );
+        return {
+          data: rows.map((row) => {
+            const connection =
+              row.connectionId === null
+                ? NO_CONNECTION
+                : (facts.get(row.connectionId) ?? NO_CONNECTION);
+            return {
+              ...row,
+              connectionName: connection.name,
+              connectionPaused: connection.paused,
+            };
+          }),
+        };
+      },
     );
 
     app.post(
@@ -707,7 +853,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           },
         });
         await publishConfigChanged(connectionId);
-        return { data: toSummary(page) };
+        return { data: toSummary(page, await connectionFactsOf(page.connectionId)) };
       },
     );
 
@@ -828,7 +974,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           },
         });
         await publishConfigChanged(page.connectionId);
-        return { data: toSummary(result) };
+        return { data: toSummary(result, await connectionFactsOf(result.connectionId)) };
       },
     );
 
@@ -900,7 +1046,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           changes: { after: { pageId, template: page.type } },
         });
         await publishConfigChanged(page.connectionId);
-        return { data: toSummary(result) };
+        return { data: toSummary(result, await connectionFactsOf(result.connectionId)) };
       },
     );
 
@@ -961,7 +1107,7 @@ export function pagesRoutes(deps: PagesRoutesDeps): FastifyPluginAsyncZod {
           changes: { after: { from: source.id, to: copy.id, slug: copy.slug } },
         });
         await publishConfigChanged(source.connectionId);
-        return { data: toSummary(copy) };
+        return { data: toSummary(copy, await connectionFactsOf(copy.connectionId)) };
       },
     );
 

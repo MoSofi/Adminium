@@ -17,13 +17,20 @@
  * capabilities the page reply resolved from the caller's table grants
  * (30-record-pages.md D4) — a read-only grantee sees no New row, and the peek
  * carries no Edit/Delete, instead of buttons that 403.
+ *
+ * Chrome copy rides `config.labels`: the stored per-page overrides the Studio
+ * editor writes, projected straight onto the template's `labels` prop. Absent
+ * (the generated default) leaves the prop undefined and every string resolves
+ * from the locale bundles as before.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PageCrud, type PageCrudGridState } from '@adminium/widgets';
+import { PageCrud, type PageCrudFiles, type PageCrudGridState } from '@adminium/widgets';
+import { parseCrudLabels } from '@adminium/engine/config';
 
+import { resolveFiles, uploadFile } from '../files/api.js';
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
-import { aggParamsOf, parseColumns, withFkDisplay, withLookups } from './columnSpecs.js';
+import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
 import { useAppToasts } from './toasts.js';
 import type { PageTemplateProps } from './template-types.js';
 import { ViewSwitcher } from './views/ViewSwitcher.js';
@@ -44,7 +51,15 @@ const BASE_GRID_STATE: PageCrudGridState = { search: '', sort: null, filters: []
  */
 const lastGridState = new Map<string, PageCrudGridState>();
 
-export function PageCrudBinding({ page, adapters, canCreate, canUpdate, canDelete, canUnmask }: PageTemplateProps) {
+export function PageCrudBinding({
+  page,
+  adapters,
+  canCreate,
+  canUpdate,
+  canDelete,
+  canUnmask,
+  currency,
+}: PageTemplateProps) {
   // Explicit lookup columns plus the derived FK-chip display lookups
   // (fk.display → `<name>__display` params + displayKey stamps), one plan so
   // the columns PageCrud renders and the params its reads carry never drift.
@@ -53,12 +68,21 @@ export function PageCrudBinding({ page, adapters, canCreate, canUpdate, canDelet
     [page.config, page.id],
   );
   // Lookup columns ride every read as `lookup=` params, reverse-link columns
-  // as `agg=` params — the server aliases the referenced-table values and the
-  // per-row counts into the rows under the specs' own names.
+  // as `agg=` params, and the page's stored `config.derived` block as the one
+  // `compute=` param — the server aliases the referenced-table values, the
+  // per-row folds and the computed fields into the rows under the specs' own
+  // names.
   const crud = useMemo(() => {
     const bound = adapters.crud;
-    return bound === null ? null : withLookups(bound, lookups, aggParamsOf(columns));
-  }, [adapters.crud, columns, lookups]);
+    if (bound === null) return null;
+    const { agg, compute } = projectionParamsOf(columns, page.config);
+    return withLookups(bound, lookups, agg, compute);
+  }, [adapters.crud, columns, lookups, page.config]);
+
+  // Per-page chrome overrides ("Add invoice" for "New row"). `null` when the
+  // page stores none, which is what keeps the prop undefined and the template
+  // on its own translated defaults.
+  const labels = useMemo(() => parseCrudLabels(page.config), [page.config]);
 
   const toasts = useAppToasts();
   const { views, createView, updateView, deleteView } = useSavedViews(page.id);
@@ -167,6 +191,47 @@ export function PageCrudBinding({ page, adapters, canCreate, canUpdate, canDelet
   );
   const sourceTable = page.source.table ?? crud.table;
 
+  /**
+   * The file transport for this page (37 §3.5, §3.9).
+   *
+   * Handed down ONLY when a column actually carries a `file` block: a table
+   * with none must not gain an adapter it would never call, and the widget's
+   * own rule is that an absent adapter renders exactly what it rendered before
+   * the feature existed.
+   *
+   * NO CLIENT-SIDE CAPS ARE PASSED. `files.maxBytes` and
+   * `files.thumbnailMaxBytes` are workspace settings and the SERVER is the
+   * boundary for both — it refuses an over-size upload with a 413 naming the
+   * limit, and a thumbnail is only ever fetched through the same-origin content
+   * route. The widget's own defaults are the same numbers as the settings'
+   * defaults, so an instance that has not changed them behaves identically;
+   * plumbing a settings read through the page reply to make the browser repeat
+   * a check it cannot enforce is not worth the round trip.
+   */
+  const hasFileColumns = useMemo(() => columns.some((column) => column.file !== undefined), [columns]);
+  const fileAdapter = useMemo<PageCrudFiles>(
+    () => ({
+      resolve: (refs) => resolveFiles([...refs]),
+      upload: async ({ file, column, signal, onProgress }) => {
+        const result = await uploadFile({
+          file,
+          connectionId: page.source.connectionId ?? '',
+          table: sourceTable,
+          column,
+          signal,
+          onProgress,
+        });
+        return {
+          // The reference the SERVER minted, in the shape this column is
+          // configured for — never one the browser composed.
+          ref: result.ref ?? result.data.id,
+          file: result.data,
+        };
+      },
+    }),
+    [page.source.connectionId, sourceTable, columns],
+  );
+
   return (
     <>
       {/* The topbar title is the nav label an admin chose ("Support tickets");
@@ -185,6 +250,9 @@ export function PageCrudBinding({ page, adapters, canCreate, canUpdate, canDelet
         columns={columns}
         source={{ connectionId: page.source.connectionId, table: sourceTable }}
         onEvent={adapters.onEvent}
+        // Spread, not `labels={labels ?? undefined}`: `exactOptionalPropertyTypes`
+        // distinguishes an absent prop from one explicitly set to undefined.
+        {...(labels === null ? {} : { labels })}
         // Grants-driven affordances (30 D4): false hides New row / Edit /
         // Delete (toolbar, empty state, bulk bar, peek) so a read-only grant
         // never renders a button that 403s; undefined keeps the widget's
@@ -192,9 +260,18 @@ export function PageCrudBinding({ page, adapters, canCreate, canUpdate, canDelet
         canCreate={canCreate}
         canUpdate={canUpdate}
         canDelete={canDelete}
+        // The file transport (37 §3.5, §3.9). Passed only when the page has at
+        // least one `file` column: a table with none must not gain an adapter
+        // it would never call, and the widget's own rule is that an absent
+        // adapter renders exactly what it rendered before the feature existed.
+        {...(hasFileColumns ? { files: fileAdapter } : {})}
         // PII cells reveal only for callers the server actually sent the
         // values to in clear (pageReply.canUnmask; default stays masked).
         canUnmask={canUnmask}
+        // The connection's own currency for money cells (10 §4.4). Spread so
+        // an unset one leaves the prop absent and the historical USD fallback
+        // in place.
+        {...(currency === undefined ? {} : { currency })}
         initialSearch={viewProps.initialSearch}
         defaultSort={viewProps.defaultSort}
         initialFilters={viewProps.initialFilters}

@@ -14,7 +14,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -53,7 +53,17 @@ function makeSecurity(overrides: Partial<SecuritySettings> = {}): SecuritySettin
 
 /** Unconfigured is the DEFAULT here because it is the state every fresh install is in. */
 function makeEmail(overrides: Partial<EmailSettings> = {}): EmailSettings {
-  return { configured: false, host: null, port: null, user: null, from: null, secure: null, ...overrides };
+  return {
+    configured: false,
+    host: null,
+    port: null,
+    user: null,
+    from: null,
+    secure: null,
+    senders: [],
+    maxAttachmentBytes: 10 * 1024 * 1024,
+    ...overrides,
+  };
 }
 
 function makeConnection(overrides: Partial<ConnectionDto> = {}): ConnectionDto {
@@ -127,21 +137,34 @@ function stubFetch(
       return Promise.resolve(jsonResponse(200, { data: email }));
     }
     if (url === '/api/v1/settings/email' && method === 'PUT') {
-      // Mirrors the route: the reply is the password-free view of what landed.
-      const smtp = (body as { smtp: Record<string, unknown> | null }).smtp;
+      // Mirrors the route: the reply is the password-free view of what landed;
+      // an absent key leaves that part as it was (39-T04).
+      const put = body as {
+        smtp?: Record<string, unknown> | null;
+        senders?: EmailSettings['senders'];
+        maxAttachmentBytes?: number;
+      };
+      const extras = {
+        senders: put.senders ?? email.senders,
+        maxAttachmentBytes: put.maxAttachmentBytes ?? email.maxAttachmentBytes,
+      };
+      const smtp = put.smtp;
       return Promise.resolve(
         jsonResponse(200, {
           data:
-            smtp === null
-              ? makeEmail()
-              : {
-                  configured: true,
-                  host: smtp['host'],
-                  port: smtp['port'],
-                  user: smtp['user'],
-                  from: smtp['from'],
-                  secure: smtp['secure'],
-                },
+            smtp === undefined
+              ? { ...email, ...extras }
+              : smtp === null
+                ? makeEmail(extras)
+                : {
+                    ...extras,
+                    configured: true,
+                    host: smtp['host'],
+                    port: smtp['port'],
+                    user: smtp['user'],
+                    from: smtp['from'],
+                    secure: smtp['secure'],
+                  },
         }),
       );
     }
@@ -178,12 +201,13 @@ async function renderPage(
   branding?: WorkspaceBranding,
   security?: SecuritySettings,
   email?: EmailSettings,
+  path = '/studio/settings',
 ) {
   vi.stubGlobal('WebSocket', FakeWebSocket);
   const stub = stubFetch(roles, connections, branding, security, email);
   const queryClient = createQueryClient();
   const router = createAppRouter(queryClient, {
-    history: createMemoryHistory({ initialEntries: ['/studio/settings'] }),
+    history: createMemoryHistory({ initialEntries: [path] }),
   });
   render(
     <QueryClientProvider client={queryClient}>
@@ -330,14 +354,14 @@ describe('StudioSettingsPage', () => {
     });
 
     it('binds a configured transport, and never renders the password', async () => {
-      await renderPage(['super-admin'], undefined, undefined, undefined, {
+      await renderPage(['super-admin'], undefined, undefined, undefined, makeEmail({
         configured: true,
         host: 'smtp.acme.io',
         port: 465,
         user: 'postmaster@acme.io',
         from: 'Adminium <ops@acme.io>',
         secure: true,
-      });
+      }));
       await screen.findByRole('heading', { name: 'Email (SMTP)' });
       expect((screen.getByLabelText('SMTP host') as HTMLInputElement).value).toBe('smtp.acme.io');
       expect((screen.getByLabelText('Port') as HTMLInputElement).value).toBe('465');
@@ -388,14 +412,14 @@ describe('StudioSettingsPage', () => {
 
     it('omits the password when it was not retyped, so a port change keeps the secret', async () => {
       const user = userEvent.setup();
-      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, {
+      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, makeEmail({
         configured: true,
         host: 'smtp.acme.io',
         port: 587,
         user: 'postmaster@acme.io',
         from: 'ops@acme.io',
         secure: false,
-      });
+      }));
       await screen.findByRole('heading', { name: 'Email (SMTP)' });
 
       const port = screen.getByLabelText('Port');
@@ -466,14 +490,14 @@ describe('StudioSettingsPage', () => {
 
     it('clears a stored password when the username is emptied', async () => {
       const user = userEvent.setup();
-      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, {
+      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, makeEmail({
         configured: true,
         host: 'smtp.acme.io',
         port: 587,
         user: 'postmaster@acme.io',
         from: 'ops@acme.io',
         secure: false,
-      });
+      }));
       await screen.findByRole('heading', { name: 'Email (SMTP)' });
 
       // Switching to an unauthenticated relay: an encrypted secret nothing can
@@ -491,14 +515,14 @@ describe('StudioSettingsPage', () => {
 
     it('stages a removal and sends the null the route defines for it', async () => {
       const user = userEvent.setup();
-      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, {
+      const { calls } = await renderPage(['super-admin'], undefined, undefined, undefined, makeEmail({
         configured: true,
         host: 'smtp.acme.io',
         port: 587,
         user: '',
         from: 'ops@acme.io',
         secure: false,
-      });
+      }));
       await screen.findByRole('heading', { name: 'Email (SMTP)' });
 
       await user.click(screen.getByRole('button', { name: 'Remove mail server' }));
@@ -643,7 +667,13 @@ describe('StudioSettingsPage', () => {
     const card = (await screen.findByRole('button', { name: 'Manage pages' })).closest('.divide-y');
     expect(card).not.toBeNull();
     // Every cross-link is a row of that one card…
-    for (const cta of ['Open AI settings', 'Open global defaults', 'Open translations']) {
+    for (const cta of [
+      'Open AI settings',
+      'Open add-ons',
+      'Open public API',
+      'Open global defaults',
+      'Open translations',
+    ]) {
       expect(screen.getByRole('button', { name: cta }).closest('.divide-y')).toBe(card);
     }
     // …and `divide-y` draws its hairlines as top borders on every row but the
@@ -662,6 +692,31 @@ describe('StudioSettingsPage', () => {
     const { router } = await renderPage(['admin']);
     await user.click(await screen.findByRole('button', { name: 'Manage pages' }));
     expect(router.state.location.pathname).toBe('/studio/pages');
+  });
+
+  it('routes a plain admin to the add-ons surface', async () => {
+    // `/studio/add-ons` shipped with a route and NO inbound link: the avatar
+    // menu lists only `/studio` and `/studio/settings`, and no other page
+    // navigated to it — so the whole 26/32 surface was reachable only by
+    // typing the URL, while the docs told operators to open "Studio → Add-ons".
+    // This row is that door; if it stops navigating the surface goes dark again.
+    // Admin, not super-admin: the routes guard on `system:manifests:manage`,
+    // which an admin can hold.
+    const user = userEvent.setup();
+    const { router } = await renderPage(['admin']);
+    await user.click(await screen.findByRole('button', { name: 'Open add-ons' }));
+    expect(router.state.location.pathname).toBe('/studio/add-ons');
+  });
+
+  it('routes a plain admin to the public API surface', async () => {
+    // `/studio/public-api` had ONE inbound link: inline prose on the Hosted
+    // apps page, rendered only for a customer-side surface with no key bound.
+    // So it was unreachable without hosted surfaces — and binding the key it
+    // sent you to mint removed the link. This row does not come and go.
+    const user = userEvent.setup();
+    const { router } = await renderPage(['admin']);
+    await user.click(await screen.findByRole('button', { name: 'Open public API' }));
+    expect(router.state.location.pathname).toBe('/studio/public-api');
   });
 
   it('danger zone: type-to-confirm gating before the DELETE fires', async () => {
@@ -687,5 +742,72 @@ describe('StudioSettingsPage', () => {
   it('shows the empty danger zone note without connections', async () => {
     await renderPage(['super-admin'], []);
     expect(await screen.findByText('Nothing to delete — no connections yet.')).toBeDefined();
+  });
+
+  describe('senders and the attachment cap (39-T04)', () => {
+    const configured = () =>
+      makeEmail({ configured: true, host: 'smtp.acme.io', port: 587, user: 'ops', from: 'Acme <ops@acme.io>', secure: false });
+
+    it('shows the SMTP From as the implicit sender, adds one, and PUTs only the senders', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage(undefined, undefined, undefined, undefined, configured());
+      await screen.findByRole('heading', { name: 'Senders' });
+      expect(screen.getByText('Acme <ops@acme.io>')).toBeDefined();
+      // The implicit first entry cannot be removed — there is no row for it.
+      expect(screen.queryByRole('button', { name: 'Remove sender' })).toBeNull();
+
+      await user.click(screen.getByRole('button', { name: 'Add sender' }));
+      await user.type(screen.getByLabelText('Display name'), 'News');
+      await user.type(screen.getByLabelText('Address'), 'news@acme.io');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('— → news@acme.io')).toBeDefined();
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      await screen.findByText('Workspace settings updated');
+
+      const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
+      // The transport is absent from the body: untouched on the wire.
+      expect(put?.body).toEqual({ senders: [{ name: 'News', address: 'news@acme.io' }] });
+    });
+
+    it('removes a configured sender, changes the cap, and refuses an address without an @', async () => {
+      const user = userEvent.setup();
+      const { calls } = await renderPage(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        makeEmail({ ...configured(), senders: [{ name: 'News', address: 'news@acme.io' }] }),
+      );
+      await screen.findByRole('heading', { name: 'Senders' });
+      expect((screen.getByLabelText('Attachment limit (MB)') as HTMLInputElement).value).toBe('10');
+
+      await user.click(screen.getByRole('button', { name: 'Remove sender' }));
+      await user.clear(screen.getByLabelText('Attachment limit (MB)'));
+      await user.type(screen.getByLabelText('Attachment limit (MB)'), '5');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('news@acme.io → —')).toBeDefined();
+      expect(within(dialog).getByText('10 → 5')).toBeDefined();
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+      await screen.findByText('Workspace settings updated');
+      const put = calls.find((c) => c.method === 'PUT' && c.url === '/api/v1/settings/email');
+      expect(put?.body).toEqual({ senders: [], maxAttachmentBytes: 5 * 1024 * 1024 });
+
+      // A half-typed sender blocks Save with the field's own error, and nothing is PUT.
+      await user.click(screen.getByRole('button', { name: 'Add sender' }));
+      await user.type(screen.getByLabelText('Address'), 'nope');
+      expect(await screen.findByText('Enter an email address.')).toBeDefined();
+      expect(screen.getByRole('button', { name: 'Save changes' }).hasAttribute('disabled')).toBe(true);
+    });
+
+    it('scrolls the SMTP card into view for /studio/settings#email', async () => {
+      const spy = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(() => {});
+      await renderPage(undefined, undefined, undefined, undefined, undefined, '/studio/settings#email');
+      await screen.findByRole('heading', { name: 'Email (SMTP)' });
+      await waitFor(() => expect(spy).toHaveBeenCalledWith({ block: 'start' }));
+      expect((spy.mock.contexts[0] as HTMLElement).id).toBe('email');
+      spy.mockRestore();
+    });
   });
 });

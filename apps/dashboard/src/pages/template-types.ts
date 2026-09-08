@@ -44,11 +44,26 @@ export interface PageTemplateProps {
   canCreate?: boolean | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
+  /** May attach a sidecar file (37 D11). Diverges from `canUpdate` on a
+   *  read-only source, where the record cannot be edited and a file still can
+   *  be attached — which is what the sidecar mode is for. */
+  canAttach?: boolean | undefined;
   /** Caller holds the server's PII unmask permission — the templates render
    *  the reveal affordance on PII cells. Unlike the write capabilities this
    *  defaults CLOSED when absent: a reveal control is only honest when the
    *  server said it sent the values in clear. */
   canUnmask?: boolean | undefined;
+  /**
+   * The owning connection's ISO-4217 currency, resolved once by
+   * `PageRenderer` from the bootstrap nav item (36-derived-columns.md 36-T15).
+   *
+   * Every money cell in the product has rendered `USD` since the feature
+   * shipped: `formatMoney` falls back to it, the column spec's own `currency`
+   * is populated by nothing, and the `currency` prop `PageCrud`/`PageRecord`
+   * already accept had no caller. This is that caller. Undefined keeps the
+   * fallback, so a connection with no currency set is unchanged.
+   */
+  currency?: string | undefined;
 }
 
 export type PageTemplateComponent = ComponentType<PageTemplateProps>;

@@ -30,6 +30,24 @@ export const ADMIN_EMAIL = 'e2e@adminium.local';
 export const ADMIN_NAME = 'E2E Admin';
 export const ADMIN_PASSWORD = 'adminium-e2e-password';
 
+/**
+ * A SECOND super admin, used only by `files.spec.ts`.
+ *
+ * The `api` rate bucket is 300 requests per minute PER PRINCIPAL
+ * (`plugins/core.ts` RATE_BUCKETS). This suite runs serially as one signed-in
+ * user, so every spec spends from one budget — and the files specs are the
+ * expensive ones: real uploads, a schema plan+apply, a create dialog. Adding
+ * them pushed the run over the ceiling, which surfaced as a 429 rendering the
+ * rate-limit page in an unrelated spec and read as an SMTP failure.
+ *
+ * A second principal gives them their own budget. Same reasoning as the
+ * storageState above, one bucket up: exercise the shipped limit, do not
+ * weaken it for tests.
+ */
+export const FILES_ADMIN_EMAIL = 'e2e-files@adminium.local';
+export const FILES_ADMIN_NAME = 'E2E Files Admin';
+export const FILES_ADMIN_PASSWORD = 'adminium-e2e-password';
+
 /** Name of the connection the boot script seeds + generates pages for. */
 export const SEED_CONNECTION_NAME = 'northwind';
 
@@ -46,8 +64,31 @@ export function storageStatePath(): string {
   );
 }
 
+/** The files specs' own session — see {@link FILES_ADMIN_EMAIL}. */
+export function filesStorageStatePath(): string {
+  return fileURLToPath(
+    new URL(`../.playwright/auth/state-files-${ENGINE}.json`, import.meta.url),
+  );
+}
+
 /** postgres/mysql: database (re)created by the boot script on the service. */
 export const E2E_DATABASE = 'adminium_e2e';
+
+/** The SMTP sink's ports derive from the API port (scripts/e2e-server.mjs does the same arithmetic). */
+export const SMTP_PORT = Number(process.env['E2E_SMTP_PORT'] ?? PORT + 100);
+export const SINK_URL = `http://127.0.0.1:${String(process.env['E2E_SINK_PORT'] ?? PORT + 101)}`;
+
+/** One captured message, as the sink's `GET /messages` returns it. */
+export interface SinkMessage {
+  receivedAt: number;
+  envelope: { from: string; to: string[] };
+  subject: string;
+  from: string;
+  to: string[];
+  html: string;
+  text: string;
+  attachments: { filename: string; contentType: string; cid: string | null; size: number; related: boolean }[];
+}
 
 /** Engine-gated URL env vars, aligned with the adapter live-suite gates. */
 export const TEST_POSTGRES_URL = process.env['TEST_POSTGRES_URL'] ?? '';
