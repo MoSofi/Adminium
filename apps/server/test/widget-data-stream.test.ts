@@ -22,6 +22,7 @@ import {
   widgetDataChannel,
   type RealtimeEvent,
 } from '../src/realtime/hub.js';
+import { publishPublicWrite } from '../src/public-api/publish.js';
 import { compileWidgetQuery, type CompiledWidgetQuery } from '../src/widget-data/compiler.js';
 import { shapeRows, type ShapedStream } from '../src/widget-data/shapers.js';
 import { publishWidgetDataStream } from '../src/widget-data/stream-publisher.js';
@@ -297,5 +298,91 @@ describe('publishWidgetDataStream (CRUD write path)', () => {
     expect(event.ts).toBe(new Date(1_760_000_000_000).toISOString());
     expect((event.data as { row: Record<string, unknown> }).row).not.toHaveProperty('api_token');
     expect((event.data as { row: Record<string, unknown> }).row.email).toBeNull();
+  });
+});
+
+describe('publishPublicWrite (the PUBLIC write path, 33-T11)', () => {
+  /*
+   * `routes/data` has published every write to this channel since 04 §5.3.
+   * `routes/public` published nothing, so a dashboard page bound to a table an
+   * anonymous visitor can write to learned about that write only on its next
+   * refetch — an operator's chat inbox going quiet while somebody is typing
+   * into it, and a request row a customer just raised sitting unseen.
+   *
+   * There is no end-to-end harness for a public write anywhere in this suite —
+   * it would need a composed server, a registered data connection, a compiled
+   * scope and a minted key — so the decisions this helper makes are checked
+   * here, directly, against a real hub.
+   */
+  function capture(): { hub: RealtimeHub; seen: RealtimeEvent[] } {
+    const hub = new RealtimeHub();
+    const seen: RealtimeEvent[] = [];
+    hub.subscribe(widgetDataChannel('conn_1', 'public.customers'), (e) => seen.push(e));
+    return { hub, seen };
+  }
+
+  it('publishes an anonymous create on the same channel a staff create uses', () => {
+    const { hub, seen } = capture();
+    publishPublicWrite(hub, {
+      connectionId: 'conn_1',
+      table: customers,
+      action: 'create',
+      pk: { id: 7 },
+      row: { id: 7, email: 'ada@x.com', api_token: 'sk_secret', name: 'Ada' },
+    });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.channel).toBe('widget-data:conn_1:public.customers');
+    expect(seen[0]?.type).toBe('record.create');
+  });
+
+  it('masks the stranger-written row exactly as a staff write is masked', () => {
+    /*
+     * The property that makes publishing a stranger's row to a staff channel
+     * safe at all. The subscriber already had to hold `table:<cnx>:<table>:read`
+     * to be on the channel, and the shared publisher strips the secret column
+     * and nulls the PII one regardless — so nothing crosses here that a `GET`
+     * by the same subscriber would not already have returned.
+     */
+    const { hub, seen } = capture();
+    publishPublicWrite(hub, {
+      connectionId: 'conn_1',
+      table: customers,
+      action: 'create',
+      pk: { id: 7 },
+      row: { id: 7, email: 'ada@x.com', api_token: 'sk_secret', name: 'Ada' },
+    });
+    expect(seen[0]?.data).toMatchObject({
+      row: { id: 7, email: null, name: 'Ada', _masked: ['email'] },
+    });
+    expect(JSON.stringify(seen[0]?.data)).not.toContain('sk_secret');
+    expect(JSON.stringify(seen[0]?.data)).not.toContain('ada@x.com');
+  });
+
+  it('publishes an update, and publishes a null row when the re-read found nothing', () => {
+    const { hub, seen } = capture();
+    publishPublicWrite(hub, {
+      connectionId: 'conn_1',
+      table: customers,
+      action: 'update',
+      pk: { id: 7 },
+      row: null,
+    });
+    expect(seen[0]?.type).toBe('record.update');
+    expect(seen[0]?.data).toEqual({ type: 'record.update', pk: { id: 7 }, row: null });
+  });
+
+  it('does nothing at all when the compose has no realtime hub', () => {
+    // Several test topologies compose without jobs, so there is no decorator to
+    // read. A public write must still succeed there — this is the branch that
+    // makes the route's guard more than a hopeful `?.`.
+    expect(() =>
+      publishPublicWrite(null, {
+        connectionId: 'conn_1',
+        table: customers,
+        action: 'create',
+        pk: { id: 1 },
+        row: { id: 1 },
+      }),
+    ).not.toThrow();
   });
 });

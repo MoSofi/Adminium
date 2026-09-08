@@ -333,6 +333,76 @@ describe('compileScope — writing yourself out of scope', () => {
   });
 });
 
+describe('compileScope — `$generate` defaults (33-T10, D21)', () => {
+  /*
+   * A public scope may now say "the server mints this one": `{ "$generate":
+   * "uuid" }` or `{ "$generate": "now" }`. It is what makes an anonymous create
+   * possible without a writable primary key, and the four cases below are the
+   * ways it can be said wrongly.
+   */
+  const withDefaults = (defaults: Record<string, unknown>, writable: string[] = ['total']) =>
+    doc({
+      resources: [
+        {
+          ref: 'orders',
+          table: 'public.orders',
+          actions: ['create'],
+          expose: ['id', 'status'],
+          writable,
+          defaults,
+        },
+      ],
+    });
+
+  it('accepts both generators on columns the caller may not choose', () => {
+    expect(
+      issuesOf(withDefaults({ id: { $generate: 'uuid' }, placed_at: { $generate: 'now' }, status: 'new' })),
+    ).toEqual([]);
+  });
+
+  it('refuses a generator nobody implements', () => {
+    // A typo has to fail HERE. Left to the request path it would either throw
+    // at 3am or, worse, serialize `{"$generate":"uuidv4"}` into the column.
+    expect(issuesOf(withDefaults({ id: { $generate: 'uuidv4' } }))).toContain(
+      'SCOPE_DEFAULT_GENERATE_UNKNOWN',
+    );
+  });
+
+  it('refuses a sentinel with other keys beside it', () => {
+    expect(issuesOf(withDefaults({ id: { $generate: 'uuid', note: 'the row id' } }))).toContain(
+      'SCOPE_DEFAULT_GENERATE_SHAPE',
+    );
+  });
+
+  it('refuses a generated column that is also writable', () => {
+    /*
+     * The security half. A literal default on a writable column is merely
+     * useless — the caller may send it and `prepareValues` throws it away. A
+     * MINTED default exists precisely because the value must be the server's,
+     * so a scope that also lists the column writable is contradicting itself in
+     * one document, and a reader can resolve that contradiction either way.
+     */
+    expect(
+      issuesOf(withDefaults({ id: { $generate: 'uuid' } }, ['total', 'id'])),
+    ).toContain('SCOPE_DEFAULT_GENERATE_WRITABLE');
+  });
+
+  it('refuses a default on a column the table does not have', () => {
+    // Defaults were the one list never checked against the snapshot. A minted
+    // default on a mistyped column would fail the insert while looking, in the
+    // scope, exactly like a correctly declared one.
+    expect(issuesOf(withDefaults({ placed_ot: { $generate: 'now' } }))).toContain(
+      'SCOPE_DEFAULT_UNKNOWN_COLUMN',
+    );
+  });
+
+  it('still lets an ordinary literal default sit on a writable column', () => {
+    // Unchanged behaviour, asserted so the refusal above cannot quietly widen
+    // into one that breaks scopes already in operators' databases.
+    expect(issuesOf(withDefaults({ status: 'new' }, ['total', 'status']))).toEqual([]);
+  });
+});
+
 describe('compileScope — the meta namespace is never publishable', () => {
   it.each(['adminium_users', 'public.adminium_settings', 'meta.adminium_api_keys'])('refuses %s', (table) => {
     expect(

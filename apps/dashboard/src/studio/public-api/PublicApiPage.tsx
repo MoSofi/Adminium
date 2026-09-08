@@ -446,7 +446,7 @@ function ScopesCard({
             label={t('studio:publicApi.scopes.documentLabel', 'Scope document')}
             helper={t(
               'studio:publicApi.scopes.documentHint',
-              'Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.',
+              'Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else. A default may be \'{\'"$generate": "uuid"\'}\' or \'{\'"$generate": "now"\'}\' — the server fills those in on create, so a visitor can add a row without choosing its id.',
             )}
           >
             <Textarea
