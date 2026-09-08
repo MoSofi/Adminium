@@ -384,6 +384,8 @@ export function inferNameRelations(model: DatabaseModel): InferredRelation[] {
           onUpdate: null,
           selfReferential,
           confidence,
+          // Inferred: no catalog constraint exists to name (35-T33).
+          constraintName: null,
         },
         reasons,
       });
@@ -497,6 +499,8 @@ export function inferJoinTableRelations(model: DatabaseModel): InferredRelation[
         selfReferential: from.tableId === to.tableId,
         // A join is never surer than the weaker of the two FKs holding it up.
         confidence: Math.min(join.confidence, from.confidence, to.confidence),
+        // Inferred: no catalog constraint exists to name (35-T33).
+        constraintName: null,
       },
       reasons: [...join.reasons, `join-table confidence ${join.confidence.toFixed(2)}`],
     });

@@ -668,6 +668,9 @@ export async function introspectMysql(
       onUpdate: acc.onUpdate,
       selfReferential: acc.table.id === toTableId,
       confidence: 1,
+      // The accumulator key already carries CONSTRAINT_NAME; keeping it is what
+      // makes DROP FOREIGN KEY addressable (35-schema-authoring.md 35-T33).
+      constraintName: constraintName === '' ? null : constraintName,
     });
     // Convenience per-column mirror of the declared FK (05 §2.1).
     columns.forEach((columnName, position) => {

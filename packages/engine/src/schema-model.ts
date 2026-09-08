@@ -381,6 +381,17 @@ export const relationSchema = z.strictObject({
   selfReferential: z.boolean().default(false),
   /** 1.0 declared/override; <1 inferred (§6 thresholds). */
   confidence: z.number().min(0).max(1).default(1),
+  /**
+   * The catalog's own name for a DECLARED foreign-key constraint
+   * (35-schema-authoring.md 35-T33). Null for inferred and virtual relations,
+   * and null on SQLite, whose `PRAGMA foreign_key_list` exposes no name.
+   *
+   * `Relation.id` is a derived key (`fk:<from>(cols)-><to>(cols)`), so it
+   * cannot be used to DROP a constraint — the dialect needs the name it
+   * assigned. Additive and nullable on purpose: every existing snapshot parses
+   * unchanged, and `diffModels` does not compare the field.
+   */
+  constraintName: z.string().min(1).nullable().default(null),
 });
 export type Relation = z.infer<typeof relationSchema>;
 

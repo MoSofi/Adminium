@@ -708,6 +708,10 @@ export async function introspectPostgres(
         onUpdate: FK_ACTION_MAP[str(row['on_update']) ?? ''] ?? null,
         selfReferential: table.id === toTableId,
         confidence: 1,
+        // `conname` is already selected by constraintsSql; keeping it is what
+        // makes a DROP CONSTRAINT addressable (35-schema-authoring.md 35-T33) —
+        // `Relation.id` is derived and names nothing the catalog knows.
+        constraintName: name ?? null,
       });
       // Convenience per-column mirror of the declared FK (05 §2.1).
       columns.forEach((columnName, position) => {

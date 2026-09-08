@@ -523,6 +523,24 @@ export async function introspectSqlite(
         pkColumn.default === null
       ) {
         pkColumn.default = { kind: 'autoincrement' };
+        /*
+         * …and it is NOT nullable, whatever `PRAGMA table_info` says.
+         *
+         * SQLite reports `notnull = 0` for `id INTEGER PRIMARY KEY` because it
+         * never wrote a NOT NULL constraint — the rowid alias is auto-assigned
+         * instead, so a NULL cannot be stored and the column is not nullable in
+         * any sense a caller cares about. (The quirk is real elsewhere: a
+         * `TEXT PRIMARY KEY` genuinely does accept NULL in SQLite, which is why
+         * this correction lives inside the rowid-alias branch and not above it.)
+         *
+         * Left as reported, the lie surfaced twice: generated forms offered to
+         * leave the key blank, and — because `desiredTableToModel` correctly
+         * treats a key column as NOT NULL — the schema designer saw a
+         * nullability change on every SQLite table it opened and planned a
+         * twelve-step REBUILD for a change nobody made. Caught by the e2e leg:
+         * "add one column" applied as two steps, the second a rebuild.
+         */
+        pkColumn.nullable = false;
       }
     }
   }
@@ -656,6 +674,11 @@ export async function introspectSqlite(
       onUpdate: acc.onUpdate,
       selfReferential: acc.table.id === toTableId,
       confidence: 1,
+      // `PRAGMA foreign_key_list` exposes no constraint name — SQLite does not
+      // keep one addressably. Null is the honest answer, and it is also why
+      // SQLite drops a foreign key through the §7 rebuild rather than by name
+      // (35-schema-authoring.md 35-T33).
+      constraintName: null,
     });
     columns.forEach((columnName, position) => {
       const column = acc.table.columns.find((c) => c.name === columnName);

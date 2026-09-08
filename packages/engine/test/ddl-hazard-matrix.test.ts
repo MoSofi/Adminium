@@ -1,0 +1,181 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The hazard matrix — 35-schema-authoring.md §5, D4.
+ *
+ * §5 is a table in a document, and a table in a document drifts from the code
+ * that is supposed to implement it. This file IS §5, executed: every step kind
+ * against every dialect, asserting the verdict the plan states. When the two
+ * disagree, one of them is wrong and this test says which cell.
+ *
+ * It also carries the four consequences §5 draws under the table, each as a
+ * named test, because those are the claims a reader is most likely to doubt.
+ */
+import { describe, expect, it } from 'vitest';
+
+import { classifyStep, type DdlStepKind, type Dialect, type Hazard } from '../src/index.js';
+
+const PG = { dialect: 'postgres' as Dialect, serverVersion: '16.2', tableHasRows: true };
+const MY = { dialect: 'mysql' as Dialect, serverVersion: '8.0.35', tableHasRows: true };
+const LITE = { dialect: 'sqlite' as Dialect, serverVersion: '3.53.4', tableHasRows: true };
+
+/** [kind, postgres, mysql, sqlite] — §5's table, one row per step. */
+const MATRIX: readonly [DdlStepKind, Hazard, Hazard, Hazard][] = [
+  ['create-table', 'safe', 'safe', 'safe'],
+  ['rename-table', 'safe', 'safe', 'safe'],
+  ['drop-table', 'irreversible', 'irreversible', 'irreversible'],
+  ['rename-column', 'safe', 'safe', 'safe'],
+  ['drop-column', 'lossy', 'lossy', 'lossy'],
+  ['set-not-null', 'locking', 'rewrite', 'rewrite'],
+  ['drop-not-null', 'safe', 'rewrite', 'rewrite'],
+  ['set-default', 'safe', 'safe', 'rewrite'],
+  ['drop-default', 'safe', 'safe', 'rewrite'],
+  ['add-fk', 'locking', 'locking', 'rewrite'],
+  ['validate-fk', 'locking', 'locking', 'locking'],
+  ['drop-fk', 'safe', 'safe', 'rewrite'],
+  ['add-unique', 'locking', 'locking', 'rewrite'],
+  ['drop-unique', 'safe', 'safe', 'rewrite'],
+  ['add-check', 'locking', 'locking', 'rewrite'],
+  ['drop-check', 'safe', 'safe', 'rewrite'],
+  ['add-index', 'locking', 'locking', 'safe'],
+  ['drop-index', 'safe', 'safe', 'safe'],
+  ['set-pk', 'rewrite', 'rewrite', 'rewrite'],
+  ['drop-pk', 'rewrite', 'rewrite', 'rewrite'],
+  ['rebuild-table', 'rewrite', 'rewrite', 'rewrite'],
+];
+
+describe('§5, executed', () => {
+  it.each(MATRIX)('%s → pg %s · mysql %s · sqlite %s', (kind, pg, my, lite) => {
+    expect(classifyStep(kind, PG).hazard, `postgres/${kind}`).toBe(pg);
+    expect(classifyStep(kind, MY).hazard, `mysql/${kind}`).toBe(my);
+    expect(classifyStep(kind, LITE).hazard, `sqlite/${kind}`).toBe(lite);
+  });
+
+  it('every step kind has a verdict on every dialect — no silent fallthrough', () => {
+    for (const [kind] of MATRIX) {
+      for (const ctx of [PG, MY, LITE]) {
+        const verdict = classifyStep(kind, ctx);
+        expect(verdict.hazard, `${ctx.dialect}/${kind}`).toBeTruthy();
+        expect(verdict.rationale.length, `${ctx.dialect}/${kind}`).toBeGreaterThan(20);
+      }
+    }
+  });
+});
+
+describe('the four consequences §5 draws under the table', () => {
+  it('1. MySQL cannot roll back — the rationale says so where it matters', () => {
+    expect(classifyStep('rename-table', MY).rationale).toContain('cannot be rolled back');
+  });
+
+  it('2. MySQL has no online path for a type change, even a widening one', () => {
+    const widening = classifyStep('alter-column-type', MY, {
+      typeFrom: { logicalType: 'varchar', maxLength: 50 },
+      typeTo: { logicalType: 'varchar', maxLength: 100 },
+    });
+    expect(widening.hazard).toBe('rewrite');
+    expect(widening.rationale).toContain('no online path');
+
+    // …where postgres does the same change without touching a row.
+    const pg = classifyStep('alter-column-type', PG, {
+      typeFrom: { logicalType: 'varchar', maxLength: 50 },
+      typeTo: { logicalType: 'varchar', maxLength: 100 },
+    });
+    expect(pg.hazard).toBe('safe');
+  });
+
+  it('3. SQLite reaches the rebuild for nearly everything that is not "add a column"', () => {
+    const rebuilds: DdlStepKind[] = [
+      'set-not-null', 'drop-not-null', 'set-default', 'drop-default',
+      'add-fk', 'drop-fk', 'add-unique', 'drop-unique', 'add-check', 'drop-check',
+      'set-pk', 'drop-pk',
+    ];
+    for (const kind of rebuilds) {
+      expect(classifyStep(kind, LITE).needsRebuild, kind).toBe(true);
+    }
+    // …and these four really are direct.
+    for (const kind of ['add-column', 'rename-column', 'rename-table', 'add-index'] as DdlStepKind[]) {
+      expect(classifyStep(kind, LITE).needsRebuild ?? false, kind).toBe(false);
+    }
+  });
+
+  it('4. a native enum value is only extendable on postgres', () => {
+    expect(classifyStep('add-enum-value', PG).hazard).toBe('safe');
+    expect(classifyStep('add-enum-value', MY).refusal).toBe('UNSUPPORTED_ON_DIALECT');
+    expect(classifyStep('add-enum-value', LITE).refusal).toBe('UNSUPPORTED_ON_DIALECT');
+  });
+});
+
+describe('row counts change the verdict, not just the copy', () => {
+  it('set-not-null is safe on an empty postgres table and locking on a populated one', () => {
+    expect(classifyStep('set-not-null', { ...PG, tableHasRows: false }).hazard).toBe('safe');
+    expect(classifyStep('set-not-null', { ...PG, tableHasRows: true }).hazard).toBe('locking');
+  });
+
+  it('an unknown row count is treated as populated', () => {
+    expect(classifyStep('set-not-null', { ...PG, tableHasRows: null }).hazard).toBe('locking');
+  });
+
+  it('add-unique is instant on an empty table', () => {
+    expect(classifyStep('add-unique', { ...PG, tableHasRows: false }).rationale).toContain('empty');
+  });
+});
+
+describe('version gates (§0.2: read from the probe, never assumed)', () => {
+  it('drop-column rewrites on MySQL before 8.0.29 and is instant after', () => {
+    expect(classifyStep('drop-column', { ...MY, serverVersion: '8.0.20' }).hazard).toBe('rewrite');
+    expect(classifyStep('drop-column', { ...MY, serverVersion: '8.0.35' }).hazard).toBe('lossy');
+  });
+
+  it('add-column instant-anywhere from 8.0.29; before that only in the last position', () => {
+    const old = { ...MY, serverVersion: '8.0.20' };
+    expect(classifyStep('add-column', old, { isLastPosition: true }).hazard).toBe('safe');
+    expect(classifyStep('add-column', old, { isLastPosition: false }).hazard).toBe('rewrite');
+    const modern = { ...MY, serverVersion: '8.0.35' };
+    expect(classifyStep('add-column', modern, { isLastPosition: false }).hazard).toBe('safe');
+  });
+
+  it('an unknown server version takes the pessimistic branch', () => {
+    // Unknown → `atLeastVersion` is false → pre-11 postgres behaviour.
+    const unknown = { ...PG, serverVersion: null };
+    expect(
+      classifyStep('add-column', unknown, { columnNullable: false, hasDefault: true }).hazard,
+    ).toBe('rewrite');
+  });
+});
+
+describe('add-column’s refusal is about data, not syntax', () => {
+  it('refuses NOT NULL with no default on a populated table, on every dialect', () => {
+    for (const ctx of [PG, MY, LITE]) {
+      const v = classifyStep('add-column', ctx, { columnNullable: false, hasDefault: false });
+      expect(v.refusal, ctx.dialect).toBe('NEEDS_DEFAULT');
+      expect(v.hazard, ctx.dialect).toBe('refused');
+    }
+  });
+
+  it('allows it on an empty table, where there are no rows to leave without a value', () => {
+    for (const ctx of [PG, MY, LITE]) {
+      const v = classifyStep('add-column', { ...ctx, tableHasRows: false }, {
+        columnNullable: false,
+        hasDefault: false,
+      });
+      expect(v.refusal, ctx.dialect).toBeUndefined();
+    }
+  });
+});
+
+describe('comments', () => {
+  it('are catalog metadata on pg and mysql and refused on sqlite', () => {
+    expect(classifyStep('set-comment', PG).hazard).toBe('safe');
+    expect(classifyStep('set-comment', MY).hazard).toBe('safe');
+    expect(classifyStep('set-table-comment', LITE).refusal).toBe('UNSUPPORTED_ON_DIALECT');
+  });
+});
+
+describe('drop-column tells the truth about disk space', () => {
+  it('postgres: fast, but the space is not reclaimed', () => {
+    expect(classifyStep('drop-column', PG).rationale).toContain('not reclaimed');
+  });
+
+  it('sqlite: cost is proportional to the table size', () => {
+    expect(classifyStep('drop-column', LITE).rationale).toContain('proportional');
+  });
+});

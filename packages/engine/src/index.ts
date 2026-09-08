@@ -8,3 +8,4 @@ export * from './infer/index.js';
 export * from './classify/index.js';
 export * from './snapshot/index.js';
 export * from './generate/index.js';
+export * from './ddl/index.js';

@@ -211,11 +211,20 @@ describe.skipIf(!driverReady)('§4.3 specifics (extras database)', () => {
     ).toBe(true);
   });
 
-  it('AUTOINCREMENT / INTEGER PRIMARY KEY → autoincrement default', () => {
+  it('AUTOINCREMENT / INTEGER PRIMARY KEY → autoincrement default, NOT nullable', () => {
     expect(ticketsColumn('id')).toMatchObject({
       logicalType: 'integer',
       isPrimaryKey: true,
       default: { kind: 'autoincrement' },
+      /*
+       * `PRAGMA table_info` reports `notnull = 0` here — SQLite never wrote a
+       * NOT NULL constraint, it auto-assigns the rowid instead — and reporting
+       * that verbatim is a lie about what the column can hold. It cost twice:
+       * generated forms offered to leave the key blank, and the schema designer
+       * saw a nullability change on every SQLite table it opened and planned a
+       * twelve-step rebuild for a change nobody had made.
+       */
+      nullable: false,
     });
     // WITHOUT ROWID composite PK gets no synthetic autoincrement.
     const pairs = model.tables.find((t) => t.name === 'pairs');

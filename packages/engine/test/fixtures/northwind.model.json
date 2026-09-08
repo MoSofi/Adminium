@@ -2415,7 +2415,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_orders_customers"
     },
     {
       "id": "fk:public.orders(employee_id)->public.employees(employee_id)",
@@ -2437,7 +2438,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_orders_employees"
     },
     {
       "id": "fk:public.orders(ship_via)->public.shippers(shipper_id)",
@@ -2459,7 +2461,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_orders_shippers"
     },
     {
       "id": "fk:public.order_details(order_id)->public.orders(order_id)",
@@ -2481,7 +2484,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_order_details_orders"
     },
     {
       "id": "fk:public.order_details(product_id)->public.products(product_id)",
@@ -2503,7 +2507,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_order_details_products"
     },
     {
       "id": "fk:public.products(category_id)->public.categories(category_id)",
@@ -2525,7 +2530,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_products_categories"
     },
     {
       "id": "fk:public.products(supplier_id)->public.suppliers(supplier_id)",
@@ -2547,7 +2553,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_products_suppliers"
     },
     {
       "id": "fk:public.employees(reports_to)->public.employees(employee_id)",
@@ -2569,7 +2576,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": true,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_employees_employees"
     },
     {
       "id": "fk:public.territories(region_id)->public.region(region_id)",
@@ -2591,7 +2599,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_territories_region"
     },
     {
       "id": "fk:public.employee_territories(employee_id)->public.employees(employee_id)",
@@ -2613,7 +2622,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_employee_territories_employees"
     },
     {
       "id": "fk:public.employee_territories(territory_id)->public.territories(territory_id)",
@@ -2635,7 +2645,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_employee_territories_territories"
     },
     {
       "id": "fk:public.customer_customer_demo(customer_id)->public.customers(customer_id)",
@@ -2657,7 +2668,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_customer_customer_demo_customers"
     },
     {
       "id": "fk:public.customer_customer_demo(customer_type_id)->public.customer_demographics(customer_type_id)",
@@ -2679,7 +2691,8 @@
       "onDelete": "no-action",
       "onUpdate": "no-action",
       "selfReferential": false,
-      "confidence": 1
+      "confidence": 1,
+      "constraintName": "fk_customer_customer_demo_customer_demographics"
     }
   ],
   "capabilities": {

@@ -57,6 +57,20 @@ describe.skipIf(!psqlAvailable)('northwind fixture equivalence (psql executor)',
     expect(() => parseDatabaseModel(JSON.stringify(model))).not.toThrow();
   });
 
+  it('keeps the catalog constraint name on every declared FK (35-T33)', () => {
+    // `Relation.id` is derived from the endpoints, so it names nothing the
+    // catalog knows — a DROP CONSTRAINT needs the name Postgres assigned.
+    // `conname` has been selected by `constraintsSql` all along; this asserts
+    // it survives into the model rather than being read and discarded.
+    const declared = model.relations.filter((r) => r.kind === 'declared-fk');
+    expect(declared.length).toBeGreaterThan(0);
+    for (const relation of declared) {
+      expect(relation.constraintName, relation.id).toBeTruthy();
+    }
+    const selfRef = declared.find((r) => r.selfReferential);
+    expect(selfRef?.constraintName).toBe('fk_employees_employees');
+  });
+
   it('collects row estimates from pg_class.reltuples (never COUNT)', () => {
     const byId = new Map(model.tables.map((t) => [t.id, t]));
     expect(byId.get('public.categories')?.rowCountEstimate).toBe(8);
