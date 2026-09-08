@@ -46,17 +46,38 @@ const DESCRIPTIONS = {
     'install from a verified package, enable or disable per host, and uninstall',
   'api-keys': 'Issue, list and revoke API keys',
   audit: 'The audit log — list and read single entries',
+  automations:
+    'Automation rules — the trigger, the steps and the branches between them; ' +
+    'the tables, columns, templates and roles a rule can name; the 30-day counters ' +
+    'the cards show; and a dry run that walks the flow without executing anything',
+  'automation-runs':
+    'Every execution of a rule — the last seven days, the three status filters, ' +
+    'one run’s full step-by-step trace, and today’s counters',
+  files:
+    'Uploaded files and record attachments — upload, list, download (with Range and ETag), ' +
+    'attach to a record, rename, move to trash and restore',
+  storage:
+    'Where uploaded and generated files are stored — configure destinations ' +
+    '(this server’s disk, an S3-compatible bucket, a WebDAV server), test one, ' +
+    'choose the default, and move existing files between them',
   auth: 'Login, logout, session listing, 2FA enrolment, password change and reset',
   bootstrap: 'Everything the dashboard needs on first paint, in one call',
   branding: 'Instance name, colours and logo (read is public; writes are admin)',
   connections: 'Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation',
   data: 'Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references',
-  'email-templates': 'Transactional email bodies per locale, plus a test send',
+  'email-blocks': 'Reusable email sections saved from the editor — list, save one, delete one',
+  'email-runs': 'Campaign sends — cancel a scheduled or running run',
+  'email-templates':
+    'Email templates and campaigns — the documents, their language variations, the starters, ' +
+    'test sends of the on-screen document, and export/import of a bundle',
   events: 'Server-sent events — the fallback when a WebSocket cannot be established',
   exports: 'Queued exports of a whole result set, and their downloads',
   healthz: 'Liveness',
   i18n: 'Runtime translations — locales, keys, bundles, import/export, format errors',
   imports: 'CSV/spreadsheet imports — upload, dry run, run, error report',
+  invoices:
+    'Invoice templates and invoices — the documents, their language variations, the starters, ' +
+    'duplicates, and building an invoice from a template',
   jobs: 'Background jobs — enqueue, poll, cancel',
   llm: 'LLM assist — provider config, runs, prompts, diffs, apply, undo',
   me: 'The signed-in user — profile, preferences, notifications, saved layouts',

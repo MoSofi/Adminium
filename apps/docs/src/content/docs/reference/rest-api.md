@@ -88,16 +88,22 @@ Thirty-one namespaces. Counts are operations, not paths.
 | `/api/v1/api-keys/*` | 3 | Issue, list and revoke API keys |
 | `/api/v1/audit/*` | 2 | The audit log — list and read single entries |
 | `/api/v1/auth/*` | 12 | Login, logout, session listing, 2FA enrolment, password change and reset |
+| `/api/v1/automation-runs/*` | 3 | Every execution of a rule — the last seven days, the three status filters, one run’s full step-by-step trace, and today’s counters |
+| `/api/v1/automations/*` | 9 | Automation rules — the trigger, the steps and the branches between them; the tables, columns, templates and roles a rule can name; the 30-day counters the cards show; and a dry run that walks the flow without executing anything |
 | `/api/v1/bootstrap` | 1 | Everything the dashboard needs on first paint, in one call |
 | `/api/v1/branding/*` | 4 | Instance name, colours and logo (read is public; writes are admin) |
-| `/api/v1/connections/*` | 17 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
+| `/api/v1/connections/*` | 22 | Databases Adminium is pointed at — CRUD, connection test, introspection, schema snapshots, diffs, overrides, and generation |
 | `/api/v1/data/*` | 8 | Rows in your database — list, read, create, update, delete, bulk write, undo, and inbound references |
-| `/api/v1/email-templates/*` | 4 | Transactional email bodies per locale, plus a test send |
+| `/api/v1/email-blocks/*` | 3 | Reusable email sections saved from the editor — list, save one, delete one |
+| `/api/v1/email-runs` | 1 | Campaign sends — cancel a scheduled or running run |
+| `/api/v1/email-templates/*` | 17 | Email templates and campaigns — the documents, their language variations, the starters, test sends of the on-screen document, and export/import of a bundle |
 | `/api/v1/events` | 1 | Server-sent events — the fallback when a WebSocket cannot be established |
-| `/api/v1/exports/*` | 4 | Queued exports of a whole result set, and their downloads |
+| `/api/v1/exports/*` | 7 | Queued exports of a whole result set, and their downloads |
+| `/api/v1/files/*` | 11 | Uploaded files and record attachments — upload, list, download (with Range and ETag), attach to a record, rename, move to trash and restore |
 | `/api/v1/healthz` | 1 | Liveness |
 | `/api/v1/i18n/*` | 13 | Runtime translations — locales, keys, bundles, import/export, format errors |
 | `/api/v1/imports/*` | 6 | CSV/spreadsheet imports — upload, dry run, run, error report |
+| `/api/v1/invoices/*` | 10 | Invoice templates and invoices — the documents, their language variations, the starters, duplicates, and building an invoice from a template |
 | `/api/v1/jobs/*` | 4 | Background jobs — enqueue, poll, cancel |
 | `/api/v1/llm/*` | 13 | LLM assist — provider config, runs, prompts, diffs, apply, undo |
 | `/api/v1/me/*` | 11 | The signed-in user — profile, preferences, notifications, saved layouts |
@@ -116,6 +122,7 @@ Thirty-one namespaces. Counts are operations, not paths.
 | `/api/v1/search` | 1 | Cross-resource search for the command palette |
 | `/api/v1/settings/*` | 10 | Instance settings — defaults, branding, email, security, telemetry, workspace |
 | `/api/v1/setup/*` | 2 | First-boot super-admin creation, and whether setup is still open |
+| `/api/v1/storage/*` | 8 | Where uploaded and generated files are stored — configure destinations (this server’s disk, an S3-compatible bucket, a WebDAV server), test one, choose the default, and move existing files between them |
 | `/api/v1/surfaces/*` | 5 | Hosted app surfaces — placement in the dashboard, and attaching your own domains |
 | `/api/v1/system` | 1 | Version and instance information |
 | `/api/v1/users/*` | 9 | People in the workspace — invite, suspend, delete, assign roles |
@@ -201,6 +208,28 @@ POST /api/v1/auth/2fa/activate
 POST /api/v1/auth/2fa/disable
 ```
 
+### `/automation-runs`
+
+```http
+GET /api/v1/automation-runs/stats
+GET /api/v1/automation-runs
+GET /api/v1/automation-runs/{id}
+```
+
+### `/automations`
+
+```http
+GET /api/v1/automations
+POST /api/v1/automations
+GET /api/v1/automations/sources
+GET /api/v1/automations/stats
+GET /api/v1/automations/{id}
+PATCH /api/v1/automations/{id}
+DELETE /api/v1/automations/{id}
+POST /api/v1/automations/{id}/duplicate
+POST /api/v1/automations/{id}/test
+```
+
 ### `/bootstrap`
 
 ```http
@@ -235,6 +264,11 @@ GET /api/v1/connections/{id}/schema/overrides
 PUT /api/v1/connections/{id}/schema/overrides
 GET /api/v1/connections/{id}/overrides
 PUT /api/v1/connections/{id}/overrides
+POST /api/v1/connections/{id}/schema/plan
+POST /api/v1/connections/{id}/schema/apply
+POST /api/v1/connections/{id}/schema/adopt
+GET /api/v1/connections/{id}/schema/changes
+PUT /api/v1/connections/{id}/diagram-layout
 POST /api/v1/connections/{id}/generate
 ```
 
@@ -251,13 +285,40 @@ PATCH /api/v1/data/{connectionId}/{table}/{recordId}
 DELETE /api/v1/data/{connectionId}/{table}/{recordId}
 ```
 
+### `/email-blocks`
+
+```http
+GET /api/v1/email-blocks
+POST /api/v1/email-blocks
+DELETE /api/v1/email-blocks/{id}
+```
+
+### `/email-runs`
+
+```http
+POST /api/v1/email-runs/{id}/cancel
+```
+
 ### `/email-templates`
 
 ```http
 GET /api/v1/email-templates
+POST /api/v1/email-templates
+GET /api/v1/email-templates/starters
+GET /api/v1/email-templates/export
 GET /api/v1/email-templates/{key}/{locale}
-PUT /api/v1/email-templates/{key}/{locale}
-POST /api/v1/email-templates/{key}/test-send
+GET /api/v1/email-templates/{id}
+PUT /api/v1/email-templates/{id}
+PATCH /api/v1/email-templates/{id}
+DELETE /api/v1/email-templates/{id}
+POST /api/v1/email-templates/{id}/duplicate
+POST /api/v1/email-templates/{id}/languages
+POST /api/v1/email-templates/{id}/from-template
+POST /api/v1/email-templates/{id}/test-send
+POST /api/v1/email-templates/{id}/audience/preview
+POST /api/v1/email-templates/{id}/send
+GET /api/v1/email-templates/{id}/runs
+POST /api/v1/email-templates/import
 ```
 
 ### `/events`
@@ -269,10 +330,29 @@ GET /api/v1/events
 ### `/exports`
 
 ```http
+GET /api/v1/exports/sources
+GET /api/v1/exports/views
+POST /api/v1/exports/preview
 GET /api/v1/exports
 POST /api/v1/exports
 GET /api/v1/exports/{id}
 GET /api/v1/exports/{id}/download
+```
+
+### `/files`
+
+```http
+GET /api/v1/files
+POST /api/v1/files
+GET /api/v1/files/usage
+GET /api/v1/files/{id}
+PATCH /api/v1/files/{id}
+DELETE /api/v1/files/{id}
+POST /api/v1/files/resolve
+GET /api/v1/files/{id}/content
+POST /api/v1/files/{id}/attach
+POST /api/v1/files/{id}/detach
+POST /api/v1/files/{id}/restore
 ```
 
 ### `/healthz`
@@ -308,6 +388,21 @@ POST /api/v1/imports
 POST /api/v1/imports/{id}/run
 GET /api/v1/imports/{id}
 GET /api/v1/imports/{id}/error-report
+```
+
+### `/invoices`
+
+```http
+GET /api/v1/invoices
+POST /api/v1/invoices
+GET /api/v1/invoices/starters
+GET /api/v1/invoices/{id}
+PUT /api/v1/invoices/{id}
+PATCH /api/v1/invoices/{id}
+DELETE /api/v1/invoices/{id}
+POST /api/v1/invoices/{id}/duplicate
+POST /api/v1/invoices/{id}/languages
+POST /api/v1/invoices/{id}/from-template
 ```
 
 ### `/jobs`
@@ -486,6 +581,19 @@ PUT /api/v1/settings/email
 ```http
 GET /api/v1/setup/state
 POST /api/v1/setup/super-admin
+```
+
+### `/storage`
+
+```http
+GET /api/v1/storage/destinations
+POST /api/v1/storage/destinations
+PATCH /api/v1/storage/destinations/{id}
+DELETE /api/v1/storage/destinations/{id}
+POST /api/v1/storage/destinations/{id}/test
+POST /api/v1/storage/destinations/test
+POST /api/v1/storage/destinations/{id}/default
+POST /api/v1/storage/migrate
 ```
 
 ### `/surfaces`
