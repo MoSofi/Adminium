@@ -45,5 +45,39 @@ function Demo({ async }: { async?: boolean }) {
   );
 }
 
+/**
+ * Two gates in one confirm (35-schema-authoring.md D18). The first field names
+ * the object, the second is a second, differently derived token — here the
+ * measured row count — so satisfying one tells you nothing about the other.
+ */
+function SecondFieldDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="p-8">
+      <Button variant="destructive" onClick={() => setOpen(true)}>
+        Rewrite events
+      </Button>
+      <ConfirmModal
+        open={open}
+        onOpenChange={setOpen}
+        title="Rewrite a table above the row ceiling"
+        body="public.events holds 2,400,000 rows. Applying this holds a lock for as long as the rewrite takes."
+        confirmWord="public.events"
+        promptLabel='Type "public.events" to confirm'
+        secondPrompt={{
+          label: 'Type the row count to confirm: 2400000',
+          expected: '2400000',
+          hint: 'Digits only, no separators.',
+        }}
+        confirmLabel="Apply anyway"
+        cancelLabel="Cancel"
+        closeLabel="Close"
+        onConfirm={() => setOpen(false)}
+      />
+    </div>
+  );
+}
+
 export const Playground: Story = { render: () => <Demo /> };
 export const AsyncBusy: Story = { render: () => <Demo async /> };
+export const SecondField: Story = { render: () => <SecondFieldDemo /> };

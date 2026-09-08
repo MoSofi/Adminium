@@ -258,7 +258,7 @@ export function SourceStep({ state, onPatch, onFileTablesCapture }: SourceStepPr
           title={t('studio:source.readOnlyRole.title', 'Use a read-only role')}
           body={t(
             'studio:source.readOnlyRole.body',
-            'Adminium never writes to your database — setup uses schema metadata only. We recommend a dedicated user with SELECT-only grants; you can decide where Adminium keeps its own tables in the meta-storage step.',
+            'During setup Adminium reads schema metadata only — never your rows. We recommend a dedicated user with SELECT-only grants; you can decide where Adminium keeps its own tables in the meta-storage step.',
           )}
         />
       ) : null}

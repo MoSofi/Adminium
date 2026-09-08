@@ -48,6 +48,18 @@ export interface SchemaReply {
   source: string;
   model: EffectiveModel;
   appliedOverrides: number;
+  /**
+   * Whether this connection's schema can be authored, and why not (35-T15).
+   *
+   * Optional on the client because a server one release behind does not send
+   * it. Absent is treated as authorable — the routes refuse what they refuse
+   * either way, and hiding Design on an OLD server because a new field is
+   * missing would break a working install to satisfy a new one.
+   */
+  schemaAuthoring?: {
+    authorable: boolean;
+    reason: 'NO_LIVE_DATABASE' | 'READ_ONLY_ROLE' | 'NO_DDL_PRIVILEGE' | 'READ_ONLY_INTENT' | null;
+  };
 }
 
 /** `POST /connections/:id/generate` reply (server `generateReply`). */

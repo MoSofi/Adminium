@@ -46,6 +46,48 @@ function installMatchMedia(): void {
 }
 
 /**
+ * The four browser APIs React Flow measures with, which happy-dom does not
+ * implement (35-schema-authoring.md §8.1, 35-T20).
+ *
+ * Without them the canvas MOUNTS AND RENDERS NOTHING: React Flow sizes nodes
+ * through `ResizeObserver` and routes edges from the boxes it measures, so a
+ * test asserting "the diagram is empty" would pass for the wrong reason and
+ * read as a product bug. This is the trap the plan's research flagged and it
+ * costs four stubs.
+ *
+ * They live here rather than in the diagram's own suite because a missing
+ * global surfaces as a silent empty render in ANY test that mounts the
+ * component, including ones written later by somebody who never read this.
+ */
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+}
+if (typeof globalThis.DOMMatrixReadOnly === 'undefined') {
+  class DOMMatrixReadOnlyStub {
+    m22 = 1;
+  }
+  globalThis.DOMMatrixReadOnly = DOMMatrixReadOnlyStub as unknown as typeof DOMMatrixReadOnly;
+}
+if (typeof Element !== 'undefined') {
+  // happy-dom reports 0 for every box; React Flow treats a zero-size node as
+  // unmeasured and never places it.
+  if (Element.prototype.getBoundingClientRect !== undefined) {
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function boundingRect(this: Element): DOMRect {
+      const rect = original.call(this) as DOMRect;
+      if (rect.width !== 0 || rect.height !== 0) return rect;
+      return { ...rect, width: 240, height: 120, toJSON: () => ({}) } as DOMRect;
+    };
+  }
+  (Element.prototype as unknown as { scrollIntoView?: () => void }).scrollIntoView ??= () => {};
+}
+
+/**
  * Stop happy-dom from actually FETCHING an `<iframe src>` (29-T10).
  *
  * happy-dom does not stub iframe loading the way jsdom does — it issues a real

@@ -17,11 +17,13 @@
  *   generated_hash semantics (04-widget-registry.md §6.3).
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import {
   Banner,
+  Button,
   EmptyState,
   Skeleton,
+  Spinner,
   Tabs,
   TabsContent,
   TabsList,
@@ -31,6 +33,21 @@ import {
 } from '@adminium/ui';
 
 import { ApiError } from '../../app/api.js';
+import { DesignMode } from './design/DesignMode.js';
+
+/**
+ * The diagram is LAZY, and that is load-bearing rather than tidy.
+ *
+ * `@xyflow/react` is ~59 KiB gz and does NOT tree-shake — 84 bytes between a
+ * minimal and a full import (35 §8.1). A static import here would put the whole
+ * library in the synchronously-loaded set for every user on every route, which
+ * is the exact failure `chunk-budget.json` records for `page-builder` and
+ * `ImportWizardPage`. Nothing outside `./diagram/` imports it.
+ */
+const DiagramModeLazy = lazy(async () => {
+  const mod = await import('./diagram/DiagramMode.js');
+  return { default: mod.DiagramMode };
+});
 import { t } from '../../i18n/t.js';
 import { capabilityNotes, modelCapabilitySource } from '../connect/capabilityNotes.js';
 import { ColumnInspector } from './ColumnInspector.js';
@@ -41,6 +58,7 @@ import { TableInspector } from './TableInspector.js';
 import { putOverrides, regeneratePages, remapOverridesQuery, remapSchemaQuery } from './api.js';
 import { tableById, type RemapSelection } from './model.js';
 import { overrideKey, type RemapOverride } from './overrides.js';
+import { PageActions } from '../../shell/PageActionsProvider.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { useRemapBuffer } from './useRemapBuffer.js';
 
@@ -89,6 +107,51 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
   const buffer = useRemapBuffer(overridesQuery.data?.overrides);
   const toasts = useToastQueue();
 
+  /**
+   * Which half of the page is showing (35 §3.6, O6 → D22): the remap editor
+   * that changes what Adminium DISPLAYS, or the designer that changes the
+   * customer's DATABASE. One page, one navigation tree, two verbs — and
+   * deliberately two buffers, so a single Save can never mix a label change
+   * with a dropped column (§0.3 trap 1).
+   */
+  const [mode, setMode] = useState<'remap' | 'design' | 'diagram'>('remap');
+
+  /**
+   * 35-T15's honest absence, client half.
+   *
+   * The tab is REMOVED, not disabled. A disabled control still says "this is
+   * something Adminium does, and you may not do it"; for a schema-file source
+   * there is no database to change and for a read-only role there never will
+   * be, so the truthful shape of the page is one without the surface — plus a
+   * sentence saying why, which a disabled button does not carry either.
+   *
+   * The server refuses these four cases regardless (`unauthorableReason`).
+   * This is the same fact rendered, never the enforcement.
+   */
+  const authoring = schemaQuery.data?.schemaAuthoring;
+  const canDesign = authoring === undefined || authoring.authorable;
+  const notAuthorableBecause: string | null =
+    authoring === undefined || authoring.authorable
+      ? null
+      : authoring.reason === 'NO_LIVE_DATABASE'
+        ? t(
+            'studio:remap.noDesign.schemaFile',
+            'This connection was created from a schema file, so there is no database to change. Labels and relations still work.',
+          )
+        : authoring.reason === 'READ_ONLY_ROLE'
+          ? t(
+              'studio:remap.noDesign.readOnlyRole',
+              'This connection signs in with a read-only role, so Adminium cannot change its schema.',
+            )
+          : authoring.reason === 'NO_DDL_PRIVILEGE'
+            ? t(
+                'studio:remap.noDesign.noPrivilege',
+                "This connection's role cannot create or alter tables. Grant it schema privileges, or connect a role that has them.",
+              )
+            : t(
+                'studio:remap.noDesign.readOnlyIntent',
+                'This connection was set up for read-only analytics. Change its intent in Settings to edit its schema.',
+              );
   const [selection, setSelection] = useState<RemapSelection | null>(null);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -172,14 +235,60 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
 
   return (
     <PageSurface fill className="gap-3">
-      <header className="flex flex-wrap items-center gap-2">
-        <h2 className="text-section text-fg">{t('studio:remap.title', 'Schema remap')}</h2>
-        {schemaQuery.data !== undefined ? (
-          <span className="text-body-sm text-fg-muted">
-            {t('studio:remap.subtitle', '{tables} tables · {applied} overrides applied', { tables: String(schemaQuery.data.model.tables.length), applied: String(schemaQuery.data.appliedOverrides) })}
-          </span>
+      {/* Heading and count line live in the TOPBAR, not this header: the shell
+          renders an h1 for every route regardless, and this screen used to
+          leave it on the path-derived fallback — so the chrome said "Home"
+          while the body said "Schema", and so did the browser tab. What stays
+          here is the mode tablist, which is a control, not a title. */}
+      <PageActions
+        title={t('studio:remap.title', 'Schema')}
+        {...(schemaQuery.data === undefined
+          ? {}
+          : {
+              subtitle: t(
+                'studio:remap.subtitle',
+                '{tables} tables · {applied} overrides applied',
+                {
+                  tables: String(schemaQuery.data.model.tables.length),
+                  applied: String(schemaQuery.data.appliedOverrides),
+                },
+              ),
+            })}
+      />
+      {/* No <header> wrapper any more: with the heading and count line hoisted
+          to the topbar this is a row of controls, not a page header. */}
+      <div role="tablist" aria-label={t('studio:remap.modeLabel', 'Editor mode')} className="flex flex-wrap gap-1">
+        <Button
+          role="tab"
+          aria-selected={mode === 'remap'}
+          variant={mode === 'remap' ? 'secondary' : 'ghost'}
+          onClick={() => setMode('remap')}
+        >
+          {t('studio:remap.mode.remap', 'Labels & relations')}
+        </Button>
+        {canDesign ? (
+          <Button
+            role="tab"
+            aria-selected={mode === 'design'}
+            variant={mode === 'design' ? 'secondary' : 'ghost'}
+            onClick={() => setMode('design')}
+          >
+            {t('studio:remap.mode.design', 'Design')}
+          </Button>
         ) : null}
-      </header>
+        <Button
+          role="tab"
+          aria-selected={mode === 'diagram'}
+          variant={mode === 'diagram' ? 'secondary' : 'ghost'}
+          onClick={() => setMode('diagram')}
+        >
+          {t('studio:remap.mode.diagram', 'Diagram')}
+        </Button>
+      </div>
+
+      {notAuthorableBecause !== null ? (
+        <Banner tone="info">{notAuthorableBecause}</Banner>
+      ) : null}
 
       {sourceNotes.length > 0 ? (
         <Banner tone="info">
@@ -209,7 +318,40 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
         </div>
       ) : null}
 
-      {model !== undefined ? (
+      {model !== undefined && mode === 'design' && canDesign ? (
+        <DesignMode
+          connectionId={connectionId}
+          snapshotId={schemaQuery.data?.snapshotId ?? ''}
+          dialect={model.dialect}
+          tables={model.tables as never}
+          relations={model.relations as never}
+          onApplied={() => {
+            void queryClient.invalidateQueries({
+              queryKey: remapSchemaQuery(connectionId).queryKey,
+            });
+          }}
+        />
+      ) : null}
+
+      {model !== undefined && mode === 'diagram' ? (
+        <Suspense
+          fallback={
+            <div className="flex flex-1 items-center justify-center p-10">
+              <Spinner size="md" />
+            </div>
+          }
+        >
+          <DiagramModeLazy
+            connectionId={connectionId}
+            model={model}
+            savedPositions={{}}
+            canSaveLayout
+            onOpenTable={() => setMode('design')}
+          />
+        </Suspense>
+      ) : null}
+
+      {model !== undefined && mode === 'remap' ? (
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[minmax(16rem,22rem)_1fr]">
           <SchemaTree model={model} buffer={buffer} selection={selection} onSelect={setSelection} />
           <section
@@ -255,6 +397,7 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
         </div>
       ) : null}
 
+      {mode === 'remap' ? (
       <DiffBar
         changes={buffer.changes}
         onRevert={buffer.revert}
@@ -266,6 +409,7 @@ export function RemapEditor({ connectionId }: RemapEditorProps) {
         onRegenerate={() => void handleRegenerate()}
         regenerating={regenerating}
       />
+      ) : null}
 
       <ToastStack
         {...toasts.stackProps}

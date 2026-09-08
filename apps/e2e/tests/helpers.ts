@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { expect, type Page } from '@playwright/test';
 
-import { ADMIN_EMAIL, ADMIN_PASSWORD } from './constants.js';
+import { ADMIN_EMAIL, ADMIN_PASSWORD, SEED_CONNECTION_NAME } from './constants.js';
 
 /**
  * Land in the app shell as the seeded super admin.
@@ -24,6 +24,28 @@ export async function signIn(page: Page): Promise<void> {
   await page.getByLabel('Password', { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(shell).toBeVisible();
+}
+
+/**
+ * The id of the seeded `northwind` connection, read from the API.
+ *
+ * Deliberately not scraped out of the Studio hub. A test that navigates
+ * `/studio` → a card → a tab is asserting the hub's markup on its way to
+ * asserting something else, and it fails for a reason that has nothing to do
+ * with its subject — which is exactly what happened: six schema-design specs
+ * all failed on a `northwind` LINK that the hub does not render.
+ */
+export async function seededConnectionId(page: Page): Promise<string> {
+  const response = await page.request.get('/api/v1/connections');
+  expect(response.ok()).toBe(true);
+  const body = (await response.json()) as { connections: { id: string; name: string }[] };
+  const found = body.connections.find((c) => c.name === SEED_CONNECTION_NAME);
+  if (found === undefined) {
+    throw new Error(
+      `no connection named ${SEED_CONNECTION_NAME}; saw ${body.connections.map((c) => c.name).join(', ')}`,
+    );
+  }
+  return found.id;
 }
 
 /** The sidebar nav link for a generated page (label may grow suffixes). */

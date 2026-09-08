@@ -221,6 +221,9 @@ export function makeModel(): EffectiveModel {
         onUpdate: null,
         selfReferential: false,
         confidence: 1,
+        // A declared FK carries the catalog's own name (35-T33); an inferred
+        // one has no constraint to name.
+        constraintName: 'fk_orders_customers',
       },
       {
         id: 'inferred:public.order_notes.order_ref',
@@ -232,6 +235,7 @@ export function makeModel(): EffectiveModel {
         onDelete: null,
         onUpdate: null,
         selfReferential: false,
+        constraintName: null,
         confidence: 0.72,
       },
     ],
@@ -242,7 +246,11 @@ export function makeModel(): EffectiveModel {
   };
 }
 
-export function makeSchemaReply(model: EffectiveModel = makeModel(), appliedOverrides = 0): SchemaReply {
+export function makeSchemaReply(
+  model: EffectiveModel = makeModel(),
+  appliedOverrides = 0,
+  schemaAuthoring: SchemaReply['schemaAuthoring'] = { authorable: true, reason: null },
+): SchemaReply {
   return {
     connectionId: 'conn_1',
     snapshotId: 'snap_1',
@@ -251,6 +259,7 @@ export function makeSchemaReply(model: EffectiveModel = makeModel(), appliedOver
     source: 'introspection',
     model,
     appliedOverrides,
+    schemaAuthoring,
   };
 }
 

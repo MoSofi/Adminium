@@ -27,6 +27,9 @@ describe('schema tree', () => {
     expect(await screen.findByText('Customers')).toBeDefined();
     expect(screen.getByText('Orders')).toBeDefined();
     expect(screen.getByText('Order notes')).toBeDefined();
+    // Heading and count line are the SHELL's, not a second header in the body:
+    // this screen published neither, so the topbar h1 used to read "Home".
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Schema');
     expect(screen.getByText('3 tables · 0 overrides applied')).toBeDefined();
 
     // Expand customers → columns with chips + badges.
