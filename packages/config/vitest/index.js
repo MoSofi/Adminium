@@ -37,7 +37,7 @@ import { coverageConfigDefaults } from 'vitest/config';
  * `@adminium/ui`, `@adminium/widgets` and `@adminium/charts`, where screenshots
  * and axe are the meaningful signal rather than branch counts.
  */
-export function coverage({ statements, branches, exclude = [] } = {}) {
+export function coverage({ statements, branches, functions, exclude = [] } = {}) {
   return {
     provider: 'v8',
     // OFF by default, ON via `--coverage` in each package's `test` script.
@@ -61,7 +61,33 @@ export function coverage({ statements, branches, exclude = [] } = {}) {
     // `json-summary` carries per-file percentages, which is what makes a
     // threshold failure diagnosable.
     reporter: ['text-summary', 'json-summary'],
-    ...(statements === undefined ? {} : { thresholds: { statements, branches } }),
+    /*
+     * `functions` is spread in only when a caller asks for one, so a package
+     * that omits it gets a byte-identical block to before this key existed —
+     * no `functions: undefined` reaching vitest to be interpreted.
+     *
+     * It is opt-in rather than a required companion to `branches` because a
+     * function floor measures something the other two do not: a module can sit
+     * at 95% statements while a third of its exported functions are never
+     * called once, since the covered statements are all in the few that are.
+     * That is worth asserting where a package IS its exports (a client, a
+     * contract kit) and noise where it is one long pipeline.
+     *
+     * This was silently dropped until 2026-09-04: the destructure took only
+     * `statements`/`branches`, so `@adminium/public-client` had carried a
+     * `functions: 84` floor since it was written that never once reached
+     * vitest. A threshold nobody enforces is worse than no threshold — it reads
+     * in review as a gate that is holding.
+     */
+    ...(statements === undefined
+      ? {}
+      : {
+          thresholds: {
+            statements,
+            branches,
+            ...(functions === undefined ? {} : { functions }),
+          },
+        }),
   };
 }
 

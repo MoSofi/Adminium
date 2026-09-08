@@ -11,6 +11,19 @@
  * The uncovered branches are the `?? undefined` fallbacks around optional
  * request options and the `supportedValuesOf`-absent path in
  * `isCanonicalTimeZone`, which needs a runtime this suite does not have.
+ *
+ * The `functions` floor was INERT from the day it was written until 2026-09-04:
+ * the shared helper destructured only `statements`/`branches`, so 84 never
+ * reached vitest. This is the only package in the monorepo that passes one, so
+ * it was also the only one that could notice. Re-measured on the day it went
+ * live: statements 90.18, branches 81.48, functions 85 (17/20) — ratcheted to
+ * 85 per the convention above, which is the first time that axis has held
+ * anything.
+ *
+ * 85 and the old 84 are the same gate *today* — 20 functions means the only
+ * reachable values are multiples of 5, so both accept 17/20 and both reject
+ * 16/20. They stop being the same the moment the denominator moves, which is
+ * the case the ratchet is written for.
  */
 import { coverage, workers } from '@adminium/config/vitest';
 import { defineConfig } from 'vitest/config';
@@ -18,6 +31,6 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     ...workers(),
-    coverage: coverage({ statements: 89, branches: 81, functions: 84 }),
+    coverage: coverage({ statements: 89, branches: 81, functions: 85 }),
   },
 });

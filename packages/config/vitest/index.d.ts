@@ -12,6 +12,11 @@ export interface CoverageOptions {
   statements?: number;
   /** Branch floor. Required whenever `statements` is given. */
   branches?: number;
+  /**
+   * Function floor. Optional and opt-in — worth asserting where a package IS
+   * its exports, ignored elsewhere. Only honoured alongside `statements`.
+   */
+  functions?: number;
   /** Extra globs appended to the shared exclude list. */
   exclude?: readonly string[];
 }
