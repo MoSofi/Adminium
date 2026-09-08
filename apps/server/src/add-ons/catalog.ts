@@ -97,6 +97,50 @@ export class AddOnCatalogError extends Error {
  */
 const localizedSchema = z.record(z.string(), z.string());
 
+/**
+ * One string out of a feed-supplied localized record, for a product locale
+ * (40-add-on-browsing.md D2).
+ *
+ * ── WHY THIS IS NOT A LOOKUP ────────────────────────────────────────────────
+ *
+ * THE TWO SIDES DO NOT SHARE A KEY SPACE, and assuming they did is the defect
+ * this replaces. The product speaks `en_US`, `de_DE`, `zh_CN`, `ar_EG`; the
+ * feed the website emits speaks `en`, `de`, `zh-cn`, `ar`. The browse route
+ * used to read `entry.name['en_US']`, a key the feed has NEVER carried, so the
+ * `?? key` fallback fired on every row and every catalog-sourced add-on was
+ * labelled with its own slug.
+ *
+ * ── THE ORDER, AND WHY EACH LEG EARNS ITS PLACE ─────────────────────────────
+ *
+ *  1. the tag verbatim — a future feed that does speak `en_US` is honoured
+ *     without a code change, and it costs one property read;
+ *  2. the tag normalised (`_`→`-`, lowercased) — `zh_CN` → `zh-cn`. THIS LEG IS
+ *     LOAD-BEARING AND MUST PRECEDE 3: Chinese is the case where the language
+ *     subtag alone is not a locale anybody publishes, so a `zh` lookup misses
+ *     and Simplified would silently render as English;
+ *  3. the language subtag — `en_US` → `en`, `ar_EG` → `ar`, which is how six of
+ *     the eight resolve;
+ *  4. `en`, the one key 32 §3 requires every feed row to carry.
+ *
+ * Returns `null` rather than a placeholder when every leg misses: the caller
+ * knows what it has locally (a staged manifest's name, or the key) and this
+ * module does not.
+ */
+export function pickLocalized(
+  record: Record<string, string> | undefined,
+  locale: string,
+): string | null {
+  if (record === undefined) return null;
+  const normalized = locale.replace(/_/g, '-').toLowerCase();
+  const language = normalized.split('-')[0] ?? normalized;
+  for (const candidate of [locale, normalized, language, 'en']) {
+    const value = record[candidate];
+    // A feed row carrying `"de": ""` is a missing translation, not a name.
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return null;
+}
+
 /** The one npm scope this deployment will pull an add-on from (D1/D2). */
 export const NPM_SCOPE = '@adminiumjs';
 

@@ -45,6 +45,9 @@ function makeEntry(over: Partial<CatalogEntry> = {}): CatalogEntry {
     source: 'bundled',
     state: 'staged',
     upgradeTo: null,
+    tagline: 'Public holidays for 30 countries, ready to attach.',
+    categories: ['data'],
+    connectKind: 'none',
     ...over,
   };
 }
@@ -421,4 +424,101 @@ describe('AddOnsPage', () => {
     expect(await screen.findByText('No add-ons available')).toBeTruthy();
     expect(screen.getByText('Nothing installed yet')).toBeTruthy();
   });
+  /*
+   * 40-T07 — the browse surface (§6 acceptance 3-6).
+   *
+   * These drive the REAL page through the router, so every one of them also
+   * proves the widened DTO survives the client mirror: a card cannot render a
+   * tagline or a category the API layer dropped.
+   */
+  describe('browsing: rail, search and the three nothings (40)', () => {
+    const many = [
+      makeEntry({ key: 'barcode-labels', name: 'Barcode Labels', categories: ['data'] }),
+      makeEntry({
+        key: 'shipping-dhl',
+        name: 'DHL Shipping',
+        categories: ['delivery'],
+        connectKind: 'api-key',
+        state: 'available',
+        source: 'catalog',
+        tagline: 'Live rates and labels for parcels.',
+      }),
+      makeEntry({
+        key: 'design-studio',
+        name: 'Design Studio',
+        categories: ['artwork'],
+        tagline: 'Lay out artwork on the product page.',
+      }),
+    ];
+
+    it('filters the grid by category, with counts that match what a click shows', async () => {
+      const user = userEvent.setup();
+      await renderPage({ entries: many });
+      await screen.findByText('Barcode Labels');
+
+      // The rail lists only categories that are actually present, plus All.
+      const rail = screen.getByRole('navigation', { name: 'Categories' });
+      const labels = within(rail)
+        .getAllByRole('button')
+        .map((b) => b.textContent);
+      expect(labels).toEqual(['All3', 'Artwork1', 'Delivery1', 'Data1']);
+
+      await user.click(within(rail).getByRole('button', { name: /Delivery/ }));
+      expect(screen.getByText('DHL Shipping')).toBeTruthy();
+      expect(screen.queryByText('Barcode Labels')).toBeNull();
+      expect(screen.queryByText('Design Studio')).toBeNull();
+    });
+
+    it('searches on the tagline as well as the name (D6)', async () => {
+      const user = userEvent.setup();
+      await renderPage({ entries: many });
+      await screen.findByText('Design Studio');
+
+      // "parcels" appears only in DHL's tagline, never in any name.
+      await user.type(screen.getByRole('textbox', { name: 'Search add-ons' }), 'parcels');
+      expect(screen.getByText('DHL Shipping')).toBeTruthy();
+      expect(screen.queryByText('Design Studio')).toBeNull();
+    });
+
+    it('says what installing will ask for, before a download (D5)', async () => {
+      await renderPage({ entries: many });
+      await screen.findByText('DHL Shipping');
+      expect(screen.getByText('Needs an API key')).toBeTruthy();
+      // …and says nothing at all for the add-ons that need no credential.
+      expect(screen.queryByText('Connects with OAuth')).toBeNull();
+    });
+
+    it('renders an unknown category as its own slug rather than dropping the row (D4)', async () => {
+      const user = userEvent.setup();
+      await renderPage({
+        entries: [makeEntry({ key: 'future-thing', name: 'Future Thing', categories: ['telemetry'] })],
+      });
+      await screen.findByText('Future Thing');
+      const rail = screen.getByRole('navigation', { name: 'Categories' });
+      const slug = within(rail).getByRole('button', { name: /telemetry/ });
+      await user.click(slug);
+      // Reachable through the rail, not merely visible on the card.
+      expect(screen.getByText('Future Thing')).toBeTruthy();
+    });
+
+    it('distinguishes a filter that matched nothing from an empty catalogue (D8)', async () => {
+      const user = userEvent.setup();
+      await renderPage({ entries: many });
+      await screen.findByText('Barcode Labels');
+
+      await user.type(screen.getByRole('textbox', { name: 'Search add-ons' }), 'zzzz');
+      expect(screen.getByText('Nothing matches')).toBeTruthy();
+      // NOT the configuration answer: there are add-ons, the filter hid them.
+      expect(screen.queryByText('No add-ons available')).toBeNull();
+    });
+
+    it('blames the catalogue, not the build, when online is on and found nothing', async () => {
+      await renderPage({ entries: [], onlineEnabled: true });
+      await screen.findByText('No add-ons available');
+      expect(
+        screen.getByText(/the last check found nothing/, { exact: false }),
+      ).toBeTruthy();
+    });
+  });
+
 });

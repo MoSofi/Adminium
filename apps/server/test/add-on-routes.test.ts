@@ -1280,6 +1280,121 @@ describe('32-T09: acquisition routes (§4.3)', () => {
       expect(dhl).toMatchObject({ state: 'available', source: 'catalog' });
       await app.close();
     });
+
+    /*
+     * 40 D2 / D-BUG-1. The fixture above uses `en_US` keys, and that is exactly
+     * how the defect survived every other test in this file: the route read
+     * `entry.name['en_US']` and the fixture obligingly supplied one. The LIVE
+     * feed keys rows `en`/`de`/`zh-cn`, so on a real deployment the lookup
+     * always missed and the `?? key` fallback printed the slug.
+     *
+     * This fixture therefore uses the real key space, verified against
+     * adminium.dev/marketplace/catalog.json on 2026-09-06.
+     */
+    it('names a catalog row from the feed key space, not from its slug', async () => {
+      const app = await buildApp();
+      await store.writeCatalogCache(
+        {
+          schemaVersion: 1,
+          generatedAt: '2026-09-01T13:10:59.915Z',
+          addOns: [
+            {
+              key: 'barcode-labels',
+              npmPackage: '@adminiumjs/add-on-barcode-labels',
+              version: '1.0.0',
+              integrity: 'sha512-AAAA',
+              provides: [],
+              attaches: [{ app: 'maker', range: '^1.0.0' }],
+              categories: ['data'],
+              capabilities: [],
+              connect: { kind: 'none' },
+              network: { allow: [] },
+              name: { en: 'Barcode Labels', de: 'Barcode-Etiketten', 'zh-cn': '条形码标签' },
+              tagline: { en: 'Print a sheet of labels from the row.', de: 'Etiketten drucken.' },
+            },
+          ],
+        },
+        1_700_000_000_000,
+      );
+
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
+        addOns: Array<{
+          key: string;
+          name: string;
+          tagline: string | null;
+          categories: string[];
+          connectKind: string;
+        }>;
+      };
+      const row = body.addOns.find((a) => a.key === 'barcode-labels');
+      expect(row?.name).toBe('Barcode Labels');
+      expect(row?.name).not.toBe('barcode-labels');
+      expect(row?.tagline).toBe('Print a sheet of labels from the row.');
+      expect(row?.categories).toEqual(['data']);
+      expect(row?.connectKind).toBe('none');
+      await app.close();
+    });
+
+    it('carries a staged row its own manifest facts, with no catalog at all', async () => {
+      // The air-gapped case: nothing cached, so every field has to come off
+      // disk or be honestly absent (40 D3).
+      await stage('holiday-calendars');
+      const app = await buildApp();
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
+        addOns: Array<{
+          key: string;
+          name: string;
+          tagline: string | null;
+          categories: string[];
+          connectKind: string;
+        }>;
+      };
+      const row = body.addOns.find((a) => a.key === 'holiday-calendars');
+      // `manifestFor` sets `name: key`, so the name proves nothing here; what
+      // this asserts is that the other three come off the staged manifest with
+      // no feed to read them from.
+      expect(row?.tagline).toBe('x'); // description.fallback
+      expect(row?.categories).toEqual(['data']);
+      expect(row?.connectKind).toBe('none');
+      await app.close();
+    });
+
+    it('prefers the feed tagline over the manifest one for a staged row (D3)', async () => {
+      await stage('holiday-calendars');
+      const app = await buildApp();
+      await store.writeCatalogCache(
+        {
+          schemaVersion: 1,
+          generatedAt: '2026-09-01T13:10:59.915Z',
+          addOns: [
+            {
+              key: 'holiday-calendars',
+              npmPackage: '@adminiumjs/add-on-holiday-calendars',
+              version: '1.0.0',
+              integrity: 'sha512-AAAA',
+              provides: [],
+              attaches: [{ app: 'printing' }],
+              categories: ['data'],
+              capabilities: [],
+              connect: { kind: 'none' },
+              network: { allow: [] },
+              name: { en: 'Holiday Calendars' },
+              tagline: { en: 'Public holidays for 30 countries.' },
+            },
+          ],
+        },
+        1_700_000_000_000,
+      );
+      const body = (await app.inject({ method: 'GET', url: '/api/v1/add-ons/catalog' })).json() as {
+        addOns: Array<{ key: string; tagline: string | null; source: string }>;
+      };
+      const row = body.addOns.find((a) => a.key === 'holiday-calendars');
+      // Localized beats the manifest's single English `fallback` of 'x'…
+      expect(row?.tagline).toBe('Public holidays for 30 countries.');
+      // …and the row is still `bundled`: the bytes are on disk either way.
+      expect(row?.source).toBe('bundled');
+      await app.close();
+    });
   });
 
   describe('refresh and download refuse when the catalog is off (D8)', () => {

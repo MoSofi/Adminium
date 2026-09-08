@@ -73,6 +73,7 @@ import {
   auditRepo,
   manifestsRepo,
   settingsRepo,
+  userPrefsRepo,
   type InstalledManifest,
   type MetaDb,
 } from '@adminium/meta';
@@ -81,6 +82,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import {
   CATALOG_ENABLED_SETTING,
   catalogSchema,
+  pickLocalized,
   type CatalogClient,
 } from '../../add-ons/catalog.js';
 import { addOnHttpClientFor } from '../../add-ons/egress.js';
@@ -466,16 +468,23 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
         preHandler: app.rbac.require(PERMISSIONS.manifestsManage),
         schema: { response: { 200: catalogBrowseReply } },
       },
-      async () => {
+      async (request) => {
         // NEVER fetches inline (§4.3). Browsing is a disk read: the bundled set
         // plus whatever the last refresh cached. That is what makes the page
         // work identically on an air-gapped install, and what stops a page load
         // from becoming an outbound call nobody asked for.
-        const [installedList, stagedKeys, cached] = await Promise.all([
+        //
+        // The prefs read is the one addition (40 D2) and it is a META read, not
+        // a network one: the feed carries eight locales per row and the server
+        // projects ONE, so the reply keeps a single string per field instead of
+        // an 8x multiplier the browser would discard seven-eighths of.
+        const [installedList, stagedKeys, cached, prefs] = await Promise.all([
           manifests.list('add-on'),
           deps.store.keys(),
           deps.store.readCatalogCache(),
+          userPrefsRepo(deps.meta).resolve(request.user?.id ?? null),
         ]);
+        const locale = prefs.locale;
 
         const installed = new Map(installedList.map((m) => [m.row.manifestKey, m.row.version]));
         const staged = new Map<string, string>();
@@ -485,6 +494,21 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           if (newest !== undefined) staged.set(key, newest);
         }
 
+        /*
+         * The cached feed is parsed BEFORE the staged loop, not after, because
+         * D3 makes it the preferred tagline source for rows that are already on
+         * disk: a bundled add-on's own `description` is one English string,
+         * while the feed has the same line in eight languages. Air-gapped
+         * installs have no cache and fall through to the manifest, which is the
+         * case that stops the card being blank where it matters most.
+         */
+        const parsedCatalog = cached === null ? null : catalogSchema.safeParse(cached.document);
+        const feed = new Map(
+          parsedCatalog?.success === true
+            ? parsedCatalog.data.addOns.map((entry) => [entry.key, entry] as const)
+            : [],
+        );
+
         const rows = new Map<string, (typeof entries)[number]>();
         const entries: Array<{
           key: string;
@@ -493,21 +517,38 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
           source: 'bundled' | 'catalog';
           state: 'installed' | 'staged' | 'available';
           upgradeTo: string | null;
+          tagline: string | null;
+          categories: string[];
+          connectKind: 'none' | 'api-key' | 'oauth2';
         }> = [];
 
         // Everything on disk first: it needs no network to be true.
         for (const [key, version] of staged) {
           let name = key;
+          let described: string | null = null;
+          let categories: string[] = [];
+          let connectKind: 'none' | 'api-key' | 'oauth2' = 'none';
           try {
             const document = JSON.parse(
               (await deps.store.readFile(key, version, 'manifest.json')).toString('utf8'),
-            ) as { name?: string };
+            ) as {
+              name?: string;
+              // `i18nMessageSchema` — a catalog key plus its English fallback.
+              // The server renders no bundles, so the fallback is what it has.
+              description?: { fallback?: string };
+              categories?: string[];
+              addOn?: { connect?: { kind?: 'none' | 'api-key' | 'oauth2' } };
+            };
             name = document.name ?? key;
+            described = document.description?.fallback ?? null;
+            categories = document.categories ?? [];
+            connectKind = document.addOn?.connect?.kind ?? 'none';
           } catch {
             // A staged tree we cannot read a name out of is still worth listing
             // by key — hiding it would leave bytes on disk nothing accounts for.
           }
           const current = installed.get(key);
+          const listed = feed.get(key);
           const row = {
             key,
             name,
@@ -516,6 +557,10 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
             state: (current === undefined ? 'staged' : 'installed') as 'staged' | 'installed',
             upgradeTo:
               current !== undefined && compareSemver(version, current) > 0 ? version : null,
+            // D3's order: the feed's localized line, else this tree's own.
+            tagline: pickLocalized(listed?.tagline, locale) ?? described,
+            categories: categories.length > 0 ? categories : (listed?.categories ?? []),
+            connectKind,
           };
           entries.push(row);
           rows.set(key, row);
@@ -523,29 +568,33 @@ export function addOnRoutes(deps: AddOnRoutesDeps): FastifyPluginAsyncZod {
 
         // Then anything the last refresh offered that is not already accounted
         // for. `source: 'catalog'` is the honest label: these need the network.
-        const parsedCatalog = cached === null ? null : catalogSchema.safeParse(cached.document);
-        if (parsedCatalog?.success === true) {
-          for (const entry of parsedCatalog.data.addOns) {
-            const existing = rows.get(entry.key);
-            if (existing === undefined) {
-              const current = installed.get(entry.key);
-              entries.push({
-                key: entry.key,
-                name: entry.name['en_US'] ?? entry.key,
-                version: current ?? entry.version,
-                source: 'catalog',
-                state: current === undefined ? 'available' : 'installed',
-                upgradeTo:
-                  current !== undefined && compareSemver(entry.version, current) > 0
-                    ? entry.version
-                    : null,
-              });
-              continue;
-            }
-            // Already on disk, but the catalog may know a newer version.
-            const current = installed.get(entry.key) ?? existing.version;
-            if (compareSemver(entry.version, current) > 0) existing.upgradeTo = entry.version;
+        for (const entry of feed.values()) {
+          const existing = rows.get(entry.key);
+          if (existing === undefined) {
+            const current = installed.get(entry.key);
+            entries.push({
+              key: entry.key,
+              // 40 D2. This used to read `entry.name['en_US']` — a key the feed
+              // has never carried — so every row here was labelled with its own
+              // slug. `pickLocalized` reaches `en` for six locales and `zh-cn`
+              // / `zh-tw` for the other two.
+              name: pickLocalized(entry.name, locale) ?? entry.key,
+              version: current ?? entry.version,
+              source: 'catalog',
+              state: current === undefined ? 'available' : 'installed',
+              upgradeTo:
+                current !== undefined && compareSemver(entry.version, current) > 0
+                  ? entry.version
+                  : null,
+              tagline: pickLocalized(entry.tagline, locale),
+              categories: entry.categories,
+              connectKind: entry.connect.kind,
+            });
+            continue;
           }
+          // Already on disk, but the catalog may know a newer version.
+          const current = installed.get(entry.key) ?? existing.version;
+          if (compareSemver(entry.version, current) > 0) existing.upgradeTo = entry.version;
         }
 
         entries.sort((a, b) => (a.key < b.key ? -1 : 1));

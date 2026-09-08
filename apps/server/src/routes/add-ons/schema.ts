@@ -232,6 +232,26 @@ export const catalogEntryDto = z.object({
   state: z.enum(['installed', 'staged', 'available']),
   /** Set when an installed add-on has a NEWER version staged or offered. */
   upgradeTo: z.string().nullable(),
+  /**
+   * One line about what it does, in the CALLER'S locale where the feed has one
+   * (40 D2/D3). Null rather than a placeholder when neither the cached feed nor
+   * the staged manifest has anything — the card drops the line instead of
+   * printing an apology for it.
+   */
+  tagline: z.string().nullable(),
+  /**
+   * Category slugs, VERBATIM (24 D2's vocabulary: artwork, delivery, payments,
+   * email, data). Not an enum: the feed types these `z.array(z.string())` and a
+   * future add-on may carry a slug this build has no label for. The dashboard
+   * renders an unknown slug as itself rather than dropping the row (40 D4).
+   */
+  categories: z.array(z.string()),
+  /**
+   * Whether installing will ask for a credential — the one permission-shaped
+   * fact a card carries (40 D5). Everything else about what an add-on may reach
+   * belongs to the install plan, which is the security surface (26 §7).
+   */
+  connectKind: z.enum(['none', 'api-key', 'oauth2']),
 });
 
 export const catalogBrowseReply = z.object({

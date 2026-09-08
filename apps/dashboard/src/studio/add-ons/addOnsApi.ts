@@ -54,11 +54,23 @@ export interface AddOnDto {
 /** Mirrors `catalogEntryDto`. */
 export interface CatalogEntry {
   key: string;
+  /**
+   * Already resolved to the caller's locale by the server (40 D2) — the feed
+   * carries eight and the reply carries one. Never a key: the route that used
+   * to answer `entry.name['en_US']` against a feed keyed `en`/`zh-cn` labelled
+   * every catalogue row with its own slug.
+   */
   name: string;
   version: string;
   source: 'bundled' | 'catalog';
   state: 'installed' | 'staged' | 'available';
   upgradeTo: string | null;
+  /** One line, localized where the feed has it; null when nothing has one. */
+  tagline: string | null;
+  /** Category slugs, verbatim — an unknown one renders as itself (40 D4). */
+  categories: string[];
+  /** Whether installing will ask for a credential (40 D5). */
+  connectKind: ConnectKind;
 }
 
 /** Mirrors `catalogBrowseReply`. */

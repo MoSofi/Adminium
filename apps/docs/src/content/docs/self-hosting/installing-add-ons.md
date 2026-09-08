@@ -6,13 +6,33 @@ sidebar:
 ---
 
 Add-ons are npm packages that extend a deployment — extra blocks, data packs,
-integrations — installed and managed from **Studio → Add-ons**. Every package,
+integrations — installed and managed from **Workspace settings → Add-ons**. Every package,
 whatever its source, goes through the same pipeline on the way in: its sha512
 hash is verified against a pinned value, the archive is unpacked under hardened
 limits, and its manifest is validated before anything is registered.
 
 This page is about where packages come from, and what each source does — and
 does not — send over the network.
+
+## What the page shows
+
+Each add-on is a card: its name and one line about what it does, both in your
+own language where the catalog carries a translation; the categories it belongs
+to; and whether installing will ask you for a credential — an API key or an
+OAuth connection — before you download anything. A category rail on the left
+filters the grid and shows how many add-ons sit in each one, and the search box
+matches names and descriptions.
+
+The card tells you what an add-on *is*. It deliberately does not list what the
+add-on may reach: that belongs to the install plan, which appears when you press
+Install and names every table and every host before anything is registered.
+
+:::note
+A checkout running from source (`pnpm dev`) ships **no bundled set** — those are
+baked into the Docker image and the desktop app at build time. So a source run
+shows an empty catalog until you switch browsing online on, or upload a package
+yourself. That is expected, not a misconfiguration.
+:::
 
 ## The bundled set: zero network
 
@@ -36,6 +56,11 @@ rather than installed.
 The Add-ons page can also browse the **online catalog** — newer versions and
 packages that are not in your build. That is a toggle, it is **off by
 default**, and nothing contacts the network until you turn it on.
+
+The catalog is a static file published with adminium.dev, so it lists what was
+released as of that site build. Browsing reads only what is already on disk —
+the bundled set plus whatever the last refresh cached — and **Check for newer**
+is the separate, explicit action that goes and fetches it.
 
 Two things veto the toggle outright, so it stays off even if switched on:
 

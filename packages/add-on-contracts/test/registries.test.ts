@@ -20,22 +20,24 @@ import {
 } from '../src/index.js';
 
 describe('slot registry', () => {
-  it('holds exactly twelve slots', () => {
-    // Eleven from wave 4, plus `record.actions` bought on 2026-08-28 (31 O1).
-    // Moving this number is the deliberate act; a slot appearing without it is
-    // the accident the ratchet exists to catch.
-    expect(SLOT_REGISTRY).toHaveLength(12);
-    expect(SLOT_IDS).toHaveLength(12);
+  it('holds exactly thirteen slots', () => {
+    // Eleven from wave 4, plus `record.actions` bought on 2026-08-28 (31 O1)
+    // and `shell.overlay` bought on 2026-09-01 (33 O1 → D17). Moving this
+    // number is the deliberate act; a slot appearing without it is the
+    // accident the ratchet exists to catch.
+    expect(SLOT_REGISTRY).toHaveLength(13);
+    expect(SLOT_IDS).toHaveLength(13);
   });
 
   it('has no duplicate ids', () => {
     expect(new Set(SLOT_IDS).size).toBe(SLOT_IDS.length);
   });
 
-  it('carries the one slot bought since wave 4, and nothing else new', () => {
+  it('carries the two slots bought since wave 4, and nothing else new', () => {
     /*
      * Named rather than counted, because a count alone would let a DIFFERENT
-     * twelfth slide in behind the same number. The purchase was for this id.
+     * thirteenth slide in behind the same number. The purchases were for these
+     * two ids.
      */
     const waveFour = [
       'artwork.sources',
@@ -50,7 +52,9 @@ describe('slot registry', () => {
       'record.editor.panel',
       'settings.add-on.panel',
     ];
-    expect([...SLOT_IDS].sort()).toEqual([...waveFour, 'record.actions'].sort());
+    expect([...SLOT_IDS].sort()).toEqual(
+      [...waveFour, 'record.actions', 'shell.overlay'].sort(),
+    );
   });
 
   it('rules record.actions `both`, so a customer-facing render moment can mount it', () => {
@@ -65,8 +69,23 @@ describe('slot registry', () => {
     expect(slotDefinition('record.actions').fill).toBe('multi');
   });
 
+  it('rules shell.overlay `customer`, and `multi` so two overlays can coexist', () => {
+    /*
+     * `customer` is the half of this entry most likely to be "tidied" to
+     * `both` on the reasoning that a staff app could hang a panel in its
+     * corner too. None does; ruling it `both` would buy a second surface on
+     * zero exhibits, which is what the entry's own comment refuses at length.
+     *
+     * `multi` is asserted beside it because the two answers are connected: a
+     * corner is a place two add-ons can stand in at once, and `single` would
+     * make the second one lose silently.
+     */
+    expect(slotDefinition('shell.overlay').surface).toBe('customer');
+    expect(slotDefinition('shell.overlay').fill).toBe('multi');
+  });
+
   it('still refuses the twelfth an earlier draft guessed at', () => {
-    // Buying one slot on seven exhibits does not reopen the registry to ideas.
+    // Buying two slots on real exhibits does not reopen the registry to ideas.
     expect(isSlotId('job.timeline.entries')).toBe(false);
   });
 
@@ -138,6 +157,21 @@ const DHL_BLOCK = {
 describe('addOn block schema', () => {
   it('accepts a well-formed block', () => {
     expect(addOnBlockSchema.safeParse(DHL_BLOCK).success).toBe(true);
+  });
+
+  it('accepts a block that fills a slot and provides no contract at all', () => {
+    /*
+     * The commonest add-on shape there is: it hangs an action off a record and
+     * implements nothing. Both contract checks read `b.provides ?? []` and
+     * `b.consumes ?? []`, so an add-on declaring neither must sail through both
+     * refinements rather than fail an `.every()` over `undefined`.
+     */
+    const { provides: _provides, ...slotOnly } = DHL_BLOCK;
+    const result = addOnBlockSchema.safeParse({
+      ...slotOnly,
+      slots: [{ slot: 'record.actions', client: 'client/actions.js', order: 20 }],
+    });
+    expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
   });
 
   it('refuses a slot id outside the closed registry', () => {

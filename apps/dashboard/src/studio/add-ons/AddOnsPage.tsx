@@ -33,7 +33,7 @@
  */
 import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Blocks, CloudDownload, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
+import { Blocks, Plug, ShieldCheck, TriangleAlert, Upload } from 'lucide-react';
 import {
   Alert,
   Badge,
@@ -49,10 +49,10 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Switch,
 } from '@adminium/ui';
 
 import { PageActions } from '../../shell/PageActionsProvider.js';
+import { AddOnBrowser } from './AddOnBrowser.js';
 import { PageSurface } from '../../shell/PageSurface.js';
 import { t } from '../../i18n/t.js';
 import {
@@ -526,135 +526,27 @@ export function AddOnsPage() {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader className="flex items-start justify-between gap-3">
-          <span className="flex items-start gap-3">
-            <IconTile>
-              <CloudDownload />
-            </IconTile>
-            <span className="flex flex-col">
-              <strong>{t('studio:addOns.browse.title', 'Available')}</strong>
-              <span className="text-sm text-fg-muted">
-                {catalog.onlineEnabled
-                  ? t(
-                      'studio:addOns.browse.online',
-                      'Includes add-ons from the online catalogue. Checking for newer versions is a separate action.',
-                    )
-                  : t(
-                      'studio:addOns.browse.offline',
-                      'Showing the add-ons that came with this build. Browsing online is switched off, and nothing here has contacted the internet.',
-                    )}
-              </span>
-            </span>
-          </span>
-          <span className="flex items-center gap-3">
-            {catalog.onlineEnabled && (
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => {
-                  void runJob(refreshCatalog);
-                }}
-              >
-                {t('studio:addOns.browse.refresh', 'Check for newer')}
-              </Button>
-            )}
-            {/*
-              THE SWITCH IS HERE, beside what it changes, rather than in
-              Settings. 26 D3: these routes are gated on `manifests.manage` and
-              the /settings/* routes are not, so a switch deciding whether this
-              deployment talks to a package registry belongs with the add-ons.
-            */}
-            <Switch
-              checked={catalog.onlineEnabled}
-              disabled={busy}
-              onCheckedChange={(next) => {
-                void run(async () => {
-                  const state = await setCatalogEnabled(next);
-                  setVetoed(state.vetoed);
-                });
-              }}
-              aria-label={t('studio:addOns.browse.toggle', 'Browse the online catalogue')}
-            />
-          </span>
-        </CardHeader>
-        <CardBody>
-          {catalog.addOns.length === 0 ? (
-            <EmptyState
-              icon={<Blocks />}
-              title={t('studio:addOns.browse.emptyTitle', 'No add-ons available')}
-              body={t(
-                'studio:addOns.browse.emptyBody',
-                'This build shipped none, and the online catalogue is off.',
-              )}
-            />
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {catalog.addOns.map((entry) => (
-                <li key={entry.key} className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2">
-                    <strong>{entry.name}</strong>
-                    <Badge tone="neutral">{entry.version}</Badge>
-                    {entry.source === 'bundled' && (
-                      <Badge tone="neutral">
-                        {t('studio:addOns.browse.bundled', 'Included')}
-                      </Badge>
-                    )}
-                    {entry.upgradeTo !== null && (
-                      <Badge tone="accent">
-                        {t('studio:addOns.browse.upgrade', 'v{version} available', {
-                          version: entry.upgradeTo,
-                        })}
-                      </Badge>
-                    )}
-                  </span>
-                  <span className="flex gap-2">
-                    {entry.state === 'available' && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          void runJob(() => downloadAddOn(entry.key, entry.version));
-                        }}
-                      >
-                        {t('studio:addOns.browse.download', 'Download')}
-                      </Button>
-                    )}
-                    {entry.state === 'staged' && (
-                      <>
-                        <Button size="sm" disabled={busy} onClick={() => openConsent(entry)}>
-                          {t('studio:addOns.browse.install', 'Install')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() => setPending({ kind: 'discard', entry })}
-                        >
-                          {t('studio:addOns.browse.discard', 'Discard')}
-                        </Button>
-                      </>
-                    )}
-                    {entry.state === 'installed' && entry.upgradeTo !== null && (
-                      <Button
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => {
-                          void run(() => upgradeAddOn(entry.key));
-                        }}
-                      >
-                        {t('studio:addOns.browse.upgradeAction', 'Upgrade')}
-                      </Button>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardBody>
-      </Card>
+      <AddOnBrowser
+        catalog={catalog}
+        busy={busy}
+        onRefreshCatalog={() => {
+          void runJob(refreshCatalog);
+        }}
+        onToggleOnline={(next) => {
+          void run(async () => {
+            const state = await setCatalogEnabled(next);
+            setVetoed(state.vetoed);
+          });
+        }}
+        onDownload={(entry) => {
+          void runJob(() => downloadAddOn(entry.key, entry.version));
+        }}
+        onInstall={openConsent}
+        onDiscard={(entry) => setPending({ kind: 'discard', entry })}
+        onUpgrade={(entry) => {
+          void run(() => upgradeAddOn(entry.key));
+        }}
+      />
 
       <SideloadCard
         busy={busy}
