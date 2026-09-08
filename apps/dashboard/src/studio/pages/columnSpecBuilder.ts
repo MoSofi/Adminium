@@ -18,6 +18,8 @@ import {
   type GridColumnSpecInput,
 } from '@adminium/widgets/generate';
 
+import type { Measure, MeasureFn } from '@adminium/engine/config';
+
 import type { SchemaColumn, SchemaReply, SchemaTable } from '../api.js';
 
 export type EnumValuesById = ReadonlyMap<string, readonly string[]>;
@@ -198,6 +200,118 @@ export function specForReverse(input: ReverseSpecInput): GridColumnSpecInput {
     readOnly: true,
     maxLength: null,
     isDisplay: false,
+  };
+}
+
+/**
+ * Numeric columns of a table, in ordinal order — what a fold may be taken
+ * over. Secret columns are invisible (the server 422s on one by name), and a
+ * primary key is excluded because summing surrogate ids is never the ask.
+ */
+export function numericColumns(table: SchemaTable): SchemaColumn[] {
+  return table.columns.filter(
+    (column) =>
+      !isSecret(column) &&
+      !column.isPrimaryKey &&
+      NUMERIC_LOGICAL_TYPES.has(column.logicalType) &&
+      column.references == null,
+  );
+}
+
+const NUMERIC_LOGICAL_TYPES: ReadonlySet<string> = new Set([
+  'integer',
+  'bigint',
+  'decimal',
+  'float',
+]);
+
+export interface MeasureSpecInput {
+  link: InboundLink;
+  fn: MeasureFn;
+  /** Columns of the referencing table, multiplied together (1..4). Empty for count. */
+  factors: readonly SchemaColumn[];
+  /** Current column names AND measure/field ids on the page — one namespace (D26). */
+  taken: ReadonlySet<string>;
+}
+
+/**
+ * The verb a generated column LABEL leads with.
+ *
+ * `sum` reads "Sum of", not "Total": the 17 §2 lexicon sweep is a grep over
+ * built bytes and cannot tell a customer's invoice total from copy about
+ * Adminium's own billing, so shipped strings stay clear of the vocabulary it
+ * watches. The operator can rename any of these in the Columns card.
+ */
+const MEASURE_VERBS: Record<MeasureFn, string> = {
+  count: 'Count',
+  sum: 'Sum of',
+  avg: 'Average',
+  min: 'Lowest',
+  max: 'Highest',
+};
+
+/**
+ * A page-level MEASURE plus the column that shows it
+ * (36-derived-columns.md §3.8).
+ *
+ * The two halves are returned together because they are one authoring act and
+ * neither is valid alone: a `derived: {ref}` column pointing at nothing
+ * renders empty, and a measure nothing references is a correlated subquery
+ * bought for no reason.
+ *
+ * `specForReverse` is deliberately NOT widened to emit these. The legacy
+ * `reverse` vocabulary stays `count`-only for good, which is what lets the
+ * client emitter drop any other `agg` token before it reaches the wire without
+ * ever suppressing a column the editor just authored (D15).
+ */
+export function specForMeasure(input: MeasureSpecInput): {
+  measure: Measure;
+  column: GridColumnSpecInput;
+} {
+  const { link, fn, factors, taken } = input;
+  const id = lookupAliasFor([link.table.name], fn === 'count' ? 'count' : (factors[0]?.name ?? fn), taken);
+  const measure: Measure = {
+    id,
+    table: link.table.id,
+    fkColumn: link.column.name,
+    fn,
+    ...(fn === 'count'
+      ? {}
+      : { of: { terms: [{ sign: 'plus' as const, factors: factors.map((column) => column.name) }] } }),
+  };
+  const money = factors.some((column) => column.semantics?.primary === 'money');
+  const label =
+    fn === 'count'
+      ? `${humanize(link.table.name)} Count`
+      : `${MEASURE_VERBS[fn]} ${humanize(factors[0]?.name ?? link.table.name).toLowerCase()}`;
+  return {
+    measure,
+    column: {
+      name: id,
+      label,
+      // A fold has no source column to inherit a type from, and a decimal
+      // string is what crosses the wire — so presentation is DECLARED here
+      // rather than guessed downstream (D8).
+      logicalType: fn === 'count' ? 'integer' : 'decimal',
+      semantic: null,
+      format: null,
+      derived: { ref: id },
+      ...(fn === 'count'
+        ? {}
+        : { display: money ? { kind: 'currency' as const, decimals: 2 } : { kind: 'decimal' as const, decimals: 2 } }),
+      pii: false,
+      mono: true,
+      align: 'end',
+      sortable: false,
+      hidden: false,
+      primaryKey: false,
+      nullable: true,
+      hasDefault: false,
+      unique: false,
+      readOnly: true,
+      maxLength: null,
+      isDisplay: false,
+    },
   };
 }
 

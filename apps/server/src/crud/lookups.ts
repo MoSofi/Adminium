@@ -34,6 +34,7 @@
 import type { ExpressionBuilder, Kysely } from 'kysely';
 
 import { ValidationFailedError } from '../errors.js';
+import { assertNotReservedAlias } from './reserved-aliases.js';
 import type { SourceDatabase } from '../connections/manager.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
 import type { Row } from './mask.js';
@@ -155,6 +156,7 @@ export async function resolveLookups(opts: ResolveLookupsOptions): Promise<Resol
       });
     }
     seen.add(parsed.alias);
+    assertNotReservedAlias(parsed.alias, 'Lookup');
     if (table.columns.has(parsed.alias)) {
       // The alias would shadow a real row key — refuse rather than corrupt.
       throw new ValidationFailedError(

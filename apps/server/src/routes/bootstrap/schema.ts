@@ -38,6 +38,17 @@ export const bootstrapNavItem = z.object({
    *  generated items under the connection's display name. Null = shared. */
   connectionId: z.string().nullable(),
   connectionName: z.string().nullable(),
+  /**
+   * The owning connection's ISO-4217 currency (10-i18n.md §4.4): money cells
+   * on this page's grid and record view format with it instead of the `USD`
+   * fallback every money cell in the product has been using. Null = unset, and
+   * unset renders exactly what it renders today.
+   *
+   * It rides the NAV ITEM rather than a separate connections payload because
+   * that is the object the client already resolves a page through — a page is
+   * looked up by slug here and rendered from what this row carries.
+   */
+  currency: z.string().nullable(),
   /** The page envelope's `source.table` (30-record-pages.md D5): feeds the
    *  client's (connectionId, table) → slug map so record pages can cross-link
    *  related rows. Null for source-less pages. */

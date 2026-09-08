@@ -68,9 +68,11 @@ function csrfTokenFor(ctx: AuthContext, request: FastifyRequest): string {
 
 /**
  * Buckets page rows into the five fixed groups; empty groups are omitted.
- * `connectionNames` (id → display name) annotates every item with its owning
+ * `connections` (id → name + currency) annotates every item with its owning
  * connection so multi-connection sidebars can label generated groups
- * unambiguously (M5-T05); with zero/one connection clients render flat.
+ * unambiguously (M5-T05) and money cells format in the connection's own
+ * currency (36-derived-columns.md 36-T15); with zero/one connection clients
+ * render flat.
  *
  * `hidden` carries the enabled rows with NO group (30-record-pages.md
  * follow-up): Studio's "Hide from sidebar" and the generated cascade-child
@@ -99,9 +101,15 @@ function csrfTokenFor(ctx: AuthContext, request: FastifyRequest): string {
  * `pausedConnectionIds` is passed in rather than read here because this
  * function takes rows, not a database.
  */
+/** What a nav item needs from its owning connection row. */
+export interface NavConnection {
+  name: string;
+  currency: string | null;
+}
+
 export function buildNavTree(
   rows: readonly PageNavRow[],
-  connectionNames: ReadonlyMap<string, string> = new Map(),
+  connections: ReadonlyMap<string, NavConnection> = new Map(),
   pausedConnectionIds: ReadonlySet<string> = new Set(),
 ): {
   nav: BootstrapNavTree;
@@ -127,7 +135,8 @@ export function buildNavTree(
       order: row.navOrder,
       connectionId: row.connectionId,
       connectionName:
-        row.connectionId === null ? null : (connectionNames.get(row.connectionId) ?? null),
+        row.connectionId === null ? null : (connections.get(row.connectionId)?.name ?? null),
+      currency: row.connectionId === null ? null : (connections.get(row.connectionId)?.currency ?? null),
       sourceTable: row.sourceTable,
     };
     // The pause outranks the group: a paused page is not hidden, it is off.
@@ -237,10 +246,14 @@ export async function bootstrapHandler(
     userPrefsRepo(ctx.meta).resolve(user.id),
     // Shared query path with the generator wave (07 §3.16 pagesRepo).
     pagesRepo(ctx.meta).navRows(),
-    // Display names + the pause flag — no DSN material (07 §3.13), so no
-    // crypto needed. `disabledAt` decides whether this connection's pages
-    // reach the sidebar at all (meta wave 0019).
-    ctx.meta.db.selectFrom('adminium_connections').select(['id', 'name', 'disabledAt']).execute(),
+    // Display names, the pause flag and the display currency — no DSN material
+    // (07 §3.13), so no crypto needed. `disabledAt` decides whether this
+    // connection's pages reach the sidebar at all (meta wave 0019);
+    // `currency` is what money cells format with (10 §4.4).
+    ctx.meta.db
+      .selectFrom('adminium_connections')
+      .select(['id', 'name', 'disabledAt', 'currency'])
+      .execute(),
     // `llm.enabled` = a provider is configured (06 §3.2) — the same
     // `llm.provider` row `resolveProviderClient` gates direct runs on.
     settingsRepo(ctx.meta).get('llm.provider'),
@@ -271,7 +284,7 @@ export async function bootstrapHandler(
   const { configVersion } = buildNavTree(pageRows);
   const { nav, hidden, paused } = buildNavTree(
     visibleRows,
-    new Map(connectionRows.map((row) => [row.id, row.name])),
+    new Map(connectionRows.map((row) => [row.id, { name: row.name, currency: row.currency }])),
     pausedConnectionIds,
   );
 

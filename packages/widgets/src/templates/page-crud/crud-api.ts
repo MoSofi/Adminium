@@ -81,6 +81,14 @@ export interface CrudListParams {
    * Repeatable `agg=` params.
    */
   agg?: readonly string[] | undefined;
+  /**
+   * Derived-column spec, URL-encoded JSON mirroring the page's stored
+   * `config.derived` block: `{"measures":[…],"fields":[…]}`. ONE `compute=`
+   * param, never repeated — measures fold a child table into each row and
+   * fields compute arithmetic over them server-side
+   * (36-derived-columns.md §3.1).
+   */
+  compute?: string | undefined;
   limit?: number | undefined;
   /** Offset mode — mutually exclusive with `cursor`. */
   offset?: number | undefined;
@@ -175,6 +183,8 @@ export interface CrudApi {
       include?: 'inboundCounts' | undefined;
       lookup?: readonly string[] | undefined;
       agg?: readonly string[] | undefined;
+      /** Derived-column spec — see {@link CrudListParams.compute}. */
+      compute?: string | undefined;
     },
   ): Promise<CrudGetResult>;
   create(values: CrudRow): Promise<CrudMutationResult>;

@@ -135,6 +135,26 @@ describe('grouped-summary-table', () => {
     expect(document.querySelectorAll('[data-part="detail-row"]').length).toBeGreaterThan(0);
   });
 
+  /**
+   * 36-derived-columns.md 36-T14. `formatMoney` grew a `decimals` option and
+   * stopped coercing decimal STRINGS through `Number()`; this widget is its
+   * other production caller and passes `{locale}` only, so the per-value
+   * `Number.isInteger(x) ? 0 : 2` flip has to survive as the absent-default.
+   * The string below is the pre-wave rendering, pinned character for
+   * character — `$33,385` and not `$33,385.00`.
+   */
+  it('renders byte-identically to the pre-wave build (36-T14)', () => {
+    render(<GroupedSummaryTable data={groupedSummaryTableDemoData(5)} />);
+    expect(document.body.textContent).toBe(
+      'GroupRequestsRevenueQuotaErrors' +
+        'North America(3)70,219$33,38557%2.4%' +
+        'Europe(2)64,283$7,03861%2.1%' +
+        'Asia Pacific(3)33,865$5,96370%2%' +
+        'Latin America(1)17,302$20,21427%1.5%' +
+        'Total185,669$66,60054%2%',
+    );
+  });
+
   it('demoData is deterministic and carries columns + totals', () => {
     const a = groupedSummaryTableDemoData(6);
     expect(a).toEqual(groupedSummaryTableDemoData(6));

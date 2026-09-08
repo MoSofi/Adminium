@@ -8,6 +8,8 @@
 
 import { z } from 'zod';
 
+import { MAX_COMPUTE_BYTES } from '../../crud/compute.js';
+import { MAX_WHERE_BYTES } from '../../crud/filters.js';
 import { boolFlag } from '../query-flag.js';
 
 export const rowSchema = z.record(z.string(), z.unknown());
@@ -37,15 +39,35 @@ const lookupParam = z.union([z.string(), z.array(z.string())]).optional();
  */
 const aggParam = z.union([z.string(), z.array(z.string())]).optional();
 
+/**
+ * Derived columns: URL-encoded JSON mirroring the page's stored
+ * `config.derived` block — `{"measures":[…],"fields":[…]}` (crud/compute.ts).
+ *
+ * The byte cap is roughly the largest `compute=` a default Node request line
+ * can carry once URL-encoded; `parseComputeParam` re-checks it — and scans
+ * nesting — before it parses, so the guard holds for every caller and not
+ * only the ones routed through this schema. Typed as the union so a client
+ * that repeats the key is refused by name rather than silently using one.
+ */
+const computeParam = z
+  .union([z.string().max(MAX_COMPUTE_BYTES), z.array(z.string().max(MAX_COMPUTE_BYTES))])
+  .optional();
+
 export const recordListQuery = z.object({
   select: z.string().optional(),
-  /** URL-encoded JSON filter tree (§2.7.1 grammar). */
-  where: z.string().optional(),
+  /**
+   * URL-encoded JSON filter tree (§2.7.1 grammar). The byte cap is the
+   * grammar's own largest sendable filter (crud/filters.ts); `parseWhereParam`
+   * re-checks it — and scans nesting — before it parses, so the guard holds for
+   * every caller, not only the ones routed through this schema.
+   */
+  where: z.string().max(MAX_WHERE_BYTES).optional(),
   q: z.string().optional(),
   /** `col.desc,col2.asc` — ≤ 3 keys. */
   order: z.string().optional(),
   lookup: lookupParam,
   agg: aggParam,
+  compute: computeParam,
   limit: z.coerce.number().int().min(1).max(200).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   /** Keyset cursor; empty string = first keyset page. */
@@ -65,6 +87,7 @@ export const recordGetQuery = z.object({
   include: z.enum(['inboundCounts']).optional(),
   lookup: lookupParam,
   agg: aggParam,
+  compute: computeParam,
 });
 
 export const referenceCountSchema = z.object({

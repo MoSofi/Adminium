@@ -12,8 +12,11 @@
  * - reorder renumbers each nav group densely;
  * - `If-Match` (expectedRevision) is enforced as a 409.
  */
+import { readFileSync } from 'node:fs';
+
 import BetterSqlite3 from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { generatePages, hashEnvelope, parseDatabaseModel } from '@adminium/engine';
 import {
   auditRepo,
   connectionsRepo,
@@ -22,8 +25,10 @@ import {
   pagesRepo,
   permissionsRepo,
   rolesRepo,
+  snapshotsRepo,
   usersRepo,
   type DsnCrypto,
+  type GeneratedPageInput,
   type MetaDb,
   type Role,
   type User,
@@ -38,6 +43,7 @@ import { NAV_GROUP_KEYS } from '../src/routes/bootstrap/schema.js';
 import { pageNavGroup } from '../src/routes/pages/schema.js';
 
 import { buildServer, type AdminiumServer } from '../src/app.js';
+import { toGeneratedPageInput } from '../src/generate/run.js';
 import { rbacPlugin } from '../src/plugins/rbac.js';
 import { pagesRoutes } from '../src/routes/pages/index.js';
 import { makeEnv, type InjectPayload } from './helpers.js';
@@ -182,6 +188,103 @@ describe('page lifecycle routes', () => {
         headers: asUser(t.superAdmin),
       });
       expect((list.json().data as unknown[]).length).toBe(1);
+    });
+
+    it('annotates every listed page with its connection name, in one query', async () => {
+      // The manager lists every source's pages in one flat list, so the id
+      // alone leaves "which database is this from?" unanswerable — and the
+      // client cannot fetch the names itself: `GET /connections` rides
+      // CONNECTIONS_MANAGE, which a pages manager need not hold.
+      const conn = await connectionsRepo(t.meta, TEST_CRYPTO).create({
+        name: 'Warehouse',
+        engine: 'sqlite',
+        introspectDsn: 'file:warehouse.db',
+      });
+      await pagesRepo(t.meta).create({
+        connectionId: conn.id,
+        slug: 'orders',
+        type: 'page-crud',
+        title: 'Orders',
+        navGroup: 'library',
+        config: { v: 1 },
+        origin: 'generated',
+      });
+      // No connection at all — a name here would be an invention.
+      await create(t.superAdmin, NEW_PAGE);
+
+      const rows = (
+        await t.app.inject({ method: 'GET', url: '/api/v1/pages', headers: asUser(t.superAdmin) })
+      ).json().data as { slug: string; connectionId: string | null; connectionName: string | null }[];
+      expect(rows.find((row) => row.slug === 'orders')).toMatchObject({
+        connectionId: conn.id,
+        connectionName: 'Warehouse',
+      });
+      expect(rows.find((row) => row.slug === 'ops-overview')).toMatchObject({
+        connectionId: null,
+        connectionName: null,
+      });
+    });
+
+    it('reports a paused connection so the manager cannot call its pages live', async () => {
+      // `buildNavTree` drops every page of a paused source out of the nav into
+      // `pausedPages`, so `isEnabled: true` on one of them does NOT mean live —
+      // the manager needs the pause to say so instead of a green pill.
+      const connections = connectionsRepo(t.meta, TEST_CRYPTO);
+      const conn = await connections.create({
+        name: 'Clinic',
+        engine: 'sqlite',
+        introspectDsn: 'file:clinic.db',
+      });
+      await pagesRepo(t.meta).create({
+        connectionId: conn.id,
+        slug: 'charges',
+        type: 'page-crud',
+        title: 'Charges',
+        navGroup: 'library',
+        config: { v: 1 },
+        origin: 'generated',
+      });
+      await create(t.superAdmin, NEW_PAGE);
+
+      const read = async (): Promise<
+        { slug: string; connectionPaused: boolean }[]
+      > =>
+        (await t.app.inject({ method: 'GET', url: '/api/v1/pages', headers: asUser(t.superAdmin) }))
+          .json().data as { slug: string; connectionPaused: boolean }[];
+
+      // While it is serving, nothing is paused — including the page that has no
+      // connection at all, which must not inherit a pause it cannot have.
+      expect((await read()).map((row) => [row.slug, row.connectionPaused])).toEqual(
+        expect.arrayContaining([
+          ['charges', false],
+          ['ops-overview', false],
+        ]),
+      );
+
+      await connections.setDisabled(conn.id, true);
+      expect((await read()).map((row) => [row.slug, row.connectionPaused])).toEqual(
+        expect.arrayContaining([
+          ['charges', true],
+          ['ops-overview', false],
+        ]),
+      );
+
+      // And it clears on resume rather than sticking.
+      await connections.setDisabled(conn.id, false);
+      expect((await read()).find((row) => row.slug === 'charges')?.connectionPaused).toBe(false);
+    });
+
+    it('carries the connection name on a mutation reply too, not just the list', async () => {
+      // The reply schema is shared with `GET /pages`; a create that returned no
+      // name would be a row the client renders differently from the same row
+      // one refetch later.
+      const conn = await connectionsRepo(t.meta, TEST_CRYPTO).create({
+        name: 'Warehouse',
+        engine: 'sqlite',
+        introspectDsn: 'file:warehouse2.db',
+      });
+      const created = await create(t.superAdmin, { ...NEW_PAGE, connectionId: conn.id });
+      expect(created.json().data).toMatchObject({ connectionName: 'Warehouse' });
     });
 
     it('rejects a duplicate slug with 409 rather than a driver 500', async () => {
@@ -511,6 +614,52 @@ describe('page lifecycle routes', () => {
       expect(stored.config.columns).toHaveLength(1);
     });
 
+    it('round-trips a config.derived block untouched (36-derived-columns.md D24)', async () => {
+      // The one link between "the Studio saves it" and "the read path computes
+      // it" that nothing else asserts. Both the PATCH body and the envelope
+      // type the config as `z.record(z.string(), z.unknown())`, so an added
+      // block is free and needs no CONFIG_VERSION bump — but "free by schema"
+      // and "survives the round trip" are different claims.
+      const derived = {
+        measures: [
+          {
+            id: 'subtotal',
+            table: 'public.invoice_items',
+            fkColumn: 'invoice_id',
+            fn: 'sum',
+            of: { terms: [{ sign: 'plus', factors: ['line_total'] }] },
+          },
+        ],
+        fields: [
+          {
+            id: 'total',
+            scale: 2,
+            expr: { op: 'add', args: [{ measure: 'subtotal' }, { lit: '0' }] },
+          },
+        ],
+      };
+      const id = (await create(t.superAdmin, { ...NEW_PAGE, template: 'page-crud' })).json().data
+        .id as string;
+      const patched = await t.app.inject({
+        method: 'PATCH',
+        url: `/api/v1/pages/${id}/config`,
+        headers: asUser(t.superAdmin),
+        payload: { config: { columns: [{ name: 'total', label: 'Total', derived: { ref: 'total' } }], derived } },
+      });
+      expect(patched.statusCode).toBe(200);
+
+      const read = await t.app.inject({
+        method: 'GET',
+        url: `/api/v1/pages/${id}`,
+        headers: asUser(t.superAdmin),
+      });
+      expect(read.statusCode).toBe(200);
+      // The reply IS the envelope — the config body rides on it directly.
+      const envelope = read.json().data as { config: { derived?: unknown; columns?: unknown[] } };
+      expect(envelope.config.derived).toEqual(derived);
+      expect(envelope.config.columns).toHaveLength(1);
+    });
+
     it('switching to a non-table-bound template keeps the body and records the type', async () => {
       // Blanking a dashboard's widgets because its `type` was re-picked would
       // destroy real work, so a non-bindable target only restamps the frame.
@@ -530,6 +679,116 @@ describe('page lifecycle routes', () => {
       };
       expect(stored.template).toBe('page-builder');
       expect(stored.config['layout']).toBeDefined();
+    });
+
+    /**
+     * A recompose is a hand-made choice on a row the generator still owns:
+     * the admin picked THIS template and THIS table, and recompose leaves
+     * `origin: 'generated'` alone. So the only thing standing between that
+     * choice and the next generation run is the H5 edited-page guard —
+     * `isEditedEnvelope`, which reads a stored document as edited when it no
+     * longer hashes to its embedded `config.generatedHash`, and as freely
+     * overwritable when there is no hash at all.
+     *
+     * Both halves of the run are asserted because they fail differently: the
+     * update pass reverts the page to the generator's template+table, and the
+     * prune pass deletes it outright once the generator stops emitting it.
+     * 36-derived-columns.md §0.6 is what makes the loss unrecoverable — a
+     * hand-authored derived column cannot be regenerated from any snapshot.
+     */
+    describe('a recomposed page survives the next generation run', () => {
+      const DEMO_IR: unknown = JSON.parse(
+        readFileSync(new URL('./fixtures/llm/demo-schema.json', import.meta.url), 'utf8'),
+      );
+
+      /**
+       * Generate the demo app for real (same engine call `runGeneration`
+       * makes), then rebind its `orders` page onto another table through the
+       * route. Returns what a second run needs to replay.
+       */
+      async function recomposedGeneratedPage(): Promise<{
+        connectionId: string;
+        snapshotId: string;
+        emitted: GeneratedPageInput[];
+        pageId: string;
+      }> {
+        const conn = await connectionsRepo(t.meta, TEST_CRYPTO).create({
+          name: 'shop',
+          engine: 'postgres',
+          introspectDsn: 'postgres://ro@localhost/shop',
+        });
+        const snap = await snapshotsRepo(t.meta).create({
+          connectionId: conn.id,
+          source: 'introspection',
+          schema: DEMO_IR,
+          checksum: 'sha-shop-1',
+        });
+        const emitted = generatePages(parseDatabaseModel(DEMO_IR), {
+          connectionId: conn.id,
+        }).pages.map(toGeneratedPageInput);
+        await pagesRepo(t.meta).upsertGenerated(conn.id, emitted, {
+          snapshotId: snap.snapshot.id,
+          hashEnvelope,
+        });
+
+        const orders = (await pagesRepo(t.meta).listForConnection(conn.id)).find(
+          (page) => page.slug === 'orders',
+        );
+        if (orders === undefined) throw new Error('the demo schema should generate an orders page');
+
+        const res = await t.app.inject({
+          method: 'PATCH',
+          url: `/api/v1/pages/${orders.id}`,
+          headers: asUser(t.superAdmin),
+          payload: { table: 'public.customers' },
+        });
+        expect(res.statusCode).toBe(200);
+
+        const stored = await pagesRepo(t.meta).findById(orders.id);
+        // The premise: recompose rebinds the body but leaves the row generated.
+        expect(stored?.origin).toBe('generated');
+        expect((stored?.config as { source: { table: string } }).source.table).toBe(
+          'public.customers',
+        );
+        return {
+          connectionId: conn.id,
+          snapshotId: snap.snapshot.id,
+          emitted,
+          pageId: orders.id,
+        };
+      }
+
+      it('the update pass does not revert it to the generator\u2019s table', async () => {
+        const { connectionId, snapshotId, emitted, pageId } = await recomposedGeneratedPage();
+
+        const result = await pagesRepo(t.meta).upsertGenerated(connectionId, emitted, {
+          snapshotId,
+          hashEnvelope,
+        });
+
+        const stored = await pagesRepo(t.meta).findById(pageId);
+        expect((stored?.config as { source: { table: string } }).source.table).toBe(
+          'public.customers',
+        );
+        expect(result.skippedEdited).toContain(pageId);
+      });
+
+      it('the prune pass keeps it once the generator stops emitting it', async () => {
+        const { connectionId, snapshotId, emitted, pageId } = await recomposedGeneratedPage();
+
+        // The orders table drops out of the run (excluded in the wizard, or
+        // gone from the schema): the recomposed page is now an orphan, and an
+        // unedited orphan is deleted.
+        const result = await pagesRepo(t.meta).upsertGenerated(
+          connectionId,
+          emitted.filter((page) => page.id !== pageId),
+          { snapshotId, hashEnvelope },
+        );
+
+        expect(await pagesRepo(t.meta).findById(pageId)).not.toBeNull();
+        expect(result.pruned).toBe(0);
+        expect(result.keptEdited).toContain(pageId);
+      });
     });
   });
 

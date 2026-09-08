@@ -5,6 +5,7 @@
  * body from two routes. Invalid entries are dropped with a console warning,
  * never a crash (09 §3.1).
  */
+import { parseCrudDerived } from '@adminium/engine/config';
 import {
   fkDisplayAliasOf,
   gridColumnSpecSchema,
@@ -12,6 +13,17 @@ import {
   type GridColumnSpec,
 } from '@adminium/widgets';
 
+/**
+ * Parse `config.columns[]`, forcing `sortable:false` on every PROJECTION.
+ *
+ * Not a UI preference — a defence. A lookup, reverse or derived value is a
+ * correlated subquery aliased into the SELECT list, and no dialect lets an
+ * alias into `ORDER BY`, so `order=<alias>` is a hard 422 that blanks the
+ * whole page. The config PATCH route validates nothing about `columns[]`, so
+ * a hand-edited `sortable:true` would reach the wire; forcing it closed on the
+ * READ path is the only place that cannot be bypassed
+ * (36-derived-columns.md D14).
+ */
 export function parseColumns(config: Record<string, unknown>, pageId: string): GridColumnSpec[] {
   const raw = config['columns'];
   if (!Array.isArray(raw)) return [];
@@ -19,7 +31,10 @@ export function parseColumns(config: Record<string, unknown>, pageId: string): G
   for (const entry of raw) {
     const parsed = gridColumnSpecSchema.safeParse(entry);
     if (parsed.success) {
-      columns.push(parsed.data);
+      const column = parsed.data;
+      const projection =
+        column.lookup !== undefined || column.reverse !== undefined || column.derived !== undefined;
+      columns.push(projection && column.sortable ? { ...column, sortable: false } : column);
     } else {
       console.warn(`[adminium] ${pageId}: dropping invalid column spec`, parsed.error.issues[0]?.message);
     }
@@ -112,37 +127,96 @@ export function withFkDisplay(columns: readonly GridColumnSpec[]): FkDisplayPlan
 }
 
 /**
- * Wire `agg=` specs (`alias:table.fkColumn:aggregate`) for the page's
- * reverse-link columns — the server computes each referencing-table aggregate
- * (count of rows pointing at this one) into the row under the column's own
- * `name`, which is exactly the key the cell renderers read.
+ * Server cap on correlated subqueries per read — `agg=` and `compute=`'s
+ * measures SHARE it (apps/server/src/crud/aggregates.ts MAX_AGGREGATES,
+ * 36-derived-columns.md D13), so the client budget has to be shared too or a
+ * page authored to one limit plus a measure hard-422s.
  */
-export function aggParamsOf(columns: readonly GridColumnSpec[]): string[] {
-  const params: string[] = [];
-  for (const column of columns) {
-    if (column.reverse === undefined) continue;
-    params.push(
-      `${column.name}:${column.reverse.table}.${column.reverse.fkColumn}:${column.reverse.agg}`,
-    );
-  }
-  return params;
+const MAX_PROJECTIONS = 12;
+
+export interface ProjectionParams {
+  /** Repeatable `agg=` specs, `alias:table.fkColumn:count`. */
+  agg: string[];
+  /** The single `compute=` payload, or undefined when the page has none. */
+  compute: string | undefined;
 }
 
 /**
- * A CrudApi whose reads carry the page's lookup + aggregate params — `list`
- * and `get` decorated, everything else passed through. Callers memo per
- * (api, lookups, aggs) so the templates' fetch effects don't re-arm on every
- * render.
+ * The projection params for one page's reads: `agg=` from its reverse-link
+ * columns, `compute=` from its stored `config.derived` block.
+ *
+ * Three rules that each close a live foot-gun:
+ *
+ * 1. **Non-`count` `agg` tokens are DROPPED.** `reverse.agg` is an open string
+ *    the config schema and the PATCH route both accept, but the server's wire
+ *    grammar is `count` and nothing else — a stored `agg:'sum'` is a hard 422
+ *    that blanks the whole page. Dropping it renders one empty column instead.
+ *    Safe because the Studio never authors one: a new aggregate is a MEASURE
+ *    on `compute=`, and the `reverse` vocabulary stays count-only (D15).
+ * 2. **The shared budget is enforced here**, not discovered as a 422. Excess
+ *    `agg` tokens are dropped in spec order; if the measures would not fit in
+ *    what is left, the WHOLE compute block is dropped rather than part of it —
+ *    a field referencing a dropped measure is itself a 422, so a partial send
+ *    would trade one refusal for another.
+ * 3. **An unreadable `derived` block degrades to none.** Same never-crash rule
+ *    `parseColumns` follows for a malformed column spec.
+ */
+export function projectionParamsOf(
+  columns: readonly GridColumnSpec[],
+  config: Record<string, unknown> = {},
+): ProjectionParams {
+  const agg: string[] = [];
+  const dropped: string[] = [];
+  for (const column of columns) {
+    if (column.reverse === undefined) continue;
+    if (column.reverse.agg !== 'count') {
+      dropped.push(`${column.name} (${column.reverse.agg})`);
+      continue;
+    }
+    if (agg.length >= MAX_PROJECTIONS) {
+      dropped.push(column.name);
+      continue;
+    }
+    agg.push(`${column.name}:${column.reverse.table}.${column.reverse.fkColumn}:count`);
+  }
+
+  let compute: string | undefined;
+  const parsed = parseCrudDerived(config['derived']);
+  if (!parsed.ok) {
+    console.warn(`[adminium] dropping an unreadable derived block: ${parsed.refusal.message}`);
+  } else if (parsed.value.measures.length > 0 || parsed.value.fields.length > 0) {
+    if (agg.length + parsed.value.measures.length > MAX_PROJECTIONS) {
+      dropped.push(`derived (${String(parsed.value.measures.length)} measures)`);
+    } else {
+      compute = JSON.stringify(parsed.value);
+    }
+  }
+
+  if (dropped.length > 0) {
+    console.warn(
+      `[adminium] projections dropped for ${dropped.join(', ')} — the server cap of ${String(MAX_PROJECTIONS)} correlated subqueries is shared between \`agg\` and \`compute\``,
+    );
+  }
+  return { agg, compute };
+}
+
+/**
+ * A CrudApi whose reads carry the page's projection params — lookups,
+ * aggregates and the derived block. `list` and `get` decorated, everything
+ * else passed through. Callers memo per (api, lookups, projections) so the
+ * templates' fetch effects don't re-arm on every render.
  */
 export function withLookups<T extends CrudApi>(
   api: T,
   lookups: readonly string[],
   aggs: readonly string[] = [],
+  compute?: string | undefined,
 ): T {
-  if (lookups.length === 0 && aggs.length === 0) return api;
+  if (lookups.length === 0 && aggs.length === 0 && compute === undefined) return api;
   const read = {
     ...(lookups.length === 0 ? {} : { lookup: lookups }),
     ...(aggs.length === 0 ? {} : { agg: aggs }),
+    ...(compute === undefined ? {} : { compute }),
   };
   const decorated: CrudApi = {
     ...api,

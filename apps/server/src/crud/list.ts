@@ -9,6 +9,7 @@
 import { sql, type Kysely, type SelectQueryBuilder } from 'kysely';
 
 import { STATS_EXACT_COUNT_THRESHOLD, type Dialect } from '@adminium/engine';
+import type { DerivedField } from '@adminium/engine/config';
 
 import { ValidationFailedError } from '../errors.js';
 import type { SourceDatabase } from '../connections/manager.js';
@@ -20,7 +21,8 @@ import {
   type RecordFilter,
 } from './filters.js';
 import type { ResolvedColumn, ResolvedTable, SnapshotView } from './identifiers.js';
-import { applyAggregateMask, aggregateSelections, type ResolvedAggregate } from './aggregates.js';
+import { applyDerivedFields } from './derive.js';
+import { applyMeasureMask, measureSelections, type ResolvedMeasure } from './measures.js';
 import { applyLookupMask, lookupSelections, type ResolvedLookup } from './lookups.js';
 import { maskRows, type Row } from './mask.js';
 
@@ -185,18 +187,42 @@ export interface RunListOptions {
    */
   lookups?: readonly ResolvedLookup[] | undefined;
   /**
-   * Resolved reverse-link aggregates (`crud/aggregates.ts`) — correlated
-   * scalar COUNT subqueries, same single-table-semantics guarantee as
-   * `lookups`. Resolution (and its per-table RBAC) happens in the route, not
-   * here — the public path never passes any.
+   * Resolved reverse-link measures (`crud/measures.ts`) — correlated scalar
+   * subqueries folding a child table, same single-table-semantics guarantee
+   * as `lookups`. Carries BOTH families: `agg=`'s counts (up-converted) and
+   * `compute=`'s sums and averages, in that order, so an `agg=`-only request
+   * emits exactly the SQL it always has. Resolution (and its per-table RBAC)
+   * happens in the route, not here — the public path never passes any.
    */
-  aggregates?: readonly ResolvedAggregate[] | undefined;
+  measures?: readonly ResolvedMeasure[] | undefined;
+  /**
+   * Base columns a derived field reads, merged into the projection
+   * (36-derived-columns.md §3.5).
+   *
+   * Merged into `selected` rather than routed through `params.select`, and
+   * the difference decides what a low-privilege reader sees: `select=`
+   * resolves through `view.readableColumn`, which answers 403
+   * `COLUMN_FORBIDDEN` on a masked column, so a field naming one would blank
+   * the whole PAGE instead of one cell. Merging here keeps the column in the
+   * SELECT list, lets `maskRow` null it and mark it, and lets the evaluator
+   * poison just the field that reads it. Ignored under `exposeColumns`, where
+   * the exposed set is the policy and nothing may widen it.
+   */
+  requiredColumns?: readonly string[] | undefined;
+  /**
+   * Derived fields (`crud/derive.ts`) — arithmetic and conditionals over the
+   * measures above, this row's own columns and literals, evaluated in
+   * declaration order AFTER the whole masking chain. Resolution happens in the
+   * route; the public path never passes any.
+   */
+  derivedFields?: readonly DerivedField[] | undefined;
 }
 
 export async function runList(opts: RunListOptions): Promise<ListResult> {
   const { db, view, table, params, canReadPii, dialect, mandatory, exposeColumns, searchColumns } = opts;
   const lookups = opts.lookups ?? [];
-  const aggregates = opts.aggregates ?? [];
+  const measures = opts.measures ?? [];
+  const derivedFields = opts.derivedFields ?? [];
   const dynamic = db.dynamic;
   const ctx: CompileFilterContext = { view, table, canReadPii, dynamic, dialect };
 
@@ -226,6 +252,9 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
   // the price of that and is paid deliberately.
   if (exposeColumns === undefined) {
     for (const pk of table.primaryKey) selectNames.add(pk);
+    // Already resolved against the snapshot by `crud/compute.ts`; a masked one
+    // rides along on purpose (see `requiredColumns`).
+    for (const name of opts.requiredColumns ?? []) selectNames.add(name);
   }
 
   const filter: RecordFilter | null = params.where === undefined ? null : parseWhereParam(params.where);
@@ -260,9 +289,9 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     // them after the fetch, so refused data never leaves the database.
     qb = qb.select((eb) => lookupSelections(eb as never, db, table, lookups)) as Qb;
   }
-  if (aggregates.length > 0) {
-    // Same contract: refused aggregates never reach SQL.
-    qb = qb.select((eb) => aggregateSelections(eb as never, db, table, aggregates)) as Qb;
+  if (measures.length > 0) {
+    // Same contract: refused measures never reach SQL.
+    qb = qb.select((eb) => measureSelections(eb as never, db, table, measures)) as Qb;
   }
   for (const key of sortKeys) qb = qb.orderBy(dynamic.ref(key.column), key.dir);
 
@@ -329,7 +358,10 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     const next =
       hasMore && last !== undefined ? encodeCursor(sortKeys.map((key) => last[key.column])) : null;
     return {
-      data: applyAggregateMask(applyLookupMask(maskRows(pageRows, table, canReadPii), lookups), aggregates),
+      data: applyDerivedFields(
+        applyMeasureMask(applyLookupMask(maskRows(pageRows, table, canReadPii), lookups), measures),
+        derivedFields,
+      ),
       cursor: { next },
     };
   }
@@ -367,7 +399,10 @@ export async function runList(opts: RunListOptions): Promise<ListResult> {
     }
   }
   return {
-    data: applyAggregateMask(applyLookupMask(maskRows(rows, table, canReadPii), lookups), aggregates),
+    data: applyDerivedFields(
+      applyMeasureMask(applyLookupMask(maskRows(rows, table, canReadPii), lookups), measures),
+      derivedFields,
+    ),
     page: { limit, offset, total },
   };
 }

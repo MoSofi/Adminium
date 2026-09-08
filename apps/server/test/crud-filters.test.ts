@@ -20,9 +20,12 @@ import type { EffectiveModel } from '../src/connections/effective-schema.js';
 import type { SourceDatabase } from '../src/connections/manager.js';
 import {
   assertFilterLimits,
+  assertWhereEnvelope,
   compileFilter,
   compileQuickSearch,
   escapeLike,
+  MAX_WHERE_BYTES,
+  MAX_WHERE_DEPTH,
   parseWhereParam,
   recordFilterSchema,
   type CompileFilterContext,
@@ -209,6 +212,100 @@ describe('filter DSL compiler', () => {
     expect(() => parseWhereParam('{"column":"x"}')).toThrow('filter grammar');
     expect(recordFilterSchema.safeParse({ column: 'x', op: 'eq', value: 1 }).success).toBe(true);
     expect(recordFilterSchema.safeParse({ column: 'x', op: 'regex', value: 1 }).success).toBe(false);
+  });
+});
+
+/*
+ * The pre-parse envelope. `assertFilterLimits` walks a tree that already
+ * exists, so before these two ran there was nothing between an authenticated
+ * caller and zod's recursion: a rejecting `{"or":[…]}` chain is quadratic in
+ * depth, and a ~7 KB one overflows the stack into a 500 — both inside Node's
+ * default 16,384-byte request line.
+ */
+describe('where= envelope (pre-parse byte + depth caps)', () => {
+  const chain = (depth: number, leaf = '{"column":"balance","op":"!"}'): string => {
+    let out = leaf;
+    for (let i = 0; i < depth; i += 1) out = `{"or":[${out}]}`;
+    return out;
+  };
+
+  it('derives both caps from the grammar, not from round numbers', () => {
+    // Two group levels, each an object around an array; then the condition
+    // object; then the flat list `in`/`between` may carry.
+    expect(MAX_WHERE_DEPTH).toBe(6);
+    expect(MAX_WHERE_BYTES).toBe(10_205);
+    // Whatever the arithmetic yields, it has to stay under the request line
+    // Node will actually accept, or the cap is decorative.
+    expect(MAX_WHERE_BYTES).toBeLessThan(16_384);
+  });
+
+  it('admits every filter the grammar itself accepts', () => {
+    // The deepest legal shape: two groups, a condition, and a value list.
+    const deepestLegal = '{"and":[{"or":[{"column":"balance","op":"between","value":[1,2]}]}]}';
+    expect(() => assertWhereEnvelope(deepestLegal)).not.toThrow();
+    expect(parseWhereParam(deepestLegal)).toEqual({
+      and: [{ or: [{ column: 'balance', op: 'between', value: [1, 2] }] }],
+    });
+    // The widest legal value: a full `in` list of UUIDs, ~7.8 KB of it.
+    const ids = Array.from({ length: 200 }, () => '"550e8400-e29b-41d4-a716-446655440000"');
+    const widest = `{"column":"customer_id","op":"in","value":[${ids.join(',')}]}`;
+    expect(widest.length).toBeGreaterThan(7_000);
+    expect(() => parseWhereParam(widest)).not.toThrow();
+  });
+
+  it('refuses an over-long `where` as the same 422, before parsing it', () => {
+    const oversize = `{"column":"balance","op":"eq","value":"${'x'.repeat(MAX_WHERE_BYTES)}"}`;
+    expect(() => assertWhereEnvelope(oversize)).toThrow(AppError);
+    expect(() => parseWhereParam(oversize)).toThrow(`limited to ${String(MAX_WHERE_BYTES)} bytes`);
+    // Bytes, not UTF-16 units: a multi-byte body under the length cap is still
+    // over the byte cap.
+    const multibyte = `"${'é'.repeat(MAX_WHERE_BYTES - 100)}"`;
+    expect(multibyte.length).toBeLessThan(MAX_WHERE_BYTES);
+    expect(() => assertWhereEnvelope(multibyte)).toThrow('bytes');
+  });
+
+  it('refuses over-deep nesting before JSON.parse, and counts structure only', () => {
+    expect(() => assertWhereEnvelope(chain(MAX_WHERE_DEPTH))).toThrow(
+      `at most ${String(MAX_WHERE_DEPTH)} levels`,
+    );
+    expect(() => parseWhereParam(chain(1_200))).toThrow(AppError);
+    // Brackets inside a string literal are text, not nesting — including one
+    // hiding behind an escaped quote.
+    expect(() =>
+      assertWhereEnvelope('{"column":"balance","op":"eq","value":"[[[[[[[[[[{{{{"}'),
+    ).not.toThrow();
+    expect(() =>
+      assertWhereEnvelope('{"column":"balance","op":"eq","value":"\\"[[[[[[[[[["}'),
+    ).not.toThrow();
+  });
+
+  it('bounds the CPU a rejecting filter can charge the event loop', () => {
+    /*
+     * The real weapon here was never the stack overflow — it was the ~410 ms
+     * of blocking work a 9 KB rejecting chain bought on a single-threaded
+     * server for a 422. The caps have to make that unbuyable, so this asserts
+     * on wall clock rather than on shape. The budget is deliberately ~40x the
+     * ~2.4 ms the worst surviving shape measures, so it pins the two orders of
+     * magnitude without being a CI flake.
+     */
+    const worst = `{"or":[${Array.from({ length: 250 }, () => '{"column":"balance","op":"!"}').join(',')}]}`;
+    expect(worst.length).toBeLessThan(MAX_WHERE_BYTES);
+    expect(() => parseWhereParam(worst)).toThrow(AppError);
+
+    const started = performance.now();
+    for (let i = 0; i < 10; i += 1) {
+      expect(() => parseWhereParam(worst)).toThrow(AppError);
+    }
+    expect((performance.now() - started) / 10).toBeLessThan(100);
+
+    // …and the payloads that used to cost hundreds of ms are now refused by a
+    // scan that never reaches zod at all.
+    const wasExpensive = chain(1_000);
+    const refused = performance.now();
+    for (let i = 0; i < 10; i += 1) {
+      expect(() => parseWhereParam(wasExpensive)).toThrow(AppError);
+    }
+    expect((performance.now() - refused) / 10).toBeLessThan(5);
   });
 });
 

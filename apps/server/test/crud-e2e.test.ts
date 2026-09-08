@@ -25,6 +25,8 @@ import {
   type DatabaseModel,
 } from '@adminium/engine/adapter';
 
+import { MAX_WHERE_BYTES } from '../src/crud/filters.js';
+
 import {
   asUser,
   buildDataTestApp,
@@ -684,5 +686,50 @@ describe('CRUD API end-to-end (fake adapter)', () => {
       const values = Object.values(ref.pk);
       expect(row.entityId).toBe(values.length === 1 ? String(values[0]) : JSON.stringify(values));
     }
+  });
+
+  /*
+   * The envelope, over the wire. `parseWhereParam`'s own limits ran after
+   * JSON.parse and zod, so a rejecting `{"or":[…]}` chain that fits inside
+   * Node's 16,384-byte request line either burned hundreds of ms of event
+   * loop for its 422 or overflowed zod's recursion into a RangeError — which
+   * is not an AppError, so app.ts's handler answered 500 INTERNAL. Both are
+   * refused by a character scan now, and this is the half the unit tests
+   * cannot see: that the refusal is the route's ordinary 422 envelope.
+   */
+  it('refuses an over-nested where= as 422, not a 500 or a stalled event loop', async () => {
+    const chain = (depth: number): string => {
+      let out = '{"column":"product_name","op":"!"}';
+      for (let i = 0; i < depth; i += 1) out = `{"or":[${out}]}`;
+      return out;
+    };
+    // 500 levels ≈ 4.5 KB: under the byte cap, so this is the DEPTH scan being
+    // exercised through the route rather than the length check. It used to cost
+    // ~113 ms of blocking work for its 422; 1,200 levels answered 500 instead.
+    const deep = chain(500);
+    expect(deep.length).toBeLessThan(MAX_WHERE_BYTES);
+    const started = Date.now();
+    const res = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/data/${connId}/main.products?where=${deep}`,
+      headers: asUser(t.users.viewer),
+    });
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(res.statusCode).toBe(422);
+    expect(res.json()).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
+    // The old 422 echoed zod's whole issue tree back — ~67 bytes of reply per
+    // byte of request. The scan reports one refusal.
+    expect(res.body.length).toBeLessThan(1_000);
+
+    // A filter the grammar actually accepts is untouched.
+    const ok = await t.app.inject({
+      method: 'GET',
+      url: `/api/v1/data/${connId}/main.products?where=${JSON.stringify({
+        and: [{ or: [{ column: 'unit_price', op: 'between', value: [10, 20] }] }],
+      })}`,
+      headers: asUser(t.users.viewer),
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json().data.length).toBeGreaterThan(0);
   });
 });

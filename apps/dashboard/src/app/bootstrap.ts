@@ -48,6 +48,12 @@ export interface NavItem {
   connectionId?: string | null;
   connectionName?: string | null;
   /**
+   * The owning connection's ISO-4217 currency (10-i18n.md §4.4). Optional for
+   * fixtures predating it; the server always sends it (null when unset, which
+   * is what keeps the money cells on their historical `USD` fallback).
+   */
+  currency?: string | null;
+  /**
    * The page envelope's `source.table` (30-record-pages.md D5) — feeds
    * {@link slugForTable} so record pages can cross-link related rows to the
    * page that shows their table. Optional for fixtures predating it; the

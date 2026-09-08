@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { describe, expect, it, vi } from 'vitest';
-import { gridColumnSpecSchema, type GridColumnSpec } from '@adminium/widgets';
+import { gridColumnSpecSchema, type CrudApi, type GridColumnSpec } from '@adminium/widgets';
 
-import { withFkDisplay } from './columnSpecs.js';
+import { parseColumns, projectionParamsOf, withFkDisplay, withLookups } from './columnSpecs.js';
 
 /**
  * `withFkDisplay` — the FK-chip display derivation: `fk.display` (the
@@ -105,5 +105,117 @@ describe('withFkDisplay', () => {
     });
     const plan = withFkDisplay([long]);
     expect(plan.lookups).toEqual([]);
+  });
+});
+
+
+/**
+ * `projectionParamsOf` — the wire params a page's projections spend
+ * (36-derived-columns.md 36-T16). Three foot-guns, all of which blank a whole
+ * page as a 422 if they reach the server.
+ */
+describe('projectionParamsOf', () => {
+  const reverse = (name: string, agg = 'count') =>
+    col({ name, reverse: { table: 'public.invoice_items', fkColumn: 'invoice_id', agg } });
+
+  const OWNERS_DERIVED = {
+    measures: [
+      {
+        id: 'subtotal',
+        table: 'public.invoice_items',
+        fkColumn: 'invoice_id',
+        fn: 'sum',
+        of: { terms: [{ sign: 'plus', factors: ['line_total'] }] },
+      },
+    ],
+    fields: [
+      { id: 'total', scale: 2, expr: { op: 'add', args: [{ measure: 'subtotal' }, { lit: '0' }] } },
+    ],
+  };
+
+  it('emits count aggregates and the derived block', () => {
+    const params = projectionParamsOf([reverse('item_count')], { derived: OWNERS_DERIVED });
+    expect(params.agg).toEqual(['item_count:public.invoice_items.invoice_id:count']);
+    expect(JSON.parse(params.compute ?? 'null')).toEqual(OWNERS_DERIVED);
+  });
+
+  it('never lets a stored non-count agg reach the wire', () => {
+    // `reverse.agg` is an open string the config schema and the PATCH route
+    // both accept, and the server's grammar is `count` — a stored `sum` is a
+    // hard 422 that blanks the page, so it is dropped instead (D15).
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const params = projectionParamsOf([reverse('total', 'sum'), reverse('item_count')]);
+    expect(params.agg).toEqual(['item_count:public.invoice_items.invoice_id:count']);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('drops the 13th projection with a warning rather than 422ing the page', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const columns = Array.from({ length: 13 }, (_, i) => reverse(`c${String(i)}`));
+    expect(projectionParamsOf(columns).agg).toHaveLength(12);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('drops the WHOLE derived block when the shared budget cannot hold it', () => {
+    // Partial is worse than none: a field referencing a dropped measure is
+    // itself a 422, so half a block trades one refusal for another.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const columns = Array.from({ length: 12 }, (_, i) => reverse(`c${String(i)}`));
+    const params = projectionParamsOf(columns, { derived: OWNERS_DERIVED });
+    expect(params.agg).toHaveLength(12);
+    expect(params.compute).toBeUndefined();
+    warn.mockRestore();
+  });
+
+  it('degrades an unreadable derived block to none', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(projectionParamsOf([], { derived: { measures: 'nope' } }).compute).toBeUndefined();
+    expect(projectionParamsOf([], {}).compute).toBeUndefined();
+    warn.mockRestore();
+  });
+});
+
+describe('parseColumns forces projections closed to sorting (D14)', () => {
+  it('overrides a hand-edited sortable:true on every projection family', () => {
+    const columns = parseColumns(
+      {
+        columns: [
+          { name: 'id', label: 'Id', logicalType: 'integer', sortable: true },
+          { name: 'client', label: 'Client', lookup: { path: ['client_id'], select: 'name' }, sortable: true },
+          {
+            name: 'items',
+            label: 'Items',
+            reverse: { table: 'public.invoice_items', fkColumn: 'invoice_id', agg: 'count' },
+            sortable: true,
+          },
+          { name: 'total', label: 'Total', derived: { ref: 'total' }, sortable: true },
+        ],
+      },
+      'page_1',
+    );
+    expect(columns.map((column) => column.sortable)).toEqual([true, false, false, false]);
+  });
+});
+
+describe('withLookups', () => {
+  it('adds compute to both reads, and stays a pass-through with nothing to add', () => {
+    const calls: unknown[] = [];
+    const api = {
+      list: (params: unknown) => {
+        calls.push(params);
+        return Promise.resolve({ data: [] });
+      },
+      get: (_id: string, options: unknown) => {
+        calls.push(options);
+        return Promise.resolve({ data: {} });
+      },
+    } as unknown as CrudApi;
+    const decorated = withLookups(api, [], [], '{"measures":[]}');
+    void decorated.list({});
+    void decorated.get('7');
+    expect(calls).toEqual([{ compute: '{"measures":[]}' }, { compute: '{"measures":[]}' }]);
+    expect(withLookups(api, [], [])).toBe(api);
   });
 });

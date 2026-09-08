@@ -129,6 +129,42 @@ describe('GET /api/v1/bootstrap nav connection labels', () => {
       connectionName: null,
     });
   });
+
+  /**
+   * 36-derived-columns.md 36-T15. Every money cell in the product renders USD
+   * because nothing has ever told the client what a connection's currency is;
+   * the nav item is the object the client already resolves a page through, so
+   * it carries it.
+   */
+  it("carries the owning connection's currency, and null when it has none", () => {
+    const navRow = (connectionId: string | null): PageNavRow => ({
+      id: newId('page'),
+      connectionId,
+      slug: 'invoices',
+      title: 'Invoices',
+      icon: null,
+      navGroup: 'workspace',
+      navOrder: 0,
+      isEnabled: true,
+      updatedAt: 1,
+      sourceTable: null,
+    });
+    const row = navRow('conn_eu');
+    const withCurrency = buildNavTree(
+      [row],
+      new Map([['conn_eu', { name: 'EU sales', currency: 'EUR' }]]),
+    );
+    expect(withCurrency.nav.groups[0]?.items[0]).toMatchObject({
+      connectionName: 'EU sales',
+      currency: 'EUR',
+    });
+    const unset = buildNavTree([row], new Map([['conn_eu', { name: 'EU sales', currency: null }]]));
+    expect(unset.nav.groups[0]?.items[0]?.currency).toBeNull();
+    // A shared (connection-less) page has no currency to carry.
+    expect(
+      buildNavTree([navRow(null)]).nav.groups[0]?.items[0]?.currency,
+    ).toBeNull();
+  });
 });
 
 describe('hidden pages on /bootstrap (30-record-pages.md follow-up)', () => {

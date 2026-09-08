@@ -61,6 +61,8 @@ function listSearch(params: CrudListParams): string {
   // `agg=` per reverse-link aggregate alias.
   for (const lookup of params.lookup ?? []) search.append('lookup', lookup);
   for (const agg of params.agg ?? []) search.append('agg', agg);
+  // NOT repeatable: the server refuses a second `compute=` by name.
+  if (params.compute !== undefined) search.set('compute', params.compute);
   if (params.limit !== undefined) search.set('limit', String(params.limit));
   if (params.offset !== undefined) search.set('offset', String(params.offset));
   if (params.cursor !== undefined) search.set('cursor', params.cursor);
@@ -106,6 +108,7 @@ export function createCrudApi(connectionId: string, table: string): BoundCrudApi
       if (options.include === 'inboundCounts') search.set('include', 'inboundCounts');
       for (const lookup of options.lookup ?? []) search.append('lookup', lookup);
       for (const agg of options.agg ?? []) search.append('agg', agg);
+      if (options.compute !== undefined) search.set('compute', options.compute);
       const suffix = search.size === 0 ? '' : `?${search.toString()}`;
       return api.get<CrudGetResult>(`${base}/${encodeURIComponent(recordId)}${suffix}`);
     },

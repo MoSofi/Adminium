@@ -14,13 +14,26 @@
 
 export type FmtContext = 'data' | 'prose';
 
+/**
+ * What `Intl.NumberFormat.prototype.format` accepts, and why a STRING is not a
+ * convenience here.
+ *
+ * Postgres and MySQL hand every decimal and every aggregate back as a string,
+ * and routing one through `Number()` is lossy past 15 significant digits —
+ * measured, `format('1234567890123456789.55')` is exact while
+ * `format(Number(…))` renders `…800.00`. Intl NumberFormat v3 formats a
+ * numeric string exactly, so the string is the lossless carrier and the
+ * signature has to admit it.
+ */
+export type Numeric = number | bigint | string;
+
 export interface Formatters {
-  number(v: number, o?: Intl.NumberFormatOptions & { ctx?: FmtContext }): string;
+  number(v: Numeric, o?: Intl.NumberFormatOptions & { ctx?: FmtContext }): string;
   /** 24500 → "24.5K" / "24 500" per locale. */
   compact(v: number, o?: { ctx?: FmtContext }): string;
-  percent(v: number, o?: { fractionDigits?: number; ctx?: FmtContext }): string;
+  percent(v: Numeric, o?: { fractionDigits?: number; ctx?: FmtContext }): string;
   /** Currency code comes from column metadata, never from the viewer's locale (§4.4). */
-  currency(v: number, currency: string, o?: { ctx?: FmtContext }): string;
+  currency(v: Numeric, currency: string, o?: { ctx?: FmtContext }): string;
   /** Intl unit style, "1.2 MB". Data context (mono cells). */
   bytes(v: number): string;
   date(d: Date | string | number, style?: 'short' | 'medium' | 'long', o?: { ctx?: FmtContext; timeZone?: string }): string;
@@ -131,6 +144,18 @@ const MINUTE = 60_000;
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
 
+/**
+ * `Intl.NumberFormat.prototype.format` accepts a numeric STRING at runtime —
+ * Intl.NumberFormat v3, shipped in every engine this product supports and
+ * verified here on Node 22 for the number, percent and currency styles. The
+ * TypeScript lib has not caught up: its three overloads stop at
+ * `number | bigint`. This cast is exactly that gap and nothing wider; passing
+ * a string is the whole point (see {@link Numeric}).
+ */
+function formatNumeric(format: Intl.NumberFormat, value: Numeric): string {
+  return format.format(value as number);
+}
+
 const formattersByTag = new Map<string, Formatters>();
 
 function buildFormatters(tag: string): Formatters {
@@ -146,7 +171,7 @@ function buildFormatters(tag: string): Formatters {
   const fmt: Formatters = {
     number(v, o = {}) {
       const { ctx = 'data', ...options } = o;
-      return numberFormat(tag, ctx, options).format(v);
+      return formatNumeric(numberFormat(tag, ctx, options), v);
     },
 
     compact(v, o = {}) {
@@ -155,15 +180,18 @@ function buildFormatters(tag: string): Formatters {
 
     percent(v, o = {}) {
       const digits = o.fractionDigits ?? 0;
-      return numberFormat(tag, o.ctx ?? 'data', {
-        style: 'percent',
-        minimumFractionDigits: digits,
-        maximumFractionDigits: digits,
-      }).format(v);
+      return formatNumeric(
+        numberFormat(tag, o.ctx ?? 'data', {
+          style: 'percent',
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits,
+        }),
+        v,
+      );
     },
 
     currency(v, currency, o = {}) {
-      return numberFormat(tag, o.ctx ?? 'data', { style: 'currency', currency }).format(v);
+      return formatNumeric(numberFormat(tag, o.ctx ?? 'data', { style: 'currency', currency }), v);
     },
 
     bytes(v) {

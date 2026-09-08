@@ -85,8 +85,103 @@ export function assertFilterLimits(filter: RecordFilter): void {
   walk(filter, 0);
 }
 
+/*
+ * ── THE ENVELOPE, AND WHY IT IS NOT A ROUND NUMBER ─────────────────────────
+ *
+ * `assertFilterLimits` runs on a parsed tree, so it cannot bound the cost of
+ * producing that tree. `recordFilterSchema` is recursive, and its union
+ * re-descends on failure, which makes a rejecting chain quadratic in depth:
+ * measured on this schema, a 9,023-byte `where=` burns ~410 ms of event loop
+ * before returning its 422, and past ~7 KB zod overflows the stack outright —
+ * a RangeError, which is not an AppError, so the CRUD path answers 500. Both
+ * fit inside Node's default 16,384-byte request line, so both are reachable.
+ *
+ * The two numbers below are read off the grammar, not picked round:
+ *
+ *   depth — a group is an object wrapping an array (`{"and":[…]}`), so each
+ *     of the MAX_FILTER_GROUP_DEPTH levels costs two brackets; the leaf
+ *     condition object costs one more, and `in`/`between` may carry a flat
+ *     list, costing the last. Nothing the grammar accepts nests deeper, so
+ *     the scan refuses only what `assertFilterLimits` would have refused.
+ *
+ *   bytes — MAX_FILTER_CONDITIONS conditions, each naming a column, an op and
+ *     a value, inside at most one group envelope apiece. Sixteen full `in`
+ *     lists would be ~125 KB, which no request line can carry, so the budget
+ *     allows the structural maximum plus ONE full list: the largest filter
+ *     that can actually be sent. Under both caps the worst rejecting shape
+ *     measures ~2.4 ms, and a 200-UUID `in` list still parses.
+ */
+
+/** Longest column identifier any supported dialect allows (pg 63, mysql 64). */
+const IDENTIFIER_BYTES = 64;
+/** Longest op token — `not_null`. */
+const OP_BYTES = 8;
+/** `{"column":"","op":"","value":},` with the three variable parts removed. */
+const CONDITION_ENVELOPE_BYTES = 31;
+/** `{"and":[` + `]}` — one group's punctuation. */
+const GROUP_ENVELOPE_BYTES = 10;
+/** A quoted UUID plus its separator: the widest scalar a key filter carries. */
+const VALUE_BYTES = 39;
+
+/** Group object + group array, per level; then the condition; then its list. */
+export const MAX_WHERE_DEPTH = MAX_FILTER_GROUP_DEPTH * 2 + 2;
+
+export const MAX_WHERE_BYTES =
+  (MAX_FILTER_CONDITIONS + 1) * GROUP_ENVELOPE_BYTES +
+  MAX_FILTER_CONDITIONS * (CONDITION_ENVELOPE_BYTES + IDENTIFIER_BYTES + OP_BYTES + VALUE_BYTES) +
+  (MAX_IN_VALUES - 1) * VALUE_BYTES +
+  2;
+
+/**
+ * Size and nesting gate for the RAW `where=` string — the half of the limits
+ * that has to run before {@link JSON.parse} and {@link recordFilterSchema} to
+ * mean anything. A single left-to-right character scan, string-literal aware
+ * so a value like `"[[[["` is text and not structure.
+ *
+ * Refuses as the same 422 the rest of the parser throws: every shape it turns
+ * away is one `assertFilterLimits` would have turned away anyway, just for a
+ * price the caller no longer gets to charge us.
+ */
+export function assertWhereEnvelope(raw: string): void {
+  const bytes = Buffer.byteLength(raw, 'utf8');
+  if (bytes > MAX_WHERE_BYTES) {
+    throw new ValidationFailedError(`\`where\` is limited to ${String(MAX_WHERE_BYTES)} bytes.`, {
+      maxBytes: MAX_WHERE_BYTES,
+      bytes,
+    });
+  }
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw.charCodeAt(i);
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === 0x5c) escaped = true; // backslash
+      else if (ch === 0x22) inString = false; // closing quote
+      continue;
+    }
+    if (ch === 0x22) {
+      inString = true;
+    } else if (ch === 0x7b || ch === 0x5b) {
+      // { or [
+      depth += 1;
+      if (depth > MAX_WHERE_DEPTH) {
+        throw new ValidationFailedError(
+          `\`where\` may nest at most ${String(MAX_WHERE_DEPTH)} levels deep.`,
+          { maxDepth: MAX_WHERE_DEPTH },
+        );
+      }
+    } else if (ch === 0x7d || ch === 0x5d) {
+      // } or ]
+      depth -= 1;
+    }
+  }
+}
+
 /** Parse the `where` query param (URL-encoded JSON) into a validated tree. */
 export function parseWhereParam(raw: string): RecordFilter {
+  assertWhereEnvelope(raw);
   let json: unknown;
   try {
     json = JSON.parse(raw);

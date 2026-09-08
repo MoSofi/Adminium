@@ -6,6 +6,7 @@ import {
   dateOnlyValue,
   displayValueOf,
   formatCalendarDate,
+  formatDisplayValue,
   formatMoney,
   formatRelativeTime,
   gridColumnSpecSchema,
@@ -24,6 +25,89 @@ describe('gridColumnSpecSchema', () => {
     expect(column.sortable).toBe(true);
     expect(column.pii).toBe(false);
     expect(column.nullable).toBe(true);
+  });
+
+  /**
+   * 36-derived-columns.md 36-T04. Both new blocks are opt-in, and the claim
+   * that opt-in "changes nothing" is only worth making if something asserts
+   * it: a stored column carrying neither must parse to the same keys, in the
+   * same order, with the same values as it did before they existed.
+   */
+  it('parses a column carrying neither new block exactly as it did before', () => {
+    const parsed = spec({
+      name: 'mrr',
+      label: 'MRR',
+      logicalType: 'decimal',
+      semantic: 'money',
+      format: 'currency',
+    });
+    expect(Object.keys(parsed)).toEqual([
+      'name',
+      'label',
+      'logicalType',
+      'semantic',
+      'format',
+      'pii',
+      'mono',
+      'sortable',
+      'hidden',
+      'primaryKey',
+      'nullable',
+      'hasDefault',
+      'unique',
+      'readOnly',
+      'maxLength',
+      'isDisplay',
+    ]);
+    expect('derived' in parsed).toBe(false);
+    expect('display' in parsed).toBe(false);
+  });
+});
+
+describe('the derived + display blocks (36 D8/D9)', () => {
+  it('reads a derived column pointing at a page-level definition', () => {
+    const column = spec({
+      name: 'total',
+      label: 'Total',
+      derived: { ref: 'total' },
+      display: { kind: 'currency', decimals: 2 },
+      sortable: false,
+      readOnly: true,
+    });
+    expect(column.derived).toEqual({ ref: 'total' });
+    expect(column.display).toEqual({ kind: 'currency', decimals: 2 });
+  });
+
+  it('refuses a ref the server would 422 on', () => {
+    // Measure ids are SQL aliases as well as row keys.
+    expect(() => spec({ name: 'x', label: 'X', derived: { ref: '1total' } })).toThrow();
+    expect(() => spec({ name: 'x', label: 'X', derived: { ref: 'a-b' } })).toThrow();
+  });
+
+  it('requires percentScale on a percent column', () => {
+    // `8` is 8% in a 0-100 tax_rate and 800% in a 0-1 ratio; guessing is a
+    // 100x error on screen, so the scale is declared or the block is refused.
+    expect(() => spec({ name: 'r', label: 'R', display: { kind: 'percent' } })).toThrow();
+    expect(
+      spec({ name: 'r', label: 'R', display: { kind: 'percent', percentScale: 'unit' } }).display,
+    ).toEqual({ kind: 'percent', percentScale: 'unit' });
+  });
+
+  it('bounds currency and decimals', () => {
+    expect(
+      spec({ name: 'x', label: 'X', display: { kind: 'currency', currency: 'EUR' } }).display
+        ?.currency,
+    ).toBe('EUR');
+    expect(() =>
+      spec({ name: 'x', label: 'X', display: { kind: 'currency', currency: 'EURO' } }),
+    ).toThrow();
+    expect(() => spec({ name: 'x', label: 'X', display: { kind: 'decimal', decimals: 7 } })).toThrow();
+    // `parse` rather than the typed helper: an unknown kind is a compile
+    // error at an authoring site, and this asserts the runtime refusal a
+    // hand-edited stored config would hit.
+    expect(() =>
+      gridColumnSpecSchema.parse({ name: 'x', label: 'X', display: { kind: 'money' } }),
+    ).toThrow();
   });
 });
 
@@ -60,6 +144,81 @@ describe('compareCellValues — the string-mrr numeric sort fix (ia-mapping §5)
   it('integer logicalType counts as numeric even without semantics', () => {
     expect(isNumericColumn(spec({ name: 'seats', label: 'Seats', logicalType: 'integer' }))).toBe(true);
     expect(isNumericColumn(spec({ name: 'name', label: 'Name', logicalType: 'varchar' }))).toBe(false);
+  });
+});
+
+describe('formatMoney with an explicit decimals (36-T14)', () => {
+  it('renders a whole and a fractional value at the SAME width', () => {
+    // The defect: `maximumFractionDigits: Number.isInteger(x) ? 0 : 2` makes
+    // one money column render `$1,234` directly above `$1,234.50`.
+    expect(formatMoney('1234', { locale: 'en-US', decimals: 2 })).toBe('$1,234.00');
+    expect(formatMoney('1234.50', { locale: 'en-US', decimals: 2 })).toBe('$1,234.50');
+  });
+
+  it('keeps the historical per-value flip when decimals is absent', () => {
+    // `GroupedSummaryTable` calls formatMoney with `{locale}` only.
+    expect(formatMoney(1234, { locale: 'en-US' })).toBe('$1,234');
+    expect(formatMoney(1234.5, { locale: 'en-US' })).toBe('$1,234.50');
+    expect(formatMoney('1234', { locale: 'en-US' })).toBe('$1,234');
+    expect(formatMoney('1234.00', { locale: 'en-US' })).toBe('$1,234');
+  });
+
+  it('formats a decimal STRING exactly, where Number() would lose digits', () => {
+    // Measured: the same value through `Number()` renders ...800.00.
+    expect(formatMoney('1234567890123456789.55', { locale: 'en-US', decimals: 2 })).toBe(
+      '$1,234,567,890,123,456,789.55',
+    );
+  });
+
+  it('leaves a non-numeric value alone rather than rendering $0', () => {
+    expect(formatMoney('n/a', { locale: 'en-US' })).toBe('n/a');
+    expect(formatMoney('', { locale: 'en-US' })).toBe('');
+  });
+
+  it('honours a per-column currency', () => {
+    expect(formatMoney('1234.50', { locale: 'en-US', currency: 'EUR', decimals: 2 })).toBe(
+      '€1,234.50',
+    );
+  });
+});
+
+describe('formatDisplayValue — the opt-in display block (D8/D9)', () => {
+  it('renders each kind', () => {
+    expect(formatDisplayValue('1367.28', { kind: 'currency', decimals: 2 }, { locale: 'en-US' })).toBe(
+      '$1,367.28',
+    );
+    expect(formatDisplayValue('1266', { kind: 'decimal', decimals: 3 }, { locale: 'en-US' })).toBe(
+      '1,266.000',
+    );
+    expect(formatDisplayValue('1266.7', { kind: 'integer' }, { locale: 'en-US' })).toBe('1,267');
+  });
+
+  it('reads percentScale, which is why it is mandatory', () => {
+    // The same `8` is 8% on a 0-100 tax_rate and 800% on a 0-1 ratio.
+    expect(
+      formatDisplayValue('8', { kind: 'percent', percentScale: 'unit', decimals: 2 }, { locale: 'en-US' }),
+    ).toBe('8.00%');
+    expect(
+      formatDisplayValue(
+        '0.08',
+        { kind: 'percent', percentScale: 'fraction', decimals: 2 },
+        { locale: 'en-US' },
+      ),
+    ).toBe('8.00%');
+  });
+
+  it('ranks the block currency above the connection currency', () => {
+    expect(
+      formatDisplayValue('10', { kind: 'currency', currency: 'GBP' }, { locale: 'en-US', currency: 'EUR' }),
+    ).toBe('£10.00');
+    expect(formatDisplayValue('10', { kind: 'currency' }, { locale: 'en-US', currency: 'EUR' })).toBe(
+      '€10.00',
+    );
+    expect(formatDisplayValue('10', { kind: 'currency' }, { locale: 'en-US' })).toBe('$10.00');
+  });
+
+  it('leaves a value it cannot read alone', () => {
+    expect(formatDisplayValue('draft', { kind: 'currency' }, { locale: 'en-US' })).toBe('draft');
   });
 });
 

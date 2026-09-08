@@ -158,9 +158,17 @@ export function buildUserPageEnvelope(input: BuildUserPageInput): Record<string,
  *
  * Everything the page IS (template, body, source binding) is carried over
  * verbatim; everything that identifies WHICH page it is gets replaced. The
- * `generatedHash`, if the source was a generated page, is dropped: the copy is
- * not that generated page, and leaving the hash would make the copy look
- * byte-identical to a document `upsertGenerated` believes it owns.
+ * `generatedHash`, if the source was a generated page, is dropped: no
+ * generation run emitted THIS document — the copy has its own id, slug and
+ * nav order — so keeping the hash would be a false claim of authorship.
+ *
+ * Regeneration is not what makes the drop safe, and the hash is not what
+ * would make it unsafe. The copy is `origin: 'user'`, which `upsertGenerated`
+ * skips on origin alone; and a carried hash could not match the re-identified
+ * document anyway, so it would read as EDITED (`isEditedEnvelope` keys on the
+ * MISMATCH), which is the protected state rather than the overwritable one.
+ * Only a row that stays `origin: 'generated'` depends on that mismatch — see
+ * `carryGeneratedHash` on the recompose path in ./index.ts.
  */
 export function reidentifyEnvelope(
   stored: unknown,
