@@ -82,7 +82,7 @@ export default {
     },
     "readOnlyRole": {
       "title": "Use a read-only role",
-      "body": "Adminium never writes to your database — setup uses schema metadata only. We recommend a dedicated user with SELECT-only grants; you can decide where Adminium keeps its own tables in the meta-storage step."
+      "body": "During setup Adminium reads schema metadata only — never your rows. We recommend a dedicated user with SELECT-only grants; you can decide where Adminium keeps its own tables in the meta-storage step."
     }
   },
   "capability": {
@@ -305,38 +305,54 @@ export default {
       }
     },
     "email": {
-      "heading": "Email (SMTP)",
-      "unconfigured": "No mail server is set, so Adminium cannot send password resets, user invites or scheduled reports.",
-      "host": {
-        "label": "SMTP host",
-        "error": "A bare hostname or IP address — no scheme, port or credentials."
-      },
-      "port": {
-        "label": "Port",
-        "error": "Between {min, number} and {max, number}."
-      },
-      "user": {
-        "label": "Username",
-        "helper": "Leave empty for a relay that does not authenticate."
-      },
-      "pass": {
-        "label": "Password",
-        "helper": "Stored encrypted and never shown again. Leave blank to keep the current one.",
-        "error": "This username needs a password."
+      "attachmentCap": {
+        "error": "Between {min, number} and {max, number} MB.",
+        "helper": "The most one message may carry in attachments.",
+        "label": "Attachment limit (MB)"
       },
       "from": {
         "label": "From address",
         "helper": "A bare address, or a display name in front of one.",
         "error": "Enter an email address."
       },
-      "secure": {
-        "label": "Implicit TLS",
-        "helper": "On for port 465. Off starts in cleartext and upgrades with STARTTLS, which is what port 587 expects."
+      "heading": "Email (SMTP)",
+      "host": {
+        "label": "SMTP host",
+        "error": "A bare hostname or IP address — no scheme, port or credentials."
+      },
+      "pass": {
+        "label": "Password",
+        "helper": "Stored encrypted and never shown again. Leave blank to keep the current one.",
+        "error": "This username needs a password."
+      },
+      "port": {
+        "label": "Port",
+        "error": "Between {min, number} and {max, number}."
       },
       "remove": "Remove mail server",
       "review": {
         "removed": "Removed",
         "password": "Replaced"
+      },
+      "secure": {
+        "label": "Implicit TLS",
+        "helper": "On for port 465. Off starts in cleartext and upgrades with STARTTLS, which is what port 587 expects."
+      },
+      "senders": {
+        "add": "Add sender",
+        "address": "Address",
+        "error": "Enter an email address.",
+        "heading": "Senders",
+        "helper": "Addresses an email may be sent from. The SMTP From address is always available.",
+        "implicit": "SMTP From address",
+        "name": "Display name",
+        "remove": "Remove sender",
+        "review": "Senders"
+      },
+      "unconfigured": "No mail server is set, so Adminium cannot send password resets, user invites or scheduled reports.",
+      "user": {
+        "label": "Username",
+        "helper": "Leave empty for a relay that does not authenticate."
       }
     },
     "review": {
@@ -377,6 +393,21 @@ export default {
       "heading": "Languages & translations",
       "body": "Reword anything in Adminium, choose which languages people can pick, and add your own.",
       "cta": "Open translations"
+    },
+    "storageCard": {
+      "heading": "Storage",
+      "body": "Choose where uploaded files, exports and other stored bytes live — this server, a bucket, or your own server.",
+      "cta": "Open storage"
+    },
+    "addOnsCard": {
+      "heading": "Add-ons",
+      "body": "Browse, install and connect add-ons — extra blocks, data packs and integrations — or upload one yourself.",
+      "cta": "Open add-ons"
+    },
+    "publicApiCard": {
+      "heading": "Public API",
+      "body": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
+      "cta": "Open public API"
     }
   },
   "settingsAi": {
@@ -880,7 +911,7 @@ export default {
       "regeneratedDetail": "Pages you edited by hand are preserved — only pages with an untouched generated_hash were regenerated in place.",
       "regenerateFailed": "Regeneration failed"
     },
-    "title": "Schema remap",
+    "title": "Schema",
     "subtitle": "{tables} tables · {applied} overrides applied",
     "saveFailed": "Save failed: {message}",
     "loadFailed": "Could not load the schema for this connection.",
@@ -911,7 +942,19 @@ export default {
       "masked": "Masked"
     },
     "unavailableTitle": "Schema remap editor not available",
-    "unavailableBody": "This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations."
+    "unavailableBody": "This build does not include the remap editor yet (09-T12). Re-run generation after it lands to remap labels, types and relations.",
+    "modeLabel": "Editor mode",
+    "mode": {
+      "remap": "Labels & relations",
+      "design": "Design",
+      "diagram": "Diagram"
+    },
+    "noDesign": {
+      "schemaFile": "This connection was created from a schema file, so there is no database to change. Labels and relations still work.",
+      "readOnlyRole": "This connection signs in with a read-only role, so Adminium cannot change its schema.",
+      "noPrivilege": "This connection's role cannot create or alter tables. Grant it schema privileges, or connect a role that has them.",
+      "readOnlyIntent": "This connection was set up for read-only analytics. Change its intent in Settings to edit its schema."
+    }
   },
   "publicApi": {
     "error": "Something went wrong",
@@ -930,7 +973,7 @@ export default {
       "nameLabel": "Name",
       "connectionLabel": "Connection ID",
       "documentLabel": "Scope document",
-      "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.",
+      "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else. A default may be '{'\"$generate\": \"uuid\"'}' or '{'\"$generate\": \"now\"'}' — the server fills those in on create, so a visitor can add a row without choosing its id.",
       "create": "Create scope",
       "formLabel": "Create a scope"
     },
@@ -1060,7 +1103,13 @@ export default {
       "install": "Install",
       "discard": "Discard",
       "upgradeAction": "Upgrade",
-      "toggle": "Browse the online catalogue"
+      "toggle": "Browse the online catalogue",
+      "all": "All",
+      "categories": "Categories",
+      "search": "Search add-ons",
+      "noMatchTitle": "Nothing matches",
+      "noMatchBody": "No add-on here matches that search and category.",
+      "emptyOnlineBody": "The online catalogue is on, but the last check found nothing. Try checking for newer."
     },
     "installed": {
       "title": "Installed",
@@ -1106,6 +1155,17 @@ export default {
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload"
+    },
+    "card": {
+      "needsApiKey": "Needs an API key",
+      "needsOauth": "Connects with OAuth"
+    },
+    "category": {
+      "artwork": "Artwork",
+      "delivery": "Delivery",
+      "payments": "Payments",
+      "email": "Email",
+      "data": "Data"
     }
   },
   "pages": {
@@ -1170,6 +1230,8 @@ export default {
     "field": {
       "title": "Title",
       "titleHint": "Shown in the sidebar and the page header.",
+      "newRowLabel": "Add button",
+      "newRowLabelHint": "What the button that adds a record says. Leave empty to use the default, which is translated.",
       "slug": "Page address",
       "slugHint": "Lowercase letters, numbers and dashes. Just the last part — the rest of the address is added for you.",
       "slugTaken": "Another page already uses this address.",
@@ -1218,7 +1280,9 @@ export default {
       "details": "Details",
       "itemsPending": "Save the change above first — the contents are rebuilt from it.",
       "columns": "Columns",
-      "appearance": "Appearance"
+      "appearance": "Appearance",
+      "derived": "Derived numbers",
+      "attachments": "Attachments"
     },
     "sidebar": {
       "help": "Reorder pages within a group, or move one to another group. Changes apply to every user.",
@@ -1238,9 +1302,14 @@ export default {
       "help": "Drag to reorder columns, rename their headers, and choose which are shown in the table.",
       "empty": "No columns yet — add them below.",
       "pk": "Key",
-      "pii": "PII",
+      "masked": "Masked",
       "header": "Header for {name}",
       "shown": "Shown",
+      "mask": "Mask",
+      "maskToggle": "Hide {name} behind a reveal control",
+      "avatar": "Avatar",
+      "avatarToggle": "Show a monogram beside {name}",
+      "maskHelp": "Mask hides a value behind a reveal control for readers allowed to see it. Whether the data leaves the database at all is set on the connection, not here.",
       "toggle": "Show {name} in the table",
       "dragHandle": "Reorder {name}",
       "remove": "Remove {name}",
@@ -1254,7 +1323,7 @@ export default {
       "addNoMatches": "No columns match “{query}”.",
       "followColumn": "Follow {name}",
       "addLinkedFrom": "Tables that link here",
-      "addLinkedFromHelp": "Add a count of the rows that point at each record.",
+      "addLinkedFromHelp": "Count the rows that point at each record, or add up one of their numbers.",
       "countBadge": "Count",
       "lookupBadge": "Linked",
       "lookupBack": "Back",
@@ -1265,6 +1334,63 @@ export default {
       "none": {
         "title": "This page has no columns yet",
         "body": "Columns are read from the table when the page is generated. Bind this page to a table and regenerate to fill them in."
+      },
+      "foldLabel": "Aggregate",
+      "foldAdd": "Add",
+      "fold": {
+        "sum": "Sum",
+        "avg": "Average",
+        "min": "Min",
+        "max": "Max"
+      },
+      "file": {
+        "ref": {
+          "url": "A link to the file",
+          "id": "Adminium's file id",
+          "key": "The key in the destination"
+        },
+        "type": {
+          "pdf": "PDF",
+          "png": "PNG",
+          "jpeg": "JPEG",
+          "gif": "GIF",
+          "webp": "WebP",
+          "heic": "HEIC",
+          "svg": "SVG",
+          "zip": "ZIP",
+          "office": "Office documents",
+          "mp4": "MP4 video",
+          "mp3": "MP3 audio",
+          "wav": "WAV audio",
+          "webm": "WebM",
+          "ogg": "Ogg",
+          "csv": "CSV",
+          "text": "Plain text",
+          "markdown": "Markdown",
+          "json": "JSON"
+        },
+        "badge": "File",
+        "switch": "File",
+        "switchToggle": "{name} stores a file",
+        "refLabel": "Stored value",
+        "refHelp": "What is written into this column when a file is uploaded. Values already stored keep working — this only changes the next one.",
+        "refTooNarrow": "This column is too short to hold that value. Pick one it can hold, or widen the column in the database.",
+        "refWidth": "{shape} — needs {needs} characters, this column holds {holds}",
+        "destinationLabel": "Destination",
+        "destinationHelp": "Where the bytes uploaded through this column are kept.",
+        "destinationDefault": "The default destination",
+        "acceptLabel": "Accepted types",
+        "acceptHelp": "Leave every type off to accept whatever this workspace accepts. Choosing types can only narrow that list — a column can never accept a type the workspace refuses.",
+        "maxLabel": "Largest file (MB)",
+        "maxHelp": "Leave empty to use the workspace limit. A column can only ask for less.",
+        "maxToggle": "Largest file accepted by {name}, in MB",
+        "inlineLabel": "Show it in the table",
+        "inlineHelp": "Only images are drawn in the cell. Everything else stays a chip with its name and size, however this is set.",
+        "maxCountHelp": "Leave empty to accept as many as a record needs.",
+        "maxCountLabel": "Most files per record",
+        "maxCountToggle": "Most files on one {name}",
+        "multipleHelp": "The column stores a list of files instead of one. Existing single values keep working — they read as a list of one.",
+        "multipleLabel": "Hold more than one file"
       }
     },
     "icon": {
@@ -1292,6 +1418,350 @@ export default {
       "dash": "Dashboard (1320px)",
       "wide": "Wide (1800px)",
       "full": "Full width (no limit)"
+    },
+    "derived": {
+      "help": "Work out numbers from the summaries above and this record’s own columns. They are calculated when the page loads and cannot be sorted.",
+      "foldBadge": "Fold",
+      "fieldBadge": "Computed",
+      "remove": "Remove {name}",
+      "emptyTitle": "No computed numbers yet",
+      "emptyBody": "Summarize a linked table in the Columns card first — the rules here are built from those numbers.",
+      "label": "Column header",
+      "operandA": "Number",
+      "operandB": "Number",
+      "operator": "Operator",
+      "minus": "minus",
+      "plus": "plus",
+      "percentOf": "per cent from this record",
+      "atLeast": "is at least",
+      "thenShow": "then show",
+      "otherwise": "otherwise",
+      "numberHelp": "Numbers are plain decimals — 500 or 12.50, never 1,000 or 5e3.",
+      "add": "Add column",
+      "cancel": "Cancel",
+      "previewTitle": "Preview",
+      "previewHelp": "Sample values, calculated by the same code the page uses.",
+      "preset": {
+        "combine": "Add or subtract two numbers",
+        "percent": "Percentage of a number",
+        "rule": "Rule with a threshold"
+      }
+    },
+    "attachments": {
+      "type": {
+        "office": "Office documents",
+        "text": "Plain text"
+      },
+      "destinationIsDefault": "{name} (the default)",
+      "enable": "Allow attachments on this table’s records",
+      "enableHint": "Files are linked on Adminium’s side, so this table needs no new column — it works on a read-only connection, and on a table you would rather not alter.",
+      "destination": "Where the files go",
+      "destinationHint": "Leave this on the default unless this table’s files belong somewhere else.",
+      "destinationDefault": "The default destination",
+      "destinationLocal": "This server’s disk",
+      "accept": "Accepted file types",
+      "acceptHint": "Choosing none accepts everything this workspace allows. A choice here can only narrow that list, never widen it.",
+      "maxBytes": "Largest file (MB)",
+      "maxBytesHint": "Leave empty to follow the workspace limit. A number here can only lower it.",
+      "maxCount": "Most files per record",
+      "maxCountHint": "Leave empty to accept as many as a record needs.",
+      "column": {
+        "adoptHint": "This table already has that column, so nothing is created — it is used as it is.",
+        "bound": "Files are stored in this table’s {column} column.",
+        "boundHint": "Turning attachments off later unbinds this page. The column and the files in it are left alone.",
+        "confirm": "Run it",
+        "create": "Create the column",
+        "createHint": "Adminium adds one text column to this table. You will see the exact statement before anything runs.",
+        "createdHint": "The column exists now. Save this page to finish wiring it up.",
+        "failed": "That did not work",
+        "invalid": "A column name must start with a letter and use only lowercase letters, digits and underscores.",
+        "label": "Column that holds the files",
+        "required": "Give the column a name.",
+        "tooLong": "That name is too long for a column.",
+        "use": "Use this column",
+        "wrongType": "This table already has a column with that name, and it cannot hold a file reference. Pick another name."
+      },
+      "enableHintColumn": "Files are stored in one column on this table, so they appear in the New and Edit dialogs as well as on each record.",
+      "enableHintSidecar": "Files are linked on Adminium’s side instead. They appear on each record’s page, not in the New dialog.",
+      "sidecar": {
+        "readOnlyIntent": "This connection is set up for read-only analytics, so Adminium cannot add a column to it.",
+        "readOnlyRole": "This connection signs in with a read-only role, so Adminium cannot add a column to it.",
+        "schemaFile": "This connection was created from a schema file, so Adminium cannot add a column to it.",
+        "noPrivilege": "This connection's role cannot alter tables, so Adminium cannot add a column to it."
+      }
+    }
+  },
+  "design": {
+    "table": {
+      "name": "Table name",
+      "renameHelp": "Changing this renames the table in your database.",
+      "nameHelp": "Lowercase letters, numbers and underscores.",
+      "columns": "Columns",
+      "addColumn": "Add column",
+      "noKey": "This table has no primary key, so Adminium will treat it as read-only — rows can be listed but not edited.",
+      "uuidKeyUnavailable": "On this engine a key must be a generated integer: a database-generated uuid cannot be read back after an insert.",
+      "drop": "Drop this table",
+      "dropHelp": "The table and every row in it are destroyed. You will see exactly what breaks before anything runs.",
+      "namePlaceholder": "reservations"
+    },
+    "column": {
+      "name": "Name",
+      "type": "Type",
+      "length": "Length",
+      "precision": "Precision",
+      "required": "Required",
+      "key": "Key",
+      "remove": "Remove {name}",
+      "unique": "Unique",
+      "primaryKey": "Primary key",
+      "help": "What do these settings mean?",
+      "link": "Links to",
+      "linkHelp": "Connect this to a row in another table.",
+      "noLink": "Nothing",
+      "onDelete": "If the linked row is deleted",
+      "linkTypeNote": "The type is matched to the linked table’s key.",
+      "namePlaceholder": "client_id"
+    },
+    "designer": "Table designer",
+    "newTable": "New table",
+    "discard": "Discard changes",
+    "empty": {
+      "title": "Design your schema",
+      "body": "Create a table, or pick one to edit. Nothing reaches your database until you review the statements and apply them."
+    },
+    "existing": "Existing tables",
+    "review": {
+      "pending": "Review your changes to see the exact statements Adminium will run.",
+      "noChanges": "No schema changes yet.",
+      "unfinished": "A previous apply on this connection never reported an outcome. Its schema may be part-way between two shapes — check the change history before applying more.",
+      "steps": "Planned steps",
+      "superAdmin": "Super Admin"
+    },
+    "plan": "Review changes",
+    "apply": "Apply",
+    "result": {
+      "applied": "Applied. Adminium re-read your schema.",
+      "partial": "Partly applied: {done} of {total} steps ran. Applying the same changes again completes them.",
+      "repaired": "The rename was carried into {pages, plural, one {# page} other {# pages}}, {grants, plural, one {# role grant} other {# role grants}} and {overrides, plural, one {# schema override} other {# schema overrides}}.",
+      "failed": "Nothing was applied — your database is unchanged. {error}"
+    },
+    "confirm": {
+      "title": "Apply a destructive change",
+      "body": "This change discards data or removes an object. Adminium cannot undo it.",
+      "prompt": "Type {word} to confirm",
+      "confirm": "Apply changes",
+      "cancel": "Cancel",
+      "close": "Close"
+    },
+    "hazard": {
+      "safe": "Safe",
+      "locking": "Holds a lock",
+      "rewrite": "Rewrites the table",
+      "lossy": "Discards data",
+      "irreversible": "Cannot be undone",
+      "refused": "Refused"
+    },
+    "reviewPane": "Review",
+    "error": {
+      "empty": "A name is required.",
+      "identifier": "Use lowercase letters, numbers and underscores, starting with a letter.",
+      "tooLong": "Too long — {dialect} allows {max} characters.",
+      "atColumn": "Column {n}, {field}",
+      "atTable": "Table {field}"
+    },
+    "onDelete": {
+      "restrict": "Prevent the deletion",
+      "cascade": "Delete this row too",
+      "setNull": "Leave this field empty"
+    },
+    "help": {
+      "title": "What these fields mean",
+      "subtitle": "Plain-language descriptions of each setting, and what it changes for the people using your app.",
+      "close": "Close",
+      "type": {
+        "term": "Type",
+        "what": "What kind of information the field holds — words, whole numbers, money, a date, a yes/no answer. Picking the right one is what lets Adminium show a date picker instead of a text box, and add up a column of money.",
+        "example": "A phone number is usually text, not a number — numbers drop leading zeros."
+      },
+      "required": {
+        "term": "Required",
+        "what": "The field must be filled in. A row cannot be saved while it is empty.",
+        "example": "An order needs a customer, so that field is required. A delivery note is optional, so it is not."
+      },
+      "unique": {
+        "term": "Unique",
+        "what": "No two rows may hold the same value. The database refuses the second one.",
+        "example": "Two customers should not share an email address — mark it unique and they cannot."
+      },
+      "primaryKey": {
+        "term": "Primary key",
+        "what": "The field that identifies each row — the one Adminium uses to tell one row from another. Every table should have exactly one, and it is almost always the \"id\" field created for you.",
+        "example": "Without a primary key, Adminium can list the rows but cannot edit or delete an individual one."
+      },
+      "link": {
+        "term": "Link to another table",
+        "what": "Connects this row to a row in another table, and asks the database to keep the connection honest — you cannot point at something that is not there.",
+        "example": "A reservation links to a client. Adminium then shows the client on the reservation, and the reservations on the client."
+      }
+    },
+    "unrepresentableDefaults": "These columns keep a database-generated default Adminium cannot edit here, and it is left as it is: {columns}",
+    "dropping": "Marked for deletion",
+    "keepTable": "Keep {table}",
+    "adopt": {
+      "offer": "A new table does nothing until it has a page. Add {tables} to your app?",
+      "grants": "No role is given access automatically — grant it in Settings → Roles.",
+      "action": "Add to my app",
+      "done": "{created} pages created, {updated} updated, {unchanged} already current.",
+      "skippedEdited": "Left untouched because you edited them: {pages}.",
+      "everything": "This connection already shows every table, so nothing had to be included.",
+      "forbidden": "Your role can change the schema but not generate pages. Ask an admin with connection management to add these tables to the app."
+    },
+    "unnamed": "Name every table and column to review the changes.",
+    "ceiling": {
+      "prompt": "Type {table} again to authorise the rewrite",
+      "body": "{table} holds over {rows} rows — past the size Adminium rewrites on its own. Only a Super Admin can authorise this, and the table will be locked for as long as the rewrite takes.",
+      "hint": "Type the table name exactly as it appears above.",
+      "notYours": "{table} holds over {rows} rows. Only a Super Admin can authorise a rewrite this large — ask one, or run the change during a maintenance window with your own tooling.",
+      "authorise": "Authorise this rewrite"
+    }
+  },
+  "diagram": {
+    "ceiling": "Showing the {shown} most connected tables. {omitted} more are hidden — search to bring one in.",
+    "legendLabel": "Legend",
+    "legend": {
+      "declared": "Foreign key",
+      "inferred": "Inferred",
+      "virtual": "Added in Adminium"
+    },
+    "node": {
+      "foreignKey": "Foreign key",
+      "more": "+{count} more",
+      "primaryKey": "Primary key"
+    },
+    "outline": {
+      "intro": "{tables} tables and {relations} relations, as a list.",
+      "more": " and {count} more",
+      "referencedBy": "Referenced by: {list}",
+      "references": "References: {list}"
+    },
+    "saveLayout": "Save layout",
+    "search": "Find a table or column",
+    "showDiagram": "Show diagram",
+    "showList": "Show as list"
+  },
+  "storage": {
+    "driver": {
+      "local": "A path on this machine",
+      "s3": "S3-compatible bucket",
+      "webdav": "WebDAV server"
+    },
+    "preset": {
+      "aws": "AWS S3",
+      "spaces": "DigitalOcean Spaces",
+      "r2": "Cloudflare R2",
+      "tigris": "Tigris",
+      "b2": "Backblaze B2",
+      "wasabi": "Wasabi",
+      "minio": "MinIO or another S3-compatible server"
+    },
+    "status": {
+      "ok": "Reachable",
+      "error": "Unreachable",
+      "untested": "Not tested"
+    },
+    "title": "Storage",
+    "subtitle": "Where this instance keeps uploaded files, exports and other stored bytes.",
+    "move": {
+      "open": "Move files…",
+      "startedTitle": "The move has started",
+      "startedBody": "It runs in the background as job {jobId} and keeps going if you leave this page. The counts below change as files arrive — reload to see them.",
+      "title": "Move files",
+      "subtitle": "Copies every file from one destination to another and then forgets the old copy. Downloads keep working throughout.",
+      "from": "From",
+      "to": "To",
+      "start": "Start the move",
+      "kinds": "Limit to",
+      "kindsHelp": "Leave everything unticked to move all of them. Uploads are the files people attach; the rest are artifacts Adminium made."
+    },
+    "add": "Add a destination",
+    "loadFailed": {
+      "title": "Destinations could not be loaded",
+      "forbidden": "Changing where files are stored needs the “Manage storage” permission. Ask an administrator to grant it to one of your roles."
+    },
+    "actionFailed": "That did not work",
+    "delete": {
+      "blockedTitle": "This destination still holds files",
+      "blockedBody": "{name} still holds {count, plural, one {# file} other {# files}}. Move them to another destination first, then delete it.",
+      "title": "Delete this destination",
+      "body": "Adminium forgets {name} and its credential. Nothing stored in it is touched — the bucket or server itself is yours, and files still recorded against it will refuse the delete.",
+      "confirm": "Delete destination"
+    },
+    "list": {
+      "title": "Destinations",
+      "subtitle": "New files go to the default destination. Existing files stay where they are until you move them."
+    },
+    "localDisk": "This server's disk",
+    "default": "Default",
+    "usedBytes": "{size} used",
+    "fileCount": "{count, plural, one {# file} other {# files}}",
+    "availableOnDisk": "{size} available on this disk",
+    "disabled": "Disabled",
+    "test": {
+      "ok": "Reached in {ms}ms",
+      "button": "Test",
+      "unreachable": "The test could not be run",
+      "failed": "Could not reach this destination"
+    },
+    "defaultBlockedByDisabled": "A disabled destination cannot be the default. Enable it first.",
+    "setDefault": "Set as default",
+    "enable": "Enable",
+    "disable": "Disable",
+    "edit": "Edit",
+    "deleteButton": "Delete",
+    "editor": {
+      "createTitle": "Add a destination",
+      "editTitle": "Edit destination",
+      "subtitle": "Adminium reads and writes through this destination on your behalf; it is infrastructure you control."
+    },
+    "field": {
+      "name": "Name",
+      "namePlaceholder": "Uploads bucket",
+      "driver": "Kind",
+      "driverLocked": "Changing the kind of a destination that already holds files would leave those files unreachable.",
+      "root": "Directory",
+      "rootHelper": "An absolute path this server can write to — a mounted volume or a network share. Not the default directory, which is already the first entry in the list.",
+      "preset": "Provider",
+      "presetHelper": "Fills in the endpoint, region and addressing style. Anything the provider cannot know about your account is left blank for you to type.",
+      "endpoint": "Endpoint",
+      "endpointDerived": "Leave empty for AWS itself — the endpoint follows from the region.",
+      "region": "Region",
+      "bucket": "Bucket",
+      "pathStyle": "Path-style addressing",
+      "pathStyleToggle": "Address the bucket as a path rather than a hostname",
+      "url": "Collection URL",
+      "urlHelper": "The collection Adminium writes into, as your server publishes it.",
+      "prefix": "Prefix",
+      "prefixHelper": "A folder inside the destination. Two destinations on one bucket that differ only here share the bucket without sharing a namespace.",
+      "publicBaseUrl": "Public base URL",
+      "publicBaseUrlHelper": "Optional. Where these objects are readable without Adminium — a CDN in front of a public bucket. Used only when a column stores a link.",
+      "accessKeyId": "Access key ID",
+      "secretAccessKey": "Secret access key",
+      "secretKept": "A key is stored. Leave both fields blank to keep it; fill in both to replace it.",
+      "username": "Username",
+      "password": "Password"
+    },
+    "secret": {
+      "partialTitle": "Half a credential is not a credential",
+      "partialBody": "Fill in both fields to replace the stored credential, or clear both to keep it. Saving one alone would quietly keep the old one."
+    },
+    "save": "Save destination",
+    "kind": {
+      "upload": "Files attached to records",
+      "export": "Export artifacts",
+      "import": "Uploaded CSVs and their error reports",
+      "branding": "The workspace logo",
+      "schema": "Imported schema files",
+      "archive": "Archived audit batches"
     }
   }
 } as const;

@@ -302,19 +302,19 @@ export default {
       "cohortMatrix": {
         "chartLabel": "Kohortenbindung",
         "description": "Kohortenzeilen gegen Zeitraumspalten; jede Zelle ist nach Bindung oder Umsatz eingefärbt.",
-        "regionLabel": "Cohort matrix"
+        "regionLabel": "Kohortenmatrix"
       },
       "heatmapCalendar": {
         "chartLabel": "Aktivitätskalender",
         "legendLessLabel": "Weniger",
         "legendMoreLabel": "Mehr",
         "description": "Ein Jahr täglicher Aktivität als Raster aus Wochen und Tagen, eingefärbt nach Intensität.",
-        "regionLabel": "Activity calendar"
+        "regionLabel": "Aktivitätskalender"
       },
       "heatMonth": {
         "chartLabel": "Monatsaktivität",
         "description": "Ein Kalendermonat als Tagesraster, eingefärbt nach dem Wert des jeweiligen Tages.",
-        "regionLabel": "Monthly heat map"
+        "regionLabel": "Monats-Heatmap"
       },
       "choroplethGrid": {
         "chartLabel": "Regionale Aufschlüsselung",
@@ -430,13 +430,13 @@ export default {
         "emptyTitle": "Noch keine Kategorien",
         "emptyBody": "Ereigniskategorien erscheinen hier, sobald Termine vorhanden sind.",
         "uncategorizedLabel": "Ohne Kategorie",
-        "listLabel": "Categories"
+        "listLabel": "Kategorien"
       },
       "upcomingEventsList": {
         "description": "Die nächsten Termine in zeitlicher Reihenfolge, mit Verantwortlichen und Status.",
         "emptyTitle": "Nichts anstehend",
         "emptyBody": "Geplante Termine erscheinen hier, sobald sie angelegt werden.",
-        "listLabel": "Upcoming events"
+        "listLabel": "Anstehende Termine"
       },
       "dateRangePicker": {
         "description": "Ein Datumsbereich mit Schnellauswahl, der die übrige Seite filtert.",
@@ -459,7 +459,7 @@ export default {
         "nextRunLabel": "Nächste Ausführung",
         "toggleLabel": "Zeitplan aktivieren",
         "recipientsLabel": "Empfänger",
-        "listLabel": "Scheduled jobs"
+        "listLabel": "Geplante Aufgaben"
       }
     },
     "tables": {
@@ -581,7 +581,8 @@ export default {
       "falseLabel": "falsch",
       "detailKeyValue": {
         "description": "Die Felder eines Datensatzes als Zeilen aus Bezeichnung und Wert, mit typbewussten Werten."
-      }
+      },
+      "fileDownload": "Herunterladen"
     },
     "boards": {
       "kanbanBoard": {
@@ -636,7 +637,7 @@ export default {
         "attachLabel": "Anhang hinzufügen",
         "typingLabel": "tippt…",
         "composerLabel": "Nachricht",
-        "transcriptLabel": "Conversation"
+        "transcriptLabel": "Unterhaltung"
       },
       "aiChatPanel": {
         "description": "Ein Assistenz-Panel für Fragen zu Ihrem Schema und Ihren Daten.",
@@ -650,7 +651,7 @@ export default {
         "configureCtaLabel": "Anbieter konfigurieren",
         "assistantLabel": "Assistent",
         "composerLabel": "Frage stellen",
-        "transcriptLabel": "Assistant transcript"
+        "transcriptLabel": "Gesprächsverlauf des Assistenten"
       },
       "typingIndicator": {
         "description": "Ein Avatar und eine kursive Zeile „tippt …“, gebunden an einen Live-Status pro Unterhaltung.",
@@ -1493,7 +1494,18 @@ export default {
         "loadError": "Der Datensatz konnte nicht geladen werden."
       },
       "peekAction": "Vorschau",
-      "openPage": "Seite öffnen"
+      "openPage": "Seite öffnen",
+      "file": {
+        "tooLarge": "Diese Datei ist größer als das Limit von {limit}.",
+        "uploading": "Wird hochgeladen",
+        "cancel": "Hochladen abbrechen",
+        "replace": "Ersetzen",
+        "remove": "Datei entfernen",
+        "choose": "Datei auswählen",
+        "add": "Dateien hinzufügen",
+        "removeNamed": "{name} entfernen",
+        "capReached": "Dieser Datensatz akzeptiert höchstens {count, plural, one {# Datei} other {# Dateien}}."
+      }
     },
     "queue": {
       "allSegment": "Alle",
@@ -1612,7 +1624,7 @@ export default {
           "st-dunning": "Zahlungserinnerung"
         },
         "categories": {
-          "billing": "Abrechnung",
+          "invoicing": "Rechnungsstellung",
           "sales": "Vertrieb",
           "nonProfit": "Gemeinnützig",
           "reports": "Berichte",
@@ -1782,6 +1794,14 @@ export default {
         "deleted": "{actor} hat diesen Datensatz gelöscht",
         "undone": "{actor} hat eine Änderung rückgängig gemacht",
         "changedFields": "{count, plural, one {{n} Feld geändert} other {{n} Felder geändert}}"
+      },
+      "attachmentsTab": "Dateien",
+      "attachments": {
+        "emptyTitle": "Noch keine Dateien",
+        "emptyBody": "An diesen Datensatz angehängte Dateien erscheinen hier.",
+        "loading": "Anhänge werden geladen",
+        "removed": "{name} wurde in den Papierkorb verschoben.",
+        "tooLarge": "Diese Datei ist größer, als dieser Arbeitsbereich erlaubt."
       }
     },
     "pageRecord": {

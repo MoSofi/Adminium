@@ -13,7 +13,16 @@
 
 /** Every authored namespace. The editor, the parity gate and the translation
  *  routes all work across the whole set, regardless of how it is delivered. */
-export const NAMESPACES = ['common', 'ui', 'studio', 'generated', 'errors'] as const;
+export const NAMESPACES = [
+  'common',
+  'ui',
+  'studio',
+  'generated',
+  'errors',
+  'email',
+  'invoices',
+  'automations',
+] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 /**
@@ -34,11 +43,30 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * once as English in the entry chunk, once as their own translation over the
  * wire — and an en-US operator was downloading a console they may never open.
  *
+ * `email` is the Email templates manager and editor (39-email-templates-and-
+ * campaigns.md): a few hundred messages behind two lazy routes that most
+ * sessions never open, and a surface that keeps growing — every string it
+ * gained while it lived under `common` landed in the entry chunk of every
+ * route (39 §6.1).
+ *
+ * `invoices` is the Invoices manager and editor (34-invoices-add-on.md
+ * 34-T51): the same shape as `email` — two lazy routes, a few hundred
+ * messages, a surface most sessions never open — and the same bargain.
+ *
+ * `automations` is Automation rules and Workflow logs (42-automations-and-
+ * workflow-logs.md 42-T25): two lazy admin routes behind a permission most
+ * users never hold, carrying the flow builder's whole vocabulary — every node
+ * kind, operator, unit, status and picker tile — which is a lot of text for a
+ * page the majority of sessions never open.
+ *
  * The contract a deferred namespace owes: nothing outside its own surface may
  * read a key from it, and that surface must await {@link Namespace} loading
- * before it renders. See `apps/dashboard/src/studio/routes.tsx`.
+ * before it renders. See `apps/dashboard/src/studio/routes.tsx`,
+ * `apps/dashboard/src/email/emailMessages.ts`,
+ * `apps/dashboard/src/invoices/invoicesMessages.ts` and
+ * `apps/dashboard/src/automations/automationsMessages.ts`.
  */
-export const DEFERRED_NAMESPACES = ['studio'] as const;
+export const DEFERRED_NAMESPACES = ['studio', 'email', 'invoices', 'automations'] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 
 /** A single namespace's message tree (nested string leaves). */

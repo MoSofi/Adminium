@@ -581,7 +581,8 @@ export default {
       "falseLabel": "false",
       "detailKeyValue": {
         "description": "A record's fields as label/value rows with type-aware values."
-      }
+      },
+      "fileDownload": "Download"
     },
     "boards": {
       "kanbanBoard": {
@@ -1493,7 +1494,18 @@ export default {
         "loadError": "Failed to load the record."
       },
       "peekAction": "Peek",
-      "openPage": "Open page"
+      "openPage": "Open page",
+      "file": {
+        "tooLarge": "That file is larger than the {limit} limit.",
+        "uploading": "Uploading",
+        "cancel": "Cancel upload",
+        "replace": "Replace",
+        "remove": "Remove file",
+        "choose": "Choose a file",
+        "add": "Add files",
+        "removeNamed": "Remove {name}",
+        "capReached": "This record accepts at most {count, plural, one {# file} other {# files}}."
+      }
     },
     "queue": {
       "allSegment": "All",
@@ -1612,7 +1624,7 @@ export default {
           "st-dunning": "Payment reminder"
         },
         "categories": {
-          "billing": "Billing",
+          "invoicing": "Invoicing",
           "sales": "Sales",
           "nonProfit": "Non-profit",
           "reports": "Reports",
@@ -1782,6 +1794,14 @@ export default {
         "deleted": "{actor} deleted this record",
         "undone": "{actor} undid a change",
         "changedFields": "{count, plural, one {{n} field changed} other {{n} fields changed}}"
+      },
+      "attachmentsTab": "Files",
+      "attachments": {
+        "emptyTitle": "No files yet",
+        "emptyBody": "Files attached to this record appear here.",
+        "loading": "Loading attachments",
+        "removed": "{name} was moved to the trash.",
+        "tooLarge": "That file is larger than this workspace allows."
       }
     },
     "pageRecord": {

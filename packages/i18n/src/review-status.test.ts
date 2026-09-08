@@ -17,7 +17,16 @@ import { LOCALES, type BuiltinLocaleId } from './locales.js';
 import { REVIEW_STATUS, isReviewed, reviewedFraction } from './review-status.js';
 
 const ROOT = path.join(__dirname, '..');
-const NAMESPACES = ['common', 'ui', 'studio', 'generated', 'errors'] as const;
+const NAMESPACES = [
+  'common',
+  'ui',
+  'studio',
+  'generated',
+  'errors',
+  'email',
+  'invoices',
+  'automations',
+] as const;
 const TARGETS = LOCALES.filter((l) => l.id !== 'en_US');
 
 const hash = (s: string): string => createHash('sha1').update(s, 'utf8').digest('hex').slice(0, 12);

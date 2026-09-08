@@ -82,7 +82,7 @@ export default {
     },
     "readOnlyRole": {
       "title": "使用只读角色",
-      "body": "Adminium 绝不会写入你的数据库——设置过程仅使用架构元数据。建议使用仅有 SELECT 权限的专用用户；Adminium 自己的表放在哪里，可在元数据存储步骤中决定。"
+      "body": "设置期间 Adminium 只读取架构元数据——绝不读取你的数据行。建议使用仅具 SELECT 权限的专用用户；Adminium 自己的表存放在哪里，你可以在元数据存储步骤中决定。"
     }
   },
   "capability": {
@@ -305,38 +305,54 @@ export default {
       }
     },
     "email": {
-      "heading": "电子邮件 (SMTP)",
-      "unconfigured": "尚未设置邮件服务器，因此 Adminium 无法发送密码重置、用户邀请或计划报告。",
-      "host": {
-        "label": "SMTP 主机",
-        "error": "只能填写主机名或 IP 地址 — 不含协议、端口或凭据。"
-      },
-      "port": {
-        "label": "端口",
-        "error": "介于 {min, number} 与 {max, number} 之间。"
-      },
-      "user": {
-        "label": "用户名",
-        "helper": "若中继无需认证，请留空。"
-      },
-      "pass": {
-        "label": "密码",
-        "helper": "加密存储且不再显示。留空则保留当前密码。",
-        "error": "该用户名需要密码。"
+      "attachmentCap": {
+        "error": "介于 {min, number} 到 {max, number} MB 之间。",
+        "helper": "单封邮件可携带的附件总大小上限。",
+        "label": "附件上限（MB）"
       },
       "from": {
         "label": "发件人地址",
         "helper": "可只填地址，或在地址前加显示名称。",
         "error": "请输入电子邮件地址。"
       },
-      "secure": {
-        "label": "隐式 TLS",
-        "helper": "端口 465 请开启。关闭时以明文开始并通过 STARTTLS 升级，这正是端口 587 所期望的。"
+      "heading": "电子邮件 (SMTP)",
+      "host": {
+        "label": "SMTP 主机",
+        "error": "只能填写主机名或 IP 地址 — 不含协议、端口或凭据。"
+      },
+      "pass": {
+        "label": "密码",
+        "helper": "加密存储且不再显示。留空则保留当前密码。",
+        "error": "该用户名需要密码。"
+      },
+      "port": {
+        "label": "端口",
+        "error": "介于 {min, number} 与 {max, number} 之间。"
       },
       "remove": "移除邮件服务器",
       "review": {
         "removed": "已移除",
         "password": "已替换"
+      },
+      "secure": {
+        "label": "隐式 TLS",
+        "helper": "端口 465 请开启。关闭时以明文开始并通过 STARTTLS 升级，这正是端口 587 所期望的。"
+      },
+      "senders": {
+        "add": "添加发件人",
+        "address": "地址",
+        "error": "请输入电子邮件地址。",
+        "heading": "发件人",
+        "helper": "邮件可使用的发件地址。SMTP 发件地址始终可用。",
+        "implicit": "SMTP 发件地址",
+        "name": "显示名称",
+        "remove": "移除发件人",
+        "review": "发件人"
+      },
+      "unconfigured": "尚未设置邮件服务器，因此 Adminium 无法发送密码重置、用户邀请或计划报告。",
+      "user": {
+        "label": "用户名",
+        "helper": "若中继无需认证，请留空。"
       }
     },
     "review": {
@@ -377,6 +393,21 @@ export default {
       "heading": "语言与翻译",
       "body": "重写 Adminium 中的任何文案，决定用户可以选择哪些语言，并添加你自己的语言。",
       "cta": "打开翻译"
+    },
+    "storageCard": {
+      "heading": "存储",
+      "body": "选择上传的文件、导出文件和其他已存字节存放在哪里——本服务器、存储桶，或你自己的服务器。",
+      "cta": "打开存储"
+    },
+    "addOnsCard": {
+      "heading": "插件",
+      "body": "浏览、安装并连接插件——额外的区块、数据包和集成——或者自己上传一个。",
+      "cta": "打开插件"
+    },
+    "publicApiCard": {
+      "heading": "公开 API",
+      "body": "让你自己的面向客户或员工的页面通过你定义的作用域读取这个数据库。",
+      "cta": "打开公开 API"
     }
   },
   "settingsAi": {
@@ -880,7 +911,7 @@ export default {
       "regeneratedDetail": "你手动编辑过的页面会被保留——只有 generated_hash 未被改动的页面才会原地重新生成。",
       "regenerateFailed": "重新生成失败"
     },
-    "title": "架构重映射",
+    "title": "架构",
     "subtitle": "{tables} 张表 · 已应用 {applied} 项覆盖",
     "saveFailed": "保存失败：{message}",
     "loadFailed": "无法加载此连接的架构。",
@@ -911,65 +942,77 @@ export default {
       "masked": "已脱敏"
     },
     "unavailableTitle": "架构重映射编辑器不可用",
-    "unavailableBody": "此版本尚未包含重映射编辑器（09-T12）。等它上线后重新运行生成，即可重映射标签、类型和关系。"
+    "unavailableBody": "此版本尚未包含重映射编辑器（09-T12）。等它上线后重新运行生成，即可重映射标签、类型和关系。",
+    "mode": {
+      "design": "设计",
+      "remap": "标签与关系",
+      "diagram": "关系图"
+    },
+    "modeLabel": "编辑器模式",
+    "noDesign": {
+      "schemaFile": "此连接由架构文件创建，因此没有可更改的数据库。标签和关系仍然可用。",
+      "readOnlyRole": "此连接使用只读角色登录，因此 Adminium 无法更改其架构。",
+      "noPrivilege": "此连接的角色无法创建或修改表。请授予它架构权限，或改用具备权限的角色连接。",
+      "readOnlyIntent": "此连接被设置为只读分析用途。请在“设置”中更改其用途，才能编辑其架构。"
+    }
   },
   "publicApi": {
-    "error": "Something went wrong",
+    "error": "出了点问题",
     "scopes": {
-      "deleteTitle": "Delete this scope",
-      "deleteBody": "Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.",
-      "deletePrompt": "Type the scope name to confirm",
-      "deleteConfirm": "Delete scope",
-      "issuesTitle": "This scope did not compile",
-      "title": "Scopes",
-      "subtitle": "A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.",
-      "emptyTitle": "No scopes yet",
-      "emptyBody": "Create one below. It is checked against your live schema before it is saved.",
-      "keyCount": "{count, plural, =0 {no keys} other {# keys}}",
-      "delete": "Delete",
-      "nameLabel": "Name",
-      "connectionLabel": "Connection ID",
-      "documentLabel": "Scope document",
-      "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.",
-      "create": "Create scope",
-      "formLabel": "Create a scope"
+      "deleteTitle": "删除此作用域",
+      "deleteBody": "任何使用绑定到此作用域的密钥的页面都会停止加载数据。密钥不会被删除——如果你想删除的是密钥，请先吊销它们。",
+      "deletePrompt": "输入作用域名称以确认",
+      "deleteConfirm": "删除作用域",
+      "issuesTitle": "此作用域未能编译",
+      "title": "作用域",
+      "subtitle": "作用域界定了一个密钥所能触及的全部范围——哪些表、具体哪些列，以及一个调用方只能收窄、绝不能移除的过滤条件。",
+      "emptyTitle": "尚无作用域",
+      "emptyBody": "在下方创建一个。保存前会对照你的实时架构进行检查。",
+      "keyCount": "{count, plural, =0 {没有密钥} other {# 个密钥}}",
+      "delete": "删除",
+      "nameLabel": "名称",
+      "connectionLabel": "连接 ID",
+      "documentLabel": "作用域文档",
+      "documentHint": "保存时会对照你的架构进行编译。调用方能触及的每一列都只在此处列出，别无他处。默认值可以是 '{'\"$generate\": \"uuid\"'}' 或 '{'\"$generate\": \"now\"'}'——服务器会在创建时填入这些值，因此访客无需自己指定 id 就能新增一行。",
+      "create": "创建作用域",
+      "formLabel": "创建一个作用域"
     },
-    "cancel": "Cancel",
-    "close": "Close",
-    "title": "Public API",
-    "subtitle": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
+    "cancel": "取消",
+    "close": "关闭",
+    "title": "公开 API",
+    "subtitle": "让你自己的面向客户或员工的页面通过你定义的作用域读取这个数据库。",
     "notRegistered": {
-      "title": "Not enabled on this server",
-      "body": "Set ADMINIUM_PUBLIC_API_ORIGINS to the exact origins allowed to call it, then restart. Until then these routes are not served at all."
+      "title": "此服务器未启用",
+      "body": "请将 ADMINIUM_PUBLIC_API_ORIGINS 设为允许调用它的确切来源，然后重启。在此之前，这些路由完全不会对外提供。"
     },
     "toggle": {
-      "label": "Serve the public API",
-      "hint": "Turning this off stops every public request immediately. Nothing is deleted — keys, scopes and data all survive."
+      "label": "提供公开 API",
+      "hint": "关闭后，所有公开请求会立即停止。不会删除任何内容——密钥、作用域和数据都会保留。"
     },
     "origins": {
-      "label": "Origins allowed to call it"
+      "label": "允许调用它的来源"
     },
     "keys": {
-      "title": "Keys",
-      "subtitle": "These go in your page’s JavaScript, so anyone can read them. That is expected — a key can only ever do what its scope allows.",
-      "emptyTitle": "No keys yet",
-      "emptyBody": "Create a scope first, then mint a key for it.",
-      "reveal": "Show key",
-      "rotate": "Rotate",
-      "revoke": "Revoke",
-      "nameLabel": "Name",
-      "scopeLabel": "Scope",
-      "scopePlaceholder": "Choose a scope",
-      "create": "Create key",
-      "formLabel": "Create a key",
-      "scopeIsAuthTitle": "The scope is the only permission",
-      "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+      "title": "密钥",
+      "subtitle": "这些密钥会放进你页面的 JavaScript 里，因此任何人都能读到。这是预期之内的——密钥能做的，永远不会超出其作用域允许的范围。",
+      "emptyTitle": "尚无密钥",
+      "emptyBody": "请先创建一个作用域，再为它创建密钥。",
+      "reveal": "显示密钥",
+      "rotate": "轮换",
+      "revoke": "吊销",
+      "nameLabel": "名称",
+      "scopeLabel": "作用域",
+      "scopePlaceholder": "选择一个作用域",
+      "create": "创建密钥",
+      "formLabel": "创建一个密钥",
+      "scopeIsAuthTitle": "作用域是唯一的权限",
+      "scopeIsAuthBody": "密钥能触及的正是其作用域中列出的内容，除此之外别无其他。它不使用角色或表权限，也无法通过 API 的其余部分读取任何内容。",
       "appLabel": "绑定到托管应用界面（可选）",
       "appHint": "应用的客户界面随后会自行提供此密钥——轮换密钥无需重新构建。",
       "appNone": "未绑定"
     },
     "status": {
-      "heading": "Status"
+      "heading": "状态"
     }
   },
   "hostedApps": {
@@ -1060,7 +1103,13 @@ export default {
       "install": "Install",
       "discard": "Discard",
       "upgradeAction": "Upgrade",
-      "toggle": "Browse the online catalogue"
+      "toggle": "Browse the online catalogue",
+      "all": "全部",
+      "categories": "分类",
+      "search": "搜索插件",
+      "noMatchTitle": "没有匹配项",
+      "noMatchBody": "没有插件符合该搜索和分类。",
+      "emptyOnlineBody": "在线目录已开启，但上次检查没有找到内容。试试检查更新。"
     },
     "installed": {
       "title": "Installed",
@@ -1106,6 +1155,17 @@ export default {
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload"
+    },
+    "card": {
+      "needsApiKey": "需要 API 密钥",
+      "needsOauth": "通过 OAuth 连接"
+    },
+    "category": {
+      "artwork": "美工",
+      "delivery": "配送",
+      "payments": "支付",
+      "email": "邮件",
+      "data": "数据"
     }
   },
   "pages": {
@@ -1170,6 +1230,8 @@ export default {
     "field": {
       "title": "标题",
       "titleHint": "显示在侧边栏和页面标题栏中。",
+      "newRowLabel": "添加按钮",
+      "newRowLabelHint": "添加记录的按钮上显示的文字。留空则使用默认文字，默认文字已翻译。",
       "slug": "页面地址",
       "slugHint": "仅限小写字母、数字和连字符。只需填写最后一段，其余部分会自动补全。",
       "slugTaken": "已有其他页面使用该地址。",
@@ -1218,7 +1280,9 @@ export default {
       "details": "详细信息",
       "itemsPending": "请先保存上方的更改——页面内容将依据新的模板和数据表重建。",
       "columns": "列",
-      "appearance": "外观"
+      "appearance": "外观",
+      "derived": "派生数字",
+      "attachments": "附件"
     },
     "sidebar": {
       "help": "在分组内重新排序页面，或将页面移到其他分组。更改对所有人生效。",
@@ -1238,9 +1302,14 @@ export default {
       "help": "拖动以重新排序列、重命名列标题，并选择哪些列显示在表格中。",
       "empty": "还没有列——在下方添加。",
       "pk": "主键",
-      "pii": "个人信息",
+      "masked": "已遮盖",
       "header": "{name} 的列标题",
       "shown": "显示",
+      "mask": "遮盖",
+      "maskToggle": "将 {name} 隐藏在显示按钮之后",
+      "avatar": "头像",
+      "avatarToggle": "在 {name} 旁显示字母图标",
+      "maskHelp": "遮盖会把数值藏在显示按钮之后，供有权查看的人点击展开。数据是否离开数据库，由连接设置决定，不在这里。",
       "toggle": "在表格中显示 {name}",
       "dragHandle": "调整 {name} 的顺序",
       "remove": "移除 {name}",
@@ -1254,7 +1323,7 @@ export default {
       "addNoMatches": "没有与“{query}”匹配的列。",
       "followColumn": "跟随 {name}",
       "addLinkedFrom": "链接到此表的表",
-      "addLinkedFromHelp": "添加指向每条记录的行数。",
+      "addLinkedFromHelp": "统计指向每条记录的行数，或将其中一个数字相加。",
       "countBadge": "计数",
       "lookupBadge": "关联",
       "lookupBack": "返回",
@@ -1265,6 +1334,63 @@ export default {
       "none": {
         "title": "此页面还没有列",
         "body": "生成页面时会从数据表读取列。请将此页面绑定到数据表后重新生成。"
+      },
+      "foldLabel": "聚合",
+      "foldAdd": "添加",
+      "fold": {
+        "sum": "求和",
+        "avg": "平均值",
+        "min": "最小值",
+        "max": "最大值"
+      },
+      "file": {
+        "ref": {
+          "url": "文件的链接",
+          "id": "Adminium 的文件 ID",
+          "key": "存储目标中的键"
+        },
+        "type": {
+          "pdf": "PDF",
+          "png": "PNG",
+          "jpeg": "JPEG",
+          "gif": "GIF",
+          "webp": "WebP",
+          "heic": "HEIC",
+          "svg": "SVG",
+          "zip": "ZIP",
+          "office": "Office 文档",
+          "mp4": "MP4 视频",
+          "mp3": "MP3 音频",
+          "wav": "WAV 音频",
+          "webm": "WebM",
+          "ogg": "Ogg",
+          "csv": "CSV",
+          "text": "纯文本",
+          "markdown": "Markdown",
+          "json": "JSON"
+        },
+        "badge": "文件",
+        "switch": "文件",
+        "switchToggle": "{name} 存放文件",
+        "refLabel": "存入的值",
+        "refHelp": "上传文件时写入此列的内容。已存的值仍然有效——这只影响下一次写入。",
+        "refTooNarrow": "此列太短，装不下该值。请选择它能容纳的一种，或在数据库中加宽该列。",
+        "refWidth": "{shape}——需要 {needs} 个字符，此列可容纳 {holds} 个",
+        "destinationLabel": "存储目标",
+        "destinationHelp": "通过此列上传的字节存放在哪里。",
+        "destinationDefault": "默认存储目标",
+        "acceptLabel": "接受的类型",
+        "acceptHelp": "全部不勾选，则接受此工作区所接受的一切。在这里选择类型只会缩小范围——某一列永远无法接受工作区拒绝的类型。",
+        "maxLabel": "最大文件（MB）",
+        "maxHelp": "留空则使用工作区的限制。列只能要求更小的值。",
+        "maxToggle": "{name} 接受的最大文件，单位 MB",
+        "inlineLabel": "在表格中显示",
+        "inlineHelp": "只有图片会画在单元格里。无论此项如何设置，其他文件都只显示为带名称和大小的标签块。",
+        "maxCountHelp": "留空则接受记录所需的任意数量。",
+        "maxCountLabel": "每条记录最多文件数",
+        "maxCountToggle": "{name} 最多可存放的文件数",
+        "multipleHelp": "该列存储文件列表而不是单个文件。现有的单个值仍然有效——会被读作只有一项的列表。",
+        "multipleLabel": "存放多个文件"
       }
     },
     "icon": {
@@ -1292,6 +1418,350 @@ export default {
       "dash": "仪表板（1320px）",
       "wide": "宽（1800px）",
       "full": "全宽（不限制）"
+    },
+    "derived": {
+      "help": "根据上面的汇总和本记录自身的列计算数字。它们在页面加载时计算，无法排序。",
+      "foldBadge": "汇总",
+      "fieldBadge": "计算值",
+      "remove": "移除 {name}",
+      "emptyTitle": "尚无计算数字",
+      "emptyBody": "请先在“列”卡片中汇总一个关联表——这里的规则基于那些数字。",
+      "label": "列标题",
+      "operandA": "数字",
+      "operandB": "数字",
+      "operator": "运算符",
+      "minus": "减",
+      "plus": "加",
+      "percentOf": "来自本记录的百分比",
+      "atLeast": "至少为",
+      "thenShow": "则显示",
+      "otherwise": "否则",
+      "numberHelp": "数字为普通小数——500 或 12.50，不能写成 1,000 或 5e3。",
+      "add": "添加列",
+      "cancel": "取消",
+      "previewTitle": "预览",
+      "previewHelp": "示例值，由页面所用的同一段代码计算。",
+      "preset": {
+        "combine": "两个数字相加或相减",
+        "percent": "某个数字的百分比",
+        "rule": "带阈值的规则"
+      }
+    },
+    "attachments": {
+      "type": {
+        "office": "Office 文档",
+        "text": "纯文本"
+      },
+      "destinationIsDefault": "{name}（默认）",
+      "enable": "允许为此表的记录添加附件",
+      "enableHint": "文件在 Adminium 一侧关联，因此此表无需新增列——只读连接上可用，你不愿改动的表上也可用。",
+      "destination": "文件存放到哪里",
+      "destinationHint": "除非此表的文件应当另存他处，否则保持默认即可。",
+      "destinationDefault": "默认存储目标",
+      "destinationLocal": "此服务器的磁盘",
+      "accept": "接受的文件类型",
+      "acceptHint": "一个都不选，则接受此工作区允许的一切。在这里的选择只会缩小范围，绝不会扩大。",
+      "maxBytes": "最大文件（MB）",
+      "maxBytesHint": "留空则沿用工作区的限制。在这里填写的数字只能把它调低。",
+      "maxCount": "每条记录最多文件数",
+      "maxCountHint": "留空则一条记录需要多少就接受多少。",
+      "column": {
+        "adoptHint": "该表已有此列，因此不会新建——将直接使用它。",
+        "bound": "文件存放在此表的 {column} 列中。",
+        "boundHint": "以后关闭附件只会解除此页面的绑定。该列及其中的文件保持不变。",
+        "confirm": "执行",
+        "create": "创建该列",
+        "createHint": "Adminium 会向此表添加一个文本列。执行前你会看到确切的语句。",
+        "createdHint": "该列已创建。保存此页面即可完成连接。",
+        "failed": "操作未成功",
+        "invalid": "列名必须以字母开头，且只能包含小写字母、数字和下划线。",
+        "label": "存放文件的列",
+        "required": "请为该列命名。",
+        "tooLong": "该名称对于列来说太长了。",
+        "use": "使用此列",
+        "wrongType": "此表已有同名的列，且它无法存放文件引用。请换一个名称。"
+      },
+      "enableHintColumn": "文件存放在此表的一个列中，因此会同时出现在“新建”和“编辑”对话框以及每条记录上。",
+      "enableHintSidecar": "文件改为在 Adminium 一侧关联。它们出现在每条记录的页面上，而不是“新建”对话框中。",
+      "sidecar": {
+        "readOnlyIntent": "此连接设置为只读分析，因此 Adminium 无法为它添加列。",
+        "readOnlyRole": "此连接使用只读角色登录，因此 Adminium 无法为它添加列。",
+        "schemaFile": "此连接由架构文件创建，因此 Adminium 无法为它添加列。",
+        "noPrivilege": "此连接的角色无法修改表，因此 Adminium 无法为它添加列。"
+      }
+    }
+  },
+  "design": {
+    "apply": "应用",
+    "column": {
+      "key": "主键",
+      "length": "长度",
+      "name": "名称",
+      "precision": "精度",
+      "remove": "移除 {name}",
+      "required": "必填",
+      "type": "类型",
+      "unique": "唯一",
+      "primaryKey": "主键",
+      "help": "这些设置是什么意思？",
+      "link": "关联到",
+      "linkHelp": "将此关联到另一个表中的一行。",
+      "noLink": "无",
+      "onDelete": "当关联的行被删除时",
+      "linkTypeNote": "类型已与关联表的主键匹配。",
+      "namePlaceholder": "client_id"
+    },
+    "confirm": {
+      "body": "此更改会丢弃数据或移除对象。Adminium 无法撤销。",
+      "cancel": "取消",
+      "close": "关闭",
+      "confirm": "应用更改",
+      "prompt": "输入 {word} 以确认",
+      "title": "应用破坏性更改"
+    },
+    "designer": "表设计器",
+    "discard": "放弃更改",
+    "empty": {
+      "body": "创建一个表，或选择一个进行编辑。在你查看并应用这些语句之前，不会有任何内容写入你的数据库。",
+      "title": "设计你的架构"
+    },
+    "existing": "现有表",
+    "hazard": {
+      "irreversible": "无法撤销",
+      "locking": "会持有锁",
+      "lossy": "会丢弃数据",
+      "refused": "已拒绝",
+      "rewrite": "会重写表",
+      "safe": "安全"
+    },
+    "newTable": "新建表",
+    "plan": "查看更改",
+    "result": {
+      "applied": "已应用。Adminium 已重新读取你的架构。",
+      "partial": "部分应用：{total} 个步骤中已执行 {done} 个。再次应用相同的更改即可完成。",
+      "repaired": "重命名已同步到 {pages, plural, other {# 个页面}}、{grants, plural, other {# 项角色授权}}和 {overrides, plural, other {# 项架构覆盖}}。",
+      "failed": "未应用任何更改——你的数据库没有变化。{error}"
+    },
+    "review": {
+      "noChanges": "尚无架构更改。",
+      "pending": "查看你的更改，即可看到 Adminium 将执行的确切语句。",
+      "steps": "计划的步骤",
+      "superAdmin": "超级管理员",
+      "unfinished": "此连接上先前的一次应用从未报告结果。它的架构可能停留在两种形态之间——在应用更多更改前请查看更改历史。"
+    },
+    "table": {
+      "addColumn": "添加列",
+      "columns": "列",
+      "name": "表名",
+      "nameHelp": "小写字母、数字和下划线。",
+      "noKey": "此表没有主键，因此 Adminium 会将其视为只读——可以列出行，但无法编辑。",
+      "renameHelp": "更改它会重命名你数据库中的表。",
+      "uuidKeyUnavailable": "在此引擎上，主键必须是生成的整数：数据库生成的 uuid 在插入后无法读回。",
+      "drop": "删除此表",
+      "dropHelp": "该表及其中所有行都将被销毁。在执行任何操作前，您会看到具体会有什么受影响。",
+      "namePlaceholder": "reservations"
+    },
+    "reviewPane": "审阅",
+    "error": {
+      "empty": "需要填写名称。",
+      "identifier": "请使用小写字母、数字和下划线，并以字母开头。",
+      "tooLong": "太长 — {dialect} 允许 {max} 个字符。",
+      "atColumn": "第 {n} 列，{field}",
+      "atTable": "表 {field}"
+    },
+    "onDelete": {
+      "restrict": "阻止删除",
+      "cascade": "同时删除此行",
+      "setNull": "将此字段留空"
+    },
+    "help": {
+      "title": "这些字段的含义",
+      "subtitle": "用大白话说明每一项设置的作用，以及它会给使用你应用的人带来什么变化。",
+      "close": "关闭",
+      "type": {
+        "term": "类型",
+        "what": "这个字段存放哪一类信息——文字、整数、金额、日期，或者是/否的答案。选对了类型，Adminium 才能显示日期选择器而不是文本框，也才能把一整列金额加起来。",
+        "example": "电话号码通常是文字，而不是数字——数字会把开头的 0 丢掉。"
+      },
+      "required": {
+        "term": "必填",
+        "what": "这个字段必须填写。只要它是空的，这一行就无法保存。",
+        "example": "订单必须有客户，所以那个字段是必填的。配送备注可填可不填，所以不是必填。"
+      },
+      "unique": {
+        "term": "唯一",
+        "what": "任何两行都不能存放相同的值。数据库会拒绝第二个。",
+        "example": "两个客户不应该共用同一个邮箱地址——把它标记为唯一，他们就不可能共用了。"
+      },
+      "primaryKey": {
+        "term": "主键",
+        "what": "用来标识每一行的字段——Adminium 靠它来区分不同的行。每张表都应该恰好有一个，而且它几乎总是系统为你创建的 \"id\" 字段。",
+        "example": "没有主键，Adminium 可以列出这些行，但无法编辑或删除其中的某一行。"
+      },
+      "link": {
+        "term": "关联到另一个表",
+        "what": "把这一行关联到另一个表中的一行，并让数据库确保这层关联始终有效——你无法指向一个并不存在的东西。",
+        "example": "一条预订关联到一位客户。Adminium 随后会在预订上显示该客户，也会在客户上显示其预订记录。"
+      }
+    },
+    "unrepresentableDefaults": "这些列保留由数据库生成的默认值，Adminium 无法在此编辑，将保持原样：{columns}",
+    "dropping": "已标记为删除",
+    "keepTable": "保留 {table}",
+    "adopt": {
+      "offer": "新表在有页面之前不会起任何作用。要把 {tables} 添加到你的应用吗？",
+      "grants": "不会自动给任何角色授权——请在“设置 → 角色”中授予。",
+      "action": "添加到我的应用",
+      "done": "新建 {created} 个页面，更新 {updated} 个，{unchanged} 个已是最新。",
+      "skippedEdited": "因为你编辑过而保持原样：{pages}。",
+      "everything": "此连接已显示所有表，因此无需再包含任何内容。",
+      "forbidden": "你的角色可以修改架构，但不能生成页面。请让拥有连接管理权限的管理员把这些表添加到应用中。"
+    },
+    "unnamed": "为每个表和列命名后才能查看更改。",
+    "ceiling": {
+      "prompt": "再次输入 {table} 以授权重写",
+      "body": "{table} 有超过 {rows} 行——超出 Adminium 自行重写的规模。只有超级管理员可以授权，且重写期间该表将被锁定。",
+      "hint": "请完全按照上方显示的名称输入表名。",
+      "notYours": "{table} 有超过 {rows} 行。只有超级管理员能授权这么大的重写——请联系一位，或在维护窗口用你自己的工具执行。",
+      "authorise": "授权此次重写"
+    }
+  },
+  "diagram": {
+    "ceiling": "正在显示关联最多的 {shown} 个表。另有 {omitted} 个被隐藏——搜索可将其调出。",
+    "legendLabel": "图例",
+    "legend": {
+      "declared": "外键",
+      "inferred": "推断",
+      "virtual": "在 Adminium 中添加"
+    },
+    "node": {
+      "foreignKey": "外键",
+      "more": "还有 {count} 个",
+      "primaryKey": "主键"
+    },
+    "outline": {
+      "intro": "{tables} 个表与 {relations} 个关系，以列表呈现。",
+      "more": " 以及另外 {count} 个",
+      "referencedBy": "被引用于：{list}",
+      "references": "引用：{list}"
+    },
+    "saveLayout": "保存布局",
+    "search": "查找表或列",
+    "showDiagram": "显示图表",
+    "showList": "以列表显示"
+  },
+  "storage": {
+    "driver": {
+      "local": "本机上的一个路径",
+      "s3": "兼容 S3 的存储桶",
+      "webdav": "WebDAV 服务器"
+    },
+    "preset": {
+      "aws": "AWS S3",
+      "spaces": "DigitalOcean Spaces",
+      "r2": "Cloudflare R2",
+      "tigris": "Tigris",
+      "b2": "Backblaze B2",
+      "wasabi": "Wasabi",
+      "minio": "MinIO 或其他兼容 S3 的服务器"
+    },
+    "status": {
+      "ok": "可访问",
+      "error": "无法访问",
+      "untested": "未测试"
+    },
+    "title": "存储",
+    "subtitle": "此实例存放上传的文件、导出文件以及其他已存字节的位置。",
+    "move": {
+      "open": "迁移文件…",
+      "startedTitle": "迁移已开始",
+      "startedBody": "它以后台任务 {jobId} 运行，即使你离开此页面也会继续。下方的计数会随着文件到达而变化——刷新页面即可看到。",
+      "title": "迁移文件",
+      "subtitle": "把一个存储目标中的每个文件复制到另一个存储目标，然后忘掉旧副本。整个过程中下载都不受影响。",
+      "from": "从",
+      "to": "到",
+      "start": "开始迁移",
+      "kinds": "限定为",
+      "kindsHelp": "全都不勾选表示迁移所有种类。上传文件是大家附加的文件；其余都是 Adminium 自己生成的产物。"
+    },
+    "add": "添加存储目标",
+    "loadFailed": {
+      "title": "无法加载存储目标",
+      "forbidden": "更改文件的存放位置需要“管理存储目标”权限。请联系管理员将该权限授予你的某个角色。"
+    },
+    "actionFailed": "操作未成功",
+    "delete": {
+      "blockedTitle": "此存储目标中仍有文件",
+      "blockedBody": "{name} 中仍有 {count, plural, other {# 个文件}}。请先把它们迁移到其他存储目标，然后再删除。",
+      "title": "删除此存储目标",
+      "body": "Adminium 会忘记 {name} 及其凭据。其中存放的内容不会被改动——存储桶或服务器本身归你所有；若仍有文件记录在它名下，删除会被拒绝。",
+      "confirm": "删除存储目标"
+    },
+    "list": {
+      "title": "存储目标",
+      "subtitle": "新文件会存入默认存储目标。已有文件会留在原处，直到你迁移它们。"
+    },
+    "localDisk": "此服务器的磁盘",
+    "default": "默认",
+    "usedBytes": "已用 {size}",
+    "fileCount": "{count, plural, other {# 个文件}}",
+    "availableOnDisk": "此磁盘上可用 {size}",
+    "disabled": "已停用",
+    "test": {
+      "ok": "已连通，用时 {ms} 毫秒",
+      "button": "测试",
+      "unreachable": "无法执行测试",
+      "failed": "无法连通此存储目标"
+    },
+    "defaultBlockedByDisabled": "已停用的存储目标不能作为默认。请先启用它。",
+    "setDefault": "设为默认",
+    "enable": "启用",
+    "disable": "停用",
+    "edit": "编辑",
+    "deleteButton": "删除",
+    "editor": {
+      "createTitle": "添加存储目标",
+      "editTitle": "编辑存储目标",
+      "subtitle": "Adminium 代表你通过此存储目标读写；它是由你掌控的基础设施。"
+    },
+    "field": {
+      "name": "名称",
+      "namePlaceholder": "上传存储桶",
+      "driver": "种类",
+      "driverLocked": "更改已存有文件的存储目标的种类，会让这些文件无法访问。",
+      "root": "目录",
+      "rootHelper": "此服务器可写入的绝对路径——挂载的卷或网络共享。不要填默认目录，它已经是列表中的第一项。",
+      "preset": "服务商",
+      "presetHelper": "自动填入端点、区域和寻址方式。服务商无从得知的账户信息会留空，由你自行填写。",
+      "endpoint": "端点",
+      "endpointDerived": "使用 AWS 本身时请留空——端点由区域推导得出。",
+      "region": "区域",
+      "bucket": "存储桶",
+      "pathStyle": "路径式寻址",
+      "pathStyleToggle": "把存储桶作为路径而非主机名来寻址",
+      "url": "集合 URL",
+      "urlHelper": "Adminium 写入的集合，按你的服务器公布的地址填写。",
+      "prefix": "前缀",
+      "prefixHelper": "存储目标内部的一个文件夹。同一个存储桶上仅此项不同的两个存储目标共用该桶，但不共用命名空间。",
+      "publicBaseUrl": "公开基础 URL",
+      "publicBaseUrlHelper": "可选。这些对象在不经过 Adminium 时的可读地址——公开存储桶前面的 CDN。仅当某一列存放链接时才会用到。",
+      "accessKeyId": "访问密钥 ID",
+      "secretAccessKey": "私有访问密钥",
+      "secretKept": "已存储一个密钥。两个字段都留空则保留它；两个都填写则替换它。",
+      "username": "用户名",
+      "password": "密码"
+    },
+    "secret": {
+      "partialTitle": "只填一半算不上凭据",
+      "partialBody": "两个字段都填写以替换已存储的凭据，或都清空以保留它。只填其中一个就保存，会悄悄保留旧凭据。"
+    },
+    "save": "保存存储目标",
+    "kind": {
+      "upload": "附加到记录的文件",
+      "export": "数据导出生成的文件",
+      "import": "上传的 CSV 文件及其错误报告",
+      "branding": "工作区标志",
+      "schema": "导入的架构文件",
+      "archive": "归档的审计日志批次"
     }
   }
 } as const;

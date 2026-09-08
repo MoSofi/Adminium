@@ -12,6 +12,9 @@
  * back in the entry chunk, which is what `apps/dashboard`'s
  * check-entry-budget ratchet exists to catch.
  */
+import automations from './en-us/automations.js';
+import email from './en-us/email.js';
+import invoices from './en-us/invoices.js';
 import studio from './en-us/studio.js';
 
 import { EN_US_EAGER } from './eager.js';
@@ -31,4 +34,7 @@ export { EN_US_EAGER } from './eager.js';
 export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   ...EN_US_EAGER,
   studio,
+  email,
+  invoices,
+  automations,
 };

@@ -292,19 +292,19 @@
       "cohortMatrix": {
         "chartLabel": "同期群留存",
         "description": "同期群为行、周期为列，每个单元格按留存率或收入着色。",
-        "regionLabel": "Cohort matrix"
+        "regionLabel": "同期群矩阵"
       },
       "heatmapCalendar": {
         "chartLabel": "活动日历",
         "legendLessLabel": "较少",
         "legendMoreLabel": "较多",
         "description": "以周×日的网格呈现全年每日活动，按强度着色。",
-        "regionLabel": "Activity calendar"
+        "regionLabel": "活动日历"
       },
       "heatMonth": {
         "chartLabel": "每月活动",
         "description": "将一个自然月呈现为日期网格，按每天的数值着色。",
-        "regionLabel": "Monthly heat map"
+        "regionLabel": "每月热力图"
       },
       "choroplethGrid": {
         "chartLabel": "区域细分",
@@ -420,13 +420,13 @@
         "emptyTitle": "暂无类别",
         "emptyBody": "有事件后，事件类别将显示在这里。",
         "uncategorizedLabel": "未分类",
-        "listLabel": "Categories"
+        "listLabel": "分类"
       },
       "upcomingEventsList": {
         "description": "按日期排列的近期事件，含负责人和状态。",
         "emptyTitle": "暂无即将开始的事件",
         "emptyBody": "计划中的事件将陆续显示在这里。",
-        "listLabel": "Upcoming events"
+        "listLabel": "即将到来的事件"
       },
       "dateRangePicker": {
         "description": "带快捷选项的日期范围，可筛选页面其余内容。",
@@ -449,7 +449,7 @@
         "nextRunLabel": "下次运行",
         "toggleLabel": "启用计划",
         "recipientsLabel": "接收人",
-        "listLabel": "Scheduled jobs"
+        "listLabel": "计划任务"
       }
     },
     "tables": {
@@ -571,7 +571,8 @@
       "falseLabel": "否",
       "detailKeyValue": {
         "description": "将记录的字段呈现为标签/值行，值按类型渲染。"
-      }
+      },
+      "fileDownload": "下载"
     },
     "boards": {
       "kanbanBoard": {
@@ -626,7 +627,7 @@
         "attachLabel": "添加附件",
         "typingLabel": "正在输入…",
         "composerLabel": "消息",
-        "transcriptLabel": "Conversation"
+        "transcriptLabel": "会话"
       },
       "aiChatPanel": {
         "description": "用于询问数据库结构和数据的助手面板。",
@@ -640,7 +641,7 @@
         "configureCtaLabel": "配置提供方",
         "assistantLabel": "助手",
         "composerLabel": "提出问题",
-        "transcriptLabel": "Assistant transcript"
+        "transcriptLabel": "助手会话记录"
       },
       "typingIndicator": {
         "description": "头像加斜体“正在输入…”行，绑定到每个会话的实时布尔值。",
@@ -1483,7 +1484,18 @@
         "loadError": "无法加载该记录。"
       },
       "peekAction": "快速查看",
-      "openPage": "打开页面"
+      "openPage": "打开页面",
+      "file": {
+        "tooLarge": "该文件超过 {limit} 的上限。",
+        "uploading": "正在上传",
+        "cancel": "取消上传",
+        "replace": "替换",
+        "remove": "移除文件",
+        "choose": "选择文件",
+        "add": "添加文件",
+        "removeNamed": "移除 {name}",
+        "capReached": "此记录最多接受 {count, plural, other {# 个文件}}。"
+      }
     },
     "queue": {
       "allSegment": "全部",
@@ -1602,7 +1614,7 @@
           "st-dunning": "付款提醒"
         },
         "categories": {
-          "billing": "计费",
+          "invoicing": "开票",
           "sales": "销售",
           "nonProfit": "非营利",
           "reports": "报告",
@@ -1772,6 +1784,14 @@
         "deleted": "{actor} 删除了此记录",
         "undone": "{actor} 撤销了一次更改",
         "changedFields": "{count, plural, other {已更改 {n} 个字段}}"
+      },
+      "attachmentsTab": "文件",
+      "attachments": {
+        "emptyTitle": "暂无文件",
+        "emptyBody": "附加到此记录的文件会显示在这里。",
+        "loading": "正在加载附件",
+        "removed": "{name} 已移入回收站。",
+        "tooLarge": "该文件超过此工作区允许的大小。"
       }
     },
     "pageRecord": {

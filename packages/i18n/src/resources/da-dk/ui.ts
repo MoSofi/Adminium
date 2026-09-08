@@ -302,19 +302,19 @@ export default {
       "cohortMatrix": {
         "chartLabel": "Kohortefastholdelse",
         "description": "Kohorterækker mod periodekolonner, hvor hver celle tones efter fastholdelse eller omsætning.",
-        "regionLabel": "Cohort matrix"
+        "regionLabel": "Kohortematrix"
       },
       "heatmapCalendar": {
         "chartLabel": "Aktivitetskalender",
         "legendLessLabel": "Mindre",
         "legendMoreLabel": "Mere",
         "description": "Et års daglige aktivitet som et gitter af uger og dage, tonet efter intensitet.",
-        "regionLabel": "Activity calendar"
+        "regionLabel": "Aktivitetskalender"
       },
       "heatMonth": {
         "chartLabel": "Månedlig aktivitet",
         "description": "Én kalendermåned som et dagsgitter, tonet efter den enkelte dags værdi.",
-        "regionLabel": "Monthly heat map"
+        "regionLabel": "Månedligt varmekort"
       },
       "choroplethGrid": {
         "chartLabel": "Regional fordeling",
@@ -430,13 +430,13 @@ export default {
         "emptyTitle": "Ingen kategorier endnu",
         "emptyBody": "Begivenhedskategorier vises her, når der er begivenheder.",
         "uncategorizedLabel": "Uden kategori",
-        "listLabel": "Categories"
+        "listLabel": "Kategorier"
       },
       "upcomingEventsList": {
         "description": "De næste begivenheder i datorækkefølge, med ejer og status.",
         "emptyTitle": "Intet på vej",
         "emptyBody": "Planlagte begivenheder vises her, efterhånden som de oprettes.",
-        "listLabel": "Upcoming events"
+        "listLabel": "Kommende begivenheder"
       },
       "dateRangePicker": {
         "description": "Et datointerval med hurtigvalg, der filtrerer resten af siden.",
@@ -459,7 +459,7 @@ export default {
         "nextRunLabel": "Næste kørsel",
         "toggleLabel": "Aktivér tidsplan",
         "recipientsLabel": "Modtagere",
-        "listLabel": "Scheduled jobs"
+        "listLabel": "Planlagte job"
       }
     },
     "tables": {
@@ -581,7 +581,8 @@ export default {
       "falseLabel": "falsk",
       "detailKeyValue": {
         "description": "En posts felter som etiket/værdi-rækker med typebevidste værdier."
-      }
+      },
+      "fileDownload": "Download"
     },
     "boards": {
       "kanbanBoard": {
@@ -636,7 +637,7 @@ export default {
         "attachLabel": "Tilføj vedhæftning",
         "typingLabel": "skriver…",
         "composerLabel": "Besked",
-        "transcriptLabel": "Conversation"
+        "transcriptLabel": "Samtale"
       },
       "aiChatPanel": {
         "description": "Et assistentpanel til at stille spørgsmål om dit skema og dine data.",
@@ -650,7 +651,7 @@ export default {
         "configureCtaLabel": "Konfigurér en udbyder",
         "assistantLabel": "Assistent",
         "composerLabel": "Stil et spørgsmål",
-        "transcriptLabel": "Assistant transcript"
+        "transcriptLabel": "Assistentsamtale"
       },
       "typingIndicator": {
         "description": "En avatar og en kursiv “skriver…”-række, bundet til en live-boolean pr. samtale.",
@@ -1493,7 +1494,18 @@ export default {
         "loadError": "Posten kunne ikke indlæses."
       },
       "peekAction": "Forhåndsvisning",
-      "openPage": "Åbn side"
+      "openPage": "Åbn side",
+      "file": {
+        "tooLarge": "Filen er større end grænsen på {limit}.",
+        "uploading": "Uploader",
+        "cancel": "Annullér upload",
+        "replace": "Erstat",
+        "remove": "Fjern fil",
+        "choose": "Vælg en fil",
+        "add": "Tilføj filer",
+        "removeNamed": "Fjern {name}",
+        "capReached": "Denne post accepterer højst {count, plural, one {# fil} other {# filer}}."
+      }
     },
     "queue": {
       "allSegment": "Alle",
@@ -1612,7 +1624,7 @@ export default {
           "st-dunning": "Betalingspåmindelse"
         },
         "categories": {
-          "billing": "Fakturering",
+          "invoicing": "Fakturering",
           "sales": "Salg",
           "nonProfit": "Nonprofit",
           "reports": "Rapporter",
@@ -1782,6 +1794,14 @@ export default {
         "deleted": "{actor} slettede denne post",
         "undone": "{actor} fortrød en ændring",
         "changedFields": "{count, plural, one {{n} felt ændret} other {{n} felter ændret}}"
+      },
+      "attachmentsTab": "Filer",
+      "attachments": {
+        "emptyTitle": "Ingen filer endnu",
+        "emptyBody": "Filer knyttet til denne post vises her.",
+        "loading": "Indlæser vedhæftninger",
+        "removed": "{name} blev flyttet til papirkurven.",
+        "tooLarge": "Filen er større, end dette arbejdsområde tillader."
       }
     },
     "pageRecord": {

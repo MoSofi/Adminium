@@ -100,6 +100,9 @@ export default {
     "imports": "Import dat",
     "exports": "Exporty dat",
     "emailTemplates": "E-mailové šablony",
+    "invoices": "Faktury",
+    "automations": "Automatizace",
+    "workflowLogs": "Protokoly postupů",
     "notificationSettings": "Nastavení oznámení",
     "scheduledReports": "Naplánované sestavy",
     "group": {
@@ -112,8 +115,10 @@ export default {
     "back": "Zpět",
     "team": "Tým",
     "roles": "Role a oprávnění",
+    "apiKeys": "API klíče",
     "audit": "Auditní log",
-    "security": "Heslo a relace"
+    "security": "Heslo a relace",
+    "files": "Soubory"
   },
   "apps": {
     "frame": {
@@ -133,6 +138,8 @@ export default {
     "studio": "Studio",
     "dataConnections": "Datová připojení",
     "workspaceSettings": "Nastavení workspace",
+    "help": "Centrum nápovědy",
+    "changelog": "Novinky",
     "signOut": "Odhlásit se"
   },
   "palette": {
@@ -1280,21 +1287,6 @@ export default {
       "approve": "Povolit"
     }
   },
-  "emailTemplates": {
-    "title": "E-mailové šablony",
-    "subtitle": "Transakční e-maily a e-maily životního cyklu, které váš pracovní prostor odesílá.",
-    "search": "Hledat šablony…",
-    "loadFailed": "Šablony se nepodařilo načíst",
-    "empty": "Zatím žádné e-mailové šablony",
-    "emptyBody": "Šablony se zde objeví, jakmile je server založí nebo je vytvoříte.",
-    "noMatches": "Žádné odpovídající šablony",
-    "noMatchesBody": "Zkuste jiné hledání.",
-    "live": "Aktivní",
-    "disabled": "Vypnuto",
-    "name": "Název šablony",
-    "subject": "Předmět",
-    "enabled": "Zapnuto"
-  },
   "board": {
     "addCard": "Přidat kartu",
     "compose": {
@@ -1337,7 +1329,106 @@ export default {
     }
   },
   "files": {
-    "uploadsUnavailable": "Nahrávání na této stránce zatím není k dispozici."
+    "uploadsUnavailable": "Nahrávání na této stránce zatím není k dispozici.",
+    "toast": {
+      "restored": "Soubor „{name}“ obnoven",
+      "restoreFailed": "Tento soubor se nepodařilo obnovit",
+      "trashed": "Soubor „{name}“ přesunut do koše",
+      "trashFailed": "Tento soubor se nepodařilo přesunout do koše"
+    },
+    "title": "Soubory",
+    "subtitle": "Vše, co se nahrálo přes tento pracovní prostor — a kde jsou uložené jeho bajty.",
+    "search": "Hledat podle názvu souboru",
+    "trash": {
+      "notice": {
+        "title": "Koš se vyprazdňuje sám",
+        "body": "Soubor v koši se po uplynutí doby uchování na tomto serveru odstraní i s daty. Co ještě potřebujete, obnovte předtím."
+      }
+    },
+    "listFailed": {
+      "title": "Tyto soubory se nepodařilo načíst"
+    },
+    "empty": {
+      "filtered": {
+        "title": "Nic tu není",
+        "body": "Zrušte hledání, nebo v postranním panelu zvolte jinou zkratku."
+      },
+      "title": "Zatím žádné soubory",
+      "body": "Soubory se sem dostanou, když je někdo přiloží k záznamu nebo vyplní pole se souborem."
+    },
+    "loadMore": "Načíst další soubory",
+    "usage": {
+      "label": "Využité úložiště",
+      "used": "{size} využito",
+      "count": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
+      "diskLabel": "Využité místo",
+      "ofDisk": "{used} z {size} na tomto disku"
+    },
+    "rail": {
+      "label": "Zkratky souborů",
+      "byTable": "Podle tabulky",
+      "byDestination": "Podle cíle úložiště",
+      "byConnection": "Podle připojení"
+    },
+    "preset": {
+      "all": "Všechny soubory",
+      "unattached": "Nepřiložené",
+      "trash": "Koš",
+      "recent": "Nedávné"
+    },
+    "column": {
+      "name": "Soubor",
+      "size": "Velikost",
+      "attachedTo": "Přiloženo k",
+      "destination": "Cíl úložiště",
+      "added": "Přidáno",
+      "actions": "Akce"
+    },
+    "row": {
+      "unattached": "Nepřiloženo",
+      "localDestination": "Disk tohoto serveru",
+      "noRecord": "Nepřipojeno k žádnému záznamu"
+    },
+    "action": {
+      "restore": "Obnovit",
+      "download": "Stáhnout",
+      "deleteNamed": "Smazat {name}",
+      "delete": "Smazat"
+    },
+    "drawer": {
+      "none": "Žádné",
+      "subtitle": "{size} · {type}",
+      "destination": "Cíl úložiště",
+      "attachedTo": "Přiloženo k",
+      "uploadedBy": "Nahrál(a)",
+      "added": "Přidáno",
+      "attachedAt": "Přiloženo",
+      "trashedAt": "Přesunuto do koše",
+      "id": "ID souboru",
+      "checksum": "Kontrolní součet"
+    },
+    "view": {
+      "label": "Jak se soubory zobrazují",
+      "grid": "Dlaždice",
+      "list": "Seznam"
+    },
+    "upload": {
+      "open": "Nahrát",
+      "title": "Nahrát soubory",
+      "subtitle": "Přidejte soubory do tohoto pracovního prostoru.",
+      "connection": "Ke kterému připojení patří",
+      "drop": "Přetáhněte soubory sem",
+      "browse": "Procházet v počítači",
+      "sending": "Nahrávání",
+      "cancelOne": "Zrušit {name}",
+      "removeOne": "Odebrat {name}",
+      "complete": "Nahrávání dokončeno",
+      "completeBody": "Tyto soubory jsou nyní v tomto pracovním prostoru a lze je později připojit k záznamu.",
+      "send": "{count, plural, one {Nahrát # soubor} few {Nahrát # soubory} other {Nahrát # souborů}}",
+      "done": "Hotovo",
+      "failed": "Selhalo",
+      "cancelled": "Zrušeno"
+    }
   },
   "chat": {
     "messageSent": "Zpráva odeslána",
@@ -1490,7 +1581,208 @@ export default {
       "statusCancelled": "Zrušeno",
       "statusExpired": "Vypršelo",
       "emptyTitle": "Zatím žádné exporty",
-      "emptyBody": "Vyžádejte si jeden výše — artefakty se zde objeví se svým stavem."
+      "emptyBody": "Vyžádejte si jeden výše — artefakty se zde objeví se svým stavem.",
+      "new": "Nový export"
+    },
+    "builder": {
+      "title": "Nový export",
+      "subtitle": "Vyberte tabulku, zvolte sloupce, zkontrolujte soubor, exportujte.",
+      "cancel": "Zrušit",
+      "backToExports": "Zpět na Exporty dat",
+      "basedOn": "Podle {name}",
+      "noAccess": {
+        "title": "Zatím není co exportovat",
+        "body": "Nemáte právo exportu k žádné tabulce tohoto připojení. Požádejte správce, aby ho udělil v sekci {link}.",
+        "link": "Role a přístup"
+      },
+      "step": "Krok {n} ze 3",
+      "steps": {
+        "source": "Zdroj",
+        "columns": "Sloupce",
+        "preview": "Náhled"
+      },
+      "continue": "Pokračovat",
+      "export": "Exportovat",
+      "back": "Zpět",
+      "hint": {
+        "chooseTable": "Pro pokračování vyberte tabulku.",
+        "fromAll": "Začíná se všemi sloupci tabulky {table}.",
+        "fromPage": "Začíná se stránkou vázanou na {table}.",
+        "noColumns": "Pro pokračování přidejte alespoň jeden sloupec.",
+        "dupes": "Dva sloupce mají stejné záhlaví. Pro pokračování jeden přejmenujte.",
+        "order": "{n} sloupců bude zapsáno v tomto pořadí.",
+        "readSample": "Před exportem si přečtěte ukázku.",
+        "downloads": "Soubor se stáhne z Exportů dat, jakmile bude hotový."
+      },
+      "source": {
+        "title": "Která tabulka?",
+        "search": "Hledat tabulky…",
+        "meta": "{rows} řádků · {cols} sloupců",
+        "metaNoRows": "{cols} sloupců",
+        "usedBy": "Používá {n, plural, one {# stránka} few {# stránky} other {# stránek}}",
+        "locked": "Bez práva exportu",
+        "lockedToast": "Nemáte právo exportu k tabulce {table}"
+      },
+      "startFrom": {
+        "title": "Začít od",
+        "body": "Zvolte, kde seznam sloupců začíná. V dalším kroku můžete vše změnit.",
+        "all": "Všechny sloupce tabulky {table}",
+        "page": "Sloupce stránky — {page}",
+        "pageMeta": "{page} · {n} sloupců · {linked} propojených · {totals, plural, one {# součet} few {# součty} other {# součtů}}",
+        "none": "Na tuto tabulku není vázána žádná stránka"
+      },
+      "columns": {
+        "title": "Co bude v souboru.",
+        "add": "Přidat sloupce",
+        "inFile": "Ve vašem souboru",
+        "summary": "{n} sloupců · {linked} propojených · {totals, plural, one {# součet} few {# součty} other {# součtů}}",
+        "reset": "Obnovit sloupce tabulky",
+        "removeAll": "Odebrat vše",
+        "empty": {
+          "title": "Zatím žádné sloupce",
+          "body": "Přidejte sloupce z panelu, nebo obnovte vlastní sloupce tabulky."
+        },
+        "dragTitle": "Přetáhněte pro změnu pořadí, nebo použijte šipky",
+        "reorder": "Přesunout {header}",
+        "headerLabel": "Záhlaví v souboru",
+        "masked": "Exportuje se jako •••••, pokud nemáte právo odkrytí",
+        "dupe": "Toto záhlaví používá jiný sloupec",
+        "removeTitle": "Odebrat ze souboru",
+        "remove": "Odebrat {header}"
+      },
+      "browser": {
+        "search": "Hledat sloupce…",
+        "broken": "Tento odkaz už nelze přeložit — začněte znovu.",
+        "brokenBack": "Zpět na všechny tabulky",
+        "suggested": "Doporučeno",
+        "fromTable": "Z tabulky {table}",
+        "fromTheTable": "Z tabulky",
+        "readOnly": "Sloupec jen pro čtení",
+        "noMatch": "Hledání neodpovídá žádný sloupec.",
+        "allIn": "Všechny sloupce této tabulky už jsou ve vašem souboru.",
+        "linked": "Z propojených tabulek",
+        "budget": "{used} z {max}",
+        "inbound": "Tabulky, které sem odkazují",
+        "via": "přes {column}",
+        "count": "Počet",
+        "aggregate": "Agregace",
+        "add": "Přidat",
+        "singleNote": "Min a Max berou jeden sloupec.",
+        "limit": "Limit dosažen — odeberte jeden, abyste mohli přidat další",
+        "fourMax": "Nejvýše čtyři sloupce",
+        "pickNumeric": "Nejprve vyberte číselný sloupec",
+        "already": "{header} už je ve vašem souboru",
+        "added": "{header} přidáno",
+        "calculated": "Vypočítané",
+        "hop": "Přidejte sloupec, nebo sledujte další odkaz dál.",
+        "hopLimit": "Tři skoky jsou limit. Přidejte sloupec zde, nebo se vraťte.",
+        "addName": "Přidat {name}",
+        "noRead": "Bez práva čtení"
+      },
+      "calc": {
+        "arith": "Sečíst nebo odečíst dva sloupce",
+        "first": "První sloupec",
+        "op": "Operátor",
+        "second": "Druhý sloupec",
+        "pct": "Procento z jednoho sloupce",
+        "pctLabel": "Procento",
+        "pctOf": "% z",
+        "column": "Sloupec",
+        "rule": "Pravidlo s prahem",
+        "if": "Pokud",
+        "isOver": "je nad",
+        "then": "pak",
+        "else": "jinak",
+        "threshold": "Práh",
+        "whenOver": "Hodnota při překročení",
+        "otherwise": "Hodnota jinak",
+        "needTwo": "Nejprve přidejte dva číselné sloupce",
+        "needOne": "Nejprve přidejte číselný sloupec"
+      },
+      "gen": {
+        "count": "Počet {table}",
+        "countSrc": "počet {table} přes {column}",
+        "foldSrc": "{fn} z {table}.{cols}",
+        "linkedSrc": "{table}.{column} přes {path}",
+        "arithHeader": "{a} {op} {b}",
+        "pctHeader": "{pct}% z {a}",
+        "ruleHeader": "{then} nebo {else}",
+        "ruleSrc": "pokud {a} je nad {threshold}, pak {then}, jinak {else}",
+        "sumOf": "Součet",
+        "average": "Průměr",
+        "min": "Min",
+        "max": "Max"
+      },
+      "badge": {
+        "key": "Klíč",
+        "linked": "Propojeno",
+        "count": "Počet",
+        "sum": "Součet",
+        "avg": "Průměr",
+        "min": "Min",
+        "max": "Max",
+        "calculated": "Vypočítané",
+        "masked": "Maskováno"
+      },
+      "fold": {
+        "sum": "Součet",
+        "avg": "Průměr",
+        "min": "Min",
+        "max": "Max"
+      },
+      "preview": {
+        "title": "Zkontrolujte soubor a pak exportujte.",
+        "fileName": "Název souboru",
+        "format": "Formát",
+        "csv": "CSV",
+        "jsonl": "JSON Lines",
+        "rows": "Řádky",
+        "allRows": "Všechny řádky · {n}",
+        "allRowsUnknown": "Všechny řádky",
+        "viewRows": "Řádky uloženého pohledu",
+        "savedView": "Uložený pohled",
+        "viewLabel": "{name} · {filters} filtrů · {rows} řádků",
+        "viewLabelNoRows": "{name} · {filters} filtrů",
+        "headerRow": "Řádek záhlaví",
+        "tabTable": "Tabulka",
+        "tabRaw": "Surový soubor",
+        "sample": "Ukázka {n} řádků · obnoveno {when}",
+        "justNow": "právě teď",
+        "minutesAgo": "{n, plural, one {před # minutou} few {před # minutami} other {před # minutami}}",
+        "refresh": "Obnovit",
+        "failed": "Ukázku se nepodařilo načíst.",
+        "failedTimeout": "Připojení odpovídalo příliš pomalu. Samotný export neproběhl.",
+        "retry": "Zkusit znovu",
+        "headerOnly": "Soubor bude obsahovat jen řádek záhlaví."
+      },
+      "summary": {
+        "title": "Soubor",
+        "columns": "Sloupce",
+        "rows": "Řádky",
+        "size": "Odhadovaná velikost",
+        "retention": "Uchování",
+        "kept": "Uchováno 30 dní",
+        "fileName": "Název souboru"
+      },
+      "warn": {
+        "title": "Dobré vědět",
+        "masked": "{n, plural, one {# sloupec se exportuje} few {# sloupce se exportují} other {# sloupců se exportuje}} maskovaně",
+        "search": "Tento pohled má hledaný výraz, který export nemůže přenést",
+        "noRows": "Tato tabulka teď nemá žádné řádky"
+      },
+      "started": {
+        "preparing": "Připravuje se {file} · {rows} řádků",
+        "ready": "Hotovo · {rows} řádků",
+        "noteBusy": "Objeví se v Exportech dat a odtud půjde stáhnout, jakmile bude hotový.",
+        "noteReady": "Hotovo. Najdete ho i v Exportech dat, pokud se k němu chcete vrátit později.",
+        "download": "Stáhnout {format}",
+        "busy": "Připravuje se soubor…",
+        "another": "Exportovat další",
+        "failed": "Export selhal."
+      },
+      "toast": {
+        "started": "Export spuštěn"
+      }
     }
   },
   "reports": {
@@ -1685,8 +1977,11 @@ export default {
       "reportsManage": "Spravovat naplánované sestavy",
       "rolesManage": "Spravovat role a oprávnění",
       "schemaRemap": "Upravovat popisky a úpravy schématu",
+      "schemaDdl": "Vytvářet, upravovat a mazat tabulky",
       "settingsManage": "Spravovat nastavení pracovního prostoru",
-      "usersManage": "Spravovat uživatele"
+      "usersManage": "Spravovat uživatele",
+      "filesManage": "Spravovat soubory všech uživatelů",
+      "storageManage": "Spravovat cíle úložiště"
     },
     "rename": {
       "failed": "Roli se nepodařilo přejmenovat",
@@ -1849,6 +2144,18 @@ export default {
     "twoFactorShort": "2FA"
   },
   "email": {
+    "blank": {
+      "cta": "Výzva k akci",
+      "heading": "Sem přijde nadpis",
+      "para": "Začněte psát svůj e-mail…",
+      "preheader": "Text náhledu",
+      "subject": "Řádek předmětu"
+    },
+    "campaignSent": {
+      "body": "{sent} odesláno · {failed} selhalo",
+      "title": "Kampaň odeslána: {name}"
+    },
+    "copySuffix": "{name} (kopie)",
     "linkFallback": "Pokud tlačítko nefunguje, vložte tento odkaz do prohlížeče: {url}",
     "notification": {
       "action": "Otevřít {appName}",
@@ -1863,14 +2170,169 @@ export default {
       "notice": "Tento odkaz funguje jen jednou a jeho platnost vyprší po {expiresInMinutes} minutách. Pokud jste o obnovení hesla nežádali, můžete tento e-mail ignorovat — vaše stávající heslo zůstává v platnosti.",
       "subject": "Obnovte si heslo v aplikaci {appName}"
     },
+    "starters": {
+      "digest": {
+        "boxLabel": "Dokončené úkoly",
+        "cta": "Zobrazit celý přehled",
+        "heading": "Takhle vypadal váš týden",
+        "name": "Týdenní přehled",
+        "para1": "Váš tým dokončil 128 úkolů a vydal 3 verze. Tržby vzrostly o 12 % oproti minulému týdnu — skvělá práce.",
+        "preheader": "Rychlé shrnutí vašeho týdne",
+        "subject": "Váš týden v číslech 📊"
+      },
+      "extras": {
+        "cityTax": "Městská daň (2 %)",
+        "community": "Komunita",
+        "contact": "Kontaktujte nás",
+        "delivered": "Doručeno",
+        "delivery": "Průběh doručení",
+        "help": "Máte otázky? Kontaktujte nás",
+        "hero": "Úvodní obrázek — 600 × 240",
+        "item1": "Vstupenka na workshop",
+        "item1Meta": "So 12. 9. · 2 místa",
+        "item2": "Úložiště navíc",
+        "item2Meta": "250 GB",
+        "order": "Souhrn objednávky",
+        "ordered": "Objednáno",
+        "payments": "Historie plateb",
+        "processing": "Zpracovává se",
+        "quote": "{appName} nám zkrátil čas na reporting na polovinu.",
+        "quoteAuthor": "Priya R., Northwind Co",
+        "refund": "Pravidla vracení",
+        "refundText": "Plné vrácení peněz do 30 dnů od nákupu. Vrácení zboží zahájíte přes podporu.",
+        "shipped": "Odesláno",
+        "stat1": "Hotové úkoly",
+        "stat2": "Vydání",
+        "stat3": "Růst tržeb",
+        "stateTax": "Státní daň (6 %)",
+        "step1": "Pozvěte svůj tým",
+        "step2": "Připojte svá data",
+        "step3": "Sestavte první dashboard",
+        "support": "Podpora {appName}",
+        "tax": "Rozpis daní",
+        "website": "Web"
+      },
+      "failed": {
+        "boxLabel": "Dlužná částka",
+        "cta": "Aktualizovat platební metodu",
+        "heading": "Vaše platba neprošla",
+        "name": "Platba selhala",
+        "para1": "Pokusili jsme se strhnout platbu z vaší karty za objednávku #{orderNumber}, ale platba selhala. Aby nedošlo ke zpoždění, aktualizujte prosím svou platební metodu.",
+        "para2": "Za 3 dny to zkusíme znovu.",
+        "preheader": "Aktualizujte platební metodu",
+        "subject": "Vyžaduje pozornost: platba selhala"
+      },
+      "feature": {
+        "cta": "Vyzkoušet automatizace",
+        "heading": "Automatizujte rutinní práci",
+        "name": "Oznámení o funkci",
+        "para1": "Seznamte se s automatizacemi — postupy spouštěč → akce, které běží samy. Přivítají nové registrace, připomenou zaseknuté objednávky a samy rozdělí práci.",
+        "preheader": "Automatizujte rutinní práci",
+        "subject": "Představujeme automatizace ⚡"
+      },
+      "feedback": {
+        "cta": "Sdílet zpětnou vazbu",
+        "heading": "Rádi si vyslechneme vaši zpětnou vazbu",
+        "name": "Žádost o zpětnou vazbu",
+        "para1": "Používáte {appName} už nějakou dobu. Věnujete nám dvě minuty a řeknete, jak vám to jde? Vaše odpovědi určují, co postavíme příště.",
+        "preheader": "Dvě minuty, jedna otázka",
+        "subject": "Jak jsme si vedli, {firstName}?"
+      },
+      "footer": "Tento e-mail dostáváte, protože máte účet {appName}.\nMáte otázky? Odpovězte na tento e-mail.",
+      "monthly": {
+        "boxLabel": "Měsíční tržby",
+        "cta": "Zobrazit celý přehled",
+        "heading": "Váš {month} v přehledu",
+        "name": "Měsíční přehled",
+        "para1": "Tady je příběh vašeho měsíce na {appName}. Váš tým toho vydal víc a postupoval rychleji — tržby vzrostly o 18 % oproti minulému měsíci.",
+        "para2": "Ponořte se do celého rozpisu a zjistěte přesně, co za čísly stálo.",
+        "preheader": "Váš měsíc v přehledu",
+        "subject": "Váš přehled za {month} je hotový 📈"
+      },
+      "paused": {
+        "boxLabel": "Data uchována po dobu",
+        "boxValue": "30 dní",
+        "cta": "Znovu aktivovat účet",
+        "heading": "Váš účet je pozastavený",
+        "name": "Účet pozastaven",
+        "para1": "Váš účet je pozastavený, takže se teď nemůžete přihlásit. Nebojte se — vaše data jsou v bezpečí a zůstanou uchována 30 dní.",
+        "para2": "Kdykoli ho znovu aktivujte a pokračujte přesně tam, kde jste skončili.",
+        "preheader": "Vaše data jsou v bezpečí",
+        "subject": "Váš účet {appName} je pozastavený"
+      },
+      "receipt": {
+        "attachment": "Doklad v PDF",
+        "boxLabel": "Účtovaná částka",
+        "cta": "Zobrazit objednávku",
+        "heading": "Děkujeme za objednávku",
+        "name": "Doklad k objednávce",
+        "para1": "Tímto potvrzujeme přijetí vaší platby za objednávku #{orderNumber}. Kopii dokladu přikládáme k vašim záznamům.",
+        "preheader": "Děkujeme za objednávku",
+        "subject": "Váš doklad od {appName}"
+      },
+      "reengage": {
+        "cta": "Vrátit se",
+        "heading": "Dlouho jsme se neviděli, {firstName}",
+        "name": "Znovuzapojení",
+        "para1": "Od vaší poslední návštěvy se toho hodně změnilo. Vydali jsme automatizace, rychlejší dashboardy a úplně nový tvůrce přehledů.",
+        "para2": "Přijďte se podívat — váš účet je přesně tam, kde jste ho nechali.",
+        "preheader": "Podívejte se, co je nového",
+        "subject": "Chybíte nám na {appName}"
+      },
+      "reminder": {
+        "cta": "Spravovat schůzku",
+        "heading": "Brzy na viděnou, {firstName}",
+        "name": "Připomínka schůzky",
+        "para1": "Vaše schůzka je {date} v {time}. Potřebujete-li ji přesunout, odpovězte na tento e-mail nebo použijte tlačítko níže.",
+        "para2": "Přijďte prosím o pár minut dříve.",
+        "preheader": "Uvidíme se v {time}",
+        "subject": "Vaše schůzka je {date}"
+      },
+      "shipped": {
+        "cta": "Sledovat zásilku",
+        "heading": "Vaše objednávka byla odeslána",
+        "name": "Stav doručení",
+        "para1": "Dobrá zpráva, {firstName} — objednávka #{orderNumber} opustila náš sklad a je na cestě. Sledujte ji tlačítkem níže.",
+        "preheader": "Sledujte svou zásilku",
+        "subject": "Vaše objednávka #{orderNumber} je na cestě"
+      },
+      "verify": {
+        "cta": "Potvrdit e-mailovou adresu",
+        "heading": "Potvrďte svůj e-mail",
+        "name": "Potvrzení e-mailu",
+        "para1": "Díky za registraci! Potvrďte prosím svou e-mailovou adresu, aby se váš účet {appName} aktivoval. Pomáhá to udržet váš účet v bezpečí.",
+        "preheader": "Jeden rychlý krok",
+        "subject": "Potvrďte svou e-mailovou adresu"
+      },
+      "welcome": {
+        "cta": "Otevřít {appName}",
+        "heading": "Vítejte na palubě, {firstName}!",
+        "name": "Uvítací e-mail",
+        "para1": "Jsme rádi, že jste na {appName}. Váš účet je připravený — takhle začnete.",
+        "para2": "Potřebujete pomoc? Kdykoli odpovězte na tento e-mail a ozve se vám živý člověk.",
+        "preheader": "Pomůžeme vám začít",
+        "subject": "Vítejte v {appName} 👋"
+      }
+    },
+    "untitled": {
+      "campaign": "Kampaň bez názvu",
+      "template": "Šablona bez názvu"
+    },
     "userInvite": {
       "action": "Přijmout pozvánku",
       "heading": "Byli jste pozváni",
       "intro": "{inviterName} vás pozval(a) do pracovního prostoru {appName}. Přijměte pozvánku, nastavte si heslo k účtu {email} a přihlaste se.",
+      "inviterFallback": "Správce",
       "name": "Pozvánka do týmu",
       "notice": "Tato pozvánka funguje jen jednou a její platnost vyprší po {expiresInDays} dnech. Pokud jste ji nečekali, můžete tento e-mail ignorovat.",
-      "subject": "Byli jste pozváni do pracovního prostoru {appName}",
-      "inviterFallback": "Správce"
+      "subject": "Byli jste pozváni do pracovního prostoru {appName}"
+    }
+  },
+  "invoices": {
+    "copySuffix": "{name} (kopie)",
+    "untitled": {
+      "invoice": "Faktura bez názvu",
+      "template": "Šablona bez názvu"
     }
   }
 } as const;

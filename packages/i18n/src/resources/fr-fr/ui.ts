@@ -302,19 +302,19 @@ export default {
       "cohortMatrix": {
         "chartLabel": "Rétention par cohorte",
         "description": "Des lignes de cohortes face à des colonnes de périodes, chaque cellule étant teintée selon la rétention ou le chiffre d’affaires.",
-        "regionLabel": "Cohort matrix"
+        "regionLabel": "Matrice de cohortes"
       },
       "heatmapCalendar": {
         "chartLabel": "Calendrier d’activité",
         "legendLessLabel": "Moins",
         "legendMoreLabel": "Plus",
         "description": "Une année d’activité quotidienne sous forme de grille semaines × jours teintée selon l’intensité.",
-        "regionLabel": "Activity calendar"
+        "regionLabel": "Calendrier d’activité"
       },
       "heatMonth": {
         "chartLabel": "Activité mensuelle",
         "description": "Un mois calendaire sous forme de grille de jours teintée selon la valeur de chaque jour.",
-        "regionLabel": "Monthly heat map"
+        "regionLabel": "Carte thermique mensuelle"
       },
       "choroplethGrid": {
         "chartLabel": "Répartition régionale",
@@ -430,13 +430,13 @@ export default {
         "emptyTitle": "Aucune catégorie",
         "emptyBody": "Les catégories d'événements apparaîtront ici dès qu'il y aura des événements.",
         "uncategorizedLabel": "Sans catégorie",
-        "listLabel": "Categories"
+        "listLabel": "Catégories"
       },
       "upcomingEventsList": {
         "description": "Les prochains événements par ordre de date, avec responsable et statut.",
         "emptyTitle": "Rien à venir",
         "emptyBody": "Les événements planifiés apparaîtront ici au fur et à mesure.",
-        "listLabel": "Upcoming events"
+        "listLabel": "Événements à venir"
       },
       "dateRangePicker": {
         "description": "Une plage de dates avec raccourcis, qui filtre le reste de la page.",
@@ -459,7 +459,7 @@ export default {
         "nextRunLabel": "Prochaine exécution",
         "toggleLabel": "Activer la planification",
         "recipientsLabel": "Destinataires",
-        "listLabel": "Scheduled jobs"
+        "listLabel": "Tâches planifiées"
       }
     },
     "tables": {
@@ -581,7 +581,8 @@ export default {
       "falseLabel": "faux",
       "detailKeyValue": {
         "description": "Les champs d’un enregistrement en lignes libellé/valeur, avec des valeurs adaptées au type."
-      }
+      },
+      "fileDownload": "Télécharger"
     },
     "boards": {
       "kanbanBoard": {
@@ -650,7 +651,7 @@ export default {
         "configureCtaLabel": "Configurer un fournisseur",
         "assistantLabel": "Assistant",
         "composerLabel": "Poser une question",
-        "transcriptLabel": "Assistant transcript"
+        "transcriptLabel": "Transcription de l’assistant"
       },
       "typingIndicator": {
         "description": "Un avatar et une ligne en italique « en train d’écrire… », liée à un booléen actif par conversation.",
@@ -1493,7 +1494,18 @@ export default {
         "loadError": "Impossible de charger l’enregistrement."
       },
       "peekAction": "Aperçu",
-      "openPage": "Ouvrir la page"
+      "openPage": "Ouvrir la page",
+      "file": {
+        "tooLarge": "Ce fichier dépasse la limite de {limit}.",
+        "uploading": "Envoi en cours",
+        "cancel": "Annuler l'envoi",
+        "replace": "Remplacer",
+        "remove": "Retirer le fichier",
+        "choose": "Choisir un fichier",
+        "add": "Ajouter des fichiers",
+        "removeNamed": "Retirer {name}",
+        "capReached": "Cet enregistrement accepte au maximum {count, plural, one {# fichier} other {# fichiers}}."
+      }
     },
     "queue": {
       "allSegment": "Tout",
@@ -1612,7 +1624,7 @@ export default {
           "st-dunning": "Rappel de paiement"
         },
         "categories": {
-          "billing": "Facturation",
+          "invoicing": "Facturation",
           "sales": "Ventes",
           "nonProfit": "Associatif",
           "reports": "Rapports",
@@ -1782,6 +1794,14 @@ export default {
         "deleted": "{actor} a supprimé cet enregistrement",
         "undone": "{actor} a annulé une modification",
         "changedFields": "{count, plural, one {{n} champ modifié} other {{n} champs modifiés}}"
+      },
+      "attachmentsTab": "Fichiers",
+      "attachments": {
+        "emptyTitle": "Aucun fichier pour le moment",
+        "emptyBody": "Les fichiers joints à cet enregistrement apparaissent ici.",
+        "loading": "Chargement des pièces jointes",
+        "removed": "{name} a été déplacé vers la corbeille.",
+        "tooLarge": "Ce fichier dépasse ce que cet espace de travail autorise."
       }
     },
     "pageRecord": {

@@ -100,6 +100,9 @@ export default {
     "imports": "Import data",
     "exports": "Data exports",
     "emailTemplates": "Email templates",
+    "invoices": "Invoices",
+    "automations": "Automations",
+    "workflowLogs": "Workflow logs",
     "notificationSettings": "Notification settings",
     "scheduledReports": "Scheduled reports",
     "group": {
@@ -112,8 +115,10 @@ export default {
     "back": "Back",
     "team": "Team",
     "roles": "Roles & permissions",
+    "apiKeys": "API keys",
     "audit": "Audit log",
-    "security": "Password & sessions"
+    "security": "Password & sessions",
+    "files": "Files"
   },
   "apps": {
     "frame": {
@@ -133,6 +138,8 @@ export default {
     "studio": "Studio",
     "dataConnections": "Data connections",
     "workspaceSettings": "Workspace settings",
+    "help": "Help centre",
+    "changelog": "What’s new",
     "signOut": "Sign out"
   },
   "palette": {
@@ -1280,21 +1287,6 @@ export default {
       "approve": "Allow"
     }
   },
-  "emailTemplates": {
-    "title": "Email templates",
-    "subtitle": "Transactional and lifecycle emails your workspace sends.",
-    "search": "Search templates…",
-    "loadFailed": "Couldn’t load templates",
-    "empty": "No email templates yet",
-    "emptyBody": "Templates appear here once the server seeds or you create them.",
-    "noMatches": "No matching templates",
-    "noMatchesBody": "Try a different search.",
-    "live": "Live",
-    "disabled": "Disabled",
-    "name": "Template name",
-    "subject": "Subject",
-    "enabled": "Enabled"
-  },
   "board": {
     "addCard": "Add card",
     "compose": {
@@ -1337,7 +1329,106 @@ export default {
     }
   },
   "files": {
-    "uploadsUnavailable": "Uploads are not available on this page yet."
+    "uploadsUnavailable": "Uploads are not available on this page yet.",
+    "toast": {
+      "restored": "{name} was restored",
+      "restoreFailed": "Could not restore this file",
+      "trashed": "{name} was moved to the trash",
+      "trashFailed": "Could not move this file to the trash"
+    },
+    "title": "Files",
+    "subtitle": "Everything uploaded through this workspace, and where its bytes are stored.",
+    "search": "Search by file name",
+    "trash": {
+      "notice": {
+        "title": "The trash empties itself",
+        "body": "A trashed file is removed, bytes and all, once this server's retention window has passed. Restore anything you still need before then."
+      }
+    },
+    "listFailed": {
+      "title": "Could not load these files"
+    },
+    "empty": {
+      "filtered": {
+        "title": "Nothing here",
+        "body": "Clear the search, or pick another shortcut from the rail."
+      },
+      "title": "No files yet",
+      "body": "Files land here when someone attaches one to a record or fills a file field."
+    },
+    "loadMore": "Load more files",
+    "usage": {
+      "label": "Storage in use",
+      "used": "{size} used",
+      "count": "{count, plural, one {# file} other {# files}}",
+      "diskLabel": "Disk in use",
+      "ofDisk": "{used} of {size} on this disk"
+    },
+    "rail": {
+      "label": "File shortcuts",
+      "byTable": "By table",
+      "byDestination": "By destination",
+      "byConnection": "By connection"
+    },
+    "preset": {
+      "all": "All files",
+      "unattached": "Not attached",
+      "trash": "Trash",
+      "recent": "Recent"
+    },
+    "column": {
+      "name": "File",
+      "size": "Size",
+      "attachedTo": "Attached to",
+      "destination": "Destination",
+      "added": "Added",
+      "actions": "Actions"
+    },
+    "row": {
+      "unattached": "Not attached",
+      "localDestination": "This server's disk",
+      "noRecord": "Not attached to a record"
+    },
+    "action": {
+      "restore": "Restore",
+      "download": "Download",
+      "deleteNamed": "Delete {name}",
+      "delete": "Delete"
+    },
+    "drawer": {
+      "none": "None",
+      "subtitle": "{size} · {type}",
+      "destination": "Destination",
+      "attachedTo": "Attached to",
+      "uploadedBy": "Uploaded by",
+      "added": "Added",
+      "attachedAt": "Attached",
+      "trashedAt": "Moved to trash",
+      "id": "File id",
+      "checksum": "Checksum"
+    },
+    "view": {
+      "label": "How files are shown",
+      "grid": "Grid",
+      "list": "List"
+    },
+    "upload": {
+      "open": "Upload",
+      "title": "Upload files",
+      "subtitle": "Add files to this workspace.",
+      "connection": "Which connection these belong to",
+      "drop": "Drag files here",
+      "browse": "Browse your computer",
+      "sending": "Uploading",
+      "cancelOne": "Cancel {name}",
+      "removeOne": "Remove {name}",
+      "complete": "Upload complete",
+      "completeBody": "These files are now in this workspace and can be attached to a record later.",
+      "send": "{count, plural, one {Upload # file} other {Upload # files}}",
+      "done": "Done",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
   },
   "chat": {
     "messageSent": "Message sent",
@@ -1490,7 +1581,208 @@ export default {
       "statusCancelled": "Cancelled",
       "statusExpired": "Expired",
       "emptyTitle": "No exports yet",
-      "emptyBody": "Request one above — artifacts appear here with their status."
+      "emptyBody": "Request one above — artifacts appear here with their status.",
+      "new": "New export"
+    },
+    "builder": {
+      "badge": {
+        "key": "Key",
+        "linked": "Linked",
+        "count": "Count",
+        "sum": "Sum",
+        "avg": "Average",
+        "min": "Min",
+        "max": "Max",
+        "calculated": "Calculated",
+        "masked": "Masked"
+      },
+      "fold": {
+        "sum": "Sum",
+        "avg": "Average",
+        "min": "Min",
+        "max": "Max"
+      },
+      "gen": {
+        "sumOf": "Sum of",
+        "average": "Average",
+        "min": "Min",
+        "max": "Max",
+        "count": "{table} count",
+        "countSrc": "count of {table} via {column}",
+        "foldSrc": "{fn} of {table}.{cols}",
+        "linkedSrc": "{table}.{column} via {path}",
+        "arithHeader": "{a} {op} {b}",
+        "pctHeader": "{pct}% of {a}",
+        "ruleHeader": "{then} or {else}",
+        "ruleSrc": "if {a} is over {threshold} then {then}, else {else}"
+      },
+      "steps": {
+        "source": "Source",
+        "columns": "Columns",
+        "preview": "Preview"
+      },
+      "title": "New export",
+      "subtitle": "Choose a table, pick the columns, check the file, export.",
+      "cancel": "Cancel",
+      "backToExports": "Back to Data exports",
+      "basedOn": "Based on {name}",
+      "noAccess": {
+        "title": "Nothing to export yet",
+        "body": "You do not have export access to any table on this connection. Ask an admin to grant it under {link}.",
+        "link": "Roles & access"
+      },
+      "step": "Step {n} of 3",
+      "continue": "Continue",
+      "export": "Export",
+      "back": "Back",
+      "hint": {
+        "chooseTable": "Choose a table to continue.",
+        "fromAll": "Starting from all columns of {table}.",
+        "fromPage": "Starting from a page bound to {table}.",
+        "noColumns": "Add at least one column to continue.",
+        "dupes": "Two columns have the same header. Rename one to continue.",
+        "order": "{n} columns will be written in this order.",
+        "readSample": "Read the sample before exporting.",
+        "downloads": "The file downloads from Data exports when it is ready."
+      },
+      "source": {
+        "title": "Which table?",
+        "search": "Search tables…",
+        "meta": "{rows} rows · {cols} columns",
+        "metaNoRows": "{cols} columns",
+        "usedBy": "Used by {n, plural, one {# page} other {# pages}}",
+        "locked": "No export access",
+        "lockedToast": "You do not have export access to {table}"
+      },
+      "startFrom": {
+        "title": "Start from",
+        "body": "Pick where the column list begins. You can change everything in the next step.",
+        "all": "All columns of {table}",
+        "page": "The columns of a page — {page}",
+        "pageMeta": "{page} · {n} columns · {linked} linked · {totals, plural, one {# total} other {# totals}}",
+        "none": "No page is bound to this table"
+      },
+      "columns": {
+        "title": "What goes in the file.",
+        "add": "Add columns",
+        "inFile": "In your file",
+        "summary": "{n} columns · {linked} linked · {totals, plural, one {# total} other {# totals}}",
+        "reset": "Reset to table columns",
+        "removeAll": "Remove all",
+        "empty": {
+          "title": "No columns yet",
+          "body": "Add columns from the panel, or reset to the table's own columns."
+        },
+        "dragTitle": "Drag to reorder, or use the arrow keys",
+        "reorder": "Reorder {header}",
+        "headerLabel": "Header in the file",
+        "masked": "Exports as ••••• unless you hold the reveal permission",
+        "dupe": "Another column uses this header",
+        "removeTitle": "Remove from the file",
+        "remove": "Remove {header}"
+      },
+      "browser": {
+        "search": "Search columns…",
+        "broken": "That link no longer resolves — start it again.",
+        "brokenBack": "Back to all tables",
+        "suggested": "Suggested",
+        "fromTable": "From {table}",
+        "fromTheTable": "From the table",
+        "readOnly": "Read-only column",
+        "noMatch": "No column matches that search.",
+        "allIn": "Every column of this table is already in your file.",
+        "linked": "From linked tables",
+        "budget": "{used} of {max}",
+        "inbound": "Tables that link here",
+        "via": "via {column}",
+        "count": "Count",
+        "aggregate": "Aggregate",
+        "add": "Add",
+        "singleNote": "Min and Max take one column.",
+        "limit": "Limit reached — remove one to add another",
+        "fourMax": "Up to four columns",
+        "pickNumeric": "Pick a numeric column first",
+        "already": "{header} is already in your file",
+        "added": "{header} added",
+        "calculated": "Calculated",
+        "hop": "Add a column, or follow another link outward.",
+        "hopLimit": "Three hops is the limit. Add a column here, or step back.",
+        "addName": "Add {name}",
+        "noRead": "No read access"
+      },
+      "calc": {
+        "arith": "Add or subtract two columns",
+        "first": "First column",
+        "op": "Operator",
+        "second": "Second column",
+        "pct": "A percentage of one column",
+        "pctLabel": "Percentage",
+        "pctOf": "% of",
+        "column": "Column",
+        "rule": "A rule with a threshold",
+        "if": "If",
+        "isOver": "is over",
+        "then": "then",
+        "else": "else",
+        "threshold": "Threshold",
+        "whenOver": "Value when over",
+        "otherwise": "Value otherwise",
+        "needTwo": "Add two numeric columns first",
+        "needOne": "Add a numeric column first"
+      },
+      "preview": {
+        "title": "Check the file, then export.",
+        "fileName": "File name",
+        "format": "Format",
+        "csv": "CSV",
+        "jsonl": "JSON Lines",
+        "rows": "Rows",
+        "allRows": "All rows · {n}",
+        "allRowsUnknown": "All rows",
+        "viewRows": "Rows of a saved view",
+        "savedView": "Saved view",
+        "viewLabel": "{name} · {filters} filters · {rows} rows",
+        "viewLabelNoRows": "{name} · {filters} filters",
+        "headerRow": "Header row",
+        "tabTable": "Table",
+        "tabRaw": "Raw file",
+        "sample": "Sample of {n} rows · refreshed {when}",
+        "justNow": "just now",
+        "minutesAgo": "{n, plural, one {# minute ago} other {# minutes ago}}",
+        "refresh": "Refresh",
+        "failed": "The sample could not be read.",
+        "failedTimeout": "The connection answered too slowly. The export itself has not run.",
+        "retry": "Retry",
+        "headerOnly": "The file will contain the header row only."
+      },
+      "summary": {
+        "title": "The file",
+        "columns": "Columns",
+        "rows": "Rows",
+        "size": "Estimated size",
+        "retention": "Retention",
+        "kept": "Kept for 30 days",
+        "fileName": "File name"
+      },
+      "warn": {
+        "title": "Worth knowing",
+        "masked": "{n, plural, one {# column exports} other {# columns export}} masked",
+        "search": "This view has a search term, which an export cannot carry",
+        "noRows": "This table has no rows right now"
+      },
+      "started": {
+        "preparing": "Preparing {file} · {rows} rows",
+        "ready": "Ready · {rows} rows",
+        "noteBusy": "It will appear on Data exports and download from there when it is ready.",
+        "noteReady": "Ready. It is also on Data exports if you would rather come back to it later.",
+        "download": "Download {format}",
+        "busy": "Preparing the file…",
+        "another": "Export another",
+        "failed": "The export failed."
+      },
+      "toast": {
+        "started": "Export started"
+      }
     }
   },
   "reports": {
@@ -1685,8 +1977,11 @@ export default {
       "reportsManage": "Manage scheduled reports",
       "rolesManage": "Manage roles and permissions",
       "schemaRemap": "Edit schema labels and overrides",
+      "schemaDdl": "Create, edit and delete tables",
       "settingsManage": "Manage workspace settings",
-      "usersManage": "Manage users"
+      "usersManage": "Manage users",
+      "filesManage": "Manage everyone’s files",
+      "storageManage": "Manage storage destinations"
     },
     "rename": {
       "failed": "Could not rename the role",
@@ -1849,6 +2144,18 @@ export default {
     "twoFactorShort": "2FA"
   },
   "email": {
+    "blank": {
+      "cta": "Call to action",
+      "heading": "Heading goes here",
+      "para": "Start writing your email…",
+      "preheader": "Preview text",
+      "subject": "Subject line"
+    },
+    "campaignSent": {
+      "body": "{sent} sent · {failed} failed",
+      "title": "Campaign sent: {name}"
+    },
+    "copySuffix": "{name} (copy)",
     "linkFallback": "If the button doesn’t work, paste this link into your browser: {url}",
     "notification": {
       "action": "Open {appName}",
@@ -1863,6 +2170,154 @@ export default {
       "notice": "This link works only once and expires in {expiresInMinutes} minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.",
       "subject": "Reset your {appName} password"
     },
+    "starters": {
+      "digest": {
+        "boxLabel": "Tasks completed",
+        "cta": "See full report",
+        "heading": "Here is how your week went",
+        "name": "Weekly digest",
+        "para1": "Your team completed 128 tasks and shipped 3 releases. Revenue is up 12% versus last week — nice work.",
+        "preheader": "A quick recap of your week",
+        "subject": "Your week in numbers 📊"
+      },
+      "extras": {
+        "cityTax": "City tax (2%)",
+        "community": "Community",
+        "contact": "Contact us",
+        "delivered": "Delivered",
+        "delivery": "Delivery timeline",
+        "help": "Questions? Contact us",
+        "hero": "Hero image — 600 × 240",
+        "item1": "Workshop ticket",
+        "item1Meta": "Sat 12 Sep · 2 seats",
+        "item2": "Extra storage",
+        "item2Meta": "250 GB",
+        "order": "Order summary",
+        "ordered": "Ordered",
+        "payments": "Payment history",
+        "processing": "Processing",
+        "quote": "{appName} cut our reporting time in half.",
+        "quoteAuthor": "Priya R., Northwind Co",
+        "refund": "Refund policy",
+        "refundText": "Full refunds within 30 days of purchase. Contact support to begin a return.",
+        "shipped": "Shipped",
+        "stat1": "Tasks done",
+        "stat2": "Releases",
+        "stat3": "Revenue up",
+        "stateTax": "State tax (6%)",
+        "step1": "Invite your team",
+        "step2": "Connect your data",
+        "step3": "Build your first dashboard",
+        "support": "{appName} support",
+        "tax": "Tax breakdown",
+        "website": "Website"
+      },
+      "failed": {
+        "boxLabel": "Amount due",
+        "cta": "Update payment method",
+        "heading": "Your payment didn’t go through",
+        "name": "Payment failed",
+        "para1": "We tried to charge your card for order #{orderNumber} but the payment failed. To avoid a delay, please update your payment method.",
+        "para2": "We’ll try again in 3 days.",
+        "preheader": "Update your payment method",
+        "subject": "Action needed: payment failed"
+      },
+      "feature": {
+        "cta": "Try Automations",
+        "heading": "Automate the busywork",
+        "name": "Feature announcement",
+        "para1": "Say hello to Automations — build trigger → action workflows that run themselves. Welcome new signups, follow up on stalled orders and route work on autopilot.",
+        "preheader": "Automate the busywork",
+        "subject": "Introducing Automations ⚡"
+      },
+      "feedback": {
+        "cta": "Share feedback",
+        "heading": "We’d love your feedback",
+        "name": "Feedback request",
+        "para1": "You’ve been using {appName} for a little while now. Would you take two minutes to tell us how it’s going? Your answers shape what we build next.",
+        "preheader": "Two minutes, one question",
+        "subject": "How did we do, {firstName}?"
+      },
+      "footer": "You are receiving this because you have an {appName} account.\nQuestions? Reply to this email.",
+      "monthly": {
+        "boxLabel": "Monthly revenue",
+        "cta": "View full report",
+        "heading": "Your {month} in review",
+        "name": "Monthly report",
+        "para1": "Here’s the story of your month on {appName}. Your team shipped more and moved faster — revenue climbed 18% versus last month.",
+        "para2": "Dive into the full breakdown to see exactly what drove the numbers.",
+        "preheader": "Your month in review",
+        "subject": "Your {month} report is ready 📈"
+      },
+      "paused": {
+        "boxLabel": "Data kept for",
+        "boxValue": "30 days",
+        "cta": "Reactivate account",
+        "heading": "Your account is paused",
+        "name": "Account paused",
+        "para1": "Your account is paused, so you can’t sign in for now. Don’t worry — your data is safe and kept for 30 days.",
+        "para2": "Reactivate any time to pick up right where you left off.",
+        "preheader": "Your data is safe",
+        "subject": "Your {appName} account is paused"
+      },
+      "receipt": {
+        "attachment": "Receipt PDF",
+        "boxLabel": "Amount charged",
+        "cta": "View your order",
+        "heading": "Thanks for your order",
+        "name": "Order receipt",
+        "para1": "This confirms we received your payment for order #{orderNumber}. A copy of your receipt is attached for your records.",
+        "preheader": "Thanks for your order",
+        "subject": "Your receipt from {appName}"
+      },
+      "reengage": {
+        "cta": "Jump back in",
+        "heading": "It’s been a while, {firstName}",
+        "name": "Re-engagement",
+        "para1": "A lot has changed since you were last here. We’ve shipped Automations, faster dashboards and a brand-new report builder.",
+        "para2": "Come take a look — your account is right where you left it.",
+        "preheader": "See what is new",
+        "subject": "We miss you at {appName}"
+      },
+      "reminder": {
+        "cta": "Manage appointment",
+        "heading": "See you soon, {firstName}",
+        "name": "Appointment reminder",
+        "para1": "Your appointment is on {date} at {time}. If you need to reschedule, reply to this email or use the button below.",
+        "para2": "Please arrive a few minutes early.",
+        "preheader": "See you at {time}",
+        "subject": "Your appointment is on {date}"
+      },
+      "shipped": {
+        "cta": "Track delivery",
+        "heading": "Your order has shipped",
+        "name": "Delivery update",
+        "para1": "Good news, {firstName} — order #{orderNumber} has left our warehouse and is on its way. Track it with the button below.",
+        "preheader": "Track your delivery",
+        "subject": "Your order #{orderNumber} is on its way"
+      },
+      "verify": {
+        "cta": "Confirm email address",
+        "heading": "Confirm your email",
+        "name": "Confirm your email",
+        "para1": "Thanks for signing up! Please confirm your email address to activate your {appName} account. This helps keep your account secure.",
+        "preheader": "One quick step",
+        "subject": "Confirm your email address"
+      },
+      "welcome": {
+        "cta": "Open {appName}",
+        "heading": "Welcome aboard, {firstName}!",
+        "name": "Welcome email",
+        "para1": "We’re glad to have you at {appName}. Your account is ready — here is how to get started.",
+        "para2": "Need a hand? Reply to this email any time and a real person will help.",
+        "preheader": "Let us get you set up",
+        "subject": "Welcome to {appName} 👋"
+      }
+    },
+    "untitled": {
+      "campaign": "Untitled campaign",
+      "template": "Untitled template"
+    },
     "userInvite": {
       "action": "Accept the invitation",
       "heading": "You’ve been invited",
@@ -1871,6 +2326,13 @@ export default {
       "name": "Team invitation",
       "notice": "This invitation works only once and expires in {expiresInDays} days. If you weren’t expecting it, you can ignore this email.",
       "subject": "You have been invited to {appName}"
+    }
+  },
+  "invoices": {
+    "copySuffix": "{name} (copy)",
+    "untitled": {
+      "invoice": "Untitled invoice",
+      "template": "Untitled template"
     }
   }
 } as const;

@@ -302,19 +302,19 @@ export default {
       "cohortMatrix": {
         "chartLabel": "Retence kohort",
         "description": "Řádky kohort proti sloupcům období; každá buňka je odstíněna podle retence nebo tržeb.",
-        "regionLabel": "Cohort matrix"
+        "regionLabel": "Matice kohort"
       },
       "heatmapCalendar": {
         "chartLabel": "Kalendář aktivity",
         "legendLessLabel": "Méně",
         "legendMoreLabel": "Více",
         "description": "Rok denní aktivity jako mřížka týdnů a dnů odstíněná podle intenzity.",
-        "regionLabel": "Activity calendar"
+        "regionLabel": "Kalendář aktivity"
       },
       "heatMonth": {
         "chartLabel": "Měsíční aktivita",
         "description": "Jeden kalendářní měsíc jako mřížka dnů odstíněná podle hodnoty každého dne.",
-        "regionLabel": "Monthly heat map"
+        "regionLabel": "Měsíční teplotní mapa"
       },
       "choroplethGrid": {
         "chartLabel": "Rozpad podle regionů",
@@ -430,13 +430,13 @@ export default {
         "emptyTitle": "Zatím žádné kategorie",
         "emptyBody": "Kategorie událostí se zobrazí, jakmile budou nějaké události.",
         "uncategorizedLabel": "Bez kategorie",
-        "listLabel": "Categories"
+        "listLabel": "Kategorie"
       },
       "upcomingEventsList": {
         "description": "Nejbližší události podle data, s vlastníkem a stavem.",
         "emptyTitle": "Nic nadcházejícího",
         "emptyBody": "Naplánované události se zde zobrazí, jakmile vzniknou.",
-        "listLabel": "Upcoming events"
+        "listLabel": "Nadcházející události"
       },
       "dateRangePicker": {
         "description": "Rozsah dat s rychlými předvolbami, který filtruje zbytek stránky.",
@@ -459,7 +459,7 @@ export default {
         "nextRunLabel": "Další běh",
         "toggleLabel": "Povolit plán",
         "recipientsLabel": "Příjemci",
-        "listLabel": "Scheduled jobs"
+        "listLabel": "Naplánované úlohy"
       }
     },
     "tables": {
@@ -581,7 +581,8 @@ export default {
       "falseLabel": "ne",
       "detailKeyValue": {
         "description": "Pole záznamu jako řádky popisek/hodnota s hodnotami podle typu."
-      }
+      },
+      "fileDownload": "Stáhnout"
     },
     "boards": {
       "kanbanBoard": {
@@ -636,7 +637,7 @@ export default {
         "attachLabel": "Přidat přílohu",
         "typingLabel": "píše…",
         "composerLabel": "Zpráva",
-        "transcriptLabel": "Conversation"
+        "transcriptLabel": "Konverzace"
       },
       "aiChatPanel": {
         "description": "Panel asistenta pro dotazy na vaše schéma a data.",
@@ -650,7 +651,7 @@ export default {
         "configureCtaLabel": "Nastavit poskytovatele",
         "assistantLabel": "Asistent",
         "composerLabel": "Položte otázku",
-        "transcriptLabel": "Assistant transcript"
+        "transcriptLabel": "Přepis konverzace s asistentem"
       },
       "typingIndicator": {
         "description": "Avatar a kurzívní řádek „píše…“ navázaný na živou booleovskou hodnotu u každé konverzace.",
@@ -1493,7 +1494,18 @@ export default {
         "loadError": "Záznam se nepodařilo načíst."
       },
       "peekAction": "Náhled",
-      "openPage": "Otevřít stránku"
+      "openPage": "Otevřít stránku",
+      "file": {
+        "tooLarge": "Soubor je větší než limit {limit}.",
+        "uploading": "Nahrávání",
+        "cancel": "Zrušit nahrávání",
+        "replace": "Nahradit",
+        "remove": "Odebrat soubor",
+        "choose": "Vybrat soubor",
+        "add": "Přidat soubory",
+        "removeNamed": "Odebrat {name}",
+        "capReached": "Tento záznam přijme nejvýše {count, plural, one {# soubor} few {# soubory} other {# souborů}}."
+      }
     },
     "queue": {
       "allSegment": "Vše",
@@ -1612,7 +1624,7 @@ export default {
           "st-dunning": "Upomínka k platbě"
         },
         "categories": {
-          "billing": "Fakturace",
+          "invoicing": "Fakturace",
           "sales": "Prodej",
           "nonProfit": "Neziskový sektor",
           "reports": "Sestavy",
@@ -1782,6 +1794,14 @@ export default {
         "deleted": "{actor} smazal(a) tento záznam",
         "undone": "{actor} vrátil(a) změnu zpět",
         "changedFields": "{count, plural, one {{n} pole změněno} few {{n} pole změněna} many {{n} pole změněno} other {{n} polí změněno}}"
+      },
+      "attachmentsTab": "Soubory",
+      "attachments": {
+        "emptyTitle": "Zatím žádné soubory",
+        "emptyBody": "Soubory připojené k tomuto záznamu se zobrazí zde.",
+        "loading": "Načítání příloh",
+        "removed": "{name} byl přesunut do koše.",
+        "tooLarge": "Soubor je větší, než tento pracovní prostor dovoluje."
       }
     },
     "pageRecord": {

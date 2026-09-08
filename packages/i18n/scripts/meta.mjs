@@ -38,12 +38,12 @@ const root = path.dirname(fileURLToPath(new URL('.', import.meta.url)));
 
 const SOURCE = 'en-US';
 const TAGS = ['de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'zh-CN', 'zh-TW', 'ar-EG'];
-const NAMESPACES = ['common', 'ui', 'studio', 'generated', 'errors'];
+const NAMESPACES = ['common', 'ui', 'studio', 'generated', 'errors', 'email', 'invoices', 'automations'];
 
 /** Namespaces that must be 100% `reviewed` before v1.0 (§3.3). */
 const GATE_STRICT = ['common', 'ui', 'errors'];
 /** …and these need ≥95%. */
-const GATE_RELAXED = { studio: 0.95, generated: 0.95 };
+const GATE_RELAXED = { studio: 0.95, generated: 0.95, email: 0.95, invoices: 0.95 };
 
 /*
  * `src` (28-public-surface.md §7A / 28-T14) — the target value is BYTE-IDENTICAL

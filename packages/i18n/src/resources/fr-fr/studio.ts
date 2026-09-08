@@ -82,7 +82,7 @@ export default {
     },
     "readOnlyRole": {
       "title": "Utilisez un rôle en lecture seule",
-      "body": "Adminium n’écrit jamais dans votre base — la configuration n’utilise que les métadonnées du schéma. Nous recommandons un utilisateur dédié avec des droits SELECT uniquement ; vous choisirez où Adminium range ses propres tables à l’étape du stockage méta."
+      "body": "Lors de la configuration, Adminium ne lit que les métadonnées du schéma — jamais vos lignes. Nous recommandons un utilisateur dédié avec des droits SELECT uniquement ; vous choisirez où Adminium conserve ses propres tables à l’étape de stockage des métadonnées."
     }
   },
   "capability": {
@@ -305,38 +305,54 @@ export default {
       }
     },
     "email": {
-      "heading": "E-mail (SMTP)",
-      "unconfigured": "Aucun serveur de messagerie n’est configuré, donc Adminium ne peut envoyer ni réinitialisation de mot de passe, ni invitation, ni rapport planifié.",
-      "host": {
-        "label": "Hôte SMTP",
-        "error": "Un nom d’hôte ou une adresse IP uniquement — sans schéma, port ni identifiants."
-      },
-      "port": {
-        "label": "Port",
-        "error": "Entre {min, number} et {max, number}."
-      },
-      "user": {
-        "label": "Nom d’utilisateur",
-        "helper": "Laissez vide si le relais ne demande pas d’authentification."
-      },
-      "pass": {
-        "label": "Mot de passe",
-        "helper": "Chiffré au stockage et jamais réaffiché. Laissez vide pour conserver l’actuel.",
-        "error": "Ce nom d’utilisateur exige un mot de passe."
+      "attachmentCap": {
+        "error": "Entre {min, number} et {max, number} Mo.",
+        "helper": "La taille maximale des pièces jointes d’un même message.",
+        "label": "Limite des pièces jointes (Mo)"
       },
       "from": {
         "label": "Adresse d’expéditeur",
         "helper": "Une adresse seule, ou un nom d’affichage devant.",
         "error": "Saisissez une adresse e-mail."
       },
-      "secure": {
-        "label": "TLS implicite",
-        "helper": "Activé pour le port 465. Désactivé démarre en clair puis passe à STARTTLS, ce qu’attend le port 587."
+      "heading": "E-mail (SMTP)",
+      "host": {
+        "label": "Hôte SMTP",
+        "error": "Un nom d’hôte ou une adresse IP uniquement — sans schéma, port ni identifiants."
+      },
+      "pass": {
+        "label": "Mot de passe",
+        "helper": "Chiffré au stockage et jamais réaffiché. Laissez vide pour conserver l’actuel.",
+        "error": "Ce nom d’utilisateur exige un mot de passe."
+      },
+      "port": {
+        "label": "Port",
+        "error": "Entre {min, number} et {max, number}."
       },
       "remove": "Supprimer le serveur de messagerie",
       "review": {
         "removed": "Supprimé",
         "password": "Remplacé"
+      },
+      "secure": {
+        "label": "TLS implicite",
+        "helper": "Activé pour le port 465. Désactivé démarre en clair puis passe à STARTTLS, ce qu’attend le port 587."
+      },
+      "senders": {
+        "add": "Ajouter un expéditeur",
+        "address": "Adresse",
+        "error": "Saisissez une adresse e-mail.",
+        "heading": "Expéditeurs",
+        "helper": "Adresses depuis lesquelles un e-mail peut être envoyé. L’adresse d’expédition SMTP est toujours disponible.",
+        "implicit": "Adresse d’expédition SMTP",
+        "name": "Nom affiché",
+        "remove": "Retirer l’expéditeur",
+        "review": "Expéditeurs"
+      },
+      "unconfigured": "Aucun serveur de messagerie n’est configuré, donc Adminium ne peut envoyer ni réinitialisation de mot de passe, ni invitation, ni rapport planifié.",
+      "user": {
+        "label": "Nom d’utilisateur",
+        "helper": "Laissez vide si le relais ne demande pas d’authentification."
       }
     },
     "review": {
@@ -377,6 +393,21 @@ export default {
       "heading": "Langues et traductions",
       "body": "Reformulez n’importe quel texte d’Adminium, choisissez les langues proposées et ajoutez les vôtres.",
       "cta": "Ouvrir les traductions"
+    },
+    "storageCard": {
+      "heading": "Stockage",
+      "body": "Choisissez où vivent les fichiers téléversés, les exports et les autres octets stockés — ce serveur, un bucket ou votre propre serveur.",
+      "cta": "Ouvrir le stockage"
+    },
+    "addOnsCard": {
+      "heading": "Modules",
+      "body": "Parcourez, installez et connectez des modules — blocs supplémentaires, packs de données et intégrations — ou téléversez-en un vous-même.",
+      "cta": "Ouvrir les modules"
+    },
+    "publicApiCard": {
+      "heading": "API publique",
+      "body": "Laissez vos propres pages destinées aux clients ou au personnel lire cette base de données, via une portée que vous définissez.",
+      "cta": "Ouvrir l’API publique"
     }
   },
   "settingsAi": {
@@ -880,7 +911,7 @@ export default {
       "regeneratedDetail": "Les pages que vous avez modifiées à la main sont préservées — seules les pages dont le generated_hash est intact ont été régénérées sur place.",
       "regenerateFailed": "Échec de la régénération"
     },
-    "title": "Remappage du schéma",
+    "title": "Schéma",
     "subtitle": "{tables} tables · {applied} remplacements appliqués",
     "saveFailed": "Échec de l’enregistrement : {message}",
     "loadFailed": "Impossible de charger le schéma de cette connexion.",
@@ -911,65 +942,77 @@ export default {
       "masked": "Masquée"
     },
     "unavailableTitle": "Éditeur de remappage du schéma indisponible",
-    "unavailableBody": "Cette version n’inclut pas encore l’éditeur de remappage (09-T12). Relancez la génération une fois qu’il sera disponible pour remapper les libellés, les types et les relations."
+    "unavailableBody": "Cette version n’inclut pas encore l’éditeur de remappage (09-T12). Relancez la génération une fois qu’il sera disponible pour remapper les libellés, les types et les relations.",
+    "mode": {
+      "design": "Conception",
+      "remap": "Libellés et relations",
+      "diagram": "Diagramme"
+    },
+    "modeLabel": "Mode d’édition",
+    "noDesign": {
+      "schemaFile": "Cette connexion a été créée à partir d'un fichier de schéma ; il n'y a donc aucune base de données à modifier. Les libellés et les relations fonctionnent toujours.",
+      "readOnlyRole": "Cette connexion utilise un rôle en lecture seule ; Adminium ne peut donc pas modifier son schéma.",
+      "noPrivilege": "Le rôle de cette connexion ne peut ni créer ni modifier de tables. Accordez-lui des privilèges de schéma, ou connectez un rôle qui en dispose.",
+      "readOnlyIntent": "Cette connexion a été configurée pour de l'analytique en lecture seule. Modifiez son intention dans les Paramètres pour modifier son schéma."
+    }
   },
   "publicApi": {
-    "error": "Something went wrong",
+    "error": "Un problème est survenu",
     "scopes": {
-      "deleteTitle": "Delete this scope",
-      "deleteBody": "Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.",
-      "deletePrompt": "Type the scope name to confirm",
-      "deleteConfirm": "Delete scope",
-      "issuesTitle": "This scope did not compile",
-      "title": "Scopes",
-      "subtitle": "A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.",
-      "emptyTitle": "No scopes yet",
-      "emptyBody": "Create one below. It is checked against your live schema before it is saved.",
-      "keyCount": "{count, plural, =0 {no keys} one {# key} other {# keys}}",
-      "delete": "Delete",
-      "nameLabel": "Name",
-      "connectionLabel": "Connection ID",
-      "documentLabel": "Scope document",
-      "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.",
-      "create": "Create scope",
-      "formLabel": "Create a scope"
+      "deleteTitle": "Supprimer cette portée",
+      "deleteBody": "Toute page utilisant une clé liée à cette portée cesse de charger des données. Les clés ne sont pas supprimées — révoquez-les d’abord si c’est ce que vous vouliez.",
+      "deletePrompt": "Saisissez le nom de la portée pour confirmer",
+      "deleteConfirm": "Supprimer la portée",
+      "issuesTitle": "Cette portée n’a pas compilé",
+      "title": "Portées",
+      "subtitle": "Une portée est tout ce qu’une clé peut atteindre — les tables, les colonnes exactes et un filtre que l’appelant peut restreindre mais jamais retirer.",
+      "emptyTitle": "Aucune portée pour l’instant",
+      "emptyBody": "Créez-en une ci-dessous. Elle est vérifiée par rapport à votre schéma actif avant d’être enregistrée.",
+      "keyCount": "{count, plural, =0 {aucune clé} one {# clé} other {# clés}}",
+      "delete": "Supprimer",
+      "nameLabel": "Nom",
+      "connectionLabel": "Identifiant de connexion",
+      "documentLabel": "Document de portée",
+      "documentHint": "Compilé par rapport à votre schéma lors de l’enregistrement. Toutes les colonnes qu’un appelant peut atteindre sont listées ici et nulle part ailleurs. Une valeur par défaut peut être '{'\"$generate\": \"uuid\"'}' ou '{'\"$generate\": \"now\"'}' — le serveur les remplit à la création, pour qu’un visiteur puisse ajouter une ligne sans choisir son id.",
+      "create": "Créer la portée",
+      "formLabel": "Créer une portée"
     },
-    "cancel": "Cancel",
-    "close": "Close",
-    "title": "Public API",
-    "subtitle": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "title": "API publique",
+    "subtitle": "Laissez vos propres pages destinées aux clients ou au personnel lire cette base de données, via une portée que vous définissez.",
     "notRegistered": {
-      "title": "Not enabled on this server",
-      "body": "Set ADMINIUM_PUBLIC_API_ORIGINS to the exact origins allowed to call it, then restart. Until then these routes are not served at all."
+      "title": "Non activée sur ce serveur",
+      "body": "Définissez ADMINIUM_PUBLIC_API_ORIGINS avec les origines exactes autorisées à l’appeler, puis redémarrez. D’ici là, ces routes ne sont pas servies du tout."
     },
     "toggle": {
-      "label": "Serve the public API",
-      "hint": "Turning this off stops every public request immediately. Nothing is deleted — keys, scopes and data all survive."
+      "label": "Servir l’API publique",
+      "hint": "La désactiver arrête immédiatement toutes les requêtes publiques. Rien n’est supprimé — les clés, les portées et les données sont conservées."
     },
     "origins": {
-      "label": "Origins allowed to call it"
+      "label": "Origines autorisées à l’appeler"
     },
     "keys": {
-      "title": "Keys",
-      "subtitle": "These go in your page’s JavaScript, so anyone can read them. That is expected — a key can only ever do what its scope allows.",
-      "emptyTitle": "No keys yet",
-      "emptyBody": "Create a scope first, then mint a key for it.",
-      "reveal": "Show key",
-      "rotate": "Rotate",
-      "revoke": "Revoke",
-      "nameLabel": "Name",
-      "scopeLabel": "Scope",
-      "scopePlaceholder": "Choose a scope",
-      "create": "Create key",
-      "formLabel": "Create a key",
-      "scopeIsAuthTitle": "The scope is the only permission",
-      "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+      "title": "Clés",
+      "subtitle": "Elles vont dans le JavaScript de votre page, donc n’importe qui peut les lire. C’est normal — une clé ne peut jamais faire que ce que sa portée autorise.",
+      "emptyTitle": "Aucune clé pour l’instant",
+      "emptyBody": "Créez d’abord une portée, puis créez-lui une clé.",
+      "reveal": "Afficher la clé",
+      "rotate": "Faire tourner",
+      "revoke": "Révoquer",
+      "nameLabel": "Nom",
+      "scopeLabel": "Portée",
+      "scopePlaceholder": "Choisissez une portée",
+      "create": "Créer la clé",
+      "formLabel": "Créer une clé",
+      "scopeIsAuthTitle": "La portée est la seule autorisation",
+      "scopeIsAuthBody": "Une clé atteint exactement ce que sa portée énumère, et rien d’autre. Elle n’utilise ni les rôles ni les autorisations de table, et elle ne peut rien lire via le reste de l’API.",
       "appLabel": "Lier à une surface d’app hébergée (facultatif)",
       "appHint": "La surface client de l’app sert alors cette clé elle-même — la faire tourner n’exige aucune recompilation.",
       "appNone": "Non liée"
     },
     "status": {
-      "heading": "Status"
+      "heading": "Statut"
     }
   },
   "hostedApps": {
@@ -1010,7 +1053,7 @@ export default {
     },
     "instances": {
       "title": "Instances",
-      "body": "Servir la même application sur plusieurs bases. Chaque instance est accessible à /apps/<app>/<segment>/<côté>/ et ne lit que la connexion que vous lui donnez.",
+      "body": "Servir la même application sur plusieurs bases. Chaque instance est accessible à /apps/<app>/<segment>/<side>/ et ne lit que la connexion que vous lui donnez.",
       "appLabel": "Application",
       "slugLabel": "Segment d'URL",
       "readsLabel": "Lit",
@@ -1060,7 +1103,13 @@ export default {
       "install": "Installer",
       "discard": "Supprimer",
       "upgradeAction": "Mettre à jour",
-      "toggle": "Parcourir le catalogue en ligne"
+      "toggle": "Parcourir le catalogue en ligne",
+      "all": "Tout",
+      "categories": "Catégories",
+      "search": "Rechercher des modules",
+      "noMatchTitle": "Aucun résultat",
+      "noMatchBody": "Aucun module ne correspond à cette recherche et à cette catégorie.",
+      "emptyOnlineBody": "Le catalogue en ligne est activé, mais la dernière vérification n’a rien trouvé. Cherchez des nouveautés."
     },
     "installed": {
       "title": "Installés",
@@ -1106,6 +1155,17 @@ export default {
       "sha": "Intégrité (sha512-…)",
       "shaHint": "La valeur `integrity` affichée par `npm pack --json`. Refusé si les octets n’y correspondent pas.",
       "submit": "Téléverser"
+    },
+    "card": {
+      "needsApiKey": "Nécessite une clé API",
+      "needsOauth": "Se connecte via OAuth"
+    },
+    "category": {
+      "artwork": "Création",
+      "delivery": "Expédition",
+      "payments": "Paiements",
+      "email": "E-mail",
+      "data": "Données"
     }
   },
   "pages": {
@@ -1170,6 +1230,8 @@ export default {
     "field": {
       "title": "Titre",
       "titleHint": "Affiché dans la barre latérale et dans l’en-tête de la page.",
+      "newRowLabel": "Bouton d’ajout",
+      "newRowLabelHint": "Le texte du bouton qui ajoute un enregistrement. Laissez vide pour utiliser le libellé par défaut, qui est traduit.",
       "slug": "Adresse de la page",
       "slugHint": "Minuscules, chiffres et tirets. Seulement la dernière partie — le reste de l’adresse est ajouté pour vous.",
       "slugTaken": "Une autre page utilise déjà cette adresse.",
@@ -1218,7 +1280,9 @@ export default {
       "details": "Détails",
       "itemsPending": "Enregistrez d’abord la modification ci-dessus — le contenu de la page est reconstruit à partir du nouveau modèle et de la nouvelle table.",
       "columns": "Colonnes",
-      "appearance": "Apparence"
+      "appearance": "Apparence",
+      "derived": "Nombres calculés",
+      "attachments": "Pièces jointes"
     },
     "sidebar": {
       "help": "Réordonnez les pages au sein d’un groupe, ou déplacez-en une vers un autre groupe. Les changements s’appliquent à tout le monde.",
@@ -1238,9 +1302,14 @@ export default {
       "help": "Glissez pour réordonner les colonnes, renommez leurs en-têtes et choisissez celles qui apparaissent dans le tableau.",
       "empty": "Pas encore de colonnes — ajoutez-en ci-dessous.",
       "pk": "Clé",
-      "pii": "PII",
+      "masked": "Masquée",
       "header": "En-tête de {name}",
       "shown": "Affichée",
+      "mask": "Masquer",
+      "maskToggle": "Masquer {name} derrière un bouton d’affichage",
+      "avatar": "Avatar",
+      "avatarToggle": "Afficher un monogramme à côté de {name}",
+      "maskHelp": "Le masquage cache une valeur derrière un bouton d’affichage pour les lecteurs autorisés à la voir. Le fait que la donnée quitte ou non la base se règle sur la connexion, pas ici.",
       "toggle": "Afficher {name} dans le tableau",
       "dragHandle": "Réordonner {name}",
       "remove": "Retirer {name}",
@@ -1254,7 +1323,7 @@ export default {
       "addNoMatches": "Aucune colonne ne correspond à « {query} ».",
       "followColumn": "Suivre {name}",
       "addLinkedFrom": "Tables qui pointent ici",
-      "addLinkedFromHelp": "Ajoute le nombre de lignes qui pointent vers chaque enregistrement.",
+      "addLinkedFromHelp": "Comptez les lignes qui pointent vers chaque enregistrement, ou additionnez l’un de leurs nombres.",
       "countBadge": "Nombre",
       "lookupBadge": "Liée",
       "lookupBack": "Retour",
@@ -1265,6 +1334,63 @@ export default {
       "none": {
         "title": "Cette page n’a pas encore de colonnes",
         "body": "Les colonnes sont lues dans la table lors de la génération de la page. Liez cette page à une table puis régénérez pour les renseigner."
+      },
+      "foldLabel": "Agrégat",
+      "foldAdd": "Ajouter",
+      "fold": {
+        "sum": "Somme",
+        "avg": "Moyenne",
+        "min": "Min",
+        "max": "Max"
+      },
+      "file": {
+        "ref": {
+          "url": "Un lien vers le fichier",
+          "id": "L’identifiant de fichier d’Adminium",
+          "key": "La clé dans la destination"
+        },
+        "type": {
+          "pdf": "PDF",
+          "png": "PNG",
+          "jpeg": "JPEG",
+          "gif": "GIF",
+          "webp": "WebP",
+          "heic": "HEIC",
+          "svg": "SVG",
+          "zip": "ZIP",
+          "office": "Documents Office",
+          "mp4": "Vidéo MP4",
+          "mp3": "Audio MP3",
+          "wav": "Audio WAV",
+          "webm": "WebM",
+          "ogg": "Ogg",
+          "csv": "CSV",
+          "text": "Texte brut",
+          "markdown": "Markdown",
+          "json": "JSON"
+        },
+        "badge": "Fichier",
+        "switch": "Fichier",
+        "switchToggle": "{name} stocke un fichier",
+        "refLabel": "Valeur stockée",
+        "refHelp": "Ce qui est écrit dans cette colonne lorsqu’un fichier est téléversé. Les valeurs déjà stockées continuent de fonctionner — ceci ne change que la suivante.",
+        "refTooNarrow": "Cette colonne est trop courte pour contenir cette valeur. Choisissez-en une qu’elle peut contenir, ou élargissez la colonne dans la base de données.",
+        "refWidth": "{shape} — nécessite {needs} caractères, cette colonne en contient {holds}",
+        "destinationLabel": "Destination",
+        "destinationHelp": "L’endroit où sont conservés les octets téléversés via cette colonne.",
+        "destinationDefault": "La destination par défaut",
+        "acceptLabel": "Types acceptés",
+        "acceptHelp": "Ne cochez aucun type pour accepter tout ce que cet espace de travail accepte. Choisir des types ne peut que restreindre cette liste — une colonne ne peut jamais accepter un type que l’espace de travail refuse.",
+        "maxLabel": "Fichier le plus volumineux (Mo)",
+        "maxHelp": "Laissez vide pour utiliser la limite de l’espace de travail. Une colonne ne peut qu’en demander moins.",
+        "maxToggle": "Fichier le plus volumineux accepté par {name}, en Mo",
+        "inlineLabel": "L’afficher dans le tableau",
+        "inlineHelp": "Seules les images sont dessinées dans la cellule. Tout le reste demeure une pastille portant son nom et sa taille, quel que soit ce réglage.",
+        "maxCountHelp": "Laissez vide pour accepter autant de fichiers qu’un enregistrement en a besoin.",
+        "maxCountLabel": "Nombre maximal de fichiers par enregistrement",
+        "maxCountToggle": "Nombre maximal de fichiers pour {name}",
+        "multipleHelp": "La colonne stocke une liste de fichiers au lieu d’un seul. Les valeurs uniques existantes continuent de fonctionner — elles sont lues comme une liste d’un élément.",
+        "multipleLabel": "Contenir plusieurs fichiers"
       }
     },
     "icon": {
@@ -1292,6 +1418,350 @@ export default {
       "dash": "Tableau de bord (1320 px)",
       "wide": "Large (1800 px)",
       "full": "Pleine largeur (sans limite)"
+    },
+    "derived": {
+      "help": "Calculez des nombres à partir des synthèses ci-dessus et des colonnes de cet enregistrement. Ils sont calculés au chargement de la page et ne peuvent pas être triés.",
+      "foldBadge": "Synthèse",
+      "fieldBadge": "Calculé",
+      "remove": "Retirer {name}",
+      "emptyTitle": "Aucun nombre calculé pour l’instant",
+      "emptyBody": "Synthétisez d’abord une table liée dans la carte Colonnes — les règles ici s’appuient sur ces nombres.",
+      "label": "En-tête de colonne",
+      "operandA": "Nombre",
+      "operandB": "Nombre",
+      "operator": "Opérateur",
+      "minus": "moins",
+      "plus": "plus",
+      "percentOf": "pour cent de cet enregistrement",
+      "atLeast": "est au moins",
+      "thenShow": "alors afficher",
+      "otherwise": "sinon",
+      "numberHelp": "Les nombres sont des décimaux simples — 500 ou 12.50, jamais 1,000 ni 5e3.",
+      "add": "Ajouter une colonne",
+      "cancel": "Annuler",
+      "previewTitle": "Aperçu",
+      "previewHelp": "Valeurs d’exemple, calculées par le même code que la page.",
+      "preset": {
+        "combine": "Additionner ou soustraire deux nombres",
+        "percent": "Pourcentage d’un nombre",
+        "rule": "Règle avec un seuil"
+      }
+    },
+    "attachments": {
+      "type": {
+        "office": "Documents Office",
+        "text": "Texte brut"
+      },
+      "destinationIsDefault": "{name} (par défaut)",
+      "enable": "Autoriser les pièces jointes sur les enregistrements de cette table",
+      "enableHint": "Les fichiers sont liés du côté d’Adminium : cette table n’a donc besoin d’aucune nouvelle colonne — cela fonctionne sur une connexion en lecture seule, comme sur une table que vous préférez ne pas modifier.",
+      "destination": "Où vont les fichiers",
+      "destinationHint": "Laissez la destination par défaut, sauf si les fichiers de cette table ont leur place ailleurs.",
+      "destinationDefault": "La destination par défaut",
+      "destinationLocal": "Le disque de ce serveur",
+      "accept": "Types de fichiers acceptés",
+      "acceptHint": "N’en choisir aucun accepte tout ce que cet espace de travail autorise. Un choix ici ne peut que restreindre cette liste, jamais l’élargir.",
+      "maxBytes": "Fichier le plus volumineux (Mo)",
+      "maxBytesHint": "Laissez vide pour suivre la limite de l’espace de travail. Un nombre ici ne peut que l’abaisser.",
+      "maxCount": "Nombre maximal de fichiers par enregistrement",
+      "maxCountHint": "Laissez vide pour en accepter autant qu’un enregistrement en a besoin.",
+      "column": {
+        "adoptHint": "Cette table possède déjà cette colonne ; rien n’est créé — elle est utilisée telle quelle.",
+        "bound": "Les fichiers sont stockés dans la colonne {column} de cette table.",
+        "boundHint": "Désactiver les pièces jointes plus tard ne délie que cette page. La colonne et ses fichiers restent intacts.",
+        "confirm": "Exécuter",
+        "create": "Créer la colonne",
+        "createHint": "Adminium ajoute une colonne texte à cette table. Vous verrez l’instruction exacte avant toute exécution.",
+        "createdHint": "La colonne existe désormais. Enregistrez cette page pour terminer.",
+        "failed": "Cela n’a pas fonctionné",
+        "invalid": "Un nom de colonne doit commencer par une lettre et ne contenir que des minuscules, des chiffres et des tirets bas.",
+        "label": "Colonne qui contient les fichiers",
+        "required": "Donnez un nom à la colonne.",
+        "tooLong": "Ce nom est trop long pour une colonne.",
+        "use": "Utiliser cette colonne",
+        "wrongType": "Cette table possède déjà une colonne de ce nom, et elle ne peut pas contenir une référence de fichier. Choisissez un autre nom."
+      },
+      "enableHintColumn": "Les fichiers sont stockés dans une colonne de cette table : ils apparaissent donc dans les boîtes de dialogue Nouveau et Modifier ainsi que sur chaque enregistrement.",
+      "enableHintSidecar": "Les fichiers sont liés du côté d’Adminium à la place. Ils apparaissent sur la page de chaque enregistrement, pas dans la boîte de dialogue Nouveau.",
+      "sidecar": {
+        "readOnlyIntent": "Cette connexion est configurée pour l’analyse en lecture seule, Adminium ne peut donc pas y ajouter de colonne.",
+        "readOnlyRole": "Cette connexion se connecte avec un rôle en lecture seule, Adminium ne peut donc pas y ajouter de colonne.",
+        "schemaFile": "Cette connexion a été créée à partir d’un fichier de schéma, Adminium ne peut donc pas y ajouter de colonne.",
+        "noPrivilege": "Le rôle de cette connexion ne peut pas modifier de tables, Adminium ne peut donc pas y ajouter de colonne."
+      }
+    }
+  },
+  "design": {
+    "apply": "Appliquer",
+    "column": {
+      "key": "Clé",
+      "length": "Longueur",
+      "name": "Nom",
+      "precision": "Précision",
+      "remove": "Supprimer {name}",
+      "required": "Obligatoire",
+      "type": "Type",
+      "unique": "Unique",
+      "primaryKey": "Clé primaire",
+      "help": "Que signifient ces réglages ?",
+      "link": "Lié à",
+      "linkHelp": "Reliez ceci à une ligne d’une autre table.",
+      "noLink": "Rien",
+      "onDelete": "Si la ligne liée est supprimée",
+      "linkTypeNote": "Le type correspond à la clé de la table liée.",
+      "namePlaceholder": "client_id"
+    },
+    "confirm": {
+      "body": "Cette modification supprime des données ou un objet. Adminium ne peut pas l'annuler.",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "confirm": "Appliquer les modifications",
+      "prompt": "Saisissez {word} pour confirmer",
+      "title": "Appliquer une modification destructrice"
+    },
+    "designer": "Concepteur de tables",
+    "discard": "Abandonner les modifications",
+    "empty": {
+      "body": "Créez une table ou choisissez-en une à modifier. Rien n'atteint votre base de données avant que vous n'examiniez les instructions et ne les appliquiez.",
+      "title": "Concevez votre schéma"
+    },
+    "existing": "Tables existantes",
+    "hazard": {
+      "irreversible": "Irréversible",
+      "locking": "Pose un verrou",
+      "lossy": "Supprime des données",
+      "refused": "Refusé",
+      "rewrite": "Réécrit la table",
+      "safe": "Sûr"
+    },
+    "newTable": "Nouvelle table",
+    "plan": "Examiner les modifications",
+    "result": {
+      "applied": "Appliqué. Adminium a relu votre schéma.",
+      "partial": "Partiellement appliqué : {done} étapes sur {total} ont été exécutées. Réappliquer les mêmes modifications les termine.",
+      "repaired": "Le renommage a été répercuté sur {pages, plural, one {# page} other {# pages}}, {grants, plural, one {# autorisation de rôle} other {# autorisations de rôle}} et {overrides, plural, one {# substitution de schéma} other {# substitutions de schéma}}.",
+      "failed": "Rien n'a été appliqué — votre base de données est inchangée. {error}"
+    },
+    "review": {
+      "noChanges": "Aucune modification de schéma pour l’instant.",
+      "pending": "Examinez vos modifications pour voir les instructions exactes qu’Adminium exécutera.",
+      "steps": "Étapes prévues",
+      "superAdmin": "Super administrateur",
+      "unfinished": "Une application précédente sur cette connexion n’a jamais signalé de résultat. Son schéma est peut-être à mi-chemin entre deux formes — consultez l’historique des modifications avant d’en appliquer d’autres."
+    },
+    "table": {
+      "addColumn": "Ajouter une colonne",
+      "columns": "Colonnes",
+      "name": "Nom de la table",
+      "nameHelp": "Lettres minuscules, chiffres et tirets bas.",
+      "noKey": "Cette table n’a pas de clé primaire ; Adminium la traitera comme étant en lecture seule — les lignes peuvent être listées mais pas modifiées.",
+      "renameHelp": "La modifier renomme la table dans votre base de données.",
+      "uuidKeyUnavailable": "Sur ce moteur, une clé doit être un entier généré : un uuid généré par la base ne peut pas être relu après une insertion.",
+      "drop": "Supprimer cette table",
+      "dropHelp": "La table et toutes ses lignes sont détruites. Vous verrez exactement ce qui sera cassé avant toute exécution.",
+      "namePlaceholder": "reservations"
+    },
+    "reviewPane": "Examen",
+    "error": {
+      "empty": "Un nom est requis.",
+      "identifier": "Utilisez des minuscules, des chiffres et des tirets bas, en commençant par une lettre.",
+      "tooLong": "Trop long — {dialect} autorise {max} caractères.",
+      "atColumn": "Colonne {n}, {field}",
+      "atTable": "Table {field}"
+    },
+    "onDelete": {
+      "restrict": "Empêcher la suppression",
+      "cascade": "Supprimer aussi cette ligne",
+      "setNull": "Laisser ce champ vide"
+    },
+    "help": {
+      "title": "Ce que signifient ces champs",
+      "subtitle": "Des descriptions en langage simple de chaque paramètre, et de ce qu’il change pour les personnes qui utilisent votre application.",
+      "close": "Fermer",
+      "type": {
+        "term": "Type",
+        "what": "Le genre d’information que contient le champ — des mots, des nombres entiers, de l’argent, une date, une réponse oui/non. Choisir le bon type est ce qui permet à Adminium d’afficher un sélecteur de date plutôt qu’une zone de texte, et d’additionner une colonne de montants.",
+        "example": "Un numéro de téléphone est généralement du texte, pas un nombre — les nombres perdent les zéros du début."
+      },
+      "required": {
+        "term": "Obligatoire",
+        "what": "Le champ doit être rempli. Une ligne ne peut pas être enregistrée tant qu’il est vide.",
+        "example": "Une commande a besoin d’un client, donc ce champ est obligatoire. Une note de livraison est facultative, donc elle ne l’est pas."
+      },
+      "unique": {
+        "term": "Unique",
+        "what": "Deux lignes ne peuvent pas contenir la même valeur. La base de données refuse la seconde.",
+        "example": "Deux clients ne devraient pas partager la même adresse e-mail — marquez ce champ comme unique et ils ne le pourront plus."
+      },
+      "primaryKey": {
+        "term": "Clé primaire",
+        "what": "Le champ qui identifie chaque ligne — celui qu’Adminium utilise pour distinguer une ligne d’une autre. Chaque table devrait en avoir exactement un, et c’est presque toujours le champ « id » créé pour vous.",
+        "example": "Sans clé primaire, Adminium peut lister les lignes, mais il ne peut ni en modifier ni en supprimer une en particulier."
+      },
+      "link": {
+        "term": "Lien vers une autre table",
+        "what": "Relie cette ligne à une ligne d’une autre table, et demande à la base de données de veiller à ce que ce lien reste valide — vous ne pouvez pas pointer vers quelque chose qui n’existe pas.",
+        "example": "Une réservation est liée à un client. Adminium affiche alors le client sur la réservation, et les réservations sur le client."
+      }
+    },
+    "unrepresentableDefaults": "Ces colonnes conservent une valeur par défaut générée par la base qu’Adminium ne peut pas modifier ici ; elle est laissée telle quelle : {columns}",
+    "dropping": "Marquée pour suppression",
+    "keepTable": "Conserver {table}",
+    "adopt": {
+      "offer": "Une nouvelle table ne sert à rien tant qu'elle n'a pas de page. Ajouter {tables} à votre application ?",
+      "grants": "Aucun rôle ne reçoit l’accès automatiquement — accordez-le dans Paramètres → Rôles.",
+      "action": "Ajouter à mon application",
+      "done": "{created} pages créées, {updated} mises à jour, {unchanged} déjà à jour.",
+      "skippedEdited": "Laissées intactes parce que vous les avez modifiées : {pages}.",
+      "everything": "Cette connexion affiche déjà toutes les tables ; rien n’a eu besoin d’être inclus.",
+      "forbidden": "Votre rôle peut modifier le schéma mais pas générer des pages. Demandez à un administrateur disposant de la gestion des connexions d’ajouter ces tables à l’application."
+    },
+    "unnamed": "Nommez chaque table et chaque colonne pour examiner les modifications.",
+    "ceiling": {
+      "prompt": "Saisissez à nouveau {table} pour autoriser la réécriture",
+      "body": "{table} contient plus de {rows} lignes — au-delà de la taille qu’Adminium réécrit de lui-même. Seul un Super Admin peut l’autoriser, et la table restera verrouillée pendant toute la réécriture.",
+      "hint": "Saisissez le nom de la table exactement tel qu’il apparaît ci-dessus.",
+      "notYours": "{table} contient plus de {rows} lignes. Seul un Super Admin peut autoriser une réécriture de cette taille — demandez-en un, ou effectuez la modification pendant une fenêtre de maintenance avec vos propres outils.",
+      "authorise": "Autoriser cette réécriture"
+    }
+  },
+  "diagram": {
+    "ceiling": "Affichage des {shown} tables les plus connectées. {omitted} autres sont masquées — recherchez-en une pour l’ajouter.",
+    "legendLabel": "Légende",
+    "legend": {
+      "declared": "Clé étrangère",
+      "inferred": "Déduit",
+      "virtual": "Ajouté dans Adminium"
+    },
+    "node": {
+      "foreignKey": "Clé étrangère",
+      "more": "+{count} de plus",
+      "primaryKey": "Clé primaire"
+    },
+    "outline": {
+      "intro": "{tables} tables et {relations} relations, sous forme de liste.",
+      "more": " et {count} de plus",
+      "referencedBy": "Référencé par : {list}",
+      "references": "Références : {list}"
+    },
+    "saveLayout": "Enregistrer la disposition",
+    "search": "Rechercher une table ou une colonne",
+    "showDiagram": "Afficher le diagramme",
+    "showList": "Afficher en liste"
+  },
+  "storage": {
+    "driver": {
+      "local": "Un chemin sur cette machine",
+      "s3": "Bucket compatible S3",
+      "webdav": "Serveur WebDAV"
+    },
+    "preset": {
+      "aws": "AWS S3",
+      "spaces": "DigitalOcean Spaces",
+      "r2": "Cloudflare R2",
+      "tigris": "Tigris",
+      "b2": "Backblaze B2",
+      "wasabi": "Wasabi",
+      "minio": "MinIO ou un autre serveur compatible S3"
+    },
+    "status": {
+      "ok": "Joignable",
+      "error": "Injoignable",
+      "untested": "Non testée"
+    },
+    "title": "Stockage",
+    "subtitle": "L’endroit où cette instance conserve les fichiers téléversés, les exports et les autres octets stockés.",
+    "move": {
+      "open": "Déplacer des fichiers…",
+      "startedTitle": "Le déplacement a commencé",
+      "startedBody": "Il s’exécute en arrière-plan sous la tâche {jobId} et se poursuit même si vous quittez cette page. Les compteurs ci-dessous évoluent à mesure que les fichiers arrivent — rechargez la page pour les voir.",
+      "title": "Déplacer des fichiers",
+      "subtitle": "Copie tous les fichiers d’une destination vers une autre, puis oublie l’ancienne copie. Les téléchargements continuent de fonctionner pendant toute l’opération.",
+      "from": "Depuis",
+      "to": "Vers",
+      "start": "Démarrer le déplacement",
+      "kinds": "Limiter à",
+      "kindsHelp": "Ne cochez rien pour tous les déplacer. Les téléversements sont les fichiers que les gens joignent ; le reste, ce sont les artefacts produits par Adminium."
+    },
+    "add": "Ajouter une destination",
+    "loadFailed": {
+      "title": "Impossible de charger les destinations",
+      "forbidden": "Changer l’endroit où les fichiers sont stockés requiert l’autorisation « Gérer le stockage ». Demandez à un administrateur de l’attribuer à l’un de vos rôles."
+    },
+    "actionFailed": "Cela n’a pas fonctionné",
+    "delete": {
+      "blockedTitle": "Cette destination contient encore des fichiers",
+      "blockedBody": "{name} contient encore {count, plural, one {# fichier} other {# fichiers}}. Déplacez-les d’abord vers une autre destination, puis supprimez-la.",
+      "title": "Supprimer cette destination",
+      "body": "Adminium oublie {name} et ses identifiants. Rien de ce qui y est stocké n’est touché — le bucket ou le serveur vous appartient, et des fichiers encore enregistrés sur cette destination feront échouer la suppression.",
+      "confirm": "Supprimer la destination"
+    },
+    "list": {
+      "title": "Destinations",
+      "subtitle": "Les nouveaux fichiers vont vers la destination par défaut. Les fichiers existants restent où ils sont tant que vous ne les déplacez pas."
+    },
+    "localDisk": "Le disque de ce serveur",
+    "default": "Par défaut",
+    "usedBytes": "{size} utilisés",
+    "fileCount": "{count, plural, one {# fichier} other {# fichiers}}",
+    "availableOnDisk": "{size} disponibles sur ce disque",
+    "disabled": "Désactivée",
+    "test": {
+      "ok": "Atteinte en {ms} ms",
+      "button": "Tester",
+      "unreachable": "Le test n’a pas pu être exécuté",
+      "failed": "Impossible de joindre cette destination"
+    },
+    "defaultBlockedByDisabled": "Une destination désactivée ne peut pas être la destination par défaut. Activez-la d’abord.",
+    "setDefault": "Définir par défaut",
+    "enable": "Activer",
+    "disable": "Désactiver",
+    "edit": "Modifier",
+    "deleteButton": "Supprimer",
+    "editor": {
+      "createTitle": "Ajouter une destination",
+      "editTitle": "Modifier la destination",
+      "subtitle": "Adminium lit et écrit à travers cette destination en votre nom ; c’est une infrastructure que vous contrôlez."
+    },
+    "field": {
+      "name": "Nom",
+      "namePlaceholder": "Bucket des téléversements",
+      "driver": "Type",
+      "driverLocked": "Changer le type d’une destination qui contient déjà des fichiers rendrait ces fichiers inaccessibles.",
+      "root": "Répertoire",
+      "rootHelper": "Un chemin absolu dans lequel ce serveur peut écrire — un volume monté ou un partage réseau. Pas le répertoire par défaut, qui figure déjà en première ligne de la liste.",
+      "preset": "Fournisseur",
+      "presetHelper": "Renseigne le point de terminaison, la région et le style d’adressage. Ce que le fournisseur ne peut pas savoir de votre compte reste vide, à vous de le saisir.",
+      "endpoint": "Point de terminaison",
+      "endpointDerived": "Laissez vide pour AWS lui-même — le point de terminaison découle de la région.",
+      "region": "Région",
+      "bucket": "Bucket",
+      "pathStyle": "Adressage par chemin",
+      "pathStyleToggle": "Adresser le bucket comme un chemin plutôt que comme un nom d’hôte",
+      "url": "URL de la collection",
+      "urlHelper": "La collection dans laquelle Adminium écrit, telle que votre serveur la publie.",
+      "prefix": "Préfixe",
+      "prefixHelper": "Un dossier à l’intérieur de la destination. Deux destinations sur un même bucket qui ne diffèrent que par ce champ partagent le bucket sans partager d’espace de noms.",
+      "publicBaseUrl": "URL de base publique",
+      "publicBaseUrlHelper": "Facultatif. L’endroit où ces objets sont lisibles sans Adminium — un CDN devant un bucket public. Utilisé uniquement lorsqu’une colonne stocke un lien.",
+      "accessKeyId": "Identifiant de clé d’accès",
+      "secretAccessKey": "Clé d’accès secrète",
+      "secretKept": "Une clé est enregistrée. Laissez les deux champs vides pour la conserver ; remplissez-les tous les deux pour la remplacer.",
+      "username": "Nom d’utilisateur",
+      "password": "Mot de passe"
+    },
+    "secret": {
+      "partialTitle": "Des identifiants à moitié saisis n’en sont pas",
+      "partialBody": "Remplissez les deux champs pour remplacer les identifiants enregistrés, ou videz-les tous les deux pour les conserver. N’en enregistrer qu’un seul conserverait discrètement les anciens."
+    },
+    "save": "Enregistrer la destination",
+    "kind": {
+      "upload": "Fichiers joints à des enregistrements",
+      "export": "Fichiers issus des exports de données",
+      "import": "CSV téléversés et leurs rapports d’erreurs",
+      "branding": "Le logo de l’espace de travail",
+      "schema": "Fichiers de schéma importés",
+      "archive": "Lots archivés du journal d’audit"
     }
   }
 } as const;

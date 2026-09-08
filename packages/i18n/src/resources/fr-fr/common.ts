@@ -100,6 +100,9 @@ export default {
     "imports": "Importer des données",
     "exports": "Exports de données",
     "emailTemplates": "Modèles d’e-mail",
+    "invoices": "Factures",
+    "automations": "Automatisations",
+    "workflowLogs": "Journaux des flux",
     "notificationSettings": "Paramètres de notification",
     "scheduledReports": "Rapports planifiés",
     "group": {
@@ -112,8 +115,10 @@ export default {
     "back": "Retour",
     "team": "Équipe",
     "roles": "Rôles et permissions",
+    "apiKeys": "Clés API",
     "audit": "Journal d’audit",
-    "security": "Mot de passe et sessions"
+    "security": "Mot de passe et sessions",
+    "files": "Fichiers"
   },
   "apps": {
     "frame": {
@@ -133,6 +138,8 @@ export default {
     "studio": "Studio",
     "dataConnections": "Connexions de données",
     "workspaceSettings": "Paramètres de l’espace de travail",
+    "help": "Centre d’aide",
+    "changelog": "Nouveautés",
     "signOut": "Se déconnecter"
   },
   "palette": {
@@ -1280,21 +1287,6 @@ export default {
       "approve": "Autoriser"
     }
   },
-  "emailTemplates": {
-    "title": "Modèles d’e-mail",
-    "subtitle": "Les e-mails transactionnels et de cycle de vie envoyés par votre espace de travail.",
-    "search": "Rechercher des modèles…",
-    "loadFailed": "Impossible de charger les modèles",
-    "empty": "Aucun modèle d’e-mail pour l’instant",
-    "emptyBody": "Les modèles apparaissent ici dès que le serveur les crée ou que vous en créez.",
-    "noMatches": "Aucun modèle correspondant",
-    "noMatchesBody": "Essayez une autre recherche.",
-    "live": "Actif",
-    "disabled": "Désactivé",
-    "name": "Nom du modèle",
-    "subject": "Objet",
-    "enabled": "Activé"
-  },
   "board": {
     "addCard": "Ajouter une carte",
     "compose": {
@@ -1337,7 +1329,106 @@ export default {
     }
   },
   "files": {
-    "uploadsUnavailable": "Les téléversements ne sont pas encore disponibles sur cette page."
+    "uploadsUnavailable": "Les téléversements ne sont pas encore disponibles sur cette page.",
+    "toast": {
+      "restored": "{name} a été restauré",
+      "restoreFailed": "Impossible de restaurer ce fichier",
+      "trashed": "{name} a été déplacé dans la corbeille",
+      "trashFailed": "Impossible de déplacer ce fichier dans la corbeille"
+    },
+    "title": "Fichiers",
+    "subtitle": "Tout ce qui a été téléversé dans cet espace de travail, et où sont stockés les octets.",
+    "search": "Rechercher par nom de fichier",
+    "trash": {
+      "notice": {
+        "title": "La corbeille se vide toute seule",
+        "body": "Un fichier dans la corbeille est supprimé, données comprises, une fois la période de conservation de ce serveur écoulée. Restaurez avant cela ce dont vous avez encore besoin."
+      }
+    },
+    "listFailed": {
+      "title": "Impossible de charger ces fichiers"
+    },
+    "empty": {
+      "filtered": {
+        "title": "Rien ici",
+        "body": "Effacez la recherche, ou choisissez un autre raccourci dans le panneau latéral."
+      },
+      "title": "Aucun fichier pour l’instant",
+      "body": "Les fichiers apparaissent ici dès que quelqu’un en joint un à un enregistrement ou remplit un champ de type fichier."
+    },
+    "loadMore": "Charger plus de fichiers",
+    "usage": {
+      "label": "Stockage utilisé",
+      "used": "{size} utilisés",
+      "count": "{count, plural, one {# fichier} other {# fichiers}}",
+      "diskLabel": "Espace utilisé",
+      "ofDisk": "{used} sur {size} de ce disque"
+    },
+    "rail": {
+      "label": "Raccourcis de fichiers",
+      "byTable": "Par table",
+      "byDestination": "Par destination",
+      "byConnection": "Par connexion"
+    },
+    "preset": {
+      "all": "Tous les fichiers",
+      "unattached": "Non joints",
+      "trash": "Corbeille",
+      "recent": "Récents"
+    },
+    "column": {
+      "name": "Fichier",
+      "size": "Taille",
+      "attachedTo": "Joint à",
+      "destination": "Destination",
+      "added": "Ajouté le",
+      "actions": "Actions"
+    },
+    "row": {
+      "unattached": "Non joint",
+      "localDestination": "Le disque de ce serveur",
+      "noRecord": "Rattaché à aucun enregistrement"
+    },
+    "action": {
+      "restore": "Restaurer",
+      "download": "Télécharger",
+      "deleteNamed": "Supprimer {name}",
+      "delete": "Supprimer"
+    },
+    "drawer": {
+      "none": "Aucun",
+      "subtitle": "{size} · {type}",
+      "destination": "Destination",
+      "attachedTo": "Joint à",
+      "uploadedBy": "Téléversé par",
+      "added": "Ajouté le",
+      "attachedAt": "Joint le",
+      "trashedAt": "Déplacé dans la corbeille",
+      "id": "Identifiant du fichier",
+      "checksum": "Somme de contrôle"
+    },
+    "view": {
+      "label": "Affichage des fichiers",
+      "grid": "Grille",
+      "list": "Liste"
+    },
+    "upload": {
+      "open": "Téléverser",
+      "title": "Téléverser des fichiers",
+      "subtitle": "Ajoutez des fichiers à cet espace de travail.",
+      "connection": "Connexion à laquelle ils appartiennent",
+      "drop": "Déposez les fichiers ici",
+      "browse": "Parcourir votre ordinateur",
+      "sending": "Téléversement",
+      "cancelOne": "Annuler {name}",
+      "removeOne": "Retirer {name}",
+      "complete": "Téléversement terminé",
+      "completeBody": "Ces fichiers sont maintenant dans cet espace de travail et pourront être rattachés à un enregistrement plus tard.",
+      "send": "{count, plural, one {Téléverser # fichier} other {Téléverser # fichiers}}",
+      "done": "Terminé",
+      "failed": "Échec",
+      "cancelled": "Annulé"
+    }
   },
   "chat": {
     "messageSent": "Message envoyé",
@@ -1490,7 +1581,208 @@ export default {
       "statusCancelled": "Annulé",
       "statusExpired": "Expiré",
       "emptyTitle": "Aucun export pour l’instant",
-      "emptyBody": "Demandez-en un ci-dessus — les artefacts apparaissent ici avec leur statut."
+      "emptyBody": "Demandez-en un ci-dessus — les artefacts apparaissent ici avec leur statut.",
+      "new": "Nouvel export"
+    },
+    "builder": {
+      "title": "Nouvel export",
+      "subtitle": "Choisissez une table, sélectionnez les colonnes, vérifiez le fichier, exportez.",
+      "cancel": "Annuler",
+      "backToExports": "Retour aux exports de données",
+      "basedOn": "Basé sur {name}",
+      "noAccess": {
+        "title": "Rien à exporter pour l’instant",
+        "body": "Vous n’avez le droit d’export sur aucune table de cette connexion. Demandez à un administrateur de l’accorder dans {link}.",
+        "link": "Rôles et accès"
+      },
+      "step": "Étape {n} sur 3",
+      "steps": {
+        "source": "Source",
+        "columns": "Colonnes",
+        "preview": "Aperçu"
+      },
+      "continue": "Continuer",
+      "export": "Exporter",
+      "back": "Retour",
+      "hint": {
+        "chooseTable": "Choisissez une table pour continuer.",
+        "fromAll": "À partir de toutes les colonnes de {table}.",
+        "fromPage": "À partir d’une page liée à {table}.",
+        "noColumns": "Ajoutez au moins une colonne pour continuer.",
+        "dupes": "Deux colonnes ont le même en-tête. Renommez-en une pour continuer.",
+        "order": "{n} colonnes seront écrites dans cet ordre.",
+        "readSample": "Lisez l’échantillon avant d’exporter.",
+        "downloads": "Le fichier se télécharge depuis Exports de données une fois prêt."
+      },
+      "source": {
+        "title": "Quelle table ?",
+        "search": "Rechercher des tables…",
+        "meta": "{rows} lignes · {cols} colonnes",
+        "metaNoRows": "{cols} colonnes",
+        "usedBy": "Utilisée par {n, plural, one {# page} other {# pages}}",
+        "locked": "Pas de droit d’export",
+        "lockedToast": "Vous n’avez pas le droit d’exporter {table}"
+      },
+      "startFrom": {
+        "title": "Partir de",
+        "body": "Choisissez où commence la liste des colonnes. Vous pourrez tout modifier à l’étape suivante.",
+        "all": "Toutes les colonnes de {table}",
+        "page": "Les colonnes d’une page — {page}",
+        "pageMeta": "{page} · {n} colonnes · {linked} liées · {totals, plural, one {# total} other {# totaux}}",
+        "none": "Aucune page n’est liée à cette table"
+      },
+      "columns": {
+        "title": "Ce qui va dans le fichier.",
+        "add": "Ajouter des colonnes",
+        "inFile": "Dans votre fichier",
+        "summary": "{n} colonnes · {linked} liées · {totals, plural, one {# total} other {# totaux}}",
+        "reset": "Revenir aux colonnes de la table",
+        "removeAll": "Tout retirer",
+        "empty": {
+          "title": "Pas encore de colonnes",
+          "body": "Ajoutez des colonnes depuis le panneau, ou revenez aux colonnes de la table."
+        },
+        "dragTitle": "Glissez pour réordonner, ou utilisez les flèches",
+        "reorder": "Réordonner {header}",
+        "headerLabel": "En-tête dans le fichier",
+        "masked": "Exporté en ••••• sauf si vous avez le droit de révélation",
+        "dupe": "Une autre colonne utilise cet en-tête",
+        "removeTitle": "Retirer du fichier",
+        "remove": "Retirer {header}"
+      },
+      "browser": {
+        "search": "Rechercher des colonnes…",
+        "broken": "Ce lien ne se résout plus — recommencez-le.",
+        "brokenBack": "Retour à toutes les tables",
+        "suggested": "Suggestions",
+        "fromTable": "Depuis {table}",
+        "fromTheTable": "Depuis la table",
+        "readOnly": "Colonne en lecture seule",
+        "noMatch": "Aucune colonne ne correspond à cette recherche.",
+        "allIn": "Toutes les colonnes de cette table sont déjà dans votre fichier.",
+        "linked": "Depuis les tables liées",
+        "budget": "{used} sur {max}",
+        "inbound": "Tables qui pointent ici",
+        "via": "via {column}",
+        "count": "Nombre",
+        "aggregate": "Agrégat",
+        "add": "Ajouter",
+        "singleNote": "Min et Max prennent une seule colonne.",
+        "limit": "Limite atteinte — retirez-en une pour en ajouter une autre",
+        "fourMax": "Jusqu’à quatre colonnes",
+        "pickNumeric": "Choisissez d’abord une colonne numérique",
+        "already": "{header} est déjà dans votre fichier",
+        "added": "{header} ajouté",
+        "calculated": "Calculé",
+        "hop": "Ajoutez une colonne, ou suivez un autre lien.",
+        "hopLimit": "Trois sauts est la limite. Ajoutez une colonne ici, ou revenez en arrière.",
+        "addName": "Ajouter {name}",
+        "noRead": "Pas de droit de lecture"
+      },
+      "calc": {
+        "arith": "Additionner ou soustraire deux colonnes",
+        "first": "Première colonne",
+        "op": "Opérateur",
+        "second": "Seconde colonne",
+        "pct": "Un pourcentage d’une colonne",
+        "pctLabel": "Pourcentage",
+        "pctOf": "% de",
+        "column": "Colonne",
+        "rule": "Une règle avec un seuil",
+        "if": "Si",
+        "isOver": "dépasse",
+        "then": "alors",
+        "else": "sinon",
+        "threshold": "Seuil",
+        "whenOver": "Valeur si dépassé",
+        "otherwise": "Valeur sinon",
+        "needTwo": "Ajoutez d’abord deux colonnes numériques",
+        "needOne": "Ajoutez d’abord une colonne numérique"
+      },
+      "gen": {
+        "count": "Nombre de {table}",
+        "countSrc": "nombre de {table} via {column}",
+        "foldSrc": "{fn} de {table}.{cols}",
+        "linkedSrc": "{table}.{column} via {path}",
+        "arithHeader": "{a} {op} {b}",
+        "pctHeader": "{pct}% de {a}",
+        "ruleHeader": "{then} ou {else}",
+        "ruleSrc": "si {a} dépasse {threshold} alors {then}, sinon {else}",
+        "sumOf": "Somme de",
+        "average": "Moyenne",
+        "min": "Min",
+        "max": "Max"
+      },
+      "badge": {
+        "key": "Clé",
+        "linked": "Lié",
+        "count": "Nombre",
+        "sum": "Somme",
+        "avg": "Moyenne",
+        "min": "Min",
+        "max": "Max",
+        "calculated": "Calculé",
+        "masked": "Masqué"
+      },
+      "fold": {
+        "sum": "Somme",
+        "avg": "Moyenne",
+        "min": "Min",
+        "max": "Max"
+      },
+      "preview": {
+        "title": "Vérifiez le fichier, puis exportez.",
+        "fileName": "Nom du fichier",
+        "format": "Format",
+        "csv": "CSV",
+        "jsonl": "JSON Lines",
+        "rows": "Lignes",
+        "allRows": "Toutes les lignes · {n}",
+        "allRowsUnknown": "Toutes les lignes",
+        "viewRows": "Lignes d’une vue enregistrée",
+        "savedView": "Vue enregistrée",
+        "viewLabel": "{name} · {filters} filtres · {rows} lignes",
+        "viewLabelNoRows": "{name} · {filters} filtres",
+        "headerRow": "Ligne d’en-tête",
+        "tabTable": "Tableau",
+        "tabRaw": "Fichier brut",
+        "sample": "Échantillon de {n} lignes · actualisé {when}",
+        "justNow": "à l’instant",
+        "minutesAgo": "{n, plural, one {il y a # minute} other {il y a # minutes}}",
+        "refresh": "Actualiser",
+        "failed": "L’échantillon n’a pas pu être lu.",
+        "failedTimeout": "La connexion a répondu trop lentement. L’export lui-même n’a pas été lancé.",
+        "retry": "Réessayer",
+        "headerOnly": "Le fichier ne contiendra que la ligne d’en-tête."
+      },
+      "summary": {
+        "title": "Le fichier",
+        "columns": "Colonnes",
+        "rows": "Lignes",
+        "size": "Taille estimée",
+        "retention": "Conservation",
+        "kept": "Conservé 30 jours",
+        "fileName": "Nom du fichier"
+      },
+      "warn": {
+        "title": "Bon à savoir",
+        "masked": "{n, plural, one {# colonne s’exporte} other {# colonnes s’exportent}} masquée(s)",
+        "search": "Cette vue a un terme de recherche qu’un export ne peut pas reprendre",
+        "noRows": "Cette table n’a aucune ligne pour le moment"
+      },
+      "started": {
+        "preparing": "Préparation de {file} · {rows} lignes",
+        "ready": "Prêt · {rows} lignes",
+        "noteBusy": "Il apparaîtra dans Exports de données et s’y téléchargera une fois prêt.",
+        "noteReady": "Prêt. Il est aussi dans Exports de données si vous préférez y revenir plus tard.",
+        "download": "Télécharger {format}",
+        "busy": "Préparation du fichier…",
+        "another": "Faire un autre export",
+        "failed": "L’export a échoué."
+      },
+      "toast": {
+        "started": "Export lancé"
+      }
     }
   },
   "reports": {
@@ -1685,8 +1977,11 @@ export default {
       "reportsManage": "Gérer les rapports planifiés",
       "rolesManage": "Gérer les rôles et les permissions",
       "schemaRemap": "Modifier les libellés et les remplacements du schéma",
+      "schemaDdl": "Créer, modifier et supprimer des tables",
       "settingsManage": "Gérer les paramètres de l’espace de travail",
-      "usersManage": "Gérer les utilisateurs"
+      "usersManage": "Gérer les utilisateurs",
+      "filesManage": "Gérer les fichiers de tout le monde",
+      "storageManage": "Gérer les destinations de stockage"
     },
     "rename": {
       "failed": "Impossible de renommer le rôle",
@@ -1849,6 +2144,18 @@ export default {
     "twoFactorShort": "2FA"
   },
   "email": {
+    "blank": {
+      "cta": "Appel à l’action",
+      "heading": "Le titre va ici",
+      "para": "Commencez à écrire votre e-mail…",
+      "preheader": "Texte d’aperçu",
+      "subject": "Ligne d’objet"
+    },
+    "campaignSent": {
+      "body": "{sent} envoyés · {failed} en échec",
+      "title": "Campagne envoyée : {name}"
+    },
+    "copySuffix": "{name} (copie)",
     "linkFallback": "Si le bouton ne fonctionne pas, collez ce lien dans votre navigateur : {url}",
     "notification": {
       "action": "Ouvrir {appName}",
@@ -1863,14 +2170,169 @@ export default {
       "notice": "Ce lien ne fonctionne qu’une seule fois et expire dans {expiresInMinutes} minutes. Si vous n’avez pas demandé la réinitialisation de votre mot de passe, vous pouvez ignorer cet e-mail — votre mot de passe actuel reste actif.",
       "subject": "Réinitialisez votre mot de passe {appName}"
     },
+    "starters": {
+      "digest": {
+        "boxLabel": "Tâches terminées",
+        "cta": "Voir le rapport complet",
+        "heading": "Voici comment s’est passée votre semaine",
+        "name": "Récap hebdomadaire",
+        "para1": "Votre équipe a terminé 128 tâches et livré 3 versions. Le chiffre d’affaires est en hausse de 12 % par rapport à la semaine dernière — beau travail.",
+        "preheader": "Un résumé rapide de votre semaine",
+        "subject": "Votre semaine en chiffres 📊"
+      },
+      "extras": {
+        "cityTax": "Taxe municipale (2 %)",
+        "community": "Communauté",
+        "contact": "Nous contacter",
+        "delivered": "Livré",
+        "delivery": "Suivi de livraison",
+        "help": "Des questions ? Contactez-nous",
+        "hero": "Image principale — 600 × 240",
+        "item1": "Billet d’atelier",
+        "item1Meta": "Sam. 12 sept. · 2 places",
+        "item2": "Stockage supplémentaire",
+        "item2Meta": "250 Go",
+        "order": "Récapitulatif de commande",
+        "ordered": "Commandé",
+        "payments": "Historique des paiements",
+        "processing": "En préparation",
+        "quote": "{appName} a divisé par deux notre temps de reporting.",
+        "quoteAuthor": "Priya R., Northwind Co",
+        "refund": "Conditions de remboursement",
+        "refundText": "Remboursement intégral sous 30 jours après l’achat. Contactez le support pour lancer un retour.",
+        "shipped": "Expédié",
+        "stat1": "Tâches faites",
+        "stat2": "Versions livrées",
+        "stat3": "Chiffre d’affaires en hausse",
+        "stateTax": "Taxe régionale (6 %)",
+        "step1": "Invitez votre équipe",
+        "step2": "Connectez vos données",
+        "step3": "Créez votre premier tableau de bord",
+        "support": "Support {appName}",
+        "tax": "Détail des taxes",
+        "website": "Site web"
+      },
+      "failed": {
+        "boxLabel": "Montant dû",
+        "cta": "Mettre à jour le moyen de paiement",
+        "heading": "Votre paiement n’est pas passé",
+        "name": "Échec de paiement",
+        "para1": "Nous avons tenté de débiter votre carte pour la commande #{orderNumber}, mais le paiement a échoué. Pour éviter tout retard, veuillez mettre à jour votre moyen de paiement.",
+        "para2": "Nous réessaierons dans 3 jours.",
+        "preheader": "Mettez à jour votre moyen de paiement",
+        "subject": "Action requise : échec de paiement"
+      },
+      "feature": {
+        "cta": "Essayer les automatisations",
+        "heading": "Automatisez les tâches répétitives",
+        "name": "Annonce de fonctionnalité",
+        "para1": "Découvrez les automatisations — des enchaînements déclencheur → action qui tournent tout seuls. Accueillez les nouveaux inscrits, relancez les commandes en attente et aiguillez le travail en pilote automatique.",
+        "preheader": "Automatisez les tâches répétitives",
+        "subject": "Voici les automatisations ⚡"
+      },
+      "feedback": {
+        "cta": "Donner mon avis",
+        "heading": "Votre avis nous intéresse",
+        "name": "Demande d’avis",
+        "para1": "Vous utilisez {appName} depuis un petit moment. Auriez-vous deux minutes pour nous dire comment ça se passe ? Vos réponses guident ce que nous construisons ensuite.",
+        "preheader": "Deux minutes, une question",
+        "subject": "Comment ça s’est passé, {firstName} ?"
+      },
+      "footer": "Vous recevez cet e-mail parce que vous avez un compte {appName}.\nDes questions ? Répondez à cet e-mail.",
+      "monthly": {
+        "boxLabel": "Chiffre d’affaires mensuel",
+        "cta": "Voir le rapport complet",
+        "heading": "Votre mois de {month} en revue",
+        "name": "Rapport mensuel",
+        "para1": "Voici l’histoire de votre mois sur {appName}. Votre équipe a livré davantage et avancé plus vite — le chiffre d’affaires a grimpé de 18 % par rapport au mois dernier.",
+        "para2": "Plongez dans le détail pour voir exactement ce qui a fait bouger les chiffres.",
+        "preheader": "Votre mois en revue",
+        "subject": "Votre rapport de {month} est prêt 📈"
+      },
+      "paused": {
+        "boxLabel": "Données conservées",
+        "boxValue": "30 jours",
+        "cta": "Réactiver le compte",
+        "heading": "Votre compte est en pause",
+        "name": "Compte en pause",
+        "para1": "Votre compte est en pause, vous ne pouvez donc pas vous connecter pour le moment. Pas d’inquiétude — vos données sont en sécurité et conservées 30 jours.",
+        "para2": "Réactivez-le à tout moment pour reprendre exactement là où vous en étiez.",
+        "preheader": "Vos données sont en sécurité",
+        "subject": "Votre compte {appName} est en pause"
+      },
+      "receipt": {
+        "attachment": "Reçu PDF",
+        "boxLabel": "Montant débité",
+        "cta": "Voir votre commande",
+        "heading": "Merci pour votre commande",
+        "name": "Reçu de commande",
+        "para1": "Nous confirmons la réception de votre paiement pour la commande #{orderNumber}. Une copie de votre reçu est jointe pour vos archives.",
+        "preheader": "Merci pour votre commande",
+        "subject": "Votre reçu de {appName}"
+      },
+      "reengage": {
+        "cta": "Revenir",
+        "heading": "Ça fait un moment, {firstName}",
+        "name": "Réengagement",
+        "para1": "Beaucoup de choses ont changé depuis votre dernière visite. Nous avons livré les automatisations, des tableaux de bord plus rapides et un tout nouveau créateur de rapports.",
+        "para2": "Venez jeter un œil — votre compte est exactement là où vous l’avez laissé.",
+        "preheader": "Voir les nouveautés",
+        "subject": "Vous nous manquez sur {appName}"
+      },
+      "reminder": {
+        "cta": "Gérer le rendez-vous",
+        "heading": "À bientôt, {firstName}",
+        "name": "Rappel de rendez-vous",
+        "para1": "Votre rendez-vous est le {date} à {time}. Pour le déplacer, répondez à cet e-mail ou utilisez le bouton ci-dessous.",
+        "para2": "Merci d’arriver quelques minutes en avance.",
+        "preheader": "Rendez-vous à {time}",
+        "subject": "Votre rendez-vous est le {date}"
+      },
+      "shipped": {
+        "cta": "Suivre la livraison",
+        "heading": "Votre commande a été expédiée",
+        "name": "Suivi de livraison",
+        "para1": "Bonne nouvelle, {firstName} — la commande #{orderNumber} a quitté notre entrepôt et est en route. Suivez-la avec le bouton ci-dessous.",
+        "preheader": "Suivez votre livraison",
+        "subject": "Votre commande #{orderNumber} est en route"
+      },
+      "verify": {
+        "cta": "Confirmer l’adresse e-mail",
+        "heading": "Confirmez votre e-mail",
+        "name": "Confirmez votre e-mail",
+        "para1": "Merci pour votre inscription ! Veuillez confirmer votre adresse e-mail pour activer votre compte {appName}. Cela aide à garder votre compte sécurisé.",
+        "preheader": "Une étape rapide",
+        "subject": "Confirmez votre adresse e-mail"
+      },
+      "welcome": {
+        "cta": "Ouvrir {appName}",
+        "heading": "Bienvenue à bord, {firstName} !",
+        "name": "E-mail de bienvenue",
+        "para1": "Ravis de vous compter sur {appName}. Votre compte est prêt — voici comment démarrer.",
+        "para2": "Besoin d’un coup de main ? Répondez à cet e-mail à tout moment et une vraie personne vous aidera.",
+        "preheader": "On vous installe",
+        "subject": "Bienvenue sur {appName} 👋"
+      }
+    },
+    "untitled": {
+      "campaign": "Campagne sans titre",
+      "template": "Modèle sans titre"
+    },
     "userInvite": {
       "action": "Accepter l’invitation",
       "heading": "Vous avez reçu une invitation",
       "intro": "{inviterName} vous invite à rejoindre {appName}. Acceptez l’invitation pour définir un mot de passe pour {email} et vous connecter.",
+      "inviterFallback": "Un administrateur",
       "name": "Invitation à l’équipe",
       "notice": "Cette invitation ne fonctionne qu’une seule fois et expire dans {expiresInDays} jours. Si vous ne l’attendiez pas, vous pouvez ignorer cet e-mail.",
-      "subject": "Vous avez reçu une invitation à rejoindre {appName}",
-      "inviterFallback": "Un administrateur"
+      "subject": "Vous avez reçu une invitation à rejoindre {appName}"
+    }
+  },
+  "invoices": {
+    "copySuffix": "{name} (copie)",
+    "untitled": {
+      "invoice": "Facture sans titre",
+      "template": "Modèle sans titre"
     }
   }
 } as const;

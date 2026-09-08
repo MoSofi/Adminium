@@ -302,19 +302,19 @@ export default {
       "cohortMatrix": {
         "chartLabel": "احتفاظ الأفواج",
         "description": "صفوف الأفواج مقابل أعمدة الفترات، وتُظلَّل كل خلية حسب الاحتفاظ أو الإيراد.",
-        "regionLabel": "Cohort matrix"
+        "regionLabel": "مصفوفة الأفواج"
       },
       "heatmapCalendar": {
         "chartLabel": "تقويم النشاط",
         "legendLessLabel": "أقل",
         "legendMoreLabel": "أكثر",
         "description": "سنة من النشاط اليومي كشبكة أسابيع وأيام مظلَّلة حسب الكثافة.",
-        "regionLabel": "Activity calendar"
+        "regionLabel": "تقويم النشاط"
       },
       "heatMonth": {
         "chartLabel": "النشاط الشهري",
         "description": "شهر تقويمي واحد كشبكة أيام مظلَّلة حسب قيمة كل يوم.",
-        "regionLabel": "Monthly heat map"
+        "regionLabel": "خريطة حرارية شهرية"
       },
       "choroplethGrid": {
         "chartLabel": "التفصيل حسب المنطقة",
@@ -430,13 +430,13 @@ export default {
         "emptyTitle": "لا توجد فئات بعد",
         "emptyBody": "ستظهر فئات الأحداث هنا بمجرد وجود أحداث.",
         "uncategorizedLabel": "بدون فئة",
-        "listLabel": "Categories"
+        "listLabel": "الفئات"
       },
       "upcomingEventsList": {
         "description": "الأحداث القادمة مرتّبة حسب التاريخ، مع المسؤول والحالة.",
         "emptyTitle": "لا يوجد شيء قادم",
         "emptyBody": "ستظهر الأحداث المجدولة هنا عند التخطيط لها.",
-        "listLabel": "Upcoming events"
+        "listLabel": "الأحداث القادمة"
       },
       "dateRangePicker": {
         "description": "نطاق تاريخ مع اختيارات سريعة يصفّي بقية الصفحة.",
@@ -459,7 +459,7 @@ export default {
         "nextRunLabel": "التشغيل التالي",
         "toggleLabel": "تفعيل الجدولة",
         "recipientsLabel": "المستلمون",
-        "listLabel": "Scheduled jobs"
+        "listLabel": "المهام المجدولة"
       }
     },
     "tables": {
@@ -581,7 +581,8 @@ export default {
       "falseLabel": "خطأ",
       "detailKeyValue": {
         "description": "حقول السجل كصفوف تسمية/قيمة مع قيم تراعي نوع البيانات."
-      }
+      },
+      "fileDownload": "تنزيل"
     },
     "boards": {
       "kanbanBoard": {
@@ -636,7 +637,7 @@ export default {
         "attachLabel": "إضافة مرفق",
         "typingLabel": "يكتب…",
         "composerLabel": "الرسالة",
-        "transcriptLabel": "Conversation"
+        "transcriptLabel": "المحادثة"
       },
       "aiChatPanel": {
         "description": "لوحة مساعد لطرح الأسئلة حول مخطط قاعدة بياناتك وبياناتك.",
@@ -650,7 +651,7 @@ export default {
         "configureCtaLabel": "إعداد مزوّد",
         "assistantLabel": "المساعد",
         "composerLabel": "اطرح سؤالًا",
-        "transcriptLabel": "Assistant transcript"
+        "transcriptLabel": "سجل محادثة المساعد"
       },
       "typingIndicator": {
         "description": "صورة رمزية وسطر مائل ”يكتب…“ مرتبط بقيمة منطقية حية لكل محادثة.",
@@ -1493,7 +1494,18 @@ export default {
         "loadError": "تعذّر تحميل السجل."
       },
       "peekAction": "معاينة",
-      "openPage": "فتح الصفحة"
+      "openPage": "فتح الصفحة",
+      "file": {
+        "tooLarge": "هذا الملف أكبر من الحد المسموح {limit}.",
+        "uploading": "جارٍ الرفع",
+        "cancel": "إلغاء الرفع",
+        "replace": "استبدال",
+        "remove": "إزالة الملف",
+        "choose": "اختر ملفًا",
+        "add": "إضافة ملفات",
+        "removeNamed": "إزالة {name}",
+        "capReached": "يقبل هذا السجل {count, plural, zero {# ملف} one {ملفًا واحدًا} two {ملفين} few {# ملفات} many {# ملفًا} other {# ملف}} كحد أقصى."
+      }
     },
     "queue": {
       "allSegment": "الكل",
@@ -1612,7 +1624,7 @@ export default {
           "st-dunning": "تذكير بالدفع"
         },
         "categories": {
-          "billing": "الفوترة",
+          "invoicing": "إصدار الفواتير",
           "sales": "المبيعات",
           "nonProfit": "غير ربحي",
           "reports": "التقارير",
@@ -1782,6 +1794,14 @@ export default {
         "deleted": "حذف {actor} هذا السجل",
         "undone": "تراجع {actor} عن تغيير",
         "changedFields": "{count, plural, zero {لم يتغيّر أي حقل} one {تغيّر حقل واحد} two {تغيّر حقلان} few {تغيّرت {n} حقول} many {تغيّر {n} حقلًا} other {تغيّر {n} حقل}}"
+      },
+      "attachmentsTab": "الملفات",
+      "attachments": {
+        "emptyTitle": "لا توجد ملفات بعد",
+        "emptyBody": "تظهر هنا الملفات المرفقة بهذا السجل.",
+        "loading": "جارٍ تحميل المرفقات",
+        "removed": "تم نقل {name} إلى سلة المهملات.",
+        "tooLarge": "هذا الملف أكبر مما تسمح به مساحة العمل."
       }
     },
     "pageRecord": {

@@ -72,7 +72,7 @@
     },
     "readOnlyRole": {
       "title": "Použijte roli jen pro čtení",
-      "body": "Adminium do vaší databáze nikdy nezapisuje — nastavení používá pouze metadata schématu. Doporučujeme vyhrazeného uživatele s právy pouze SELECT; kde bude mít Adminium své vlastní tabulky, rozhodnete v kroku úložiště metadat."
+      "body": "Při nastavení čte Adminium pouze metadata schématu — nikdy vaše řádky. Doporučujeme vyhrazeného uživatele s právy pouze pro SELECT; kde bude Adminium uchovávat vlastní tabulky, určíte v kroku úložiště metadat."
     }
   },
   "capability": {
@@ -295,38 +295,54 @@
       }
     },
     "email": {
-      "heading": "E-mail (SMTP)",
-      "unconfigured": "Není nastaven žádný poštovní server, takže Adminium nemůže odesílat obnovení hesla, pozvánky ani naplánované reporty.",
-      "host": {
-        "label": "Server SMTP",
-        "error": "Pouze název hostitele nebo IP adresa — bez schématu, portu a přihlašovacích údajů."
-      },
-      "port": {
-        "label": "Port",
-        "error": "Mezi {min, number} a {max, number}."
-      },
-      "user": {
-        "label": "Uživatelské jméno",
-        "helper": "Nechte prázdné, pokud relay nevyžaduje přihlášení."
-      },
-      "pass": {
-        "label": "Heslo",
-        "helper": "Uloženo šifrovaně a už se nikdy nezobrazí. Ponechte prázdné, chcete-li zachovat stávající.",
-        "error": "K tomuto uživatelskému jménu patří heslo."
+      "attachmentCap": {
+        "error": "Mezi {min, number} a {max, number} MB.",
+        "helper": "Největší velikost příloh, kterou může jedna zpráva nést.",
+        "label": "Limit příloh (MB)"
       },
       "from": {
         "label": "Adresa odesílatele",
         "helper": "Samotná adresa, nebo zobrazované jméno před ní.",
         "error": "Zadejte e-mailovou adresu."
       },
-      "secure": {
-        "label": "Implicitní TLS",
-        "helper": "Zapnuto pro port 465. Vypnuto začíná nešifrovaně a přejde na STARTTLS, což očekává port 587."
+      "heading": "E-mail (SMTP)",
+      "host": {
+        "label": "Server SMTP",
+        "error": "Pouze název hostitele nebo IP adresa — bez schématu, portu a přihlašovacích údajů."
+      },
+      "pass": {
+        "label": "Heslo",
+        "helper": "Uloženo šifrovaně a už se nikdy nezobrazí. Ponechte prázdné, chcete-li zachovat stávající.",
+        "error": "K tomuto uživatelskému jménu patří heslo."
+      },
+      "port": {
+        "label": "Port",
+        "error": "Mezi {min, number} a {max, number}."
       },
       "remove": "Odebrat poštovní server",
       "review": {
         "removed": "Odebráno",
         "password": "Nahrazeno"
+      },
+      "secure": {
+        "label": "Implicitní TLS",
+        "helper": "Zapnuto pro port 465. Vypnuto začíná nešifrovaně a přejde na STARTTLS, což očekává port 587."
+      },
+      "senders": {
+        "add": "Přidat odesílatele",
+        "address": "Adresa",
+        "error": "Zadejte e-mailovou adresu.",
+        "heading": "Odesílatelé",
+        "helper": "Adresy, ze kterých lze e-mail odeslat. Adresa odesílatele SMTP je vždy k dispozici.",
+        "implicit": "Adresa odesílatele SMTP",
+        "name": "Zobrazované jméno",
+        "remove": "Odebrat odesílatele",
+        "review": "Odesílatelé"
+      },
+      "unconfigured": "Není nastaven žádný poštovní server, takže Adminium nemůže odesílat obnovení hesla, pozvánky ani naplánované reporty.",
+      "user": {
+        "label": "Uživatelské jméno",
+        "helper": "Nechte prázdné, pokud relay nevyžaduje přihlášení."
       }
     },
     "review": {
@@ -367,6 +383,21 @@
       "heading": "Jazyky a překlady",
       "body": "Přeformulujte v Adminiu cokoli, vyberte, které jazyky si lidé mohou zvolit, a přidejte vlastní.",
       "cta": "Otevřít překlady"
+    },
+    "storageCard": {
+      "heading": "Úložiště",
+      "body": "Zvolte, kde žijí nahrané soubory, exporty a další uložená data — tento server, bucket, nebo váš vlastní server.",
+      "cta": "Otevřít úložiště"
+    },
+    "addOnsCard": {
+      "heading": "Doplňky",
+      "body": "Procházejte, instalujte a připojujte doplňky — další bloky, datové balíčky a integrace — nebo si jeden nahrajte sami.",
+      "cta": "Otevřít doplňky"
+    },
+    "publicApiCard": {
+      "heading": "Veřejné API",
+      "body": "Umožněte svým zákaznickým nebo zaměstnaneckým stránkám číst tuto databázi prostřednictvím rozsahu, který určíte.",
+      "cta": "Otevřít veřejné API"
     }
   },
   "settingsAi": {
@@ -870,7 +901,7 @@
       "regeneratedDetail": "Ručně upravené stránky zůstávají zachovány — na místě byly znovu vygenerovány pouze stránky s nedotčeným generated_hash.",
       "regenerateFailed": "Regenerace se nezdařila"
     },
-    "title": "Přemapování schématu",
+    "title": "Schéma",
     "subtitle": "{tables} tabulek · použito {applied} úprav",
     "saveFailed": "Uložení se nezdařilo: {message}",
     "loadFailed": "Schéma pro toto připojení se nepodařilo načíst.",
@@ -901,65 +932,77 @@
       "masked": "Maskováno"
     },
     "unavailableTitle": "Editor přemapování schématu není k dispozici",
-    "unavailableBody": "Tento build zatím editor přemapování neobsahuje (09-T12). Až přibude, spusťte generování znovu a přemapujte popisky, typy a vztahy."
+    "unavailableBody": "Tento build zatím editor přemapování neobsahuje (09-T12). Až přibude, spusťte generování znovu a přemapujte popisky, typy a vztahy.",
+    "mode": {
+      "design": "Návrh",
+      "remap": "Popisky a vztahy",
+      "diagram": "Diagram"
+    },
+    "modeLabel": "Režim editoru",
+    "noDesign": {
+      "schemaFile": "Toto připojení vzniklo ze souboru se schématem, takže není co měnit. Popisky a vztahy fungují dál.",
+      "readOnlyRole": "Toto připojení se přihlašuje rolí jen pro čtení, takže Adminium nemůže měnit jeho schéma.",
+      "noPrivilege": "Role tohoto připojení nemůže vytvářet ani měnit tabulky. Udělte jí oprávnění ke schématu, nebo připojte roli, která je má.",
+      "readOnlyIntent": "Toto připojení bylo nastaveno pro analytiku jen pro čtení. Chcete-li upravit jeho schéma, změňte v Nastavení jeho účel."
+    }
   },
   "publicApi": {
-    "error": "Something went wrong",
+    "error": "Něco se pokazilo",
     "scopes": {
-      "deleteTitle": "Delete this scope",
-      "deleteBody": "Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.",
-      "deletePrompt": "Type the scope name to confirm",
-      "deleteConfirm": "Delete scope",
-      "issuesTitle": "This scope did not compile",
-      "title": "Scopes",
-      "subtitle": "A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.",
-      "emptyTitle": "No scopes yet",
-      "emptyBody": "Create one below. It is checked against your live schema before it is saved.",
-      "keyCount": "{count, plural, =0 {no keys} one {# key} other {# keys}}",
-      "delete": "Delete",
-      "nameLabel": "Name",
-      "connectionLabel": "Connection ID",
-      "documentLabel": "Scope document",
-      "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.",
-      "create": "Create scope",
-      "formLabel": "Create a scope"
+      "deleteTitle": "Smazat tento rozsah",
+      "deleteBody": "Každá stránka, která používá klíč navázaný na tento rozsah, přestane načítat data. Klíče se nemažou — pokud jste chtěli udělat tohle, nejprve je odvolejte.",
+      "deletePrompt": "Pro potvrzení napište název rozsahu",
+      "deleteConfirm": "Smazat rozsah",
+      "issuesTitle": "Tento rozsah se nepodařilo zkompilovat",
+      "title": "Rozsahy",
+      "subtitle": "Rozsah je vše, k čemu klíč smí sáhnout — tabulky, přesné sloupce a filtr, který volající smí zúžit, ale nikdy odstranit.",
+      "emptyTitle": "Zatím žádné rozsahy",
+      "emptyBody": "Vytvořte si jeden níže. Před uložením se ověří proti vašemu živému schématu.",
+      "keyCount": "{count, plural, =0 {žádné klíče} one {# klíč} few {# klíče} many {# klíče} other {# klíčů}}",
+      "delete": "Smazat",
+      "nameLabel": "Název",
+      "connectionLabel": "ID připojení",
+      "documentLabel": "Dokument rozsahu",
+      "documentHint": "Při uložení se zkompiluje proti vašemu schématu. Každý sloupec, ke kterému se volající dostane, je uvedený zde a nikde jinde. Výchozí hodnotou může být '{'\"$generate\": \"uuid\"'}' nebo '{'\"$generate\": \"now\"'}' — server je při vytváření doplní sám, takže návštěvník může přidat řádek, aniž by volil jeho id.",
+      "create": "Vytvořit rozsah",
+      "formLabel": "Vytvoření rozsahu"
     },
-    "cancel": "Cancel",
-    "close": "Close",
-    "title": "Public API",
-    "subtitle": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
+    "cancel": "Zrušit",
+    "close": "Zavřít",
+    "title": "Veřejné API",
+    "subtitle": "Umožněte svým zákaznickým nebo zaměstnaneckým stránkám číst tuto databázi prostřednictvím rozsahu, který určíte.",
     "notRegistered": {
-      "title": "Not enabled on this server",
-      "body": "Set ADMINIUM_PUBLIC_API_ORIGINS to the exact origins allowed to call it, then restart. Until then these routes are not served at all."
+      "title": "Na tomto serveru není zapnuto",
+      "body": "Nastavte ADMINIUM_PUBLIC_API_ORIGINS na přesné adresy původu, které smějí volat, a poté restartujte. Do té doby se tyto cesty vůbec neobsluhují."
     },
     "toggle": {
-      "label": "Serve the public API",
-      "hint": "Turning this off stops every public request immediately. Nothing is deleted — keys, scopes and data all survive."
+      "label": "Obsluhovat veřejné API",
+      "hint": "Vypnutím se okamžitě zastaví každý veřejný požadavek. Nic se nemaže — klíče, rozsahy i data zůstávají zachovány."
     },
     "origins": {
-      "label": "Origins allowed to call it"
+      "label": "Adresy původu, které smějí volat"
     },
     "keys": {
-      "title": "Keys",
-      "subtitle": "These go in your page’s JavaScript, so anyone can read them. That is expected — a key can only ever do what its scope allows.",
-      "emptyTitle": "No keys yet",
-      "emptyBody": "Create a scope first, then mint a key for it.",
-      "reveal": "Show key",
-      "rotate": "Rotate",
-      "revoke": "Revoke",
-      "nameLabel": "Name",
-      "scopeLabel": "Scope",
-      "scopePlaceholder": "Choose a scope",
-      "create": "Create key",
-      "formLabel": "Create a key",
-      "scopeIsAuthTitle": "The scope is the only permission",
-      "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+      "title": "Klíče",
+      "subtitle": "Vkládají se do JavaScriptu vaší stránky, takže je může kdokoli přečíst. Tak to má být — klíč nikdy nezmůže víc, než co dovoluje jeho rozsah.",
+      "emptyTitle": "Zatím žádné klíče",
+      "emptyBody": "Nejprve vytvořte rozsah a pak pro něj vytvořte klíč.",
+      "reveal": "Zobrazit klíč",
+      "rotate": "Rotovat",
+      "revoke": "Odvolat",
+      "nameLabel": "Název",
+      "scopeLabel": "Rozsah",
+      "scopePlaceholder": "Vyberte rozsah",
+      "create": "Vytvořit klíč",
+      "formLabel": "Vytvoření klíče",
+      "scopeIsAuthTitle": "Jediným oprávněním je rozsah",
+      "scopeIsAuthBody": "Klíč se dostane přesně k tomu, co uvádí jeho rozsah, a k ničemu jinému. Nepoužívá role ani oprávnění k tabulkám a přes zbytek API nepřečte nic.",
       "appLabel": "Navázat na hostovanou aplikační plochu (volitelné)",
       "appHint": "Zákaznická plocha aplikace pak tento klíč obsluhuje sama — jeho rotace nevyžaduje rebuild.",
       "appNone": "Nenavázán"
     },
     "status": {
-      "heading": "Status"
+      "heading": "Stav"
     }
   },
   "hostedApps": {
@@ -1000,7 +1043,7 @@
     },
     "instances": {
       "title": "Instance",
-      "body": "Poskytujte stejnou aplikaci nad více databázemi. Každá instance je dostupná na /apps/<app>/<segment>/<strana>/ a čte jen připojení, které jí dáte.",
+      "body": "Poskytujte stejnou aplikaci nad více databázemi. Každá instance je dostupná na /apps/<app>/<segment>/<side>/ a čte jen připojení, které jí dáte.",
       "appLabel": "Aplikace",
       "slugLabel": "Segment URL",
       "readsLabel": "Čte",
@@ -1050,7 +1093,13 @@
       "install": "Install",
       "discard": "Discard",
       "upgradeAction": "Upgrade",
-      "toggle": "Browse the online catalogue"
+      "toggle": "Browse the online catalogue",
+      "all": "Vše",
+      "categories": "Kategorie",
+      "search": "Hledat doplňky",
+      "noMatchTitle": "Žádná shoda",
+      "noMatchBody": "Tomuto hledání a kategorii neodpovídá žádný doplněk.",
+      "emptyOnlineBody": "Online katalog je zapnutý, ale poslední kontrola nic nenašla. Zkuste vyhledat novinky."
     },
     "installed": {
       "title": "Installed",
@@ -1096,6 +1145,17 @@
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload"
+    },
+    "card": {
+      "needsApiKey": "Vyžaduje API klíč",
+      "needsOauth": "Připojuje se přes OAuth"
+    },
+    "category": {
+      "artwork": "Grafika",
+      "delivery": "Doprava",
+      "payments": "Platby",
+      "email": "E-mail",
+      "data": "Data"
     }
   },
   "pages": {
@@ -1160,6 +1220,8 @@
     "field": {
       "title": "Název",
       "titleHint": "Zobrazuje se v postranním panelu a v hlavičce stránky.",
+      "newRowLabel": "Tlačítko pro přidání",
+      "newRowLabelHint": "Co je napsáno na tlačítku, které přidává záznam. Ponechte prázdné pro výchozí popisek, který je přeložený.",
       "slug": "Adresa stránky",
       "slugHint": "Malá písmena, číslice a pomlčky. Jen poslední část – zbytek adresy doplníme za vás.",
       "slugTaken": "Tuto adresu už používá jiná stránka.",
@@ -1208,7 +1270,9 @@
       "details": "Podrobnosti",
       "itemsPending": "Nejprve uložte změnu výše – obsah stránky se znovu sestaví z nové šablony a tabulky.",
       "columns": "Sloupce",
-      "appearance": "Vzhled"
+      "appearance": "Vzhled",
+      "derived": "Odvozená čísla",
+      "attachments": "Přílohy"
     },
     "sidebar": {
       "help": "Změňte pořadí stránek uvnitř skupiny, nebo některou přesuňte do jiné skupiny. Změny platí pro všechny.",
@@ -1228,9 +1292,14 @@
       "help": "Přetažením změňte pořadí sloupců, přejmenujte jejich záhlaví a vyberte, které se v tabulce zobrazí.",
       "empty": "Zatím žádné sloupce — přidejte je níže.",
       "pk": "Klíč",
-      "pii": "PII",
+      "masked": "Maskováno",
       "header": "Záhlaví pro {name}",
       "shown": "Zobrazeno",
+      "mask": "Maskovat",
+      "maskToggle": "Skrýt {name} za tlačítko pro zobrazení",
+      "avatar": "Avatar",
+      "avatarToggle": "Zobrazit monogram vedle {name}",
+      "maskHelp": "Maskování skryje hodnotu za tlačítko pro zobrazení těm, kdo ji smí vidět. To, zda data vůbec opustí databázi, se nastavuje u připojení, ne zde.",
       "toggle": "Zobrazit {name} v tabulce",
       "dragHandle": "Přesunout {name}",
       "remove": "Odebrat {name}",
@@ -1244,7 +1313,7 @@
       "addNoMatches": "Dotazu „{query}“ neodpovídají žádné sloupce.",
       "followColumn": "Sledovat {name}",
       "addLinkedFrom": "Tabulky, které sem odkazují",
-      "addLinkedFromHelp": "Přidá počet řádků, které na jednotlivé záznamy odkazují.",
+      "addLinkedFromHelp": "Spočítejte řádky odkazující na každý záznam nebo sečtěte jedno z jejich čísel.",
       "countBadge": "Počet",
       "lookupBadge": "Propojený",
       "lookupBack": "Zpět",
@@ -1255,6 +1324,63 @@
       "none": {
         "title": "Tato stránka zatím nemá sloupce",
         "body": "Sloupce se při generování stránky načtou z tabulky. Připojte tuto stránku k tabulce a vygenerujte ji znovu."
+      },
+      "foldLabel": "Agregace",
+      "foldAdd": "Přidat",
+      "fold": {
+        "sum": "Součet",
+        "avg": "Průměr",
+        "min": "Min",
+        "max": "Max"
+      },
+      "file": {
+        "ref": {
+          "url": "Odkaz na soubor",
+          "id": "ID souboru v Adminiu",
+          "key": "Klíč v cíli úložiště"
+        },
+        "type": {
+          "pdf": "PDF",
+          "png": "PNG",
+          "jpeg": "JPEG",
+          "gif": "GIF",
+          "webp": "WebP",
+          "heic": "HEIC",
+          "svg": "SVG",
+          "zip": "ZIP",
+          "office": "Dokumenty Office",
+          "mp4": "Video MP4",
+          "mp3": "Zvuk MP3",
+          "wav": "Zvuk WAV",
+          "webm": "WebM",
+          "ogg": "Ogg",
+          "csv": "CSV",
+          "text": "Prostý text",
+          "markdown": "Markdown",
+          "json": "JSON"
+        },
+        "badge": "Soubor",
+        "switch": "Soubor",
+        "switchToggle": "{name} ukládá soubor",
+        "refLabel": "Uložená hodnota",
+        "refHelp": "Co se do tohoto sloupce zapíše při nahrání souboru. Už uložené hodnoty fungují dál — mění se jen ta příští.",
+        "refTooNarrow": "Tento sloupec je příliš krátký, než aby takovou hodnotu pojal. Vyberte takovou, kterou pojme, nebo sloupec v databázi rozšiřte.",
+        "refWidth": "{shape} — potřebuje {needs} znaků, tento sloupec pojme {holds}",
+        "destinationLabel": "Cíl úložiště",
+        "destinationHelp": "Kam se ukládají data nahraná přes tento sloupec.",
+        "destinationDefault": "Výchozí cíl úložiště",
+        "acceptLabel": "Povolené typy",
+        "acceptHelp": "Nechte všechny typy vypnuté a sloupec přijme vše, co přijímá tento workspace. Výběrem typů lze seznam jen zúžit — sloupec nikdy nepřijme typ, který workspace odmítá.",
+        "maxLabel": "Největší soubor (MB)",
+        "maxHelp": "Nechte prázdné a použije se limit workspace. Sloupec může chtít jen méně.",
+        "maxToggle": "Největší soubor, který {name} přijme, v MB",
+        "inlineLabel": "Zobrazit v tabulce",
+        "inlineHelp": "V buňce se vykreslí jen obrázky. Vše ostatní zůstane štítkem s názvem a velikostí, ať je toto nastaveno jakkoli.",
+        "maxCountHelp": "Nechte prázdné, aby se přijalo tolik souborů, kolik záznam potřebuje.",
+        "maxCountLabel": "Nejvíce souborů na záznam",
+        "maxCountToggle": "Nejvíce souborů pro {name}",
+        "multipleHelp": "Sloupec ukládá seznam souborů místo jednoho. Stávající jednotlivé hodnoty fungují dál — čtou se jako seznam s jednou položkou.",
+        "multipleLabel": "Pojmout více souborů"
       }
     },
     "icon": {
@@ -1282,6 +1408,350 @@
       "dash": "Dashboard (1320 px)",
       "wide": "Široká (1800 px)",
       "full": "Celá šířka (bez omezení)"
+    },
+    "derived": {
+      "help": "Vypočítejte čísla ze souhrnů výše a z vlastních sloupců tohoto záznamu. Počítají se při načtení stránky a nelze je řadit.",
+      "foldBadge": "Souhrn",
+      "fieldBadge": "Vypočteno",
+      "remove": "Odebrat {name}",
+      "emptyTitle": "Zatím žádná vypočtená čísla",
+      "emptyBody": "Nejdřív shrňte propojenou tabulku v kartě Sloupce — pravidla zde se staví z těchto čísel.",
+      "label": "Záhlaví sloupce",
+      "operandA": "Číslo",
+      "operandB": "Číslo",
+      "operator": "Operátor",
+      "minus": "minus",
+      "plus": "plus",
+      "percentOf": "procent z tohoto záznamu",
+      "atLeast": "je alespoň",
+      "thenShow": "pak zobrazit",
+      "otherwise": "jinak",
+      "numberHelp": "Čísla jsou prostá desetinná — 500 nebo 12.50, nikdy 1,000 nebo 5e3.",
+      "add": "Přidat sloupec",
+      "cancel": "Zrušit",
+      "previewTitle": "Náhled",
+      "previewHelp": "Ukázkové hodnoty, spočítané stejným kódem, jaký používá stránka.",
+      "preset": {
+        "combine": "Sečíst nebo odečíst dvě čísla",
+        "percent": "Procento z čísla",
+        "rule": "Pravidlo s prahem"
+      }
+    },
+    "attachments": {
+      "type": {
+        "office": "Dokumenty Office",
+        "text": "Prostý text"
+      },
+      "destinationIsDefault": "{name} (výchozí)",
+      "enable": "Povolit přílohy u záznamů této tabulky",
+      "enableHint": "Soubory se propojují na straně Adminia, takže tato tabulka nepotřebuje nový sloupec — funguje to i na připojení jen pro čtení a na tabulce, kterou raději neměníte.",
+      "destination": "Kam soubory míří",
+      "destinationHint": "Ponechte výchozí, pokud soubory této tabulky nepatří jinam.",
+      "destinationDefault": "Výchozí cíl úložiště",
+      "destinationLocal": "Disk tohoto serveru",
+      "accept": "Povolené typy souborů",
+      "acceptHint": "Když nevyberete žádný, přijme se vše, co tento workspace povoluje. Volba zde může seznam jen zúžit, nikdy rozšířit.",
+      "maxBytes": "Největší soubor (MB)",
+      "maxBytesHint": "Nechte prázdné a bude se řídit limitem workspace. Číslo zde ho může jen snížit.",
+      "maxCount": "Nejvíc souborů na záznam",
+      "maxCountHint": "Nechte prázdné a přijme se jich tolik, kolik záznam potřebuje.",
+      "column": {
+        "adoptHint": "Tato tabulka už tento sloupec má, takže se nic nevytváří — použije se tak, jak je.",
+        "bound": "Soubory jsou uloženy ve sloupci {column} této tabulky.",
+        "boundHint": "Pozdější vypnutí příloh odpojí jen tuto stránku. Sloupec a soubory v něm zůstanou nedotčené.",
+        "confirm": "Spustit",
+        "create": "Vytvořit sloupec",
+        "createHint": "Adminium přidá do této tabulky jeden textový sloupec. Přesný příkaz uvidíte dřív, než se cokoli spustí.",
+        "createdHint": "Sloupec teď existuje. Uložte tuto stránku a propojení bude hotové.",
+        "failed": "Tohle nevyšlo",
+        "invalid": "Název sloupce musí začínat písmenem a smí obsahovat jen malá písmena, číslice a podtržítka.",
+        "label": "Sloupec, který obsahuje soubory",
+        "required": "Pojmenujte sloupec.",
+        "tooLong": "Tento název je pro sloupec příliš dlouhý.",
+        "use": "Použít tento sloupec",
+        "wrongType": "Tato tabulka už sloupec s tímto názvem má a nemůže obsahovat odkaz na soubor. Zvolte jiný název."
+      },
+      "enableHintColumn": "Soubory se ukládají do jednoho sloupce této tabulky, takže se objeví v dialozích Nový a Upravit i u každého záznamu.",
+      "enableHintSidecar": "Soubory se místo toho propojí na straně Adminia. Objeví se na stránce každého záznamu, ne v dialogu Nový.",
+      "sidecar": {
+        "readOnlyIntent": "Toto připojení je nastavené jen pro čtení a analýzu, takže do něj Adminium nemůže přidat sloupec.",
+        "readOnlyRole": "Toto připojení se přihlašuje rolí jen pro čtení, takže do něj Adminium nemůže přidat sloupec.",
+        "schemaFile": "Toto připojení vzniklo ze souboru se schématem, takže do něj Adminium nemůže přidat sloupec.",
+        "noPrivilege": "Role tohoto připojení nemůže měnit tabulky, takže do něj Adminium nemůže přidat sloupec."
+      }
+    }
+  },
+  "design": {
+    "apply": "Použít",
+    "column": {
+      "key": "Klíč",
+      "length": "Délka",
+      "name": "Název",
+      "precision": "Přesnost",
+      "remove": "Odebrat {name}",
+      "required": "Povinné",
+      "type": "Typ",
+      "unique": "Jedinečné",
+      "primaryKey": "Primární klíč",
+      "help": "Co tato nastavení znamenají?",
+      "link": "Odkazuje na",
+      "linkHelp": "Propojte to s řádkem v jiné tabulce.",
+      "noLink": "Nic",
+      "onDelete": "Když je propojený řádek smazán",
+      "linkTypeNote": "Typ odpovídá klíči propojené tabulky.",
+      "namePlaceholder": "client_id"
+    },
+    "confirm": {
+      "body": "Tato změna zahodí data nebo odstraní objekt. Adminium ji nedokáže vrátit zpět.",
+      "cancel": "Zrušit",
+      "close": "Zavřít",
+      "confirm": "Použít změny",
+      "prompt": "Pro potvrzení napište {word}",
+      "title": "Použít destruktivní změnu"
+    },
+    "designer": "Návrhář tabulek",
+    "discard": "Zahodit změny",
+    "empty": {
+      "body": "Vytvořte tabulku nebo vyberte jednu k úpravě. Do vaší databáze se nic nedostane, dokud si příkazy neprohlédnete a nepoužijete je.",
+      "title": "Navrhněte své schéma"
+    },
+    "existing": "Existující tabulky",
+    "hazard": {
+      "irreversible": "Nelze vrátit zpět",
+      "locking": "Drží zámek",
+      "lossy": "Zahodí data",
+      "refused": "Odmítnuto",
+      "rewrite": "Přepíše tabulku",
+      "safe": "Bezpečné"
+    },
+    "newTable": "Nová tabulka",
+    "plan": "Zkontrolovat změny",
+    "result": {
+      "applied": "Použito. Adminium znovu načetlo vaše schéma.",
+      "partial": "Částečně použito: proběhlo {done} z {total} kroků. Opětovné použití stejných změn je dokončí.",
+      "repaired": "Přejmenování se promítlo do {pages, plural, one {# stránky} few {# stránek} many {# stránky} other {# stránek}}, {grants, plural, one {# oprávnění role} few {# oprávnění rolí} many {# oprávnění role} other {# oprávnění rolí}} a {overrides, plural, one {# přepisu schématu} few {# přepisů schématu} many {# přepisu schématu} other {# přepisů schématu}}.",
+      "failed": "Nic nebylo použito — vaše databáze je beze změny. {error}"
+    },
+    "review": {
+      "noChanges": "Zatím žádné změny schématu.",
+      "pending": "Zkontrolujte své změny a uvidíte přesné příkazy, které Adminium spustí.",
+      "steps": "Plánované kroky",
+      "superAdmin": "Super administrátor",
+      "unfinished": "Předchozí použití na tomto připojení nikdy neohlásilo výsledek. Jeho schéma může být na půli cesty mezi dvěma podobami — před dalším použitím zkontrolujte historii změn."
+    },
+    "table": {
+      "addColumn": "Přidat sloupec",
+      "columns": "Sloupce",
+      "name": "Název tabulky",
+      "nameHelp": "Malá písmena, číslice a podtržítka.",
+      "noKey": "Tato tabulka nemá primární klíč, takže s ní Adminium bude zacházet jen pro čtení — řádky lze vypsat, ale ne upravovat.",
+      "renameHelp": "Změna přejmenuje tabulku ve vaší databázi.",
+      "uuidKeyUnavailable": "Na tomto enginu musí být klíč generované celé číslo: uuid generované databází nelze po vložení přečíst zpět.",
+      "drop": "Smazat tuto tabulku",
+      "dropHelp": "Tabulka i všechny její řádky budou zničeny. Než se cokoli spustí, uvidíte přesně, co se rozbije.",
+      "namePlaceholder": "reservations"
+    },
+    "reviewPane": "Kontrola",
+    "error": {
+      "empty": "Název je povinný.",
+      "identifier": "Použijte malá písmena, číslice a podtržítka, začněte písmenem.",
+      "tooLong": "Příliš dlouhé — {dialect} povoluje {max} znaků.",
+      "atColumn": "Sloupec {n}, {field}",
+      "atTable": "Tabulka {field}"
+    },
+    "onDelete": {
+      "restrict": "Zabránit smazání",
+      "cascade": "Smazat i tento řádek",
+      "setNull": "Ponechat pole prázdné"
+    },
+    "help": {
+      "title": "Co tato pole znamenají",
+      "subtitle": "Srozumitelný popis každého nastavení a toho, co mění pro lidi, kteří vaši aplikaci používají.",
+      "close": "Zavřít",
+      "type": {
+        "term": "Typ",
+        "what": "Jaký druh informace pole obsahuje — text, celá čísla, peníze, datum, odpověď ano/ne. Právě díky správné volbě umí Adminium zobrazit výběr data místo textového pole a sečíst sloupec s penězi.",
+        "example": "Telefonní číslo je obvykle text, ne číslo — u čísel se ztrácejí úvodní nuly."
+      },
+      "required": {
+        "term": "Povinné",
+        "what": "Pole musí být vyplněné. Dokud je prázdné, řádek nejde uložit.",
+        "example": "Objednávka potřebuje zákazníka, takže to pole je povinné. Poznámka k doručení je volitelná, takže povinná není."
+      },
+      "unique": {
+        "term": "Jedinečné",
+        "what": "Žádné dva řádky nesmějí mít stejnou hodnotu. Ten druhý databáze odmítne.",
+        "example": "Dva zákazníci by neměli sdílet stejnou e-mailovou adresu — označte ji jako jedinečnou a nepůjde to."
+      },
+      "primaryKey": {
+        "term": "Primární klíč",
+        "what": "Pole, které identifikuje každý řádek — to, podle kterého Adminium rozezná jeden řádek od druhého. Každá tabulka by měla mít právě jedno a téměř vždy je to pole „id“, které za vás vzniklo.",
+        "example": "Bez primárního klíče umí Adminium řádky vypsat, ale nemůže jednotlivý řádek upravit ani smazat."
+      },
+      "link": {
+        "term": "Vazba na jinou tabulku",
+        "what": "Propojí tento řádek s řádkem v jiné tabulce a nechá databázi hlídat, aby vazba držela — nemůžete ukázat na něco, co neexistuje.",
+        "example": "Rezervace se váže na klienta. Adminium pak u rezervace zobrazí klienta a u klienta jeho rezervace."
+      }
+    },
+    "unrepresentableDefaults": "Tyto sloupce si ponechávají výchozí hodnotu generovanou databází, kterou zde Adminium nemůže upravit, a zůstává beze změny: {columns}",
+    "dropping": "Označeno ke smazání",
+    "keepTable": "Ponechat {table}",
+    "adopt": {
+      "offer": "Nová tabulka nic nedělá, dokud nemá stránku. Přidat {tables} do aplikace?",
+      "grants": "Žádná role nezíská přístup automaticky — udělte jej v Nastavení → Role.",
+      "action": "Přidat do aplikace",
+      "done": "Vytvořeno {created} stránek, aktualizováno {updated}, {unchanged} už bylo aktuálních.",
+      "skippedEdited": "Ponechány beze změny, protože jste je upravili: {pages}.",
+      "everything": "Toto připojení už zobrazuje všechny tabulky, nebylo tedy třeba nic zahrnout.",
+      "forbidden": "Vaše role může měnit schéma, ale ne generovat stránky. Požádejte správce se správou připojení, aby tyto tabulky přidal do aplikace."
+    },
+    "unnamed": "Pojmenujte každou tabulku a sloupec, abyste mohli změny zkontrolovat.",
+    "ceiling": {
+      "prompt": "Pro autorizaci přepisu napište {table} znovu",
+      "body": "{table} má přes {rows} řádků — víc, než Adminium přepisuje samo. Autorizovat to může jen Super Admin a tabulka bude po celou dobu přepisu zamčená.",
+      "hint": "Napište název tabulky přesně tak, jak je uveden výše.",
+      "notYours": "{table} má přes {rows} řádků. Přepis takového rozsahu může autorizovat jen Super Admin — požádejte ho, nebo změnu proveďte v servisním okně vlastními nástroji.",
+      "authorise": "Autorizovat tento přepis"
+    }
+  },
+  "diagram": {
+    "ceiling": "Zobrazuje se {shown} nejvíce propojených tabulek. Dalších {omitted} je skrytých — vyhledejte je a přidejte.",
+    "legendLabel": "Legenda",
+    "legend": {
+      "declared": "Cizí klíč",
+      "inferred": "Odvozeno",
+      "virtual": "Přidáno v Adminiu"
+    },
+    "node": {
+      "foreignKey": "Cizí klíč",
+      "more": "+{count} dalších",
+      "primaryKey": "Primární klíč"
+    },
+    "outline": {
+      "intro": "{tables} tabulek a {relations} vztahů jako seznam.",
+      "more": " a {count} dalších",
+      "referencedBy": "Odkazuje sem: {list}",
+      "references": "Odkazuje na: {list}"
+    },
+    "saveLayout": "Uložit rozvržení",
+    "search": "Najít tabulku nebo sloupec",
+    "showDiagram": "Zobrazit diagram",
+    "showList": "Zobrazit jako seznam"
+  },
+  "storage": {
+    "driver": {
+      "local": "Cesta na tomto stroji",
+      "s3": "Bucket kompatibilní s S3",
+      "webdav": "Server WebDAV"
+    },
+    "preset": {
+      "aws": "AWS S3",
+      "spaces": "DigitalOcean Spaces",
+      "r2": "Cloudflare R2",
+      "tigris": "Tigris",
+      "b2": "Backblaze B2",
+      "wasabi": "Wasabi",
+      "minio": "MinIO nebo jiný server kompatibilní s S3"
+    },
+    "status": {
+      "ok": "Dostupný",
+      "error": "Nedostupný",
+      "untested": "Neotestovaný"
+    },
+    "title": "Úložiště",
+    "subtitle": "Kam tato instance ukládá nahrané soubory, exporty a další uložená data.",
+    "move": {
+      "open": "Přesunout soubory…",
+      "startedTitle": "Přesun byl zahájen",
+      "startedBody": "Běží na pozadí jako úloha {jobId} a pokračuje, i když tuto stránku opustíte. Počty níže se s přibývajícími soubory mění — načtěte stránku znovu, abyste je viděli.",
+      "title": "Přesunout soubory",
+      "subtitle": "Zkopíruje každý soubor z jednoho cíle do druhého a pak na starou kopii zapomene. Stahování po celou dobu funguje dál.",
+      "from": "Odkud",
+      "to": "Kam",
+      "start": "Spustit přesun",
+      "kinds": "Omezit na",
+      "kindsHelp": "Nechte vše nezaškrtnuté, chcete-li přesunout všechny. Nahrané soubory jsou ty, které lidé přikládají; zbytek jsou artefakty, které vytvořilo Adminium."
+    },
+    "add": "Přidat cíl úložiště",
+    "loadFailed": {
+      "title": "Cíle úložiště se nepodařilo načíst",
+      "forbidden": "Změna místa, kam se soubory ukládají, vyžaduje oprávnění „Spravovat úložiště“. Požádejte správce, aby ho přidal některé z vašich rolí."
+    },
+    "actionFailed": "To se nepovedlo",
+    "delete": {
+      "blockedTitle": "Tento cíl stále obsahuje soubory",
+      "blockedBody": "{name} stále obsahuje {count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}. Nejprve je přesuňte do jiného cíle a pak ho smažte.",
+      "title": "Smazat tento cíl",
+      "body": "Adminium zapomene {name} i jeho přihlašovací údaje. Ničeho, co je v něm uloženo, se to nedotkne — bucket nebo server patří vám, a dokud jsou u něj evidované nějaké soubory, smazání se odmítne.",
+      "confirm": "Smazat cíl"
+    },
+    "list": {
+      "title": "Cíle úložiště",
+      "subtitle": "Nové soubory míří do výchozího cíle. Stávající soubory zůstávají tam, kde jsou, dokud je nepřesunete."
+    },
+    "localDisk": "Disk tohoto serveru",
+    "default": "Výchozí",
+    "usedBytes": "{size} využito",
+    "fileCount": "{count, plural, one {# soubor} few {# soubory} many {# souboru} other {# souborů}}",
+    "availableOnDisk": "{size} k dispozici na tomto disku",
+    "disabled": "Vypnutý",
+    "test": {
+      "ok": "Dostupný za {ms} ms",
+      "button": "Otestovat",
+      "unreachable": "Test se nepodařilo spustit",
+      "failed": "Tento cíl se nepodařilo kontaktovat"
+    },
+    "defaultBlockedByDisabled": "Vypnutý cíl nemůže být výchozí. Nejprve ho zapněte.",
+    "setDefault": "Nastavit jako výchozí",
+    "enable": "Zapnout",
+    "disable": "Vypnout",
+    "edit": "Upravit",
+    "deleteButton": "Smazat",
+    "editor": {
+      "createTitle": "Přidat cíl úložiště",
+      "editTitle": "Upravit cíl úložiště",
+      "subtitle": "Adminium přes tento cíl čte a zapisuje vaším jménem; je to infrastruktura, kterou ovládáte vy."
+    },
+    "field": {
+      "name": "Název",
+      "namePlaceholder": "Bucket pro nahrané soubory",
+      "driver": "Druh",
+      "driverLocked": "Změna druhu u cíle, který už obsahuje soubory, by tyto soubory znepřístupnila.",
+      "root": "Adresář",
+      "rootHelper": "Absolutní cesta, do které tento server smí zapisovat — připojený svazek nebo síťové sdílení. Ne výchozí adresář, ten je v seznamu už jako první položka.",
+      "preset": "Poskytovatel",
+      "presetHelper": "Vyplní koncový bod, region a způsob adresování. Co poskytovatel o vašem účtu vědět nemůže, zůstane prázdné, abyste to doplnili.",
+      "endpoint": "Koncový bod",
+      "endpointDerived": "Pro samotné AWS nechte prázdné — koncový bod vyplyne z regionu.",
+      "region": "Region",
+      "bucket": "Bucket",
+      "pathStyle": "Adresování cestou",
+      "pathStyleToggle": "Adresovat bucket cestou místo názvem hostitele",
+      "url": "URL kolekce",
+      "urlHelper": "Kolekce, do které Adminium zapisuje, tak jak ji publikuje váš server.",
+      "prefix": "Předpona",
+      "prefixHelper": "Složka uvnitř cíle. Dva cíle nad jedním bucketem, které se liší jen zde, sdílejí bucket, ale ne jmenný prostor.",
+      "publicBaseUrl": "Veřejná základní URL",
+      "publicBaseUrlHelper": "Nepovinné. Kde jsou tyto objekty čitelné bez Adminia — CDN před veřejným bucketem. Použije se, jen když sloupec ukládá odkaz.",
+      "accessKeyId": "ID přístupového klíče",
+      "secretAccessKey": "Tajný přístupový klíč",
+      "secretKept": "Klíč je uložen. Chcete-li ho zachovat, nechte obě pole prázdná; chcete-li ho nahradit, vyplňte obě.",
+      "username": "Uživatelské jméno",
+      "password": "Heslo"
+    },
+    "secret": {
+      "partialTitle": "Neúplné přihlašovací údaje nejsou přihlašovací údaje",
+      "partialBody": "Vyplňte obě pole, chcete-li uložené přihlašovací údaje nahradit, nebo obě vymažte, chcete-li je zachovat. Uložení jen jednoho z nich by tiše ponechalo ty staré."
+    },
+    "save": "Uložit cíl",
+    "kind": {
+      "upload": "Soubory přiložené k záznamům",
+      "export": "Soubory z exportů dat",
+      "import": "Nahrané soubory CSV a jejich chybové reporty",
+      "branding": "Logo workspace",
+      "schema": "Importované soubory schématu",
+      "archive": "Archivované dávky auditního logu"
     }
   }
 }

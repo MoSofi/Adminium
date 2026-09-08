@@ -82,7 +82,7 @@ export default {
     },
     "readOnlyRole": {
       "title": "使用唯讀角色",
-      "body": "Adminium 絕不會寫入你的資料庫——設定過程僅使用結構描述中繼資料。建議使用僅具 SELECT 權限的專用使用者；Adminium 自身資料表的存放位置可在中繼資料儲存步驟中決定。"
+      "body": "設定期間 Adminium 只讀取結構描述中繼資料——絕不讀取你的資料列。建議使用僅具 SELECT 權限的專用使用者；Adminium 自己的資料表存放在哪裡，你可以在中繼資料儲存步驟中決定。"
     }
   },
   "capability": {
@@ -305,38 +305,54 @@ export default {
       }
     },
     "email": {
-      "heading": "電子郵件 (SMTP)",
-      "unconfigured": "尚未設定郵件伺服器，因此 Adminium 無法寄送密碼重設、使用者邀請或排程報表。",
-      "host": {
-        "label": "SMTP 主機",
-        "error": "只能填寫主機名稱或 IP 位址 — 不含通訊協定、連接埠或憑證。"
-      },
-      "port": {
-        "label": "連接埠",
-        "error": "介於 {min, number} 與 {max, number} 之間。"
-      },
-      "user": {
-        "label": "使用者名稱",
-        "helper": "若中繼不需驗證，請留空。"
-      },
-      "pass": {
-        "label": "密碼",
-        "helper": "加密儲存且不會再顯示。留空即保留目前的密碼。",
-        "error": "此使用者名稱需要密碼。"
+      "attachmentCap": {
+        "error": "介於 {min, number} 到 {max, number} MB 之間。",
+        "helper": "單封郵件可夾帶的附件總大小上限。",
+        "label": "附件上限（MB）"
       },
       "from": {
         "label": "寄件者位址",
         "helper": "可只填位址，或在位址前加上顯示名稱。",
         "error": "請輸入電子郵件位址。"
       },
-      "secure": {
-        "label": "隱含式 TLS",
-        "helper": "連接埠 465 請開啟。關閉時以明文開始並透過 STARTTLS 升級，這正是連接埠 587 所預期的。"
+      "heading": "電子郵件 (SMTP)",
+      "host": {
+        "label": "SMTP 主機",
+        "error": "只能填寫主機名稱或 IP 位址 — 不含通訊協定、連接埠或憑證。"
+      },
+      "pass": {
+        "label": "密碼",
+        "helper": "加密儲存且不會再顯示。留空即保留目前的密碼。",
+        "error": "此使用者名稱需要密碼。"
+      },
+      "port": {
+        "label": "連接埠",
+        "error": "介於 {min, number} 與 {max, number} 之間。"
       },
       "remove": "移除郵件伺服器",
       "review": {
         "removed": "已移除",
         "password": "已取代"
+      },
+      "secure": {
+        "label": "隱含式 TLS",
+        "helper": "連接埠 465 請開啟。關閉時以明文開始並透過 STARTTLS 升級，這正是連接埠 587 所預期的。"
+      },
+      "senders": {
+        "add": "新增寄件者",
+        "address": "地址",
+        "error": "請輸入電子郵件地址。",
+        "heading": "寄件者",
+        "helper": "郵件可使用的寄件地址。SMTP 寄件地址永遠可用。",
+        "implicit": "SMTP 寄件地址",
+        "name": "顯示名稱",
+        "remove": "移除寄件者",
+        "review": "寄件者"
+      },
+      "unconfigured": "尚未設定郵件伺服器，因此 Adminium 無法寄送密碼重設、使用者邀請或排程報表。",
+      "user": {
+        "label": "使用者名稱",
+        "helper": "若中繼不需驗證，請留空。"
       }
     },
     "review": {
@@ -377,6 +393,21 @@ export default {
       "heading": "語言與翻譯",
       "body": "重寫 Adminium 中的任何文字，決定使用者可以選哪些語言，並加入你自己的語言。",
       "cta": "開啟翻譯"
+    },
+    "storageCard": {
+      "heading": "儲存空間",
+      "body": "選擇上傳的檔案、匯出檔與其他已儲存位元組要放在哪裡——本伺服器、儲存貯體，或你自己的伺服器。",
+      "cta": "開啟儲存空間"
+    },
+    "addOnsCard": {
+      "heading": "外掛",
+      "body": "瀏覽、安裝並連接外掛——額外的區塊、資料包與整合——或自行上傳一個。",
+      "cta": "開啟外掛"
+    },
+    "publicApiCard": {
+      "heading": "公開 API",
+      "body": "讓你自己面向客戶或員工的頁面，透過你定義的範圍讀取這個資料庫。",
+      "cta": "開啟公開 API"
     }
   },
   "settingsAi": {
@@ -880,7 +911,7 @@ export default {
       "regeneratedDetail": "你手動編輯過的頁面會被保留——只有 generated_hash 未被更動的頁面才會就地重新產生。",
       "regenerateFailed": "重新產生失敗"
     },
-    "title": "結構描述重新對應",
+    "title": "結構描述",
     "subtitle": "{tables} 個資料表 · 已套用 {applied} 項覆寫",
     "saveFailed": "儲存失敗：{message}",
     "loadFailed": "無法載入此連線的結構描述。",
@@ -911,65 +942,77 @@ export default {
       "masked": "已遮罩"
     },
     "unavailableTitle": "結構描述重新對應編輯器無法使用",
-    "unavailableBody": "目前的組建尚未包含重新對應編輯器（09-T12）。等它推出後重新執行產生流程，即可重新對應標籤、型別與關聯。"
+    "unavailableBody": "目前的組建尚未包含重新對應編輯器（09-T12）。等它推出後重新執行產生流程，即可重新對應標籤、型別與關聯。",
+    "mode": {
+      "design": "設計",
+      "remap": "標籤與關聯",
+      "diagram": "關聯圖"
+    },
+    "modeLabel": "編輯器模式",
+    "noDesign": {
+      "schemaFile": "此連線由結構檔案建立，因此沒有可更改的資料庫。標籤和關聯仍可使用。",
+      "readOnlyRole": "此連線使用唯讀角色登入，因此 Adminium 無法更改其結構。",
+      "noPrivilege": "此連線的角色無法建立或修改資料表。請授予它結構權限，或改用具備權限的角色連線。",
+      "readOnlyIntent": "此連線被設定為唯讀分析用途。請在「設定」中更改其用途，才能編輯其結構。"
+    }
   },
   "publicApi": {
-    "error": "Something went wrong",
+    "error": "發生了一些問題",
     "scopes": {
-      "deleteTitle": "Delete this scope",
-      "deleteBody": "Any page using a key bound to this scope stops loading data. Keys are not deleted — revoke them first if that is what you meant.",
-      "deletePrompt": "Type the scope name to confirm",
-      "deleteConfirm": "Delete scope",
-      "issuesTitle": "This scope did not compile",
-      "title": "Scopes",
-      "subtitle": "A scope is the whole of what a key may reach — the tables, the exact columns, and a filter the caller can narrow but never remove.",
-      "emptyTitle": "No scopes yet",
-      "emptyBody": "Create one below. It is checked against your live schema before it is saved.",
-      "keyCount": "{count, plural, =0 {no keys} other {# keys}}",
-      "delete": "Delete",
-      "nameLabel": "Name",
-      "connectionLabel": "Connection ID",
-      "documentLabel": "Scope document",
-      "documentHint": "Compiled against your schema when you save. Every column a caller can reach is listed here and nowhere else.",
-      "create": "Create scope",
-      "formLabel": "Create a scope"
+      "deleteTitle": "刪除此範圍",
+      "deleteBody": "凡是使用綁定到此範圍之金鑰的頁面都會停止載入資料。金鑰不會一併刪除——若你的本意是那樣，請先撤銷它們。",
+      "deletePrompt": "輸入範圍名稱以確認",
+      "deleteConfirm": "刪除範圍",
+      "issuesTitle": "此範圍未通過編譯",
+      "title": "範圍",
+      "subtitle": "範圍就是一把金鑰所能觸及的全部——哪些資料表、哪些確切欄位，以及一道呼叫端只能收窄、永遠無法移除的篩選條件。",
+      "emptyTitle": "尚無範圍",
+      "emptyBody": "請在下方建立一個。儲存前會先對照你的線上結構描述進行檢查。",
+      "keyCount": "{count, plural, =0 {沒有金鑰} other {# 個金鑰}}",
+      "delete": "刪除",
+      "nameLabel": "名稱",
+      "connectionLabel": "連線 ID",
+      "documentLabel": "範圍文件",
+      "documentHint": "儲存時會對照你的結構描述進行編譯。呼叫端能觸及的每個欄位都只列在這裡，別無他處。預設值可以是 '{'\"$generate\": \"uuid\"'}' 或 '{'\"$generate\": \"now\"'}'——伺服器會在建立時填入，因此訪客不必自己挑選 id 就能新增一列。",
+      "create": "建立範圍",
+      "formLabel": "建立一個範圍"
     },
-    "cancel": "Cancel",
-    "close": "Close",
-    "title": "Public API",
-    "subtitle": "Let your own customer- or staff-facing pages read this database, through a scope you define.",
+    "cancel": "取消",
+    "close": "關閉",
+    "title": "公開 API",
+    "subtitle": "讓你自己面向客戶或員工的頁面，透過你定義的範圍讀取這個資料庫。",
     "notRegistered": {
-      "title": "Not enabled on this server",
-      "body": "Set ADMINIUM_PUBLIC_API_ORIGINS to the exact origins allowed to call it, then restart. Until then these routes are not served at all."
+      "title": "此伺服器未啟用",
+      "body": "請將 ADMINIUM_PUBLIC_API_ORIGINS 設為允許呼叫它的確切來源，然後重新啟動。在那之前，這些路由完全不會提供服務。"
     },
     "toggle": {
-      "label": "Serve the public API",
-      "hint": "Turning this off stops every public request immediately. Nothing is deleted — keys, scopes and data all survive."
+      "label": "提供公開 API",
+      "hint": "關閉後會立即中止所有公開請求。不會刪除任何東西——金鑰、範圍與資料都會保留。"
     },
     "origins": {
-      "label": "Origins allowed to call it"
+      "label": "允許呼叫它的來源"
     },
     "keys": {
-      "title": "Keys",
-      "subtitle": "These go in your page’s JavaScript, so anyone can read them. That is expected — a key can only ever do what its scope allows.",
-      "emptyTitle": "No keys yet",
-      "emptyBody": "Create a scope first, then mint a key for it.",
-      "reveal": "Show key",
-      "rotate": "Rotate",
-      "revoke": "Revoke",
-      "nameLabel": "Name",
-      "scopeLabel": "Scope",
-      "scopePlaceholder": "Choose a scope",
-      "create": "Create key",
-      "formLabel": "Create a key",
-      "scopeIsAuthTitle": "The scope is the only permission",
-      "scopeIsAuthBody": "A key can reach exactly what its scope lists and nothing else. It does not use roles or table permissions, and it cannot read anything through the rest of the API.",
+      "title": "金鑰",
+      "subtitle": "這些金鑰會放進你頁面的 JavaScript，所以任何人都讀得到。這是預期中的——金鑰能做的，永遠不會超出其範圍所允許的。",
+      "emptyTitle": "尚無金鑰",
+      "emptyBody": "請先建立範圍，再為它建立金鑰。",
+      "reveal": "顯示金鑰",
+      "rotate": "輪換",
+      "revoke": "撤銷",
+      "nameLabel": "名稱",
+      "scopeLabel": "範圍",
+      "scopePlaceholder": "選擇範圍",
+      "create": "建立金鑰",
+      "formLabel": "建立一個金鑰",
+      "scopeIsAuthTitle": "範圍就是唯一的權限",
+      "scopeIsAuthBody": "金鑰能觸及的，恰好就是其範圍所列的內容，別無其他。它不使用角色或資料表權限，也無法透過 API 的其餘部分讀取任何東西。",
       "appLabel": "綁定到託管應用介面（選填）",
       "appHint": "應用程式的客戶介面隨後會自行提供此金鑰——輪換金鑰無需重新建置。",
       "appNone": "未綁定"
     },
     "status": {
-      "heading": "Status"
+      "heading": "狀態"
     }
   },
   "hostedApps": {
@@ -1060,7 +1103,13 @@ export default {
       "install": "Install",
       "discard": "Discard",
       "upgradeAction": "Upgrade",
-      "toggle": "Browse the online catalogue"
+      "toggle": "Browse the online catalogue",
+      "all": "全部",
+      "categories": "分類",
+      "search": "搜尋外掛",
+      "noMatchTitle": "沒有相符項目",
+      "noMatchBody": "沒有外掛符合該搜尋與分類。",
+      "emptyOnlineBody": "線上目錄已開啟，但上次檢查沒有找到內容。試試檢查更新。"
     },
     "installed": {
       "title": "Installed",
@@ -1106,6 +1155,17 @@ export default {
       "sha": "Integrity (sha512-…)",
       "shaHint": "The `integrity` value `npm pack --json` printed. The upload is refused if the bytes do not match.",
       "submit": "Upload"
+    },
+    "card": {
+      "needsApiKey": "需要 API 金鑰",
+      "needsOauth": "透過 OAuth 連接"
+    },
+    "category": {
+      "artwork": "美術",
+      "delivery": "配送",
+      "payments": "付款",
+      "email": "郵件",
+      "data": "資料"
     }
   },
   "pages": {
@@ -1170,6 +1230,8 @@ export default {
     "field": {
       "title": "標題",
       "titleHint": "顯示在側邊欄與頁面標題列中。",
+      "newRowLabel": "新增按鈕",
+      "newRowLabelHint": "新增記錄的按鈕上顯示的文字。留空則使用預設文字，預設文字已翻譯。",
       "slug": "頁面網址",
       "slugHint": "僅限小寫字母、數字與連字號。只需填寫最後一段，其餘部分會自動補上。",
       "slugTaken": "已有其他頁面使用此網址。",
@@ -1218,7 +1280,9 @@ export default {
       "details": "詳細資訊",
       "itemsPending": "請先儲存上方的變更——頁面內容將依新的範本與資料表重建。",
       "columns": "欄位",
-      "appearance": "外觀"
+      "appearance": "外觀",
+      "derived": "衍生數字",
+      "attachments": "附件"
     },
     "sidebar": {
       "help": "在群組內重新排序頁面，或將頁面移至其他群組。變更會對所有人生效。",
@@ -1238,9 +1302,14 @@ export default {
       "help": "拖曳以重新排序欄位、重新命名欄位標題，並選擇哪些欄位顯示在表格中。",
       "empty": "尚無欄位——請在下方新增。",
       "pk": "主鍵",
-      "pii": "個人資料",
+      "masked": "已遮蔽",
       "header": "{name} 的欄位標題",
       "shown": "顯示",
+      "mask": "遮蔽",
+      "maskToggle": "將 {name} 隱藏在顯示按鈕之後",
+      "avatar": "頭像",
+      "avatarToggle": "在 {name} 旁顯示字母圖示",
+      "maskHelp": "遮蔽會把數值藏在顯示按鈕之後，供有權檢視的人點開。資料是否離開資料庫，由連線設定決定，不在這裡。",
       "toggle": "在表格中顯示 {name}",
       "dragHandle": "調整 {name} 的順序",
       "remove": "移除 {name}",
@@ -1254,7 +1323,7 @@ export default {
       "addNoMatches": "沒有符合「{query}」的欄位。",
       "followColumn": "跟隨 {name}",
       "addLinkedFrom": "連結到此資料表的資料表",
-      "addLinkedFromHelp": "新增指向每筆記錄的資料列數。",
+      "addLinkedFromHelp": "統計指向每筆記錄的列數，或將其中一個數字相加。",
       "countBadge": "計數",
       "lookupBadge": "關聯",
       "lookupBack": "返回",
@@ -1265,6 +1334,63 @@ export default {
       "none": {
         "title": "此頁面尚無欄位",
         "body": "產生頁面時會從資料表讀取欄位。請將此頁面繫結至資料表後重新產生。"
+      },
+      "foldLabel": "彙總",
+      "foldAdd": "新增",
+      "fold": {
+        "sum": "加總",
+        "avg": "平均值",
+        "min": "最小值",
+        "max": "最大值"
+      },
+      "file": {
+        "ref": {
+          "url": "檔案的連結",
+          "id": "Adminium 的檔案 ID",
+          "key": "目的地中的鍵值"
+        },
+        "type": {
+          "pdf": "PDF",
+          "png": "PNG",
+          "jpeg": "JPEG",
+          "gif": "GIF",
+          "webp": "WebP",
+          "heic": "HEIC",
+          "svg": "SVG",
+          "zip": "ZIP",
+          "office": "Office 文件",
+          "mp4": "MP4 影片",
+          "mp3": "MP3 音訊",
+          "wav": "WAV 音訊",
+          "webm": "WebM",
+          "ogg": "Ogg",
+          "csv": "CSV",
+          "text": "純文字",
+          "markdown": "Markdown",
+          "json": "JSON"
+        },
+        "badge": "檔案",
+        "switch": "檔案",
+        "switchToggle": "{name} 存放檔案",
+        "refLabel": "儲存的值",
+        "refHelp": "上傳檔案時寫入此欄位的內容。已經存好的值仍然可用——這只會改變下一個。",
+        "refTooNarrow": "此欄位太短，放不下該值。請改選它容得下的值，或在資料庫中加寬此欄位。",
+        "refWidth": "{shape}——需要 {needs} 個字元，此欄位只容納 {holds}",
+        "destinationLabel": "目的地",
+        "destinationHelp": "透過此欄位上傳的位元組存放在哪裡。",
+        "destinationDefault": "預設目的地",
+        "acceptLabel": "接受的類型",
+        "acceptHelp": "所有類型都不勾選，即接受此工作區所接受的一切。選擇類型只會縮小那份清單——欄位永遠無法接受工作區拒絕的類型。",
+        "maxLabel": "最大檔案（MB）",
+        "maxHelp": "留空即採用工作區的上限。欄位只能要求更小的值。",
+        "maxToggle": "{name} 接受的最大檔案，單位為 MB",
+        "inlineLabel": "在表格中顯示",
+        "inlineHelp": "只有圖片會畫在儲存格中。無論這裡怎麼設定，其餘一律維持為標籤，顯示檔名與大小。",
+        "maxCountHelp": "留空則接受記錄所需的任意數量。",
+        "maxCountLabel": "每筆記錄最多檔案數",
+        "maxCountToggle": "{name} 最多可存放的檔案數",
+        "multipleHelp": "該欄位儲存檔案清單而不是單一檔案。現有的單一值仍然有效——會被讀作只有一項的清單。",
+        "multipleLabel": "存放多個檔案"
       }
     },
     "icon": {
@@ -1292,6 +1418,350 @@ export default {
       "dash": "儀表板（1320px）",
       "wide": "寬（1800px）",
       "full": "全寬（不限制）"
+    },
+    "derived": {
+      "help": "根據上方的彙總與本筆記錄自身的欄位計算數字。它們在頁面載入時計算，無法排序。",
+      "foldBadge": "彙總",
+      "fieldBadge": "計算值",
+      "remove": "移除 {name}",
+      "emptyTitle": "尚無計算數字",
+      "emptyBody": "請先在「欄位」卡片中彙總一個關聯表——這裡的規則以那些數字為基礎。",
+      "label": "欄位標題",
+      "operandA": "數字",
+      "operandB": "數字",
+      "operator": "運算子",
+      "minus": "減",
+      "plus": "加",
+      "percentOf": "來自本筆記錄的百分比",
+      "atLeast": "至少為",
+      "thenShow": "則顯示",
+      "otherwise": "否則",
+      "numberHelp": "數字為普通小數——500 或 12.50，不能寫成 1,000 或 5e3。",
+      "add": "新增欄位",
+      "cancel": "取消",
+      "previewTitle": "預覽",
+      "previewHelp": "範例值，由頁面所用的同一段程式碼計算。",
+      "preset": {
+        "combine": "兩個數字相加或相減",
+        "percent": "某個數字的百分比",
+        "rule": "帶門檻的規則"
+      }
+    },
+    "attachments": {
+      "type": {
+        "office": "Office 文件",
+        "text": "純文字"
+      },
+      "destinationIsDefault": "{name}（預設）",
+      "enable": "允許在此資料表的記錄上附加檔案",
+      "enableHint": "檔案在 Adminium 這一側建立關聯，因此此資料表不需要新增欄位——唯讀連線可用，你不想更動的資料表也可用。",
+      "destination": "檔案存放的位置",
+      "destinationHint": "除非此資料表的檔案該放在別處，否則保持預設即可。",
+      "destinationDefault": "預設目的地",
+      "destinationLocal": "本伺服器的磁碟",
+      "accept": "接受的檔案類型",
+      "acceptHint": "一個都不選，即接受此工作區允許的一切。這裡的選擇只會縮小那份清單，永遠不會擴大。",
+      "maxBytes": "最大檔案（MB）",
+      "maxBytesHint": "留空即遵循工作區的上限。在此填數字只會把它調得更低。",
+      "maxCount": "每筆記錄最多檔案數",
+      "maxCountHint": "留空即接受一筆記錄所需的任意數量。",
+      "column": {
+        "adoptHint": "此資料表已有該欄位，因此不會建立——將直接使用它。",
+        "bound": "檔案存放在此資料表的 {column} 欄位中。",
+        "boundHint": "日後關閉附件只會解除此頁面的繫結。該欄位及其中的檔案維持不變。",
+        "confirm": "執行",
+        "create": "建立欄位",
+        "createHint": "Adminium 會為此資料表新增一個文字欄位。執行前你會看到確切的敘述句。",
+        "createdHint": "欄位已建立。儲存此頁面即可完成連接。",
+        "failed": "操作未成功",
+        "invalid": "欄位名稱必須以字母開頭，且只能包含小寫字母、數字與底線。",
+        "label": "存放檔案的欄位",
+        "required": "請為欄位命名。",
+        "tooLong": "該名稱對欄位而言太長了。",
+        "use": "使用此欄位",
+        "wrongType": "此資料表已有同名欄位，且無法存放檔案參照。請換一個名稱。"
+      },
+      "enableHintColumn": "檔案存放在此資料表的一個欄位中，因此會同時出現在「新增」和「編輯」對話方塊以及每筆記錄上。",
+      "enableHintSidecar": "檔案改為在 Adminium 這一側關聯。它們出現在每筆記錄的頁面上，而不是「新增」對話方塊中。",
+      "sidecar": {
+        "readOnlyIntent": "此連線設定為唯讀分析，因此 Adminium 無法為它新增欄位。",
+        "readOnlyRole": "此連線使用唯讀角色登入，因此 Adminium 無法為它新增欄位。",
+        "schemaFile": "此連線由結構描述檔建立，因此 Adminium 無法為它新增欄位。",
+        "noPrivilege": "此連線的角色無法變更資料表，因此 Adminium 無法為它新增欄位。"
+      }
+    }
+  },
+  "design": {
+    "apply": "套用",
+    "column": {
+      "key": "主鍵",
+      "length": "長度",
+      "name": "名稱",
+      "precision": "精確度",
+      "remove": "移除 {name}",
+      "required": "必填",
+      "type": "類型",
+      "unique": "唯一",
+      "primaryKey": "主鍵",
+      "help": "這些設定是什麼意思？",
+      "link": "連結到",
+      "linkHelp": "將此連結到另一個資料表中的一列。",
+      "noLink": "無",
+      "onDelete": "當連結的資料列被刪除時",
+      "linkTypeNote": "型別已與連結資料表的主鍵相符。",
+      "namePlaceholder": "client_id"
+    },
+    "confirm": {
+      "body": "此變更會捨棄資料或移除物件。Adminium 無法復原。",
+      "cancel": "取消",
+      "close": "關閉",
+      "confirm": "套用變更",
+      "prompt": "輸入 {word} 以確認",
+      "title": "套用破壞性變更"
+    },
+    "designer": "資料表設計工具",
+    "discard": "捨棄變更",
+    "empty": {
+      "body": "建立一個資料表，或挑一個來編輯。在你檢視並套用這些陳述式之前，不會有任何內容寫入你的資料庫。",
+      "title": "設計你的結構描述"
+    },
+    "existing": "既有資料表",
+    "hazard": {
+      "irreversible": "無法復原",
+      "locking": "會持有鎖定",
+      "lossy": "會捨棄資料",
+      "refused": "已拒絕",
+      "rewrite": "會重寫資料表",
+      "safe": "安全"
+    },
+    "newTable": "新增資料表",
+    "plan": "檢視變更",
+    "result": {
+      "applied": "已套用。Adminium 已重新讀取你的結構。",
+      "partial": "部分套用：{total} 個步驟中已執行 {done} 個。再次套用相同的變更即可完成。",
+      "repaired": "重新命名已同步到 {pages, plural, other {# 個頁面}}、{grants, plural, other {# 項角色授權}}和 {overrides, plural, other {# 項結構覆寫}}。",
+      "failed": "未套用任何變更——你的資料庫沒有變化。{error}"
+    },
+    "review": {
+      "noChanges": "尚無結構描述變更。",
+      "pending": "檢視你的變更，即可看到 Adminium 將執行的確切陳述式。",
+      "steps": "預定步驟",
+      "superAdmin": "超級管理員",
+      "unfinished": "此連線上先前的一次套用從未回報結果。它的結構描述可能停在兩種形態之間——在套用更多變更前請查看變更紀錄。"
+    },
+    "table": {
+      "addColumn": "新增欄位",
+      "columns": "欄位",
+      "name": "資料表名稱",
+      "nameHelp": "小寫字母、數字與底線。",
+      "noKey": "此資料表沒有主鍵，因此 Adminium 會將其視為唯讀——可以列出資料列，但無法編輯。",
+      "renameHelp": "變更它會重新命名你資料庫中的資料表。",
+      "uuidKeyUnavailable": "在此引擎上，主鍵必須是產生的整數：資料庫產生的 uuid 在插入後無法讀回。",
+      "drop": "刪除此資料表",
+      "dropHelp": "該資料表與其中所有資料列都會被銷毀。在執行任何動作前，您會看到具體會有什麼受影響。",
+      "namePlaceholder": "reservations"
+    },
+    "reviewPane": "檢視",
+    "error": {
+      "empty": "需要填寫名稱。",
+      "identifier": "請使用小寫字母、數字與底線，並以字母開頭。",
+      "tooLong": "太長 — {dialect} 允許 {max} 個字元。",
+      "atColumn": "第 {n} 欄，{field}",
+      "atTable": "資料表 {field}"
+    },
+    "onDelete": {
+      "restrict": "阻止刪除",
+      "cascade": "一併刪除此列",
+      "setNull": "將此欄位留空"
+    },
+    "help": {
+      "title": "這些欄位是什麼意思",
+      "subtitle": "用白話說明每一項設定，以及它會為使用你應用程式的人帶來什麼改變。",
+      "close": "關閉",
+      "type": {
+        "term": "類型",
+        "what": "這個欄位存放哪一種資訊——文字、整數、金額、日期，或是／否的答案。選對了，Adminium 才能顯示日期選擇器而不是文字方塊，也才能把一整欄金額加總起來。",
+        "example": "電話號碼通常是文字而不是數字——數字會把開頭的 0 去掉。"
+      },
+      "required": {
+        "term": "必填",
+        "what": "這個欄位一定要填。只要它是空的，該資料列就無法儲存。",
+        "example": "訂單一定要有客戶，所以那個欄位是必填。送貨備註可有可無，所以不是。"
+      },
+      "unique": {
+        "term": "唯一",
+        "what": "任何兩個資料列都不能存放相同的值。資料庫會拒絕第二個。",
+        "example": "兩位客戶不該共用同一個電子郵件地址——把它標為唯一，他們就不能了。"
+      },
+      "primaryKey": {
+        "term": "主鍵",
+        "what": "用來辨識每一列的欄位——Adminium 靠它分辨這一列和那一列。每個資料表都應該剛好有一個，而且幾乎總是系統為你建立的 \"id\" 欄位。",
+        "example": "沒有主鍵，Adminium 可以列出資料列，但無法編輯或刪除其中任何一列。"
+      },
+      "link": {
+        "term": "連結到另一個資料表",
+        "what": "把這一列連結到另一個資料表中的一列，並要求資料庫守住這層關聯——你無法指向一個不存在的東西。",
+        "example": "一筆預約連結到一位客戶。Adminium 接著會在預約上顯示該客戶，也會在客戶上顯示他的預約。"
+      }
+    },
+    "unrepresentableDefaults": "這些欄位保留由資料庫產生的預設值，Adminium 無法在此編輯，將維持原樣：{columns}",
+    "dropping": "已標記為刪除",
+    "keepTable": "保留 {table}",
+    "adopt": {
+      "offer": "新資料表在有頁面之前不會起任何作用。要把 {tables} 加入你的應用程式嗎？",
+      "grants": "不會自動給任何角色授權——請在「設定 → 角色」中授予。",
+      "action": "加入我的應用程式",
+      "done": "新建 {created} 個頁面，更新 {updated} 個，{unchanged} 個已是最新。",
+      "skippedEdited": "因為你編輯過而保持原樣：{pages}。",
+      "everything": "此連線已顯示所有資料表，因此無需再包含任何內容。",
+      "forbidden": "你的角色可以修改結構，但不能產生頁面。請讓擁有連線管理權限的管理員把這些資料表加入應用程式。"
+    },
+    "unnamed": "為每個資料表和欄位命名後才能檢視變更。",
+    "ceiling": {
+      "prompt": "再次輸入 {table} 以授權重寫",
+      "body": "{table} 有超過 {rows} 列——超出 Adminium 自行重寫的規模。只有超級管理員可以授權，且重寫期間該資料表將被鎖定。",
+      "hint": "請完全按照上方顯示的名稱輸入資料表名稱。",
+      "notYours": "{table} 有超過 {rows} 列。只有超級管理員能授權這麼大的重寫——請聯繫一位，或在維護時段用你自己的工具執行。",
+      "authorise": "授權此次重寫"
+    }
+  },
+  "diagram": {
+    "ceiling": "正在顯示關聯最多的 {shown} 個資料表。另有 {omitted} 個被隱藏——搜尋可將其叫出。",
+    "legendLabel": "圖例",
+    "legend": {
+      "declared": "外來鍵",
+      "inferred": "推斷",
+      "virtual": "在 Adminium 中新增"
+    },
+    "node": {
+      "foreignKey": "外來鍵",
+      "more": "還有 {count} 個",
+      "primaryKey": "主鍵"
+    },
+    "outline": {
+      "intro": "{tables} 個資料表與 {relations} 個關聯，以清單呈現。",
+      "more": " 以及另外 {count} 個",
+      "referencedBy": "被引用於：{list}",
+      "references": "引用：{list}"
+    },
+    "saveLayout": "儲存版面",
+    "search": "尋找資料表或欄位",
+    "showDiagram": "顯示圖表",
+    "showList": "以清單顯示"
+  },
+  "storage": {
+    "driver": {
+      "local": "這台機器上的路徑",
+      "s3": "S3 相容的儲存貯體",
+      "webdav": "WebDAV 伺服器"
+    },
+    "preset": {
+      "aws": "AWS S3",
+      "spaces": "DigitalOcean Spaces",
+      "r2": "Cloudflare R2",
+      "tigris": "Tigris",
+      "b2": "Backblaze B2",
+      "wasabi": "Wasabi",
+      "minio": "MinIO 或其他 S3 相容伺服器"
+    },
+    "status": {
+      "ok": "可連線",
+      "error": "無法連線",
+      "untested": "尚未測試"
+    },
+    "title": "儲存空間",
+    "subtitle": "此執行個體存放上傳檔案、匯出檔與其他已儲存位元組的位置。",
+    "move": {
+      "open": "搬移檔案…",
+      "startedTitle": "搬移已開始",
+      "startedBody": "它以背景工作 {jobId} 執行，即使你離開此頁面也會繼續。下方的計數會隨著檔案抵達而變動——請重新載入以查看。",
+      "title": "搬移檔案",
+      "subtitle": "把每個檔案從一個目的地複製到另一個，然後忘記舊的副本。整個過程中下載都照常運作。",
+      "from": "來源",
+      "to": "目標",
+      "start": "開始搬移",
+      "kinds": "限定為",
+      "kindsHelp": "全部不勾選代表搬移所有種類。上傳檔案是大家附加的檔案；其餘都是 Adminium 自己產生的產物。"
+    },
+    "add": "新增目的地",
+    "loadFailed": {
+      "title": "無法載入目的地",
+      "forbidden": "變更檔案的存放位置需要「管理儲存空間」權限。請聯絡管理員將該權限授予你的其中一個角色。"
+    },
+    "actionFailed": "這次沒有成功",
+    "delete": {
+      "blockedTitle": "此目的地仍存有檔案",
+      "blockedBody": "{name} 仍存有 {count, plural, other {# 個檔案}}。請先把它們搬移到其他目的地，再刪除它。",
+      "title": "刪除此目的地",
+      "body": "Adminium 會忘記 {name} 及其憑證。其中存放的內容不會被更動——儲存貯體或伺服器本身仍歸你所有；若仍有檔案記錄在它名下，刪除會被拒絕。",
+      "confirm": "刪除目的地"
+    },
+    "list": {
+      "title": "目的地",
+      "subtitle": "新檔案會存入預設目的地。既有檔案在你搬移之前都留在原處。"
+    },
+    "localDisk": "本伺服器的磁碟",
+    "default": "預設",
+    "usedBytes": "已使用 {size}",
+    "fileCount": "{count, plural, other {# 個檔案}}",
+    "availableOnDisk": "此磁碟上有 {size} 可用",
+    "disabled": "已停用",
+    "test": {
+      "ok": "{ms} 毫秒內連線成功",
+      "button": "測試",
+      "unreachable": "無法執行測試",
+      "failed": "無法連線到此目的地"
+    },
+    "defaultBlockedByDisabled": "已停用的目的地無法設為預設。請先啟用它。",
+    "setDefault": "設為預設",
+    "enable": "啟用",
+    "disable": "停用",
+    "edit": "編輯",
+    "deleteButton": "刪除",
+    "editor": {
+      "createTitle": "新增目的地",
+      "editTitle": "編輯目的地",
+      "subtitle": "Adminium 會代你透過此目的地讀寫；這是由你掌控的基礎設施。"
+    },
+    "field": {
+      "name": "名稱",
+      "namePlaceholder": "上傳用儲存貯體",
+      "driver": "種類",
+      "driverLocked": "變更已存有檔案的目的地種類，會讓那些檔案無法存取。",
+      "root": "目錄",
+      "rootHelper": "此伺服器可寫入的絕對路徑——掛載的磁碟區或網路共用。不要填預設目錄，它已經是清單中的第一項。",
+      "preset": "供應商",
+      "presetHelper": "會填入端點、區域與定址方式。供應商無從得知的帳戶資訊會留空，由你自行填寫。",
+      "endpoint": "端點",
+      "endpointDerived": "使用 AWS 本身時請留空——端點會由區域推導而來。",
+      "region": "區域",
+      "bucket": "儲存貯體",
+      "pathStyle": "路徑式定址",
+      "pathStyleToggle": "以路徑而非主機名稱定址儲存貯體",
+      "url": "集合 URL",
+      "urlHelper": "Adminium 寫入的集合，依你的伺服器公開它的形式填寫。",
+      "prefix": "前綴",
+      "prefixHelper": "目的地內的一個資料夾。同一個儲存貯體上只有這裡不同的兩個目的地，會共用該儲存貯體但不共用命名空間。",
+      "publicBaseUrl": "公開基礎 URL",
+      "publicBaseUrlHelper": "選填。這些物件不經 Adminium 也能讀取的位址——例如公開儲存貯體前方的 CDN。只有在欄位儲存連結時才會用到。",
+      "accessKeyId": "存取金鑰 ID",
+      "secretAccessKey": "祕密存取金鑰",
+      "secretKept": "已儲存一組金鑰。兩個欄位都留空即保留它；兩個都填寫則會取代它。",
+      "username": "使用者名稱",
+      "password": "密碼"
+    },
+    "secret": {
+      "partialTitle": "只填一半的憑證不算憑證",
+      "partialBody": "兩個欄位都填寫才會取代已儲存的憑證，兩個都清空則保留它。只填其中一個，會在你毫無察覺的情況下沿用舊的那組。"
+    },
+    "save": "儲存目的地",
+    "kind": {
+      "upload": "附加到記錄的檔案",
+      "export": "資料匯出產生的檔案",
+      "import": "上傳的 CSV 檔案及其錯誤報告",
+      "branding": "工作區標誌",
+      "schema": "匯入的結構描述檔案",
+      "archive": "已封存的稽核記錄批次"
     }
   }
 } as const;
