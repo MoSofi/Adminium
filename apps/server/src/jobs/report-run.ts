@@ -30,7 +30,7 @@ import type { EnqueueJobInput } from '@adminium/meta';
 import { z } from 'zod';
 
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
-import { nextRunAtOf } from '../reports/schedule.js';
+import { nextRunAtOf } from '../schedule/next-run.js';
 import { notify, type NotificationPublisher } from '../notifications/notify.js';
 import { permissionSetAllows, resolvePermissionSet } from '../rbac/resolver.js';
 import { EXPORT_RUN_KIND, exportRunPayloadSchema } from './export-run.js';
@@ -188,6 +188,10 @@ async function executeReportRun(
       exportId: exportRow.id,
       userId: report.createdBy,
       unmasked: false,
+      // The report's own page, so its derived columns are computed into the
+      // snapshot — under the CREATOR's grants, which is what the live re-check
+      // above has already established they still hold (D28).
+      pageId: report.pageId,
     });
     await exportEntry.run(exportPayload, ctx);
   } catch (error) {

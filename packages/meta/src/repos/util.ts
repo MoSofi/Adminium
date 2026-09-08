@@ -87,3 +87,28 @@ export function writeBool(meta: MetaDb, value: boolean): boolean | 0 | 1 {
 export function affected(count: bigint | undefined): number {
   return Number(count ?? 0n);
 }
+
+/**
+ * Duplicate-key detection across the three v1 dialects: SQLite
+ * (`SQLITE_CONSTRAINT_PRIMARYKEY` / "UNIQUE constraint failed"), Postgres
+ * (SQLSTATE 23505), MySQL/MariaDB (errno 1062 / `ER_DUP_ENTRY`). Falls back to
+ * a message probe so an unrecognized driver shape still reads as a duplicate
+ * rather than a 500 on the security-critical path.
+ *
+ * Two callers rely on it and both treat a duplicate as an OUTCOME rather than
+ * an error: bootstrap's "somebody else claimed the first user", and the
+ * automation runner's "this occurrence has already fired" (42 D6), where the
+ * unique index IS the exactly-once guarantee and a violation is the normal,
+ * expected answer on every producer but the first.
+ */
+export function isDuplicateKeyError(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false;
+  const e = error as { code?: unknown; errno?: unknown; message?: unknown };
+  if (typeof e.code === 'string') {
+    if (e.code === '23505') return true; // Postgres unique_violation
+    if (e.code.startsWith('SQLITE_CONSTRAINT')) return true;
+    if (e.code === 'ER_DUP_ENTRY') return true;
+  }
+  if (e.errno === 1062) return true; // MySQL/MariaDB
+  return typeof e.message === 'string' && /duplicate|unique constraint/i.test(e.message);
+}

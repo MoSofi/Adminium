@@ -1,0 +1,407 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/en-US/automations.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "rules": {
+    "title": "Automation rules",
+    "subtitle": "Trigger workflows automatically when things happen.",
+    "new": "New rule",
+    "empty": {
+      "title": "No rules yet",
+      "body": "Create a rule to run steps automatically when something happens."
+    },
+    "none": "Select a rule to see its flow"
+  },
+  "kpi": {
+    "activeRules": "Active rules",
+    "runsToday": "Runs today",
+    "successRate": "Success rate",
+    "timeSaved": "Time saved (mo)"
+  },
+  "filter": {
+    "all": "All",
+    "active": "Active",
+    "paused": "Paused"
+  },
+  "card": {
+    "runs": "runs",
+    "success": "success",
+    "never": "Never run",
+    "toggle": "Toggle"
+  },
+  "status": {
+    "active": "Active",
+    "paused": "Paused"
+  },
+  "flow": {
+    "steps": "{count, plural, one {# step} other {# steps}}",
+    "saves": "saves {time} / run",
+    "runs30d": "runs 30d",
+    "success": "success",
+    "test": "Test",
+    "running": "Running",
+    "noSample": "No record to test with — add one first",
+    "menu": "Rule actions"
+  },
+  "menu": {
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "delete": "Delete"
+  },
+  "delete": {
+    "title": "Delete {name}?",
+    "body": "Its run history goes with it. This cannot be undone.",
+    "confirm": "Delete",
+    "cancel": "Cancel"
+  },
+  "save": {
+    "unsaved": "Unsaved changes",
+    "saving": "Saving…",
+    "saved": "All changes saved",
+    "action": "Save"
+  },
+  "guard": {
+    "title": "Leave without saving?",
+    "body": "Your changes to this rule will be lost.",
+    "stay": "Keep editing",
+    "leave": "Leave"
+  },
+  "toast": {
+    "saved": "Rule saved",
+    "enabled": "{name} is on",
+    "paused": "{name} is paused",
+    "incomplete": "Finish “{step}” before switching this rule on",
+    "duplicated": "{name} duplicated",
+    "deleted": "{name} deleted",
+    "failed": "That did not save — {reason}"
+  },
+  "canvas": {
+    "insert": "Insert step here",
+    "addStep": "Add step",
+    "remove": "Remove step"
+  },
+  "kind": {
+    "trigger": "TRIGGER",
+    "condition": "FILTER",
+    "branch": "IF / ELSE",
+    "wait": "DELAY",
+    "action": "ACTION"
+  },
+  "branch": {
+    "ifMatches": "If matches",
+    "otherwise": "Otherwise"
+  },
+  "picker": {
+    "title": "Add a step",
+    "before": "Before · {title}",
+    "end": "At the end of the flow",
+    "inBranch": "Inside branch · {label}",
+    "actions": "Actions",
+    "logic": "Logic",
+    "close": "Close"
+  },
+  "pick": {
+    "email": "Send email",
+    "emailDesc": "From a saved template",
+    "notification": "Send notification",
+    "notificationDesc": "Tell people in this workspace",
+    "create": "Create record",
+    "createDesc": "Add a row to a table",
+    "update": "Update field",
+    "updateDesc": "Write back to a record",
+    "webhook": "Call webhook",
+    "webhookDesc": "Send data anywhere",
+    "slack": "Slack message",
+    "slackDesc": "Post to a channel",
+    "branch": "If / else branch",
+    "branchDesc": "Split into two paths",
+    "filter": "Only continue if",
+    "filterDesc": "Stop when unmatched",
+    "wait": "Wait / delay",
+    "waitDesc": "Hold before next step",
+    "stop": "Stop workflow",
+    "stopDesc": "Halt this run here"
+  },
+  "node": {
+    "email": {
+      "sub": "Template · pick one",
+      "summary": "Template · {template} → {to}"
+    },
+    "notification": {
+      "sub": "Choose who to tell",
+      "summary": "To · {who}"
+    },
+    "create": {
+      "sub": "Table · pick one",
+      "summary": "{table} · {count} values"
+    },
+    "update": {
+      "sub": "Set a value",
+      "summary": "{pairs}"
+    },
+    "webhook": {
+      "sub": "POST · JSON payload",
+      "summary": "{method} {host}"
+    },
+    "slack": {
+      "sub": "Channel · add a webhook URL",
+      "summary": "Slack · {host}"
+    },
+    "wait": {
+      "title": "Wait / delay",
+      "sub": "Pause for {duration}"
+    },
+    "stop": {
+      "title": "Stop workflow",
+      "sub": "Ends the run"
+    },
+    "condition": {
+      "empty": "Set a condition"
+    },
+    "trigger": {
+      "record": "When a record is {event} in {table}",
+      "interval": "Every {minutes} minutes",
+      "daily": "Daily at {time}",
+      "weekly": "Weekly on {day} at {time}",
+      "monthly": "Monthly on day {day} at {time}",
+      "sub": "Trigger · {event}"
+    }
+  },
+  "event": {
+    "created": "created",
+    "updated": "updated",
+    "deleted": "deleted"
+  },
+  "insp": {
+    "stepName": "Step name",
+    "description": "Description",
+    "condition": "Condition",
+    "lookAt": "Look at",
+    "thisRecord": "This record",
+    "related": "Related records",
+    "field": "Field",
+    "value": "Value",
+    "countOf": "Count of",
+    "where": "where",
+    "isThisRecords": "is this record's",
+    "andWhere": "and where",
+    "branchLabels": "Branch labels",
+    "onError": "Continue on error",
+    "onErrorBody": "Run later steps even if this one fails",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "close": "Close",
+    "settings": "Settings"
+  },
+  "op": {
+    "is": "is",
+    "isNot": "is not",
+    "contains": "contains",
+    "gt": "is greater than",
+    "lt": "is less than",
+    "isEmpty": "is empty",
+    "notEmpty": "is not empty",
+    "withinNext": "is within the next",
+    "withinLast": "is within the last",
+    "moreThanAgo": "was more than … ago",
+    "moreThanAhead": "is more than … from now"
+  },
+  "unit": {
+    "minutes": "{count, plural, one {minute} other {minutes}}",
+    "hours": "{count, plural, one {hour} other {hours}}",
+    "days": "{count, plural, one {day} other {days}}"
+  },
+  "trig": {
+    "title": "Trigger",
+    "kind": "When",
+    "record": "A record is {event}",
+    "schedule": "On a schedule",
+    "table": "Table",
+    "changed": "Only when this column changes",
+    "anyColumn": "Any column",
+    "watch": {
+      "on": "Also watches for rows written outside Adminium · every minute · via {column}",
+      "off": "Watching is off: this table has no {shape}-shaped column or increasing key, so only writes made through Adminium trigger this rule",
+      "deleted": "Deleted rows cannot be watched; only deletes made through Adminium trigger this rule",
+      "fromNow": "Rows from now on"
+    },
+    "when": "Only when",
+    "every": "Every",
+    "at": "At",
+    "timezone": "Timezone",
+    "forEach": "For each record of",
+    "forEachWhere": "where",
+    "once": "Once per record",
+    "onceBody": "A record that matched before is not run again",
+    "timeSaved": "Time saved per run",
+    "timeSavedBody": "Minutes a person would have spent — shown as “saves” on the rule",
+    "addCondition": "Add a condition",
+    "connection": "Connection"
+  },
+  "sched": {
+    "interval": "Interval",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly"
+  },
+  "email": {
+    "template": "Template",
+    "to": "To",
+    "toField": "This record's email",
+    "toFixed": "Addresses",
+    "column": "Column",
+    "addresses": "Add an address…"
+  },
+  "notif": {
+    "to": "Send to",
+    "roles": "Everyone with a role",
+    "users": "Specific people",
+    "title": "Title",
+    "body": "Message"
+  },
+  "rec": {
+    "table": "Table",
+    "values": "Values",
+    "addValue": "Add a value",
+    "column": "Column",
+    "value": "Value",
+    "now": "Now",
+    "remove": "Remove this value",
+    "tokenHint": "Use {token} to copy from the record"
+  },
+  "hook": {
+    "url": "URL",
+    "method": "Method",
+    "body": "Body",
+    "bodyJson": "JSON (event, rule, record)",
+    "bodyText": "Custom text",
+    "header": "Header",
+    "headerName": "Name",
+    "headerValue": "Value",
+    "slackUrl": "Slack webhook URL",
+    "slackText": "Message"
+  },
+  "wait": {
+    "for": "Wait for",
+    "max": "Up to 30 days",
+    "amount": "Amount",
+    "unit": "Unit"
+  },
+  "modal": {
+    "title": "New rule",
+    "subtitle": "Trigger workflows automatically when things happen.",
+    "name": "Rule name",
+    "namePlaceholder": "e.g. Welcome new signups",
+    "when": "When (trigger)",
+    "then": "Then (action)",
+    "enable": "Enable immediately",
+    "enableBody": "Start running as soon as the rule is created",
+    "cancel": "Cancel",
+    "create": "Create rule",
+    "doneTitle": "Rule created",
+    "doneBody": "Your rule is live and will run the next time it's triggered.",
+    "savedTitle": "Rule saved",
+    "savedBody": "Finish its steps, then switch it on.",
+    "done": "Done",
+    "trigger": {
+      "created": "A record is created in {table}",
+      "updated": "A record is updated in {table}",
+      "deleted": "A record is deleted in {table}",
+      "schedule": "On a schedule"
+    },
+    "connection": "{connection} · {table}"
+  },
+  "logs": {
+    "title": "Workflow logs",
+    "subtitle": "Execution history for your automations.",
+    "refresh": "Refresh",
+    "kpi": {
+      "runsToday": "Runs today",
+      "success": "Success rate",
+      "failed": "Failed",
+      "avgDuration": "Avg. duration"
+    },
+    "filter": {
+      "all": "All",
+      "success": "Success",
+      "failed": "Failed",
+      "running": "Running"
+    },
+    "status": {
+      "success": "Success",
+      "failed": "Failed",
+      "running": "Running",
+      "pending": "Starts {when}",
+      "waiting": "Waiting · resumes {when}",
+      "skipped": "Skipped",
+      "cancelled": "Cancelled"
+    },
+    "trigger": "Trigger",
+    "duration": "Duration",
+    "started": "Started",
+    "trace": "Execution trace",
+    "loadOlder": "Load older",
+    "empty": {
+      "title": "No runs yet",
+      "filtered": "No {status} runs in the last 7 days"
+    },
+    "select": "Select a run to see its trace",
+    "justNow": "just now"
+  },
+  "trace": {
+    "trigger": "record = {label} · {summary}",
+    "scheduleTick": "tick · {stamp}",
+    "evaluated": "evaluated → {result}",
+    "stopped": "evaluated → false · stopped",
+    "branch": "took “{label}”",
+    "wait": "resumes {stamp}",
+    "wouldWait": "Would wait {duration}",
+    "email": {
+      "ok": "{smtp} · delivered to {to}",
+      "fail": "ERROR · {reason}",
+      "would": "Would send “{subject}” to {to}",
+      "noSmtp": "SMTP is not configured — Settings → Email",
+      "noRecipient": "No recipient: {column} is empty"
+    },
+    "notif": {
+      "ok": "notified {count, plural, one {# person} other {# people}}"
+    },
+    "create": {
+      "ok": "created {label}"
+    },
+    "update": {
+      "ok": "set {pairs}"
+    },
+    "write": {
+      "would": "Would set {pairs}"
+    },
+    "hook": {
+      "ok": "{method} {path} → {status} · {ms}ms",
+      "fail": "{method} {path} → {status}",
+      "would": "Would {method} {url}"
+    },
+    "stop": "Stopped here",
+    "undone": "Undone before it ran",
+    "gone": "Record no longer exists",
+    "ruleOff": "Rule was switched off while waiting",
+    "skipped": "—"
+  },
+  "dur": {
+    "ms": "{ms}ms",
+    "s": "{s}s",
+    "none": "—"
+  },
+  "saved": {
+    "h": "{h}h",
+    "m": "{m}m"
+  }
+} as const;

@@ -1,0 +1,332 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * "New rule" (`designs/Automation Rules.dc.html` 45-72, 601;
+ * 42-automations-and-workflow-logs.md D12, FILL F1, F4, 42-T22).
+ *
+ * The comp's two-state dialog: a form (name, When, Then, "Enable
+ * immediately"), then a success panel with a big check.
+ *
+ * --- DEPARTURE D12: what the success panel says --------------------------
+ *
+ * The comp's second state always reads "Rule created · Your rule is live and
+ * will run the next time it's triggered." Every action this modal can pick
+ * still needs setting up — a template, a table, a URL — so a rule created
+ * from here is, by construction, incomplete, and switching it on would
+ * produce a failed run per sign-up. The server therefore stores it PAUSED
+ * (`POST /automations` honours `enabled` only when the rule validates), and
+ * this panel says so: "Rule saved · Finish its steps, then switch it on."
+ * The comp's own copy is kept for the case where the rule IS complete.
+ *
+ * --- FILL F1 / F4: what "When" offers ------------------------------------
+ *
+ * The comp lists domain events ("A user signs up"). Adminium observes record
+ * writes and a clock, so the list is "A record is created in {table}" per
+ * readable table, plus "On a schedule" — prefixed with the connection's name
+ * when there is more than one (41 R7's rule).
+ */
+
+import { Input, Modal, ModalBody, ModalFooter, ModalHeader, Select, Switch } from '@adminium/ui';
+import { useState, type ReactNode } from 'react';
+
+import { t } from '../../i18n/t.js';
+import { automationIcon } from '../icons.js';
+import type { Sources } from '../api.js';
+import type { Graph, RecordEvent, Trigger } from '../model/graph.js';
+import { ACTION_STEPS } from '../model/vocabulary.js';
+
+export interface NewRuleSubmission {
+  name: string;
+  trigger: Trigger;
+  graph: Graph;
+  enabled: boolean;
+}
+
+export interface NewRuleModalProps {
+  open: boolean;
+  sources: Sources | null;
+  onClose: () => void;
+  onCreate: (input: NewRuleSubmission) => Promise<{ enabled: boolean }>;
+  /** After Done: select the new rule and open the inspector on its action. */
+  onDone: () => void;
+}
+
+const EVENTS: RecordEvent[] = ['created', 'updated', 'deleted'];
+
+/** D21 — literal keys, never assembled from the event name. */
+const EVENT_WORD: Record<RecordEvent, { key: string; fallback: string }> = {
+  created: { key: 'automations:event.created', fallback: 'created' },
+  updated: { key: 'automations:event.updated', fallback: 'updated' },
+  deleted: { key: 'automations:event.deleted', fallback: 'deleted' },
+};
+
+const TRIGGER_LABEL: Record<RecordEvent, { key: string; fallback: string }> = {
+  created: { key: 'automations:modal.trigger.created', fallback: 'A record is created in {table}' },
+  updated: { key: 'automations:modal.trigger.updated', fallback: 'A record is updated in {table}' },
+  deleted: { key: 'automations:modal.trigger.deleted', fallback: 'A record is deleted in {table}' },
+};
+
+const EMAIL_LABEL = { key: 'automations:pick.email', fallback: 'Send email' } as const;
+
+const ACTION_LABEL: Record<string, { key: string; fallback: string }> = {
+  email: EMAIL_LABEL,
+  notification: { key: 'automations:pick.notification', fallback: 'Send notification' },
+  create: { key: 'automations:pick.create', fallback: 'Create record' },
+  update: { key: 'automations:pick.update', fallback: 'Update field' },
+  webhook: { key: 'automations:pick.webhook', fallback: 'Call webhook' },
+  slack: { key: 'automations:pick.slack', fallback: 'Slack message' },
+};
+
+/** `record:cnx:table:created` / `schedule:cnx` — one string per option. */
+function parseTriggerValue(value: string, sources: Sources | null): Trigger | null {
+  const parts = value.split('|');
+  if (parts[0] === 'schedule') {
+    return {
+      kind: 'schedule',
+      connectionId: parts[1] ?? sources?.connections[0]?.id ?? null,
+      schedule: { kind: 'interval', everyMinutes: '15' },
+    };
+  }
+  if (parts[0] === 'record' && parts[1] !== undefined && parts[2] !== undefined) {
+    const table = sources?.connections
+      .find((connection) => connection.id === parts[1])
+      ?.tables.find((row) => row.id === parts[2]);
+    return {
+      kind: 'record',
+      event: (parts[3] ?? 'created') as RecordEvent,
+      connectionId: parts[1],
+      table: parts[2],
+      watch: table?.watch.created !== null && table?.watch.created !== undefined,
+    };
+  }
+  return null;
+}
+
+export function NewRuleModal({ open, sources, onClose, onCreate, onDone }: NewRuleModalProps): ReactNode {
+  const [name, setName] = useState('');
+  const [triggerValue, setTriggerValue] = useState('');
+  const [actionKey, setActionKey] = useState('email');
+  const [enable, setEnable] = useState(true);
+  const [done, setDone] = useState<{ enabled: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const several = (sources?.connections.length ?? 0) > 1;
+  const Check = automationIcon('check');
+  const Plus = automationIcon('plus');
+  const Workflow = automationIcon('workflow');
+
+  const close = (): void => {
+    setDone(null);
+    setName('');
+    setTriggerValue('');
+    setEnable(true);
+    onClose();
+  };
+
+  async function submit(): Promise<void> {
+    const trigger = parseTriggerValue(triggerValue, sources);
+    if (trigger === null || name.trim() === '') return;
+    const definition = ACTION_STEPS.find((step) => step.key === actionKey) ?? ACTION_STEPS[0];
+    if (definition === undefined) return;
+    const graph: Graph = {
+      version: 1,
+      nodes: [
+        {
+          id: 'n1',
+          kind: 'trigger',
+          title:
+            trigger.kind === 'schedule'
+              ? t('automations:trig.schedule', 'On a schedule')
+              : t('automations:node.trigger.record', 'When a record is {event} in {table}', {
+                  event: t(EVENT_WORD[trigger.event].key, EVENT_WORD[trigger.event].fallback),
+                  table: trigger.table,
+                }),
+        },
+        {
+          id: 'n2',
+          kind: 'action',
+          title: t(
+            (ACTION_LABEL[definition.key] ?? EMAIL_LABEL).key,
+            (ACTION_LABEL[definition.key] ?? EMAIL_LABEL).fallback,
+          ),
+          sub: definition.sub,
+          onError: false,
+          action: definition.action ?? { kind: 'email', templateKey: null, to: null },
+        },
+      ],
+    };
+    setBusy(true);
+    try {
+      setDone(await onCreate({ name: name.trim(), trigger, graph, enabled: enable }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+      size="md"
+    >
+      {done === null ? (
+        <>
+          <ModalHeader
+            icon={<Workflow aria-hidden />}
+            title={t('automations:modal.title', 'New rule')}
+            subtitle={t(
+              'automations:modal.subtitle',
+              'Trigger workflows automatically when things happen.',
+            )}
+            closeLabel={t('automations:picker.close', 'Close')}
+          />
+          <ModalBody className="flex flex-col gap-[15px]" data-testid="new-rule-modal">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold">
+                {t('automations:modal.name', 'Rule name')}
+              </span>
+              <Input
+                value={name}
+                placeholder={t('automations:modal.namePlaceholder', 'e.g. Welcome new signups')}
+                onChange={(event) => {
+                  setName(event.target.value);
+                }}
+                data-testid="new-rule-name"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold">
+                {t('automations:modal.when', 'When (trigger)')}
+              </span>
+              <Select
+                value={triggerValue}
+                onChange={(event) => {
+                  setTriggerValue(event.target.value);
+                }}
+                data-testid="new-rule-trigger"
+              >
+                <option value="">{t('automations:modal.when', 'When (trigger)')}</option>
+                {(sources?.connections ?? []).flatMap((connection) =>
+                  connection.tables
+                    .filter((table) => table.canRead)
+                    .flatMap((table) =>
+                      EVENTS.map((event) => (
+                        <option
+                          key={`${connection.id}|${table.id}|${event}`}
+                          value={`record|${connection.id}|${table.id}|${event}`}
+                        >
+                          {t(TRIGGER_LABEL[event].key, TRIGGER_LABEL[event].fallback, {
+                            table: several
+                              ? t('automations:modal.connection', '{connection} · {table}', {
+                                  connection: connection.name,
+                                  table: table.label,
+                                })
+                              : table.label,
+                          })}
+                        </option>
+                      )),
+                    ),
+                )}
+                <option value={`schedule|${sources?.connections[0]?.id ?? ''}`}>
+                  {t('automations:modal.trigger.schedule', 'On a schedule')}
+                </option>
+              </Select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold">
+                {t('automations:modal.then', 'Then (action)')}
+              </span>
+              <Select
+                value={actionKey}
+                onChange={(event) => {
+                  setActionKey(event.target.value);
+                }}
+                data-testid="new-rule-action"
+              >
+                {ACTION_STEPS.map((step) => (
+                  <option key={step.key} value={step.key}>
+                    {t(
+                      (ACTION_LABEL[step.key] ?? EMAIL_LABEL).key,
+                      (ACTION_LABEL[step.key] ?? EMAIL_LABEL).fallback,
+                    )}
+                  </option>
+                ))}
+              </Select>
+            </label>
+
+            <div className="flex items-center gap-3 rounded-[11px] border border-border bg-surface-2 px-3.5 py-3">
+              <div className="flex-1">
+                <div className="text-[12.5px] font-semibold">
+                  {t('automations:modal.enable', 'Enable immediately')}
+                </div>
+                <div className="mt-0.5 text-[11px] text-fg-subtle">
+                  {t('automations:modal.enableBody', 'Start running as soon as the rule is created')}
+                </div>
+              </div>
+              <Switch
+                checked={enable}
+                onCheckedChange={setEnable}
+                aria-label={t('automations:modal.enable', 'Enable immediately')}
+                data-testid="new-rule-enable"
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter className="justify-stretch">
+            <button
+              type="button"
+              onClick={close}
+              className="flex-1 rounded-[10px] border border-border bg-surface p-[11px] text-[13px] font-bold text-fg-muted"
+            >
+              {t('automations:modal.cancel', 'Cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={busy || name.trim() === '' || triggerValue === ''}
+              onClick={() => {
+                void submit();
+              }}
+              data-testid="new-rule-create"
+              className="flex flex-1 items-center justify-center gap-[7px] rounded-[10px] bg-accent p-[11px] text-[13px] font-bold text-accent-fg disabled:opacity-40"
+            >
+              <Plus aria-hidden className="size-[15px]" />
+              {t('automations:modal.create', 'Create rule')}
+            </button>
+          </ModalFooter>
+        </>
+      ) : (
+        <ModalBody className="flex flex-col items-center px-7 pb-[30px] pt-9 text-center" data-testid="new-rule-done">
+          <div className="mb-[15px] flex size-14 items-center justify-center rounded-2xl bg-pos-soft text-pos">
+            <Check aria-hidden className="size-7" />
+          </div>
+          <div className="text-[17px] font-extrabold tracking-[-0.02em]">
+            {done.enabled
+              ? t('automations:modal.doneTitle', 'Rule created')
+              : t('automations:modal.savedTitle', 'Rule saved')}
+          </div>
+          <div className="mt-1.5 max-w-[320px] text-[12.5px] leading-[1.5] text-fg-muted">
+            {done.enabled
+              ? t(
+                  'automations:modal.doneBody',
+                  "Your rule is live and will run the next time it's triggered.",
+                )
+              : t('automations:modal.savedBody', 'Finish its steps, then switch it on.')}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              onDone();
+            }}
+            data-testid="new-rule-done-button"
+            className="mt-5 rounded-[10px] bg-accent px-6 py-2.5 text-[13px] font-bold text-accent-fg"
+          >
+            {t('automations:modal.done', 'Done')}
+          </button>
+        </ModalBody>
+      )}
+    </Modal>
+  );
+}

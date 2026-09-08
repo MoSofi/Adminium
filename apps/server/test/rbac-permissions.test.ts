@@ -92,7 +92,7 @@ describe('parseGrant / parsePermission', () => {
     // no surface that OFFERS permissions may list them, because nothing in v1
     // enforces them and a grantable no-op is misleading security UI.
     expect([...RESERVED_SYSTEM_ACTION_KEYS].sort()).toEqual(
-      ['automations.manage', 'sql.run', 'webhooks.manage'].sort(),
+      ['sql.run', 'webhooks.manage'].sort(),
     );
 
     for (const key of RESERVED_SYSTEM_ACTION_KEYS) {

@@ -4,9 +4,8 @@
  * `/api/v1/permissions/catalog`.
  *
  * ONLY GRANTABLE PERMISSIONS EVER REACH THE MATRIX. `@adminium/meta`'s
- * `RESERVED_SYSTEM_ACTION_KEYS` — `automations.manage`, `webhooks.manage`,
- * `manifests.manage`, `sql.run` — are deferred features with ZERO enforcement
- * points in v1: no route and no realtime authorizer checks them. They stay in
+ * `RESERVED_SYSTEM_ACTION_KEYS` — `webhooks.manage`, `sql.run` — are deferred
+ * features with ZERO enforcement points in v1: no route and no realtime authorizer checks them. They stay in
  * the closed grammar so stored grants keep round-tripping, but offering one in
  * a permissions UI would let an admin believe they had restricted something
  * that is not checked anywhere, which is worse than no control at all. The
@@ -76,10 +75,11 @@ export interface PermissionCatalogReply {
 
 /** Copied mirror — see the header's SYNC NOTE. */
 export const RESERVED_GRANTS: readonly string[] = [
-  'system:automations:manage',
   'system:webhooks:manage',
   // `system:manifests:manage` left this list on 2026-08-29 with 26-T05, when
-  // the `/api/v1/add-ons` routes landed to enforce it. THIS FILE IS THE SILENT
+  // the `/api/v1/add-ons` routes landed to enforce it, and
+  // `system:automations:manage` on 2026-09-08 with 42-T13, when the
+  // `/api/v1/automations` routes landed to enforce IT. THIS FILE IS THE SILENT
   // HALF of that change: the dashboard cannot import `@adminium/meta` (the
   // dep-cruiser rule `dashboard-no-meta-adapters-llm` forbids it), so nothing
   // detects drift between this mirror and the real list — a key left here after

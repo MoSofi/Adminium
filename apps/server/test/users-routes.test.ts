@@ -503,7 +503,7 @@ describe('PATCH /users/:id', () => {
 });
 
 describe('GET /permissions/catalog', () => {
-  it('offers the grantable keys only — never the reserved four', async () => {
+  it('offers the grantable keys only — never a reserved one', async () => {
     ctx = await buildUsersTestApp();
     const res = await ctx.app.inject({
       method: 'GET',
@@ -519,18 +519,15 @@ describe('GET /permissions/catalog', () => {
     const keys = body.system.map((entry) => entry.key);
     expect(keys).toContain('system:users:manage');
     expect(keys).toContain('system:roles:manage');
-    for (const reserved of [
-      'system:automations:manage',
-      'system:webhooks:manage',
-      'system:sql:run',
-    ]) {
+    for (const reserved of ['system:webhooks:manage', 'system:sql:run']) {
       expect(keys, reserved).not.toContain(reserved);
     }
-    // Un-reserved by 26-T05, so the catalog now OFFERS it — asserted here
-    // rather than merely dropped from the list above, because "no longer
-    // absent" and "actually present" are different facts and only the second
-    // one proves the change reached this surface.
+    // Un-reserved by 26-T05 and 42-T13, so the catalog now OFFERS both —
+    // asserted here rather than merely dropped from the list above, because
+    // "no longer absent" and "actually present" are different facts and only
+    // the second one proves the change reached this surface.
     expect(keys).toContain('system:manifests:manage');
+    expect(keys).toContain('system:automations:manage');
     expect(body.system.every((entry) => entry.label.length > 0)).toBe(true);
     expect(body.tableActions).toContain('read');
     expect(body.pageActions).toEqual(['view', 'edit']);

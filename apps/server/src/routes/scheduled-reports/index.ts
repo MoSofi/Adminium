@@ -6,7 +6,7 @@
  * - `GET    /scheduled-reports`     — own schedules; everyone's with
  *   {@link REPORTS_MANAGE_PERMISSION} (fail-closed until the key lands).
  * - `POST   /scheduled-reports`     — create; `next_run_at` from croner over
- *   the §3.24 schedule fields (reports/schedule.ts).
+ *   the §3.24 schedule fields (schedule/next-run.ts).
  * - `PATCH  /scheduled-reports/:id` — update; schedule/enable changes
  *   recompute `next_run_at` (disable parks it at null).
  * - `DELETE /scheduled-reports/:id`
@@ -29,7 +29,7 @@ import { z } from 'zod';
 
 import { loadSnapshotView } from '../../data-io/snapshot-view.js';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationFailedError } from '../../errors.js';
-import { ReportScheduleError, nextRunAtOf } from '../../reports/schedule.js';
+import { ScheduleError, nextRunAtOf } from '../../schedule/next-run.js';
 import {
   scheduledReportIdParams,
   scheduledReportsCreateBody,
@@ -133,7 +133,7 @@ export function scheduledReportsRoutes(deps: ScheduledReportsRoutesDeps): Fastif
     try {
       return nextRunAtOf(schedule, from);
     } catch (error) {
-      if (error instanceof ReportScheduleError) {
+      if (error instanceof ScheduleError) {
         throw new ValidationFailedError(error.message, { schedule });
       }
       throw error;

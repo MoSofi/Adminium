@@ -41,7 +41,8 @@ import {
   type User,
 } from '@adminium/meta';
 
-import { createFileStorage, type FileStorage } from '../src/files/storage.js';
+import { type FileStore } from '../src/files/store.js';
+import { createTestFileStore } from './helpers/file-store.js';
 import { registerExportRunHandler } from '../src/jobs/export-run.js';
 import {
   REPORT_FAILED_KIND,
@@ -56,7 +57,7 @@ import {
   NOTIFICATION_READ_EVENT,
   notify,
 } from '../src/notifications/notify.js';
-import { ReportScheduleError, cronExprFor, nextRunAtOf } from '../src/reports/schedule.js';
+import { ScheduleError, cronExprFor, nextRunAtOf } from '../src/schedule/next-run.js';
 import { emailTemplatesRoutes } from '../src/routes/email-templates/index.js';
 import {
   EMAIL_CHANNEL_UNAVAILABLE_REASON,
@@ -73,7 +74,7 @@ import {
 
 // --- croner schedule math (pure) --------------------------------------------------
 
-describe('reports/schedule: §3.24 fields → croner next occurrence', () => {
+describe('schedule/next-run: §3.24 fields → croner next occurrence', () => {
   it('morphs frequency fields into cron expressions', () => {
     expect(cronExprFor({ frequency: 'daily', time: '09:05', timezone: 'UTC' })).toBe('5 9 * * *');
     expect(
@@ -117,13 +118,13 @@ describe('reports/schedule: §3.24 fields → croner next occurrence', () => {
     expect(next).toBe(Date.UTC(2026, 2, 31, 0, 0));
   });
 
-  it('rejects unusable time / timezone fields with ReportScheduleError', () => {
+  it('rejects unusable time / timezone fields with ScheduleError', () => {
     expect(() =>
       cronExprFor({ frequency: 'daily', time: '25:00', timezone: 'UTC' }),
-    ).toThrowError(ReportScheduleError);
+    ).toThrowError(ScheduleError);
     expect(() =>
       nextRunAtOf({ frequency: 'daily', time: '09:00', timezone: 'Not/AZone' }),
-    ).toThrowError(ReportScheduleError);
+    ).toThrowError(ScheduleError);
   });
 });
 
@@ -247,7 +248,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
   let superAdmin: User;
   let connId: string;
   let dataDir: string;
-  let storage: FileStorage;
+  let storage: FileStore;
   let registry: JobRegistry;
   let jobs: JobsRepo;
   const hubEvents: HubEvent[] = [];
@@ -262,7 +263,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
 
   beforeAll(async () => {
     dataDir = mkdtempSync(join(tmpdir(), 'adminium-reports-'));
-    storage = createFileStorage({ dataDir });
+    storage = createTestFileStore({ dataDir });
     t = await buildDataTestApp({
       registry: makeFakeRegistry(seedSqlite()),
       extraRoutes: async (api, ctx) => {
@@ -495,7 +496,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
     });
     expect(badPage.statusCode).toBe(422);
 
-    // An unusable timezone 422s through ReportScheduleError.
+    // An unusable timezone 422s through ScheduleError.
     const badTz = await t.app.inject({
       method: 'POST',
       url: '/api/v1/scheduled-reports',
@@ -610,7 +611,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
 
     // The artifact really landed in file storage as CSV (the export
     // pipeline's writer, not a fork): 3 data rows + header.
-    const stored = await storage.read(exportRow.fileId ?? '');
+    const stored = await storage.read({ destinationId: null, storageKey: exportRow.fileId ?? '' });
     let csv = '';
     for await (const chunk of stored) csv += String(chunk);
     expect(csv).toContain('customer_id,company_name,credit_limit');
@@ -680,7 +681,7 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
 
   // --- /email-templates -------------------------------------------------------------------
 
-  it('email templates: the exact client contract, manage-guarded writes', async () => {
+  it('email documents: the 39 contract — un-enveloped list + counts, manage-guarded writes, the read alias', async () => {
     // Empty list first — the client renders its empty state from `{ items: [] }`.
     const empty = await t.app.inject({
       method: 'GET',
@@ -688,56 +689,71 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
       headers: asUser(t.users.editor),
     });
     expect(empty.statusCode).toBe(200);
-    expect(empty.json()).toEqual({ items: [] });
+    expect(empty.json()).toEqual({ items: [], counts: { template: 0, campaign: 0, archived: 0 } });
 
-    // Writes need system:settings:manage — the editor is refused.
+    // Writes need system:settings:manage — the editor is refused, and told which key.
     const denied = await t.app.inject({
-      method: 'PUT',
-      url: '/api/v1/email-templates/welcome/en_US',
+      method: 'POST',
+      url: '/api/v1/email-templates',
       headers: asUser(t.users.editor),
-      payload: { name: 'Welcome', subject: 'Hi', blocks: [], enabled: true },
+      payload: { kind: 'template', name: 'Welcome' },
     });
     expect(denied.statusCode).toBe(403);
 
+    const created = await t.app.inject({
+      method: 'POST',
+      url: '/api/v1/email-templates',
+      headers: asUser(superAdmin),
+      payload: { kind: 'template', name: 'Welcome' },
+    });
+    expect(created.statusCode).toBe(201);
+    const createdBody = created.json() as { id: string; key: string; locale: string; document: { blocks: unknown[] } };
+    expect(createdBody.key).toBe('welcome');
+    expect(createdBody.locale).toBe('en_US');
+
+    // An explicit save (39 D1) — the ONLY way a row's document changes; an
+    // unknown block kind rides through byte-identical.
     const put = await t.app.inject({
       method: 'PUT',
-      url: '/api/v1/email-templates/welcome/en_US',
+      url: `/api/v1/email-templates/${createdBody.id}`,
       headers: asUser(superAdmin),
       payload: {
         name: 'Welcome',
-        subject: 'Welcome to the workspace',
-        blocks: [{ block: 'block-hero', data: { heading: 'Hello' } }, { custom: 'preserved' }],
+        category: 'lifecycle',
         enabled: true,
+        document: {
+          subject: 'Welcome to the workspace',
+          blocks: [{ id: 'h', block: 'block-hero', data: { heading: 'Hello' } }, { id: 'c', custom: 'preserved' }],
+        },
       },
     });
     expect(put.statusCode).toBe(200);
-    const putBody = put.json() as { id: string; key: string; locale: string; blocks: unknown[] };
-    expect(putBody.key).toBe('welcome');
-    expect(putBody.locale).toBe('en_US');
-    expect(putBody.blocks).toHaveLength(2);
 
-    // GET detail = list item + blocks, un-enveloped.
+    // GET by (key, locale) is a read alias of the detail: summary + document, un-enveloped.
     const detail = await t.app.inject({
       method: 'GET',
       url: '/api/v1/email-templates/welcome/en_US',
       headers: asUser(t.users.editor),
     });
     expect(detail.statusCode).toBe(200);
-    const detailBody = detail.json() as Record<string, unknown>;
+    const detailBody = detail.json() as Record<string, unknown> & { document: { blocks: Record<string, unknown>[] } };
     expect(detailBody).toMatchObject({
-      id: putBody.id,
+      id: createdBody.id,
       key: 'welcome',
       locale: 'en_US',
       name: 'Welcome',
       subject: 'Welcome to the workspace',
       enabled: true,
+      category: 'lifecycle',
     });
-    expect(detailBody.blocks).toEqual([
-      { block: 'block-hero', data: { heading: 'Hello' } },
-      { custom: 'preserved' },
+    // An unknown KIND keeps its data verbatim (39 D5); a stray top-level key
+    // is not part of the envelope and does not survive normalization.
+    expect(detailBody.document.blocks).toEqual([
+      { id: 'h', block: 'block-hero', data: { heading: 'Hello' }, style: {} },
+      { id: 'c', block: '', data: {}, style: {} },
     ]);
 
-    // List shape: `{ items: [...] }` with NO blocks on the rows.
+    // List shape: `{ items, counts }` with NO document on the rows.
     const list = await t.app.inject({
       method: 'GET',
       url: '/api/v1/email-templates',
@@ -745,9 +761,9 @@ describe('notifications + scheduled-reports + email-templates routes, report-run
     });
     const items = (list.json() as { items: Record<string, unknown>[] }).items;
     expect(items).toHaveLength(1);
-    expect(items[0]).not.toHaveProperty('blocks');
+    expect(items[0]).not.toHaveProperty('document');
 
-    // Unknown template → 404.
+    // Unknown variation → 404.
     const missing = await t.app.inject({
       method: 'GET',
       url: '/api/v1/email-templates/welcome/fr_FR',

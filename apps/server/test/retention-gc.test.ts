@@ -20,6 +20,8 @@
 import BetterSqlite3 from 'better-sqlite3';
 import {
   auditRepo,
+  automationRunsRepo,
+  automationsRepo,
   createSqliteMetaDb,
   firstRun,
   jobsRepo,
@@ -177,6 +179,59 @@ describe('firing the sweep deletes what the policy says', () => {
     // A pending job has no `finished_at`; the sweep must never touch work that
     // has not run, however old its `run_at` is.
     expect(await jobs.findById(pending.id)).not.toBeNull();
+  });
+
+  it('sweeps automation runs, keeps failed ones twice as long, spares waiting work (42 D23)', async () => {
+    const { meta, server } = await compose();
+    const rules = automationsRepo(meta);
+    const runs = automationRunsRepo(meta);
+    await settingsRepo(meta).set('retention.automationRunsDays', 90, { updatedBy: null });
+
+    const rule = await rules.create({
+      connectionId: null,
+      name: 'Nightly tick',
+      trigger: {
+        kind: 'schedule',
+        connectionId: null,
+        schedule: { kind: 'interval', everyMinutes: '60' },
+      },
+      graph: { version: 1, nodes: [{ id: 'n1', kind: 'trigger', title: 'Every hour' }] },
+    });
+    const trace = { version: 1 as const, steps: [], resume: null };
+    const event = {
+      event: 'schedule.tick' as const,
+      origin: 'schedule' as const,
+      hops: 0,
+      record: null,
+      snapshot: null,
+      occurredAt: 0,
+    };
+    const at = Date.now();
+    const make = async (key: string, ageDays: number, status: 'succeeded' | 'failed' | null) => {
+      const run = await runs.begin(
+        { automationId: rule.id, dedupeKey: key, origin: 'schedule', triggerEvent: event },
+        at - ageDays * DAY_MS,
+      );
+      if (run === null) throw new Error('expected a run');
+      if (status !== null) {
+        await runs.start(run.id);
+        await runs.finish(run.id, { status, trace, durationMs: 1 }, at - ageDays * DAY_MS + 5);
+      }
+      return run.id;
+    };
+    const oldSuccess = await make('a', 91, 'succeeded');
+    const oldFailure = await make('b', 91, 'failed');
+    const ancientFailure = await make('c', 181, 'failed');
+    const waiting = await make('d', 400, null);
+
+    await server.jobs.scheduler.trigger(RETENTION_GC_SCHEDULE_NAME);
+
+    expect(await runs.findById(oldSuccess)).toBeNull();
+    // A failed run is the one somebody comes back to read.
+    expect(await runs.findById(oldFailure)).not.toBeNull();
+    expect(await runs.findById(ancientFailure)).toBeNull();
+    // Work that has not happened is never swept, however old the row is.
+    expect(await runs.findById(waiting)).not.toBeNull();
   });
 
   it('reads retention.auditLogDays rather than a hardcoded window', async () => {

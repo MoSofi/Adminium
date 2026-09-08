@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * The deferred `automations` namespace's contract (42-automations-and-workflow-logs.md 42-T25;
+ * the `email` gate's twin, `emailNamespace.test.ts`):
+ *
+ * 1. Every `automations:` key must exist in the en-US bundle.
+ * 2. Every call site carries an inline fallback that is the catalogue text,
+ *    character for character — the fallback is what renders until the chunk
+ *    lands, and a drifted one is a second, unreviewed copy of the message.
+ * 3. Nothing outside `src/automations` may read an `automations:` key: the surface that
+ *    loads the namespace is the only one that may depend on it.
+ */
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+import { EN_US_RESOURCES, type ResourceBundle } from '@adminium/i18n/resources';
+
+const SRC = join(process.cwd(), 'src');
+const AUTOMATIONS = join(SRC, 'automations');
+
+const PAIRED = /'automations:([A-Za-z0-9_.-]+)'\s*,\s*(?:[A-Za-z][A-Za-z0-9_]*\s*:\s*)?('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g;
+const ANY_KEY = /'automations:([A-Za-z0-9_.-]+)'/g;
+
+function sourceFiles(dir: string, includeTests: boolean): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...sourceFiles(path, includeTests));
+    else if (/\.(ts|tsx)$/.test(entry.name) && (includeTests || !/\.test\./.test(entry.name))) out.push(path);
+  }
+  return out;
+}
+
+function catalogued(key: string): string | null {
+  let node: ResourceBundle[string] | undefined = EN_US_RESOURCES.automations;
+  for (const part of key.split('.')) {
+    if (node === undefined || typeof node === 'string') return null;
+    node = node[part];
+  }
+  return typeof node === 'string' ? node : null;
+}
+
+function literalText(raw: string): string {
+  const body = raw.slice(1, -1).replace(/\\'/g, "'").replace(/\\"/g, '"');
+  return JSON.parse(`"${body.replace(/"/g, '\\"')}"`) as string;
+}
+
+interface Site {
+  file: string;
+  key: string;
+  fallback: string;
+}
+
+function automationSites(): { sites: Site[]; unpaired: string[] } {
+  const sites: Site[] = [];
+  const unpaired: string[] = [];
+  for (const file of sourceFiles(AUTOMATIONS, false)) {
+    const src = readFileSync(file, 'utf8');
+    const pairedAt = new Set<number>();
+    for (const match of src.matchAll(PAIRED)) {
+      pairedAt.add(match.index);
+      sites.push({ file, key: match[1] ?? '', fallback: literalText(match[2] ?? "''") });
+    }
+    for (const match of src.matchAll(ANY_KEY)) {
+      if (pairedAt.has(match.index)) continue;
+      unpaired.push(`${file}: automations:${match[1] ?? ''}`);
+    }
+  }
+  return { sites, unpaired };
+}
+
+describe('the deferred `automations` namespace', () => {
+  const { sites, unpaired } = automationSites();
+
+  it('the scan finds the automations surfaces (regex/tree sanity)', () => {
+    expect(new Set(sites.map((s) => s.key)).size).toBeGreaterThan(100);
+  });
+
+  it('every key is paired with an inline fallback', () => {
+    expect(unpaired, `call sites with no fallback to render before the chunk lands:\n${unpaired.join('\n')}`).toEqual([]);
+  });
+
+  it('every key resolves in the en-US automations bundle', () => {
+    const missing = [...new Set(sites.filter((s) => catalogued(s.key) === null).map((s) => s.key))].sort();
+    expect(missing, `keys missing from packages/i18n/locales/en-US/automations.json:\n${missing.join('\n')}`).toEqual([]);
+  });
+
+  it('every fallback is the catalogue text, character for character', () => {
+    const drifted = sites
+      .filter((s) => catalogued(s.key) !== null && catalogued(s.key) !== s.fallback)
+      .map((s) => `${s.key}\n  catalogue: ${JSON.stringify(catalogued(s.key))}\n  fallback:  ${JSON.stringify(s.fallback)}\n  ${s.file}`);
+    expect(drifted, `inline fallbacks that no longer match the bundle:\n${drifted.join('\n\n')}`).toEqual([]);
+  });
+
+  it('is read from nowhere but the automations surfaces', () => {
+    const outside: string[] = [];
+    for (const file of sourceFiles(SRC, true)) {
+      if (file.startsWith(`${AUTOMATIONS}/`) || file === AUTOMATIONS) continue;
+      if (file === join(SRC, 'i18n', 'automationsNamespace.test.ts')) continue;
+      const src = readFileSync(file, 'utf8');
+      for (const match of src.matchAll(ANY_KEY)) outside.push(`${file}: automations:${match[1] ?? ''}`);
+    }
+    expect(
+      outside,
+      `a deferred namespace read outside the surface that loads it — these render English until\n` +
+        `somebody opens an automation, and never in the user's own language:\n${outside.join('\n')}`,
+    ).toEqual([]);
+  });
+});

@@ -43,6 +43,9 @@ import { dataRoutes } from '../src/routes/data/index.js';
 import { schemaRoutes } from '../src/routes/schema/index.js';
 import { widgetDataRoutes } from '../src/routes/widget-data/index.js';
 import { UndoStore } from '../src/crud/undo.js';
+import type { FileReconciler } from '../src/files/reconcile.js';
+import type { RealtimeHub } from '../src/realtime/hub.js';
+import type { AutomationDispatcher } from '../src/crud/after-record-write.js';
 import { WidgetDataCache } from '../src/widget-data/cache.js';
 import { makeEnv, TEST_SECRET } from './helpers.js';
 
@@ -179,6 +182,24 @@ export interface BuildDataTestAppOptions {
   extraRoutes?:
     | ((api: FastifyInstance, ctx: { meta: MetaDb; manager: ConnectionManager }) => Promise<void>)
     | undefined;
+  /**
+   * The 37 file reconciler, handed to `dataRoutes`. Absent ⇒ no file behaviour
+   * at all, which is what every suite that predates 37 gets and is why none of
+   * them changed.
+   */
+  files?: FileReconciler | undefined;
+  /**
+   * A realtime hub for the mutation fan-out. Absent ⇒ `app.hasDecorator(
+   * 'realtime')` is false and the data routes publish nothing, which is what
+   * every suite here has always had; pass one to assert on what goes out.
+   */
+  realtime?: RealtimeHub | undefined;
+  /**
+   * The rule engine (42). Absent ⇒ `app.hasDecorator('automations')` is false
+   * and every write path skips the dispatch entirely, which is what every
+   * suite that predates 42 gets and is why none of them changed.
+   */
+  automations?: AutomationDispatcher | undefined;
 }
 
 export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Promise<DataTestContext> {
@@ -228,6 +249,8 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
   const widgetCache = new WidgetDataCache(opts.now !== undefined ? { now: opts.now } : {});
 
   const app = await buildServer({ env: makeEnv(), logger: false });
+  if (opts.realtime !== undefined) app.decorate('realtime', opts.realtime);
+  if (opts.automations !== undefined) app.decorate('automations', opts.automations);
   app.addHook('onRequest', async (request) => {
     const id = request.headers['x-test-user-id'];
     if (typeof id === 'string') {
@@ -246,7 +269,7 @@ export async function buildDataTestApp(opts: BuildDataTestAppOptions = {}): Prom
     async (api) => {
       await api.register(connectionsRoutes({ manager, meta }));
       await api.register(schemaRoutes({ manager, meta }));
-      await api.register(dataRoutes({ manager, meta, undoStore }));
+      await api.register(dataRoutes({ manager, meta, undoStore, ...(opts.files === undefined ? {} : { files: opts.files }) }));
       await api.register(widgetDataRoutes({ manager, meta, cache: widgetCache }));
       if (opts.extraRoutes !== undefined) {
         await opts.extraRoutes(api as unknown as FastifyInstance, { meta, manager });
@@ -286,12 +309,14 @@ export async function createConnectionViaApi(
   t: DataTestContext,
   dsn: string,
   name = 'northwind',
+  /** A fake adapter registry may declare any dialect; default postgres. */
+  engine = 'postgres',
 ): Promise<string> {
   const res = await t.app.inject({
     method: 'POST',
     url: '/api/v1/connections',
     headers: asUser(t.users.admin),
-    payload: { name, engine: 'postgres', dsn },
+    payload: { name, engine, dsn },
   });
   if (res.statusCode !== 201) {
     throw new Error(`connection create failed: ${res.statusCode} ${res.body}`);

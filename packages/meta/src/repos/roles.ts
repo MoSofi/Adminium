@@ -105,6 +105,20 @@ export function rolesRepo(meta: MetaDb) {
       return Number(res.numDeletedRows) === 1;
     },
 
+    /**
+     * Every user holding this role. Added for 42 D20 ("notify everyone with a
+     * role"), which is the first caller that needs the assignment table read
+     * in this direction — `rolesForUser` reads it in the other.
+     */
+    async usersInRole(roleId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom('adminium_user_roles')
+        .select('userId')
+        .where('roleId', '=', roleId)
+        .execute();
+      return rows.map((row) => row.userId);
+    },
+
     async rolesForUser(userId: string): Promise<Role[]> {
       const rows = await db
         .selectFrom('adminium_user_roles')
