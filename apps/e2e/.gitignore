@@ -3,3 +3,5 @@ test-results-desktop/
 playwright-report/
 playwright-report-desktop/
 .playwright/
+results.json
+results.xml
