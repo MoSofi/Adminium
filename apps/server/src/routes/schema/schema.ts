@@ -39,6 +39,22 @@ export const schemaReply = z.object({
   model: z.unknown(),
   /** Number of active override ops applied (0 when raw). */
   appliedOverrides: z.number(),
+  /**
+   * Whether this connection's schema can be AUTHORED, and why not (35-T15).
+   *
+   * On this reply rather than on the connection DTO because Studio's remap page
+   * already reads this endpoint under the grant it already has: reading
+   * authorability off `GET /connections` would make the Design surface's
+   * presence depend on `connections.manage`, which is not the grant that
+   * governs it. The value comes from the same function the DDL routes refuse
+   * with, so the UI cannot drift from the guard.
+   */
+  schemaAuthoring: z.object({
+    authorable: z.boolean(),
+    reason: z
+      .enum(['NO_LIVE_DATABASE', 'READ_ONLY_ROLE', 'NO_DDL_PRIVILEGE', 'READ_ONLY_INTENT'])
+      .nullable(),
+  }),
 });
 
 export const snapshotListReply = z.object({

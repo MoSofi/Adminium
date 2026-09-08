@@ -40,7 +40,7 @@
 import { manifestsRepo, type MetaDb } from '@adminium/meta';
 import type { AddOnManifest, InstallPlan, RequiredTable } from '@adminium/manifest';
 
-import { ValidationFailedError } from '../errors.js';
+import { ForbiddenError, ValidationFailedError } from '../errors.js';
 import type { ConnectionManager } from '../connections/manager.js';
 import { runIntrospection } from '../connections/introspect.js';
 import { loadSnapshotView } from '../data-io/snapshot-view.js';
@@ -135,6 +135,30 @@ export function createAddOnSchemaTarget(deps: AddOnSchemaTargetDeps): AddOnSchem
           `"${manifest.key}" needs tables, and this instance has no database connection to ` +
             'create them in. Connect a data source first.',
           { code: 'ADD_ON_NO_CONNECTION', create: plan.create.map((table) => table.ref) },
+        );
+      }
+
+      // 13 §2.5 specified this guard when it specified the install path — a
+      // `create` outcome is "refused when the `data` role is read-only" — and
+      // `install-ddl.ts` never implemented it, so until now an add-on install
+      // ran CREATE TABLE against a connection Adminium had already recorded as
+      // read-only, and failed with whatever the engine said. The check is
+      // retrofitted here rather than inside `applyInstall`, which stays a pure
+      // DDL emitter that knows nothing about connections
+      // (35-schema-authoring.md 35-T18).
+      const connection = await deps.manager.mustFind(connectionId);
+      if (connection.readOnly) {
+        throw new ForbiddenError(
+          `"${manifest.key}" needs to create tables, but this connection uses a read-only role.`,
+          'READ_ONLY_MODE',
+          { code: 'ADD_ON_READ_ONLY', create: plan.create.map((table) => table.ref) },
+        );
+      }
+      if (connection.canDdl === false) {
+        throw new ForbiddenError(
+          `"${manifest.key}" needs to create tables, but this connection's role cannot run DDL.`,
+          'READ_ONLY_MODE',
+          { code: 'ADD_ON_NO_DDL', create: plan.create.map((table) => table.ref) },
         );
       }
 

@@ -29,6 +29,7 @@ import {
 import { ForbiddenError, NotFoundError, ValidationFailedError } from '../../errors.js';
 import { applyOverrides } from '../../connections/effective-schema.js';
 import type { ConnectionManager } from '../../connections/manager.js';
+import { unauthorableReason } from '../../schema-ddl/authorable.js';
 import {
   overridesPutBody,
   overridesReply,
@@ -75,6 +76,11 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
       raw: boolean,
       locale?: string | undefined,
     ) {
+      // 35-T15. `mustLatest` already loaded the connection, but only to prove
+      // it exists; the authorability answer needs the row itself.
+      const connection = await manager.mustFind(connectionId);
+      const refusal = unauthorableReason(connection);
+      const schemaAuthoring = { authorable: refusal === null, reason: refusal?.reason ?? null };
       if (raw) {
         return {
           connectionId,
@@ -84,6 +90,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           source: snapshot.source,
           model: snapshot.schema,
           appliedOverrides: 0,
+          schemaAuthoring,
         };
       }
       const active = await overrides.listForConnection(connectionId, { status: 'active' });
@@ -97,6 +104,7 @@ export function schemaRoutes(deps: SchemaRoutesDeps): FastifyPluginAsyncZod {
           ...(locale === undefined ? {} : { defaultLocale: locale }),
         }),
         appliedOverrides: active.length,
+        schemaAuthoring,
       };
     }
 

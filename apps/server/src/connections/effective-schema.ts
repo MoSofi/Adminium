@@ -153,6 +153,11 @@ export function applyRelationOverrides(
         onUpdate: null,
         selfReferential: from === value.toTable,
         confidence: 1,
+        // A virtual relation is a badge Adminium owns, not a row in the
+        // customer's catalog — so there is no constraint name to carry, and
+        // that absence is what tells a DDL plan it cannot DROP this one
+        // (35-schema-authoring.md D13).
+        constraintName: null,
       };
       // An accepted relation SUPERSEDES the inferred one it was accepted
       // from: rule 1 emits `inferred-name:orders(customer_id)->customers(id)`

@@ -22,6 +22,7 @@ import {
   runIntrospection,
 } from '../../connections/introspect.js';
 import type { ConnectionManager, ConnectionTestSummary } from '../../connections/manager.js';
+import { unauthorableReason } from '../../schema-ddl/authorable.js';
 import {
   connectionCreateBody,
   connectionDeleteBody,
@@ -119,6 +120,10 @@ export function connectionsRoutes(deps: ConnectionsRoutesDeps): FastifyPluginAsy
         currency: connection.currency,
         disabled: connection.disabled,
         disabledAt: connection.disabledAt,
+        schemaAuthoring: (() => {
+          const refusal = unauthorableReason(connection);
+          return { authorable: refusal === null, reason: refusal?.reason ?? null };
+        })(),
         snapshot:
           latest === null
             ? null

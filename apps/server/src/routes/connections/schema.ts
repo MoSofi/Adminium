@@ -130,6 +130,20 @@ export const connectionDto = z.object({
   disabled: z.boolean(),
   /** When it was paused; null while it is serving. */
   disabledAt: z.number().nullable(),
+  /**
+   * Whether this connection's SCHEMA can be authored, and why not (35-T15).
+   *
+   * Derived server-side from the same function the DDL routes refuse with, so
+   * Studio can leave the Design surface out entirely instead of offering a
+   * button whose only possible outcome is a 403. `reason` is the refusal's own
+   * code — the UI renders a sentence for it, it does not re-derive the rule.
+   */
+  schemaAuthoring: z.object({
+    authorable: z.boolean(),
+    reason: z
+      .enum(['NO_LIVE_DATABASE', 'READ_ONLY_ROLE', 'NO_DDL_PRIVILEGE', 'READ_ONLY_INTENT'])
+      .nullable(),
+  }),
   /** Health-card snapshot age (§2.4). */
   snapshot: z
     .object({ id: z.string(), createdAt: z.number(), checksum: z.string() })

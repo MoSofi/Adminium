@@ -144,7 +144,15 @@ export class ConflictError extends AppError {
 
   constructor(
     message = 'The resource changed since you loaded it.',
-    code: 'CONFLICT' | 'UNIQUE_VIOLATION' | 'FK_VIOLATION' = 'CONFLICT',
+    code:
+      | 'CONFLICT'
+      | 'UNIQUE_VIOLATION'
+      | 'FK_VIOLATION'
+      // 35-schema-authoring.md D2: the plan was built against a schema that has
+      // since moved — either the snapshot (another admin applied a plan) or the
+      // database itself (somebody ran DDL outside Adminium). Both mean the same
+      // thing to the caller: re-plan and look at it again.
+      | 'SCHEMA_DRIFT' = 'CONFLICT',
     details?: unknown,
   ) {
     super(409, code, message, details);

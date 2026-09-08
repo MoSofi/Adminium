@@ -166,6 +166,21 @@ export class ConnectionManager {
   }
 
   /**
+   * Does Adminium's own meta store live in THIS connection's database?
+   *
+   * The condition that makes the `adminium_` namespace reachable through a
+   * source connection, and therefore the condition the schema-authoring
+   * refusal turns on (35-schema-authoring.md §4, `META_NAMESPACE`). Public
+   * because the DDL validator needs the same answer `enforceMetaPlacement`
+   * derives below, and re-deriving it from a second copy of the DSN parsing
+   * is how the two would eventually disagree.
+   */
+  metaSharesDatabaseWith(dataDsn: string | null): boolean {
+    if (this.#metaDsn === null || dataDsn === null) return false;
+    return sameDatabase(this.#metaDsn, dataDsn);
+  }
+
+  /**
    * 01 §3.1 decision-tree rule, re-validated server-side: same-db meta
    * placement is impossible against a read-only or DDL-less data role.
    */

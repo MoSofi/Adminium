@@ -68,6 +68,14 @@ export interface Connection {
    * to outlive one. Read it through {@link Connection.disabled} rather than
    * comparing to null at each call site.
    */
+  /**
+   * What the last probe said about DDL on this role (wave 0023). `null` =
+   * never probed. A UI hint, never a guard — the authority is the per-target
+   * privilege preflight at plan time (35 D17).
+   */
+  canDdl: boolean | null;
+  /** ER-diagram node positions, per connection (35 D21). */
+  diagramLayout: unknown;
   disabledAt: number | null;
   /** Convenience mirror of `disabledAt !== null` — the question callers ask. */
   disabled: boolean;
@@ -147,6 +155,8 @@ export interface ConnectionTestOutcome {
   errorHint?: string | null;
   /** Probe result — a read-only data role flips the app read-only (§3.13). */
   readOnly?: boolean;
+  /** Probe result — whether this role can run DDL (wave 0023, 35 D17). */
+  canDdl?: boolean;
 }
 
 function decode(row: Selectable<AdminiumConnectionsTable>): Connection {
@@ -169,6 +179,8 @@ function decode(row: Selectable<AdminiumConnectionsTable>): Connection {
     timezone: row.timezone,
     timezoneSource: readTimezoneSource(row.timezoneSource),
     currency: row.currency,
+    canDdl: row.canDdl === null || row.canDdl === undefined ? null : readBool(row.canDdl),
+    diagramLayout: readJsonOrNull(row.diagramLayout),
     disabledAt: row.disabledAt,
     disabled: row.disabledAt !== null,
     createdBy: row.createdBy,
@@ -396,9 +408,33 @@ export function connectionsRepo(meta: MetaDb, crypto: DsnCrypto) {
         updatedAt: at,
       };
       if (outcome.readOnly !== undefined) set.readOnly = writeBool(meta, outcome.readOnly);
+      // Wave 0023: the probe has computed `canDDL` since M3 and thrown it away
+      // every time. Persisting it is what lets Studio hide schema authoring
+      // without a round trip (35-T15) — it is not the guard (35 D17).
+      if (outcome.canDdl !== undefined) set.canDdl = writeBool(meta, outcome.canDdl);
       await db
         .updateTable('adminium_connections')
         .set(set as never)
+        .where('id', '=', id)
+        .execute();
+    },
+
+    /**
+     * Persist the ER-diagram node positions (wave 0023, 35 D21).
+     *
+     * Its own writer rather than a field on {@link UpdateConnectionInput}
+     * because `update` writes `settings` whole under `connections.manage`, and
+     * a layout must be savable by anyone who can remap the schema without
+     * risking somebody else's `includedTables` in the same statement.
+     */
+    async setDiagramLayout(
+      id: string,
+      positions: Record<string, { x: number; y: number }>,
+      at: number = Date.now(),
+    ): Promise<void> {
+      await db
+        .updateTable('adminium_connections')
+        .set({ diagramLayout: packJson(positions), updatedAt: at } as never)
         .where('id', '=', id)
         .execute();
     },

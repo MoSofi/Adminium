@@ -61,6 +61,28 @@ export class SnapshotView {
     this.connectionId = connectionId;
     this.model = model;
     for (const table of model.tables) {
+      // A system table and an operator-excluded table are not addressable
+      // through `/data` AT ALL — 35-schema-authoring.md §6.1, 35-T28.
+      //
+      // This index was built from every table in the model, with no filter, and
+      // super-admin bypass is total (`rbac/resolver.ts`). So on the same-database
+      // meta placement Adminium explicitly supports, a super admin could
+      // `GET`/`PATCH`/`DELETE /api/v1/data/:conn/adminium_users` — reaching
+      // Adminium's own users, sessions and audit log through the source
+      // connection's CRUD routes. `table.system` has been computed by all three
+      // introspectors since M3 (`SYSTEM_TABLE_PATTERN`, which matches
+      // `adminium_*` and every common migration ledger) and nothing read it here.
+      //
+      // `excluded` is the same class of bug with a smaller blast radius: a table
+      // the operator un-checked in the wizard, or excluded in Studio, was still
+      // fully readable and writable through `/data` — the exclusion only ever
+      // reached generation.
+      //
+      // Skipping them here is what makes both refusals a 422 `UNKNOWN_IDENTIFIER`
+      // rather than a hidden button: the strings never enter the allowlist, so
+      // every path that resolves an identifier refuses them, for every principal.
+      if (table.system) continue;
+      if (table.excluded === true) continue;
       const policy = columnPolicyFor(table);
       const columns = new Map<string, ResolvedColumn>();
       for (const column of table.columns) {
