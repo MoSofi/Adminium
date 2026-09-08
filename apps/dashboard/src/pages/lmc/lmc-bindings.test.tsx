@@ -14,7 +14,7 @@
  * data plumbing, not the templates' rendering.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PageEnvelope } from '@adminium/engine/config';
@@ -25,6 +25,7 @@ import { PageChatBinding } from '../PageChatBinding.js';
 import { PageFilesBinding } from '../PageFilesBinding.js';
 import { PageLogViewerBinding } from '../PageLogViewerBinding.js';
 import { AppToastProvider } from '../toasts.js';
+import { appStreamTransport, resetAppStreamTransport } from './stream.js';
 import { extractPageBindings, findItemDescriptor, usePageWidgetStates } from './widgetStates.js';
 import type { PageTemplateAdapters } from '../template-types.js';
 
@@ -62,18 +63,50 @@ vi.mock('@adminium/widgets', async (importOriginal) => {
         h('button', { type: 'button', onClick: () => props.onSelectConversation?.('c2') }, 'select-c2'),
         h('button', { type: 'button', onClick: () => void props.onSendMessage?.('Hi there', props.selectedConversationId ?? null) }, 'send'),
       ),
+    /*
+     * A stand-in for the widget's own vocabulary detection, so these tests
+     * pin the BINDING's behaviour rather than the detection list. It answers
+     * the same shape the real one does, including the optional sender-kind
+     * column, which most message tables do not have.
+     */
     detectMessageFields: (rows: readonly Record<string, unknown>[]) => ({
       body: rows.some((row) => 'body' in row) ? 'body' : undefined,
       sentAt: 'created_at',
       author: 'sender_email',
+      senderKind: rows.some((row) => 'sender_kind' in row) ? 'sender_kind' : undefined,
     }),
     detectConversationFk: (rows: readonly Record<string, unknown>[]) =>
       rows.some((row) => 'conversation_id' in row) ? 'conversation_id' : undefined,
   };
 });
 
+/**
+ * A socket that records itself, so a test can push a server frame into every
+ * client the render opened — the shared stream transport is its own connection
+ * by design, so reaching "the" socket means reaching all of them.
+ */
+class FakeWebSocket {
+  static instances: FakeWebSocket[] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: unknown }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  readyState = 0;
+  constructor() {
+    FakeWebSocket.instances.push(this);
+  }
+  send(): void {}
+  close(): void {}
+}
+
+function deliver(event: { channel: string; type: string; data: unknown; ts: string }): void {
+  for (const socket of FakeWebSocket.instances) socket.onmessage?.({ data: JSON.stringify(event) });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetAppStreamTransport();
+  FakeWebSocket.instances = [];
 });
 
 // ── fixtures ─────────────────────────────────────────────────────────────────
@@ -136,13 +169,33 @@ const THREAD_ROWS = [
   { id: 'm2', conversation_id: 'c2', sender_email: 'b@x.io', body: 'Paid', created_at: '2026-07-14T09:00:00.000Z' },
 ];
 
+/**
+ * The same thread on a table that ALSO carries a sender-kind column — the
+ * shape Adminium's own `requiredSchema` installs, where that column is NOT
+ * NULL with no database default, so a send that omits it fails outright.
+ *
+ * `m2` says `agent` rather than `staff` on purpose: the binding reuses the word
+ * the table already uses, because the column is usually an enum and writing a
+ * value it does not have would turn a working send into a constraint
+ * violation.
+ */
+const KINDED_THREAD_ROWS = [
+  { ...THREAD_ROWS[0], sender_kind: 'customer' },
+  { ...THREAD_ROWS[1], conversation_id: 'c1', sender_kind: 'agent' },
+];
+
 interface FetchCall {
   url: string;
   body: Record<string, unknown> | null;
 }
 
-/** Routes widget-data batches + CRUD creates; records every call. */
-function stubFetch(): { calls: FetchCall[] } {
+/**
+ * Routes widget-data batches + CRUD creates; records every call.
+ *
+ * `threadRows` lets one test swap in a messages table that carries a
+ * sender-kind column; every other test gets the plain one the fleet has.
+ */
+function stubFetch(threadRows: readonly Record<string, unknown>[] = THREAD_ROWS): { calls: FetchCall[] } {
   const calls: FetchCall[] = [];
   vi.stubGlobal(
     'fetch',
@@ -160,7 +213,7 @@ function stubFetch(): { calls: FetchCall[] } {
             table === 'conversations'
               ? INBOX_ROWS
               : table === 'conv_messages'
-                ? THREAD_ROWS.filter((row) => (filter === undefined ? true : row.conversation_id === filter.value))
+                ? threadRows.filter((row) => (filter === undefined ? true : row['conversation_id'] === filter.value))
                 : table === 'order_audit'
                   ? [{ id: 'evt-1', created_at: '2026-07-14T11:00:00.000Z', action: 'updated' }]
                   : [];
@@ -278,7 +331,7 @@ describe('PageChatBinding', () => {
     });
   });
 
-  it('send runs a CRUD insert on the MESSAGES table with body + FK, then the undo toast', async () => {
+  it('send runs a CRUD insert on the MESSAGES table with body + FK + author, then the undo toast', async () => {
     const { calls } = stubFetch();
     const adapters = makeAdapters();
     renderWithProviders(<PageChatBinding page={chatPage} adapters={adapters} />, true);
@@ -293,12 +346,121 @@ describe('PageChatBinding', () => {
       const create = calls.find((call) => call.url.startsWith('/api/v1/data/conn_1/'));
       expect(create).toBeDefined();
       expect(create?.url).toBe('/api/v1/data/conn_1/public.conv_messages');
-      expect(create?.body).toEqual({ values: { body: 'Hi there', conversation_id: 'c1' } });
+      /*
+       * `sender_email` is 33 §7.3 arriving. The send used to stamp no author at
+       * all, so a staff reply came back with nothing for `ownAuthors` to match
+       * and rendered on the OTHER side of the thread — on the one page that
+       * exists to answer somebody. The column is the DETECTED one, not a
+       * hard-coded name: this fixture's messages table calls it `sender_email`.
+       */
+      expect(create?.body).toEqual({
+        values: { body: 'Hi there', conversation_id: 'c1', sender_email: 'ava@adminium.io' },
+      });
     });
     await waitFor(() => {
       expect(adapters.notifyUndoable).toHaveBeenCalledWith(
         expect.objectContaining({ undoToken: 'undo_msg' }),
       );
+    });
+  });
+
+  it('subscribes to BOTH its tables and refetches when either one is written', async () => {
+    /*
+     * 33-T11. The header of this binding used to claim realtime invalidations
+     * refreshed an open thread; the invalidation map does fire on a
+     * `widget-data:*` frame, but nothing had subscribed to the channel, so the
+     * frames went to a socket this page was not on. The operator's inbox went
+     * quiet while a customer was typing into it.
+     *
+     * BOTH channels, because the two halves of the screen move on different
+     * writes: the message lands on the messages table, and the rail's preview,
+     * timestamp and unread count land on the conversation row.
+     */
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const { calls } = stubFetch();
+    renderWithProviders(<PageChatBinding page={chatPage} adapters={makeAdapters()} />, true);
+    await screen.findByTestId('tpl-chat');
+    await waitFor(() => {
+      expect(screen.getByTestId('tpl-chat').getAttribute('data-selected')).toBe('c1');
+    });
+    await waitFor(() => {
+      expect(appStreamTransport().channelCount).toBe(2);
+    });
+
+    const batches = () => calls.filter((call) => call.url === '/api/v1/widget-data/batch').length;
+
+    const afterMount = batches();
+    await act(async () => {
+      deliver({
+        channel: 'widget-data:conn_1:public.conv_messages',
+        type: 'record.create',
+        data: { type: 'record.create', pk: { id: 'm9' }, row: { id: 'm9' } },
+        ts: '2026-09-06T00:00:00.000Z',
+      });
+    });
+    await waitFor(() => {
+      expect(batches()).toBeGreaterThan(afterMount);
+    });
+
+    const afterMessage = batches();
+    await act(async () => {
+      deliver({
+        channel: 'widget-data:conn_1:public.conversations',
+        type: 'record.update',
+        data: { type: 'record.update', pk: { id: 'c1' }, row: { id: 'c1' } },
+        ts: '2026-09-06T00:00:01.000Z',
+      });
+    });
+    await waitFor(() => {
+      expect(batches()).toBeGreaterThan(afterMessage);
+    });
+  });
+
+  it('leaves the socket with no channels once the page unmounts', async () => {
+    // The transport reference-counts, so a page that opened two channels has to
+    // hand both back — otherwise navigating between chat pages leaks a channel
+    // per visit and the socket never closes.
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    stubFetch();
+    const view = renderWithProviders(<PageChatBinding page={chatPage} adapters={makeAdapters()} />, true);
+    await screen.findByTestId('tpl-chat');
+    await waitFor(() => {
+      expect(appStreamTransport().channelCount).toBe(2);
+    });
+    view.unmount();
+    expect(appStreamTransport().channelCount).toBe(0);
+  });
+
+  it('stamps the sender kind too, reusing the word the table already uses', async () => {
+    /*
+     * On Adminium's own `requiredSchema` this column is NOT NULL with no
+     * database default, so omitting it does not merely mis-side the bubble —
+     * the insert fails and the reply is never written.
+     *
+     * The VALUE is taken from the thread rather than hard-coded: `sender_kind`
+     * is usually an enum, an operator's table may spell the business side
+     * `agent`, and writing `staff` into an enum without it is a constraint
+     * violation on a send that works today.
+     */
+    const { calls } = stubFetch(KINDED_THREAD_ROWS);
+    renderWithProviders(<PageChatBinding page={chatPage} adapters={makeAdapters()} />, true);
+    await screen.findByTestId('tpl-chat');
+    await waitFor(() => {
+      expect(screen.getByTestId('tpl-chat').getAttribute('data-selected')).toBe('c1');
+    });
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'send' }));
+
+    await waitFor(() => {
+      const create = calls.find((call) => call.url.startsWith('/api/v1/data/conn_1/'));
+      expect(create?.body).toEqual({
+        values: {
+          body: 'Hi there',
+          conversation_id: 'c1',
+          sender_email: 'ava@adminium.io',
+          sender_kind: 'agent',
+        },
+      });
     });
   });
 });

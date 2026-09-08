@@ -21,6 +21,14 @@ export interface ChatMessageFieldMap {
   body?: string | undefined;
   sentAt?: string | undefined;
   attachments?: string | undefined;
+  /**
+   * A column saying WHICH SIDE wrote the row, where the table has one.
+   *
+   * Optional and usually absent — most message tables in the fleet identify
+   * the writer by name or e-mail alone. Where it IS present it outranks the
+   * name, and `toChatMessages` says why.
+   */
+  senderKind?: string | undefined;
 }
 
 export interface ConversationFieldMap {
@@ -76,8 +84,27 @@ export function detectMessageFields(rows: readonly Record<string, unknown>[]): C
       'user_email', 'user_name', 'username', 'user', 'email',
     ]),
     attachments: firstPresent(keys, ['attachments', 'files']),
+    /*
+     * DELIBERATELY THE NARROWEST LIST IN THIS FILE. Every other vocabulary
+     * here only decides which column to READ; this one decides which SIDE of
+     * the thread a bubble lands on, so a false positive would re-side an
+     * existing app's whole history. `role`, `type` and `direction` were all
+     * considered and left out: each is common enough to appear on a table that
+     * means something else by it, and the fallback — matching the author name
+     * — is the behaviour every generated app has today and is not broken.
+     */
+    senderKind: firstPresent(keys, ['sender_kind', 'sender_type', 'author_kind', 'author_type']),
   };
 }
+
+/**
+ * The values of a sender-kind column that mean "the business wrote this".
+ *
+ * `staff` is what Adminium's own `requiredSchema` uses; the other two are the
+ * words an operator's existing table is most likely to use for the same idea.
+ * Anything else — `customer`, `visitor`, `bot`, a blank — is not the viewer.
+ */
+const OWN_SENDER_KINDS = new Set(['staff', 'agent', 'operator']);
 
 /**
  * The messages table's conversation FK. The conversation table's own name
@@ -117,8 +144,28 @@ export function toChatMessages(
   return chatRowsOf(data).map((row, index) => {
     const rawAuthor = str(row, map.author);
     const author = rawAuthor === undefined ? undefined : displayNameOf(rawAuthor);
+    /*
+     * THE KIND OUTRANKS THE NAME, WHERE THERE IS A KIND.
+     *
+     * Matching the author name is all there was, and it is a check the WRITER
+     * of a row controls: on a table an anonymous visitor can write to — which
+     * is the whole point of the public surface — somebody typing a support
+     * agent's address into `author` would have their own message render as the
+     * agent's, on the agent's side of the agent's own inbox.
+     *
+     * A sender-kind column is not writable by that visitor (the scope stamps it
+     * server-side), so where the table has one it decides, in BOTH directions:
+     * a row that says `customer` is the visitor's even if the name matches, and
+     * a row that says `staff` is the viewer's even if it does not. The name
+     * match remains for the tables — most of them — with no such column, and
+     * for rows that leave it blank.
+     */
+    const kind = str(row, map.senderKind)?.toLowerCase();
     const own =
-      rawAuthor !== undefined && ownAuthors.some((entry) => entry === rawAuthor || displayNameOf(entry) === author);
+      kind !== undefined
+        ? OWN_SENDER_KINDS.has(kind)
+        : rawAuthor !== undefined &&
+          ownAuthors.some((entry) => entry === rawAuthor || displayNameOf(entry) === author);
     const attachments = map.attachments === undefined ? [] : attachmentsOf(row[map.attachments]);
     return {
       id: (row['id'] as string | number | undefined) ?? index,

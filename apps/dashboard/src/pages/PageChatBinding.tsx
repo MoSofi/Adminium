@@ -8,23 +8,44 @@
  * messages child table; on selection the binding re-queries it with a
  * `conversation FK = selected` filter (FK detected from the unfiltered
  * payload's own keys, seeded by the conversation table's name) under
- * `['widget-data', pageId, 'thread', selectedId]` — realtime `widget-data:*`
- * invalidations refetch it, which is what refreshes an open thread live.
+ * `['widget-data', pageId, 'thread', selectedId]`.
+ *
+ * LIVE: this page SUBSCRIBES to its two tables' widget-data channels (33-T11).
+ * The sentence here used to say realtime invalidations refreshed an open
+ * thread, and the mapping in `api/realtime.ts` does invalidate the whole
+ * `['widget-data']` prefix on such an event — but nothing subscribed to the
+ * channel, and the shell listens only to `config-changed` and the user's
+ * notifications. So the frames were published to a socket this page was not
+ * on: an inbox went quiet while somebody was typing into it, and the only
+ * thing that refreshed the thread was the operator's own send invalidating its
+ * own key. The subscription is the `PageRecordBinding` pattern — the shared
+ * transport reference-counts channels, so two more channels is not a second
+ * socket.
  *
  * SEND: the composer's insert runs through the CRUD API against the MESSAGES
  * table (not the page's conversation source) with body + conversation FK,
  * then invalidates the page's widget-data keys and raises the undo toast;
  * the returned promise lets the template roll back its optimistic echo.
+ *
+ * IT ALSO STAMPS WHO SENT IT (33 §7.3). It did not, and the consequence was
+ * visible on the one page that exists to answer somebody: a reply written here
+ * came back with no author, so `toChatMessages` could not match it against
+ * `ownAuthors` and every staff message rendered on the OTHER side of the
+ * thread. Where the table also carries a sender-kind column the send fills
+ * that too — on Adminium's own `requiredSchema` it is NOT NULL with no
+ * database default, so a send that omitted it would not merely look wrong, it
+ * would fail.
  */
 import { useSuspenseQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageChat, detectConversationFk, detectMessageFields, type WidgetDataState } from '@adminium/widgets';
-import { qualifiedTableName } from '@adminium/widgets/binding';
+import { qualifiedTableName, streamChannel } from '@adminium/widgets/binding';
 
 import { createCrudApi } from '../api/crud.js';
 import { WIDGET_DATA_KEY_ROOT, fetchWidgetDataBatch } from '../api/widgetData.js';
 import { bootstrapQuery } from '../app/bootstrap.js';
 import { t } from '../i18n/t.js';
+import { appStreamTransport } from './lmc/stream.js';
 import { findItemDescriptor, recordRowsOf, usePageWidgetStates } from './lmc/widgetStates.js';
 import type { PageTemplateProps } from './template-types.js';
 import { useAppToasts } from './toasts.js';
@@ -96,6 +117,67 @@ export function PageChatBinding({ page, adapters }: PageTemplateProps) {
     return { status: 'success', data: item.data, isRefetching: scopedQuery.isRefetching };
   }, [scopedEnabled, scopedQuery, thread]);
 
+  /*
+   * LIVE THE WAY THE HEADER SAYS: subscribe to the conversations table and the
+   * messages table, and invalidate this page's widget-data keys on any write.
+   *
+   * BOTH, because they answer different halves of the screen: a new message
+   * moves the thread, and the same exchange moves the inbox rail's preview,
+   * timestamp and unread count — which live on the CONVERSATION row and arrive
+   * as a separate write. Subscribing to the thread alone would leave a rail
+   * that never re-sorted.
+   *
+   * INVALIDATE RATHER THAN SPLICE. The frame carries a masked row, and a
+   * masked row is not what the thread renders — the widget-data payload is
+   * shaped by the page's own descriptor (ordering, limit, the FK filter).
+   * Prepending the frame would put a subtly different row in the list from the
+   * one a refetch produces. One small refetch per message is the honest cost.
+   */
+  const liveChannels = useMemo(() => {
+    const channels = new Set<string>();
+    for (const item of [thread, inbox]) {
+      if (item === null) continue;
+      channels.add(
+        streamChannel(item.descriptor.connectionId, qualifiedTableName(item.descriptor.source)),
+      );
+    }
+    return [...channels];
+  }, [thread, inbox]);
+
+  useEffect(() => {
+    if (liveChannels.length === 0) return;
+    const transport = appStreamTransport();
+    const stops = liveChannels.map((channel) =>
+      transport.subscribe(channel, () => {
+        void queryClient.invalidateQueries({ queryKey: [WIDGET_DATA_KEY_ROOT, page.id] });
+      }),
+    );
+    return () => {
+      for (const stop of stops) stop();
+    };
+  }, [liveChannels, queryClient, page.id]);
+
+  /*
+   * WHAT TO PUT IN THE SENDER-KIND COLUMN, when the table has one.
+   *
+   * `staff` is what Adminium's own `requiredSchema` declares, and it is the
+   * fallback. It is NOT the first choice, because the column is often an enum
+   * and an operator's own table may spell the same idea `agent` or `operator`
+   * — writing a value the enum does not have would turn a working send into a
+   * constraint violation. So the rows already on screen are asked first: if
+   * the thread contains a message from the business, whatever word THAT row
+   * uses is the word this one uses.
+   */
+  const ownKindValue = useMemo(() => {
+    if (messageFields.senderKind === undefined) return undefined;
+    for (const row of baseThreadRows) {
+      const value = row[messageFields.senderKind];
+      if (typeof value !== 'string') continue;
+      if (['staff', 'agent', 'operator'].includes(value.toLowerCase())) return value;
+    }
+    return 'staff';
+  }, [messageFields.senderKind, baseThreadRows]);
+
   // --- send: CRUD insert into the MESSAGES table (undo + audit) ----------------
   const sendMessage = useCallback(
     async (body: string, conversationId: string | number | null) => {
@@ -107,6 +189,17 @@ export function PageChatBinding({ page, adapters }: PageTemplateProps) {
           ...(conversationFk === undefined || conversationId === null
             ? {}
             : { [conversationFk]: conversationId }),
+          /*
+           * The signed-in user's e-mail, because that is what `ownAuthors`
+           * matches against and what `displayNameOf` turns into a name. Only
+           * where a column was detected: inventing one would fail the insert.
+           */
+          ...(messageFields.author === undefined
+            ? {}
+            : { [messageFields.author]: bootstrap.user.email }),
+          ...(messageFields.senderKind === undefined || ownKindValue === undefined
+            ? {}
+            : { [messageFields.senderKind]: ownKindValue }),
         });
         adapters.notifyUndoable({
           title: t('chat.messageSent', 'Message sent'),
@@ -122,7 +215,19 @@ export function PageChatBinding({ page, adapters }: PageTemplateProps) {
         throw reason; // the template rolls its optimistic echo back
       }
     },
-    [thread, messageFields.body, conversationFk, adapters, queryClient, page.id, toasts],
+    [
+      thread,
+      messageFields.body,
+      messageFields.author,
+      messageFields.senderKind,
+      ownKindValue,
+      bootstrap.user.email,
+      conversationFk,
+      adapters,
+      queryClient,
+      page.id,
+      toasts,
+    ],
   );
 
   return (

@@ -17,6 +17,7 @@ import {
   detectMessageFields,
   displayNameOf,
   filterMessagesRows,
+  toChatMessages,
   toConversationRows,
   detectConversationFields,
 } from './chat-mapping.js';
@@ -59,6 +60,81 @@ describe('chat-mapping', () => {
     expect(detectConversationFk([{ id: 1, thread_id: 't1' }], null)).toBe('thread_id');
     expect(filterMessagesRows(MESSAGES, 'conversation_id', 'c2')).toHaveLength(1);
     expect(filterMessagesRows(MESSAGES, undefined, 'c2')).toHaveLength(3);
+  });
+
+  it('finds no sender-kind column on a table that has none', () => {
+    // Which is most of them. The name match is what every generated app uses
+    // today and the addition must not disturb it.
+    expect(detectMessageFields(MESSAGES).senderKind).toBeUndefined();
+  });
+
+  it.each(['sender_kind', 'sender_type', 'author_kind', 'author_type'])(
+    'detects `%s` as the sender-kind column',
+    (column) => {
+      expect(detectMessageFields([{ id: 1, [column]: 'customer' }]).senderKind).toBe(column);
+    },
+  );
+
+  it.each(['role', 'type', 'direction', 'kind'])('does NOT read `%s` as a sender kind', (column) => {
+    /*
+     * The narrowness is the feature. This column decides which SIDE of the
+     * thread a bubble lands on, so a false positive re-sides an existing app's
+     * whole history — and every word here is common on tables that mean
+     * something else entirely by it.
+     */
+    expect(detectMessageFields([{ id: 1, [column]: 'staff' }]).senderKind).toBeUndefined();
+  });
+
+  describe('which side a message lands on', () => {
+    const map = { author: 'author', body: 'body', sentAt: 'created_at', senderKind: 'sender_kind' };
+    const OWN = ['ava@acme.dev'];
+
+    it('matches the author name when there is no kind column', () => {
+      const rows = [
+        { id: 1, author: 'ava@acme.dev', body: 'mine' },
+        { id: 2, author: 'morgan@acme.dev', body: 'theirs' },
+      ];
+      const out = toChatMessages({ rows }, { author: 'author', body: 'body' }, OWN);
+      expect(out.map((m) => m.own)).toEqual([true, false]);
+    });
+
+    it('lets the kind decide when the table has one', () => {
+      const rows = [
+        { id: 1, author: 'ava@acme.dev', body: 'staff reply', sender_kind: 'staff' },
+        { id: 2, author: 'morgan@acme.dev', body: 'visitor', sender_kind: 'customer' },
+      ];
+      expect(toChatMessages({ rows }, map, OWN).map((m) => m.own)).toEqual([true, false]);
+    });
+
+    it('keeps a visitor on the visitor side even when they type a staff address', () => {
+      /*
+       * 33 §10 criterion 6, and the reason the kind outranks the name at all.
+       * `author` is writable by an anonymous visitor through the public
+       * surface; `sender_kind` is stamped server-side and is not. Without this
+       * ordering, typing a support agent's address into the name field would
+       * put your own message on the agent's side of the agent's own inbox.
+       */
+      const rows = [{ id: 1, author: 'ava@acme.dev', body: 'not really ava', sender_kind: 'customer' }];
+      expect(toChatMessages({ rows }, map, OWN)[0]?.own).toBe(false);
+    });
+
+    it("treats the business's own row as the viewer's even when the name does not match", () => {
+      // A second agent's reply is still "us" in a shared inbox.
+      const rows = [{ id: 1, author: 'someone.else@acme.dev', body: 'hi', sender_kind: 'staff' }];
+      expect(toChatMessages({ rows }, map, OWN)[0]?.own).toBe(true);
+    });
+
+    it.each(['agent', 'operator', 'STAFF'])('reads `%s` as the business side', (kind) => {
+      const rows = [{ id: 1, author: 'x@y.z', body: 'hi', sender_kind: kind }];
+      expect(toChatMessages({ rows }, map, [])[0]?.own).toBe(true);
+    });
+
+    it.each(['customer', 'visitor', 'bot', ''])('reads `%s` as not the business side', (kind) => {
+      const rows = [{ id: 1, author: 'ava@acme.dev', body: 'hi', sender_kind: kind }];
+      // The empty string is the interesting one: it is "no answer", so the row
+      // falls back to the author match rather than silently becoming theirs.
+      expect(toChatMessages({ rows }, map, OWN)[0]?.own).toBe(kind === '');
+    });
   });
 
   it('projects conversation rows with derived names + unread counts', () => {
