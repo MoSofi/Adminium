@@ -2,6 +2,7 @@
 export {
   PAGE_RECORD_TEMPLATE_ID,
   PageRecord,
+  type PageRecordAttachments,
   type PageRecordLabels,
   type PageRecordProps,
   type PageRecordRelated,
@@ -10,4 +11,5 @@ export {
   type RecordActivityEntry,
   type RecordActivityFeed,
   type RecordActivityPage,
+  type RecordAttachment,
 } from './PageRecord.js';

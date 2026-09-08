@@ -91,7 +91,13 @@ function rankColumn(
   const tag = semantics.semantic;
   if (tag === 'pk-id') return null; // hidden by default in grids (rule 2)
   if (column.logicalType === 'binary' || column.logicalType === 'json') return null;
-  if (tag === 'image-url' || tag === 'json-config' || tag === 'free-text') return null;
+  // `image-url` is excluded from grids because a bare URL in a cell is noise.
+  // A chip with a name, a size and a thumbnail is not — so 37 D14 lifts the
+  // exclusion for a column that will CARRY a `file` block, which is exactly the
+  // text-typed `image-url` columns `columnSpecFor` seeds one on. A `binary` or
+  // `json` column stays excluded by the line above whatever its tag says.
+  if (tag === 'image-url' && column.logicalType !== 'text' && column.logicalType !== 'varchar') return null;
+  if (tag === 'json-config' || tag === 'free-text') return null;
   if (column.name === displayColumn) return 0;
   switch (tag) {
     case 'status-workflow':
@@ -312,6 +318,30 @@ export function buildColumnDef(
     if (semantics.semantic === 'status-workflow') def.enumTones = enumTones(values);
   }
   if (semantics.maskedByDefault ?? false) def.pii = true;
+  /**
+   * SEED THE `file` BLOCK on a NEW page for the columns the classifier already
+   * calls files (37-files-and-storage.md D14).
+   *
+   * `file-ref` and `image-url` have been tagged since M5 and have driven a bare
+   * link ever since. Seeding here — rather than teaching the renderer to honour
+   * the TAG — is what keeps the change opt-in: a page that already exists is
+   * untouched and renders byte-identically, while a freshly generated app gets
+   * upload affordances without anybody configuring one.
+   *
+   * Only on a TEXT column. A `binary` column is bytes inside the customer's
+   * database (a different feature, refused in §4) and a `json` one is O5; both
+   * are excluded from grids by `rankColumn` anyway, and neither can hold a
+   * reference.
+   *
+   * `ref: 'url'` is D31's default and the only shape seeded — the other two are
+   * a per-column choice an operator makes in the ColumnManager.
+   */
+  if (
+    (semantics.semantic === 'file-ref' || semantics.semantic === 'image-url') &&
+    (column.logicalType === 'text' || column.logicalType === 'varchar')
+  ) {
+    def.file = { ref: 'url', ...(semantics.semantic === 'image-url' ? { inline: true } : {}) };
+  }
   // Form-generation facts (RecordForm reads these off the same spec).
   if (column.isPrimaryKey ?? false) def.primaryKey = true;
   if (!(column.nullable ?? true)) def.nullable = false;

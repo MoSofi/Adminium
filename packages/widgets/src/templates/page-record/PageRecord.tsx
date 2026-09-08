@@ -33,6 +33,9 @@ import type {
   CrudRow,
   CrudSort,
 } from '../page-crud/crud-api.js';
+import { AttachmentList } from '../../families/media/AttachmentList.js';
+import { UploadDropzone } from '../../families/media/UploadDropzone.js';
+import { UploadProgressList } from '../../families/media/UploadProgressList.js';
 import { DataGrid } from '../../families/tables/DataGrid.js';
 import { DetailKeyValue } from '../../families/tables/DetailKeyValue.js';
 import { PaginationFooter } from '../../families/tables/PaginationFooter.js';
@@ -136,6 +139,53 @@ export interface RecordActivityFeed {
   list(params: { cursor?: string | undefined }): Promise<RecordActivityPage>;
 }
 
+/** One sidecar attachment, as the panel shows it (37 §3.5). */
+export interface RecordAttachment {
+  id: string;
+  filename: string;
+  mime: string;
+  sizeBytes: number;
+  createdAt: number;
+  /** Same-origin path — never a destination's public URL (37 D24). */
+  contentPath: string;
+}
+
+/**
+ * Host adapter for record attachments (37-files-and-storage.md §3.5, D6;
+ * 38-files-library-and-attachments.md D13).
+ *
+ * ONE PANEL, TWO ADAPTERS. The four calls below say nothing about where the
+ * files live, and that is deliberate — the host decides:
+ *
+ *   - SIDECAR (37): linked on Adminium's side only, through
+ *     `entity_connection_id` / `entity_table` / `entity_id`. Needs no column in
+ *     the customer's table, so it works on a READ-ONLY source — which after 38
+ *     D2 is the only reason it still exists.
+ *   - COLUMN (38): the page's `config.attachments.column` names a column on the
+ *     customer's own table holding a JSON list of references. `list` reads that
+ *     value, `upload`/`remove` write it back through the CRUD route, and the
+ *     server's reconcile hook attaches and trashes accordingly.
+ *
+ * Keeping the seam here rather than branching inside the panel is what lets the
+ * component stay unaware: it renders a list, a dropzone and an undo, and the
+ * two modes differ only in what the promises do.
+ *
+ * ABSENT ⇒ NO PANEL, exactly like `related` and `activity` (30 D5/D6). A page
+ * whose `config.attachments` is off passes nothing and renders as it always
+ * did.
+ */
+export interface PageRecordAttachments {
+  list(): Promise<RecordAttachment[]>;
+  upload(input: {
+    file: File;
+    signal: AbortSignal;
+    onProgress: (fraction: number) => void;
+  }): Promise<RecordAttachment>;
+  remove(fileId: string): Promise<void>;
+  /** Restore a file the panel just removed — the undo affordance (37 D12). */
+  restore?(fileId: string): Promise<void>;
+}
+
 export interface PageRecordLabels {
   edit?: string | undefined;
   delete?: string | undefined;
@@ -143,6 +193,7 @@ export interface PageRecordLabels {
   dismiss?: string | undefined;
   undo?: string | undefined;
   activityTab?: string | undefined;
+  attachmentsTab?: string | undefined;
 }
 
 export interface PageRecordProps {
@@ -162,6 +213,17 @@ export interface PageRecordProps {
   related?: PageRecordRelated | undefined;
   /** Absent/null ⇒ the Activity tab does not render (30 D6). */
   activity?: RecordActivityFeed | null | undefined;
+  /** Absent/null ⇒ the Attachments panel does not render (37 §3.5). */
+  attachments?: PageRecordAttachments | null | undefined;
+  /**
+   * May this caller attach a file? Beside `canUpdate`/`canDelete` and NOT the
+   * same as either: a sidecar attach is authorised by `update` on the entity's
+   * table (37 D11) but the page reply carries it explicitly so the panel never
+   * offers a dropzone the server would refuse.
+   */
+  canAttach?: boolean | undefined;
+  /** Workspace upload cap, so the dropzone refuses before a request starts. */
+  maxFileBytes?: number | undefined;
   canUpdate?: boolean | undefined;
   canDelete?: boolean | undefined;
   canUnmask?: boolean | undefined;
@@ -525,6 +587,165 @@ function RelatedRecordsTab({
   );
 }
 
+// --- attachments panel --------------------------------------------------------
+
+/**
+ * The record's sidecar files (37-files-and-storage.md §3.5, D6, D12).
+ *
+ * THIS IS THE FIRST CALLER THE MEDIA FAMILY HAS EVER HAD. `UploadDropzone`,
+ * `AttachmentList` and `UploadProgressList` shipped in M7 and have sat
+ * transport-less since — the dropzone's own docblock says so: "there are no
+ * files routes yet, so the host owns the transport; when they land, the
+ * dashboard wires `onFiles` to them". They have landed, and this is the wiring.
+ *
+ * Deleting is soft everywhere in this feature (D12), so the panel offers Undo
+ * rather than a confirmation: the file is in the trash for
+ * `retention.filesTrashDays` and putting it back is one call. A confirm dialog
+ * in front of a reversible action is a dialog nobody reads.
+ */
+function AttachmentsPanel({
+  attachments,
+  canAttach,
+  maxBytes,
+  locale,
+}: {
+  attachments: PageRecordAttachments;
+  canAttach: boolean;
+  maxBytes?: number | undefined;
+  locale?: string | undefined;
+}) {
+  const t = useMaybeT();
+  const [items, setItems] = useState<RecordAttachment[] | null>(null);
+  const [uploads, setUploads] = useState<{ id: string; name: string; fraction: number }[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [undoable, setUndoable] = useState<RecordAttachment | null>(null);
+
+  const reload = useCallback(() => {
+    void attachments
+      .list()
+      .then(setItems)
+      .catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : String(reason));
+        setItems([]);
+      });
+  }, [attachments]);
+
+  useEffect(reload, [reload]);
+
+  async function send(file: File): Promise<void> {
+    const id = `${file.name}:${String(Date.now())}`;
+    setError(null);
+    setUploads((current) => [...current, { id, name: file.name, fraction: 0 }]);
+    const abort = new AbortController();
+    try {
+      const uploaded = await attachments.upload({
+        file,
+        signal: abort.signal,
+        onProgress: (fraction) =>
+          setUploads((current) => current.map((entry) => (entry.id === id ? { ...entry, fraction } : entry))),
+      });
+      setItems((current) => [...(current ?? []), uploaded]);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setUploads((current) => current.filter((entry) => entry.id !== id));
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3" data-part="record-attachments">
+      {canAttach && (
+        <UploadDropzone
+          multiple
+          {...(maxBytes === undefined ? {} : { maxSize: maxBytes })}
+          {...(locale === undefined ? {} : { locale })}
+          onFiles={(files) => {
+            for (const file of files) void send(file);
+          }}
+          onReject={() =>
+            setError(
+              t('ui:templates.record.attachments.tooLarge', 'That file is larger than this workspace allows.'),
+            )
+          }
+        />
+      )}
+
+      {uploads.length > 0 && (
+        // `UploadProgressList` is the widget this family shipped for exactly
+        // this and has never had a caller. Its own bar is tone-mapped and
+        // token-backed; a hand-rolled one here would be a second progress
+        // treatment in the same product.
+        <UploadProgressList
+          jobs={uploads.map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            status: 'uploading' as const,
+            pct: Math.round(entry.fraction * 100),
+          }))}
+          {...(locale === undefined ? {} : { locale })}
+        />
+      )}
+
+      {error !== null && (
+        <p role="alert" className="text-body-sm text-danger" data-part="record-attachments-error">
+          {error}
+        </p>
+      )}
+
+      {undoable !== null && attachments.restore !== undefined && (
+        <div className="flex items-center gap-2 text-body-sm" data-part="record-attachments-undo">
+          <span className="text-fg-muted">
+            {t('ui:templates.record.attachments.removed', '{name} was moved to the trash.', {
+              name: undoable.filename,
+            })}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              const file = undoable;
+              setUndoable(null);
+              void attachments.restore?.(file.id).then(reload);
+            }}
+          >
+            {t('ui:action.undo', 'Undo')}
+          </Button>
+        </div>
+      )}
+
+      {items === null ? (
+        <Spinner label={t('ui:templates.record.attachments.loading', 'Loading attachments')} />
+      ) : (
+        <AttachmentList
+          items={items.map((file) => ({
+            id: file.id,
+            name: file.filename,
+            size: file.sizeBytes,
+            mime: file.mime,
+            url: file.contentPath,
+          }))}
+          actions={canAttach ? ['download', 'delete'] : ['download']}
+          {...(locale === undefined ? {} : { locale })}
+          emptyTitle={t('ui:templates.record.attachments.emptyTitle', 'No files yet')}
+          emptyBody={t(
+            'ui:templates.record.attachments.emptyBody',
+            'Files attached to this record appear here.',
+          )}
+          onDelete={(item) => {
+            const file = items.find((entry) => entry.id === item.id);
+            setItems((current) => (current ?? []).filter((entry) => entry.id !== item.id));
+            if (file !== undefined) setUndoable(file);
+            void attachments.remove(item.id).catch((reason: unknown) => {
+              setError(reason instanceof Error ? reason.message : String(reason));
+              reload();
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 // --- activity tab ------------------------------------------------------------
 
 const ACTIVITY_TONE: Record<string, string> = {
@@ -651,6 +872,9 @@ export function PageRecord({
   canUpdate = true,
   canDelete = true,
   canUnmask = false,
+  attachments,
+  canAttach = false,
+  maxFileBytes,
   onEvent,
   onDeleted,
   onMissing,
@@ -854,6 +1078,8 @@ export function PageRecord({
 
   const hasTabs = tabs.length > 0 && related !== undefined;
   const hasActivity = activity !== null && activity !== undefined;
+  // Absent ⇒ no panel, the same rule `related` and `activity` follow (30 D5/D6).
+  const hasAttachments = attachments !== null && attachments !== undefined;
   const pkValue = pkValueOf(columns, record);
 
   return (
@@ -915,8 +1141,8 @@ export function PageRecord({
       </div>
 
       {/* Related-record tabs + Activity (D4/D6). */}
-      {(hasTabs || hasActivity) && (
-        <Tabs defaultValue={hasTabs ? `tab-0` : '__activity'}>
+      {(hasTabs || hasActivity || hasAttachments) && (
+        <Tabs defaultValue={hasTabs ? `tab-0` : hasAttachments ? '__attachments' : '__activity'}>
           <TabsList>
             {hasTabs &&
               tabs.map((tab, index) => (
@@ -928,6 +1154,11 @@ export function PageRecord({
                   {tab.label ?? tab.table.split('.').pop()}
                 </TabsTrigger>
               ))}
+            {hasAttachments && (
+              <TabsTrigger value="__attachments">
+                {labels?.attachmentsTab ?? t('ui:templates.record.attachmentsTab', 'Files')}
+              </TabsTrigger>
+            )}
             {hasActivity && (
               <TabsTrigger value="__activity">
                 {labels?.activityTab ?? t('ui:templates.record.activityTab', 'Activity')}
@@ -956,6 +1187,25 @@ export function PageRecord({
                 />
               </TabsContent>
             ))}
+          {hasAttachments && (
+            <TabsContent value="__attachments">
+              <AttachmentsPanel
+                attachments={attachments}
+                // NOT `writable && canAttach`. A read-only SOURCE is exactly the
+                // case the sidecar exists for: the row cannot be edited and a
+                // file still can be attached beside it (37 §3.5, D11). The
+                // server already says so — `routes/pages/index.ts` computes
+                // `canAttach` from the table's `:update` grant and deliberately
+                // does NOT derive it from `canUpdate`, "or it would hide the
+                // panel on exactly the connections it exists for". ANDing
+                // `writable` back in here undid that on every page the engine
+                // stamps `readOnly` (every `read-only-analytics` intent).
+                canAttach={canAttach}
+                {...(maxFileBytes === undefined ? {} : { maxBytes: maxFileBytes })}
+                {...(locale === undefined ? {} : { locale })}
+              />
+            </TabsContent>
+          )}
           {hasActivity && (
             <TabsContent value="__activity">
               <ActivityTab feed={activity} {...(locale === undefined ? {} : { locale })} />

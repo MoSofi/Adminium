@@ -5,7 +5,7 @@ description: Why a read-only data role forces a separate meta store, and how Adm
 
 Two promises appear to contradict each other:
 
-- *"Use a read-only role. Adminium never writes to your database."*
+- *"Use a read-only role. Adminium reads your schema, not your rows."*
 - *"Adminium stores your users, roles, page config, and audit log."*
 
 Both are true, because they are about **different connections**. This page is the
@@ -19,9 +19,23 @@ honest version of the story.
 | **Meta** | Adminium's own `adminium_*` tables | **Always read + write.** Non-negotiable. |
 | **Introspection** | Your source database | Read, schema only |
 
-"Adminium never writes to your database" means the **data** connection can be
-read-only, and everything except record editing still works. It does **not** mean
-Adminium writes nothing anywhere — it has to persist your users somewhere.
+The **data** connection can be read-only, and everything except record editing
+still works. That does **not** mean Adminium writes nothing anywhere — it has to
+persist your users somewhere, and several features write to the source database
+when you ask them to:
+
+- **Editing records** needs write access on the data connection.
+- **Editing your schema** — creating, altering and dropping tables from
+  Studio → Schema → Design — needs DDL privileges on it. A read-only connection
+  simply does not offer that surface, and the API refuses it with
+  `403 READ_ONLY_MODE` rather than failing halfway.
+- **Importing a CSV** inserts or upserts rows, so it is refused on a read-only
+  connection with the same `403 READ_ONLY_MODE`.
+- **Undoing a change** replays the compensating write, so it needs the same
+  access the original write did.
+
+What is unconditional is setup: introspection reads catalog metadata only, never
+your rows.
 
 ## The rule
 
@@ -113,6 +127,18 @@ own schema and their own migration ledger.
 The app is not degraded — it is a read-only app, honestly labeled, with a banner.
 Everything backed by the **meta** store still works, because that connection is
 still read-write. That is the whole reason the two are separate.
+
+**Attachments are on the meta side, so they still work.** Enable attachments for
+a table in Studio and its record pages accept uploads even on a read-only
+connection: the bytes go to Adminium's own storage, and the row tracking them —
+filename, size, checksum, and the connection, table and record it belongs to —
+lives in `adminium_files` in the meta store. No column is written and no write
+reaches your database, so there is nothing for a read-only role to refuse.
+Adminium still checks that *you* may update that table, but that is a role
+permission of its own, not a database privilege. The other way to bind a file —
+storing its URL or id *in one of your own columns* — is an ordinary record
+write, and it is refused here like every other one. See
+[Files & attachments](/guides/files/).
 
 ## Recommended posture
 

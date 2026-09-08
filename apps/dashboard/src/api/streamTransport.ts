@@ -42,6 +42,11 @@ export const STREAM_SSE_EVENT_TYPES = [
   'record.bulk-update',
   'record.bulk-delete',
   'record.undo',
+  // 37 D27 — the record page's Attachments panel. Unregistered, the SSE
+  // fallback attaches no listener for the name, so the frame arrives and is
+  // dropped without a trace: on that transport a named event never reaches
+  // `onmessage`.
+  'record.attachments',
 ] as const;
 
 export interface StreamTransportOptions {

@@ -16,6 +16,7 @@ import type {
 } from './crud-api.js';
 import { gridColumnSpecSchema } from '../../families/tables/column-spec.js';
 import type { GridColumnSpecInput } from '../../families/tables/column-spec.js';
+import type { ResolvedFile } from '../../families/tables/cells.js';
 
 const spec = (input: GridColumnSpecInput) => gridColumnSpecSchema.parse(input);
 
@@ -692,5 +693,139 @@ describe('RecordForm date round-trip (client-portal audit repro, 2026-08-24)', (
       if (tzBefore === undefined) delete process.env.TZ;
       else process.env.TZ = tzBefore;
     }
+  });
+});
+
+/**
+ * File columns AT THE PAGE, which is the layer neither `file-field.test.tsx`
+ * nor `cells.test.tsx` can reach (37-files-and-storage.md §3.5, §3.9).
+ *
+ * Both of 37-T17's and 37-T18's done-whens are stated about a PAGE, not a
+ * field, and neither could fail in the unit suites: the batching lives in
+ * `PageCrud`'s resolve effect, and the uploaded reference crosses three
+ * components — `FileField` mints it, `RecordForm.submit` harvests it, and
+ * `handleCreate` sends it — before anything reaches `CrudApi.create`. A green
+ * `FileField` says nothing about either seam.
+ */
+describe('PageCrud file columns (37 §3.5, §3.9)', () => {
+  /** What the upload adapter mints. Deliberately shares nothing with the picked File. */
+  const FILE_REF = 'https://admin.example.com/api/v1/files/file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD/content';
+
+  const fileColumns = [
+    spec({ name: 'id', label: 'ID', logicalType: 'integer', primaryKey: true, hasDefault: true, nullable: false, hidden: true }),
+    spec({ name: 'name', label: 'Customer', logicalType: 'varchar', nullable: false, isDisplay: true, maxLength: 120 }),
+    spec({
+      name: 'invoice_pdf',
+      label: 'Invoice PDF',
+      logicalType: 'varchar',
+      semantic: 'file-ref',
+      nullable: true,
+      maxLength: 500,
+      // D14: the BLOCK is what turns this column into a file column.
+      file: { ref: 'url' },
+    }),
+  ];
+
+  const resolvedFile = (over: Partial<ResolvedFile> = {}): ResolvedFile => ({
+    id: 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD',
+    filename: 'invoice-1042.pdf',
+    mime: 'application/pdf',
+    sizeBytes: 8_412,
+    contentPath: '/api/v1/files/file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD/content',
+    ...over,
+  });
+
+  it('resolves a 50-row page of file refs in ONE call carrying all fifty (37-T18)', async () => {
+    const fiftyRows: CrudRow[] = Array.from({ length: 50 }, (_, index) => {
+      const n = String(index + 1).padStart(4, '0');
+      return { id: index + 1, name: `Customer ${n}`, invoice_pdf: `/api/v1/files/file_${n}/content` };
+    });
+    const byRef = new Map<string, ResolvedFile>(
+      fiftyRows.map((row, index) => {
+        const n = String(index + 1).padStart(4, '0');
+        return [
+          String(row['invoice_pdf']),
+          resolvedFile({ id: `file_${n}`, filename: `inv-${n}.pdf`, contentPath: String(row['invoice_pdf']) }),
+        ];
+      }),
+    );
+    const resolve = vi.fn(
+      async (refs: readonly string[]) => new Map(refs.map((ref) => [ref, byRef.get(ref) ?? null] as const)),
+    );
+
+    render(
+      <PageCrud
+        api={makeApi(fiftyRows)}
+        columns={fileColumns}
+        source={{ connectionId: 'conn_1', table: 'public.customers' }}
+        files={{ resolve, upload: vi.fn() }}
+      />,
+    );
+
+    // A chip exists only once an answer came back and was applied, so waiting
+    // for one is waiting for the round trip to be over. Asserting the call
+    // count before that would pass against fifty in-flight requests.
+    expect(await screen.findByText('inv-0001.pdf')).toBeDefined();
+
+    expect(resolve).toHaveBeenCalledTimes(1);
+    const refs = resolve.mock.calls[0]?.[0] ?? [];
+    // One call OF FIFTY — not fifty of one, and not one of one, which the call
+    // count alone would accept.
+    expect(refs).toHaveLength(50);
+    expect([...refs].sort()).toEqual([...byRef.keys()].sort());
+    // …and every row drew its chip out of that single answer.
+    expect(document.querySelectorAll('[data-part="cell-file"]')).toHaveLength(50);
+  });
+
+  it('create form: uploads on selection, shows the adapter’s file, submits its ref (37-T17)', async () => {
+    const user = userEvent.setup();
+    const api = makeApi([{ id: 1, name: 'Initech', invoice_pdf: null }]);
+    const uploaded = resolvedFile();
+    /** Which column each upload was made for, in order. */
+    const uploadedFor: string[] = [];
+    const upload = vi.fn(async (input: { column: string }) => {
+      uploadedFor.push(input.column);
+      return { ref: FILE_REF, file: uploaded };
+    });
+
+    render(
+      <PageCrud
+        api={api}
+        columns={fileColumns}
+        source={{ connectionId: 'conn_1', table: 'public.customers' }}
+        // No row carries a value, so nothing here can come from `resolve`:
+        // whatever the chip shows was minted by the upload adapter.
+        files={{ resolve: vi.fn(async () => new Map<string, ResolvedFile | null>()), upload }}
+      />,
+    );
+    await screen.findByText('Initech');
+
+    await user.click(screen.getByRole('button', { name: /New row/ }));
+    const dialog = await screen.findByRole('dialog');
+    const picker = dialog.querySelector('input[type="file"]');
+    expect(picker).not.toBeNull();
+
+    await user.upload(picker as HTMLInputElement, new File(['%PDF-1.7'], 'local-copy.pdf', { type: 'application/pdf' }));
+    await waitFor(() => {
+      expect(upload).toHaveBeenCalledTimes(1);
+    });
+    // `RecordForm` hands the spec down and `FileField` names it: the adapter
+    // has to know which column it is uploading for, or the server attaches the
+    // file to the wrong one.
+    expect(uploadedFor).toEqual(['invoice_pdf']);
+
+    // The chip names the SERVER's file. `local-copy.pdf` is what the browser
+    // handed in, and it must not survive anywhere the user can read it.
+    expect(await within(dialog).findByText('invoice-1042.pdf')).toBeDefined();
+    expect(within(dialog).queryByText('local-copy.pdf')).toBeNull();
+
+    await user.type(within(dialog).getByRole('textbox', { name: /Customer/ }), 'Acme Holdings');
+    await user.click(within(dialog).getByRole('button', { name: 'Add customer' }));
+
+    // The whole seam in one assertion: the reference the adapter returned is
+    // what the column is written with.
+    await waitFor(() => {
+      expect(api.create).toHaveBeenCalledWith({ name: 'Acme Holdings', invoice_pdf: FILE_REF });
+    });
   });
 });

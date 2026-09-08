@@ -37,6 +37,10 @@ export type PageDocumentResult =
       canCreate: boolean;
       canUpdate: boolean;
       canDelete: boolean;
+      /** May attach a sidecar file (37 D11). Not derived from `canUpdate`: on
+       *  a read-only source the record cannot be edited and a file still can be
+       *  attached, which is what the sidecar mode is for. */
+      canAttach: boolean;
       /** Caller holds the server's PII unmask permission — PII cells render a
        *  reveal affordance. Defaults CLOSED (false) when absent: the reveal is
        *  only honest when the server actually sent values in clear. */
@@ -106,6 +110,7 @@ export function parsePageDocument(raw: unknown, options: ParsePageOptions = {}):
     canCreate: true,
     canUpdate: true,
     canDelete: true,
+    canAttach: true,
     // Closed default, unlike the write capabilities: a reveal button is only
     // honest when the server said it sent PII in clear.
     canUnmask: false,
@@ -126,6 +131,7 @@ export function pageQuery(pageId: string) {
         canCreate?: boolean;
         canUpdate?: boolean;
         canDelete?: boolean;
+        canAttach?: boolean;
         canUnmask?: boolean;
       }>(`/api/v1/pages/${encodeURIComponent(pageId)}`);
       const result = parsePageDocument(reply.data);
@@ -138,6 +144,7 @@ export function pageQuery(pageId: string) {
             canCreate: reply.canCreate !== false,
             canUpdate: reply.canUpdate !== false,
             canDelete: reply.canDelete !== false,
+            canAttach: reply.canAttach !== false,
             // `=== true`: opposite polarity — absent means keep cells masked.
             canUnmask: reply.canUnmask === true,
           }

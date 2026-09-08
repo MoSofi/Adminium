@@ -13,7 +13,7 @@
  */
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PageEnvelope } from '@adminium/engine/config';
@@ -22,16 +22,32 @@ import { createQueryClient } from '../app/query.js';
 import { createAppRouter } from '../app/router.js';
 import type { BootstrapData } from '../app/bootstrap.js';
 import { jsonResponse, makeBootstrap, makeCrudEnvelope } from '../test/fixtures.js';
+import { appStreamTransport, resetAppStreamTransport } from './lmc/stream.js';
 import { registerPageTemplate, type PageTemplateProps } from './templates.js';
 
 class FakeWebSocket {
+  /**
+   * Every socket the render opened: the AppShell's `config-changed` client and
+   * the shared stream transport are separate connections by design, and a
+   * realtime frame is dispatched per client, so a test that delivers one has
+   * to reach the right socket — {@link deliver} reaches all of them.
+   */
+  static instances: FakeWebSocket[] = [];
   onopen: (() => void) | null = null;
-  onmessage: (() => void) | null = null;
+  onmessage: ((event: { data: unknown }) => void) | null = null;
   onclose: (() => void) | null = null;
   onerror: (() => void) | null = null;
   readyState = 0;
+  constructor() {
+    FakeWebSocket.instances.push(this);
+  }
   send(): void {}
   close(): void {}
+}
+
+/** Push one server frame into every open socket (see {@link FakeWebSocket}). */
+function deliver(event: { channel: string; type: string; data: unknown; ts: string }): void {
+  for (const socket of FakeWebSocket.instances) socket.onmessage?.({ data: JSON.stringify(event) });
 }
 
 const CUSTOMER = { id: 1, name: 'Northwind', status: 'active', phone: null, _masked: ['phone'] };
@@ -71,6 +87,42 @@ function recordEnvelope(overrides: Partial<PageEnvelope> = {}): PageEnvelope {
   };
 }
 
+/**
+ * The same page with the sidecar block on and no related tabs, so the
+ * Attachments panel is the tab that opens (37 §3.5). `tabs: []` is what makes
+ * it the default: `hasTabs` gates on the stored tabs, not on the adapter.
+ */
+function attachmentsEnvelope(): PageEnvelope {
+  const base = recordEnvelope();
+  return {
+    ...base,
+    config: {
+      ...base.config,
+      detail: { template: 'page-record', tabs: [] },
+      attachments: { enabled: true },
+    },
+  };
+}
+
+/** One `FileDto`, as `GET /api/v1/files?…&recordId=1` answers it. */
+function fileDto(id: string, filename: string) {
+  return {
+    id,
+    filename,
+    mime: 'application/pdf',
+    sizeBytes: 4096,
+    sha256: 'a'.repeat(64),
+    kind: 'upload',
+    destinationId: null,
+    uploadedBy: 'usr_test',
+    createdAt: 1_750_000_000_000,
+    attachedAt: 1_750_000_000_000,
+    deletedAt: null,
+    entity: { connectionId: 'conn_1', table: 'public.customers', recordId: '1' },
+    contentPath: `/api/v1/files/${id}/content`,
+  };
+}
+
 function ordersEnvelope(): PageEnvelope {
   const base = makeCrudEnvelope();
   return {
@@ -96,6 +148,12 @@ interface Fixture {
   /** GET of the single customer record; default answers CUSTOMER. */
   recordReply?: () => Response;
   auditReply?: () => Response;
+  /** `GET /api/v1/files?…` — the Attachments panel's list, per call. */
+  filesReply?: () => Response;
+  /** `POST /api/v1/files/resolve` — the column-mode panel's batch (38 D13). */
+  resolveReply?: () => Response;
+  /** `PATCH` of the customer record; column mode writes the list through it. */
+  patchReply?: () => Response;
 }
 
 function stubFetch(fixture: Fixture = {}) {
@@ -121,6 +179,15 @@ function stubFetch(fixture: Fixture = {}) {
     }
     if (url.startsWith('/api/v1/data/conn_1/public.orders') && method === 'POST') {
       return Promise.resolve(jsonResponse(201, { data: { id: 23 }, undoToken: null }));
+    }
+    if (url.startsWith('/api/v1/files/resolve')) {
+      return Promise.resolve(fixture.resolveReply?.() ?? jsonResponse(200, { data: {} }));
+    }
+    if (url.startsWith('/api/v1/files')) {
+      return Promise.resolve(fixture.filesReply?.() ?? jsonResponse(200, { data: [] }));
+    }
+    if (url.startsWith('/api/v1/data/conn_1/public.customers/1') && method === 'PATCH') {
+      return Promise.resolve(fixture.patchReply?.() ?? jsonResponse(200, { data: CUSTOMER, undoToken: null }));
     }
     if (url.startsWith('/api/v1/audit')) {
       return Promise.resolve(
@@ -177,6 +244,7 @@ function stubFetch(fixture: Fixture = {}) {
 }
 
 async function renderAt(path: string, fixture: Fixture = {}) {
+  FakeWebSocket.instances = [];
   vi.stubGlobal('WebSocket', FakeWebSocket);
   const fetchMock = stubFetch(fixture);
   const queryClient = createQueryClient();
@@ -195,6 +263,9 @@ const unregisterFns: Array<() => void> = [];
 
 afterEach(() => {
   for (const unregister of unregisterFns.splice(0)) unregister();
+  // The stream transport is an app-lifetime singleton; a live one would carry
+  // the previous test's sockets into the next render.
+  resetAppStreamTransport();
   vi.unstubAllGlobals();
 });
 
@@ -208,8 +279,10 @@ describe('the record route renders the record PAGE (30 D1)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     // Masked column renders the masked treatment on the page too (30 D7).
     expect(fields.querySelector('[data-part="cell-masked"]')).not.toBeNull();
-    // Document title carries the record (WS-C).
-    expect(document.title).toBe('Northwind · Customers');
+    // Document title carries the record (WS-C), under the workspace name. It
+    // is published through the topbar channel rather than written here, so it
+    // lands one commit after the h1 — hence `waitFor`.
+    await waitFor(() => expect(document.title).toBe('Northwind · Customers · Adminium'));
   });
 
   it('related tab: count pill, rows from the referencing table, cross-link to its record page (30 D5)', async () => {
@@ -472,5 +545,189 @@ describe('grants-driven write affordances (30 D4)', () => {
     await screen.findByRole('heading', { level: 2 });
     expect(screen.getByRole('button', { name: 'Edit' })).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+  });
+});
+
+/**
+ * The Attachments panel's realtime refresh (37-files-and-storage.md D27).
+ *
+ * The panel fetches its list once, on mount. Everything that changes it — a
+ * colleague attaching a file, this user's own second tab, a form write that
+ * replaced a column-bound reference — happens on the server, so without a
+ * refresh path the only way to see it is a full remount. That is the gap these
+ * tests close, and both halves of the wire are load-bearing: the frame has to
+ * arrive (`STREAM_SSE_EVENT_TYPES`, streamTransport.test.ts) and the binding
+ * has to react to it.
+ */
+describe('attachments refetch on record.attachments (37 D27)', () => {
+  const CHANNEL = 'widget-data:conn_1:public.customers';
+  const attachmentsFixture: Fixture = {
+    pageReply: () => jsonResponse(200, { data: attachmentsEnvelope() }),
+    filesReply: () => jsonResponse(200, { data: [fileDto('file_1', 'contract.pdf')] }),
+  };
+
+  /** How many times the panel has asked the server for its list. */
+  const listCalls = (fetchMock: ReturnType<typeof stubFetch>): number =>
+    fetchMock.mock.calls.filter(([input]) => String(input).startsWith('/api/v1/files?')).length;
+
+  it('refetches the list when the table publishes record.attachments', async () => {
+    const { fetchMock } = await renderAt('/p/customers/r/1', attachmentsFixture);
+    // The panel is the default tab (no related tabs on this envelope).
+    await screen.findByText('contract.pdf');
+    await waitFor(() => expect(listCalls(fetchMock)).toBe(1));
+
+    deliver({
+      channel: CHANNEL,
+      type: 'record.attachments',
+      // The publisher's frame shape: the pk masked, no row (37 D27).
+      data: { type: 'record.attachments', pk: { id: 1 }, row: null },
+      ts: '2026-09-05T00:00:00.000Z',
+    });
+
+    await waitFor(() => expect(listCalls(fetchMock)).toBe(2));
+  });
+
+  it('ignores another table’s attachments and its own table’s row traffic', async () => {
+    const { fetchMock } = await renderAt('/p/customers/r/1', attachmentsFixture);
+    await screen.findByText('contract.pdf');
+    await waitFor(() => expect(listCalls(fetchMock)).toBe(1));
+
+    // Each frame is flushed on its own, so a listener that reacted to all
+    // three would be caught HERE and not hidden by React batching them into
+    // one re-render — and the last step proves the pipeline was live for the
+    // two that changed nothing.
+    await act(async () => {
+      deliver({
+        channel: 'widget-data:conn_1:public.orders',
+        type: 'record.attachments',
+        data: { type: 'record.attachments', pk: { id: 21 }, row: null },
+        ts: '2026-09-05T00:00:00.000Z',
+      });
+    });
+    expect(listCalls(fetchMock)).toBe(1);
+
+    await act(async () => {
+      deliver({
+        channel: CHANNEL,
+        type: 'record.update',
+        data: { type: 'record.update', pk: { id: 1 }, row: CUSTOMER },
+        ts: '2026-09-05T00:00:01.000Z',
+      });
+    });
+    expect(listCalls(fetchMock)).toBe(1);
+
+    await act(async () => {
+      deliver({
+        channel: CHANNEL,
+        type: 'record.attachments',
+        data: { type: 'record.attachments', pk: { id: 1 }, row: null },
+        ts: '2026-09-05T00:00:02.000Z',
+      });
+    });
+    expect(listCalls(fetchMock)).toBe(2);
+  });
+
+  it('opens no stream channel at all for a page without the attachments block', async () => {
+    // 30 D5/D6's rule, applied to the socket: a page that configures no
+    // sidecar must cost nothing, not even a subscription.
+    const { fetchMock } = await renderAt('/p/customers/r/1');
+    await screen.findByRole('heading', { level: 2 });
+    expect(listCalls(fetchMock)).toBe(0);
+    expect(appStreamTransport().channelCount).toBe(0);
+  });
+});
+
+/**
+ * COLUMN-mode attachments (38-files-library-and-attachments.md D13).
+ *
+ * The panel is the same component; only the adapter differs. In column mode
+ * the record's own column holds a JSON list of references, so `list` reads the
+ * row and resolves the entries, and every write is a `PATCH` of that column —
+ * never a `DELETE /files/:id`, because the column is the truth and a delete
+ * that left the reference behind would leave the grid showing a chip for a
+ * trashed file.
+ */
+describe('attachments bound to a column (38 D13)', () => {
+  const FILE_A = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD';
+  const FILE_B = 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCE';
+
+  /** The customers page with attachments in COLUMN mode. */
+  function columnEnvelope(): PageEnvelope {
+    const base = recordEnvelope();
+    return {
+      ...base,
+      config: {
+        ...base.config,
+        detail: { template: 'page-record', tabs: [] },
+        attachments: { enabled: true, column: 'attachments' },
+      },
+    };
+  }
+
+  const columnFixture: Fixture = {
+    pageReply: () => jsonResponse(200, { data: columnEnvelope() }),
+    recordReply: () =>
+      jsonResponse(200, {
+        data: { ...CUSTOMER, attachments: JSON.stringify([FILE_A, FILE_B]) },
+        inboundCounts: [],
+      }),
+    resolveReply: () =>
+      jsonResponse(200, {
+        data: {
+          [FILE_A]: fileDto(FILE_A, 'contract.pdf'),
+          [FILE_B]: fileDto(FILE_B, 'receipt.pdf'),
+        },
+      }),
+  };
+
+  it('lists what the record’s column names, through resolve rather than the files list', async () => {
+    const { fetchMock } = await renderAt('/p/customers/r/1', columnFixture);
+
+    expect(await screen.findByText('contract.pdf')).toBeTruthy();
+    expect(screen.getByText('receipt.pdf')).toBeTruthy();
+
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    // The batch resolver, not `GET /files?recordId=` — the sidecar's query
+    // would answer nothing here, because no file is linked on Adminium's side.
+    expect(urls.some((url) => url.startsWith('/api/v1/files/resolve'))).toBe(true);
+    expect(urls.some((url) => url.includes('/api/v1/files?') && url.includes('recordId'))).toBe(false);
+  });
+
+  it('removes by PATCHing the column, never by deleting the file', async () => {
+    const user = userEvent.setup();
+    const { fetchMock } = await renderAt('/p/customers/r/1', columnFixture);
+    await screen.findByText('contract.pdf');
+
+    // By `data-part`, not by accessible name: the record page has its own
+    // "Delete" action for the RECORD, and a name-based query finds that first.
+    const remove = document.querySelectorAll('[data-part="attachment-delete"]')[0];
+    expect(remove).toBeTruthy();
+    await user.click(remove as HTMLElement);
+
+    await waitFor(() => {
+      const patch = fetchMock.mock.calls.find(
+        (call) => (call[1] as RequestInit | undefined)?.method === 'PATCH',
+      );
+      expect(patch).toBeTruthy();
+      // The remaining reference, and only it.
+      expect(String((patch?.[1] as RequestInit).body)).toContain(FILE_B);
+      expect(String((patch?.[1] as RequestInit).body)).not.toContain(FILE_A);
+    });
+    // The reconcile hook is what trashes the file; the panel never asks.
+    const deletes = fetchMock.mock.calls.filter(
+      (call) => (call[1] as RequestInit | undefined)?.method === 'DELETE',
+    );
+    expect(deletes).toEqual([]);
+  });
+
+  it('still uses the sidecar adapter when the block names no column', async () => {
+    // The fallback path (D2) — unchanged from 37.
+    const { fetchMock } = await renderAt('/p/customers/r/1', {
+      pageReply: () => jsonResponse(200, { data: attachmentsEnvelope() }),
+      filesReply: () => jsonResponse(200, { data: [fileDto(FILE_A, 'sidecar.pdf')] }),
+    });
+    expect(await screen.findByText('sidecar.pdf')).toBeTruthy();
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls.some((url) => url.includes('/api/v1/files?') && url.includes('recordId'))).toBe(true);
   });
 });

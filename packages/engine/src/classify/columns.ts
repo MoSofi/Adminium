@@ -97,7 +97,23 @@ const EMAIL_RE = /(^|_)e?mail(_address)?(_|$)/;
 const PHONE_RE = /(^|_)(phone|mobile|tele?phone|fax)(_number)?(_|$)/;
 const IMAGE_RE =
   /(^|_)(avatar|image|img|photo|picture|logo|icon|thumbnail|cover)(_url|_path|_key)?(_|$)/;
-const FILE_RE = /(^|_)(file|attachment|document|upload)(_url|_path|_key|_name)?(_|$)/;
+/**
+ * Columns that name a stored file.
+ *
+ * `pdf` JOINED THE VOCABULARY IN 38 (D12, O2 ruled 2026-09-05, closing 27-T56).
+ * The originating ask for the whole files feature was "attach a PDF while
+ * creating an invoice", and the obvious column names for it — `pdf`,
+ * `pdf_url`, `invoice_pdf`, `receipt_pdf_url` — matched none of the four words
+ * here, while `document_url` and `contract_file` did. So the one shape the
+ * feature was built for was the one that never seeded a `file` block, and an
+ * operator had to add it by hand.
+ *
+ * Widening this re-records the generation baseline, which is why it is a ruled
+ * decision rather than a drive-by (the same hazard 27-T37 carries for
+ * `PERCENT_RE`). It stays a NAME vocabulary: a `pdf_pages` integer is not a
+ * file, and the `TEXTISH` guard at the call site is what keeps it that way.
+ */
+const FILE_RE = /(^|_)(file|attachment|document|upload|pdf)(_url|_path|_key|_name)?(_|$)/;
 const URL_RE = /(^|_)(url|link|website|href|homepage)(_|$)/;
 const BOOL_PREFIX_RE = /^(is_|has_|can_|should_|allow_)/;
 const BOOL_SUFFIX_RE =

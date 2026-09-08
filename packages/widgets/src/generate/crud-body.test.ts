@@ -499,3 +499,54 @@ describe('composeCrudBody — detail tabs from inbound FKs', () => {
     expect(body.detail.tabs).toEqual([]);
   });
 });
+
+describe('composeCrudBody — the `file` block seeding (37 D14)', () => {
+  it('seeds a block on the columns the classifier already calls files', () => {
+    const { table, classified } = build('public.invoices', [
+      { name: 'invoice_id', logicalType: 'varchar', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'customer', logicalType: 'varchar', semantic: 'label' },
+      { name: 'pdf_url', logicalType: 'varchar', semantic: 'file-ref' },
+      { name: 'logo_url', logicalType: 'varchar', semantic: 'image-url' },
+    ]);
+    const body = composeCrudBody(table, classified, ctx());
+    const byName = new Map(body.columns.map((column) => [column.name, column]));
+
+    // `file-ref` and `image-url` have been tagged since M5 and have driven a
+    // bare link ever since. Seeding here — rather than teaching the renderer to
+    // honour the TAG — is what keeps the change opt-in.
+    expect(byName.get('pdf_url')?.file).toEqual({ ref: 'url' });
+    // An image column additionally opts into the thumbnail.
+    expect(byName.get('logo_url')?.file).toEqual({ ref: 'url', inline: true });
+    // Nothing else gains one.
+    expect(byName.get('customer')?.file).toBeUndefined();
+  });
+
+  it('lifts the image-url grid exclusion only for a TEXT column', () => {
+    const { table, classified } = build('public.products', [
+      { name: 'product_id', logicalType: 'varchar', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'name', logicalType: 'varchar', semantic: 'label' },
+      { name: 'photo_url', logicalType: 'varchar', semantic: 'image-url' },
+      // Bytes inside the customer's database: a different feature (§4), and it
+      // must stay out of the grid whatever its tag says.
+      { name: 'thumbnail', logicalType: 'binary', semantic: 'image-url' },
+    ]);
+    const body = composeCrudBody(table, classified, ctx());
+    const names = body.columns.map((column) => column.name);
+    // A chip with a name, a size and a thumbnail is not the noise a bare URL was.
+    expect(names).toContain('photo_url');
+    expect(names).not.toContain('thumbnail');
+  });
+
+  it('does NOT seed one on a non-text column', () => {
+    const { table, classified } = build('public.assets', [
+      { name: 'asset_id', logicalType: 'varchar', semantic: 'pk-id', isPrimaryKey: true },
+      { name: 'name', logicalType: 'varchar', semantic: 'label' },
+      { name: 'payload', logicalType: 'json', semantic: 'file-ref' },
+    ]);
+    const body = composeCrudBody(table, classified, ctx());
+    // A `json` column holding an array of files is O5 (refused in v1) and a
+    // `binary` one is bytes in the customer's database — neither can hold a
+    // reference, so neither gets a block.
+    expect(body.columns.find((column) => column.name === 'payload')?.file).toBeUndefined();
+  });
+});

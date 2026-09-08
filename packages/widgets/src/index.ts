@@ -243,6 +243,12 @@ export {
 } from './families/forms/forms-config.js';
 export { SKIP_TARGET } from './families/forms/forms-builders.js';
 export { UploadDropzone, type UploadDropzoneProps } from './families/media/UploadDropzone.js';
+// The file-type vocabulary the media family already owns: name/mime → kind,
+// kind → its lucide glyph and its tone. Re-exported so the dashboard's Files
+// page draws a PDF the same way `AttachmentList` and `page-files` do, rather
+// than growing a third mapping that drifts from both.
+export { FILE_KIND_TONE, kindOf, type FileKind } from './families/media/media-lib.js';
+export { fileIconFor } from './families/media/media-icons.js';
 export { ScheduledJobsList, type ScheduledJobsListProps } from './families/calendar/ScheduledJobsList.js';
 export type { ScheduledJob } from './families/calendar/calendar-types.js';
 

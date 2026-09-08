@@ -14,7 +14,14 @@
  */
 import { expect, test as setup } from '@playwright/test';
 
-import { ADMIN_EMAIL, ADMIN_PASSWORD, storageStatePath } from './constants.js';
+import {
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  FILES_ADMIN_EMAIL,
+  FILES_ADMIN_PASSWORD,
+  filesStorageStatePath,
+  storageStatePath,
+} from './constants.js';
 
 setup('sign in once — every test reuses this session', async ({ page }) => {
   await page.goto('/login');
@@ -23,4 +30,20 @@ setup('sign in once — every test reuses this session', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
   await page.context().storageState({ path: storageStatePath() });
+});
+
+/**
+ * The files specs' own session (constants.ts `FILES_ADMIN_EMAIL`).
+ *
+ * Two logins per run against a 5/min `auth-login` bucket — well inside it, and
+ * the reason is the bucket one level up: the `api` limit is per principal, and
+ * the files specs need their own budget.
+ */
+setup('sign in the files principal — its own api rate budget', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(FILES_ADMIN_EMAIL);
+  await page.getByLabel('Password', { exact: true }).fill(FILES_ADMIN_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+  await page.context().storageState({ path: filesStorageStatePath() });
 });

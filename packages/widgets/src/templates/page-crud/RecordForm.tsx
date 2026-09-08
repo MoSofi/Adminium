@@ -16,10 +16,12 @@ import { useMaybeT } from '@adminium/i18n/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { FileField, type FileFieldUpload } from './FileField.js';
 import { coerceFieldValue, dateOnlyValue, fieldKindFor, fieldTypeTag, formColumns, isRequired } from './field-mapping.js';
 import type { CrudApi, CrudLookupOption, CrudRow } from './crud-api.js';
 import { uiToneOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
+import type { ResolvedFile } from '../../families/tables/cells.js';
 
 /**
  * RecordForm — the create/edit form generated from column specs (09 §7.1):
@@ -47,6 +49,16 @@ export interface RecordFormProps {
   uniqueHelper?: ((column: GridColumnSpec) => ReactNode) | undefined;
   /** Action row rendered INSIDE the form element (submit buttons). */
   footer?: ReactNode | undefined;
+  /**
+   * Uploads a file and resolves to the reference to store (37 §3.9). Absent ⇒
+   * every `file` column renders the plain text input it had before its block
+   * was configured — this package has no transport of its own.
+   */
+  uploadFile?: FileFieldUpload | undefined;
+  /** What the current values already name, keyed by the stored value. */
+  files?: ReadonlyMap<string, ResolvedFile | null> | undefined;
+  /** Workspace upload cap, so the field can refuse before the request starts. */
+  maxFileBytes?: number | undefined;
 }
 
 function stringValue(value: unknown): string {
@@ -128,6 +140,9 @@ export function RecordForm({
   formId,
   uniqueHelper,
   footer,
+  uploadFile,
+  files,
+  maxFileBytes,
 }: RecordFormProps) {
   const t = useMaybeT();
   const fields = useMemo(() => formColumns(columns), [columns]);
@@ -179,6 +194,30 @@ export function RecordForm({
           return (
             <FormField key={column.name} {...common}>
               <MonoText className="text-body-sm text-fg-muted">{stringValue(value) || '—'}</MonoText>
+            </FormField>
+          );
+        }
+        if (kind === 'file') {
+          const stored = value === null || value === undefined ? '' : String(value);
+          return (
+            <FormField key={column.name} {...common}>
+              {/*
+                A list column's chips are keyed by each ENTRY, so it needs the
+                whole resolved map; the single field wants the one entry its
+                own value names. Passing both costs nothing and keeps each mode
+                reading exactly what it can use.
+              */}
+              <FileField
+                column={column}
+                value={value}
+                {...(uploadFile === undefined ? {} : { upload: uploadFile })}
+                {...(files === undefined ? {} : { resolvedByRef: files })}
+                {...(files?.get(stored) === undefined ? {} : { resolved: files.get(stored) })}
+                {...(column.file?.maxBytes ?? maxFileBytes) === undefined
+                  ? {}
+                  : { maxBytes: column.file?.maxBytes ?? maxFileBytes }}
+                onChange={(next) => setField(column.name, next)}
+              />
             </FormField>
           );
         }

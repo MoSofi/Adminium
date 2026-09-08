@@ -35,12 +35,14 @@ export {
   isRequired,
   type FieldKind,
 } from './field-mapping.js';
+export { FileField, type FileFieldProps, type FileFieldUpload } from './FileField.js';
 export { FK_LOOKUP_DEBOUNCE_MS, RecordForm, type RecordFormProps } from './RecordForm.js';
 export { RecordDetail, type RecordDetailProps } from './RecordDetail.js';
 export {
   PAGE_CRUD_TEMPLATE_ID,
   PageCrud,
   SEARCH_DEBOUNCE_MS,
+  type PageCrudFiles,
   type PageCrudGridState,
   type PageCrudLabels,
   type PageCrudProps,

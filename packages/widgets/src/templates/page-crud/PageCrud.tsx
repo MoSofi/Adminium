@@ -26,6 +26,8 @@ import { ArrowUpRight, Eye, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { RecordDetail } from './RecordDetail.js';
+import { parseRefList } from '../../page-config/file-refs.js';
+import type { FileFieldUpload } from './FileField.js';
 import { RecordForm } from './RecordForm.js';
 import { isDeletePreview } from './crud-api.js';
 import type {
@@ -40,7 +42,7 @@ import type {
 import { BulkActionToolbar } from '../../families/tables/BulkActionToolbar.js';
 import { DataGrid } from '../../families/tables/DataGrid.js';
 import { PaginationFooter } from '../../families/tables/PaginationFooter.js';
-import type { CellContext } from '../../families/tables/cells.js';
+import type { CellContext, ResolvedFile } from '../../families/tables/cells.js';
 import { displayValueOf, rowIdOf } from '../../families/tables/column-spec.js';
 import type { GridColumnSpec } from '../../families/tables/column-spec.js';
 import type { WidgetEvent } from '../../registry/types.js';
@@ -137,7 +139,29 @@ export interface PageCrudProps {
   locale?: string | undefined;
   currency?: string | undefined;
   labels?: PageCrudLabels | undefined;
+  /**
+   * The file adapter (37 §3.5, §3.9). Absent ⇒ every `file` column renders
+   * exactly as it did before its block existed: a link in the grid, a `url`
+   * input in the form. This package has no transport of its own, so this is
+   * the whole of what a host must supply.
+   */
+  files?: PageCrudFiles | undefined;
   testId?: string | undefined;
+}
+
+/** The host's file transport for one crud page. */
+export interface PageCrudFiles {
+  /**
+   * Resolve the file references on a page of rows — ONE call per page, not one
+   * per row (§3.5). Keys are the stored values; an unrecognised or unreadable
+   * value maps to `null` and renders as today's link.
+   */
+  resolve(refs: readonly string[]): Promise<ReadonlyMap<string, ResolvedFile | null>>;
+  upload: FileFieldUpload;
+  /** The workspace cap, so the form can refuse before a request starts. */
+  maxBytes?: number | undefined;
+  /** Above this an image column shows a chip rather than a preview (D24). */
+  thumbnailMaxBytes?: number | undefined;
 }
 
 /** Debounce for the toolbar search → `q` param. */
@@ -200,6 +224,7 @@ export function PageCrud({
   canUpdate = true,
   canDelete = true,
   canUnmask = false,
+  files,
   onEvent,
   locale,
   currency,
@@ -412,6 +437,58 @@ export function PageCrud({
   // --- export ----------------------------------------------------------------
   const [exporting, setExporting] = useState(false);
 
+  /**
+   * Resolved file references for the rows currently on screen (§3.5).
+   *
+   * ONE request per page of rows. The effect keys on the row identities rather
+   * than on the rows themselves so a re-render that did not change the data
+   * does not re-ask; a page with no `file` column never asks at all, which is
+   * what keeps this free for every table that has none.
+   */
+  const [resolvedFiles, setResolvedFiles] = useState<ReadonlyMap<string, ResolvedFile | null>>(
+    () => new Map(),
+  );
+  const fileColumns = useMemo(() => columns.filter((column) => column.file !== undefined), [columns]);
+  const fileRefs = useMemo(() => {
+    if (fileColumns.length === 0) return [];
+    const seen = new Set<string>();
+    for (const row of list.rows) {
+      for (const column of fileColumns) {
+        // `parseRefList` for BOTH shapes (38 D5): a single-value column is a
+        // list of one, so the batch is built the same way whether or not the
+        // column is `multiple`. Resolving the raw value of a list column would
+        // ask the server about the JSON array itself, which names nothing.
+        for (const ref of parseRefList(row[column.name])) seen.add(ref);
+      }
+    }
+    return [...seen];
+  }, [list.rows, fileColumns]);
+  const fileRefsKey = fileRefs.join('\u0000');
+
+  useEffect(() => {
+    if (files === undefined || fileRefs.length === 0) {
+      setResolvedFiles(new Map());
+      return;
+    }
+    let live = true;
+    void files
+      .resolve(fileRefs)
+      .then((resolved) => {
+        if (live) setResolvedFiles(resolved);
+      })
+      .catch(() => {
+        // A failed resolve is not a failed page: every value falls back to the
+        // link it rendered before, which is exactly what an unresolved value
+        // means anyway.
+        if (live) setResolvedFiles(new Map());
+      });
+    return () => {
+      live = false;
+    };
+    // Keyed on `fileRefsKey` — the ref SET — rather than on `fileRefs`, whose
+    // array identity changes on every render and would re-ask per keystroke.
+  }, [files, fileRefsKey, fileRefs]);
+
   const cellContext: CellContext = useMemo(
     () => ({
       onEvent,
@@ -419,8 +496,10 @@ export function PageCrud({
       connectionId: source.connectionId ?? undefined,
       locale,
       currency,
+      files: resolvedFiles,
+      ...(files?.thumbnailMaxBytes === undefined ? {} : { thumbnailMaxBytes: files.thumbnailMaxBytes }),
     }),
-    [onEvent, canUnmask, source.connectionId, locale, currency],
+    [onEvent, canUnmask, source.connectionId, locale, currency, resolvedFiles, files?.thumbnailMaxBytes],
   );
 
   const pushUndoToast = useCallback(
@@ -894,6 +973,8 @@ export function PageCrud({
             mode="create"
             errors={createErrors}
             lookup={api.lookup?.bind(api)}
+            {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
+            {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
             onSubmit={handleCreate}
             uniqueHelper={() =>
               total === null
@@ -967,6 +1048,8 @@ export function PageCrud({
               initialValues={editRecord}
               errors={editErrors}
               lookup={api.lookup?.bind(api)}
+            {...(files === undefined ? {} : { uploadFile: files.upload, files: resolvedFiles })}
+            {...(files?.maxBytes === undefined ? {} : { maxFileBytes: files.maxBytes })}
               onSubmit={handleUpdate}
               footer={
                 <div className="flex justify-end gap-2 pt-1">

@@ -11,8 +11,11 @@
  * lives in a module-level holder rather than React state because FOUR of the
  * five mutating fetch call sites in this app do not go through `api` at all —
  * `studio/api.ts` (deleteJson), `studio/remap/api.ts` (putJson),
- * `app/branding.ts` (raw image bytes) and `data-io/api.ts` (raw text/csv) all
- * hand-roll `fetch` because this client is JSON-only. They import
+ * `app/branding.ts` (raw image bytes), `data-io/api.ts` (raw text/csv) and —
+ * since 37 — `files/api.ts` (raw upload bytes, and the only one that uses
+ * `XMLHttpRequest` rather than `fetch`, because `fetch` has no upload-progress
+ * event) all hand-roll their transport because this client is JSON-only. They
+ * import
  * {@link csrfHeaders} from here; patching only this file would ship a
  * dashboard that 403s on schema-override saves, logo uploads, CSV imports and
  * the delete-connection confirm.

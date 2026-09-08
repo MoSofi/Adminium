@@ -5,7 +5,12 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PageRecord } from './PageRecord.js';
-import type { PageRecordProps, PageRecordRelated, RecordActivityFeed } from './PageRecord.js';
+import type {
+  PageRecordProps,
+  PageRecordRelated,
+  RecordActivityFeed,
+  RecordAttachment,
+} from './PageRecord.js';
 import type { CrudApi, CrudReferenceCount, CrudRow } from '../page-crud/crud-api.js';
 import { gridColumnSpecSchema } from '../../families/tables/column-spec.js';
 import type { GridColumnSpecInput } from '../../families/tables/column-spec.js';
@@ -351,5 +356,141 @@ describe('in-tab create (30 follow-up — "Add item")', () => {
     renderRecord(makeApi(), { related });
     expect(await screen.findByText('No related records')).toBeDefined();
     expect(screen.getByRole('button', { name: 'New row' })).toBeDefined();
+  });
+});
+
+// --- attachments panel (37-files-and-storage.md §3.5, 37-T19) ------------------
+
+describe('PageRecord — the Attachments panel', () => {
+  const attachment = (over: Partial<RecordAttachment> = {}): RecordAttachment => ({
+    id: 'file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD',
+    filename: 'contract.pdf',
+    mime: 'application/pdf',
+    sizeBytes: 4096,
+    createdAt: 1_750_000_000_000,
+    contentPath: '/api/v1/files/file_01M1Q2R3S4T5V6W7X8Y9Z0ABCD/content',
+    ...over,
+  });
+
+  it('does not render without the adapter', async () => {
+    renderRecord(makeApi());
+    await screen.findByRole('heading', { level: 2 });
+    // The same rule `related` and `activity` follow: absent ⇒ no tab at all,
+    // so a page whose `config.attachments` is off is untouched.
+    expect(screen.queryByRole('tab', { name: /files/i })).toBeNull();
+  });
+
+  it('lists what the adapter returns', async () => {
+    const attachments = {
+      list: vi.fn().mockResolvedValue([attachment()]),
+      upload: vi.fn(),
+      remove: vi.fn(),
+    };
+    renderRecord(makeApi(), { attachments, canAttach: true });
+    await userEvent.setup().click(await screen.findByRole('tab', { name: /files/i }));
+    expect(await screen.findByText('contract.pdf')).toBeTruthy();
+  });
+
+  it('upload GROWS the list: the new file joins the ones already there', async () => {
+    // 37-T19's done-when clause "upload -> list grows". Growth, not presence:
+    // the panel appends the server's row to the state it already holds
+    // (`setItems([...current, uploaded])`) rather than re-listing, so a handler
+    // that REPLACED `items` with the single uploaded row would still satisfy
+    // "the new filename is on screen" while silently dropping every file the
+    // record already had. Both halves are asserted below.
+    const user = userEvent.setup();
+    const added = attachment({
+      id: 'file_02N2P3Q4R5S6T7U8V9W0XYZABC',
+      filename: 'signed-addendum.pdf',
+      sizeBytes: 8192,
+      contentPath: '/api/v1/files/file_02N2P3Q4R5S6T7U8V9W0XYZABC/content',
+    });
+    const attachments = {
+      list: vi.fn().mockResolvedValue([attachment()]),
+      upload: vi.fn().mockResolvedValue(added),
+      remove: vi.fn(),
+    };
+    renderRecord(makeApi(), { attachments, canAttach: true });
+    await user.click(await screen.findByRole('tab', { name: /files/i }));
+    await screen.findByText('contract.pdf');
+
+    const panel = document.querySelector('[data-part="record-attachments"]') as HTMLElement;
+    expect(panel.querySelectorAll('[data-part="attachment-row"]').length).toBe(1);
+    await user.upload(
+      panel.querySelector('input[type="file"]') as HTMLInputElement,
+      // DIFFERENT from the adapter's `filename` on purpose. With both named
+      // the same, a panel that synthesised a row from the local `File` would
+      // pass this test identically to one that appended the server's answer —
+      // and only the second is correct, because the server is what renames,
+      // de-duplicates and assigns the id the download link needs.
+      new File(['%PDF-1.7'], 'local-scan.pdf', { type: 'application/pdf' }),
+    );
+
+    expect(await screen.findByText('signed-addendum.pdf')).toBeTruthy();
+    expect(within(panel).queryByText('local-scan.pdf')).toBeNull();
+    // Grew, not replaced: the record's existing file survives its own upload.
+    expect(within(panel).getByText('contract.pdf')).toBeTruthy();
+    await waitFor(() => {
+      expect(panel.querySelectorAll('[data-part="attachment-row"]').length).toBe(2);
+    });
+    expect(attachments.upload).toHaveBeenCalledWith(
+      expect.objectContaining({ file: expect.objectContaining({ name: 'local-scan.pdf' }) }),
+    );
+  });
+
+  it('keeps the dropzone on a READ-ONLY source, which is what the sidecar is for', async () => {
+    // The regression this pins: the panel used to receive `writable && canAttach`,
+    // so a read-only source hid the dropzone — on exactly the connections the
+    // sidecar mode exists to serve (37 §3.5, D11). The server never asked for
+    // that AND: `routes/pages/index.ts` computes `canAttach` from the table's
+    // `:update` grant and says in its own comment that deriving it from
+    // `canUpdate` "would hide the panel on exactly the connections it exists
+    // for". `readOnly` is stamped on every `read-only-analytics` page the
+    // engine generates, so this combination is reachable in the product.
+    const attachments = {
+      list: vi.fn().mockResolvedValue([attachment()]),
+      upload: vi.fn(),
+      remove: vi.fn(),
+    };
+    renderRecord(makeApi(), { attachments, canAttach: true, readOnly: true });
+    await userEvent.setup().click(await screen.findByRole('tab', { name: /files/i }));
+    await screen.findByText('contract.pdf');
+    expect(document.querySelector('input[type="file"]')).not.toBeNull();
+  });
+
+  it('hides the dropzone when the server said this caller cannot attach', async () => {
+    const attachments = {
+      list: vi.fn().mockResolvedValue([attachment()]),
+      upload: vi.fn(),
+      remove: vi.fn(),
+    };
+    renderRecord(makeApi(), { attachments, canAttach: false });
+    await userEvent.setup().click(await screen.findByRole('tab', { name: /files/i }));
+    await screen.findByText('contract.pdf');
+    // `canAttach` comes from the page reply (37 D11), so the panel never offers
+    // an affordance the server would refuse.
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it('removes optimistically and offers Undo', async () => {
+    const user = userEvent.setup();
+    const attachments = {
+      list: vi.fn().mockResolvedValue([attachment()]),
+      upload: vi.fn(),
+      remove: vi.fn().mockResolvedValue(undefined),
+      restore: vi.fn().mockResolvedValue(undefined),
+    };
+    renderRecord(makeApi(), { attachments, canAttach: true });
+    await user.click(await screen.findByRole('tab', { name: /files/i }));
+    await screen.findByText('contract.pdf');
+
+    // Scoped to the panel: the page's own Delete-record button matches too.
+    const panel = document.querySelector('[data-part="record-attachments"]') as HTMLElement;
+    await user.click(within(panel).getByRole('button', { name: /delete/i }));
+    expect(attachments.remove).toHaveBeenCalledWith(attachment().id);
+    // Trash, not delete (D12): a confirm dialog in front of a reversible action
+    // is a dialog nobody reads, so the panel offers Undo instead.
+    await user.click(await screen.findByRole('button', { name: /undo/i }));
+    expect(attachments.restore).toHaveBeenCalledWith(attachment().id);
   });
 });

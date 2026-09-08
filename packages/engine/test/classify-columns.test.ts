@@ -495,3 +495,68 @@ describe('§7.2 PII layer (independent of primary)', () => {
     }
   });
 });
+
+/**
+ * The file/attachment vocabulary, and the word 38 added to it
+ * (38-files-library-and-attachments.md D12, O2 ruled 2026-09-05; 27-T56).
+ *
+ * WHY THIS TEST EXISTS AT ALL. `pdf` was added to `FILE_RE` and every one of
+ * the engine's 536 tests still passed — because no fixture anywhere had a
+ * pdf-named column, so nothing was measuring the vocabulary. A widening whose
+ * only evidence is "the baseline did not change" is a widening that might do
+ * nothing.
+ *
+ * The negative cases matter as much: this is a NAME vocabulary over textish
+ * columns, so a `pdf_pages` count and a `pdf_generated_at` timestamp must not
+ * become file references just because they contain the word.
+ */
+describe('the file-reference vocabulary (r20-file-ref)', () => {
+  const semanticOf = (name: string, logicalType = 'varchar'): string | null => {
+    const model = parseDatabaseModel({
+      irVersion: 1,
+      dialect: 'postgres',
+      name: 'probe',
+      tables: [
+        {
+          schema: 'public',
+          name: 'invoices',
+          columns: [
+            { name: 'id', logicalType: 'integer', isPrimaryKey: true, nullable: false },
+            { name, logicalType, maxLength: logicalType === 'varchar' ? 400 : undefined },
+          ],
+          primaryKey: ['id'],
+        },
+      ],
+    });
+    const classified = classifyTableColumns(model, model.tables[0]!);
+    // `primary`, not `semantic` — the first draft of this helper read a key
+    // that does not exist, so every positive assertion compared `undefined` and
+    // every negative one passed for free.
+    return classified.find((c: ClassifiedColumn) => c.column === name)!.semantics.primary;
+  };
+
+  it('tags the names the feature was actually asked for', () => {
+    // The owner's sentence was "attach a PDF while creating an invoice", and
+    // these are what that column gets called.
+    for (const name of ['pdf', 'pdf_url', 'invoice_pdf', 'receipt_pdf_url', 'pdf_path', 'pdf_key']) {
+      expect(semanticOf(name), name).toBe('file-ref');
+    }
+  });
+
+  it('still tags the four words it always did', () => {
+    for (const name of ['file', 'file_url', 'attachment', 'document_url', 'contract_file', 'upload_path']) {
+      expect(semanticOf(name), name).toBe('file-ref');
+    }
+  });
+
+  it('does not tag a column that merely contains the word', () => {
+    // An integer count and a timestamp are not references however they are
+    // named — the textish guard at the call site is what enforces that.
+    expect(semanticOf('pdf_pages', 'integer')).not.toBe('file-ref');
+    expect(semanticOf('pdf_generated_at', 'timestamp')).not.toBe('file-ref');
+    // And a word that merely CONTAINS the vocabulary is not in it.
+    for (const name of ['profile', 'documentation_notes', 'uploader_email']) {
+      expect(semanticOf(name), name).not.toBe('file-ref');
+    }
+  });
+});
