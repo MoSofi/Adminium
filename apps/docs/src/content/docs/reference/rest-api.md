@@ -116,6 +116,7 @@ Thirty-one namespaces. Counts are operations, not paths.
 | `/api/v1/public-keys/*` | 5 | Issue, reveal, rotate and revoke the browser-safe keys your pages use |
 | `/api/v1/public-scopes/*` | 4 | Define what a public key may read — resources, columns, filters and time zone |
 | `/api/v1/readyz` | 1 | Readiness — per-dependency verdicts, 503 when a dependency is down |
+| `/api/v1/report-documents/*` | 9 | Report templates and reports — the block documents behind the report builder, the starters, duplicates, and building a report from a template |
 | `/api/v1/roles/*` | 6 | RBAC roles and their permission sets |
 | `/api/v1/scheduled-reports/*` | 4 | Recurring exports delivered on a schedule |
 | `/api/v1/schema-import` | 1 | Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR |
@@ -527,6 +528,20 @@ DELETE /api/v1/public-scopes/{id}
 
 ```http
 GET /api/v1/readyz
+```
+
+### `/report-documents`
+
+```http
+GET /api/v1/report-documents
+POST /api/v1/report-documents
+GET /api/v1/report-documents/starters
+GET /api/v1/report-documents/{id}
+PUT /api/v1/report-documents/{id}
+PATCH /api/v1/report-documents/{id}
+DELETE /api/v1/report-documents/{id}
+POST /api/v1/report-documents/{id}/duplicate
+POST /api/v1/report-documents/{id}/from-template
 ```
 
 ### `/roles`

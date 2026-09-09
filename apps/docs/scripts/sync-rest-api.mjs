@@ -90,6 +90,9 @@ const DESCRIPTIONS = {
   'public-keys': 'Issue, reveal, rotate and revoke the browser-safe keys your pages use',
   permissions: 'The permission catalog every role is built from',
   readyz: 'Readiness — per-dependency verdicts, 503 when a dependency is down',
+  'report-documents':
+    'Report templates and reports — the block documents behind the report builder, the starters, ' +
+    'duplicates, and building a report from a template',
   roles: 'RBAC roles and their permission sets',
   'scheduled-reports': 'Recurring exports delivered on a schedule',
   'schema-import': 'Parse a schema file (SQL, Prisma, Drizzle, the JSON IR, …) into the IR',

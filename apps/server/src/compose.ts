@@ -127,6 +127,7 @@ import { filesRoutes } from './routes/files/index.js';
 import { generateRoutes } from './routes/generate/index.js';
 import { importsRoutes } from './routes/imports/index.js';
 import { invoicesRoutes } from './routes/invoices/index.js';
+import { reportDocumentsRoutes } from './routes/report-documents/index.js';
 import { llmRoutes } from './routes/llm/index.js';
 import { meViewsRoutes } from './routes/me-views/index.js';
 import { notificationsRoutes } from './routes/notifications/index.js';
@@ -844,6 +845,9 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       // 34-invoices-add-on.md §3.9: the authored `/invoices` surface — the
       // same deps shape as the email documents; rendering is a later wave's.
       await api.register(invoicesRoutes({ meta }));
+      // 43-report-builder.md §3.1: the authored `/report-builder` surface —
+      // the same deps shape as the invoice documents. NOT scheduled reports.
+      await api.register(reportDocumentsRoutes({ meta }));
       await api.register(generateRoutes({ manager, meta }));
       await api.register(schemaImportRoutes());
       // The block cache is derived from page config, so a page write must drop
