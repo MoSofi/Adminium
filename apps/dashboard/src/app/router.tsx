@@ -27,6 +27,8 @@ import { emailMessagesReady } from '../email/emailMessages.js';
 import { filesMessagesReady } from '../files/filesMessages.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
 import { invoicesMessagesReady } from '../invoices/invoicesMessages.js';
+import { reportBuilderMessagesReady } from '../report-builder/reportBuilderMessages.js';
+import { validateReportBuilderSearch } from '../report-builder/search.js';
 import { validateInvoicesSearch } from '../invoices/search.js';
 import { automationsMessagesReady } from '../automations/automationsMessages.js';
 import {
@@ -630,6 +632,65 @@ const invoiceEditorRoute = createRoute({
 });
 
 /**
+ * The report builder — the authored surface (43-report-builder.md §3.6,
+ * 43-T09): the same manager+editor machine as the invoice surface, in the
+ * same shape — lazy chunks, a deferred `reportBuilder` message namespace
+ * gated under the Suspense boundary that waits for the chunk, and the nav
+ * entry gating discovery.
+ *
+ * `/report-builder`, NOT `/reports`: that path is Scheduled Reports'
+ * (`reports/routes.tsx`), a different feature that shares the English word
+ * (43 O1 → D1).
+ */
+const ReportBuilderPageLazy = lazy(async () => {
+  const mod = await import('../report-builder/ReportBuilderPage.js');
+  return { default: mod.ReportBuilderPage };
+});
+
+const ReportEditorPageLazy = lazy(async () => {
+  const mod = await import('../report-builder/ReportEditorPage.js');
+  return { default: mod.ReportEditorPage };
+});
+
+function ReportBuilderMessages({ children }: { children: ReactElement }) {
+  use(reportBuilderMessagesReady());
+  return children;
+}
+
+function ReportBuilderRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <ReportBuilderMessages>
+        <ReportBuilderPageLazy />
+      </ReportBuilderMessages>
+    </Suspense>
+  );
+}
+
+function ReportEditorRouteComponent() {
+  return (
+    <Suspense fallback={null}>
+      <ReportBuilderMessages>
+        <ReportEditorPageLazy />
+      </ReportBuilderMessages>
+    </Suspense>
+  );
+}
+
+const reportBuilderRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/report-builder',
+  validateSearch: validateReportBuilderSearch,
+  component: ReportBuilderRouteComponent,
+});
+
+const reportEditorRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/report-builder/$id',
+  component: ReportEditorRouteComponent,
+});
+
+/**
  * Automations (42-automations-and-workflow-logs.md §3.6, 42-T18): two admin
  * routes in the same shape as the email and invoice surfaces — lazy chunks,
  * the deferred `automations` message namespace gated under the Suspense
@@ -960,6 +1021,8 @@ const routeTree = rootRoute.addChildren([
     emailEditorRoute,
     invoicesRoute,
     invoiceEditorRoute,
+    reportBuilderRoute,
+    reportEditorRoute,
     automationsRoute,
     workflowLogsRoute,
     // Studio (09 §8.1): connect wizard + remap route contract, role ≥ Admin.

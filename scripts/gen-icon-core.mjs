@@ -126,6 +126,12 @@ const SWEEP_IGNORE = [
   'apps/dashboard/src/invoices/editor/inspector/Inspector.tsx',
   'apps/dashboard/src/invoices/editor/inspector/panels/ImagesPanel.tsx',
   'apps/dashboard/src/invoices/editor/inspector/panels/ThemePanel.tsx',
+  // The report builder (43): two lazy routes, every name resolved through
+  // `apps/dashboard/src/report-builder/icons.ts` (`reportIcon`), the same
+  // local map. One file carries `icon:` literals — the 25 kinds' glyphs in
+  // `BLOCK_KIND_META`; everywhere else the slug is a positional argument the
+  // sweep never sees.
+  'apps/dashboard/src/report-builder/model/blocks.ts',
   // The automations surfaces (42): two lazy routes, every name resolved
   // through `apps/dashboard/src/automations/icons.ts` (`automationIcon`), the
   // same local map — the five node kinds, the six picker actions, the four

@@ -24,6 +24,7 @@ import {
   CalendarClock,
   Database,
   Download,
+  FileChartColumn,
   FileText,
   History,
   KeyRound,
@@ -133,6 +134,15 @@ const PLATFORM_NAV: ReadonlyArray<{ group: NavGroupKey; links: readonly Platform
       // `{ key: 'invoices', label: 'Invoices', icon: 'file-text' }` (comp
       // 1077); it sits beside `/email-templates`, the surface it mirrors.
       { to: '/invoices', labelKey: 'nav.invoices', fallback: 'Invoices', icon: FileText, adminOnly: true },
+      /*
+       * `/report-builder` (43-report-builder.md D1/O1): the comp's rail row is
+       * `{ key: 'reports', label: 'Report builder', icon: 'file-bar-chart-2' }`
+       * (comp 123) — in the comp's WORKSPACE group, which in Adminium's rail is
+       * the generated pages'. It moves here, beside `/invoices`, the surface it
+       * mirrors (Appendix A S1, the departure 34 S1 also took). NOT
+       * `/reports`, which is Scheduled Reports in the `account` group below.
+       */
+      { to: '/report-builder', labelKey: 'nav.reportBuilder', fallback: 'Report builder', icon: FileChartColumn, adminOnly: true },
       /*
        * The comp's two adjacent Library rows (Automation Rules 370, Workflow
        * Logs 176). `adminOnly` gates DISCOVERY; the routes themselves are
