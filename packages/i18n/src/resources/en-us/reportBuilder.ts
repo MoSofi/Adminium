@@ -1,0 +1,414 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/en-US/reportBuilder.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "block": {
+    "approval": {
+      "approved": "Approved",
+      "label": "Approval",
+      "pending": "Pending",
+      "rejected": "Rejected"
+    },
+    "attachments": {
+      "label": "Attachments"
+    },
+    "bar": {
+      "label": "Bar chart"
+    },
+    "contact": {
+      "label": "Contact"
+    },
+    "delivery": {
+      "current": "In progress",
+      "done": "Done",
+      "label": "Delivery timeline",
+      "todo": "Pending"
+    },
+    "discount": {
+      "label": "Discount codes"
+    },
+    "divider": {
+      "label": "Divider"
+    },
+    "heading": {
+      "label": "Heading"
+    },
+    "image": {
+      "label": "Image"
+    },
+    "kpi": {
+      "label": "KPI row"
+    },
+    "latefees": {
+      "label": "Late fees",
+      "sentence": "A late fee of {rate} per month applies to balances unpaid more than {days, plural, one {# day} other {# days}} past due.",
+      "title": "Late payment fee"
+    },
+    "legal": {
+      "label": "Legal footer"
+    },
+    "line": {
+      "label": "Line chart"
+    },
+    "loyalty": {
+      "balance": "{balance} pts · {level}",
+      "earned": "+{earned}",
+      "eyebrow": "Loyalty balance",
+      "label": "Loyalty points"
+    },
+    "multicurrency": {
+      "label": "Multi-currency"
+    },
+    "payhistory": {
+      "failed": "Failed",
+      "label": "Payment history",
+      "paid": "Paid",
+      "pending": "Pending"
+    },
+    "poterms": {
+      "label": "PO terms"
+    },
+    "qr": {
+      "hint": "Point your camera to open the live version.",
+      "label": "Payment QR"
+    },
+    "recurring": {
+      "freq": {
+        "annually": "Annually",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "weekly": "Weekly"
+      },
+      "label": "Recurring",
+      "sub": "Next on {next} · {count}",
+      "title": "Recurring — {freq}"
+    },
+    "refund": {
+      "label": "Refund policy"
+    },
+    "signature": {
+      "dateSigned": "Date signed",
+      "label": "Signature"
+    },
+    "table": {
+      "label": "Table"
+    },
+    "taxbreak": {
+      "label": "Tax breakdown"
+    },
+    "terms": {
+      "label": "Terms"
+    },
+    "text": {
+      "label": "Text"
+    }
+  },
+  "canvas": {
+    "blockTitle": "Block title",
+    "deleteBlock": "Delete block",
+    "drag": "Drag to reorder",
+    "empty": "Add a block from the left to start building.",
+    "kicker": "Kicker",
+    "moveDown": "Move down",
+    "moveUp": "Move up",
+    "selectBlock": "Edit {label}",
+    "selectHeader": "Edit report header",
+    "subtitle": "Subtitle",
+    "title": "Report title"
+  },
+  "card": {
+    "delete": "Delete",
+    "duplicate": "Duplicate",
+    "edit": "Edit",
+    "meta": {
+      "blocks": "{count, plural, one {# block} other {# blocks}}",
+      "kickerBlocks": "{kicker} · {blocks}"
+    },
+    "rename": "Rename",
+    "renameLabel": "New name",
+    "sub": "{title} · {blocks}"
+  },
+  "category": {
+    "engineering": "Engineering",
+    "finance": "Finance",
+    "growth": "Growth",
+    "leadership": "Leadership",
+    "operations": "Operations",
+    "product": "Product",
+    "revenue": "Revenue",
+    "success": "Success"
+  },
+  "delete": {
+    "body": {
+      "report": "This can’t be undone. The report will be permanently removed.",
+      "template": "This can’t be undone. The template will be permanently removed."
+    },
+    "confirm": "Delete",
+    "title": "Delete {name}?"
+  },
+  "editor": {
+    "delete": "Delete",
+    "discard": {
+      "body": "Your edits to {name} will be lost.",
+      "leave": "Discard",
+      "stay": "Keep editing",
+      "title": "Discard unsaved changes?"
+    },
+    "duplicate": "Duplicate",
+    "kind": {
+      "report": "Report",
+      "template": "Template"
+    },
+    "loadFailed": "Couldn’t load this document",
+    "nameLabel": "Name",
+    "primary": {
+      "report": "Publish",
+      "template": "Save template"
+    },
+    "redo": "Redo",
+    "saveState": {
+      "dirty": "Unsaved changes",
+      "error": "Couldn’t save",
+      "saved": "All changes saved",
+      "saving": "Saving…"
+    },
+    "shortcutSave": "Save the document",
+    "undo": "Undo"
+  },
+  "empty": {
+    "noMatch": {
+      "body": "Try a different search term.",
+      "reports": "No reports match",
+      "templates": "No templates match"
+    },
+    "reports": {
+      "body": "Build your first report from a template or a blank canvas.",
+      "title": "No reports yet"
+    },
+    "templates": {
+      "body": "Create a reusable report layout your team can build from.",
+      "title": "No templates yet"
+    }
+  },
+  "inspector": {
+    "accent": "Accent colour",
+    "addCode": "Add code",
+    "addCurrency": "Add currency",
+    "addFile": "Add file",
+    "addMetric": "Add metric",
+    "addPayment": "Add payment",
+    "addPoint": "Add point",
+    "addRow": "Add row",
+    "addStep": "Add step",
+    "addTaxLine": "Add tax line",
+    "amount": "Amount",
+    "approverName": "Approver name",
+    "approverTitle": "Role / title",
+    "background": "Background image",
+    "backgroundHint": "Adds a full-bleed background behind the whole report — great for letterhead or a watermark.",
+    "backgroundOverlay": "Overlay {pct}%",
+    "backgroundRemove": "Remove",
+    "backgroundReplace": "Replace",
+    "backgroundTooLarge": "Choose an image under {max}.",
+    "backgroundUpload": "Upload background",
+    "baseAmount": "Base amount",
+    "block": {
+      "hint": "Block content & settings"
+    },
+    "blockImage": "Image",
+    "blockImageUpload": "Upload image",
+    "blockTitle": "Block title",
+    "caption": "Caption",
+    "checkboxLabel": "Checkbox label",
+    "code": "CODE",
+    "contactName": "Contact name",
+    "currencies": "Currencies & rates",
+    "dataPoints": "Data points",
+    "date": "Date",
+    "deleteBlock": "Delete block",
+    "description": "Description",
+    "discountCodes": "Discount codes",
+    "email": "Email",
+    "fileName": "File name {n}",
+    "fileSize": "File size {n}",
+    "files": "Files",
+    "frequency": "Frequency",
+    "fxCode": "Currency code {n}",
+    "fxRate": "Rate {n}",
+    "fxSymbol": "Currency symbol {n}",
+    "gracePeriod": "Grace period",
+    "gracePeriodUnit": "days",
+    "header": {
+      "hint": "Title, kicker & theme",
+      "title": "Report header"
+    },
+    "kicker": "Kicker",
+    "lateRate": "Late fee rate",
+    "lateRateUnit": "% per month",
+    "legalFooter": "Legal footer",
+    "level": "Level",
+    "method": "Method",
+    "metric": {
+      "delta": "Delta",
+      "label": "Label",
+      "value": "Value"
+    },
+    "metrics": "Metrics",
+    "nextDate": "Next date",
+    "none": {
+      "body": "Click any block on the canvas to edit its content and settings here.",
+      "select": "Select a block",
+      "title": "Nothing selected"
+    },
+    "payments": "Payments",
+    "phone": "Phone",
+    "placeholderCaption": "Placeholder caption",
+    "poTerms": "Purchase order terms",
+    "pointsBalance": "Points balance",
+    "pointsEarned": "Points earned",
+    "prechecked": "Pre-checked",
+    "precheckedHint": "Show the box already ticked",
+    "refundPolicy": "Refund policy",
+    "remove": "Remove {noun} {n}",
+    "reportTitle": "Report title",
+    "rowCellA": "Row {n}, first column",
+    "rowCellB": "Row {n}, second column",
+    "rowField": "{label} {n}",
+    "rows": "Rows",
+    "scheduleNote": "Schedule note",
+    "show": "Show in export",
+    "showHint": "Include when publishing",
+    "signatoryName": "Signatory name",
+    "signatoryTitle": "Title / role",
+    "status": "Status",
+    "stepLabel": "Step {n}",
+    "steps": "Steps",
+    "subtitle": "Subtitle",
+    "taxComponents": "Tax components",
+    "taxLabel": "Tax label {n}",
+    "text": "Text",
+    "width": "Width",
+    "widthFull": "Full",
+    "widthHalf": "Half"
+  },
+  "list": {
+    "actions": "Actions",
+    "name": "Name",
+    "status": "Status",
+    "updated": "Updated"
+  },
+  "manager": {
+    "layout": {
+      "gallery": "Gallery",
+      "label": "Layout",
+      "list": "List"
+    },
+    "loadFailed": "Couldn’t load reports",
+    "search": {
+      "clear": "Clear search",
+      "reports": "Search reports…",
+      "templates": "Search templates…"
+    },
+    "subtitle": "Reusable report layouts & the reports you build from them.",
+    "tabs": {
+      "label": "Kind",
+      "reports": "Reports",
+      "templates": "Templates"
+    },
+    "title": "Reports",
+    "untitled": "Untitled"
+  },
+  "new": {
+    "blank": {
+      "body": "Start from scratch",
+      "title": "Blank report"
+    },
+    "report": "New report",
+    "starterMeta": "{category} · {blocks}",
+    "startersFailed": "The starters could not be loaded. Start blank, or try again.",
+    "subtitle": "Start from a blank canvas or a ready-made report layout.",
+    "template": "New template",
+    "title": {
+      "report": "New report",
+      "template": "New template"
+    },
+    "yourTemplates": "Your templates"
+  },
+  "palette": {
+    "add": "Add {label}",
+    "title": "Add block"
+  },
+  "seed": {
+    "apprTitle": "Report owner",
+    "contactName": "Orchard Lane Studio",
+    "discountLabel": "10% welcome credit",
+    "heading": "New heading",
+    "imageCaption": "image placeholder",
+    "legalText": "This report is provided for informational purposes. Figures are unaudited and subject to revision.",
+    "loyLevel": "Gold",
+    "metric": "Metric",
+    "new": "New",
+    "newCode": "NEWCODE",
+    "newDiscount": "New discount",
+    "newFile": "New file.pdf",
+    "newStep": "New step",
+    "newTax": "New tax",
+    "paragraph": "New paragraph — click to edit this text.",
+    "poTerms": "This report is issued under the standard reporting agreement. Figures are provisional until finalised.",
+    "qrCaption": "Scan to open the live report",
+    "refText": "Full refunds are available within 30 days of purchase. Contact support to begin a return.",
+    "sigTitle": "Prepared by",
+    "step": {
+      "delivered": "Delivered",
+      "ordered": "Ordered",
+      "processing": "Processing",
+      "shipped": "Shipped"
+    },
+    "table": {
+      "column": "Column",
+      "row": "Row {n}",
+      "value": "Value"
+    },
+    "taxCity": "City tax (2%)",
+    "taxState": "State tax (6%)",
+    "termsLabel": "I approve this report and its contents."
+  },
+  "starter": {
+    "board": "Board deck",
+    "campaign": "Campaign recap",
+    "exec": "Executive summary",
+    "finance": "Financial statement",
+    "health": "Customer health",
+    "incident": "Incident postmortem",
+    "marketing": "Marketing report",
+    "mbr": "Monthly business review",
+    "product": "Product analytics",
+    "sales": "Sales report",
+    "scorecard": "KPI scorecard",
+    "weekly": "Weekly digest"
+  },
+  "status": {
+    "draft": "Draft",
+    "live": "Live",
+    "sent": "Published"
+  },
+  "toast": {
+    "createFailed": "Couldn’t create the document",
+    "deleteFailed": "Couldn’t delete it",
+    "duplicateFailed": "Couldn’t duplicate it",
+    "duplicated": "Duplicated {name}",
+    "imageUnreadable": "Couldn’t read that file",
+    "notAnImage": "That file is not an image",
+    "published": "Published {name}",
+    "renameFailed": "Couldn’t rename it",
+    "saveFailed": "Couldn’t save {name}",
+    "undo": "Undo"
+  }
+} as const;

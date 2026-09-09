@@ -101,6 +101,7 @@ export default {
     "exports": "Dataeksporter",
     "emailTemplates": "E-mailskabeloner",
     "invoices": "Fakturaer",
+    "reportBuilder": "Rapportbygger",
     "automations": "Automatiseringer",
     "workflowLogs": "Arbejdsgangslog",
     "notificationSettings": "Notifikationsindstillinger",
@@ -1794,6 +1795,13 @@ export default {
     "copySuffix": "{name} (kopi)",
     "untitled": {
       "invoice": "Unavngiven faktura",
+      "template": "Unavngiven skabelon"
+    }
+  },
+  "reportBuilder": {
+    "copySuffix": "{name} (kopi)",
+    "untitled": {
+      "report": "Unavngiven rapport",
       "template": "Unavngiven skabelon"
     }
   }

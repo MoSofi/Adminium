@@ -49,6 +49,7 @@ const NAMESPACES = [
   'automations',
   'dataio',
   'files',
+  'reportBuilder',
 ];
 
 /** Namespaces that must be 100% `reviewed` before v1.0 (§3.3). */
@@ -65,6 +66,7 @@ const GATE_RELAXED = {
   // is silently held to nothing at all.
   dataio: 0.95,
   files: 0.95,
+  reportBuilder: 0.95,
 };
 
 /*

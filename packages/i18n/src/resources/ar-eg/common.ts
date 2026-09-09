@@ -101,6 +101,7 @@ export default {
     "exports": "عمليات تصدير البيانات",
     "emailTemplates": "قوالب البريد الإلكتروني",
     "invoices": "الفواتير",
+    "reportBuilder": "منشئ التقارير",
     "automations": "الأتمتة",
     "workflowLogs": "سجلات سير العمل",
     "notificationSettings": "إعدادات الإشعارات",
@@ -1794,6 +1795,13 @@ export default {
     "copySuffix": "{name} (نسخة)",
     "untitled": {
       "invoice": "فاتورة بلا عنوان",
+      "template": "قالب بلا عنوان"
+    }
+  },
+  "reportBuilder": {
+    "copySuffix": "{name} (نسخة)",
+    "untitled": {
+      "report": "تقرير بلا عنوان",
       "template": "قالب بلا عنوان"
     }
   }

@@ -101,6 +101,7 @@ export default {
     "exports": "数据导出",
     "emailTemplates": "邮件模板",
     "invoices": "发票",
+    "reportBuilder": "报告构建器",
     "automations": "自动化",
     "workflowLogs": "工作流日志",
     "notificationSettings": "通知设置",
@@ -1794,6 +1795,13 @@ export default {
     "copySuffix": "{name}（副本）",
     "untitled": {
       "invoice": "未命名发票",
+      "template": "未命名模板"
+    }
+  },
+  "reportBuilder": {
+    "copySuffix": "{name}（副本）",
+    "untitled": {
+      "report": "未命名报告",
       "template": "未命名模板"
     }
   }

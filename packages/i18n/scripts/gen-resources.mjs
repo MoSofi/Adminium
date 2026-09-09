@@ -26,6 +26,7 @@ const namespaces = [
   'automations',
   'dataio',
   'files',
+  'reportBuilder',
 ];
 
 let count = 0;

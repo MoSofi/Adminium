@@ -3975,6 +3975,10 @@
     "srcHash": "a9a96ec01949",
     "status": "mt"
   },
+  "common.nav.reportBuilder": {
+    "status": "mt",
+    "srcHash": "ac3fb892336e"
+  },
   "common.nav.roles": {
     "status": "mt",
     "srcHash": "997fabd09c7e"
@@ -4366,6 +4370,18 @@
   "common.prefs.theme.system": {
     "srcHash": "bc0792d8dc81",
     "status": "mt"
+  },
+  "common.reportBuilder.copySuffix": {
+    "status": "mt",
+    "srcHash": "7e4c743b8f09"
+  },
+  "common.reportBuilder.untitled.report": {
+    "status": "mt",
+    "srcHash": "9e5c439a4d3f"
+  },
+  "common.reportBuilder.untitled.template": {
+    "status": "mt",
+    "srcHash": "b975aa118470"
   },
   "common.reports.cadence.daily": {
     "srcHash": "daf41c72c2f8",
@@ -11898,6 +11914,1118 @@
   "invoices.topic.services": {
     "status": "mt",
     "srcHash": "4b7239b9489a"
+  },
+  "reportBuilder.block.approval.approved": {
+    "status": "mt",
+    "srcHash": "41b81eb8db1b"
+  },
+  "reportBuilder.block.approval.label": {
+    "status": "mt",
+    "srcHash": "8cc047ac17d3"
+  },
+  "reportBuilder.block.approval.pending": {
+    "status": "mt",
+    "srcHash": "96f608c16cef"
+  },
+  "reportBuilder.block.approval.rejected": {
+    "status": "mt",
+    "srcHash": "27eeb7a291bf"
+  },
+  "reportBuilder.block.attachments.label": {
+    "status": "mt",
+    "srcHash": "6771ade6e896"
+  },
+  "reportBuilder.block.bar.label": {
+    "status": "mt",
+    "srcHash": "10644b0f6696"
+  },
+  "reportBuilder.block.contact.label": {
+    "status": "mt",
+    "srcHash": "b37456c4530b"
+  },
+  "reportBuilder.block.delivery.current": {
+    "status": "mt",
+    "srcHash": "b6bd42e4e730"
+  },
+  "reportBuilder.block.delivery.done": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "reportBuilder.block.delivery.label": {
+    "status": "mt",
+    "srcHash": "31715f3d856f"
+  },
+  "reportBuilder.block.delivery.todo": {
+    "status": "mt",
+    "srcHash": "96f608c16cef"
+  },
+  "reportBuilder.block.discount.label": {
+    "status": "mt",
+    "srcHash": "0d416a2de6c2"
+  },
+  "reportBuilder.block.divider.label": {
+    "status": "mt",
+    "srcHash": "912fc14508ef"
+  },
+  "reportBuilder.block.heading.label": {
+    "status": "mt",
+    "srcHash": "a3089b7fae27"
+  },
+  "reportBuilder.block.image.label": {
+    "status": "mt",
+    "srcHash": "50e19fda0d5b"
+  },
+  "reportBuilder.block.kpi.label": {
+    "status": "mt",
+    "srcHash": "0085fbf69d48"
+  },
+  "reportBuilder.block.latefees.label": {
+    "status": "mt",
+    "srcHash": "b40b8046212d"
+  },
+  "reportBuilder.block.latefees.sentence": {
+    "status": "mt",
+    "srcHash": "7706092c2700"
+  },
+  "reportBuilder.block.latefees.title": {
+    "status": "mt",
+    "srcHash": "c3bbfa682436"
+  },
+  "reportBuilder.block.legal.label": {
+    "status": "mt",
+    "srcHash": "718a44f43c76"
+  },
+  "reportBuilder.block.line.label": {
+    "status": "mt",
+    "srcHash": "5b92de66321a"
+  },
+  "reportBuilder.block.loyalty.balance": {
+    "status": "mt",
+    "srcHash": "40c40ad3dea9"
+  },
+  "reportBuilder.block.loyalty.earned": {
+    "status": "src",
+    "srcHash": "5400e97ecdad"
+  },
+  "reportBuilder.block.loyalty.eyebrow": {
+    "status": "mt",
+    "srcHash": "57d44339cbb5"
+  },
+  "reportBuilder.block.loyalty.label": {
+    "status": "mt",
+    "srcHash": "c3d5cebed028"
+  },
+  "reportBuilder.block.multicurrency.label": {
+    "status": "mt",
+    "srcHash": "e6ea3fd89929"
+  },
+  "reportBuilder.block.payhistory.failed": {
+    "status": "mt",
+    "srcHash": "09fef5d8d9a3"
+  },
+  "reportBuilder.block.payhistory.label": {
+    "status": "mt",
+    "srcHash": "618b513ede75"
+  },
+  "reportBuilder.block.payhistory.paid": {
+    "status": "mt",
+    "srcHash": "dc9d4584a554"
+  },
+  "reportBuilder.block.payhistory.pending": {
+    "status": "mt",
+    "srcHash": "96f608c16cef"
+  },
+  "reportBuilder.block.poterms.label": {
+    "status": "mt",
+    "srcHash": "a4ae378c4638"
+  },
+  "reportBuilder.block.qr.hint": {
+    "status": "mt",
+    "srcHash": "6176c9e4e689"
+  },
+  "reportBuilder.block.qr.label": {
+    "status": "mt",
+    "srcHash": "62204a313653"
+  },
+  "reportBuilder.block.recurring.freq.annually": {
+    "status": "mt",
+    "srcHash": "60000f68198e"
+  },
+  "reportBuilder.block.recurring.freq.monthly": {
+    "status": "mt",
+    "srcHash": "d31edb7b8a94"
+  },
+  "reportBuilder.block.recurring.freq.quarterly": {
+    "status": "mt",
+    "srcHash": "8a34f7088055"
+  },
+  "reportBuilder.block.recurring.freq.weekly": {
+    "status": "mt",
+    "srcHash": "158f3da59275"
+  },
+  "reportBuilder.block.recurring.label": {
+    "status": "mt",
+    "srcHash": "349f0e5ffd4c"
+  },
+  "reportBuilder.block.recurring.sub": {
+    "status": "mt",
+    "srcHash": "d4cecd606e47"
+  },
+  "reportBuilder.block.recurring.title": {
+    "status": "mt",
+    "srcHash": "51720a7598ec"
+  },
+  "reportBuilder.block.refund.label": {
+    "status": "mt",
+    "srcHash": "8e072025366d"
+  },
+  "reportBuilder.block.signature.dateSigned": {
+    "status": "mt",
+    "srcHash": "a9733be84da8"
+  },
+  "reportBuilder.block.signature.label": {
+    "status": "mt",
+    "srcHash": "2f32be1dc741"
+  },
+  "reportBuilder.block.table.label": {
+    "status": "mt",
+    "srcHash": "0424f6e7026f"
+  },
+  "reportBuilder.block.taxbreak.label": {
+    "status": "mt",
+    "srcHash": "b78a0dbb6d5e"
+  },
+  "reportBuilder.block.terms.label": {
+    "status": "mt",
+    "srcHash": "a55a275aa676"
+  },
+  "reportBuilder.block.text.label": {
+    "status": "src",
+    "srcHash": "c3328c39b0e2"
+  },
+  "reportBuilder.canvas.blockTitle": {
+    "status": "mt",
+    "srcHash": "ec58a5519b72"
+  },
+  "reportBuilder.canvas.deleteBlock": {
+    "status": "mt",
+    "srcHash": "fa55fdfefafe"
+  },
+  "reportBuilder.canvas.drag": {
+    "status": "mt",
+    "srcHash": "e7541faf0a7e"
+  },
+  "reportBuilder.canvas.empty": {
+    "status": "mt",
+    "srcHash": "fcd655cb8558"
+  },
+  "reportBuilder.canvas.kicker": {
+    "status": "mt",
+    "srcHash": "4a31bf617f99"
+  },
+  "reportBuilder.canvas.moveDown": {
+    "status": "mt",
+    "srcHash": "260ff8ae7182"
+  },
+  "reportBuilder.canvas.moveUp": {
+    "status": "mt",
+    "srcHash": "b4f57cd0cd5c"
+  },
+  "reportBuilder.canvas.selectBlock": {
+    "status": "mt",
+    "srcHash": "3358e4f339cd"
+  },
+  "reportBuilder.canvas.selectHeader": {
+    "status": "mt",
+    "srcHash": "d9a1e2b3e8f2"
+  },
+  "reportBuilder.canvas.subtitle": {
+    "status": "mt",
+    "srcHash": "e159d05a124c"
+  },
+  "reportBuilder.canvas.title": {
+    "status": "mt",
+    "srcHash": "02f5c8e6d25e"
+  },
+  "reportBuilder.card.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "reportBuilder.card.duplicate": {
+    "status": "mt",
+    "srcHash": "972d57379db3"
+  },
+  "reportBuilder.card.edit": {
+    "status": "mt",
+    "srcHash": "5301648dcf6b"
+  },
+  "reportBuilder.card.meta.blocks": {
+    "status": "mt",
+    "srcHash": "b570d6137a45"
+  },
+  "reportBuilder.card.meta.kickerBlocks": {
+    "status": "src",
+    "srcHash": "7ae26d22e73c"
+  },
+  "reportBuilder.card.rename": {
+    "status": "mt",
+    "srcHash": "d3f4cb898fbe"
+  },
+  "reportBuilder.card.renameLabel": {
+    "status": "mt",
+    "srcHash": "9e627c7b1aec"
+  },
+  "reportBuilder.card.sub": {
+    "status": "src",
+    "srcHash": "f3e2f9632c9e"
+  },
+  "reportBuilder.category.engineering": {
+    "status": "mt",
+    "srcHash": "4143d0480150"
+  },
+  "reportBuilder.category.finance": {
+    "status": "src",
+    "srcHash": "1b48d3f01424"
+  },
+  "reportBuilder.category.growth": {
+    "status": "mt",
+    "srcHash": "f3b21e049fad"
+  },
+  "reportBuilder.category.leadership": {
+    "status": "mt",
+    "srcHash": "f5427e8f6f25"
+  },
+  "reportBuilder.category.operations": {
+    "status": "mt",
+    "srcHash": "a1fdaa6b2a84"
+  },
+  "reportBuilder.category.product": {
+    "status": "mt",
+    "srcHash": "dd3b86d1ef21"
+  },
+  "reportBuilder.category.revenue": {
+    "status": "mt",
+    "srcHash": "35cf82f9d2a9"
+  },
+  "reportBuilder.category.success": {
+    "status": "mt",
+    "srcHash": "42a8f651d79f"
+  },
+  "reportBuilder.delete.body.report": {
+    "status": "mt",
+    "srcHash": "5d57f9c76b86"
+  },
+  "reportBuilder.delete.body.template": {
+    "status": "mt",
+    "srcHash": "6fc2e8858803"
+  },
+  "reportBuilder.delete.confirm": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "reportBuilder.delete.title": {
+    "status": "mt",
+    "srcHash": "7fd57c94c8dc"
+  },
+  "reportBuilder.editor.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "reportBuilder.editor.discard.body": {
+    "status": "mt",
+    "srcHash": "6697701122b4"
+  },
+  "reportBuilder.editor.discard.leave": {
+    "status": "mt",
+    "srcHash": "36fff63ccbcd"
+  },
+  "reportBuilder.editor.discard.stay": {
+    "status": "mt",
+    "srcHash": "d4d9e382a983"
+  },
+  "reportBuilder.editor.discard.title": {
+    "status": "mt",
+    "srcHash": "e9f81751f28b"
+  },
+  "reportBuilder.editor.duplicate": {
+    "status": "mt",
+    "srcHash": "972d57379db3"
+  },
+  "reportBuilder.editor.kind.report": {
+    "status": "mt",
+    "srcHash": "ee45c30326b7"
+  },
+  "reportBuilder.editor.kind.template": {
+    "status": "mt",
+    "srcHash": "3ec1ae061c27"
+  },
+  "reportBuilder.editor.loadFailed": {
+    "status": "mt",
+    "srcHash": "564cde351d4e"
+  },
+  "reportBuilder.editor.nameLabel": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "reportBuilder.editor.primary.report": {
+    "status": "mt",
+    "srcHash": "5656400564f2"
+  },
+  "reportBuilder.editor.primary.template": {
+    "status": "mt",
+    "srcHash": "0885fab21873"
+  },
+  "reportBuilder.editor.redo": {
+    "status": "mt",
+    "srcHash": "471b94d402d1"
+  },
+  "reportBuilder.editor.saveState.dirty": {
+    "status": "mt",
+    "srcHash": "29267269c048"
+  },
+  "reportBuilder.editor.saveState.error": {
+    "status": "mt",
+    "srcHash": "1f3c443c26fb"
+  },
+  "reportBuilder.editor.saveState.saved": {
+    "status": "mt",
+    "srcHash": "9595b7da9f61"
+  },
+  "reportBuilder.editor.saveState.saving": {
+    "status": "mt",
+    "srcHash": "56a2285c5b11"
+  },
+  "reportBuilder.editor.shortcutSave": {
+    "status": "mt",
+    "srcHash": "b71db1d851ee"
+  },
+  "reportBuilder.editor.undo": {
+    "status": "mt",
+    "srcHash": "39fc72124884"
+  },
+  "reportBuilder.empty.noMatch.body": {
+    "status": "mt",
+    "srcHash": "0ba628a33e35"
+  },
+  "reportBuilder.empty.noMatch.reports": {
+    "status": "mt",
+    "srcHash": "ae1da2ffeda5"
+  },
+  "reportBuilder.empty.noMatch.templates": {
+    "status": "mt",
+    "srcHash": "caa50942c49a"
+  },
+  "reportBuilder.empty.reports.body": {
+    "status": "mt",
+    "srcHash": "3226e067660e"
+  },
+  "reportBuilder.empty.reports.title": {
+    "status": "mt",
+    "srcHash": "ed2e0608debc"
+  },
+  "reportBuilder.empty.templates.body": {
+    "status": "mt",
+    "srcHash": "8d8263f186fd"
+  },
+  "reportBuilder.empty.templates.title": {
+    "status": "mt",
+    "srcHash": "a77ebae8f16b"
+  },
+  "reportBuilder.inspector.accent": {
+    "status": "mt",
+    "srcHash": "8ba7c3fbd3a3"
+  },
+  "reportBuilder.inspector.addCode": {
+    "status": "mt",
+    "srcHash": "92934dd684df"
+  },
+  "reportBuilder.inspector.addCurrency": {
+    "status": "mt",
+    "srcHash": "e989af4183e8"
+  },
+  "reportBuilder.inspector.addFile": {
+    "status": "mt",
+    "srcHash": "4881d0113be0"
+  },
+  "reportBuilder.inspector.addMetric": {
+    "status": "mt",
+    "srcHash": "0a6b5a851794"
+  },
+  "reportBuilder.inspector.addPayment": {
+    "status": "mt",
+    "srcHash": "03fefcde8ed7"
+  },
+  "reportBuilder.inspector.addPoint": {
+    "status": "mt",
+    "srcHash": "81cb216b9f68"
+  },
+  "reportBuilder.inspector.addRow": {
+    "status": "mt",
+    "srcHash": "f648af13b3a1"
+  },
+  "reportBuilder.inspector.addStep": {
+    "status": "mt",
+    "srcHash": "2a4b94451a2a"
+  },
+  "reportBuilder.inspector.addTaxLine": {
+    "status": "mt",
+    "srcHash": "1b256b44cf9a"
+  },
+  "reportBuilder.inspector.amount": {
+    "status": "mt",
+    "srcHash": "43dc8532f7e5"
+  },
+  "reportBuilder.inspector.approverName": {
+    "status": "mt",
+    "srcHash": "a94c4122fab7"
+  },
+  "reportBuilder.inspector.approverTitle": {
+    "status": "mt",
+    "srcHash": "ca88f25daae0"
+  },
+  "reportBuilder.inspector.background": {
+    "status": "mt",
+    "srcHash": "5eb0ff1a3719"
+  },
+  "reportBuilder.inspector.backgroundHint": {
+    "status": "mt",
+    "srcHash": "505f16dda544"
+  },
+  "reportBuilder.inspector.backgroundOverlay": {
+    "status": "mt",
+    "srcHash": "88e94656f4b1"
+  },
+  "reportBuilder.inspector.backgroundRemove": {
+    "status": "mt",
+    "srcHash": "e963907dac5c"
+  },
+  "reportBuilder.inspector.backgroundReplace": {
+    "status": "mt",
+    "srcHash": "a7cf7b25a703"
+  },
+  "reportBuilder.inspector.backgroundTooLarge": {
+    "status": "mt",
+    "srcHash": "275aafbe87b9"
+  },
+  "reportBuilder.inspector.backgroundUpload": {
+    "status": "mt",
+    "srcHash": "ec3c15deb867"
+  },
+  "reportBuilder.inspector.baseAmount": {
+    "status": "mt",
+    "srcHash": "127fa48507a6"
+  },
+  "reportBuilder.inspector.block.hint": {
+    "status": "mt",
+    "srcHash": "a074059755a6"
+  },
+  "reportBuilder.inspector.blockImage": {
+    "status": "mt",
+    "srcHash": "50e19fda0d5b"
+  },
+  "reportBuilder.inspector.blockImageUpload": {
+    "status": "mt",
+    "srcHash": "f35dec5f750e"
+  },
+  "reportBuilder.inspector.blockTitle": {
+    "status": "mt",
+    "srcHash": "ec58a5519b72"
+  },
+  "reportBuilder.inspector.caption": {
+    "status": "mt",
+    "srcHash": "3428d97e6666"
+  },
+  "reportBuilder.inspector.checkboxLabel": {
+    "status": "mt",
+    "srcHash": "f248a1d26457"
+  },
+  "reportBuilder.inspector.code": {
+    "status": "mt",
+    "srcHash": "16de25af8884"
+  },
+  "reportBuilder.inspector.contactName": {
+    "status": "mt",
+    "srcHash": "565e288e2a02"
+  },
+  "reportBuilder.inspector.currencies": {
+    "status": "mt",
+    "srcHash": "550fc6798e58"
+  },
+  "reportBuilder.inspector.dataPoints": {
+    "status": "mt",
+    "srcHash": "da1cfac9a54b"
+  },
+  "reportBuilder.inspector.date": {
+    "status": "mt",
+    "srcHash": "eb9a4bc1c0c1"
+  },
+  "reportBuilder.inspector.deleteBlock": {
+    "status": "mt",
+    "srcHash": "fa55fdfefafe"
+  },
+  "reportBuilder.inspector.description": {
+    "status": "mt",
+    "srcHash": "55f8ebc805e6"
+  },
+  "reportBuilder.inspector.discountCodes": {
+    "status": "mt",
+    "srcHash": "0d416a2de6c2"
+  },
+  "reportBuilder.inspector.email": {
+    "status": "mt",
+    "srcHash": "84add5b29527"
+  },
+  "reportBuilder.inspector.fileName": {
+    "status": "mt",
+    "srcHash": "da6adb8fc4db"
+  },
+  "reportBuilder.inspector.fileSize": {
+    "status": "mt",
+    "srcHash": "095b308d21bf"
+  },
+  "reportBuilder.inspector.files": {
+    "status": "mt",
+    "srcHash": "6ce6c512ea43"
+  },
+  "reportBuilder.inspector.frequency": {
+    "status": "mt",
+    "srcHash": "89836a870e44"
+  },
+  "reportBuilder.inspector.fxCode": {
+    "status": "mt",
+    "srcHash": "e2bdbf74cba7"
+  },
+  "reportBuilder.inspector.fxRate": {
+    "status": "mt",
+    "srcHash": "2675bf447551"
+  },
+  "reportBuilder.inspector.fxSymbol": {
+    "status": "mt",
+    "srcHash": "f300b0f19182"
+  },
+  "reportBuilder.inspector.gracePeriod": {
+    "status": "mt",
+    "srcHash": "eba58f3cc16e"
+  },
+  "reportBuilder.inspector.gracePeriodUnit": {
+    "status": "mt",
+    "srcHash": "5548ae4f34cb"
+  },
+  "reportBuilder.inspector.header.hint": {
+    "status": "mt",
+    "srcHash": "660b8d61353d"
+  },
+  "reportBuilder.inspector.header.title": {
+    "status": "mt",
+    "srcHash": "0390a04e11e5"
+  },
+  "reportBuilder.inspector.kicker": {
+    "status": "mt",
+    "srcHash": "4a31bf617f99"
+  },
+  "reportBuilder.inspector.lateRate": {
+    "status": "mt",
+    "srcHash": "cb8bbd426075"
+  },
+  "reportBuilder.inspector.lateRateUnit": {
+    "status": "mt",
+    "srcHash": "905b85ac2c82"
+  },
+  "reportBuilder.inspector.legalFooter": {
+    "status": "mt",
+    "srcHash": "718a44f43c76"
+  },
+  "reportBuilder.inspector.level": {
+    "status": "mt",
+    "srcHash": "7c7f5d049fad"
+  },
+  "reportBuilder.inspector.method": {
+    "status": "mt",
+    "srcHash": "88306943fea7"
+  },
+  "reportBuilder.inspector.metric.delta": {
+    "status": "mt",
+    "srcHash": "a4cbd21f4a3d"
+  },
+  "reportBuilder.inspector.metric.label": {
+    "status": "mt",
+    "srcHash": "74341e3c271d"
+  },
+  "reportBuilder.inspector.metric.value": {
+    "status": "mt",
+    "srcHash": "8dce170de238"
+  },
+  "reportBuilder.inspector.metrics": {
+    "status": "mt",
+    "srcHash": "ddf6a1f0ce8c"
+  },
+  "reportBuilder.inspector.nextDate": {
+    "status": "mt",
+    "srcHash": "c5fbc6d4683d"
+  },
+  "reportBuilder.inspector.none.body": {
+    "status": "mt",
+    "srcHash": "9c6b6381a0c2"
+  },
+  "reportBuilder.inspector.none.select": {
+    "status": "mt",
+    "srcHash": "c8cc305c77c8"
+  },
+  "reportBuilder.inspector.none.title": {
+    "status": "mt",
+    "srcHash": "3d95f46c04e8"
+  },
+  "reportBuilder.inspector.payments": {
+    "status": "mt",
+    "srcHash": "44357ae55a21"
+  },
+  "reportBuilder.inspector.phone": {
+    "status": "mt",
+    "srcHash": "77064d526523"
+  },
+  "reportBuilder.inspector.placeholderCaption": {
+    "status": "mt",
+    "srcHash": "4381b7d1d527"
+  },
+  "reportBuilder.inspector.poTerms": {
+    "status": "mt",
+    "srcHash": "af7cdb7a4267"
+  },
+  "reportBuilder.inspector.pointsBalance": {
+    "status": "mt",
+    "srcHash": "0ac2649087b1"
+  },
+  "reportBuilder.inspector.pointsEarned": {
+    "status": "mt",
+    "srcHash": "056959ca34b6"
+  },
+  "reportBuilder.inspector.prechecked": {
+    "status": "mt",
+    "srcHash": "d692caad4d2f"
+  },
+  "reportBuilder.inspector.precheckedHint": {
+    "status": "mt",
+    "srcHash": "d16bb2252754"
+  },
+  "reportBuilder.inspector.refundPolicy": {
+    "status": "mt",
+    "srcHash": "8e072025366d"
+  },
+  "reportBuilder.inspector.remove": {
+    "status": "mt",
+    "srcHash": "46bcb62c917a"
+  },
+  "reportBuilder.inspector.reportTitle": {
+    "status": "mt",
+    "srcHash": "02f5c8e6d25e"
+  },
+  "reportBuilder.inspector.rowCellA": {
+    "status": "mt",
+    "srcHash": "65614af8c11f"
+  },
+  "reportBuilder.inspector.rowCellB": {
+    "status": "mt",
+    "srcHash": "b357c93f1026"
+  },
+  "reportBuilder.inspector.rowField": {
+    "status": "src",
+    "srcHash": "c2269666d6df"
+  },
+  "reportBuilder.inspector.rows": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "reportBuilder.inspector.scheduleNote": {
+    "status": "mt",
+    "srcHash": "a4e965479192"
+  },
+  "reportBuilder.inspector.show": {
+    "status": "mt",
+    "srcHash": "b6ec5e21647a"
+  },
+  "reportBuilder.inspector.showHint": {
+    "status": "mt",
+    "srcHash": "c10016d14d01"
+  },
+  "reportBuilder.inspector.signatoryName": {
+    "status": "mt",
+    "srcHash": "748d74e5fbb7"
+  },
+  "reportBuilder.inspector.signatoryTitle": {
+    "status": "mt",
+    "srcHash": "3f5bbebba94c"
+  },
+  "reportBuilder.inspector.status": {
+    "status": "mt",
+    "srcHash": "bae7d5be7082"
+  },
+  "reportBuilder.inspector.stepLabel": {
+    "status": "mt",
+    "srcHash": "6706d4ba55e5"
+  },
+  "reportBuilder.inspector.steps": {
+    "status": "mt",
+    "srcHash": "cdde4f20ba31"
+  },
+  "reportBuilder.inspector.subtitle": {
+    "status": "mt",
+    "srcHash": "e159d05a124c"
+  },
+  "reportBuilder.inspector.taxComponents": {
+    "status": "mt",
+    "srcHash": "b408f5ee10c9"
+  },
+  "reportBuilder.inspector.taxLabel": {
+    "status": "mt",
+    "srcHash": "fd3691e70590"
+  },
+  "reportBuilder.inspector.text": {
+    "status": "src",
+    "srcHash": "c3328c39b0e2"
+  },
+  "reportBuilder.inspector.width": {
+    "status": "mt",
+    "srcHash": "a58ddf50c5ea"
+  },
+  "reportBuilder.inspector.widthFull": {
+    "status": "mt",
+    "srcHash": "10b28a8c1e44"
+  },
+  "reportBuilder.inspector.widthHalf": {
+    "status": "mt",
+    "srcHash": "45d31208222c"
+  },
+  "reportBuilder.list.actions": {
+    "status": "mt",
+    "srcHash": "c3cd636a585b"
+  },
+  "reportBuilder.list.name": {
+    "status": "mt",
+    "srcHash": "709a23220f2c"
+  },
+  "reportBuilder.list.status": {
+    "status": "mt",
+    "srcHash": "bae7d5be7082"
+  },
+  "reportBuilder.list.updated": {
+    "status": "mt",
+    "srcHash": "f2f8570ddd7b"
+  },
+  "reportBuilder.manager.layout.gallery": {
+    "status": "mt",
+    "srcHash": "9c30a3485a58"
+  },
+  "reportBuilder.manager.layout.label": {
+    "status": "mt",
+    "srcHash": "972ad8d8a503"
+  },
+  "reportBuilder.manager.layout.list": {
+    "status": "mt",
+    "srcHash": "a1fffaaafb7c"
+  },
+  "reportBuilder.manager.loadFailed": {
+    "status": "mt",
+    "srcHash": "e2e26932627a"
+  },
+  "reportBuilder.manager.search.clear": {
+    "status": "mt",
+    "srcHash": "67300d0fed7c"
+  },
+  "reportBuilder.manager.search.reports": {
+    "status": "mt",
+    "srcHash": "4d1920e45500"
+  },
+  "reportBuilder.manager.search.templates": {
+    "status": "mt",
+    "srcHash": "ea73467cf50e"
+  },
+  "reportBuilder.manager.subtitle": {
+    "status": "mt",
+    "srcHash": "bc0a94ab413f"
+  },
+  "reportBuilder.manager.tabs.label": {
+    "status": "mt",
+    "srcHash": "e00ac23f2ac2"
+  },
+  "reportBuilder.manager.tabs.reports": {
+    "status": "mt",
+    "srcHash": "88bc3fe3dadd"
+  },
+  "reportBuilder.manager.tabs.templates": {
+    "status": "mt",
+    "srcHash": "f25b700ed9f0"
+  },
+  "reportBuilder.manager.title": {
+    "status": "mt",
+    "srcHash": "88bc3fe3dadd"
+  },
+  "reportBuilder.manager.untitled": {
+    "status": "mt",
+    "srcHash": "621521f9a878"
+  },
+  "reportBuilder.new.blank.body": {
+    "status": "mt",
+    "srcHash": "329c6af37759"
+  },
+  "reportBuilder.new.blank.title": {
+    "status": "mt",
+    "srcHash": "c35e714ab455"
+  },
+  "reportBuilder.new.report": {
+    "status": "mt",
+    "srcHash": "0470de505136"
+  },
+  "reportBuilder.new.starterMeta": {
+    "status": "src",
+    "srcHash": "77092d5b3862"
+  },
+  "reportBuilder.new.startersFailed": {
+    "status": "mt",
+    "srcHash": "69919efbd497"
+  },
+  "reportBuilder.new.subtitle": {
+    "status": "mt",
+    "srcHash": "da3ee4456fd7"
+  },
+  "reportBuilder.new.template": {
+    "status": "mt",
+    "srcHash": "865095cff927"
+  },
+  "reportBuilder.new.title.report": {
+    "status": "mt",
+    "srcHash": "0470de505136"
+  },
+  "reportBuilder.new.title.template": {
+    "status": "mt",
+    "srcHash": "865095cff927"
+  },
+  "reportBuilder.new.yourTemplates": {
+    "status": "mt",
+    "srcHash": "adcfed38b9b5"
+  },
+  "reportBuilder.palette.add": {
+    "status": "mt",
+    "srcHash": "d36048f26b5b"
+  },
+  "reportBuilder.palette.title": {
+    "status": "mt",
+    "srcHash": "e0d0ba7438fc"
+  },
+  "reportBuilder.seed.apprTitle": {
+    "status": "mt",
+    "srcHash": "b393e9c6ceaf"
+  },
+  "reportBuilder.seed.contactName": {
+    "status": "src",
+    "srcHash": "322e038bafc2"
+  },
+  "reportBuilder.seed.discountLabel": {
+    "status": "mt",
+    "srcHash": "46fcd3cd2854"
+  },
+  "reportBuilder.seed.heading": {
+    "status": "mt",
+    "srcHash": "6791fa1026ac"
+  },
+  "reportBuilder.seed.imageCaption": {
+    "status": "mt",
+    "srcHash": "b98ade27a9fa"
+  },
+  "reportBuilder.seed.legalText": {
+    "status": "mt",
+    "srcHash": "69d7667ff0e0"
+  },
+  "reportBuilder.seed.loyLevel": {
+    "status": "mt",
+    "srcHash": "c57604db5869"
+  },
+  "reportBuilder.seed.metric": {
+    "status": "mt",
+    "srcHash": "b2bb7604c825"
+  },
+  "reportBuilder.seed.new": {
+    "status": "mt",
+    "srcHash": "6403f2b7eb2a"
+  },
+  "reportBuilder.seed.newCode": {
+    "status": "mt",
+    "srcHash": "bb4223ab2793"
+  },
+  "reportBuilder.seed.newDiscount": {
+    "status": "mt",
+    "srcHash": "e74698caf280"
+  },
+  "reportBuilder.seed.newFile": {
+    "status": "mt",
+    "srcHash": "172ba7d0fed0"
+  },
+  "reportBuilder.seed.newStep": {
+    "status": "mt",
+    "srcHash": "fe37aa576e93"
+  },
+  "reportBuilder.seed.newTax": {
+    "status": "mt",
+    "srcHash": "712d41ef19b6"
+  },
+  "reportBuilder.seed.paragraph": {
+    "status": "mt",
+    "srcHash": "e61f86536ac8"
+  },
+  "reportBuilder.seed.poTerms": {
+    "status": "mt",
+    "srcHash": "fca973f1dc05"
+  },
+  "reportBuilder.seed.qrCaption": {
+    "status": "mt",
+    "srcHash": "7f48213b3401"
+  },
+  "reportBuilder.seed.refText": {
+    "status": "mt",
+    "srcHash": "ae782b62f9f1"
+  },
+  "reportBuilder.seed.sigTitle": {
+    "status": "mt",
+    "srcHash": "47b75882b2c0"
+  },
+  "reportBuilder.seed.step.delivered": {
+    "status": "mt",
+    "srcHash": "eea956cde875"
+  },
+  "reportBuilder.seed.step.ordered": {
+    "status": "mt",
+    "srcHash": "c9dd3b77c90c"
+  },
+  "reportBuilder.seed.step.processing": {
+    "status": "mt",
+    "srcHash": "e63451d3cf90"
+  },
+  "reportBuilder.seed.step.shipped": {
+    "status": "mt",
+    "srcHash": "dec6e3290897"
+  },
+  "reportBuilder.seed.table.column": {
+    "status": "mt",
+    "srcHash": "65ba00e95e60"
+  },
+  "reportBuilder.seed.table.row": {
+    "status": "mt",
+    "srcHash": "95d5eb6f6a50"
+  },
+  "reportBuilder.seed.table.value": {
+    "status": "mt",
+    "srcHash": "8dce170de238"
+  },
+  "reportBuilder.seed.taxCity": {
+    "status": "mt",
+    "srcHash": "a9fe7e262109"
+  },
+  "reportBuilder.seed.taxState": {
+    "status": "mt",
+    "srcHash": "dbd44533c354"
+  },
+  "reportBuilder.seed.termsLabel": {
+    "status": "mt",
+    "srcHash": "4776146d91a0"
+  },
+  "reportBuilder.starter.board": {
+    "status": "mt",
+    "srcHash": "e43c5adeb2cf"
+  },
+  "reportBuilder.starter.campaign": {
+    "status": "mt",
+    "srcHash": "38908886dd1c"
+  },
+  "reportBuilder.starter.exec": {
+    "status": "mt",
+    "srcHash": "c4685d18cc13"
+  },
+  "reportBuilder.starter.finance": {
+    "status": "mt",
+    "srcHash": "80c7d25d1269"
+  },
+  "reportBuilder.starter.health": {
+    "status": "mt",
+    "srcHash": "92b7aa604f2b"
+  },
+  "reportBuilder.starter.incident": {
+    "status": "mt",
+    "srcHash": "4640ff523f6c"
+  },
+  "reportBuilder.starter.marketing": {
+    "status": "mt",
+    "srcHash": "11378713e175"
+  },
+  "reportBuilder.starter.mbr": {
+    "status": "mt",
+    "srcHash": "84a529951946"
+  },
+  "reportBuilder.starter.product": {
+    "status": "mt",
+    "srcHash": "409f1bfdf32e"
+  },
+  "reportBuilder.starter.sales": {
+    "status": "mt",
+    "srcHash": "793770d1d9e7"
+  },
+  "reportBuilder.starter.scorecard": {
+    "status": "mt",
+    "srcHash": "8cdb21f437f8"
+  },
+  "reportBuilder.starter.weekly": {
+    "status": "mt",
+    "srcHash": "6707b63bf07c"
+  },
+  "reportBuilder.status.draft": {
+    "status": "mt",
+    "srcHash": "23d33e22acfc"
+  },
+  "reportBuilder.status.live": {
+    "status": "mt",
+    "srcHash": "65c821a596ce"
+  },
+  "reportBuilder.status.sent": {
+    "status": "mt",
+    "srcHash": "483bf2075c12"
+  },
+  "reportBuilder.toast.createFailed": {
+    "status": "mt",
+    "srcHash": "4635a7a96ea5"
+  },
+  "reportBuilder.toast.deleteFailed": {
+    "status": "mt",
+    "srcHash": "1b0861c614fb"
+  },
+  "reportBuilder.toast.duplicateFailed": {
+    "status": "mt",
+    "srcHash": "301542ae9ff6"
+  },
+  "reportBuilder.toast.duplicated": {
+    "status": "mt",
+    "srcHash": "f32ac538b536"
+  },
+  "reportBuilder.toast.imageUnreadable": {
+    "status": "mt",
+    "srcHash": "ffd68319053e"
+  },
+  "reportBuilder.toast.notAnImage": {
+    "status": "mt",
+    "srcHash": "e3e0e7d60453"
+  },
+  "reportBuilder.toast.published": {
+    "status": "mt",
+    "srcHash": "a1b8a99ff78c"
+  },
+  "reportBuilder.toast.renameFailed": {
+    "status": "mt",
+    "srcHash": "5677ca5adea0"
+  },
+  "reportBuilder.toast.saveFailed": {
+    "status": "mt",
+    "srcHash": "ff0763ded999"
+  },
+  "reportBuilder.toast.undo": {
+    "status": "mt",
+    "srcHash": "39fc72124884"
   },
   "studio.addOns.browse.all": {
     "status": "mt",

@@ -1,0 +1,404 @@
+{
+  "block": {
+    "approval": {
+      "approved": "已批准",
+      "label": "审批",
+      "pending": "待处理",
+      "rejected": "已拒绝"
+    },
+    "attachments": {
+      "label": "附件"
+    },
+    "bar": {
+      "label": "柱状图"
+    },
+    "contact": {
+      "label": "联系人"
+    },
+    "delivery": {
+      "current": "进行中",
+      "done": "已完成",
+      "label": "交付时间线",
+      "todo": "待处理"
+    },
+    "discount": {
+      "label": "折扣码"
+    },
+    "divider": {
+      "label": "分隔线"
+    },
+    "heading": {
+      "label": "标题"
+    },
+    "image": {
+      "label": "图片"
+    },
+    "kpi": {
+      "label": "KPI 行"
+    },
+    "latefees": {
+      "label": "滞纳金",
+      "sentence": "逾期超过 {days, plural, other {# 天}}未付的余额将按每月 {rate} 收取滞纳金。",
+      "title": "滞纳金"
+    },
+    "legal": {
+      "label": "法律声明"
+    },
+    "line": {
+      "label": "折线图"
+    },
+    "loyalty": {
+      "balance": "{balance} 积分 · {level}",
+      "earned": "+{earned}",
+      "eyebrow": "积分余额",
+      "label": "忠诚度积分"
+    },
+    "multicurrency": {
+      "label": "多币种"
+    },
+    "payhistory": {
+      "failed": "失败",
+      "label": "付款记录",
+      "paid": "已付款",
+      "pending": "待处理"
+    },
+    "poterms": {
+      "label": "采购条款"
+    },
+    "qr": {
+      "hint": "用相机扫描即可打开在线版本。",
+      "label": "付款二维码"
+    },
+    "recurring": {
+      "freq": {
+        "annually": "每年",
+        "monthly": "每月",
+        "quarterly": "每季度",
+        "weekly": "每周"
+      },
+      "label": "周期性",
+      "sub": "下次 {next} · {count}",
+      "title": "周期性 — {freq}"
+    },
+    "refund": {
+      "label": "退款政策"
+    },
+    "signature": {
+      "dateSigned": "签署日期",
+      "label": "签名"
+    },
+    "table": {
+      "label": "表格"
+    },
+    "taxbreak": {
+      "label": "税费明细"
+    },
+    "terms": {
+      "label": "条款"
+    },
+    "text": {
+      "label": "文本"
+    }
+  },
+  "canvas": {
+    "blockTitle": "区块标题",
+    "deleteBlock": "删除区块",
+    "drag": "拖动以重新排序",
+    "empty": "从左侧添加一个区块开始搭建。",
+    "kicker": "眉题",
+    "moveDown": "下移",
+    "moveUp": "上移",
+    "selectBlock": "编辑{label}",
+    "selectHeader": "编辑报告页眉",
+    "subtitle": "副标题",
+    "title": "报告标题"
+  },
+  "card": {
+    "delete": "删除",
+    "duplicate": "复制",
+    "edit": "编辑",
+    "meta": {
+      "blocks": "{count, plural, other {# 个区块}}",
+      "kickerBlocks": "{kicker} · {blocks}"
+    },
+    "rename": "重命名",
+    "renameLabel": "新名称",
+    "sub": "{title} · {blocks}"
+  },
+  "category": {
+    "engineering": "工程",
+    "finance": "财务",
+    "growth": "增长",
+    "leadership": "管理层",
+    "operations": "运营",
+    "product": "产品",
+    "revenue": "收入",
+    "success": "客户成功"
+  },
+  "delete": {
+    "body": {
+      "report": "此操作无法撤销。该报告将被永久删除。",
+      "template": "此操作无法撤销。该模板将被永久删除。"
+    },
+    "confirm": "删除",
+    "title": "删除 {name}？"
+  },
+  "editor": {
+    "delete": "删除",
+    "discard": {
+      "body": "您对 {name} 的修改将会丢失。",
+      "leave": "放弃",
+      "stay": "继续编辑",
+      "title": "放弃未保存的更改？"
+    },
+    "duplicate": "复制",
+    "kind": {
+      "report": "报告",
+      "template": "模板"
+    },
+    "loadFailed": "无法加载此文档",
+    "nameLabel": "名称",
+    "primary": {
+      "report": "发布",
+      "template": "保存模板"
+    },
+    "redo": "重做",
+    "saveState": {
+      "dirty": "有未保存的更改",
+      "error": "无法保存",
+      "saved": "所有更改已保存",
+      "saving": "正在保存…"
+    },
+    "shortcutSave": "保存文档",
+    "undo": "撤销"
+  },
+  "empty": {
+    "noMatch": {
+      "body": "请尝试其他搜索词。",
+      "reports": "没有匹配的报告",
+      "templates": "没有匹配的模板"
+    },
+    "reports": {
+      "body": "从模板或空白画布开始创建您的第一份报告。",
+      "title": "还没有报告"
+    },
+    "templates": {
+      "body": "创建一个可复用的报告布局，供团队使用。",
+      "title": "还没有模板"
+    }
+  },
+  "inspector": {
+    "accent": "强调色",
+    "addCode": "添加代码",
+    "addCurrency": "添加币种",
+    "addFile": "添加文件",
+    "addMetric": "添加指标",
+    "addPayment": "添加付款",
+    "addPoint": "添加数据点",
+    "addRow": "添加行",
+    "addStep": "添加步骤",
+    "addTaxLine": "添加税项",
+    "amount": "金额",
+    "approverName": "审批人姓名",
+    "approverTitle": "角色 / 职务",
+    "background": "背景图片",
+    "backgroundHint": "在整份报告背后添加满版背景 — 适合信头或水印。",
+    "backgroundOverlay": "遮罩 {pct}%",
+    "backgroundRemove": "移除",
+    "backgroundReplace": "替换",
+    "backgroundTooLarge": "请选择小于 {max} 的图片。",
+    "backgroundUpload": "上传背景",
+    "baseAmount": "基准金额",
+    "block": {
+      "hint": "区块内容与设置"
+    },
+    "blockImage": "图片",
+    "blockImageUpload": "上传图片",
+    "blockTitle": "区块标题",
+    "caption": "说明文字",
+    "checkboxLabel": "复选框标签",
+    "code": "代码",
+    "contactName": "联系人姓名",
+    "currencies": "币种与汇率",
+    "dataPoints": "数据点",
+    "date": "日期",
+    "deleteBlock": "删除区块",
+    "description": "描述",
+    "discountCodes": "折扣码",
+    "email": "邮箱",
+    "fileName": "文件名 {n}",
+    "fileSize": "文件大小 {n}",
+    "files": "文件",
+    "frequency": "频率",
+    "fxCode": "币种代码 {n}",
+    "fxRate": "汇率 {n}",
+    "fxSymbol": "币种符号 {n}",
+    "gracePeriod": "宽限期",
+    "gracePeriodUnit": "天",
+    "header": {
+      "hint": "标题、眉题与主题",
+      "title": "报告页眉"
+    },
+    "kicker": "眉题",
+    "lateRate": "滞纳金费率",
+    "lateRateUnit": "% / 每月",
+    "legalFooter": "法律声明",
+    "level": "等级",
+    "method": "付款方式",
+    "metric": {
+      "delta": "变化",
+      "label": "标签",
+      "value": "数值"
+    },
+    "metrics": "指标",
+    "nextDate": "下次日期",
+    "none": {
+      "body": "点击画布上的任意区块，在此编辑其内容和设置。",
+      "select": "选择一个区块",
+      "title": "未选择任何内容"
+    },
+    "payments": "付款",
+    "phone": "电话",
+    "placeholderCaption": "占位说明文字",
+    "poTerms": "采购订单条款",
+    "pointsBalance": "积分余额",
+    "pointsEarned": "获得积分",
+    "prechecked": "默认勾选",
+    "precheckedHint": "显示为已勾选状态",
+    "refundPolicy": "退款政策",
+    "remove": "移除{noun} {n}",
+    "reportTitle": "报告标题",
+    "rowCellA": "第 {n} 行，第一列",
+    "rowCellB": "第 {n} 行，第二列",
+    "rowField": "{label} {n}",
+    "rows": "行",
+    "scheduleNote": "排期备注",
+    "show": "在导出中显示",
+    "showHint": "发布时包含",
+    "signatoryName": "签署人姓名",
+    "signatoryTitle": "职务 / 角色",
+    "status": "状态",
+    "stepLabel": "步骤 {n}",
+    "steps": "步骤",
+    "subtitle": "副标题",
+    "taxComponents": "税费构成",
+    "taxLabel": "税项名称 {n}",
+    "text": "文本",
+    "width": "宽度",
+    "widthFull": "整宽",
+    "widthHalf": "半宽"
+  },
+  "list": {
+    "actions": "操作",
+    "name": "名称",
+    "status": "状态",
+    "updated": "更新时间"
+  },
+  "manager": {
+    "layout": {
+      "gallery": "网格视图",
+      "label": "布局",
+      "list": "列表视图"
+    },
+    "loadFailed": "无法加载报告",
+    "search": {
+      "clear": "清除搜索",
+      "reports": "搜索报告…",
+      "templates": "搜索模板…"
+    },
+    "subtitle": "可复用的报告布局，以及由此构建的报告。",
+    "tabs": {
+      "label": "类型",
+      "reports": "报告",
+      "templates": "模板"
+    },
+    "title": "报告",
+    "untitled": "未命名"
+  },
+  "new": {
+    "blank": {
+      "body": "从零开始",
+      "title": "空白报告"
+    },
+    "report": "新建报告",
+    "starterMeta": "{category} · {blocks}",
+    "startersFailed": "无法加载起始模板。可以从空白开始，或稍后重试。",
+    "subtitle": "从空白画布或现成的报告布局开始。",
+    "template": "新建模板",
+    "title": {
+      "report": "新建报告",
+      "template": "新建模板"
+    },
+    "yourTemplates": "你的模板"
+  },
+  "palette": {
+    "add": "添加{label}",
+    "title": "添加区块"
+  },
+  "seed": {
+    "apprTitle": "报告负责人",
+    "contactName": "Orchard Lane Studio",
+    "discountLabel": "10% 欢迎抵扣",
+    "heading": "新标题",
+    "imageCaption": "图片占位",
+    "legalText": "本报告仅供参考。数据未经审计，可能会有调整。",
+    "loyLevel": "金级",
+    "metric": "指标",
+    "new": "新建",
+    "newCode": "NEWCODE",
+    "newDiscount": "新折扣",
+    "newFile": "新文件.pdf",
+    "newStep": "新步骤",
+    "newTax": "新税项",
+    "paragraph": "新段落 — 点击以编辑此文本。",
+    "poTerms": "本报告依据标准报告协议出具。在最终确定前，数据均为初步数据。",
+    "qrCaption": "扫码打开在线报告",
+    "refText": "购买后 30 天内可全额退款。请联系客服办理退货。",
+    "sigTitle": "编制人",
+    "step": {
+      "delivered": "已送达",
+      "ordered": "已下单",
+      "processing": "处理中",
+      "shipped": "已发货"
+    },
+    "table": {
+      "column": "列",
+      "row": "第 {n} 行",
+      "value": "数值"
+    },
+    "taxCity": "市税（2%）",
+    "taxState": "州税（6%）",
+    "termsLabel": "我批准本报告及其内容。"
+  },
+  "starter": {
+    "board": "董事会汇报",
+    "campaign": "活动复盘",
+    "exec": "高管摘要",
+    "finance": "财务报表",
+    "health": "客户健康度",
+    "incident": "事故复盘",
+    "marketing": "市场报告",
+    "mbr": "月度业务回顾",
+    "product": "产品分析",
+    "sales": "销售报告",
+    "scorecard": "KPI 记分卡",
+    "weekly": "每周简报"
+  },
+  "status": {
+    "draft": "草稿",
+    "live": "已上线",
+    "sent": "已发布"
+  },
+  "toast": {
+    "createFailed": "无法创建该文档",
+    "deleteFailed": "无法删除",
+    "duplicateFailed": "无法复制",
+    "duplicated": "已复制 {name}",
+    "imageUnreadable": "无法读取该文件",
+    "notAnImage": "该文件不是图片",
+    "published": "已发布 {name}",
+    "renameFailed": "无法重命名",
+    "saveFailed": "无法保存 {name}",
+    "undo": "撤销"
+  }
+}

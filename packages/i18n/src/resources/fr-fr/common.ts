@@ -101,6 +101,7 @@ export default {
     "exports": "Exports de données",
     "emailTemplates": "Modèles d’e-mail",
     "invoices": "Factures",
+    "reportBuilder": "Générateur de rapports",
     "automations": "Automatisations",
     "workflowLogs": "Journaux des flux",
     "notificationSettings": "Paramètres de notification",
@@ -1794,6 +1795,13 @@ export default {
     "copySuffix": "{name} (copie)",
     "untitled": {
       "invoice": "Facture sans titre",
+      "template": "Modèle sans titre"
+    }
+  },
+  "reportBuilder": {
+    "copySuffix": "{name} (copie)",
+    "untitled": {
+      "report": "Rapport sans titre",
       "template": "Modèle sans titre"
     }
   }

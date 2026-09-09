@@ -24,6 +24,7 @@ export const NAMESPACES = [
   'automations',
   'dataio',
   'files',
+  'reportBuilder',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -61,6 +62,12 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * kind, operator, unit, status and picker tile — which is a lot of text for a
  * page the majority of sessions never open.
  *
+ * `reportBuilder` is the report builder — the Reports manager and its block
+ * editor (43-report-builder.md 43-T08): two lazy routes carrying a 25-kind
+ * block vocabulary, its inspector's field labels and twelve starter cards,
+ * for a surface most sessions never open. NOT `reports`, which is the
+ * `common:` block Scheduled Reports reads (43 D24).
+ *
  * `dataio` is the import wizard, the exports manager and the export builder
  * (41-export-builder.md), and `files` is the Files library and its upload
  * dialog (38-files-library.md) — three lazy route bodies and one dialog. Both
@@ -86,8 +93,9 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * `apps/dashboard/src/email/emailMessages.ts`,
  * `apps/dashboard/src/invoices/invoicesMessages.ts` and
  * `apps/dashboard/src/automations/automationsMessages.ts`,
- * `apps/dashboard/src/data-io/dataIoMessages.ts` and
- * `apps/dashboard/src/files/filesMessages.ts`.
+ * `apps/dashboard/src/data-io/dataIoMessages.ts`,
+ * `apps/dashboard/src/files/filesMessages.ts` and
+ * `apps/dashboard/src/report-builder/reportBuilderMessages.ts`.
  */
 export const DEFERRED_NAMESPACES = [
   'studio',
@@ -96,6 +104,7 @@ export const DEFERRED_NAMESPACES = [
   'automations',
   'dataio',
   'files',
+  'reportBuilder',
 ] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 

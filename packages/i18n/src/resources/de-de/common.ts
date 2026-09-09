@@ -101,6 +101,7 @@ export default {
     "exports": "Datenexporte",
     "emailTemplates": "E-Mail-Vorlagen",
     "invoices": "Rechnungen",
+    "reportBuilder": "Berichts-Builder",
     "automations": "Automatisierungen",
     "workflowLogs": "Ablaufprotokolle",
     "notificationSettings": "Benachrichtigungseinstellungen",
@@ -1794,6 +1795,13 @@ export default {
     "copySuffix": "{name} (Kopie)",
     "untitled": {
       "invoice": "Unbenannte Rechnung",
+      "template": "Unbenannte Vorlage"
+    }
+  },
+  "reportBuilder": {
+    "copySuffix": "{name} (Kopie)",
+    "untitled": {
+      "report": "Unbenannter Bericht",
       "template": "Unbenannte Vorlage"
     }
   }

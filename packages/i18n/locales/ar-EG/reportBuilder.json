@@ -1,0 +1,404 @@
+{
+  "block": {
+    "approval": {
+      "approved": "تمت الموافقة",
+      "label": "الموافقة",
+      "pending": "قيد الانتظار",
+      "rejected": "مرفوض"
+    },
+    "attachments": {
+      "label": "المرفقات"
+    },
+    "bar": {
+      "label": "مخطط أعمدة"
+    },
+    "contact": {
+      "label": "جهة الاتصال"
+    },
+    "delivery": {
+      "current": "قيد التنفيذ",
+      "done": "تم",
+      "label": "الجدول الزمني للتسليم",
+      "todo": "قيد الانتظار"
+    },
+    "discount": {
+      "label": "رموز الخصم"
+    },
+    "divider": {
+      "label": "فاصل"
+    },
+    "heading": {
+      "label": "عنوان"
+    },
+    "image": {
+      "label": "صورة"
+    },
+    "kpi": {
+      "label": "صف مؤشرات الأداء"
+    },
+    "latefees": {
+      "label": "رسوم التأخير",
+      "sentence": "تُطبَّق رسوم تأخير قدرها {rate} شهريًا على الأرصدة غير المسددة لأكثر من {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} بعد تاريخ الاستحقاق.",
+      "title": "رسوم التأخير"
+    },
+    "legal": {
+      "label": "التذييل القانوني"
+    },
+    "line": {
+      "label": "مخطط خطي"
+    },
+    "loyalty": {
+      "balance": "{balance} نقطة · {level}",
+      "earned": "+{earned}",
+      "eyebrow": "رصيد الولاء",
+      "label": "نقاط الولاء"
+    },
+    "multicurrency": {
+      "label": "عملات متعددة"
+    },
+    "payhistory": {
+      "failed": "فشل",
+      "label": "سجل المدفوعات",
+      "paid": "مدفوع",
+      "pending": "قيد الانتظار"
+    },
+    "poterms": {
+      "label": "شروط أمر الشراء"
+    },
+    "qr": {
+      "hint": "وجّه الكاميرا لفتح النسخة المباشرة.",
+      "label": "رمز الدفع"
+    },
+    "recurring": {
+      "freq": {
+        "annually": "سنويًا",
+        "monthly": "شهريًا",
+        "quarterly": "ربع سنوي",
+        "weekly": "أسبوعيًا"
+      },
+      "label": "متكرر",
+      "sub": "التالي في {next} · {count}",
+      "title": "متكرر — {freq}"
+    },
+    "refund": {
+      "label": "سياسة الاسترداد"
+    },
+    "signature": {
+      "dateSigned": "تاريخ التوقيع",
+      "label": "التوقيع"
+    },
+    "table": {
+      "label": "جدول"
+    },
+    "taxbreak": {
+      "label": "تفصيل الضرائب"
+    },
+    "terms": {
+      "label": "الشروط"
+    },
+    "text": {
+      "label": "نص"
+    }
+  },
+  "canvas": {
+    "blockTitle": "عنوان الكتلة",
+    "deleteBlock": "حذف الكتلة",
+    "drag": "اسحب لإعادة الترتيب",
+    "empty": "أضف كتلة من اليمين لبدء البناء.",
+    "kicker": "العنوان التمهيدي",
+    "moveDown": "تحريك لأسفل",
+    "moveUp": "تحريك لأعلى",
+    "selectBlock": "تحرير {label}",
+    "selectHeader": "تحرير ترويسة التقرير",
+    "subtitle": "العنوان الفرعي",
+    "title": "عنوان التقرير"
+  },
+  "card": {
+    "delete": "حذف",
+    "duplicate": "تكرار",
+    "edit": "تحرير",
+    "meta": {
+      "blocks": "{count, plural, zero {# كتلة} one {كتلة واحدة} two {كتلتان} few {# كتل} many {# كتلة} other {# كتلة}}",
+      "kickerBlocks": "{kicker} · {blocks}"
+    },
+    "rename": "إعادة تسمية",
+    "renameLabel": "الاسم الجديد",
+    "sub": "{title} · {blocks}"
+  },
+  "category": {
+    "engineering": "الهندسة",
+    "finance": "المالية",
+    "growth": "النمو",
+    "leadership": "القيادة",
+    "operations": "العمليات",
+    "product": "المنتج",
+    "revenue": "الإيرادات",
+    "success": "نجاح العملاء"
+  },
+  "delete": {
+    "body": {
+      "report": "لا يمكن التراجع عن ذلك. سيُحذف التقرير نهائيًا.",
+      "template": "لا يمكن التراجع عن ذلك. سيُحذف القالب نهائيًا."
+    },
+    "confirm": "حذف",
+    "title": "حذف {name}؟"
+  },
+  "editor": {
+    "delete": "حذف",
+    "discard": {
+      "body": "ستفقد تعديلاتك على {name}.",
+      "leave": "تجاهل",
+      "stay": "متابعة التحرير",
+      "title": "تجاهل التغييرات غير المحفوظة؟"
+    },
+    "duplicate": "تكرار",
+    "kind": {
+      "report": "تقرير",
+      "template": "قالب"
+    },
+    "loadFailed": "تعذّر تحميل هذا المستند",
+    "nameLabel": "الاسم",
+    "primary": {
+      "report": "نشر",
+      "template": "حفظ القالب"
+    },
+    "redo": "إعادة",
+    "saveState": {
+      "dirty": "تغييرات غير محفوظة",
+      "error": "تعذّر الحفظ",
+      "saved": "تم حفظ جميع التغييرات",
+      "saving": "جارٍ الحفظ…"
+    },
+    "shortcutSave": "حفظ المستند",
+    "undo": "تراجع"
+  },
+  "empty": {
+    "noMatch": {
+      "body": "جرّب مصطلح بحث آخر.",
+      "reports": "لا توجد تقارير مطابقة",
+      "templates": "لا توجد قوالب مطابقة"
+    },
+    "reports": {
+      "body": "أنشئ تقريرك الأول من قالب أو من لوحة فارغة.",
+      "title": "لا توجد تقارير بعد"
+    },
+    "templates": {
+      "body": "أنشئ تخطيط تقرير قابلًا لإعادة الاستخدام يبني عليه فريقك.",
+      "title": "لا توجد قوالب بعد"
+    }
+  },
+  "inspector": {
+    "accent": "لون التمييز",
+    "addCode": "إضافة رمز",
+    "addCurrency": "إضافة عملة",
+    "addFile": "إضافة ملف",
+    "addMetric": "إضافة مقياس",
+    "addPayment": "إضافة دفعة",
+    "addPoint": "إضافة نقطة",
+    "addRow": "إضافة صف",
+    "addStep": "إضافة خطوة",
+    "addTaxLine": "إضافة بند ضريبي",
+    "amount": "المبلغ",
+    "approverName": "اسم المعتمِد",
+    "approverTitle": "الدور / المسمى",
+    "background": "صورة الخلفية",
+    "backgroundHint": "يضيف خلفية ممتدة خلف التقرير بأكمله — مثالية لورق الرسائل أو العلامة المائية.",
+    "backgroundOverlay": "تراكب {pct}%",
+    "backgroundRemove": "إزالة",
+    "backgroundReplace": "استبدال",
+    "backgroundTooLarge": "اختر صورة أصغر من {max}.",
+    "backgroundUpload": "رفع خلفية",
+    "baseAmount": "المبلغ الأساسي",
+    "block": {
+      "hint": "محتوى الكتلة وإعداداتها"
+    },
+    "blockImage": "صورة",
+    "blockImageUpload": "رفع صورة",
+    "blockTitle": "عنوان الكتلة",
+    "caption": "التسمية التوضيحية",
+    "checkboxLabel": "نص مربع الاختيار",
+    "code": "الرمز",
+    "contactName": "اسم جهة الاتصال",
+    "currencies": "العملات وأسعار الصرف",
+    "dataPoints": "نقاط البيانات",
+    "date": "التاريخ",
+    "deleteBlock": "حذف الكتلة",
+    "description": "الوصف",
+    "discountCodes": "رموز الخصم",
+    "email": "البريد الإلكتروني",
+    "fileName": "اسم الملف {n}",
+    "fileSize": "حجم الملف {n}",
+    "files": "الملفات",
+    "frequency": "التكرار",
+    "fxCode": "رمز العملة {n}",
+    "fxRate": "سعر الصرف {n}",
+    "fxSymbol": "رمز العملة {n}",
+    "gracePeriod": "فترة السماح",
+    "gracePeriodUnit": "يوم",
+    "header": {
+      "hint": "العنوان والتمهيد والمظهر",
+      "title": "ترويسة التقرير"
+    },
+    "kicker": "العنوان التمهيدي",
+    "lateRate": "نسبة رسوم التأخير",
+    "lateRateUnit": "% شهريًا",
+    "legalFooter": "التذييل القانوني",
+    "level": "المستوى",
+    "method": "طريقة الدفع",
+    "metric": {
+      "delta": "التغيّر",
+      "label": "التسمية",
+      "value": "القيمة"
+    },
+    "metrics": "المقاييس",
+    "nextDate": "التاريخ التالي",
+    "none": {
+      "body": "انقر أي كتلة على اللوحة لتحرير محتواها وإعداداتها هنا.",
+      "select": "اختر كتلة",
+      "title": "لم يتم تحديد شيء"
+    },
+    "payments": "المدفوعات",
+    "phone": "الهاتف",
+    "placeholderCaption": "تسمية العنصر النائب",
+    "poTerms": "شروط أمر الشراء",
+    "pointsBalance": "رصيد النقاط",
+    "pointsEarned": "النقاط المكتسبة",
+    "prechecked": "محدد مسبقًا",
+    "precheckedHint": "إظهار المربع محددًا مسبقًا",
+    "refundPolicy": "سياسة الاسترداد",
+    "remove": "إزالة {noun} {n}",
+    "reportTitle": "عنوان التقرير",
+    "rowCellA": "الصف {n}، العمود الأول",
+    "rowCellB": "الصف {n}، العمود الثاني",
+    "rowField": "{label} {n}",
+    "rows": "الصفوف",
+    "scheduleNote": "ملاحظة الجدولة",
+    "show": "إظهار في التصدير",
+    "showHint": "تضمينها عند النشر",
+    "signatoryName": "اسم الموقّع",
+    "signatoryTitle": "المسمى / الدور",
+    "status": "الحالة",
+    "stepLabel": "الخطوة {n}",
+    "steps": "الخطوات",
+    "subtitle": "العنوان الفرعي",
+    "taxComponents": "مكوّنات الضريبة",
+    "taxLabel": "تسمية الضريبة {n}",
+    "text": "نص",
+    "width": "العرض",
+    "widthFull": "كامل",
+    "widthHalf": "نصف"
+  },
+  "list": {
+    "actions": "الإجراءات",
+    "name": "الاسم",
+    "status": "الحالة",
+    "updated": "آخر تحديث"
+  },
+  "manager": {
+    "layout": {
+      "gallery": "معرض",
+      "label": "التخطيط",
+      "list": "قائمة"
+    },
+    "loadFailed": "تعذّر تحميل التقارير",
+    "search": {
+      "clear": "مسح البحث",
+      "reports": "ابحث في التقارير…",
+      "templates": "ابحث في القوالب…"
+    },
+    "subtitle": "تخطيطات تقارير قابلة لإعادة الاستخدام والتقارير التي تبنيها منها.",
+    "tabs": {
+      "label": "النوع",
+      "reports": "التقارير",
+      "templates": "القوالب"
+    },
+    "title": "التقارير",
+    "untitled": "بلا عنوان"
+  },
+  "new": {
+    "blank": {
+      "body": "ابدأ من الصفر",
+      "title": "تقرير فارغ"
+    },
+    "report": "تقرير جديد",
+    "starterMeta": "{category} · {blocks}",
+    "startersFailed": "تعذّر تحميل القوالب الجاهزة. ابدأ من صفحة فارغة أو أعد المحاولة.",
+    "subtitle": "ابدأ من لوحة فارغة أو من تخطيط تقرير جاهز.",
+    "template": "قالب جديد",
+    "title": {
+      "report": "تقرير جديد",
+      "template": "قالب جديد"
+    },
+    "yourTemplates": "قوالبك"
+  },
+  "palette": {
+    "add": "إضافة {label}",
+    "title": "إضافة كتلة"
+  },
+  "seed": {
+    "apprTitle": "مسؤول التقرير",
+    "contactName": "Orchard Lane Studio",
+    "discountLabel": "رصيد ترحيبي بنسبة 10%",
+    "heading": "عنوان جديد",
+    "imageCaption": "عنصر نائب للصورة",
+    "legalText": "يُقدَّم هذا التقرير لأغراض إعلامية فقط. الأرقام غير مدققة وقابلة للمراجعة.",
+    "loyLevel": "ذهبي",
+    "metric": "مقياس",
+    "new": "جديد",
+    "newCode": "NEWCODE",
+    "newDiscount": "خصم جديد",
+    "newFile": "ملف-جديد.pdf",
+    "newStep": "خطوة جديدة",
+    "newTax": "ضريبة جديدة",
+    "paragraph": "فقرة جديدة — انقر لتحرير هذا النص.",
+    "poTerms": "يصدر هذا التقرير بموجب اتفاقية إعداد التقارير القياسية. الأرقام مبدئية حتى اعتمادها النهائي.",
+    "qrCaption": "امسح لفتح التقرير المباشر",
+    "refText": "يمكن استرداد المبلغ بالكامل خلال 30 يومًا من الشراء. تواصل مع الدعم لبدء الإرجاع.",
+    "sigTitle": "أعدّه",
+    "step": {
+      "delivered": "تم التسليم",
+      "ordered": "تم الطلب",
+      "processing": "قيد المعالجة",
+      "shipped": "تم الشحن"
+    },
+    "table": {
+      "column": "العمود",
+      "row": "الصف {n}",
+      "value": "القيمة"
+    },
+    "taxCity": "ضريبة المدينة (2%)",
+    "taxState": "ضريبة الولاية (6%)",
+    "termsLabel": "أوافق على هذا التقرير ومحتواه."
+  },
+  "starter": {
+    "board": "عرض مجلس الإدارة",
+    "campaign": "ملخص الحملة",
+    "exec": "ملخص تنفيذي",
+    "finance": "بيان مالي",
+    "health": "صحة العملاء",
+    "incident": "تحليل الحادثة",
+    "marketing": "تقرير التسويق",
+    "mbr": "المراجعة الشهرية للأعمال",
+    "product": "تحليلات المنتج",
+    "sales": "تقرير المبيعات",
+    "scorecard": "بطاقة مؤشرات الأداء",
+    "weekly": "الملخص الأسبوعي"
+  },
+  "status": {
+    "draft": "مسودة",
+    "live": "مباشر",
+    "sent": "منشور"
+  },
+  "toast": {
+    "createFailed": "تعذّر إنشاء المستند",
+    "deleteFailed": "تعذّر الحذف",
+    "duplicateFailed": "تعذّر التكرار",
+    "duplicated": "تم تكرار {name}",
+    "imageUnreadable": "تعذّرت قراءة هذا الملف",
+    "notAnImage": "هذا الملف ليس صورة",
+    "published": "تم نشر {name}",
+    "renameFailed": "تعذّرت إعادة التسمية",
+    "saveFailed": "تعذّر حفظ {name}",
+    "undo": "تراجع"
+  }
+}

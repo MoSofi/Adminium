@@ -101,6 +101,7 @@ export default {
     "exports": "Data exports",
     "emailTemplates": "Email templates",
     "invoices": "Invoices",
+    "reportBuilder": "Report builder",
     "automations": "Automations",
     "workflowLogs": "Workflow logs",
     "notificationSettings": "Notification settings",
@@ -1794,6 +1795,13 @@ export default {
     "copySuffix": "{name} (copy)",
     "untitled": {
       "invoice": "Untitled invoice",
+      "template": "Untitled template"
+    }
+  },
+  "reportBuilder": {
+    "copySuffix": "{name} (copy)",
+    "untitled": {
+      "report": "Untitled report",
       "template": "Untitled template"
     }
   }

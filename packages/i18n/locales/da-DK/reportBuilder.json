@@ -1,0 +1,404 @@
+{
+  "block": {
+    "approval": {
+      "approved": "Godkendt",
+      "label": "Godkendelse",
+      "pending": "Afventer",
+      "rejected": "Afvist"
+    },
+    "attachments": {
+      "label": "Vedhæftede filer"
+    },
+    "bar": {
+      "label": "Søjlediagram"
+    },
+    "contact": {
+      "label": "Kontakt"
+    },
+    "delivery": {
+      "current": "I gang",
+      "done": "Færdig",
+      "label": "Leveringstidslinje",
+      "todo": "Afventer"
+    },
+    "discount": {
+      "label": "Rabatkoder"
+    },
+    "divider": {
+      "label": "Skillelinje"
+    },
+    "heading": {
+      "label": "Overskrift"
+    },
+    "image": {
+      "label": "Billede"
+    },
+    "kpi": {
+      "label": "KPI-række"
+    },
+    "latefees": {
+      "label": "Rykkergebyrer",
+      "sentence": "Der påløber et gebyr på {rate} pr. måned for beløb, der er ubetalte i mere end {days, plural, one {# dag} other {# dage}} efter forfald.",
+      "title": "Rykkergebyr"
+    },
+    "legal": {
+      "label": "Juridisk fod"
+    },
+    "line": {
+      "label": "Kurvediagram"
+    },
+    "loyalty": {
+      "balance": "{balance} point · {level}",
+      "earned": "+{earned}",
+      "eyebrow": "Loyalitetssaldo",
+      "label": "Loyalitetspoint"
+    },
+    "multicurrency": {
+      "label": "Flere valutaer"
+    },
+    "payhistory": {
+      "failed": "Mislykkedes",
+      "label": "Betalingshistorik",
+      "paid": "Betalt",
+      "pending": "Afventer"
+    },
+    "poterms": {
+      "label": "Ordrebetingelser"
+    },
+    "qr": {
+      "hint": "Ret kameraet mod koden for at åbne live-versionen.",
+      "label": "Betalings-QR"
+    },
+    "recurring": {
+      "freq": {
+        "annually": "Årligt",
+        "monthly": "Månedligt",
+        "quarterly": "Kvartalsvis",
+        "weekly": "Ugentligt"
+      },
+      "label": "Tilbagevendende",
+      "sub": "Næste gang {next} · {count}",
+      "title": "Tilbagevendende — {freq}"
+    },
+    "refund": {
+      "label": "Refusionspolitik"
+    },
+    "signature": {
+      "dateSigned": "Underskriftsdato",
+      "label": "Underskrift"
+    },
+    "table": {
+      "label": "Tabel"
+    },
+    "taxbreak": {
+      "label": "Skatteoversigt"
+    },
+    "terms": {
+      "label": "Betingelser"
+    },
+    "text": {
+      "label": "Tekst"
+    }
+  },
+  "canvas": {
+    "blockTitle": "Bloktitel",
+    "deleteBlock": "Slet blok",
+    "drag": "Træk for at ændre rækkefølgen",
+    "empty": "Tilføj en blok fra venstre for at komme i gang.",
+    "kicker": "Overrubrik",
+    "moveDown": "Flyt ned",
+    "moveUp": "Flyt op",
+    "selectBlock": "Rediger {label}",
+    "selectHeader": "Rediger rapportens overskrift",
+    "subtitle": "Undertitel",
+    "title": "Rapporttitel"
+  },
+  "card": {
+    "delete": "Slet",
+    "duplicate": "Dupliker",
+    "edit": "Rediger",
+    "meta": {
+      "blocks": "{count, plural, one {# blok} other {# blokke}}",
+      "kickerBlocks": "{kicker} · {blocks}"
+    },
+    "rename": "Omdøb",
+    "renameLabel": "Nyt navn",
+    "sub": "{title} · {blocks}"
+  },
+  "category": {
+    "engineering": "Udvikling",
+    "finance": "Økonomi",
+    "growth": "Vækst",
+    "leadership": "Ledelse",
+    "operations": "Drift",
+    "product": "Produkt",
+    "revenue": "Omsætning",
+    "success": "Kundesucces"
+  },
+  "delete": {
+    "body": {
+      "report": "Dette kan ikke fortrydes. Rapporten fjernes permanent.",
+      "template": "Dette kan ikke fortrydes. Skabelonen fjernes permanent."
+    },
+    "confirm": "Slet",
+    "title": "Slet {name}?"
+  },
+  "editor": {
+    "delete": "Slet",
+    "discard": {
+      "body": "Dine ændringer i {name} går tabt.",
+      "leave": "Kassér",
+      "stay": "Fortsæt redigering",
+      "title": "Kassér ikke-gemte ændringer?"
+    },
+    "duplicate": "Dupliker",
+    "kind": {
+      "report": "Rapport",
+      "template": "Skabelon"
+    },
+    "loadFailed": "Dokumentet kunne ikke indlæses",
+    "nameLabel": "Navn",
+    "primary": {
+      "report": "Udgiv",
+      "template": "Gem skabelon"
+    },
+    "redo": "Gentag",
+    "saveState": {
+      "dirty": "Ikke-gemte ændringer",
+      "error": "Kunne ikke gemme",
+      "saved": "Alle ændringer er gemt",
+      "saving": "Gemmer…"
+    },
+    "shortcutSave": "Gem dokumentet",
+    "undo": "Fortryd"
+  },
+  "empty": {
+    "noMatch": {
+      "body": "Prøv et andet søgeord.",
+      "reports": "Ingen matchende rapporter",
+      "templates": "Ingen matchende skabeloner"
+    },
+    "reports": {
+      "body": "Byg din første rapport ud fra en skabelon eller et tomt lærred.",
+      "title": "Ingen rapporter endnu"
+    },
+    "templates": {
+      "body": "Opret et genbrugeligt rapportlayout, dit team kan bygge videre på.",
+      "title": "Ingen skabeloner endnu"
+    }
+  },
+  "inspector": {
+    "accent": "Accentfarve",
+    "addCode": "Tilføj kode",
+    "addCurrency": "Tilføj valuta",
+    "addFile": "Tilføj fil",
+    "addMetric": "Tilføj måling",
+    "addPayment": "Tilføj betaling",
+    "addPoint": "Tilføj punkt",
+    "addRow": "Tilføj række",
+    "addStep": "Tilføj trin",
+    "addTaxLine": "Tilføj skattelinje",
+    "amount": "Beløb",
+    "approverName": "Godkenderens navn",
+    "approverTitle": "Rolle / titel",
+    "background": "Baggrundsbillede",
+    "backgroundHint": "Lægger et fuldt dækkende billede bag hele rapporten — ideelt til brevpapir eller vandmærke.",
+    "backgroundOverlay": "Overlejring {pct} %",
+    "backgroundRemove": "Fjern",
+    "backgroundReplace": "Erstat",
+    "backgroundTooLarge": "Vælg et billede under {max}.",
+    "backgroundUpload": "Upload baggrund",
+    "baseAmount": "Grundbeløb",
+    "block": {
+      "hint": "Blokkens indhold og indstillinger"
+    },
+    "blockImage": "Billede",
+    "blockImageUpload": "Upload billede",
+    "blockTitle": "Bloktitel",
+    "caption": "Billedtekst",
+    "checkboxLabel": "Afkrydsningsfeltets tekst",
+    "code": "KODE",
+    "contactName": "Kontaktens navn",
+    "currencies": "Valutaer og kurser",
+    "dataPoints": "Datapunkter",
+    "date": "Dato",
+    "deleteBlock": "Slet blok",
+    "description": "Beskrivelse",
+    "discountCodes": "Rabatkoder",
+    "email": "E-mail",
+    "fileName": "Filnavn {n}",
+    "fileSize": "Filstørrelse {n}",
+    "files": "Filer",
+    "frequency": "Frekvens",
+    "fxCode": "Valutakode {n}",
+    "fxRate": "Kurs {n}",
+    "fxSymbol": "Valutasymbol {n}",
+    "gracePeriod": "Henstandsperiode",
+    "gracePeriodUnit": "dage",
+    "header": {
+      "hint": "Titel, overrubrik og tema",
+      "title": "Rapportens overskrift"
+    },
+    "kicker": "Overrubrik",
+    "lateRate": "Rykkergebyrsats",
+    "lateRateUnit": "% pr. måned",
+    "legalFooter": "Juridisk fod",
+    "level": "Niveau",
+    "method": "Betalingsmåde",
+    "metric": {
+      "delta": "Ændring",
+      "label": "Etiket",
+      "value": "Værdi"
+    },
+    "metrics": "Målinger",
+    "nextDate": "Næste dato",
+    "none": {
+      "body": "Klik på en blok på lærredet for at redigere indhold og indstillinger her.",
+      "select": "Vælg en blok",
+      "title": "Intet er valgt"
+    },
+    "payments": "Betalinger",
+    "phone": "Telefon",
+    "placeholderCaption": "Pladsholderens billedtekst",
+    "poTerms": "Ordrebetingelser",
+    "pointsBalance": "Pointsaldo",
+    "pointsEarned": "Optjente point",
+    "prechecked": "Forudkrydset",
+    "precheckedHint": "Vis feltet allerede afkrydset",
+    "refundPolicy": "Refusionspolitik",
+    "remove": "Fjern {noun} {n}",
+    "reportTitle": "Rapporttitel",
+    "rowCellA": "Række {n}, første kolonne",
+    "rowCellB": "Række {n}, anden kolonne",
+    "rowField": "{label} {n}",
+    "rows": "Rækker",
+    "scheduleNote": "Note om planlægning",
+    "show": "Vis i eksport",
+    "showHint": "Medtag ved udgivelse",
+    "signatoryName": "Underskriverens navn",
+    "signatoryTitle": "Titel / rolle",
+    "status": "Status",
+    "stepLabel": "Trin {n}",
+    "steps": "Trin",
+    "subtitle": "Undertitel",
+    "taxComponents": "Skattekomponenter",
+    "taxLabel": "Skatteetiket {n}",
+    "text": "Tekst",
+    "width": "Bredde",
+    "widthFull": "Fuld",
+    "widthHalf": "Halv"
+  },
+  "list": {
+    "actions": "Handlinger",
+    "name": "Navn",
+    "status": "Status",
+    "updated": "Opdateret"
+  },
+  "manager": {
+    "layout": {
+      "gallery": "Galleri",
+      "label": "Visning",
+      "list": "Liste"
+    },
+    "loadFailed": "Rapporterne kunne ikke indlæses",
+    "search": {
+      "clear": "Ryd søgning",
+      "reports": "Søg i rapporter…",
+      "templates": "Søg i skabeloner…"
+    },
+    "subtitle": "Genbrugelige rapportlayouts og de rapporter, du bygger ud fra dem.",
+    "tabs": {
+      "label": "Type",
+      "reports": "Rapporter",
+      "templates": "Skabeloner"
+    },
+    "title": "Rapporter",
+    "untitled": "Uden navn"
+  },
+  "new": {
+    "blank": {
+      "body": "Start fra bunden",
+      "title": "Tom rapport"
+    },
+    "report": "Ny rapport",
+    "starterMeta": "{category} · {blocks}",
+    "startersFailed": "Skabelonerne kunne ikke indlæses. Start tomt, eller prøv igen.",
+    "subtitle": "Start med et tomt lærred eller et færdigt rapportlayout.",
+    "template": "Ny skabelon",
+    "title": {
+      "report": "Ny rapport",
+      "template": "Ny skabelon"
+    },
+    "yourTemplates": "Dine skabeloner"
+  },
+  "palette": {
+    "add": "Tilføj {label}",
+    "title": "Tilføj blok"
+  },
+  "seed": {
+    "apprTitle": "Rapportejer",
+    "contactName": "Orchard Lane Studio",
+    "discountLabel": "10 % velkomstkredit",
+    "heading": "Ny overskrift",
+    "imageCaption": "billedpladsholder",
+    "legalText": "Denne rapport er kun til orientering. Tallene er ureviderede og kan blive ændret.",
+    "loyLevel": "Guld",
+    "metric": "Måling",
+    "new": "Ny",
+    "newCode": "NYKODE",
+    "newDiscount": "Ny rabat",
+    "newFile": "Ny fil.pdf",
+    "newStep": "Nyt trin",
+    "newTax": "Ny skat",
+    "paragraph": "Nyt afsnit — klik for at redigere denne tekst.",
+    "poTerms": "Denne rapport udstedes under den almindelige rapporteringsaftale. Tallene er foreløbige, indtil de er endelige.",
+    "qrCaption": "Scan for at åbne live-rapporten",
+    "refText": "Fuld refusion er mulig inden for 30 dage efter købet. Kontakt support for at starte en returnering.",
+    "sigTitle": "Udarbejdet af",
+    "step": {
+      "delivered": "Leveret",
+      "ordered": "Bestilt",
+      "processing": "Behandles",
+      "shipped": "Afsendt"
+    },
+    "table": {
+      "column": "Kolonne",
+      "row": "Række {n}",
+      "value": "Værdi"
+    },
+    "taxCity": "Kommunal skat (2 %)",
+    "taxState": "Statsskat (6 %)",
+    "termsLabel": "Jeg godkender denne rapport og dens indhold."
+  },
+  "starter": {
+    "board": "Bestyrelsesmateriale",
+    "campaign": "Kampagneopsamling",
+    "exec": "Ledelsesresumé",
+    "finance": "Regnskabsopgørelse",
+    "health": "Kundesundhed",
+    "incident": "Hændelsesevaluering",
+    "marketing": "Marketingrapport",
+    "mbr": "Månedlig forretningsgennemgang",
+    "product": "Produktanalyse",
+    "sales": "Salgsrapport",
+    "scorecard": "KPI-scorecard",
+    "weekly": "Ugentligt overblik"
+  },
+  "status": {
+    "draft": "Kladde",
+    "live": "Live",
+    "sent": "Udgivet"
+  },
+  "toast": {
+    "createFailed": "Dokumentet kunne ikke oprettes",
+    "deleteFailed": "Kunne ikke slettes",
+    "duplicateFailed": "Kunne ikke duplikeres",
+    "duplicated": "{name} duplikeret",
+    "imageUnreadable": "Filen kunne ikke læses",
+    "notAnImage": "Filen er ikke et billede",
+    "published": "{name} udgivet",
+    "renameFailed": "Kunne ikke omdøbes",
+    "saveFailed": "{name} kunne ikke gemmes",
+    "undo": "Fortryd"
+  }
+}

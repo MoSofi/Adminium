@@ -28,6 +28,7 @@ const NAMESPACES = [
   'automations',
   'dataio',
   'files',
+  'reportBuilder',
 ] as const;
 const TARGETS = LOCALES.filter((l) => l.id !== 'en_US');
 

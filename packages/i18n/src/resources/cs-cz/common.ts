@@ -101,6 +101,7 @@ export default {
     "exports": "Exporty dat",
     "emailTemplates": "E-mailové šablony",
     "invoices": "Faktury",
+    "reportBuilder": "Tvorba sestav",
     "automations": "Automatizace",
     "workflowLogs": "Protokoly postupů",
     "notificationSettings": "Nastavení oznámení",
@@ -1794,6 +1795,13 @@ export default {
     "copySuffix": "{name} (kopie)",
     "untitled": {
       "invoice": "Faktura bez názvu",
+      "template": "Šablona bez názvu"
+    }
+  },
+  "reportBuilder": {
+    "copySuffix": "{name} (kopie)",
+    "untitled": {
+      "report": "Sestava bez názvu",
       "template": "Šablona bez názvu"
     }
   }
