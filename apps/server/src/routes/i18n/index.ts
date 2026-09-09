@@ -109,6 +109,12 @@ export const I18N_CHANGED = 'i18n.changed';
  * Email templates surface's messages, fetched when its routes open. `invoices`
  * likewise (34-invoices-add-on.md 34-T51), for the Invoices surface.
  *
+ * `dataio` and `files` joined on the way out of `common`, where their bytes had
+ * always counted toward this cap. Leaving them off would have quietly RAISED
+ * an operator's effective budget rather than kept it — the cap is per locale
+ * across everything overridable, so a namespace missing here is invisible to
+ * it.
+ *
  * `generated` is still out, and correctly: nothing fetches overrides for it.
  */
 const BUDGETED_NAMESPACES: readonly Namespace[] = [
@@ -119,6 +125,8 @@ const BUDGETED_NAMESPACES: readonly Namespace[] = [
   'email',
   'invoices',
   'automations',
+  'dataio',
+  'files',
 ];
 
 /**

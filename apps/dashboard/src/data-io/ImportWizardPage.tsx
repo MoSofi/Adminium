@@ -121,7 +121,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
       ) {
         setTarget(null);
         setTargetError(
-          t('dataio.import.notATable', 'That page is not a table — pick a table page to import into.'),
+          t('dataio:import.notATable', 'That page is not a table — pick a table page to import into.'),
         );
         return;
       }
@@ -157,7 +157,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
       },
       ...(target.columns.length > 0 ? { targets: target.columns } : {}),
       autoMatch: true,
-      skipLabel: t('dataio.import.skipTarget', "Don't import"),
+      skipLabel: t('dataio:import.skipTarget', 'Don’t import'),
     });
   }, [target]);
 
@@ -216,7 +216,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
     if (report.invalid === 0) {
       rows.push({
         severity: 'info',
-        title: t('dataio.import.allValid', 'All rows passed validation'),
+        title: t('dataio:import.allValid', 'All rows passed validation'),
         desc: '',
         count: report.total,
       });
@@ -264,10 +264,10 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
   // --- render -------------------------------------------------------------------------
 
   const steps = [
-    { id: 'upload', label: t('dataio.import.stepUpload', 'Upload') },
-    { id: 'map', label: t('dataio.import.stepMap', 'Map columns') },
-    { id: 'validate', label: t('dataio.import.stepValidate', 'Validate') },
-    { id: 'run', label: t('dataio.import.stepRun', 'Import & review') },
+    { id: 'upload', label: t('dataio:import.stepUpload', 'Upload') },
+    { id: 'map', label: t('dataio:import.stepMap', 'Map columns') },
+    { id: 'validate', label: t('dataio:import.stepValidate', 'Validate') },
+    { id: 'run', label: t('dataio:import.stepRun', 'Import & review') },
   ];
 
   const stats = finished?.stats ?? null;
@@ -280,7 +280,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
           <div className="flex flex-col gap-4">
             <label className="flex max-w-md flex-col gap-1.5">
               <span className="text-body-sm font-medium text-fg">
-                {t('dataio.import.targetLabel', 'Target table')}
+                {t('dataio:import.targetLabel', 'Target table')}
               </span>
               <Select
                 value=""
@@ -291,7 +291,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
               >
                 <option value="">
                   {target === null
-                    ? t('dataio.import.targetPlaceholder', 'Choose a table page…')
+                    ? t('dataio:import.targetPlaceholder', 'Choose a table page…')
                     : target.table}
                 </option>
                 {navItems.map((item) => (
@@ -307,8 +307,8 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
               accept=".csv,text/csv"
               multiple={false}
               disabled={target === null || uploadMutation.isPending}
-              dropTitle={t('dataio.import.dropTitle', 'Drop a CSV file to import')}
-              hint={t('dataio.import.dropHint', 'CSV up to 32 MB — the first row must be the header')}
+              dropTitle={t('dataio:import.dropTitle', 'Drop a CSV file to import')}
+              hint={t('dataio:import.dropHint', 'CSV up to 32 MB — the first row must be the header')}
               onFiles={(files) => {
                 const file = files[0];
                 if (file !== undefined) uploadMutation.mutate(file);
@@ -324,7 +324,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
         ) : (
           <div className="flex min-h-0 flex-col gap-3">
             <p className="text-body-sm text-fg-muted">
-              {t('dataio.import.mapHint', '{count} data rows in {file} — choose a target for each column.', {
+              {t('dataio:import.mapHint', '{count} data rows in {file} — choose a target for each column.', {
                 count: preview.totalRows,
                 file: preview.filename,
               })}
@@ -341,7 +341,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
                 title={
                   validateMutation.error instanceof Error
                     ? validateMutation.error.message
-                    : t('dataio.import.validateFailed', 'Validation failed.')
+                    : t('dataio:import.validateFailed', 'Validation failed.')
                 }
               />
             ) : null}
@@ -354,7 +354,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
           <div className="flex min-h-0 flex-col gap-3">
             <p className="text-body-sm text-fg" data-testid="validation-summary">
               {t(
-                'dataio.import.validationSummary',
+                'dataio:import.validationSummary',
                 '{valid} of {total} rows ready to import — {invalid} will be skipped.',
                 { valid: report.valid, total: report.total, invalid: report.invalid },
               )}
@@ -373,22 +373,22 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
           <div className="flex flex-col gap-4">
             <ProgressBar
               value={pct}
-              label={t('dataio.import.progressLabel', 'Import progress')}
+              label={t('dataio:import.progressLabel', 'Import progress')}
               tone={finished?.status === 'failed' ? 'danger' : 'accent'}
             />
             {running || finished === null ? (
               <p className="text-body-sm text-fg-muted">
-                {job.data?.progress?.message ?? t('dataio.import.running', 'Importing…')}
+                {job.data?.progress?.message ?? t('dataio:import.running', 'Importing…')}
               </p>
             ) : stats !== null ? (
               <div className="flex flex-col gap-3" data-testid="import-review">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {(
                     [
-                      [t('dataio.import.kpiTotal', 'Rows in file'), stats.total],
-                      [t('dataio.import.kpiCreated', 'Created'), stats.inserted ?? 0],
-                      [t('dataio.import.kpiUpdated', 'Updated'), stats.updated ?? 0],
-                      [t('dataio.import.kpiSkipped', 'Skipped'), stats.skipped ?? 0],
+                      [t('dataio:import.kpiTotal', 'Rows in file'), stats.total],
+                      [t('dataio:import.kpiCreated', 'Created'), stats.inserted ?? 0],
+                      [t('dataio:import.kpiUpdated', 'Updated'), stats.updated ?? 0],
+                      [t('dataio:import.kpiSkipped', 'Skipped'), stats.skipped ?? 0],
                     ] as const
                   ).map(([label, value]) => (
                     <div key={label} className="rounded-lg border border-border bg-surface p-3">
@@ -403,7 +403,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
                   <Alert
                     tone="danger"
                     title={t(
-                      'dataio.import.inconsistent',
+                      'dataio:import.inconsistent',
                       'Import numbers are inconsistent — total must equal created + updated + skipped.',
                     )}
                   />
@@ -413,14 +413,14 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
                     className="text-body-sm text-accent underline underline-offset-2"
                     href={dataIoApi.errorReportHref(finished.id)}
                   >
-                    {t('dataio.import.downloadErrors', 'Download the skipped-rows report (CSV)')}
+                    {t('dataio:import.downloadErrors', 'Download the skipped-rows report (CSV)')}
                   </a>
                 ) : null}
               </div>
             ) : (
               <Alert
                 tone="danger"
-                title={t('dataio.import.runFailed', 'The import failed.')}
+                title={t('dataio:import.runFailed', 'The import failed.')}
                 body={job.data?.lastError ?? undefined}
               />
             )}
@@ -438,7 +438,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
         return (
           <>
             <Button variant="ghost" onClick={() => setStep('upload')}>
-              {t('dataio.back', 'Back')}
+              {t('dataio:back', 'Back')}
             </Button>
             <Button
               onClick={() => validateMutation.mutate()}
@@ -446,8 +446,8 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
               data-testid="wizard-validate"
             >
               {validateMutation.isPending
-                ? t('dataio.import.validating', 'Validating…')
-                : t('dataio.import.toValidate', 'Validate')}
+                ? t('dataio:import.validating', 'Validating…')
+                : t('dataio:import.toValidate', 'Validate')}
             </Button>
           </>
         );
@@ -455,7 +455,7 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
         return (
           <>
             <Button variant="ghost" onClick={() => setStep('map')}>
-              {t('dataio.back', 'Back')}
+              {t('dataio:back', 'Back')}
             </Button>
             <Button
               onClick={() => runMutation.mutate()}
@@ -463,11 +463,11 @@ export function ImportWizardPage({ initialTarget }: ImportWizardPageProps) {
               data-testid="wizard-run"
             >
               {report !== null && report.invalid > 0
-                ? t('dataio.import.runSkipping', 'Import {valid} rows (skip {invalid})', {
+                ? t('dataio:import.runSkipping', 'Import {valid} rows (skip {invalid})', {
                     valid: report.valid,
                     invalid: report.invalid,
                   })
-                : t('dataio.import.run', 'Run import')}
+                : t('dataio:import.run', 'Run import')}
             </Button>
           </>
         );

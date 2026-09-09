@@ -123,7 +123,7 @@ export const usersRoutes: FastifyPluginAsyncZod = async (app) => {
     // i18next binds `t` during init, so destructuring it is safe (same note as
     // `email/builtins.ts`).
     const { t } = await translatorFor(meta, recipientId);
-    return t('email.userInvite.inviterFallback', { defaultValue: 'An administrator' });
+    return t('email:userInvite.inviterFallback', { defaultValue: 'An administrator' });
   }
 
   async function deliverInvite(

@@ -16,7 +16,6 @@
  */
 import { PageFiles } from '@adminium/widgets';
 
-import { t } from '../i18n/t.js';
 import { usePageWidgetStates } from './lmc/widgetStates.js';
 import type { PageTemplateProps } from './template-types.js';
 
@@ -32,11 +31,6 @@ export function PageFilesBinding({ page, adapters, recordId }: PageTemplateProps
       onEvent={(instanceId, event) => {
         void instanceId;
         void adapters.onEvent(event);
-      }}
-      // i18n: template labels resolve here so the widgets package stays
-      // locale-agnostic (04 §2).
-      labels={{
-        uploadsUnavailable: t('files.uploadsUnavailable', 'Uploads are not available on this page yet.'),
       }}
     />
   );

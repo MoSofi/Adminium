@@ -15,7 +15,18 @@ const root = path.dirname(fileURLToPath(new URL('.', import.meta.url)));
 
 /** BCP-47 locale directory names under locales/, mirrored to kebab-lowercase dirs under src/resources/. */
 const localeTags = ['en-US', 'de-DE', 'fr-FR', 'cs-CZ', 'da-DK', 'zh-CN', 'zh-TW', 'ar-EG'];
-const namespaces = ['common', 'ui', 'studio', 'generated', 'errors', 'email', 'invoices', 'automations'];
+const namespaces = [
+  'common',
+  'ui',
+  'studio',
+  'generated',
+  'errors',
+  'email',
+  'invoices',
+  'automations',
+  'dataio',
+  'files',
+];
 
 let count = 0;
 for (const tag of localeTags) {

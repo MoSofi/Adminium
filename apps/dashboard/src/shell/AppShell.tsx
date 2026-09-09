@@ -3,7 +3,7 @@
  * AppShell (09-generated-app.md §5.1): sidebar + sticky topbar + routed
  * outlet, plus the app-wide surfaces — ⌘K palette, shortcuts panel, offline
  * banner — and the global keyboard registrations (§5.3): `/`, `?`, `⌘⇧L`,
- * `⌘B`, Esc (display), ⌘K (display; bound by useCommandK) and the
+ * `⌘B`, Esc (display), ⌘K (bound here by useCommandK) and the
  * data-driven G-chords derived from the nav tree.
  *
  * Also owns the realtime subscription: WS `config-changed` invalidates
@@ -14,11 +14,10 @@ import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { WifiOff } from 'lucide-react';
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { useTheme, useThemePrefs } from '@adminium/ui';
+import { useCommandK, useTheme, useThemePrefs } from '@adminium/ui';
 
 import { invalidateForRealtimeEvent } from '../api/realtime.js';
 import { bootstrapQuery, findPageBySlug, flattenNav } from '../app/bootstrap.js';
-import { CommandPaletteHost } from '../app/palette/CommandPaletteHost.js';
 import { pushRecent } from '../app/palette/recent.js';
 import { gChordTargets } from '../app/shortcuts.js';
 import { createRealtimeClient } from '../app/ws.js';
@@ -36,6 +35,16 @@ import { PageActionsProvider } from './PageActionsProvider.js';
 const ShortcutsPanel = lazy(async () => ({
   default: (await import('./ShortcutsPanel.js')).ShortcutsPanel,
 }));
+/* Lazy for the same reason, and it is the larger of the two: the palette is a
+   modal that is CLOSED on every first paint, on every route, for every user,
+   so the entry chunk was carrying its body, ui's CommandPalette and the Radix
+   Dialog family behind it purely so a dialog could render nothing. ⌘K is bound
+   in AppShell (below) rather than inside the host, so the shortcut still works
+   before the chunk exists — mounting is what the keypress triggers. Mounted on
+   first open and kept mounted, so reopening never refetches. */
+const CommandPaletteHost = lazy(async () => ({
+  default: (await import('../app/palette/CommandPaletteHost.js')).CommandPaletteHost,
+}));
 import { useShortcut, useShortcutManager } from './ShortcutsProvider.js';
 import { SidebarNav } from './SidebarNav.js';
 import { Topbar } from './Topbar.js';
@@ -49,6 +58,9 @@ export function AppShell() {
   const manager = useShortcutManager();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Latches on the first open from ANY source so the deferred chunk is
+  // requested exactly once and never unmounted (see the effect below).
+  const [paletteMounted, setPaletteMounted] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [offline, setOffline] = useState(false);
@@ -143,13 +155,22 @@ export function AppShell() {
     // no reason to do.
   }, [queryClient, bootstrap.user.id]);
 
+  useCommandK(() => setPaletteOpen((open) => !open));
+  // Keyed on `paletteOpen` rather than set at each trigger, because three paths
+  // open the palette — ⌘K here, the `/` shortcut below, and the Topbar's search
+  // button — and a latch wired to only one of them leaves the others opening a
+  // host that was never mounted.
+  useEffect(() => {
+    if (paletteOpen) setPaletteMounted(true);
+  }, [paletteOpen]);
+
   // --- global shortcut registrations (§5.3) --------------------------------
   useShortcut({
     id: 'palette',
     group: 'General',
     label: t('shortcuts.palette', 'Open command palette'),
     keys: ['⌘', 'K'],
-    // Bound by useCommandK inside CommandPaletteHost — display-only here.
+    // Bound by the useCommandK call above — display-only here.
   });
   useShortcut({
     id: 'focus-search',
@@ -264,17 +285,21 @@ export function AppShell() {
         </div>
       </PageActionsProvider>
 
-      <CommandPaletteHost
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        bootstrap={bootstrap}
-        onNavigate={(slug) => void navigate({ to: '/p/$slug', params: { slug } })}
-        onNavigateRecord={(slug, recordId) =>
-          void navigate({ to: '/p/$slug/r/$recordId', params: { slug, recordId } })
-        }
-        onSignOut={signOut}
-        onShowShortcuts={() => setShortcutsOpen(true)}
-      />
+      {paletteMounted ? (
+        <Suspense fallback={null}>
+          <CommandPaletteHost
+            open={paletteOpen}
+            onOpenChange={setPaletteOpen}
+            bootstrap={bootstrap}
+            onNavigate={(slug) => void navigate({ to: '/p/$slug', params: { slug } })}
+            onNavigateRecord={(slug, recordId) =>
+              void navigate({ to: '/p/$slug/r/$recordId', params: { slug, recordId } })
+            }
+            onSignOut={signOut}
+            onShowShortcuts={() => setShortcutsOpen(true)}
+          />
+        </Suspense>
+      ) : null}
       {shortcutsOpen ? (
         <Suspense fallback={null}>
           <ShortcutsPanel open onOpenChange={setShortcutsOpen} />

@@ -9,10 +9,6 @@
  * scripts/gen-resources.mjs.
  */
 export default {
-  "title": "E-mailové šablony",
-  "subtitle": "Navrhujte opakovaně použitelné e-maily a kampaně, které z nich rozesíláte.",
-  "loadFailed": "E-mailové šablony se nepodařilo načíst",
-  "needsTranslation": "Vyžaduje překlad",
   "actions": {
     "menu": "Další akce",
     "eyebrow": "Akce",
@@ -22,222 +18,17 @@ export default {
     "settings": "Nastavení e-mailu",
     "archived": "Archivované"
   },
-  "new": {
-    "template": "Nová šablona",
-    "campaign": "Nová kampaň",
-    "subtitle": "Začněte s prázdným e-mailem nebo s hotovým návrhem.",
-    "blank": "Prázdný e-mail",
-    "blankHint": "Začít od nuly",
-    "yourTemplates": "Vaše šablony",
-    "failed": "Nepodařilo se vytvořit",
-    "startersFailed": "Výchozí návrhy se nepodařilo načíst. Začněte s prázdným e-mailem nebo to zkuste znovu."
-  },
-  "tabs": {
-    "label": "Druh",
-    "templates": "Šablony",
-    "campaigns": "Kampaně"
-  },
-  "groupBy": {
-    "label": "Seskupit podle",
-    "none": "Nic",
-    "topic": "Téma",
-    "language": "Jazyk"
-  },
-  "search": {
-    "templates": "Hledat šablony…",
-    "campaigns": "Hledat kampaně…",
-    "clear": "Vymazat hledání"
-  },
-  "layout": {
-    "label": "Zobrazení",
-    "gallery": "Galerie",
-    "list": "Seznam"
-  },
   "archivedChip": {
     "field": "Zobrazeno",
     "value": "Archivované",
     "leave": "Opustit archiv"
   },
-  "empty": {
-    "templates": {
-      "title": "Zatím žádné šablony",
-      "body": "Navrhněte opakovaně použitelný e-mail, ze kterého může váš tým odesílat."
-    },
-    "campaigns": {
-      "title": "Zatím žádné kampaně",
-      "body": "Vytvořte kampaň ze šablony nebo z prázdného plátna."
-    },
-    "noMatch": {
-      "templates": "Žádné šablony neodpovídají",
-      "campaigns": "Žádné kampaně neodpovídají",
-      "body": "Zkuste jiný hledaný výraz."
-    },
-    "archived": {
-      "templates": "Žádné archivované šablony",
-      "campaigns": "Žádné archivované kampaně",
-      "body": "Vše, co smažete, skončí tady a dá se obnovit."
-    }
-  },
-  "status": {
-    "draft": "Koncept",
-    "live": "Aktivní",
-    "scheduled": "Načasováno",
-    "sending": "Odesílá se",
-    "sent": "Odesláno",
-    "failed": "Selhalo"
-  },
-  "category": {
-    "transactional": "Transakční",
-    "lifecycle": "Životní cyklus",
-    "marketing": "Marketing"
-  },
-  "run": {
-    "counts": "{sent} odesláno · {failed} selhalo",
-    "sending": "Odesílá se · {pct} %"
-  },
-  "group": {
-    "languages": "{count, plural, one {# jazyk} few {# jazyky} many {# jazyka} other {# jazyků}}",
-    "emails": "{count, plural, one {# e-mail} few {# e-maily} many {# e-mailu} other {# e-mailů}}",
-    "needsTranslation": "{count} vyžaduje překlad"
-  },
-  "card": {
-    "edit": "Upravit",
-    "duplicate": "Duplikovat",
-    "rename": "Přejmenovat",
-    "renameLabel": "Nový název",
-    "delete": "Smazat",
-    "restore": "Obnovit",
-    "deleteForGood": "Smazat trvale",
-    "reset": "Vrátit vestavěnou verzi"
-  },
-  "list": {
-    "name": "Název",
-    "lang": "Jazyk",
-    "status": "Stav",
-    "updated": "Aktualizováno",
-    "actions": "Akce"
-  },
-  "delete": {
-    "title": "Smazat {name}?",
-    "archiveBody": "Přesune se do archivu, kde ji můžete obnovit nebo trvale smazat.",
-    "confirm": "Smazat",
-    "forGoodTitle": "Trvale smazat {name}?",
-    "forGoodBody": {
-      "template": "Tohle nejde vrátit zpět. Šablona bude trvale odstraněna.",
-      "campaign": "Tohle nejde vrátit zpět. Kampaň bude trvale odstraněna."
-    },
-    "forGood": "Smazat trvale",
-    "resetTitle": "Vrátit {name} na vestavěnou verzi?",
-    "resetBody": "Vaše úpravy v tomto jazyce nahradí dodávaná verze.",
-    "reset": "Vrátit"
-  },
-  "toast": {
-    "duplicated": {
-      "template": "Šablona duplikována",
-      "campaign": "Kampaň duplikována"
-    },
-    "duplicateFailed": "Nepodařilo se duplikovat",
-    "deleted": {
-      "template": "Šablona smazána",
-      "campaign": "Kampaň smazána"
-    },
-    "deleteFailed": "Nepodařilo se smazat",
-    "restored": {
-      "template": "Šablona obnovena",
-      "campaign": "Kampaň obnovena"
-    },
-    "restoreFailed": "Nepodařilo se obnovit",
-    "deletedForGood": {
-      "template": "Šablona trvale smazána",
-      "campaign": "Kampaň trvale smazána"
-    },
-    "reset": "Vrácena vestavěná verze",
-    "renameFailed": "Nepodařilo se přejmenovat"
-  },
-  "import": {
-    "title": "Importovat šablonu",
-    "subtitle": "Balíček exportovaný z Adminia.",
-    "choose": "Vybrat balíček",
-    "hint": "adminium-email-templates-<date>.json",
-    "invalid": "Tento soubor není e-mailový balíček Adminia.",
-    "summary": "{templates, plural, one {# šablona} few {# šablony} many {# šablony} other {# šablon}} a {campaigns, plural, one {# kampaň} few {# kampaně} many {# kampaně} other {# kampaní}} · {duplicates} už existuje",
-    "modeLabel": "Existující dokumenty",
-    "skip": "Přeskočit existující",
-    "replace": "Nahradit existující",
-    "confirm": "Importovat",
-    "failed": "Import selhal.",
-    "done": "{created} importováno · {replaced} nahrazeno · {skipped} přeskočeno",
-    "errors": "{count, plural, one {# dokument se nepodařilo importovat} few {# dokumenty se nepodařilo importovat} many {# dokumentu se nepodařilo importovat} other {# dokumentů se nepodařilo importovat}}"
-  },
-  "editor": {
-    "kind": {
-      "template": "Šablona",
-      "campaign": "Kampaň"
-    },
-    "nameLabel": "Název",
-    "undo": "Zpět",
-    "redo": "Znovu",
-    "test": "Test",
-    "save": "Uložit",
-    "saveTemplate": "Uložit šablonu",
-    "sendCampaign": "Odeslat kampaň",
-    "shortcutSave": "Uložit e-mail",
-    "saveState": {
-      "saving": "Ukládá se…",
-      "saved": "Všechny změny uloženy",
-      "dirty": "Neuložené změny",
-      "error": "Uložení selhalo"
-    },
-    "languages": {
-      "title": "Jazykové varianty",
-      "current": "Právě upravujete",
-      "translated": "Přeloženo",
-      "needsTranslation": "Vyžaduje překlad",
-      "missing": "Zatím nevytvořeno",
-      "created": "Varianta {language} vytvořena",
-      "createdNeedsTranslation": "Varianta {language} vytvořena — vyžaduje překlad",
-      "addFailed": "Tento jazyk se nepodařilo přidat"
-    },
-    "discard": {
-      "title": "Zahodit neuložené změny?",
-      "body": "Vaše úpravy {name} budou ztraceny.",
-      "keep": "Pokračovat v úpravách",
-      "confirm": "Zahodit"
-    },
-    "saveFailed": "Nepodařilo se uložit",
-    "saved": "Změny uloženy",
-    "loadFailed": "Tento e-mail se nepodařilo načíst"
-  },
-  "canvas": {
-    "livePreview": "Živý náhled · klikněte na libovolnou část e-mailu a upravte ji",
-    "device": "Šířka náhledu",
-    "desktop": "Počítač",
-    "mobile": "Mobil",
-    "subject": "Předmět",
+  "blank": {
+    "cta": "Výzva k akci",
+    "heading": "Sem přijde nadpis",
+    "para": "Začněte psát svůj e-mail…",
     "preheader": "Text náhledu",
-    "preheaderPlaceholder": "Text náhledu…",
-    "select": "Upravit {label}",
-    "insertAbove": "Vložit sekci nad {label}",
-    "add": "Přidat",
-    "addSection": "Přidat sekci",
-    "defaultSender": "Výchozí odesílatel",
-    "now": "nyní",
-    "attachments": "{count, plural, one {# příloha} few {# přílohy} many {# přílohy} other {# příloh}}",
-    "fileMissing": "Soubor chybí",
-    "variables": "Proměnné",
-    "imagePlaceholder": "Zástupný obrázek",
-    "htmlNote": "Při odeslání e-mailu se vykreslí jako čisté HTML.",
-    "recurring": "Opakovaně — {freq}",
-    "nextOn": "Příště {next} · {note}",
-    "loyaltyBalance": "Věrnostní zůstatek",
-    "loyaltyLine": "{balance} b. · {level}",
-    "sections": {
-      "branding": "Značka a odesílatel",
-      "subject": "Předmět a text náhledu",
-      "footer": "Zápatí",
-      "attachments": "Přílohy"
-    },
-    "blockAdded": "{label} přidáno"
+    "subject": "Řádek předmětu"
   },
   "blocks": {
     "heading": {
@@ -348,24 +139,259 @@ export default {
       "label": "Sekce"
     }
   },
-  "picker": {
-    "title": "Přidat sekci",
-    "above": "Vloženo nad {label}",
-    "atEnd": "Přidáno na konec e-mailu",
-    "groups": {
-      "content": "Obsah",
-      "commerce": "Obchod a data",
-      "legal": "Právní a podpora",
-      "saved": "Uložené bloky"
-    },
-    "savedHint": "Uloženo: {label}"
+  "branding": {
+    "brandName": "Název značky",
+    "logoMark": "Symbol loga",
+    "yourLogo": "Vaše logo",
+    "fromName": "Jméno odesílatele",
+    "fromEmail": "E-mail odesílatele",
+    "notConfigured": "Není nastavený odesílatel.",
+    "manageSenders": "Spravovat odesílatele",
+    "noSenders": "Zatím žádní nastavení odesílatelé — použije se výchozí odesílatel.",
+    "defaultSenderOption": "Výchozí odesílatel",
+    "brandColour": "Barva značky",
+    "category": "Kategorie",
+    "status": "Stav",
+    "languageVariations": "Jazykové varianty",
+    "languageHint": "Přidáním jazyka vznikne propojená kopie. Varianty zůstávají seskupené pod tématem {topic}.",
+    "tagCurrent": "Aktuální",
+    "tagEdit": "Upravit",
+    "tagAdd": "Přidat",
+    "noMatch": "Žádný odesílatel neodpovídá"
   },
-  "mirror": {
-    "title": "Použít i v ostatních jazycích?",
-    "body": "{label} lze zrcadlit do {count, plural, one {# další jazykové varianty} few {# dalších jazykových variant} many {# další jazykové varianty} other {# dalších jazykových variant}} tématu {topic}. Text se při uložení přenese nepřeložený.",
-    "onlyThis": "Jen {native}",
-    "applyAll": "Použít ve všech {count}",
-    "queued": "Zařazeno do {count, plural, one {# dalšího jazyka} few {# dalších jazyků} many {# dalšího jazyka} other {# dalších jazyků}} — použije se při uložení"
+  "campaign": {
+    "title": "Odeslat kampaň",
+    "sendTo": "Odeslat na",
+    "workspaceUsers": "Uživatelé pracovního prostoru",
+    "rolesHint": "Všichni, nebo jen držitelé vybraných rolí.",
+    "when": "Kdy",
+    "now": "Teď",
+    "schedule": "Načasovat",
+    "scheduleAt": "Odeslat v",
+    "pastTime": "Zvolte čas v budoucnosti.",
+    "counting": "Počítají se příjemci…",
+    "countFailed": "Příjemce se nepodařilo spočítat",
+    "count": "{total, plural, one {# příjemce} few {# příjemci} many {# příjemce} other {# příjemců}}",
+    "optedOut": "{skipped} odhlášeno",
+    "note": "Proměnné se vyplní u každého příjemce — z {token} se stane jméno dané osoby.",
+    "send": "Odeslat kampaň",
+    "scheduleAction": "Načasovat kampaň",
+    "sending": "Odesílá se…",
+    "failed": "Kampaň se nepodařilo odeslat.",
+    "sentTitle": "Kampaň odeslána!",
+    "sentBody": "{name} je na cestě k {count, plural, one {# příjemci} few {# příjemcům} many {# příjemce} other {# příjemcům}}.",
+    "scheduledTitle": "Kampaň načasována!",
+    "scheduledBody": "{name} odejde {when}.",
+    "done": "Hotovo",
+    "chipScheduled": "Načasováno · {when}",
+    "chipSending": "Odesílá se · {pct} %",
+    "cancelSchedule": "Zrušit načasování",
+    "cancelSending": "Zrušit odesílání",
+    "cancelled": "Načasování zrušeno",
+    "sendingCancelled": "Odesílání zrušeno",
+    "cancelFailed": "Nepodařilo se zrušit"
+  },
+  "campaignSent": {
+    "body": "{sent} odesláno · {failed} selhalo",
+    "title": "Kampaň odeslána: {name}"
+  },
+  "canvas": {
+    "livePreview": "Živý náhled · klikněte na libovolnou část e-mailu a upravte ji",
+    "device": "Šířka náhledu",
+    "desktop": "Počítač",
+    "mobile": "Mobil",
+    "subject": "Předmět",
+    "preheader": "Text náhledu",
+    "preheaderPlaceholder": "Text náhledu…",
+    "select": "Upravit {label}",
+    "insertAbove": "Vložit sekci nad {label}",
+    "add": "Přidat",
+    "addSection": "Přidat sekci",
+    "defaultSender": "Výchozí odesílatel",
+    "now": "nyní",
+    "attachments": "{count, plural, one {# příloha} few {# přílohy} many {# přílohy} other {# příloh}}",
+    "fileMissing": "Soubor chybí",
+    "variables": "Proměnné",
+    "imagePlaceholder": "Zástupný obrázek",
+    "htmlNote": "Při odeslání e-mailu se vykreslí jako čisté HTML.",
+    "recurring": "Opakovaně — {freq}",
+    "nextOn": "Příště {next} · {note}",
+    "loyaltyBalance": "Věrnostní zůstatek",
+    "loyaltyLine": "{balance} b. · {level}",
+    "sections": {
+      "branding": "Značka a odesílatel",
+      "subject": "Předmět a text náhledu",
+      "footer": "Zápatí",
+      "attachments": "Přílohy"
+    },
+    "blockAdded": "{label} přidáno"
+  },
+  "card": {
+    "edit": "Upravit",
+    "duplicate": "Duplikovat",
+    "rename": "Přejmenovat",
+    "renameLabel": "Nový název",
+    "delete": "Smazat",
+    "restore": "Obnovit",
+    "deleteForGood": "Smazat trvale",
+    "reset": "Vrátit vestavěnou verzi"
+  },
+  "category": {
+    "transactional": "Transakční",
+    "lifecycle": "Životní cyklus",
+    "marketing": "Marketing"
+  },
+  "copySuffix": "{name} (kopie)",
+  "cycle": {
+    "done": "Hotovo",
+    "current": "Probíhá",
+    "todo": "Čeká"
+  },
+  "delete": {
+    "title": "Smazat {name}?",
+    "archiveBody": "Přesune se do archivu, kde ji můžete obnovit nebo trvale smazat.",
+    "confirm": "Smazat",
+    "forGoodTitle": "Trvale smazat {name}?",
+    "forGoodBody": {
+      "template": "Tohle nejde vrátit zpět. Šablona bude trvale odstraněna.",
+      "campaign": "Tohle nejde vrátit zpět. Kampaň bude trvale odstraněna."
+    },
+    "forGood": "Smazat trvale",
+    "resetTitle": "Vrátit {name} na vestavěnou verzi?",
+    "resetBody": "Vaše úpravy v tomto jazyce nahradí dodávaná verze.",
+    "reset": "Vrátit"
+  },
+  "editor": {
+    "kind": {
+      "template": "Šablona",
+      "campaign": "Kampaň"
+    },
+    "nameLabel": "Název",
+    "undo": "Zpět",
+    "redo": "Znovu",
+    "test": "Test",
+    "save": "Uložit",
+    "saveTemplate": "Uložit šablonu",
+    "sendCampaign": "Odeslat kampaň",
+    "shortcutSave": "Uložit e-mail",
+    "saveState": {
+      "saving": "Ukládá se…",
+      "saved": "Všechny změny uloženy",
+      "dirty": "Neuložené změny",
+      "error": "Uložení selhalo"
+    },
+    "languages": {
+      "title": "Jazykové varianty",
+      "current": "Právě upravujete",
+      "translated": "Přeloženo",
+      "needsTranslation": "Vyžaduje překlad",
+      "missing": "Zatím nevytvořeno",
+      "created": "Varianta {language} vytvořena",
+      "createdNeedsTranslation": "Varianta {language} vytvořena — vyžaduje překlad",
+      "addFailed": "Tento jazyk se nepodařilo přidat"
+    },
+    "discard": {
+      "title": "Zahodit neuložené změny?",
+      "body": "Vaše úpravy {name} budou ztraceny.",
+      "keep": "Pokračovat v úpravách",
+      "confirm": "Zahodit"
+    },
+    "saveFailed": "Nepodařilo se uložit",
+    "saved": "Změny uloženy",
+    "loadFailed": "Tento e-mail se nepodařilo načíst"
+  },
+  "empty": {
+    "templates": {
+      "title": "Zatím žádné šablony",
+      "body": "Navrhněte opakovaně použitelný e-mail, ze kterého může váš tým odesílat."
+    },
+    "campaigns": {
+      "title": "Zatím žádné kampaně",
+      "body": "Vytvořte kampaň ze šablony nebo z prázdného plátna."
+    },
+    "noMatch": {
+      "templates": "Žádné šablony neodpovídají",
+      "campaigns": "Žádné kampaně neodpovídají",
+      "body": "Zkuste jiný hledaný výraz."
+    },
+    "archived": {
+      "templates": "Žádné archivované šablony",
+      "campaigns": "Žádné archivované kampaně",
+      "body": "Vše, co smažete, skončí tady a dá se obnovit."
+    }
+  },
+  "fields": {
+    "heading": "Nadpis",
+    "buttonText": "Text tlačítka",
+    "linkUrl": "URL odkazu",
+    "height": "Výška (px)",
+    "footer": "Zápatí",
+    "placeholderLabel": "Popisek zástupce",
+    "imageUrl": "URL obrázku",
+    "leftColumn": "Levý sloupec",
+    "rightColumn": "Pravý sloupec",
+    "quote": "Citace",
+    "attribution": "Autor",
+    "html": "HTML",
+    "label": "Popisek",
+    "value": "Hodnota",
+    "sectionLabel": "Popisek sekce",
+    "baseAmount": "Základní částka",
+    "frequency": "Frekvence",
+    "nextIssueDate": "Datum příštího vydání",
+    "scheduleNote": "Poznámka k cyklu",
+    "balance": "Zůstatek",
+    "earned": "Získáno",
+    "level": "Úroveň",
+    "body": "Text",
+    "finePrint": "Drobné písmo",
+    "contactName": "Jméno kontaktu",
+    "email": "E-mail",
+    "phone": "Telefon"
+  },
+  "group": {
+    "languages": "{count, plural, one {# jazyk} few {# jazyky} many {# jazyka} other {# jazyků}}",
+    "emails": "{count, plural, one {# e-mail} few {# e-maily} many {# e-mailu} other {# e-mailů}}",
+    "needsTranslation": "{count} vyžaduje překlad"
+  },
+  "groupBy": {
+    "label": "Seskupit podle",
+    "none": "Nic",
+    "topic": "Téma",
+    "language": "Jazyk"
+  },
+  "imagePicker": {
+    "title": "Vybrat obrázek",
+    "subtitle": "Vyberte ze souborů pracovního prostoru, nahrajte nový nebo vložte URL.",
+    "source": "Zdroj",
+    "workspaceFiles": "Soubory pracovního prostoru",
+    "upload": "Nahrát",
+    "noImages": "V knihovně zatím nejsou žádné obrázky — nahrajte nějaký.",
+    "connection": "Nahrát do",
+    "noConnection": "Před nahráváním připojte zdroj dat.",
+    "drop": "Přetáhněte sem obrázek",
+    "formats": "PNG, JPG, GIF nebo SVG",
+    "browse": "Procházet soubory",
+    "url": "URL obrázku",
+    "urlPlaceholder": "…nebo vložte URL obrázku",
+    "useUrl": "Použít URL",
+    "selected": "{name} vybráno",
+    "uploaded": "{name} nahráno"
+  },
+  "import": {
+    "title": "Importovat šablonu",
+    "subtitle": "Balíček exportovaný z Adminia.",
+    "choose": "Vybrat balíček",
+    "hint": "adminium-email-templates-<date>.json",
+    "invalid": "Tento soubor není e-mailový balíček Adminia.",
+    "summary": "{templates, plural, one {# šablona} few {# šablony} many {# šablony} other {# šablon}} a {campaigns, plural, one {# kampaň} few {# kampaně} many {# kampaně} other {# kampaní}} · {duplicates} už existuje",
+    "modeLabel": "Existující dokumenty",
+    "skip": "Přeskočit existující",
+    "replace": "Nahradit existující",
+    "confirm": "Importovat",
+    "failed": "Import selhal.",
+    "done": "{created} importováno · {replaced} nahrazeno · {skipped} přeskočeno",
+    "errors": "{count, plural, one {# dokument se nepodařilo importovat} few {# dokumenty se nepodařilo importovat} many {# dokumentu se nepodařilo importovat} other {# dokumentů se nepodařilo importovat}}"
   },
   "inspector": {
     "tabs": "Inspektor",
@@ -423,6 +449,258 @@ export default {
     "noDocuments": "V knihovně zatím nejsou žádné dokumenty. Nahrajte nějaký v části Soubory.",
     "attached": "{name} přiloženo"
   },
+  "layout": {
+    "label": "Zobrazení",
+    "gallery": "Galerie",
+    "list": "Seznam"
+  },
+  "linkFallback": "Pokud tlačítko nefunguje, vložte tento odkaz do prohlížeče: {url}",
+  "list": {
+    "name": "Název",
+    "lang": "Jazyk",
+    "status": "Stav",
+    "updated": "Aktualizováno",
+    "actions": "Akce"
+  },
+  "loadFailed": "E-mailové šablony se nepodařilo načíst",
+  "mirror": {
+    "title": "Použít i v ostatních jazycích?",
+    "body": "{label} lze zrcadlit do {count, plural, one {# další jazykové varianty} few {# dalších jazykových variant} many {# další jazykové varianty} other {# dalších jazykových variant}} tématu {topic}. Text se při uložení přenese nepřeložený.",
+    "onlyThis": "Jen {native}",
+    "applyAll": "Použít ve všech {count}",
+    "queued": "Zařazeno do {count, plural, one {# dalšího jazyka} few {# dalších jazyků} many {# dalšího jazyka} other {# dalších jazyků}} — použije se při uložení"
+  },
+  "needsTranslation": "Vyžaduje překlad",
+  "new": {
+    "template": "Nová šablona",
+    "campaign": "Nová kampaň",
+    "subtitle": "Začněte s prázdným e-mailem nebo s hotovým návrhem.",
+    "blank": "Prázdný e-mail",
+    "blankHint": "Začít od nuly",
+    "yourTemplates": "Vaše šablony",
+    "failed": "Nepodařilo se vytvořit",
+    "startersFailed": "Výchozí návrhy se nepodařilo načíst. Začněte s prázdným e-mailem nebo to zkuste znovu."
+  },
+  "notification": {
+    "action": "Otevřít {appName}",
+    "footer": "Tento e-mail dostáváte proto, že máte u svého účtu v aplikaci {appName} zapnutá e-mailová oznámení. Vypnout je můžete v nastavení oznámení.",
+    "name": "Oznámení"
+  },
+  "nouns": {
+    "paragraph": "odstavec",
+    "item": "položku",
+    "link": "odkaz",
+    "stat": "statistiku",
+    "currency": "měnu",
+    "taxLine": "daňový řádek",
+    "code": "kód",
+    "payment": "platbu",
+    "step": "krok"
+  },
+  "passwordReset": {
+    "action": "Zvolit nové heslo",
+    "heading": "Obnovte si heslo",
+    "intro": "Dobrý den, {name}, obdrželi jsme žádost o obnovení hesla k účtu {email}.",
+    "name": "Obnovení hesla",
+    "notice": "Tento odkaz funguje jen jednou a jeho platnost vyprší po {expiresInMinutes} minutách. Pokud jste o obnovení hesla nežádali, můžete tento e-mail ignorovat — vaše stávající heslo zůstává v platnosti.",
+    "subject": "Obnovte si heslo v aplikaci {appName}"
+  },
+  "picker": {
+    "title": "Přidat sekci",
+    "above": "Vloženo nad {label}",
+    "atEnd": "Přidáno na konec e-mailu",
+    "groups": {
+      "content": "Obsah",
+      "commerce": "Obchod a data",
+      "legal": "Právní a podpora",
+      "saved": "Uložené bloky"
+    },
+    "savedHint": "Uloženo: {label}"
+  },
+  "placeholders": {
+    "paragraphText": "Text odstavce",
+    "listItem": "Položka seznamu",
+    "label": "Popisek",
+    "iconName": "Název ikony",
+    "url": "URL",
+    "itemName": "Název položky",
+    "variant": "Varianta / SKU",
+    "stepName": "Název kroku",
+    "description": "Popis"
+  },
+  "rows": {
+    "paragraphs": "Odstavce",
+    "listItems": "Položky seznamu",
+    "links": "Odkazy",
+    "stats": "Statistiky",
+    "lineItems": "Položky",
+    "currencies": "Měny a kurzy",
+    "taxComponents": "Složky daně",
+    "codes": "Kódy",
+    "payments": "Platby",
+    "steps": "Kroky"
+  },
+  "run": {
+    "counts": "{sent} odesláno · {failed} selhalo",
+    "sending": "Odesílá se · {pct} %"
+  },
+  "search": {
+    "templates": "Hledat šablony…",
+    "campaigns": "Hledat kampaně…",
+    "clear": "Vymazat hledání"
+  },
+  "starters": {
+    "digest": {
+      "boxLabel": "Dokončené úkoly",
+      "cta": "Zobrazit celý přehled",
+      "heading": "Takhle vypadal váš týden",
+      "name": "Týdenní přehled",
+      "para1": "Váš tým dokončil 128 úkolů a vydal 3 verze. Tržby vzrostly o 12 % oproti minulému týdnu — skvělá práce.",
+      "preheader": "Rychlé shrnutí vašeho týdne",
+      "subject": "Váš týden v číslech 📊"
+    },
+    "extras": {
+      "cityTax": "Městská daň (2 %)",
+      "community": "Komunita",
+      "contact": "Kontaktujte nás",
+      "delivered": "Doručeno",
+      "delivery": "Průběh doručení",
+      "help": "Máte otázky? Kontaktujte nás",
+      "hero": "Úvodní obrázek — 600 × 240",
+      "item1": "Vstupenka na workshop",
+      "item1Meta": "So 12. 9. · 2 místa",
+      "item2": "Úložiště navíc",
+      "item2Meta": "250 GB",
+      "order": "Souhrn objednávky",
+      "ordered": "Objednáno",
+      "payments": "Historie plateb",
+      "processing": "Zpracovává se",
+      "quote": "{appName} nám zkrátil čas na reporting na polovinu.",
+      "quoteAuthor": "Priya R., Northwind Co",
+      "refund": "Pravidla vracení",
+      "refundText": "Plné vrácení peněz do 30 dnů od nákupu. Vrácení zboží zahájíte přes podporu.",
+      "shipped": "Odesláno",
+      "stat1": "Hotové úkoly",
+      "stat2": "Vydání",
+      "stat3": "Růst tržeb",
+      "stateTax": "Státní daň (6 %)",
+      "step1": "Pozvěte svůj tým",
+      "step2": "Připojte svá data",
+      "step3": "Sestavte první dashboard",
+      "support": "Podpora {appName}",
+      "tax": "Rozpis daní",
+      "website": "Web"
+    },
+    "failed": {
+      "boxLabel": "Dlužná částka",
+      "cta": "Aktualizovat platební metodu",
+      "heading": "Vaše platba neprošla",
+      "name": "Platba selhala",
+      "para1": "Pokusili jsme se strhnout platbu z vaší karty za objednávku #{orderNumber}, ale platba selhala. Aby nedošlo ke zpoždění, aktualizujte prosím svou platební metodu.",
+      "para2": "Za 3 dny to zkusíme znovu.",
+      "preheader": "Aktualizujte platební metodu",
+      "subject": "Vyžaduje pozornost: platba selhala"
+    },
+    "feature": {
+      "cta": "Vyzkoušet automatizace",
+      "heading": "Automatizujte rutinní práci",
+      "name": "Oznámení o funkci",
+      "para1": "Seznamte se s automatizacemi — postupy spouštěč → akce, které běží samy. Přivítají nové registrace, připomenou zaseknuté objednávky a samy rozdělí práci.",
+      "preheader": "Automatizujte rutinní práci",
+      "subject": "Představujeme automatizace ⚡"
+    },
+    "feedback": {
+      "cta": "Sdílet zpětnou vazbu",
+      "heading": "Rádi si vyslechneme vaši zpětnou vazbu",
+      "name": "Žádost o zpětnou vazbu",
+      "para1": "Používáte {appName} už nějakou dobu. Věnujete nám dvě minuty a řeknete, jak vám to jde? Vaše odpovědi určují, co postavíme příště.",
+      "preheader": "Dvě minuty, jedna otázka",
+      "subject": "Jak jsme si vedli, {firstName}?"
+    },
+    "footer": "Tento e-mail dostáváte, protože máte účet {appName}.\nMáte otázky? Odpovězte na tento e-mail.",
+    "monthly": {
+      "boxLabel": "Měsíční tržby",
+      "cta": "Zobrazit celý přehled",
+      "heading": "Váš {month} v přehledu",
+      "name": "Měsíční přehled",
+      "para1": "Tady je příběh vašeho měsíce na {appName}. Váš tým toho vydal víc a postupoval rychleji — tržby vzrostly o 18 % oproti minulému měsíci.",
+      "para2": "Ponořte se do celého rozpisu a zjistěte přesně, co za čísly stálo.",
+      "preheader": "Váš měsíc v přehledu",
+      "subject": "Váš přehled za {month} je hotový 📈"
+    },
+    "paused": {
+      "boxLabel": "Data uchována po dobu",
+      "boxValue": "30 dní",
+      "cta": "Znovu aktivovat účet",
+      "heading": "Váš účet je pozastavený",
+      "name": "Účet pozastaven",
+      "para1": "Váš účet je pozastavený, takže se teď nemůžete přihlásit. Nebojte se — vaše data jsou v bezpečí a zůstanou uchována 30 dní.",
+      "para2": "Kdykoli ho znovu aktivujte a pokračujte přesně tam, kde jste skončili.",
+      "preheader": "Vaše data jsou v bezpečí",
+      "subject": "Váš účet {appName} je pozastavený"
+    },
+    "receipt": {
+      "attachment": "Doklad v PDF",
+      "boxLabel": "Účtovaná částka",
+      "cta": "Zobrazit objednávku",
+      "heading": "Děkujeme za objednávku",
+      "name": "Doklad k objednávce",
+      "para1": "Tímto potvrzujeme přijetí vaší platby za objednávku #{orderNumber}. Kopii dokladu přikládáme k vašim záznamům.",
+      "preheader": "Děkujeme za objednávku",
+      "subject": "Váš doklad od {appName}"
+    },
+    "reengage": {
+      "cta": "Vrátit se",
+      "heading": "Dlouho jsme se neviděli, {firstName}",
+      "name": "Znovuzapojení",
+      "para1": "Od vaší poslední návštěvy se toho hodně změnilo. Vydali jsme automatizace, rychlejší dashboardy a úplně nový tvůrce přehledů.",
+      "para2": "Přijďte se podívat — váš účet je přesně tam, kde jste ho nechali.",
+      "preheader": "Podívejte se, co je nového",
+      "subject": "Chybíte nám na {appName}"
+    },
+    "reminder": {
+      "cta": "Spravovat schůzku",
+      "heading": "Brzy na viděnou, {firstName}",
+      "name": "Připomínka schůzky",
+      "para1": "Vaše schůzka je {date} v {time}. Potřebujete-li ji přesunout, odpovězte na tento e-mail nebo použijte tlačítko níže.",
+      "para2": "Přijďte prosím o pár minut dříve.",
+      "preheader": "Uvidíme se v {time}",
+      "subject": "Vaše schůzka je {date}"
+    },
+    "shipped": {
+      "cta": "Sledovat zásilku",
+      "heading": "Vaše objednávka byla odeslána",
+      "name": "Stav doručení",
+      "para1": "Dobrá zpráva, {firstName} — objednávka #{orderNumber} opustila náš sklad a je na cestě. Sledujte ji tlačítkem níže.",
+      "preheader": "Sledujte svou zásilku",
+      "subject": "Vaše objednávka #{orderNumber} je na cestě"
+    },
+    "verify": {
+      "cta": "Potvrdit e-mailovou adresu",
+      "heading": "Potvrďte svůj e-mail",
+      "name": "Potvrzení e-mailu",
+      "para1": "Díky za registraci! Potvrďte prosím svou e-mailovou adresu, aby se váš účet {appName} aktivoval. Pomáhá to udržet váš účet v bezpečí.",
+      "preheader": "Jeden rychlý krok",
+      "subject": "Potvrďte svou e-mailovou adresu"
+    },
+    "welcome": {
+      "cta": "Otevřít {appName}",
+      "heading": "Vítejte na palubě, {firstName}!",
+      "name": "Uvítací e-mail",
+      "para1": "Jsme rádi, že jste na {appName}. Váš účet je připravený — takhle začnete.",
+      "para2": "Potřebujete pomoc? Kdykoli odpovězte na tento e-mail a ozve se vám živý člověk.",
+      "preheader": "Pomůžeme vám začít",
+      "subject": "Vítejte v {appName} 👋"
+    }
+  },
+  "status": {
+    "draft": "Koncept",
+    "live": "Aktivní",
+    "scheduled": "Načasováno",
+    "sending": "Odesílá se",
+    "sent": "Odesláno",
+    "failed": "Selhalo"
+  },
   "style": {
     "title": "Styl bloku",
     "alignment": "Zarovnání",
@@ -472,93 +750,11 @@ export default {
     "fullWidth": "Na celou šířku",
     "fullWidthHint": "Až k okrajům e-mailu"
   },
-  "branding": {
-    "brandName": "Název značky",
-    "logoMark": "Symbol loga",
-    "yourLogo": "Vaše logo",
-    "fromName": "Jméno odesílatele",
-    "fromEmail": "E-mail odesílatele",
-    "notConfigured": "Není nastavený odesílatel.",
-    "manageSenders": "Spravovat odesílatele",
-    "noSenders": "Zatím žádní nastavení odesílatelé — použije se výchozí odesílatel.",
-    "defaultSenderOption": "Výchozí odesílatel",
-    "brandColour": "Barva značky",
-    "category": "Kategorie",
-    "status": "Stav",
-    "languageVariations": "Jazykové varianty",
-    "languageHint": "Přidáním jazyka vznikne propojená kopie. Varianty zůstávají seskupené pod tématem {topic}.",
-    "tagCurrent": "Aktuální",
-    "tagEdit": "Upravit",
-    "tagAdd": "Přidat",
-    "noMatch": "Žádný odesílatel neodpovídá"
-  },
-  "fields": {
-    "heading": "Nadpis",
-    "buttonText": "Text tlačítka",
-    "linkUrl": "URL odkazu",
-    "height": "Výška (px)",
-    "footer": "Zápatí",
-    "placeholderLabel": "Popisek zástupce",
-    "imageUrl": "URL obrázku",
-    "leftColumn": "Levý sloupec",
-    "rightColumn": "Pravý sloupec",
-    "quote": "Citace",
-    "attribution": "Autor",
-    "html": "HTML",
-    "label": "Popisek",
-    "value": "Hodnota",
-    "sectionLabel": "Popisek sekce",
-    "baseAmount": "Základní částka",
-    "frequency": "Frekvence",
-    "nextIssueDate": "Datum příštího vydání",
-    "scheduleNote": "Poznámka k cyklu",
-    "balance": "Zůstatek",
-    "earned": "Získáno",
-    "level": "Úroveň",
-    "body": "Text",
-    "finePrint": "Drobné písmo",
-    "contactName": "Jméno kontaktu",
-    "email": "E-mail",
-    "phone": "Telefon"
-  },
-  "rows": {
-    "paragraphs": "Odstavce",
-    "listItems": "Položky seznamu",
-    "links": "Odkazy",
-    "stats": "Statistiky",
-    "lineItems": "Položky",
-    "currencies": "Měny a kurzy",
-    "taxComponents": "Složky daně",
-    "codes": "Kódy",
-    "payments": "Platby",
-    "steps": "Kroky"
-  },
-  "nouns": {
-    "paragraph": "odstavec",
-    "item": "položku",
-    "link": "odkaz",
-    "stat": "statistiku",
-    "currency": "měnu",
-    "taxLine": "daňový řádek",
-    "code": "kód",
-    "payment": "platbu",
-    "step": "krok"
-  },
-  "placeholders": {
-    "paragraphText": "Text odstavce",
-    "listItem": "Položka seznamu",
-    "label": "Popisek",
-    "iconName": "Název ikony",
-    "url": "URL",
-    "itemName": "Název položky",
-    "variant": "Varianta / SKU",
-    "stepName": "Název kroku",
-    "description": "Popis"
-  },
-  "cycle": {
-    "done": "Hotovo",
-    "current": "Probíhá",
-    "todo": "Čeká"
+  "subtitle": "Navrhujte opakovaně použitelné e-maily a kampaně, které z nich rozesíláte.",
+  "tabs": {
+    "label": "Druh",
+    "templates": "Šablony",
+    "campaigns": "Kampaně"
   },
   "testSend": {
     "title": "Odeslat testovací e-mail",
@@ -578,54 +774,41 @@ export default {
     "done": "Hotovo",
     "queued": "Testovací e-mail odeslán {count, plural, one {# příjemci} few {# příjemcům} many {# příjemce} other {# příjemcům}}"
   },
-  "imagePicker": {
-    "title": "Vybrat obrázek",
-    "subtitle": "Vyberte ze souborů pracovního prostoru, nahrajte nový nebo vložte URL.",
-    "source": "Zdroj",
-    "workspaceFiles": "Soubory pracovního prostoru",
-    "upload": "Nahrát",
-    "noImages": "V knihovně zatím nejsou žádné obrázky — nahrajte nějaký.",
-    "connection": "Nahrát do",
-    "noConnection": "Před nahráváním připojte zdroj dat.",
-    "drop": "Přetáhněte sem obrázek",
-    "formats": "PNG, JPG, GIF nebo SVG",
-    "browse": "Procházet soubory",
-    "url": "URL obrázku",
-    "urlPlaceholder": "…nebo vložte URL obrázku",
-    "useUrl": "Použít URL",
-    "selected": "{name} vybráno",
-    "uploaded": "{name} nahráno"
+  "title": "E-mailové šablony",
+  "toast": {
+    "duplicated": {
+      "template": "Šablona duplikována",
+      "campaign": "Kampaň duplikována"
+    },
+    "duplicateFailed": "Nepodařilo se duplikovat",
+    "deleted": {
+      "template": "Šablona smazána",
+      "campaign": "Kampaň smazána"
+    },
+    "deleteFailed": "Nepodařilo se smazat",
+    "restored": {
+      "template": "Šablona obnovena",
+      "campaign": "Kampaň obnovena"
+    },
+    "restoreFailed": "Nepodařilo se obnovit",
+    "deletedForGood": {
+      "template": "Šablona trvale smazána",
+      "campaign": "Kampaň trvale smazána"
+    },
+    "reset": "Vrácena vestavěná verze",
+    "renameFailed": "Nepodařilo se přejmenovat"
   },
-  "campaign": {
-    "title": "Odeslat kampaň",
-    "sendTo": "Odeslat na",
-    "workspaceUsers": "Uživatelé pracovního prostoru",
-    "rolesHint": "Všichni, nebo jen držitelé vybraných rolí.",
-    "when": "Kdy",
-    "now": "Teď",
-    "schedule": "Načasovat",
-    "scheduleAt": "Odeslat v",
-    "pastTime": "Zvolte čas v budoucnosti.",
-    "counting": "Počítají se příjemci…",
-    "countFailed": "Příjemce se nepodařilo spočítat",
-    "count": "{total, plural, one {# příjemce} few {# příjemci} many {# příjemce} other {# příjemců}}",
-    "optedOut": "{skipped} odhlášeno",
-    "note": "Proměnné se vyplní u každého příjemce — z {token} se stane jméno dané osoby.",
-    "send": "Odeslat kampaň",
-    "scheduleAction": "Načasovat kampaň",
-    "sending": "Odesílá se…",
-    "failed": "Kampaň se nepodařilo odeslat.",
-    "sentTitle": "Kampaň odeslána!",
-    "sentBody": "{name} je na cestě k {count, plural, one {# příjemci} few {# příjemcům} many {# příjemce} other {# příjemcům}}.",
-    "scheduledTitle": "Kampaň načasována!",
-    "scheduledBody": "{name} odejde {when}.",
-    "done": "Hotovo",
-    "chipScheduled": "Načasováno · {when}",
-    "chipSending": "Odesílá se · {pct} %",
-    "cancelSchedule": "Zrušit načasování",
-    "cancelSending": "Zrušit odesílání",
-    "cancelled": "Načasování zrušeno",
-    "sendingCancelled": "Odesílání zrušeno",
-    "cancelFailed": "Nepodařilo se zrušit"
+  "untitled": {
+    "campaign": "Kampaň bez názvu",
+    "template": "Šablona bez názvu"
+  },
+  "userInvite": {
+    "action": "Přijmout pozvánku",
+    "heading": "Byli jste pozváni",
+    "intro": "{inviterName} vás pozval(a) do pracovního prostoru {appName}. Přijměte pozvánku, nastavte si heslo k účtu {email} a přihlaste se.",
+    "inviterFallback": "Správce",
+    "name": "Pozvánka do týmu",
+    "notice": "Tato pozvánka funguje jen jednou a její platnost vyprší po {expiresInDays} dnech. Pokud jste ji nečekali, můžete tento e-mail ignorovat.",
+    "subject": "Byli jste pozváni do pracovního prostoru {appName}"
   }
 } as const;

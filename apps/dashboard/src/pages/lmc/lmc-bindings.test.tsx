@@ -18,6 +18,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PageEnvelope } from '@adminium/engine/config';
+import { EN_US_RESOURCES, type ResourceBundle } from '@adminium/i18n/resources';
 import type { ReactNode } from 'react';
 
 import { jsonResponse, makeBootstrap } from '../../test/fixtures.js';
@@ -252,6 +253,16 @@ function renderWithProviders(ui: ReactNode, seedBootstrap = false) {
 
 // ── tests ────────────────────────────────────────────────────────────────────
 
+/** Walk a dotted path into the eager `ui` bundle, narrowing at each step. */
+function uiText(path: string): string | null {
+  let node: ResourceBundle[string] | undefined = EN_US_RESOURCES.ui;
+  for (const part of path.split('.')) {
+    if (node === undefined || typeof node === 'string') return null;
+    node = node[part];
+  }
+  return typeof node === 'string' ? node : null;
+}
+
 describe('extractPageBindings / findItemDescriptor', () => {
   it('extracts descriptors from kind:page layouts (no dashboard gate)', () => {
     const { requests, invalid } = extractPageBindings(chatPage);
@@ -287,7 +298,14 @@ describe('PageFilesBinding', () => {
 
     const template = await screen.findByTestId('tpl-files');
     expect(template.getAttribute('data-preview')).toBe('f-2');
-    expect(template.getAttribute('data-hint')).toBe('Uploads are not available on this page yet.');
+    // The binding passes NO `labels` any more. `files` became a deferred
+    // namespace, and this template renders inside a user-built page that never
+    // awaits it — so the hint would have been English forever. PageFiles owns
+    // the string now, through `ui:templates.files.uploadsUnavailable`, which is
+    // byte-identical and lives in an EAGER namespace. Asserted here so the day
+    // somebody re-adds a labels prop, this says why it was removed.
+    expect(template.getAttribute('data-hint')).toBe('');
+    expect(uiText('templates.files.uploadsUnavailable')).toBe('Uploads are not available on this page yet.');
 
     await userEvent.setup().click(screen.getByRole('button', { name: 'open-preview' }));
     expect(adapters.openRecord).toHaveBeenCalledWith('f-9');

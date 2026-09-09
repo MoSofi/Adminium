@@ -9,10 +9,6 @@
  * scripts/gen-resources.mjs.
  */
 export default {
-  "title": "Email templates",
-  "subtitle": "Design reusable emails & the campaigns you send from them.",
-  "loadFailed": "Couldn’t load email templates",
-  "needsTranslation": "Needs translation",
   "actions": {
     "menu": "More actions",
     "eyebrow": "Actions",
@@ -22,222 +18,17 @@ export default {
     "settings": "Email settings",
     "archived": "Archived"
   },
-  "new": {
-    "template": "New template",
-    "campaign": "New campaign",
-    "subtitle": "Start blank or from a ready-made email design.",
-    "blank": "Blank email",
-    "blankHint": "Start from scratch",
-    "yourTemplates": "Your templates",
-    "failed": "Could not create it",
-    "startersFailed": "The starters could not be loaded. Start blank, or try again."
-  },
-  "tabs": {
-    "label": "Kind",
-    "templates": "Templates",
-    "campaigns": "Campaigns"
-  },
-  "groupBy": {
-    "label": "Group by",
-    "none": "None",
-    "topic": "Topic",
-    "language": "Language"
-  },
-  "search": {
-    "templates": "Search templates…",
-    "campaigns": "Search campaigns…",
-    "clear": "Clear search"
-  },
-  "layout": {
-    "label": "Layout",
-    "gallery": "Gallery",
-    "list": "List"
-  },
   "archivedChip": {
     "field": "Showing",
     "value": "Archived",
     "leave": "Leave archived"
   },
-  "empty": {
-    "templates": {
-      "title": "No templates yet",
-      "body": "Design a reusable email your team can send from."
-    },
-    "campaigns": {
-      "title": "No campaigns yet",
-      "body": "Create a campaign from a template or a blank canvas."
-    },
-    "noMatch": {
-      "templates": "No templates match",
-      "campaigns": "No campaigns match",
-      "body": "Try a different search term."
-    },
-    "archived": {
-      "templates": "No archived templates",
-      "campaigns": "No archived campaigns",
-      "body": "Anything you delete lands here and can be restored."
-    }
-  },
-  "status": {
-    "draft": "Draft",
-    "live": "Live",
-    "scheduled": "Scheduled",
-    "sending": "Sending",
-    "sent": "Sent",
-    "failed": "Failed"
-  },
-  "category": {
-    "transactional": "Transactional",
-    "lifecycle": "Lifecycle",
-    "marketing": "Marketing"
-  },
-  "run": {
-    "counts": "{sent} sent · {failed} failed",
-    "sending": "Sending · {pct}%"
-  },
-  "group": {
-    "languages": "{count, plural, one {# language} other {# languages}}",
-    "emails": "{count, plural, one {# email} other {# emails}}",
-    "needsTranslation": "{count} needs translation"
-  },
-  "card": {
-    "edit": "Edit",
-    "duplicate": "Duplicate",
-    "rename": "Rename",
-    "renameLabel": "New name",
-    "delete": "Delete",
-    "restore": "Restore",
-    "deleteForGood": "Delete for good",
-    "reset": "Reset to built-in"
-  },
-  "list": {
-    "name": "Name",
-    "lang": "Lang",
-    "status": "Status",
-    "updated": "Updated",
-    "actions": "Actions"
-  },
-  "delete": {
-    "title": "Delete {name}?",
-    "archiveBody": "It moves to Archived, where you can restore it or delete it for good.",
-    "confirm": "Delete",
-    "forGoodTitle": "Delete {name} for good?",
-    "forGoodBody": {
-      "template": "This can’t be undone. The template will be permanently removed.",
-      "campaign": "This can’t be undone. The campaign will be permanently removed."
-    },
-    "forGood": "Delete for good",
-    "resetTitle": "Reset {name} to built-in?",
-    "resetBody": "Your edits to this language are replaced by the shipped copy.",
-    "reset": "Reset"
-  },
-  "toast": {
-    "duplicated": {
-      "template": "Template duplicated",
-      "campaign": "Campaign duplicated"
-    },
-    "duplicateFailed": "Could not duplicate it",
-    "deleted": {
-      "template": "Template deleted",
-      "campaign": "Campaign deleted"
-    },
-    "deleteFailed": "Could not delete it",
-    "restored": {
-      "template": "Template restored",
-      "campaign": "Campaign restored"
-    },
-    "restoreFailed": "Could not restore it",
-    "deletedForGood": {
-      "template": "Template deleted for good",
-      "campaign": "Campaign deleted for good"
-    },
-    "reset": "Reset to the built-in copy",
-    "renameFailed": "Could not rename it"
-  },
-  "import": {
-    "title": "Import template",
-    "subtitle": "A bundle exported from Adminium.",
-    "choose": "Choose a bundle",
-    "hint": "adminium-email-templates-<date>.json",
-    "invalid": "That file is not an Adminium email bundle.",
-    "summary": "{templates, plural, one {# template} other {# templates}} and {campaigns, plural, one {# campaign} other {# campaigns}} · {duplicates} already exist",
-    "modeLabel": "Existing documents",
-    "skip": "Skip existing",
-    "replace": "Replace existing",
-    "confirm": "Import",
-    "failed": "The import failed.",
-    "done": "{created} imported · {replaced} replaced · {skipped} skipped",
-    "errors": "{count, plural, one {# document} other {# documents}} could not be imported"
-  },
-  "editor": {
-    "kind": {
-      "template": "Template",
-      "campaign": "Campaign"
-    },
-    "nameLabel": "Name",
-    "undo": "Undo",
-    "redo": "Redo",
-    "test": "Test",
-    "save": "Save",
-    "saveTemplate": "Save template",
-    "sendCampaign": "Send campaign",
-    "shortcutSave": "Save the email",
-    "saveState": {
-      "saving": "Saving…",
-      "saved": "All changes saved",
-      "dirty": "Unsaved changes",
-      "error": "Couldn’t save"
-    },
-    "languages": {
-      "title": "Language variations",
-      "current": "Editing now",
-      "translated": "Translated",
-      "needsTranslation": "Needs translation",
-      "missing": "Not created yet",
-      "created": "{language} variation created",
-      "createdNeedsTranslation": "{language} variation created — needs translation",
-      "addFailed": "Could not add that language"
-    },
-    "discard": {
-      "title": "Discard unsaved changes?",
-      "body": "Your edits to {name} will be lost.",
-      "keep": "Keep editing",
-      "confirm": "Discard"
-    },
-    "saveFailed": "Could not save",
-    "saved": "Changes saved",
-    "loadFailed": "Couldn’t load this email"
-  },
-  "canvas": {
-    "livePreview": "Live preview · click any part of the email to edit it",
-    "device": "Preview width",
-    "desktop": "Desktop",
-    "mobile": "Mobile",
-    "subject": "Subject",
+  "blank": {
+    "cta": "Call to action",
+    "heading": "Heading goes here",
+    "para": "Start writing your email…",
     "preheader": "Preview text",
-    "preheaderPlaceholder": "Preview text…",
-    "select": "Edit {label}",
-    "insertAbove": "Insert a section above {label}",
-    "add": "Add",
-    "addSection": "Add section",
-    "defaultSender": "Default sender",
-    "now": "now",
-    "attachments": "{count, plural, one {# attachment} other {# attachments}}",
-    "fileMissing": "File missing",
-    "variables": "Variables",
-    "imagePlaceholder": "Image placeholder",
-    "htmlNote": "Rendered as raw HTML when the email is sent.",
-    "recurring": "Recurring — {freq}",
-    "nextOn": "Next on {next} · {note}",
-    "loyaltyBalance": "Loyalty balance",
-    "loyaltyLine": "{balance} pts · {level}",
-    "sections": {
-      "branding": "Brand & sender",
-      "subject": "Subject & preheader",
-      "footer": "Footer",
-      "attachments": "Attachments"
-    },
-    "blockAdded": "{label} added"
+    "subject": "Subject line"
   },
   "blocks": {
     "heading": {
@@ -348,24 +139,259 @@ export default {
       "label": "Section"
     }
   },
-  "picker": {
-    "title": "Add a section",
-    "above": "Inserted above {label}",
-    "atEnd": "Added at the end of the email",
-    "groups": {
-      "content": "Content",
-      "commerce": "Commerce & data",
-      "legal": "Legal & support",
-      "saved": "Saved blocks"
-    },
-    "savedHint": "Saved {label}"
+  "branding": {
+    "brandName": "Brand name",
+    "logoMark": "Logo mark",
+    "yourLogo": "Your logo",
+    "fromName": "From name",
+    "fromEmail": "From email",
+    "notConfigured": "Not a configured sender.",
+    "manageSenders": "Manage senders",
+    "noSenders": "No senders configured yet — the default sender is used.",
+    "defaultSenderOption": "Default sender",
+    "brandColour": "Brand colour",
+    "category": "Category",
+    "status": "Status",
+    "languageVariations": "Language variations",
+    "languageHint": "Adding a language creates a linked copy. Variations stay grouped under {topic}.",
+    "tagCurrent": "Current",
+    "tagEdit": "Edit",
+    "tagAdd": "Add",
+    "noMatch": "No sender matches"
   },
-  "mirror": {
-    "title": "Apply to the other languages?",
-    "body": "{label} can be mirrored to the {count, plural, one {# other language variation} other {# other language variations}} of {topic}. Copy comes across untranslated, when you save.",
-    "onlyThis": "Only {native}",
-    "applyAll": "Apply to all {count}",
-    "queued": "Queued for {count, plural, one {# other language} other {# other languages}} — applies when you save"
+  "campaign": {
+    "title": "Send campaign",
+    "sendTo": "Send to",
+    "workspaceUsers": "Workspace users",
+    "rolesHint": "Everyone, or only the holders of the roles you pick.",
+    "when": "When",
+    "now": "Now",
+    "schedule": "Schedule",
+    "scheduleAt": "Send at",
+    "pastTime": "Pick a time in the future.",
+    "counting": "Counting recipients…",
+    "countFailed": "Couldn’t count recipients",
+    "count": "{total, plural, one {# recipient} other {# recipients}}",
+    "optedOut": "{skipped} opted out",
+    "note": "Variables are filled per recipient — {token} becomes each person’s name.",
+    "send": "Send campaign",
+    "scheduleAction": "Schedule campaign",
+    "sending": "Sending…",
+    "failed": "The campaign could not be sent.",
+    "sentTitle": "Campaign sent!",
+    "sentBody": "{name} is on its way to {count, plural, one {# recipient} other {# recipients}}.",
+    "scheduledTitle": "Campaign scheduled!",
+    "scheduledBody": "{name} goes out {when}.",
+    "done": "Done",
+    "chipScheduled": "Scheduled · {when}",
+    "chipSending": "Sending · {pct}%",
+    "cancelSchedule": "Cancel schedule",
+    "cancelSending": "Cancel sending",
+    "cancelled": "Schedule cancelled",
+    "sendingCancelled": "Sending cancelled",
+    "cancelFailed": "Could not cancel"
+  },
+  "campaignSent": {
+    "body": "{sent} sent · {failed} failed",
+    "title": "Campaign sent: {name}"
+  },
+  "canvas": {
+    "livePreview": "Live preview · click any part of the email to edit it",
+    "device": "Preview width",
+    "desktop": "Desktop",
+    "mobile": "Mobile",
+    "subject": "Subject",
+    "preheader": "Preview text",
+    "preheaderPlaceholder": "Preview text…",
+    "select": "Edit {label}",
+    "insertAbove": "Insert a section above {label}",
+    "add": "Add",
+    "addSection": "Add section",
+    "defaultSender": "Default sender",
+    "now": "now",
+    "attachments": "{count, plural, one {# attachment} other {# attachments}}",
+    "fileMissing": "File missing",
+    "variables": "Variables",
+    "imagePlaceholder": "Image placeholder",
+    "htmlNote": "Rendered as raw HTML when the email is sent.",
+    "recurring": "Recurring — {freq}",
+    "nextOn": "Next on {next} · {note}",
+    "loyaltyBalance": "Loyalty balance",
+    "loyaltyLine": "{balance} pts · {level}",
+    "sections": {
+      "branding": "Brand & sender",
+      "subject": "Subject & preheader",
+      "footer": "Footer",
+      "attachments": "Attachments"
+    },
+    "blockAdded": "{label} added"
+  },
+  "card": {
+    "edit": "Edit",
+    "duplicate": "Duplicate",
+    "rename": "Rename",
+    "renameLabel": "New name",
+    "delete": "Delete",
+    "restore": "Restore",
+    "deleteForGood": "Delete for good",
+    "reset": "Reset to built-in"
+  },
+  "category": {
+    "transactional": "Transactional",
+    "lifecycle": "Lifecycle",
+    "marketing": "Marketing"
+  },
+  "copySuffix": "{name} (copy)",
+  "cycle": {
+    "done": "Done",
+    "current": "In progress",
+    "todo": "Pending"
+  },
+  "delete": {
+    "title": "Delete {name}?",
+    "archiveBody": "It moves to Archived, where you can restore it or delete it for good.",
+    "confirm": "Delete",
+    "forGoodTitle": "Delete {name} for good?",
+    "forGoodBody": {
+      "template": "This can’t be undone. The template will be permanently removed.",
+      "campaign": "This can’t be undone. The campaign will be permanently removed."
+    },
+    "forGood": "Delete for good",
+    "resetTitle": "Reset {name} to built-in?",
+    "resetBody": "Your edits to this language are replaced by the shipped copy.",
+    "reset": "Reset"
+  },
+  "editor": {
+    "kind": {
+      "template": "Template",
+      "campaign": "Campaign"
+    },
+    "nameLabel": "Name",
+    "undo": "Undo",
+    "redo": "Redo",
+    "test": "Test",
+    "save": "Save",
+    "saveTemplate": "Save template",
+    "sendCampaign": "Send campaign",
+    "shortcutSave": "Save the email",
+    "saveState": {
+      "saving": "Saving…",
+      "saved": "All changes saved",
+      "dirty": "Unsaved changes",
+      "error": "Couldn’t save"
+    },
+    "languages": {
+      "title": "Language variations",
+      "current": "Editing now",
+      "translated": "Translated",
+      "needsTranslation": "Needs translation",
+      "missing": "Not created yet",
+      "created": "{language} variation created",
+      "createdNeedsTranslation": "{language} variation created — needs translation",
+      "addFailed": "Could not add that language"
+    },
+    "discard": {
+      "title": "Discard unsaved changes?",
+      "body": "Your edits to {name} will be lost.",
+      "keep": "Keep editing",
+      "confirm": "Discard"
+    },
+    "saveFailed": "Could not save",
+    "saved": "Changes saved",
+    "loadFailed": "Couldn’t load this email"
+  },
+  "empty": {
+    "templates": {
+      "title": "No templates yet",
+      "body": "Design a reusable email your team can send from."
+    },
+    "campaigns": {
+      "title": "No campaigns yet",
+      "body": "Create a campaign from a template or a blank canvas."
+    },
+    "noMatch": {
+      "templates": "No templates match",
+      "campaigns": "No campaigns match",
+      "body": "Try a different search term."
+    },
+    "archived": {
+      "templates": "No archived templates",
+      "campaigns": "No archived campaigns",
+      "body": "Anything you delete lands here and can be restored."
+    }
+  },
+  "fields": {
+    "heading": "Heading",
+    "buttonText": "Button text",
+    "linkUrl": "Link URL",
+    "height": "Height (px)",
+    "footer": "Footer",
+    "placeholderLabel": "Placeholder label",
+    "imageUrl": "Image URL",
+    "leftColumn": "Left column",
+    "rightColumn": "Right column",
+    "quote": "Quote",
+    "attribution": "Attribution",
+    "html": "HTML",
+    "label": "Label",
+    "value": "Value",
+    "sectionLabel": "Section label",
+    "baseAmount": "Base amount",
+    "frequency": "Frequency",
+    "nextIssueDate": "Next issue date",
+    "scheduleNote": "Schedule note",
+    "balance": "Balance",
+    "earned": "Earned",
+    "level": "Level",
+    "body": "Body",
+    "finePrint": "Fine print",
+    "contactName": "Contact name",
+    "email": "Email",
+    "phone": "Phone"
+  },
+  "group": {
+    "languages": "{count, plural, one {# language} other {# languages}}",
+    "emails": "{count, plural, one {# email} other {# emails}}",
+    "needsTranslation": "{count} needs translation"
+  },
+  "groupBy": {
+    "label": "Group by",
+    "none": "None",
+    "topic": "Topic",
+    "language": "Language"
+  },
+  "imagePicker": {
+    "title": "Choose an image",
+    "subtitle": "Pick from your workspace files, upload one, or paste a URL.",
+    "source": "Source",
+    "workspaceFiles": "Workspace files",
+    "upload": "Upload",
+    "noImages": "No images in the library yet — upload one.",
+    "connection": "Upload into",
+    "noConnection": "Connect a data source before uploading.",
+    "drop": "Drop an image here",
+    "formats": "PNG, JPG, GIF or SVG",
+    "browse": "Browse files",
+    "url": "Image URL",
+    "urlPlaceholder": "…or paste an image URL",
+    "useUrl": "Use URL",
+    "selected": "{name} selected",
+    "uploaded": "{name} uploaded"
+  },
+  "import": {
+    "title": "Import template",
+    "subtitle": "A bundle exported from Adminium.",
+    "choose": "Choose a bundle",
+    "hint": "adminium-email-templates-<date>.json",
+    "invalid": "That file is not an Adminium email bundle.",
+    "summary": "{templates, plural, one {# template} other {# templates}} and {campaigns, plural, one {# campaign} other {# campaigns}} · {duplicates} already exist",
+    "modeLabel": "Existing documents",
+    "skip": "Skip existing",
+    "replace": "Replace existing",
+    "confirm": "Import",
+    "failed": "The import failed.",
+    "done": "{created} imported · {replaced} replaced · {skipped} skipped",
+    "errors": "{count, plural, one {# document} other {# documents}} could not be imported"
   },
   "inspector": {
     "tabs": "Inspector",
@@ -423,6 +449,258 @@ export default {
     "noDocuments": "No documents in the library yet. Upload one from Files.",
     "attached": "{name} attached"
   },
+  "layout": {
+    "label": "Layout",
+    "gallery": "Gallery",
+    "list": "List"
+  },
+  "linkFallback": "If the button doesn’t work, paste this link into your browser: {url}",
+  "list": {
+    "name": "Name",
+    "lang": "Lang",
+    "status": "Status",
+    "updated": "Updated",
+    "actions": "Actions"
+  },
+  "loadFailed": "Couldn’t load email templates",
+  "mirror": {
+    "title": "Apply to the other languages?",
+    "body": "{label} can be mirrored to the {count, plural, one {# other language variation} other {# other language variations}} of {topic}. Copy comes across untranslated, when you save.",
+    "onlyThis": "Only {native}",
+    "applyAll": "Apply to all {count}",
+    "queued": "Queued for {count, plural, one {# other language} other {# other languages}} — applies when you save"
+  },
+  "needsTranslation": "Needs translation",
+  "new": {
+    "template": "New template",
+    "campaign": "New campaign",
+    "subtitle": "Start blank or from a ready-made email design.",
+    "blank": "Blank email",
+    "blankHint": "Start from scratch",
+    "yourTemplates": "Your templates",
+    "failed": "Could not create it",
+    "startersFailed": "The starters could not be loaded. Start blank, or try again."
+  },
+  "notification": {
+    "action": "Open {appName}",
+    "footer": "You are receiving this because email notifications are on for your {appName} account. You can turn them off in your notification preferences.",
+    "name": "Notification"
+  },
+  "nouns": {
+    "paragraph": "paragraph",
+    "item": "item",
+    "link": "link",
+    "stat": "stat",
+    "currency": "currency",
+    "taxLine": "tax line",
+    "code": "code",
+    "payment": "payment",
+    "step": "step"
+  },
+  "passwordReset": {
+    "action": "Choose a new password",
+    "heading": "Reset your password",
+    "intro": "Hi {name}, we received a request to reset the password for {email}.",
+    "name": "Password reset",
+    "notice": "This link works only once and expires in {expiresInMinutes} minutes. If you didn’t ask to reset your password, you can ignore this email — your current password stays active.",
+    "subject": "Reset your {appName} password"
+  },
+  "picker": {
+    "title": "Add a section",
+    "above": "Inserted above {label}",
+    "atEnd": "Added at the end of the email",
+    "groups": {
+      "content": "Content",
+      "commerce": "Commerce & data",
+      "legal": "Legal & support",
+      "saved": "Saved blocks"
+    },
+    "savedHint": "Saved {label}"
+  },
+  "placeholders": {
+    "paragraphText": "Paragraph text",
+    "listItem": "List item",
+    "label": "Label",
+    "iconName": "Icon name",
+    "url": "URL",
+    "itemName": "Item name",
+    "variant": "Variant / SKU",
+    "stepName": "Step name",
+    "description": "Description"
+  },
+  "rows": {
+    "paragraphs": "Paragraphs",
+    "listItems": "List items",
+    "links": "Links",
+    "stats": "Stats",
+    "lineItems": "Line items",
+    "currencies": "Currencies & rates",
+    "taxComponents": "Tax components",
+    "codes": "Codes",
+    "payments": "Payments",
+    "steps": "Steps"
+  },
+  "run": {
+    "counts": "{sent} sent · {failed} failed",
+    "sending": "Sending · {pct}%"
+  },
+  "search": {
+    "templates": "Search templates…",
+    "campaigns": "Search campaigns…",
+    "clear": "Clear search"
+  },
+  "starters": {
+    "digest": {
+      "boxLabel": "Tasks completed",
+      "cta": "See full report",
+      "heading": "Here is how your week went",
+      "name": "Weekly digest",
+      "para1": "Your team completed 128 tasks and shipped 3 releases. Revenue is up 12% versus last week — nice work.",
+      "preheader": "A quick recap of your week",
+      "subject": "Your week in numbers 📊"
+    },
+    "extras": {
+      "cityTax": "City tax (2%)",
+      "community": "Community",
+      "contact": "Contact us",
+      "delivered": "Delivered",
+      "delivery": "Delivery timeline",
+      "help": "Questions? Contact us",
+      "hero": "Hero image — 600 × 240",
+      "item1": "Workshop ticket",
+      "item1Meta": "Sat 12 Sep · 2 seats",
+      "item2": "Extra storage",
+      "item2Meta": "250 GB",
+      "order": "Order summary",
+      "ordered": "Ordered",
+      "payments": "Payment history",
+      "processing": "Processing",
+      "quote": "{appName} cut our reporting time in half.",
+      "quoteAuthor": "Priya R., Northwind Co",
+      "refund": "Refund policy",
+      "refundText": "Full refunds within 30 days of purchase. Contact support to begin a return.",
+      "shipped": "Shipped",
+      "stat1": "Tasks done",
+      "stat2": "Releases",
+      "stat3": "Revenue up",
+      "stateTax": "State tax (6%)",
+      "step1": "Invite your team",
+      "step2": "Connect your data",
+      "step3": "Build your first dashboard",
+      "support": "{appName} support",
+      "tax": "Tax breakdown",
+      "website": "Website"
+    },
+    "failed": {
+      "boxLabel": "Amount due",
+      "cta": "Update payment method",
+      "heading": "Your payment didn’t go through",
+      "name": "Payment failed",
+      "para1": "We tried to charge your card for order #{orderNumber} but the payment failed. To avoid a delay, please update your payment method.",
+      "para2": "We’ll try again in 3 days.",
+      "preheader": "Update your payment method",
+      "subject": "Action needed: payment failed"
+    },
+    "feature": {
+      "cta": "Try Automations",
+      "heading": "Automate the busywork",
+      "name": "Feature announcement",
+      "para1": "Say hello to Automations — build trigger → action workflows that run themselves. Welcome new signups, follow up on stalled orders and route work on autopilot.",
+      "preheader": "Automate the busywork",
+      "subject": "Introducing Automations ⚡"
+    },
+    "feedback": {
+      "cta": "Share feedback",
+      "heading": "We’d love your feedback",
+      "name": "Feedback request",
+      "para1": "You’ve been using {appName} for a little while now. Would you take two minutes to tell us how it’s going? Your answers shape what we build next.",
+      "preheader": "Two minutes, one question",
+      "subject": "How did we do, {firstName}?"
+    },
+    "footer": "You are receiving this because you have an {appName} account.\nQuestions? Reply to this email.",
+    "monthly": {
+      "boxLabel": "Monthly revenue",
+      "cta": "View full report",
+      "heading": "Your {month} in review",
+      "name": "Monthly report",
+      "para1": "Here’s the story of your month on {appName}. Your team shipped more and moved faster — revenue climbed 18% versus last month.",
+      "para2": "Dive into the full breakdown to see exactly what drove the numbers.",
+      "preheader": "Your month in review",
+      "subject": "Your {month} report is ready 📈"
+    },
+    "paused": {
+      "boxLabel": "Data kept for",
+      "boxValue": "30 days",
+      "cta": "Reactivate account",
+      "heading": "Your account is paused",
+      "name": "Account paused",
+      "para1": "Your account is paused, so you can’t sign in for now. Don’t worry — your data is safe and kept for 30 days.",
+      "para2": "Reactivate any time to pick up right where you left off.",
+      "preheader": "Your data is safe",
+      "subject": "Your {appName} account is paused"
+    },
+    "receipt": {
+      "attachment": "Receipt PDF",
+      "boxLabel": "Amount charged",
+      "cta": "View your order",
+      "heading": "Thanks for your order",
+      "name": "Order receipt",
+      "para1": "This confirms we received your payment for order #{orderNumber}. A copy of your receipt is attached for your records.",
+      "preheader": "Thanks for your order",
+      "subject": "Your receipt from {appName}"
+    },
+    "reengage": {
+      "cta": "Jump back in",
+      "heading": "It’s been a while, {firstName}",
+      "name": "Re-engagement",
+      "para1": "A lot has changed since you were last here. We’ve shipped Automations, faster dashboards and a brand-new report builder.",
+      "para2": "Come take a look — your account is right where you left it.",
+      "preheader": "See what is new",
+      "subject": "We miss you at {appName}"
+    },
+    "reminder": {
+      "cta": "Manage appointment",
+      "heading": "See you soon, {firstName}",
+      "name": "Appointment reminder",
+      "para1": "Your appointment is on {date} at {time}. If you need to reschedule, reply to this email or use the button below.",
+      "para2": "Please arrive a few minutes early.",
+      "preheader": "See you at {time}",
+      "subject": "Your appointment is on {date}"
+    },
+    "shipped": {
+      "cta": "Track delivery",
+      "heading": "Your order has shipped",
+      "name": "Delivery update",
+      "para1": "Good news, {firstName} — order #{orderNumber} has left our warehouse and is on its way. Track it with the button below.",
+      "preheader": "Track your delivery",
+      "subject": "Your order #{orderNumber} is on its way"
+    },
+    "verify": {
+      "cta": "Confirm email address",
+      "heading": "Confirm your email",
+      "name": "Confirm your email",
+      "para1": "Thanks for signing up! Please confirm your email address to activate your {appName} account. This helps keep your account secure.",
+      "preheader": "One quick step",
+      "subject": "Confirm your email address"
+    },
+    "welcome": {
+      "cta": "Open {appName}",
+      "heading": "Welcome aboard, {firstName}!",
+      "name": "Welcome email",
+      "para1": "We’re glad to have you at {appName}. Your account is ready — here is how to get started.",
+      "para2": "Need a hand? Reply to this email any time and a real person will help.",
+      "preheader": "Let us get you set up",
+      "subject": "Welcome to {appName} 👋"
+    }
+  },
+  "status": {
+    "draft": "Draft",
+    "live": "Live",
+    "scheduled": "Scheduled",
+    "sending": "Sending",
+    "sent": "Sent",
+    "failed": "Failed"
+  },
   "style": {
     "title": "Block style",
     "alignment": "Alignment",
@@ -472,93 +750,11 @@ export default {
     "fullWidth": "Full-width",
     "fullWidthHint": "Bleed to the email edges"
   },
-  "branding": {
-    "brandName": "Brand name",
-    "logoMark": "Logo mark",
-    "yourLogo": "Your logo",
-    "fromName": "From name",
-    "fromEmail": "From email",
-    "notConfigured": "Not a configured sender.",
-    "manageSenders": "Manage senders",
-    "noSenders": "No senders configured yet — the default sender is used.",
-    "defaultSenderOption": "Default sender",
-    "brandColour": "Brand colour",
-    "category": "Category",
-    "status": "Status",
-    "languageVariations": "Language variations",
-    "languageHint": "Adding a language creates a linked copy. Variations stay grouped under {topic}.",
-    "tagCurrent": "Current",
-    "tagEdit": "Edit",
-    "tagAdd": "Add",
-    "noMatch": "No sender matches"
-  },
-  "fields": {
-    "heading": "Heading",
-    "buttonText": "Button text",
-    "linkUrl": "Link URL",
-    "height": "Height (px)",
-    "footer": "Footer",
-    "placeholderLabel": "Placeholder label",
-    "imageUrl": "Image URL",
-    "leftColumn": "Left column",
-    "rightColumn": "Right column",
-    "quote": "Quote",
-    "attribution": "Attribution",
-    "html": "HTML",
-    "label": "Label",
-    "value": "Value",
-    "sectionLabel": "Section label",
-    "baseAmount": "Base amount",
-    "frequency": "Frequency",
-    "nextIssueDate": "Next issue date",
-    "scheduleNote": "Schedule note",
-    "balance": "Balance",
-    "earned": "Earned",
-    "level": "Level",
-    "body": "Body",
-    "finePrint": "Fine print",
-    "contactName": "Contact name",
-    "email": "Email",
-    "phone": "Phone"
-  },
-  "rows": {
-    "paragraphs": "Paragraphs",
-    "listItems": "List items",
-    "links": "Links",
-    "stats": "Stats",
-    "lineItems": "Line items",
-    "currencies": "Currencies & rates",
-    "taxComponents": "Tax components",
-    "codes": "Codes",
-    "payments": "Payments",
-    "steps": "Steps"
-  },
-  "nouns": {
-    "paragraph": "paragraph",
-    "item": "item",
-    "link": "link",
-    "stat": "stat",
-    "currency": "currency",
-    "taxLine": "tax line",
-    "code": "code",
-    "payment": "payment",
-    "step": "step"
-  },
-  "placeholders": {
-    "paragraphText": "Paragraph text",
-    "listItem": "List item",
-    "label": "Label",
-    "iconName": "Icon name",
-    "url": "URL",
-    "itemName": "Item name",
-    "variant": "Variant / SKU",
-    "stepName": "Step name",
-    "description": "Description"
-  },
-  "cycle": {
-    "done": "Done",
-    "current": "In progress",
-    "todo": "Pending"
+  "subtitle": "Design reusable emails & the campaigns you send from them.",
+  "tabs": {
+    "label": "Kind",
+    "templates": "Templates",
+    "campaigns": "Campaigns"
   },
   "testSend": {
     "title": "Send test email",
@@ -578,54 +774,41 @@ export default {
     "done": "Done",
     "queued": "Test email sent to {count, plural, one {# recipient} other {# recipients}}"
   },
-  "imagePicker": {
-    "title": "Choose an image",
-    "subtitle": "Pick from your workspace files, upload one, or paste a URL.",
-    "source": "Source",
-    "workspaceFiles": "Workspace files",
-    "upload": "Upload",
-    "noImages": "No images in the library yet — upload one.",
-    "connection": "Upload into",
-    "noConnection": "Connect a data source before uploading.",
-    "drop": "Drop an image here",
-    "formats": "PNG, JPG, GIF or SVG",
-    "browse": "Browse files",
-    "url": "Image URL",
-    "urlPlaceholder": "…or paste an image URL",
-    "useUrl": "Use URL",
-    "selected": "{name} selected",
-    "uploaded": "{name} uploaded"
+  "title": "Email templates",
+  "toast": {
+    "duplicated": {
+      "template": "Template duplicated",
+      "campaign": "Campaign duplicated"
+    },
+    "duplicateFailed": "Could not duplicate it",
+    "deleted": {
+      "template": "Template deleted",
+      "campaign": "Campaign deleted"
+    },
+    "deleteFailed": "Could not delete it",
+    "restored": {
+      "template": "Template restored",
+      "campaign": "Campaign restored"
+    },
+    "restoreFailed": "Could not restore it",
+    "deletedForGood": {
+      "template": "Template deleted for good",
+      "campaign": "Campaign deleted for good"
+    },
+    "reset": "Reset to the built-in copy",
+    "renameFailed": "Could not rename it"
   },
-  "campaign": {
-    "title": "Send campaign",
-    "sendTo": "Send to",
-    "workspaceUsers": "Workspace users",
-    "rolesHint": "Everyone, or only the holders of the roles you pick.",
-    "when": "When",
-    "now": "Now",
-    "schedule": "Schedule",
-    "scheduleAt": "Send at",
-    "pastTime": "Pick a time in the future.",
-    "counting": "Counting recipients…",
-    "countFailed": "Couldn’t count recipients",
-    "count": "{total, plural, one {# recipient} other {# recipients}}",
-    "optedOut": "{skipped} opted out",
-    "note": "Variables are filled per recipient — {token} becomes each person’s name.",
-    "send": "Send campaign",
-    "scheduleAction": "Schedule campaign",
-    "sending": "Sending…",
-    "failed": "The campaign could not be sent.",
-    "sentTitle": "Campaign sent!",
-    "sentBody": "{name} is on its way to {count, plural, one {# recipient} other {# recipients}}.",
-    "scheduledTitle": "Campaign scheduled!",
-    "scheduledBody": "{name} goes out {when}.",
-    "done": "Done",
-    "chipScheduled": "Scheduled · {when}",
-    "chipSending": "Sending · {pct}%",
-    "cancelSchedule": "Cancel schedule",
-    "cancelSending": "Cancel sending",
-    "cancelled": "Schedule cancelled",
-    "sendingCancelled": "Sending cancelled",
-    "cancelFailed": "Could not cancel"
+  "untitled": {
+    "campaign": "Untitled campaign",
+    "template": "Untitled template"
+  },
+  "userInvite": {
+    "action": "Accept the invitation",
+    "heading": "You’ve been invited",
+    "intro": "{inviterName} invited you to join {appName}. Accept the invitation to set a password for {email} and sign in.",
+    "inviterFallback": "An administrator",
+    "name": "Team invitation",
+    "notice": "This invitation works only once and expires in {expiresInDays} days. If you weren’t expecting it, you can ignore this email.",
+    "subject": "You have been invited to {appName}"
   }
 } as const;

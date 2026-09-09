@@ -26,17 +26,17 @@ import { dataIoApi, exportsListQuery, type ExportDto, type ExportFormat } from '
 function statusLine(row: ExportDto): string {
   switch (row.status) {
     case 'processing':
-      return t('dataio.exports.statusProcessing', 'Processing…');
+      return t('dataio:exports.statusProcessing', 'Processing…');
     case 'ready':
-      return t('dataio.exports.statusReady', 'Ready — {rows} rows · click to download', {
+      return t('dataio:exports.statusReady', 'Ready — {rows} rows · click to download', {
         rows: row.rowCount ?? 0,
       });
     case 'failed':
-      return t('dataio.exports.statusFailed', 'Failed — {error}', { error: row.error ?? '?' });
+      return t('dataio:exports.statusFailed', 'Failed — {error}', { error: row.error ?? '?' });
     case 'cancelled':
-      return t('dataio.exports.statusCancelled', 'Cancelled');
+      return t('dataio:exports.statusCancelled', 'Cancelled');
     case 'expired':
-      return t('dataio.exports.statusExpired', 'Expired');
+      return t('dataio:exports.statusExpired', 'Expired');
   }
 }
 
@@ -83,7 +83,7 @@ export function DataExportsPage() {
       ) {
         setTarget(null);
         setTargetError(
-          t('dataio.exports.notATable', 'That page is not a table — pick a table page to export.'),
+          t('dataio:exports.notATable', 'That page is not a table — pick a table page to export.'),
         );
         return;
       }
@@ -142,7 +142,7 @@ export function DataExportsPage() {
           is where a file is put together; this form stays as the quick path. */}
       <PageActions>
         <Button asChild size="topbar" iconLeft={<Plus />} data-testid="exports-new">
-          <Link to="/exports/new">{t('dataio.exports.new', 'New export')}</Link>
+          <Link to="/exports/new">{t('dataio:exports.new', 'New export')}</Link>
         </Button>
       </PageActions>
 
@@ -150,7 +150,7 @@ export function DataExportsPage() {
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4">
         <label className="flex min-w-56 flex-col gap-1.5">
           <span className="text-body-sm font-medium text-fg">
-            {t('dataio.exports.tableLabel', 'Table')}
+            {t('dataio:exports.tableLabel', 'Table')}
           </span>
           <Select
             value=""
@@ -160,7 +160,7 @@ export function DataExportsPage() {
             }}
           >
             <option value="">
-              {target === null ? t('dataio.exports.tablePlaceholder', 'Choose a table…') : target.table}
+              {target === null ? t('dataio:exports.tablePlaceholder', 'Choose a table…') : target.table}
             </option>
             {navItems.map((item) => (
               <option key={item.pageId} value={item.pageId}>
@@ -171,7 +171,7 @@ export function DataExportsPage() {
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="text-body-sm font-medium text-fg">
-            {t('dataio.exports.formatLabel', 'Format')}
+            {t('dataio:exports.formatLabel', 'Format')}
           </span>
           <Select
             value={format}
@@ -186,10 +186,10 @@ export function DataExportsPage() {
           disabled={target === null || createMutation.isPending}
           data-testid="create-export"
         >
-          {t('dataio.exports.create', 'Export')}
+          {t('dataio:exports.create', 'Export')}
         </Button>
         <p className="basis-full text-caption text-fg-subtle">
-          {t('dataio.exports.retention', 'Exports are kept for 30 days, then expire.')}
+          {t('dataio:exports.retention', 'Exports are kept for 30 days, then expire.')}
         </p>
       </div>
 
@@ -200,7 +200,7 @@ export function DataExportsPage() {
           title={
             createMutation.error instanceof Error
               ? createMutation.error.message
-              : t('dataio.exports.createFailed', 'Could not request the export.')
+              : t('dataio:exports.createFailed', 'Could not request the export.')
           }
         />
       ) : null}
@@ -211,8 +211,8 @@ export function DataExportsPage() {
         toggleable={false}
         showRecipients={false}
         nextRunLabel=""
-        emptyTitle={t('dataio.exports.emptyTitle', 'No exports yet')}
-        emptyBody={t('dataio.exports.emptyBody', 'Request one above — artifacts appear here with their status.')}
+        emptyTitle={t('dataio:exports.emptyTitle', 'No exports yet')}
+        emptyBody={t('dataio:exports.emptyBody', 'Request one above — artifacts appear here with their status.')}
         onSelect={(job) => {
           const row = (exportsList.data ?? []).find((entry) => entry.id === String(job.id));
           if (row === undefined) return;

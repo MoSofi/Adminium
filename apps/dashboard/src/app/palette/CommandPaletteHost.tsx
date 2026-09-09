@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
  * ⌘K command palette (09-generated-app.md §5.2, Command
- * Palette.dc.html): ui CommandPalette shell + useCommandK, fixed group order —
+ * Palette.dc.html): the ui CommandPalette shell, fixed group order —
  * Actions (theme toggle, shortcuts panel, sign out), Navigate (nav-tree
  * entries with their G-chord hints), Recent (mixed-entity localStorage list,
  * ./recent.ts — AppShell records every page navigation / record open), then
@@ -17,12 +17,16 @@
  *
  * The "Ask AI" footer renders when bootstrap `llm.enabled` — i.e. once an
  * admin configures a provider in Settings → AI (06-llm-assist.md §3.2).
+ *
+ * Loaded lazily by AppShell on the first open (the entry-chunk ratchet,
+ * apps/dashboard/scripts/check-entry-budget.mjs — a modal that is closed on
+ * every first paint has no business in the boot chunk). ⌘K is therefore bound
+ * in AppShell, not here: the shortcut has to work before this module exists.
  */
 import { FileText, History, Keyboard, Loader2, LogOut, Moon, Sparkles, Sun } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CommandPalette,
-  useCommandK,
   useTheme,
   useThemePrefs,
   type CommandGroup,
@@ -88,8 +92,6 @@ export function CommandPaletteHost({
   const { setPref } = useThemePrefs();
   const dark = resolved.theme === 'dark';
   const userId = bootstrap.user.id;
-
-  useCommandK(() => onOpenChange(!open));
 
   // Controlled query — the host needs it for the debounced server search.
   const [query, setQuery] = useState('');

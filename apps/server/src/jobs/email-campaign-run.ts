@@ -237,8 +237,8 @@ export function registerEmailCampaignRunHandler(registry: JobRegistry, deps: Ema
             {
               userId: run.createdBy,
               kind: EMAIL_CAMPAIGN_SENT_KIND,
-              title: t('email.campaignSent.title', { name: campaign.name, defaultValue: 'Campaign sent: {name}' }),
-              body: t('email.campaignSent.body', {
+              title: t('email:campaignSent.title', { name: campaign.name, defaultValue: 'Campaign sent: {name}' }),
+              body: t('email:campaignSent.body', {
                 sent: String(sent),
                 failed: String(failed),
                 defaultValue: '{sent} sent · {failed} failed',

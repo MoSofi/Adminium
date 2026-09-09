@@ -11,6 +11,7 @@
  * `settings.manage` power while every read is a session's.
  */
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
 
 import BetterSqlite3 from 'better-sqlite3';
@@ -28,11 +29,9 @@ import {
   type User,
 } from '@adminium/meta';
 
-import { createServerI18n } from '@adminium/i18n/server';
 
 import { decryptSecret, encryptSecret } from '../src/config/secrets.js';
 import { seedBuiltinEmailTemplates } from '../src/email/builtins.js';
-import { renderStarter } from '../src/email/starters.js';
 import { emailSecretKey } from '../src/email/config.js';
 import { emailEnvelopeKey, resetEmailRuntime } from '../src/email/send.js';
 import type { FileStore } from '../src/files/store.js';
@@ -45,10 +44,23 @@ import { TEST_SECRET } from './helpers.js';
 const PDF = Buffer.from('%PDF-1.4 sample bytes for the attachment test');
 const PDF_SHA = createHash('sha256').update(PDF).digest('hex');
 
-/** The starter's name as the target locale's translator renders it — English until 39-T17 translates the catalogue. */
-async function starterName(key: 'welcome', locale: string): Promise<string> {
-  const { t } = await createServerI18n({ locale });
-  return renderStarter(key, t).name;
+/**
+ * The starter's name as the CATALOGUE spells it, read straight from the locale
+ * bundle on disk.
+ *
+ * This used to call `createServerI18n` + `renderStarter` — the very path the
+ * assertions exercise — so both sides moved together and the test could not
+ * fail. That mattered: `email` is a deferred namespace, and until
+ * `createServerI18n` learned to load the deferred set, the server rendered
+ * English for every non-English recipient while this oracle cheerfully
+ * expected English too. An oracle has to be able to disagree with the code.
+ */
+function starterName(key: 'welcome', locale: string): string {
+  const tag = locale.replaceAll('_', '-');
+  const bundle = JSON.parse(
+    readFileSync(new URL(`../../../packages/i18n/locales/${tag}/email.json`, import.meta.url), 'utf8'),
+  ) as { starters: Record<string, { name: string }> };
+  return bundle.starters[key]!.name;
 }
 
 /** A file store that serves one buffer per storage key — no disk, no spool. */
@@ -169,7 +181,7 @@ describe('email document routes (39-T03)', () => {
 
   it('creates from a starter in the requested locale, mints the key, and adds a translated language', async () => {
     const doc = await create({ kind: 'template', starter: 'welcome', locale: 'de_DE' });
-    const deName = await starterName('welcome', 'de_DE');
+    const deName = starterName('welcome', 'de_DE');
     expect(doc.name).toBe(deName);
     expect(doc.key).toBe(deName.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-+|-+$/g, ''));
     expect(doc.locale).toBe('de_DE');
@@ -196,7 +208,7 @@ describe('email document routes (39-T03)', () => {
     expect(fr.key).toBe(doc.key);
     expect(fr.locale).toBe('fr_FR');
     expect(fr.needsTranslation).toBe(false);
-    expect(fr.name).toBe(await starterName('welcome', 'fr_FR'));
+    expect(fr.name).toBe(starterName('welcome', 'fr_FR'));
     expect(fr.languages.map((l) => l.locale)).toEqual(['de_DE', 'fr_FR']);
 
     const dup = await app.inject({ method: 'POST', url: `/email-templates/${doc.id}/languages`, headers: as(manager), payload: { locale: 'fr_FR' } });

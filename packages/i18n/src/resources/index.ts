@@ -13,7 +13,9 @@
  * check-entry-budget ratchet exists to catch.
  */
 import automations from './en-us/automations.js';
+import dataio from './en-us/dataio.js';
 import email from './en-us/email.js';
+import files from './en-us/files.js';
 import invoices from './en-us/invoices.js';
 import studio from './en-us/studio.js';
 
@@ -37,4 +39,6 @@ export const EN_US_RESOURCES: Record<Namespace, ResourceBundle> = {
   email,
   invoices,
   automations,
+  dataio,
+  files,
 };

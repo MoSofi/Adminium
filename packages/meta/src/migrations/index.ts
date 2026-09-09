@@ -51,6 +51,7 @@ import { up as up0025 } from './0025_schema_change_acknowledged_rows.js';
 import { up as up0026 } from './0026_email_documents.js';
 import { up as up0027 } from './0027_invoice_documents.js';
 import { up as up0028 } from './0028_automations_runtime.js';
+import { up as up0029 } from './0029_dataio_files_email_namespace.js';
 
 export interface MetaMigration {
   /** Basename, e.g. `0001_core_auth` — the ledger PK. */
@@ -87,4 +88,5 @@ export const ALL_MIGRATIONS: readonly MetaMigration[] = [
   { name: '0026_email_documents', up: up0026 },
   { name: '0027_invoice_documents', up: up0027 },
   { name: '0028_automations_runtime', up: up0028 },
+  { name: '0029_dataio_files_email_namespace', up: up0029 },
 ];

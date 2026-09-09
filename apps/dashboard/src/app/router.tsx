@@ -24,6 +24,7 @@ import { ChartDirectionBridge, WidgetRuntimeProvider } from '@adminium/widgets';
 
 import { dataIoRoutes } from '../data-io/routes.js';
 import { emailMessagesReady } from '../email/emailMessages.js';
+import { filesMessagesReady } from '../files/filesMessages.js';
 import { validateEmailTemplatesSearch } from '../email/search.js';
 import { invoicesMessagesReady } from '../invoices/invoicesMessages.js';
 import { validateInvoicesSearch } from '../invoices/search.js';
@@ -860,11 +861,19 @@ function AuditRouteComponent() {
  * forbidden — so an admin who does not hold the grant still gets a working
  * page showing their own uploads, which is the honest degradation.
  */
+/** Same choreography as `EmailMessages` — see the note above it. */
+function FilesMessages({ children }: { children: ReactElement }) {
+  use(filesMessagesReady());
+  return children;
+}
+
 function FilesRouteComponent() {
   return (
     <StudioGuard>
       <Suspense fallback={null}>
-        <FilesPageLazy />
+        <FilesMessages>
+          <FilesPageLazy />
+        </FilesMessages>
       </Suspense>
     </StudioGuard>
   );

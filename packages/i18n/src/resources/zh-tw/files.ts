@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/zh-TW/files.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "toast": {
+    "restored": "已還原 {name}",
+    "restoreFailed": "無法還原此檔案",
+    "trashed": "已將 {name} 移至垃圾桶",
+    "trashFailed": "無法將此檔案移至垃圾桶"
+  },
+  "title": "檔案",
+  "subtitle": "所有透過這個工作區上傳的檔案，以及它們的位元組存放在哪裡。",
+  "search": "依檔案名稱搜尋",
+  "trash": {
+    "notice": {
+      "title": "垃圾桶會自動清空",
+      "body": "回收桶中的檔案在本伺服器的保留期結束後會被徹底刪除，位元組資料也一併清除。請在此之前還原仍需要的檔案。"
+    }
+  },
+  "listFailed": {
+    "title": "無法載入這些檔案"
+  },
+  "empty": {
+    "filtered": {
+      "title": "這裡沒有內容",
+      "body": "清除搜尋，或從側邊的檔案捷徑挑選另一項。"
+    },
+    "title": "尚無檔案",
+    "body": "當有人把檔案附加到記錄，或填入檔案欄位時，檔案就會出現在這裡。"
+  },
+  "loadMore": "載入更多檔案",
+  "usage": {
+    "label": "已使用的儲存空間",
+    "used": "已使用 {size}",
+    "count": "{count, plural, other {# 個檔案}}",
+    "diskLabel": "已用空間",
+    "ofDisk": "此磁碟已用 {used}，共 {size}"
+  },
+  "rail": {
+    "label": "檔案捷徑",
+    "byTable": "依資料表",
+    "byDestination": "依目的地",
+    "byConnection": "依連線"
+  },
+  "preset": {
+    "all": "全部檔案",
+    "unattached": "未附加",
+    "trash": "垃圾桶",
+    "recent": "最近"
+  },
+  "column": {
+    "name": "檔案",
+    "size": "大小",
+    "attachedTo": "附加至",
+    "destination": "目的地",
+    "added": "加入時間",
+    "actions": "操作"
+  },
+  "row": {
+    "unattached": "未附加",
+    "localDestination": "本伺服器的磁碟",
+    "noRecord": "未附加到任何記錄"
+  },
+  "action": {
+    "restore": "還原",
+    "download": "下載",
+    "deleteNamed": "刪除 {name}",
+    "delete": "刪除"
+  },
+  "drawer": {
+    "none": "無",
+    "subtitle": "{size} · {type}",
+    "destination": "目的地",
+    "attachedTo": "附加至",
+    "uploadedBy": "上傳者",
+    "added": "加入時間",
+    "attachedAt": "附加時間",
+    "trashedAt": "移至垃圾桶時間",
+    "id": "檔案 ID",
+    "checksum": "總和檢查碼"
+  },
+  "view": {
+    "label": "檔案的顯示方式",
+    "grid": "格狀",
+    "list": "清單"
+  },
+  "upload": {
+    "open": "上傳",
+    "title": "上傳檔案",
+    "subtitle": "為此工作區新增檔案。",
+    "connection": "它們屬於哪個連線",
+    "drop": "將檔案拖曳至此",
+    "browse": "瀏覽你的電腦",
+    "sending": "正在上傳",
+    "cancelOne": "取消 {name}",
+    "removeOne": "移除 {name}",
+    "complete": "上傳完成",
+    "completeBody": "這些檔案現已在此工作區中，稍後可附加到記錄。",
+    "send": "{count, plural, other {上傳 # 個檔案}}",
+    "done": "完成",
+    "failed": "失敗",
+    "cancelled": "已取消"
+  }
+} as const;

@@ -59925,7 +59925,9 @@
                 "errors",
                 "email",
                 "invoices",
-                "automations"
+                "automations",
+                "dataio",
+                "files"
               ]
             },
             "in": "path",
@@ -60052,7 +60054,9 @@
                 "errors",
                 "email",
                 "invoices",
-                "automations"
+                "automations",
+                "dataio",
+                "files"
               ]
             },
             "in": "query",
@@ -60250,7 +60254,9 @@
                       "errors",
                       "email",
                       "invoices",
-                      "automations"
+                      "automations",
+                      "dataio",
+                      "files"
                     ]
                   },
                   "key": {
@@ -60396,7 +60402,9 @@
                 "errors",
                 "email",
                 "invoices",
-                "automations"
+                "automations",
+                "dataio",
+                "files"
               ]
             },
             "in": "query",
@@ -60546,7 +60554,9 @@
                             "errors",
                             "email",
                             "invoices",
-                            "automations"
+                            "automations",
+                            "dataio",
+                            "files"
                           ]
                         },
                         "key": {

@@ -154,7 +154,7 @@ export type Translate = I18nInstance['t'];
 
 /** The "paste this link" footer, shared by every built-in that has a button. */
 function linkFallback(t: Translate, url: string): string {
-  return t('email.linkFallback', {
+  return t('email:linkFallback', {
     url,
     defaultValue: 'If the button doesn’t work, paste this link into your browser: {url}',
   });
@@ -163,30 +163,30 @@ function linkFallback(t: Translate, url: string): string {
 function passwordResetTemplate(t: Translate): BuiltinEmailTemplate {
   return {
     key: 'password-reset',
-    name: t('email.passwordReset.name', { defaultValue: 'Password reset' }),
-    subject: t('email.passwordReset.subject', {
+    name: t('email:passwordReset.name', { defaultValue: 'Password reset' }),
+    subject: t('email:passwordReset.subject', {
       appName: VAR.appName,
       defaultValue: 'Reset your {appName} password',
     }),
     category: 'transactional',
     blocks: [
-      heading(t('email.passwordReset.heading', { defaultValue: 'Reset your password' })),
+      heading(t('email:passwordReset.heading', { defaultValue: 'Reset your password' })),
       paragraph(
         'intro',
-        t('email.passwordReset.intro', {
+        t('email:passwordReset.intro', {
           name: VAR.name,
           email: VAR.email,
           defaultValue: 'Hi {name}, we received a request to reset the password for {email}.',
         }),
       ),
-      button(t('email.passwordReset.action', { defaultValue: 'Choose a new password' }), VAR.resetUrl),
+      button(t('email:passwordReset.action', { defaultValue: 'Choose a new password' }), VAR.resetUrl),
       // SINGLE-USE AND TIME-LIMITED, both stated. The reset token is stored as
       // a hash and consumed on first use; a recipient who does not know that
       // reads a second click failing as "the email is broken" and asks for
       // another one, which invalidates the link they still have open.
       paragraph(
         'notice',
-        t('email.passwordReset.notice', {
+        t('email:passwordReset.notice', {
           expiresInMinutes: VAR.expiresInMinutes,
           defaultValue:
             'This link works only once and expires in {expiresInMinutes} minutes. If you didn’t ' +
@@ -202,17 +202,17 @@ function passwordResetTemplate(t: Translate): BuiltinEmailTemplate {
 function userInviteTemplate(t: Translate): BuiltinEmailTemplate {
   return {
     key: 'user-invite',
-    name: t('email.userInvite.name', { defaultValue: 'Team invitation' }),
-    subject: t('email.userInvite.subject', {
+    name: t('email:userInvite.name', { defaultValue: 'Team invitation' }),
+    subject: t('email:userInvite.subject', {
       appName: VAR.appName,
       defaultValue: 'You have been invited to {appName}',
     }),
     category: 'transactional',
     blocks: [
-      heading(t('email.userInvite.heading', { defaultValue: 'You’ve been invited' })),
+      heading(t('email:userInvite.heading', { defaultValue: 'You’ve been invited' })),
       paragraph(
         'intro',
-        t('email.userInvite.intro', {
+        t('email:userInvite.intro', {
           appName: VAR.appName,
           email: VAR.email,
           inviterName: VAR.inviterName,
@@ -221,10 +221,10 @@ function userInviteTemplate(t: Translate): BuiltinEmailTemplate {
             'password for {email} and sign in.',
         }),
       ),
-      button(t('email.userInvite.action', { defaultValue: 'Accept the invitation' }), VAR.activationUrl),
+      button(t('email:userInvite.action', { defaultValue: 'Accept the invitation' }), VAR.activationUrl),
       paragraph(
         'notice',
-        t('email.userInvite.notice', {
+        t('email:userInvite.notice', {
           expiresInDays: VAR.expiresInDays,
           defaultValue:
             'This invitation works only once and expires in {expiresInDays} days. If you weren’t ' +
@@ -245,7 +245,7 @@ function userInviteTemplate(t: Translate): BuiltinEmailTemplate {
 function notificationTemplate(t: Translate): BuiltinEmailTemplate {
   return {
     key: 'notification',
-    name: t('email.notification.name', { defaultValue: 'Notification' }),
+    name: t('email:notification.name', { defaultValue: 'Notification' }),
     subject: VAR.title,
     category: 'transactional',
     blocks: [
@@ -255,11 +255,11 @@ function notificationTemplate(t: Translate): BuiltinEmailTemplate {
       // costs an absent paragraph rather than a blank box.
       paragraph('body', VAR.body),
       button(
-        t('email.notification.action', { appName: VAR.appName, defaultValue: 'Open {appName}' }),
+        t('email:notification.action', { appName: VAR.appName, defaultValue: 'Open {appName}' }),
         VAR.actionUrl,
       ),
     ],
-    footer: t('email.notification.footer', {
+    footer: t('email:notification.footer', {
       appName: VAR.appName,
       defaultValue:
         'You are receiving this because email notifications are on for your {appName} ' +

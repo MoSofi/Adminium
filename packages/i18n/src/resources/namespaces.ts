@@ -22,6 +22,8 @@ export const NAMESPACES = [
   'email',
   'invoices',
   'automations',
+  'dataio',
+  'files',
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -59,14 +61,42 @@ export type EagerNamespace = (typeof EAGER_NAMESPACES)[number];
  * kind, operator, unit, status and picker tile — which is a lot of text for a
  * page the majority of sessions never open.
  *
+ * `dataio` is the import wizard, the exports manager and the export builder
+ * (41-export-builder.md), and `files` is the Files library and its upload
+ * dialog (38-files-library.md) — three lazy route bodies and one dialog. Both
+ * lived under `common` until 2026-09-08, which meant every route downloaded
+ * them; the entry-chunk ratchet is what noticed. Two keys did NOT come along:
+ * `dataio.import.title`/`dataio.exports.title` were read by the statically
+ * imported `data-io/routes.tsx` and are byte-identical to `common:nav.imports`
+ * /`nav.exports`, so that module reads the `common:` twins instead — the same
+ * Topbar problem the `studio` split hit. `files.uploadsUnavailable` went the
+ * same way: its reader is the page-files TEMPLATE, which renders inside a
+ * user-built page and would never await this namespace, and the widget already
+ * falls back to a byte-identical `ui:templates.files.uploadsUnavailable`.
+ *
+ * `email` gained 143 keys in the same change, and they are the reason the
+ * SERVER loads the whole deferred set (packages/i18n/src/server.ts): every one
+ * of those call sites is in apps/server's email-template machinery, and they
+ * had been sitting in `common` since before `email.json` existed — shipping
+ * server-only text in every dashboard user's boot chunk.
+ *
  * The contract a deferred namespace owes: nothing outside its own surface may
  * read a key from it, and that surface must await {@link Namespace} loading
  * before it renders. See `apps/dashboard/src/studio/routes.tsx`,
  * `apps/dashboard/src/email/emailMessages.ts`,
  * `apps/dashboard/src/invoices/invoicesMessages.ts` and
- * `apps/dashboard/src/automations/automationsMessages.ts`.
+ * `apps/dashboard/src/automations/automationsMessages.ts`,
+ * `apps/dashboard/src/data-io/dataIoMessages.ts` and
+ * `apps/dashboard/src/files/filesMessages.ts`.
  */
-export const DEFERRED_NAMESPACES = ['studio', 'email', 'invoices', 'automations'] as const;
+export const DEFERRED_NAMESPACES = [
+  'studio',
+  'email',
+  'invoices',
+  'automations',
+  'dataio',
+  'files',
+] as const;
 export type DeferredNamespace = (typeof DEFERRED_NAMESPACES)[number];
 
 /** A single namespace's message tree (nested string leaves). */

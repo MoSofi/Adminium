@@ -679,8 +679,20 @@ test.describe('the Files page uploads', () => {
       // header's X and the footer button), which is the ordinary pattern and
       // an ambiguous selector.
       await page.keyboard.press('Escape');
+      /*
+       * Wait for the modal to be GONE before reading the library behind it.
+       * Its upload rows carry the same filenames the new library rows do, so
+       * asserting while it is still mounted matches each name twice — which is
+       * why `terms.pdf` needed a `.first()` here and `price-list.pdf` did not:
+       * the SECOND row is the one still on screen when the first has already
+       * settled. `.first()` hid that by picking whichever matched first, so the
+       * assertion could pass against the dialog and never look at the library
+       * at all. This also makes the Escape itself an assertion, which is what
+       * the note above intends.
+       */
+      await expect(page.getByTestId('files-upload-row')).toHaveCount(0);
       await expect(page.getByText('price-list.pdf')).toBeVisible();
-      await expect(page.getByText('terms.pdf').first()).toBeVisible();
+      await expect(page.getByText('terms.pdf')).toBeVisible();
 
       // The rows are LIBRARY files: a connection, no record, and claimed at
       // creation so the unattached sweep leaves them (D4).
@@ -795,10 +807,24 @@ test.describe('attachments create the column and the dialog uses it', () => {
         { name: 'one.pdf', mimeType: 'application/pdf', buffer: PDF_BYTES },
         { name: 'two.pdf', mimeType: 'application/pdf', buffer: PDF_BYTES },
       ]);
-      // Both chips, before Save — the upload happens on selection because the
-      // server mints the reference the column stores.
-      await expect(dialog.getByText('one.pdf')).toBeVisible({ timeout: 20_000 });
-      await expect(dialog.getByText('two.pdf')).toBeVisible({ timeout: 20_000 });
+      /*
+       * Both chips, before Save — the upload happens on selection because the
+       * server mints the reference the column stores.
+       *
+       * Scoped to the list field and matched as a LINK, not as text anywhere in
+       * the dialog, and both halves of that are load-bearing. `FileField`
+       * renders the filename TWICE while an upload is in flight: once in the
+       * per-file progress row (`{row.name}`, a span) and once in the settled
+       * chip (`{file.filename}`, the anchor that opens it). A bare
+       * `getByText('two.pdf')` matches both, so under CI's starved CPU — where
+       * the second file's progress row outlives the first's — this failed with
+       * "resolved to 2 elements" on postgres AND mysql while passing locally on
+       * every engine. The chip is the thing the test means: a file that is
+       * uploaded, resolved and openable. A progress row is not.
+       */
+      const listField = dialog.locator('[data-part="file-list-field"]');
+      await expect(listField.getByRole('link', { name: /one\.pdf/ })).toBeVisible({ timeout: 20_000 });
+      await expect(listField.getByRole('link', { name: /two\.pdf/ })).toBeVisible({ timeout: 20_000 });
 
       /*
        * Fill everything the row needs. `shippers.shipper_id` is a NOT NULL key

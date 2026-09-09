@@ -26,6 +26,8 @@ const NAMESPACES = [
   'email',
   'invoices',
   'automations',
+  'dataio',
+  'files',
 ] as const;
 const TARGETS = LOCALES.filter((l) => l.id !== 'en_US');
 

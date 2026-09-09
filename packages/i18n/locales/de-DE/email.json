@@ -1,8 +1,4 @@
 {
-  "title": "E-Mail-Vorlagen",
-  "subtitle": "Gestalten Sie wiederverwendbare E-Mails und die Kampagnen, die Sie daraus versenden.",
-  "loadFailed": "E-Mail-Vorlagen konnten nicht geladen werden",
-  "needsTranslation": "Übersetzung nötig",
   "actions": {
     "menu": "Weitere Aktionen",
     "eyebrow": "Aktionen",
@@ -12,222 +8,17 @@
     "settings": "E-Mail-Einstellungen",
     "archived": "Archiviert"
   },
-  "new": {
-    "template": "Neue Vorlage",
-    "campaign": "Neue Kampagne",
-    "subtitle": "Leer beginnen oder mit einem fertigen E-Mail-Design.",
-    "blank": "Leere E-Mail",
-    "blankHint": "Von Grund auf beginnen",
-    "yourTemplates": "Ihre Vorlagen",
-    "failed": "Konnte nicht erstellt werden",
-    "startersFailed": "Die Startvorlagen konnten nicht geladen werden. Beginnen Sie leer oder versuchen Sie es erneut."
-  },
-  "tabs": {
-    "label": "Art",
-    "templates": "Vorlagen",
-    "campaigns": "Kampagnen"
-  },
-  "groupBy": {
-    "label": "Gruppieren nach",
-    "none": "Keine",
-    "topic": "Thema",
-    "language": "Sprache"
-  },
-  "search": {
-    "templates": "Vorlagen durchsuchen…",
-    "campaigns": "Kampagnen durchsuchen…",
-    "clear": "Suche löschen"
-  },
-  "layout": {
-    "label": "Ansicht",
-    "gallery": "Galerie",
-    "list": "Liste"
-  },
   "archivedChip": {
     "field": "Angezeigt",
     "value": "Archiviert",
     "leave": "Archiv verlassen"
   },
-  "empty": {
-    "templates": {
-      "title": "Noch keine Vorlagen",
-      "body": "Gestalten Sie eine wiederverwendbare E-Mail, aus der Ihr Team versenden kann."
-    },
-    "campaigns": {
-      "title": "Noch keine Kampagnen",
-      "body": "Erstellen Sie eine Kampagne aus einer Vorlage oder auf leerer Fläche."
-    },
-    "noMatch": {
-      "templates": "Keine passenden Vorlagen",
-      "campaigns": "Keine passenden Kampagnen",
-      "body": "Versuchen Sie einen anderen Suchbegriff."
-    },
-    "archived": {
-      "templates": "Keine archivierten Vorlagen",
-      "campaigns": "Keine archivierten Kampagnen",
-      "body": "Alles, was Sie löschen, landet hier und lässt sich wiederherstellen."
-    }
-  },
-  "status": {
-    "draft": "Entwurf",
-    "live": "Aktiv",
-    "scheduled": "Terminiert",
-    "sending": "Wird gesendet",
-    "sent": "Gesendet",
-    "failed": "Fehlgeschlagen"
-  },
-  "category": {
-    "transactional": "Transaktional",
-    "lifecycle": "Lebenszyklus",
-    "marketing": "Marketing"
-  },
-  "run": {
-    "counts": "{sent} gesendet · {failed} fehlgeschlagen",
-    "sending": "Wird gesendet · {pct} %"
-  },
-  "group": {
-    "languages": "{count, plural, one {# Sprache} other {# Sprachen}}",
-    "emails": "{count, plural, one {# E-Mail} other {# E-Mails}}",
-    "needsTranslation": "{count} mit Übersetzungsbedarf"
-  },
-  "card": {
-    "edit": "Bearbeiten",
-    "duplicate": "Duplizieren",
-    "rename": "Umbenennen",
-    "renameLabel": "Neuer Name",
-    "delete": "Löschen",
-    "restore": "Wiederherstellen",
-    "deleteForGood": "Endgültig löschen",
-    "reset": "Auf Standard zurücksetzen"
-  },
-  "list": {
-    "name": "Name",
-    "lang": "Sprache",
-    "status": "Status",
-    "updated": "Aktualisiert",
-    "actions": "Aktionen"
-  },
-  "delete": {
-    "title": "{name} löschen?",
-    "archiveBody": "Sie wird ins Archiv verschoben, wo Sie sie wiederherstellen oder endgültig löschen können.",
-    "confirm": "Löschen",
-    "forGoodTitle": "{name} endgültig löschen?",
-    "forGoodBody": {
-      "template": "Das lässt sich nicht rückgängig machen. Die Vorlage wird dauerhaft entfernt.",
-      "campaign": "Das lässt sich nicht rückgängig machen. Die Kampagne wird dauerhaft entfernt."
-    },
-    "forGood": "Endgültig löschen",
-    "resetTitle": "{name} auf Standard zurücksetzen?",
-    "resetBody": "Ihre Änderungen an dieser Sprache werden durch die mitgelieferte Fassung ersetzt.",
-    "reset": "Zurücksetzen"
-  },
-  "toast": {
-    "duplicated": {
-      "template": "Vorlage dupliziert",
-      "campaign": "Kampagne dupliziert"
-    },
-    "duplicateFailed": "Konnte nicht dupliziert werden",
-    "deleted": {
-      "template": "Vorlage gelöscht",
-      "campaign": "Kampagne gelöscht"
-    },
-    "deleteFailed": "Konnte nicht gelöscht werden",
-    "restored": {
-      "template": "Vorlage wiederhergestellt",
-      "campaign": "Kampagne wiederhergestellt"
-    },
-    "restoreFailed": "Konnte nicht wiederhergestellt werden",
-    "deletedForGood": {
-      "template": "Vorlage endgültig gelöscht",
-      "campaign": "Kampagne endgültig gelöscht"
-    },
-    "reset": "Auf die mitgelieferte Fassung zurückgesetzt",
-    "renameFailed": "Konnte nicht umbenannt werden"
-  },
-  "import": {
-    "title": "Vorlage aus Datei laden",
-    "subtitle": "Ein aus Adminium heruntergeladenes Paket.",
-    "choose": "Paket auswählen",
-    "hint": "adminium-email-templates-<date>.json",
-    "invalid": "Diese Datei ist kein Adminium-E-Mail-Paket.",
-    "summary": "{templates, plural, one {# Vorlage} other {# Vorlagen}} und {campaigns, plural, one {# Kampagne} other {# Kampagnen}} · {duplicates} bereits vorhanden",
-    "modeLabel": "Vorhandene Dokumente",
-    "skip": "Vorhandene überspringen",
-    "replace": "Vorhandene ersetzen",
-    "confirm": "Einlesen",
-    "failed": "Der Import ist fehlgeschlagen.",
-    "done": "{created} eingelesen · {replaced} ersetzt · {skipped} übersprungen",
-    "errors": "{count, plural, one {# Dokument konnte} other {# Dokumente konnten}} nicht eingelesen werden"
-  },
-  "editor": {
-    "kind": {
-      "template": "Vorlage",
-      "campaign": "Kampagne"
-    },
-    "nameLabel": "Name",
-    "undo": "Rückgängig",
-    "redo": "Wiederholen",
-    "test": "Testen",
-    "save": "Speichern",
-    "saveTemplate": "Vorlage speichern",
-    "sendCampaign": "Kampagne senden",
-    "shortcutSave": "E-Mail speichern",
-    "saveState": {
-      "saving": "Wird gespeichert…",
-      "saved": "Alle Änderungen gespeichert",
-      "dirty": "Ungespeicherte Änderungen",
-      "error": "Speichern fehlgeschlagen"
-    },
-    "languages": {
-      "title": "Sprachvarianten",
-      "current": "In Bearbeitung",
-      "translated": "Übersetzt",
-      "needsTranslation": "Übersetzung nötig",
-      "missing": "Noch nicht angelegt",
-      "created": "Variante {language} angelegt",
-      "createdNeedsTranslation": "Variante {language} angelegt — Übersetzung nötig",
-      "addFailed": "Diese Sprache konnte nicht hinzugefügt werden"
-    },
-    "discard": {
-      "title": "Ungespeicherte Änderungen verwerfen?",
-      "body": "Ihre Änderungen an {name} gehen verloren.",
-      "keep": "Weiter bearbeiten",
-      "confirm": "Verwerfen"
-    },
-    "saveFailed": "Konnte nicht gespeichert werden",
-    "saved": "Änderungen gespeichert",
-    "loadFailed": "Diese E-Mail konnte nicht geladen werden"
-  },
-  "canvas": {
-    "livePreview": "Live-Vorschau · Klicken Sie auf einen Teil der E-Mail, um ihn zu bearbeiten",
-    "device": "Vorschaubreite",
-    "desktop": "Desktop",
-    "mobile": "Mobil",
-    "subject": "Betreff",
+  "blank": {
+    "cta": "Handlungsaufforderung",
+    "heading": "Überschrift kommt hier hin",
+    "para": "Beginnen Sie mit dem Schreiben Ihrer E-Mail…",
     "preheader": "Vorschautext",
-    "preheaderPlaceholder": "Vorschautext…",
-    "select": "{label} bearbeiten",
-    "insertAbove": "Abschnitt über {label} einfügen",
-    "add": "Hinzufügen",
-    "addSection": "Abschnitt hinzufügen",
-    "defaultSender": "Standardabsender",
-    "now": "jetzt",
-    "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
-    "fileMissing": "Datei fehlt",
-    "variables": "Variablen",
-    "imagePlaceholder": "Bildplatzhalter",
-    "htmlNote": "Wird beim Versand als rohes HTML ausgegeben.",
-    "recurring": "Wiederkehrend — {freq}",
-    "nextOn": "Nächste am {next} · {note}",
-    "loyaltyBalance": "Punktestand",
-    "loyaltyLine": "{balance} Pkt. · {level}",
-    "sections": {
-      "branding": "Marke & Absender",
-      "subject": "Betreff & Vorschautext",
-      "footer": "Fußzeile",
-      "attachments": "Anhänge"
-    },
-    "blockAdded": "{label} hinzugefügt"
+    "subject": "Betreffzeile"
   },
   "blocks": {
     "heading": {
@@ -338,24 +129,259 @@
       "label": "Abschnitt"
     }
   },
-  "picker": {
-    "title": "Abschnitt hinzufügen",
-    "above": "Über {label} eingefügt",
-    "atEnd": "Am Ende der E-Mail hinzugefügt",
-    "groups": {
-      "content": "Inhalt",
-      "commerce": "Handel & Daten",
-      "legal": "Recht & Support",
-      "saved": "Gespeicherte Blöcke"
-    },
-    "savedHint": "Gespeichert: {label}"
+  "branding": {
+    "brandName": "Markenname",
+    "logoMark": "Logozeichen",
+    "yourLogo": "Ihr Logo",
+    "fromName": "Absendername",
+    "fromEmail": "Absenderadresse",
+    "notConfigured": "Kein eingerichteter Absender.",
+    "manageSenders": "Absender verwalten",
+    "noSenders": "Noch keine Absender eingerichtet — der Standardabsender wird verwendet.",
+    "defaultSenderOption": "Standardabsender",
+    "brandColour": "Markenfarbe",
+    "category": "Kategorie",
+    "status": "Status",
+    "languageVariations": "Sprachvarianten",
+    "languageHint": "Eine neue Sprache erzeugt eine verknüpfte Kopie. Varianten bleiben unter {topic} gruppiert.",
+    "tagCurrent": "Aktuell",
+    "tagEdit": "Bearbeiten",
+    "tagAdd": "Hinzufügen",
+    "noMatch": "Kein passender Absender"
   },
-  "mirror": {
-    "title": "Auf die anderen Sprachen übertragen?",
-    "body": "{label} kann auf {count, plural, one {# weitere Sprachvariante} other {# weitere Sprachvarianten}} von {topic} übertragen werden. Der Text kommt beim Speichern unübersetzt an.",
-    "onlyThis": "Nur {native}",
-    "applyAll": "Auf alle {count} anwenden",
-    "queued": "Vorgemerkt für {count, plural, one {# weitere Sprache} other {# weitere Sprachen}} — wird beim Speichern angewendet"
+  "campaign": {
+    "title": "Kampagne senden",
+    "sendTo": "Senden an",
+    "workspaceUsers": "Benutzer des Arbeitsbereichs",
+    "rolesHint": "Alle, oder nur die Inhaber der gewählten Rollen.",
+    "when": "Wann",
+    "now": "Jetzt",
+    "schedule": "Terminieren",
+    "scheduleAt": "Senden am",
+    "pastTime": "Wählen Sie einen Zeitpunkt in der Zukunft.",
+    "counting": "Empfänger werden gezählt…",
+    "countFailed": "Empfänger konnten nicht gezählt werden",
+    "count": "{total, plural, one {# Empfänger} other {# Empfänger}}",
+    "optedOut": "{skipped} abgemeldet",
+    "note": "Variablen werden je Empfänger gefüllt — aus {token} wird der Name der jeweiligen Person.",
+    "send": "Kampagne senden",
+    "scheduleAction": "Kampagne terminieren",
+    "sending": "Wird gesendet…",
+    "failed": "Die Kampagne konnte nicht gesendet werden.",
+    "sentTitle": "Kampagne gesendet!",
+    "sentBody": "{name} ist unterwegs an {count, plural, one {# Empfänger} other {# Empfänger}}.",
+    "scheduledTitle": "Kampagne terminiert!",
+    "scheduledBody": "{name} geht am {when} raus.",
+    "done": "Fertig",
+    "chipScheduled": "Terminiert · {when}",
+    "chipSending": "Wird gesendet · {pct} %",
+    "cancelSchedule": "Termin aufheben",
+    "cancelSending": "Versand abbrechen",
+    "cancelled": "Termin aufgehoben",
+    "sendingCancelled": "Versand abgebrochen",
+    "cancelFailed": "Konnte nicht abgebrochen werden"
+  },
+  "campaignSent": {
+    "body": "{sent} gesendet · {failed} fehlgeschlagen",
+    "title": "Kampagne gesendet: {name}"
+  },
+  "canvas": {
+    "livePreview": "Live-Vorschau · Klicken Sie auf einen Teil der E-Mail, um ihn zu bearbeiten",
+    "device": "Vorschaubreite",
+    "desktop": "Desktop",
+    "mobile": "Mobil",
+    "subject": "Betreff",
+    "preheader": "Vorschautext",
+    "preheaderPlaceholder": "Vorschautext…",
+    "select": "{label} bearbeiten",
+    "insertAbove": "Abschnitt über {label} einfügen",
+    "add": "Hinzufügen",
+    "addSection": "Abschnitt hinzufügen",
+    "defaultSender": "Standardabsender",
+    "now": "jetzt",
+    "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
+    "fileMissing": "Datei fehlt",
+    "variables": "Variablen",
+    "imagePlaceholder": "Bildplatzhalter",
+    "htmlNote": "Wird beim Versand als rohes HTML ausgegeben.",
+    "recurring": "Wiederkehrend — {freq}",
+    "nextOn": "Nächste am {next} · {note}",
+    "loyaltyBalance": "Punktestand",
+    "loyaltyLine": "{balance} Pkt. · {level}",
+    "sections": {
+      "branding": "Marke & Absender",
+      "subject": "Betreff & Vorschautext",
+      "footer": "Fußzeile",
+      "attachments": "Anhänge"
+    },
+    "blockAdded": "{label} hinzugefügt"
+  },
+  "card": {
+    "edit": "Bearbeiten",
+    "duplicate": "Duplizieren",
+    "rename": "Umbenennen",
+    "renameLabel": "Neuer Name",
+    "delete": "Löschen",
+    "restore": "Wiederherstellen",
+    "deleteForGood": "Endgültig löschen",
+    "reset": "Auf Standard zurücksetzen"
+  },
+  "category": {
+    "transactional": "Transaktional",
+    "lifecycle": "Lebenszyklus",
+    "marketing": "Marketing"
+  },
+  "copySuffix": "{name} (Kopie)",
+  "cycle": {
+    "done": "Erledigt",
+    "current": "In Arbeit",
+    "todo": "Ausstehend"
+  },
+  "delete": {
+    "title": "{name} löschen?",
+    "archiveBody": "Sie wird ins Archiv verschoben, wo Sie sie wiederherstellen oder endgültig löschen können.",
+    "confirm": "Löschen",
+    "forGoodTitle": "{name} endgültig löschen?",
+    "forGoodBody": {
+      "template": "Das lässt sich nicht rückgängig machen. Die Vorlage wird dauerhaft entfernt.",
+      "campaign": "Das lässt sich nicht rückgängig machen. Die Kampagne wird dauerhaft entfernt."
+    },
+    "forGood": "Endgültig löschen",
+    "resetTitle": "{name} auf Standard zurücksetzen?",
+    "resetBody": "Ihre Änderungen an dieser Sprache werden durch die mitgelieferte Fassung ersetzt.",
+    "reset": "Zurücksetzen"
+  },
+  "editor": {
+    "kind": {
+      "template": "Vorlage",
+      "campaign": "Kampagne"
+    },
+    "nameLabel": "Name",
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "test": "Testen",
+    "save": "Speichern",
+    "saveTemplate": "Vorlage speichern",
+    "sendCampaign": "Kampagne senden",
+    "shortcutSave": "E-Mail speichern",
+    "saveState": {
+      "saving": "Wird gespeichert…",
+      "saved": "Alle Änderungen gespeichert",
+      "dirty": "Ungespeicherte Änderungen",
+      "error": "Speichern fehlgeschlagen"
+    },
+    "languages": {
+      "title": "Sprachvarianten",
+      "current": "In Bearbeitung",
+      "translated": "Übersetzt",
+      "needsTranslation": "Übersetzung nötig",
+      "missing": "Noch nicht angelegt",
+      "created": "Variante {language} angelegt",
+      "createdNeedsTranslation": "Variante {language} angelegt — Übersetzung nötig",
+      "addFailed": "Diese Sprache konnte nicht hinzugefügt werden"
+    },
+    "discard": {
+      "title": "Ungespeicherte Änderungen verwerfen?",
+      "body": "Ihre Änderungen an {name} gehen verloren.",
+      "keep": "Weiter bearbeiten",
+      "confirm": "Verwerfen"
+    },
+    "saveFailed": "Konnte nicht gespeichert werden",
+    "saved": "Änderungen gespeichert",
+    "loadFailed": "Diese E-Mail konnte nicht geladen werden"
+  },
+  "empty": {
+    "templates": {
+      "title": "Noch keine Vorlagen",
+      "body": "Gestalten Sie eine wiederverwendbare E-Mail, aus der Ihr Team versenden kann."
+    },
+    "campaigns": {
+      "title": "Noch keine Kampagnen",
+      "body": "Erstellen Sie eine Kampagne aus einer Vorlage oder auf leerer Fläche."
+    },
+    "noMatch": {
+      "templates": "Keine passenden Vorlagen",
+      "campaigns": "Keine passenden Kampagnen",
+      "body": "Versuchen Sie einen anderen Suchbegriff."
+    },
+    "archived": {
+      "templates": "Keine archivierten Vorlagen",
+      "campaigns": "Keine archivierten Kampagnen",
+      "body": "Alles, was Sie löschen, landet hier und lässt sich wiederherstellen."
+    }
+  },
+  "fields": {
+    "heading": "Überschrift",
+    "buttonText": "Button-Text",
+    "linkUrl": "Link-URL",
+    "height": "Höhe (px)",
+    "footer": "Fußzeile",
+    "placeholderLabel": "Platzhaltertext",
+    "imageUrl": "Bild-URL",
+    "leftColumn": "Linke Spalte",
+    "rightColumn": "Rechte Spalte",
+    "quote": "Zitat",
+    "attribution": "Quelle",
+    "html": "HTML",
+    "label": "Beschriftung",
+    "value": "Wert",
+    "sectionLabel": "Abschnittstitel",
+    "baseAmount": "Grundbetrag",
+    "frequency": "Häufigkeit",
+    "nextIssueDate": "Nächstes Ausgabedatum",
+    "scheduleNote": "Hinweis zum Rhythmus",
+    "balance": "Guthaben",
+    "earned": "Erhalten",
+    "level": "Stufe",
+    "body": "Text",
+    "finePrint": "Kleingedrucktes",
+    "contactName": "Kontaktname",
+    "email": "E-Mail",
+    "phone": "Telefon"
+  },
+  "group": {
+    "languages": "{count, plural, one {# Sprache} other {# Sprachen}}",
+    "emails": "{count, plural, one {# E-Mail} other {# E-Mails}}",
+    "needsTranslation": "{count} mit Übersetzungsbedarf"
+  },
+  "groupBy": {
+    "label": "Gruppieren nach",
+    "none": "Keine",
+    "topic": "Thema",
+    "language": "Sprache"
+  },
+  "imagePicker": {
+    "title": "Bild auswählen",
+    "subtitle": "Aus den Dateien Ihres Arbeitsbereichs wählen, eines hochladen oder eine URL einfügen.",
+    "source": "Quelle",
+    "workspaceFiles": "Dateien im Arbeitsbereich",
+    "upload": "Hochladen",
+    "noImages": "Noch keine Bilder in der Bibliothek — laden Sie eines hoch.",
+    "connection": "Hochladen in",
+    "noConnection": "Verbinden Sie vor dem Hochladen eine Datenquelle.",
+    "drop": "Bild hier ablegen",
+    "formats": "PNG, JPG, GIF oder SVG",
+    "browse": "Dateien durchsuchen",
+    "url": "Bild-URL",
+    "urlPlaceholder": "…oder eine Bild-URL einfügen",
+    "useUrl": "URL verwenden",
+    "selected": "{name} ausgewählt",
+    "uploaded": "{name} hochgeladen"
+  },
+  "import": {
+    "title": "Vorlage aus Datei laden",
+    "subtitle": "Ein aus Adminium heruntergeladenes Paket.",
+    "choose": "Paket auswählen",
+    "hint": "adminium-email-templates-<date>.json",
+    "invalid": "Diese Datei ist kein Adminium-E-Mail-Paket.",
+    "summary": "{templates, plural, one {# Vorlage} other {# Vorlagen}} und {campaigns, plural, one {# Kampagne} other {# Kampagnen}} · {duplicates} bereits vorhanden",
+    "modeLabel": "Vorhandene Dokumente",
+    "skip": "Vorhandene überspringen",
+    "replace": "Vorhandene ersetzen",
+    "confirm": "Einlesen",
+    "failed": "Der Import ist fehlgeschlagen.",
+    "done": "{created} eingelesen · {replaced} ersetzt · {skipped} übersprungen",
+    "errors": "{count, plural, one {# Dokument konnte} other {# Dokumente konnten}} nicht eingelesen werden"
   },
   "inspector": {
     "tabs": "Inspektor",
@@ -413,6 +439,258 @@
     "noDocuments": "Noch keine Dokumente in der Bibliothek. Laden Sie eines unter „Dateien“ hoch.",
     "attached": "{name} angehängt"
   },
+  "layout": {
+    "label": "Ansicht",
+    "gallery": "Galerie",
+    "list": "Liste"
+  },
+  "linkFallback": "Wenn die Schaltfläche nicht funktioniert, fügen Sie diesen Link in Ihren Browser ein: {url}",
+  "list": {
+    "name": "Name",
+    "lang": "Sprache",
+    "status": "Status",
+    "updated": "Aktualisiert",
+    "actions": "Aktionen"
+  },
+  "loadFailed": "E-Mail-Vorlagen konnten nicht geladen werden",
+  "mirror": {
+    "title": "Auf die anderen Sprachen übertragen?",
+    "body": "{label} kann auf {count, plural, one {# weitere Sprachvariante} other {# weitere Sprachvarianten}} von {topic} übertragen werden. Der Text kommt beim Speichern unübersetzt an.",
+    "onlyThis": "Nur {native}",
+    "applyAll": "Auf alle {count} anwenden",
+    "queued": "Vorgemerkt für {count, plural, one {# weitere Sprache} other {# weitere Sprachen}} — wird beim Speichern angewendet"
+  },
+  "needsTranslation": "Übersetzung nötig",
+  "new": {
+    "template": "Neue Vorlage",
+    "campaign": "Neue Kampagne",
+    "subtitle": "Leer beginnen oder mit einem fertigen E-Mail-Design.",
+    "blank": "Leere E-Mail",
+    "blankHint": "Von Grund auf beginnen",
+    "yourTemplates": "Ihre Vorlagen",
+    "failed": "Konnte nicht erstellt werden",
+    "startersFailed": "Die Startvorlagen konnten nicht geladen werden. Beginnen Sie leer oder versuchen Sie es erneut."
+  },
+  "notification": {
+    "action": "{appName} öffnen",
+    "footer": "Sie erhalten diese E-Mail, weil E-Mail-Benachrichtigungen für Ihr Konto bei {appName} aktiviert sind. Sie können sie in Ihren Benachrichtigungseinstellungen deaktivieren.",
+    "name": "Benachrichtigung"
+  },
+  "nouns": {
+    "paragraph": "Absatz",
+    "item": "Eintrag",
+    "link": "Link",
+    "stat": "Kennzahl",
+    "currency": "Währung",
+    "taxLine": "Steuerzeile",
+    "code": "Code",
+    "payment": "Zahlung",
+    "step": "Schritt"
+  },
+  "passwordReset": {
+    "action": "Neues Passwort festlegen",
+    "heading": "Setzen Sie Ihr Passwort zurück",
+    "intro": "Hallo {name}, wir haben eine Anfrage erhalten, das Passwort für {email} zurückzusetzen.",
+    "name": "Passwort zurücksetzen",
+    "notice": "Dieser Link funktioniert nur ein einziges Mal und läuft in {expiresInMinutes} Minuten ab. Wenn Sie kein Zurücksetzen Ihres Passworts angefordert haben, können Sie diese E-Mail ignorieren — Ihr aktuelles Passwort bleibt gültig.",
+    "subject": "Ihr Passwort für {appName} zurücksetzen"
+  },
+  "picker": {
+    "title": "Abschnitt hinzufügen",
+    "above": "Über {label} eingefügt",
+    "atEnd": "Am Ende der E-Mail hinzugefügt",
+    "groups": {
+      "content": "Inhalt",
+      "commerce": "Handel & Daten",
+      "legal": "Recht & Support",
+      "saved": "Gespeicherte Blöcke"
+    },
+    "savedHint": "Gespeichert: {label}"
+  },
+  "placeholders": {
+    "paragraphText": "Absatztext",
+    "listItem": "Listenpunkt",
+    "label": "Beschriftung",
+    "iconName": "Symbolname",
+    "url": "URL",
+    "itemName": "Artikelname",
+    "variant": "Variante / SKU",
+    "stepName": "Schrittname",
+    "description": "Beschreibung"
+  },
+  "rows": {
+    "paragraphs": "Absätze",
+    "listItems": "Listenpunkte",
+    "links": "Links",
+    "stats": "Kennzahlen",
+    "lineItems": "Positionen",
+    "currencies": "Währungen & Kurse",
+    "taxComponents": "Steuerbestandteile",
+    "codes": "Codes",
+    "payments": "Zahlungen",
+    "steps": "Schritte"
+  },
+  "run": {
+    "counts": "{sent} gesendet · {failed} fehlgeschlagen",
+    "sending": "Wird gesendet · {pct} %"
+  },
+  "search": {
+    "templates": "Vorlagen durchsuchen…",
+    "campaigns": "Kampagnen durchsuchen…",
+    "clear": "Suche löschen"
+  },
+  "starters": {
+    "digest": {
+      "boxLabel": "Erledigte Aufgaben",
+      "cta": "Vollständigen Bericht ansehen",
+      "heading": "So lief Ihre Woche",
+      "name": "Wochenrückblick",
+      "para1": "Ihr Team hat 128 Aufgaben erledigt und 3 Releases veröffentlicht. Der Umsatz liegt 12 % über der Vorwoche — gute Arbeit.",
+      "preheader": "Ein kurzer Rückblick auf Ihre Woche",
+      "subject": "Ihre Woche in Zahlen 📊"
+    },
+    "extras": {
+      "cityTax": "Kommunalsteuer (2 %)",
+      "community": "Community",
+      "contact": "Kontakt",
+      "delivered": "Zugestellt",
+      "delivery": "Lieferverlauf",
+      "help": "Fragen? Schreiben Sie uns",
+      "hero": "Titelbild — 600 × 240",
+      "item1": "Workshop-Ticket",
+      "item1Meta": "Sa., 12. Sep. · 2 Plätze",
+      "item2": "Zusätzlicher Speicher",
+      "item2Meta": "250 GB",
+      "order": "Bestellübersicht",
+      "ordered": "Bestellt",
+      "payments": "Zahlungsverlauf",
+      "processing": "In Bearbeitung",
+      "quote": "{appName} hat unsere Berichtszeit halbiert.",
+      "quoteAuthor": "Priya R., Northwind Co",
+      "refund": "Rückerstattungsregeln",
+      "refundText": "Volle Rückerstattung innerhalb von 30 Tagen nach dem Kauf. Wenden Sie sich an den Support, um eine Rückgabe zu starten.",
+      "shipped": "Versendet",
+      "stat1": "Erledigte Aufgaben",
+      "stat2": "Releases",
+      "stat3": "Umsatzplus",
+      "stateTax": "Landessteuer (6 %)",
+      "step1": "Team einladen",
+      "step2": "Daten verbinden",
+      "step3": "Erstes Dashboard bauen",
+      "support": "{appName}-Support",
+      "tax": "Steueraufschlüsselung",
+      "website": "Website"
+    },
+    "failed": {
+      "boxLabel": "Fälliger Betrag",
+      "cta": "Zahlungsmethode aktualisieren",
+      "heading": "Ihre Zahlung ist nicht durchgegangen",
+      "name": "Zahlung fehlgeschlagen",
+      "para1": "Wir haben versucht, Ihre Karte für die Bestellung #{orderNumber} zu belasten, aber die Zahlung ist fehlgeschlagen. Bitte aktualisieren Sie Ihre Zahlungsmethode, um Verzögerungen zu vermeiden.",
+      "para2": "Wir versuchen es in 3 Tagen erneut.",
+      "preheader": "Zahlungsmethode aktualisieren",
+      "subject": "Handlung nötig: Zahlung fehlgeschlagen"
+    },
+    "feature": {
+      "cta": "Automatisierungen ausprobieren",
+      "heading": "Routinearbeit automatisieren",
+      "name": "Funktionsankündigung",
+      "para1": "Lernen Sie Automatisierungen kennen — Auslöser → Aktion-Abläufe, die von selbst laufen. Begrüßen Sie neue Registrierungen, fassen Sie bei liegengebliebenen Bestellungen nach und leiten Sie Arbeit automatisch weiter.",
+      "preheader": "Routinearbeit automatisieren",
+      "subject": "Neu: Automatisierungen ⚡"
+    },
+    "feedback": {
+      "cta": "Feedback geben",
+      "heading": "Wir freuen uns über Ihr Feedback",
+      "name": "Feedback-Anfrage",
+      "para1": "Sie nutzen {appName} nun schon eine Weile. Nehmen Sie sich zwei Minuten und erzählen Sie uns, wie es läuft? Ihre Antworten bestimmen, was wir als Nächstes bauen.",
+      "preheader": "Zwei Minuten, eine Frage",
+      "subject": "Wie war’s, {firstName}?"
+    },
+    "footer": "Sie erhalten diese E-Mail, weil Sie ein {appName}-Konto haben.\nFragen? Antworten Sie einfach auf diese E-Mail.",
+    "monthly": {
+      "boxLabel": "Monatsumsatz",
+      "cta": "Vollständigen Bericht ansehen",
+      "heading": "Ihr {month} im Rückblick",
+      "name": "Monatsbericht",
+      "para1": "Hier ist die Geschichte Ihres Monats auf {appName}. Ihr Team hat mehr veröffentlicht und schneller gearbeitet — der Umsatz ist um 18 % gegenüber dem Vormonat gestiegen.",
+      "para2": "Sehen Sie sich die vollständige Aufschlüsselung an, um genau zu erfahren, was die Zahlen bewegt hat.",
+      "preheader": "Ihr Monat im Rückblick",
+      "subject": "Ihr Bericht für {month} ist da 📈"
+    },
+    "paused": {
+      "boxLabel": "Daten aufbewahrt für",
+      "boxValue": "30 Tage",
+      "cta": "Konto reaktivieren",
+      "heading": "Ihr Konto ist pausiert",
+      "name": "Konto pausiert",
+      "para1": "Ihr Konto ist pausiert, deshalb können Sie sich derzeit nicht anmelden. Keine Sorge — Ihre Daten sind sicher und bleiben 30 Tage erhalten.",
+      "para2": "Reaktivieren Sie es jederzeit und machen Sie genau dort weiter, wo Sie aufgehört haben.",
+      "preheader": "Ihre Daten sind sicher",
+      "subject": "Ihr {appName}-Konto ist pausiert"
+    },
+    "receipt": {
+      "attachment": "Beleg als PDF",
+      "boxLabel": "Abgebuchter Betrag",
+      "cta": "Bestellung ansehen",
+      "heading": "Danke für Ihre Bestellung",
+      "name": "Bestellbeleg",
+      "para1": "Hiermit bestätigen wir den Zahlungseingang für die Bestellung #{orderNumber}. Eine Kopie Ihres Belegs ist für Ihre Unterlagen angehängt.",
+      "preheader": "Danke für Ihre Bestellung",
+      "subject": "Ihr Beleg von {appName}"
+    },
+    "reengage": {
+      "cta": "Wieder einsteigen",
+      "heading": "Lange nicht gesehen, {firstName}",
+      "name": "Rückgewinnung",
+      "para1": "Seit Ihrem letzten Besuch hat sich viel getan. Wir haben Automatisierungen, schnellere Dashboards und einen ganz neuen Berichtsgenerator veröffentlicht.",
+      "para2": "Schauen Sie vorbei — Ihr Konto ist genau so, wie Sie es verlassen haben.",
+      "preheader": "Sehen Sie, was neu ist",
+      "subject": "Wir vermissen Sie bei {appName}"
+    },
+    "reminder": {
+      "cta": "Termin verwalten",
+      "heading": "Bis bald, {firstName}",
+      "name": "Terminerinnerung",
+      "para1": "Ihr Termin ist am {date} um {time}. Wenn Sie ihn verschieben möchten, antworten Sie auf diese E-Mail oder nutzen Sie den Button unten.",
+      "para2": "Bitte kommen Sie ein paar Minuten früher.",
+      "preheader": "Bis {time}",
+      "subject": "Ihr Termin ist am {date}"
+    },
+    "shipped": {
+      "cta": "Sendung verfolgen",
+      "heading": "Ihre Bestellung wurde versendet",
+      "name": "Lieferstatus",
+      "para1": "Gute Nachrichten, {firstName} — die Bestellung #{orderNumber} hat unser Lager verlassen und ist unterwegs. Verfolgen Sie sie mit dem Button unten.",
+      "preheader": "Verfolgen Sie Ihre Lieferung",
+      "subject": "Ihre Bestellung #{orderNumber} ist unterwegs"
+    },
+    "verify": {
+      "cta": "E-Mail-Adresse bestätigen",
+      "heading": "Bestätigen Sie Ihre E-Mail",
+      "name": "E-Mail bestätigen",
+      "para1": "Danke für Ihre Registrierung! Bitte bestätigen Sie Ihre E-Mail-Adresse, um Ihr {appName}-Konto zu aktivieren. Das hält Ihr Konto sicher.",
+      "preheader": "Ein kurzer Schritt",
+      "subject": "Bestätigen Sie Ihre E-Mail-Adresse"
+    },
+    "welcome": {
+      "cta": "{appName} öffnen",
+      "heading": "Willkommen an Bord, {firstName}!",
+      "name": "Willkommens-E-Mail",
+      "para1": "Schön, dass Sie bei {appName} sind. Ihr Konto ist bereit — so legen Sie los.",
+      "para2": "Brauchen Sie Hilfe? Antworten Sie jederzeit auf diese E-Mail, und ein echter Mensch hilft Ihnen.",
+      "preheader": "Wir richten Sie ein",
+      "subject": "Willkommen bei {appName} 👋"
+    }
+  },
+  "status": {
+    "draft": "Entwurf",
+    "live": "Aktiv",
+    "scheduled": "Terminiert",
+    "sending": "Wird gesendet",
+    "sent": "Gesendet",
+    "failed": "Fehlgeschlagen"
+  },
   "style": {
     "title": "Blockstil",
     "alignment": "Ausrichtung",
@@ -462,93 +740,11 @@
     "fullWidth": "Volle Breite",
     "fullWidthHint": "Bis an die Ränder der E-Mail"
   },
-  "branding": {
-    "brandName": "Markenname",
-    "logoMark": "Logozeichen",
-    "yourLogo": "Ihr Logo",
-    "fromName": "Absendername",
-    "fromEmail": "Absenderadresse",
-    "notConfigured": "Kein eingerichteter Absender.",
-    "manageSenders": "Absender verwalten",
-    "noSenders": "Noch keine Absender eingerichtet — der Standardabsender wird verwendet.",
-    "defaultSenderOption": "Standardabsender",
-    "brandColour": "Markenfarbe",
-    "category": "Kategorie",
-    "status": "Status",
-    "languageVariations": "Sprachvarianten",
-    "languageHint": "Eine neue Sprache erzeugt eine verknüpfte Kopie. Varianten bleiben unter {topic} gruppiert.",
-    "tagCurrent": "Aktuell",
-    "tagEdit": "Bearbeiten",
-    "tagAdd": "Hinzufügen",
-    "noMatch": "Kein passender Absender"
-  },
-  "fields": {
-    "heading": "Überschrift",
-    "buttonText": "Button-Text",
-    "linkUrl": "Link-URL",
-    "height": "Höhe (px)",
-    "footer": "Fußzeile",
-    "placeholderLabel": "Platzhaltertext",
-    "imageUrl": "Bild-URL",
-    "leftColumn": "Linke Spalte",
-    "rightColumn": "Rechte Spalte",
-    "quote": "Zitat",
-    "attribution": "Quelle",
-    "html": "HTML",
-    "label": "Beschriftung",
-    "value": "Wert",
-    "sectionLabel": "Abschnittstitel",
-    "baseAmount": "Grundbetrag",
-    "frequency": "Häufigkeit",
-    "nextIssueDate": "Nächstes Ausgabedatum",
-    "scheduleNote": "Hinweis zum Rhythmus",
-    "balance": "Guthaben",
-    "earned": "Erhalten",
-    "level": "Stufe",
-    "body": "Text",
-    "finePrint": "Kleingedrucktes",
-    "contactName": "Kontaktname",
-    "email": "E-Mail",
-    "phone": "Telefon"
-  },
-  "rows": {
-    "paragraphs": "Absätze",
-    "listItems": "Listenpunkte",
-    "links": "Links",
-    "stats": "Kennzahlen",
-    "lineItems": "Positionen",
-    "currencies": "Währungen & Kurse",
-    "taxComponents": "Steuerbestandteile",
-    "codes": "Codes",
-    "payments": "Zahlungen",
-    "steps": "Schritte"
-  },
-  "nouns": {
-    "paragraph": "Absatz",
-    "item": "Eintrag",
-    "link": "Link",
-    "stat": "Kennzahl",
-    "currency": "Währung",
-    "taxLine": "Steuerzeile",
-    "code": "Code",
-    "payment": "Zahlung",
-    "step": "Schritt"
-  },
-  "placeholders": {
-    "paragraphText": "Absatztext",
-    "listItem": "Listenpunkt",
-    "label": "Beschriftung",
-    "iconName": "Symbolname",
-    "url": "URL",
-    "itemName": "Artikelname",
-    "variant": "Variante / SKU",
-    "stepName": "Schrittname",
-    "description": "Beschreibung"
-  },
-  "cycle": {
-    "done": "Erledigt",
-    "current": "In Arbeit",
-    "todo": "Ausstehend"
+  "subtitle": "Gestalten Sie wiederverwendbare E-Mails und die Kampagnen, die Sie daraus versenden.",
+  "tabs": {
+    "label": "Art",
+    "templates": "Vorlagen",
+    "campaigns": "Kampagnen"
   },
   "testSend": {
     "title": "Test-E-Mail senden",
@@ -568,54 +764,41 @@
     "done": "Fertig",
     "queued": "Test-E-Mail gesendet an {count, plural, one {# Empfänger} other {# Empfänger}}"
   },
-  "imagePicker": {
-    "title": "Bild auswählen",
-    "subtitle": "Aus den Dateien Ihres Arbeitsbereichs wählen, eines hochladen oder eine URL einfügen.",
-    "source": "Quelle",
-    "workspaceFiles": "Dateien im Arbeitsbereich",
-    "upload": "Hochladen",
-    "noImages": "Noch keine Bilder in der Bibliothek — laden Sie eines hoch.",
-    "connection": "Hochladen in",
-    "noConnection": "Verbinden Sie vor dem Hochladen eine Datenquelle.",
-    "drop": "Bild hier ablegen",
-    "formats": "PNG, JPG, GIF oder SVG",
-    "browse": "Dateien durchsuchen",
-    "url": "Bild-URL",
-    "urlPlaceholder": "…oder eine Bild-URL einfügen",
-    "useUrl": "URL verwenden",
-    "selected": "{name} ausgewählt",
-    "uploaded": "{name} hochgeladen"
+  "title": "E-Mail-Vorlagen",
+  "toast": {
+    "duplicated": {
+      "template": "Vorlage dupliziert",
+      "campaign": "Kampagne dupliziert"
+    },
+    "duplicateFailed": "Konnte nicht dupliziert werden",
+    "deleted": {
+      "template": "Vorlage gelöscht",
+      "campaign": "Kampagne gelöscht"
+    },
+    "deleteFailed": "Konnte nicht gelöscht werden",
+    "restored": {
+      "template": "Vorlage wiederhergestellt",
+      "campaign": "Kampagne wiederhergestellt"
+    },
+    "restoreFailed": "Konnte nicht wiederhergestellt werden",
+    "deletedForGood": {
+      "template": "Vorlage endgültig gelöscht",
+      "campaign": "Kampagne endgültig gelöscht"
+    },
+    "reset": "Auf die mitgelieferte Fassung zurückgesetzt",
+    "renameFailed": "Konnte nicht umbenannt werden"
   },
-  "campaign": {
-    "title": "Kampagne senden",
-    "sendTo": "Senden an",
-    "workspaceUsers": "Benutzer des Arbeitsbereichs",
-    "rolesHint": "Alle, oder nur die Inhaber der gewählten Rollen.",
-    "when": "Wann",
-    "now": "Jetzt",
-    "schedule": "Terminieren",
-    "scheduleAt": "Senden am",
-    "pastTime": "Wählen Sie einen Zeitpunkt in der Zukunft.",
-    "counting": "Empfänger werden gezählt…",
-    "countFailed": "Empfänger konnten nicht gezählt werden",
-    "count": "{total, plural, one {# Empfänger} other {# Empfänger}}",
-    "optedOut": "{skipped} abgemeldet",
-    "note": "Variablen werden je Empfänger gefüllt — aus {token} wird der Name der jeweiligen Person.",
-    "send": "Kampagne senden",
-    "scheduleAction": "Kampagne terminieren",
-    "sending": "Wird gesendet…",
-    "failed": "Die Kampagne konnte nicht gesendet werden.",
-    "sentTitle": "Kampagne gesendet!",
-    "sentBody": "{name} ist unterwegs an {count, plural, one {# Empfänger} other {# Empfänger}}.",
-    "scheduledTitle": "Kampagne terminiert!",
-    "scheduledBody": "{name} geht am {when} raus.",
-    "done": "Fertig",
-    "chipScheduled": "Terminiert · {when}",
-    "chipSending": "Wird gesendet · {pct} %",
-    "cancelSchedule": "Termin aufheben",
-    "cancelSending": "Versand abbrechen",
-    "cancelled": "Termin aufgehoben",
-    "sendingCancelled": "Versand abgebrochen",
-    "cancelFailed": "Konnte nicht abgebrochen werden"
+  "untitled": {
+    "campaign": "Unbenannte Kampagne",
+    "template": "Unbenannte Vorlage"
+  },
+  "userInvite": {
+    "action": "Einladung annehmen",
+    "heading": "Sie wurden eingeladen",
+    "intro": "{inviterName} hat Sie zu {appName} eingeladen. Nehmen Sie die Einladung an, um ein Passwort für {email} festzulegen und sich anzumelden.",
+    "inviterFallback": "Eine Administratorin oder ein Administrator",
+    "name": "Team-Einladung",
+    "notice": "Diese Einladung funktioniert nur ein einziges Mal und läuft in {expiresInDays} Tagen ab. Wenn Sie sie nicht erwartet haben, können Sie diese E-Mail ignorieren.",
+    "subject": "Sie wurden zu {appName} eingeladen"
   }
 }

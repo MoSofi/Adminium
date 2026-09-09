@@ -319,12 +319,12 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
   /** The comp's `createBlank` (1055), through the target locale's translator. */
   function blankDocument(t: Awaited<ReturnType<typeof translatorForLocale>>['t']): EmailDocument {
     return normalizeDocument({
-      subject: t('email.blank.subject', { defaultValue: 'Subject line' }),
-      preheader: t('email.blank.preheader', { defaultValue: 'Preview text' }),
+      subject: t('email:blank.subject', { defaultValue: 'Subject line' }),
+      preheader: t('email:blank.preheader', { defaultValue: 'Preview text' }),
       blocks: [
-        { block: 'email.heading', data: { text: t('email.blank.heading', { defaultValue: 'Heading goes here' }), level: 1 } },
-        { block: 'email.text', data: { paras: [t('email.blank.para', { defaultValue: 'Start writing your email…' })] } },
-        { block: 'email.button', data: { label: t('email.blank.cta', { defaultValue: 'Call to action' }), url: 'https://example.com/' } },
+        { block: 'email.heading', data: { text: t('email:blank.heading', { defaultValue: 'Heading goes here' }), level: 1 } },
+        { block: 'email.text', data: { paras: [t('email:blank.para', { defaultValue: 'Start writing your email…' })] } },
+        { block: 'email.button', data: { label: t('email:blank.cta', { defaultValue: 'Call to action' }), url: 'https://example.com/' } },
       ],
       footer: '',
       brand: null,
@@ -479,8 +479,8 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
           name =
             request.body.name ??
             (kind === 'template'
-              ? t('email.untitled.template', { defaultValue: 'Untitled template' })
-              : t('email.untitled.campaign', { defaultValue: 'Untitled campaign' }));
+              ? t('email:untitled.template', { defaultValue: 'Untitled template' })
+              : t('email:untitled.campaign', { defaultValue: 'Untitled campaign' }));
           doc = blankDocument(tl);
           category = 'lifecycle';
         }
@@ -645,7 +645,7 @@ export function emailTemplatesRoutes(deps: EmailTemplatesRoutesDeps): FastifyPlu
         await requireSettingsManage(request, 'duplicate email templates');
         const row = await mustFind(request.params.id);
         const { t } = await translatorFor(meta, userId);
-        const name = t('email.copySuffix', { name: row.name, defaultValue: '{name} (copy)' });
+        const name = t('email:copySuffix', { name: row.name, defaultValue: '{name} (copy)' });
         const copy = await templates.create(
           {
             kind: row.kind,

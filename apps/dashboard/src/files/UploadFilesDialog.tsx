@@ -134,15 +134,15 @@ export function UploadFilesDialog({
     >
       <ModalHeader
         icon={<Upload />}
-        title={t('common:files.upload.title', 'Upload files')}
-        subtitle={t('common:files.upload.subtitle', 'Add files to this workspace.')}
+        title={t('files:upload.title', 'Upload files')}
+        subtitle={t('files:upload.subtitle', 'Add files to this workspace.')}
         closeLabel={t('common.close', 'Close')}
       />
       <ModalBody className="flex flex-col gap-4">
         {connections.length > 1 ? (
           <label className="flex flex-col gap-1.5">
             <span className="text-body-sm font-medium text-fg">
-              {t('common:files.upload.connection', 'Which connection these belong to')}
+              {t('files:upload.connection', 'Which connection these belong to')}
             </span>
             <Select
               value={target}
@@ -185,7 +185,7 @@ export function UploadFilesDialog({
         >
           <Upload aria-hidden className="size-5 text-fg-subtle" />
           <p className="text-body-sm text-fg">
-            {t('common:files.upload.drop', 'Drag files here')}
+            {t('files:upload.drop', 'Drag files here')}
           </p>
           <Button
             variant="secondary"
@@ -194,14 +194,14 @@ export function UploadFilesDialog({
             onClick={() => picker.current?.click()}
             data-testid="files-upload-browse"
           >
-            {t('common:files.upload.browse', 'Browse your computer')}
+            {t('files:upload.browse', 'Browse your computer')}
           </Button>
           <input
             ref={picker}
             type="file"
             multiple
             className="sr-only"
-            aria-label={t('common:files.upload.browse', 'Browse your computer')}
+            aria-label={t('files:upload.browse', 'Browse your computer')}
             onChange={(event) => {
               const chosen = [...(event.target.files ?? [])];
               // Reset so the same file can be chosen again after a removal.
@@ -229,7 +229,7 @@ export function UploadFilesDialog({
                   {row.status === 'sending' ? (
                     <div
                       role="progressbar"
-                      aria-label={t('common:files.upload.sending', 'Uploading')}
+                      aria-label={t('files:upload.sending', 'Uploading')}
                       aria-valuenow={Math.round(row.fraction * 100)}
                       aria-valuemin={0}
                       aria-valuemax={100}
@@ -254,7 +254,7 @@ export function UploadFilesDialog({
                     variant="ghost"
                     size="sm"
                     onClick={() => row.abort?.abort()}
-                    aria-label={t('common:files.upload.cancelOne', 'Cancel {name}', {
+                    aria-label={t('files:upload.cancelOne', 'Cancel {name}', {
                       name: row.file.name,
                     })}
                   >
@@ -265,7 +265,7 @@ export function UploadFilesDialog({
                     variant="ghost"
                     size="sm"
                     onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
-                    aria-label={t('common:files.upload.removeOne', 'Remove {name}', {
+                    aria-label={t('files:upload.removeOne', 'Remove {name}', {
                       name: row.file.name,
                     })}
                   >
@@ -281,9 +281,9 @@ export function UploadFilesDialog({
           <Alert
             tone="pos"
             data-testid="files-upload-done"
-            title={t('common:files.upload.complete', 'Upload complete')}
+            title={t('files:upload.complete', 'Upload complete')}
             body={t(
-              'common:files.upload.completeBody',
+              'files:upload.completeBody',
               'These files are now in this workspace and can be attached to a record later.',
             )}
           />
@@ -307,8 +307,8 @@ export function UploadFilesDialog({
             the button is simply the verb.
           */}
           {queued.length === 0
-            ? t('common:files.upload.open', 'Upload')
-            : t('common:files.upload.send', '{count, plural, one {Upload # file} other {Upload # files}}', {
+            ? t('files:upload.open', 'Upload')
+            : t('files:upload.send', '{count, plural, one {Upload # file} other {Upload # files}}', {
                 count: queued.length,
               })}
         </Button>
@@ -320,11 +320,11 @@ export function UploadFilesDialog({
 function statusLabel(row: QueueRow): string {
   switch (row.status) {
     case 'done':
-      return t('common:files.upload.done', 'Done');
+      return t('files:upload.done', 'Done');
     case 'failed':
-      return t('common:files.upload.failed', 'Failed');
+      return t('files:upload.failed', 'Failed');
     case 'cancelled':
-      return t('common:files.upload.cancelled', 'Cancelled');
+      return t('files:upload.cancelled', 'Cancelled');
     case 'sending':
       return `${String(Math.round(row.fraction * 100))}%`;
     case 'queued':

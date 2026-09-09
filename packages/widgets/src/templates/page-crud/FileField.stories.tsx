@@ -164,10 +164,23 @@ export function MultipleAtCap(): ReactNode {
  * The thumbnail is a real data URI rather than a network image: the dashboard's
  * CSP is `default-src 'self'` and a story that fetched a remote image would
  * screenshot a broken icon in CI.
+ *
+ * NOTE THE TRAILING `#`, which is load-bearing. `FileCell` renders the inline
+ * thumbnail as `src={`${file.contentPath}?inline=1`}` — correct for the server
+ * path it always holds in production, and fatal to a data URI, because the
+ * appended `?inline=1` is parsed as part of the base64 payload and the decode
+ * fails. Terminating the URI with `#` puts the suffix in the FRAGMENT, which a
+ * data URI ignores. Without it this story screenshots the broken icon the
+ * paragraph above says it exists to avoid — which is how it was first captured.
+ *
+ * The pixels are a two-tone check rather than 37's 1×1 transparent pixel: at
+ * `size-10` with `object-cover`, a transparent source renders as an empty
+ * bordered box, indistinguishable in a screenshot from a thumbnail that failed
+ * to draw. A baseline has to be able to tell those apart.
  */
 export function GridChips(): ReactNode {
   const PNG =
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAHElEQVR42mNQTX4NR7df/YMjBipKIHOQFVFRAgCJtIbBdZZjDAAAAABJRU5ErkJggg==#';
   const single = column({ name: 'pdf_url', file: { ref: 'id' } });
   const image = column({ name: 'logo_url', file: { ref: 'id', inline: true } });
   const list = column({ file: { ref: 'id', multiple: true } });

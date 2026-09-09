@@ -242,6 +242,37 @@ const ALLOWED_HOSTS = [
     why: 'error-message and attribution strings baked into React, i18next and Leaflet. Printed to a console or an attribution corner, never requested',
   },
   {
+    test: /^reactflow\.dev$/,
+    why:
+      'the React Flow attribution badge in the schema diagram (@xyflow/react, studio/remap/diagram/DiagramMode.tsx). Same kind as the leafletjs.com entry above and, in the desktop build, the same kind as docs/github: ' +
+      'the library renders `<a href="https://reactflow.dev?utm_source=attribution" target="_blank" rel="noopener noreferrer">React Flow</a>` in a corner Panel, plus the identical string in a `data-message` attribute. ' +
+      'An anchor is not a fetch, and §2.4\'s navigation lockdown means a click cannot navigate the window either: `setWindowOpenHandler` allows only `http://127.0.0.1:<port>` and hands everything else to `shell.openExternal`, i.e. the system browser. ' +
+      'Offline the badge still renders and a click simply fails in the browser, so nothing about the diagram degrades. NOTE the attribution is shown DELIBERATELY — DiagramMode sets `proOptions={{ hideAttribution: false }}`, and xyflow asks that it only be hidden under a React Flow Pro subscription. ' +
+      'Hiding it would remove this entry\'s subject; that is a licensing decision, not a way to quiet this gate',
+  },
+  {
+    // Deliberately NOT `^\$\{e\}flow\.dev$`. `e` is a MINIFIER-CHOSEN name —
+    // the source is `` `https://${lib}flow.dev/error#001` `` in @xyflow/system —
+    // so pinning the letter would make this entry fall off on any terser or
+    // dependency bump, and the gate would go red for a string that had not
+    // changed. The host is anchored on `flow.dev` instead, which is what makes
+    // it narrow: a future `${config.remoteHost}` still fails, exactly as the
+    // `${hostname}` entry below intends for its own four.
+    test: /^\$\{[A-Za-z_$][\w$]*\}flow\.dev$/,
+    why:
+      'React Flow\'s own error text: `error001: (lib = \'react\') => `…Help: https://${lib}flow.dev/error#001`` in @xyflow/system, which minifies to `https://${e}flow.dev/error#001`. ' +
+      'Same kind as the react.dev entry above — a string thrown or printed to a console when a developer nests a component wrong. Never fetched, and unreachable at all in a correctly mounted tree',
+  },
+  {
+    test: /^(nyc3\.digitaloceanspaces\.com|fly\.storage\.tigris\.dev|s3\.us-west-004\.backblazeb2\.com|s3\.eu-central-1\.wasabisys\.com)$/,
+    why:
+      'the four non-AWS S3 presets in the storage-destination editor (studio/storage/storageApi.ts S3_PRESETS, 38-files-library.md). The same kind as api.groq.com below: text in a settings form. ' +
+      'Three are `endpointHint` only — placeholder attributes on an input whose value is the empty string — and Tigris is the one preset that also carries a default `endpoint`, i.e. a value that is written into the DRAFT when an admin picks that provider. ' +
+      'The dashboard never dials any of them: every request this surface makes goes to loopback `/api/v1/storage/...`, INCLUDING the "test connection" probe (`POST /api/v1/storage/destinations/test`), which is deliberately server-side so credentials never leave the server. ' +
+      'An admin who selects a preset, types their keys and saves has configured their OWN bucket, and it is the server — not scanned here, by this file\'s own design — that talks to it. That is configuration, not a remote asset the product ships. ' +
+      'They are NOT `optIn`: that category\'s bar is a named default-off switch plus a runtime test recording connection attempts, and a settings placeholder does not meet it and does not need to',
+  },
+  {
     test: /^api\.groq\.com$/,
     why: '06-llm-assist.md provider catalog base URL. §7 LLM row: provider-API mode is opt-in and labeled "requires internet"; unconfigured, this is a placeholder in a settings form',
   },

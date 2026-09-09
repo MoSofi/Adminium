@@ -155,7 +155,7 @@ function destinationLabel(
   // happened to resolve.
   names: ReadonlyMap<string | null, string>,
 ): string {
-  if (destinationId === null) return t('common:files.row.localDestination', "This server's disk");
+  if (destinationId === null) return t('files:row.localDestination', "This server's disk");
   return names.get(destinationId) ?? destinationId;
 }
 
@@ -229,11 +229,11 @@ export function FilesPage(): ReactNode {
           refresh();
           toasts.push({
             variant: 'success',
-            title: t('common:files.toast.restored', '{name} was restored', { name: file.filename }),
+            title: t('files:toast.restored', '{name} was restored', { name: file.filename }),
           });
         })
         .catch((error: unknown) => {
-          failed(t('common:files.toast.restoreFailed', 'Could not restore this file'), error);
+          failed(t('files:toast.restoreFailed', 'Could not restore this file'), error);
         });
     },
     [failed, refresh, toasts],
@@ -249,7 +249,7 @@ export function FilesPage(): ReactNode {
           setOpen((current) => (current?.id === file.id ? null : current));
           toasts.push({
             variant: 'success',
-            title: t('common:files.toast.trashed', '{name} was moved to the trash', {
+            title: t('files:toast.trashed', '{name} was moved to the trash', {
               name: file.filename,
             }),
             action: {
@@ -259,7 +259,7 @@ export function FilesPage(): ReactNode {
           });
         })
         .catch((error: unknown) => {
-          failed(t('common:files.toast.trashFailed', 'Could not move this file to the trash'), error);
+          failed(t('files:toast.trashFailed', 'Could not move this file to the trash'), error);
         });
     },
     [failed, refresh, restore, toasts],
@@ -292,9 +292,9 @@ export function FilesPage(): ReactNode {
   return (
     <PageSurface width="wide" className="flex flex-col gap-5" data-testid="files-page">
       <PageActions
-        title={t('common:files.title', 'Files')}
+        title={t('files:title', 'Files')}
         subtitle={t(
-          'common:files.subtitle',
+          'files:subtitle',
           'Everything uploaded through this workspace, and where its bytes are stored.',
         )}
       />
@@ -317,8 +317,8 @@ export function FilesPage(): ReactNode {
           <SearchInput
             className="min-w-52 max-w-xs flex-1"
             value={filters.q}
-            placeholder={t('common:files.search', 'Search by file name')}
-            aria-label={t('common:files.search', 'Search by file name')}
+            placeholder={t('files:search', 'Search by file name')}
+            aria-label={t('files:search', 'Search by file name')}
             onChange={(event) => setFilters({ ...filters, q: event.target.value })}
             onClear={() => setFilters({ ...filters, q: '' })}
             clearLabel={t('common.clear', 'Clear')}
@@ -326,11 +326,11 @@ export function FilesPage(): ReactNode {
           <div
             className="flex shrink-0 items-center rounded-md border border-border p-0.5"
             role="group"
-            aria-label={t('common:files.view.label', 'How files are shown')}
+            aria-label={t('files:view.label', 'How files are shown')}
           >
             <IconToggle
               active={view === 'grid'}
-              label={t('common:files.view.grid', 'Grid')}
+              label={t('files:view.grid', 'Grid')}
               onClick={() => setView('grid')}
               testId="files-view-grid"
             >
@@ -338,7 +338,7 @@ export function FilesPage(): ReactNode {
             </IconToggle>
             <IconToggle
               active={view === 'list'}
-              label={t('common:files.view.list', 'List')}
+              label={t('files:view.list', 'List')}
               onClick={() => setView('list')}
               testId="files-view-list"
             >
@@ -357,7 +357,7 @@ export function FilesPage(): ReactNode {
               onClick={() => setUploading(true)}
               data-testid="files-upload-open"
             >
-              {t('common:files.upload.open', 'Upload')}
+              {t('files:upload.open', 'Upload')}
             </Button>
           )}
         </div>
@@ -387,9 +387,9 @@ export function FilesPage(): ReactNode {
                 <Alert
                   tone="info"
                   data-testid="files-trash-notice"
-                  title={t('common:files.trash.notice.title', 'The trash empties itself')}
+                  title={t('files:trash.notice.title', 'The trash empties itself')}
                   body={t(
-                    'common:files.trash.notice.body',
+                    'files:trash.notice.body',
                     "A trashed file is removed, bytes and all, once this server's retention window has passed. Restore anything you still need before then.",
                   )}
                 />
@@ -407,7 +407,7 @@ export function FilesPage(): ReactNode {
                   role="alert"
                   tone="danger"
                   data-testid="files-list-error"
-                  title={t('common:files.listFailed.title', 'Could not load these files')}
+                  title={t('files:listFailed.title', 'Could not load these files')}
                   body={files.error.message}
                   action={
                     <Button variant="secondary" size="sm" onClick={() => void files.refetch()}>
@@ -423,17 +423,17 @@ export function FilesPage(): ReactNode {
                 icon={<FileStack />}
                 title={
                   searching || narrowed
-                    ? t('common:files.empty.filtered.title', 'Nothing here')
-                    : t('common:files.empty.title', 'No files yet')
+                    ? t('files:empty.filtered.title', 'Nothing here')
+                    : t('files:empty.title', 'No files yet')
                 }
                 body={
                   searching || narrowed
                     ? t(
-                        'common:files.empty.filtered.body',
+                        'files:empty.filtered.body',
                         'Clear the search, or pick another shortcut from the rail.',
                       )
                     : t(
-                        'common:files.empty.body',
+                        'files:empty.body',
                         'Files land here when someone attaches one to a record or fills a file field.',
                       )
                 }
@@ -465,7 +465,7 @@ export function FilesPage(): ReactNode {
                   onClick={() => void files.fetchNextPage()}
                   data-testid="files-load-more"
                 >
-                  {t('common:files.loadMore', 'Load more files')}
+                  {t('files:loadMore', 'Load more files')}
                 </Button>
               </div>
             ) : null}
@@ -509,7 +509,7 @@ function UsageStrip({ entries }: { entries: readonly StorageUsageEntry[] }): Rea
     <div
       className="flex flex-col gap-2"
       data-testid="files-usage-strip"
-      aria-label={t('common:files.usage.label', 'Storage in use')}
+      aria-label={t('files:usage.label', 'Storage in use')}
       role="group"
     >
       {entries.map((entry) => {
@@ -524,10 +524,10 @@ function UsageStrip({ entries }: { entries: readonly StorageUsageEntry[] }): Rea
           </div>
           <div className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-body-sm font-semibold text-fg" data-testid="files-usage-used">
-              {t('common:files.usage.used', '{size} used', { size: formatBytes(entry.bytes) })}
+              {t('files:usage.used', '{size} used', { size: formatBytes(entry.bytes) })}
             </span>
             <span className="text-caption text-fg-muted">
-              {t('common:files.usage.count', '{count, plural, one {# file} other {# files}}', {
+              {t('files:usage.count', '{count, plural, one {# file} other {# files}}', {
                 count: entry.files,
               })}
             </span>
@@ -549,7 +549,7 @@ function UsageStrip({ entries }: { entries: readonly StorageUsageEntry[] }): Rea
             <div className="flex flex-col gap-1" data-testid="files-usage-meter">
               <div
                 role="meter"
-                aria-label={t('common:files.usage.diskLabel', 'Disk in use')}
+                aria-label={t('files:usage.diskLabel', 'Disk in use')}
                 aria-valuenow={Math.round((entry.bytes / capacity) * 100)}
                 aria-valuemin={0}
                 aria-valuemax={100}
@@ -561,7 +561,7 @@ function UsageStrip({ entries }: { entries: readonly StorageUsageEntry[] }): Rea
                 />
               </div>
               <span className="text-caption text-fg-muted" data-testid="files-usage-capacity">
-                {t('common:files.usage.ofDisk', '{used} of {size} on this disk', {
+                {t('files:usage.ofDisk', '{used} of {size} on this disk', {
                   used: formatBytes(entry.bytes),
                   size: formatBytes(capacity),
                 })}
@@ -601,14 +601,14 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
   return (
     <nav
       className="flex w-full shrink-0 flex-col gap-4 lg:w-60"
-      aria-label={t('common:files.rail.label', 'File shortcuts')}
+      aria-label={t('files:rail.label', 'File shortcuts')}
       data-testid="files-rail"
     >
       <ul className="flex flex-col gap-0.5">
         <PresetItem
           id="all"
           icon={<FileStack aria-hidden className="size-4" />}
-          label={t('common:files.preset.all', 'All files')}
+          label={t('files:preset.all', 'All files')}
           target={{ ...base, state: 'live' }}
           filters={filters}
           onSelect={onSelect}
@@ -616,7 +616,7 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
         <PresetItem
           id="recent"
           icon={<Clock aria-hidden className="size-4" />}
-          label={t('common:files.preset.recent', 'Recent')}
+          label={t('files:preset.recent', 'Recent')}
           // A server query like every other preset — `since` becomes a request
           // parameter, so it finds files this client has never loaded.
           target={{ ...base, state: 'live', since: Date.now() - RECENT_WINDOW_MS }}
@@ -626,7 +626,7 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
         <PresetItem
           id="unattached"
           icon={<Unlink aria-hidden className="size-4" />}
-          label={t('common:files.preset.unattached', 'Not attached')}
+          label={t('files:preset.unattached', 'Not attached')}
           target={{ ...base, state: 'unattached' }}
           filters={filters}
           onSelect={onSelect}
@@ -634,7 +634,7 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
         <PresetItem
           id="trash"
           icon={<Trash2 aria-hidden className="size-4" />}
-          label={t('common:files.preset.trash', 'Trash')}
+          label={t('files:preset.trash', 'Trash')}
           target={{ ...base, state: 'trash' }}
           filters={filters}
           onSelect={onSelect}
@@ -643,7 +643,7 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
 
       {connections.length === 0 ? null : (
         <section className="flex flex-col gap-1" data-testid="files-rail-connections">
-          <RailHeading>{t('common:files.rail.byConnection', 'By connection')}</RailHeading>
+          <RailHeading>{t('files:rail.byConnection', 'By connection')}</RailHeading>
           <ul className="flex flex-col gap-0.5">
             {connections.map((entry) => (
               <PresetItem
@@ -665,7 +665,7 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
 
       {tables.length === 0 ? null : (
         <section className="flex flex-col gap-1" data-testid="files-rail-tables">
-          <RailHeading>{t('common:files.rail.byTable', 'By table')}</RailHeading>
+          <RailHeading>{t('files:rail.byTable', 'By table')}</RailHeading>
           <ul className="flex flex-col gap-0.5">
             {tables.map((entry) => (
               <PresetItem
@@ -696,7 +696,7 @@ function PresetRail({ filters, connections, tables, destinations, showCounts, on
 
       {destinations.length === 0 ? null : (
         <section className="flex flex-col gap-1" data-testid="files-rail-destinations">
-          <RailHeading>{t('common:files.rail.byDestination', 'By destination')}</RailHeading>
+          <RailHeading>{t('files:rail.byDestination', 'By destination')}</RailHeading>
           <ul className="flex flex-col gap-0.5">
             {destinations.map((entry) => (
               <PresetItem
@@ -782,22 +782,22 @@ function FilesTable(props: FilesTableProps): ReactNode {
         <thead>
           <tr className="border-b border-border text-micro uppercase text-fg-subtle">
             <th scope="col" className="px-4 py-2 text-start font-bold">
-              {t('common:files.column.name', 'File')}
+              {t('files:column.name', 'File')}
             </th>
             <th scope="col" className="px-4 py-2 text-start font-bold">
-              {t('common:files.column.size', 'Size')}
+              {t('files:column.size', 'Size')}
             </th>
             <th scope="col" className="px-4 py-2 text-start font-bold">
-              {t('common:files.column.attachedTo', 'Attached to')}
+              {t('files:column.attachedTo', 'Attached to')}
             </th>
             <th scope="col" className="px-4 py-2 text-start font-bold">
-              {t('common:files.column.destination', 'Destination')}
+              {t('files:column.destination', 'Destination')}
             </th>
             <th scope="col" className="px-4 py-2 text-start font-bold">
-              {t('common:files.column.added', 'Added')}
+              {t('files:column.added', 'Added')}
             </th>
             <th scope="col" className="px-4 py-2 text-end font-bold">
-              {t('common:files.column.actions', 'Actions')}
+              {t('files:column.actions', 'Actions')}
             </th>
           </tr>
         </thead>
@@ -823,7 +823,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
                   // reader with no idea which source it was uploaded for.
                   <div className="flex min-w-0 flex-col">
                     <span className="text-fg-subtle">
-                      {t('common:files.row.noRecord', 'Not attached to a record')}
+                      {t('files:row.noRecord', 'Not attached to a record')}
                     </span>
                     {file.connectionId === null ? null : (
                       <MonoText className="truncate text-caption text-fg-subtle">
@@ -854,7 +854,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
                       onClick={() => props.onRestore(file)}
                       data-testid="files-row-restore"
                     >
-                      {t('common:files.action.restore', 'Restore')}
+                      {t('files:action.restore', 'Restore')}
                     </Button>
                   ) : (
                     <>
@@ -874,7 +874,7 @@ function FilesTable(props: FilesTableProps): ReactNode {
                       >
                         <a href={file.contentPath} download={file.filename} rel="noopener">
                           <Download aria-hidden className="size-4" />
-                          {t('common:files.action.download', 'Download')}
+                          {t('files:action.download', 'Download')}
                         </a>
                       </Button>
                       <Button
@@ -882,13 +882,13 @@ function FilesTable(props: FilesTableProps): ReactNode {
                         size="sm"
                         className="text-danger hover:text-danger"
                         iconLeft={<Trash2 aria-hidden className="size-4" />}
-                        aria-label={t('common:files.action.deleteNamed', 'Delete {name}', {
+                        aria-label={t('files:action.deleteNamed', 'Delete {name}', {
                           name: file.filename,
                         })}
                         onClick={() => props.onTrash(file)}
                         data-testid="files-row-delete"
                       >
-                        {t('common:files.action.delete', 'Delete')}
+                        {t('files:action.delete', 'Delete')}
                       </Button>
                     </>
                   )}
@@ -919,7 +919,7 @@ function FileDrawer(props: {
   const { file } = props;
   if (file === null) return null;
 
-  const none = t('common:files.drawer.none', 'None');
+  const none = t('files:drawer.none', 'None');
   return (
     <Drawer
       open
@@ -930,7 +930,7 @@ function FileDrawer(props: {
     >
       <DrawerHeader
         title={file.filename}
-        subtitle={t('common:files.drawer.subtitle', '{size} · {type}', {
+        subtitle={t('files:drawer.subtitle', '{size} · {type}', {
           size: formatBytes(file.sizeBytes),
           type: file.mime,
         })}
@@ -940,44 +940,44 @@ function FileDrawer(props: {
         <KeyValueList
           items={[
             {
-              label: t('common:files.drawer.destination', 'Destination'),
+              label: t('files:drawer.destination', 'Destination'),
               value: destinationLabel(file.destinationId, props.destinationNames),
             },
             {
-              label: t('common:files.drawer.attachedTo', 'Attached to'),
+              label: t('files:drawer.attachedTo', 'Attached to'),
               value:
                 file.entity === null
-                  ? t('common:files.row.unattached', 'Not attached')
+                  ? t('files:row.unattached', 'Not attached')
                   : `${file.entity.table} · ${file.entity.recordId}`,
               mono: file.entity !== null,
             },
             {
-              label: t('common:files.drawer.uploadedBy', 'Uploaded by'),
+              label: t('files:drawer.uploadedBy', 'Uploaded by'),
               value: file.uploadedBy ?? none,
               mono: true,
             },
             {
-              label: t('common:files.drawer.added', 'Added'),
+              label: t('files:drawer.added', 'Added'),
               value: formatStamp(file.createdAt, props.localeTag) ?? none,
             },
             {
-              label: t('common:files.drawer.attachedAt', 'Attached'),
+              label: t('files:drawer.attachedAt', 'Attached'),
               value: formatStamp(file.attachedAt, props.localeTag) ?? none,
             },
             ...(file.deletedAt === null
               ? []
               : [
                   {
-                    label: t('common:files.drawer.trashedAt', 'Moved to trash'),
+                    label: t('files:drawer.trashedAt', 'Moved to trash'),
                     value: formatStamp(file.deletedAt, props.localeTag) ?? none,
                   },
                 ]),
-            { label: t('common:files.drawer.id', 'File id'), value: file.id, mono: true },
+            { label: t('files:drawer.id', 'File id'), value: file.id, mono: true },
           ]}
         />
 
         <section className="flex flex-col gap-2">
-          <h3 className="text-section text-fg">{t('common:files.drawer.checksum', 'Checksum')}</h3>
+          <h3 className="text-section text-fg">{t('files:drawer.checksum', 'Checksum')}</h3>
           <MonoText className="break-all text-caption text-fg-muted">{file.sha256}</MonoText>
         </section>
       </DrawerBody>

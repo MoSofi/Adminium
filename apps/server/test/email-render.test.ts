@@ -334,10 +334,14 @@ describe('seedBuiltinEmailTemplates', () => {
   it('resolves copy through the recipient locale, runtime overrides included', async () => {
     const meta = await makeMeta();
     try {
+      // `email` is its own namespace since 2026-09-08 (it left the eagerly
+      // bundled `common`); an override still filed at the old
+      // common/email.passwordReset.subject address resolves for nothing, which
+      // is what meta migration 0029 re-keys for real installs.
       await translationsRepo(meta).upsert({
         locale: 'de_DE',
-        namespace: 'common',
-        key: 'email.passwordReset.subject',
+        namespace: 'email',
+        key: 'passwordReset.subject',
         value: 'Passwort zurücksetzen',
       });
       await seedBuiltinEmailTemplates(meta, 1_000);

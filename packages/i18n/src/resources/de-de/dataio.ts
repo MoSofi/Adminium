@@ -1,0 +1,259 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * GENERATED MIRROR of ../../../locales/de-DE/dataio.json — do not edit by hand.
+ * The JSON file is the canonical hand-authored bundle (10-i18n-theming.md §3.1);
+ * this TS mirror exists so the runtime can bundle a namespace (en-US's eager
+ * ones) or chunk-split it (every other locale, and en-US's deferred `studio`)
+ * without JSON import attributes (browser + NodeNext safe).
+ * Parity is enforced by src/resources/parity.test.ts. Regenerate with
+ * scripts/gen-resources.mjs.
+ */
+export default {
+  "back": "Zurück",
+  "import": {
+    "stepUpload": "Hochladen",
+    "stepMap": "Spalten zuordnen",
+    "stepValidate": "Prüfen",
+    "stepRun": "Importieren & prüfen",
+    "targetLabel": "Zieltabelle",
+    "targetPlaceholder": "Tabellenseite wählen…",
+    "notATable": "Diese Seite ist keine Tabelle — wählen Sie eine Tabellenseite als Ziel.",
+    "dropTitle": "CSV-Datei zum Import hier ablegen",
+    "dropHint": "CSV bis 32 MB — die erste Zeile muss die Kopfzeile sein",
+    "skipTarget": "Nicht importieren",
+    "mapHint": "{count} Datenzeilen in {file} — wählen Sie für jede Spalte ein Ziel.",
+    "validating": "Wird geprüft…",
+    "toValidate": "Prüfen",
+    "validateFailed": "Prüfung fehlgeschlagen.",
+    "validationSummary": "{valid} von {total} Zeilen bereit zum Import — {invalid} werden übersprungen.",
+    "allValid": "Alle Zeilen haben die Prüfung bestanden",
+    "run": "Import starten",
+    "runSkipping": "{valid} Zeilen importieren ({invalid} überspringen)",
+    "progressLabel": "Importfortschritt",
+    "running": "Wird importiert…",
+    "kpiTotal": "Zeilen in der Datei",
+    "kpiCreated": "Erstellt",
+    "kpiUpdated": "Aktualisiert",
+    "kpiSkipped": "Übersprungen",
+    "inconsistent": "Importzahlen sind inkonsistent — Gesamt muss Erstellt + Aktualisiert + Übersprungen entsprechen.",
+    "downloadErrors": "Bericht der übersprungenen Zeilen herunterladen (CSV)",
+    "runFailed": "Der Import ist fehlgeschlagen."
+  },
+  "exports": {
+    "tableLabel": "Tabelle",
+    "tablePlaceholder": "Tabelle wählen…",
+    "notATable": "Diese Seite ist keine Tabelle — wählen Sie eine Tabellenseite zum Export.",
+    "formatLabel": "Format",
+    "create": "Exportieren",
+    "createFailed": "Der Export konnte nicht angefordert werden.",
+    "retention": "Exporte werden 30 Tage aufbewahrt und laufen dann ab.",
+    "statusProcessing": "Wird verarbeitet…",
+    "statusReady": "Fertig — {rows} Zeilen · zum Herunterladen klicken",
+    "statusFailed": "Fehlgeschlagen — {error}",
+    "statusCancelled": "Abgebrochen",
+    "statusExpired": "Abgelaufen",
+    "emptyTitle": "Noch keine Exporte",
+    "emptyBody": "Oben einen anfordern — Artefakte erscheinen hier mit ihrem Status.",
+    "new": "Neuer Export"
+  },
+  "builder": {
+    "title": "Neuer Export",
+    "subtitle": "Tabelle wählen, Spalten auswählen, Datei prüfen, exportieren.",
+    "cancel": "Abbrechen",
+    "backToExports": "Zurück zu Datenexporten",
+    "basedOn": "Basiert auf {name}",
+    "noAccess": {
+      "title": "Noch nichts zu exportieren",
+      "body": "Sie haben für keine Tabelle dieser Verbindung Exportrechte. Bitten Sie einen Admin, sie unter {link} zu erteilen.",
+      "link": "Rollen & Zugriff"
+    },
+    "step": "Schritt {n} von 3",
+    "steps": {
+      "source": "Quelle",
+      "columns": "Spalten",
+      "preview": "Vorschau"
+    },
+    "continue": "Weiter",
+    "export": "Exportieren",
+    "back": "Zurück",
+    "hint": {
+      "chooseTable": "Wählen Sie eine Tabelle, um fortzufahren.",
+      "fromAll": "Beginnt mit allen Spalten von {table}.",
+      "fromPage": "Beginnt mit einer an {table} gebundenen Seite.",
+      "noColumns": "Fügen Sie mindestens eine Spalte hinzu, um fortzufahren.",
+      "dupes": "Zwei Spalten haben dieselbe Überschrift. Benennen Sie eine um, um fortzufahren.",
+      "order": "{n} Spalten werden in dieser Reihenfolge geschrieben.",
+      "readSample": "Lesen Sie die Stichprobe, bevor Sie exportieren.",
+      "downloads": "Die Datei wird unter Datenexporte heruntergeladen, sobald sie fertig ist."
+    },
+    "source": {
+      "title": "Welche Tabelle?",
+      "search": "Tabellen suchen…",
+      "meta": "{rows} Zeilen · {cols} Spalten",
+      "metaNoRows": "{cols} Spalten",
+      "usedBy": "Verwendet von {n, plural, one {# Seite} other {# Seiten}}",
+      "locked": "Keine Exportrechte",
+      "lockedToast": "Sie haben keine Exportrechte für {table}"
+    },
+    "startFrom": {
+      "title": "Beginnen mit",
+      "body": "Legen Sie fest, wo die Spaltenliste beginnt. Im nächsten Schritt können Sie alles ändern.",
+      "all": "Alle Spalten von {table}",
+      "page": "Die Spalten einer Seite — {page}",
+      "pageMeta": "{page} · {n} Spalten · {linked} verknüpft · {totals, plural, one {# Summe} other {# Summen}}",
+      "none": "Keine Seite ist an diese Tabelle gebunden"
+    },
+    "columns": {
+      "title": "Was in die Datei kommt.",
+      "add": "Spalten hinzufügen",
+      "inFile": "In Ihrer Datei",
+      "summary": "{n} Spalten · {linked} verknüpft · {totals, plural, one {# Summe} other {# Summen}}",
+      "reset": "Auf Tabellenspalten zurücksetzen",
+      "removeAll": "Alle entfernen",
+      "empty": {
+        "title": "Noch keine Spalten",
+        "body": "Fügen Sie Spalten aus dem Panel hinzu oder setzen Sie auf die Spalten der Tabelle zurück."
+      },
+      "dragTitle": "Zum Umsortieren ziehen oder die Pfeiltasten verwenden",
+      "reorder": "{header} umsortieren",
+      "headerLabel": "Überschrift in der Datei",
+      "masked": "Wird als ••••• exportiert, sofern Sie keine Aufdeckberechtigung haben",
+      "dupe": "Eine andere Spalte verwendet diese Überschrift",
+      "removeTitle": "Aus der Datei entfernen",
+      "remove": "{header} entfernen"
+    },
+    "browser": {
+      "search": "Spalten suchen…",
+      "broken": "Diese Verknüpfung lässt sich nicht mehr auflösen — beginnen Sie sie erneut.",
+      "brokenBack": "Zurück zu allen Tabellen",
+      "suggested": "Vorgeschlagen",
+      "fromTable": "Aus {table}",
+      "fromTheTable": "Aus der Tabelle",
+      "readOnly": "Schreibgeschützte Spalte",
+      "noMatch": "Keine Spalte passt zu dieser Suche.",
+      "allIn": "Jede Spalte dieser Tabelle ist bereits in Ihrer Datei.",
+      "linked": "Aus verknüpften Tabellen",
+      "budget": "{used} von {max}",
+      "inbound": "Tabellen, die hierher verweisen",
+      "via": "über {column}",
+      "count": "Anzahl",
+      "aggregate": "Aggregat",
+      "add": "Hinzufügen",
+      "singleNote": "Min und Max nehmen eine Spalte.",
+      "limit": "Limit erreicht — entfernen Sie eine, um eine weitere hinzuzufügen",
+      "fourMax": "Bis zu vier Spalten",
+      "pickNumeric": "Wählen Sie zuerst eine numerische Spalte",
+      "already": "{header} ist bereits in Ihrer Datei",
+      "added": "{header} hinzugefügt",
+      "calculated": "Berechnet",
+      "hop": "Fügen Sie eine Spalte hinzu oder folgen Sie einer weiteren Verknüpfung.",
+      "hopLimit": "Drei Sprünge sind das Limit. Fügen Sie hier eine Spalte hinzu oder gehen Sie zurück.",
+      "addName": "{name} hinzufügen",
+      "noRead": "Keine Leserechte"
+    },
+    "calc": {
+      "arith": "Zwei Spalten addieren oder subtrahieren",
+      "first": "Erste Spalte",
+      "op": "Operator",
+      "second": "Zweite Spalte",
+      "pct": "Ein Prozentsatz einer Spalte",
+      "pctLabel": "Prozentsatz",
+      "pctOf": "% von",
+      "column": "Spalte",
+      "rule": "Eine Regel mit Schwellenwert",
+      "if": "Wenn",
+      "isOver": "über",
+      "then": "dann",
+      "else": "sonst",
+      "threshold": "Schwellenwert",
+      "whenOver": "Wert bei Überschreitung",
+      "otherwise": "Wert andernfalls",
+      "needTwo": "Fügen Sie zuerst zwei numerische Spalten hinzu",
+      "needOne": "Fügen Sie zuerst eine numerische Spalte hinzu"
+    },
+    "gen": {
+      "count": "{table} Anzahl",
+      "countSrc": "Anzahl von {table} über {column}",
+      "foldSrc": "{fn} von {table}.{cols}",
+      "linkedSrc": "{table}.{column} über {path}",
+      "arithHeader": "{a} {op} {b}",
+      "pctHeader": "{pct}% von {a}",
+      "ruleHeader": "{then} oder {else}",
+      "ruleSrc": "wenn {a} über {threshold} liegt, dann {then}, sonst {else}",
+      "sumOf": "Summe von",
+      "average": "Durchschnitt",
+      "min": "Min",
+      "max": "Max"
+    },
+    "badge": {
+      "key": "Schlüssel",
+      "linked": "Verknüpft",
+      "count": "Anzahl",
+      "sum": "Summe",
+      "avg": "Durchschnitt",
+      "min": "Min",
+      "max": "Max",
+      "calculated": "Berechnet",
+      "masked": "Maskiert"
+    },
+    "fold": {
+      "sum": "Summe",
+      "avg": "Durchschnitt",
+      "min": "Min",
+      "max": "Max"
+    },
+    "preview": {
+      "title": "Prüfen Sie die Datei, dann exportieren.",
+      "fileName": "Dateiname",
+      "format": "Format",
+      "csv": "CSV",
+      "jsonl": "JSON Lines",
+      "rows": "Zeilen",
+      "allRows": "Alle Zeilen · {n}",
+      "allRowsUnknown": "Alle Zeilen",
+      "viewRows": "Zeilen einer gespeicherten Ansicht",
+      "savedView": "Gespeicherte Ansicht",
+      "viewLabel": "{name} · {filters} Filter · {rows} Zeilen",
+      "viewLabelNoRows": "{name} · {filters} Filter",
+      "headerRow": "Kopfzeile",
+      "tabTable": "Tabelle",
+      "tabRaw": "Rohdatei",
+      "sample": "Stichprobe von {n} Zeilen · aktualisiert {when}",
+      "justNow": "gerade eben",
+      "minutesAgo": "{n, plural, one {vor # Minute} other {vor # Minuten}}",
+      "refresh": "Aktualisieren",
+      "failed": "Die Stichprobe konnte nicht gelesen werden.",
+      "failedTimeout": "Die Verbindung hat zu langsam geantwortet. Der Export selbst wurde nicht ausgeführt.",
+      "retry": "Erneut versuchen",
+      "headerOnly": "Die Datei wird nur die Kopfzeile enthalten."
+    },
+    "summary": {
+      "title": "Die Datei",
+      "columns": "Spalten",
+      "rows": "Zeilen",
+      "size": "Geschätzte Größe",
+      "retention": "Aufbewahrung",
+      "kept": "30 Tage aufbewahrt",
+      "fileName": "Dateiname"
+    },
+    "warn": {
+      "title": "Gut zu wissen",
+      "masked": "{n, plural, one {# Spalte wird} other {# Spalten werden}} maskiert exportiert",
+      "search": "Diese Ansicht hat einen Suchbegriff, den ein Export nicht übernehmen kann",
+      "noRows": "Diese Tabelle hat derzeit keine Zeilen"
+    },
+    "started": {
+      "preparing": "{file} wird vorbereitet · {rows} Zeilen",
+      "ready": "Fertig · {rows} Zeilen",
+      "noteBusy": "Sie erscheint unter Datenexporte und kann dort heruntergeladen werden, sobald sie fertig ist.",
+      "noteReady": "Fertig. Sie finden sie auch unter Datenexporte, falls Sie später darauf zurückkommen möchten.",
+      "download": "{format} herunterladen",
+      "busy": "Datei wird vorbereitet…",
+      "another": "Weiteren Export erstellen",
+      "failed": "Der Export ist fehlgeschlagen."
+    },
+    "toast": {
+      "started": "Export gestartet"
+    }
+  }
+} as const;

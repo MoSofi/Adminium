@@ -26,13 +26,26 @@
  * fourteen template bindings were genuinely deferred and the accounting said
  * fourteen. Both are deferred here, so both are now what they claim to be.
  */
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, use, type ReactElement } from 'react';
+
+import { dataIoMessagesReady } from './dataIoMessages.js';
 import { createRoute, type AnyRoute } from '@tanstack/react-router';
 import { Spinner } from '@adminium/ui';
 
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { PageSurface } from '../shell/PageSurface.js';
+
+/**
+ * The `dataio` namespace is DEFERRED (./dataIoMessages.ts), so each body waits
+ * for it inside the Suspense boundary it already had for its chunk. The
+ * PageActions title stays OUTSIDE, so the topbar still names the page on the
+ * first frame — and it reads a `common:` key for exactly that reason.
+ */
+function DataIoMessages({ children }: { children: ReactElement }) {
+  use(dataIoMessagesReady());
+  return children;
+}
 
 const ImportWizardPageLazy = lazy(async () => {
   const mod = await import('./ImportWizardPage.js');
@@ -76,9 +89,11 @@ function CenteredSpinner() {
 function ImportsRouteComponent() {
   return (
     <PageSurface width="page" fill>
-      <PageActions title={t('dataio.import.title', 'Import data')} />
+      <PageActions title={t('nav.imports', 'Import data')} />
       <Suspense fallback={<CenteredSpinner />}>
-        <ImportWizardPageLazy />
+        <DataIoMessages>
+          <ImportWizardPageLazy />
+        </DataIoMessages>
       </Suspense>
     </PageSurface>
   );
@@ -87,9 +102,11 @@ function ImportsRouteComponent() {
 function ExportsRouteComponent() {
   return (
     <PageSurface width="page" fill>
-      <PageActions title={t('dataio.exports.title', 'Data exports')} />
+      <PageActions title={t('nav.exports', 'Data exports')} />
       <Suspense fallback={<CenteredSpinner />}>
-        <DataExportsPageLazy />
+        <DataIoMessages>
+          <DataExportsPageLazy />
+        </DataIoMessages>
       </Suspense>
     </PageSurface>
   );
@@ -102,7 +119,9 @@ function ExportBuilderRouteComponent() {
   return (
     <PageSurface width="page" fill>
       <Suspense fallback={<CenteredSpinner />}>
-        <ExportBuilderPageLazy />
+        <DataIoMessages>
+          <ExportBuilderPageLazy />
+        </DataIoMessages>
       </Suspense>
     </PageSurface>
   );

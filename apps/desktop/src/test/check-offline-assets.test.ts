@@ -148,6 +148,46 @@ describe('check-offline-assets — §7 must-fail list', () => {
   });
 });
 
+describe('check-offline-assets — the 2026-09-09 entries stayed narrow', () => {
+  // An allowlist entry that over-matches is worse than the red build it silenced,
+  // so each of the three new entries gets a neighbour it must still reject.
+  it('still fails on a DIFFERENT DigitalOcean/Backblaze/Wasabi region', () => {
+    // The storage entry names four exact endpoints, not the providers' domains —
+    // a region nobody reviewed is a URL nobody reviewed.
+    const result = run(
+      fixture({
+        'app.js': 'const other = "https://ams3.digitaloceanspaces.com";',
+        'index.html': '<script src="/assets/index.js"></script>',
+      }),
+    );
+    expect(result.output).toContain('ams3.digitaloceanspaces.com');
+    expect(result.status).not.toBe(0);
+  });
+
+  it('still fails on a template host that is not ${…}flow.dev', () => {
+    // The `${lib}flow.dev` entry is anchored on the literal `flow.dev` suffix
+    // precisely so a runtime-built remote host cannot ride in behind it.
+    const result = run(
+      fixture({
+        'app.js': 'const u = `https://${config.remoteHost}/collect`;',
+        'index.html': '<script src="/assets/index.js"></script>',
+      }),
+    );
+    expect(result.status).not.toBe(0);
+  });
+
+  it('still fails on a reactflow.dev LOOK-ALIKE host', () => {
+    const result = run(
+      fixture({
+        'app.js': 'const cdn = "https://cdn.reactflow.dev/bundle.js";',
+        'index.html': '<script src="/assets/index.js"></script>',
+      }),
+    );
+    expect(result.output).toContain('cdn.reactflow.dev');
+    expect(result.status).not.toBe(0);
+  });
+});
+
 describe('check-offline-assets — the default answer is NO', () => {
   it('fails on a host nobody has reviewed, not merely on the known-bad ones', () => {
     // The whole design in one test: a deny-list only catches the CDNs someone
@@ -185,6 +225,47 @@ describe('check-offline-assets — what it must NOT flag', () => {
           'const hint = "https://…";',
         ].join('\n'),
         'index.html': '<link rel="stylesheet" href="/assets/index.css"><script src="/assets/index.js"></script>',
+      }),
+    );
+    expect(result.output).toContain('ok');
+    expect(result.status).toBe(0);
+  });
+
+  it('passes the six URLs the 2026-09-08 wave added (diagram attribution + S3 presets)', () => {
+    // The schema diagram and the storage-destination editor between them put six
+    // new hosts in the bundle. Each is INERT and allowlisted with its reason; the
+    // must-fail twin below is what keeps those entries narrow.
+    const result = run(
+      fixture({
+        'app.js': [
+          // @xyflow/react's attribution anchor — rendered on purpose
+          // (proOptions.hideAttribution === false) and opened by the SYSTEM
+          // browser under §2.4, never fetched.
+          'const a = "https://reactflow.dev?utm_source=attribution";',
+          // Its error text, as the minifier actually emits it. The source says
+          // `${lib}`; `e` is terser's choice and is free to change.
+          'const err = `https://${e}flow.dev/error#001`;',
+          // Storage presets: three placeholder hints and one default endpoint.
+          'const spaces = "https://nyc3.digitaloceanspaces.com";',
+          'const tigris = "https://fly.storage.tigris.dev";',
+          'const b2 = "https://s3.us-west-004.backblazeb2.com";',
+          'const wasabi = "https://s3.eu-central-1.wasabisys.com";',
+        ].join('\n'),
+        'index.html': '<link rel="stylesheet" href="/assets/index.css"><script src="/assets/index.js"></script>',
+      }),
+    );
+    expect(result.output).toContain('ok');
+    expect(result.status).toBe(0);
+  });
+
+  it('survives the minifier renaming the variable in ${lib}flow.dev', () => {
+    // The whole reason that entry is not `^\$\{e\}flow\.dev$`: `e` is a
+    // minifier-chosen name, so pinning it would turn a terser or dependency bump
+    // into a red build over a string that had not changed.
+    const result = run(
+      fixture({
+        'app.js': ['const a = `https://${t}flow.dev/error#001`;', 'const b = `https://${lib}flow.dev/error#001`;'].join('\n'),
+        'index.html': '<script src="/assets/index.js"></script>',
       }),
     );
     expect(result.output).toContain('ok');

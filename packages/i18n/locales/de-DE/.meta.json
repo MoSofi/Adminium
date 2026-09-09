@@ -3095,842 +3095,6 @@
     "srcHash": "39fc72124884",
     "status": "mt"
   },
-  "common.dataio.back": {
-    "srcHash": "b52b36b7269f",
-    "status": "mt"
-  },
-  "common.dataio.builder.back": {
-    "status": "mt",
-    "srcHash": "b52b36b7269f"
-  },
-  "common.dataio.builder.backToExports": {
-    "status": "mt",
-    "srcHash": "30d92a5f389c"
-  },
-  "common.dataio.builder.badge.avg": {
-    "status": "mt",
-    "srcHash": "15f86c051ecf"
-  },
-  "common.dataio.builder.badge.calculated": {
-    "status": "mt",
-    "srcHash": "757d86654eda"
-  },
-  "common.dataio.builder.badge.count": {
-    "status": "mt",
-    "srcHash": "66e12969c225"
-  },
-  "common.dataio.builder.badge.key": {
-    "status": "mt",
-    "srcHash": "c67dd20ee842"
-  },
-  "common.dataio.builder.badge.linked": {
-    "status": "mt",
-    "srcHash": "a089f600e3d2"
-  },
-  "common.dataio.builder.badge.masked": {
-    "status": "mt",
-    "srcHash": "3c7edef964e8"
-  },
-  "common.dataio.builder.badge.max": {
-    "status": "src",
-    "srcHash": "a95e85aed563"
-  },
-  "common.dataio.builder.badge.min": {
-    "status": "src",
-    "srcHash": "7eb0cee888ab"
-  },
-  "common.dataio.builder.badge.sum": {
-    "status": "mt",
-    "srcHash": "fc9ce14b28c6"
-  },
-  "common.dataio.builder.basedOn": {
-    "status": "mt",
-    "srcHash": "7fa97b7614d5"
-  },
-  "common.dataio.builder.browser.add": {
-    "status": "mt",
-    "srcHash": "61cc55aa0453"
-  },
-  "common.dataio.builder.browser.addName": {
-    "status": "mt",
-    "srcHash": "3796d1b1809f"
-  },
-  "common.dataio.builder.browser.added": {
-    "status": "mt",
-    "srcHash": "4c4547f66400"
-  },
-  "common.dataio.builder.browser.aggregate": {
-    "status": "mt",
-    "srcHash": "6a8e8189f131"
-  },
-  "common.dataio.builder.browser.allIn": {
-    "status": "mt",
-    "srcHash": "ac36da4c444e"
-  },
-  "common.dataio.builder.browser.already": {
-    "status": "mt",
-    "srcHash": "7a12f0749504"
-  },
-  "common.dataio.builder.browser.broken": {
-    "status": "mt",
-    "srcHash": "cac3581f1229"
-  },
-  "common.dataio.builder.browser.brokenBack": {
-    "status": "mt",
-    "srcHash": "5ef2647a9029"
-  },
-  "common.dataio.builder.browser.budget": {
-    "status": "mt",
-    "srcHash": "45b9ae37d14c"
-  },
-  "common.dataio.builder.browser.calculated": {
-    "status": "mt",
-    "srcHash": "757d86654eda"
-  },
-  "common.dataio.builder.browser.count": {
-    "status": "mt",
-    "srcHash": "66e12969c225"
-  },
-  "common.dataio.builder.browser.fourMax": {
-    "status": "mt",
-    "srcHash": "f2d75905256b"
-  },
-  "common.dataio.builder.browser.fromTable": {
-    "status": "mt",
-    "srcHash": "348e934797dc"
-  },
-  "common.dataio.builder.browser.fromTheTable": {
-    "status": "mt",
-    "srcHash": "1196fb503ac5"
-  },
-  "common.dataio.builder.browser.hop": {
-    "status": "mt",
-    "srcHash": "981747cc29a4"
-  },
-  "common.dataio.builder.browser.hopLimit": {
-    "status": "mt",
-    "srcHash": "915c50c76c3b"
-  },
-  "common.dataio.builder.browser.inbound": {
-    "status": "mt",
-    "srcHash": "a4a54b781cfe"
-  },
-  "common.dataio.builder.browser.limit": {
-    "status": "mt",
-    "srcHash": "dd512dd2af3f"
-  },
-  "common.dataio.builder.browser.linked": {
-    "status": "mt",
-    "srcHash": "851521ed6574"
-  },
-  "common.dataio.builder.browser.noMatch": {
-    "status": "mt",
-    "srcHash": "9d44779f144d"
-  },
-  "common.dataio.builder.browser.noRead": {
-    "status": "mt",
-    "srcHash": "309bbfc9a2f1"
-  },
-  "common.dataio.builder.browser.pickNumeric": {
-    "status": "mt",
-    "srcHash": "cc50606bc821"
-  },
-  "common.dataio.builder.browser.readOnly": {
-    "status": "mt",
-    "srcHash": "387474efee96"
-  },
-  "common.dataio.builder.browser.search": {
-    "status": "mt",
-    "srcHash": "953be1a880cd"
-  },
-  "common.dataio.builder.browser.singleNote": {
-    "status": "mt",
-    "srcHash": "d7f04ff1097f"
-  },
-  "common.dataio.builder.browser.suggested": {
-    "status": "mt",
-    "srcHash": "7fcd8d44c6f2"
-  },
-  "common.dataio.builder.browser.via": {
-    "status": "mt",
-    "srcHash": "196fb9b5241b"
-  },
-  "common.dataio.builder.calc.arith": {
-    "status": "mt",
-    "srcHash": "9f90d8e22e39"
-  },
-  "common.dataio.builder.calc.column": {
-    "status": "mt",
-    "srcHash": "65ba00e95e60"
-  },
-  "common.dataio.builder.calc.else": {
-    "status": "mt",
-    "srcHash": "ae050f5b7fb8"
-  },
-  "common.dataio.builder.calc.first": {
-    "status": "mt",
-    "srcHash": "d9be26a9cf4a"
-  },
-  "common.dataio.builder.calc.if": {
-    "status": "mt",
-    "srcHash": "751c68a3471b"
-  },
-  "common.dataio.builder.calc.isOver": {
-    "status": "mt",
-    "srcHash": "1e09c7488038"
-  },
-  "common.dataio.builder.calc.needOne": {
-    "status": "mt",
-    "srcHash": "b5de67f97081"
-  },
-  "common.dataio.builder.calc.needTwo": {
-    "status": "mt",
-    "srcHash": "f7f9128cb60d"
-  },
-  "common.dataio.builder.calc.op": {
-    "status": "src",
-    "srcHash": "d0e687b079fb"
-  },
-  "common.dataio.builder.calc.otherwise": {
-    "status": "mt",
-    "srcHash": "4d8d77313b8c"
-  },
-  "common.dataio.builder.calc.pct": {
-    "status": "mt",
-    "srcHash": "b06ea6371cb0"
-  },
-  "common.dataio.builder.calc.pctLabel": {
-    "status": "mt",
-    "srcHash": "c4519ac7ccbe"
-  },
-  "common.dataio.builder.calc.pctOf": {
-    "status": "mt",
-    "srcHash": "0f9771a13ac6"
-  },
-  "common.dataio.builder.calc.rule": {
-    "status": "mt",
-    "srcHash": "32a24d48b6a2"
-  },
-  "common.dataio.builder.calc.second": {
-    "status": "mt",
-    "srcHash": "7620f0601150"
-  },
-  "common.dataio.builder.calc.then": {
-    "status": "mt",
-    "srcHash": "6f8f8e9f7673"
-  },
-  "common.dataio.builder.calc.threshold": {
-    "status": "mt",
-    "srcHash": "c51f7b72279e"
-  },
-  "common.dataio.builder.calc.whenOver": {
-    "status": "mt",
-    "srcHash": "6e338e839f4e"
-  },
-  "common.dataio.builder.cancel": {
-    "status": "mt",
-    "srcHash": "77dfd2135f4d"
-  },
-  "common.dataio.builder.columns.add": {
-    "status": "mt",
-    "srcHash": "b612d09d7cda"
-  },
-  "common.dataio.builder.columns.dragTitle": {
-    "status": "mt",
-    "srcHash": "3d9ab656ffae"
-  },
-  "common.dataio.builder.columns.dupe": {
-    "status": "mt",
-    "srcHash": "87022b5f3a8e"
-  },
-  "common.dataio.builder.columns.empty.body": {
-    "status": "mt",
-    "srcHash": "80e02005a738"
-  },
-  "common.dataio.builder.columns.empty.title": {
-    "status": "mt",
-    "srcHash": "af852f381290"
-  },
-  "common.dataio.builder.columns.headerLabel": {
-    "status": "mt",
-    "srcHash": "f68b5ef1fc21"
-  },
-  "common.dataio.builder.columns.inFile": {
-    "status": "mt",
-    "srcHash": "d4b2e42a04f1"
-  },
-  "common.dataio.builder.columns.masked": {
-    "status": "mt",
-    "srcHash": "af27641b8261"
-  },
-  "common.dataio.builder.columns.remove": {
-    "status": "mt",
-    "srcHash": "2566c82a1981"
-  },
-  "common.dataio.builder.columns.removeAll": {
-    "status": "mt",
-    "srcHash": "4100ef4df528"
-  },
-  "common.dataio.builder.columns.removeTitle": {
-    "status": "mt",
-    "srcHash": "63afd6c49e76"
-  },
-  "common.dataio.builder.columns.reorder": {
-    "status": "mt",
-    "srcHash": "160333d58366"
-  },
-  "common.dataio.builder.columns.reset": {
-    "status": "mt",
-    "srcHash": "9693b609e06e"
-  },
-  "common.dataio.builder.columns.summary": {
-    "status": "mt",
-    "srcHash": "7ba7327d3b7e"
-  },
-  "common.dataio.builder.columns.title": {
-    "status": "mt",
-    "srcHash": "56716e49e93e"
-  },
-  "common.dataio.builder.continue": {
-    "status": "mt",
-    "srcHash": "2e02623966f9"
-  },
-  "common.dataio.builder.export": {
-    "status": "mt",
-    "srcHash": "f3e4fadb9e37"
-  },
-  "common.dataio.builder.fold.avg": {
-    "status": "mt",
-    "srcHash": "15f86c051ecf"
-  },
-  "common.dataio.builder.fold.max": {
-    "status": "src",
-    "srcHash": "a95e85aed563"
-  },
-  "common.dataio.builder.fold.min": {
-    "status": "src",
-    "srcHash": "7eb0cee888ab"
-  },
-  "common.dataio.builder.fold.sum": {
-    "status": "mt",
-    "srcHash": "fc9ce14b28c6"
-  },
-  "common.dataio.builder.gen.arithHeader": {
-    "status": "src",
-    "srcHash": "7d9dab170cf7"
-  },
-  "common.dataio.builder.gen.average": {
-    "status": "mt",
-    "srcHash": "15f86c051ecf"
-  },
-  "common.dataio.builder.gen.count": {
-    "status": "mt",
-    "srcHash": "829d61b0a903"
-  },
-  "common.dataio.builder.gen.countSrc": {
-    "status": "mt",
-    "srcHash": "40aa9b4298f1"
-  },
-  "common.dataio.builder.gen.foldSrc": {
-    "status": "mt",
-    "srcHash": "720b1493047a"
-  },
-  "common.dataio.builder.gen.linkedSrc": {
-    "status": "mt",
-    "srcHash": "55259d663cff"
-  },
-  "common.dataio.builder.gen.max": {
-    "status": "src",
-    "srcHash": "a95e85aed563"
-  },
-  "common.dataio.builder.gen.min": {
-    "status": "src",
-    "srcHash": "7eb0cee888ab"
-  },
-  "common.dataio.builder.gen.pctHeader": {
-    "status": "mt",
-    "srcHash": "a8f17b0c3aea"
-  },
-  "common.dataio.builder.gen.ruleHeader": {
-    "status": "mt",
-    "srcHash": "332a7ca93771"
-  },
-  "common.dataio.builder.gen.ruleSrc": {
-    "status": "mt",
-    "srcHash": "605242e4b735"
-  },
-  "common.dataio.builder.gen.sumOf": {
-    "status": "mt",
-    "srcHash": "88beb5e87929"
-  },
-  "common.dataio.builder.hint.chooseTable": {
-    "status": "mt",
-    "srcHash": "8e18ee49e1fa"
-  },
-  "common.dataio.builder.hint.downloads": {
-    "status": "mt",
-    "srcHash": "2490de543cf9"
-  },
-  "common.dataio.builder.hint.dupes": {
-    "status": "mt",
-    "srcHash": "8f78c559bb8d"
-  },
-  "common.dataio.builder.hint.fromAll": {
-    "status": "mt",
-    "srcHash": "5183356ad42a"
-  },
-  "common.dataio.builder.hint.fromPage": {
-    "status": "mt",
-    "srcHash": "ee9a6587ca7e"
-  },
-  "common.dataio.builder.hint.noColumns": {
-    "status": "mt",
-    "srcHash": "c98dfeb4b035"
-  },
-  "common.dataio.builder.hint.order": {
-    "status": "mt",
-    "srcHash": "0372b4212c2f"
-  },
-  "common.dataio.builder.hint.readSample": {
-    "status": "mt",
-    "srcHash": "1879fc25f5e7"
-  },
-  "common.dataio.builder.noAccess.body": {
-    "status": "mt",
-    "srcHash": "a67f1b48b05e"
-  },
-  "common.dataio.builder.noAccess.link": {
-    "status": "mt",
-    "srcHash": "2b89b2511372"
-  },
-  "common.dataio.builder.noAccess.title": {
-    "status": "mt",
-    "srcHash": "29cee65e232e"
-  },
-  "common.dataio.builder.preview.allRows": {
-    "status": "mt",
-    "srcHash": "cc9d13fe0dc8"
-  },
-  "common.dataio.builder.preview.allRowsUnknown": {
-    "status": "mt",
-    "srcHash": "83a3b2635989"
-  },
-  "common.dataio.builder.preview.csv": {
-    "status": "src",
-    "srcHash": "3281188351b8"
-  },
-  "common.dataio.builder.preview.failed": {
-    "status": "mt",
-    "srcHash": "fe9bbf1113d3"
-  },
-  "common.dataio.builder.preview.failedTimeout": {
-    "status": "mt",
-    "srcHash": "c88c088162f3"
-  },
-  "common.dataio.builder.preview.fileName": {
-    "status": "mt",
-    "srcHash": "09979a78c995"
-  },
-  "common.dataio.builder.preview.format": {
-    "status": "src",
-    "srcHash": "041a5dec481d"
-  },
-  "common.dataio.builder.preview.headerOnly": {
-    "status": "mt",
-    "srcHash": "24d237fe75d0"
-  },
-  "common.dataio.builder.preview.headerRow": {
-    "status": "mt",
-    "srcHash": "c276551715b9"
-  },
-  "common.dataio.builder.preview.jsonl": {
-    "status": "src",
-    "srcHash": "49280f1be4a9"
-  },
-  "common.dataio.builder.preview.justNow": {
-    "status": "mt",
-    "srcHash": "a7f8e7cc0d43"
-  },
-  "common.dataio.builder.preview.minutesAgo": {
-    "status": "mt",
-    "srcHash": "e830e1381ba6"
-  },
-  "common.dataio.builder.preview.refresh": {
-    "status": "mt",
-    "srcHash": "56e3badc4e6c"
-  },
-  "common.dataio.builder.preview.retry": {
-    "status": "mt",
-    "srcHash": "9f5cd8a2e880"
-  },
-  "common.dataio.builder.preview.rows": {
-    "status": "mt",
-    "srcHash": "52d0b35277ee"
-  },
-  "common.dataio.builder.preview.sample": {
-    "status": "mt",
-    "srcHash": "eb1c9f3b79b6"
-  },
-  "common.dataio.builder.preview.savedView": {
-    "status": "mt",
-    "srcHash": "80b1e1493efa"
-  },
-  "common.dataio.builder.preview.tabRaw": {
-    "status": "mt",
-    "srcHash": "2ffd50cbf7c2"
-  },
-  "common.dataio.builder.preview.tabTable": {
-    "status": "mt",
-    "srcHash": "0424f6e7026f"
-  },
-  "common.dataio.builder.preview.title": {
-    "status": "mt",
-    "srcHash": "3244b5603457"
-  },
-  "common.dataio.builder.preview.viewLabel": {
-    "status": "mt",
-    "srcHash": "cc3082f98515"
-  },
-  "common.dataio.builder.preview.viewLabelNoRows": {
-    "status": "mt",
-    "srcHash": "c6658fc8ad60"
-  },
-  "common.dataio.builder.preview.viewRows": {
-    "status": "mt",
-    "srcHash": "0454b782f78e"
-  },
-  "common.dataio.builder.source.locked": {
-    "status": "mt",
-    "srcHash": "270cb549455b"
-  },
-  "common.dataio.builder.source.lockedToast": {
-    "status": "mt",
-    "srcHash": "78fb6cc1e67f"
-  },
-  "common.dataio.builder.source.meta": {
-    "status": "mt",
-    "srcHash": "11396c4415d2"
-  },
-  "common.dataio.builder.source.metaNoRows": {
-    "status": "mt",
-    "srcHash": "c1318b2b1b47"
-  },
-  "common.dataio.builder.source.search": {
-    "status": "mt",
-    "srcHash": "efd734e0c9a7"
-  },
-  "common.dataio.builder.source.title": {
-    "status": "mt",
-    "srcHash": "a413bd019b17"
-  },
-  "common.dataio.builder.source.usedBy": {
-    "status": "mt",
-    "srcHash": "1203766267d3"
-  },
-  "common.dataio.builder.startFrom.all": {
-    "status": "mt",
-    "srcHash": "ede4900f8ca8"
-  },
-  "common.dataio.builder.startFrom.body": {
-    "status": "mt",
-    "srcHash": "4d33a37980d9"
-  },
-  "common.dataio.builder.startFrom.none": {
-    "status": "mt",
-    "srcHash": "6a129b45d0e1"
-  },
-  "common.dataio.builder.startFrom.page": {
-    "status": "mt",
-    "srcHash": "fba97dcee75d"
-  },
-  "common.dataio.builder.startFrom.pageMeta": {
-    "status": "mt",
-    "srcHash": "bf05c65fe8b0"
-  },
-  "common.dataio.builder.startFrom.title": {
-    "status": "mt",
-    "srcHash": "62a53f0baa7a"
-  },
-  "common.dataio.builder.started.another": {
-    "status": "mt",
-    "srcHash": "b89c33d07c03"
-  },
-  "common.dataio.builder.started.busy": {
-    "status": "mt",
-    "srcHash": "66cc970a751f"
-  },
-  "common.dataio.builder.started.download": {
-    "status": "mt",
-    "srcHash": "b865ef0957dd"
-  },
-  "common.dataio.builder.started.failed": {
-    "status": "mt",
-    "srcHash": "0765970a4b9a"
-  },
-  "common.dataio.builder.started.noteBusy": {
-    "status": "mt",
-    "srcHash": "d24909b3787a"
-  },
-  "common.dataio.builder.started.noteReady": {
-    "status": "mt",
-    "srcHash": "8bde65f2853d"
-  },
-  "common.dataio.builder.started.preparing": {
-    "status": "mt",
-    "srcHash": "f98226adde5f"
-  },
-  "common.dataio.builder.started.ready": {
-    "status": "mt",
-    "srcHash": "042758dbd176"
-  },
-  "common.dataio.builder.step": {
-    "status": "mt",
-    "srcHash": "72629a128858"
-  },
-  "common.dataio.builder.steps.columns": {
-    "status": "mt",
-    "srcHash": "cf723c59b62a"
-  },
-  "common.dataio.builder.steps.preview": {
-    "status": "mt",
-    "srcHash": "f1fbb2b43dca"
-  },
-  "common.dataio.builder.steps.source": {
-    "status": "mt",
-    "srcHash": "6da13addb000"
-  },
-  "common.dataio.builder.subtitle": {
-    "status": "mt",
-    "srcHash": "7ee814c10a14"
-  },
-  "common.dataio.builder.summary.columns": {
-    "status": "mt",
-    "srcHash": "cf723c59b62a"
-  },
-  "common.dataio.builder.summary.fileName": {
-    "status": "mt",
-    "srcHash": "09979a78c995"
-  },
-  "common.dataio.builder.summary.kept": {
-    "status": "mt",
-    "srcHash": "1a15638fea7e"
-  },
-  "common.dataio.builder.summary.retention": {
-    "status": "mt",
-    "srcHash": "c7199d9e9593"
-  },
-  "common.dataio.builder.summary.rows": {
-    "status": "mt",
-    "srcHash": "52d0b35277ee"
-  },
-  "common.dataio.builder.summary.size": {
-    "status": "mt",
-    "srcHash": "f17c115996c8"
-  },
-  "common.dataio.builder.summary.title": {
-    "status": "mt",
-    "srcHash": "04fbc7508d5d"
-  },
-  "common.dataio.builder.title": {
-    "status": "mt",
-    "srcHash": "b417e2603615"
-  },
-  "common.dataio.builder.toast.started": {
-    "status": "mt",
-    "srcHash": "a1c225355031"
-  },
-  "common.dataio.builder.warn.masked": {
-    "status": "mt",
-    "srcHash": "06f3fa4e277e"
-  },
-  "common.dataio.builder.warn.noRows": {
-    "status": "mt",
-    "srcHash": "7849ff1b1fae"
-  },
-  "common.dataio.builder.warn.search": {
-    "status": "mt",
-    "srcHash": "85e6edd1fb8d"
-  },
-  "common.dataio.builder.warn.title": {
-    "status": "mt",
-    "srcHash": "47c0d09c3e1c"
-  },
-  "common.dataio.exports.create": {
-    "srcHash": "f3e4fadb9e37",
-    "status": "mt"
-  },
-  "common.dataio.exports.createFailed": {
-    "srcHash": "ae4b99da5394",
-    "status": "mt"
-  },
-  "common.dataio.exports.emptyBody": {
-    "srcHash": "b972a5b48beb",
-    "status": "mt"
-  },
-  "common.dataio.exports.emptyTitle": {
-    "srcHash": "28dee69f8a7c",
-    "status": "mt"
-  },
-  "common.dataio.exports.formatLabel": {
-    "status": "src",
-    "srcHash": "041a5dec481d"
-  },
-  "common.dataio.exports.new": {
-    "status": "mt",
-    "srcHash": "b417e2603615"
-  },
-  "common.dataio.exports.notATable": {
-    "srcHash": "e797044d0988",
-    "status": "mt"
-  },
-  "common.dataio.exports.retention": {
-    "srcHash": "271d5246a8af",
-    "status": "mt"
-  },
-  "common.dataio.exports.statusCancelled": {
-    "srcHash": "a1bf92eff40d",
-    "status": "mt"
-  },
-  "common.dataio.exports.statusExpired": {
-    "srcHash": "a689a999a5e6",
-    "status": "mt"
-  },
-  "common.dataio.exports.statusFailed": {
-    "srcHash": "58c77e8f6d34",
-    "status": "mt"
-  },
-  "common.dataio.exports.statusProcessing": {
-    "srcHash": "93d175570231",
-    "status": "mt"
-  },
-  "common.dataio.exports.statusReady": {
-    "srcHash": "18765945dc29",
-    "status": "mt"
-  },
-  "common.dataio.exports.tableLabel": {
-    "srcHash": "0424f6e7026f",
-    "status": "mt"
-  },
-  "common.dataio.exports.tablePlaceholder": {
-    "srcHash": "9cd9ec452dd6",
-    "status": "mt"
-  },
-  "common.dataio.exports.title": {
-    "srcHash": "7a9e1d08f116",
-    "status": "mt"
-  },
-  "common.dataio.import.allValid": {
-    "srcHash": "2c7b6e9f1c6a",
-    "status": "mt"
-  },
-  "common.dataio.import.downloadErrors": {
-    "srcHash": "957be8351dc8",
-    "status": "mt"
-  },
-  "common.dataio.import.dropHint": {
-    "srcHash": "02dd0f1105dc",
-    "status": "mt"
-  },
-  "common.dataio.import.dropTitle": {
-    "srcHash": "0b2267f1a677",
-    "status": "mt"
-  },
-  "common.dataio.import.inconsistent": {
-    "srcHash": "419b6f7a5dce",
-    "status": "mt"
-  },
-  "common.dataio.import.kpiCreated": {
-    "srcHash": "accf40c89baa",
-    "status": "mt"
-  },
-  "common.dataio.import.kpiSkipped": {
-    "srcHash": "5a000ad7bd1b",
-    "status": "mt"
-  },
-  "common.dataio.import.kpiTotal": {
-    "srcHash": "e12ee5e53b65",
-    "status": "mt"
-  },
-  "common.dataio.import.kpiUpdated": {
-    "srcHash": "f2f8570ddd7b",
-    "status": "mt"
-  },
-  "common.dataio.import.mapHint": {
-    "srcHash": "40e97450f6ec",
-    "status": "mt"
-  },
-  "common.dataio.import.notATable": {
-    "srcHash": "f78a1d0ad6c2",
-    "status": "mt"
-  },
-  "common.dataio.import.progressLabel": {
-    "srcHash": "50565ad0d156",
-    "status": "mt"
-  },
-  "common.dataio.import.run": {
-    "srcHash": "a74342a6db9c",
-    "status": "mt"
-  },
-  "common.dataio.import.runFailed": {
-    "srcHash": "ec025fbd1926",
-    "status": "mt"
-  },
-  "common.dataio.import.runSkipping": {
-    "srcHash": "48373b3e39d2",
-    "status": "mt"
-  },
-  "common.dataio.import.running": {
-    "srcHash": "820599da89a1",
-    "status": "mt"
-  },
-  "common.dataio.import.skipTarget": {
-    "srcHash": "9309f855a689",
-    "status": "mt"
-  },
-  "common.dataio.import.stepMap": {
-    "srcHash": "e7d0f84da584",
-    "status": "mt"
-  },
-  "common.dataio.import.stepRun": {
-    "srcHash": "056a4945542b",
-    "status": "mt"
-  },
-  "common.dataio.import.stepUpload": {
-    "srcHash": "8bdf057f91e7",
-    "status": "mt"
-  },
-  "common.dataio.import.stepValidate": {
-    "srcHash": "6752f198b564",
-    "status": "mt"
-  },
-  "common.dataio.import.targetLabel": {
-    "srcHash": "db2d76fa95f4",
-    "status": "mt"
-  },
-  "common.dataio.import.targetPlaceholder": {
-    "srcHash": "e6b8db581b38",
-    "status": "mt"
-  },
-  "common.dataio.import.title": {
-    "srcHash": "d82c9379e1e7",
-    "status": "mt"
-  },
-  "common.dataio.import.toValidate": {
-    "srcHash": "6752f198b564",
-    "status": "mt"
-  },
-  "common.dataio.import.validateFailed": {
-    "srcHash": "f5f95885484d",
-    "status": "mt"
-  },
-  "common.dataio.import.validating": {
-    "srcHash": "c07434c9a117",
-    "status": "mt"
-  },
-  "common.dataio.import.validationSummary": {
-    "srcHash": "1d32ac6df79b",
-    "status": "mt"
-  },
   "common.desktop.chip.lanShare": {
     "srcHash": "32651de5cf51",
     "status": "mt"
@@ -4486,858 +3650,6 @@
   "common.desktop.setup.title": {
     "srcHash": "d4b1a6d5c80c",
     "status": "mt"
-  },
-  "common.email.blank.cta": {
-    "status": "mt",
-    "srcHash": "95c9c0e0456f"
-  },
-  "common.email.blank.heading": {
-    "status": "mt",
-    "srcHash": "ea3aedf7d039"
-  },
-  "common.email.blank.para": {
-    "status": "mt",
-    "srcHash": "2e14c1ddd831"
-  },
-  "common.email.blank.preheader": {
-    "status": "mt",
-    "srcHash": "7729c5bd0f86"
-  },
-  "common.email.blank.subject": {
-    "status": "mt",
-    "srcHash": "26225393bc43"
-  },
-  "common.email.campaignSent.body": {
-    "status": "mt",
-    "srcHash": "e6d45d0c7ac0"
-  },
-  "common.email.campaignSent.title": {
-    "status": "mt",
-    "srcHash": "75b701da2037"
-  },
-  "common.email.copySuffix": {
-    "status": "mt",
-    "srcHash": "7e4c743b8f09"
-  },
-  "common.email.linkFallback": {
-    "status": "mt",
-    "srcHash": "458547886527"
-  },
-  "common.email.notification.action": {
-    "status": "mt",
-    "srcHash": "bb1f60338925"
-  },
-  "common.email.notification.footer": {
-    "status": "mt",
-    "srcHash": "65786a84fc26"
-  },
-  "common.email.notification.name": {
-    "status": "mt",
-    "srcHash": "c18f8f255ab9"
-  },
-  "common.email.passwordReset.action": {
-    "status": "mt",
-    "srcHash": "3f657f29e683"
-  },
-  "common.email.passwordReset.heading": {
-    "status": "mt",
-    "srcHash": "bf8804f07772"
-  },
-  "common.email.passwordReset.intro": {
-    "status": "mt",
-    "srcHash": "e994046cc86b"
-  },
-  "common.email.passwordReset.name": {
-    "status": "mt",
-    "srcHash": "591d7d05f9b3"
-  },
-  "common.email.passwordReset.notice": {
-    "status": "mt",
-    "srcHash": "2eb4b90ecfff"
-  },
-  "common.email.passwordReset.subject": {
-    "status": "mt",
-    "srcHash": "9a5b27fd45d5"
-  },
-  "common.email.starters.digest.boxLabel": {
-    "status": "mt",
-    "srcHash": "e0803f5831c6"
-  },
-  "common.email.starters.digest.cta": {
-    "status": "mt",
-    "srcHash": "5ec965955571"
-  },
-  "common.email.starters.digest.heading": {
-    "status": "mt",
-    "srcHash": "253364a140b4"
-  },
-  "common.email.starters.digest.name": {
-    "status": "mt",
-    "srcHash": "6707b63bf07c"
-  },
-  "common.email.starters.digest.para1": {
-    "status": "mt",
-    "srcHash": "171dc5dd95f2"
-  },
-  "common.email.starters.digest.preheader": {
-    "status": "mt",
-    "srcHash": "5636fb2c37b3"
-  },
-  "common.email.starters.digest.subject": {
-    "status": "mt",
-    "srcHash": "b6a611700d1b"
-  },
-  "common.email.starters.extras.cityTax": {
-    "status": "mt",
-    "srcHash": "a9fe7e262109"
-  },
-  "common.email.starters.extras.community": {
-    "status": "src",
-    "srcHash": "bfd58ee3a270"
-  },
-  "common.email.starters.extras.contact": {
-    "status": "mt",
-    "srcHash": "4832e45812a2"
-  },
-  "common.email.starters.extras.delivered": {
-    "status": "mt",
-    "srcHash": "eea956cde875"
-  },
-  "common.email.starters.extras.delivery": {
-    "status": "mt",
-    "srcHash": "31715f3d856f"
-  },
-  "common.email.starters.extras.help": {
-    "status": "mt",
-    "srcHash": "bd7a0626d36d"
-  },
-  "common.email.starters.extras.hero": {
-    "status": "mt",
-    "srcHash": "dedab6f4cbb8"
-  },
-  "common.email.starters.extras.item1": {
-    "status": "mt",
-    "srcHash": "5096dc95d732"
-  },
-  "common.email.starters.extras.item1Meta": {
-    "status": "mt",
-    "srcHash": "3ab07e0c8ce4"
-  },
-  "common.email.starters.extras.item2": {
-    "status": "mt",
-    "srcHash": "24c874bcaa3c"
-  },
-  "common.email.starters.extras.item2Meta": {
-    "status": "src",
-    "srcHash": "32873820018f"
-  },
-  "common.email.starters.extras.order": {
-    "status": "mt",
-    "srcHash": "db14f4987e96"
-  },
-  "common.email.starters.extras.ordered": {
-    "status": "mt",
-    "srcHash": "c9dd3b77c90c"
-  },
-  "common.email.starters.extras.payments": {
-    "status": "mt",
-    "srcHash": "618b513ede75"
-  },
-  "common.email.starters.extras.processing": {
-    "status": "mt",
-    "srcHash": "e63451d3cf90"
-  },
-  "common.email.starters.extras.quote": {
-    "status": "mt",
-    "srcHash": "a37f98e6e846"
-  },
-  "common.email.starters.extras.quoteAuthor": {
-    "status": "src",
-    "srcHash": "622984d915a6"
-  },
-  "common.email.starters.extras.refund": {
-    "status": "mt",
-    "srcHash": "8e072025366d"
-  },
-  "common.email.starters.extras.refundText": {
-    "status": "mt",
-    "srcHash": "0103447c432e"
-  },
-  "common.email.starters.extras.shipped": {
-    "status": "mt",
-    "srcHash": "dec6e3290897"
-  },
-  "common.email.starters.extras.stat1": {
-    "status": "mt",
-    "srcHash": "d39141decfa0"
-  },
-  "common.email.starters.extras.stat2": {
-    "status": "src",
-    "srcHash": "8fa41d59c259"
-  },
-  "common.email.starters.extras.stat3": {
-    "status": "mt",
-    "srcHash": "461a002344ec"
-  },
-  "common.email.starters.extras.stateTax": {
-    "status": "mt",
-    "srcHash": "dbd44533c354"
-  },
-  "common.email.starters.extras.step1": {
-    "status": "mt",
-    "srcHash": "722fe78c34a7"
-  },
-  "common.email.starters.extras.step2": {
-    "status": "mt",
-    "srcHash": "a66b9823a888"
-  },
-  "common.email.starters.extras.step3": {
-    "status": "mt",
-    "srcHash": "9d2933fc6fdd"
-  },
-  "common.email.starters.extras.support": {
-    "status": "mt",
-    "srcHash": "eb265dd2cb73"
-  },
-  "common.email.starters.extras.tax": {
-    "status": "mt",
-    "srcHash": "b78a0dbb6d5e"
-  },
-  "common.email.starters.extras.website": {
-    "status": "src",
-    "srcHash": "2e8a57cc5c47"
-  },
-  "common.email.starters.failed.boxLabel": {
-    "status": "mt",
-    "srcHash": "c0e3e6eaf66d"
-  },
-  "common.email.starters.failed.cta": {
-    "status": "mt",
-    "srcHash": "994237d522ac"
-  },
-  "common.email.starters.failed.heading": {
-    "status": "mt",
-    "srcHash": "6010cd03c698"
-  },
-  "common.email.starters.failed.name": {
-    "status": "mt",
-    "srcHash": "b1e8e75fdc7b"
-  },
-  "common.email.starters.failed.para1": {
-    "status": "mt",
-    "srcHash": "7df6bc475e5d"
-  },
-  "common.email.starters.failed.para2": {
-    "status": "mt",
-    "srcHash": "6fa046f2cf62"
-  },
-  "common.email.starters.failed.preheader": {
-    "status": "mt",
-    "srcHash": "8eb4659765f8"
-  },
-  "common.email.starters.failed.subject": {
-    "status": "mt",
-    "srcHash": "5d673a9a5606"
-  },
-  "common.email.starters.feature.cta": {
-    "status": "mt",
-    "srcHash": "ec5f5abfc88b"
-  },
-  "common.email.starters.feature.heading": {
-    "status": "mt",
-    "srcHash": "3b876655e51c"
-  },
-  "common.email.starters.feature.name": {
-    "status": "mt",
-    "srcHash": "b46cb79dfbbf"
-  },
-  "common.email.starters.feature.para1": {
-    "status": "mt",
-    "srcHash": "cbde0201fdc4"
-  },
-  "common.email.starters.feature.preheader": {
-    "status": "mt",
-    "srcHash": "3b876655e51c"
-  },
-  "common.email.starters.feature.subject": {
-    "status": "mt",
-    "srcHash": "b193505a1446"
-  },
-  "common.email.starters.feedback.cta": {
-    "status": "mt",
-    "srcHash": "21af3b1c238b"
-  },
-  "common.email.starters.feedback.heading": {
-    "status": "mt",
-    "srcHash": "0fe6c1c62cbd"
-  },
-  "common.email.starters.feedback.name": {
-    "status": "mt",
-    "srcHash": "269981847dbb"
-  },
-  "common.email.starters.feedback.para1": {
-    "status": "mt",
-    "srcHash": "8b81d0b7e381"
-  },
-  "common.email.starters.feedback.preheader": {
-    "status": "mt",
-    "srcHash": "5880328da410"
-  },
-  "common.email.starters.feedback.subject": {
-    "status": "mt",
-    "srcHash": "5988a212bafe"
-  },
-  "common.email.starters.footer": {
-    "status": "mt",
-    "srcHash": "80d365ed8ee5"
-  },
-  "common.email.starters.monthly.boxLabel": {
-    "status": "mt",
-    "srcHash": "93e061c64db2"
-  },
-  "common.email.starters.monthly.cta": {
-    "status": "mt",
-    "srcHash": "d352c0747ab7"
-  },
-  "common.email.starters.monthly.heading": {
-    "status": "mt",
-    "srcHash": "58c7b0d6524c"
-  },
-  "common.email.starters.monthly.name": {
-    "status": "mt",
-    "srcHash": "cd3d97d474b7"
-  },
-  "common.email.starters.monthly.para1": {
-    "status": "mt",
-    "srcHash": "a847d4baed1b"
-  },
-  "common.email.starters.monthly.para2": {
-    "status": "mt",
-    "srcHash": "a4f19bbb2dd8"
-  },
-  "common.email.starters.monthly.preheader": {
-    "status": "mt",
-    "srcHash": "26125f43cef0"
-  },
-  "common.email.starters.monthly.subject": {
-    "status": "mt",
-    "srcHash": "851a6ba661cf"
-  },
-  "common.email.starters.paused.boxLabel": {
-    "status": "mt",
-    "srcHash": "49ff89ff6615"
-  },
-  "common.email.starters.paused.boxValue": {
-    "status": "mt",
-    "srcHash": "7d4278a87590"
-  },
-  "common.email.starters.paused.cta": {
-    "status": "mt",
-    "srcHash": "0691a50b7717"
-  },
-  "common.email.starters.paused.heading": {
-    "status": "mt",
-    "srcHash": "b2e8fff07ec3"
-  },
-  "common.email.starters.paused.name": {
-    "status": "mt",
-    "srcHash": "297591c54624"
-  },
-  "common.email.starters.paused.para1": {
-    "status": "mt",
-    "srcHash": "585b4083e03d"
-  },
-  "common.email.starters.paused.para2": {
-    "status": "mt",
-    "srcHash": "affaf81ccccb"
-  },
-  "common.email.starters.paused.preheader": {
-    "status": "mt",
-    "srcHash": "07f46d0ad144"
-  },
-  "common.email.starters.paused.subject": {
-    "status": "mt",
-    "srcHash": "485206494608"
-  },
-  "common.email.starters.receipt.attachment": {
-    "status": "mt",
-    "srcHash": "5ced973bef2c"
-  },
-  "common.email.starters.receipt.boxLabel": {
-    "status": "mt",
-    "srcHash": "8e3815253e3f"
-  },
-  "common.email.starters.receipt.cta": {
-    "status": "mt",
-    "srcHash": "35689ab16877"
-  },
-  "common.email.starters.receipt.heading": {
-    "status": "mt",
-    "srcHash": "699b6a2bf642"
-  },
-  "common.email.starters.receipt.name": {
-    "status": "mt",
-    "srcHash": "728e48af0680"
-  },
-  "common.email.starters.receipt.para1": {
-    "status": "mt",
-    "srcHash": "e3564ba9b2b3"
-  },
-  "common.email.starters.receipt.preheader": {
-    "status": "mt",
-    "srcHash": "699b6a2bf642"
-  },
-  "common.email.starters.receipt.subject": {
-    "status": "mt",
-    "srcHash": "254e19c2331b"
-  },
-  "common.email.starters.reengage.cta": {
-    "status": "mt",
-    "srcHash": "1d9181b4dde7"
-  },
-  "common.email.starters.reengage.heading": {
-    "status": "mt",
-    "srcHash": "ab91fe5d628e"
-  },
-  "common.email.starters.reengage.name": {
-    "status": "mt",
-    "srcHash": "32e770505e9e"
-  },
-  "common.email.starters.reengage.para1": {
-    "status": "mt",
-    "srcHash": "ab4fc6da2c03"
-  },
-  "common.email.starters.reengage.para2": {
-    "status": "mt",
-    "srcHash": "e1a47021a901"
-  },
-  "common.email.starters.reengage.preheader": {
-    "status": "mt",
-    "srcHash": "546a29124545"
-  },
-  "common.email.starters.reengage.subject": {
-    "status": "mt",
-    "srcHash": "3d6009dfc45e"
-  },
-  "common.email.starters.reminder.cta": {
-    "status": "mt",
-    "srcHash": "2ccc17c84e41"
-  },
-  "common.email.starters.reminder.heading": {
-    "status": "mt",
-    "srcHash": "b8a93623f3e4"
-  },
-  "common.email.starters.reminder.name": {
-    "status": "mt",
-    "srcHash": "d22180f4b41c"
-  },
-  "common.email.starters.reminder.para1": {
-    "status": "mt",
-    "srcHash": "d9702179b315"
-  },
-  "common.email.starters.reminder.para2": {
-    "status": "mt",
-    "srcHash": "6634f732262c"
-  },
-  "common.email.starters.reminder.preheader": {
-    "status": "mt",
-    "srcHash": "776f3721c8f1"
-  },
-  "common.email.starters.reminder.subject": {
-    "status": "mt",
-    "srcHash": "67c189a88fff"
-  },
-  "common.email.starters.shipped.cta": {
-    "status": "mt",
-    "srcHash": "0267437b7957"
-  },
-  "common.email.starters.shipped.heading": {
-    "status": "mt",
-    "srcHash": "505bcacb701e"
-  },
-  "common.email.starters.shipped.name": {
-    "status": "mt",
-    "srcHash": "977cb83eb462"
-  },
-  "common.email.starters.shipped.para1": {
-    "status": "mt",
-    "srcHash": "b094c9afb955"
-  },
-  "common.email.starters.shipped.preheader": {
-    "status": "mt",
-    "srcHash": "feae41b6211d"
-  },
-  "common.email.starters.shipped.subject": {
-    "status": "mt",
-    "srcHash": "afd7ad816c23"
-  },
-  "common.email.starters.verify.cta": {
-    "status": "mt",
-    "srcHash": "0e4f1e7ca014"
-  },
-  "common.email.starters.verify.heading": {
-    "status": "mt",
-    "srcHash": "10cd6cd2589e"
-  },
-  "common.email.starters.verify.name": {
-    "status": "mt",
-    "srcHash": "10cd6cd2589e"
-  },
-  "common.email.starters.verify.para1": {
-    "status": "mt",
-    "srcHash": "8b863110a2e7"
-  },
-  "common.email.starters.verify.preheader": {
-    "status": "mt",
-    "srcHash": "c538632e899c"
-  },
-  "common.email.starters.verify.subject": {
-    "status": "mt",
-    "srcHash": "724104afde45"
-  },
-  "common.email.starters.welcome.cta": {
-    "status": "mt",
-    "srcHash": "bb1f60338925"
-  },
-  "common.email.starters.welcome.heading": {
-    "status": "mt",
-    "srcHash": "7c0245b5b097"
-  },
-  "common.email.starters.welcome.name": {
-    "status": "mt",
-    "srcHash": "a9f9193a7387"
-  },
-  "common.email.starters.welcome.para1": {
-    "status": "mt",
-    "srcHash": "bf6fd7f2d226"
-  },
-  "common.email.starters.welcome.para2": {
-    "status": "mt",
-    "srcHash": "0024539daad0"
-  },
-  "common.email.starters.welcome.preheader": {
-    "status": "mt",
-    "srcHash": "8be38ad85185"
-  },
-  "common.email.starters.welcome.subject": {
-    "status": "mt",
-    "srcHash": "3028fd3137af"
-  },
-  "common.email.untitled.campaign": {
-    "status": "mt",
-    "srcHash": "7f3340e49229"
-  },
-  "common.email.untitled.template": {
-    "status": "mt",
-    "srcHash": "b975aa118470"
-  },
-  "common.email.userInvite.action": {
-    "status": "mt",
-    "srcHash": "51d102f43e81"
-  },
-  "common.email.userInvite.heading": {
-    "status": "mt",
-    "srcHash": "6cbca8857c70"
-  },
-  "common.email.userInvite.intro": {
-    "status": "mt",
-    "srcHash": "b7cbfa7b7e50"
-  },
-  "common.email.userInvite.inviterFallback": {
-    "status": "mt",
-    "srcHash": "7888a32edb60"
-  },
-  "common.email.userInvite.name": {
-    "status": "mt",
-    "srcHash": "ea6339dfe385"
-  },
-  "common.email.userInvite.notice": {
-    "status": "mt",
-    "srcHash": "f1ad1da0c57e"
-  },
-  "common.email.userInvite.subject": {
-    "status": "mt",
-    "srcHash": "19df8742962d"
-  },
-  "common.files.action.delete": {
-    "status": "mt",
-    "srcHash": "f6fdbe48dc54"
-  },
-  "common.files.action.deleteNamed": {
-    "status": "mt",
-    "srcHash": "1164a628413c"
-  },
-  "common.files.action.download": {
-    "status": "mt",
-    "srcHash": "a479c9c34e87"
-  },
-  "common.files.action.restore": {
-    "status": "mt",
-    "srcHash": "3cbe6d6b9a8d"
-  },
-  "common.files.column.actions": {
-    "status": "mt",
-    "srcHash": "c3cd636a585b"
-  },
-  "common.files.column.added": {
-    "status": "mt",
-    "srcHash": "b68734c25910"
-  },
-  "common.files.column.attachedTo": {
-    "status": "mt",
-    "srcHash": "1c76e0d9d941"
-  },
-  "common.files.column.destination": {
-    "status": "mt",
-    "srcHash": "d42713493ca8"
-  },
-  "common.files.column.name": {
-    "status": "mt",
-    "srcHash": "2c3cafa4db3f"
-  },
-  "common.files.column.size": {
-    "status": "mt",
-    "srcHash": "b7152342a267"
-  },
-  "common.files.drawer.added": {
-    "status": "mt",
-    "srcHash": "b68734c25910"
-  },
-  "common.files.drawer.attachedAt": {
-    "status": "mt",
-    "srcHash": "8e632ceca60f"
-  },
-  "common.files.drawer.attachedTo": {
-    "status": "mt",
-    "srcHash": "1c76e0d9d941"
-  },
-  "common.files.drawer.checksum": {
-    "status": "mt",
-    "srcHash": "d8fcd1cd0205"
-  },
-  "common.files.drawer.destination": {
-    "status": "mt",
-    "srcHash": "d42713493ca8"
-  },
-  "common.files.drawer.id": {
-    "status": "mt",
-    "srcHash": "3b43a035ae59"
-  },
-  "common.files.drawer.none": {
-    "status": "mt",
-    "srcHash": "6eef6648406c"
-  },
-  "common.files.drawer.subtitle": {
-    "status": "src",
-    "srcHash": "b8135ee74c9d"
-  },
-  "common.files.drawer.trashedAt": {
-    "status": "mt",
-    "srcHash": "0987ddc59868"
-  },
-  "common.files.drawer.uploadedBy": {
-    "status": "mt",
-    "srcHash": "4fdc58b29dd4"
-  },
-  "common.files.empty.body": {
-    "status": "mt",
-    "srcHash": "26e3337b9a9e"
-  },
-  "common.files.empty.filtered.body": {
-    "status": "mt",
-    "srcHash": "23621a3bd821"
-  },
-  "common.files.empty.filtered.title": {
-    "status": "mt",
-    "srcHash": "76216f7884fd"
-  },
-  "common.files.empty.title": {
-    "status": "mt",
-    "srcHash": "1a46941812a0"
-  },
-  "common.files.listFailed.title": {
-    "status": "mt",
-    "srcHash": "a50ef0542ee2"
-  },
-  "common.files.loadMore": {
-    "status": "mt",
-    "srcHash": "c93ee8cb7901"
-  },
-  "common.files.preset.all": {
-    "status": "mt",
-    "srcHash": "f7857dcc71d3"
-  },
-  "common.files.preset.recent": {
-    "status": "mt",
-    "srcHash": "76eec760c9b6"
-  },
-  "common.files.preset.trash": {
-    "status": "mt",
-    "srcHash": "e3bf62bb7f5a"
-  },
-  "common.files.preset.unattached": {
-    "status": "mt",
-    "srcHash": "4cb6b165c033"
-  },
-  "common.files.rail.byConnection": {
-    "status": "mt",
-    "srcHash": "3736a4f05a36"
-  },
-  "common.files.rail.byDestination": {
-    "status": "mt",
-    "srcHash": "9fb80917e1de"
-  },
-  "common.files.rail.byTable": {
-    "status": "mt",
-    "srcHash": "264c20915485"
-  },
-  "common.files.rail.label": {
-    "status": "mt",
-    "srcHash": "443f0142b817"
-  },
-  "common.files.row.localDestination": {
-    "status": "mt",
-    "srcHash": "860fec6bbfa7"
-  },
-  "common.files.row.noRecord": {
-    "status": "mt",
-    "srcHash": "29609215d6fd"
-  },
-  "common.files.row.unattached": {
-    "status": "mt",
-    "srcHash": "4cb6b165c033"
-  },
-  "common.files.search": {
-    "status": "mt",
-    "srcHash": "795ad322e080"
-  },
-  "common.files.subtitle": {
-    "status": "mt",
-    "srcHash": "2a89410e3513"
-  },
-  "common.files.title": {
-    "status": "mt",
-    "srcHash": "6ce6c512ea43"
-  },
-  "common.files.toast.restoreFailed": {
-    "status": "mt",
-    "srcHash": "f67fcdab8a2c"
-  },
-  "common.files.toast.restored": {
-    "status": "mt",
-    "srcHash": "755dcf1e29a5"
-  },
-  "common.files.toast.trashFailed": {
-    "status": "mt",
-    "srcHash": "220ee4a2ce90"
-  },
-  "common.files.toast.trashed": {
-    "status": "mt",
-    "srcHash": "824bdbbdadad"
-  },
-  "common.files.trash.notice.body": {
-    "status": "mt",
-    "srcHash": "aceb9ebd40af"
-  },
-  "common.files.trash.notice.title": {
-    "status": "mt",
-    "srcHash": "9ab95ab2c372"
-  },
-  "common.files.upload.browse": {
-    "status": "mt",
-    "srcHash": "13036cecee8b"
-  },
-  "common.files.upload.cancelOne": {
-    "status": "mt",
-    "srcHash": "1d24d79a4be8"
-  },
-  "common.files.upload.cancelled": {
-    "status": "mt",
-    "srcHash": "a1bf92eff40d"
-  },
-  "common.files.upload.complete": {
-    "status": "mt",
-    "srcHash": "966effc5bbc0"
-  },
-  "common.files.upload.completeBody": {
-    "status": "mt",
-    "srcHash": "6c5f902ce49f"
-  },
-  "common.files.upload.connection": {
-    "status": "mt",
-    "srcHash": "4bb3a1b8cd80"
-  },
-  "common.files.upload.done": {
-    "status": "mt",
-    "srcHash": "e9b450d14bc2"
-  },
-  "common.files.upload.drop": {
-    "status": "mt",
-    "srcHash": "0636917ec8ae"
-  },
-  "common.files.upload.failed": {
-    "status": "mt",
-    "srcHash": "09fef5d8d9a3"
-  },
-  "common.files.upload.open": {
-    "status": "mt",
-    "srcHash": "8bdf057f91e7"
-  },
-  "common.files.upload.removeOne": {
-    "status": "mt",
-    "srcHash": "df7193a589dc"
-  },
-  "common.files.upload.send": {
-    "status": "mt",
-    "srcHash": "75658124eebf"
-  },
-  "common.files.upload.sending": {
-    "status": "mt",
-    "srcHash": "de27240983ef"
-  },
-  "common.files.upload.subtitle": {
-    "status": "mt",
-    "srcHash": "b2963014d6f6"
-  },
-  "common.files.upload.title": {
-    "status": "mt",
-    "srcHash": "41aca16f905a"
-  },
-  "common.files.uploadsUnavailable": {
-    "srcHash": "96286dbccb6b",
-    "status": "mt"
-  },
-  "common.files.usage.count": {
-    "status": "mt",
-    "srcHash": "8a657041aa6b"
-  },
-  "common.files.usage.diskLabel": {
-    "status": "mt",
-    "srcHash": "1fcf7ea20c0f"
-  },
-  "common.files.usage.label": {
-    "status": "mt",
-    "srcHash": "87b3b6840ece"
-  },
-  "common.files.usage.ofDisk": {
-    "status": "mt",
-    "srcHash": "b6bb0a2086c9"
-  },
-  "common.files.usage.used": {
-    "status": "mt",
-    "srcHash": "6fefdc23b3db"
-  },
-  "common.files.view.grid": {
-    "status": "mt",
-    "srcHash": "701c483f813c"
-  },
-  "common.files.view.label": {
-    "status": "mt",
-    "srcHash": "968f226e8e0b"
-  },
-  "common.files.view.list": {
-    "status": "mt",
-    "srcHash": "a1fffaaafb7c"
   },
   "common.invoices.copySuffix": {
     "status": "mt",
@@ -8083,6 +6395,834 @@
     "srcHash": "7b35547dc5b6",
     "status": "mt"
   },
+  "dataio.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
+  "dataio.builder.back": {
+    "status": "mt",
+    "srcHash": "b52b36b7269f"
+  },
+  "dataio.builder.backToExports": {
+    "status": "mt",
+    "srcHash": "30d92a5f389c"
+  },
+  "dataio.builder.badge.avg": {
+    "status": "mt",
+    "srcHash": "15f86c051ecf"
+  },
+  "dataio.builder.badge.calculated": {
+    "status": "mt",
+    "srcHash": "757d86654eda"
+  },
+  "dataio.builder.badge.count": {
+    "status": "mt",
+    "srcHash": "66e12969c225"
+  },
+  "dataio.builder.badge.key": {
+    "status": "mt",
+    "srcHash": "c67dd20ee842"
+  },
+  "dataio.builder.badge.linked": {
+    "status": "mt",
+    "srcHash": "a089f600e3d2"
+  },
+  "dataio.builder.badge.masked": {
+    "status": "mt",
+    "srcHash": "3c7edef964e8"
+  },
+  "dataio.builder.badge.max": {
+    "status": "src",
+    "srcHash": "a95e85aed563"
+  },
+  "dataio.builder.badge.min": {
+    "status": "src",
+    "srcHash": "7eb0cee888ab"
+  },
+  "dataio.builder.badge.sum": {
+    "status": "mt",
+    "srcHash": "fc9ce14b28c6"
+  },
+  "dataio.builder.basedOn": {
+    "status": "mt",
+    "srcHash": "7fa97b7614d5"
+  },
+  "dataio.builder.browser.add": {
+    "status": "mt",
+    "srcHash": "61cc55aa0453"
+  },
+  "dataio.builder.browser.addName": {
+    "status": "mt",
+    "srcHash": "3796d1b1809f"
+  },
+  "dataio.builder.browser.added": {
+    "status": "mt",
+    "srcHash": "4c4547f66400"
+  },
+  "dataio.builder.browser.aggregate": {
+    "status": "mt",
+    "srcHash": "6a8e8189f131"
+  },
+  "dataio.builder.browser.allIn": {
+    "status": "mt",
+    "srcHash": "ac36da4c444e"
+  },
+  "dataio.builder.browser.already": {
+    "status": "mt",
+    "srcHash": "7a12f0749504"
+  },
+  "dataio.builder.browser.broken": {
+    "status": "mt",
+    "srcHash": "cac3581f1229"
+  },
+  "dataio.builder.browser.brokenBack": {
+    "status": "mt",
+    "srcHash": "5ef2647a9029"
+  },
+  "dataio.builder.browser.budget": {
+    "status": "mt",
+    "srcHash": "45b9ae37d14c"
+  },
+  "dataio.builder.browser.calculated": {
+    "status": "mt",
+    "srcHash": "757d86654eda"
+  },
+  "dataio.builder.browser.count": {
+    "status": "mt",
+    "srcHash": "66e12969c225"
+  },
+  "dataio.builder.browser.fourMax": {
+    "status": "mt",
+    "srcHash": "f2d75905256b"
+  },
+  "dataio.builder.browser.fromTable": {
+    "status": "mt",
+    "srcHash": "348e934797dc"
+  },
+  "dataio.builder.browser.fromTheTable": {
+    "status": "mt",
+    "srcHash": "1196fb503ac5"
+  },
+  "dataio.builder.browser.hop": {
+    "status": "mt",
+    "srcHash": "981747cc29a4"
+  },
+  "dataio.builder.browser.hopLimit": {
+    "status": "mt",
+    "srcHash": "915c50c76c3b"
+  },
+  "dataio.builder.browser.inbound": {
+    "status": "mt",
+    "srcHash": "a4a54b781cfe"
+  },
+  "dataio.builder.browser.limit": {
+    "status": "mt",
+    "srcHash": "dd512dd2af3f"
+  },
+  "dataio.builder.browser.linked": {
+    "status": "mt",
+    "srcHash": "851521ed6574"
+  },
+  "dataio.builder.browser.noMatch": {
+    "status": "mt",
+    "srcHash": "9d44779f144d"
+  },
+  "dataio.builder.browser.noRead": {
+    "status": "mt",
+    "srcHash": "309bbfc9a2f1"
+  },
+  "dataio.builder.browser.pickNumeric": {
+    "status": "mt",
+    "srcHash": "cc50606bc821"
+  },
+  "dataio.builder.browser.readOnly": {
+    "status": "mt",
+    "srcHash": "387474efee96"
+  },
+  "dataio.builder.browser.search": {
+    "status": "mt",
+    "srcHash": "953be1a880cd"
+  },
+  "dataio.builder.browser.singleNote": {
+    "status": "mt",
+    "srcHash": "d7f04ff1097f"
+  },
+  "dataio.builder.browser.suggested": {
+    "status": "mt",
+    "srcHash": "7fcd8d44c6f2"
+  },
+  "dataio.builder.browser.via": {
+    "status": "mt",
+    "srcHash": "196fb9b5241b"
+  },
+  "dataio.builder.calc.arith": {
+    "status": "mt",
+    "srcHash": "9f90d8e22e39"
+  },
+  "dataio.builder.calc.column": {
+    "status": "mt",
+    "srcHash": "65ba00e95e60"
+  },
+  "dataio.builder.calc.else": {
+    "status": "mt",
+    "srcHash": "ae050f5b7fb8"
+  },
+  "dataio.builder.calc.first": {
+    "status": "mt",
+    "srcHash": "d9be26a9cf4a"
+  },
+  "dataio.builder.calc.if": {
+    "status": "mt",
+    "srcHash": "751c68a3471b"
+  },
+  "dataio.builder.calc.isOver": {
+    "status": "mt",
+    "srcHash": "1e09c7488038"
+  },
+  "dataio.builder.calc.needOne": {
+    "status": "mt",
+    "srcHash": "b5de67f97081"
+  },
+  "dataio.builder.calc.needTwo": {
+    "status": "mt",
+    "srcHash": "f7f9128cb60d"
+  },
+  "dataio.builder.calc.op": {
+    "status": "src",
+    "srcHash": "d0e687b079fb"
+  },
+  "dataio.builder.calc.otherwise": {
+    "status": "mt",
+    "srcHash": "4d8d77313b8c"
+  },
+  "dataio.builder.calc.pct": {
+    "status": "mt",
+    "srcHash": "b06ea6371cb0"
+  },
+  "dataio.builder.calc.pctLabel": {
+    "status": "mt",
+    "srcHash": "c4519ac7ccbe"
+  },
+  "dataio.builder.calc.pctOf": {
+    "status": "mt",
+    "srcHash": "0f9771a13ac6"
+  },
+  "dataio.builder.calc.rule": {
+    "status": "mt",
+    "srcHash": "32a24d48b6a2"
+  },
+  "dataio.builder.calc.second": {
+    "status": "mt",
+    "srcHash": "7620f0601150"
+  },
+  "dataio.builder.calc.then": {
+    "status": "mt",
+    "srcHash": "6f8f8e9f7673"
+  },
+  "dataio.builder.calc.threshold": {
+    "status": "mt",
+    "srcHash": "c51f7b72279e"
+  },
+  "dataio.builder.calc.whenOver": {
+    "status": "mt",
+    "srcHash": "6e338e839f4e"
+  },
+  "dataio.builder.cancel": {
+    "status": "mt",
+    "srcHash": "77dfd2135f4d"
+  },
+  "dataio.builder.columns.add": {
+    "status": "mt",
+    "srcHash": "b612d09d7cda"
+  },
+  "dataio.builder.columns.dragTitle": {
+    "status": "mt",
+    "srcHash": "3d9ab656ffae"
+  },
+  "dataio.builder.columns.dupe": {
+    "status": "mt",
+    "srcHash": "87022b5f3a8e"
+  },
+  "dataio.builder.columns.empty.body": {
+    "status": "mt",
+    "srcHash": "80e02005a738"
+  },
+  "dataio.builder.columns.empty.title": {
+    "status": "mt",
+    "srcHash": "af852f381290"
+  },
+  "dataio.builder.columns.headerLabel": {
+    "status": "mt",
+    "srcHash": "f68b5ef1fc21"
+  },
+  "dataio.builder.columns.inFile": {
+    "status": "mt",
+    "srcHash": "d4b2e42a04f1"
+  },
+  "dataio.builder.columns.masked": {
+    "status": "mt",
+    "srcHash": "af27641b8261"
+  },
+  "dataio.builder.columns.remove": {
+    "status": "mt",
+    "srcHash": "2566c82a1981"
+  },
+  "dataio.builder.columns.removeAll": {
+    "status": "mt",
+    "srcHash": "4100ef4df528"
+  },
+  "dataio.builder.columns.removeTitle": {
+    "status": "mt",
+    "srcHash": "63afd6c49e76"
+  },
+  "dataio.builder.columns.reorder": {
+    "status": "mt",
+    "srcHash": "160333d58366"
+  },
+  "dataio.builder.columns.reset": {
+    "status": "mt",
+    "srcHash": "9693b609e06e"
+  },
+  "dataio.builder.columns.summary": {
+    "status": "mt",
+    "srcHash": "7ba7327d3b7e"
+  },
+  "dataio.builder.columns.title": {
+    "status": "mt",
+    "srcHash": "56716e49e93e"
+  },
+  "dataio.builder.continue": {
+    "status": "mt",
+    "srcHash": "2e02623966f9"
+  },
+  "dataio.builder.export": {
+    "status": "mt",
+    "srcHash": "f3e4fadb9e37"
+  },
+  "dataio.builder.fold.avg": {
+    "status": "mt",
+    "srcHash": "15f86c051ecf"
+  },
+  "dataio.builder.fold.max": {
+    "status": "src",
+    "srcHash": "a95e85aed563"
+  },
+  "dataio.builder.fold.min": {
+    "status": "src",
+    "srcHash": "7eb0cee888ab"
+  },
+  "dataio.builder.fold.sum": {
+    "status": "mt",
+    "srcHash": "fc9ce14b28c6"
+  },
+  "dataio.builder.gen.arithHeader": {
+    "status": "src",
+    "srcHash": "7d9dab170cf7"
+  },
+  "dataio.builder.gen.average": {
+    "status": "mt",
+    "srcHash": "15f86c051ecf"
+  },
+  "dataio.builder.gen.count": {
+    "status": "mt",
+    "srcHash": "829d61b0a903"
+  },
+  "dataio.builder.gen.countSrc": {
+    "status": "mt",
+    "srcHash": "40aa9b4298f1"
+  },
+  "dataio.builder.gen.foldSrc": {
+    "status": "mt",
+    "srcHash": "720b1493047a"
+  },
+  "dataio.builder.gen.linkedSrc": {
+    "status": "mt",
+    "srcHash": "55259d663cff"
+  },
+  "dataio.builder.gen.max": {
+    "status": "src",
+    "srcHash": "a95e85aed563"
+  },
+  "dataio.builder.gen.min": {
+    "status": "src",
+    "srcHash": "7eb0cee888ab"
+  },
+  "dataio.builder.gen.pctHeader": {
+    "status": "mt",
+    "srcHash": "a8f17b0c3aea"
+  },
+  "dataio.builder.gen.ruleHeader": {
+    "status": "mt",
+    "srcHash": "332a7ca93771"
+  },
+  "dataio.builder.gen.ruleSrc": {
+    "status": "mt",
+    "srcHash": "605242e4b735"
+  },
+  "dataio.builder.gen.sumOf": {
+    "status": "mt",
+    "srcHash": "88beb5e87929"
+  },
+  "dataio.builder.hint.chooseTable": {
+    "status": "mt",
+    "srcHash": "8e18ee49e1fa"
+  },
+  "dataio.builder.hint.downloads": {
+    "status": "mt",
+    "srcHash": "2490de543cf9"
+  },
+  "dataio.builder.hint.dupes": {
+    "status": "mt",
+    "srcHash": "8f78c559bb8d"
+  },
+  "dataio.builder.hint.fromAll": {
+    "status": "mt",
+    "srcHash": "5183356ad42a"
+  },
+  "dataio.builder.hint.fromPage": {
+    "status": "mt",
+    "srcHash": "ee9a6587ca7e"
+  },
+  "dataio.builder.hint.noColumns": {
+    "status": "mt",
+    "srcHash": "c98dfeb4b035"
+  },
+  "dataio.builder.hint.order": {
+    "status": "mt",
+    "srcHash": "0372b4212c2f"
+  },
+  "dataio.builder.hint.readSample": {
+    "status": "mt",
+    "srcHash": "1879fc25f5e7"
+  },
+  "dataio.builder.noAccess.body": {
+    "status": "mt",
+    "srcHash": "a67f1b48b05e"
+  },
+  "dataio.builder.noAccess.link": {
+    "status": "mt",
+    "srcHash": "2b89b2511372"
+  },
+  "dataio.builder.noAccess.title": {
+    "status": "mt",
+    "srcHash": "29cee65e232e"
+  },
+  "dataio.builder.preview.allRows": {
+    "status": "mt",
+    "srcHash": "cc9d13fe0dc8"
+  },
+  "dataio.builder.preview.allRowsUnknown": {
+    "status": "mt",
+    "srcHash": "83a3b2635989"
+  },
+  "dataio.builder.preview.csv": {
+    "status": "src",
+    "srcHash": "3281188351b8"
+  },
+  "dataio.builder.preview.failed": {
+    "status": "mt",
+    "srcHash": "fe9bbf1113d3"
+  },
+  "dataio.builder.preview.failedTimeout": {
+    "status": "mt",
+    "srcHash": "c88c088162f3"
+  },
+  "dataio.builder.preview.fileName": {
+    "status": "mt",
+    "srcHash": "09979a78c995"
+  },
+  "dataio.builder.preview.format": {
+    "status": "src",
+    "srcHash": "041a5dec481d"
+  },
+  "dataio.builder.preview.headerOnly": {
+    "status": "mt",
+    "srcHash": "24d237fe75d0"
+  },
+  "dataio.builder.preview.headerRow": {
+    "status": "mt",
+    "srcHash": "c276551715b9"
+  },
+  "dataio.builder.preview.jsonl": {
+    "status": "src",
+    "srcHash": "49280f1be4a9"
+  },
+  "dataio.builder.preview.justNow": {
+    "status": "mt",
+    "srcHash": "a7f8e7cc0d43"
+  },
+  "dataio.builder.preview.minutesAgo": {
+    "status": "mt",
+    "srcHash": "e830e1381ba6"
+  },
+  "dataio.builder.preview.refresh": {
+    "status": "mt",
+    "srcHash": "56e3badc4e6c"
+  },
+  "dataio.builder.preview.retry": {
+    "status": "mt",
+    "srcHash": "9f5cd8a2e880"
+  },
+  "dataio.builder.preview.rows": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "dataio.builder.preview.sample": {
+    "status": "mt",
+    "srcHash": "eb1c9f3b79b6"
+  },
+  "dataio.builder.preview.savedView": {
+    "status": "mt",
+    "srcHash": "80b1e1493efa"
+  },
+  "dataio.builder.preview.tabRaw": {
+    "status": "mt",
+    "srcHash": "2ffd50cbf7c2"
+  },
+  "dataio.builder.preview.tabTable": {
+    "status": "mt",
+    "srcHash": "0424f6e7026f"
+  },
+  "dataio.builder.preview.title": {
+    "status": "mt",
+    "srcHash": "3244b5603457"
+  },
+  "dataio.builder.preview.viewLabel": {
+    "status": "mt",
+    "srcHash": "cc3082f98515"
+  },
+  "dataio.builder.preview.viewLabelNoRows": {
+    "status": "mt",
+    "srcHash": "c6658fc8ad60"
+  },
+  "dataio.builder.preview.viewRows": {
+    "status": "mt",
+    "srcHash": "0454b782f78e"
+  },
+  "dataio.builder.source.locked": {
+    "status": "mt",
+    "srcHash": "270cb549455b"
+  },
+  "dataio.builder.source.lockedToast": {
+    "status": "mt",
+    "srcHash": "78fb6cc1e67f"
+  },
+  "dataio.builder.source.meta": {
+    "status": "mt",
+    "srcHash": "11396c4415d2"
+  },
+  "dataio.builder.source.metaNoRows": {
+    "status": "mt",
+    "srcHash": "c1318b2b1b47"
+  },
+  "dataio.builder.source.search": {
+    "status": "mt",
+    "srcHash": "efd734e0c9a7"
+  },
+  "dataio.builder.source.title": {
+    "status": "mt",
+    "srcHash": "a413bd019b17"
+  },
+  "dataio.builder.source.usedBy": {
+    "status": "mt",
+    "srcHash": "1203766267d3"
+  },
+  "dataio.builder.startFrom.all": {
+    "status": "mt",
+    "srcHash": "ede4900f8ca8"
+  },
+  "dataio.builder.startFrom.body": {
+    "status": "mt",
+    "srcHash": "4d33a37980d9"
+  },
+  "dataio.builder.startFrom.none": {
+    "status": "mt",
+    "srcHash": "6a129b45d0e1"
+  },
+  "dataio.builder.startFrom.page": {
+    "status": "mt",
+    "srcHash": "fba97dcee75d"
+  },
+  "dataio.builder.startFrom.pageMeta": {
+    "status": "mt",
+    "srcHash": "bf05c65fe8b0"
+  },
+  "dataio.builder.startFrom.title": {
+    "status": "mt",
+    "srcHash": "62a53f0baa7a"
+  },
+  "dataio.builder.started.another": {
+    "status": "mt",
+    "srcHash": "b89c33d07c03"
+  },
+  "dataio.builder.started.busy": {
+    "status": "mt",
+    "srcHash": "66cc970a751f"
+  },
+  "dataio.builder.started.download": {
+    "status": "mt",
+    "srcHash": "b865ef0957dd"
+  },
+  "dataio.builder.started.failed": {
+    "status": "mt",
+    "srcHash": "0765970a4b9a"
+  },
+  "dataio.builder.started.noteBusy": {
+    "status": "mt",
+    "srcHash": "d24909b3787a"
+  },
+  "dataio.builder.started.noteReady": {
+    "status": "mt",
+    "srcHash": "8bde65f2853d"
+  },
+  "dataio.builder.started.preparing": {
+    "status": "mt",
+    "srcHash": "f98226adde5f"
+  },
+  "dataio.builder.started.ready": {
+    "status": "mt",
+    "srcHash": "042758dbd176"
+  },
+  "dataio.builder.step": {
+    "status": "mt",
+    "srcHash": "72629a128858"
+  },
+  "dataio.builder.steps.columns": {
+    "status": "mt",
+    "srcHash": "cf723c59b62a"
+  },
+  "dataio.builder.steps.preview": {
+    "status": "mt",
+    "srcHash": "f1fbb2b43dca"
+  },
+  "dataio.builder.steps.source": {
+    "status": "mt",
+    "srcHash": "6da13addb000"
+  },
+  "dataio.builder.subtitle": {
+    "status": "mt",
+    "srcHash": "7ee814c10a14"
+  },
+  "dataio.builder.summary.columns": {
+    "status": "mt",
+    "srcHash": "cf723c59b62a"
+  },
+  "dataio.builder.summary.fileName": {
+    "status": "mt",
+    "srcHash": "09979a78c995"
+  },
+  "dataio.builder.summary.kept": {
+    "status": "mt",
+    "srcHash": "1a15638fea7e"
+  },
+  "dataio.builder.summary.retention": {
+    "status": "mt",
+    "srcHash": "c7199d9e9593"
+  },
+  "dataio.builder.summary.rows": {
+    "status": "mt",
+    "srcHash": "52d0b35277ee"
+  },
+  "dataio.builder.summary.size": {
+    "status": "mt",
+    "srcHash": "f17c115996c8"
+  },
+  "dataio.builder.summary.title": {
+    "status": "mt",
+    "srcHash": "04fbc7508d5d"
+  },
+  "dataio.builder.title": {
+    "status": "mt",
+    "srcHash": "b417e2603615"
+  },
+  "dataio.builder.toast.started": {
+    "status": "mt",
+    "srcHash": "a1c225355031"
+  },
+  "dataio.builder.warn.masked": {
+    "status": "mt",
+    "srcHash": "06f3fa4e277e"
+  },
+  "dataio.builder.warn.noRows": {
+    "status": "mt",
+    "srcHash": "7849ff1b1fae"
+  },
+  "dataio.builder.warn.search": {
+    "status": "mt",
+    "srcHash": "85e6edd1fb8d"
+  },
+  "dataio.builder.warn.title": {
+    "status": "mt",
+    "srcHash": "47c0d09c3e1c"
+  },
+  "dataio.exports.create": {
+    "status": "mt",
+    "srcHash": "f3e4fadb9e37"
+  },
+  "dataio.exports.createFailed": {
+    "status": "mt",
+    "srcHash": "ae4b99da5394"
+  },
+  "dataio.exports.emptyBody": {
+    "status": "mt",
+    "srcHash": "b972a5b48beb"
+  },
+  "dataio.exports.emptyTitle": {
+    "status": "mt",
+    "srcHash": "28dee69f8a7c"
+  },
+  "dataio.exports.formatLabel": {
+    "status": "src",
+    "srcHash": "041a5dec481d"
+  },
+  "dataio.exports.new": {
+    "status": "mt",
+    "srcHash": "b417e2603615"
+  },
+  "dataio.exports.notATable": {
+    "status": "mt",
+    "srcHash": "e797044d0988"
+  },
+  "dataio.exports.retention": {
+    "status": "mt",
+    "srcHash": "271d5246a8af"
+  },
+  "dataio.exports.statusCancelled": {
+    "status": "mt",
+    "srcHash": "a1bf92eff40d"
+  },
+  "dataio.exports.statusExpired": {
+    "status": "mt",
+    "srcHash": "a689a999a5e6"
+  },
+  "dataio.exports.statusFailed": {
+    "status": "mt",
+    "srcHash": "58c77e8f6d34"
+  },
+  "dataio.exports.statusProcessing": {
+    "status": "mt",
+    "srcHash": "93d175570231"
+  },
+  "dataio.exports.statusReady": {
+    "status": "mt",
+    "srcHash": "18765945dc29"
+  },
+  "dataio.exports.tableLabel": {
+    "status": "mt",
+    "srcHash": "0424f6e7026f"
+  },
+  "dataio.exports.tablePlaceholder": {
+    "status": "mt",
+    "srcHash": "9cd9ec452dd6"
+  },
+  "dataio.import.allValid": {
+    "status": "mt",
+    "srcHash": "2c7b6e9f1c6a"
+  },
+  "dataio.import.downloadErrors": {
+    "status": "mt",
+    "srcHash": "957be8351dc8"
+  },
+  "dataio.import.dropHint": {
+    "status": "mt",
+    "srcHash": "02dd0f1105dc"
+  },
+  "dataio.import.dropTitle": {
+    "status": "mt",
+    "srcHash": "0b2267f1a677"
+  },
+  "dataio.import.inconsistent": {
+    "status": "mt",
+    "srcHash": "419b6f7a5dce"
+  },
+  "dataio.import.kpiCreated": {
+    "status": "mt",
+    "srcHash": "accf40c89baa"
+  },
+  "dataio.import.kpiSkipped": {
+    "status": "mt",
+    "srcHash": "5a000ad7bd1b"
+  },
+  "dataio.import.kpiTotal": {
+    "status": "mt",
+    "srcHash": "e12ee5e53b65"
+  },
+  "dataio.import.kpiUpdated": {
+    "status": "mt",
+    "srcHash": "f2f8570ddd7b"
+  },
+  "dataio.import.mapHint": {
+    "status": "mt",
+    "srcHash": "40e97450f6ec"
+  },
+  "dataio.import.notATable": {
+    "status": "mt",
+    "srcHash": "f78a1d0ad6c2"
+  },
+  "dataio.import.progressLabel": {
+    "status": "mt",
+    "srcHash": "50565ad0d156"
+  },
+  "dataio.import.run": {
+    "status": "mt",
+    "srcHash": "a74342a6db9c"
+  },
+  "dataio.import.runFailed": {
+    "status": "mt",
+    "srcHash": "ec025fbd1926"
+  },
+  "dataio.import.runSkipping": {
+    "status": "mt",
+    "srcHash": "48373b3e39d2"
+  },
+  "dataio.import.running": {
+    "status": "mt",
+    "srcHash": "820599da89a1"
+  },
+  "dataio.import.skipTarget": {
+    "status": "mt",
+    "srcHash": "9309f855a689"
+  },
+  "dataio.import.stepMap": {
+    "status": "mt",
+    "srcHash": "e7d0f84da584"
+  },
+  "dataio.import.stepRun": {
+    "status": "mt",
+    "srcHash": "056a4945542b"
+  },
+  "dataio.import.stepUpload": {
+    "status": "mt",
+    "srcHash": "8bdf057f91e7"
+  },
+  "dataio.import.stepValidate": {
+    "status": "mt",
+    "srcHash": "6752f198b564"
+  },
+  "dataio.import.targetLabel": {
+    "status": "mt",
+    "srcHash": "db2d76fa95f4"
+  },
+  "dataio.import.targetPlaceholder": {
+    "status": "mt",
+    "srcHash": "e6b8db581b38"
+  },
+  "dataio.import.toValidate": {
+    "status": "mt",
+    "srcHash": "6752f198b564"
+  },
+  "dataio.import.validateFailed": {
+    "status": "mt",
+    "srcHash": "f5f95885484d"
+  },
+  "dataio.import.validating": {
+    "status": "mt",
+    "srcHash": "c07434c9a117"
+  },
+  "dataio.import.validationSummary": {
+    "status": "mt",
+    "srcHash": "1d32ac6df79b"
+  },
   "email.actions.archived": {
     "status": "mt",
     "srcHash": "eddc813f35b1"
@@ -8122,6 +7262,26 @@
   "email.archivedChip.value": {
     "status": "mt",
     "srcHash": "eddc813f35b1"
+  },
+  "email.blank.cta": {
+    "status": "mt",
+    "srcHash": "95c9c0e0456f"
+  },
+  "email.blank.heading": {
+    "status": "mt",
+    "srcHash": "ea3aedf7d039"
+  },
+  "email.blank.para": {
+    "status": "mt",
+    "srcHash": "2e14c1ddd831"
+  },
+  "email.blank.preheader": {
+    "status": "mt",
+    "srcHash": "7729c5bd0f86"
+  },
+  "email.blank.subject": {
+    "status": "mt",
+    "srcHash": "26225393bc43"
   },
   "email.blocks.box.hint": {
     "status": "mt",
@@ -8527,6 +7687,14 @@
     "status": "mt",
     "srcHash": "cbe627b0e44f"
   },
+  "email.campaignSent.body": {
+    "status": "mt",
+    "srcHash": "e6d45d0c7ac0"
+  },
+  "email.campaignSent.title": {
+    "status": "mt",
+    "srcHash": "75b701da2037"
+  },
   "email.canvas.add": {
     "status": "mt",
     "srcHash": "61cc55aa0453"
@@ -8678,6 +7846,10 @@
   "email.category.transactional": {
     "status": "mt",
     "srcHash": "09f7e4f1cf49"
+  },
+  "email.copySuffix": {
+    "status": "mt",
+    "srcHash": "7e4c743b8f09"
   },
   "email.cycle.current": {
     "status": "mt",
@@ -9351,6 +8523,10 @@
     "status": "mt",
     "srcHash": "a1fffaaafb7c"
   },
+  "email.linkFallback": {
+    "status": "mt",
+    "srcHash": "458547886527"
+  },
   "email.list.actions": {
     "status": "mt",
     "srcHash": "c3cd636a585b"
@@ -9431,6 +8607,18 @@
     "status": "mt",
     "srcHash": "adcfed38b9b5"
   },
+  "email.notification.action": {
+    "status": "mt",
+    "srcHash": "bb1f60338925"
+  },
+  "email.notification.footer": {
+    "status": "mt",
+    "srcHash": "65786a84fc26"
+  },
+  "email.notification.name": {
+    "status": "mt",
+    "srcHash": "c18f8f255ab9"
+  },
   "email.nouns.code": {
     "status": "mt",
     "srcHash": "e6fb06210faf"
@@ -9466,6 +8654,30 @@
   "email.nouns.taxLine": {
     "status": "mt",
     "srcHash": "a8017da67e44"
+  },
+  "email.passwordReset.action": {
+    "status": "mt",
+    "srcHash": "3f657f29e683"
+  },
+  "email.passwordReset.heading": {
+    "status": "mt",
+    "srcHash": "bf8804f07772"
+  },
+  "email.passwordReset.intro": {
+    "status": "mt",
+    "srcHash": "e994046cc86b"
+  },
+  "email.passwordReset.name": {
+    "status": "mt",
+    "srcHash": "591d7d05f9b3"
+  },
+  "email.passwordReset.notice": {
+    "status": "mt",
+    "srcHash": "2eb4b90ecfff"
+  },
+  "email.passwordReset.subject": {
+    "status": "mt",
+    "srcHash": "9a5b27fd45d5"
   },
   "email.picker.above": {
     "status": "mt",
@@ -9594,6 +8806,470 @@
   "email.search.templates": {
     "status": "mt",
     "srcHash": "ea73467cf50e"
+  },
+  "email.starters.digest.boxLabel": {
+    "status": "mt",
+    "srcHash": "e0803f5831c6"
+  },
+  "email.starters.digest.cta": {
+    "status": "mt",
+    "srcHash": "5ec965955571"
+  },
+  "email.starters.digest.heading": {
+    "status": "mt",
+    "srcHash": "253364a140b4"
+  },
+  "email.starters.digest.name": {
+    "status": "mt",
+    "srcHash": "6707b63bf07c"
+  },
+  "email.starters.digest.para1": {
+    "status": "mt",
+    "srcHash": "171dc5dd95f2"
+  },
+  "email.starters.digest.preheader": {
+    "status": "mt",
+    "srcHash": "5636fb2c37b3"
+  },
+  "email.starters.digest.subject": {
+    "status": "mt",
+    "srcHash": "b6a611700d1b"
+  },
+  "email.starters.extras.cityTax": {
+    "status": "mt",
+    "srcHash": "a9fe7e262109"
+  },
+  "email.starters.extras.community": {
+    "status": "src",
+    "srcHash": "bfd58ee3a270"
+  },
+  "email.starters.extras.contact": {
+    "status": "mt",
+    "srcHash": "4832e45812a2"
+  },
+  "email.starters.extras.delivered": {
+    "status": "mt",
+    "srcHash": "eea956cde875"
+  },
+  "email.starters.extras.delivery": {
+    "status": "mt",
+    "srcHash": "31715f3d856f"
+  },
+  "email.starters.extras.help": {
+    "status": "mt",
+    "srcHash": "bd7a0626d36d"
+  },
+  "email.starters.extras.hero": {
+    "status": "mt",
+    "srcHash": "dedab6f4cbb8"
+  },
+  "email.starters.extras.item1": {
+    "status": "mt",
+    "srcHash": "5096dc95d732"
+  },
+  "email.starters.extras.item1Meta": {
+    "status": "mt",
+    "srcHash": "3ab07e0c8ce4"
+  },
+  "email.starters.extras.item2": {
+    "status": "mt",
+    "srcHash": "24c874bcaa3c"
+  },
+  "email.starters.extras.item2Meta": {
+    "status": "src",
+    "srcHash": "32873820018f"
+  },
+  "email.starters.extras.order": {
+    "status": "mt",
+    "srcHash": "db14f4987e96"
+  },
+  "email.starters.extras.ordered": {
+    "status": "mt",
+    "srcHash": "c9dd3b77c90c"
+  },
+  "email.starters.extras.payments": {
+    "status": "mt",
+    "srcHash": "618b513ede75"
+  },
+  "email.starters.extras.processing": {
+    "status": "mt",
+    "srcHash": "e63451d3cf90"
+  },
+  "email.starters.extras.quote": {
+    "status": "mt",
+    "srcHash": "a37f98e6e846"
+  },
+  "email.starters.extras.quoteAuthor": {
+    "status": "src",
+    "srcHash": "622984d915a6"
+  },
+  "email.starters.extras.refund": {
+    "status": "mt",
+    "srcHash": "8e072025366d"
+  },
+  "email.starters.extras.refundText": {
+    "status": "mt",
+    "srcHash": "0103447c432e"
+  },
+  "email.starters.extras.shipped": {
+    "status": "mt",
+    "srcHash": "dec6e3290897"
+  },
+  "email.starters.extras.stat1": {
+    "status": "mt",
+    "srcHash": "d39141decfa0"
+  },
+  "email.starters.extras.stat2": {
+    "status": "src",
+    "srcHash": "8fa41d59c259"
+  },
+  "email.starters.extras.stat3": {
+    "status": "mt",
+    "srcHash": "461a002344ec"
+  },
+  "email.starters.extras.stateTax": {
+    "status": "mt",
+    "srcHash": "dbd44533c354"
+  },
+  "email.starters.extras.step1": {
+    "status": "mt",
+    "srcHash": "722fe78c34a7"
+  },
+  "email.starters.extras.step2": {
+    "status": "mt",
+    "srcHash": "a66b9823a888"
+  },
+  "email.starters.extras.step3": {
+    "status": "mt",
+    "srcHash": "9d2933fc6fdd"
+  },
+  "email.starters.extras.support": {
+    "status": "mt",
+    "srcHash": "eb265dd2cb73"
+  },
+  "email.starters.extras.tax": {
+    "status": "mt",
+    "srcHash": "b78a0dbb6d5e"
+  },
+  "email.starters.extras.website": {
+    "status": "src",
+    "srcHash": "2e8a57cc5c47"
+  },
+  "email.starters.failed.boxLabel": {
+    "status": "mt",
+    "srcHash": "c0e3e6eaf66d"
+  },
+  "email.starters.failed.cta": {
+    "status": "mt",
+    "srcHash": "994237d522ac"
+  },
+  "email.starters.failed.heading": {
+    "status": "mt",
+    "srcHash": "6010cd03c698"
+  },
+  "email.starters.failed.name": {
+    "status": "mt",
+    "srcHash": "b1e8e75fdc7b"
+  },
+  "email.starters.failed.para1": {
+    "status": "mt",
+    "srcHash": "7df6bc475e5d"
+  },
+  "email.starters.failed.para2": {
+    "status": "mt",
+    "srcHash": "6fa046f2cf62"
+  },
+  "email.starters.failed.preheader": {
+    "status": "mt",
+    "srcHash": "8eb4659765f8"
+  },
+  "email.starters.failed.subject": {
+    "status": "mt",
+    "srcHash": "5d673a9a5606"
+  },
+  "email.starters.feature.cta": {
+    "status": "mt",
+    "srcHash": "ec5f5abfc88b"
+  },
+  "email.starters.feature.heading": {
+    "status": "mt",
+    "srcHash": "3b876655e51c"
+  },
+  "email.starters.feature.name": {
+    "status": "mt",
+    "srcHash": "b46cb79dfbbf"
+  },
+  "email.starters.feature.para1": {
+    "status": "mt",
+    "srcHash": "cbde0201fdc4"
+  },
+  "email.starters.feature.preheader": {
+    "status": "mt",
+    "srcHash": "3b876655e51c"
+  },
+  "email.starters.feature.subject": {
+    "status": "mt",
+    "srcHash": "b193505a1446"
+  },
+  "email.starters.feedback.cta": {
+    "status": "mt",
+    "srcHash": "21af3b1c238b"
+  },
+  "email.starters.feedback.heading": {
+    "status": "mt",
+    "srcHash": "0fe6c1c62cbd"
+  },
+  "email.starters.feedback.name": {
+    "status": "mt",
+    "srcHash": "269981847dbb"
+  },
+  "email.starters.feedback.para1": {
+    "status": "mt",
+    "srcHash": "8b81d0b7e381"
+  },
+  "email.starters.feedback.preheader": {
+    "status": "mt",
+    "srcHash": "5880328da410"
+  },
+  "email.starters.feedback.subject": {
+    "status": "mt",
+    "srcHash": "5988a212bafe"
+  },
+  "email.starters.footer": {
+    "status": "mt",
+    "srcHash": "80d365ed8ee5"
+  },
+  "email.starters.monthly.boxLabel": {
+    "status": "mt",
+    "srcHash": "93e061c64db2"
+  },
+  "email.starters.monthly.cta": {
+    "status": "mt",
+    "srcHash": "d352c0747ab7"
+  },
+  "email.starters.monthly.heading": {
+    "status": "mt",
+    "srcHash": "58c7b0d6524c"
+  },
+  "email.starters.monthly.name": {
+    "status": "mt",
+    "srcHash": "cd3d97d474b7"
+  },
+  "email.starters.monthly.para1": {
+    "status": "mt",
+    "srcHash": "a847d4baed1b"
+  },
+  "email.starters.monthly.para2": {
+    "status": "mt",
+    "srcHash": "a4f19bbb2dd8"
+  },
+  "email.starters.monthly.preheader": {
+    "status": "mt",
+    "srcHash": "26125f43cef0"
+  },
+  "email.starters.monthly.subject": {
+    "status": "mt",
+    "srcHash": "851a6ba661cf"
+  },
+  "email.starters.paused.boxLabel": {
+    "status": "mt",
+    "srcHash": "49ff89ff6615"
+  },
+  "email.starters.paused.boxValue": {
+    "status": "mt",
+    "srcHash": "7d4278a87590"
+  },
+  "email.starters.paused.cta": {
+    "status": "mt",
+    "srcHash": "0691a50b7717"
+  },
+  "email.starters.paused.heading": {
+    "status": "mt",
+    "srcHash": "b2e8fff07ec3"
+  },
+  "email.starters.paused.name": {
+    "status": "mt",
+    "srcHash": "297591c54624"
+  },
+  "email.starters.paused.para1": {
+    "status": "mt",
+    "srcHash": "585b4083e03d"
+  },
+  "email.starters.paused.para2": {
+    "status": "mt",
+    "srcHash": "affaf81ccccb"
+  },
+  "email.starters.paused.preheader": {
+    "status": "mt",
+    "srcHash": "07f46d0ad144"
+  },
+  "email.starters.paused.subject": {
+    "status": "mt",
+    "srcHash": "485206494608"
+  },
+  "email.starters.receipt.attachment": {
+    "status": "mt",
+    "srcHash": "5ced973bef2c"
+  },
+  "email.starters.receipt.boxLabel": {
+    "status": "mt",
+    "srcHash": "8e3815253e3f"
+  },
+  "email.starters.receipt.cta": {
+    "status": "mt",
+    "srcHash": "35689ab16877"
+  },
+  "email.starters.receipt.heading": {
+    "status": "mt",
+    "srcHash": "699b6a2bf642"
+  },
+  "email.starters.receipt.name": {
+    "status": "mt",
+    "srcHash": "728e48af0680"
+  },
+  "email.starters.receipt.para1": {
+    "status": "mt",
+    "srcHash": "e3564ba9b2b3"
+  },
+  "email.starters.receipt.preheader": {
+    "status": "mt",
+    "srcHash": "699b6a2bf642"
+  },
+  "email.starters.receipt.subject": {
+    "status": "mt",
+    "srcHash": "254e19c2331b"
+  },
+  "email.starters.reengage.cta": {
+    "status": "mt",
+    "srcHash": "1d9181b4dde7"
+  },
+  "email.starters.reengage.heading": {
+    "status": "mt",
+    "srcHash": "ab91fe5d628e"
+  },
+  "email.starters.reengage.name": {
+    "status": "mt",
+    "srcHash": "32e770505e9e"
+  },
+  "email.starters.reengage.para1": {
+    "status": "mt",
+    "srcHash": "ab4fc6da2c03"
+  },
+  "email.starters.reengage.para2": {
+    "status": "mt",
+    "srcHash": "e1a47021a901"
+  },
+  "email.starters.reengage.preheader": {
+    "status": "mt",
+    "srcHash": "546a29124545"
+  },
+  "email.starters.reengage.subject": {
+    "status": "mt",
+    "srcHash": "3d6009dfc45e"
+  },
+  "email.starters.reminder.cta": {
+    "status": "mt",
+    "srcHash": "2ccc17c84e41"
+  },
+  "email.starters.reminder.heading": {
+    "status": "mt",
+    "srcHash": "b8a93623f3e4"
+  },
+  "email.starters.reminder.name": {
+    "status": "mt",
+    "srcHash": "d22180f4b41c"
+  },
+  "email.starters.reminder.para1": {
+    "status": "mt",
+    "srcHash": "d9702179b315"
+  },
+  "email.starters.reminder.para2": {
+    "status": "mt",
+    "srcHash": "6634f732262c"
+  },
+  "email.starters.reminder.preheader": {
+    "status": "mt",
+    "srcHash": "776f3721c8f1"
+  },
+  "email.starters.reminder.subject": {
+    "status": "mt",
+    "srcHash": "67c189a88fff"
+  },
+  "email.starters.shipped.cta": {
+    "status": "mt",
+    "srcHash": "0267437b7957"
+  },
+  "email.starters.shipped.heading": {
+    "status": "mt",
+    "srcHash": "505bcacb701e"
+  },
+  "email.starters.shipped.name": {
+    "status": "mt",
+    "srcHash": "977cb83eb462"
+  },
+  "email.starters.shipped.para1": {
+    "status": "mt",
+    "srcHash": "b094c9afb955"
+  },
+  "email.starters.shipped.preheader": {
+    "status": "mt",
+    "srcHash": "feae41b6211d"
+  },
+  "email.starters.shipped.subject": {
+    "status": "mt",
+    "srcHash": "afd7ad816c23"
+  },
+  "email.starters.verify.cta": {
+    "status": "mt",
+    "srcHash": "0e4f1e7ca014"
+  },
+  "email.starters.verify.heading": {
+    "status": "mt",
+    "srcHash": "10cd6cd2589e"
+  },
+  "email.starters.verify.name": {
+    "status": "mt",
+    "srcHash": "10cd6cd2589e"
+  },
+  "email.starters.verify.para1": {
+    "status": "mt",
+    "srcHash": "8b863110a2e7"
+  },
+  "email.starters.verify.preheader": {
+    "status": "mt",
+    "srcHash": "c538632e899c"
+  },
+  "email.starters.verify.subject": {
+    "status": "mt",
+    "srcHash": "724104afde45"
+  },
+  "email.starters.welcome.cta": {
+    "status": "mt",
+    "srcHash": "bb1f60338925"
+  },
+  "email.starters.welcome.heading": {
+    "status": "mt",
+    "srcHash": "7c0245b5b097"
+  },
+  "email.starters.welcome.name": {
+    "status": "mt",
+    "srcHash": "a9f9193a7387"
+  },
+  "email.starters.welcome.para1": {
+    "status": "mt",
+    "srcHash": "bf6fd7f2d226"
+  },
+  "email.starters.welcome.para2": {
+    "status": "mt",
+    "srcHash": "0024539daad0"
+  },
+  "email.starters.welcome.preheader": {
+    "status": "mt",
+    "srcHash": "8be38ad85185"
+  },
+  "email.starters.welcome.subject": {
+    "status": "mt",
+    "srcHash": "3028fd3137af"
   },
   "email.status.draft": {
     "status": "mt",
@@ -9887,6 +9563,42 @@
     "status": "mt",
     "srcHash": "d7361f353559"
   },
+  "email.untitled.campaign": {
+    "status": "mt",
+    "srcHash": "7f3340e49229"
+  },
+  "email.untitled.template": {
+    "status": "mt",
+    "srcHash": "b975aa118470"
+  },
+  "email.userInvite.action": {
+    "status": "mt",
+    "srcHash": "51d102f43e81"
+  },
+  "email.userInvite.heading": {
+    "status": "mt",
+    "srcHash": "6cbca8857c70"
+  },
+  "email.userInvite.intro": {
+    "status": "mt",
+    "srcHash": "b7cbfa7b7e50"
+  },
+  "email.userInvite.inviterFallback": {
+    "status": "mt",
+    "srcHash": "7888a32edb60"
+  },
+  "email.userInvite.name": {
+    "status": "mt",
+    "srcHash": "ea6339dfe385"
+  },
+  "email.userInvite.notice": {
+    "status": "mt",
+    "srcHash": "f1ad1da0c57e"
+  },
+  "email.userInvite.subject": {
+    "status": "mt",
+    "srcHash": "19df8742962d"
+  },
   "errors.CONFLICT": {
     "srcHash": "b28abca7131d",
     "status": "mt"
@@ -10022,6 +9734,282 @@
   "errors.VALIDATION_FAILED": {
     "srcHash": "ab5d37af65ac",
     "status": "mt"
+  },
+  "files.action.delete": {
+    "status": "mt",
+    "srcHash": "f6fdbe48dc54"
+  },
+  "files.action.deleteNamed": {
+    "status": "mt",
+    "srcHash": "1164a628413c"
+  },
+  "files.action.download": {
+    "status": "mt",
+    "srcHash": "a479c9c34e87"
+  },
+  "files.action.restore": {
+    "status": "mt",
+    "srcHash": "3cbe6d6b9a8d"
+  },
+  "files.column.actions": {
+    "status": "mt",
+    "srcHash": "c3cd636a585b"
+  },
+  "files.column.added": {
+    "status": "mt",
+    "srcHash": "b68734c25910"
+  },
+  "files.column.attachedTo": {
+    "status": "mt",
+    "srcHash": "1c76e0d9d941"
+  },
+  "files.column.destination": {
+    "status": "mt",
+    "srcHash": "d42713493ca8"
+  },
+  "files.column.name": {
+    "status": "mt",
+    "srcHash": "2c3cafa4db3f"
+  },
+  "files.column.size": {
+    "status": "mt",
+    "srcHash": "b7152342a267"
+  },
+  "files.drawer.added": {
+    "status": "mt",
+    "srcHash": "b68734c25910"
+  },
+  "files.drawer.attachedAt": {
+    "status": "mt",
+    "srcHash": "8e632ceca60f"
+  },
+  "files.drawer.attachedTo": {
+    "status": "mt",
+    "srcHash": "1c76e0d9d941"
+  },
+  "files.drawer.checksum": {
+    "status": "mt",
+    "srcHash": "d8fcd1cd0205"
+  },
+  "files.drawer.destination": {
+    "status": "mt",
+    "srcHash": "d42713493ca8"
+  },
+  "files.drawer.id": {
+    "status": "mt",
+    "srcHash": "3b43a035ae59"
+  },
+  "files.drawer.none": {
+    "status": "mt",
+    "srcHash": "6eef6648406c"
+  },
+  "files.drawer.subtitle": {
+    "status": "src",
+    "srcHash": "b8135ee74c9d"
+  },
+  "files.drawer.trashedAt": {
+    "status": "mt",
+    "srcHash": "0987ddc59868"
+  },
+  "files.drawer.uploadedBy": {
+    "status": "mt",
+    "srcHash": "4fdc58b29dd4"
+  },
+  "files.empty.body": {
+    "status": "mt",
+    "srcHash": "26e3337b9a9e"
+  },
+  "files.empty.filtered.body": {
+    "status": "mt",
+    "srcHash": "23621a3bd821"
+  },
+  "files.empty.filtered.title": {
+    "status": "mt",
+    "srcHash": "76216f7884fd"
+  },
+  "files.empty.title": {
+    "status": "mt",
+    "srcHash": "1a46941812a0"
+  },
+  "files.listFailed.title": {
+    "status": "mt",
+    "srcHash": "a50ef0542ee2"
+  },
+  "files.loadMore": {
+    "status": "mt",
+    "srcHash": "c93ee8cb7901"
+  },
+  "files.preset.all": {
+    "status": "mt",
+    "srcHash": "f7857dcc71d3"
+  },
+  "files.preset.recent": {
+    "status": "mt",
+    "srcHash": "76eec760c9b6"
+  },
+  "files.preset.trash": {
+    "status": "mt",
+    "srcHash": "e3bf62bb7f5a"
+  },
+  "files.preset.unattached": {
+    "status": "mt",
+    "srcHash": "4cb6b165c033"
+  },
+  "files.rail.byConnection": {
+    "status": "mt",
+    "srcHash": "3736a4f05a36"
+  },
+  "files.rail.byDestination": {
+    "status": "mt",
+    "srcHash": "9fb80917e1de"
+  },
+  "files.rail.byTable": {
+    "status": "mt",
+    "srcHash": "264c20915485"
+  },
+  "files.rail.label": {
+    "status": "mt",
+    "srcHash": "443f0142b817"
+  },
+  "files.row.localDestination": {
+    "status": "mt",
+    "srcHash": "860fec6bbfa7"
+  },
+  "files.row.noRecord": {
+    "status": "mt",
+    "srcHash": "29609215d6fd"
+  },
+  "files.row.unattached": {
+    "status": "mt",
+    "srcHash": "4cb6b165c033"
+  },
+  "files.search": {
+    "status": "mt",
+    "srcHash": "795ad322e080"
+  },
+  "files.subtitle": {
+    "status": "mt",
+    "srcHash": "2a89410e3513"
+  },
+  "files.title": {
+    "status": "mt",
+    "srcHash": "6ce6c512ea43"
+  },
+  "files.toast.restoreFailed": {
+    "status": "mt",
+    "srcHash": "f67fcdab8a2c"
+  },
+  "files.toast.restored": {
+    "status": "mt",
+    "srcHash": "755dcf1e29a5"
+  },
+  "files.toast.trashFailed": {
+    "status": "mt",
+    "srcHash": "220ee4a2ce90"
+  },
+  "files.toast.trashed": {
+    "status": "mt",
+    "srcHash": "824bdbbdadad"
+  },
+  "files.trash.notice.body": {
+    "status": "mt",
+    "srcHash": "aceb9ebd40af"
+  },
+  "files.trash.notice.title": {
+    "status": "mt",
+    "srcHash": "9ab95ab2c372"
+  },
+  "files.upload.browse": {
+    "status": "mt",
+    "srcHash": "13036cecee8b"
+  },
+  "files.upload.cancelOne": {
+    "status": "mt",
+    "srcHash": "1d24d79a4be8"
+  },
+  "files.upload.cancelled": {
+    "status": "mt",
+    "srcHash": "a1bf92eff40d"
+  },
+  "files.upload.complete": {
+    "status": "mt",
+    "srcHash": "966effc5bbc0"
+  },
+  "files.upload.completeBody": {
+    "status": "mt",
+    "srcHash": "6c5f902ce49f"
+  },
+  "files.upload.connection": {
+    "status": "mt",
+    "srcHash": "4bb3a1b8cd80"
+  },
+  "files.upload.done": {
+    "status": "mt",
+    "srcHash": "e9b450d14bc2"
+  },
+  "files.upload.drop": {
+    "status": "mt",
+    "srcHash": "0636917ec8ae"
+  },
+  "files.upload.failed": {
+    "status": "mt",
+    "srcHash": "09fef5d8d9a3"
+  },
+  "files.upload.open": {
+    "status": "mt",
+    "srcHash": "8bdf057f91e7"
+  },
+  "files.upload.removeOne": {
+    "status": "mt",
+    "srcHash": "df7193a589dc"
+  },
+  "files.upload.send": {
+    "status": "mt",
+    "srcHash": "75658124eebf"
+  },
+  "files.upload.sending": {
+    "status": "mt",
+    "srcHash": "de27240983ef"
+  },
+  "files.upload.subtitle": {
+    "status": "mt",
+    "srcHash": "b2963014d6f6"
+  },
+  "files.upload.title": {
+    "status": "mt",
+    "srcHash": "41aca16f905a"
+  },
+  "files.usage.count": {
+    "status": "mt",
+    "srcHash": "8a657041aa6b"
+  },
+  "files.usage.diskLabel": {
+    "status": "mt",
+    "srcHash": "1fcf7ea20c0f"
+  },
+  "files.usage.label": {
+    "status": "mt",
+    "srcHash": "87b3b6840ece"
+  },
+  "files.usage.ofDisk": {
+    "status": "mt",
+    "srcHash": "b6bb0a2086c9"
+  },
+  "files.usage.used": {
+    "status": "mt",
+    "srcHash": "6fefdc23b3db"
+  },
+  "files.view.grid": {
+    "status": "mt",
+    "srcHash": "701c483f813c"
+  },
+  "files.view.label": {
+    "status": "mt",
+    "srcHash": "968f226e8e0b"
+  },
+  "files.view.list": {
+    "status": "mt",
+    "srcHash": "a1fffaaafb7c"
   },
   "generated.app.title": {
     "status": "src",

@@ -55,29 +55,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-      # 37-T09: TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
-      # suite (apps/server/test/files-drivers.test.ts). It is the first
-      # non-database service this job runs, and it is the only place SigV4 is
-      # proved against a real S3 implementation rather than against AWS's
-      # published vectors — the vectors prove the signing math, MinIO proves
-      # interop with a target that actually verifies it.
-      #
-      # `bitnami/minio` rather than `minio/minio`: a GitHub service container
-      # cannot be given a command, and the upstream image needs `server /data`.
-      # This one starts from environment alone and creates the bucket for us.
-      minio:
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-          MINIO_DEFAULT_BUCKETS: adminium-test
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -119,8 +96,91 @@ jobs:
       - name: Check SPDX headers
         run: pnpm run check-spdx
 
-      - name: Lint, typecheck, build, test
-        run: pnpm turbo run lint typecheck build test
+      # 37-T09: TEST_S3_URL un-skips the `s3` leg of the file-driver conformance
+      # suite (apps/server/test/files-drivers.test.ts) — the only place SigV4 is
+      # proved against a real S3 implementation rather than against AWS's
+      # published vectors. The vectors prove the signing math; MinIO proves
+      # interop with a target that actually VERIFIES it. That is why the
+      # replacement below is MinIO again and not an S3 mock: a mock that accepts
+      # any signature would keep this green while proving nothing.
+      #
+      # WHY A STEP AND NOT A `services:` CONTAINER. It was one until 2026-09-09,
+      # using `bitnami/minio` for the reason the old comment gave: a service
+      # container cannot be given a command, the upstream image needs
+      # `server /data`, and Bitnami's started from environment alone and created
+      # the bucket via MINIO_DEFAULT_BUCKETS. Bitnami then emptied their free
+      # Docker Hub catalog — `bitnami/minio` now has ZERO tags and every run
+      # failed on `manifest for bitnami/minio:latest not found`, so no pin could
+      # rescue it. The surviving `bitnamilegacy/minio` is an explicitly
+      # unsupported shelf frozen at 2025-08, i.e. the same failure again later.
+      # A step has none of the service block's limits: it can pass the command,
+      # so it runs the upstream image, which is the maintained one.
+      #
+      # The readiness probe runs on the RUNNER rather than as a container
+      # `--health-cmd`: the upstream image is UBI-micro based and is not
+      # guaranteed to carry curl, and a health check that cannot execute reports
+      # unhealthy forever.
+      - name: Start MinIO (the S3 conformance target)
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:9000/minio/health/live >/dev/null 2>&1; then
+              echo "minio ready after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" -eq 40 ]; then
+              echo "::error::MinIO did not become ready; logs follow"
+              docker logs minio || true
+              exit 1
+            fi
+            sleep 2
+          done
+          # The suite reads the bucket out of TEST_S3_URL and does NOT create it
+          # (files-drivers.test.ts:118). MINIO_DEFAULT_BUCKETS did this before;
+          # the AWS CLI is preinstalled on ubuntu-latest, so nothing new is
+          # fetched to replace it.
+          AWS_ACCESS_KEY_ID=minioadmin \
+          AWS_SECRET_ACCESS_KEY=minioadmin \
+          AWS_DEFAULT_REGION=us-east-1 \
+            aws --endpoint-url http://127.0.0.1:9000 s3 mb s3://adminium-test
+
+      # Build at full concurrency, then run the SUITES with turbo bounded to two
+      # tasks at a time. The split is the fix for a flake, and the reason is
+      # measured rather than guessed.
+      #
+      # `packages/config/vitest/index.js` already caps each vitest pool at 50% of
+      # the machine — but a per-pool cap cannot see the OTHER pools. Eighteen
+      # packages have a vitest script and turbo's default concurrency is 10, so
+      # the runner ran several full pools at once, each believing it owned the
+      # CPU. Measured on an 8-core box with `turbo run test --force`: peak 28
+      # concurrent vitest processes at the default, 18 with
+      # ADMINIUM_TEST_WORKERS=1, and 10 at `--concurrency=2`.
+      #
+      # On a 4-vCPU runner that oversubscription is what reddened `verify`: the
+      # dashboard suite took 790-900 s against 59 s standalone, and two of its
+      # 1654 tests failed on `findBy*` budgets — DIFFERENT tests on each attempt,
+      # which is the signature of starvation rather than a broken assertion.
+      # `studioSettingsPage.test.tsx` needs only 200-500 ms of async budget on an
+      # idle machine against a 5,000 ms allowance, i.e. a 10x margin that CI
+      # exhausted.
+      #
+      # NOT a timeout bump: `workers()`'s own docblock records that raising the
+      # budget did not hold last time and warns that "a timeout raised to outrun
+      # the scheduler stops measuring the thing it was written to measure". This
+      # removes the contention instead.
+      #
+      # It is also FASTER, which is why 2 and not 1: bounding concurrency took
+      # the dashboard suite from 156 s to 106 s in the same measurement, because
+      # the machine stops thrashing. ADMINIUM_TEST_WORKERS=1 was the slowest of
+      # the three (269 s) — fewer workers per pool, but no cross-pool bound.
+      - name: Lint, typecheck, build
+        run: pnpm turbo run lint typecheck build
+
+      - name: Test
+        run: pnpm turbo run test --concurrency=2
         env:
           TEST_MYSQL_URL: mysql://root:root@127.0.0.1:3306
           TEST_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
