@@ -1297,6 +1297,49 @@ export const invoiceSummarySchema = z.object({
 });
 export type InvoiceSummary = z.infer<typeof invoiceSummarySchema>;
 
+// --- report documents (43-report-builder.md §3.2) -----------------------------------------
+
+/** `template` (a reusable layout) | `report` (a document built from one, or from scratch). */
+export const reportDocumentKindSchema = z.enum(['template', 'report']);
+export type ReportDocumentKind = z.infer<typeof reportDocumentKindSchema>;
+
+/**
+ * The comp's three-value vocabulary, shared by both kinds (comp `statusMeta`
+ * 563). `sent` reads *Published* on the surface; the KEY is the comp's own
+ * state key, kept the way 0027 kept its five.
+ */
+export const reportStatusSchema = z.enum(['draft', 'sent', 'live']);
+export type ReportStatus = z.infer<typeof reportStatusSchema>;
+
+/**
+ * The envelope — the OPEN record. The per-field shape is owned by
+ * `apps/server/src/report-documents/document.ts` (the email/invoice rule): a
+ * body a newer server wrote must round-trip through the repo byte-identical
+ * so an older one never rejects it.
+ */
+export const reportBodySchema = z.record(z.string(), z.unknown());
+export type ReportBodyRecord = z.infer<typeof reportBodySchema>;
+
+/**
+ * What the manager's card and row draw without decoding the body (43 D15/D16),
+ * written by the server on every save. Exactly the inputs of the comp's `cards`
+ * (584-591) and `starters` (570-576) thumbnails. Mirrors `ReportSummaryFacts`
+ * in `apps/dashboard/src/report-builder/api.ts`.
+ */
+export const reportSummarySchema = z.object({
+  reportTitle: z.string(),
+  kicker: z.string(),
+  accent: z.string(),
+  blockCount: z.number().int(),
+  /** The comp draws at most three KPI boxes (`Math.min(3, kpis.length)`, 584). */
+  kpiCount: z.number().int(),
+  /** The first bar/line block's values, at most six (584-591). */
+  series: z.array(z.number()),
+  /** The starter's icon, carried on the row so a rename never changes it (43 D14). */
+  starterIcon: z.string(),
+});
+export type ReportSummary = z.infer<typeof reportSummarySchema>;
+
 /** Event keys, same grammar as automations (`record.created`, `export.ready`, `*`). */
 export const webhookEventsSchema = z.array(z.string());
 

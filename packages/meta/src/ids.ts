@@ -71,6 +71,14 @@ export const ID_PREFIXES = {
   // other. The render register (`adminium_documents`, 34 §3.3) is a later
   // wave's table and gets its own prefix then.
   inv: 'adminium_invoice_documents',
+  // 43-report-builder.md §3.2 — the AUTHORED report source (`/report-builder`):
+  // a report template or a report, one row each. `rpt`, NOT `rep` — `rep` is
+  // `adminium_scheduled_reports`, a different feature that shares the English
+  // word (43 §0.3 traps 1 and 7). Its own space rather than riding `inv`: an
+  // invoice and a report are different documents with different editors and
+  // different envelopes, and sharing an id space would make a stray id of
+  // either look valid as the other.
+  rpt: 'adminium_report_documents',
   wh: 'adminium_webhooks',
   whd: 'adminium_webhook_deliveries',
   flag: 'adminium_feature_flags',

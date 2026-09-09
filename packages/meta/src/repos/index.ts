@@ -30,6 +30,7 @@ export * from './email-templates.js';
 export * from './email-blocks.js';
 export * from './email-runs.js';
 export * from './invoice-documents.js';
+export * from './report-documents.js';
 export * from './i18n-version.js';
 export * from './locales.js';
 export * from './translations.js';

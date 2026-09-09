@@ -755,6 +755,28 @@ export interface AdminiumInvoiceDocumentsTable {
   updatedAt: Ts;
 }
 
+/** 43-report-builder.md §3.2 — the authored report source behind `/report-builder`. */
+export interface AdminiumReportDocumentsTable {
+  id: Id;
+  /** template | report */
+  kind: string;
+  name: string;
+  /** draft | sent | live — the comp's three, shared by both kinds. */
+  status: string;
+  /** Which starter minted it; NULL for blank documents. */
+  starter: string | null;
+  /** The template a report was built from; no FK on purpose. */
+  originId: Id | null;
+  position: number;
+  /** The envelope (`ReportBody` on the server) — header plus a block ARRAY. */
+  body: JsonColumn;
+  /** `ReportSummary` — the card facts, written on every save. */
+  summary: JsonColumn;
+  createdBy: Id | null;
+  createdAt: Ts;
+  updatedAt: Ts;
+}
+
 /**
  * 23 §3.1 — runtime locale registry. SPARSE: a built-in locale has a row only
  * when an admin deviates from the compiled defaults, and on such a row only
@@ -1042,6 +1064,7 @@ export interface MetaDB {
   adminium_email_blocks: AdminiumEmailBlocksTable;
   adminium_email_runs: AdminiumEmailRunsTable;
   adminium_invoice_documents: AdminiumInvoiceDocumentsTable;
+  adminium_report_documents: AdminiumReportDocumentsTable;
   adminium_webhooks: AdminiumWebhooksTable;
   adminium_webhook_deliveries: AdminiumWebhookDeliveriesTable;
   adminium_feature_flags: AdminiumFeatureFlagsTable;
@@ -1091,6 +1114,7 @@ export const META_TABLE_NAMES = [
   'adminium_email_blocks',
   'adminium_email_runs',
   'adminium_invoice_documents',
+  'adminium_report_documents',
   'adminium_webhooks',
   'adminium_webhook_deliveries',
   'adminium_feature_flags',
