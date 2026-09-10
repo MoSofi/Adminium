@@ -60,6 +60,13 @@ import {
 import { t } from '../i18n/t.js';
 import { PageActions } from '../shell/PageActionsProvider.js';
 import { hasStudioAccess } from '../studio/StudioGuard.js';
+import {
+  DocumentsPanel,
+  MakeDocumentButton,
+  useDocumentProviders,
+  useProfilesForTable,
+} from '../documents/DocumentsPanel.js';
+import { entityKey } from '../documents/documentsApi.js';
 import { StatePage } from '../states/StatePage.js';
 import { appStreamTransport } from './lmc/stream.js';
 import {
@@ -374,6 +381,65 @@ export function PageRecordBinding({
     [adapters, invalidateList, router, listHref],
   );
 
+  /*
+   * DOCUMENTS (34 §7.8, 34-T15).
+   *
+   * Two questions, in this order, and both are queries rather than build
+   * flags: is a `document-render` provider installed at all, and does any
+   * MAPPING cover this table. The first says a document can be drawn
+   * somewhere; only the second says it can be drawn from here.
+   *
+   * The hooks run unconditionally — a conditional hook is a different
+   * component on the next render — and answer `enabled: false` until they have
+   * something to ask about.
+   */
+  const providers = useDocumentProviders();
+  const profiles = useProfilesForTable(connectionId, sourceTable ?? crud?.table ?? '');
+  const hasProvider = providers.data?.installed === true;
+
+  const documentPanels = useMemo(() => {
+    if (!hasProvider || recordId === undefined || crud === null) return [];
+    return [
+      {
+        id: 'documents',
+        title: t('ui:documents.panel.title', 'Documents'),
+        content: (
+          <DocumentsPanel
+            entityTable={sourceTable ?? crud.table}
+            /*
+             * The REGISTER's key for this row, not the row's id. The register
+             * stores `id=7`, built from the source table's whole primary key,
+             * and a panel asking for `7` matched nothing — which looked
+             * exactly like "this record has no documents". The panel's own
+             * test had the encoded form hard-coded in its fixture, so it went
+             * on passing.
+             */
+            entityId={entityKey({ id: recordId })}
+          />
+        ),
+      },
+    ];
+  }, [hasProvider, recordId, crud, sourceTable, t]);
+
+  const documentActions = useMemo(() => {
+    const usable = profiles.data ?? [];
+    if (!hasProvider || usable.length === 0 || recordId === undefined) return [];
+    return [
+      {
+        id: 'make-document',
+        label: t('ui:documents.make.label', 'Make a document'),
+        content: (
+          <MakeDocumentButton
+            profiles={usable}
+            // The record's own primary key, as the page addresses it. The
+            // server re-reads the row from this, with the caller's grants.
+            pk={{ id: recordId }}
+          />
+        ),
+      },
+    ];
+  }, [hasProvider, profiles.data, recordId, t]);
+
   if (crud === null) {
     // Bad generation output (record page without a source) — caught by the
     // PageRenderer error boundary and rendered as the page error card.
@@ -437,6 +503,14 @@ export function PageRecordBinding({
         // that asymmetry is the whole point of the sidecar mode.
         canAttach={canAttach}
         {...(attachmentsConfig?.maxBytes === undefined ? {} : { maxFileBytes: attachmentsConfig.maxBytes })}
+        /*
+         * Documents (34 §7.8). Both the panel and the Make button are ABSENT
+         * until a `document-render` provider is installed AND a mapping covers
+         * this table — an affordance that cannot do anything is worse than no
+         * affordance, because it invites a click and then explains itself.
+         */
+        {...(documentPanels.length === 0 ? {} : { panels: documentPanels })}
+        {...(documentActions.length === 0 ? {} : { actions: documentActions })}
         onEvent={adapters.onEvent}
         onDeleted={handleDeleted}
         onMissing={() => setMissing(true)}
