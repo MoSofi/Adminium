@@ -39,6 +39,8 @@ import {
   registerEmailSendHandler,
   type EmailSendHandlerDeps,
 } from './email-send.js';
+import type { RenderDeps } from '../documents/render.js';
+import { DOCUMENT_RENDER_KIND, registerDocumentRenderHandler } from './document-render.js';
 import { EXPORT_RUN_KIND, registerExportRunHandler } from './export-run.js';
 import { FILES_MIGRATE_KIND, registerFilesMigrateHandler } from './files-migrate.js';
 import { IMPORT_RUN_KIND, registerImportRunHandler } from './import-run.js';
@@ -94,6 +96,14 @@ export interface JobsAndRealtimeOptions {
    * registry already carries them). `manager`/`storage` are the same
    * instances the exports/imports routes receive in compose.
    */
+  /**
+   * Wire the `document.render` runner (34 §7.3). Present ⇒ the queued render
+   * path exists: `POST /documents/render`, a public request-shaped intent,
+   * and a retry of either. The TRIGGERED path does not come through here — a
+   * profile's trigger is an automation, and the render is a step inside that
+   * rule's own run (D55).
+   */
+  documents?: RenderDeps | undefined;
   dataIo?:
     | {
         manager: ConnectionManager;
@@ -181,6 +191,9 @@ export async function registerJobsAndRealtime(
       ...(opts.email.createTransport === undefined ? {} : { createTransport: opts.email.createTransport }),
       ...(opts.email.storage === undefined ? {} : { storage: opts.email.storage }),
     });
+  }
+  if (opts.documents !== undefined && !registry.has(DOCUMENT_RENDER_KIND)) {
+    registerDocumentRenderHandler(registry, opts.documents);
   }
   if (opts.dataIo !== undefined) {
     const { manager, storage } = opts.dataIo;

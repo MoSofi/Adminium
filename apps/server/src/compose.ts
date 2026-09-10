@@ -34,6 +34,8 @@ import { resolve } from 'node:path';
 import { llmKeyCryptoFromSecret, type AllowedVocabularies } from '@adminium/llm';
 import { isAddOnManifest, validateManifest } from '@adminium/manifest';
 import {
+  documentProfilesRepo,
+  addOnSettingsRepo,
   auditRepo,
   automationRunsRepo,
   DAY_MS,
@@ -65,7 +67,14 @@ import { configureEmailRuntime } from './email/send.js';
 import { createCatalogClient } from './add-ons/catalog.js';
 import { addOnCredentialCryptoFromSecret } from './add-ons/credential-crypto.js';
 import { addOnHttpClientFor } from './add-ons/egress.js';
-import { buildAddOnRuntime, importServerHalf } from './add-ons/runtime.js';
+import {
+  buildAddOnRuntime,
+  importServerHalf,
+  type AddOnRuntimeState,
+} from './add-ons/runtime.js';
+import { createDocumentPipeline } from './documents/compose.js';
+import { syncTriggersForAddOn } from './documents/trigger-sync.js';
+import { documentRoutes } from './routes/documents/index.js';
 import { createAddOnStore, seedBundledPackages } from './add-ons/store.js';
 import { createColumnBlockReader } from './files/column-blocks.js';
 import { createDestinationResolver } from './files/destinations.js';
@@ -538,8 +547,50 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       app.log.warn({ err }, 'add-on store could not be prepared');
     });
 
+  /*
+   * THE LIVE ADD-ON RUNTIME, HELD.
+   *
+   * `runtime.ts` has always claimed a rebuild on install; the build below was
+   * the only one, and its result was not kept anywhere — so nothing could read
+   * it and 34 §7.10's "rebuild whole after each of the three routes" had
+   * nowhere to put the new state. This holder is that place. It starts null,
+   * which is correct rather than a gap: the build is fire-and-forget at boot,
+   * and a render that arrives before it finishes gets `provider-missing` — a
+   * SKIP with a reason, not a failure.
+   */
+  let addOnRuntime: AddOnRuntimeState | null = null;
+
+  /**
+   * Rebuild the add-on runtime WHOLE (34 §7.10, 34-T13).
+   *
+   * Called at boot and again after every install, upgrade, enable/disable and
+   * uninstall. Whole and never patched: a partially-updated provider map is
+   * worse than a stale one, because a stale one is at least consistent with
+   * itself. The declaration is here, above every caller, because the boot path
+   * and the routes must run the SAME function — two rebuild implementations
+   * would be two chances to forget a step.
+   */
+  let rebuildAddOnRuntime: () => Promise<void> = () => Promise.resolve();
+
+  /*
+   * The document pipeline (34 §7.3). Assembled ONCE and handed to both entry
+   * points — the queued job below and the automation step further down — so
+   * "the same profile produces the same document however it was asked for" is
+   * one object rather than two that agree today.
+   */
+  const documents = createDocumentPipeline({
+    meta,
+    manager,
+    storage,
+    runtime: () => addOnRuntime,
+    // Step 8's delivery reports here. The outcome is on the register row
+    // either way — this is for whoever is watching the queue.
+    logger: app.log,
+  });
+
   const jobs = await registerJobsAndRealtime(app, {
     meta,
+    documents,
     resolveUser: (req) => req.user ?? null,
     // Registers the export-run / import-run / report-run handlers on the shared
     // registry — the same instances the exports/imports routes receive below.
@@ -592,6 +643,10 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     app,
     secret: env.ADMINIUM_SECRET,
     storage,
+    // The `document.render` step's way to the pipeline (D55). Without it a
+    // rule with that step refuses with a sentence rather than throwing from
+    // inside the renderer.
+    documents,
     hub: jobs.hub,
     enqueue: (input: EnqueueJobInput) => jobs.enqueue(input),
   });
@@ -883,6 +938,24 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
           pageAttachments: (input) => columnBlocks.attachmentsFor(input.connectionId, input.table),
         }),
       );
+      /*
+       * Documents (34 §7.5) — the register, its bytes and the mappings.
+       *
+       * Registered UNCONDITIONALLY, like the add-on routes above and for the
+       * same reason: `GET /documents/providers` is what the record page asks
+       * to decide whether to draw a Documents panel at all, and a
+       * conditionally-registered route would 404 there instead of answering
+       * `{installed: false}` — a 404 being indistinguishable from "this build
+       * is too old".
+       */
+      await api.register(
+        documentRoutes({
+          meta,
+          storage,
+          runtime: () => addOnRuntime,
+          enqueue: (input) => jobs.enqueue(input as never),
+        }),
+      );
       // Storage destinations (37 §3.2). Its own grant, `storage.manage`, and
       // the resolver instance the store itself uses — so a credential edit
       // invalidates the driver the next upload gets.
@@ -925,6 +998,25 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
         addOnRoutes({
           meta,
           store: addOnStore,
+          // 34 §7.10. Without this a provider installed at 10am is unreachable
+          // until the process restarts, and 26 D6's round trip cannot pass.
+          rebuildRuntime: () => rebuildAddOnRuntime(),
+          /*
+           * Uninstall's 34 half, run BEFORE the manifest row goes: disable the
+           * add-on's document mappings so no write can enqueue a render for a
+           * provider that is already gone, and drop its own settings — which
+           * is the one place "uninstall keeps data" bends, because an add-on's
+           * configuration is part of the add-on, not the customer's data.
+           */
+          onAddOnRemoved: async (key) => {
+            await documentProfilesRepo(meta).setEnabledForAddOn(key, false);
+            // …and through to the RULES those mappings own (D55). Disabling
+            // the mapping alone would leave a rule that still fires on every
+            // write and skips every time — a run row per write, in Workflow
+            // Logs, for an add-on that is gone.
+            await syncTriggersForAddOn(meta, key, false);
+            await addOnSettingsRepo(meta).clear(key);
+          },
           credentialCrypto: addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET),
           // Where an add-on's tables are planned against and created (26-T02).
           schemaTarget: createAddOnSchemaTarget({
@@ -982,7 +1074,17 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
   if (publicBlocked === null) {
     await app.register(
       async (api) => {
-        await api.register(publicRoutes({ env, meta, manager, isEnabled: publicGate.isEnabled }));
+        await api.register(publicRoutes({
+        env,
+        meta,
+        manager,
+        isEnabled: publicGate.isEnabled,
+        // 34 §7.6's door. The SAME pipeline the queued job and the automation
+        // step use, so "one profile draws one document however it was asked
+        // for" survives a third entry point.
+        documents,
+        storage,
+      }));
       },
       { prefix: API_PREFIX },
     );
@@ -1031,10 +1133,23 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
    * here would take an entire instance down for one broken third-party module,
    * which is the opposite of the trade this design is making.
    */
-  void (async () => {
+  /*
+   * ONE function, called at boot AND from the add-on routes (34 §7.10,
+   * 34-T13). It was an IIFE that ran once; making it a named function is what
+   * lets install, upgrade, enable/disable and uninstall rebuild without a
+   * restart — the behaviour `runtime.ts` has claimed since wave 26 and that
+   * 26 D6's round trip has been unable to demonstrate.
+   */
+  rebuildAddOnRuntime = async () => {
     const repo = manifestsRepo(meta, addOnCredentialCryptoFromSecret(env.ADMINIUM_SECRET));
     const installedAddOns = await repo.list('add-on');
-    if (installedAddOns.length === 0) return;
+    if (installedAddOns.length === 0) {
+      // An empty runtime is a REBUILD RESULT, not an absence: uninstalling the
+      // last add-on must clear the provider map, and leaving the old state
+      // here would keep a removed provider reachable.
+      addOnRuntime = null;
+      return;
+    }
 
     const parsed = installedAddOns.flatMap((entry) => {
       const result = validateManifest(entry.document);
@@ -1050,6 +1165,8 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
       installed: parsed.map((p) => ({ manifest: p.manifest, version: p.row.version })),
       log: (message, data) => app.log.warn(data, message),
     });
+    // Published where the document pipeline and `GET /documents/kinds` read it.
+    addOnRuntime = runtime;
     for (const problem of runtime.problems) {
       app.log.error({ key: problem.addOnKey, reason: problem.reason }, problem.message);
     }
@@ -1093,7 +1210,15 @@ export async function composeServer(opts: ComposeServerOptions): Promise<Compose
     if (registered.registered.length > 0) {
       app.log.info({ kinds: registered.registered }, 'registered add-on event handlers');
     }
-  })().catch((err: unknown) => {
+  };
+
+  /*
+   * Best-effort and AFTER everything else is composed: an add-on whose bundle
+   * is corrupt must cost its own integration and nothing more. A boot that
+   * died here would take an entire instance down for one broken third-party
+   * module, which is the opposite of the trade this design is making.
+   */
+  void rebuildAddOnRuntime().catch((err: unknown) => {
     app.log.error({ err }, 'the add-on runtime could not be built');
   });
 
