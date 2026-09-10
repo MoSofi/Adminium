@@ -41,6 +41,13 @@ const check = process.argv.includes('--check');
  */
 const DESCRIPTIONS = {
   about: 'Build version, edition, and the update check',
+  documents:
+    'Documents drawn from your own records — the register of what was issued, the bytes ' +
+    'behind each one, and the mappings that say which columns make which document. A ' +
+    'document keeps a frozen copy of what it was drawn from, so editing or deleting the ' +
+    'source row never changes an invoice somebody already has. Reading one needs read ' +
+    'access to every table its mapping uses; a caller without all of them is told the ' +
+    'document exists and not what is in it.',
   'add-ons':
     'Installed add-ons — list what a host should mount, preview what installing would do, ' +
     'install from a verified package, enable or disable per host, and uninstall',

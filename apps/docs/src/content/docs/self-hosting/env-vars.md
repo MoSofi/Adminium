@@ -18,7 +18,7 @@ half-configured and fail later.
 | `HOST` | No | `0.0.0.0` | Bind address. `127.0.0.1` to bind loopback only. |
 | `ADMINIUM_META_URL` | No | *(embedded SQLite)* | Meta-store DSN: `postgres://`, `mysql://`, or `sqlite:<path>`. |
 | `ADMINIUM_SOURCE_URL` | No | *(unset)* | Your own database — connected, introspected, and generated on the first boot. See below. |
-| `ADMINIUM_DATA_DIR` | No | `./data` | Writable directory for files, exports, backups, add-on packages, and the embedded meta store. |
+| `ADMINIUM_DATA_DIR` | No | `./data`, or `~/.adminium` | Writable directory for files, exports, backups, add-on packages, and the embedded meta store. Docker and the desktop app set it for you. A CLI run that does not: `./data` when the working directory is a project (it holds a `package.json`, a `.git`, a `Dockerfile`, a `go.mod`…) or already holds an Adminium instance, and `~/.adminium` otherwise — so `npx @adminiumjs/adminium` from a home directory leaves nothing behind in it. |
 | `ADMINIUM_STORAGE_URL` | No | *(this server's disk)* | Where uploaded and generated files live. Seeded once, on a boot with no storage destination configured. See below. |
 | `AWS_ENDPOINT_URL_S3` | No | *(unset)* | S3-compatible endpoint. Read **only** by the first-boot storage seed, and only when `ADMINIUM_STORAGE_URL` is unset. See below. |
 | `AWS_REGION` | No | `auto` | Region for the AWS storage variables. |

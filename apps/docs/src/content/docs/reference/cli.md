@@ -36,7 +36,7 @@ the Studio creates; an introspection from the CLI is the same snapshot.
 |---|---|
 | `ADMINIUM_SECRET` | **Required.** Derives the key encrypting stored DSNs and API keys. |
 | `ADMINIUM_META_URL` | Meta store DSN (`postgres://`, `mysql://`, `sqlite:<path>`) |
-| `ADMINIUM_DATA_DIR` | Writable data directory (default `./data`) |
+| `ADMINIUM_DATA_DIR` | Writable data directory (default `./data` inside a project, else `~/.adminium`) |
 | `PORT`, `HOST` | Listen address (default `4600`, `0.0.0.0`) |
 
 **Flags override the environment.** Full list:
@@ -93,7 +93,7 @@ meta store under the data directory and says so.
 | `-p`, `--port <n>` | `PORT` or 4600 | Port to listen on |
 | `--host <addr>` | `HOST` or 0.0.0.0 | Address to bind |
 | `--meta-url <dsn>` | `ADMINIUM_META_URL`, else embedded SQLite | Meta store DSN |
-| `--data-dir <path>` | `ADMINIUM_DATA_DIR` or `./data` | Data directory |
+| `--data-dir <path>` | `ADMINIUM_DATA_DIR`, else `./data` inside a project or `~/.adminium` | Data directory |
 | `--log-level <level>` | `ADMINIUM_LOG_LEVEL` or `info` | `fatal`\|`error`\|`warn`\|`info`\|`debug`\|`trace` |
 | `--static-root <path>` | `ADMINIUM_STATIC_ROOT`, else the bundled build | Serve the dashboard build from this directory |
 | `--skip-migrate` | off | Do not apply pending meta migrations on boot |

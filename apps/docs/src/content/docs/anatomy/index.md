@@ -95,7 +95,9 @@ secret error is the first thing you see.
 
 `envSchema` declares sixteen variables in total. `ADMINIUM_SECRET` is the only
 required one; `PORT` defaults to `4600`, `HOST` to `0.0.0.0`, and
-`ADMINIUM_DATA_DIR` to the relative `./data`. See
+`ADMINIUM_DATA_DIR` to the relative `./data` — except on a CLI run outside a
+project, where it becomes `~/.adminium` so an instance started from a home
+directory can be found again from anywhere. See
 [Environment variables](/self-hosting/env-vars/).
 
 ## 2. The first run
@@ -133,7 +135,7 @@ insert on a duplicate-key violation and rolls back entirely.
 
 ### What lands on disk
 
-Everything goes under `ADMINIUM_DATA_DIR` (default `./data`):
+Everything goes under `ADMINIUM_DATA_DIR` (`./data` beside a project, `~/.adminium` otherwise):
 
 - `data/meta.db` — an embedded SQLite meta store, if you configured nothing
   else. This prints a warning on every boot: *"Using embedded SQLite meta store

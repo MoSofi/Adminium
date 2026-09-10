@@ -135,7 +135,7 @@ wizard. Every environment variable:
 | What | Where | Override |
 |---|---|---|
 | Adminium's own tables | The meta store | `ADMINIUM_META_URL`, or `--meta-url` |
-| Files, exports, the embedded SQLite meta store | `./data` | `ADMINIUM_DATA_DIR`, or `--data-dir` |
+| Files, exports, the embedded SQLite meta store | `./data` inside a project, else `~/.adminium` | `ADMINIUM_DATA_DIR`, or `--data-dir` |
 | The encrypted meta DSN, when you ask the wizard to remember it | `<data-dir>/adminium.json` | — |
 
 The meta DSN cannot live inside the meta store it points at, so when the wizard

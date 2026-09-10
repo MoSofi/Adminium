@@ -120,6 +120,30 @@ store.
 With Docker Compose, `--profile with-meta` gives you one:
 [Docker Compose](/self-hosting/docker-compose/).
 
+## Pooled endpoints
+
+Managed Postgres shows you a **pooled** connection string first — Neon's
+`-pooler` host, Supabase's port `6543`, Fly's pgbouncer. For the meta store that
+is fine. Adminium takes its migration lock with `pg_try_advisory_xact_lock`
+inside one explicit transaction, and a transaction-mode pooler keeps a
+transaction on one backend from `BEGIN` to `COMMIT`, so the lock and the
+migration pass it guards stay together. Two replicas booting into the same
+pending migrations still serialize.
+
+This is a real constraint and not a theoretical one: a *session*-scoped lock
+behind the same pooler is held by whichever backend served the `select`, while
+the migrations run on whichever backend serves them next — so both replicas
+would be told they hold the lock, and both would migrate.
+
+**MySQL is different, and the difference is not fixable.** `GET_LOCK` is
+session-scoped, MySQL has no transaction-scoped equivalent, and it has no
+transactional DDL to hang one on — which is the reason the lock exists at all
+there. A transaction-pooling proxy in front of a MySQL meta store cannot
+serialize migrations. Point `ADMINIUM_META_URL` at the direct endpoint.
+
+One thing to size either way: each Adminium process opens up to 10 meta-store
+connections, so a fleet of *n* processes wants headroom for 10*n*.
+
 ## Two things people conflate
 
 **"But my source database *is* SQLite."** Then you have two SQLite files with two
