@@ -34,6 +34,20 @@ describe('toAdapterError — pooled (PgBouncer) endpoints', () => {
     expect(mapped.hint).toMatch(/unpooled|direct/i);
   });
 
+  it('leads with the DSN, because index.ts has already retried by the time this fires', () => {
+    // `#query()` downgrades to a `SET LOCAL` prelude on the FIRST refusal, so a
+    // pooled string works and this hint is unreachable on that path. Arriving
+    // here means the refusal survived a pool that no longer sends `options` —
+    // i.e. the DSN carries its own. Copy that just says "use the direct
+    // endpoint" sends the user to rewrite a host that was never the problem.
+    const mapped = toAdapterError(pgError('08P01', NEON_POOLER_MESSAGE), 'postgres query failed');
+
+    expect(mapped.hint).toContain('options=');
+    expect(mapped.hint).toMatch(/already retried/i);
+    // …and the direct endpoint survives as the fallback, not the headline.
+    expect(mapped.hint?.indexOf('options=')).toBeLessThan(mapped.hint?.indexOf('-pooler') ?? -1);
+  });
+
   it('matches the bare pgbouncer wording too (no "in options" clause)', () => {
     const mapped = toAdapterError(
       pgError('08P01', 'unsupported startup parameter: statement_timeout'),

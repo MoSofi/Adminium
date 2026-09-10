@@ -36,15 +36,24 @@ const HINTS: Partial<Record<AdapterErrorCode, string>> = {
 };
 
 /**
- * Transaction-pooling PgBouncer endpoints reject the session settings we send
- * in the startup packet (index.ts `connect()`), so *every* query fails with
- * 08P01 while the DSN itself looks perfectly valid. Generic UNSUPPORTED copy
- * would send the user hunting through their credentials, so this one carries
- * its own remediation — including the host rewrite for the two providers that
- * show the pooled string by default.
+ * A pooled endpoint refusing the startup packet a SECOND time.
+ *
+ * Reaching this hint used to be the ordinary case, and the copy said what it
+ * said then: switch to the direct endpoint. It no longer is. `index.ts`
+ * `#query()` handles the first refusal itself — it drops the startup `options`,
+ * rebuilds the pool, and re-sends the same statement with a `SET LOCAL` prelude
+ * — so a pooled connection string simply works and this hint is never built.
+ *
+ * The only way to arrive here is a refusal AFTER that downgrade, and the
+ * downgraded pool no longer sends `options` of its own. Something else does:
+ * almost always an `options=` parameter in the user's own DSN. So that is the
+ * remediation this leads with; the direct endpoint is the fallback, not the fix.
+ *
+ * Both provider host rewrites stay, because they still resolve it and the two
+ * providers are the ones handing out pooled strings by default.
  */
 const POOLED_ENDPOINT_HINT =
-  'this looks like a transaction-pooling (PgBouncer) endpoint, which rejects the session settings Adminium applies at connect — use the direct/unpooled connection string instead: on Neon drop `-pooler` from the host (`ep-x-123456-pooler.us-east-1.aws.neon.tech` → `ep-x-123456.us-east-1.aws.neon.tech`), on Supabase use the direct host on port 5432 rather than the transaction pooler on port 6543';
+  'Adminium already retried this without the session settings it sends at connect, and the endpoint refused the startup packet again — so the parameters are coming from the connection string itself: remove any `options=` from the DSN. Failing that, use the direct/unpooled endpoint rather than the transaction pooler — on Neon drop `-pooler` from the host (`ep-x-123456-pooler.us-east-1.aws.neon.tech` → `ep-x-123456.us-east-1.aws.neon.tech`), on Supabase use the direct host on port 5432 rather than the transaction pooler on port 6543';
 
 function isPooledStartupRejection(code: string, message: string): boolean {
   return code === '08P01' && /unsupported startup parameter/i.test(message);
