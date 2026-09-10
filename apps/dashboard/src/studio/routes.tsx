@@ -53,6 +53,11 @@ const ConnectWizardLazy = lazy(async () => {
   return { default: mod.ConnectWizard };
 });
 
+const DocumentProfilesPageLazy = lazy(async () => {
+  const mod = await import('./documents/DocumentProfilesPage.js');
+  return { default: mod.DocumentProfilesPage };
+});
+
 const ConnectionsHubLazy = lazy(async () => {
   const mod = await import('./hub/ConnectionsHub.js');
   return { default: mod.ConnectionsHub };
@@ -288,6 +293,16 @@ function AddOnsRouteComponent() {
   );
 }
 
+function DocumentsRouteComponent() {
+  return (
+    <StudioGuard>
+      <StudioBody>
+        <DocumentProfilesPageLazy />
+      </StudioBody>
+    </StudioGuard>
+  );
+}
+
 function PublicApiRouteComponent() {
   return (
     <StudioGuard>
@@ -384,6 +399,17 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     );
   }
 
+  /*
+   * `/studio/documents` (34 §3.7, 34-T14) — document MAPPINGS, not authoring.
+   * Lazy like every Studio surface: an admin-only screen a handful of people
+   * open occasionally has no business in everybody's entry chunk.
+   */
+  const documentsRoute = createRoute({
+    getParentRoute: () => parent,
+    path: '/studio/documents',
+    component: DocumentsRouteComponent,
+  });
+
   const settingsRoute = createRoute({
     getParentRoute: () => parent,
     path: '/studio/settings',
@@ -460,6 +486,7 @@ export function studioRoutes(parent: AnyRoute): AnyRoute[] {
     pagesRoute,
     newPageRoute,
     editPageRoute,
+    documentsRoute,
     settingsRoute,
     aiSettingsRoute,
     publicApiRoute,
